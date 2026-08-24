@@ -14,8 +14,8 @@ The machine-readable sanitized timeline is [evidence/three-body-timeline.json](e
 
 | Scenario | Claim | Evidence | Current status | Accepted difference / remaining route |
 |---|---|---|---|---|
-| 1 | Fresh canonical conversation and relaunch continuity | Identity/persistence/session suites; DS implementation report | automated_only | Requires final live follow-up in the alternating timeline. |
-| 2 | Selected Mirror conversation enters real Pi context only after hydration | US-5 accepted generation plus hydrated JSONL checkpoint | rerun_required | Ask a Nautilus follow-up that depends on the reconciled `amber compass` fact. |
+| 1 | Fresh canonical conversation and relaunch continuity | Identity/persistence/session suites plus generation-1 post-relaunch correlated follow-up | rerun_passed | Exact mapped branch continued after relaunch without prompt replay. |
+| 2 | Selected Mirror conversation enters real Pi context only after hydration | US-5 accepted generation plus generation-1 follow-up using the reconciled `amber compass` fact | rerun_passed | Navigator confirmed the answer recovered the reconciled object/color from Pi context. |
 | 3 | Restart creates a generation boundary and rejects active-run restart | `journeyConversation`, persistence and Rust archive tests | automated_only | Aggregate Navigator review may accept deterministic evidence unless contradiction appears. |
 | 4 | Journey and identity load before generation | Mirror-mediated invocation contract and structured runtime projection | rerun_required | Inspect one bounded same-Journey terminal/Nautilus pair and pre-generation operation evidence. |
 | 5 | Ego/persona routing parity | Mirror-owned routing and signature projection tests | rerun_required | One routed and one ego-only paired case remain. |
@@ -57,6 +57,10 @@ Python Mirror inspector: 4 tests passed
 - `in_sync` means causally proven semantic parity, not byte-identical files.
 - Private reasoning, tools, operational records and arbitrary metadata are never chat parity material.
 
+## Defect Found During Review
+
+A focus observation already in flight when a Nautilus run began could settle against the pre-run checkpoint and make the later fully committed turn inherit a false `pi_ancestry_mismatch`. Observation results now re-check live run/stream state immediately before projection. The controlled state was repaired only after native Harness/Pi/Mirror commit ids and final checkpoints proved the turn complete.
+
 ## Next Validation Action
 
-From `viagem-do-lipe` generation `1`, send one explicit Nautilus follow-up that requires the reconciled Mirror-only `amber compass` fact. Then inspect native three-body commit evidence before continuing the terminal and Mirror legs.
+Continue the exact generation-1 Pi session from terminal with one bounded marker turn, then reactivate Nautilus and verify one-time projection.

@@ -102,6 +102,7 @@ describe("external Pi projection", () => {
     expect(appSource).toContain("const onFocus = () => scheduleExternalPiRefresh()");
     expect(appSource).toContain("if (conversationLoaded) scheduleExternalPiRefresh(0)");
     expect(appSource).toContain("void refreshExternalConversationActivity()");
+    expect(appSource).toContain('if (currentRuntime.isStreaming || currentRuntime.agentRunStatus === "running") return');
     expect(tauriSource).toContain("async fn inspect_external_pi_activity");
     expect(tauriSource).toContain("tauri::async_runtime::spawn_blocking");
   });

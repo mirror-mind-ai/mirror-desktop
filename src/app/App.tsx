@@ -349,6 +349,8 @@ export function App({ model }: AppProps) {
       );
       if (!inspection) return;
       externalPiFingerprintRef.current.set(authorityKey, inspection.fingerprint);
+      const currentRuntime = externalPiRuntimeRef.current;
+      if (currentRuntime.isStreaming || currentRuntime.agentRunStatus === "running") return;
       if (inspection.status === "unchanged" || inspection.status === "waiting") {
         setExternalPiConflict(undefined);
       }
@@ -418,6 +420,8 @@ export function App({ model }: AppProps) {
     try {
       const inspection = await inspectMirrorConversationActivity(current);
       if (!inspection) return;
+      const currentRuntime = externalPiRuntimeRef.current;
+      if (currentRuntime.isStreaming || currentRuntime.agentRunStatus === "running") return;
       const latest = conversationRef.current;
       if (
         latest.journeyId !== current.journeyId
