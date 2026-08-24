@@ -2,7 +2,7 @@
 
 # CV-002.DS-004.US-5 — Reconcile Mirror-Only Updates into Pi
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Planning
 **Type:** User Story
 
 ---
@@ -15,7 +15,7 @@ so that I can explicitly reconcile trustworthy conversation turns without silent
 
 ## Outcome
 
-Nautilus automatically detects that the mapped Mirror conversation advanced, shows a bounded inert preview and classifies the difference. Applying it is explicit and produces a supported Pi branch/hydration transition with a new persisted generation and checkpoint.
+Nautilus automatically detects that the mapped Mirror conversation advanced, shows a bounded inert preview and classifies the difference. Applying an eligible update is explicit and creates a supported Pi hydration branch with a new persisted generation and checkpoints. Unsupported or independently advanced histories remain blocked without changing the visible conversation or Pi.
 
 ## Acceptance Behavior
 
@@ -27,31 +27,47 @@ Then it reports pending Mirror-only updates without modifying Pi context.
 ```
 
 ```text
-Given I review and approve an eligible Mirror-only update
+Given I review and approve an eligible complete Mirror-only turn
 When Nautilus reconciles it
-Then a supported Pi session branch or hydration is created atomically
+Then a supported Pi hydration branch is created atomically
 And the new live identity records its Mirror source, Pi generation and checkpoints
 And later prompts use the reconciled Pi context without replaying that history in every prompt.
 ```
 
+```text
+Given Mirror records are partial, truncated, consolidated, causally ambiguous or conflict with independent Pi advancement
+When Nautilus classifies the difference
+Then no apply action is offered
+And the previous Harness projection, Pi branch and live identity remain unchanged.
+```
+
 ## Scope
 
-- Automatic local detection of mapped Mirror-conversation advancement.
-- Inert sanitized preview and source/provenance disclosure.
-- Eligibility classification for ordered user/assistant text.
-- Duplicate and conflict detection against the Pi checkpoint.
-- Explicit initialize, fast-forward or branch action as supported by evidence.
-- Atomic archive/new-generation behavior with rollback on failure.
-- Clear handling for consolidated, truncated or otherwise non-round-trippable Mirror records.
+- Background detection on startup, focus/visibility recovery and Journey activation.
+- Exact mapped Mirror conversation and native cursor/count validation.
+- Inert bounded preview with source/provenance disclosure.
+- Eligibility classification for complete ordered user/assistant text turns.
+- Duplicate, independent advancement and conflict detection against proven checkpoints.
+- Explicit supported branch/hydration action; no silent Pi mutation.
+- Atomic old-branch preservation, new-generation activation and persisted conversation update with rollback.
+- Idempotent checkpoints so the same Mirror update cannot be applied twice.
 
 ## Out Of Scope
 
 - Silent continuous Mirror-to-Pi synchronization.
-- Automatic model invocation after detecting an update.
-- Converting memories, summaries, activities or tool records into user/assistant turns.
-- Claiming byte-identical parity where Mirror intentionally stores consolidated or truncated text.
-- Resolving semantic conflicts by LLM judgment.
+- Automatic model invocation after detecting or applying an update.
+- LLM-based semantic merge or text-equality identity claims.
+- Converting memories, summaries, activities, tools or arbitrary Mirror roles into chat turns.
+- Aggregate three-body parity review (`US-6`).
+- Concurrent Journey process ownership (`DS-009`).
 
 ## Validation
 
-Exercise eligible fast-forward, required branch, duplicate, truncated/consolidated record, conflict, cancellation and backend failure. Confirm detection is automatic, application is explicit, Pi remains unchanged before approval and the previous identity survives failed reconciliation.
+Exercise unchanged, eligible, incomplete, duplicate, truncated/consolidated, independent-Pi, cursor conflict, atomic success, rollback and relaunch/idempotency routes. E2E is required for one explicit successful hydration branch and proof that Pi remains unchanged before approval.
+
+---
+
+## Artifacts
+
+- [Plan](plan.md)
+- [Test Guide](test-guide.md)
