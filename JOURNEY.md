@@ -12,7 +12,7 @@ Concluir a extensão de `CV-002.DS-004 — Conversation and Mirror Context Parit
 
 ## Near slice
 
-Executar `CV-002.DS-004.US-5 — Reconcile Mirror-Only Updates into Pi`: detectar automaticamente avanços exclusivos da conversa Mirror mapeada, apresentar uma prévia inerte e permitir apenas reconciliação explícita e segura em uma nova geração Pi. Em seguida, concluir `US-6 — Three-Body Conversation Parity Review` para a validação agregada.
+Executar `CV-002.DS-004.US-6 — Three-Body Conversation Parity Review`: validar uma linha causal única entre Harness, Pi e Mirror usando os caminhos já provados de commit Nautilus, continuação Pi externa e reconciliação Mirror explícita; classificar qualquer diferença restante e fechar a validação agregada de DS-004.
 
 ## Later
 
