@@ -1,0 +1,130 @@
+# Nautilus Harness App Architecture
+
+**Status:** proposed
+**Roadmap source:** DS-003.TS-1
+
+## Architecture decision
+
+The first Nautilus Harness app should be built as a Tauri 2 desktop app with a Vite, React and TypeScript frontend.
+
+The architecture should keep the native shell thin and place Nautilus domain logic in TypeScript.
+
+## Initial stack
+
+- Tauri 2 for desktop shell and cross-platform packaging path.
+- Vite for frontend development and build.
+- React for the GUI.
+- TypeScript for application, domain, view model and validation code.
+- Zod for protocol fixture validation.
+- Vitest for unit tests.
+
+## Platform target
+
+The app must be shaped for desktop compatibility with:
+
+- Linux;
+- macOS;
+- Windows.
+
+The first implementation story should validate development startup on the current machine and preserve the cross-platform structure. Full installer validation can wait for a packaging story.
+
+## Proposed directory shape
+
+```text
+harness/
+  package.json
+  index.html
+  vite.config.ts
+  tsconfig.json
+  src/
+    app/
+      App.tsx
+      main.tsx
+    domain/
+      nautilusIdentity.ts
+      nautilusMission.ts
+    protocol/
+      schema.ts
+      loadFixture.ts
+    fixtures/
+      nautilus.mission.yaml
+    styles/
+      app.css
+    tests/
+      protocol.test.ts
+  src-tauri/
+    Cargo.toml
+    tauri.conf.json
+    src/
+      main.rs
+```
+
+This shape is a starting point, not a permanent architecture.
+
+## TypeScript protocol migration
+
+The Python protocol validator created in DS-001 and DS-002 should become a characterization reference. The TypeScript implementation should provide equivalent validation for:
+
+- Nautilus identity fields;
+- Mission id;
+- Mission title;
+- Mission purpose;
+- Mission status as `formulated`.
+
+Zod should define the schema and return typed data for the UI.
+
+## App state boundary
+
+The first app should support only:
+
+- loading a local or bundled fixture;
+- validating the fixture;
+- deriving a view model;
+- rendering identity, Mission and validation state;
+- displaying validation errors.
+
+It should not persist operational Nautilus state yet.
+
+## Tauri boundary
+
+Rust should remain shell infrastructure. The first implementation should avoid moving Nautilus domain concepts into Rust.
+
+Allowed Rust responsibilities:
+
+- app bootstrap;
+- basic Tauri configuration;
+- later filesystem command bridge if needed.
+
+Not allowed in the first implementation:
+
+- Nautilus ontology;
+- protocol validation;
+- Mission semantics;
+- business rules.
+
+## Initial screens
+
+The first app can be one window with one main screen containing:
+
+- app title and Nautilus identity;
+- version fields;
+- compatibility status;
+- formulated Mission card;
+- validation state;
+- clear indication that Mission execution is not available.
+
+## Test strategy
+
+Vitest should cover protocol parsing and validation. React component tests can wait until the UI has interaction beyond rendering validated data.
+
+Minimum test cases for the first implementation story:
+
+- valid identity plus Mission fixture parses successfully;
+- missing required identity field fails validation;
+- missing Mission field fails validation;
+- Mission status other than `formulated` fails in the current slice;
+- view model exposes identity and Mission values for the GUI.
+
+## Next implementation story
+
+The next implementation story should create the Tauri app skeleton and migrate DS-001/DS-002 protocol validation into TypeScript while preserving the Python scripts as temporary references until parity is validated.

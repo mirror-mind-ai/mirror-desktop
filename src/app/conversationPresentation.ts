@@ -1,0 +1,35 @@
+import type { ConversationMessage } from "../agent/piTaskPacket";
+
+export type MessageSpeaker = {
+  label: string;
+  avatar: string;
+  kind: "user" | "agent" | "persona";
+};
+
+const personaSignaturePattern = /^(?:\s|[│|╭╮╰╯─━═┌┐└┘╔╗╚╝╠╣╦╩╬])*[◇✦]\s*(?:Persona:\s*)?([^\n]+?)\s*(?:\n|$)/i;
+
+export function inferMessageSpeaker(message: Pick<ConversationMessage, "role" | "content">): MessageSpeaker {
+  if (message.role === "user") {
+    return { label: "You", avatar: "N", kind: "user" };
+  }
+
+  const persona = message.content.match(personaSignaturePattern)?.[1]?.trim();
+  if (persona) {
+    return { label: persona, avatar: personaAvatar(persona), kind: "persona" };
+  }
+
+  return { label: "Agent", avatar: "π", kind: "agent" };
+}
+
+export function stripMessageSpeakerSignature(content: string): string {
+  return content.replace(personaSignaturePattern, "").trimStart();
+}
+
+function personaAvatar(persona: string): string {
+  return persona
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "✦";
+}

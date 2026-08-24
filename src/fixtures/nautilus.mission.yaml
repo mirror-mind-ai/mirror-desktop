@@ -1,0 +1,11 @@
+name: Nautilus
+method_version: 0.1.0-experimental
+protocol_version: 0.1.0
+schema_version: 0.1.0
+grammar_status: experimental
+compatibility: compatible
+mission:
+  id: mission-001
+  title: Formulate the first Nautilus mission
+  purpose: Prove that Nautilus can name a directed intention before execution.
+  status: formulated

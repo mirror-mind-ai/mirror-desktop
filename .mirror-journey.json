@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "journey": "nautilus-harness",
+  "name": "Nautilus Harness",
+  "status": "active",
+  "parent_journey": "nautilus",
+  "hierarchy": [
+    "vida-criativa",
+    "nautilus",
+    "nautilus-harness"
+  ],
+  "journey_home": "/Users/alissonvale/.mirror-journeys/vida-criativa/nautilus/harness",
+  "workspace_state": "materialized",
+  "materialization_strategy": "child-journey-home-first",
+  "source_project_path": "",
+  "source_project_path_resolved": "",
+  "target_project_path": "/Users/alissonvale/.mirror-journeys/vida-criativa/nautilus/harness",
+  "project_path_update_policy": "materialized"
+}

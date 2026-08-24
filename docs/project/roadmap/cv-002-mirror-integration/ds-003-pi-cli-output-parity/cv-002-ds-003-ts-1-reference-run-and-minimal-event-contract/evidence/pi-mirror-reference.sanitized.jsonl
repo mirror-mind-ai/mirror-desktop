@@ -1,0 +1,355 @@
+{"sequence": 1, "type": "session", "version": 3, "sessionId": "nautilus-parity-reference-20260823", "cwd": "/Users/alissonvale/mirror"}
+{"sequence": 2, "type": "agent_start"}
+{"sequence": 3, "type": "turn_start"}
+{"sequence": 4, "type": "message_start", "role": "user"}
+{"sequence": 5, "type": "message_end", "role": "user", "stopReason": null}
+{"sequence": 6, "type": "message_start", "role": "assistant"}
+{"sequence": 13, "type": "message_update", "subtype": "toolcall_start"}
+{"sequence": 14, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 66}
+{"sequence": 15, "type": "message_update", "subtype": "toolcall_end", "toolName": "read", "arguments": {"path": "/Users/alissonvale/mirror/.pi/skills/mm-mirror/SKILL.md"}}
+{"sequence": 16, "type": "message_update", "subtype": "toolcall_start"}
+{"sequence": 17, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 67}
+{"sequence": 18, "type": "message_update", "subtype": "toolcall_end", "toolName": "read", "arguments": {"path": "/Users/alissonvale/mirror/.pi/skills/mm-journey/SKILL.md"}}
+{"sequence": 19, "type": "message_end", "role": "assistant", "stopReason": "toolUse"}
+{"sequence": 20, "type": "tool_execution_start", "toolName": "read", "toolCallId": "call_xKUQcO1PAEv4uxkWTTMbSEHg|fc_04fd09f21eb401d4016a8b3f6576e887d2847e6aac239b5127", "arguments": {"path": "/Users/alissonvale/mirror/.pi/skills/mm-mirror/SKILL.md"}}
+{"sequence": 21, "type": "tool_execution_start", "toolName": "read", "toolCallId": "call_BPjdE27vVyN9IqjaINnmZf7A|fc_04fd09f21eb401d4016a8b3f6576f887d2b05d776bde5a28a6", "arguments": {"path": "/Users/alissonvale/mirror/.pi/skills/mm-journey/SKILL.md"}}
+{"sequence": 22, "type": "tool_execution_end", "toolName": "read", "toolCallId": "call_xKUQcO1PAEv4uxkWTTMbSEHg|fc_04fd09f21eb401d4016a8b3f6576e887d2847e6aac239b5127", "outputChars": 3752, "containsMirrorSurface": true, "isError": false}
+{"sequence": 23, "type": "tool_execution_end", "toolName": "read", "toolCallId": "call_BPjdE27vVyN9IqjaINnmZf7A|fc_04fd09f21eb401d4016a8b3f6576f887d2b05d776bde5a28a6", "outputChars": 479, "containsMirrorSurface": false, "isError": false}
+{"sequence": 24, "type": "message_start", "role": "toolResult", "toolName": "read", "contentChars": 3752, "containsMirrorSurface": true}
+{"sequence": 25, "type": "message_end", "role": "toolResult", "stopReason": null, "toolName": "read", "contentChars": 3752, "containsMirrorSurface": true}
+{"sequence": 26, "type": "message_start", "role": "toolResult", "toolName": "read", "contentChars": 479, "containsMirrorSurface": false}
+{"sequence": 27, "type": "message_end", "role": "toolResult", "stopReason": null, "toolName": "read", "contentChars": 479, "containsMirrorSurface": false}
+{"sequence": 28, "type": "turn_end"}
+{"sequence": 29, "type": "turn_start"}
+{"sequence": 30, "type": "message_start", "role": "assistant"}
+{"sequence": 35, "type": "message_update", "subtype": "toolcall_start"}
+{"sequence": 36, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 37, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 7}
+{"sequence": 38, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 3}
+{"sequence": 39, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 40, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 4}
+{"sequence": 41, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 7}
+{"sequence": 42, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 43, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 1}
+{"sequence": 44, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 7}
+{"sequence": 45, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 7}
+{"sequence": 46, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 5}
+{"sequence": 47, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 3}
+{"sequence": 48, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 5}
+{"sequence": 49, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 3}
+{"sequence": 50, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 5}
+{"sequence": 51, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 3}
+{"sequence": 52, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 7}
+{"sequence": 53, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 5}
+{"sequence": 54, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 5}
+{"sequence": 55, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 56, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 8}
+{"sequence": 57, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 12}
+{"sequence": 58, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 59, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 5}
+{"sequence": 60, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 61, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 6}
+{"sequence": 62, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 63, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 7}
+{"sequence": 64, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 65, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 3}
+{"sequence": 66, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 4}
+{"sequence": 67, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 6}
+{"sequence": 68, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 1}
+{"sequence": 69, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 5}
+{"sequence": 70, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 71, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 72, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 5}
+{"sequence": 73, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 6}
+{"sequence": 74, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 8}
+{"sequence": 75, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 1}
+{"sequence": 76, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 4}
+{"sequence": 77, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 6}
+{"sequence": 78, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 1}
+{"sequence": 79, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 9}
+{"sequence": 80, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 3}
+{"sequence": 81, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 3}
+{"sequence": 82, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 4}
+{"sequence": 83, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 3}
+{"sequence": 84, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 12}
+{"sequence": 85, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 86, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 5}
+{"sequence": 87, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 88, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 6}
+{"sequence": 89, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 3}
+{"sequence": 90, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 7}
+{"sequence": 91, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 2}
+{"sequence": 92, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 3}
+{"sequence": 93, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 3}
+{"sequence": 94, "type": "message_update", "subtype": "toolcall_delta", "deltaChars": 1}
+{"sequence": 95, "type": "message_update", "subtype": "toolcall_end", "toolName": "bash", "arguments": {"command": "uv run python -m memory mirror load --query \"Entre em Mirror Mode para a jornada laboratorio-mirror-harness e responda em uma frase: qual é o foco desta jornada? Não altere arquivos.\" --journey laboratorio-mirror-harness", "timeout": 120000}}
+{"sequence": 96, "type": "message_end", "role": "assistant", "stopReason": "toolUse"}
+{"sequence": 97, "type": "tool_execution_start", "toolName": "bash", "toolCallId": "call_xB1EjcKUFpfnew07sTBJRe6A|fc_04fd09f21eb401d4016a8b3f67dfc487d2be5b7128c3004d9a", "arguments": {"command": "uv run python -m memory mirror load --query \"Entre em Mirror Mode para a jornada laboratorio-mirror-harness e responda em uma frase: qual é o foco desta jornada? Não altere arquivos.\" --journey laboratorio-mirror-harness", "timeout": 120000}}
+{"sequence": 98, "type": "tool_execution_update", "toolName": "bash", "toolCallId": "call_xB1EjcKUFpfnew07sTBJRe6A|fc_04fd09f21eb401d4016a8b3f67dfc487d2be5b7128c3004d9a", "outputChars": 0, "containsMirrorSurface": false}
+{"sequence": 99, "type": "tool_execution_update", "toolName": "bash", "toolCallId": "call_xB1EjcKUFpfnew07sTBJRe6A|fc_04fd09f21eb401d4016a8b3f67dfc487d2be5b7128c3004d9a", "outputChars": 75, "containsMirrorSurface": true}
+{"sequence": 100, "type": "tool_execution_update", "toolName": "bash", "toolCallId": "call_xB1EjcKUFpfnew07sTBJRe6A|fc_04fd09f21eb401d4016a8b3f67dfc487d2be5b7128c3004d9a", "outputChars": 22389, "containsMirrorSurface": true}
+{"sequence": 101, "type": "tool_execution_end", "toolName": "bash", "toolCallId": "call_xB1EjcKUFpfnew07sTBJRe6A|fc_04fd09f21eb401d4016a8b3f67dfc487d2be5b7128c3004d9a", "outputChars": 22389, "containsMirrorSurface": true, "isError": false}
+{"sequence": 102, "type": "message_start", "role": "toolResult", "toolName": "bash", "contentChars": 22389, "containsMirrorSurface": true}
+{"sequence": 103, "type": "message_end", "role": "toolResult", "stopReason": null, "toolName": "bash", "contentChars": 22389, "containsMirrorSurface": true}
+{"sequence": 104, "type": "turn_end"}
+{"sequence": 105, "type": "turn_start"}
+{"sequence": 106, "type": "message_start", "role": "assistant"}
+{"sequence": 115, "type": "message_update", "subtype": "text_start"}
+{"sequence": 116, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 117, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 118, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 119, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 120, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 121, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 122, "type": "message_update", "subtype": "text_delta", "deltaChars": 3}
+{"sequence": 123, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 124, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 125, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 126, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 127, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 128, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 129, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 130, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 131, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 132, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 133, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 134, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 135, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 136, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 137, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 138, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 139, "type": "message_update", "subtype": "text_delta", "deltaChars": 3}
+{"sequence": 140, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 141, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 142, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 143, "type": "message_update", "subtype": "text_delta", "deltaChars": 8}
+{"sequence": 144, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 145, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 146, "type": "message_update", "subtype": "text_delta", "deltaChars": 4}
+{"sequence": 147, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 148, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 149, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 150, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 151, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 152, "type": "message_update", "subtype": "text_delta", "deltaChars": 6}
+{"sequence": 153, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 154, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 155, "type": "message_update", "subtype": "text_delta", "deltaChars": 16}
+{"sequence": 156, "type": "message_update", "subtype": "text_delta", "deltaChars": 16}
+{"sequence": 157, "type": "message_update", "subtype": "text_delta", "deltaChars": 16}
+{"sequence": 158, "type": "message_update", "subtype": "text_delta", "deltaChars": 8}
+{"sequence": 159, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 160, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 161, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 162, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 163, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 164, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 165, "type": "message_update", "subtype": "text_delta", "deltaChars": 4}
+{"sequence": 166, "type": "message_update", "subtype": "text_delta", "deltaChars": 3}
+{"sequence": 167, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 168, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 169, "type": "message_update", "subtype": "text_delta", "deltaChars": 26}
+{"sequence": 170, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 171, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 172, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 173, "type": "message_update", "subtype": "text_delta", "deltaChars": 55}
+{"sequence": 174, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 175, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 176, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 177, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 178, "type": "message_update", "subtype": "text_delta", "deltaChars": 9}
+{"sequence": 179, "type": "message_update", "subtype": "text_delta", "deltaChars": 45}
+{"sequence": 180, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 181, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 182, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 183, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 184, "type": "message_update", "subtype": "text_delta", "deltaChars": 3}
+{"sequence": 185, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 186, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 187, "type": "message_update", "subtype": "text_delta", "deltaChars": 4}
+{"sequence": 188, "type": "message_update", "subtype": "text_delta", "deltaChars": 41}
+{"sequence": 189, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 190, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 191, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 192, "type": "message_update", "subtype": "text_delta", "deltaChars": 55}
+{"sequence": 193, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 194, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 195, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 196, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 197, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 198, "type": "message_update", "subtype": "text_delta", "deltaChars": 8}
+{"sequence": 199, "type": "message_update", "subtype": "text_delta", "deltaChars": 39}
+{"sequence": 200, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 201, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 202, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 203, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 204, "type": "message_update", "subtype": "text_delta", "deltaChars": 12}
+{"sequence": 205, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 206, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 207, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 208, "type": "message_update", "subtype": "text_delta", "deltaChars": 6}
+{"sequence": 209, "type": "message_update", "subtype": "text_delta", "deltaChars": 27}
+{"sequence": 210, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 211, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 212, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 213, "type": "message_update", "subtype": "text_delta", "deltaChars": 55}
+{"sequence": 214, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 215, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 216, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 217, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 218, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 219, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 220, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 221, "type": "message_update", "subtype": "text_delta", "deltaChars": 3}
+{"sequence": 222, "type": "message_update", "subtype": "text_delta", "deltaChars": 36}
+{"sequence": 223, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 224, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 225, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 226, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 227, "type": "message_update", "subtype": "text_delta", "deltaChars": 9}
+{"sequence": 228, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 229, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 230, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 231, "type": "message_update", "subtype": "text_delta", "deltaChars": 9}
+{"sequence": 232, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 233, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 234, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 235, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 236, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 237, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 238, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 239, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 240, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 241, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 242, "type": "message_update", "subtype": "text_delta", "deltaChars": 9}
+{"sequence": 243, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 244, "type": "message_update", "subtype": "text_delta", "deltaChars": 9}
+{"sequence": 245, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 246, "type": "message_update", "subtype": "text_delta", "deltaChars": 4}
+{"sequence": 247, "type": "message_update", "subtype": "text_delta", "deltaChars": 9}
+{"sequence": 248, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 249, "type": "message_update", "subtype": "text_delta", "deltaChars": 20}
+{"sequence": 250, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 251, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 252, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 253, "type": "message_update", "subtype": "text_delta", "deltaChars": 55}
+{"sequence": 254, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 255, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 256, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 257, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 258, "type": "message_update", "subtype": "text_delta", "deltaChars": 8}
+{"sequence": 259, "type": "message_update", "subtype": "text_delta", "deltaChars": 8}
+{"sequence": 260, "type": "message_update", "subtype": "text_delta", "deltaChars": 38}
+{"sequence": 261, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 262, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 263, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 264, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 265, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 266, "type": "message_update", "subtype": "text_delta", "deltaChars": 4}
+{"sequence": 267, "type": "message_update", "subtype": "text_delta", "deltaChars": 6}
+{"sequence": 268, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 269, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 270, "type": "message_update", "subtype": "text_delta", "deltaChars": 3}
+{"sequence": 271, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 272, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 273, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 274, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 275, "type": "message_update", "subtype": "text_delta", "deltaChars": 4}
+{"sequence": 276, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 277, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 278, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 279, "type": "message_update", "subtype": "text_delta", "deltaChars": 6}
+{"sequence": 280, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 281, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 282, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 283, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 284, "type": "message_update", "subtype": "text_delta", "deltaChars": 9}
+{"sequence": 285, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 286, "type": "message_update", "subtype": "text_delta", "deltaChars": 9}
+{"sequence": 287, "type": "message_update", "subtype": "text_delta", "deltaChars": 4}
+{"sequence": 288, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 289, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 290, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 291, "type": "message_update", "subtype": "text_delta", "deltaChars": 10}
+{"sequence": 292, "type": "message_update", "subtype": "text_delta", "deltaChars": 13}
+{"sequence": 293, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 294, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 295, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 296, "type": "message_update", "subtype": "text_delta", "deltaChars": 55}
+{"sequence": 297, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 298, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 299, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 300, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 301, "type": "message_update", "subtype": "text_delta", "deltaChars": 10}
+{"sequence": 302, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 303, "type": "message_update", "subtype": "text_delta", "deltaChars": 37}
+{"sequence": 304, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 305, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 306, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 307, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 308, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 309, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 310, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 311, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 312, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 313, "type": "message_update", "subtype": "text_delta", "deltaChars": 8}
+{"sequence": 314, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 315, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 316, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 317, "type": "message_update", "subtype": "text_delta", "deltaChars": 9}
+{"sequence": 318, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 319, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 320, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 321, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 322, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 323, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 324, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 325, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 326, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 327, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 328, "type": "message_update", "subtype": "text_delta", "deltaChars": 44}
+{"sequence": 329, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 330, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 331, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 332, "type": "message_update", "subtype": "text_delta", "deltaChars": 16}
+{"sequence": 333, "type": "message_update", "subtype": "text_delta", "deltaChars": 16}
+{"sequence": 334, "type": "message_update", "subtype": "text_delta", "deltaChars": 16}
+{"sequence": 335, "type": "message_update", "subtype": "text_delta", "deltaChars": 8}
+{"sequence": 336, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 337, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 338, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 339, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 340, "type": "message_update", "subtype": "text_delta", "deltaChars": 6}
+{"sequence": 341, "type": "message_update", "subtype": "text_delta", "deltaChars": 8}
+{"sequence": 342, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 343, "type": "message_update", "subtype": "text_delta", "deltaChars": 8}
+{"sequence": 344, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 345, "type": "message_update", "subtype": "text_delta", "deltaChars": 4}
+{"sequence": 346, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 347, "type": "message_update", "subtype": "text_delta", "deltaChars": 6}
+{"sequence": 348, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 349, "type": "message_update", "subtype": "text_delta", "deltaChars": 3}
+{"sequence": 350, "type": "message_update", "subtype": "text_delta", "deltaChars": 9}
+{"sequence": 351, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 352, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 353, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 354, "type": "message_update", "subtype": "text_delta", "deltaChars": 4}
+{"sequence": 355, "type": "message_update", "subtype": "text_delta", "deltaChars": 8}
+{"sequence": 356, "type": "message_update", "subtype": "text_delta", "deltaChars": 3}
+{"sequence": 357, "type": "message_update", "subtype": "text_delta", "deltaChars": 5}
+{"sequence": 358, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 359, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 360, "type": "message_update", "subtype": "text_delta", "deltaChars": 7}
+{"sequence": 361, "type": "message_update", "subtype": "text_delta", "deltaChars": 4}
+{"sequence": 362, "type": "message_update", "subtype": "text_delta", "deltaChars": 10}
+{"sequence": 363, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 364, "type": "message_update", "subtype": "text_delta", "deltaChars": 4}
+{"sequence": 365, "type": "message_update", "subtype": "text_delta", "deltaChars": 4}
+{"sequence": 366, "type": "message_update", "subtype": "text_delta", "deltaChars": 3}
+{"sequence": 367, "type": "message_update", "subtype": "text_delta", "deltaChars": 9}
+{"sequence": 368, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 369, "type": "message_update", "subtype": "text_end", "contentChars": 1464, "containsMirrorSurface": true}
+{"sequence": 370, "type": "message_end", "role": "assistant", "stopReason": "stop"}
+{"sequence": 371, "type": "turn_end"}
+{"sequence": 372, "type": "agent_end"}
+{"sequence": 373, "type": "agent_settled"}

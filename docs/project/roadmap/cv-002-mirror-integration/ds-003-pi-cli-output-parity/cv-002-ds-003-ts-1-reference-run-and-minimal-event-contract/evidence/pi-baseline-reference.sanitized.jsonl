@@ -1,0 +1,14 @@
+{"sequence": 1, "type": "session", "version": 3, "sessionId": "nautilus-parity-baseline-20260823", "cwd": "/Users/alissonvale/mirror"}
+{"sequence": 2, "type": "agent_start"}
+{"sequence": 3, "type": "turn_start"}
+{"sequence": 4, "type": "message_start", "role": "user"}
+{"sequence": 5, "type": "message_end", "role": "user", "stopReason": null}
+{"sequence": 6, "type": "message_start", "role": "assistant"}
+{"sequence": 9, "type": "message_update", "subtype": "text_start"}
+{"sequence": 10, "type": "message_update", "subtype": "text_delta", "deltaChars": 2}
+{"sequence": 11, "type": "message_update", "subtype": "text_delta", "deltaChars": 1}
+{"sequence": 12, "type": "message_update", "subtype": "text_end", "contentChars": 3, "containsMirrorSurface": false}
+{"sequence": 13, "type": "message_end", "role": "assistant", "stopReason": "stop"}
+{"sequence": 14, "type": "turn_end"}
+{"sequence": 15, "type": "agent_end"}
+{"sequence": 16, "type": "agent_settled"}

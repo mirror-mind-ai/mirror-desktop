@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "0.1.0",
+  "synthetic": true,
+  "harness": {
+    "conversationId": "journey-conversation-nautilus-harness-fixture",
+    "messages": [
+      { "id": "h-user-1", "role": "user", "content": "synthetic fact", "createdAt": "2026-08-24T10:00:00.000Z" },
+      { "id": "h-assistant-1", "role": "assistant", "content": "synthetic acknowledgement", "createdAt": "2026-08-24T10:00:01.000Z" }
+    ]
+  },
+  "pi": {
+    "sessionId": "nautilus-nautilus-harness",
+    "generation": 2,
+    "sessionFile": "synthetic-session.jsonl",
+    "entries": [
+      { "id": "pi-user-1", "parentId": "pi-root", "type": "message", "role": "user" },
+      { "id": "pi-assistant-1", "parentId": "pi-user-1", "type": "message", "role": "assistant" }
+    ]
+  },
+  "mirror": {
+    "runtimeSession": {
+      "sessionId": "/synthetic/pi/synthetic-session.jsonl",
+      "conversationId": "mirror-conversation-1"
+    },
+    "messages": [
+      { "id": "mirror-user-1", "role": "user", "metadata": { "synthetic": true } },
+      { "id": "mirror-assistant-1", "role": "assistant", "metadata": { "synthetic": true, "storageShape": "consolidated-capable" } }
+    ]
+  }
+}

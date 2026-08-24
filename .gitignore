@@ -1,0 +1,27 @@
+# JavaScript dependencies and build output
+node_modules/
+dist/
+
+# Rust/Tauri build and generated artifacts
+src-tauri/target/
+src-tauri/gen/
+
+# Local caches and runtime artifacts
+.vite/
+coverage/
+__pycache__/
+*.py[cod]
+*.log
+.DS_Store
+
+# Local environment and sensitive material
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editor-local files
+.idea/
+.vscode/
+*.swp

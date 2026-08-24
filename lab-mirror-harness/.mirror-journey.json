@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "0.1.0",
+  "journey": "laboratorio-mirror-harness",
+  "title": "Laboratório Mirror Harness",
+  "status": "active",
+  "stage": "validation",
+  "parentJourney": "nautilus-harness"
+}
