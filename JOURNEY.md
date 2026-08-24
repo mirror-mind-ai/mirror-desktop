@@ -12,7 +12,7 @@ Concluir a extensão de `CV-002.DS-004 — Conversation and Mirror Context Parit
 
 ## Near slice
 
-Executar `CV-002.DS-004.TS-6 — Three-Body Conversation Reconciliation Contract`, definindo identidade de turno, checkpoints por corpo, exactly-once, divergência e regras de fast-forward/branch sem sincronização silenciosa Mirror → Pi.
+Executar `CV-002.DS-004.US-5 — Reconcile Mirror-Only Updates into Pi`: detectar automaticamente avanços exclusivos da conversa Mirror mapeada, apresentar uma prévia inerte e permitir apenas reconciliação explícita e segura em uma nova geração Pi. Em seguida, concluir `US-6 — Three-Body Conversation Parity Review` para a validação agregada.
 
 ## Later
 

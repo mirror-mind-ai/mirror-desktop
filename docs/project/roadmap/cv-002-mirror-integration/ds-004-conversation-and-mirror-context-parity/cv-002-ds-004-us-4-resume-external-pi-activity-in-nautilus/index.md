@@ -2,7 +2,7 @@
 
 # CV-002.DS-004.US-4 — Resume External Pi Activity in Nautilus
 
-**Status:** 🟠 In Validation
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

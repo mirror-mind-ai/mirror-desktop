@@ -85,7 +85,7 @@ DS-004 therefore requires a three-body commit and reconciliation contract before
 | CV-002.DS-004.US-2 | Context and Mode Parity Review | User Story | Navigator validates paired terminal/Nautilus conversations for continuity, context budget/compaction, Journey context, persona and mode behavior | 🟠 In Validation |
 | CV-002.DS-004.TS-6 | Three-Body Conversation Reconciliation Contract | Technical Story | Define correlated turn commits, checkpoints, divergence and safe reconciliation across Nautilus, Pi and Mirror | ✅ Done |
 | CV-002.DS-004.US-3 | Observable Three-Body Turn Commit | User Story | Navigator can trust or recover the durable Nautilus → Pi → Mirror commit of each turn | ✅ Done |
-| CV-002.DS-004.US-4 | Resume External Pi Activity in Nautilus | User Story | Turns added to the exact Pi branch outside Nautilus appear incrementally in the desktop projection | 🟠 In Validation |
+| CV-002.DS-004.US-4 | Resume External Pi Activity in Nautilus | User Story | Turns added to the exact Pi branch outside Nautilus appear incrementally in the desktop projection | ✅ Done |
 | CV-002.DS-004.US-5 | Reconcile Mirror-Only Updates into Pi | User Story | Mirror-only advances are detected automatically and applied to Pi only through explicit safe reconciliation | 🟡 Planned |
 | CV-002.DS-004.US-6 | Three-Body Conversation Parity Review | User Story | Navigator validates one coherent conversation across all three bodies and their failure boundaries | 🟡 Planned |
 
