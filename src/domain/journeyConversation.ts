@@ -14,7 +14,7 @@ export type LiveConversationIdentity = {
   piSessionId: string;
   mirrorConversationId?: string;
   generation: number;
-  origin: "new" | "continued" | "mirror_import" | "restart" | "legacy";
+  origin: "new" | "continued" | "mirror_import" | "mirror_reconciliation" | "restart" | "legacy";
 };
 
 export type AuthoritativeContextStats = {

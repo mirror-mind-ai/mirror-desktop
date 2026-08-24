@@ -1479,6 +1479,47 @@ h3 {
   padding: 4px 10px;
 }
 
+.mirror-reconciliation-notice {
+  display: block;
+}
+
+.mirror-reconciliation-notice details,
+.mirror-reconciliation-notice summary {
+  width: 100%;
+}
+
+.mirror-reconciliation-notice summary {
+  cursor: pointer;
+}
+
+.mirror-reconciliation-notice summary span {
+  float: right;
+  opacity: 0.72;
+}
+
+.mirror-reconciliation-preview {
+  border-top: 1px solid rgba(205, 151, 61, 0.22);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.mirror-reconciliation-record {
+  background: rgba(7, 18, 22, 0.42);
+  border-radius: 7px;
+  margin: 6px 0;
+  padding: 7px 9px;
+}
+
+.mirror-reconciliation-record > span {
+  float: right;
+  opacity: 0.6;
+}
+
+.mirror-reconciliation-record p {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+}
+
 .composer-input-wrap {
   position: relative;
 }

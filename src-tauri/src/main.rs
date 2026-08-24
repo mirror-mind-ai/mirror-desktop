@@ -129,6 +129,37 @@ struct ExternalPiInspection {
     reason_code: Option<String>,
 }
 
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct MirrorSnapshotFingerprint {
+    conversation_id: String,
+    message_count: u64,
+    last_message_id: String,
+    updated_at: Option<String>,
+}
+
+#[derive(Clone, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct MirrorObservedMessage {
+    id: String,
+    role: String,
+    content: String,
+    created_at: String,
+    boundary_truncated: Option<bool>,
+}
+
+#[derive(Clone, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct MirrorInspectionPayload {
+    status: String,
+    journey_id: String,
+    conversation_id: String,
+    base_message_id: String,
+    base_message_count: u64,
+    fingerprint: MirrorSnapshotFingerprint,
+    messages: Option<Vec<MirrorObservedMessage>>,
+}
+
 #[derive(Clone, Debug)]
 struct PiBranchEntry {
     id: String,
@@ -228,6 +259,12 @@ fn mirror_import_script_path() -> Result<PathBuf, String> {
         .join("export_mirror_bootstrap.py"))
 }
 
+fn mirror_inspection_script_path() -> Result<PathBuf, String> {
+    Ok(harness_root()?
+        .join("scripts")
+        .join("inspect_mirror_conversation.py"))
+}
+
 #[tauri::command]
 fn list_mirror_conversations(journey_id: String) -> Result<String, String> {
     sanitize_journey_id(&journey_id)?;
@@ -303,6 +340,261 @@ fn reload_journey_from_mirror(
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+#[tauri::command]
+async fn inspect_mirror_conversation_activity(
+    journey_id: String,
+    conversation_id: String,
+    base_message_id: String,
+    base_message_count: u64,
+) -> Result<String, String> {
+    let safe_journey_id = sanitize_journey_id(&journey_id)?;
+    if conversation_id.trim().is_empty() || base_message_id.trim().is_empty() {
+        return Err("Mirror observation requires exact conversation and cursor ids.".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        run_mirror_inspection(
+            &safe_journey_id,
+            &conversation_id,
+            &base_message_id,
+            base_message_count,
+        )
+    })
+    .await
+    .map_err(|error| format!("Could not inspect Mirror activity: {}", error))?
+}
+
+#[tauri::command]
+fn reconcile_mirror_conversation(
+    app: AppHandle,
+    state: State<'_, PiProcessState>,
+    journey_id: String,
+    expected_generation: u64,
+    expected_fingerprint: MirrorSnapshotFingerprint,
+    provider: String,
+    model: String,
+) -> Result<String, String> {
+    ensure_pi_idle(&state)?;
+    let safe_journey_id = sanitize_journey_id(&journey_id)?;
+    if provider.trim().is_empty() || model.trim().is_empty() {
+        return Err("Provider and model are required for Mirror reconciliation hydration.".to_string());
+    }
+    let conversation_path = journey_conversation_path(&app, &safe_journey_id)?;
+    let original_payload = fs::read_to_string(&conversation_path)
+        .map_err(|error| format!("Could not read Mirror reconciliation authority: {}", error))?;
+    let mut payload: Value = serde_json::from_str(&original_payload)
+        .map_err(|_| "Persisted Mirror reconciliation authority is invalid.".to_string())?;
+    let previous_saved_at = payload.get("savedAt").and_then(Value::as_str)
+        .unwrap_or("1970-01-01T00:00:00.000Z").to_string();
+    let conversation = payload.get_mut("conversation").and_then(Value::as_object_mut)
+        .ok_or_else(|| "Persisted Mirror reconciliation conversation is missing.".to_string())?;
+    let live = conversation.get("liveIdentity").and_then(Value::as_object)
+        .ok_or_else(|| "Mirror reconciliation live identity is missing.".to_string())?;
+    let session_id = live.get("piSessionId").and_then(Value::as_str)
+        .ok_or_else(|| "Mirror reconciliation Pi session id is missing.".to_string())?.to_string();
+    let mirror_conversation_id = live.get("mirrorConversationId").and_then(Value::as_str)
+        .ok_or_else(|| "Mirror reconciliation requires a mapped Mirror conversation.".to_string())?.to_string();
+    let harness_conversation_id = live.get("harnessConversationId").and_then(Value::as_str)
+        .ok_or_else(|| "Harness conversation id is missing.".to_string())?.to_string();
+    if live.get("journeyId").and_then(Value::as_str) != Some(safe_journey_id.as_str())
+        || live.get("generation").and_then(Value::as_u64) != Some(expected_generation)
+        || expected_fingerprint.conversation_id != mirror_conversation_id
+    {
+        return Err("Mirror reconciliation authority changed before approval.".to_string());
+    }
+    let reconciliation = conversation.get("reconciliation").and_then(Value::as_object)
+        .ok_or_else(|| "Mirror reconciliation ledger is missing.".to_string())?;
+    if reconciliation.get("classification").and_then(Value::as_str) != Some("mirror_advanced") {
+        return Err("Only an eligible Mirror-only advancement can be reconciled.".to_string());
+    }
+    let checkpoints = reconciliation.get("checkpoints").and_then(Value::as_object)
+        .ok_or_else(|| "Mirror reconciliation checkpoints are missing.".to_string())?;
+    let mirror_checkpoint = checkpoints.get("mirror").and_then(Value::as_object)
+        .ok_or_else(|| "Mirror checkpoint is missing.".to_string())?;
+    let base_message_id = mirror_checkpoint.get("lastMessageId").and_then(Value::as_str)
+        .ok_or_else(|| "Mirror checkpoint cursor is missing.".to_string())?.to_string();
+    let base_message_count = mirror_checkpoint.get("messageCount").and_then(Value::as_u64)
+        .ok_or_else(|| "Mirror checkpoint count is missing.".to_string())?;
+    let pi_checkpoint = checkpoints.get("pi").and_then(Value::as_object)
+        .ok_or_else(|| "Pi checkpoint is missing.".to_string())?;
+    let old_session_file = pi_checkpoint.get("sessionFile").and_then(Value::as_str)
+        .ok_or_else(|| "Exact Pi session file is missing.".to_string())?.to_string();
+    validate_pi_session_file(&old_session_file, &session_id)?;
+
+    let fresh: MirrorInspectionPayload = serde_json::from_str(&run_mirror_inspection(
+        &safe_journey_id, &mirror_conversation_id, &base_message_id, base_message_count,
+    )?).map_err(|_| "Mirror reconciliation observation is invalid.".to_string())?;
+    if fresh.status != "advanced"
+        || fresh.journey_id != safe_journey_id
+        || fresh.conversation_id != mirror_conversation_id
+        || fresh.base_message_id != base_message_id
+        || fresh.base_message_count != base_message_count
+        || fresh.fingerprint != expected_fingerprint
+    {
+        return Err("Mirror conversation changed after preview; review it again.".to_string());
+    }
+    let mirror_messages = fresh.messages
+        .ok_or_else(|| "Mirror reconciliation has no eligible messages.".to_string())?;
+    validate_mirror_reconciliation_messages(&mirror_messages)?;
+
+    let messages = conversation.get_mut("messages").and_then(Value::as_array_mut)
+        .ok_or_else(|| "Persisted Harness messages are missing.".to_string())?;
+    for message in &mirror_messages {
+        let harness_id = format!("mirror-{}", message.id);
+        if messages.iter().any(|current| current.get("id").and_then(Value::as_str) == Some(harness_id.as_str())) {
+            return Err("Mirror reconciliation message was already materialized.".to_string());
+        }
+        messages.push(json!({
+            "id": harness_id,
+            "role": message.role,
+            "content": message.content,
+            "createdAt": message.created_at,
+        }));
+    }
+    let new_generation = expected_generation + 1;
+    let saved_at = expected_fingerprint.updated_at.clone().unwrap_or(previous_saved_at);
+    let session_dir = default_pi_session_dir(&mirror_runtime_root()?)?;
+    fs::create_dir_all(&session_dir).map_err(|error| format!("Could not create Pi session directory: {}", error))?;
+    let nonce = SystemTime::now().duration_since(UNIX_EPOCH)
+        .map_err(|error| error.to_string())?.as_nanos();
+    let target_session = session_dir.join(format!("mirror-reconcile-{}_{}.jsonl", nonce, session_id));
+    let staged_session = session_dir.join(format!(".mirror-reconcile-{}-{}.jsonl.tmp", session_id, nonce));
+    let session_content = build_hydrated_pi_session(&session_id, &saved_at, messages, provider.trim(), model.trim())?;
+    fs::write(&staged_session, session_content)
+        .map_err(|error| format!("Could not stage reconciled Pi session: {}", error))?;
+
+    let message_count = messages.len() as u64;
+    let final_harness_id = format!("mirror-{}", expected_fingerprint.last_message_id);
+    let pi_leaf = format!("import-message-{}", message_count);
+    let session_file = target_session.to_string_lossy().to_string();
+    conversation.insert("liveIdentity".to_string(), json!({
+        "schemaVersion": "0.1.0",
+        "journeyId": safe_journey_id,
+        "harnessConversationId": harness_conversation_id,
+        "piSessionId": session_id,
+        "mirrorConversationId": mirror_conversation_id,
+        "generation": new_generation,
+        "origin": "mirror_reconciliation",
+    }));
+    conversation.insert("reconciliation".to_string(), json!({
+        "schemaVersion": "0.1.0",
+        "authority": {
+            "journeyId": safe_journey_id,
+            "harnessConversationId": harness_conversation_id,
+            "piSessionId": session_id,
+            "generation": new_generation,
+            "mirrorConversationId": mirror_conversation_id,
+        },
+        "checkpoints": {
+            "harness": {
+                "lastMessageId": final_harness_id,
+                "lastTurnId": format!("mirror-reconciliation-{}", expected_fingerprint.last_message_id),
+                "messageCount": message_count,
+            },
+            "pi": { "leafEntryId": pi_leaf, "entryCount": message_count + 2, "sessionFile": session_file },
+            "mirror": {
+                "conversationId": mirror_conversation_id,
+                "lastMessageId": expected_fingerprint.last_message_id,
+                "messageCount": expected_fingerprint.message_count,
+                "updatedAt": expected_fingerprint.updated_at,
+            },
+        },
+        "turns": [],
+        "advancement": {},
+        "classification": "in_sync",
+        "classifiedAt": saved_at,
+        "reasonCodes": ["explicit_hydration_baseline"],
+    }));
+    conversation.remove("authoritativeContextStats");
+    if let Some(root) = payload.as_object_mut() {
+        root.insert("schemaVersion".to_string(), Value::String("0.5.0".to_string()));
+        root.insert("savedAt".to_string(), Value::String(saved_at));
+    }
+    let next_payload = serde_json::to_string_pretty(&payload).map_err(|error| error.to_string())? + "\n";
+    let conversation_parent = conversation_path.parent().ok_or_else(|| "Conversation path has no parent.".to_string())?;
+    let staged_conversation = conversation_parent.join(format!(".mirror-reconcile-{}-{}.json.tmp", safe_journey_id, nonce));
+    fs::write(&staged_conversation, &next_payload)
+        .map_err(|error| format!("Could not stage reconciled conversation: {}", error))?;
+
+    activate_reconciled_files(
+        Path::new(&old_session_file), &staged_session, &target_session,
+        &conversation_path, &staged_conversation, nonce,
+    )?;
+    Ok(next_payload)
+}
+
+fn validate_mirror_reconciliation_messages(messages: &[MirrorObservedMessage]) -> Result<(), String> {
+    if messages.is_empty() || messages.len() % 2 != 0 {
+        return Err("Mirror reconciliation requires complete user/assistant turns.".to_string());
+    }
+    for (index, message) in messages.iter().enumerate() {
+        let expected_role = if index % 2 == 0 { "user" } else { "assistant" };
+        if message.role != expected_role || message.content.trim().is_empty()
+            || message.boundary_truncated.unwrap_or(false)
+            || message.content.ends_with("\n[… truncated]")
+            || (message.role == "assistant" && message.content.contains("\n\n---\n\n"))
+        {
+            return Err("Mirror reconciliation contains unsupported or incomplete records.".to_string());
+        }
+    }
+    Ok(())
+}
+
+fn activate_reconciled_files(
+    old_session: &Path,
+    staged_session: &Path,
+    target_session: &Path,
+    conversation: &Path,
+    staged_conversation: &Path,
+    nonce: u128,
+) -> Result<(), String> {
+    let session_backup = old_session.with_extension(format!("jsonl.mirror-reconcile-{}.bak", nonce));
+    let conversation_backup = conversation.with_extension(format!("json.mirror-reconcile-{}.bak", nonce));
+    fs::rename(old_session, &session_backup)
+        .map_err(|error| format!("Could not preserve previous Pi session: {}", error))?;
+    if let Err(error) = fs::rename(staged_session, target_session) {
+        let _ = fs::rename(&session_backup, old_session);
+        return Err(format!("Could not activate reconciled Pi session: {}", error));
+    }
+    if let Err(error) = fs::rename(conversation, &conversation_backup) {
+        let _ = fs::remove_file(target_session);
+        let _ = fs::rename(&session_backup, old_session);
+        return Err(format!("Could not preserve previous Harness conversation: {}", error));
+    }
+    if let Err(error) = fs::rename(staged_conversation, conversation) {
+        let _ = fs::remove_file(target_session);
+        let _ = fs::rename(&conversation_backup, conversation);
+        let _ = fs::rename(&session_backup, old_session);
+        return Err(format!("Could not activate reconciled Harness conversation: {}", error));
+    }
+    Ok(())
+}
+
+fn run_mirror_inspection(
+    journey_id: &str,
+    conversation_id: &str,
+    base_message_id: &str,
+    base_message_count: u64,
+) -> Result<String, String> {
+    let output = Command::new("python3")
+        .arg(mirror_inspection_script_path()?)
+        .arg("--journey-id").arg(journey_id)
+        .arg("--conversation-id").arg(conversation_id)
+        .arg("--base-message-id").arg(base_message_id)
+        .arg("--base-message-count").arg(base_message_count.to_string())
+        .output()
+        .map_err(|error| format!("Could not run Mirror observation: {}", error))?;
+    if !output.status.success() {
+        return Err(format!(
+            "Could not inspect Mirror conversation: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    serde_json::from_str::<Value>(&value)
+        .map_err(|_| "Mirror observation returned invalid structured evidence.".to_string())?;
+    Ok(value)
 }
 
 #[tauri::command]
@@ -1829,6 +2121,8 @@ fn main() {
             list_mirror_conversations,
             generate_mirror_conversation_title,
             reload_journey_from_mirror,
+            inspect_mirror_conversation_activity,
+            reconcile_mirror_conversation,
             open_local_reference,
             start_pi_invocation,
             read_pi_session_context_stats,
@@ -1848,8 +2142,10 @@ mod tests {
     use super::{
         archive_pi_session_files, build_hydrated_pi_session,
         extract_context_stats_from_pi_session, extract_pi_mirror_commit_events,
-        inspect_external_pi_content, validate_turn_correlation, ExternalPiFileFingerprint,
-        ExternalPiInspection, PiSessionContextSnapshot, TurnCorrelation,
+        inspect_external_pi_content, validate_turn_correlation,
+        validate_mirror_reconciliation_messages, activate_reconciled_files,
+        ExternalPiFileFingerprint, ExternalPiInspection, MirrorObservedMessage,
+        PiSessionContextSnapshot, TurnCorrelation,
     };
     use serde_json::json;
     use std::{
@@ -2011,6 +2307,46 @@ mod tests {
         ].join("\n");
         assert_eq!(inspect_external_pi_content(base.clone(), &partial_only, "base", 2).unwrap().status, "waiting");
         assert_eq!(inspect_external_pi_content(base, &session, "missing", 2).unwrap().reason_code.as_deref(), Some("pi_base_leaf_missing"));
+    }
+
+    #[test]
+    fn validates_complete_supported_mirror_turns_only() {
+        let valid = vec![
+            MirrorObservedMessage { id: "u".to_string(), role: "user".to_string(), content: "question".to_string(), created_at: "now".to_string(), boundary_truncated: None },
+            MirrorObservedMessage { id: "a".to_string(), role: "assistant".to_string(), content: "answer".to_string(), created_at: "now".to_string(), boundary_truncated: None },
+        ];
+        assert!(validate_mirror_reconciliation_messages(&valid).is_ok());
+        assert!(validate_mirror_reconciliation_messages(&valid[..1]).is_err());
+        let mut truncated = valid.clone();
+        truncated[1].content = "answer\n[… truncated]".to_string();
+        assert!(validate_mirror_reconciliation_messages(&truncated).is_err());
+        let mut consolidated = valid.clone();
+        consolidated[1].content = "one\n\n---\n\ntwo".to_string();
+        assert!(validate_mirror_reconciliation_messages(&consolidated).is_err());
+    }
+
+    #[test]
+    fn restores_previous_files_when_reconciled_conversation_activation_fails() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("nautilus-mirror-rollback-{}-{}", std::process::id(), nonce));
+        fs::create_dir_all(&directory).unwrap();
+        let old_session = directory.join("old.jsonl");
+        let staged_session = directory.join("staged.jsonl");
+        let target_session = directory.join("new.jsonl");
+        let conversation = directory.join("conversation.json");
+        let missing_staged_conversation = directory.join("missing.json");
+        fs::write(&old_session, "old-session").unwrap();
+        fs::write(&staged_session, "new-session").unwrap();
+        fs::write(&conversation, "old-conversation").unwrap();
+
+        assert!(activate_reconciled_files(
+            &old_session, &staged_session, &target_session, &conversation,
+            &missing_staged_conversation, nonce,
+        ).is_err());
+        assert_eq!(fs::read_to_string(&old_session).unwrap(), "old-session");
+        assert_eq!(fs::read_to_string(&conversation).unwrap(), "old-conversation");
+        assert!(!target_session.exists());
+        fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

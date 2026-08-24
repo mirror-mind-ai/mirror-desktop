@@ -43,6 +43,11 @@ import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { ComposerRuntimeFooter } from "./ComposerRuntimeFooter";
 import { ConversationSyncNotice } from "./ConversationSyncNotice";
 import { ExternalPiSyncNotice } from "./ExternalPiSyncNotice";
+import { MirrorReconciliationNotice } from "./MirrorReconciliationNotice";
+import {
+  inspectMirrorConversationActivity,
+  reconcileMirrorConversation,
+} from "./mirrorReconciliationStorage";
 import {
   deriveLatestCertifiedModeTransition,
   extractCertifiedModeTransition,
@@ -102,6 +107,10 @@ import {
   projectExternalPiInspection,
   type ExternalPiFileFingerprint,
 } from "../domain/externalPiProjection";
+import {
+  projectMirrorConversationInspection,
+  type MirrorReconciliationReview,
+} from "../domain/mirrorOnlyReconciliation";
 import type { JourneyConversation } from "../domain/journeyConversation";
 import {
   defaultJourneyPreferenceState,
@@ -199,6 +208,9 @@ export function App({ model }: AppProps) {
   const [isRetryingMirrorCommit, setIsRetryingMirrorCommit] = useState(false);
   const [mirrorCommitError, setMirrorCommitError] = useState<string | undefined>();
   const [externalPiConflict, setExternalPiConflict] = useState<string | undefined>();
+  const [mirrorReconciliationReview, setMirrorReconciliationReview] = useState<MirrorReconciliationReview | undefined>();
+  const [isReconcilingMirror, setIsReconcilingMirror] = useState(false);
+  const [mirrorReconciliationError, setMirrorReconciliationError] = useState<string | undefined>();
   const [providerConfig, setProviderConfig] = useState(defaultPiProviderConfig);
   const [providerCommand, setProviderCommand] = useState(defaultPiProviderConfig.command);
   const [providerArgsText, setProviderArgsText] = useState(providerConfigToArgsText(defaultPiProviderConfig));
@@ -304,7 +316,7 @@ export function App({ model }: AppProps) {
     }
     externalPiRefreshTimerRef.current = setTimeout(() => {
       externalPiRefreshTimerRef.current = undefined;
-      void refreshExternalPiActivity();
+      void refreshExternalConversationActivity();
     }, delayMs);
   }
 
@@ -373,6 +385,91 @@ export function App({ model }: AppProps) {
       setExternalPiConflict("pi_session_unavailable");
     } finally {
       externalPiInFlightRef.current.delete(authorityKey);
+    }
+  }
+
+  async function refreshExternalConversationActivity() {
+    await refreshExternalPiActivity();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    await refreshMirrorConversationActivity();
+  }
+
+  async function refreshMirrorConversationActivity() {
+    const runtime = externalPiRuntimeRef.current;
+    const current = conversationRef.current;
+    const checkpoint = current.reconciliation.checkpoints.mirror;
+    if (
+      !runtime.conversationLoaded
+      || runtime.isStreaming
+      || runtime.agentRunStatus === "running"
+      || runtime.safeTestMode
+      || !checkpoint
+      || !current.liveIdentity.mirrorConversationId
+      || !["in_sync", "pi_advanced", "mirror_advanced"].includes(current.reconciliation.classification)
+    ) return;
+
+    const authorityKey = `mirror:${current.journeyId}:${current.liveIdentity.generation}:${checkpoint.conversationId}`;
+    if (externalPiInFlightRef.current.has(authorityKey)) return;
+    externalPiInFlightRef.current.add(authorityKey);
+    const requestedCursor = checkpoint.lastMessageId;
+    try {
+      const inspection = await inspectMirrorConversationActivity(current);
+      if (!inspection) return;
+      const latest = conversationRef.current;
+      if (
+        latest.journeyId !== current.journeyId
+        || latest.liveIdentity.generation !== current.liveIdentity.generation
+        || latest.reconciliation.checkpoints.mirror?.lastMessageId !== requestedCursor
+      ) return;
+      const result = projectMirrorConversationInspection(latest, inspection, new Date().toISOString());
+      if (result.changed) {
+        await saveJourneyConversation(result.conversation);
+        const afterSave = conversationRef.current;
+        if (
+          afterSave.journeyId !== latest.journeyId
+          || afterSave.liveIdentity.generation !== latest.liveIdentity.generation
+          || afterSave.reconciliation.checkpoints.mirror?.lastMessageId !== requestedCursor
+        ) return;
+        setConversation(result.conversation);
+      }
+      setMirrorReconciliationReview(
+        result.review && result.review.status !== "waiting" ? result.review : undefined,
+      );
+      setMirrorReconciliationError(undefined);
+    } catch (error) {
+      console.warn("Could not refresh Mirror conversation activity.", error);
+    } finally {
+      externalPiInFlightRef.current.delete(authorityKey);
+    }
+  }
+
+  async function applyMirrorReconciliation() {
+    const review = mirrorReconciliationReview;
+    const current = conversationRef.current;
+    if (!review || review.status !== "eligible" || isReconcilingMirror || isStreaming || agentRun.status === "running") return;
+    const providerIndex = providerConfig.args.indexOf("--provider");
+    const modelIndex = providerConfig.args.indexOf("--model");
+    const provider = providerIndex >= 0 ? providerConfig.args[providerIndex + 1] : undefined;
+    const modelName = modelIndex >= 0 ? providerConfig.args[modelIndex + 1] : undefined;
+    if (!provider || !modelName) {
+      setMirrorReconciliationError("Configured Pi provider and model are required.");
+      return;
+    }
+    setIsReconcilingMirror(true);
+    setMirrorReconciliationError(undefined);
+    try {
+      await reconcileMirrorConversation({ conversation: current, fingerprint: review.fingerprint, provider, model: modelName });
+      const reconciled = await loadJourneyConversation(current.journeyId);
+      if (!reconciled || reconciled.liveIdentity.generation !== current.liveIdentity.generation + 1) {
+        throw new Error("Reconciled conversation could not be restored.");
+      }
+      setConversation(reconciled);
+      setMirrorReconciliationReview(undefined);
+      setJourneyReloadStatus("Mirror updates reconciled into a new Pi generation.");
+    } catch (error) {
+      setMirrorReconciliationError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsReconcilingMirror(false);
     }
   }
 
@@ -629,6 +726,8 @@ export function App({ model }: AppProps) {
     checkedMirrorTurnRef.current = undefined;
     setMirrorCommitError(undefined);
     setExternalPiConflict(undefined);
+    setMirrorReconciliationReview(undefined);
+    setMirrorReconciliationError(undefined);
   }, [selectedJourney]);
 
   useEffect(() => {
@@ -667,7 +766,7 @@ export function App({ model }: AppProps) {
     if (
       isInitializingPiContext
       || isStreaming
-      || conversation.liveIdentity.origin !== "mirror_import"
+      || !["mirror_import", "mirror_reconciliation"].includes(conversation.liveIdentity.origin)
       || !conversation.liveIdentity.mirrorConversationId
     ) {
       return;
@@ -1392,6 +1491,14 @@ export function App({ model }: AppProps) {
         </section>
 
         <section className="composer" aria-label="Message composer">
+          {mirrorReconciliationReview && !isStreaming ? (
+            <MirrorReconciliationNotice
+              review={mirrorReconciliationReview}
+              disabled={isReconcilingMirror || agentRun.status === "running" || providerConfig.safeTestMode}
+              error={mirrorReconciliationError}
+              onApply={() => void applyMirrorReconciliation()}
+            />
+          ) : null}
           {externalPiConflict && !isStreaming ? (
             <ExternalPiSyncNotice reason={externalPiConflict} />
           ) : null}

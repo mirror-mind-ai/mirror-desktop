@@ -244,7 +244,7 @@ function parseLiveConversationIdentity(
     typeof identity.generation !== "number" ||
     !Number.isInteger(identity.generation) ||
     identity.generation < 0 ||
-    !["new", "continued", "mirror_import", "restart", "legacy"].includes(String(identity.origin))
+    !["new", "continued", "mirror_import", "mirror_reconciliation", "restart", "legacy"].includes(String(identity.origin))
   ) {
     return undefined;
   }

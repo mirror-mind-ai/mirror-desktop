@@ -91,5 +91,6 @@ The previous Tauri after-the-fact `log_mirror_message` calls were removed from l
 
 - Validate US-3 correlated commit, controlled Mirror failure, retry and relaunch behavior in the desktop app.
 - US-4: implemented background startup/focus/Journey checks of the exact checkpoint JSONL, with metadata fast path, append-tail cache, native ancestry validation, complete text-turn projection and conflict-without-mutation semantics.
+- US-5: adds no observation-time Pi process. Explicit eligible Mirror reconciliation writes a staged hydrated JSONL generation only after idle/authority/snapshot validation, preserves the previous exact Pi file, and rolls back both Pi and Harness activation if either side cannot commit.
 - US-5: detect Mirror-only advancement and reconcile it into Pi only after explicit approval.
 - Complete paired terminal/Nautilus/Mirror Journey, persona, mode, context and controlled-compaction validation.
