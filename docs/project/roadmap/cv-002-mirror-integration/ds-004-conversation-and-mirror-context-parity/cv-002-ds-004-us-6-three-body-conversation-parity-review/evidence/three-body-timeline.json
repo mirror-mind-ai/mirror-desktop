@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "0.1.0",
+  "journeyId": "viagem-do-lipe",
+  "timeline": [
+    {
+      "stage": "mirror_reconciliation_baseline",
+      "harness": {
+        "conversationId": "nautilus-mirror-13a0d6f3",
+        "messageCount": 30,
+        "lastMessageId": "mirror-ba678081-867e-4ce0-9ac2-feec0d3aecd2"
+      },
+      "pi": {
+        "sessionId": "nautilus-viagem-do-lipe",
+        "generation": 1,
+        "leafEntryId": "import-message-30",
+        "entryCount": 31,
+        "fileSha256": "8ebad9f19da3a3f36245e9af6d712001a1dd306645bd9a9a6eb835dafbade246"
+      },
+      "mirror": {
+        "conversationId": "13a0d6f3",
+        "lastMessageId": "ba678081-867e-4ce0-9ac2-feec0d3aecd2",
+        "messageCount": 28
+      },
+      "classification": "in_sync",
+      "reasonCodes": [
+        "explicit_hydration_baseline"
+      ]
+    }
+  ]
+}
