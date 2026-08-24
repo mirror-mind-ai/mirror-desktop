@@ -1473,6 +1473,16 @@ h3 {
   padding: 8px 10px;
 }
 
+.external-pi-sync-notice > div {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+}
+
+.external-pi-sync-notice span {
+  opacity: 0.72;
+}
+
 .conversation-sync-notice .secondary-button {
   flex: 0 0 auto;
   min-height: 28px;

@@ -492,7 +492,7 @@ fn reconcile_mirror_conversation(
                 "lastTurnId": format!("mirror-reconciliation-{}", expected_fingerprint.last_message_id),
                 "messageCount": message_count,
             },
-            "pi": { "leafEntryId": pi_leaf, "entryCount": message_count + 2, "sessionFile": session_file },
+            "pi": { "leafEntryId": pi_leaf, "entryCount": message_count + 1, "sessionFile": session_file },
             "mirror": {
                 "conversationId": mirror_conversation_id,
                 "lastMessageId": expected_fingerprint.last_message_id,
@@ -2176,6 +2176,8 @@ mod tests {
         assert_eq!(lines[2]["message"]["role"], "user");
         assert_eq!(lines[3]["parentId"], "import-message-1");
         assert_eq!(lines[3]["message"]["content"][0]["text"], "remembered");
+        // Reconciliation ancestry counts the model root plus messages; the session header is not a branch entry.
+        assert_eq!(lines.len() - 1, 3);
     }
 
     #[test]

@@ -43,4 +43,6 @@ assistant: ba678081-867e-4ce0-9ac2-feec0d3aecd2
 Pi pre-approval SHA-256: 14d6a2762077b61e02d9267244d2d8f5e12c054202151257f6002873a7c1e889
 ```
 
-Navigator activation, pre-approval immutability, explicit branch creation and relaunch/idempotency remain to be accepted.
+Navigator activation and pre-approval immutability passed. Explicit branch creation successfully produced generation `1`, preserved the old Pi file, and materialized the approved pair. E2E then exposed an off-by-one Pi branch checkpoint: the session header had incorrectly been counted as a branch entry, causing US-4 observation to report `pi_ancestry_mismatch`. The checkpoint now counts the model root plus messages, the controlled persisted E2E state was repaired from `32` to `31`, and unchanged/waiting Pi observations clear stale conflict UI. The compact external-Pi notice also now separates its title and review label visually.
+
+Relaunch/idempotency remains to be accepted after this correction.

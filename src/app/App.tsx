@@ -349,6 +349,9 @@ export function App({ model }: AppProps) {
       );
       if (!inspection) return;
       externalPiFingerprintRef.current.set(authorityKey, inspection.fingerprint);
+      if (inspection.status === "unchanged" || inspection.status === "waiting") {
+        setExternalPiConflict(undefined);
+      }
       const latest = conversationRef.current;
       if (
         latest.journeyId !== current.journeyId
