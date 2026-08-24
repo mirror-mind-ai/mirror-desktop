@@ -2,7 +2,7 @@
 
 # CV-002.DS-004.US-5 — Reconcile Mirror-Only Updates into Pi
 
-**Status:** 🟠 In Validation
+**Status:** ✅ Done
 **Type:** User Story
 
 ---
@@ -73,3 +73,5 @@ Exercise unchanged, eligible, incomplete, duplicate, truncated/consolidated, ind
 - [Test Guide](test-guide.md)
 - [Implementation](implementation.md)
 - [Validation](validation.md)
+- [Review](review.md)
+- [Done](done.md)
