@@ -173,16 +173,6 @@ const initialMessages: ConversationMessage[] = [
   },
 ];
 
-function situationDescription(hasMissionDraft: boolean, hasMission: boolean) {
-  if (hasMissionDraft) {
-    return "The conversation is giving form to an intention of realization.";
-  }
-  if (hasMission) {
-    return "The Journey already has an initial Mission to orient the conversation.";
-  }
-  return "The conversation is still recognizing the Journey field.";
-}
-
 export function App({ model }: AppProps) {
   const [selectedJourney, setSelectedJourney] = useState(defaultJourneyPreferenceState.activeJourneyId ?? "nautilus-harness");
   const [selectedAltitude, setSelectedAltitude] = useState(defaultJourneyAltitude);
@@ -303,7 +293,6 @@ export function App({ model }: AppProps) {
       }
     : undefined;
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
-  const currentSituationDescription = situationDescription(Boolean(streamMissionDraft), Boolean(model.mission));
   const altitudeSwitchDisabled = isStreaming || agentRun.status === "running" || isJourneyReloading;
   const operationalChatSelected = selectedAltitude === "operational" && selectedOperationalSurface === "chat";
   const rightPanelVisible = operationalChatSelected && !rightPanelCollapsed;
@@ -1437,7 +1426,6 @@ export function App({ model }: AppProps) {
                 />
               ) : null}
             </div>
-            {headerExpanded ? <p className="journey-moment-summary">{currentSituationDescription}</p> : null}
           </div>
         </header>
 

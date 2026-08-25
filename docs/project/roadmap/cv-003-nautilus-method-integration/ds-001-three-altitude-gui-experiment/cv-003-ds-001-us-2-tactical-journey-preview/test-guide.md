@@ -23,7 +23,7 @@ Verify that:
 Static-render `TacticalJourneyWorkspace` and verify:
 
 - `role="tabpanel"` and the accessible Tactical workspace label;
-- explicit representative-preview badge/copy;
+- compact representative-preview marker inside the mission anchor, without a separate framing header;
 - mission title and purpose;
 - evidence and deliverable section headings;
 - semantic lists for related records;
@@ -68,7 +68,7 @@ cd src-tauri && cargo check
 
 ## Expected Observation
 
-Tactical has less visual noise and more breathing room than Operational. The mission is clearly primary. Evidence and deliverables read as two supporting dimensions of that mission rather than unrelated inventories. Deliverable states are informative, not actionable. The surface clearly identifies itself as representative preview content.
+Tactical opens directly on the mission without a redundant framing header and has less visual noise than Operational. The mission is clearly primary. Evidence and deliverables read as two supporting dimensions of that mission rather than unrelated inventories. Deliverable states are informative, not actionable. The surface clearly identifies itself as representative preview content.
 
 ## Pass Condition
 

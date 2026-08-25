@@ -10,7 +10,7 @@ Implemented the durable Tactical Journey workspace shell as a pure read-only pre
 - Made the active mission the dominant directional anchor.
 - Resolved evidence and deliverables through the mission's explicit relationship IDs so unrelated records do not appear.
 - Rendered deliverable state as descriptive metadata only.
-- Added explicit `Representative Journey preview` and `not live-derived` labeling.
+- Kept preview honesty as a compact `Preview` marker inside the mission anchor, removing the larger Tactical framing block to preserve vertical workspace.
 - Kept Strategic on its US-3 foundation placeholder.
 - Added no forms, mutation controls, persistence, effects, native commands, Pi/Mirror/provider callbacks or runtime imports.
 - Preserved the existing Operational Conversation/Artifacts composition and ephemeral altitude state.
@@ -32,8 +32,9 @@ cargo check: passed
 
 Visual inspection confirmed:
 
-- Tactical reads from mission to evidence and deliverables;
-- preview status is visible;
+- Tactical opens directly on the mission, followed by evidence and deliverables;
+- the redundant Journey header summary and Tactical framing labels are absent;
+- preview status remains visible through a compact marker;
 - no composer or execution action is mounted;
 - the right inspector recedes outside Operational Conversation;
 - an unsent Operational draft survived the Tactical round trip byte-for-byte.
@@ -42,6 +43,7 @@ Screenshot:
 
 ```text
 /tmp/nautilus-us2-tactical-workspace.png
+/tmp/nautilus-us2-tactical-compact.png
 ```
 
 ## Files

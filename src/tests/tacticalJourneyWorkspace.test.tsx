@@ -30,8 +30,13 @@ describe("TacticalJourneyWorkspace", () => {
 
     expect(html).toContain('role="tabpanel"');
     expect(html).toContain('aria-label="Tactical workspace"');
-    expect(html).toContain("Representative Journey preview");
+    expect(html).not.toContain("Tactical orientation");
+    expect(html).not.toContain("Direction over activity");
+    expect(html).not.toContain("Representative Journey preview");
+    expect(html).not.toContain("Representative reading — not live-derived");
     expect(html).toContain("Active mission");
+    expect(html).toContain('class="tactical-preview-label"');
+    expect(html).toContain(">Preview<");
     expect(html).toContain(representativeJourneyPreview.tactical.mission.title);
     expect(html).toContain(representativeJourneyPreview.tactical.mission.purpose);
     expect(html).toContain("Evidence");
@@ -48,7 +53,7 @@ describe("TacticalJourneyWorkspace", () => {
       <TacticalJourneyWorkspace preview={representativeJourneyPreview} />,
     );
 
-    expect(html).toContain("Representative reading — not live-derived");
+    expect(html).not.toContain("Representative reading — not live-derived");
     expect(html).not.toMatch(/<(form|input|textarea|button|select)\b/);
     expect(html).not.toMatch(/drag|drop|progress|score/i);
     expect(tacticalSource).not.toMatch(/invoke|generatePacket|AgentRun|useEffect|localStorage|sessionStorage/);

@@ -28,21 +28,11 @@ export function TacticalJourneyWorkspace({ preview }: TacticalJourneyWorkspacePr
       aria-label="Tactical workspace"
     >
       <div className="tactical-workspace-frame">
-        <header className="tactical-workspace-heading">
-          <div>
-            <p className="eyebrow">Tactical orientation</p>
-            <h2>Direction over activity</h2>
-          </div>
-          <div className="tactical-preview-status">
-            <span className="preview-badge">{preview.previewLabel}</span>
-            <small>Representative reading — not live-derived</small>
-          </div>
-        </header>
-
         <article className="tactical-mission-anchor" aria-labelledby="tactical-mission-title">
           <div className="tactical-reading-label">
             <span aria-hidden="true">◎</span>
             <span>Active mission</span>
+            <span className="tactical-preview-label">Preview</span>
           </div>
           <h3 id="tactical-mission-title">{mission.title}</h3>
           <p>{mission.purpose}</p>

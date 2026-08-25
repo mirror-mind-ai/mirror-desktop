@@ -79,7 +79,9 @@ describe("Operational Journey workspace", () => {
     expect(appSource).not.toContain("presentMapCounters");
     expect(appSource).not.toContain("currentDeliveryTitle");
     expect(appSource).toContain('className="active-journey-title"');
-    expect(appSource).toContain('className="journey-moment-summary"');
+    expect(appSource).not.toContain('className="journey-moment-summary"');
+    expect(appSource).not.toContain("currentSituationDescription");
+    expect(appSource).not.toContain("situationDescription");
     expect(appSource).toContain("useState<OperationalSurface>(\"chat\")");
     expect(appSource).toContain("useState(true)");
     expect(appSource).toContain("void generatePacket(\"live\")");
