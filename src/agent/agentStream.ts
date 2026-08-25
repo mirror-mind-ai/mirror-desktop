@@ -59,6 +59,7 @@ export type AgentStreamEvent =
       usage: { tokens: number | null; contextWindow: number | null; percent: number | null };
     }
   | { type: "mirror_commit"; commit: MirrorCommitEvent }
+  | { type: "persona_context"; persona: string }
   | { type: "diagnostic"; message: string }
   | { type: "grammar_update"; update: PiGrammarUpdate }
   | { type: "warning"; message: string }

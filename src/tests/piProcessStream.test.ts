@@ -46,7 +46,7 @@ describe("Pi process stream adapter", () => {
     });
     const mappingState = {};
     expect(mapPiProcessEventToStreamEvents({ kind: "stdout", content: `${line}\n` }, { mappingState })).toEqual([
-      { type: "message_delta", content: "✦ Persona: product-designer\n\n" },
+      { type: "persona_context", persona: "product-designer" },
     ]);
     expect(mapPiProcessEventToStreamEvents({ kind: "stdout", content: `${line}\n` }, { mappingState })).toEqual([]);
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inferMessageSpeaker, stripMessageSpeakerSignature } from "../app/conversationPresentation";
+import { inferMessageSpeaker, stripMessageSpeakerSignature, withCertifiedPersona } from "../app/conversationPresentation";
 
 describe("conversation presentation", () => {
   it("uses Navigator speaker metadata for user messages", () => {
@@ -33,6 +33,15 @@ describe("conversation presentation", () => {
       kind: "persona",
     });
     expect(stripMessageSpeakerSignature(content)).toBe("A proposta");
+  });
+
+  it("moves late durable persona evidence to the presentation boundary exactly once", () => {
+    expect(withCertifiedPersona("A resposta.✦ Persona: product-designer", "product-designer")).toBe(
+      "✦ Persona: product-designer\n\nA resposta.",
+    );
+    expect(withCertifiedPersona("✦ Persona: product-designer\n\nA resposta.", "product-designer")).toBe(
+      "✦ Persona: product-designer\n\nA resposta.",
+    );
   });
 
   it("falls back to the generic agent speaker", () => {

@@ -233,7 +233,7 @@ function mapMirrorContextEvent(event: PiJsonEvent, mappingState?: PiProcessMappi
   }
   if (mappingState?.certifiedPersona === event.persona) return [];
   if (mappingState) mappingState.certifiedPersona = event.persona;
-  return [{ type: "message_delta", content: `✦ Persona: ${event.persona}\n\n` }];
+  return [{ type: "persona_context", persona: event.persona }];
 }
 
 function mapMirrorCommitEvent(event: PiJsonEvent): AgentStreamEvent[] {

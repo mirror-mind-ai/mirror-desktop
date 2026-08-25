@@ -60,7 +60,7 @@ import {
   reduceRuntimeProjection,
   type RuntimeProjectionState,
 } from "./runtimeActivityModel";
-import { inferMessageSpeaker, stripMessageSpeakerSignature } from "./conversationPresentation";
+import { inferMessageSpeaker, stripMessageSpeakerSignature, withCertifiedPersona } from "./conversationPresentation";
 import {
   listMirrorConversations,
   loadJourneyConversation,
@@ -919,6 +919,18 @@ export function App({ model }: AppProps) {
               },
             };
           });
+        }
+        if (event.type === "persona_context") {
+          setConversation((currentConversation) =>
+            replaceJourneyConversationMessages(
+              currentConversation,
+              currentConversation.messages.map((message) =>
+                message.id === assistantMessage.id
+                  ? { ...message, content: withCertifiedPersona(message.content, event.persona) }
+                  : message,
+              ),
+            ),
+          );
         }
         if (event.type === "mirror_commit" && correlation) {
           setConversation((currentConversation) => applyMirrorCommitEvent(

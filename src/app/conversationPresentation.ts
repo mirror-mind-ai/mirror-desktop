@@ -25,6 +25,18 @@ export function stripMessageSpeakerSignature(content: string): string {
   return content.replace(personaSignaturePattern, "").trimStart();
 }
 
+export function withCertifiedPersona(content: string, persona: string): string {
+  const marker = `✦ Persona: ${persona}`;
+  const withoutExistingMarker = content
+    .replace(new RegExp(`(?:^|\\n)?[◇✦]\\s*(?:Persona:\\s*)?${escapeRegExp(persona)}\\s*`, "i"), "")
+    .trimStart();
+  return withoutExistingMarker ? `${marker}\n\n${withoutExistingMarker}` : `${marker}\n\n`;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function personaAvatar(persona: string): string {
   return persona
     .split(/[-_\s]+/)
