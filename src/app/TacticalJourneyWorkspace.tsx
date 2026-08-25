@@ -32,7 +32,6 @@ export function TacticalJourneyWorkspace({ preview }: TacticalJourneyWorkspacePr
           <div className="tactical-reading-label">
             <span aria-hidden="true">◎</span>
             <span>Active mission</span>
-            <span className="tactical-preview-label">Preview</span>
           </div>
           <h3 id="tactical-mission-title">{mission.title}</h3>
           <p>{mission.purpose}</p>

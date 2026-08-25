@@ -1,6 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { JourneyAltitudePlaceholder } from "../app/JourneyAltitudePlaceholder";
 import { OperationalWorkspaceSwitcher } from "../app/OperationalWorkspaceSwitcher";
 import appSource from "../app/App.tsx?raw";
 import documentationBrowserSource from "../app/JourneyDocumentationBrowser.tsx?raw";
@@ -42,24 +41,15 @@ describe("Operational Journey workspace", () => {
     expect(documentationBrowserSource).not.toContain("href=");
   });
 
-  it("keeps Strategic as an honest placeholder without derived semantics or actions", () => {
-    const html = renderToStaticMarkup(<JourneyAltitudePlaceholder altitude="strategic" />);
-
-    expect(html).toContain("Strategic altitude");
-    expect(html).toContain("Foundation shell");
-    expect(html).not.toContain("GUI experiment");
-    expect(html).toContain("US-3");
-    expect(html).not.toMatch(/Mission|Evidence|Deliverable|Realization|Impact|Value/);
-    expect(html).not.toContain("button");
-    expect(html).not.toContain("textarea");
-  });
-
-  it("mounts Tactical as a dedicated representative workspace while preserving the other altitude branches", () => {
+  it("mounts Journey-contextual altitude data or an honest empty surface", () => {
+    expect(appSource).toContain("representativeJourneyPreviewForJourney(selectedJourneyItem.id)");
     expect(appSource).toContain("<TacticalJourneyWorkspace");
-    expect(appSource).toContain("preview={representativeJourneyPreview}");
-    expect(appSource).toContain('selectedAltitude === "tactical"');
-    expect(appSource).toContain('selectedAltitude === "strategic"');
-    expect(appSource).toContain('<JourneyAltitudePlaceholder altitude="strategic" />');
+    expect(appSource).toContain("preview={contextualJourneyPreview}");
+    expect(appSource).toContain('altitude="tactical"');
+    expect(appSource).toContain('altitude="strategic"');
+    expect(appSource).toContain("journeyName={selectedJourneyItem.name}");
+    expect(appSource).not.toContain("<JourneyAltitudePlaceholder");
+    expect(appSource).not.toContain("preview={representativeJourneyPreview}");
   });
 
   it("simplifies the header and keeps altitude state separate from runtime ownership", () => {

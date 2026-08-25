@@ -6,8 +6,8 @@ Blocked
 
 ## Automated Checks
 
-- npm test -- src/tests/tacticalJourneyWorkspace.test.tsx src/tests/operationalJourneyWorkspace.test.tsx: 2 files, 9 tests passed
-- npm test: 33 files, 232 tests passed
+- npm test -- src/tests/tacticalJourneyWorkspace.test.tsx src/tests/journeyAltitudeEmptyState.test.tsx src/tests/operationalJourneyWorkspace.test.tsx src/tests/journeyAltitudePreview.test.ts: 4 files, 14 tests passed
+- npm test: 34 files, 234 tests passed
 - npm run build: TypeScript and Vite production build passed
 - cargo test: 14 tests passed
 - cargo check: passed
@@ -18,19 +18,19 @@ Checks status: passed
 
 Decision: required
 
-Evidence: Visual correction verified in the desktop shell: the Journey mission summary was removed from the shared header; Tactical now opens directly on the mission; the Tactical orientation title and verbose representative-preview framing were removed; a compact Preview marker preserves fixture honesty. Screenshot: /tmp/nautilus-us2-tactical-compact.png. Final acceptance requires Navigator inspection in the real Tauri desktop app.
+Evidence: Desktop-shell inspection confirmed stronger Evidence/Deliverables and 01/02 hierarchy, removal of all Preview copy, and a contextual Strategic empty surface naming the selected Journey. Automated tests prove Tactical representative data resolves only for its owning Journey and non-matching Journeys receive the inert contextual empty surface. Screenshots: /tmp/nautilus-us2-tactical-contextual.png and /tmp/nautilus-us2-strategic-empty.png. Final acceptance requires Navigator inspection with the real multi-Journey registry.
 
 ## Navigator Validation
 
-Route: Inspect the shared Journey header and Tactical altitude in the desktop app, then confirm the removed labels no longer consume vertical space and mission/evidence/deliverables remain clear.
+Route: In the real desktop app, inspect Tactical for nautilus-harness, then select a Journey without Tactical data and inspect Tactical and Strategic. Confirm hierarchy, absence of Preview copy, Journey naming and empty-state isolation.
 
 Navigator accepted: no
 
-Expected observation: The shared header ends after altitude controls; Tactical begins directly with the mission anchor and compact Preview marker; evidence and deliverables fit higher in the viewport; no removed copy remains.
+Expected observation: Evidence/Deliverables and 01/02 are visually stronger than their items; no Preview marker remains; only nautilus-harness receives its representative Tactical reading; other Journeys show their own contextual no-data surface in Tactical and Strategic.
 
-Pass condition: Navigator accepts the compact shared header and Tactical composition while preview honesty and hierarchy remain legible.
+Pass condition: Navigator accepts the hierarchy and confirms no Tactical/Strategic data leaks across selected Journeys.
 
-Fail condition: Any requested label remains, the compact Preview marker is distracting or insufficient, hierarchy degrades, layout regresses, or Operational continuity changes.
+Fail condition: Preview copy remains, headings remain indistinguishable from items, another Journey receives nautilus-harness data, the empty surface names the wrong Journey, or Operational continuity changes.
 
 ## Missing Evidence
 

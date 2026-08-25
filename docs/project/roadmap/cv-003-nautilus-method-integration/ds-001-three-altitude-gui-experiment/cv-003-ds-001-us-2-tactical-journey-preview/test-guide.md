@@ -23,7 +23,10 @@ Verify that:
 Static-render `TacticalJourneyWorkspace` and verify:
 
 - `role="tabpanel"` and the accessible Tactical workspace label;
-- compact representative-preview marker inside the mission anchor, without a separate framing header;
+- no Preview copy in the mission banner;
+- larger Evidence/Deliverables headings and 01/02 hierarchy;
+- Journey-keyed Tactical resolution with no fallback to another Journey;
+- contextual inert Tactical and Strategic empty states when data is absent;
 - mission title and purpose;
 - evidence and deliverable section headings;
 - semantic lists for related records;
@@ -46,7 +49,7 @@ Characterize source/composition so that:
 Run:
 
 ```bash
-npm test -- src/tests/tacticalJourneyWorkspace.test.tsx src/tests/operationalJourneyWorkspace.test.tsx src/tests/journeyAltitudePreview.test.ts
+npm test -- src/tests/tacticalJourneyWorkspace.test.tsx src/tests/journeyAltitudeEmptyState.test.tsx src/tests/operationalJourneyWorkspace.test.tsx src/tests/journeyAltitudePreview.test.ts
 npm test
 npm run build
 cd src-tauri && cargo test
@@ -61,21 +64,23 @@ cd src-tauri && cargo check
 4. Select Tactical.
 5. Verify the selected Journey header and sidebar remain stable.
 6. Read the mission anchor, then its evidence and deliverables.
-7. Confirm the preview label is immediately visible.
-8. Confirm there is no composer, send button, mutation control or workflow affordance.
-9. Return to Operational → Conversation.
-10. Confirm the draft, messages, runtime and reconciliation state are unchanged.
+7. Confirm no Preview label remains in the mission banner.
+8. Switch to a Journey without Tactical data and confirm its name appears in the empty surface.
+9. Select Strategic and confirm the selected Journey receives the contextual no-data surface.
+10. Confirm there is no composer, send button, mutation control or workflow affordance.
+11. Return to Operational → Conversation.
+12. Confirm the draft, messages, runtime and reconciliation state are unchanged.
 
 ## Expected Observation
 
-Tactical opens directly on the mission without a redundant framing header and has less visual noise than Operational. The mission is clearly primary. Evidence and deliverables read as two supporting dimensions of that mission rather than unrelated inventories. Deliverable states are informative, not actionable. The surface clearly identifies itself as representative preview content.
+Tactical opens directly on the mission without a redundant framing header and has less visual noise than Operational. The mission is clearly primary. Evidence and Deliverables headings plus 01/02 indices are visibly stronger than their items. Readings never cross Journey identity; absent Tactical or Strategic data produces a contextual empty surface. Deliverable states are informative, not actionable. Contextual resolution prevents a Journey from displaying another Journey's fixture.
 
 ## Pass Condition
 
 - all automated checks pass;
 - mission, evidence and deliverables form one coherent reading;
 - Tactical feels like orientation rather than task management;
-- preview honesty is immediately legible;
+- Journey ownership and empty-data behavior are immediately legible;
 - no execution/editing behavior appears;
 - Operational state survives the round trip;
 - the Navigator accepts the shell for later live hydration.

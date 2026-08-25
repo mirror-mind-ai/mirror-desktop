@@ -162,3 +162,11 @@ export const representativeJourneyPreview = {
     ],
   },
 } as const satisfies RepresentativeJourneyPreview;
+
+export function representativeJourneyPreviewForJourney(
+  journeyId: string,
+): RepresentativeJourneyPreview | undefined {
+  return journeyId === representativeJourneyPreview.journey.id
+    ? representativeJourneyPreview
+    : undefined;
+}

@@ -3,6 +3,7 @@ import {
   defaultJourneyAltitude,
   journeyAltitudeDescriptors,
   representativeJourneyPreview,
+  representativeJourneyPreviewForJourney,
   type JourneyAltitude,
 } from "../app/journeyAltitudePreview";
 
@@ -45,6 +46,12 @@ describe("journey altitude preview contract", () => {
     expect(realization.impactIds.every((id) => impactIds.has(id))).toBe(true);
     expect(realization.pragmaticValue).toBeTruthy();
     expect(realization.integrativeValue).toBeTruthy();
+  });
+
+  it("returns representative content only for the Journey it describes", () => {
+    expect(representativeJourneyPreviewForJourney("nautilus-harness")).toBe(representativeJourneyPreview);
+    expect(representativeJourneyPreviewForJourney("another-journey")).toBeUndefined();
+    expect(representativeJourneyPreviewForJourney("")).toBeUndefined();
   });
 
   it("contains only sanitized relative artifact paths", () => {

@@ -35,8 +35,7 @@ describe("TacticalJourneyWorkspace", () => {
     expect(html).not.toContain("Representative Journey preview");
     expect(html).not.toContain("Representative reading — not live-derived");
     expect(html).toContain("Active mission");
-    expect(html).toContain('class="tactical-preview-label"');
-    expect(html).toContain(">Preview<");
+    expect(html).not.toMatch(/preview/i);
     expect(html).toContain(representativeJourneyPreview.tactical.mission.title);
     expect(html).toContain(representativeJourneyPreview.tactical.mission.purpose);
     expect(html).toContain("Evidence");

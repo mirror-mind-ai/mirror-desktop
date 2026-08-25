@@ -45,7 +45,7 @@ import { ConversationSyncNotice } from "./ConversationSyncNotice";
 import { ExternalPiSyncNotice } from "./ExternalPiSyncNotice";
 import { MirrorReconciliationNotice } from "./MirrorReconciliationNotice";
 import { JourneyAltitudeSwitcher } from "./JourneyAltitudeSwitcher";
-import { JourneyAltitudePlaceholder } from "./JourneyAltitudePlaceholder";
+import { JourneyAltitudeEmptyState } from "./JourneyAltitudeEmptyState";
 import { JourneyDocumentationBrowser } from "./JourneyDocumentationBrowser";
 import { TacticalJourneyWorkspace } from "./TacticalJourneyWorkspace";
 import {
@@ -54,7 +54,7 @@ import {
 } from "./OperationalWorkspaceSwitcher";
 import {
   defaultJourneyAltitude,
-  representativeJourneyPreview,
+  representativeJourneyPreviewForJourney,
 } from "./journeyAltitudePreview";
 import {
   inspectMirrorConversationActivity,
@@ -266,6 +266,7 @@ export function App({ model }: AppProps) {
       breadcrumb: [selectedJourney],
       depth: 0,
     };
+  const contextualJourneyPreview = representativeJourneyPreviewForJourney(selectedJourneyItem.id);
   const selectedJourneyVisual = journeyVisual(selectedJourneyItem.id);
   const selectedJourneyBasePath = selectedJourneyItem.projectPath;
   const messages = conversation.messages;
@@ -1436,10 +1437,20 @@ export function App({ model }: AppProps) {
           />
         ) : null}
         {selectedAltitude === "tactical" ? (
-          <TacticalJourneyWorkspace preview={representativeJourneyPreview} />
+          contextualJourneyPreview ? (
+            <TacticalJourneyWorkspace preview={contextualJourneyPreview} />
+          ) : (
+            <JourneyAltitudeEmptyState
+              altitude="tactical"
+              journeyName={selectedJourneyItem.name}
+            />
+          )
         ) : null}
         {selectedAltitude === "strategic" ? (
-          <JourneyAltitudePlaceholder altitude="strategic" />
+          <JourneyAltitudeEmptyState
+            altitude="strategic"
+            journeyName={selectedJourneyItem.name}
+          />
         ) : null}
 
         <section

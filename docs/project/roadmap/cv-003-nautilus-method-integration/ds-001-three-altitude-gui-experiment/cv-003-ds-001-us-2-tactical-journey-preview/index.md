@@ -13,7 +13,7 @@ so that I can orient the Journey without reading the entire operational stream a
 
 ## Outcome
 
-Tactical establishes the permanent spatial composition for mission, evidence and deliverables. The selected Journey remains the territory, the mission becomes the directional anchor, and evidence and deliverables appear as related supporting readings. Every datum remains explicitly representative and non-authoritative until `CV-003.DS-003` supplies live derivation.
+Tactical establishes the permanent spatial composition for mission, evidence and deliverables. The selected Journey remains the territory, the mission becomes the directional anchor, and evidence and deliverables appear as related supporting readings. Representative data is keyed to the Journey it describes and cannot leak into another Journey; Journeys without tactical or strategic data receive an honest contextual empty surface until `CV-003.DS-003` and `CV-003.DS-004` supply live derivation.
 
 ## Acceptance Behavior
 
@@ -22,7 +22,8 @@ Given the shared representative Journey model
 When I select Tactical
 Then the active mission anchors the workspace
 And only its related evidence and deliverables appear beneath it
-And the surface is visibly labeled as representative preview data
+And the reading belongs to the selected Journey
+And a Journey without tactical data receives an honest empty surface
 And no composer, execution action, editable workflow or live-derivation claim appears.
 ```
 
@@ -39,7 +40,8 @@ And altitude navigation has invoked no Pi, Mirror or provider process.
 - Active mission as the primary directional anchor.
 - Related evidence and deliverables composed beneath the mission.
 - Calmer density and stronger hierarchy than Operational.
-- Explicit representative-preview labeling at workspace level.
+- Journey-keyed representative data with no cross-Journey fallback.
+- Shared contextual empty surface when Tactical or Strategic data is absent.
 - Accessible headings, list semantics and tab-panel identity.
 - Existing shared representative model reused without mutation.
 

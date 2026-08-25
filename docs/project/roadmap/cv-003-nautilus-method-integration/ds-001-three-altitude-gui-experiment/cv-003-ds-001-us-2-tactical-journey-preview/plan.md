@@ -4,6 +4,18 @@
 
 Establish the permanent Tactical Journey workspace composition over the existing representative Journey model. Make the active mission the directional anchor, connect its evidence and deliverables in a calmer hierarchy, label all content explicitly as representative preview data, preserve the selected Journey and Operational conversation, and leave live derivation to `CV-003.DS-003`.
 
+## Validation Correction Amendment
+
+Navigator review refined the approved presentation contract:
+
+- Evidence/Deliverables headings and their 01/02 indices receive stronger hierarchy.
+- No Preview marker remains in the mission banner.
+- Representative Tactical data resolves by selected Journey ID and never falls back across Journeys.
+- Tactical and Strategic share an inert, Journey-named empty-data surface when no contextual reading exists.
+- Strategic content and all live derivation remain deferred to their owning stories.
+
+This bounded correction is tracked as `CR015` under `RS006` and does not authorize derivation, mutation or persistence.
+
 ## Product Reading
 
 Tactical is a change of distance, not a dashboard or task manager. Operational activity recedes so the Navigator can recognize direction and supporting signals. The visual hierarchy should read in this order:
