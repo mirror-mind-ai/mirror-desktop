@@ -669,6 +669,195 @@ h3 {
   color: #71868c;
 }
 
+.tactical-journey-workspace {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 34px;
+}
+
+.tactical-workspace-frame {
+  display: grid;
+  gap: 24px;
+  margin: 0 auto;
+  max-width: 1120px;
+}
+
+.tactical-workspace-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 28px;
+  justify-content: space-between;
+}
+
+.tactical-workspace-heading h2 {
+  color: #edf9fa;
+  font-size: 1.55rem;
+  letter-spacing: -0.025em;
+  margin: 5px 0 0;
+}
+
+.tactical-preview-status {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  text-align: right;
+}
+
+.tactical-preview-status small {
+  color: #718a8f;
+  font-size: 0.72rem;
+}
+
+.tactical-mission-anchor {
+  background:
+    linear-gradient(105deg, rgba(70, 145, 136, 0.17), rgba(17, 28, 30, 0.72) 68%),
+    rgba(12, 19, 20, 0.76);
+  border: 1px solid rgba(133, 223, 210, 0.28);
+  border-radius: 24px;
+  box-shadow: inset 3px 0 0 rgba(133, 223, 210, 0.5);
+  padding: 30px 32px 32px;
+}
+
+.tactical-reading-label {
+  align-items: center;
+  color: #85dfd2;
+  display: flex;
+  font-size: 0.72rem;
+  font-weight: 700;
+  gap: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.tactical-mission-anchor h3 {
+  color: #effafb;
+  font-size: clamp(1.55rem, 2.4vw, 2.15rem);
+  font-weight: 590;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  margin: 22px 0 12px;
+  max-width: 760px;
+}
+
+.tactical-mission-anchor p {
+  color: #a9bec2;
+  font-size: 1rem;
+  line-height: 1.65;
+  margin: 0;
+  max-width: 720px;
+}
+
+.tactical-supporting-readings {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tactical-reading {
+  background: rgba(12, 18, 19, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 20px;
+  padding: 24px;
+}
+
+.tactical-reading > header {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+}
+
+.tactical-reading-number {
+  color: #60797e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  padding-top: 3px;
+}
+
+.tactical-reading h3 {
+  color: #dcebed;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+.tactical-reading header p {
+  color: #71868c;
+  font-size: 0.78rem;
+  margin: 5px 0 0;
+}
+
+.tactical-reading ul {
+  display: grid;
+  gap: 2px;
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+}
+
+.tactical-reading li {
+  align-items: flex-start;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 16px minmax(0, 1fr);
+  padding: 17px 2px;
+}
+
+.tactical-reading li:last-child {
+  padding-bottom: 4px;
+}
+
+.tactical-reading li strong {
+  color: #d5e4e6;
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.tactical-reading li p {
+  color: #82999e;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  margin: 6px 0 0;
+}
+
+.tactical-evidence-mark {
+  background: #85dfd2;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(133, 223, 210, 0.08);
+  height: 6px;
+  margin: 6px 0 0 4px;
+  width: 6px;
+}
+
+.tactical-deliverable-mark {
+  color: #8ebec7;
+  font-size: 0.88rem;
+  line-height: 1.3;
+}
+
+.tactical-deliverable-state {
+  border: 1px solid rgba(142, 190, 199, 0.22);
+  border-radius: 999px;
+  color: #8ebec7;
+  display: inline-flex;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-top: 9px;
+  padding: 4px 7px;
+  text-transform: uppercase;
+}
+
+.tactical-deliverable-state.state-complete {
+  border-color: rgba(133, 223, 210, 0.28);
+  color: #85dfd2;
+}
+
 .preview-badge {
   background: rgba(133, 223, 210, 0.1);
   border: 1px solid rgba(133, 223, 210, 0.22);
@@ -2286,5 +2475,25 @@ dd {
 
   .grammar-panel {
     display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .tactical-journey-workspace {
+    padding: 24px;
+  }
+
+  .tactical-workspace-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tactical-preview-status {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .tactical-supporting-readings {
+    grid-template-columns: 1fr;
   }
 }

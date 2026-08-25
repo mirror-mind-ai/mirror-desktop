@@ -47,11 +47,15 @@ import { MirrorReconciliationNotice } from "./MirrorReconciliationNotice";
 import { JourneyAltitudeSwitcher } from "./JourneyAltitudeSwitcher";
 import { JourneyAltitudePlaceholder } from "./JourneyAltitudePlaceholder";
 import { JourneyDocumentationBrowser } from "./JourneyDocumentationBrowser";
+import { TacticalJourneyWorkspace } from "./TacticalJourneyWorkspace";
 import {
   OperationalWorkspaceSwitcher,
   type OperationalSurface,
 } from "./OperationalWorkspaceSwitcher";
-import { defaultJourneyAltitude } from "./journeyAltitudePreview";
+import {
+  defaultJourneyAltitude,
+  representativeJourneyPreview,
+} from "./journeyAltitudePreview";
 import {
   inspectMirrorConversationActivity,
   reconcileMirrorConversation,
@@ -1443,9 +1447,12 @@ export function App({ model }: AppProps) {
             journeyName={selectedJourneyItem.name}
           />
         ) : null}
-        {selectedAltitude === "operational" ? null : (
-          <JourneyAltitudePlaceholder altitude={selectedAltitude} />
-        )}
+        {selectedAltitude === "tactical" ? (
+          <TacticalJourneyWorkspace preview={representativeJourneyPreview} />
+        ) : null}
+        {selectedAltitude === "strategic" ? (
+          <JourneyAltitudePlaceholder altitude="strategic" />
+        ) : null}
 
         <section
           id="operational-chat-panel"

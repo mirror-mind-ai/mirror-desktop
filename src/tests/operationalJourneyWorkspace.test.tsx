@@ -42,20 +42,25 @@ describe("Operational Journey workspace", () => {
     expect(documentationBrowserSource).not.toContain("href=");
   });
 
-  it.each(["tactical", "strategic"] as const)(
-    "renders an honest %s placeholder without derived semantics or actions",
-    (altitude) => {
-      const html = renderToStaticMarkup(<JourneyAltitudePlaceholder altitude={altitude} />);
+  it("keeps Strategic as an honest placeholder without derived semantics or actions", () => {
+    const html = renderToStaticMarkup(<JourneyAltitudePlaceholder altitude="strategic" />);
 
-      expect(html).toContain(`${altitude === "tactical" ? "Tactical" : "Strategic"} altitude`);
-      expect(html).toContain("Foundation shell");
-      expect(html).not.toContain("GUI experiment");
-      expect(html).toContain(altitude === "tactical" ? "US-2" : "US-3");
-      expect(html).not.toMatch(/Mission|Evidence|Deliverable|Realization|Impact|Value/);
-      expect(html).not.toContain("button");
-      expect(html).not.toContain("textarea");
-    },
-  );
+    expect(html).toContain("Strategic altitude");
+    expect(html).toContain("Foundation shell");
+    expect(html).not.toContain("GUI experiment");
+    expect(html).toContain("US-3");
+    expect(html).not.toMatch(/Mission|Evidence|Deliverable|Realization|Impact|Value/);
+    expect(html).not.toContain("button");
+    expect(html).not.toContain("textarea");
+  });
+
+  it("mounts Tactical as a dedicated representative workspace while preserving the other altitude branches", () => {
+    expect(appSource).toContain("<TacticalJourneyWorkspace");
+    expect(appSource).toContain("preview={representativeJourneyPreview}");
+    expect(appSource).toContain('selectedAltitude === "tactical"');
+    expect(appSource).toContain('selectedAltitude === "strategic"');
+    expect(appSource).toContain('<JourneyAltitudePlaceholder altitude="strategic" />');
+  });
 
   it("simplifies the header and keeps altitude state separate from runtime ownership", () => {
     expect(appSource).toContain("defaultJourneyAltitude");
