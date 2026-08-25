@@ -2,7 +2,7 @@
 
 # CV-003.DS-002 - Operational Journey Artifacts
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Progress
 
 ## Outcome
 
