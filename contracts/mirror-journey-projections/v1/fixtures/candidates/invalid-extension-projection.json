@@ -1,0 +1,10 @@
+{
+  "contractVersion": "1.0",
+  "schemaVersion": "0",
+  "journeyId": "projection-probe-journey",
+  "altitude": "tactical",
+  "namespace": "projection-probe",
+  "projection": "tactical",
+  "snapshotId": "ta-invalid",
+  "generatedAt": "not-a-timestamp"
+}

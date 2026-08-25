@@ -2,7 +2,7 @@
 
 # CV-003.DS-006.TS-1 — Mirror Journey Projection Contract v1 and Return Probe
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Validation
 **Type:** Technical Story
 
 ## Outcome
@@ -13,6 +13,7 @@ An independent Mirror Builder session can implement and release the exact generi
 
 - [Plan](plan.md)
 - [Test Guide](test-guide.md)
+- [Implementation](implementation.md)
 
 ## Acceptance Behavior
 

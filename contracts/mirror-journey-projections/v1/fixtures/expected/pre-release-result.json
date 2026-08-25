@@ -1,0 +1,8 @@
+{
+  "checks": [],
+  "contractId": "mirror.journey-projections",
+  "contractVersion": "1.0",
+  "diagnostic": "installed Mirror does not expose the v1 capability",
+  "gate": "blocked",
+  "result": "contract_unavailable"
+}

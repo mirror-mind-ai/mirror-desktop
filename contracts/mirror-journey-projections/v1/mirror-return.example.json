@@ -1,0 +1,32 @@
+{
+  "contractId": "mirror.journey-projections",
+  "contractVersion": "1.0",
+  "mirrorVersion": "",
+  "mirrorCommit": "",
+  "releaseTag": "",
+  "centralRepositoryUrl": "",
+  "ci": {
+    "status": "",
+    "url": ""
+  },
+  "extensionApiVersion": "",
+  "production": {
+    "backupStatus": "",
+    "backupReference": "",
+    "migrationStatus": "",
+    "installedVersion": ""
+  },
+  "consumerProbe": {
+    "sha256": "",
+    "command": "",
+    "result": "",
+    "resultArtifact": ""
+  },
+  "operationalFixture": {
+    "result": "",
+    "snapshotId": "",
+    "sourceRevision": ""
+  },
+  "knownDeviations": [],
+  "gate": "blocked"
+}
