@@ -54,6 +54,35 @@
         "reconciled_mirror_fact_reached_live_pi_context",
         "nautilus_pi_mirror_correlated_commit"
       ]
+    },
+    {
+      "stage": "terminal_pi_and_mirror_independent_advancement",
+      "harness": {
+        "conversationId": "nautilus-mirror-13a0d6f3",
+        "messageCount": 34,
+        "lastMessageId": "pi-assistant-766d406d"
+      },
+      "pi": {
+        "sessionId": "nautilus-viagem-do-lipe",
+        "generation": 1,
+        "userEntryId": "00b98e4a",
+        "assistantEntryId": "766d406d",
+        "leafEntryId": "766d406d",
+        "entryCount": 38,
+        "fileSha256": "c072488c0bfefaed17781f2b31f601b94284d0a174bc87f3f28e808a8a68f244"
+      },
+      "mirror": {
+        "conversationId": "13a0d6f3",
+        "lastMessageId": "78639c85",
+        "messageCount": 32
+      },
+      "classification": "both_advanced",
+      "reasonCodes": [],
+      "validatedClaims": [
+        "exact_terminal_turn_projected_once",
+        "independent_mirror_copy_disclosed_without_auto_merge",
+        "generic_pi_conflict_notice_absent"
+      ]
     }
   ]
 }

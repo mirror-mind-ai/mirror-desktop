@@ -9,6 +9,8 @@ type MirrorReconciliationNoticeProps = {
 
 export function MirrorReconciliationNotice({ review, disabled, error, onApply }: MirrorReconciliationNoticeProps) {
   const eligible = review.status === "eligible";
+  const independentlyReviewed = review.status === "independent";
+  const actionable = eligible || independentlyReviewed;
   return (
     <aside className="conversation-sync-notice mirror-reconciliation-notice" aria-label="Mirror reconciliation review">
       <details>
@@ -25,9 +27,12 @@ export function MirrorReconciliationNotice({ review, disabled, error, onApply }:
               <p>{message.content.slice(0, 500)}{message.content.length > 500 ? "…" : ""}</p>
             </div>
           ))}
-          {eligible ? (
+          {independentlyReviewed ? (
+            <p>Pi and Mirror advanced independently. Review both visible copies before creating a shared explicit baseline.</p>
+          ) : null}
+          {actionable ? (
             <button type="button" disabled={disabled} onClick={onApply}>
-              {disabled ? "Reconciling…" : "Create reconciled Pi branch"}
+              {disabled ? "Reconciling…" : independentlyReviewed ? "Create reviewed convergence branch" : "Create reconciled Pi branch"}
             </button>
           ) : (
             <p>Reconciliation unavailable: {review.reasonCode ?? review.status}.</p>

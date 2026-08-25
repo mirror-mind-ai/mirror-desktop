@@ -23,7 +23,7 @@ The machine-readable sanitized timeline is [evidence/three-body-timeline.json](e
 | 7 | Context usage parity | Pi usage reducers, exact-session local inspection, model-window snapshot | rerun_required | Compare exact same session in terminal and Nautilus. |
 | 8 | Pi-owned compaction and continuity | Deterministic compaction lifecycle/settlement suites | rerun_required | One bounded safe automatic-compaction route or explicit accepted limitation remains. |
 | 9 | Durable logging, failure and recovery | [US-3 validation](../cv-002-ds-004-us-3-observable-three-body-turn-commit/validation.md) | accepted_existing | Semantic Mirror records differ from Pi execution bytes by design; native correlation proves the commit. |
-| 10 | External exact Pi continuation | [US-4 validation](../cv-002-ds-004-us-4-resume-external-pi-activity-in-nautilus/validation.md) | accepted_existing | Pi owns ancestry; Nautilus projects only complete visible text turns. |
+| 10 | External exact Pi continuation | [US-4 validation](../cv-002-ds-004-us-4-resume-external-pi-activity-in-nautilus/validation.md) plus generation-1 terminal rerun | rerun_passed | Pi owns ancestry; exact turn projected once and generic divergence warning remained absent. |
 | 11 | Mirror-only explicit reconciliation | [US-5 validation](../cv-002-ds-004-us-5-reconcile-mirror-only-updates-into-pi/validation.md) | accepted_existing | Mirror semantic content enters Pi only through explicit hydrated generation. |
 | 12 | Alternating three-body conversation | US-3/4/5 anchors plus generation-1 baseline | rerun_required | Complete one causal alternating timeline and final follow-up. |
 
@@ -61,6 +61,8 @@ Python Mirror inspector: 4 tests passed
 
 A focus observation already in flight when a Nautilus run began could settle against the pre-run checkpoint and make the later fully committed turn inherit a false `pi_ancestry_mismatch`. Observation results now re-check live run/stream state immediately before projection. The controlled state was repaired only after native Harness/Pi/Mirror commit ids and final checkpoints proved the turn complete.
 
+The terminal rerun then proved a second aggregate gap: ordinary terminal Pi and Mirror logging advance independently without native cross-body correlation. Nautilus correctly produced `both_advanced` and an inert review instead of auto-merging, but offered no safe next action and still allowed another prompt. The review now supports an explicit human-reviewed convergence branch that hydrates the already projected Harness transcript without appending the Mirror copy, and blocks further invocation while reconciliation requires attention.
+
 ## Next Validation Action
 
-Continue the exact generation-1 Pi session from terminal with one bounded marker turn, then reactivate Nautilus and verify one-time projection.
+Reopen/focus the updated app, review the independent Pi/Mirror copies and choose `Create reviewed convergence branch`. Verify generation increments once, message count stays `34`, and all checkpoints return to `in_sync` without provider execution.

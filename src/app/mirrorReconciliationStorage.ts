@@ -25,11 +25,13 @@ export async function reconcileMirrorConversation(input: {
   fingerprint: MirrorSnapshotFingerprint;
   provider: string;
   model: string;
+  resolutionMode: "mirror_only" | "independent_review";
 }): Promise<string> {
   return invoke<string>("reconcile_mirror_conversation", {
     journeyId: input.conversation.journeyId,
     expectedGeneration: input.conversation.liveIdentity.generation,
     expectedFingerprint: input.fingerprint,
+    resolutionMode: input.resolutionMode,
     provider: input.provider,
     model: input.model,
   });

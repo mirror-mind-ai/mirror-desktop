@@ -372,6 +372,7 @@ fn reconcile_mirror_conversation(
     journey_id: String,
     expected_generation: u64,
     expected_fingerprint: MirrorSnapshotFingerprint,
+    resolution_mode: String,
     provider: String,
     model: String,
 ) -> Result<String, String> {
@@ -405,8 +406,27 @@ fn reconcile_mirror_conversation(
     }
     let reconciliation = conversation.get("reconciliation").and_then(Value::as_object)
         .ok_or_else(|| "Mirror reconciliation ledger is missing.".to_string())?;
-    if reconciliation.get("classification").and_then(Value::as_str) != Some("mirror_advanced") {
-        return Err("Only an eligible Mirror-only advancement can be reconciled.".to_string());
+    let classification = reconciliation.get("classification").and_then(Value::as_str);
+    let independent_review = resolution_mode == "independent_review";
+    if !independent_review && resolution_mode != "mirror_only" {
+        return Err("Unsupported Mirror reconciliation resolution mode.".to_string());
+    }
+    if (!independent_review && classification != Some("mirror_advanced"))
+        || (independent_review && classification != Some("both_advanced"))
+    {
+        return Err("Mirror reconciliation state no longer matches the reviewed action.".to_string());
+    }
+    if independent_review {
+        let advancement = reconciliation.get("advancement").and_then(Value::as_object)
+            .ok_or_else(|| "Independent advancement evidence is missing.".to_string())?;
+        let mirror_advance = advancement.get("mirror").and_then(Value::as_object)
+            .ok_or_else(|| "Reviewed Mirror advancement evidence is missing.".to_string())?;
+        if advancement.get("pi").and_then(Value::as_object).is_none()
+            || mirror_advance.get("lastMessageId").and_then(Value::as_str) != Some(expected_fingerprint.last_message_id.as_str())
+            || mirror_advance.get("messageCount").and_then(Value::as_u64) != Some(expected_fingerprint.message_count)
+        {
+            return Err("Independent advancement evidence changed before approval.".to_string());
+        }
     }
     let checkpoints = reconciliation.get("checkpoints").and_then(Value::as_object)
         .ok_or_else(|| "Mirror reconciliation checkpoints are missing.".to_string())?;
@@ -440,17 +460,19 @@ fn reconcile_mirror_conversation(
 
     let messages = conversation.get_mut("messages").and_then(Value::as_array_mut)
         .ok_or_else(|| "Persisted Harness messages are missing.".to_string())?;
-    for message in &mirror_messages {
-        let harness_id = format!("mirror-{}", message.id);
-        if messages.iter().any(|current| current.get("id").and_then(Value::as_str) == Some(harness_id.as_str())) {
-            return Err("Mirror reconciliation message was already materialized.".to_string());
+    if !independent_review {
+        for message in &mirror_messages {
+            let harness_id = format!("mirror-{}", message.id);
+            if messages.iter().any(|current| current.get("id").and_then(Value::as_str) == Some(harness_id.as_str())) {
+                return Err("Mirror reconciliation message was already materialized.".to_string());
+            }
+            messages.push(json!({
+                "id": harness_id,
+                "role": message.role,
+                "content": message.content,
+                "createdAt": message.created_at,
+            }));
         }
-        messages.push(json!({
-            "id": harness_id,
-            "role": message.role,
-            "content": message.content,
-            "createdAt": message.created_at,
-        }));
     }
     let new_generation = expected_generation + 1;
     let saved_at = expected_fingerprint.updated_at.clone().unwrap_or(previous_saved_at);
@@ -465,7 +487,8 @@ fn reconcile_mirror_conversation(
         .map_err(|error| format!("Could not stage reconciled Pi session: {}", error))?;
 
     let message_count = messages.len() as u64;
-    let final_harness_id = format!("mirror-{}", expected_fingerprint.last_message_id);
+    let final_harness_id = messages.last().and_then(|message| message.get("id")).and_then(Value::as_str)
+        .ok_or_else(|| "Reconciled Harness transcript has no final message.".to_string())?.to_string();
     let pi_leaf = format!("import-message-{}", message_count);
     let session_file = target_session.to_string_lossy().to_string();
     conversation.insert("liveIdentity".to_string(), json!({
@@ -489,7 +512,11 @@ fn reconcile_mirror_conversation(
         "checkpoints": {
             "harness": {
                 "lastMessageId": final_harness_id,
-                "lastTurnId": format!("mirror-reconciliation-{}", expected_fingerprint.last_message_id),
+                "lastTurnId": if independent_review {
+                    format!("reviewed-convergence-{}", expected_fingerprint.last_message_id)
+                } else {
+                    format!("mirror-reconciliation-{}", expected_fingerprint.last_message_id)
+                },
                 "messageCount": message_count,
             },
             "pi": { "leafEntryId": pi_leaf, "entryCount": message_count + 1, "sessionFile": session_file },

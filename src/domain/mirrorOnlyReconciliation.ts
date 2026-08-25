@@ -43,7 +43,7 @@ export type MirrorConversationInspection = {
 };
 
 export type MirrorReconciliationReview = {
-  status: "eligible" | "waiting" | "duplicate" | "unsupported" | "conflicted";
+  status: "eligible" | "independent" | "waiting" | "duplicate" | "unsupported" | "conflicted";
   reasonCode?: string;
   fingerprint: MirrorSnapshotFingerprint;
   messages: ObservedMirrorMessage[];
@@ -99,9 +99,6 @@ export function projectMirrorConversationInspection(
   if (nextState.classification === "conflicted") {
     return { conversation: nextConversation, changed: nextState !== conversation.reconciliation, review: review("conflicted", inspection, messages, 0, "mirror_cursor_mismatch"), conflictCode: nextState.reasonCodes.at(-1) };
   }
-  if (conversation.reconciliation.advancement.pi || conversation.reconciliation.classification === "pi_advanced") {
-    return { conversation: nextConversation, changed: nextState !== conversation.reconciliation, review: review("conflicted", inspection, messages, 0, "independent_pi_advancement") };
-  }
   if (messages.length === 0) return conflict(conversation, "mirror_cursor_mismatch", inspection, observedAt);
   if (messages.every((message) => correlationAlreadyCommitted(conversation, message))) {
     return { conversation: nextConversation, changed: nextState !== conversation.reconciliation, review: review("duplicate", inspection, messages, messages.length / 2, "native_correlation_duplicate") };
@@ -122,6 +119,9 @@ export function projectMirrorConversationInspection(
       return { conversation: nextConversation, changed: nextState !== conversation.reconciliation, review: review("unsupported", inspection, messages, completeTurnCount, "expected_assistant_record") };
     }
     completeTurnCount += 1;
+  }
+  if (conversation.reconciliation.advancement.pi || conversation.reconciliation.classification === "pi_advanced") {
+    return { conversation: nextConversation, changed: nextState !== conversation.reconciliation, review: review("independent", inspection, messages, completeTurnCount, "independent_pi_advancement") };
   }
   return {
     conversation: nextConversation,

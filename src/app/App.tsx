@@ -286,6 +286,7 @@ export function App({ model }: AppProps) {
     && authoritativeContextStats.generation === conversation.liveIdentity.generation;
   const reportedContextUsage = contextIdentityMatches ? authoritativeContextStats.usage : undefined;
   const pendingMirrorRepair = useMemo(() => pendingMirrorTurnRepair(conversation), [conversation]);
+  const reconciliationBlocksInvocation = !["uninitialized", "in_sync"].includes(conversation.reconciliation.classification);
   const configuredContextWindow = configuredModelContextWindow(providerConfig);
   const displayContextWindow = configuredContextWindow ?? reportedContextUsage?.contextWindow ?? null;
   const authoritativeContextUsage = reportedContextUsage
@@ -453,7 +454,7 @@ export function App({ model }: AppProps) {
   async function applyMirrorReconciliation() {
     const review = mirrorReconciliationReview;
     const current = conversationRef.current;
-    if (!review || review.status !== "eligible" || isReconcilingMirror || isStreaming || agentRun.status === "running") return;
+    if (!review || !["eligible", "independent"].includes(review.status) || isReconcilingMirror || isStreaming || agentRun.status === "running") return;
     const providerIndex = providerConfig.args.indexOf("--provider");
     const modelIndex = providerConfig.args.indexOf("--model");
     const provider = providerIndex >= 0 ? providerConfig.args[providerIndex + 1] : undefined;
@@ -465,7 +466,13 @@ export function App({ model }: AppProps) {
     setIsReconcilingMirror(true);
     setMirrorReconciliationError(undefined);
     try {
-      await reconcileMirrorConversation({ conversation: current, fingerprint: review.fingerprint, provider, model: modelName });
+      await reconcileMirrorConversation({
+        conversation: current,
+        fingerprint: review.fingerprint,
+        provider,
+        model: modelName,
+        resolutionMode: review.status === "independent" ? "independent_review" : "mirror_only",
+      });
       const reconciled = await loadJourneyConversation(current.journeyId);
       if (!reconciled || reconciled.liveIdentity.generation !== current.liveIdentity.generation + 1) {
         throw new Error("Reconciled conversation could not be restored.");
@@ -822,7 +829,7 @@ export function App({ model }: AppProps) {
 
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
     const content = (retryContent ?? draft).trim();
-    if (!content || isStreaming || agentRun.status === "running" || (mode === "live" && providerErrors.length > 0)) {
+    if (!content || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || (mode === "live" && providerErrors.length > 0)) {
       return;
     }
 
@@ -1556,7 +1563,7 @@ export function App({ model }: AppProps) {
                   className="icon-button send-button"
                   type="button"
                   onClick={() => void generatePacket("live")}
-                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || providerErrors.length > 0}
+                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || providerErrors.length > 0}
                   aria-label="Send message"
                   title="Send message"
                 >

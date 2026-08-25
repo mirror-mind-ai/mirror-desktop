@@ -94,7 +94,7 @@ describe("Mirror-only reconciliation", () => {
     };
     piAdvanced.reconciliation.classification = "pi_advanced";
     expect(projectMirrorConversationInspection(piAdvanced, inspection(), "now").review)
-      .toMatchObject({ status: "conflicted", reasonCode: "independent_pi_advancement" });
+      .toMatchObject({ status: "independent", reasonCode: "independent_pi_advancement" });
   });
 
   it("recognizes only native correlated duplicate evidence", () => {
