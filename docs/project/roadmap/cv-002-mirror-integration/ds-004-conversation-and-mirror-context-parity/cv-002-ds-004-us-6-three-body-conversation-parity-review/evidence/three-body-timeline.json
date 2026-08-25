@@ -244,6 +244,37 @@
         "activation_did_not_implement",
         "ariad_template_placeholder_rejected_after_review"
       ]
+    },
+    {
+      "stage": "explorer_mode_activation",
+      "harness": {
+        "conversationId": "nautilus-mirror-13a0d6f3",
+        "messageCount": 50,
+        "lastMessageId": "assistant-2026-08-25T01:19:39.384Z",
+        "certifiedMode": "explorer"
+      },
+      "pi": {
+        "sessionId": "nautilus-viagem-do-lipe",
+        "generation": 2,
+        "userEntryId": "5170c0be",
+        "assistantEntryId": "5eb9b36b",
+        "leafEntryId": "5eb9b36b",
+        "entryCount": 81,
+        "fileSha256": "64ee8e03c7a4196a252f194bcc7b2040febf38073cca6f5e161dee3740539e30"
+      },
+      "mirror": {
+        "conversationId": "13a0d6f3",
+        "userMessageId": "297b6a66-9e9a-52d6-9dd0-141af0c16e20",
+        "assistantMessageId": "e3d16401-81e2-5d3c-b0be-c13fadce68a3",
+        "messageCount": 48
+      },
+      "classification": "in_sync",
+      "reasonCodes": [],
+      "validatedClaims": [
+        "explorer_surface_visible",
+        "explorer_footer_state_certified",
+        "exploration_opened_without_implementation"
+      ]
     }
   ]
 }
