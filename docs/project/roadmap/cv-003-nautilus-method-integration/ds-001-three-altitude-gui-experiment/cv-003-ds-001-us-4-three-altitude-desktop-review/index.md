@@ -5,6 +5,11 @@
 **Status:** 🟡 Planned
 **Type:** User Story
 
+## Story Artifacts
+
+- [Plan](plan.md)
+- [Test Guide](test-guide.md)
+
 ## User Story
 
 As the Navigator,
@@ -25,10 +30,10 @@ And returning to Operational preserves the working cockpit.
 ```
 
 ```text
-Given provisional content in a workspace shell
-When I inspect that altitude
-Then the permanent composition is distinguishable from content awaiting downstream hydration
-And no fixture is presented as live filesystem or derived Journey truth.
+Given Journey-contextual representative content in a derived workspace shell
+When I inspect that altitude and switch Journeys
+Then the permanent composition remains distinguishable from downstream live derivation
+And no fixture crosses its owning Journey boundary or claims live truth.
 ```
 
 ## Scope
@@ -38,15 +43,15 @@ And no fixture is presented as live filesystem or derived Journey truth.
 - Accessibility, spatial rhythm and full-width workspace checks.
 - Explicit foundation acceptance or bounded correction record.
 - Aggregate automated baseline.
-- Clear handoff to CV-003.DS-002 through CV-003.DS-005.
+- Clear handoff to CV-003.DS-003 through CV-003.DS-005.
 
 ## Out Of Scope
 
-- Real artifact projection or tactical/strategic derivation.
-- Reopening the already accepted three-altitude direction without new contradictory evidence.
+- Tactical or Strategic live derivation.
+- Reopening accepted direction without contradictory evidence.
 - Unbounded visual redesign during aggregate review.
 - Treating representative content as production data.
 
 ## Validation
 
-Follow the promoted parent test guide, validate the foundation in the real desktop app, and record Navigator acceptance or a bounded correction list.
+Follow the story test guide, validate the foundation in the real desktop app, and record Navigator acceptance or a bounded correction list.
