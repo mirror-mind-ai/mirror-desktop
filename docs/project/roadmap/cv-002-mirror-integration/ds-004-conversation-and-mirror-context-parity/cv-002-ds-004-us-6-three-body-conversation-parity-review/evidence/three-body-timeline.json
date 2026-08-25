@@ -113,6 +113,36 @@
         "previous_pi_file_preserved",
         "no_provider_execution"
       ]
+    },
+    {
+      "stage": "final_nautilus_follow_up",
+      "harness": {
+        "conversationId": "nautilus-mirror-13a0d6f3",
+        "messageCount": 36,
+        "lastMessageId": "assistant-2026-08-25T00:23:54.904Z"
+      },
+      "pi": {
+        "sessionId": "nautilus-viagem-do-lipe",
+        "generation": 2,
+        "userEntryId": "e58d73bd",
+        "assistantEntryId": "e601ecea",
+        "leafEntryId": "e601ecea",
+        "entryCount": 39,
+        "fileSha256": "ab8c744fd36d1dc70cdd74fb4cd1c484f6644bfa86964f8bd4286042ce8d36d1"
+      },
+      "mirror": {
+        "conversationId": "13a0d6f3",
+        "userMessageId": "7466130f-85bd-5197-8bf5-cdcba8090ede",
+        "assistantMessageId": "f03aea14-ee72-52a6-b753-a18533c6dcd5",
+        "messageCount": 34
+      },
+      "classification": "in_sync",
+      "reasonCodes": [],
+      "validatedClaims": [
+        "terminal_marker_survived_reviewed_hydration",
+        "final_nautilus_pi_mirror_correlated_commit",
+        "alternating_timeline_complete"
+      ]
     }
   ]
 }

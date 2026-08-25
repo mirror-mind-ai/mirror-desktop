@@ -25,7 +25,7 @@ The machine-readable sanitized timeline is [evidence/three-body-timeline.json](e
 | 9 | Durable logging, failure and recovery | [US-3 validation](../cv-002-ds-004-us-3-observable-three-body-turn-commit/validation.md) | accepted_existing | Semantic Mirror records differ from Pi execution bytes by design; native correlation proves the commit. |
 | 10 | External exact Pi continuation | [US-4 validation](../cv-002-ds-004-us-4-resume-external-pi-activity-in-nautilus/validation.md) plus generation-1 terminal rerun | rerun_passed | Pi owns ancestry; exact turn projected once and generic divergence warning remained absent. |
 | 11 | Mirror-only explicit reconciliation | [US-5 validation](../cv-002-ds-004-us-5-reconcile-mirror-only-updates-into-pi/validation.md) | accepted_existing | Mirror semantic content enters Pi only through explicit hydrated generation. |
-| 12 | Alternating three-body conversation | US-3/4/5 anchors plus generations 1–2 timeline | rerun_required | Navigator-reviewed convergence passed without duplication; final Nautilus follow-up remains. |
+| 12 | Alternating three-body conversation | US-3/4/5 anchors plus generations 1–2 timeline | rerun_passed | Final Nautilus turn recovered the terminal-only marker and committed to all three bodies at `in_sync`. |
 
 ## Failure Matrix
 
@@ -65,4 +65,4 @@ The terminal rerun then proved a second aggregate gap: ordinary terminal Pi and 
 
 ## Next Validation Action
 
-From generation `2`, send one final Nautilus follow-up that requires the terminal-only marker. Verify the answer, native three-body commit and `in_sync` settlement before aggregate acceptance.
+Run the remaining paired persona, operating-mode, context-usage and compaction checks. The alternating three-body causal route itself is complete.
