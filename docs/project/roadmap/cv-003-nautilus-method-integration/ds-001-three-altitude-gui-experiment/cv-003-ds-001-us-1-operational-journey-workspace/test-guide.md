@@ -23,13 +23,14 @@ Pass when Operational is selected, the existing conversation is present and the 
 
 ## Scenario 3 — Full-Width Operational Surfaces
 
-1. Keep Operational and Chat selected.
+1. Keep Operational and Conversation selected.
 2. Confirm the conversation occupies the full workspace and the optional inspector is collapsed.
 3. Select Artifacts.
-4. Confirm Artifacts replaces Chat, occupies the same full workspace and shows folder/file distinctions plus relative paths.
-5. Confirm explicit representative-preview language and no file actions or clickable local paths.
+4. Confirm Artifacts replaces Conversation and occupies the same full workspace.
+5. Confirm Workspace structure and Artifact detail area use the canvas without a Journey artifacts eyebrow, repeated Journey title, explanatory preview paragraph or representative badge.
+6. Confirm there are no file actions or clickable local paths.
 
-Pass when Chat and Artifacts alternate without permanent width loss and Artifacts suggests the intended material relationship without claiming live filesystem knowledge. Fail when either surface remains compressed by a permanent artifact sidebar or representative content appears authoritative.
+Pass when Conversation and Artifacts alternate without permanent width loss and the two artifact cards occupy the canvas without redundant framing. Fail when either surface remains compressed by a permanent artifact sidebar or representative content appears authoritative.
 
 ## Scenario 4 — Draft and Conversation Continuity
 
@@ -88,7 +89,7 @@ Add focused tests for:
 
 - removed header surfaces and eliminated dead presentation classes/logic;
 - retained Journey identity, menu controls and concise moment summary;
-- altitude and Chat/Artifacts selector integration, defaults and disabled states;
+- altitude and Conversation/Artifacts selector integration, defaults and disabled states;
 - full-width surface alternation and optional Chat-only inspector;
 - Operational artifact preview labeling and entries;
 - placeholder labeling and semantic emptiness;
@@ -123,7 +124,7 @@ Do not persist private conversation content, prompts, responses, secrets, arbitr
 
 ## Pass Condition
 
-Scenarios 1 through 9 pass, checks are green and the Navigator accepts full-width Chat/Artifacts alternation inside the simplified Operational workspace.
+Scenarios 1 through 9 pass, checks are green and the Navigator accepts full-width Conversation/Artifacts alternation with the simplified artifact canvas.
 
 ## Fail Condition
 

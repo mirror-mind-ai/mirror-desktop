@@ -2,11 +2,11 @@
 
 ## Objective
 
-Simplify the Journey header by removing its Mission, Delivery, Situation, Current Map and participant summaries; mount the approved altitude contract in the space this creates; preserve the existing Journey sidebar and complete conversation/runtime behavior as the Operational altitude; and let Chat and representative Artifacts alternate as full-width Operational surfaces. Tactical and Strategic remain selectable but intentionally show bounded preview placeholders until their own stories. Navigation stays ephemeral and never invokes Pi, Mirror or a provider.
+Simplify the Journey header by removing its Mission, Delivery, Situation, Current Map and participant summaries; mount the approved altitude contract in the space this creates; preserve the existing Journey sidebar and complete conversation/runtime behavior as the Operational altitude; and let Conversation and representative Artifacts alternate as full-width Operational surfaces. Tactical and Strategic remain selectable but intentionally show bounded preview placeholders until their own stories. Navigation stays ephemeral and never invokes Pi, Mirror or a provider.
 
 ## Product Boundary
 
-This story makes the first altitude real without pretending the other two are finished. Operational is not a new chat implementation. It is the existing trusted cockpit placed inside the three-altitude grammar. Chat and Artifacts are alternate surfaces within Operational, not permanent columns. Each uses the full workspace after the Journey sidebar. The artifact tree is a spatial prototype built from TS-1 representative data, not a filesystem browser.
+This story makes the first altitude real without pretending the other two are finished. Operational is not a new chat implementation. It is the existing trusted cockpit placed inside the three-altitude grammar. Conversation and Artifacts are alternate surfaces within Operational, not permanent columns. Each uses the full workspace after the Journey sidebar. The artifact tree is a spatial prototype built from TS-1 representative data, not a filesystem browser.
 
 The current header over-specifies semantic context before the altitude grammar exists. Mission, Delivery, Situation, the complete Current Map summary and participant avatars will be removed from the header. This is deliberate product simplification, not temporary hiding. Journey identity, menu actions and the concise moment summary remain. Mission information continues to exist in the grammar inspector and underlying model; this story removes redundant header projection, not domain data.
 
@@ -66,7 +66,7 @@ In `App.tsx`:
 - initialize `selectedAltitude` from `defaultJourneyAltitude`;
 - initialize an ephemeral Operational surface state with `chat` as the default and `artifacts` as the alternative;
 - mount `JourneyAltitudeSwitcher` in the stable Journey header outside the expanded/collapsed detail region;
-- mount a controlled Chat/Artifacts selector visible only while Operational is selected;
+- mount a controlled Conversation/Artifacts selector visible only while Operational is selected; the internal state id may remain `chat` while the user-facing label becomes `Conversation`;
 - preserve the selected altitude during ordinary Journey switching within the same app session;
 - do not write altitude to Journey preferences, local storage or conversation persistence;
 - disable altitude and Operational-surface switching while a Pi run, stream or Journey reload is active so operational activity cannot disappear behind another surface;
@@ -94,11 +94,11 @@ Create or reshape `OperationalArtifactsPreview.tsx` using `representativeJourney
 
 The surface should:
 
-- replace the Chat surface when Artifacts is selected;
+- replace the Conversation surface when Artifacts is selected;
 - occupy the full workspace after the Journey sidebar, with the permanent right panel forced closed;
-- identify the selected Journey by display name while stating that the artifact layout is representative;
+- remove the `Journey artifacts` eyebrow, repeated Journey title, explanatory preview paragraph and `Representative preview` badge;
+- let Workspace structure and Artifact detail area consume the full artifact canvas;
 - render folder/file distinctions and relative paths without links or file actions;
-- use explicit copy such as `Representative preview` and `Live workspace reading comes later`;
 - provide enough internal space for a future browser/detail composition without implementing it now;
 - return to Chat without losing draft, conversation, runtime or reconciliation state.
 
@@ -110,8 +110,8 @@ Extend `src/styles/app.css` with scoped classes:
 
 - altitude selector integrated with the existing dark teal shell;
 - clear selected/focus/disabled states;
-- full-width Chat by default, with the existing right inspector available on demand;
-- full-width Artifacts surface with an internal browser/detail spatial suggestion;
+- full-width Conversation by default, with the existing right inspector available on demand;
+- full-width Artifacts surface whose two cards begin immediately below the header boundary;
 - representative artifacts hierarchy with restrained file/folder treatment;
 - calm, bounded placeholder field for Tactical and Strategic;
 - no global style reset or unrelated visual refinement.
@@ -189,7 +189,7 @@ And Journey identity, menu actions, right-panel control and concise moment summa
 ```text
 Given the Harness opens with a selected Journey
 When the shell settles
-Then Operational and Chat are selected
+Then Operational and Conversation are selected
 And the existing conversation uses the full available workspace
 And the optional grammar/settings inspector remains collapsed until requested.
 ```
@@ -233,8 +233,8 @@ Navigator E2E is required in the real Tauri desktop app:
 1. Launch the app and select `nautilus-harness`.
 2. Confirm Operational is selected and the existing conversation is intact.
 3. Confirm Chat occupies the full workspace and type a distinctive draft without sending it.
-4. Select Artifacts and confirm it replaces Chat at full width with explicit preview labeling.
-5. Return to Chat and confirm the draft, messages and controls are unchanged.
+4. Select Artifacts and confirm it replaces Conversation at full width, with Workspace structure and Artifact detail area occupying the canvas without redundant framing.
+5. Return to Conversation and confirm the draft, messages and controls are unchanged.
 6. Visit Tactical and Strategic placeholders, then return to Operational Chat.
 7. Open and close the optional right inspector in Chat.
 8. Confirm settings/diagnostics remain reachable and that Artifacts forces the inspector closed.
