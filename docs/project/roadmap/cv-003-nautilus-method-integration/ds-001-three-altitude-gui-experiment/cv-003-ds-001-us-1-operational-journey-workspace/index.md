@@ -2,7 +2,7 @@
 
 # CV-003.DS-001.US-1 — Operational Journey Workspace
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Validation
 **Type:** User Story
 
 ## User Story
@@ -68,3 +68,4 @@ Run focused presentation/characterization tests, the complete frontend/native ba
 
 - [Plan](plan.md)
 - [Test Guide](test-guide.md)
+- [Implementation](implementation.md)

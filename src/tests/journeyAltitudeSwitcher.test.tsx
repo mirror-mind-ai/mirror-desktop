@@ -32,6 +32,15 @@ describe("JourneyAltitudeSwitcher", () => {
     },
   );
 
+  it("disables every altitude while the operational surface must remain visible", () => {
+    const html = renderToStaticMarkup(
+      <JourneyAltitudeSwitcher value="operational" onChange={vi.fn()} disabled />,
+    );
+
+    expect(html.match(/disabled=""/g)).toHaveLength(3);
+    expect(html).toContain('aria-disabled="true"');
+  });
+
   it("keeps the presentation contract free from runtime ownership dependencies", () => {
     for (const dependency of forbiddenRuntimeDependencies) {
       expect(switcherSource).not.toContain(dependency);

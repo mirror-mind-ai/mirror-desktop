@@ -44,6 +44,13 @@ import { ComposerRuntimeFooter } from "./ComposerRuntimeFooter";
 import { ConversationSyncNotice } from "./ConversationSyncNotice";
 import { ExternalPiSyncNotice } from "./ExternalPiSyncNotice";
 import { MirrorReconciliationNotice } from "./MirrorReconciliationNotice";
+import { JourneyAltitudeSwitcher } from "./JourneyAltitudeSwitcher";
+import { JourneyAltitudePlaceholder } from "./JourneyAltitudePlaceholder";
+import { OperationalArtifactsPreview } from "./OperationalArtifactsPreview";
+import {
+  defaultJourneyAltitude,
+  representativeJourneyPreview,
+} from "./journeyAltitudePreview";
 import {
   inspectMirrorConversationActivity,
   reconcileMirrorConversation,
@@ -161,16 +168,6 @@ const initialMessages: ConversationMessage[] = [
   },
 ];
 
-function situationLabel(hasMissionDraft: boolean, hasMission: boolean) {
-  if (hasMissionDraft) {
-    return "Emerging mission";
-  }
-  if (hasMission) {
-    return "Mission formulated";
-  }
-  return "Journey in conversation";
-}
-
 function situationDescription(hasMissionDraft: boolean, hasMission: boolean) {
   if (hasMissionDraft) {
     return "The conversation is giving form to an intention of realization.";
@@ -183,6 +180,7 @@ function situationDescription(hasMissionDraft: boolean, hasMission: boolean) {
 
 export function App({ model }: AppProps) {
   const [selectedJourney, setSelectedJourney] = useState(defaultJourneyPreferenceState.activeJourneyId ?? "nautilus-harness");
+  const [selectedAltitude, setSelectedAltitude] = useState(defaultJourneyAltitude);
   const [journeyPreferences, setJourneyPreferences] = useState<JourneyPreferences>({
     pinnedJourneyIds: defaultJourneyPreferenceState.pinnedJourneyIds,
     activeJourneyId: defaultJourneyPreferenceState.activeJourneyId,
@@ -220,7 +218,7 @@ export function App({ model }: AppProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
   const [headerExpanded, setHeaderExpanded] = useState(true);
-  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(true);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [agentRun, setAgentRun] = useState(initialAgentRunState);
   const [conversationLoaded, setConversationLoaded] = useState(false);
   const [journeyReloadStatus, setJourneyReloadStatus] = useState<string | undefined>();
@@ -299,17 +297,9 @@ export function App({ model }: AppProps) {
       }
     : undefined;
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
-  const currentSituation = situationLabel(Boolean(streamMissionDraft), Boolean(model.mission));
   const currentSituationDescription = situationDescription(Boolean(streamMissionDraft), Boolean(model.mission));
-  const currentMissionTitle = streamMissionDraft?.title ?? model.mission?.title ?? "No mission formulated yet";
-  const currentDeliveryTitle = "No delivery formulated yet";
-  const presentMapCounters = [
-    { label: "Territory", value: 1 },
-    { label: "Missions", value: streamMissionDraft || model.mission ? 1 : 0 },
-    { label: "Deliveries", value: 0 },
-    { label: "Evidence", value: 0 },
-    { label: "Realizations", value: 0 },
-  ];
+  const altitudeSwitchDisabled = isStreaming || agentRun.status === "running" || isJourneyReloading;
+  const rightPanelVisible = selectedAltitude === "operational" && !rightPanelCollapsed;
 
   function scheduleExternalPiRefresh(delayMs = 200) {
     if (externalPiRefreshTimerRef.current) {
@@ -1264,7 +1254,7 @@ export function App({ model }: AppProps) {
   }
 
   return (
-    <main className={`app-shell ${rightPanelCollapsed ? "right-panel-collapsed" : ""} ${isJourneyReloading ? "is-busy" : ""}`}>
+    <main className={`app-shell altitude-${selectedAltitude} ${rightPanelVisible ? "" : "right-panel-collapsed"} ${isJourneyReloading ? "is-busy" : ""}`}>
       <aside className="journey-sidebar" aria-label="Journeys">
         <div className="brand-block">
           <img className="brand-mark" src={appIconUrl} alt="" aria-hidden="true" />
@@ -1413,49 +1403,42 @@ export function App({ model }: AppProps) {
                   className="menu-button right-panel-toggle"
                   type="button"
                   onClick={() => setRightPanelCollapsed((collapsed) => !collapsed)}
-                  aria-label={rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
+                  disabled={selectedAltitude !== "operational"}
+                  aria-label={selectedAltitude !== "operational"
+                    ? "Journey details are available in Operational"
+                    : rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
                   aria-pressed={rightPanelCollapsed}
-                  title={rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
+                  title={selectedAltitude !== "operational"
+                    ? "Journey details are available in Operational"
+                    : rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
                 >
                   {rightPanelCollapsed ? "◨" : "◧"}
                 </button>
               </div>
             </div>
-            {headerExpanded ? (
-              <>
-                <p className="journey-moment-summary">{currentSituationDescription}</p>
-                <section className="journey-status-rail" aria-label="Current realization context">
-                  <span className="status-pill status-pill-primary" title={currentMissionTitle}>
-                    <span>Mission</span>
-                    <strong>{currentMissionTitle}</strong>
-                  </span>
-                  <span className="status-pill" title={currentDeliveryTitle}>
-                    <span>Delivery</span>
-                    <strong>{currentDeliveryTitle}</strong>
-                  </span>
-                  <span className="status-pill" title={currentSituationDescription}>
-                    <span>Situation</span>
-                    <strong>{currentSituation}</strong>
-                  </span>
-                </section>
-                <div className="present-map-summary" aria-label="Current map summary">
-                  <span>Current map</span>
-                  {presentMapCounters.map((item) => (
-                    <strong key={item.label}>
-                      {item.label} {item.value}
-                    </strong>
-                  ))}
-                  <div className="present-map-avatars" aria-label="Participants present">
-                    <span title="Human Navigator">N</span>
-                    <span title="Pi agent">π</span>
-                  </div>
-                </div>
-              </>
-            ) : null}
+            <div className="journey-altitude-row">
+              <JourneyAltitudeSwitcher
+                value={selectedAltitude}
+                onChange={setSelectedAltitude}
+                disabled={altitudeSwitchDisabled}
+              />
+            </div>
+            {headerExpanded ? <p className="journey-moment-summary">{currentSituationDescription}</p> : null}
           </div>
         </header>
 
-        <section className="chat-stream" aria-label="Conversation" ref={chatStreamRef}>
+        {selectedAltitude === "operational" ? null : (
+          <JourneyAltitudePlaceholder altitude={selectedAltitude} />
+        )}
+
+        <section
+          id="journey-altitude-operational-panel"
+          className="chat-stream"
+          role="tabpanel"
+          aria-label="Conversation"
+          hidden={selectedAltitude !== "operational"}
+          ref={chatStreamRef}
+        >
           {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}
           <ImportedActivity events={importedActivity.unlinked} variant="summary" basePath={selectedJourneyBasePath} />
           {messages.map((message) => {
@@ -1517,7 +1500,11 @@ export function App({ model }: AppProps) {
           <div ref={chatEndRef} className="chat-scroll-anchor" aria-hidden="true" />
         </section>
 
-        <section className="composer" aria-label="Message composer">
+        <section
+          className="composer"
+          aria-label="Message composer"
+          hidden={selectedAltitude !== "operational"}
+        >
           {mirrorReconciliationReview && !isStreaming ? (
             <MirrorReconciliationNotice
               review={mirrorReconciliationReview}
@@ -1588,7 +1575,12 @@ export function App({ model }: AppProps) {
         </section>
       </section>
 
-      <aside className="grammar-panel" aria-label="Realization grammar inspector" aria-hidden={rightPanelCollapsed}>
+      <aside className="grammar-panel" aria-label="Journey details" aria-hidden={!rightPanelVisible}>
+        <OperationalArtifactsPreview
+          journeyName={selectedJourneyItem.name}
+          artifacts={representativeJourneyPreview.artifacts}
+        />
+
         <section className="grammar-card grammar-card-primary">
           <p className="eyebrow">Inspector</p>
           <h2>On-demand grammar</h2>
