@@ -47,7 +47,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
 | [CV-003.DS-001](cv-003-nautilus-method-integration/ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude GUI Experiment | Navigator can move among operational, tactical and strategic wireframe views of the same Journey while the existing conversation remains usable | 🟡 Planned |
-| [CV-003.DS-002](cv-003-nautilus-method-integration/ds-002-operational-journey-artifacts/index.md) | Operational Journey Artifacts | Operational view presents a bounded read-only projection of the selected Journey workspace beside the conversation | 🟡 Planned |
+| [CV-003.DS-002](cv-003-nautilus-method-integration/ds-002-operational-journey-artifacts/index.md) | Operational Journey Artifacts | Artifacts presents a bounded Journey documentation tree with a safe content, details and metadata viewer | 🟡 Planned |
 | [CV-003.DS-003](cv-003-nautilus-method-integration/ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | 🟡 Planned |
 | [CV-003.DS-004](cv-003-nautilus-method-integration/ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and value through pragmatic and integrative lenses | 🟡 Planned |
 | [CV-003.DS-005](cv-003-nautilus-method-integration/ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can inspect and correct the movement from provisional interpretation to explicit synthesis | 🟡 Planned |
