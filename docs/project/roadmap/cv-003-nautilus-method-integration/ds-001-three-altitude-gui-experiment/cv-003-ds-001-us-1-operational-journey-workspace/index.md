@@ -9,33 +9,53 @@
 
 As the Navigator,
 I want the existing conversation and a Journey artifacts preview to share the Operational altitude,
-so that I can feel work and its material context as one nearby field.
+so that I can feel work and its material context as one nearby field before real filesystem projection is built.
 
 ## Outcome
 
-Operational remains the functional cockpit while a clearly labeled representative artifact composition appears beside it.
+The approved altitude selector is mounted in the live Journey shell. Operational remains the complete functional cockpit, now accompanied by a clearly representative artifacts panel. Tactical and Strategic are reachable as honest bounded placeholders for their subsequent stories.
 
 ## Acceptance Behavior
 
 ```text
-Given a loaded conversation and unsent draft
-When I leave Operational and return
-Then the conversation, draft, controls and reconciliation state remain unchanged.
+Given a loaded Journey conversation and an unsent draft
+When I visit Tactical or Strategic and return to Operational
+Then the same messages, draft, runtime state and reconciliation boundaries remain
+And altitude navigation does not invoke Pi, Mirror or a provider.
+```
+
+```text
+Given Operational is selected
+When I inspect the workspace
+Then conversation remains primary
+And representative folders/files appear beside it with explicit preview labeling
+And settings and diagnostics remain reachable.
 ```
 
 ## Scope
 
-- Reuse the existing message stream, composer and runtime surfaces.
-- Representative folders/files beside conversation.
-- Preview honesty and desktop composition.
-- Existing settings and diagnostics remain reachable.
+- Mount and style the three-altitude selector in the stable Journey header.
+- Keep the existing message stream, composer and runtime behavior intact in Operational.
+- Add a representative artifacts panel using the TS-1 fixture.
+- Add honest bounded placeholders for Tactical and Strategic.
+- Keep selected altitude ephemeral and presentation-only.
+- Prevent altitude switching from hiding an active run or Journey reload.
+- Cover continuity, preview honesty and runtime separation with tests and desktop validation.
 
 ## Out Of Scope
 
-- Real filesystem inspection or mutation.
-- Automatic prompt attachment.
-- Conversation lifecycle refactoring beyond presentation needs.
+- Tactical mission/evidence/deliverable composition.
+- Strategic realization/impact/value composition.
+- Real workspace reads, file opening or prompt attachment.
+- Semantic derivation, provenance, correction or checkpoints.
+- Altitude persistence.
+- Pi, Mirror, provider, conversation identity or reconciliation changes.
 
 ## Validation
 
-Automated continuity characterization and real desktop Scenario 2/3 review.
+Run focused presentation/characterization tests, the complete frontend/native baseline and a Navigator-guided route in the real Tauri app.
+
+## Artifacts
+
+- [Plan](plan.md)
+- [Test Guide](test-guide.md)
