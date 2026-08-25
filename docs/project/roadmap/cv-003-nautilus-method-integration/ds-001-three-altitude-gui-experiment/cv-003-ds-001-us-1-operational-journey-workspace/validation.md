@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked
+Passed
 
 ## Automated Checks
 
@@ -18,20 +18,20 @@ Checks status: passed
 
 Decision: required
 
-Evidence: Roadmap semantics now promote DS-001 as Three-Altitude Journey Workspace Foundation while DS-002 through DS-005 hydrate its shells. Live local GUI inspection confirmed Tactical and Strategic placeholders now say Foundation shell rather than GUI experiment. Screenshot: /tmp/nautilus-foundation-shell.png.
+Evidence: Navigator accepted the promoted Operational workspace after live local GUI review: Conversation and Artifacts alternate at full width; all five selectors have compact icons; the artifact canvas is unframed; Tactical and Strategic identify themselves as Foundation shells. Screenshots remain outside the repository at /tmp/nautilus-us1-artifacts-refined.png, /tmp/nautilus-us1-selector-icons.png and /tmp/nautilus-foundation-shell.png.
 
 ## Navigator Validation
 
-Route: Review the promoted roadmap foundation and confirm the live Tactical/Strategic placeholder language communicates a durable shell awaiting downstream hydration.
+Route: Review the complete promoted Operational workspace and its continuity boundaries.
 
-Navigator accepted: no
+Navigator accepted: yes
 
-Expected observation: DS-001 is a durable spatial/navigation foundation; DS-002 owns real Journey documentation, DS-003 tactical derivation, DS-004 strategic derivation and DS-005 checkpoints; live placeholders say Foundation shell without claiming real semantics.
+Expected observation: Operational is the durable workspace foundation; Conversation and Artifacts preserve full width and state; selector icons are aligned; downstream altitudes remain honest Foundation shells.
 
-Pass condition: Navigator accepts the promoted roadmap semantics and foundation-shell product language.
+Pass condition: Navigator explicitly accepts CV-003.DS-001.US-1 for closure.
 
-Fail condition: The roadmap still treats DS-001 as discardable, downstream hydration ownership becomes ambiguous, or the live UI still presents the altitudes as a GUI experiment.
+Fail condition: Any spatial, continuity, accessibility, runtime or preview-authority issue remains actionable.
 
 ## Missing Evidence
 
-- Navigator validation has not been accepted
+- none

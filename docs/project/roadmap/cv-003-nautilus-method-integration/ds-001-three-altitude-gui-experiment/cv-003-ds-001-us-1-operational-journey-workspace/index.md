@@ -2,7 +2,7 @@
 
 # CV-003.DS-001.US-1 — Operational Journey Workspace
 
-**Status:** 🟠 In Validation
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story
