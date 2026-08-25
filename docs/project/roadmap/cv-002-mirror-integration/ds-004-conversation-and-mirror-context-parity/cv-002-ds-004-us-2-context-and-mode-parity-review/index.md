@@ -2,7 +2,7 @@
 
 # CV-002.DS-004.US-2 — Context and Mode Parity Review
 
-**Status:** 🟠 In Validation
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

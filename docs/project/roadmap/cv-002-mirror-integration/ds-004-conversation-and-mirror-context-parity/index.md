@@ -21,20 +21,11 @@ Second focus:
 
 This is context parity, not context accumulation. Nautilus should not dump every local message and every Mirror record into a prompt. It should continue the same logical conversation through the same Mirror runtime contracts used by Pi.
 
-## Current Gap
+## Delivered Outcome
 
-The first DS-004 implementation established a versioned live-conversation identity, exact Pi-session continuation, explicit Mirror-to-Pi hydration, generation-aware restart, Pi-aligned context usage, Pi-owned compaction projection and certified Mirror mode/Ariad surfaces.
+DS-004 now provides a versioned live-conversation identity, exact Pi-session continuation, explicit Mirror-to-Pi hydration, generation-aware restart, pre-generation Journey/identity/persona context, four-mode parity, Pi-aligned context usage, Pi-owned compaction and durable three-body reconciliation.
 
-The remaining gap is durable reconciliation among all three conversation bodies:
-
-- a Nautilus turn is written to the Pi session and normally logged into Mirror, but Nautilus receives no correlated Mirror commit acknowledgment;
-- Mirror assistant logging runs in the background and can lag or fail after Pi has already committed;
-- Mirror records may intentionally consolidate or truncate assistant content and are not byte-identical execution transcripts;
-- external turns added to the exact Pi session are not incrementally projected into the persisted Nautilus chat;
-- Mirror-only conversation updates are visible only after explicit reload and cannot safely enter Pi context without duplicate/conflict classification;
-- imported/hydrated branches need durable checkpoints that prove what each body has incorporated.
-
-DS-004 therefore requires a three-body commit and reconciliation contract before aggregate validation. Pi remains the authoritative execution transcript. Mirror remains the semantic conversation/memory record. Nautilus coordinates projection and supported reconciliation without treating the stores as interchangeable.
+The accepted aggregate review proved normal correlated commits, model-free Mirror Retry, exact external Pi projection, explicit Mirror-only hydration, reviewed convergence for independent Pi/Mirror advancement, relaunch/idempotency and post-compaction continuity. Pi remains the authoritative execution transcript, Mirror the semantic conversation and identity body, and Nautilus the explicit invocation, projection and checkpoint coordinator.
 
 ## Scope
 
@@ -76,13 +67,13 @@ DS-004 therefore requires a three-body commit and reconciliation contract before
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-002.DS-004.TS-1 | Canonical Live Conversation Contract | Technical Story | Define which Mirror/Pi conversation the active Journey continues and how local, imported and live conversation ids relate | 🟠 In Validation |
-| CV-002.DS-004.US-1 | Conversation Continuity | User Story | Follow-up messages in Nautilus are answered with awareness of the conversation already visible in the chat | 🟠 In Validation |
-| CV-002.DS-004.TS-2 | Mirror Context Load Verification | Technical Story | Prove before response generation that Journey and identity context are loaded through Mirror, rather than merely logged afterward | 🟠 In Validation |
-| CV-002.DS-004.TS-3 | Ego and Persona Routing Parity | Technical Story | Persona detection/signature/voice in Nautilus matches the same prompt executed through Pi with Mirror active | 🟠 In Validation |
-| CV-002.DS-004.TS-4 | Operating Mode Parity | Technical Story | Mirror, Builder, Explorer and Soul activation/continuation use Mirror's existing commands, surfaces and boundaries | 🟠 In Validation |
-| CV-002.DS-004.TS-5 | Context Window and Auto-Compaction Parity | Technical Story | Nautilus shows Pi's authoritative context usage and observes Pi's own automatic compaction lifecycle without implementing a second compactor | 🟠 In Validation |
-| CV-002.DS-004.US-2 | Context and Mode Parity Review | User Story | Navigator validates paired terminal/Nautilus conversations for continuity, context budget/compaction, Journey context, persona and mode behavior | 🟠 In Validation |
+| CV-002.DS-004.TS-1 | Canonical Live Conversation Contract | Technical Story | Define which Mirror/Pi conversation the active Journey continues and how local, imported and live conversation ids relate | ✅ Done |
+| CV-002.DS-004.US-1 | Conversation Continuity | User Story | Follow-up messages in Nautilus are answered with awareness of the conversation already visible in the chat | ✅ Done |
+| CV-002.DS-004.TS-2 | Mirror Context Load Verification | Technical Story | Prove before response generation that Journey and identity context are loaded through Mirror, rather than merely logged afterward | ✅ Done |
+| CV-002.DS-004.TS-3 | Ego and Persona Routing Parity | Technical Story | Persona detection/signature/voice in Nautilus matches the same prompt executed through Pi with Mirror active | ✅ Done |
+| CV-002.DS-004.TS-4 | Operating Mode Parity | Technical Story | Mirror, Builder, Explorer and Soul activation/continuation use Mirror's existing commands, surfaces and boundaries | ✅ Done |
+| CV-002.DS-004.TS-5 | Context Window and Auto-Compaction Parity | Technical Story | Nautilus shows Pi's authoritative context usage and observes Pi's own automatic compaction lifecycle without implementing a second compactor | ✅ Done |
+| CV-002.DS-004.US-2 | Context and Mode Parity Review | User Story | Navigator validates paired terminal/Nautilus conversations for continuity, context budget/compaction, Journey context, persona and mode behavior | ✅ Done |
 | CV-002.DS-004.TS-6 | Three-Body Conversation Reconciliation Contract | Technical Story | Define correlated turn commits, checkpoints, divergence and safe reconciliation across Nautilus, Pi and Mirror | ✅ Done |
 | CV-002.DS-004.US-3 | Observable Three-Body Turn Commit | User Story | Navigator can trust or recover the durable Nautilus → Pi → Mirror commit of each turn | ✅ Done |
 | CV-002.DS-004.US-4 | Resume External Pi Activity in Nautilus | User Story | Turns added to the exact Pi branch outside Nautilus appear incrementally in the desktop projection | ✅ Done |

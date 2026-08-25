@@ -2,7 +2,7 @@
 
 # CV-002.DS-004.TS-5 — Context Window and Auto-Compaction Parity
 
-**Status:** 🟠 In Validation
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---
