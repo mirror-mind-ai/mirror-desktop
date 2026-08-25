@@ -18,7 +18,7 @@ The operational life of the Journey remains the source. Tactical and strategic v
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-003.DS-001](ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude Journey Workspace Foundation | Navigator can move among durable Operational, Tactical and Strategic workspace shells while the existing conversation remains usable | 🟠 In Progress |
+| [CV-003.DS-001](ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude Journey Workspace Foundation | Navigator can move among durable Operational, Tactical and Strategic workspace shells while the existing conversation remains usable | ✅ Done |
 | [CV-003.DS-002](ds-002-operational-journey-artifacts/index.md) | Operational Journey Artifacts | Artifacts presents a bounded visible Journey-root tree with a safe content, details and metadata viewer while Conversation retains full width | 🟠 In Progress |
 | [CV-003.DS-003](ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | 🟡 Planned |
 | [CV-003.DS-004](ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and generated value through pragmatic and integrative lenses | 🟡 Planned |
