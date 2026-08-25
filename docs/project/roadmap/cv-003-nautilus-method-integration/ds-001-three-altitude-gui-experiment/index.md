@@ -31,7 +31,7 @@ Representative data remains explicitly non-authoritative wherever a real data ca
 |------|-------|------|---------|--------|
 | [CV-003.DS-001.TS-1](cv-003-ds-001-ts-1-altitude-navigation-and-preview-contract/index.md) | Altitude Navigation and Preview Contract | Technical Story | Define the isolated altitude state and representative-data contract that allowed the workspace direction to be tested safely | ✅ Done |
 | [CV-003.DS-001.US-1](cv-003-ds-001-us-1-operational-journey-workspace/index.md) | Operational Journey Workspace | User Story | Establish Operational as a durable workspace where Conversation and representative Artifacts alternate at full width | ✅ Done |
-| [CV-003.DS-001.US-2](cv-003-ds-001-us-2-tactical-journey-preview/index.md) | Tactical Journey Workspace Shell | User Story | Establish the durable Tactical composition using explicitly provisional mission, evidence and deliverable content | 🟡 Planned |
+| [CV-003.DS-001.US-2](cv-003-ds-001-us-2-tactical-journey-preview/index.md) | Tactical Journey Workspace Shell | User Story | Establish the durable Tactical composition using Journey-contextual mission, evidence and deliverable content with honest empty states | ✅ Done |
 | [CV-003.DS-001.US-3](cv-003-ds-001-us-3-strategic-journey-preview/index.md) | Strategic Journey Workspace Shell | User Story | Establish the durable Strategic composition using explicitly provisional realization, impact and value content | 🟡 Planned |
 | [CV-003.DS-001.US-4](cv-003-ds-001-us-4-three-altitude-desktop-review/index.md) | Three-Altitude Foundation Review | User Story | Validate the promoted foundation as a coherent permanent workspace and record corrections before semantic hydration continues | 🟡 Planned |
 

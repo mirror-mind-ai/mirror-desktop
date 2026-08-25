@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked
+Passed
 
 ## Automated Checks
 
@@ -18,20 +18,20 @@ Checks status: passed
 
 Decision: required
 
-Evidence: Desktop-shell inspection confirmed stronger Evidence/Deliverables and 01/02 hierarchy, removal of all Preview copy, and a contextual Strategic empty surface naming the selected Journey. Automated tests prove Tactical representative data resolves only for its owning Journey and non-matching Journeys receive the inert contextual empty surface. Screenshots: /tmp/nautilus-us2-tactical-contextual.png and /tmp/nautilus-us2-strategic-empty.png. Final acceptance requires Navigator inspection with the real multi-Journey registry.
+Evidence: Navigator accepted the Tactical hierarchy, removal of Preview copy, Journey-contextual Tactical data, and contextual Tactical/Strategic empty states. Screenshots: /tmp/nautilus-us2-tactical-contextual.png and /tmp/nautilus-us2-strategic-empty.png.
 
 ## Navigator Validation
 
-Route: In the real desktop app, inspect Tactical for nautilus-harness, then select a Journey without Tactical data and inspect Tactical and Strategic. Confirm hierarchy, absence of Preview copy, Journey naming and empty-state isolation.
+Route: Inspect Tactical for nautilus-harness and Tactical/Strategic for a Journey without altitude data.
 
-Navigator accepted: no
+Navigator accepted: yes
 
-Expected observation: Evidence/Deliverables and 01/02 are visually stronger than their items; no Preview marker remains; only nautilus-harness receives its representative Tactical reading; other Journeys show their own contextual no-data surface in Tactical and Strategic.
+Expected observation: Evidence/Deliverables hierarchy is clear, no Preview marker remains, and altitude readings never leak across selected Journeys.
 
-Pass condition: Navigator accepts the hierarchy and confirms no Tactical/Strategic data leaks across selected Journeys.
+Pass condition: Navigator accepts the permanent Tactical shell and contextual empty-state contract.
 
-Fail condition: Preview copy remains, headings remain indistinguishable from items, another Journey receives nautilus-harness data, the empty surface names the wrong Journey, or Operational continuity changes.
+Fail condition: Hierarchy, Journey isolation, empty-state context, safety or Operational continuity fails.
 
 ## Missing Evidence
 
-- Navigator validation has not been accepted
+- none

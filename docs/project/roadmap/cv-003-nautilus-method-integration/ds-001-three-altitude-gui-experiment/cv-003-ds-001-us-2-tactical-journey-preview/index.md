@@ -2,7 +2,7 @@
 
 # CV-003.DS-001.US-2 — Tactical Journey Workspace Shell
 
-**Status:** 🟠 In Validation
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story
@@ -64,3 +64,6 @@ Focused model/component/source-characterization tests, complete frontend/native 
 - [Plan](plan.md)
 - [Test Guide](test-guide.md)
 - [Implementation](implementation.md)
+- [Validation](validation.md)
+- [Debt Review](review.md)
+- [Done](done.md)
