@@ -18,6 +18,10 @@ describe("Operational Journey workspace", () => {
     expect(html).toContain("Artifacts");
     expect(html).not.toContain(">Chat<");
     expect(html.match(/aria-selected="true"/g)).toHaveLength(1);
+    expect(html.match(/class="selector-option-icon"/g)).toHaveLength(2);
+    expect(html.match(/aria-hidden="true"/g)).toHaveLength(2);
+    expect(html).toContain('data-icon="conversation"');
+    expect(html).toContain('data-icon="artifacts"');
   });
 
   it("keeps Operational surface switching disabled during active work", () => {

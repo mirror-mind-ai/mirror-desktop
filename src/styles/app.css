@@ -404,13 +404,17 @@ textarea {
 }
 
 .journey-altitude-option {
+  align-items: center;
   background: transparent;
   border: 0;
   border-radius: 10px;
   color: #82969c;
   cursor: pointer;
+  display: inline-flex;
   font-size: 0.74rem;
   font-weight: 620;
+  gap: 6px;
+  justify-content: center;
   letter-spacing: 0.04em;
   padding: 8px 12px;
   transition: background 160ms ease, color 160ms ease;
@@ -439,14 +443,27 @@ textarea {
 }
 
 .operational-workspace-option {
+  align-items: center;
   background: transparent;
   border: 0;
   border-radius: 9px;
   color: #71868c;
   cursor: pointer;
+  display: inline-flex;
   font-size: 0.72rem;
   font-weight: 590;
+  gap: 5px;
   padding: 8px 11px;
+}
+
+.selector-option-icon {
+  color: color-mix(in srgb, currentColor 82%, var(--accent));
+  display: inline-grid;
+  flex: 0 0 auto;
+  font-size: 0.92em;
+  line-height: 1;
+  min-width: 1em;
+  place-items: center;
 }
 
 .operational-workspace-option.selected {

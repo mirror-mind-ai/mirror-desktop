@@ -7,9 +7,14 @@ type OperationalWorkspaceSwitcherProps = {
 };
 
 const operationalSurfaces = [
-  { id: "chat", label: "Conversation" },
-  { id: "artifacts", label: "Artifacts" },
-] as const satisfies readonly { id: OperationalSurface; label: string }[];
+  { id: "chat", label: "Conversation", icon: "◌", iconName: "conversation" },
+  { id: "artifacts", label: "Artifacts", icon: "▱", iconName: "artifacts" },
+] as const satisfies readonly {
+  id: OperationalSurface;
+  label: string;
+  icon: string;
+  iconName: string;
+}[];
 
 export function OperationalWorkspaceSwitcher({
   value,
@@ -33,7 +38,14 @@ export function OperationalWorkspaceSwitcher({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(surface.id)}
           >
-            {surface.label}
+            <span
+              className="selector-option-icon"
+              data-icon={surface.iconName}
+              aria-hidden="true"
+            >
+              {surface.icon}
+            </span>
+            <span>{surface.label}</span>
           </button>
         );
       })}

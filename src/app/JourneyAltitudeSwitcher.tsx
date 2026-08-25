@@ -9,6 +9,12 @@ type JourneyAltitudeSwitcherProps = {
   disabled?: boolean;
 };
 
+const altitudeIcons = {
+  operational: "◎",
+  tactical: "◇",
+  strategic: "✦",
+} as const satisfies Record<JourneyAltitude, string>;
+
 export function JourneyAltitudeSwitcher({ value, onChange, disabled = false }: JourneyAltitudeSwitcherProps) {
   return (
     <div className="journey-altitude-switcher" role="tablist" aria-label="Journey altitude">
@@ -29,7 +35,14 @@ export function JourneyAltitudeSwitcher({ value, onChange, disabled = false }: J
             data-altitude={altitude.id}
             onClick={() => onChange(altitude.id)}
           >
-            {altitude.label}
+            <span
+              className="selector-option-icon"
+              data-icon={altitude.id}
+              aria-hidden="true"
+            >
+              {altitudeIcons[altitude.id]}
+            </span>
+            <span>{altitude.label}</span>
           </button>
         );
       })}

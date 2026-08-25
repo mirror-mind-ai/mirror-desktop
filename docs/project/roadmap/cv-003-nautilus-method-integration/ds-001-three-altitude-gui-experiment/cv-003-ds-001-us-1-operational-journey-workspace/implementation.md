@@ -6,6 +6,7 @@
 - Removed their dead counters, labels and CSS while preserving Journey identity, menus, header collapse, right-panel control and concise moment summary.
 - Mounted the controlled Operational/Tactical/Strategic selector in the simplified header.
 - Added a controlled Conversation/Artifacts selector within Operational.
+- Added one compact decorative icon before each of the five altitude and area labels, using local dependency-free mappings and `aria-hidden` semantics.
 - Kept altitude and Operational-surface state ephemeral and separate from Journey preferences, conversation persistence and runtime ownership.
 - Disabled both selectors during active stream/run or Journey reload.
 - Preserved the existing message stream, composer, runtime footer and reconciliation notices as the full-width Conversation surface.
@@ -16,7 +17,7 @@
 
 ## TDD Evidence
 
-The focused tests failed first because the new workspace components and disabled selector contract did not exist. They passed after the presentation components, shell integration and scoped styles were implemented.
+The focused tests failed first because the new workspace components and disabled selector contract did not exist. The icon refinement was also characterized red-first: all five expected icon marks and their hidden accessibility semantics were absent before implementation. The tests passed after the presentation components, shell integration and scoped styles were implemented.
 
 ```text
 Focused correction: 2 files, 11 tests passed
@@ -31,18 +32,19 @@ cargo check: passed
 A local browser rendering confirmed:
 
 - Operational and Conversation selected by default;
-- simplified header and visible altitude/surface selectors;
+- simplified header and visible altitude/surface selectors, with a small aligned icon before every label;
 - full-width Conversation without a permanent right sidebar;
 - unframed full-width Artifacts with only the Workspace structure and Artifact detail area cards;
 - Tactical and Strategic placeholders;
-- right-panel control restricted to Chat;
-- an unsent draft survived Chat to Artifacts to Chat navigation.
+- right-panel control restricted to Conversation;
+- an unsent draft survived Conversation to Artifacts to Conversation navigation.
 
 Sanitized temporary screenshots were written outside the repository:
 
 ```text
 /tmp/nautilus-us1-full-chat.png
 /tmp/nautilus-us1-artifacts-refined.png
+/tmp/nautilus-us1-selector-icons.png
 ```
 
 The Tauri development app also launched successfully through `target/debug/nautilus-harness` and was stopped after the launch check.

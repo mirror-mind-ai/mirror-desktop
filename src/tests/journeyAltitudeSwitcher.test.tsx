@@ -29,6 +29,11 @@ describe("JourneyAltitudeSwitcher", () => {
       expect(html.indexOf("Operational")).toBeLessThan(html.indexOf("Tactical"));
       expect(html.indexOf("Tactical")).toBeLessThan(html.indexOf("Strategic"));
       expect(html).toContain(`data-altitude="${selected}"`);
+      expect(html.match(/class="selector-option-icon"/g)).toHaveLength(3);
+      expect(html.match(/aria-hidden="true"/g)).toHaveLength(3);
+      expect(html).toContain('data-icon="operational"');
+      expect(html).toContain('data-icon="tactical"');
+      expect(html).toContain('data-icon="strategic"');
     },
   );
 
