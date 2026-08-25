@@ -13,7 +13,7 @@ so that I can feel work and its material context as one nearby field before real
 
 ## Outcome
 
-The approved altitude selector is mounted in a simplified live Journey header. Operational remains the complete functional cockpit, now accompanied by a clearly representative artifacts panel. Tactical and Strategic are reachable as honest bounded placeholders for their subsequent stories. The former Mission, Delivery, Situation, Current Map and participant summaries are removed to create durable header space for altitude navigation and later Journey controls.
+The approved altitude selector is mounted in a simplified live Journey header. Operational contains two alternate full-width surfaces, Chat and Artifacts, so material context never permanently compresses the conversation or future altitudes. Tactical and Strategic are reachable as honest bounded placeholders for their subsequent stories. The former Mission, Delivery, Situation, Current Map and participant summaries are removed to create durable header space for altitude navigation and later Journey controls.
 
 ## Acceptance Behavior
 
@@ -26,10 +26,10 @@ And altitude navigation does not invoke Pi, Mirror or a provider.
 
 ```text
 Given Operational is selected
-When I inspect the workspace
-Then conversation remains primary
-And representative folders/files appear beside it with explicit preview labeling
-And settings and diagnostics remain reachable.
+When I alternate between Chat and Artifacts
+Then each surface occupies the full available workspace
+And returning to Chat preserves the draft, conversation and runtime state
+And representative folders/files remain explicitly labeled as preview data.
 ```
 
 ```text
@@ -44,8 +44,10 @@ And Journey identity, menu actions and the concise moment summary remain availab
 - Remove Mission, Delivery, Situation, Current Map and participant summaries from the header, including dead presentation logic and styles.
 - Preserve Journey identity, menu actions and the concise moment summary.
 - Mount and style the three-altitude selector in the simplified Journey header.
-- Keep the existing message stream, composer and runtime behavior intact in Operational.
-- Add a representative artifacts panel using the TS-1 fixture.
+- Add a controlled Chat/Artifacts selector inside Operational.
+- Keep the existing message stream, composer and runtime behavior intact in the full-width Chat surface.
+- Add a full-width representative Artifacts surface using the TS-1 fixture.
+- Keep the existing grammar/settings panel optional in Chat and force it closed outside Chat.
 - Add honest bounded placeholders for Tactical and Strategic.
 - Keep selected altitude ephemeral and presentation-only.
 - Prevent altitude switching from hiding an active run or Journey reload.

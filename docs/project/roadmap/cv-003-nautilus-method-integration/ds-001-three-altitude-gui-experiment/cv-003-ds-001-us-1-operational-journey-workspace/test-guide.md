@@ -21,22 +21,22 @@ Pass when Mission, Delivery, Situation, Current Map and participant summaries ar
 
 Pass when Operational is selected, the existing conversation is present and the altitude selector does not displace Journey identity. Fail when another altitude is selected by default or existing conversation content is rematerialized as preview data.
 
-## Scenario 3 — Representative Artifacts Beside Conversation
+## Scenario 3 — Full-Width Operational Surfaces
 
-1. Keep Operational selected.
-2. Inspect the right-side workspace panel.
-3. Confirm folder/file distinctions and relative paths are legible.
-4. Confirm explicit representative-preview language.
-5. Confirm there are no file actions or clickable local paths.
+1. Keep Operational and Chat selected.
+2. Confirm the conversation occupies the full workspace and the optional inspector is collapsed.
+3. Select Artifacts.
+4. Confirm Artifacts replaces Chat, occupies the same full workspace and shows folder/file distinctions plus relative paths.
+5. Confirm explicit representative-preview language and no file actions or clickable local paths.
 
-Pass when the panel suggests the intended conversation/artifact relationship without claiming live filesystem knowledge. Fail when representative content appears authoritative or grants file authority.
+Pass when Chat and Artifacts alternate without permanent width loss and Artifacts suggests the intended material relationship without claiming live filesystem knowledge. Fail when either surface remains compressed by a permanent artifact sidebar or representative content appears authoritative.
 
 ## Scenario 4 — Draft and Conversation Continuity
 
-1. Type a distinctive draft without sending it.
+1. In Operational Chat, type a distinctive draft without sending it.
 2. Note the final visible message and any reconciliation notice.
-3. Select Tactical, then Strategic.
-4. Return to Operational.
+3. Select Artifacts, then Tactical, then Strategic.
+4. Return to Operational Chat.
 
 Pass when the same draft, messages, runtime footer, notices and send guards remain. Fail when any operational state is reset, duplicated or replaced.
 
@@ -50,18 +50,18 @@ Pass when each surface names its altitude, states that its visual composition ar
 
 Use deterministic component/source coverage and, when naturally available, observe a bounded active run or Journey reload.
 
-Pass when the altitude selector is disabled while operational activity is active and becomes available again after settlement. Fail when active work can be hidden by switching altitude.
+Pass when both the altitude selector and Chat/Artifacts selector are disabled while operational activity is active and become available again after settlement. Fail when active work can be hidden by switching surface.
 
 Do not start an unnecessary provider call solely to satisfy this scenario.
 
 ## Scenario 7 — Right Panel and Settings Reachability
 
-1. In Operational, collapse the right panel.
-2. Confirm the conversation regains width.
-3. Reopen the panel.
-4. Confirm representative artifacts, settings and diagnostics remain reachable.
+1. In Operational Chat, confirm the right inspector starts collapsed.
+2. Open it and confirm settings and diagnostics remain reachable.
+3. Close it and confirm Chat regains full width.
+4. Select Artifacts and confirm the inspector stays closed and unavailable there.
 
-Pass when the preview augments rather than replaces operational controls. Fail when settings or diagnostics disappear from the usable interface.
+Pass when the inspector is an optional Chat-only control and never compresses Artifacts or future altitudes. Fail when settings disappear or the panel remains permanently open.
 
 ## Scenario 8 — Journey Isolation
 
@@ -88,7 +88,8 @@ Add focused tests for:
 
 - removed header surfaces and eliminated dead presentation classes/logic;
 - retained Journey identity, menu controls and concise moment summary;
-- selector integration, default and disabled state;
+- altitude and Chat/Artifacts selector integration, defaults and disabled states;
+- full-width surface alternation and optional Chat-only inspector;
 - Operational artifact preview labeling and entries;
 - placeholder labeling and semantic emptiness;
 - App ownership of draft/conversation above altitude rendering;
@@ -122,7 +123,7 @@ Do not persist private conversation content, prompts, responses, secrets, arbitr
 
 ## Pass Condition
 
-Scenarios 1 through 9 pass, checks are green and the Navigator accepts the simplified header and Operational workspace as the first inhabited altitude.
+Scenarios 1 through 9 pass, checks are green and the Navigator accepts full-width Chat/Artifacts alternation inside the simplified Operational workspace.
 
 ## Fail Condition
 
