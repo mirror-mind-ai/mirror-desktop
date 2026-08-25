@@ -19,7 +19,7 @@ The machine-readable sanitized timeline is [evidence/three-body-timeline.json](e
 | 3 | Restart creates a generation boundary and rejects active-run restart | `journeyConversation`, persistence and Rust archive tests | automated_only | Aggregate Navigator review may accept deterministic evidence unless contradiction appears. |
 | 4 | Journey and identity load before generation | Mirror-mediated invocation contract plus generation-2 `nautilus_mirror_context` before native user/assistant entries | rerun_passed | Exact Journey and Mirror context were loaded before provider generation; private context remained outside evidence. |
 | 5 | Ego/persona routing parity | Mirror-owned fresh detection plus allowlisted `nautilus_mirror_context` evidence | rerun_passed | `product-designer` marker rendered once; unmatched follow-up used Agent/ego without sticky cross-session leakage. |
-| 6 | Mirror/Builder/Explorer/Soul parity | Certified mode/Ariad extraction and component suites | rerun_required | Validate missing natural-language activation/boundary pairs; reuse existing surfaces where coordinates suffice. |
+| 6 | Mirror/Builder/Explorer/Soul parity | Certified mode/Ariad extraction and component suites plus generation-2 mode route | rerun_required | Mirror and Builder passed; Explorer and Soul activation/boundary pairs remain. |
 | 7 | Context usage parity | Pi usage reducers, exact-session local inspection, model-window snapshot | rerun_required | Compare exact same session in terminal and Nautilus. |
 | 8 | Pi-owned compaction and continuity | Deterministic compaction lifecycle/settlement suites | rerun_required | One bounded safe automatic-compaction route or explicit accepted limitation remains. |
 | 9 | Durable logging, failure and recovery | [US-3 validation](../cv-002-ds-004-us-3-observable-three-body-turn-commit/validation.md) | accepted_existing | Semantic Mirror records differ from Pi execution bytes by design; native correlation proves the commit. |
@@ -64,6 +64,8 @@ A focus observation already in flight when a Nautilus run began could settle aga
 The terminal rerun then proved a second aggregate gap: ordinary terminal Pi and Mirror logging advance independently without native cross-body correlation. Nautilus correctly produced `both_advanced` and an inert review instead of auto-merging, but offered no safe next action and still allowed another prompt. The review now supports an explicit human-reviewed convergence branch that hydrates the already projected Harness transcript without appending the Mirror copy, and blocks further invocation while reconciliation requires attention.
 
 Persona validation exposed that model instructions alone did not prove routing or marker placement. Correlated Nautilus turns now preload exact Mirror context before generation, persist only allowlisted mode/persona evidence, project that evidence independently from model phrasing, and canonicalize late fallback evidence at the message presentation boundary.
+
+Builder validation exposed literal `<<<ARIAD:<SURFACE_ID>>>` documentation being mistaken for a real product surface. Surface extraction now requires a concrete allowlisted identifier shape and leaves documentation placeholders inert.
 
 ## Next Validation Action
 

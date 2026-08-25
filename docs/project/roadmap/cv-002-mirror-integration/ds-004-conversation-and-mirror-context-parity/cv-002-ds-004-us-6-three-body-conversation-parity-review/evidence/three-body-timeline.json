@@ -212,6 +212,38 @@
         "sticky_persona_did_not_leak",
         "known_conversation_fact_remained_available"
       ]
+    },
+    {
+      "stage": "builder_mode_activation",
+      "harness": {
+        "conversationId": "nautilus-mirror-13a0d6f3",
+        "messageCount": 48,
+        "lastMessageId": "assistant-2026-08-25T01:11:49.916Z",
+        "certifiedMode": "builder"
+      },
+      "pi": {
+        "sessionId": "nautilus-viagem-do-lipe",
+        "generation": 2,
+        "userEntryId": "8425af00",
+        "assistantEntryId": "5dae5020",
+        "leafEntryId": "5dae5020",
+        "entryCount": 73,
+        "fileSha256": "15922ae514ecf109b0890f642984d0776656c55e30966b0c3114d00c1949d7ab"
+      },
+      "mirror": {
+        "conversationId": "13a0d6f3",
+        "userMessageId": "4f1c4fbe-a99b-584b-9adf-a073ae8278c3",
+        "assistantMessageId": "f566fc70-3346-5b2a-a066-8a08170c9762",
+        "messageCount": 46
+      },
+      "classification": "in_sync",
+      "reasonCodes": [],
+      "validatedClaims": [
+        "builder_surface_visible",
+        "builder_footer_state_certified",
+        "activation_did_not_implement",
+        "ariad_template_placeholder_rejected_after_review"
+      ]
     }
   ]
 }

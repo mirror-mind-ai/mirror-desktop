@@ -95,6 +95,13 @@ describe("imported activity rendering helpers", () => {
     expect(stripAriadSurfaceBlocks(content)).toBe("before\n\nafter");
   });
 
+  it("does not render Ariad documentation placeholders as product surfaces", () => {
+    const template = "<<<ARIAD:<SURFACE_ID>>>\n...\n<<<END:<SURFACE_ID>>>";
+    expect(extractAriadSurfaceEventsFromContent({ content: template, messageId: "tool-result", createdAt: "now" })).toEqual([]);
+    expect(extractMirrorSurfaceEventsFromContent({ content: template, messageId: "tool-result", createdAt: "now" })).toEqual([]);
+    expect(stripAriadSurfaceBlocks(template)).toBe(template);
+  });
+
   it("captures required and unwrapped Explorer surfaces generically in source order", () => {
     const resumed = [
       "Mirror",

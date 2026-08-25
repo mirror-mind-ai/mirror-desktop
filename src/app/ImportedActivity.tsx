@@ -20,6 +20,7 @@ export function extractAriadSurfaceEventsFromContent(input: {
 
   while ((match = pattern.exec(input.content)) !== null) {
     const surfaceType = match[1];
+    if (!isConcreteSurfaceType(surfaceType)) continue;
     events.push({
       id: `${input.messageId}-inline-ariad-${index}`,
       kind: "ariad_surface",
@@ -37,7 +38,10 @@ export function extractAriadSurfaceEventsFromContent(input: {
 }
 
 export function stripAriadSurfaceBlocks(content: string): string {
-  return content.replace(/<<<\s*ARIAD:([^>\s]+)\s*>>>[\s\S]*?<<<\s*END:\1\s*>>>/g, "").trim();
+  return content.replace(
+    /<<<\s*ARIAD:([^>\s]+)\s*>>>[\s\S]*?<<<\s*END:\1\s*>>>/g,
+    (block, surfaceType: string) => isConcreteSurfaceType(surfaceType) ? "" : block,
+  ).trim();
 }
 
 type CapturedSurface = {
@@ -106,8 +110,14 @@ function collectPatternSurfaces(
     if (overlapsCapturedRange(match.index, match.index + match[0].length, captured)) {
       continue;
     }
-    captured.push({ start: match.index, end: match.index + match[0].length, ...project(match) });
+    const projected = project(match);
+    if (!isConcreteSurfaceType(projected.surfaceType)) continue;
+    captured.push({ start: match.index, end: match.index + match[0].length, ...projected });
   }
+}
+
+function isConcreteSurfaceType(value: string): boolean {
+  return /^[A-Z0-9][A-Z0-9._:-]*$/i.test(value) && !/^(?:SURFACE_ID|TYPE|PLACEHOLDER)$/i.test(value);
 }
 
 function collectBoxedExplorerSurfaces(content: string, captured: CapturedSurface[]) {
