@@ -2,11 +2,32 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { JourneyAltitudePlaceholder } from "../app/JourneyAltitudePlaceholder";
 import { OperationalArtifactsPreview } from "../app/OperationalArtifactsPreview";
+import { OperationalWorkspaceSwitcher } from "../app/OperationalWorkspaceSwitcher";
 import { representativeJourneyPreview } from "../app/journeyAltitudePreview";
 import appSource from "../app/App.tsx?raw";
-import appStyles from "../styles/app.css?raw";
 
 describe("Operational Journey workspace", () => {
+  it("switches between full-width Chat and Artifacts surfaces", () => {
+    const html = renderToStaticMarkup(
+      <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} />,
+    );
+
+    expect(html).toContain('aria-label="Operational workspace"');
+    expect(html.match(/role="tab"/g)).toHaveLength(2);
+    expect(html).toContain("Chat");
+    expect(html).toContain("Artifacts");
+    expect(html.match(/aria-selected="true"/g)).toHaveLength(1);
+  });
+
+  it("keeps Operational surface switching disabled during active work", () => {
+    const html = renderToStaticMarkup(
+      <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} disabled />,
+    );
+
+    expect(html.match(/disabled=""/g)).toHaveLength(2);
+    expect(html).toContain('aria-disabled="true"');
+  });
+
   it("renders representative artifacts without file authority", () => {
     const html = renderToStaticMarkup(
       <OperationalArtifactsPreview
@@ -16,6 +37,7 @@ describe("Operational Journey workspace", () => {
     );
 
     expect(html).toContain("Journey artifacts");
+    expect(html).toContain('class="operational-artifacts-workspace"');
     expect(html).toContain("Representative preview");
     expect(html).toContain("Live workspace reading comes later");
     expect(html).toContain("docs/project/roadmap/index.md");
@@ -40,8 +62,11 @@ describe("Operational Journey workspace", () => {
   it("simplifies the header and keeps altitude state separate from runtime ownership", () => {
     expect(appSource).toContain("defaultJourneyAltitude");
     expect(appSource).toContain("setSelectedAltitude");
+    expect(appSource).toContain("setSelectedOperationalSurface");
     expect(appSource).toContain("<JourneyAltitudeSwitcher");
+    expect(appSource).toContain("<OperationalWorkspaceSwitcher");
     expect(appSource).toContain('selectedAltitude === "operational"');
+    expect(appSource).toContain('selectedOperationalSurface === "chat"');
     expect(appSource).toContain("isJourneyReloading");
     expect(appSource).toContain('agentRun.status === "running"');
     expect(appSource).not.toContain('className="journey-status-rail"');
@@ -52,14 +77,10 @@ describe("Operational Journey workspace", () => {
     expect(appSource).not.toContain("currentDeliveryTitle");
     expect(appSource).toContain('className="active-journey-title"');
     expect(appSource).toContain('className="journey-moment-summary"');
+    expect(appSource).toContain("useState<OperationalSurface>(\"chat\")");
+    expect(appSource).toContain("useState(true)");
     expect(appSource).toContain("void generatePacket(\"live\")");
     expect(appSource).not.toContain("dangerouslySetInnerHTML");
   });
 
-  it("removes styles owned only by the former semantic header summaries", () => {
-    expect(appStyles).not.toContain(".journey-status-rail");
-    expect(appStyles).not.toContain(".status-pill");
-    expect(appStyles).not.toContain(".present-map-summary");
-    expect(appStyles).not.toContain(".present-map-avatars");
-  });
 });

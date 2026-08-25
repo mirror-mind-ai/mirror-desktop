@@ -5,11 +5,12 @@
 - Removed Mission, Delivery, Situation, Current Map and participant summaries from the Journey header.
 - Removed their dead counters, labels and CSS while preserving Journey identity, menus, header collapse, right-panel control and concise moment summary.
 - Mounted the controlled Operational/Tactical/Strategic selector in the simplified header.
-- Kept altitude state ephemeral and separate from Journey preferences, conversation persistence and runtime ownership.
-- Disabled altitude selection during active stream/run or Journey reload.
-- Preserved the existing message stream, composer, runtime footer and reconciliation notices as the Operational altitude.
-- Added a visible-by-default representative artifacts panel using sanitized TS-1 fixture paths, with no links or file actions.
-- Preserved grammar inspection, settings and diagnostics below the artifacts preview.
+- Added a controlled Chat/Artifacts selector within Operational.
+- Kept altitude and Operational-surface state ephemeral and separate from Journey preferences, conversation persistence and runtime ownership.
+- Disabled both selectors during active stream/run or Journey reload.
+- Preserved the existing message stream, composer, runtime footer and reconciliation notices as the full-width Chat surface.
+- Added an alternate full-width Artifacts surface using sanitized TS-1 fixture paths, with no links or file actions.
+- Returned grammar inspection, settings and diagnostics to an optional Chat-only panel collapsed by default.
 - Added bounded Tactical and Strategic placeholders without fabricated semantic content or execution controls.
 
 ## TDD Evidence
@@ -17,8 +18,8 @@
 The focused tests failed first because the new workspace components and disabled selector contract did not exist. They passed after the presentation components, shell integration and scoped styles were implemented.
 
 ```text
-Focused: 2 files, 10 tests passed
-Frontend: 29 files, 196 tests passed
+Focused correction: 2 files, 11 tests passed
+Frontend: 29 files, 197 tests passed
 Production build: passed
 Rust: 8 tests passed
 cargo check: passed
@@ -28,18 +29,19 @@ cargo check: passed
 
 A local browser rendering confirmed:
 
-- Operational selected by default;
-- simplified header and visible altitude selector;
-- representative artifacts beside the conversation;
+- Operational and Chat selected by default;
+- simplified header and visible altitude/surface selectors;
+- full-width Chat without a permanent right sidebar;
+- full-width Artifacts with internal browser/detail composition;
 - Tactical and Strategic placeholders;
-- right-panel control disabled outside Operational;
-- an unsent draft survived Operational to Tactical to Strategic to Operational navigation.
+- right-panel control restricted to Chat;
+- an unsent draft survived Chat to Artifacts to Chat navigation.
 
 Sanitized temporary screenshots were written outside the repository:
 
 ```text
-/tmp/nautilus-us1-operational.png
-/tmp/nautilus-us1-tactical-placeholder.png
+/tmp/nautilus-us1-full-chat.png
+/tmp/nautilus-us1-full-artifacts.png
 ```
 
 The Tauri development app also launched successfully through `target/debug/nautilus-harness` and was stopped after the launch check.
@@ -50,6 +52,7 @@ The Tauri development app also launched successfully through `target/debug/nauti
 src/app/App.tsx
 src/app/JourneyAltitudeSwitcher.tsx
 src/app/JourneyAltitudePlaceholder.tsx
+src/app/OperationalWorkspaceSwitcher.tsx
 src/app/OperationalArtifactsPreview.tsx
 src/styles/app.css
 ```

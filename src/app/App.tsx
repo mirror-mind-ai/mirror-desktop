@@ -48,6 +48,10 @@ import { JourneyAltitudeSwitcher } from "./JourneyAltitudeSwitcher";
 import { JourneyAltitudePlaceholder } from "./JourneyAltitudePlaceholder";
 import { OperationalArtifactsPreview } from "./OperationalArtifactsPreview";
 import {
+  OperationalWorkspaceSwitcher,
+  type OperationalSurface,
+} from "./OperationalWorkspaceSwitcher";
+import {
   defaultJourneyAltitude,
   representativeJourneyPreview,
 } from "./journeyAltitudePreview";
@@ -181,6 +185,7 @@ function situationDescription(hasMissionDraft: boolean, hasMission: boolean) {
 export function App({ model }: AppProps) {
   const [selectedJourney, setSelectedJourney] = useState(defaultJourneyPreferenceState.activeJourneyId ?? "nautilus-harness");
   const [selectedAltitude, setSelectedAltitude] = useState(defaultJourneyAltitude);
+  const [selectedOperationalSurface, setSelectedOperationalSurface] = useState<OperationalSurface>("chat");
   const [journeyPreferences, setJourneyPreferences] = useState<JourneyPreferences>({
     pinnedJourneyIds: defaultJourneyPreferenceState.pinnedJourneyIds,
     activeJourneyId: defaultJourneyPreferenceState.activeJourneyId,
@@ -218,7 +223,7 @@ export function App({ model }: AppProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
   const [headerExpanded, setHeaderExpanded] = useState(true);
-  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(true);
   const [agentRun, setAgentRun] = useState(initialAgentRunState);
   const [conversationLoaded, setConversationLoaded] = useState(false);
   const [journeyReloadStatus, setJourneyReloadStatus] = useState<string | undefined>();
@@ -299,7 +304,8 @@ export function App({ model }: AppProps) {
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
   const currentSituationDescription = situationDescription(Boolean(streamMissionDraft), Boolean(model.mission));
   const altitudeSwitchDisabled = isStreaming || agentRun.status === "running" || isJourneyReloading;
-  const rightPanelVisible = selectedAltitude === "operational" && !rightPanelCollapsed;
+  const operationalChatSelected = selectedAltitude === "operational" && selectedOperationalSurface === "chat";
+  const rightPanelVisible = operationalChatSelected && !rightPanelCollapsed;
 
   function scheduleExternalPiRefresh(delayMs = 200) {
     if (externalPiRefreshTimerRef.current) {
@@ -1403,13 +1409,13 @@ export function App({ model }: AppProps) {
                   className="menu-button right-panel-toggle"
                   type="button"
                   onClick={() => setRightPanelCollapsed((collapsed) => !collapsed)}
-                  disabled={selectedAltitude !== "operational"}
-                  aria-label={selectedAltitude !== "operational"
-                    ? "Journey details are available in Operational"
+                  disabled={!operationalChatSelected}
+                  aria-label={!operationalChatSelected
+                    ? "Journey details are available in Operational Chat"
                     : rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
                   aria-pressed={rightPanelCollapsed}
-                  title={selectedAltitude !== "operational"
-                    ? "Journey details are available in Operational"
+                  title={!operationalChatSelected
+                    ? "Journey details are available in Operational Chat"
                     : rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
                 >
                   {rightPanelCollapsed ? "◨" : "◧"}
@@ -1422,21 +1428,34 @@ export function App({ model }: AppProps) {
                 onChange={setSelectedAltitude}
                 disabled={altitudeSwitchDisabled}
               />
+              {selectedAltitude === "operational" ? (
+                <OperationalWorkspaceSwitcher
+                  value={selectedOperationalSurface}
+                  onChange={setSelectedOperationalSurface}
+                  disabled={altitudeSwitchDisabled}
+                />
+              ) : null}
             </div>
             {headerExpanded ? <p className="journey-moment-summary">{currentSituationDescription}</p> : null}
           </div>
         </header>
 
+        {selectedAltitude === "operational" && selectedOperationalSurface === "artifacts" ? (
+          <OperationalArtifactsPreview
+            journeyName={selectedJourneyItem.name}
+            artifacts={representativeJourneyPreview.artifacts}
+          />
+        ) : null}
         {selectedAltitude === "operational" ? null : (
           <JourneyAltitudePlaceholder altitude={selectedAltitude} />
         )}
 
         <section
-          id="journey-altitude-operational-panel"
+          id="operational-chat-panel"
           className="chat-stream"
           role="tabpanel"
           aria-label="Conversation"
-          hidden={selectedAltitude !== "operational"}
+          hidden={!operationalChatSelected}
           ref={chatStreamRef}
         >
           {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}
@@ -1503,7 +1522,7 @@ export function App({ model }: AppProps) {
         <section
           className="composer"
           aria-label="Message composer"
-          hidden={selectedAltitude !== "operational"}
+          hidden={!operationalChatSelected}
         >
           {mirrorReconciliationReview && !isStreaming ? (
             <MirrorReconciliationNotice
@@ -1576,11 +1595,6 @@ export function App({ model }: AppProps) {
       </section>
 
       <aside className="grammar-panel" aria-label="Journey details" aria-hidden={!rightPanelVisible}>
-        <OperationalArtifactsPreview
-          journeyName={selectedJourneyItem.name}
-          artifacts={representativeJourneyPreview.artifacts}
-        />
-
         <section className="grammar-card grammar-card-primary">
           <p className="eyebrow">Inspector</p>
           <h2>On-demand grammar</h2>
