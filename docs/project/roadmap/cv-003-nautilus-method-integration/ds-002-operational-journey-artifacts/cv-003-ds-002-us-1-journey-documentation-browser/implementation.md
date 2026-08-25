@@ -5,6 +5,7 @@
 - Replaced the representative Operational Artifacts fixture with a real Journey workspace browser rooted at the registered Journey path rather than an optional `docs/` convention.
 - Kept the accepted full-width two-card composition: hierarchical Workspace structure on the left and document content/details/metadata on the right.
 - Added accessible nested folder expansion, independent item selection and deterministic folder-first ordering.
+- Replaced abstract glyphs with familiar dependency-free SVG folder/file silhouettes and differentiated Markdown, PDF, text, image, code, data, archive, office-document and generic file marks. Icons remain decorative while text labels retain accessible naming.
 - Added safe read-only Markdown and plain-text preview with inert text, headings, lists and code blocks.
 - Added honest loading, empty-workspace, recoverable-error, folder, unsupported-type, oversized and invalid-UTF-8 states.
 - Omitted hidden/sensitive entries and common generated dependency, build, cache and coverage directories from both listing and direct reads.
@@ -41,8 +42,8 @@ src/app/JourneyDocumentationBrowser.tsx
 Focused frontend tests failed first because the domain and browser modules did not exist. Native boundary tests were added with the implementation and cover registry authority, recursive projection, supported reads, traversal rejection and symlink omission.
 
 ```text
-Focused: 3 files, 17 tests passed
-Frontend: 31 files, 208 tests passed
+Focused icon/browser suite: 3 files, 33 tests passed
+Frontend: 32 files, 229 tests passed
 Production build: passed
 Rust: 14 tests passed
 cargo check: passed
@@ -58,6 +59,7 @@ Temporary screenshot outside the repository:
 ```text
 /tmp/nautilus-ds2-us1-document-browser.png
 /tmp/nautilus-ds2-us1-journey-root-browser.png
+/tmp/nautilus-ds2-us1-familiar-artifact-icons.png
 ```
 
 ## Changed Production Files
@@ -67,6 +69,7 @@ src-tauri/src/main.rs
 src/domain/journeyDocumentation.ts
 src/app/journeyDocumentationStorage.ts
 src/app/JourneyDocumentationBrowser.tsx
+src/app/ArtifactTypeIcon.tsx
 src/app/App.tsx
 src/styles/app.css
 ```

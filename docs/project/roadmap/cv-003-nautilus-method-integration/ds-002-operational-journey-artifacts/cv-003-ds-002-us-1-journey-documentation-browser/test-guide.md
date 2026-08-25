@@ -12,7 +12,7 @@ Validate that Operational → Artifacts is a real, bounded, read-only browser fo
 2. Open Operational → Artifacts.
 3. Inspect the initial tree and expand/collapse at least two levels.
 
-Pass when folders precede files, names are ordered deterministically, indentation communicates hierarchy, and folder controls expose accessible expanded state. Fail on a flat list, unstable ordering, duplicated nodes or inaccessible expand/collapse controls.
+Pass when folders precede files, names are ordered deterministically, indentation communicates hierarchy, familiar folder/file silhouettes are visible, common types such as Markdown and PDF are distinguishable, and folder controls expose accessible expanded state. Fail on a flat list, unstable ordering, duplicated nodes or inaccessible expand/collapse controls.
 
 ## Scenario 2 — Safe Markdown and Text Content
 
@@ -102,6 +102,7 @@ Pass when there are no edit, create, rename, move, delete, execute, open-file or
 
 - loading, ready, empty and error surfaces;
 - nested accessible tree rendering;
+- familiar decorative folder/file icons and deterministic common-extension mapping;
 - selected item and expanded folder semantics;
 - safe content viewer;
 - details/metadata fallback;

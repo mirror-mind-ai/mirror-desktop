@@ -111,6 +111,8 @@ Left panel behavior:
 - render `docs` as the browser root;
 - show nested folders/files with depth-aware indentation;
 - expose folder expand/collapse as real buttons with accessible expanded state;
+- use familiar open/closed folder and file silhouettes, with compact differentiated marks for Markdown, PDF, text, image, code, data, archive, office-document and generic file types;
+- keep every icon decorative (`aria-hidden`) so the unchanged text label remains the accessible name;
 - expose file/folder selection independently of expansion;
 - identify the selected node without converting paths into links;
 - provide loading, empty-workspace and recoverable-error states.

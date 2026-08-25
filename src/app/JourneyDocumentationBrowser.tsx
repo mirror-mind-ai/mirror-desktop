@@ -6,6 +6,7 @@ import {
   type DocumentationTreeViewState,
 } from "../domain/journeyDocumentation";
 import { listJourneyDocumentation, readJourneyDocument } from "./journeyDocumentationStorage";
+import { ArtifactTypeIcon, artifactIconKind } from "./ArtifactTypeIcon";
 
 type JourneyDocumentationBrowserProps = {
   journeyId: string;
@@ -153,7 +154,7 @@ function renderTreeState(
 
   return (
     <div className="journey-documentation-tree-wrap">
-      <div className="journey-documentation-root"><span aria-hidden="true">▾</span><strong>{tree.rootLabel}</strong></div>
+      <div className="journey-documentation-root"><ArtifactTypeIcon kind="folder" open /><strong>{tree.rootLabel}</strong></div>
       <ul className="journey-documentation-tree" role="tree" aria-label="Journey workspace">
         {tree.items.map((node) => renderTreeNode(node, 0, expandedPaths, selectedNode, onToggle, onSelect))}
       </ul>
@@ -189,14 +190,17 @@ function renderTreeNode(
           >
             {expanded ? "▾" : "›"}
           </button>
-        ) : <span className="journey-documentation-file-mark" aria-hidden="true">·</span>}
+        ) : <span className="journey-documentation-file-mark" aria-hidden="true" />}
         <button
           type="button"
           className="journey-documentation-select"
           onClick={() => onSelect(node)}
           title={node.relativePath}
         >
-          <span aria-hidden="true">{node.kind === "folder" ? "▱" : "□"}</span>
+          <ArtifactTypeIcon
+            kind={artifactIconKind(node.relativePath, node.kind)}
+            open={node.kind === "folder" && expanded}
+          />
           <span>{node.name}</span>
         </button>
       </div>
@@ -233,7 +237,7 @@ function renderViewer(selectedNode: DocumentationNode | undefined, content: Docu
     return (
       <div className="journey-documentation-detail">
         <p className="operational-artifacts-section-label">Details and metadata</p>
-        <h2>{selectedNode.name}</h2>
+        <ViewerArtifactTitle node={selectedNode} />
         {metadata}
         <div className="journey-documentation-unavailable">
           <strong>Preview unavailable</strong>
@@ -246,7 +250,7 @@ function renderViewer(selectedNode: DocumentationNode | undefined, content: Docu
   return (
     <article className="journey-documentation-content">
       <p className="operational-artifacts-section-label">Artifact content</p>
-      <h2>{selectedNode.name}</h2>
+      <ViewerArtifactTitle node={selectedNode} />
       {metadata}
       <div className={`journey-documentation-body content-${content.previewKind}`}>
         {content.previewKind === "markdown" ? renderSafeMarkdown(content.content) : <pre>{content.content}</pre>}
@@ -291,6 +295,15 @@ function renderSafeMarkdown(content: string): ReactNode {
   });
   if (code.length > 0) output.push(<pre key="code-final"><code>{code.join("\n")}</code></pre>);
   return output;
+}
+
+function ViewerArtifactTitle({ node }: { node: DocumentationNode }) {
+  return (
+    <div className="journey-documentation-viewer-title">
+      <ArtifactTypeIcon kind={artifactIconKind(node.relativePath, node.kind)} open={node.kind === "folder"} />
+      <h2>{node.name}</h2>
+    </div>
+  );
 }
 
 function BrowserState({ title, detail }: { title: string; detail: string }) {

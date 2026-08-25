@@ -50,7 +50,8 @@ And no read, open or navigation authority escapes the visible registered workspa
 ## Scope
 
 - Replace the representative artifact fixture with a bounded read-only projection of the active Journey root.
-- Render visible folders and files hierarchically in the left panel, with explicit expand/collapse and selected-item state.
+- Render visible folders and files hierarchically in the left panel, with explicit expand/collapse, selected-item state and familiar folder/file silhouettes.
+- Differentiate common artifact types with restrained icons for Markdown, PDF, text, image, code, data, archives, office documents and generic files.
 - Omit hidden entries and common generated/dependency directories such as `.git`, `.env`, `node_modules`, `target`, `dist`, `build`, virtual environments, caches and coverage output.
 - Sort folders and files predictably while preserving Journey-relative paths.
 - Render supported Markdown and plain-text artifacts safely in the right panel without `dangerouslySetInnerHTML`.

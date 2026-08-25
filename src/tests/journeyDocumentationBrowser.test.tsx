@@ -76,6 +76,8 @@ describe("JourneyDocumentationBrowser", () => {
     expect(html).toContain('aria-expanded="true"');
     expect(html).toContain('aria-selected="true"');
     expect(html).toContain("guides/start.md");
+    expect(html).toContain('data-artifact-icon="folder"');
+    expect(html).toContain('data-artifact-icon="markdown"');
     expect(html).toContain("Safe documentation.");
     expect(html).not.toContain("href=");
     expect(html).not.toContain("Open file");
@@ -106,6 +108,7 @@ describe("JourneyDocumentationBrowser", () => {
       />,
     );
 
+    expect(html).toContain('data-artifact-icon="image"');
     expect(html).toContain("Preview unavailable");
     expect(html).toContain("Unsupported document type");
     expect(html).toContain("2 KB");

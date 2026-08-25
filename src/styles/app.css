@@ -1811,6 +1811,59 @@ button:disabled {
   white-space: nowrap;
 }
 
+.artifact-type-icon {
+  fill: none;
+  flex: 0 0 18px;
+  height: 18px;
+  overflow: visible;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.55;
+  width: 18px;
+}
+
+.artifact-type-icon.icon-folder { color: #d8b46e; }
+.artifact-type-icon.icon-markdown { color: #76d9cb; }
+.artifact-type-icon.icon-pdf { color: #ee8f86; }
+.artifact-type-icon.icon-text,
+.artifact-type-icon.icon-file { color: #96aeb4; }
+.artifact-type-icon.icon-image { color: #c19bea; }
+.artifact-type-icon.icon-code { color: #77c9ec; }
+.artifact-type-icon.icon-data { color: #d8c377; }
+.artifact-type-icon.icon-archive { color: #b7a1df; }
+.artifact-type-icon.icon-document { color: #8db9ec; }
+
+.artifact-type-label {
+  dominant-baseline: middle;
+  fill: currentColor;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 4.2px;
+  font-weight: 800;
+  stroke: none;
+  text-anchor: middle;
+}
+
+.artifact-type-mark {
+  stroke-width: 1.35;
+}
+
+.journey-documentation-viewer-title {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.journey-documentation-viewer-title .artifact-type-icon {
+  flex-basis: 22px;
+  height: 22px;
+  width: 22px;
+}
+
+.journey-documentation-viewer-title h2 {
+  margin: 0;
+}
+
 .operational-artifact-document-viewer {
   color: #9cb0b5;
 }
@@ -1840,6 +1893,9 @@ button:disabled {
 .journey-documentation-detail h2,
 .journey-documentation-content h2 {
   color: #dcebed;
+}
+
+.operational-artifact-detail-preview h3 {
   margin-bottom: 8px;
 }
 
