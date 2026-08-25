@@ -5,12 +5,13 @@
 - Removed Mission, Delivery, Situation, Current Map and participant summaries from the Journey header.
 - Removed their dead counters, labels and CSS while preserving Journey identity, menus, header collapse, right-panel control and concise moment summary.
 - Mounted the controlled Operational/Tactical/Strategic selector in the simplified header.
-- Added a controlled Chat/Artifacts selector within Operational.
+- Added a controlled Conversation/Artifacts selector within Operational.
 - Kept altitude and Operational-surface state ephemeral and separate from Journey preferences, conversation persistence and runtime ownership.
 - Disabled both selectors during active stream/run or Journey reload.
-- Preserved the existing message stream, composer, runtime footer and reconciliation notices as the full-width Chat surface.
+- Preserved the existing message stream, composer, runtime footer and reconciliation notices as the full-width Conversation surface.
 - Added an alternate full-width Artifacts surface using sanitized TS-1 fixture paths, with no links or file actions.
-- Returned grammar inspection, settings and diagnostics to an optional Chat-only panel collapsed by default.
+- Removed redundant artifact eyebrow, repeated Journey title, explanatory preview paragraph and badge so Workspace structure and Artifact detail area consume the canvas.
+- Returned grammar inspection, settings and diagnostics to an optional Conversation-only panel collapsed by default.
 - Added bounded Tactical and Strategic placeholders without fabricated semantic content or execution controls.
 
 ## TDD Evidence
@@ -29,10 +30,10 @@ cargo check: passed
 
 A local browser rendering confirmed:
 
-- Operational and Chat selected by default;
+- Operational and Conversation selected by default;
 - simplified header and visible altitude/surface selectors;
-- full-width Chat without a permanent right sidebar;
-- full-width Artifacts with internal browser/detail composition;
+- full-width Conversation without a permanent right sidebar;
+- unframed full-width Artifacts with only the Workspace structure and Artifact detail area cards;
 - Tactical and Strategic placeholders;
 - right-panel control restricted to Chat;
 - an unsent draft survived Chat to Artifacts to Chat navigation.
@@ -41,7 +42,7 @@ Sanitized temporary screenshots were written outside the repository:
 
 ```text
 /tmp/nautilus-us1-full-chat.png
-/tmp/nautilus-us1-full-artifacts.png
+/tmp/nautilus-us1-artifacts-refined.png
 ```
 
 The Tauri development app also launched successfully through `target/debug/nautilus-harness` and was stopped after the launch check.

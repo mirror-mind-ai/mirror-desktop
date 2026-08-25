@@ -1441,10 +1441,7 @@ export function App({ model }: AppProps) {
         </header>
 
         {selectedAltitude === "operational" && selectedOperationalSurface === "artifacts" ? (
-          <OperationalArtifactsPreview
-            journeyName={selectedJourneyItem.name}
-            artifacts={representativeJourneyPreview.artifacts}
-          />
+          <OperationalArtifactsPreview artifacts={representativeJourneyPreview.artifacts} />
         ) : null}
         {selectedAltitude === "operational" ? null : (
           <JourneyAltitudePlaceholder altitude={selectedAltitude} />

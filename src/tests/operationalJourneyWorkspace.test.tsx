@@ -14,8 +14,9 @@ describe("Operational Journey workspace", () => {
 
     expect(html).toContain('aria-label="Operational workspace"');
     expect(html.match(/role="tab"/g)).toHaveLength(2);
-    expect(html).toContain("Chat");
+    expect(html).toContain("Conversation");
     expect(html).toContain("Artifacts");
+    expect(html).not.toContain(">Chat<");
     expect(html.match(/aria-selected="true"/g)).toHaveLength(1);
   });
 
@@ -30,17 +31,17 @@ describe("Operational Journey workspace", () => {
 
   it("renders representative artifacts without file authority", () => {
     const html = renderToStaticMarkup(
-      <OperationalArtifactsPreview
-        journeyName="Nautilus Harness"
-        artifacts={representativeJourneyPreview.artifacts}
-      />,
+      <OperationalArtifactsPreview artifacts={representativeJourneyPreview.artifacts} />,
     );
 
-    expect(html).toContain("Journey artifacts");
     expect(html).toContain('class="operational-artifacts-workspace"');
-    expect(html).toContain("Representative preview");
-    expect(html).toContain("Live workspace reading comes later");
+    expect(html).toContain("Workspace structure");
+    expect(html).toContain("Artifact detail area");
     expect(html).toContain("docs/project/roadmap/index.md");
+    expect(html).not.toContain("Journey artifacts");
+    expect(html).not.toContain("Nautilus Harness");
+    expect(html).not.toContain("Representative preview");
+    expect(html).not.toContain("Live workspace reading comes later");
     expect(html).not.toContain("href=");
     expect(html).not.toContain("Open file");
   });

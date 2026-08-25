@@ -6,7 +6,7 @@ Blocked
 
 ## Automated Checks
 
-- npm test -- src/tests/operationalJourneyWorkspace.test.tsx src/tests/journeyAltitudeSwitcher.test.tsx: 2 files, 11 tests passed
+- npm test -- src/tests/operationalJourneyWorkspace.test.tsx: 1 file, 6 tests passed
 - npm test: 29 files, 197 tests passed
 - npm run build: TypeScript and Vite production build passed
 - cargo test: 8 tests passed
@@ -18,19 +18,19 @@ Checks status: passed
 
 Decision: required
 
-Evidence: Correction validated in the live local GUI: Operational Chat opened at full width with the inspector collapsed; Artifacts replaced Chat at full width with an internal browser/detail composition; returning to Chat preserved the unsent draft. Tactical/Strategic remained bounded placeholders. Screenshots remain outside the repository at /tmp/nautilus-us1-full-chat.png and /tmp/nautilus-us1-full-artifacts.png.
+Evidence: Refinement validated in the live local GUI: the Operational sublabel is Conversation; Artifacts shows no Journey artifacts eyebrow, repeated Journey title, explanatory preview copy or representative badge; Workspace structure and Artifact detail area occupy the full artifact canvas. Screenshot remains outside the repository at /tmp/nautilus-us1-artifacts-refined.png.
 
 ## Navigator Validation
 
-Route: Review the corrected Harness GUI and confirm that Chat and Artifacts alternate at full workspace width, the inspector is optional and Chat-only, returning preserves the draft/conversation, and future altitudes are not compressed by a permanent sidebar.
+Route: Review the refined Operational header and Artifacts canvas. Confirm the Conversation label and that the two artifact cards use the full available canvas without redundant framing.
 
 Navigator accepted: no
 
-Expected observation: Operational opens on full-width Chat; selecting Artifacts replaces it with a full-width artifact canvas; no permanent artifact sidebar remains; returning to Chat preserves state and triggers no runtime work.
+Expected observation: Conversation replaces Chat; Artifacts begins directly with Workspace structure and Artifact detail area; the removed title, explanation and badge are absent; no runtime or state behavior changes.
 
-Pass condition: Navigator accepts full-width Chat/Artifacts alternation as the corrected Operational workspace.
+Pass condition: Navigator accepts the simplified Operational labels and artifact canvas.
 
-Fail condition: Either surface remains permanently compressed, the inspector stays open outside Chat, operational state is lost, or surface navigation triggers/hides runtime work.
+Fail condition: Chat remains visible, redundant artifact framing remains, the two cards do not use the canvas, or any operational safety/state behavior regresses.
 
 ## Missing Evidence
 

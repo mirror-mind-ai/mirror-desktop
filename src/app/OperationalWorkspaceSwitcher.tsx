@@ -7,7 +7,7 @@ type OperationalWorkspaceSwitcherProps = {
 };
 
 const operationalSurfaces = [
-  { id: "chat", label: "Chat" },
+  { id: "chat", label: "Conversation" },
   { id: "artifacts", label: "Artifacts" },
 ] as const satisfies readonly { id: OperationalSurface; label: string }[];
 
