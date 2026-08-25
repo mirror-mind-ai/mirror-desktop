@@ -9,7 +9,7 @@ type MirrorReconciliationNoticeProps = {
 
 export function MirrorReconciliationNotice({ review, disabled, error, onApply }: MirrorReconciliationNoticeProps) {
   const eligible = review.status === "eligible";
-  const independentlyReviewed = review.status === "independent";
+  const independentlyReviewed = review.status === "independent" || review.reasonCode === "independent_pi_advancement";
   const actionable = eligible || independentlyReviewed;
   return (
     <aside className="conversation-sync-notice mirror-reconciliation-notice" aria-label="Mirror reconciliation review">

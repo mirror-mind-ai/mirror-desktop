@@ -454,7 +454,8 @@ export function App({ model }: AppProps) {
   async function applyMirrorReconciliation() {
     const review = mirrorReconciliationReview;
     const current = conversationRef.current;
-    if (!review || !["eligible", "independent"].includes(review.status) || isReconcilingMirror || isStreaming || agentRun.status === "running") return;
+    const independentlyReviewed = review?.status === "independent" || review?.reasonCode === "independent_pi_advancement";
+    if (!review || (review.status !== "eligible" && !independentlyReviewed) || isReconcilingMirror || isStreaming || agentRun.status === "running") return;
     const providerIndex = providerConfig.args.indexOf("--provider");
     const modelIndex = providerConfig.args.indexOf("--model");
     const provider = providerIndex >= 0 ? providerConfig.args[providerIndex + 1] : undefined;
@@ -471,7 +472,7 @@ export function App({ model }: AppProps) {
         fingerprint: review.fingerprint,
         provider,
         model: modelName,
-        resolutionMode: review.status === "independent" ? "independent_review" : "mirror_only",
+        resolutionMode: independentlyReviewed ? "independent_review" : "mirror_only",
       });
       const reconciled = await loadJourneyConversation(current.journeyId);
       if (!reconciled || reconciled.liveIdentity.generation !== current.liveIdentity.generation + 1) {

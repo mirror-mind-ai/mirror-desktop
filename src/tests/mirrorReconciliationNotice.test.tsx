@@ -33,7 +33,7 @@ describe("Mirror reconciliation notice", () => {
 
   it("offers an explicit human-reviewed convergence action for independent advancement", () => {
     const html = renderToStaticMarkup(createElement(MirrorReconciliationNotice, {
-      review: { ...eligible, status: "independent", reasonCode: "independent_pi_advancement" },
+      review: { ...eligible, status: "conflicted", reasonCode: "independent_pi_advancement" },
       disabled: false, onApply: () => undefined,
     }));
     expect(html).toContain("Pi and Mirror advanced independently");
