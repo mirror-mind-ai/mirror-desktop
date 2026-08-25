@@ -11,7 +11,7 @@ describe("Journey documentation domain", () => {
   it("normalizes and deterministically sorts folders before files", () => {
     const tree = normalizeDocumentationTree({
       status: "ready",
-      rootLabel: "docs",
+      rootLabel: "nautilus-harness",
       items: [
         { relativePath: "z.md", name: "z.md", kind: "file", previewKind: "markdown", children: [] },
         { relativePath: "Alpha.txt", name: "Alpha.txt", kind: "file", previewKind: "text", children: [] },
@@ -29,6 +29,7 @@ describe("Journey documentation domain", () => {
     });
 
     expect(tree.status).toBe("ready");
+    expect(tree.rootLabel).toBe("nautilus-harness");
     expect(tree.items.map((item) => item.name)).toEqual(["guides", "Alpha.txt", "z.md"]);
     expect(tree.items[0].children.map((item) => item.name)).toEqual(["A.md", "b.md"]);
   });

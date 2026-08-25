@@ -2,7 +2,7 @@
 
 ## Objective
 
-Hydrate the accepted full-width Operational Artifacts shell with a real, bounded, read-only browser for the active Journey's `docs/` directory. The left panel becomes an expandable hierarchical tree; the right panel displays safe textual content or honest details and metadata. Conversation continuity, explicit runtime ownership and the selected-Journey boundary remain unchanged.
+Hydrate the accepted full-width Operational Artifacts shell with a real, bounded, read-only browser for the active registered Journey root. The left panel becomes an expandable hierarchical tree; the right panel displays safe textual content or honest details and metadata. Conversation continuity, explicit runtime ownership and the selected-Journey boundary remain unchanged.
 
 ## Product Boundary
 
@@ -10,12 +10,13 @@ This story turns representative Artifacts into a real documentation surface. It 
 
 The browser must:
 
-- read only below the active Journey's canonical `docs/` root;
+- read only below the active Journey's canonical registered root;
 - expose Journey-relative paths only;
+- omit hidden/sensitive entries and common generated dependency, build, cache and coverage directories;
 - reject traversal and omit/reject symlinks that could escape the root;
 - never edit, create, rename, delete, execute or attach a document;
 - never invoke Pi, Mirror or a provider;
-- perform bounded reads only on explicit Journey/Artifacts activation or item selection;
+- perform bounded reads only on explicit Journey/Artifacts activation or item selection, with fixed hierarchy depth/entry limits;
 - use no watcher and no polling;
 - keep expansion and selection state ephemeral and scoped to the selected Journey.
 
@@ -29,7 +30,7 @@ Define a transport model with explicit states rather than leaking raw filesystem
 
 ```text
 JourneyDocumentationTree
-  status: ready | missing | empty
+  status: ready | empty
   rootLabel: docs
   items: DocumentationNode[]
 
@@ -67,13 +68,13 @@ Both commands must:
 
 1. reject empty/NUL inputs;
 2. resolve the Journey root server-side from the local registry rather than trusting a renderer-supplied root;
-3. canonicalize the registered Journey root and its `docs/` child;
-4. return an honest `missing` result when `docs/` does not exist;
+3. canonicalize the registered Journey root;
+4. omit hidden entries plus common generated/dependency directories (`node_modules`, `target`, `dist`, `build`, virtual environments, caches and coverage output);
 5. canonicalize every traversed/read item before use;
-6. require every canonical item to remain below the canonical `docs/` root;
-7. reject parent traversal and absolute document-relative paths;
+6. require every canonical item to remain below the canonical Journey root;
+7. reject parent traversal, absolute artifact-relative paths and direct reads of omitted components;
 8. avoid following directory symlinks and filesystem loops;
-9. return normalized relative paths only;
+9. return normalized Journey-relative paths only;
 10. map I/O failures to bounded user-facing errors without leaking arbitrary host paths.
 
 Tree enumeration should be deterministic: folders first, then files, case-insensitive by display name. Hidden entries may remain visible because they are part of Journey documentation, but unsupported content must not be read.
@@ -112,7 +113,7 @@ Left panel behavior:
 - expose folder expand/collapse as real buttons with accessible expanded state;
 - expose file/folder selection independently of expansion;
 - identify the selected node without converting paths into links;
-- provide loading, missing, empty and recoverable-error states.
+- provide loading, empty-workspace and recoverable-error states.
 
 Right panel behavior:
 
@@ -149,7 +150,7 @@ After the real browser is covered:
 
 ### 7. Validate the native and desktop boundaries
 
-Run focused tests, the full frontend and native baselines, and the real Tauri desktop app against a selected Journey with nested documentation. Exercise supported, unsupported, missing and navigation-continuity paths without sending an agent turn.
+Run focused tests, the full frontend and native baselines, and the real Tauri desktop app against selected Journeys with and without conventional `docs/` directories. Exercise root-level nesting, supported/unsupported content, omitted entries and navigation continuity without sending an agent turn.
 
 ## Acceptance Behavior
 
@@ -178,7 +179,7 @@ And no content is fabricated or interpreted as executable HTML.
 Given a traversal attempt, symlink escape or stale asynchronous response
 When the boundary evaluates it
 Then the request is rejected or omitted
-And no result outside the current Journey docs root appears.
+And no omitted or outside-root result appears.
 ```
 
 ```text
@@ -199,7 +200,7 @@ cd src-tauri && cargo check
 
 ## Navigator Validation Route
 
-1. Launch the real desktop app with a registry-backed Journey containing nested `docs/` content.
+1. Launch the real desktop app with registry-backed Journeys whose artifacts are distributed from the Journey root, including one without `docs/`.
 2. Open Operational → Artifacts.
 3. Expand and collapse nested folders and inspect deterministic ordering.
 4. Select Markdown and plain-text files and verify content on the right.
@@ -212,7 +213,7 @@ cd src-tauri && cargo check
 
 Stop and return to Plan if:
 
-- safe projection requires broad filesystem authority outside the selected Journey `docs/` root;
+- safe projection requires filesystem authority outside the selected registered Journey root;
 - the UI requires implicit file attachment or provider invocation;
 - a symlink/traversal case cannot be bounded deterministically;
 - content rendering requires arbitrary HTML execution;

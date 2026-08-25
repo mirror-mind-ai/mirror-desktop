@@ -53,7 +53,7 @@ export function JourneyDocumentationBrowser({
       })
       .catch(() => {
         if (treeRequestRef.current === request) {
-          setTree({ status: "error", message: `${journeyName}'s bounded documentation read could not be completed.` });
+          setTree({ status: "error", message: `${journeyName}'s bounded workspace read could not be completed.` });
         }
       });
   }, [journeyId, journeyName]);
@@ -125,7 +125,7 @@ export function JourneyDocumentationSurface({
       id="operational-artifacts-panel"
       className="operational-artifacts-workspace"
       role="tabpanel"
-      aria-label="Journey documentation browser"
+      aria-label="Journey workspace browser"
     >
       <div className="operational-artifacts-layout">
         <div className="operational-artifacts-browser">
@@ -147,15 +147,14 @@ function renderTreeState(
   onToggle: (path: string) => void,
   onSelect: (node: DocumentationNode) => void,
 ): ReactNode {
-  if (tree.status === "loading") return <BrowserState title="Reading Journey documentation" detail="Loading the bounded docs hierarchy…" />;
-  if (tree.status === "error") return <BrowserState title="Documentation unavailable" detail={tree.message} />;
-  if (tree.status === "missing") return <BrowserState title="No docs directory" detail="This Journey does not currently expose a docs directory." />;
-  if (tree.status === "empty") return <BrowserState title="This docs directory is empty" detail="Documentation can appear here when the Journey has material to project." />;
+  if (tree.status === "loading") return <BrowserState title="Reading Journey workspace" detail="Loading the bounded Journey hierarchy…" />;
+  if (tree.status === "error") return <BrowserState title="Workspace unavailable" detail={tree.message} />;
+  if (tree.status === "empty") return <BrowserState title="This Journey workspace is empty" detail="Artifacts will appear here when the Journey has material to project." />;
 
   return (
     <div className="journey-documentation-tree-wrap">
       <div className="journey-documentation-root"><span aria-hidden="true">▾</span><strong>{tree.rootLabel}</strong></div>
-      <ul className="journey-documentation-tree" role="tree" aria-label="Journey documentation">
+      <ul className="journey-documentation-tree" role="tree" aria-label="Journey workspace">
         {tree.items.map((node) => renderTreeNode(node, 0, expandedPaths, selectedNode, onToggle, onSelect))}
       </ul>
     </div>
@@ -212,17 +211,17 @@ function renderTreeNode(
 
 function renderViewer(selectedNode: DocumentationNode | undefined, content: DocumentationContentViewState): ReactNode {
   if (!selectedNode || content.status === "idle") {
-    return <ViewerEmpty title="Select a document" detail="Content, details, and metadata will appear here." />;
+    return <ViewerEmpty title="Select an artifact" detail="Content, details, and metadata will appear here." />;
   }
   if (content.status === "loading") {
-    return <ViewerEmpty title="Reading document" detail={content.relativePath} />;
+    return <ViewerEmpty title="Reading artifact" detail={content.relativePath} />;
   }
   if (content.status === "error") {
-    return <ViewerEmpty title="Document unavailable" detail={content.message} />;
+    return <ViewerEmpty title="Artifact unavailable" detail={content.message} />;
   }
 
   const metadata = (
-    <div className="journey-documentation-metadata" aria-label="Document metadata">
+    <div className="journey-documentation-metadata" aria-label="Artifact metadata">
       <span><strong>Path</strong>{content.relativePath}</span>
       <span><strong>Kind</strong>{selectedNode.kind === "folder" ? "Folder" : selectedNode.previewKind === "markdown" ? "Markdown" : selectedNode.previewKind === "text" ? "Text" : "File"}</span>
       {content.sizeBytes !== undefined ? <span><strong>Size</strong>{formatBytes(content.sizeBytes)}</span> : null}
@@ -246,7 +245,7 @@ function renderViewer(selectedNode: DocumentationNode | undefined, content: Docu
 
   return (
     <article className="journey-documentation-content">
-      <p className="operational-artifacts-section-label">Document content</p>
+      <p className="operational-artifacts-section-label">Artifact content</p>
       <h2>{selectedNode.name}</h2>
       {metadata}
       <div className={`journey-documentation-body content-${content.previewKind}`}>

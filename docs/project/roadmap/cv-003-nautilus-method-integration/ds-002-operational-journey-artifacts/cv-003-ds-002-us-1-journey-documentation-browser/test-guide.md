@@ -4,11 +4,11 @@
 
 ## Purpose
 
-Validate that Operational → Artifacts is a real, bounded, read-only browser for the selected Journey's `docs/` directory: hierarchy on the left, safe content or honest details/metadata on the right, with no authority or state leakage.
+Validate that Operational → Artifacts is a real, bounded, read-only browser for the selected registered Journey root: visible hierarchy on the left, safe content or honest details/metadata on the right, with no authority, sensitive-entry or state leakage.
 
 ## Scenario 1 — Hierarchical Documentation Tree
 
-1. Select a Journey whose `docs/` directory contains nested folders and files.
+1. Select Journeys with nested root folders and files, including one without a `docs/` directory.
 2. Open Operational → Artifacts.
 3. Inspect the initial tree and expand/collapse at least two levels.
 
@@ -33,8 +33,7 @@ Pass when the right panel presents available kind, relative path, size/modificat
 Exercise:
 
 - a Journey without `projectPath`;
-- a missing `docs/` directory;
-- an empty `docs/` directory;
+- an empty Journey workspace;
 - a recoverable native read failure.
 
 Pass when each state is explicit, bounded and leaves Conversation reachable. Fail on fallback to another filesystem root, blank unexplained canvas, crash or permanent loading.
@@ -45,7 +44,8 @@ Use native unit fixtures for:
 
 - `../` traversal;
 - absolute path input;
-- canonical target outside `docs/`;
+- canonical target outside the registered Journey root;
+- direct reads of hidden or generated components;
 - symlinked directory/file escaping the root;
 - symlink loop;
 - NUL/empty input.
@@ -79,7 +79,8 @@ Pass when there are no edit, create, rename, move, delete, execute, open-file or
 ### Rust
 
 - deterministic recursive tree projection;
-- missing and empty docs roots;
+- empty Journey roots and omitted hidden/generated entries;
+- bounded hierarchy depth/entry limits;
 - canonical-root enforcement;
 - traversal/absolute path rejection;
 - symlink escape/loop protection;
@@ -99,7 +100,7 @@ Pass when there are no edit, create, rename, move, delete, execute, open-file or
 
 ### React
 
-- loading, ready, missing, empty and error surfaces;
+- loading, ready, empty and error surfaces;
 - nested accessible tree rendering;
 - selected item and expanded folder semantics;
 - safe content viewer;
@@ -133,7 +134,7 @@ Do not commit document bodies from private Journeys, absolute private paths, sec
 
 ## Pass Condition
 
-All checks pass; the real desktop app browses the selected Journey's nested `docs/` hierarchy; supported content and unavailable/details states are honest; root/async boundaries hold; Conversation continuity is preserved; and the Navigator accepts the browser interaction.
+All checks pass; the real desktop app browses the visible selected Journey root hierarchy regardless of whether `docs/` exists; supported content and unavailable/details states are honest; hidden/generated entries are omitted; root/async boundaries hold; Conversation continuity is preserved; and the Navigator accepts the browser interaction.
 
 ## Fail Condition
 

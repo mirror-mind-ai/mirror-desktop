@@ -22,7 +22,7 @@ const guide: DocumentationNode = {
 
 const readyTree: DocumentationTree = {
   status: "ready",
-  rootLabel: "docs",
+  rootLabel: "nautilus-harness",
   items: [guide],
 };
 
@@ -33,16 +33,15 @@ const handlers = {
 
 describe("JourneyDocumentationBrowser", () => {
   it.each([
-    ["loading", "Reading Journey documentation"],
-    ["missing", "No docs directory"],
-    ["empty", "This docs directory is empty"],
-    ["error", "Documentation unavailable"],
+    ["loading", "Reading Journey workspace"],
+    ["empty", "This Journey workspace is empty"],
+    ["error", "Workspace unavailable"],
   ] as const)("renders the %s tree state honestly", (status, expected) => {
     const tree: DocumentationTree | { status: "loading" } | { status: "error"; message: string } = status === "error"
       ? { status, message: "A bounded read failed." }
       : status === "loading"
         ? { status }
-        : { status, rootLabel: "docs", items: [] };
+        : { status, rootLabel: "nautilus-harness", items: [] };
     const html = renderToStaticMarkup(
       <JourneyDocumentationSurface
         tree={tree}

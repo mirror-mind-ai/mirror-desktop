@@ -6,12 +6,12 @@
 
 ## Outcome
 
-Navigator can inspect a bounded, read-only projection of the selected Journey's documentation inside the full-width Operational Artifacts area without compressing Conversation.
+Navigator can inspect a bounded, read-only projection of the selected Journey workspace inside the full-width Operational Artifacts area without compressing Conversation.
 
 ## Experience Slice
 
 - Preserve the selected Journey and the full-width Conversation/Artifacts alternation established by `CV-003.DS-001.US-1`.
-- Use the Artifacts left panel as a hierarchical browser for folders and files below the Journey's `docs/` directory.
+- Use the Artifacts left panel as a hierarchical browser for visible folders and files below the registered Journey root.
 - Use the right panel as a safe content viewer or an honest details/metadata surface for the selected item.
 - Keep navigation state ephemeral and Journey-scoped.
 - Make loading, empty and recoverable-error states explicit.
@@ -21,12 +21,12 @@ Navigator can inspect a bounded, read-only projection of the selected Journey's 
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| [CV-003.DS-002.US-1](cv-003-ds-002-us-1-journey-documentation-browser/index.md) | Journey Documentation Browser | User Story | Browse the selected Journey's `docs/` hierarchy on the left and inspect safe content, details or metadata on the right | 🟠 In Validation |
+| [CV-003.DS-002.US-1](cv-003-ds-002-us-1-journey-documentation-browser/index.md) | Journey Workspace Browser | User Story | Browse the visible registered Journey hierarchy on the left and inspect safe content, details or metadata on the right | 🟠 In Validation |
 
 ## Done Condition
 
-The Operational Artifacts area reflects the active Journey's documentation hierarchy, supports clear folder/file navigation, presents safe textual content or honest details/metadata, preserves allowed-root and symlink-escape protections, grants no mutation authority, and does not disturb conversation continuity or runtime activity.
+The Operational Artifacts area reflects the active Journey root hierarchy, supports clear folder/file navigation, presents safe textual content or honest details/metadata, omits hidden/generated entries, preserves allowed-root and symlink-escape protections, grants no mutation authority, and does not disturb conversation continuity or runtime activity.
 
 ## Boundary
 
-This delivery story makes Journey documentation visible. It does not attach files to prompts automatically, browse outside `docs/`, derive tactical meaning, edit files, introduce live filesystem watchers, or duplicate the future explicit attachment boundary of DS-007.
+This delivery story makes visible Journey artifacts inspectable. It does not expose hidden/generated entries, attach files to prompts automatically, browse outside the registered Journey root, derive tactical meaning, edit files, introduce live filesystem watchers, or duplicate the future explicit attachment boundary of DS-007.

@@ -12,7 +12,7 @@ export type DocumentationNode = {
 };
 
 export type DocumentationTree = {
-  status: "ready" | "missing" | "empty";
+  status: "ready" | "empty";
   rootLabel: string;
   items: DocumentationNode[];
 };
@@ -105,7 +105,7 @@ export function sortDocumentationNodes(nodes: DocumentationNode[]): Documentatio
 
 export function normalizeDocumentationTree(value: unknown): DocumentationTree {
   if (!isRecord(value)
-    || !["ready", "missing", "empty"].includes(String(value.status))
+    || !["ready", "empty"].includes(String(value.status))
     || typeof value.rootLabel !== "string"
     || !Array.isArray(value.items)) {
     throw new Error("Journey documentation tree is invalid.");
