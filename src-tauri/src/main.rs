@@ -1642,16 +1642,41 @@ fn read_latest_pi_mirror_commit_events(
 fn extract_pi_mirror_commit_events(content: &str, correlation: &TurnCorrelation) -> Vec<String> {
     content.lines().filter_map(|line| {
         let entry: Value = serde_json::from_str(line).ok()?;
-        if entry.get("type").and_then(Value::as_str) != Some("custom")
-            || entry.get("customType").and_then(Value::as_str) != Some("nautilus_mirror_commit")
+        if entry.get("type").and_then(Value::as_str) != Some("custom") {
+            return None;
+        }
+        let custom_type = entry.get("customType").and_then(Value::as_str)?;
+        let data = entry.get("data")?;
+        if data.get("schemaVersion").and_then(Value::as_str) != Some("0.1.0")
+            || data.get("turnId").and_then(Value::as_str) != Some(correlation.turn_id.as_str())
+            || data.get("runId").and_then(Value::as_str) != Some(correlation.run_id.as_str())
         {
             return None;
         }
-        let data = entry.get("data")?;
-        if data.get("type").and_then(Value::as_str) != Some("mirror_commit")
-            || data.get("schemaVersion").and_then(Value::as_str) != Some("0.1.0")
-            || data.get("turnId").and_then(Value::as_str) != Some(correlation.turn_id.as_str())
-            || data.get("runId").and_then(Value::as_str) != Some(correlation.run_id.as_str())
+        if custom_type == "nautilus_mirror_context" {
+            let persona = data.get("persona").and_then(Value::as_str)?;
+            if data.get("type").and_then(Value::as_str) != Some("mirror_context")
+                || data.get("journeyId").and_then(Value::as_str) != Some(correlation.journey_id.as_str())
+                || data.get("mode").and_then(Value::as_str) != Some("mirror")
+                || persona.is_empty()
+                || persona.len() > 128
+                || !persona.chars().all(|character| character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-')
+            {
+                return None;
+            }
+            let safe = json!({
+                "type": "mirror_context",
+                "schemaVersion": "0.1.0",
+                "turnId": correlation.turn_id,
+                "runId": correlation.run_id,
+                "journeyId": correlation.journey_id,
+                "mode": "mirror",
+                "persona": persona,
+            });
+            return serde_json::to_string(&safe).ok();
+        }
+        if custom_type != "nautilus_mirror_commit"
+            || data.get("type").and_then(Value::as_str) != Some("mirror_commit")
             || !matches!(data.get("phase").and_then(Value::as_str), Some("user" | "assistant"))
             || !matches!(data.get("status").and_then(Value::as_str), Some("committed" | "failed"))
         {
@@ -2274,13 +2299,16 @@ mod tests {
         let session = [
             r#"{"type":"session","id":"nautilus-nautilus-harness"}"#,
             r#"{"type":"custom","customType":"nautilus_mirror_commit","data":{"type":"mirror_commit","schemaVersion":"0.1.0","turnId":"other-turn","runId":"run-1","phase":"user","status":"committed"}}"#,
+            r#"{"type":"custom","customType":"nautilus_mirror_context","data":{"type":"mirror_context","schemaVersion":"0.1.0","turnId":"turn-1","runId":"run-1","journeyId":"nautilus-harness","mode":"mirror","persona":"product-designer","privateContext":"must not escape"}}"#,
             r#"{"type":"custom","customType":"nautilus_mirror_commit","data":{"type":"mirror_commit","schemaVersion":"0.1.0","turnId":"turn-1","runId":"run-1","phase":"assistant","status":"committed","mirrorConversationId":"mirror-1","mirrorMessageId":"message-1","mirrorMessageCount":2,"injectedContent":"must not escape","piEvidence":{"userEntryId":"user-entry","assistantEntryId":"assistant-entry","leafEntryId":"assistant-entry","entryCount":4,"sessionFile":"/tmp/session.jsonl","secret":"must not escape"}}}"#,
         ].join("\n");
         let events = extract_pi_mirror_commit_events(&session, &correlation);
-        assert_eq!(events.len(), 1);
-        assert!(events[0].contains("\"mirrorMessageId\":\"message-1\""));
-        assert!(!events[0].contains("injectedContent"));
-        assert!(!events[0].contains("secret"));
+        assert_eq!(events.len(), 2);
+        assert!(events[0].contains("\"persona\":\"product-designer\""));
+        assert!(events[1].contains("\"mirrorMessageId\":\"message-1\""));
+        assert!(!events.join("\n").contains("privateContext"));
+        assert!(!events.join("\n").contains("injectedContent"));
+        assert!(!events.join("\n").contains("secret"));
     }
 
     #[test]

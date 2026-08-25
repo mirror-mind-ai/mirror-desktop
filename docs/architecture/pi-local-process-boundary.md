@@ -5,7 +5,7 @@
 
 ## Decision
 
-Nautilus invokes Pi explicitly through Tauri. Mirror-mediated mode runs Pi from the Mirror runtime root, uses Pi structured JSON events, and passes the active Journey's persisted live-conversation identity. Raw Pi remains an explicit fallback/debug mode.
+Nautilus invokes Pi explicitly through Tauri. Mirror-mediated mode runs Pi from the Mirror runtime root, uses Pi structured JSON events, and passes the active Journey's persisted live-conversation identity. Before provider generation, the Mirror extension loads the exact Journey/query/session context and chains it into Pi's system prompt. Its allowlisted `nautilus_mirror_context` entry certifies mode and persona without storing the loaded private context; Nautilus projects the canonical persona marker once, and Mirror records the same marker with the semantic assistant response. Raw Pi remains an explicit fallback/debug mode.
 
 Pi is the authority for the execution transcript, context accounting and compaction. Mirror is the authority for Journey, identity, persona and operating-mode semantics. Nautilus owns explicit invocation, local desktop projection and the mapping that relates its visible Journey conversation to the Pi and Mirror identities.
 

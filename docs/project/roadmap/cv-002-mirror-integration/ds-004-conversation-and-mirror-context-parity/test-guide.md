@@ -126,7 +126,7 @@ Use two paired prompts:
 Expected:
 
 - terminal and Nautilus choose the same routing outcome;
-- persona-routed output uses the canonical `◇ persona-name` signature;
+- persona-routed output uses the current canonical `✦ Persona: persona-name` marker emitted by the Mirror loader;
 - ego-only output has no persona signature;
 - Nautilus does not synthesize signatures or routing events.
 

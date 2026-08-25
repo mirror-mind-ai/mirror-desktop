@@ -36,6 +36,28 @@ describe("Pi process stream adapter", () => {
     ]);
   });
 
+  it("projects a certified Mirror persona marker separately from model text", () => {
+    const line = JSON.stringify({
+      type: "mirror_context",
+      schemaVersion: "0.1.0",
+      journeyId: "viagem-do-lipe",
+      mode: "mirror",
+      persona: "product-designer",
+    });
+    const mappingState = {};
+    expect(mapPiProcessEventToStreamEvents({ kind: "stdout", content: `${line}\n` }, { mappingState })).toEqual([
+      { type: "message_delta", content: "✦ Persona: product-designer\n\n" },
+    ]);
+    expect(mapPiProcessEventToStreamEvents({ kind: "stdout", content: `${line}\n` }, { mappingState })).toEqual([]);
+  });
+
+  it("rejects malformed Mirror persona evidence", () => {
+    const line = JSON.stringify({ type: "mirror_context", schemaVersion: "0.1.0", mode: "mirror", persona: "../../private" });
+    expect(mapPiProcessEventToStreamEvents({ kind: "stdout", content: `${line}\n` })).toEqual([
+      { type: "diagnostic", message: "Rejected malformed Mirror context event." },
+    ]);
+  });
+
   it("maps certified Mirror commit events into a separate semantic channel", () => {
     const line = JSON.stringify({
       type: "mirror_commit",
