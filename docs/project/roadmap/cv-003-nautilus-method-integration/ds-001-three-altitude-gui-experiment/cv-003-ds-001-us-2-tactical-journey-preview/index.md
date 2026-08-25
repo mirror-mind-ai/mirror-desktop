@@ -8,35 +8,56 @@
 ## User Story
 
 As the Navigator,
-I want a durable Tactical workspace that presents missions, evidence and deliverables at a calmer altitude,
-so that tactical orientation has a stable product surface before live derivation is introduced.
+I want a durable Tactical workspace that presents the active mission, its evidence and its deliverables at a calmer altitude,
+so that I can orient the Journey without reading the entire operational stream and before live tactical derivation exists.
 
 ## Outcome
 
-Tactical establishes the permanent spatial composition for mission, evidence and deliverables while its representative content remains visibly provisional until CV-003.DS-003 supplies live derivation.
+Tactical establishes the permanent spatial composition for mission, evidence and deliverables. The selected Journey remains the territory, the mission becomes the directional anchor, and evidence and deliverables appear as related supporting readings. Every datum remains explicitly representative and non-authoritative until `CV-003.DS-003` supplies live derivation.
 
 ## Acceptance Behavior
 
 ```text
 Given the shared representative Journey model
 When I select Tactical
-Then mission, evidence and deliverables appear as a related reading
-And the surface contains no composer or execution action.
+Then the active mission anchors the workspace
+And only its related evidence and deliverables appear beneath it
+And the surface is visibly labeled as representative preview data
+And no composer, execution action, editable workflow or live-derivation claim appears.
+```
+
+```text
+Given an existing selected Journey and Operational conversation state
+When I visit Tactical and return to Operational
+Then Journey identity, conversation, draft, runtime and reconciliation state remain unchanged
+And altitude navigation has invoked no Pi, Mirror or provider process.
 ```
 
 ## Scope
 
-- Mission anchor.
-- Evidence and deliverable composition.
-- Durable Tactical workspace composition.
-- Tactical density and provisional-content labeling.
+- Permanent Tactical workspace component mounted for the Tactical altitude.
+- Active mission as the primary directional anchor.
+- Related evidence and deliverables composed beneath the mission.
+- Calmer density and stronger hierarchy than Operational.
+- Explicit representative-preview labeling at workspace level.
+- Accessible headings, list semantics and tab-panel identity.
+- Existing shared representative model reused without mutation.
 
 ## Out Of Scope
 
-- Live derivation.
-- Editable forms, drag/drop or status workflow.
-- Provenance and checkpoints.
+- Live derivation or reading the real Journey filesystem.
+- Mission selection, multiple-mission navigation or tactical history.
+- Editable forms, status controls, drag/drop or task-board behavior.
+- Provenance, confidence, correction and synthesis checkpoints.
+- Strategic workspace composition.
+- Persistence of altitude or tactical UI state.
+- Any Pi, Mirror or provider invocation path.
 
 ## Validation
 
-Static component tests and real desktop Scenario 4/6 review.
+Focused model/component/source-characterization tests, complete frontend/native regression checks, and real desktop Scenario 4 plus the Tactical portion of Scenario 6 from the parent test guide.
+
+## Artifacts
+
+- [Plan](plan.md)
+- [Test Guide](test-guide.md)
