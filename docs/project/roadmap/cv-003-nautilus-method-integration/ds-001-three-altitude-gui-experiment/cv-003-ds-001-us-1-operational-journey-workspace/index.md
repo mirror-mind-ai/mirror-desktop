@@ -13,7 +13,7 @@ so that I can feel work and its material context as one nearby field before real
 
 ## Outcome
 
-The approved altitude selector is mounted in the live Journey shell. Operational remains the complete functional cockpit, now accompanied by a clearly representative artifacts panel. Tactical and Strategic are reachable as honest bounded placeholders for their subsequent stories.
+The approved altitude selector is mounted in a simplified live Journey header. Operational remains the complete functional cockpit, now accompanied by a clearly representative artifacts panel. Tactical and Strategic are reachable as honest bounded placeholders for their subsequent stories. The former Mission, Delivery, Situation, Current Map and participant summaries are removed to create durable header space for altitude navigation and later Journey controls.
 
 ## Acceptance Behavior
 
@@ -32,9 +32,18 @@ And representative folders/files appear beside it with explicit preview labeling
 And settings and diagnostics remain reachable.
 ```
 
+```text
+Given the simplified Journey header
+When the altitude selector is mounted
+Then Mission, Delivery, Situation, Current Map and participant summary components are absent
+And Journey identity, menu actions and the concise moment summary remain available.
+```
+
 ## Scope
 
-- Mount and style the three-altitude selector in the stable Journey header.
+- Remove Mission, Delivery, Situation, Current Map and participant summaries from the header, including dead presentation logic and styles.
+- Preserve Journey identity, menu actions and the concise moment summary.
+- Mount and style the three-altitude selector in the simplified Journey header.
 - Keep the existing message stream, composer and runtime behavior intact in Operational.
 - Add a representative artifacts panel using the TS-1 fixture.
 - Add honest bounded placeholders for Tactical and Strategic.

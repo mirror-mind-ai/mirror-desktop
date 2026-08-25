@@ -2,17 +2,19 @@
 
 ## Objective
 
-Mount the approved altitude contract in the live Harness, preserve the existing Journey sidebar and complete conversation/runtime behavior as the Operational altitude, and add a clearly representative artifacts panel beside it. Tactical and Strategic remain selectable but intentionally show bounded preview placeholders until their own stories. Altitude navigation stays ephemeral and never invokes Pi, Mirror or a provider.
+Simplify the Journey header by removing its Mission, Delivery, Situation, Current Map and participant summaries; mount the approved altitude contract in the space this creates; preserve the existing Journey sidebar and complete conversation/runtime behavior as the Operational altitude; and add a clearly representative artifacts panel beside it. Tactical and Strategic remain selectable but intentionally show bounded preview placeholders until their own stories. Altitude navigation stays ephemeral and never invokes Pi, Mirror or a provider.
 
 ## Product Boundary
 
 This story makes the first altitude real without pretending the other two are finished. Operational is not a new chat implementation. It is the existing trusted cockpit placed inside the three-altitude grammar. The artifact tree is a spatial prototype built from TS-1 representative data, not a filesystem browser.
 
+The current header over-specifies semantic context before the altitude grammar exists. Mission, Delivery, Situation, the complete Current Map summary and participant avatars will be removed from the header. This is deliberate product simplification, not temporary hiding. Journey identity, menu actions and the concise moment summary remain. Mission information continues to exist in the grammar inspector and underlying model; this story removes redundant header projection, not domain data.
+
 Tactical and Strategic need enough presence to make the selector understandable and to validate return-to-Operational continuity. They must not anticipate their semantic layouts. Their placeholders should name the future altitude, state that it belongs to a later experiment story, and offer no fabricated derived content.
 
 ## Existing Terrain
 
-`App.tsx` owns the selected Journey, restored conversation, unsent draft, Pi runtime projection, provider configuration, context state and reconciliation notices. Its current three-column shell contains the Journey sidebar, central `chat-shell` and a collapsible right-side grammar/settings panel. The right panel starts collapsed.
+`App.tsx` owns the selected Journey, restored conversation, unsent draft, Pi runtime projection, provider configuration, context state and reconciliation notices. Its current three-column shell contains the Journey sidebar, central `chat-shell` and a collapsible right-side grammar/settings panel. The right panel starts collapsed. The expanded header currently renders Mission, Delivery and Situation pills plus a Current Map row and participant avatars; these consume the space selected for altitude navigation.
 
 TS-1 added:
 
@@ -38,7 +40,26 @@ Before changing production markup, add focused assertions for the behaviors that
 
 Use behavior tests where feasible and narrow raw-source characterization only for call-site boundaries that the current node-only test environment cannot interact with directly.
 
-### 2. Mount controlled ephemeral altitude state
+### 2. Simplify the Journey header
+
+Remove from `App.tsx`:
+
+- the Mission, Delivery and Situation status rail;
+- the complete Current Map summary and its counters;
+- participant avatars and participant labels;
+- helper values, derived arrays and presentation-only logic that become unused after those surfaces are removed.
+
+Remove CSS that exists only for the deleted status rail, pills, map summary or participant avatars. Keep shared styles still used elsewhere. Preserve:
+
+- active Journey icon and title;
+- Journey menu actions;
+- right-panel control;
+- concise `journey-moment-summary` copy;
+- any underlying mission/conversation data still used by the inspector or runtime.
+
+Add characterization assertions that the removed labels/classes no longer appear in the header and that retained controls remain present.
+
+### 3. Mount controlled ephemeral altitude state
 
 In `App.tsx`:
 
@@ -49,9 +70,9 @@ In `App.tsx`:
 - disable switching while a Pi run, stream or Journey reload is active so operational activity cannot disappear behind another altitude;
 - never connect the selector callback to invocation, reconciliation or persistence functions.
 
-The common header and selected Journey identity remain visible at every altitude.
+The simplified common header and selected Journey identity remain visible at every altitude.
 
-### 3. Establish altitude workspace rendering
+### 4. Establish altitude workspace rendering
 
 Keep the existing Operational message stream and composer markup functionally intact. Conditional rendering may place them behind the `operational` branch, but their state must remain in `App` so visiting a placeholder and returning preserves draft, conversation, runtime and notices.
 
@@ -65,7 +86,7 @@ For `tactical` and `strategic`, render a small shared placeholder component or e
 
 The placeholder is scaffolding only. Do not start Tactical or Strategic visual composition here.
 
-### 4. Compose the Operational artifacts preview
+### 5. Compose the Operational artifacts preview
 
 Create `OperationalArtifactsPreview.tsx` using `representativeJourneyPreview.artifacts` from TS-1.
 
@@ -81,7 +102,7 @@ The panel should:
 
 Do not convert representative paths into clickable local links. Real workspace projection belongs to CV-003.DS-002.
 
-### 5. Shape the visual altitude grammar
+### 6. Shape the visual altitude grammar
 
 Extend `src/styles/app.css` with scoped classes:
 
@@ -94,10 +115,12 @@ Extend `src/styles/app.css` with scoped classes:
 
 At desktop widths, the right preview panel should be visible by default without compressing the conversation below its usable minimum. Existing right-panel collapse behavior must still restore the conversation width.
 
-### 6. Prove runtime separation and continuity
+### 7. Prove runtime separation and continuity
 
 Add tests for:
 
+- removal of Mission, Delivery, Situation, Current Map and participant header surfaces;
+- retention of Journey identity, menus and concise moment summary;
 - selector integration and Operational default;
 - active-run/reload disabling;
 - representative artifact labels and relative entries;
@@ -123,7 +146,10 @@ The placeholder may remain local to `App.tsx` if extraction would add complexity
 
 ## Scope
 
-- Live altitude selector in the Journey header.
+- Removal of Mission, Delivery, Situation, Current Map and participant summaries from the header.
+- Removal of presentation logic and styles made dead by that simplification.
+- Preservation of Journey identity, menus, concise moment summary and underlying domain data.
+- Live altitude selector in the simplified Journey header.
 - Ephemeral altitude selection.
 - Existing chat as complete Operational workspace.
 - Representative Operational artifacts panel.
@@ -145,6 +171,13 @@ The placeholder may remain local to `App.tsx` if extraction would add complexity
 - DS-007, DS-009 or CV-003.DS-002 through DS-005.
 
 ## Acceptance Behavior
+
+```text
+Given the current Journey header
+When US-1 simplifies it for altitude navigation
+Then Mission, Delivery, Situation, Current Map and participant summaries are absent
+And Journey identity, menu actions, right-panel control and concise moment summary remain.
+```
 
 ```text
 Given the Harness opens with a selected Journey
