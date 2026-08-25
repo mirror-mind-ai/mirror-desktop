@@ -178,6 +178,40 @@
         "persona_marker_projected_once",
         "private_loaded_context_not_persisted"
       ]
+    },
+    {
+      "stage": "fresh_ego_routing",
+      "harness": {
+        "conversationId": "nautilus-mirror-13a0d6f3",
+        "messageCount": 46,
+        "lastMessageId": "assistant-2026-08-25T01:06:57.377Z"
+      },
+      "pi": {
+        "sessionId": "nautilus-viagem-do-lipe",
+        "generation": 2,
+        "userEntryId": "fa6f60c5",
+        "assistantEntryId": "795388a1",
+        "leafEntryId": "795388a1",
+        "entryCount": 61,
+        "fileSha256": "f56992fb8e51385a2d69f9a6c80765e2338b1d0712548da58cb91bf8a1fc85f2"
+      },
+      "mirror": {
+        "conversationId": "13a0d6f3",
+        "userMessageId": "7bc0079c-a7ef-57d1-bc29-415450908512",
+        "assistantMessageId": "a22ae991-16fc-51f9-9bec-f49cfe9c71a7",
+        "messageCount": 44
+      },
+      "classification": "in_sync",
+      "reasonCodes": [],
+      "certifiedContext": {
+        "mode": "mirror",
+        "persona": null
+      },
+      "validatedClaims": [
+        "unmatched_query_used_ego",
+        "sticky_persona_did_not_leak",
+        "known_conversation_fact_remained_available"
+      ]
     }
   ]
 }
