@@ -59,21 +59,22 @@ Transport payloads must contain no absolute paths.
 Extend `src-tauri/src/main.rs` with pure helpers plus two Tauri commands:
 
 ```text
-list_journey_documentation(journeyRoot)
-read_journey_document(journeyRoot, relativePath)
+list_journey_documentation(journeyId)
+read_journey_document(journeyId, relativePath)
 ```
 
 Both commands must:
 
 1. reject empty/NUL inputs;
-2. canonicalize the Journey root and its `docs/` child;
-3. return an honest `missing` result when `docs/` does not exist;
-4. canonicalize every traversed/read item before use;
-5. require every canonical item to remain below the canonical `docs/` root;
-6. reject parent traversal and absolute document-relative paths;
-7. avoid following directory symlinks and filesystem loops;
-8. return normalized relative paths only;
-9. map I/O failures to bounded user-facing errors without leaking arbitrary host paths.
+2. resolve the Journey root server-side from the local registry rather than trusting a renderer-supplied root;
+3. canonicalize the registered Journey root and its `docs/` child;
+4. return an honest `missing` result when `docs/` does not exist;
+5. canonicalize every traversed/read item before use;
+6. require every canonical item to remain below the canonical `docs/` root;
+7. reject parent traversal and absolute document-relative paths;
+8. avoid following directory symlinks and filesystem loops;
+9. return normalized relative paths only;
+10. map I/O failures to bounded user-facing errors without leaking arbitrary host paths.
 
 Tree enumeration should be deterministic: folders first, then files, case-insensitive by display name. Hidden entries may remain visible because they are part of Journey documentation, but unsupported content must not be read.
 
@@ -129,7 +130,7 @@ The existing visual grammar may be retained, but the current representative fixt
 
 In `App.tsx`:
 
-- pass the selected Journey id/name and `projectPath` into the browser;
+- pass only the selected Journey id/name into the browser; native code resolves its authoritative `projectPath` from the registry;
 - mount the real browser only when Operational → Artifacts is selected;
 - preserve the existing altitude/surface disabled guards during active work or Journey reload;
 - reset or restore only ephemeral browser state when the selected Journey changes;

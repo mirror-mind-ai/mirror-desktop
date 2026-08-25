@@ -46,15 +46,12 @@ import { ExternalPiSyncNotice } from "./ExternalPiSyncNotice";
 import { MirrorReconciliationNotice } from "./MirrorReconciliationNotice";
 import { JourneyAltitudeSwitcher } from "./JourneyAltitudeSwitcher";
 import { JourneyAltitudePlaceholder } from "./JourneyAltitudePlaceholder";
-import { OperationalArtifactsPreview } from "./OperationalArtifactsPreview";
+import { JourneyDocumentationBrowser } from "./JourneyDocumentationBrowser";
 import {
   OperationalWorkspaceSwitcher,
   type OperationalSurface,
 } from "./OperationalWorkspaceSwitcher";
-import {
-  defaultJourneyAltitude,
-  representativeJourneyPreview,
-} from "./journeyAltitudePreview";
+import { defaultJourneyAltitude } from "./journeyAltitudePreview";
 import {
   inspectMirrorConversationActivity,
   reconcileMirrorConversation,
@@ -1441,7 +1438,10 @@ export function App({ model }: AppProps) {
         </header>
 
         {selectedAltitude === "operational" && selectedOperationalSurface === "artifacts" ? (
-          <OperationalArtifactsPreview artifacts={representativeJourneyPreview.artifacts} />
+          <JourneyDocumentationBrowser
+            journeyId={selectedJourneyItem.id}
+            journeyName={selectedJourneyItem.name}
+          />
         ) : null}
         {selectedAltitude === "operational" ? null : (
           <JourneyAltitudePlaceholder altitude={selectedAltitude} />

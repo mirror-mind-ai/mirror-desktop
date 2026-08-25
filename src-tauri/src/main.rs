@@ -624,6 +624,278 @@ fn run_mirror_inspection(
     Ok(value)
 }
 
+const DOCUMENT_PREVIEW_MAX_BYTES: u64 = 1024 * 1024;
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct JourneyDocumentationNode {
+    relative_path: String,
+    name: String,
+    kind: String,
+    preview_kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    size_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    modified_at: Option<u64>,
+    children: Vec<JourneyDocumentationNode>,
+}
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct JourneyDocumentationTree {
+    status: String,
+    root_label: String,
+    items: Vec<JourneyDocumentationNode>,
+}
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct JourneyDocumentContent {
+    status: String,
+    relative_path: String,
+    preview_kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    size_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    modified_at: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
+}
+
+fn bounded_documentation_root(journey_root: &Path) -> Result<Option<PathBuf>, String> {
+    let canonical_journey = journey_root
+        .canonicalize()
+        .map_err(|_| "Could not resolve the selected Journey workspace.".to_string())?;
+    if !canonical_journey.is_dir() {
+        return Err("The selected Journey workspace is not a directory.".to_string());
+    }
+    let docs = canonical_journey.join("docs");
+    if !docs.exists() {
+        return Ok(None);
+    }
+    let canonical_docs = docs
+        .canonicalize()
+        .map_err(|_| "Could not resolve the Journey docs directory.".to_string())?;
+    if !canonical_docs.starts_with(&canonical_journey) || !canonical_docs.is_dir() {
+        return Err("Journey documentation is outside the allowed workspace root.".to_string());
+    }
+    Ok(Some(canonical_docs))
+}
+
+fn documentation_modified_at(metadata: &fs::Metadata) -> Option<u64> {
+    metadata
+        .modified()
+        .ok()?
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|duration| duration.as_millis() as u64)
+}
+
+fn documentation_preview_kind(path: &Path) -> &'static str {
+    match path.extension().and_then(|value| value.to_str()).map(|value| value.to_ascii_lowercase()) {
+        Some(extension) if extension == "md" || extension == "markdown" => "markdown",
+        Some(extension) if extension == "txt" => "text",
+        _ => "unavailable",
+    }
+}
+
+fn documentation_relative_path(root: &Path, path: &Path) -> Result<String, String> {
+    let relative = path
+        .strip_prefix(root)
+        .map_err(|_| "Documentation item escaped the allowed root.".to_string())?;
+    let value = relative
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join("/");
+    if value.is_empty() {
+        return Err("Documentation item has no relative path.".to_string());
+    }
+    Ok(value)
+}
+
+fn collect_documentation_nodes(root: &Path, directory: &Path) -> Result<Vec<JourneyDocumentationNode>, String> {
+    let mut nodes = Vec::new();
+    let entries = fs::read_dir(directory)
+        .map_err(|_| "Could not read the Journey documentation hierarchy.".to_string())?;
+    for entry_result in entries {
+        let entry = entry_result
+            .map_err(|_| "Could not read a Journey documentation entry.".to_string())?;
+        let path = entry.path();
+        let file_type = entry
+            .file_type()
+            .map_err(|_| "Could not inspect a Journey documentation entry.".to_string())?;
+        if file_type.is_symlink() {
+            continue;
+        }
+        let canonical = path
+            .canonicalize()
+            .map_err(|_| "Could not resolve a Journey documentation entry.".to_string())?;
+        if !canonical.starts_with(root) {
+            return Err("Documentation item escaped the allowed root.".to_string());
+        }
+        let metadata = entry
+            .metadata()
+            .map_err(|_| "Could not inspect Journey documentation metadata.".to_string())?;
+        let is_directory = metadata.is_dir();
+        if !is_directory && !metadata.is_file() {
+            continue;
+        }
+        nodes.push(JourneyDocumentationNode {
+            relative_path: documentation_relative_path(root, &canonical)?,
+            name: entry.file_name().to_string_lossy().into_owned(),
+            kind: if is_directory { "folder" } else { "file" }.to_string(),
+            preview_kind: if is_directory { "unavailable" } else { documentation_preview_kind(&canonical) }.to_string(),
+            size_bytes: if is_directory { None } else { Some(metadata.len()) },
+            modified_at: documentation_modified_at(&metadata),
+            children: if is_directory { collect_documentation_nodes(root, &canonical)? } else { Vec::new() },
+        });
+    }
+    nodes.sort_by(|left, right| {
+        let left_rank = if left.kind == "folder" { 0 } else { 1 };
+        let right_rank = if right.kind == "folder" { 0 } else { 1 };
+        left_rank
+            .cmp(&right_rank)
+            .then_with(|| left.name.to_lowercase().cmp(&right.name.to_lowercase()))
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    Ok(nodes)
+}
+
+fn list_journey_documentation_at(journey_root: &Path) -> Result<JourneyDocumentationTree, String> {
+    let Some(docs_root) = bounded_documentation_root(journey_root)? else {
+        return Ok(JourneyDocumentationTree {
+            status: "missing".to_string(),
+            root_label: "docs".to_string(),
+            items: Vec::new(),
+        });
+    };
+    let items = collect_documentation_nodes(&docs_root, &docs_root)?;
+    Ok(JourneyDocumentationTree {
+        status: if items.is_empty() { "empty" } else { "ready" }.to_string(),
+        root_label: "docs".to_string(),
+        items,
+    })
+}
+
+fn validate_document_relative_path(relative_path: &str) -> Result<PathBuf, String> {
+    if relative_path.trim().is_empty() || relative_path.contains('\0') {
+        return Err("Document relative path is required.".to_string());
+    }
+    let path = PathBuf::from(relative_path);
+    if path.is_absolute() || path.components().any(|component| !matches!(component, std::path::Component::Normal(_))) {
+        return Err("Document path is outside the allowed docs root.".to_string());
+    }
+    Ok(path)
+}
+
+fn unavailable_document_content(
+    relative_path: &str,
+    metadata: &fs::Metadata,
+    reason: &str,
+) -> JourneyDocumentContent {
+    JourneyDocumentContent {
+        status: "unavailable".to_string(),
+        relative_path: relative_path.to_string(),
+        preview_kind: "unavailable".to_string(),
+        content: None,
+        size_bytes: if metadata.is_file() { Some(metadata.len()) } else { None },
+        modified_at: documentation_modified_at(metadata),
+        reason: Some(reason.to_string()),
+    }
+}
+
+fn read_journey_document_at(journey_root: &Path, relative_path: &str) -> Result<JourneyDocumentContent, String> {
+    let docs_root = bounded_documentation_root(journey_root)?
+        .ok_or_else(|| "The selected Journey has no docs directory.".to_string())?;
+    let safe_relative = validate_document_relative_path(relative_path)?;
+    let candidate = docs_root.join(&safe_relative);
+    let symlink_metadata = fs::symlink_metadata(&candidate)
+        .map_err(|_| "Could not resolve the selected Journey document.".to_string())?;
+    if symlink_metadata.file_type().is_symlink() {
+        return Err("Symbolic-link documents are not available for preview.".to_string());
+    }
+    let canonical = candidate
+        .canonicalize()
+        .map_err(|_| "Could not resolve the selected Journey document.".to_string())?;
+    if !canonical.starts_with(&docs_root) {
+        return Err("Document path is outside the allowed docs root.".to_string());
+    }
+    let metadata = canonical
+        .metadata()
+        .map_err(|_| "Could not inspect the selected Journey document.".to_string())?;
+    if metadata.is_dir() {
+        return Ok(unavailable_document_content(relative_path, &metadata, "folder"));
+    }
+    let preview_kind = documentation_preview_kind(&canonical);
+    if preview_kind == "unavailable" {
+        return Ok(unavailable_document_content(relative_path, &metadata, "unsupported_type"));
+    }
+    if metadata.len() > DOCUMENT_PREVIEW_MAX_BYTES {
+        return Ok(unavailable_document_content(relative_path, &metadata, "oversized"));
+    }
+    let bytes = fs::read(&canonical)
+        .map_err(|_| "Could not read the selected Journey document.".to_string())?;
+    let content = match String::from_utf8(bytes) {
+        Ok(content) => content,
+        Err(_) => return Ok(unavailable_document_content(relative_path, &metadata, "invalid_utf8")),
+    };
+    Ok(JourneyDocumentContent {
+        status: "ready".to_string(),
+        relative_path: relative_path.to_string(),
+        preview_kind: preview_kind.to_string(),
+        content: Some(content),
+        size_bytes: Some(metadata.len()),
+        modified_at: documentation_modified_at(&metadata),
+        reason: None,
+    })
+}
+
+fn find_registered_journey_path(nodes: &[Value], journey_id: &str) -> Option<String> {
+    for node in nodes {
+        if node.get("id").and_then(Value::as_str) == Some(journey_id) {
+            return node.get("projectPath").and_then(Value::as_str).map(str::to_string);
+        }
+        if let Some(children) = node.get("children").and_then(Value::as_array) {
+            if let Some(path) = find_registered_journey_path(children, journey_id) {
+                return Some(path);
+            }
+        }
+    }
+    None
+}
+
+fn registered_journey_root(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
+    if journey_id.trim().is_empty() || journey_id.contains('\0') {
+        return Err("Journey id is required.".to_string());
+    }
+    let registry_path = journey_registry_path(app)?;
+    let registry = fs::read_to_string(registry_path)
+        .map_err(|_| "Could not read the local Journey registry.".to_string())?;
+    let payload: Value = serde_json::from_str(&registry)
+        .map_err(|_| "The local Journey registry is invalid.".to_string())?;
+    let roots = payload.get("roots").and_then(Value::as_array)
+        .ok_or_else(|| "The local Journey registry is invalid.".to_string())?;
+    find_registered_journey_path(roots, journey_id)
+        .filter(|path| !path.trim().is_empty())
+        .map(PathBuf::from)
+        .ok_or_else(|| "The selected Journey has no configured workspace path.".to_string())
+}
+
+#[tauri::command]
+fn list_journey_documentation(app: AppHandle, journey_id: String) -> Result<JourneyDocumentationTree, String> {
+    let journey_root = registered_journey_root(&app, &journey_id)?;
+    list_journey_documentation_at(&journey_root)
+}
+
+#[tauri::command]
+fn read_journey_document(app: AppHandle, journey_id: String, relative_path: String) -> Result<JourneyDocumentContent, String> {
+    let journey_root = registered_journey_root(&app, &journey_id)?;
+    read_journey_document_at(&journey_root, &relative_path)
+}
+
 #[tauri::command]
 fn open_local_reference(path: String, base_path: Option<String>) -> Result<(), String> {
     if path.trim().is_empty()
@@ -2175,6 +2447,8 @@ fn main() {
             reload_journey_from_mirror,
             inspect_mirror_conversation_activity,
             reconcile_mirror_conversation,
+            list_journey_documentation,
+            read_journey_document,
             open_local_reference,
             start_pi_invocation,
             read_pi_session_context_stats,
@@ -2196,8 +2470,9 @@ mod tests {
         extract_context_stats_from_pi_session, extract_pi_mirror_commit_events,
         inspect_external_pi_content, validate_turn_correlation,
         validate_mirror_reconciliation_messages, activate_reconciled_files,
+        list_journey_documentation_at, read_journey_document_at, find_registered_journey_path,
         ExternalPiFileFingerprint, ExternalPiInspection, MirrorObservedMessage,
-        PiSessionContextSnapshot, TurnCorrelation,
+        PiSessionContextSnapshot, TurnCorrelation, DOCUMENT_PREVIEW_MAX_BYTES,
     };
     use serde_json::json;
     use std::{
@@ -2403,6 +2678,93 @@ mod tests {
         assert_eq!(fs::read_to_string(&old_session).unwrap(), "old-session");
         assert_eq!(fs::read_to_string(&conversation).unwrap(), "old-conversation");
         assert!(!target_session.exists());
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn resolves_documentation_authority_from_the_registered_journey() {
+        let roots = vec![json!({
+            "id": "parent",
+            "projectPath": "/journeys/parent",
+            "children": [{
+                "id": "selected",
+                "projectPath": "/journeys/selected"
+            }]
+        })];
+        assert_eq!(find_registered_journey_path(&roots, "selected").as_deref(), Some("/journeys/selected"));
+        assert_eq!(find_registered_journey_path(&roots, "unknown"), None);
+    }
+
+    #[test]
+    fn projects_a_deterministic_bounded_documentation_tree() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("nautilus-doc-tree-{}-{}", std::process::id(), nonce));
+        fs::create_dir_all(&directory).unwrap();
+
+        let missing = list_journey_documentation_at(&directory).unwrap();
+        assert_eq!(missing.status, "missing");
+        fs::create_dir_all(directory.join("docs/guides")).unwrap();
+        let empty_child = list_journey_documentation_at(&directory).unwrap();
+        assert_eq!(empty_child.status, "ready");
+        fs::write(directory.join("docs/z.md"), "# Z").unwrap();
+        fs::write(directory.join("docs/Alpha.txt"), "alpha").unwrap();
+        fs::write(directory.join("docs/guides/start.md"), "# Start").unwrap();
+
+        let tree = list_journey_documentation_at(&directory).unwrap();
+        assert_eq!(tree.status, "ready");
+        assert_eq!(tree.items.iter().map(|node| node.name.as_str()).collect::<Vec<_>>(), vec!["guides", "Alpha.txt", "z.md"]);
+        assert_eq!(tree.items[0].children[0].relative_path, "guides/start.md");
+        let json = serde_json::to_string(&tree).unwrap();
+        assert!(!json.contains(&directory.to_string_lossy().to_string()));
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn reads_only_bounded_supported_document_content() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("nautilus-doc-content-{}-{}", std::process::id(), nonce));
+        fs::create_dir_all(directory.join("docs")).unwrap();
+        fs::write(directory.join("docs/readme.md"), "# Safe").unwrap();
+        fs::write(directory.join("docs/image.png"), [0_u8, 1, 2]).unwrap();
+        fs::write(directory.join("docs/invalid.txt"), [0xff_u8, 0xfe]).unwrap();
+        fs::write(directory.join("docs/large.txt"), vec![b'x'; DOCUMENT_PREVIEW_MAX_BYTES as usize + 1]).unwrap();
+
+        let ready = read_journey_document_at(&directory, "readme.md").unwrap();
+        assert_eq!(ready.status, "ready");
+        assert_eq!(ready.preview_kind, "markdown");
+        assert_eq!(ready.content.as_deref(), Some("# Safe"));
+        assert_eq!(read_journey_document_at(&directory, "image.png").unwrap().reason.as_deref(), Some("unsupported_type"));
+        assert_eq!(read_journey_document_at(&directory, "invalid.txt").unwrap().reason.as_deref(), Some("invalid_utf8"));
+        assert_eq!(read_journey_document_at(&directory, "large.txt").unwrap().reason.as_deref(), Some("oversized"));
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn rejects_document_traversal_and_absolute_paths() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("nautilus-doc-traversal-{}-{}", std::process::id(), nonce));
+        fs::create_dir_all(directory.join("docs")).unwrap();
+        fs::write(directory.join("outside.md"), "outside").unwrap();
+        assert!(read_journey_document_at(&directory, "../outside.md").is_err());
+        assert!(read_journey_document_at(&directory, "/tmp/outside.md").is_err());
+        assert!(read_journey_document_at(&directory, "").is_err());
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn omits_symbolic_links_from_documentation_projection() {
+        use std::os::unix::fs::symlink;
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("nautilus-doc-symlink-{}-{}", std::process::id(), nonce));
+        fs::create_dir_all(directory.join("docs")).unwrap();
+        fs::write(directory.join("outside.md"), "outside").unwrap();
+        symlink(directory.join("outside.md"), directory.join("docs/escape.md")).unwrap();
+        symlink(directory.join("docs"), directory.join("docs/loop")).unwrap();
+
+        let tree = list_journey_documentation_at(&directory).unwrap();
+        assert_eq!(tree.status, "empty");
+        assert!(read_journey_document_at(&directory, "escape.md").is_err());
         fs::remove_dir_all(directory).unwrap();
     }
 

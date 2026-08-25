@@ -1,0 +1,20 @@
+import { invoke } from "@tauri-apps/api/core";
+import {
+  normalizeDocumentationContent,
+  normalizeDocumentationTree,
+  type DocumentationContent,
+  type DocumentationTree,
+} from "../domain/journeyDocumentation";
+
+export async function listJourneyDocumentation(journeyId: string): Promise<DocumentationTree> {
+  const payload = await invoke<unknown>("list_journey_documentation", { journeyId });
+  return normalizeDocumentationTree(payload);
+}
+
+export async function readJourneyDocument(
+  journeyId: string,
+  relativePath: string,
+): Promise<DocumentationContent> {
+  const payload = await invoke<unknown>("read_journey_document", { journeyId, relativePath });
+  return normalizeDocumentationContent(payload);
+}

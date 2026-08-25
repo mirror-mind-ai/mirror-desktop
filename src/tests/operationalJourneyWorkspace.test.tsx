@@ -1,10 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { JourneyAltitudePlaceholder } from "../app/JourneyAltitudePlaceholder";
-import { OperationalArtifactsPreview } from "../app/OperationalArtifactsPreview";
 import { OperationalWorkspaceSwitcher } from "../app/OperationalWorkspaceSwitcher";
-import { representativeJourneyPreview } from "../app/journeyAltitudePreview";
 import appSource from "../app/App.tsx?raw";
+import documentationBrowserSource from "../app/JourneyDocumentationBrowser.tsx?raw";
 
 describe("Operational Journey workspace", () => {
   it("switches between full-width Chat and Artifacts surfaces", () => {
@@ -33,21 +32,14 @@ describe("Operational Journey workspace", () => {
     expect(html).toContain('aria-disabled="true"');
   });
 
-  it("renders representative artifacts without file authority", () => {
-    const html = renderToStaticMarkup(
-      <OperationalArtifactsPreview artifacts={representativeJourneyPreview.artifacts} />,
-    );
-
-    expect(html).toContain('class="operational-artifacts-workspace"');
-    expect(html).toContain("Workspace structure");
-    expect(html).toContain("Artifact detail area");
-    expect(html).toContain("docs/project/roadmap/index.md");
-    expect(html).not.toContain("Journey artifacts");
-    expect(html).not.toContain("Nautilus Harness");
-    expect(html).not.toContain("Representative preview");
-    expect(html).not.toContain("Live workspace reading comes later");
-    expect(html).not.toContain("href=");
-    expect(html).not.toContain("Open file");
+  it("wires Artifacts to the selected Journey documentation boundary", () => {
+    expect(appSource).toContain("<JourneyDocumentationBrowser");
+    expect(appSource).toContain("journeyId={selectedJourneyItem.id}");
+    expect(appSource).toContain("journeyName={selectedJourneyItem.name}");
+    expect(appSource).not.toContain("journeyRoot={selectedJourneyItem.projectPath}");
+    expect(appSource).not.toContain("representativeJourneyPreview.artifacts");
+    expect(documentationBrowserSource).not.toContain("open_local_reference");
+    expect(documentationBrowserSource).not.toContain("href=");
   });
 
   it.each(["tactical", "strategic"] as const)(
