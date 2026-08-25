@@ -1,6 +1,6 @@
 # Nautilus Harness
 **Status:** active
-**Stage:** Mirror Integration
+**Stage:** Nautilus Method Integration
 
 ## Description
 
@@ -8,16 +8,16 @@ Nautilus Harness é a aplicação desktop agêntica dedicada à prática da gram
 
 ## Current focus
 
-`CV-002.DS-004 — Conversation and Mirror Context Parity` está concluída: a conversa visível, a sessão Pi exata e o registro semântico Mirror agora possuem continuidade, checkpoints e reconciliação causal validados.
+Integrar o método Nautilus ao Harness sem transformar a aplicação em um editor de ontologia. A mesma Jornada deve poder ser habitada nas altitudes operacional, tática e estratégica.
 
 ## Near slice
 
-Nenhuma Delivery Story está ativa. Inspecionar o roadmap e escolher explicitamente o próximo incremento antes de iniciar novo trabalho.
+Preparar `CV-003.DS-001 - Three-Altitude GUI Experiment`: preservar a seleção lateral e a conversa atual, compor as três altitudes com conteúdo representativo coerente e validar a direção visual no aplicativo desktop antes de implementar derivação semântica ou acesso real a artefatos.
 
 ## Later
 
-`DS-009 — Concurrent Journey Operations` permanece planejada para permitir múltiplas Journeys em execução simultânea sem mistura de processos, eventos, respostas ou persistência.
+A integração avança do experimento visual para artefatos operacionais, síntese tática, realização estratégica e checkpoints de significado derivados. `DS-009 - Concurrent Journey Operations` permanece planejada para permitir múltiplas Journeys em execução simultânea sem mistura de processos, eventos, respostas ou persistência.
 
 ## Done condition
 
-A etapa atual estará pronta quando a conversa visível for a conversa realmente usada pelo Pi/Mirror; cada turno iniciado no Nautilus tiver commit durável comprovado ou recuperável nos três corpos; continuações externas da sessão Pi aparecerem uma vez no Harness; atualizações exclusivas do Mirror forem detectadas e reconciliadas explicitamente; Journey, identidade, persona e modo participarem antes da geração; e contexto e compactação permanecerem governados pelo Pi.
+A etapa atual estará pronta quando o Navigator puder operar uma Jornada pela conversa e por seus artefatos, reconhecer missões, evidências e entregáveis na altitude tática, e perceber realizações, impactos e valor nas lentes pragmática e integrativa, com interpretações derivadas rastreáveis e corrigíveis.

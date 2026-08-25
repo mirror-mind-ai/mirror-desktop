@@ -7,16 +7,17 @@
 
 This roadmap now governs Nautilus Harness as its own application body.
 
-The parent Nautilus roadmap proved the first semantic bridge: the Harness can talk to Pi, receive live responses, normalize output, project grammar, and render rich assistant messages. This child roadmap shifts attention from Nautilus method integration to Harness operability.
+The parent Nautilus roadmap proved the first semantic bridge: the Harness can talk to Pi, receive live responses, normalize output, project grammar, and render rich assistant messages. This child roadmap first established Harness operability and then made Mirror the causal context substrate. It can now integrate the Nautilus method as an inhabitable product experience.
 
-The guiding question is practical: can I use this desktop app as a real agent cockpit for work?
+The guiding question has expanded: can I operate a real Journey here, change altitude over the same territory, and recognize how activity becomes direction, realization and value?
 
 ## Capability Values
 
 | Code | Capability Value | Outcome | Status |
 |------|------------------|---------|--------|
 | [CV-001](cv-001-operable-agent-cockpit/index.md) | Operable Agent Cockpit | Harness becomes a usable desktop cockpit for running Pi-backed agent conversations with local session control, provider configuration, run control and durable history | 🟡 Planned |
-| [CV-002](cv-002-mirror-integration/index.md) | Mirror Integration | Harness becomes the desktop projection of the essential Pi/Mirror operational loop and context lifecycle | 🟡 Planned |
+| [CV-002](cv-002-mirror-integration/index.md) | Mirror Integration | Harness becomes the desktop projection of the essential Pi/Mirror operational loop and context lifecycle | ✅ Done |
+| [CV-003](cv-003-nautilus-method-integration/index.md) | Nautilus Method Integration | Harness lets the Navigator inhabit one Journey at operational, tactical and strategic altitudes | 🟡 Planned |
 
 ## Delivery Arc — Operable Agent Cockpit
 
@@ -41,14 +42,24 @@ The guiding question is practical: can I use this desktop app as a real agent co
 | [CV-002.DS-003](cv-002-mirror-integration/ds-003-pi-cli-output-parity/index.md) | Pi/Mirror Operational Loop Parity | The essential send-observe-answer loop preserves the meaningful visible execution phases of Pi with Mirror active | ✅ Done |
 | [CV-002.DS-004](cv-002-mirror-integration/ds-004-conversation-and-mirror-context-parity/index.md) | Conversation and Mirror Context Parity | Conversation continuity, Pi-owned context usage/compaction, Journey, identity/persona and Mirror modes shape the live answer | ✅ Done |
 
+## Delivery Arc — Nautilus Method Integration
+
+| Code | Delivery Story | Outcome | Status |
+|------|----------------|---------|--------|
+| [CV-003.DS-001](cv-003-nautilus-method-integration/ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude GUI Experiment | Navigator can move among operational, tactical and strategic wireframe views of the same Journey while the existing conversation remains usable | 🟡 Planned |
+| [CV-003.DS-002](cv-003-nautilus-method-integration/ds-002-operational-journey-artifacts/index.md) | Operational Journey Artifacts | Operational view presents a bounded read-only projection of the selected Journey workspace beside the conversation | 🟡 Planned |
+| [CV-003.DS-003](cv-003-nautilus-method-integration/ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | 🟡 Planned |
+| [CV-003.DS-004](cv-003-nautilus-method-integration/ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and value through pragmatic and integrative lenses | 🟡 Planned |
+| [CV-003.DS-005](cv-003-nautilus-method-integration/ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can inspect and correct the movement from provisional interpretation to explicit synthesis | 🟡 Planned |
+
 ## Current Recommendation
 
-Complete the CV-002.DS-004 three-body reconciliation extension before aggregate validation: define the checkpoint contract, prove observable Nautilus → Pi → Mirror commit, project external exact-session Pi turns, and detect then explicitly reconcile Mirror-only advances. Execute the expanded terminal/Nautilus/Mirror validation only after those packages are green. DS-009 Concurrent Journey Operations remains planned for later.
+Pull `CV-003.DS-001 — Three-Altitude GUI Experiment` as a small product-learning increment. Preserve the current Journey sidebar and operational conversation, render all three altitudes with one coherent preview data set, and validate the spatial direction in the real desktop app before implementing filesystem projection or semantic derivation. `DS-007`, `DS-008` and `DS-009` remain planned and independent until explicitly selected.
 
 ## Boundaries
 
 - This roadmap is about Harness as a desktop application body.
-- Nautilus method integration is intentionally deferred until the app is operable.
+- Nautilus method integration enters through user-visible Journey projections, not a form-based duplicate ontology.
 - Pi remains the agentic operator.
 - Harness must not silently execute work, mutate files, invoke Mirror, or persist state without explicit user action.
 - Local-first desktop operation is the default assumption.
