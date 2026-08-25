@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked
+Passed
 
 ## Automated Checks
 
@@ -20,20 +20,20 @@ Checks status: passed
 
 Decision: not_required
 
-Evidence: This technical story delivers a black-box contract kit rather than user interface behavior. Fixture-level executable validation is the approved route: stateful fake adapters cover conformant, unavailable, incompatible, malformed, unsafe, partial and failing implementations; the real pre-release probe uses an isolated Mirror home and reports the expected bounded contract_unavailable result.
+Evidence: Navigator accepted the self-contained contract kit after fixture-level executable validation. Stateful fake adapters cover conformance, absence, incompatibility, malformed output, unsafe paths/namespaces, partial publication and subprocess failure; the real isolated pre-release probe returns contract_unavailable as designed.
 
 ## Navigator Validation
 
-Route: Review contracts/mirror-journey-projections/v1 in README reading order, run the unittest command and checksum verification, then inspect the pre-release probe output and RETURN-CONTRACT gate.
+Route: Review the contract in README order, verify checksums and tests, and inspect the blocked RETURN-CONTRACT gate.
 
-Navigator accepted: no
+Navigator accepted: yes
 
-Expected observation: The package is self-sufficient, synthetic, security-explicit and executable; its own tests pass; current Mirror is recognized as unavailable; release metadata alone cannot open the return gate; no Mirror source or production state changed.
+Expected observation: The package is sufficient for an independent Mirror session, current Mirror remains unavailable, and no source or production state was changed.
 
-Pass condition: Navigator accepts the package as sufficient input and unchanged consumer acceptance kit for the independent Mirror implementation and release session.
+Pass condition: Navigator accepts the package as the immutable consumer acceptance kit for the Mirror release session.
 
-Fail condition: The receiving session would need this conversation, the probe imports Mirror internals, unsafe or partial behavior can pass, the return gate can be simulated, or the package changes Mirror or production state.
+Fail condition: The package needs conversation context, permits unsafe behavior, changes Mirror, or can open the gate without the unchanged installed-runtime probe.
 
 ## Missing Evidence
 
-- Navigator validation has not been accepted
+- none

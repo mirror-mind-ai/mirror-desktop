@@ -19,11 +19,13 @@ This Delivery Story is intentionally gated:
 
 The existence of one Delivery Story does not authorize crossing these gates implicitly.
 
+**Current gate:** blocked until a separately released and installed Mirror version completes `RETURN-CONTRACT.md` and passes the unchanged consumer probe.
+
 ## Active Work Package
 
 | Code | Work Package | Type | Outcome | Status |
 |------|--------------|------|---------|--------|
-| [CV-003.DS-006.TS-1](cv-003-ds-006-ts-1-mirror-journey-projection-contract/index.md) | Mirror Journey Projection Contract v1 and Return Probe | Technical Story | Give the independent Mirror release session a self-sufficient public contract and executable consumer acceptance kit without implementing Mirror Core here | 🟠 In Validation |
+| [CV-003.DS-006.TS-1](cv-003-ds-006-ts-1-mirror-journey-projection-contract/index.md) | Mirror Journey Projection Contract v1 and Return Probe | Technical Story | Give the independent Mirror release session a self-sufficient public contract and executable consumer acceptance kit without implementing Mirror Core here | ✅ Done |
 
 ## Later Work Packages
 
