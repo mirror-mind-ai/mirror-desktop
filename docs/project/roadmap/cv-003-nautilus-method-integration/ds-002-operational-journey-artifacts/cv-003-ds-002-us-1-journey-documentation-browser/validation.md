@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked
+Passed
 
 ## Automated Checks
 
@@ -18,20 +18,20 @@ Checks status: passed
 
 Decision: required
 
-Evidence: Visual inspection confirmed familiar open/closed folder silhouettes and differentiated restrained icons for Markdown, PDF, text, image, code and data artifacts in the Journey-root tree. Icons are inline dependency-free SVGs, decorative and paired with unchanged text labels. Screenshot: /tmp/nautilus-ds2-us1-familiar-artifact-icons.png. Native root and safety evidence remains green; final acceptance requires Navigator inspection in the real desktop app.
+Evidence: Navigator validated the real desktop Journey Workspace Browser, including familiar folder/file silhouettes and differentiated common artifact types. Screenshot evidence: /tmp/nautilus-ds2-us1-familiar-artifact-icons.png.
 
 ## Navigator Validation
 
-Route: Open Operational → Artifacts and compare folders plus common Markdown, PDF, text, image, code, data, archive and office-document files.
+Route: Open Operational → Artifacts and inspect registered Journey roots with and without docs/, common artifact icons, safe previews, Journey switching isolation and Conversation continuity.
 
-Navigator accepted: no
+Navigator accepted: yes
 
-Expected observation: Folders and files use familiar silhouettes; common artifact types are distinguishable by shape/mark and restrained color; labels remain readable and accessible; selection, expansion, content and safety behavior remain unchanged.
+Expected observation: The registered Journey root is projected with familiar differentiated artifact icons, safe bounded previews and no leakage or conversation-state mutation.
 
-Pass condition: Navigator accepts icon familiarity, differentiation, scale, color restraint and readability in the real desktop browser.
+Pass condition: Navigator accepts the complete Journey Workspace Browser behavior and visual treatment.
 
-Fail condition: Folders/files remain ambiguous, common types are indistinguishable, icons dominate or misalign the tree, labels/accessibility regress, or workspace behavior changes.
+Fail condition: Any root-authority, omission, preview, isolation, continuity, accessibility or icon-recognition behavior fails.
 
 ## Missing Evidence
 
-- Navigator validation has not been accepted
+- none
