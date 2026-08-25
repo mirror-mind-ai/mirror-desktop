@@ -19,6 +19,16 @@ Navigator can switch among operational, tactical and strategic wireframe views o
 - Use one coherent set of representative Journey content across all three views.
 - Give each altitude a distinct density and rhythm while preserving the shared application shell.
 
+## Candidate Stories
+
+| Code | Story | Type | Outcome | Status |
+|------|-------|------|---------|--------|
+| [CV-003.DS-001.TS-1](cv-003-ds-001-ts-1-altitude-navigation-and-preview-contract/index.md) | Altitude Navigation and Preview Contract | Technical Story | Define the three-altitude UI state, representative Journey preview data and characterization boundary without changing runtime ownership | 🟡 Planned |
+| [CV-003.DS-001.US-1](cv-003-ds-001-us-1-operational-journey-workspace/index.md) | Operational Journey Workspace | User Story | Preserve the working conversation while composing a nearby, dense Operational view with a clearly representative artifacts panel | 🟡 Planned |
+| [CV-003.DS-001.US-2](cv-003-ds-001-us-2-tactical-journey-preview/index.md) | Tactical Journey Preview | User Story | Let the Navigator feel missions, evidence and deliverables as a quieter tactical reading of the same representative Journey | 🟡 Planned |
+| [CV-003.DS-001.US-3](cv-003-ds-001-us-3-strategic-journey-preview/index.md) | Strategic Journey Preview | User Story | Let the Navigator feel realizations, impacts and pragmatic/integrative value as a spacious strategic reading of the same Journey | 🟡 Planned |
+| [CV-003.DS-001.US-4](cv-003-ds-001-us-4-three-altitude-desktop-review/index.md) | Three-Altitude Desktop Review | User Story | Validate the complete visual transition in the real desktop app and record whether to continue, correct or discard the direction | 🟡 Planned |
+
 ## Validation Intent
 
 Run the real desktop app and evaluate whether changing altitude feels like moving closer to or farther from the same Journey. Capture Navigator feedback before planning real artifact projection or semantic derivation.
