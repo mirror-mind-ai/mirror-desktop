@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked
+Passed
 
 ## Automated Checks
 
@@ -18,20 +18,20 @@ Checks status: passed
 
 Decision: required
 
-Evidence: Desktop-shell inspection confirmed a realization-centered Strategic workspace, related observed impacts, equal pragmatic/integrative value lenses, wider rhythm than Tactical, no report/score/workflow affordance, and byte-exact survival of an unsent Operational draft. Screenshot: /tmp/nautilus-us3-strategic-workspace.png. Automated context tests preserve the Journey-keyed empty-state boundary. Final acceptance requires Navigator inspection in the real multi-Journey Tauri app.
+Evidence: Navigator accepted the realization-centered Strategic workspace, related impacts, equal pragmatic/integrative lenses, contextual empty-state behavior and Operational continuity. Screenshot: /tmp/nautilus-us3-strategic-workspace.png.
 
 ## Navigator Validation
 
-Route: Inspect nautilus-harness Strategic, compare its rhythm with Tactical, switch to a Journey without Strategic data to verify the contextual empty surface, then return to Operational.
+Route: Inspect Strategic for nautilus-harness and a Journey without Strategic data, then return to Operational.
 
-Navigator accepted: no
+Navigator accepted: yes
 
-Expected observation: One realization leads; only related impacts appear; pragmatic and integrative value have equal weight; no score/report interaction appears; other Journeys receive their own empty surface; Operational state is unchanged.
+Expected observation: One realization leads, related impacts and equal value lenses remain coherent, no reporting interaction appears, and Journey isolation is preserved.
 
-Pass condition: Navigator accepts this composition as the permanent Strategic shell for later hydration by CV-003.DS-004.
+Pass condition: Navigator accepts the permanent Strategic shell.
 
-Fail condition: The surface resembles reporting, value lenses compete or look scored, impacts feel unrelated, data leaks across Journeys, empty-state context is wrong, or Operational continuity changes.
+Fail condition: Strategic hierarchy, contextual isolation, empty-state behavior, safety or Operational continuity fails.
 
 ## Missing Evidence
 
-- Navigator validation has not been accepted
+- none
