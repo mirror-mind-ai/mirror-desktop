@@ -275,6 +275,43 @@
         "explorer_footer_state_certified",
         "exploration_opened_without_implementation"
       ]
+    },
+    {
+      "stage": "soul_mode_activation",
+      "harness": {
+        "conversationId": "nautilus-mirror-13a0d6f3",
+        "messageCount": 52,
+        "lastMessageId": "assistant-2026-08-25T01:27:05.191Z",
+        "certifiedMode": "soul"
+      },
+      "pi": {
+        "sessionId": "nautilus-viagem-do-lipe",
+        "generation": 2,
+        "userEntryId": "1b76553f",
+        "assistantEntryId": "3ddc7c0f",
+        "leafEntryId": "3ddc7c0f",
+        "entryCount": 89,
+        "fileSha256": "9a0d2e0cc12d5836232c5ca1b9ed9549db25b537e5fcc9e95802e2cc0ad9af29"
+      },
+      "mirror": {
+        "conversationId": "13a0d6f3",
+        "userMessageId": "ce5450ee-402a-590c-868b-2a3647758bdd",
+        "assistantMessageId": "785676a7-97a3-5709-bac0-dd9c6cff55f4",
+        "messageCount": 50
+      },
+      "classification": "in_sync",
+      "reasonCodes": [],
+      "contextUsage": {
+        "tokens": 43158,
+        "contextWindow": 400000,
+        "percent": 10.7895,
+        "providerModel": "openai-codex/gpt-5.4-mini"
+      },
+      "validatedClaims": [
+        "soul_entry_surface_visible",
+        "soul_footer_state_certified",
+        "ritual_opened_without_mutation"
+      ]
     }
   ]
 }
