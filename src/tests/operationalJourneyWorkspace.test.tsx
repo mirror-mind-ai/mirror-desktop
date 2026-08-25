@@ -44,7 +44,8 @@ describe("Operational Journey workspace", () => {
   it("mounts Journey-contextual altitude data or an honest empty surface", () => {
     expect(appSource).toContain("representativeJourneyPreviewForJourney(selectedJourneyItem.id)");
     expect(appSource).toContain("<TacticalJourneyWorkspace");
-    expect(appSource).toContain("preview={contextualJourneyPreview}");
+    expect(appSource).toContain("<StrategicJourneyWorkspace");
+    expect(appSource.match(/preview=\{contextualJourneyPreview\}/g)).toHaveLength(2);
     expect(appSource).toContain('altitude="tactical"');
     expect(appSource).toContain('altitude="strategic"');
     expect(appSource).toContain("journeyName={selectedJourneyItem.name}");

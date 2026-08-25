@@ -2,7 +2,7 @@
 
 # CV-003.DS-001.US-3 — Strategic Journey Workspace Shell
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Validation
 **Type:** User Story
 
 ## User Story
@@ -61,3 +61,4 @@ Focused relation/component/source-characterization tests, complete frontend/nati
 
 - [Plan](plan.md)
 - [Test Guide](test-guide.md)
+- [Implementation](implementation.md)

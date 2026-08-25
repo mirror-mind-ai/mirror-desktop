@@ -48,6 +48,7 @@ import { JourneyAltitudeSwitcher } from "./JourneyAltitudeSwitcher";
 import { JourneyAltitudeEmptyState } from "./JourneyAltitudeEmptyState";
 import { JourneyDocumentationBrowser } from "./JourneyDocumentationBrowser";
 import { TacticalJourneyWorkspace } from "./TacticalJourneyWorkspace";
+import { StrategicJourneyWorkspace } from "./StrategicJourneyWorkspace";
 import {
   OperationalWorkspaceSwitcher,
   type OperationalSurface,
@@ -1447,10 +1448,14 @@ export function App({ model }: AppProps) {
           )
         ) : null}
         {selectedAltitude === "strategic" ? (
-          <JourneyAltitudeEmptyState
-            altitude="strategic"
-            journeyName={selectedJourneyItem.name}
-          />
+          contextualJourneyPreview && contextualJourneyPreview.strategic.realizations.length > 0 ? (
+            <StrategicJourneyWorkspace preview={contextualJourneyPreview} />
+          ) : (
+            <JourneyAltitudeEmptyState
+              altitude="strategic"
+              journeyName={selectedJourneyItem.name}
+            />
+          )
         ) : null}
 
         <section
