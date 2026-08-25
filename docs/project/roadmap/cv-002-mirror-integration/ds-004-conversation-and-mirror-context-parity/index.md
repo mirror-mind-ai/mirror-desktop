@@ -2,7 +2,7 @@
 
 # CV-002.DS-004 - Conversation and Mirror Context Parity
 
-**Status:** 🟠 In Validation
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -172,6 +172,14 @@ For each mode, execute the same natural-language activation and one representati
 ## Done Condition
 
 This story is done when a multi-turn Nautilus conversation is the conversation Pi/Mirror actually uses; each Nautilus turn has a proven or recoverable durable outcome in the exact Pi branch and mapped Mirror conversation; external same-session Pi turns appear once in Nautilus; Mirror-only advances are detected automatically and enter Pi only through explicit conflict-aware reconciliation; Nautilus shows the same authoritative context-window state as Pi; Pi's automatic compaction remains visible; conversation continuity survives compaction and relaunch; active Journey and Mirror identity/persona context influence the response before generation; all four Mirror modes preserve their boundaries; and the three-body parity review shows no unclassified divergence.
+
+## Closure Artifacts
+
+- [Implementation](implementation.md)
+- [Validation](validation.md)
+- [Debt Review](review.md)
+- [Done](done.md)
+- [Aggregate Parity Review](cv-002-ds-004-us-6-three-body-conversation-parity-review/parity-review.md)
 
 ## Boundary
 

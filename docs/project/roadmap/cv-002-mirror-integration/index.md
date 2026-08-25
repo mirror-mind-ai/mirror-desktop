@@ -21,7 +21,7 @@ The next integration steps are deliberately narrow and ordered. First, make the 
 | [CV-002.DS-001](ds-001-mirror-journey-and-conversation-import/index.md) | Mirror Journey and Conversation Import | Harness can explicitly import Mirror Journeys, render imported activity and reload a selected Mirror conversation into local Harness state | ✅ Done |
 | [CV-002.DS-002](ds-002-mirror-mediated-pi-invocation/index.md) | Mirror-mediated Pi Invocation | Harness invokes Pi through Mirror context so agent work participates in Mirror conversation logging and memory instead of bypassing it | ✅ Done |
 | [CV-002.DS-003](ds-003-pi-cli-output-parity/index.md) | Pi/Mirror Operational Loop Parity | For the essential send-observe-answer loop, Harness projects the same meaningful visible execution phases as Pi with Mirror active, without unrelated Pi features or a Nautilus-specific runtime metaphor | ✅ Done |
-| [CV-002.DS-004](ds-004-conversation-and-mirror-context-parity/index.md) | Conversation and Mirror Context Parity | The visible conversation, Pi-owned context budget/compaction, active Journey, identity, ego/persona routing and Mirror operating mode are the context lifecycle Pi actually uses to answer | 🟠 In Validation |
+| [CV-002.DS-004](ds-004-conversation-and-mirror-context-parity/index.md) | Conversation and Mirror Context Parity | The visible conversation, Pi-owned context budget/compaction, active Journey, identity, ego/persona routing and Mirror operating mode are the context lifecycle Pi actually uses to answer | ✅ Done |
 
 ## Done Condition
 

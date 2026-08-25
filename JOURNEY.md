@@ -8,11 +8,11 @@ Nautilus Harness é a aplicação desktop agêntica dedicada à prática da gram
 
 ## Current focus
 
-Concluir a extensão de `CV-002.DS-004 — Conversation and Mirror Context Parity`: tornar observável e recuperável o commit de cada turno entre Harness, Pi e Mirror; projetar no Nautilus continuações externas da sessão Pi exata; e detectar atualizações exclusivas do Mirror para reconciliação explícita e segura antes da validação agregada.
+`CV-002.DS-004 — Conversation and Mirror Context Parity` está concluída: a conversa visível, a sessão Pi exata e o registro semântico Mirror agora possuem continuidade, checkpoints e reconciliação causal validados.
 
 ## Near slice
 
-Executar `CV-002.DS-004.US-6 — Three-Body Conversation Parity Review`: validar uma linha causal única entre Harness, Pi e Mirror usando os caminhos já provados de commit Nautilus, continuação Pi externa e reconciliação Mirror explícita; classificar qualquer diferença restante e fechar a validação agregada de DS-004.
+Nenhuma Delivery Story está ativa. Inspecionar o roadmap e escolher explicitamente o próximo incremento antes de iniciar novo trabalho.
 
 ## Later
 
