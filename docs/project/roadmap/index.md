@@ -46,7 +46,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-003.DS-001](cv-003-nautilus-method-integration/ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude GUI Experiment | Navigator can move among operational, tactical and strategic wireframe views of the same Journey while the existing conversation remains usable | 🟡 Planned |
+| [CV-003.DS-001](cv-003-nautilus-method-integration/ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude Journey Workspace Foundation | Navigator can move among durable Operational, Tactical and Strategic workspace shells while the existing conversation remains usable | 🟠 In Progress |
 | [CV-003.DS-002](cv-003-nautilus-method-integration/ds-002-operational-journey-artifacts/index.md) | Operational Journey Artifacts | Artifacts presents a bounded Journey documentation tree with a safe content, details and metadata viewer | 🟡 Planned |
 | [CV-003.DS-003](cv-003-nautilus-method-integration/ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | 🟡 Planned |
 | [CV-003.DS-004](cv-003-nautilus-method-integration/ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and value through pragmatic and integrative lenses | 🟡 Planned |
@@ -54,7 +54,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 
 ## Current Recommendation
 
-Pull `CV-003.DS-001 — Three-Altitude GUI Experiment` as a small product-learning increment. Preserve the current Journey sidebar and operational conversation, render all three altitudes with one coherent preview data set, and validate the spatial direction in the real desktop app before implementing filesystem projection or semantic derivation. `DS-007`, `DS-008` and `DS-009` remain planned and independent until explicitly selected.
+Complete `CV-003.DS-001 — Three-Altitude Journey Workspace Foundation` as the promoted spatial shell: accept the Operational workspace, establish durable Tactical and Strategic compositions, and validate aggregate continuity in the desktop app. Then hydrate the committed surfaces through CV-003.DS-002 to CV-003.DS-005. `DS-007`, `DS-008` and `DS-009` remain planned and independent until explicitly selected.
 
 ## Boundaries
 

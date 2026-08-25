@@ -82,7 +82,7 @@ For `tactical` and `strategic`, render a small shared placeholder component or e
 
 - identifies the selected altitude;
 - states that its visual composition arrives in US-2 or US-3;
-- labels itself as part of the GUI experiment;
+- labels itself as a provisional shell within the promoted workspace foundation;
 - contains no cards that resemble derived live data;
 - contains no composer, send action, file action or provider control.
 

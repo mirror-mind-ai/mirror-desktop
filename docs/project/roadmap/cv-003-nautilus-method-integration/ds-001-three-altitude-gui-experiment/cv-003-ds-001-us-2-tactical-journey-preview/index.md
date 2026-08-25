@@ -1,6 +1,6 @@
 [< Parent](../index.md)
 
-# CV-003.DS-001.US-2 — Tactical Journey Preview
+# CV-003.DS-001.US-2 — Tactical Journey Workspace Shell
 
 **Status:** 🟡 Planned
 **Type:** User Story
@@ -8,12 +8,12 @@
 ## User Story
 
 As the Navigator,
-I want to view representative missions, evidence and deliverables at a calmer altitude,
-so that I can feel how operational activity may become tactical orientation.
+I want a durable Tactical workspace that presents missions, evidence and deliverables at a calmer altitude,
+so that tactical orientation has a stable product surface before live derivation is introduced.
 
 ## Outcome
 
-Tactical presents a coherent, visibly provisional reading of the same representative Journey without task-board editing or hidden execution.
+Tactical establishes the permanent spatial composition for mission, evidence and deliverables while its representative content remains visibly provisional until CV-003.DS-003 supplies live derivation.
 
 ## Acceptance Behavior
 
@@ -28,7 +28,8 @@ And the surface contains no composer or execution action.
 
 - Mission anchor.
 - Evidence and deliverable composition.
-- Tactical density and preview labeling.
+- Durable Tactical workspace composition.
+- Tactical density and provisional-content labeling.
 
 ## Out Of Scope
 

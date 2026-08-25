@@ -14,6 +14,7 @@
 - Removed redundant artifact eyebrow, repeated Journey title, explanatory preview paragraph and badge so Workspace structure and Artifact detail area consume the canvas.
 - Returned grammar inspection, settings and diagnostics to an optional Conversation-only panel collapsed by default.
 - Added bounded Tactical and Strategic placeholders without fabricated semantic content or execution controls.
+- Promoted those placeholders from `GUI experiment` to honest `Foundation shell` surfaces after Navigator acceptance of the three-altitude spatial grammar; real content hydration remains assigned to downstream delivery stories.
 
 ## TDD Evidence
 
@@ -45,6 +46,7 @@ Sanitized temporary screenshots were written outside the repository:
 /tmp/nautilus-us1-full-chat.png
 /tmp/nautilus-us1-artifacts-refined.png
 /tmp/nautilus-us1-selector-icons.png
+/tmp/nautilus-foundation-shell.png
 ```
 
 The Tauri development app also launched successfully through `target/debug/nautilus-harness` and was stopped after the launch check.

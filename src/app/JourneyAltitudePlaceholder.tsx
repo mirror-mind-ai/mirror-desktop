@@ -10,12 +10,12 @@ const placeholderCopy: Record<PendingJourneyAltitude, { label: string; story: st
   tactical: {
     label: "Tactical",
     story: "US-2",
-    description: "This distance will take shape after the Operational workspace is felt and accepted.",
+    description: "This durable tactical workspace awaits its mission, evidence, and deliverable composition.",
   },
   strategic: {
     label: "Strategic",
     story: "US-3",
-    description: "This wider distance will take shape after the Tactical composition is understood.",
+    description: "This durable strategic workspace awaits its realization, impact, and value composition.",
   },
 };
 
@@ -27,9 +27,9 @@ export function JourneyAltitudePlaceholder({ altitude }: JourneyAltitudePlacehol
       id={`journey-altitude-${altitude}-panel`}
       className={`journey-altitude-placeholder altitude-${altitude}`}
       role="tabpanel"
-      aria-label={`${copy.label} altitude preview`}
+      aria-label={`${copy.label} workspace shell`}
     >
-      <span className="preview-badge">GUI experiment</span>
+      <span className="preview-badge">Foundation shell</span>
       <p className="eyebrow">{copy.label} altitude</p>
       <h2>Another distance over the same Journey</h2>
       <p>{copy.description}</p>

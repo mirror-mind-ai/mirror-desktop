@@ -6,21 +6,25 @@
 
 ## Delivery Story
 
-Three-Altitude GUI Experiment
+Three-Altitude Journey Workspace Foundation
 
 ## Objective
 
-Deliver a bounded, testable GUI experiment in the existing Tauri/React Harness so the Navigator can feel the selected Journey at operational, tactical and strategic altitudes. Preserve the current sidebar, live conversation, explicit invocation and reconciliation behavior; use one visibly representative preview data set for artifacts and derived views; validate spatial continuity in the desktop app before real filesystem projection or semantic derivation.
+Deliver the durable three-altitude workspace foundation in the existing Tauri/React Harness so the Navigator can inhabit the selected Journey at Operational, Tactical and Strategic distances. Preserve the current sidebar, live conversation, explicit invocation and reconciliation behavior; use visibly provisional data where downstream hydration is not yet available; and validate the permanent spatial grammar before real filesystem projection or semantic derivation.
+
+## Promotion Amendment
+
+The Navigator promoted the successful spatial experiment to product foundation. The plan now commits the altitude and Operational-area navigation model while retaining representative content as a temporary, non-authoritative substrate. Existing TS-1 and US-1 evidence remains historical evidence of how the foundation was discovered; CV-003.DS-002 through CV-003.DS-005 remain responsible for hydrating the committed shells.
 
 ## Product Hypothesis
 
 The three altitudes are not separate modules. They are changes of distance over the same selected Journey:
 
-- Operational is close, dense and alive. The existing conversation remains primary and a representative artifacts panel suggests the future workspace relationship.
+- Operational is close, dense and alive. Conversation and representative Artifacts alternate at full workspace width until CV-003.DS-002 hydrates Artifacts with real Journey documentation.
 - Tactical lets conversation recede into a calmer reading of missions, evidence and deliverables.
 - Strategic creates more space around realizations, impacts and value, with pragmatic and integrative lenses visible as complementary readings.
 
-The experiment succeeds only if switching altitude feels like reframing one territory rather than navigating to an unrelated application area.
+The foundation succeeds only if switching altitude feels like reframing one territory rather than navigating to an unrelated application area.
 
 ## Child Work Packages
 
@@ -43,16 +47,16 @@ Preserve the current working conversation as the Operational altitude:
 
 - retain Journey selection, header, message stream, composer, runtime activity, reconciliation notices and keyboard behavior;
 - add the altitude selector to the stable Journey header;
-- compose a bounded artifacts preview beside the conversation using representative folders/files;
+- alternate Conversation and a bounded Artifacts preview at full workspace width using representative folders/files;
 - distinguish artifact preview from real workspace inspection;
 - keep allowed-root link behavior and the existing explicit invocation boundary unchanged;
 - ensure draft text and loaded conversation survive switching away and back.
 
 This package may reorganize presentation components, but must not rewrite the conversation lifecycle.
 
-### CV-003.DS-001.US-2 — Tactical Journey Preview
+### CV-003.DS-001.US-2 — Tactical Journey Workspace Shell
 
-Compose a quieter tactical view from the shared representative model:
+Establish the durable Tactical composition using the shared representative model until CV-003.DS-003 supplies live derivation:
 
 - active mission as the directional anchor;
 - evidence and deliverables as related, not independent, collections;
@@ -63,9 +67,9 @@ Compose a quieter tactical view from the shared representative model:
 
 The selected Journey remains visible and the sidebar remains usable.
 
-### CV-003.DS-001.US-3 — Strategic Journey Preview
+### CV-003.DS-001.US-3 — Strategic Journey Workspace Shell
 
-Compose a spacious strategic view from the same representative model:
+Establish the durable Strategic composition using the same representative model until CV-003.DS-004 supplies live derivation:
 
 - realizations as the primary selectable reading;
 - observed impacts associated with the selected realization;
@@ -74,16 +78,16 @@ Compose a spacious strategic view from the same representative model:
 - visible preview status;
 - no executive metrics dashboard, scoring or claim of authoritative value derivation.
 
-### CV-003.DS-001.US-4 — Three-Altitude Desktop Review
+### CV-003.DS-001.US-4 — Three-Altitude Foundation Review
 
-Run the complete experiment in the real Tauri desktop shell and record Navigator judgment:
+Run the complete promoted foundation in the real Tauri desktop shell and record aggregate Navigator acceptance or bounded corrections:
 
 - feel the density shift from Operational to Tactical to Strategic;
 - verify the same Journey remains the object of all three views;
 - switch Journeys and confirm no conversation state or runtime ownership leaks;
 - return to Operational and confirm the original draft, messages and controls remain intact;
 - inspect preview honesty and desktop layout at the normal window size;
-- classify the direction as continue, correct or discard before CV-003.DS-002 or semantic derivation is pulled.
+- accept the aggregate foundation or record bounded corrections before downstream hydration continues.
 
 ## Implementation Shape
 
@@ -112,9 +116,9 @@ The current right-side grammar inspector may be reused as the spatial location f
 
 - Stable altitude navigation within the selected Journey shell.
 - Functional existing conversation in Operational.
-- Representative artifacts composition in Operational.
-- Representative mission/evidence/deliverable composition in Tactical.
-- Representative realization/impact/value composition in Strategic.
+- Durable full-width Conversation/Artifacts composition in Operational.
+- Durable Tactical composition populated with provisional mission/evidence/deliverable content.
+- Durable Strategic composition populated with provisional realization/impact/value content.
 - Shared visual language with deliberate density changes.
 - Accessible view labels and selected-state semantics.
 - Unit/characterization coverage and real desktop Navigator review.
@@ -160,7 +164,7 @@ And the interface does not claim that these readings were derived live.
 
 Automated validation is necessary but insufficient. Use pure unit tests and static component rendering for the typed contract, accessible labels, preview honesty and view content. Run the existing frontend and native baselines because the experiment touches the main application shell.
 
-Navigator E2E is required in the real desktop app. Use the current selected Journey and existing local conversation without sending a provider turn. Type an unsent draft, traverse all altitudes, switch back, and verify continuity. Capture feedback on spatial hierarchy and altitude feeling rather than treating screenshot fidelity alone as acceptance.
+Navigator E2E is required in the real desktop app. Use the current selected Journey and existing local conversation without sending a provider turn. Type an unsent draft, traverse all altitudes, switch back, and verify continuity. Confirm that the promoted shell is durable while provisional content remains distinguishable from downstream production data.
 
 ## Required Checks
 
@@ -173,7 +177,7 @@ cd src-tauri && cargo check
 
 ## Stop Conditions
 
-- The experiment requires changing Pi/Mirror runtime ownership.
+- The foundation requires changing Pi/Mirror runtime ownership.
 - Representative content cannot be clearly distinguished from live data.
 - Existing conversation, draft or reconciliation state is lost when switching altitude.
 - The current shell cannot support the three views without an unbounded redesign.
@@ -188,7 +192,7 @@ cd src-tauri && cargo check
 - Use representative, sanitized and visibly labeled preview data only.
 - Keep Rust thin and avoid native changes unless a desktop rendering defect proves one necessary.
 - Do not absorb real filesystem or semantic derivation work silently.
-- Record Navigator visual feedback as validation evidence before recommending the next CV-003 story.
+- Record aggregate Navigator acceptance or bounded corrections before continuing downstream CV-003 hydration.
 
 ## Approval Gate
 

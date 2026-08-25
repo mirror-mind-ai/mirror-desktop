@@ -14,4 +14,4 @@ Tactical and strategic elements expose their supporting sources, provisional rea
 
 ## Boundary
 
-This story deepens the semantic trust model after the three-altitude experience has been validated. It must not be pulled forward merely to make the GUI experiment look complete.
+This story deepens the semantic trust model after the promoted three-altitude foundation and its tactical/strategic hydration are validated. It must not be pulled forward merely to make a workspace shell look semantically complete.

@@ -56,7 +56,8 @@ describe("Operational Journey workspace", () => {
       const html = renderToStaticMarkup(<JourneyAltitudePlaceholder altitude={altitude} />);
 
       expect(html).toContain(`${altitude === "tactical" ? "Tactical" : "Strategic"} altitude`);
-      expect(html).toContain("GUI experiment");
+      expect(html).toContain("Foundation shell");
+      expect(html).not.toContain("GUI experiment");
       expect(html).toContain(altitude === "tactical" ? "US-2" : "US-3");
       expect(html).not.toMatch(/Mission|Evidence|Deliverable|Realization|Impact|Value/);
       expect(html).not.toContain("button");

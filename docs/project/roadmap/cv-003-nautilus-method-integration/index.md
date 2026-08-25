@@ -12,13 +12,13 @@ Nautilus Harness lets the Navigator inhabit one Journey at three complementary a
 
 The Harness is already an operable Pi/Mirror conversation body. Method integration should now make the same Journey legible at different distances without turning Nautilus into a form-based ontology editor or splitting the experience into unrelated modules.
 
-The operational life of the Journey remains the source. Tactical and strategic views are derived readings of that life. The first delivery is deliberately experiential: validate the spatial composition and felt continuity of the three altitudes before committing to derivation, provenance and checkpoint semantics.
+The operational life of the Journey remains the source. Tactical and strategic views are derived readings of that life. The three-altitude spatial composition has been promoted as the durable product foundation; subsequent deliveries now hydrate its Operational, Tactical and Strategic shells without collapsing their distinct semantic responsibilities.
 
 ## Delivery Stories
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-003.DS-001](ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude GUI Experiment | Navigator can move among operational, tactical and strategic wireframe views of the same Journey while the existing conversation remains usable | 🟡 Planned |
+| [CV-003.DS-001](ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude Journey Workspace Foundation | Navigator can move among durable Operational, Tactical and Strategic workspace shells while the existing conversation remains usable | 🟠 In Progress |
 | [CV-003.DS-002](ds-002-operational-journey-artifacts/index.md) | Operational Journey Artifacts | Artifacts presents a bounded documentation tree with a safe content, details and metadata viewer while Conversation retains full width | 🟡 Planned |
 | [CV-003.DS-003](ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | 🟡 Planned |
 | [CV-003.DS-004](ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and generated value through pragmatic and integrative lenses | 🟡 Planned |
@@ -31,8 +31,8 @@ CV-003 is done when the Journey sidebar remains the stable navigation axis; the 
 ## Boundary
 
 - The three altitudes are projections of one Journey, not independent product modules.
-- The first GUI experiment validates composition and transition before defining the final semantic model.
-- Representative wireframe data must be visibly presented as preview data, never as live derived truth.
+- DS-001 commits the spatial and navigation grammar while DS-002 through DS-005 hydrate its shells with real capabilities.
+- Provisional fixture data must remain distinguishable from live filesystem or derived Journey truth until its owning delivery story replaces it.
 - Pi and Mirror conversation, invocation, reconciliation and context ownership remain unchanged.
 - Filesystem access remains bounded to the selected Journey workspace and must not imply mutation authority.
 

@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Validate that the real Harness can present Operational, Tactical and Strategic as three perceptibly different altitudes over one selected Journey without weakening the existing conversation, invocation or reconciliation behavior.
+Validate that the promoted Harness foundation presents Operational, Tactical and Strategic as three durable, perceptibly different altitudes over one selected Journey without weakening conversation, invocation or reconciliation behavior.
 
 ## Scenario 1 — Stable Journey Shell
 
@@ -24,14 +24,14 @@ Pass when the sidebar and active Journey remain stable while only the workspace 
 
 Pass when the draft, messages, composer, runtime footer and reconciliation state are unchanged. Fail if altitude navigation sends a request, starts Pi/Mirror/provider work, loses the draft or remounts a different conversation.
 
-## Scenario 3 — Operational Artifacts Preview
+## Scenario 3 — Operational Artifacts Shell
 
-1. Inspect the right-side artifacts composition in Operational.
-2. Confirm representative folders/files are legible beside the conversation.
-3. Confirm the panel states that it is preview content.
-4. Attempt no real file action in this experiment.
+1. Alternate from full-width Conversation to full-width Artifacts in Operational.
+2. Confirm Workspace structure and Artifact detail area occupy the available canvas.
+3. Confirm representative entries remain inert and cannot be mistaken for live filesystem authority.
+4. Return to Conversation without performing any file action.
 
-Pass when the panel helps the Navigator feel the future conversation/artifact relationship without claiming to inspect the live filesystem. Fail if preview entries look authoritative, open unrestricted local paths or displace essential settings/diagnostics without another reachable route.
+Pass when Conversation and Artifacts feel like durable alternate Operational areas, conversation state survives the round trip, and fixture entries claim no live filesystem authority. Fail if either surface is permanently compressed, preview entries open unrestricted paths, or essential settings/diagnostics become unreachable.
 
 ## Scenario 4 — Tactical Altitude
 
@@ -116,7 +116,7 @@ Record:
 - whether Strategic feels like realization/value rather than reporting;
 - whether transitions preserve one-territory continuity;
 - any layout correction required;
-- final judgment: `continue`, `correct` or `discard`.
+- aggregate foundation judgment: `accepted` or a bounded correction list.
 
 Do not record private conversation content, prompts, responses, secrets or reasoning in evidence.
 
@@ -126,7 +126,7 @@ Do not record private conversation content, prompts, responses, secrets or reaso
 - Scenarios 1 through 8 pass;
 - preview data is unmistakably non-authoritative;
 - no invocation, persistence or reconciliation regression appears;
-- the Navigator accepts that the experiment is sufficient to guide the next design movement.
+- the Navigator accepts the promoted foundation as the durable shell for downstream hydration, or records bounded corrections.
 
 ## Fail Condition
 
@@ -135,4 +135,4 @@ Do not record private conversation content, prompts, responses, secrets or reaso
 - the three views feel like unrelated modules;
 - Tactical or Strategic introduces hidden execution;
 - existing Journey isolation or runtime safety regresses;
-- the Navigator cannot judge the direction from the real desktop experience.
+- the Navigator cannot validate the promoted foundation from the real desktop experience.
