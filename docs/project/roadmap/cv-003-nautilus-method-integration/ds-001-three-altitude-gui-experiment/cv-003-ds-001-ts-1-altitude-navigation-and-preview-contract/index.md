@@ -2,7 +2,7 @@
 
 # CV-003.DS-001.TS-1 — Altitude Navigation and Preview Contract
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Validation
 **Type:** Technical Story
 
 ## Technical Story
@@ -56,3 +56,5 @@ Use focused TypeScript and static React rendering tests. Full desktop E2E is def
 
 - [Plan](plan.md)
 - [Test Guide](test-guide.md)
+- [Implementation](implementation.md)
+- [Validation](validation.md)

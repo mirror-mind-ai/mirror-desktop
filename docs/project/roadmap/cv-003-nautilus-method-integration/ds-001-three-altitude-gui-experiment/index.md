@@ -23,7 +23,7 @@ Navigator can switch among operational, tactical and strategic wireframe views o
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| [CV-003.DS-001.TS-1](cv-003-ds-001-ts-1-altitude-navigation-and-preview-contract/index.md) | Altitude Navigation and Preview Contract | Technical Story | Define the three-altitude UI state, representative Journey preview data and characterization boundary without changing runtime ownership | 🟡 Planned |
+| [CV-003.DS-001.TS-1](cv-003-ds-001-ts-1-altitude-navigation-and-preview-contract/index.md) | Altitude Navigation and Preview Contract | Technical Story | Define the three-altitude UI state, representative Journey preview data and characterization boundary without changing runtime ownership | 🟠 In Validation |
 | [CV-003.DS-001.US-1](cv-003-ds-001-us-1-operational-journey-workspace/index.md) | Operational Journey Workspace | User Story | Preserve the working conversation while composing a nearby, dense Operational view with a clearly representative artifacts panel | 🟡 Planned |
 | [CV-003.DS-001.US-2](cv-003-ds-001-us-2-tactical-journey-preview/index.md) | Tactical Journey Preview | User Story | Let the Navigator feel missions, evidence and deliverables as a quieter tactical reading of the same representative Journey | 🟡 Planned |
 | [CV-003.DS-001.US-3](cv-003-ds-001-us-3-strategic-journey-preview/index.md) | Strategic Journey Preview | User Story | Let the Navigator feel realizations, impacts and pragmatic/integrative value as a spacious strategic reading of the same Journey | 🟡 Planned |
