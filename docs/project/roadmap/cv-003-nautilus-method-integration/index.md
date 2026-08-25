@@ -23,6 +23,7 @@ The operational life of the Journey remains the source. Tactical and strategic v
 | [CV-003.DS-003](ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | 🟡 Planned |
 | [CV-003.DS-004](ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and generated value through pragmatic and integrative lenses | 🟡 Planned |
 | [CV-003.DS-005](ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can distinguish provisional readings from explicit synthesis checkpoints and inspect or correct their supporting sources | 🟡 Planned |
+| [CV-003.DS-006](ds-006-three-published-journey-projections/index.md) | Three Published Journey Projections | Ariad, Mirror/Pi and Harness coordinate versioned Operational, Tactical and Strategic Journey read models through a gated cross-body contract | 🟠 In Progress |
 
 ## Done Condition
 
@@ -32,6 +33,7 @@ CV-003 is done when the Journey sidebar remains the stable navigation axis; the 
 
 - The three altitudes are projections of one Journey, not independent product modules.
 - DS-001 commits the spatial and navigation grammar while DS-002 through DS-005 hydrate its shells with real capabilities.
+- DS-006 establishes the cross-body publication contract and release gate that must exist before DS-003 through DS-005 can replace representative readings safely.
 - Provisional fixture data must remain distinguishable from live filesystem or derived Journey truth until its owning delivery story replaces it.
 - Pi and Mirror conversation, invocation, reconciliation and context ownership remain unchanged.
 - Filesystem access remains bounded to the selected Journey workspace and must not imply mutation authority.
@@ -39,3 +41,4 @@ CV-003 is done when the Journey sidebar remains the stable navigation axis; the 
 ## Exploration Source
 
 - [Three Altitudes of the Journey in Nautilus Harness](../../explorations/tres-altitudes-da-jornada-no-nautilus-harness/index.md)
+- [Three Published Journey Projections](../../explorations/three-published-journey-projections-2/index.md)
