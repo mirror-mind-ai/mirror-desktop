@@ -411,7 +411,7 @@ export function App({ model }: AppProps) {
       || runtime.safeTestMode
       || !checkpoint
       || !current.liveIdentity.mirrorConversationId
-      || !["in_sync", "pi_advanced", "mirror_advanced"].includes(current.reconciliation.classification)
+      || !["in_sync", "pi_advanced", "mirror_advanced", "both_advanced"].includes(current.reconciliation.classification)
     ) return;
 
     const authorityKey = `mirror:${current.journeyId}:${current.liveIdentity.generation}:${checkpoint.conversationId}`;
