@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked
+Passed
 
 ## Automated Checks
 
@@ -20,9 +20,9 @@ Evidence: The approved TS-1 plan deliberately creates an unmounted, controlled p
 
 ## Navigator Validation
 
-Route: Review the static selector contract for all selected altitudes, the sanitized representative preview shape, automated results and the four expected new presentation/test files.
+Route: Navigator reviewed the static selector contract, sanitized representative preview shape, automated results and expected story-scoped files.
 
-Navigator accepted: no
+Navigator accepted: yes
 
 Expected observation: Exactly three ordered altitude choices with one accessible selected state; one coherent representative Journey thread marked as preview; no runtime ownership imports or live shell changes.
 
@@ -32,4 +32,4 @@ Fail condition: The contract implies live derivation, contains private evidence,
 
 ## Missing Evidence
 
-- Navigator validation has not been accepted
+- none
