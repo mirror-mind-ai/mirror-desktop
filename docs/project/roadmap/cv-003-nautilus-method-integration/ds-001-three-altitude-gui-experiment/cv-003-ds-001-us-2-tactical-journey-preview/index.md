@@ -2,7 +2,7 @@
 
 # CV-003.DS-001.US-2 — Tactical Journey Workspace Shell
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Validation
 **Type:** User Story
 
 ## User Story
