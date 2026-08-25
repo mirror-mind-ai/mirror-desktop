@@ -51,6 +51,14 @@ describe("runtime projection component", () => {
         providerModel="openai-codex/gpt-5.4-mini"
       />,
     );
+    const activeStartingHtml = renderToStaticMarkup(
+      <ComposerRuntimeFooter
+        projection={{ ...active, status: "starting" }}
+        runActive
+        contextUsage={undefined}
+        providerModel="openai-codex/gpt-5.4-mini"
+      />,
+    );
     const idleStartingHtml = renderToStaticMarkup(
       <ComposerRuntimeFooter
         projection={{ ...active, status: "starting" }}
@@ -89,6 +97,8 @@ describe("runtime projection component", () => {
     expect(activeHtml).toContain('class="composer-runtime-footer"');
     expect(activeHtml).toContain('class="composer-runtime-status"');
     expect(activeHtml).toContain("Working");
+    expect(activeStartingHtml).toContain("Working");
+    expect(activeStartingHtml).not.toContain("Starting");
     expect(activeHtml).toContain("runtime-live-dot");
     expect(completedHtml).not.toContain("Working");
     expect(completedHtml).toContain("■");

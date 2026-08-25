@@ -2,7 +2,7 @@
 
 ## Status
 
-In progress — evidence matrix established; aggregate reruns remain.
+Complete — aggregate Navigator acceptance pending.
 
 ## Authority Baseline
 
@@ -20,8 +20,8 @@ The machine-readable sanitized timeline is [evidence/three-body-timeline.json](e
 | 4 | Journey and identity load before generation | Mirror-mediated invocation contract plus generation-2 `nautilus_mirror_context` before native user/assistant entries | rerun_passed | Exact Journey and Mirror context were loaded before provider generation; private context remained outside evidence. |
 | 5 | Ego/persona routing parity | Mirror-owned fresh detection plus allowlisted `nautilus_mirror_context` evidence | rerun_passed | `product-designer` marker rendered once; unmatched follow-up used Agent/ego without sticky cross-session leakage. |
 | 6 | Mirror/Builder/Explorer/Soul parity | Certified mode/Ariad extraction and component suites plus generation-2 mode route | rerun_passed | All four modes rendered their certified state; Builder/Explorer/Soul respected non-mutation boundaries. |
-| 7 | Context usage parity | Pi usage reducers, exact-session local inspection, model-window snapshot | rerun_required | Compare exact same session in terminal and Nautilus. |
-| 8 | Pi-owned compaction and continuity | Deterministic compaction lifecycle/settlement suites | rerun_required | One bounded safe automatic-compaction route or explicit accepted limitation remains. |
+| 7 | Context usage parity | Exact native Pi assistant usage and Nautilus footer on the same generation-2 leaf | rerun_passed | Pi `43,158 / 400,000 = 10.7895%`; Navigator confirmed `10.8%/400k`. |
+| 8 | Pi-owned compaction and continuity | Native compaction `1641a166`, projected operation and post-compaction turn | rerun_passed | Usage fell to `17,213 / 400,000`; continuity response committed `in_sync`; temporary settings restored byte-exact. |
 | 9 | Durable logging, failure and recovery | [US-3 validation](../cv-002-ds-004-us-3-observable-three-body-turn-commit/validation.md) | accepted_existing | Semantic Mirror records differ from Pi execution bytes by design; native correlation proves the commit. |
 | 10 | External exact Pi continuation | [US-4 validation](../cv-002-ds-004-us-4-resume-external-pi-activity-in-nautilus/validation.md) plus generation-1 terminal rerun | rerun_passed | Pi owns ancestry; exact turn projected once and generic divergence warning remained absent. |
 | 11 | Mirror-only explicit reconciliation | [US-5 validation](../cv-002-ds-004-us-5-reconcile-mirror-only-updates-into-pi/validation.md) | accepted_existing | Mirror semantic content enters Pi only through explicit hydrated generation. |
@@ -42,7 +42,7 @@ The machine-readable sanitized timeline is [evidence/three-body-timeline.json](e
 ## Automated Baseline
 
 ```text
-npm test: 26 files, 178 tests passed
+npm test: 26 files, 183 tests passed
 npm run build: passed
 cargo test: 8 tests passed
 cargo check: passed
@@ -69,4 +69,4 @@ Builder validation exposed literal `<<<ARIAD:<SURFACE_ID>>>` documentation being
 
 ## Next Validation Action
 
-Run the remaining paired persona, operating-mode, context-usage and compaction checks. The alternating three-body causal route itself is complete.
+Obtain explicit Navigator aggregate acceptance, then proceed through Debt Review and Done.

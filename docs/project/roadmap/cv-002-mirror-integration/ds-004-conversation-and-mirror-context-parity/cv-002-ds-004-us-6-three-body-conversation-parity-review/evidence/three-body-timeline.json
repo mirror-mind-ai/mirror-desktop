@@ -312,6 +312,50 @@
         "soul_footer_state_certified",
         "ritual_opened_without_mutation"
       ]
+    },
+    {
+      "stage": "controlled_pi_auto_compaction",
+      "harness": {
+        "conversationId": "nautilus-mirror-13a0d6f3",
+        "messageCount": 54,
+        "lastMessageId": "assistant-2026-08-25T01:34:48.837Z"
+      },
+      "pi": {
+        "sessionId": "nautilus-viagem-do-lipe",
+        "generation": 2,
+        "compactionEntryId": "1641a166",
+        "tokensBeforeCompaction": 43158,
+        "userEntryId": "cd4127a7",
+        "assistantEntryId": "62c0e187",
+        "leafEntryId": "62c0e187",
+        "entryCount": 94,
+        "fileSha256": "b0e3d7210cbf9ad7391291375c7e12126eba0dff75a60b3c9acf32a570a82fd5"
+      },
+      "mirror": {
+        "conversationId": "13a0d6f3",
+        "userMessageId": "b3b429c9-5fff-5c26-b5a9-d59db96af100",
+        "assistantMessageId": "068a44dc-453a-50ec-bb75-7ae9e0066484",
+        "messageCount": 52
+      },
+      "classification": "in_sync",
+      "reasonCodes": [],
+      "contextUsage": {
+        "tokens": 17213,
+        "contextWindow": 400000,
+        "percent": 4.30325,
+        "providerModel": "openai-codex/gpt-5.4-mini"
+      },
+      "temporarySettings": {
+        "backupSha256": "2664355916cead9ce71efaa49377170bf65d664c7e59c3992d152d8714a5298e",
+        "restoredSha256": "2664355916cead9ce71efaa49377170bf65d664c7e59c3992d152d8714a5298e"
+      },
+      "validatedClaims": [
+        "native_pi_compaction_entry_created",
+        "compaction_operation_visible",
+        "post_compaction_usage_reduced",
+        "post_compaction_conversation_continued",
+        "temporary_settings_restored_byte_exact"
+      ]
     }
   ]
 }

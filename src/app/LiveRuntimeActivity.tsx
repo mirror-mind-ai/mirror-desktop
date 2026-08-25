@@ -26,7 +26,7 @@ const OPERATION_STATUS_LABEL: Record<RuntimeProjectionState["operations"][number
 };
 
 const RUN_STATUS_LABEL: Record<RuntimeProjectionState["status"], string> = {
-  starting: "Starting",
+  starting: "Working",
   working: "Working",
   completed: "Completed",
   cancelled: "Cancelled",

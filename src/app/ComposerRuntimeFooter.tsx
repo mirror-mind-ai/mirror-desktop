@@ -14,7 +14,7 @@ type ComposerRuntimeFooterProps = {
 };
 
 const ACTIVE_STATUS_LABEL = {
-  starting: "Starting",
+  starting: "Working",
   working: "Working",
 } as const;
 
