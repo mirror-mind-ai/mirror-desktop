@@ -83,6 +83,36 @@
         "independent_mirror_copy_disclosed_without_auto_merge",
         "generic_pi_conflict_notice_absent"
       ]
+    },
+    {
+      "stage": "navigator_reviewed_convergence",
+      "harness": {
+        "conversationId": "nautilus-mirror-13a0d6f3",
+        "messageCount": 34,
+        "lastMessageId": "pi-assistant-766d406d"
+      },
+      "pi": {
+        "sessionId": "nautilus-viagem-do-lipe",
+        "generation": 2,
+        "leafEntryId": "import-message-34",
+        "entryCount": 35,
+        "fileSha256": "80d03c666adad5c8323e5be5e026f03ce1e253155ffaa0019f66208159abde40"
+      },
+      "mirror": {
+        "conversationId": "13a0d6f3",
+        "lastMessageId": "78639c85",
+        "messageCount": 32
+      },
+      "classification": "in_sync",
+      "reasonCodes": [
+        "explicit_hydration_baseline"
+      ],
+      "validatedClaims": [
+        "generation_incremented_once",
+        "projected_turn_not_duplicated",
+        "previous_pi_file_preserved",
+        "no_provider_execution"
+      ]
     }
   ]
 }
