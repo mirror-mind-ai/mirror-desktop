@@ -2,7 +2,7 @@
 
 # CV-002.DS-004.US-6 — Three-Body Conversation Parity Review
 
-**Status:** 🟠 In Validation
+**Status:** ✅ Done
 **Type:** User Story
 
 ---
@@ -67,3 +67,5 @@ Execute the story test guide, publish only sanitized ids/counts/hashes/reason co
 - [Parity Review](parity-review.md)
 - [Implementation](implementation.md)
 - [Validation](validation.md)
+- [Debt Review](review.md)
+- [Done](done.md)
