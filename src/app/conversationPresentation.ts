@@ -7,13 +7,15 @@ export type MessageSpeaker = {
 };
 
 const personaSignaturePattern = /^(?:\s|[│|╭╮╰╯─━═┌┐└┘╔╗╚╝╠╣╦╩╬])*[◇✦]\s*(?:Persona:\s*)?([^\n]+?)\s*(?:\n|$)/i;
+const embeddedCertifiedPersonaPattern = /✦\s*Persona:\s*([a-z0-9-]+)\s*/i;
 
 export function inferMessageSpeaker(message: Pick<ConversationMessage, "role" | "content">): MessageSpeaker {
   if (message.role === "user") {
     return { label: "You", avatar: "N", kind: "user" };
   }
 
-  const persona = message.content.match(personaSignaturePattern)?.[1]?.trim();
+  const persona = message.content.match(personaSignaturePattern)?.[1]?.trim()
+    ?? message.content.match(embeddedCertifiedPersonaPattern)?.[1]?.trim();
   if (persona) {
     return { label: persona, avatar: personaAvatar(persona), kind: "persona" };
   }
@@ -22,7 +24,7 @@ export function inferMessageSpeaker(message: Pick<ConversationMessage, "role" | 
 }
 
 export function stripMessageSpeakerSignature(content: string): string {
-  return content.replace(personaSignaturePattern, "").trimStart();
+  return content.replace(personaSignaturePattern, "").replace(embeddedCertifiedPersonaPattern, "").trimStart().trimEnd();
 }
 
 export function withCertifiedPersona(content: string, persona: string): string {

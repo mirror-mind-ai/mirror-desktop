@@ -35,6 +35,16 @@ describe("conversation presentation", () => {
     expect(stripMessageSpeakerSignature(content)).toBe("A proposta");
   });
 
+  it("recognizes late durable persona evidence while a live run settles", () => {
+    const content = "A resposta.✦ Persona: product-designer";
+    expect(inferMessageSpeaker({ role: "assistant", content })).toEqual({
+      label: "product-designer",
+      avatar: "PD",
+      kind: "persona",
+    });
+    expect(stripMessageSpeakerSignature(content)).toBe("A resposta.");
+  });
+
   it("moves late durable persona evidence to the presentation boundary exactly once", () => {
     expect(withCertifiedPersona("A resposta.✦ Persona: product-designer", "product-designer")).toBe(
       "✦ Persona: product-designer\n\nA resposta.",
