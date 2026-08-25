@@ -21,7 +21,7 @@ Navigator can inspect a bounded, read-only projection of the selected Journey's 
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| [CV-003.DS-002.US-1](cv-003-ds-002-us-1-journey-documentation-browser/index.md) | Journey Documentation Browser | User Story | Browse the selected Journey's `docs/` hierarchy on the left and inspect safe content, details or metadata on the right | 🟡 Planned |
+| [CV-003.DS-002.US-1](cv-003-ds-002-us-1-journey-documentation-browser/index.md) | Journey Documentation Browser | User Story | Browse the selected Journey's `docs/` hierarchy on the left and inspect safe content, details or metadata on the right | 🟠 In Validation |
 
 ## Done Condition
 

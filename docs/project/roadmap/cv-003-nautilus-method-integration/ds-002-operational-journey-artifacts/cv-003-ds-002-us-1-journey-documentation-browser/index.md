@@ -2,7 +2,7 @@
 
 # CV-003.DS-002.US-1 — Journey Documentation Browser
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Validation
 **Type:** User Story
 
 ---
