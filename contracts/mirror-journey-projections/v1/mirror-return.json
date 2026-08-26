@@ -1,0 +1,32 @@
+{
+  "contractId": "mirror.journey-projections",
+  "contractVersion": "1.0",
+  "mirrorVersion": "0.31.10",
+  "mirrorCommit": "def31e39798d9a6de2815e7375fc5034c411809a",
+  "releaseTag": "v0.31.10",
+  "centralRepositoryUrl": "https://github.com/mirror-mind-ai/mirror/releases/tag/v0.31.10",
+  "ci": {
+    "status": "success",
+    "url": "https://github.com/mirror-mind-ai/mirror/actions/runs/32899517348"
+  },
+  "extensionApiVersion": "1.1",
+  "production": {
+    "backupStatus": "completed_verified",
+    "backupReference": "memory_20260825_182123.zip sha256:db54f8545a2c5a67dd3d7b5333b1899a5d7dc5ce388b024ec5bf278ed5dd268c",
+    "migrationStatus": "not_required",
+    "installedVersion": "0.31.10"
+  },
+  "consumerProbe": {
+    "sha256": "9ff6f59a0aece88575af8ae4e817e675039259acf7e1ad9cc34303440194e5ce",
+    "command": "python3 probe/contract_probe.py --production-return --mirror-command-json '[\"uv\",\"run\",\"python\",\"-m\",\"memory\"]' --mirror-root <installed-stable-checkout> --mirror-home <isolated-temp-home> --journey-fixture fixtures/journey",
+    "result": "passed",
+    "resultArtifact": "installed-probe-result.json sha256:9f6ff199bba8af2db26c4b75b69ad17521698e0eac2ad9f315de708eb0964487"
+  },
+  "operationalFixture": {
+    "result": "matched",
+    "snapshotId": "op-probe-0001",
+    "sourceRevision": "sha256:probe-operational-revision"
+  },
+  "knownDeviations": [],
+  "gate": "open"
+}

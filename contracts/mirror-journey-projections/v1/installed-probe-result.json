@@ -1,0 +1,17 @@
+{
+  "checks": [
+    "capability_discovery",
+    "isolated_fixture_prepared",
+    "operational_fixture",
+    "operational_inspection",
+    "extension_publication",
+    "last_valid_preservation",
+    "path_and_namespace_safety",
+    "atomic_consistency"
+  ],
+  "contractId": "mirror.journey-projections",
+  "contractVersion": "1.0",
+  "diagnostic": "installed Mirror conforms to the v1 consumer probe",
+  "gate": "open",
+  "result": "passed"
+}

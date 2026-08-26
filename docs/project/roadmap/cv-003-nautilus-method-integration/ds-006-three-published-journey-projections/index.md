@@ -19,7 +19,15 @@ This Delivery Story is intentionally gated:
 
 The existence of one Delivery Story does not authorize crossing these gates implicitly.
 
-**Current gate:** blocked until a separately released and installed Mirror version completes `RETURN-CONTRACT.md` and passes the unchanged consumer probe.
+**Current gate:** open. Mirror `v0.31.10` at commit `def31e39798d9a6de2815e7375fc5034c411809a` completed the return contract, and the unchanged consumer probe independently passed all eight checks against the installed runtime with isolated data.
+
+## Mirror Return Evidence
+
+- [Return record](../../../../../contracts/mirror-journey-projections/v1/mirror-return.json)
+- [Installed probe result](../../../../../contracts/mirror-journey-projections/v1/installed-probe-result.json)
+- Contract: `mirror.journey-projections@1.0`
+- Extension API: `1.1`
+- Gate: `open`
 
 ## Active Work Package
 
