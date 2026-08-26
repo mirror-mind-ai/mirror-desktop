@@ -18,7 +18,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 | [CV-001](cv-001-operable-agent-cockpit/index.md) | Operable Agent Cockpit | Harness becomes a usable desktop cockpit for running Pi-backed agent conversations with local session control, provider configuration, run control and durable history | 🟡 Planned |
 | [CV-002](cv-002-mirror-integration/index.md) | Mirror Integration | Harness becomes the desktop projection of the essential Pi/Mirror operational loop and context lifecycle | ✅ Done |
 | [CV-003](cv-003-nautilus-method-integration/index.md) | Nautilus Method Integration | Harness lets the Navigator inhabit one Journey at operational, tactical and strategic altitudes | 🟡 Planned |
-| [CV-004](cv-004-federated-conversation-continuity/index.md) | Federated Conversation Continuity | Harness preserves safe continuity across independent Nautilus threads, Pi execution lineages and Mirror conversation/context streams without assuming one-to-one conversation parity | 🟡 Planned |
+| [CV-004](cv-004-dedicated-nautilus-journey-thread/index.md) | Dedicated Nautilus Journey Thread | Every Journey owns one Nautilus thread whose active generation is a dedicated, Journey-activated Pi/Mirror pair, independent from conversations in other environments | 🟡 Planned |
 
 ## Delivery Arc — Operable Agent Cockpit
 
@@ -53,26 +53,26 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 | [CV-003.DS-004](cv-003-nautilus-method-integration/ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and value through pragmatic and integrative lenses | 🟡 Planned |
 | [CV-003.DS-005](cv-003-nautilus-method-integration/ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can inspect and correct the movement from provisional interpretation to explicit synthesis | 🟡 Planned |
 
-## Delivery Arc — Federated Conversation Continuity
+## Delivery Arc — Dedicated Nautilus Journey Thread
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-004.DS-001](cv-004-federated-conversation-continuity/ds-001-thread-and-binding-generation-contract/index.md) | Thread and Binding Generation Contract | Harness represents a durable user-facing thread and versioned relationships to independent Pi and Mirror identities | 🟡 Planned |
-| [CV-004.DS-002](cv-004-federated-conversation-continuity/ds-002-pi-anchored-conversation-projection/index.md) | Pi-Anchored Conversation Projection | Visible execution follows one Pi lineage while Mirror context and recording remain separately observable | 🟡 Planned |
-| [CV-004.DS-003](cv-004-federated-conversation-continuity/ds-003-event-specific-continuity-boundaries/index.md) | Event-Specific Continuity Boundaries | Concrete continuity events replace generic synchronization conflict and redundant selection | 🟡 Planned |
-| [CV-004.DS-004](cv-004-federated-conversation-continuity/ds-004-independent-conversation-lifecycles/index.md) | Independent Conversation Lifecycles | Nautilus thread, Pi branch and Mirror epoch lifecycles change only through explicit scoped operations | 🟡 Planned |
-| [CV-004.DS-005](cv-004-federated-conversation-continuity/ds-005-federated-continuity-recovery-and-review/index.md) | Federated Continuity Recovery and Review | Recovery and aggregate review preserve provenance without hidden selection, provider reinvocation or transcript merge | 🟡 Planned |
+| [CV-004.DS-001](cv-004-dedicated-nautilus-journey-thread/ds-001-dedicated-thread-and-generation-contract/index.md) | Dedicated Thread and Generation Contract | Harness represents one Nautilus thread per Journey, append-only generations and one active dedicated Pi/Mirror pair | 🟡 Planned |
+| [CV-004.DS-002](cv-004-dedicated-nautilus-journey-thread/ds-002-journey-first-thread-provisioning/index.md) | Journey-First Thread Provisioning | A central start action creates and activates the dedicated pair before conversation is enabled | 🟡 Planned |
+| [CV-004.DS-003](cv-004-dedicated-nautilus-journey-thread/ds-003-dedicated-turn-integrity/index.md) | Dedicated Turn Integrity | Live turns and recovery remain confined to the active dedicated pair without external parity machinery | 🟡 Planned |
+| [CV-004.DS-004](cv-004-dedicated-nautilus-journey-thread/ds-004-conversation-restart-and-generation-history/index.md) | Conversation Restart and Generation History | Restart creates a fresh activated generation while preserving prior conversation history | 🟡 Planned |
+| [CV-004.DS-005](cv-004-dedicated-nautilus-journey-thread/ds-005-legacy-parity-removal-and-desktop-review/index.md) | Legacy Parity Removal and Desktop Review | Superseded selection, import and reconciliation paths are removed after full desktop validation | 🟡 Planned |
 
 ## Current Recommendation
 
-Continue the committed `CV-003` projection work without pulling CV-004 into the active delivery cursor. Preserve the current fail-closed conversation gate as the migration baseline. When CV-004 is selected later, begin with `CV-004.DS-001` so the new authority grammar and persistence migration exist before changing transcript projection, notices or lifecycle actions. `DS-007`, `DS-008` and `DS-009` remain planned and independent until explicitly selected.
+Close the remaining `CV-003` projection validation without expanding the old parity model. Then begin `CV-004.DS-001` to establish dedicated thread and generation authority before changing initialization, transcript recovery or lifecycle UI. Preserve the current fail-closed gate only as a temporary migration safety net; do not extend federated continuity behavior that CV-004 will remove. `DS-007`, `DS-008` and `DS-009` remain planned and independent until explicitly selected.
 
 ## Boundaries
 
 - This roadmap is about Harness as a desktop application body.
 - Nautilus method integration enters through user-visible Journey projections, not a form-based duplicate ontology.
 - Pi remains the agentic operator.
-- Pi sessions, Mirror conversations and Nautilus threads are independent native identities; future continuity work must relate them explicitly rather than infer one-to-one parity.
+- Each active Nautilus generation owns one dedicated native Pi session and one dedicated native Mirror conversation; external conversations remain independent and never become Nautilus transcript authority.
 - Harness must not silently execute work, mutate files, invoke Mirror, or persist state without explicit user action.
 - Local-first desktop operation is the default assumption.
 
