@@ -42,6 +42,7 @@ import { MessageContent } from "./MessageContent";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { ComposerRuntimeFooter } from "./ComposerRuntimeFooter";
 import { ConversationAuthorityNotice } from "./ConversationAuthorityNotice";
+import { createConversationAuthorityRefreshCoordinator } from "./conversationAuthorityRefresh";
 import { ConversationSyncNotice } from "./ConversationSyncNotice";
 import { ExternalPiSyncNotice } from "./ExternalPiSyncNotice";
 import { MirrorReconciliationNotice } from "./MirrorReconciliationNotice";
@@ -245,6 +246,19 @@ export function App({ model }: AppProps) {
   const externalPiInFlightRef = useRef(new Set<string>());
   const externalPiRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const externalPiRuntimeRef = useRef({ conversationLoaded, isStreaming, agentRunStatus: agentRun.status, safeTestMode: providerConfig.safeTestMode });
+  const conversationAuthorityRefreshRef = useRef<ReturnType<typeof createConversationAuthorityRefreshCoordinator> | undefined>(undefined);
+  if (!conversationAuthorityRefreshRef.current) {
+    conversationAuthorityRefreshRef.current = createConversationAuthorityRefreshCoordinator(async () => {
+      setConversationAuthorityChecking(true);
+      try {
+        await refreshExternalPiActivity();
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        await refreshMirrorConversationActivity();
+      } finally {
+        setConversationAuthorityChecking(false);
+      }
+    });
+  }
   conversationRef.current = conversation;
   externalPiRuntimeRef.current = { conversationLoaded, isStreaming, agentRunStatus: agentRun.status, safeTestMode: providerConfig.safeTestMode };
 
@@ -388,15 +402,8 @@ export function App({ model }: AppProps) {
     }
   }
 
-  async function refreshExternalConversationActivity() {
-    setConversationAuthorityChecking(true);
-    try {
-      await refreshExternalPiActivity();
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      await refreshMirrorConversationActivity();
-    } finally {
-      setConversationAuthorityChecking(externalPiInFlightRef.current.size > 0);
-    }
+  function refreshExternalConversationActivity() {
+    return conversationAuthorityRefreshRef.current!.refresh();
   }
 
   async function refreshMirrorConversationActivity() {
