@@ -42,9 +42,36 @@ export function createRawPiInvocationPrompt(packet: PiTaskPacket): string {
   ].join("\n");
 }
 
+const NAUTILUS_SYNTHESIS_INTENTS = new Set([
+  "atualize a projeção operacional desta jornada",
+  "atualize a síntese tática desta jornada",
+  "atualize a síntese estratégica desta jornada",
+  "atualize as sínteses desta jornada",
+]);
+
+function normalizeExplicitIntent(value: string): string {
+  return value.trim().toLocaleLowerCase("pt-BR").replace(/[.!?]+$/, "").trim();
+}
+
 export function createMirrorRuntimePrompt(packet: PiTaskPacket): string {
   const latestUserMessage = [...packet.conversation].reverse().find((message) => message.role === "user");
-  return latestUserMessage?.content.trim() || "";
+  const request = latestUserMessage?.content.trim() || "";
+  const journeyId = packet.journeyId?.trim();
+  if (!journeyId || !request) return request;
+
+  const authority = [
+    "[Nautilus Harness Journey authority]",
+    `The selected Journey ID for this turn is exactly: ${journeyId}`,
+    "Treat this ID as authoritative. Do not infer the Journey from global, sticky, cwd, recent, or default context.",
+    `Every Journey-specific read, load, update, synthesis, publication, or inspection must explicitly name ${journeyId}.`,
+    "Stop with a Journey-context error if any loaded context resolves to a different Journey.",
+  ].join("\n");
+
+  if (NAUTILUS_SYNTHESIS_INTENTS.has(normalizeExplicitIntent(request))) {
+    return `/skill:ext-nautilus-synthesis journey-id=${journeyId}\n${authority}\n\nExplicit Navigator intent:\n${request}`;
+  }
+
+  return `${authority}\n\nUser request:\n${request}`;
 }
 
 export function createPiInvocationPrompt(packet: PiTaskPacket, invocationMode = "raw"): string {

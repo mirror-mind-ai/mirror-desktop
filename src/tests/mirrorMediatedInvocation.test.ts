@@ -16,6 +16,16 @@ describe("Mirror-mediated Pi invocation", () => {
   it("passes active Journey and a stable Nautilus session id into the Tauri invocation", () => {
     expect(piProcessStreamSource).toContain('journeyId: packet.journeyId ?? "nautilus-harness"');
     expect(piProcessStreamSource).toContain('packet.liveConversation?.piSessionId ?? `nautilus-${packet.journeyId ?? "nautilus-harness"}`');
+    expect(piProcessStreamSource).toContain("The selected Journey ID for this turn is exactly:");
+    expect(piProcessStreamSource).toContain("/skill:ext-nautilus-synthesis journey-id=");
+  });
+
+  it("rechecks conversation authority immediately before a live provider run", () => {
+    expect(appSource).toContain("await refreshExternalConversationActivity()");
+    expect(appSource).toContain("baseConversation = conversationRef.current");
+    expect(appSource).toContain("externalPiInFlightRef.current.size > 0");
+    expect(appSource).toContain('!["uninitialized", "in_sync"].includes(baseConversation.reconciliation.classification)');
+    expect(appSource).toContain("Live invocation stopped because Journey conversation authority changed");
   });
 
   it("runs Mirror-mediated processes from the Mirror runtime root without duplicate after-the-fact logging", () => {

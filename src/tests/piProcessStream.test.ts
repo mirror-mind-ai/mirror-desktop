@@ -514,7 +514,7 @@ describe("Pi process stream adapter", () => {
     expect(prompt).toContain('"safetyMode": "read_only_local_process"');
   });
 
-  it("passes the natural user message through Mirror runtime mode", () => {
+  it("binds a Mirror runtime request to the selected Journey", () => {
     const packet = createMissionExtractionPacket({
       currentState,
       conversation: [
@@ -530,7 +530,28 @@ describe("Pi process stream adapter", () => {
 
     const prompt = createPiInvocationPrompt(packet, "mirror");
 
-    expect(prompt).toBe("o que vc acha da estrutura das minhas jornadas?");
+    expect(prompt).toContain("The selected Journey ID for this turn is exactly: software-zen");
+    expect(prompt).toContain("Do not infer the Journey from global, sticky, cwd, recent, or default context.");
+    expect(prompt).toContain("User request:\no que vc acha da estrutura das minhas jornadas?");
     expect(prompt).not.toContain("You are Pi Coding Agent acting as the Nautilus Harness agent.");
+  });
+
+  it("forces explicit synthesis intents through the installed skill with Journey authority", () => {
+    const packet = createMissionExtractionPacket({
+      currentState,
+      conversation: [{
+        id: "msg-1",
+        role: "user",
+        content: "atualize as sínteses desta jornada",
+        createdAt: "2026-08-26T00:00:00.000Z",
+      }],
+      journeyId: "nautilus-harness",
+    });
+
+    const prompt = createPiInvocationPrompt(packet, "mirror");
+
+    expect(prompt).toMatch(/^\/skill:ext-nautilus-synthesis journey-id=nautilus-harness/);
+    expect(prompt).toContain("The selected Journey ID for this turn is exactly: nautilus-harness");
+    expect(prompt).toContain("Explicit Navigator intent:\natualize as sínteses desta jornada");
   });
 });

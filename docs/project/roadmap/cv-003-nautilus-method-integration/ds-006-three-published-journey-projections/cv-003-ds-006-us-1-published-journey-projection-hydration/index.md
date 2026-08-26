@@ -48,3 +48,4 @@ And no load invokes Pi, synthesis, a provider or projection mutation
 - [Validation](validation.md)
 - [Debt Review](review.md)
 - [Done](done.md)
+- [TD-002 — Harness Journey Authority and Synthesis Routing Defect](td-002-harness-journey-authority-and-synthesis-routing-defect.md)

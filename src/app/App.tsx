@@ -368,12 +368,14 @@ export function App({ model }: AppProps) {
           || currentConversation.liveIdentity.generation !== result.conversation.liveIdentity.generation
           || currentConversation.reconciliation.checkpoints.pi?.leafEntryId !== requestedLeaf
         ) return currentConversation;
-        return {
+        const projectedConversation = {
           ...result.conversation,
           importedActivity: currentConversation.importedActivity,
           authoritativeContextStats: currentConversation.authoritativeContextStats,
           certifiedMirrorMode: currentConversation.certifiedMirrorMode,
         };
+        conversationRef.current = projectedConversation;
+        return projectedConversation;
       });
       setExternalPiConflict(result.conflictCode);
     } catch (error) {
@@ -428,6 +430,7 @@ export function App({ model }: AppProps) {
           || afterSave.liveIdentity.generation !== latest.liveIdentity.generation
           || afterSave.reconciliation.checkpoints.mirror?.lastMessageId !== requestedCursor
         ) return;
+        conversationRef.current = result.conversation;
         setConversation(result.conversation);
       }
       setMirrorReconciliationReview(
@@ -845,13 +848,29 @@ export function App({ model }: AppProps) {
       return;
     }
 
+    let baseConversation = conversation;
+    if (mode === "live") {
+      await refreshExternalConversationActivity();
+      baseConversation = conversationRef.current;
+      const preflightBlocked = externalPiInFlightRef.current.size > 0
+        || baseConversation.journeyId !== selectedJourney
+        || !["uninitialized", "in_sync"].includes(baseConversation.reconciliation.classification);
+      if (preflightBlocked) {
+        setStreamWarnings((warnings) => [
+          ...warnings,
+          "Live invocation stopped because Journey conversation authority changed or is still being inspected. Reconcile the selected Journey and try again.",
+        ]);
+        return;
+      }
+    }
+
     const userMessage = createUserConversationMessage(content);
-    const nextMessages = [...conversation.messages, userMessage];
+    const nextMessages = [...baseConversation.messages, userMessage];
     const packet = createMissionExtractionPacket({
       conversation: nextMessages,
       currentState,
       journeyId: selectedJourney,
-      liveConversation: conversation.liveIdentity,
+      liveConversation: baseConversation.liveIdentity,
     });
     const assistantMessage: ConversationMessage = {
       id: `assistant-${new Date().toISOString()}`,
@@ -862,7 +881,7 @@ export function App({ model }: AppProps) {
     const run = startAgentRun({ content, mode });
     const correlation: TurnCorrelation | undefined = mode === "live" && run.id
       ? createTurnCorrelation({
-          conversation,
+          conversation: baseConversation,
           runId: run.id,
           turnId: `turn-${run.id}`,
           userMessageId: userMessage.id,
@@ -870,8 +889,8 @@ export function App({ model }: AppProps) {
         })
       : undefined;
     const stagedConversation = correlation
-      ? stageCorrelatedTurn(conversation, correlation, userMessage, assistantMessage)
-      : replaceJourneyConversationMessages(conversation, [...nextMessages, assistantMessage]);
+      ? stageCorrelatedTurn(baseConversation, correlation, userMessage, assistantMessage)
+      : replaceJourneyConversationMessages(baseConversation, [...nextMessages, assistantMessage]);
     if (correlation) {
       try {
         await saveJourneyConversation(stagedConversation);
@@ -884,6 +903,7 @@ export function App({ model }: AppProps) {
       ? mockPiAgentStream
       : (packet) => livePiAgentStream(packet, providerConfig, correlation);
 
+    conversationRef.current = stagedConversation;
     setConversation(stagedConversation);
     setPacketJson(JSON.stringify(packet, null, 2));
     setDraft("");
@@ -897,7 +917,7 @@ export function App({ model }: AppProps) {
     setStreamDiagnostics([]);
     setStreamSafety(undefined);
 
-    const conversationBeforeRun = conversation;
+    const conversationBeforeRun = baseConversation;
     let rawLiveOutput = "";
     let runReachedAgent = false;
     let runWasCancelled = false;
