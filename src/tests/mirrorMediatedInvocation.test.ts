@@ -44,8 +44,9 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(appSource).toContain("authoritativeContextStats");
   });
 
-  it("does not durably save a partial stream and rolls back a pre-agent failure", () => {
-    expect(appSource).toContain("if (!conversationLoaded || isStreaming)");
+  it("does not write the dedicated flow into legacy persistence and rolls back a pre-agent failure", () => {
+    expect(appSource).not.toContain("void saveJourneyConversation(conversation)");
+    expect(appSource).not.toContain("await saveJourneyConversation(stagedConversation)");
     expect(appSource).toContain("runFailed && !runReachedAgent");
     expect(appSource).toContain("setConversation(conversationBeforeRun)");
   });

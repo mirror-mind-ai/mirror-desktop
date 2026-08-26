@@ -2685,3 +2685,19 @@ dd {
     grid-template-columns: 1fr;
   }
 }
+
+.journey-thread-state {
+  align-self: center;
+  justify-self: center;
+  width: min(34rem, calc(100% - 3rem));
+  margin: auto;
+  padding: 2.5rem;
+  text-align: center;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.journey-thread-state h2 { margin: 0.5rem 0 0.75rem; }
+.journey-thread-state p { line-height: 1.55; }
+.journey-thread-state small { display: block; margin-top: 1rem; opacity: 0.72; }

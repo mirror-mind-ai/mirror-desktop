@@ -204,6 +204,46 @@ fn load_journey_conversation(app: AppHandle, journey_id: String) -> Result<Optio
 }
 
 #[tauri::command]
+fn save_journey_thread(app: AppHandle, journey_id: String, payload: String) -> Result<(), String> {
+    let path = journey_thread_path(&app, &journey_id)?;
+    let value: Value = serde_json::from_str(&payload)
+        .map_err(|error| format!("Could not parse Journey thread: {}", error))?;
+    if value.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
+        || value.get("thread").and_then(|thread| thread.get("journeyId")).and_then(Value::as_str) != Some(journey_id.as_str())
+    {
+        return Err("Journey thread authority does not match the requested Journey.".to_string());
+    }
+    let parent = path.parent().ok_or_else(|| "Journey thread path has no parent.".to_string())?;
+    fs::create_dir_all(parent).map_err(|error| format!("Could not create Journey thread directory: {}", error))?;
+    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let staged = path.with_extension(format!("json.{}.tmp", nonce));
+    fs::write(&staged, payload).map_err(|error| format!("Could not stage Journey thread: {}", error))?;
+    if let Err(error) = fs::rename(&staged, &path) {
+        let _ = fs::remove_file(&staged);
+        return Err(format!("Could not activate Journey thread: {}", error));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn load_journey_thread(app: AppHandle, journey_id: String) -> Result<Option<String>, String> {
+    let path = journey_thread_path(&app, &journey_id)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    let payload = fs::read_to_string(path)
+        .map_err(|error| format!("Could not load Journey thread: {}", error))?;
+    let value: Value = serde_json::from_str(&payload)
+        .map_err(|error| format!("Could not parse Journey thread: {}", error))?;
+    if value.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
+        || value.get("thread").and_then(|thread| thread.get("journeyId")).and_then(Value::as_str) != Some(journey_id.as_str())
+    {
+        return Err("Stored Journey thread authority is invalid.".to_string());
+    }
+    Ok(Some(payload))
+}
+
+#[tauri::command]
 fn load_journey_registry(app: AppHandle) -> Result<Option<String>, String> {
     let path = journey_registry_path(&app)?;
     if !path.exists() {
@@ -1018,10 +1058,12 @@ fn load_journey_projections_at(journey_root: &Path, journey_id: &str) -> Journey
 }
 
 #[tauri::command]
-fn load_journey_projections(app: AppHandle, journey_id: String) -> Result<JourneyProjectionBundleTransport, String> {
+async fn load_journey_projections(app: AppHandle, journey_id: String) -> Result<JourneyProjectionBundleTransport, String> {
     sanitize_journey_id(&journey_id)?;
     let journey_root = registered_journey_root(&app, &journey_id)?;
-    Ok(load_journey_projections_at(&journey_root, &journey_id))
+    tauri::async_runtime::spawn_blocking(move || load_journey_projections_at(&journey_root, &journey_id))
+        .await
+        .map_err(|error| format!("Could not inspect Journey projections: {}", error))
 }
 
 #[tauri::command]
@@ -2576,6 +2618,13 @@ fn journey_conversation_path(app: &AppHandle, journey_id: &str) -> Result<PathBu
         .join(format!("{}.json", safe_journey_id)))
 }
 
+fn journey_thread_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
+    let safe_journey_id = sanitize_journey_id(journey_id)?;
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
+    Ok(app_data_dir.join("journey-threads").join(format!("{}.json", safe_journey_id)))
+}
+
 fn validate_persisted_turn_authority(app: &AppHandle, value: &TurnCorrelation) -> Result<(), String> {
     let payload: Value = serde_json::from_str(
         &fs::read_to_string(journey_conversation_path(app, &value.journey_id)?)
@@ -2699,6 +2748,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             save_journey_conversation,
             load_journey_conversation,
+            save_journey_thread,
+            load_journey_thread,
             load_journey_registry,
             load_journey_preferences,
             save_journey_preferences,

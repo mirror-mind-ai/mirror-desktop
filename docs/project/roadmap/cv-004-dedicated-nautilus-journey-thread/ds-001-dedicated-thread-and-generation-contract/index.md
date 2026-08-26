@@ -2,7 +2,7 @@
 
 # CV-004.DS-001 - Dedicated Thread and Generation Contract
 
-**Status:** 🟡 Planned
+**Status:** 🟠 Implemented — awaiting Navigator validation
 
 ## Outcome
 

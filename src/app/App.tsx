@@ -53,6 +53,9 @@ import { TacticalJourneyWorkspace } from "./TacticalJourneyWorkspace";
 import { StrategicJourneyWorkspace } from "./StrategicJourneyWorkspace";
 import { JourneyProjectionNotice } from "./JourneyProjectionNotice";
 import { JourneyProjectionLoadingState } from "./JourneyProjectionLoadingState";
+import { JourneyThreadState, type JourneyThreadDisplayState } from "./JourneyThreadState";
+import { loadNautilusJourneyThread } from "./journeyThreadStorage";
+import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import {
   OperationalWorkspaceSwitcher,
   type OperationalSurface,
@@ -222,6 +225,7 @@ export function App({ model }: AppProps) {
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(true);
   const [agentRun, setAgentRun] = useState(initialAgentRunState);
   const [conversationLoaded, setConversationLoaded] = useState(false);
+  const [journeyThreadState, setJourneyThreadState] = useState<JourneyThreadDisplayState>({ kind: "loading" });
   const [journeyReloadStatus, setJourneyReloadStatus] = useState<string | undefined>();
   const [isJourneyReloading, setIsJourneyReloading] = useState(false);
   const [mirrorConversationPickerOpen, setMirrorConversationPickerOpen] = useState(false);
@@ -580,22 +584,36 @@ export function App({ model }: AppProps) {
 
     let cancelled = false;
     setConversationLoaded(false);
+    setJourneyThreadState({ kind: "loading" });
     setPiContextState("checking");
 
     async function restoreConversation() {
       try {
-        const persistedConversation = await loadJourneyConversation(selectedJourney);
+        const dedicatedThread = await loadNautilusJourneyThread(selectedJourney);
+        if (cancelled) return;
+        const restoredConversation = createJourneyConversation({ journeyId: selectedJourney, initialMessages });
+        conversationRef.current = restoredConversation;
+        setConversation(restoredConversation);
+        setJourneyThreadState(classifyNautilusJourneyThread(dedicatedThread, selectedJourney));
+      } catch {
         if (!cancelled) {
-          const restoredConversation = persistedConversation?.journeyId === selectedJourney
-            ? persistedConversation
-            : createJourneyConversation({ journeyId: selectedJourney, initialMessages });
-          conversationRef.current = restoredConversation;
-          setConversation(restoredConversation);
+          setJourneyThreadState({ kind: "inconsistent", reasonCodes: ["invalid_record"], legacyStatePresent: false });
         }
       } finally {
         if (!cancelled) {
           setConversationLoaded(true);
         }
+      }
+
+      try {
+        const legacyConversation = await loadJourneyConversation(selectedJourney);
+        if (!cancelled && legacyConversation?.journeyId === selectedJourney) {
+          setJourneyThreadState((state) => state.kind === "loading"
+            ? state
+            : { ...state, legacyStatePresent: true });
+        }
+      } catch {
+        // Legacy parity state is bounded evidence only and cannot block readiness.
       }
     }
 
@@ -736,13 +754,6 @@ export function App({ model }: AppProps) {
   ]);
 
   useEffect(() => {
-    if (!conversationLoaded || isStreaming) {
-      return;
-    }
-    void saveJourneyConversation(conversation);
-  }, [conversation, conversationLoaded, isStreaming]);
-
-  useEffect(() => {
     if (!conversationLoaded || isStreaming || !pendingMirrorRepair) return;
     if (checkedMirrorTurnRef.current === pendingMirrorRepair.correlation.turnId) return;
     checkedMirrorTurnRef.current = pendingMirrorRepair.correlation.turnId;
@@ -864,7 +875,7 @@ export function App({ model }: AppProps) {
 
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
     const content = (retryContent ?? draft).trim();
-    if (!content || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || (mode === "live" && providerErrors.length > 0)) {
+    if (!content || journeyThreadState.kind !== "ready" || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || (mode === "live" && providerErrors.length > 0)) {
       return;
     }
 
@@ -911,14 +922,6 @@ export function App({ model }: AppProps) {
     const stagedConversation = correlation
       ? stageCorrelatedTurn(baseConversation, correlation, userMessage, assistantMessage)
       : replaceJourneyConversationMessages(baseConversation, [...nextMessages, assistantMessage]);
-    if (correlation) {
-      try {
-        await saveJourneyConversation(stagedConversation);
-      } catch (error) {
-        setStreamWarnings((warnings) => [...warnings, `Could not stage correlated turn: ${error instanceof Error ? error.message : String(error)}`]);
-        return;
-      }
-    }
     const provider: AgentStreamProvider = mode === "mock"
       ? mockPiAgentStream
       : (packet) => livePiAgentStream(packet, providerConfig, correlation);
@@ -1437,13 +1440,14 @@ export function App({ model }: AppProps) {
                     className="menu-button"
                     type="button"
                     onClick={() => setJourneyMenuOpen((open) => !open)}
-                    aria-label="Journey menu"
+                    disabled
+                    aria-label="Journey conversation lifecycle is unavailable in this delivery"
                     aria-expanded={journeyMenuOpen}
                     title="Journey menu"
                   >
                     ⋯
                   </button>
-                  {journeyMenuOpen ? (
+                  {false && journeyMenuOpen ? (
                     <div className="journey-menu" role="menu">
                       <button type="button" role="menuitem" onClick={() => void clearChatSession()} disabled={isStreaming || isJourneyReloading}>
                         {isJourneyReloading ? "Restarting Conversation..." : "Restart Conversation"}
@@ -1530,12 +1534,16 @@ export function App({ model }: AppProps) {
           )
         ) : null}
 
+        {operationalChatSelected && journeyThreadState.kind !== "ready" ? (
+          <JourneyThreadState journeyName={selectedJourneyItem.name} state={journeyThreadState} />
+        ) : null}
+
         <section
           id="operational-chat-panel"
           className="chat-stream"
           role="tabpanel"
           aria-label="Conversation"
-          hidden={!operationalChatSelected}
+          hidden={!operationalChatSelected || journeyThreadState.kind !== "ready"}
           ref={chatStreamRef}
         >
           {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}
@@ -1602,7 +1610,7 @@ export function App({ model }: AppProps) {
         <section
           className="composer"
           aria-label="Message composer"
-          hidden={!operationalChatSelected}
+          hidden={!operationalChatSelected || journeyThreadState.kind !== "ready"}
         >
           {reconciliationBlocksInvocation
             && !mirrorReconciliationReview
