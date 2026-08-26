@@ -2,13 +2,15 @@
 
 ## Status
 
-- **State:** Open — external Mirror defect
+- **State:** Resolved and consumer-verified
 - **Severity:** High for published Operational consumers
 - **Affected release:** Mirror `v0.31.10`
+- **Resolved release:** Mirror `v0.31.11`
+- **Immutable release SHA:** `c9519c30caac1522209a56840a09dabc123cead0`
 - **Affected contract:** `mirror.journey-projections@1.0`
 - **Affected component:** `memory.journey_projections.operational.OperationalCompiler`
 - **Discovered by:** `CV-003.DS-006.TS-2 — Repository Baselines and Mirror Compatibility`
-- **Blocks:** explicit Tactical and Strategic synthesis over a current Operational snapshot
+- **Consumer gate:** Open
 
 ## Summary
 
@@ -190,6 +192,24 @@ The defect is resolved only when all of the following are true:
 8. TD-001 is closed in the Harness technical-debt ledger.
 
 Until this gate is satisfied, explicit Tactical and Strategic synthesis must not publish readings that claim ancestry from the stale Operational snapshot.
+
+## Closure evidence
+
+The release and consumer gate was satisfied on Mirror `v0.31.11`:
+
+- immutable release commit: `c9519c30caac1522209a56840a09dabc123cead0`;
+- GitHub release: <https://github.com/mirror-mind-ai/mirror/releases/tag/v0.31.11>;
+- Tests, Docs, main Windows installer and tag Windows installer workflows completed successfully for the immutable release SHA;
+- installed runtime reported `0.31.11`, stable, migrations `16/16`, status `ready`;
+- installed public rebuild accepted the unchanged confined parent links;
+- published snapshot: `op-59d36a08c142494c88c12ecb5fcbf105`;
+- source revision: `sha256:222aa1214a54c8059c7689daf21d6b98f128277a2462b79fd908ca49dc5d6c93`;
+- compiled roadmap roots: `CV-001`, `CV-002`, `CV-003`;
+- manifest and stable Operational document coordinates match;
+- installed public inspection returns `status: ok`;
+- structured return evidence: [td-001-mirror-return.json](td-001-mirror-return.json), SHA-256 `e5d0a78a9a3b0b3f00f74d0ba338cfbfb141da645377d19ba1b3d66a8c60387a`.
+
+The earlier `projection_divergence` was corrected by the explicit rebuild, establishing a new valid manifest/document pair. TD-001 no longer blocks explicit synthesis implementation.
 
 ## Non-goals
 

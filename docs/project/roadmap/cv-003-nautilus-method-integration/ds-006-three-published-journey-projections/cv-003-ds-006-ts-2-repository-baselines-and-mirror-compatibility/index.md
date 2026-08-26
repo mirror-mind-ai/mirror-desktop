@@ -18,3 +18,4 @@ Agentic Protocol and Mirror Extension have independent Git baselines, and the ex
 - [Debt Review](review.md)
 - [Done](done.md)
 - [TD-001 Defect Specification](td-001-operational-relative-link-confinement-defect.md)
+- [TD-001 Mirror Return Evidence](td-001-mirror-return.json)

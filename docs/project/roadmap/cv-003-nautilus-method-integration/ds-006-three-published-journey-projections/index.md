@@ -40,7 +40,7 @@ The existence of one Delivery Story does not authorize crossing these gates impl
 
 ## Next Delivery Boundary
 
-TS-2 through TS-4 established repository ownership, released Mirror compatibility, Nautilus projection contracts and the Method runtime profile. The next story may implement explicit Mirror Extension synthesis, but it is blocked until TD-001 is resolved because current Ariad lifecycle refresh cannot publish Operational for this Journey.
+TS-2 through TS-4 established repository ownership, released Mirror compatibility, Nautilus projection contracts and the Method runtime profile. TD-001 is resolved and consumer-verified against Mirror v0.31.11, so the next story may implement explicit Mirror Extension synthesis over the current published Operational snapshot.
 
 ## Boundaries
 

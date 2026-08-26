@@ -1,0 +1,51 @@
+{
+  "contractId": "mirror.journey-projections",
+  "contractVersion": "1.0",
+  "defectId": "TD-001",
+  "result": "passed",
+  "gate": "open",
+  "release": {
+    "version": "0.31.11",
+    "tag": "v0.31.11",
+    "commit": "c9519c30caac1522209a56840a09dabc123cead0",
+    "url": "https://github.com/mirror-mind-ai/mirror/releases/tag/v0.31.11"
+  },
+  "centralValidation": {
+    "tests": "https://github.com/mirror-mind-ai/mirror/actions/runs/32926002317",
+    "docs": "https://github.com/mirror-mind-ai/mirror/actions/runs/32926002329",
+    "mainWindowsInstaller": "https://github.com/mirror-mind-ai/mirror/actions/runs/32926002346",
+    "tagWindowsInstaller": "https://github.com/mirror-mind-ai/mirror/actions/runs/32926276463"
+  },
+  "installedRuntime": {
+    "version": "0.31.11",
+    "branch": "stable",
+    "commit": "c9519c30caac1522209a56840a09dabc123cead0",
+    "status": "ready",
+    "coreMigrations": "16/16"
+  },
+  "consumerRebuild": {
+    "journeyId": "nautilus-harness",
+    "preRebuildInspection": {
+      "status": "error",
+      "code": "projection_divergence"
+    },
+    "status": "published",
+    "snapshotId": "op-59d36a08c142494c88c12ecb5fcbf105",
+    "sourceRevision": "sha256:222aa1214a54c8059c7689daf21d6b98f128277a2462b79fd908ca49dc5d6c93",
+    "roadmapRoots": [
+      "CV-001",
+      "CV-002",
+      "CV-003"
+    ],
+    "manifestMatchesStableDocument": true,
+    "rebuildArtifactSha256": "063f547eb55a4d1be542069f055d18cb4edac32d8373e66563718332c7eb36e9",
+    "inspectionArtifactSha256": "9df47f4eac3568dc9839397e13ee61dd4c9bb3ee312a00d5e23302eecf2f42b7"
+  },
+  "safetyEvidence": {
+    "consumerKitHashesUnchanged": true,
+    "consumerKitSelfTestsPassed": 16,
+    "productionBackup": "memory_20260826_003128.zip",
+    "productionBackupSha256": "2bc3948641acdcb8ec7d2f72e89ca72228ed8b9ce975b6b32ec2a94c05dfa11b"
+  },
+  "knownDeviations": []
+}
