@@ -42,8 +42,13 @@ CV-004 is done when one Journey may contain multiple historical Nautilus threads
 - Turn correlation proves participation in a specific turn; it does not make whole conversations identical.
 - Mirror context advancement is not Pi transcript advancement.
 - A changed Mirror recording destination is a new binding generation, not automatic transcript divergence.
+- A Mirror epoch may change between the user and assistant halves of one complete Pi turn; native Pi completion plus a causal switch receipt governs that transition, not per-epoch message pairing.
 - Provider invocation, synthesis and publication remain explicit and never occur during inspection or recovery.
 - The existing three-body reconciliation implementation remains the safe migration baseline until each replacement slice is validated.
+
+## Design Constraints
+
+- [Mirror Epoch Transition During a Pi Turn](mirror-epoch-transition-contract.md)
 
 ## Exploration Source
 

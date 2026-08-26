@@ -13,6 +13,7 @@ Navigator can deliberately change Nautilus, Pi or Mirror continuity at the appro
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
 | CV-004.DS-004.TS-1 | Explicit Lifecycle Operation Contract | Technical Story | Define preconditions, atomic effects, rollback and provenance for new thread, Pi branch and Mirror epoch operations | 🟡 Planned |
+| CV-004.DS-004.TS-2 | Mirror Epoch Transition Bridge | Technical Story | Transport and apply the causal switch receipt when mode activation or `/mm-new` changes Mirror destination during an active Pi turn | 🟡 Planned |
 | CV-004.DS-004.US-1 | Start a New Nautilus Thread | User Story | Navigator can begin a new user-facing continuity for the selected Journey through one coordinated operation that preserves the prior thread as history | 🟡 Planned |
 | CV-004.DS-004.US-2 | Branch Pi Execution Deliberately | User Story | Navigator can create or adopt another Pi lineage while choosing whether it continues the current Nautilus thread or begins a new one | 🟡 Planned |
 | CV-004.DS-004.US-3 | Begin a New Mirror Conversation Epoch | User Story | Navigator can use `/mm-new` semantics as an explicit Mirror destination change without implying that the active Pi transcript was recreated | 🟡 Planned |
@@ -35,6 +36,8 @@ New Mirror conversation epoch
 ```
 
 Harness should intercept or clearly contextualize ambiguous “new conversation” intent. It must not issue multiple native lifecycle commands and hope they converge.
+
+Mode activation may switch the Mirror destination after a user message but before the corresponding Pi assistant response. That is a supported cross-epoch turn only when native Pi completion and the causal switch receipt prove the transition. See [Mirror Epoch Transition During a Pi Turn](../mirror-epoch-transition-contract.md).
 
 ## Done Condition
 

@@ -23,11 +23,14 @@ Interrupted commits, multiple Pi lineages, changed Mirror destinations and migra
 - Mirror context advances without adding Pi transcript messages.
 - Mirror recording fails after Pi completion and retries exactly once without provider invocation.
 - `/mm-new` changes the Mirror epoch while preserving the Pi lineage.
+- A mode activation records the user message in Mirror epoch X, switches destination with a causal receipt, records the assistant response in epoch Y and remains one complete Pi turn without redundant selection.
 - Pi branching changes ancestry while preserving the prior lineage as history.
 - Two Pi lineages advance and no candidate is selected silently.
 - A binding transition is interrupted and restores the last valid generation.
 - Existing parity-era conversations migrate without being declared current from appearance alone.
 - Window reactivation and Journey switching discard stale inspection results.
+
+The cross-epoch acceptance details are defined in [Mirror Epoch Transition During a Pi Turn](../mirror-epoch-transition-contract.md).
 
 ## Done Condition
 
