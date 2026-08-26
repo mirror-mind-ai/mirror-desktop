@@ -1,5 +1,6 @@
 import type { ConversationMessage } from "../agent/piTaskPacket";
 import type { ImportedConversationActivity } from "./persistedJourneyConversation";
+import type { NautilusJourneyThread } from "./nautilusJourneyThread";
 import {
   createConversationReconciliationState,
   type ConversationReconciliationState,
@@ -12,6 +13,7 @@ export type LiveConversationIdentity = {
   journeyId: string;
   harnessConversationId: string;
   piSessionId: string;
+  piSessionFile?: string;
   mirrorConversationId?: string;
   generation: number;
   origin: "new" | "continued" | "mirror_import" | "mirror_reconciliation" | "restart" | "legacy";
@@ -81,6 +83,27 @@ export function createJourneyConversation(input: {
     liveIdentity,
     reconciliation: createConversationReconciliationState(liveIdentity, now.toISOString()),
   };
+}
+
+export function createDedicatedJourneyConversation(input: {
+  thread: NautilusJourneyThread;
+  initialMessages: ConversationMessage[];
+  now?: Date;
+}): JourneyConversation {
+  const base = createJourneyConversation({ journeyId: input.thread.journeyId, initialMessages: input.initialMessages, now: input.now });
+  const generation = input.thread.generations.find((item) => item.generation === input.thread.activeGeneration);
+  if (!generation || generation.status !== "ready") return base;
+  const liveIdentity: LiveConversationIdentity = {
+    schemaVersion: "0.1.0",
+    journeyId: input.thread.journeyId,
+    harnessConversationId: base.id,
+    piSessionId: generation.piSessionId,
+    piSessionFile: generation.piSessionFile,
+    mirrorConversationId: generation.mirrorConversationId,
+    generation: generation.generation,
+    origin: "new",
+  };
+  return { ...base, liveIdentity, reconciliation: createConversationReconciliationState(liveIdentity, base.createdAt) };
 }
 
 export function summarizeJourneyConversation(conversation: JourneyConversation): JourneyConversationSummary {

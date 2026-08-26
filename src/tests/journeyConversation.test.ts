@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createJourneyConversation,
+  createDedicatedJourneyConversation,
   replaceJourneyConversationMessages,
   resetJourneyConversation,
   summarizeJourneyConversation,
@@ -58,6 +59,18 @@ describe("journey conversation lifecycle", () => {
         reasonCodes: [],
       },
     });
+  });
+
+  it("uses the exact dedicated native pair for a ready Journey", () => {
+    const conversation = createDedicatedJourneyConversation({
+      thread: {
+        schemaVersion: "1.0.0", threadId: "thread-one", journeyId: "nautilus", createdAt: "2026-08-22T00:00:00.000Z", activeGeneration: 1,
+        generations: [{ generation: 1, status: "ready", piSessionId: "pi-dedicated", mirrorConversationId: "mirror-dedicated", createdAt: "2026-08-22T00:00:00.000Z" }],
+      },
+      initialMessages: [], now: new Date("2026-08-22T00:00:00.000Z"),
+    });
+    expect(conversation.liveIdentity).toMatchObject({ piSessionId: "pi-dedicated", mirrorConversationId: "mirror-dedicated", generation: 1 });
+    expect(conversation.messages).toEqual([]);
   });
 
   it("summarizes fresh and dirty state from messages", () => {

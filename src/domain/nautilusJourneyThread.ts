@@ -1,10 +1,16 @@
+import { verifyJourneyActivationReceipt, type JourneyActivationReceipt } from "./journeyThreadProvisioning";
+
 export type NautilusThreadGenerationStatus = "provisioning" | "activating" | "ready" | "inactive" | "failed";
 
 export type NautilusThreadGeneration = {
   generation: number;
   status: NautilusThreadGenerationStatus;
   piSessionId: string;
+  piSessionFile?: string;
   mirrorConversationId: string;
+  piSessionName?: string;
+  mirrorConversationName?: string;
+  activationReceipt?: JourneyActivationReceipt;
   createdAt: string;
   activatedAt?: string;
   closedAt?: string;
@@ -26,6 +32,7 @@ export type NautilusThreadReasonCode =
   | "active_generation_missing"
   | "active_generation_not_ready"
   | "multiple_ready_generations"
+  | "activation_receipt_invalid"
   | "native_id_reused"
   | "history_rewritten"
   | "generation_not_appended"
@@ -87,6 +94,13 @@ export function classifyNautilusJourneyThread(
   const active = thread.generations.find((generation) => generation.generation === thread.activeGeneration);
   if (!active) reasons.push("active_generation_missing");
   else if (active.status !== "ready") reasons.push("active_generation_not_ready");
+  else if (!verifyJourneyActivationReceipt(active.activationReceipt, {
+    journeyId: thread.journeyId,
+    threadId: thread.threadId,
+    generation: active.generation,
+    piSessionId: active.piSessionId,
+    mirrorConversationId: active.mirrorConversationId,
+  })) reasons.push("activation_receipt_invalid");
   if (thread.generations.filter((generation) => generation.status === "ready").length > 1) reasons.push("multiple_ready_generations");
   const piIds = new Set<string>();
   const mirrorIds = new Set<string>();

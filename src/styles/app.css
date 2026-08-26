@@ -2701,3 +2701,100 @@ dd {
 .journey-thread-state h2 { margin: 0.5rem 0 0.75rem; }
 .journey-thread-state p { line-height: 1.55; }
 .journey-thread-state small { display: block; margin-top: 1rem; opacity: 0.72; }
+
+.journey-thread-start {
+  margin-top: 1rem;
+  padding: 0.75rem 1.1rem;
+  border-radius: 0.75rem;
+  font-weight: 650;
+}
+
+.journey-thread-error { color: var(--danger, #e69a9a); }
+
+.journey-thread-progress {
+  position: relative;
+  overflow: hidden;
+  width: min(18rem, 90%);
+  height: 0.22rem;
+  margin: 1.25rem auto 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.journey-thread-progress span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  border-radius: inherit;
+  background: currentColor;
+  animation: journey-thread-progress 1.15s ease-in-out infinite;
+}
+
+@keyframes journey-thread-progress {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(300%); }
+}
+
+.journey-arrival {
+  width: min(42rem, calc(100% - 2rem));
+  margin: auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.journey-arrival-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 1.75rem;
+  font-size: 0.78rem;
+  opacity: 0.72;
+}
+
+.journey-arrival-status span {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: #72c99a;
+  box-shadow: 0 0 0.75rem rgba(114, 201, 154, 0.4);
+}
+
+.journey-arrival h2 { margin: 0.5rem 0 0.75rem; }
+.journey-arrival-copy { margin: 0 auto 1.5rem; max-width: 32rem; opacity: 0.72; line-height: 1.55; }
+
+.journey-arrival-suggestions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.journey-arrival-suggestions button {
+  min-height: 3.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  text-align: left;
+  color: #dbe8eb;
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.journey-arrival-suggestions button:hover,
+.journey-arrival-suggestions button:focus-visible {
+  color: #f3fbfc;
+  border-color: rgba(133, 223, 210, 0.32);
+  background: rgba(133, 223, 210, 0.07);
+}
+
+.journey-arrival-stage {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  font-size: 0.82rem;
+}
+
+.journey-arrival-stage span { opacity: 0.58; }
+
+@media (max-width: 720px) {
+  .journey-arrival-suggestions { grid-template-columns: 1fr; }
+}

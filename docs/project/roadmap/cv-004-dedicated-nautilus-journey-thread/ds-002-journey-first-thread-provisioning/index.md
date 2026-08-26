@@ -2,7 +2,7 @@
 
 # CV-004.DS-002 - Journey-First Thread Provisioning
 
-**Status:** 🟡 Planned
+**Status:** 🟠 Implemented — awaiting Navigator validation
 
 ## Outcome
 

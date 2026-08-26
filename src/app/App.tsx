@@ -54,7 +54,8 @@ import { StrategicJourneyWorkspace } from "./StrategicJourneyWorkspace";
 import { JourneyProjectionNotice } from "./JourneyProjectionNotice";
 import { JourneyProjectionLoadingState } from "./JourneyProjectionLoadingState";
 import { JourneyThreadState, type JourneyThreadDisplayState } from "./JourneyThreadState";
-import { loadNautilusJourneyThread } from "./journeyThreadStorage";
+import { JourneyArrivalSurface } from "./JourneyArrivalSurface";
+import { loadNautilusJourneyThread, provisionNautilusJourneyThread } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import {
   OperationalWorkspaceSwitcher,
@@ -98,6 +99,7 @@ import {
 } from "../agent/piTaskPacket";
 import {
   createJourneyConversation,
+  createDedicatedJourneyConversation,
   replaceJourneyConversationMessages,
   resetJourneyConversation,
 } from "../domain/journeyConversation";
@@ -226,6 +228,9 @@ export function App({ model }: AppProps) {
   const [agentRun, setAgentRun] = useState(initialAgentRunState);
   const [conversationLoaded, setConversationLoaded] = useState(false);
   const [journeyThreadState, setJourneyThreadState] = useState<JourneyThreadDisplayState>({ kind: "loading" });
+  const [startingJourneyId, setStartingJourneyId] = useState<string | undefined>();
+  const [journeyStartPhase, setJourneyStartPhase] = useState<string | undefined>();
+  const [journeyStartError, setJourneyStartError] = useState<string | undefined>();
   const [journeyReloadStatus, setJourneyReloadStatus] = useState<string | undefined>();
   const [isJourneyReloading, setIsJourneyReloading] = useState(false);
   const [mirrorConversationPickerOpen, setMirrorConversationPickerOpen] = useState(false);
@@ -246,6 +251,7 @@ export function App({ model }: AppProps) {
   const mirrorTitleGenerationInFlightRef = useRef(false);
   const checkedMirrorTurnRef = useRef<string | undefined>(undefined);
   const conversationRef = useRef<JourneyConversation>(conversation);
+  const selectedJourneyRef = useRef(selectedJourney);
   const externalPiFingerprintRef = useRef(new Map<string, ExternalPiFileFingerprint>());
   const externalPiInFlightRef = useRef(new Set<string>());
   const externalPiRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -264,6 +270,7 @@ export function App({ model }: AppProps) {
     });
   }
   conversationRef.current = conversation;
+  selectedJourneyRef.current = selectedJourney;
   externalPiRuntimeRef.current = { conversationLoaded, isStreaming, agentRunStatus: agentRun.status, safeTestMode: providerConfig.safeTestMode };
 
   const currentState = useMemo(() => grammarStateFromViewModel(model), [model]);
@@ -304,7 +311,8 @@ export function App({ model }: AppProps) {
     && authoritativeContextStats.generation === conversation.liveIdentity.generation;
   const reportedContextUsage = contextIdentityMatches ? authoritativeContextStats.usage : undefined;
   const pendingMirrorRepair = useMemo(() => pendingMirrorTurnRepair(conversation), [conversation]);
-  const reconciliationBlocksInvocation = conversation.reconciliation.classification !== "in_sync";
+  const dedicatedThreadReady = journeyThreadState.kind === "ready";
+  const reconciliationBlocksInvocation = !dedicatedThreadReady && conversation.reconciliation.classification !== "in_sync";
   const configuredContextWindow = configuredModelContextWindow(providerConfig);
   const displayContextWindow = configuredContextWindow ?? reportedContextUsage?.contextWindow ?? null;
   const authoritativeContextUsage = reportedContextUsage
@@ -591,10 +599,14 @@ export function App({ model }: AppProps) {
       try {
         const dedicatedThread = await loadNautilusJourneyThread(selectedJourney);
         if (cancelled) return;
-        const restoredConversation = createJourneyConversation({ journeyId: selectedJourney, initialMessages });
+        const classified = classifyNautilusJourneyThread(dedicatedThread, selectedJourney);
+        const restoredConversation = classified.kind === "ready"
+          ? createDedicatedJourneyConversation({ thread: classified.thread, initialMessages: [] })
+          : createJourneyConversation({ journeyId: selectedJourney, initialMessages });
         conversationRef.current = restoredConversation;
         setConversation(restoredConversation);
-        setJourneyThreadState(classifyNautilusJourneyThread(dedicatedThread, selectedJourney));
+        setJourneyThreadState(classified);
+        setJourneyStartError(undefined);
       } catch {
         if (!cancelled) {
           setJourneyThreadState({ kind: "inconsistent", reasonCodes: ["invalid_record"], legacyStatePresent: false });
@@ -910,7 +922,7 @@ export function App({ model }: AppProps) {
       createdAt: new Date().toISOString(),
     };
     const run = startAgentRun({ content, mode });
-    const correlation: TurnCorrelation | undefined = mode === "live" && run.id
+    const correlation: TurnCorrelation | undefined = mode === "live" && run.id && journeyThreadState.kind !== "ready"
       ? createTurnCorrelation({
           conversation: baseConversation,
           runId: run.id,
@@ -1084,6 +1096,35 @@ export function App({ model }: AppProps) {
         ));
       }
       setIsStreaming(false);
+    }
+  }
+
+  async function startSelectedJourney() {
+    if (journeyThreadState.kind !== "absent" || startingJourneyId) return;
+    const ownerJourneyId = selectedJourney;
+    const ownerJourneyName = selectedJourneyItem.name;
+    setStartingJourneyId(ownerJourneyId);
+    setJourneyStartPhase("reserving_operation");
+    setJourneyStartError(undefined);
+    try {
+      const thread = await provisionNautilusJourneyThread(ownerJourneyId, ownerJourneyName, (phase) => {
+        if (selectedJourneyRef.current === ownerJourneyId) setJourneyStartPhase(phase);
+      });
+      if (selectedJourneyRef.current !== ownerJourneyId) return;
+      const classified = classifyNautilusJourneyThread(thread, ownerJourneyId);
+      if (classified.kind !== "ready") throw new Error("activation_receipt_invalid");
+      const dedicatedConversation = createDedicatedJourneyConversation({ thread, initialMessages: [] });
+      conversationRef.current = dedicatedConversation;
+      setConversation(dedicatedConversation);
+      setJourneyThreadState(classified);
+      setPiContextState("not_initialized");
+    } catch (error) {
+      if (selectedJourneyRef.current === ownerJourneyId) {
+        setJourneyStartError(error instanceof Error ? error.message : String(error));
+      }
+    } finally {
+      setStartingJourneyId((current) => current === ownerJourneyId ? undefined : current);
+      setJourneyStartPhase(undefined);
     }
   }
 
@@ -1535,7 +1576,14 @@ export function App({ model }: AppProps) {
         ) : null}
 
         {operationalChatSelected && journeyThreadState.kind !== "ready" ? (
-          <JourneyThreadState journeyName={selectedJourneyItem.name} state={journeyThreadState} />
+          <JourneyThreadState
+            journeyName={selectedJourneyItem.name}
+            state={journeyThreadState}
+            starting={startingJourneyId === selectedJourney}
+            startingPhase={journeyStartPhase}
+            error={journeyStartError}
+            onStart={journeyThreadState.kind === "absent" ? () => void startSelectedJourney() : undefined}
+          />
         ) : null}
 
         <section
@@ -1547,6 +1595,13 @@ export function App({ model }: AppProps) {
           ref={chatStreamRef}
         >
           {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}
+          {messages.length === 0 && journeyThreadState.kind === "ready" ? (
+            <JourneyArrivalSurface
+              journeyName={selectedJourneyItem.name}
+              stage={selectedJourneyItem.stage}
+              onChoose={setDraft}
+            />
+          ) : null}
           <ImportedActivity events={importedActivity.unlinked} variant="summary" basePath={selectedJourneyBasePath} />
           {messages.map((message) => {
             const contentWithoutSurfaces = stripMirrorSurfaceBlocks(message.content);

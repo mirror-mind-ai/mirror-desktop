@@ -19,6 +19,11 @@ const readyThread = (journeyId = "nautilus-harness"): NautilusJourneyThread => (
     mirrorConversationId: "mirror-1",
     createdAt: "2026-08-26T00:00:00.000Z",
     activatedAt: "2026-08-26T00:01:00.000Z",
+    activationReceipt: {
+      schemaVersion: "1.0.0", journeyId, threadId: `nautilus-thread-${journeyId}`, generation: 1,
+      piSessionId: `nautilus-${journeyId}-1`, mirrorConversationId: "mirror-1",
+      mode: "mirror", commandAuthority: "installed", activatedAt: "2026-08-26T00:01:00.000Z",
+    },
   }],
 });
 
@@ -40,6 +45,7 @@ describe("dedicated Nautilus Journey thread authority", () => {
     ["journey_mismatch", { ...readyThread(), journeyId: "other" }],
     ["active_generation_missing", { ...readyThread(), activeGeneration: 2 }],
     ["active_generation_not_ready", { ...readyThread(), generations: [{ ...readyThread().generations[0], status: "activating" }] }],
+    ["activation_receipt_invalid", { ...readyThread(), generations: [{ ...readyThread().generations[0], activationReceipt: undefined }] }],
     ["generation_sequence_invalid", { ...readyThread(), generations: [{ ...readyThread().generations[0], generation: 2 }] }],
     ["native_id_reused", { ...readyThread(), generations: [readyThread().generations[0], { ...readyThread().generations[0], generation: 2, status: "inactive" }] }],
   ])("fails closed with %s", (reasonCode, value) => {

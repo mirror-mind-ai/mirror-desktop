@@ -636,6 +636,7 @@ export async function* livePiAgentStream(
       config: providerConfig,
       journeyId: packet.journeyId ?? "nautilus-harness",
       sessionId: packet.liveConversation?.piSessionId ?? `nautilus-${packet.journeyId ?? "nautilus-harness"}`,
+      sessionFile: packet.liveConversation?.piSessionFile,
       correlation,
     });
   } catch (error) {

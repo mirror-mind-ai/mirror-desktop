@@ -1,3 +1,4 @@
+use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
@@ -13,6 +14,7 @@ use std::{
 use tauri::{AppHandle, Emitter, Manager, State};
 
 const PI_PROCESS_EVENT: &str = "nautilus-pi-process";
+const JOURNEY_PROVISIONING_EVENT: &str = "nautilus-journey-provisioning";
 const JOURNEY_REGISTRY_FILE: &str = "journey-registry.json";
 const JOURNEY_PREFERENCES_FILE: &str = "journey-preferences.json";
 
@@ -20,6 +22,38 @@ const JOURNEY_PREFERENCES_FILE: &str = "journey-preferences.json";
 struct PiProcessState {
     child: Arc<Mutex<Option<Child>>>,
     cancelling: Arc<Mutex<bool>>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct JourneyProvisioningEvent {
+    journey_id: String,
+    phase: String,
+}
+
+fn emit_journey_provisioning(app: &AppHandle, journey_id: &str, phase: &str) {
+    let _ = app.emit(JOURNEY_PROVISIONING_EVENT, JourneyProvisioningEvent {
+        journey_id: journey_id.to_string(),
+        phase: phase.to_string(),
+    });
+}
+
+#[derive(Default)]
+struct JourneyProvisioningState {
+    active: Arc<Mutex<HashSet<String>>>,
+}
+
+struct JourneyProvisioningLease {
+    active: Arc<Mutex<HashSet<String>>>,
+    journey_id: String,
+}
+
+impl Drop for JourneyProvisioningLease {
+    fn drop(&mut self) {
+        if let Ok(mut active) = self.active.lock() {
+            active.remove(&self.journey_id);
+        }
+    }
 }
 
 #[derive(Default)]
@@ -241,6 +275,170 @@ fn load_journey_thread(app: AppHandle, journey_id: String) -> Result<Option<Stri
         return Err("Stored Journey thread authority is invalid.".to_string());
     }
     Ok(Some(payload))
+}
+
+fn dedicated_native_names(journey_name: &str, generation: u64) -> (String, String) {
+    let readable = journey_name.split_whitespace().collect::<Vec<_>>().join(" ");
+    let readable = if readable.is_empty() { "Journey" } else { readable.as_str() };
+    let suffix = format!(" · Nautilus · Generation {}", generation);
+    let bounded = |limit: usize| {
+        let available = limit.saturating_sub(suffix.chars().count()).max(1);
+        let prefix = readable.chars().take(available).collect::<String>();
+        format!("{}{}", prefix.trim(), suffix)
+    };
+    (bounded(80), bounded(100))
+}
+
+fn parse_pi_session_state(stdout: &[u8]) -> Result<(String, String), String> {
+    for line in String::from_utf8_lossy(stdout).lines().rev() {
+        let Ok(value) = serde_json::from_str::<Value>(line) else { continue };
+        if value.get("command").and_then(Value::as_str) != Some("get_state")
+            || value.get("success").and_then(Value::as_bool) != Some(true) { continue; }
+        let data = value.get("data").ok_or_else(|| "Pi state response has no data.".to_string())?;
+        let id = data.get("sessionId").and_then(Value::as_str).filter(|value| !value.is_empty())
+            .ok_or_else(|| "Pi state response has no session id.".to_string())?;
+        let file = data.get("sessionFile").and_then(Value::as_str).filter(|value| !value.is_empty())
+            .ok_or_else(|| "Pi state response has no session file.".to_string())?;
+        return Ok((id.to_string(), file.to_string()));
+    }
+    Err("Pi did not return native session authority.".to_string())
+}
+
+fn provision_pi_session(requested_id: &str, session_name: &str, session_dir: &Path) -> Result<(String, String), String> {
+    let mirror_root = mirror_runtime_root()?;
+    fs::create_dir_all(session_dir).map_err(|error| format!("Could not create Pi session directory: {}", error))?;
+    let mut child = Command::new("pi")
+        .args(["--mode", "rpc", "--offline", "--session-id", &requested_id, "--session-dir"])
+        .arg(session_dir)
+        .args([
+            "--name", session_name, "--no-tools", "--no-extensions", "--no-skills",
+            "--no-prompt-templates", "--no-context-files", "--approve",
+        ])
+        .current_dir(&mirror_root)
+        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
+        .spawn().map_err(|error| format!("Could not start native Pi session provisioning: {}", error))?;
+    child.stdin.as_mut().ok_or_else(|| "Pi provisioning stdin is unavailable.".to_string())?
+        .write_all(b"{\"type\":\"get_state\"}\n")
+        .map_err(|error| format!("Could not inspect native Pi session: {}", error))?;
+    drop(child.stdin.take());
+    let output = child.wait_with_output().map_err(|error| format!("Could not settle native Pi session provisioning: {}", error))?;
+    if !output.status.success() {
+        return Err(format!("Native Pi session provisioning failed: {}", String::from_utf8_lossy(&output.stderr).trim()));
+    }
+    parse_pi_session_state(&output.stdout)
+}
+
+fn provision_mirror_conversation(session_file: &str, journey_id: &str, title: &str) -> Result<String, String> {
+    let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent()
+        .ok_or_else(|| "Could not resolve Harness project root.".to_string())?
+        .join("scripts/provision_mirror_conversation.py");
+    let output = Command::new("uv")
+        .args(["run", "python"]).arg(script)
+        .args(["--session-id", session_file, "--journey-id", journey_id, "--title", title, "--mirror-home"])
+        .arg(production_mirror_home()?)
+        .current_dir(mirror_runtime_root()?)
+        .output().map_err(|error| format!("Could not provision Mirror conversation: {}", error))?;
+    if !output.status.success() {
+        return Err(format!("Mirror conversation provisioning failed: {}", String::from_utf8_lossy(&output.stderr).trim()));
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let last_line = stdout.lines().rev().find(|line| !line.trim().is_empty())
+        .ok_or_else(|| "Mirror returned no conversation authority.".to_string())?;
+    let value: Value = serde_json::from_str(last_line)
+        .map_err(|error| format!("Mirror conversation authority was invalid: {}", error))?;
+    value.get("conversationId").and_then(Value::as_str).filter(|value| !value.is_empty())
+        .map(str::to_string).ok_or_else(|| "Mirror did not return native conversation authority.".to_string())
+}
+
+#[tauri::command]
+async fn provision_journey_thread(
+    app: AppHandle,
+    state: State<'_, JourneyProvisioningState>,
+    journey_id: String,
+    journey_name: String,
+) -> Result<Value, String> {
+    sanitize_journey_id(&journey_id)?;
+    {
+        let mut active = state.active.lock().map_err(|_| "Could not inspect active Journey provisioning.".to_string())?;
+        if !active.insert(journey_id.clone()) {
+            return Err("This Journey is already being started.".to_string());
+        }
+    }
+    let _lease = JourneyProvisioningLease { active: state.active.clone(), journey_id: journey_id.clone() };
+    emit_journey_provisioning(&app, &journey_id, "reserving_operation");
+    let path = journey_thread_path(&app, &journey_id)?;
+    if path.exists() {
+        let envelope: Value = serde_json::from_str(&fs::read_to_string(&path)
+            .map_err(|error| format!("Could not recover Journey thread: {}", error))?)
+            .map_err(|error| format!("Could not parse recovered Journey thread: {}", error))?;
+        return envelope.get("thread").cloned().ok_or_else(|| "Recovered Journey thread is invalid.".to_string());
+    }
+    let operation_path = journey_thread_operation_path(&app, &journey_id)?;
+    let requested_pi_id = if operation_path.exists() {
+        let operation: Value = serde_json::from_str(&fs::read_to_string(&operation_path)
+            .map_err(|error| format!("Could not recover Journey start operation: {}", error))?)
+            .map_err(|error| format!("Could not parse Journey start operation: {}", error))?;
+        operation.get("piSessionId").and_then(Value::as_str).filter(|value| !value.is_empty())
+            .map(str::to_string).ok_or_else(|| "Recovered Journey start operation is invalid.".to_string())?
+    } else {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+        let operation_id = format!("start-{}-g1-{}", journey_id, nonce);
+        let bounded_journey = journey_id.chars().take(72).collect::<String>();
+        let requested = format!("nautilus-{}-g1-{:x}", bounded_journey, nonce);
+        if let Some(parent) = operation_path.parent() {
+            fs::create_dir_all(parent).map_err(|error| format!("Could not create Journey operation directory: {}", error))?;
+        }
+        fs::write(&operation_path, serde_json::to_vec_pretty(&json!({
+            "schemaVersion": "1.0.0", "operationId": operation_id, "journeyId": journey_id,
+            "threadId": format!("nautilus-thread-{}", journey_id), "generation": 1,
+            "piSessionId": requested, "status": "provisioning"
+        })).map_err(|error| format!("Could not serialize Journey start operation: {}", error))?)
+            .map_err(|error| format!("Could not reserve Journey start operation: {}", error))?;
+        requested
+    };
+    let pi_session_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {}", error))?
+        .join("pi-sessions");
+    let journey_id_for_task = journey_id.clone();
+    let progress_app = app.clone();
+    let (pi_name, mirror_name) = dedicated_native_names(&journey_name, 1);
+    emit_journey_provisioning(&app, &journey_id, "creating_pi_session");
+    let (pi_session_id, pi_session_file, mirror_conversation_id) = tauri::async_runtime::spawn_blocking(move || {
+        let (pi_id, pi_file) = provision_pi_session(&requested_pi_id, &pi_name, &pi_session_dir)?;
+        emit_journey_provisioning(&progress_app, &journey_id_for_task, "creating_mirror_conversation");
+        let mirror_id = provision_mirror_conversation(&pi_file, &journey_id_for_task, &mirror_name)?;
+        emit_journey_provisioning(&progress_app, &journey_id_for_task, "activating_journey_context");
+        Ok::<_, String>((pi_id, pi_file, mirror_id))
+    }).await.map_err(|error| format!("Journey thread provisioning task failed: {}", error))??;
+    emit_journey_provisioning(&app, &journey_id, "verifying_authority");
+    let activated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let thread_id = format!("nautilus-thread-{}", journey_id);
+    let (pi_session_name, mirror_conversation_name) = dedicated_native_names(&journey_name, 1);
+    let receipt = json!({
+        "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
+        "generation": 1, "piSessionId": pi_session_id, "mirrorConversationId": mirror_conversation_id,
+        "mode": "mirror", "commandAuthority": "installed", "activatedAt": activated_at,
+    });
+    let thread = json!({
+        "schemaVersion": "1.0.0", "threadId": thread_id, "journeyId": journey_id,
+        "createdAt": activated_at, "activeGeneration": 1,
+        "generations": [{
+            "generation": 1, "status": "ready", "piSessionId": pi_session_id,
+            "mirrorConversationId": mirror_conversation_id, "piSessionName": pi_session_name,
+            "mirrorConversationName": mirror_conversation_name, "piSessionFile": pi_session_file,
+            "createdAt": activated_at, "activatedAt": activated_at, "activationReceipt": receipt
+        }]
+    });
+    let envelope = json!({ "schemaVersion": "1.0.0", "thread": thread, "savedAt": activated_at });
+    let payload = serde_json::to_string_pretty(&envelope).map_err(|error| format!("Could not serialize Journey thread: {}", error))?;
+    let parent = path.parent().ok_or_else(|| "Journey thread path has no parent.".to_string())?;
+    fs::create_dir_all(parent).map_err(|error| format!("Could not create Journey thread directory: {}", error))?;
+    emit_journey_provisioning(&app, &journey_id, "publishing_ready_thread");
+    let staged = path.with_extension("json.provisioning.tmp");
+    fs::write(&staged, payload).map_err(|error| format!("Could not stage ready Journey thread: {}", error))?;
+    fs::rename(&staged, &path).map_err(|error| format!("Could not publish ready Journey thread: {}", error))?;
+    let _ = fs::remove_file(operation_path);
+    Ok(thread)
 }
 
 #[tauri::command]
@@ -1125,6 +1323,7 @@ fn start_pi_invocation(
     config: ProviderConfig,
     journey_id: String,
     session_id: String,
+    session_file: Option<String>,
     correlation: Option<TurnCorrelation>,
 ) -> Result<(), String> {
     if prompt.trim().is_empty() {
@@ -1164,6 +1363,7 @@ fn start_pi_invocation(
             config,
             journey_id,
             session_id,
+            session_file,
             correlation,
         )
     });
@@ -1902,6 +2102,7 @@ fn run_pi_process(
     config: ProviderConfig,
     journey_id: String,
     session_id: String,
+    session_file: Option<String>,
     correlation: Option<TurnCorrelation>,
 ) {
     let mirror_mediated = config.invocation_mode == "mirror" && !config.safe_test_mode;
@@ -1918,9 +2119,14 @@ fn run_pi_process(
     if mirror_mediated {
         args = mirror_json_event_args(args);
     }
-    if mirror_mediated && !args.iter().any(|arg| arg == "--session-id") {
-        args.push("--session-id".to_string());
-        args.push(session_id.clone());
+    if mirror_mediated && !args.iter().any(|arg| arg == "--session-id" || arg == "--session") {
+        if let Some(file) = session_file.as_ref() {
+            args.push("--session".to_string());
+            args.push(file.clone());
+        } else {
+            args.push("--session-id".to_string());
+            args.push(session_id.clone());
+        }
     }
     if mirror_mediated
         && !args
@@ -2625,6 +2831,13 @@ fn journey_thread_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, Str
     Ok(app_data_dir.join("journey-threads").join(format!("{}.json", safe_journey_id)))
 }
 
+fn journey_thread_operation_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
+    let safe_journey_id = sanitize_journey_id(journey_id)?;
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
+    Ok(app_data_dir.join("journey-thread-operations").join(format!("{}.json", safe_journey_id)))
+}
+
 fn validate_persisted_turn_authority(app: &AppHandle, value: &TurnCorrelation) -> Result<(), String> {
     let payload: Value = serde_json::from_str(
         &fs::read_to_string(journey_conversation_path(app, &value.journey_id)?)
@@ -2744,12 +2957,14 @@ fn args_for_display(args: &[String]) -> String {
 fn main() {
     tauri::Builder::default()
         .manage(PiProcessState::default())
+        .manage(JourneyProvisioningState::default())
         .manage(ExternalPiObservationState::default())
         .invoke_handler(tauri::generate_handler![
             save_journey_conversation,
             load_journey_conversation,
             save_journey_thread,
             load_journey_thread,
+            provision_journey_thread,
             load_journey_registry,
             load_journey_preferences,
             save_journey_preferences,
@@ -2784,6 +2999,7 @@ mod tests {
         validate_mirror_reconciliation_messages, activate_reconciled_files,
         list_journey_documentation_at, read_journey_document_at, find_registered_journey_path,
         projection_manifest_coordinates_at, apply_hydrated_reconciliation_baseline,
+        dedicated_native_names, parse_pi_session_state,
         ExternalPiFileFingerprint, ExternalPiInspection, MirrorObservedMessage, MirrorSnapshotFingerprint,
         PiSessionContextSnapshot, TurnCorrelation, DOCUMENT_PREVIEW_MAX_BYTES,
     };
@@ -2793,6 +3009,25 @@ mod tests {
         path::PathBuf,
         time::{SystemTime, UNIX_EPOCH},
     };
+
+    #[test]
+    fn derives_bounded_deterministic_native_names() {
+        let first = dedicated_native_names("Livro   Liderança Soberana", 1);
+        let second = dedicated_native_names("Livro   Liderança Soberana", 1);
+        assert_eq!(first, second);
+        assert!(first.0.contains("Nautilus"));
+        assert!(first.0.chars().count() <= 80);
+        assert!(first.1.chars().count() <= 100);
+    }
+
+    #[test]
+    fn accepts_only_successful_native_pi_state_authority() {
+        let output = br#"warning
+{"type":"response","command":"get_state","success":true,"data":{"sessionId":"pi-one","sessionFile":"/sessions/pi-one.jsonl"}}
+"#;
+        assert_eq!(parse_pi_session_state(output).unwrap(), ("pi-one".to_string(), "/sessions/pi-one.jsonl".to_string()));
+        assert!(parse_pi_session_state(br#"{"type":"response","command":"get_state","success":false}"#).is_err());
+    }
 
     #[test]
     fn builds_a_linked_pi_session_from_an_explicit_mirror_conversation() {

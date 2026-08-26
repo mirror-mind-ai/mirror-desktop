@@ -3,7 +3,9 @@ import appSource from "../app/App.tsx?raw";
 import type { NautilusJourneyThread } from "../domain/nautilusJourneyThread";
 
 const invoke = vi.fn();
+const listen = vi.fn().mockResolvedValue(() => undefined);
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
+vi.mock("@tauri-apps/api/event", () => ({ listen }));
 
 const thread: NautilusJourneyThread = {
   schemaVersion: "1.0.0", threadId: "thread-one", journeyId: "journey-one", createdAt: "2026-08-26T00:00:00.000Z", activeGeneration: 1,
@@ -11,7 +13,11 @@ const thread: NautilusJourneyThread = {
 };
 
 describe("Journey thread storage boundary", () => {
-  beforeEach(() => invoke.mockReset());
+  beforeEach(() => {
+    invoke.mockReset();
+    listen.mockReset();
+    listen.mockResolvedValue(() => undefined);
+  });
 
   it("uses only the dedicated journey-threads commands", async () => {
     const { loadNautilusJourneyThread, saveNautilusJourneyThread } = await import("../app/journeyThreadStorage");
@@ -25,6 +31,23 @@ describe("Journey thread storage boundary", () => {
   it("does not make dedicated readiness wait for legacy conversation loading", () => {
     expect(appSource).toContain("await loadNautilusJourneyThread(selectedJourney)");
     expect(appSource).not.toContain("const [persistedConversation, dedicatedThread] = await Promise.all");
+  });
+
+  it("provisions through one Journey-scoped native command", async () => {
+    const { provisionNautilusJourneyThread } = await import("../app/journeyThreadStorage");
+    const ready = {
+      schemaVersion: "1.0.0", threadId: "thread-one", journeyId: "journey-one", createdAt: "2026-08-26T00:00:00.000Z", activeGeneration: 1,
+      generations: [{ ...thread.generations[0], activationReceipt: { schemaVersion: "1.0.0", journeyId: "journey-one", threadId: "thread-one", generation: 1, piSessionId: "pi-one", mirrorConversationId: "mirror-one", mode: "mirror", commandAuthority: "installed", activatedAt: "2026-08-26T00:00:00.000Z" } }],
+    };
+    const progress = vi.fn();
+    listen.mockImplementationOnce(async (_event, handler) => {
+      handler({ payload: { journeyId: "journey-one", phase: "creating_pi_session" } });
+      return () => undefined;
+    });
+    invoke.mockResolvedValueOnce(ready);
+    await expect(provisionNautilusJourneyThread("journey-one", "Journey One", progress)).resolves.toEqual(ready);
+    expect(progress).toHaveBeenCalledWith("creating_pi_session");
+    expect(invoke).toHaveBeenCalledWith("provision_journey_thread", { journeyId: "journey-one", journeyName: "Journey One" });
   });
 
   it("does not downgrade malformed dedicated authority to absent", async () => {
