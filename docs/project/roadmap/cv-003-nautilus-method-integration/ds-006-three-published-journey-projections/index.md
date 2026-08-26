@@ -38,11 +38,11 @@ The existence of one Delivery Story does not authorize crossing these gates impl
 | [CV-003.DS-006.TS-3](cv-003-ds-006-ts-3-nautilus-projection-protocol/index.md) | Nautilus Projection Protocol | Technical Story | Define validated Tactical and Strategic document contracts over the released Mirror envelope | ✅ Done |
 | [CV-003.DS-006.TS-4](cv-003-ds-006-ts-4-nautilus-method-synthesis-profile/index.md) | Nautilus Method Synthesis Profile | Technical Story | Export compact versioned semantic guidance for explicit Tactical and Strategic interpretation | ✅ Done |
 | [CV-003.DS-006.TS-5](cv-003-ds-006-ts-5-explicit-synthesis-publication-boundary/index.md) | Explicit Synthesis Publication Boundary | Technical Story | Keep Pi interpretation explicit while the extension owns Protocol validation and publication authority | ✅ Done |
-| [CV-003.DS-006.US-1](cv-003-ds-006-us-1-published-journey-projection-hydration/index.md) | Published Journey Projection Hydration | User Story | Render selected-Journey Tactical and Strategic projections through read-only public inspection | 🟠 In Progress |
+| [CV-003.DS-006.US-1](cv-003-ds-006-us-1-published-journey-projection-hydration/index.md) | Published Journey Projection Hydration | User Story | Render selected-Journey Tactical and Strategic projections through read-only public inspection | ✅ Done |
 
 ## Next Delivery Boundary
 
-TS-2 through TS-5 established repository ownership, released Mirror compatibility, Nautilus projection contracts, the Method runtime profile and an explicit Pi-to-publication boundary. US-1 now hydrates Harness from consistent public inspections without moving derivation or mutation authority into the desktop app.
+TS-2 through TS-5 established repository ownership, released Mirror compatibility, Nautilus projection contracts, the Method runtime profile and an explicit Pi-to-publication boundary. US-1 hydrates Harness from consistent public inspections without moving derivation or mutation authority into the desktop app. The next explicit action is to publish the first production Tactical and Strategic readings and validate the populated route.
 
 ## Boundaries
 

@@ -2,7 +2,7 @@
 
 # CV-003.DS-006.US-1 — Published Journey Projection Hydration
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 **Type:** User Story
 
 ## Outcome
@@ -45,3 +45,6 @@ And no load invokes Pi, synthesis, a provider or projection mutation
 - [Plan](plan.md)
 - [Test Guide](test-guide.md)
 - [Implementation](implementation.md)
+- [Validation](validation.md)
+- [Debt Review](review.md)
+- [Done](done.md)
