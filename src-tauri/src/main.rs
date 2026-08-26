@@ -1218,6 +1218,87 @@ async fn inspect_external_pi_activity(
     .map_err(|error| format!("Could not inspect external Pi activity: {}", error))?
 }
 
+fn apply_hydrated_reconciliation_baseline(
+    payload: &mut Value,
+    journey_id: &str,
+    session_id: &str,
+    session_file: &str,
+    fingerprint: &MirrorSnapshotFingerprint,
+) -> Result<(), String> {
+    let payload_saved_at = payload.get("savedAt").and_then(Value::as_str).map(str::to_string);
+    let conversation = payload.get_mut("conversation").and_then(Value::as_object_mut)
+        .ok_or_else(|| "Imported Journey conversation is missing its conversation object.".to_string())?;
+    let live = conversation.get("liveIdentity").and_then(Value::as_object)
+        .ok_or_else(|| "Imported Journey conversation has no live identity.".to_string())?;
+    let harness_conversation_id = live.get("harnessConversationId").and_then(Value::as_str)
+        .ok_or_else(|| "Imported Journey conversation has no Harness identity.".to_string())?.to_string();
+    let mirror_conversation_id = live.get("mirrorConversationId").and_then(Value::as_str)
+        .ok_or_else(|| "Imported Journey conversation has no Mirror identity.".to_string())?.to_string();
+    let generation = live.get("generation").and_then(Value::as_u64).unwrap_or(0);
+    if live.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+        || live.get("piSessionId").and_then(Value::as_str) != Some(session_id)
+        || fingerprint.conversation_id != mirror_conversation_id
+    {
+        return Err("Hydration baseline authority does not match the selected Journey.".to_string());
+    }
+    let messages = conversation.get("messages").and_then(Value::as_array)
+        .ok_or_else(|| "Imported Journey conversation is missing messages.".to_string())?;
+    let final_message = messages.last()
+        .ok_or_else(|| "Selected Mirror conversation has no importable messages.".to_string())?;
+    if final_message.get("role").and_then(Value::as_str) != Some("assistant") {
+        return Err("Selected Mirror conversation ends with an incomplete turn; reload after the canonical assistant response is committed.".to_string());
+    }
+    let final_harness_id = final_message.get("id").and_then(Value::as_str)
+        .ok_or_else(|| "Imported final message has no native identity.".to_string())?.to_string();
+    let final_mirror_id = final_harness_id.strip_prefix("mirror-")
+        .ok_or_else(|| "Imported final message is not linked to a native Mirror message.".to_string())?;
+    let message_count = messages.len() as u64;
+    if fingerprint.last_message_id != final_mirror_id || fingerprint.message_count != message_count {
+        return Err("Canonical Mirror conversation advanced during hydration; reload it before invoking Pi.".to_string());
+    }
+    let classified_at = fingerprint.updated_at.clone()
+        .or(payload_saved_at)
+        .unwrap_or_else(|| "1970-01-01T00:00:00.000Z".to_string());
+    conversation.insert("reconciliation".to_string(), json!({
+        "schemaVersion": "0.1.0",
+        "authority": {
+            "journeyId": journey_id,
+            "harnessConversationId": harness_conversation_id,
+            "piSessionId": session_id,
+            "generation": generation,
+            "mirrorConversationId": mirror_conversation_id,
+        },
+        "checkpoints": {
+            "harness": {
+                "lastMessageId": final_harness_id,
+                "lastTurnId": format!("hydration-baseline-{}", final_mirror_id),
+                "messageCount": message_count,
+            },
+            "pi": {
+                "leafEntryId": format!("import-message-{}", message_count),
+                "entryCount": message_count + 1,
+                "sessionFile": session_file,
+            },
+            "mirror": {
+                "conversationId": mirror_conversation_id,
+                "lastMessageId": fingerprint.last_message_id,
+                "messageCount": fingerprint.message_count,
+                "updatedAt": fingerprint.updated_at,
+            },
+        },
+        "turns": [],
+        "advancement": {},
+        "classification": "in_sync",
+        "classifiedAt": classified_at,
+        "reasonCodes": ["explicit_hydration_baseline"],
+    }));
+    if let Some(root) = payload.as_object_mut() {
+        root.insert("schemaVersion".to_string(), Value::String("0.5.0".to_string()));
+        root.insert("savedAt".to_string(), Value::String(classified_at));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn hydrate_pi_session_from_local_conversation(
     app: AppHandle,
@@ -1247,7 +1328,7 @@ fn hydrate_pi_session_from_local_conversation(
     drop(child_slot);
 
     let conversation_path = journey_conversation_path(&app, &safe_journey_id)?;
-    let payload: Value = serde_json::from_str(
+    let mut payload: Value = serde_json::from_str(
         &fs::read_to_string(&conversation_path)
             .map_err(|error| format!("Could not read imported Journey conversation: {}", error))?,
     )
@@ -1268,14 +1349,39 @@ fn hydrate_pi_session_from_local_conversation(
         .and_then(Value::as_str)
         .ok_or_else(|| {
             "Only an explicitly selected Mirror conversation can hydrate a Pi session.".to_string()
-        })?;
+        })?
+        .to_string();
     let timestamp = payload
         .get("savedAt")
         .and_then(Value::as_str)
-        .unwrap_or("1970-01-01T00:00:00.000Z");
+        .unwrap_or("1970-01-01T00:00:00.000Z")
+        .to_string();
+    let final_message = messages.last()
+        .ok_or_else(|| "Selected Mirror conversation has no importable messages.".to_string())?;
+    if final_message.get("role").and_then(Value::as_str) != Some("assistant") {
+        return Err("Selected Mirror conversation ends with an incomplete turn; reload after the canonical assistant response is committed.".to_string());
+    }
+    let base_message_id = final_message.get("id").and_then(Value::as_str)
+        .and_then(|value| value.strip_prefix("mirror-"))
+        .ok_or_else(|| "Imported final message is not linked to a native Mirror message.".to_string())?
+        .to_string();
+    let base_message_count = messages.len() as u64;
+    let fresh: MirrorInspectionPayload = serde_json::from_str(&run_mirror_inspection(
+        &safe_journey_id, &mirror_conversation_id, &base_message_id, base_message_count,
+    )?).map_err(|_| "Canonical Mirror hydration inspection is invalid.".to_string())?;
+    if fresh.status != "unchanged"
+        || fresh.journey_id != safe_journey_id
+        || fresh.conversation_id != mirror_conversation_id
+        || fresh.base_message_id != base_message_id
+        || fresh.base_message_count != base_message_count
+        || fresh.fingerprint.last_message_id != base_message_id
+        || fresh.fingerprint.message_count != base_message_count
+    {
+        return Err("Canonical Mirror conversation advanced during hydration; reload it before invoking Pi.".to_string());
+    }
     let session_content = build_hydrated_pi_session(
         &safe_session_id,
-        timestamp,
+        &timestamp,
         messages,
         provider.trim(),
         model.trim(),
@@ -1297,8 +1403,22 @@ fn hydrate_pi_session_from_local_conversation(
     fs::rename(&temp_path, &session_path)
         .map_err(|error| format!("Could not activate hydrated Pi session: {}", error))?;
 
+    apply_hydrated_reconciliation_baseline(
+        &mut payload,
+        &safe_journey_id,
+        &safe_session_id,
+        &session_path.to_string_lossy(),
+        &fresh.fingerprint,
+    )?;
+    let next_payload = serde_json::to_string_pretty(&payload).map_err(|error| error.to_string())? + "\n";
+    let staged_conversation = conversation_path.with_extension(format!("json.hydrate-{}.tmp", nonce));
+    fs::write(&staged_conversation, next_payload)
+        .map_err(|error| format!("Could not stage hydrated conversation authority: {}", error))?;
+    fs::rename(&staged_conversation, &conversation_path)
+        .map_err(|error| format!("Could not activate hydrated conversation authority: {}", error))?;
+
     Ok(format!(
-        "Mirror conversation {} hydrated into Pi session {}; {} previous session file archived.",
+        "Mirror conversation {} hydrated into Pi session {} and established as the synchronized baseline; {} previous session file archived.",
         mirror_conversation_id, safe_session_id, archived,
     ))
 }
@@ -2612,8 +2732,8 @@ mod tests {
         inspect_external_pi_content, validate_turn_correlation,
         validate_mirror_reconciliation_messages, activate_reconciled_files,
         list_journey_documentation_at, read_journey_document_at, find_registered_journey_path,
-        projection_manifest_coordinates_at,
-        ExternalPiFileFingerprint, ExternalPiInspection, MirrorObservedMessage,
+        projection_manifest_coordinates_at, apply_hydrated_reconciliation_baseline,
+        ExternalPiFileFingerprint, ExternalPiInspection, MirrorObservedMessage, MirrorSnapshotFingerprint,
         PiSessionContextSnapshot, TurnCorrelation, DOCUMENT_PREVIEW_MAX_BYTES,
     };
     use serde_json::json;
@@ -2781,6 +2901,66 @@ mod tests {
         ].join("\n");
         assert_eq!(inspect_external_pi_content(base.clone(), &partial_only, "base", 2).unwrap().status, "waiting");
         assert_eq!(inspect_external_pi_content(base, &session, "missing", 2).unwrap().reason_code.as_deref(), Some("pi_base_leaf_missing"));
+    }
+
+    #[test]
+    fn establishes_hydrated_authority_only_for_a_complete_canonical_turn() {
+        let mut payload = json!({
+            "schemaVersion": "0.2.0",
+            "savedAt": "2026-08-26T12:00:00Z",
+            "conversation": {
+                "id": "harness-1",
+                "journeyId": "nautilus-harness",
+                "liveIdentity": {
+                    "journeyId": "nautilus-harness",
+                    "harnessConversationId": "harness-1",
+                    "piSessionId": "nautilus-nautilus-harness",
+                    "mirrorConversationId": "mirror-1",
+                    "generation": 0
+                },
+                "messages": [
+                    {"id": "mirror-user-1", "role": "user", "content": "question"},
+                    {"id": "mirror-assistant-1", "role": "assistant", "content": "answer"}
+                ]
+            }
+        });
+        let fingerprint = MirrorSnapshotFingerprint {
+            conversation_id: "mirror-1".to_string(),
+            message_count: 2,
+            last_message_id: "assistant-1".to_string(),
+            updated_at: Some("2026-08-26T12:01:00Z".to_string()),
+        };
+        apply_hydrated_reconciliation_baseline(
+            &mut payload,
+            "nautilus-harness",
+            "nautilus-nautilus-harness",
+            "/sessions/native.jsonl",
+            &fingerprint,
+        ).expect("complete canonical baseline");
+        assert_eq!(payload["schemaVersion"], "0.5.0");
+        assert_eq!(payload["conversation"]["reconciliation"]["classification"], "in_sync");
+        assert_eq!(payload["conversation"]["reconciliation"]["checkpoints"]["mirror"]["lastMessageId"], "assistant-1");
+        assert_eq!(payload["conversation"]["reconciliation"]["checkpoints"]["pi"]["sessionFile"], "/sessions/native.jsonl");
+
+        let mut incomplete = json!({
+            "conversation": {
+                "liveIdentity": {
+                    "journeyId": "nautilus-harness",
+                    "harnessConversationId": "harness-1",
+                    "piSessionId": "nautilus-nautilus-harness",
+                    "mirrorConversationId": "mirror-1",
+                    "generation": 0
+                },
+                "messages": [{"id": "mirror-user-1", "role": "user", "content": "pending"}]
+            }
+        });
+        assert!(apply_hydrated_reconciliation_baseline(
+            &mut incomplete,
+            "nautilus-harness",
+            "nautilus-nautilus-harness",
+            "/sessions/native.jsonl",
+            &MirrorSnapshotFingerprint { message_count: 1, last_message_id: "user-1".to_string(), ..fingerprint }
+        ).unwrap_err().contains("incomplete turn"));
     }
 
     #[test]

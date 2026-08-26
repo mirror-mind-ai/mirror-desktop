@@ -1827,6 +1827,26 @@ h3 {
   padding: 18px 34px 28px;
 }
 
+.conversation-authority-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(230, 174, 80, 0.34);
+  border-radius: 12px;
+  background: rgba(230, 174, 80, 0.08);
+}
+
+.conversation-authority-notice p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
+
+.conversation-authority-notice button {
+  flex: 0 0 auto;
+}
+
 .conversation-sync-notice {
   align-items: center;
   background: rgba(205, 151, 61, 0.1);

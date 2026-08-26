@@ -24,8 +24,11 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(appSource).toContain("await refreshExternalConversationActivity()");
     expect(appSource).toContain("baseConversation = conversationRef.current");
     expect(appSource).toContain("externalPiInFlightRef.current.size > 0");
-    expect(appSource).toContain('!["uninitialized", "in_sync"].includes(baseConversation.reconciliation.classification)');
+    expect(appSource).toContain('baseConversation.reconciliation.classification !== "in_sync"');
+    expect(appSource).toContain('conversation.reconciliation.classification !== "in_sync"');
     expect(appSource).toContain("Live invocation stopped because Journey conversation authority changed");
+    expect(appSource).toContain("<ConversationAuthorityNotice");
+    expect(appSource).toContain("const synchronizedConversation = await loadJourneyConversation(selectedJourney)");
   });
 
   it("runs Mirror-mediated processes from the Mirror runtime root without duplicate after-the-fact logging", () => {
@@ -49,7 +52,7 @@ describe("Mirror-mediated Pi invocation", () => {
 
   it("hydrates an explicitly selected Mirror conversation into the mapped Pi session", () => {
     expect(appSource).toContain("hydrateJourneyPiSession");
-    expect(appSource).toContain("reloadedConversation.liveIdentity.piSessionId");
+    expect(appSource).toContain("importedConversation.liveIdentity.piSessionId");
     expect(tauriMainSource).toContain("hydrate_pi_session_from_local_conversation");
     expect(tauriMainSource).toContain("Only an explicitly selected Mirror conversation can hydrate a Pi session.");
     expect(mirrorExportScriptSource).toContain('"origin": "mirror_import"');

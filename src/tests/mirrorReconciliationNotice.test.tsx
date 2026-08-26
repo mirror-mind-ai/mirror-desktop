@@ -17,8 +17,8 @@ const eligible: MirrorReconciliationReview = {
 
 describe("Mirror reconciliation notice", () => {
   it("blocks new invocations while reconciliation needs attention", () => {
-    expect(appSource).toContain('!["uninitialized", "in_sync"].includes(conversation.reconciliation.classification)');
-    expect(appSource).toContain("reconciliationBlocksInvocation || providerErrors.length > 0");
+    expect(appSource).toContain('conversation.reconciliation.classification !== "in_sync"');
+    expect(appSource).toContain("reconciliationBlocksInvocation || conversationAuthorityChecking || providerErrors.length > 0");
     expect(appSource).toContain('["in_sync", "pi_advanced", "mirror_advanced", "both_advanced"]');
   });
 

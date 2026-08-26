@@ -41,6 +41,7 @@ import {
 import { MessageContent } from "./MessageContent";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { ComposerRuntimeFooter } from "./ComposerRuntimeFooter";
+import { ConversationAuthorityNotice } from "./ConversationAuthorityNotice";
 import { ConversationSyncNotice } from "./ConversationSyncNotice";
 import { ExternalPiSyncNotice } from "./ExternalPiSyncNotice";
 import { MirrorReconciliationNotice } from "./MirrorReconciliationNotice";
@@ -207,6 +208,7 @@ export function App({ model }: AppProps) {
   const [mirrorReconciliationReview, setMirrorReconciliationReview] = useState<MirrorReconciliationReview | undefined>();
   const [isReconcilingMirror, setIsReconcilingMirror] = useState(false);
   const [mirrorReconciliationError, setMirrorReconciliationError] = useState<string | undefined>();
+  const [conversationAuthorityChecking, setConversationAuthorityChecking] = useState(false);
   const [providerConfig, setProviderConfig] = useState(defaultPiProviderConfig);
   const [providerCommand, setProviderCommand] = useState(defaultPiProviderConfig.command);
   const [providerArgsText, setProviderArgsText] = useState(providerConfigToArgsText(defaultPiProviderConfig));
@@ -284,7 +286,7 @@ export function App({ model }: AppProps) {
     && authoritativeContextStats.generation === conversation.liveIdentity.generation;
   const reportedContextUsage = contextIdentityMatches ? authoritativeContextStats.usage : undefined;
   const pendingMirrorRepair = useMemo(() => pendingMirrorTurnRepair(conversation), [conversation]);
-  const reconciliationBlocksInvocation = !["uninitialized", "in_sync"].includes(conversation.reconciliation.classification);
+  const reconciliationBlocksInvocation = conversation.reconciliation.classification !== "in_sync";
   const configuredContextWindow = configuredModelContextWindow(providerConfig);
   const displayContextWindow = configuredContextWindow ?? reportedContextUsage?.contextWindow ?? null;
   const authoritativeContextUsage = reportedContextUsage
@@ -387,9 +389,14 @@ export function App({ model }: AppProps) {
   }
 
   async function refreshExternalConversationActivity() {
-    await refreshExternalPiActivity();
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    await refreshMirrorConversationActivity();
+    setConversationAuthorityChecking(true);
+    try {
+      await refreshExternalPiActivity();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      await refreshMirrorConversationActivity();
+    } finally {
+      setConversationAuthorityChecking(externalPiInFlightRef.current.size > 0);
+    }
   }
 
   async function refreshMirrorConversationActivity() {
@@ -572,11 +579,11 @@ export function App({ model }: AppProps) {
       try {
         const persistedConversation = await loadJourneyConversation(selectedJourney);
         if (!cancelled) {
-          setConversation(
-            persistedConversation?.journeyId === selectedJourney
-              ? persistedConversation
-              : createJourneyConversation({ journeyId: selectedJourney, initialMessages }),
-          );
+          const restoredConversation = persistedConversation?.journeyId === selectedJourney
+            ? persistedConversation
+            : createJourneyConversation({ journeyId: selectedJourney, initialMessages });
+          conversationRef.current = restoredConversation;
+          setConversation(restoredConversation);
         }
       } finally {
         if (!cancelled) {
@@ -809,6 +816,12 @@ export function App({ model }: AppProps) {
         conversation.liveIdentity.piSessionId,
         providerConfig,
       );
+      const hydratedConversation = await loadJourneyConversation(conversation.journeyId);
+      if (!hydratedConversation || hydratedConversation.reconciliation.classification !== "in_sync") {
+        throw new Error("Hydrated conversation did not establish synchronized Pi and Mirror authority.");
+      }
+      conversationRef.current = hydratedConversation;
+      setConversation(hydratedConversation);
       const inspection = await readJourneyPiContextStats(
         conversation.journeyId,
         conversation.liveIdentity.piSessionId,
@@ -854,7 +867,7 @@ export function App({ model }: AppProps) {
       baseConversation = conversationRef.current;
       const preflightBlocked = externalPiInFlightRef.current.size > 0
         || baseConversation.journeyId !== selectedJourney
-        || !["uninitialized", "in_sync"].includes(baseConversation.reconciliation.classification);
+        || baseConversation.reconciliation.classification !== "in_sync";
       if (preflightBlocked) {
         setStreamWarnings((warnings) => [
           ...warnings,
@@ -1179,19 +1192,24 @@ export function App({ model }: AppProps) {
     setJourneyReloadStatus("Reloading selected Mirror conversation...");
     try {
       const summary = await reloadJourneyFromMirror(selectedJourney, conversationId);
-      const reloadedConversation = await loadJourneyConversation(selectedJourney);
-      if (reloadedConversation?.journeyId === selectedJourney) {
+      const importedConversation = await loadJourneyConversation(selectedJourney);
+      if (importedConversation?.journeyId === selectedJourney) {
         const hydrationSummary = await hydrateJourneyPiSession(
           selectedJourney,
-          reloadedConversation.liveIdentity.piSessionId,
+          importedConversation.liveIdentity.piSessionId,
           providerConfig,
         );
-        setConversation(reloadedConversation);
+        const synchronizedConversation = await loadJourneyConversation(selectedJourney);
+        if (!synchronizedConversation || synchronizedConversation.reconciliation.classification !== "in_sync") {
+          throw new Error("Reloaded conversation did not establish synchronized Pi and Mirror authority.");
+        }
+        conversationRef.current = synchronizedConversation;
+        setConversation(synchronizedConversation);
         setJourneyReloadStatus(`${summary} ${hydrationSummary}`.trim());
       }
       setMirrorConversationPickerOpen(false);
       setMirrorConversationLoadCandidate(undefined);
-      if (!reloadedConversation) {
+      if (!importedConversation) {
         setJourneyReloadStatus(summary || "Selected Mirror conversation reloaded.");
       }
     } catch (error) {
@@ -1579,6 +1597,17 @@ export function App({ model }: AppProps) {
           aria-label="Message composer"
           hidden={!operationalChatSelected}
         >
+          {reconciliationBlocksInvocation
+            && !mirrorReconciliationReview
+            && !pendingMirrorRepair
+            && !isStreaming ? (
+            <ConversationAuthorityNotice
+              classification={conversation.reconciliation.classification}
+              checking={piContextState === "checking" || conversationAuthorityChecking}
+              disabled={isJourneyReloading || agentRun.status === "running"}
+              onReview={() => void openMirrorConversationPicker()}
+            />
+          ) : null}
           {mirrorReconciliationReview && !isStreaming ? (
             <MirrorReconciliationNotice
               review={mirrorReconciliationReview}
@@ -1608,7 +1637,10 @@ export function App({ model }: AppProps) {
                   void generatePacket("live");
                 }
               }}
-              placeholder="Write a message to this journey agent."
+              placeholder={reconciliationBlocksInvocation
+                ? "Synchronize this conversation before writing another command."
+                : "Write a message to this journey agent."}
+              disabled={reconciliationBlocksInvocation || conversationAuthorityChecking || isJourneyReloading || agentRun.status === "running"}
             />
             <ComposerRuntimeFooter
               projection={runtimeProjection}
@@ -1637,7 +1669,7 @@ export function App({ model }: AppProps) {
                   className="icon-button send-button"
                   type="button"
                   onClick={() => void generatePacket("live")}
-                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || providerErrors.length > 0}
+                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || conversationAuthorityChecking || providerErrors.length > 0}
                   aria-label="Send message"
                   title="Send message"
                 >
