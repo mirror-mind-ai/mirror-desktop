@@ -2,7 +2,7 @@
 
 # CV-003.DS-006 — Three Published Journey Projections
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -19,7 +19,7 @@ This Delivery Story is intentionally gated:
 
 The existence of one Delivery Story does not authorize crossing these gates implicitly.
 
-**Current gate:** open. Mirror `v0.31.10` first completed the immutable return contract. Mirror `v0.31.11` at commit `c9519c30caac1522209a56840a09dabc123cead0` then fixed confined parent-link compilation; the installed public rebuild and inspection passed against this Journey without rewriting source links.
+**Final gate:** passed. Mirror `v0.31.10` first completed the immutable return contract. Mirror `v0.31.11` at commit `c9519c30caac1522209a56840a09dabc123cead0` fixed confined parent-link compilation. The installed production route subsequently published and inspected coordinated Operational, Tactical and Strategic projections for this Journey with exact ancestry.
 
 ## Mirror Return Evidence
 
@@ -29,9 +29,9 @@ The existence of one Delivery Story does not authorize crossing these gates impl
 - Extension API: `1.1`
 - Gate: `open`
 
-## Active Work Package
+## Candidate Stories
 
-| Code | Work Package | Type | Outcome | Status |
+| Code | Story | Type | Outcome | Status |
 |------|--------------|------|---------|--------|
 | [CV-003.DS-006.TS-1](cv-003-ds-006-ts-1-mirror-journey-projection-contract/index.md) | Mirror Journey Projection Contract v1 and Return Probe | Technical Story | Give the independent Mirror release session a self-sufficient public contract and executable consumer acceptance kit without implementing Mirror Core here | ✅ Done |
 | [CV-003.DS-006.TS-2](cv-003-ds-006-ts-2-repository-baselines-and-mirror-compatibility/index.md) | Repository Baselines and Mirror Compatibility | Technical Story | Version Protocol and Mirror Extension independently and prove the extension consumes the released public API without internal imports | ✅ Done |
@@ -40,9 +40,17 @@ The existence of one Delivery Story does not authorize crossing these gates impl
 | [CV-003.DS-006.TS-5](cv-003-ds-006-ts-5-explicit-synthesis-publication-boundary/index.md) | Explicit Synthesis Publication Boundary | Technical Story | Keep Pi interpretation explicit while the extension owns Protocol validation and publication authority | ✅ Done |
 | [CV-003.DS-006.US-1](cv-003-ds-006-us-1-published-journey-projection-hydration/index.md) | Published Journey Projection Hydration | User Story | Render selected-Journey Tactical and Strategic projections through read-only public inspection | ✅ Done |
 
-## Next Delivery Boundary
+## Production Result
 
-TS-2 through TS-5 established repository ownership, released Mirror compatibility, Nautilus projection contracts, the Method runtime profile and an explicit Pi-to-publication boundary. US-1 hydrates Harness from consistent public inspections without moving derivation or mutation authority into the desktop app. The next explicit action is to publish the first production Tactical and Strategic readings and validate the populated route.
+The complete route is validated for `nautilus-harness`:
+
+```text
+Operational: op-46c15b20b1f64ff3abe38b88949886e6
+Tactical:    ta-5c8dd43ee762419f81b928cccff70d25
+Strategic:   st-837f154001e849df91a721e5ebfabc48
+```
+
+Tactical cites the exact Operational snapshot. Strategic cites that same Operational snapshot and the exact Tactical snapshot. Public inspection returned `ok` for all three coordinates, and the Navigator accepted the populated Harness route.
 
 ## Boundaries
 

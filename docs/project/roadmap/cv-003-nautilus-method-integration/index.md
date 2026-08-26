@@ -23,7 +23,7 @@ The operational life of the Journey remains the source. Tactical and strategic v
 | [CV-003.DS-003](ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | 🟡 Planned |
 | [CV-003.DS-004](ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and generated value through pragmatic and integrative lenses | 🟡 Planned |
 | [CV-003.DS-005](ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can distinguish provisional readings from explicit synthesis checkpoints and inspect or correct their supporting sources | 🟡 Planned |
-| [CV-003.DS-006](ds-006-three-published-journey-projections/index.md) | Three Published Journey Projections | Ariad, Mirror/Pi and Harness coordinate versioned Operational, Tactical and Strategic Journey read models through a gated cross-body contract | 🟠 In Progress |
+| [CV-003.DS-006](ds-006-three-published-journey-projections/index.md) | Three Published Journey Projections | Ariad, Mirror/Pi and Harness coordinate versioned Operational, Tactical and Strategic Journey read models through a gated cross-body contract | ✅ Done |
 
 ## Done Condition
 
