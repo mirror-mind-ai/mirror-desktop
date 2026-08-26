@@ -29,6 +29,9 @@ describe("Mirror reconciliation notice", () => {
     expect(html).toContain("Mirror has newer conversation turns");
     expect(html).toContain("new fact");
     expect(html).toContain("Create reconciled Pi branch");
+    expect(html).toContain('class="mirror-reconciliation-records"');
+    expect(html).toContain('class="mirror-reconciliation-actions"');
+    expect(html.indexOf("mirror-reconciliation-records")).toBeLessThan(html.indexOf("mirror-reconciliation-actions"));
     expect(html).not.toContain("dangerouslySetInnerHTML");
   });
 

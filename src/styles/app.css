@@ -1901,6 +1901,19 @@ h3 {
   padding-top: 8px;
 }
 
+.mirror-reconciliation-records {
+  max-height: min(38vh, 360px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+
+.mirror-reconciliation-records:focus-visible {
+  outline: 1px solid rgba(205, 151, 61, 0.52);
+  outline-offset: 2px;
+}
+
 .mirror-reconciliation-record {
   background: rgba(7, 18, 22, 0.42);
   border-radius: 7px;
@@ -1916,6 +1929,18 @@ h3 {
 .mirror-reconciliation-record p {
   margin: 4px 0 0;
   white-space: pre-wrap;
+}
+
+.mirror-reconciliation-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.mirror-reconciliation-actions p {
+  margin: 0;
 }
 
 .composer-input-wrap {

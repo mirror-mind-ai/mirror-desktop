@@ -52,3 +52,4 @@ And no load invokes Pi, synthesis, a provider or projection mutation
 - [TD-003 — Canonical Conversation Reactivation Gate](td-003-canonical-conversation-reactivation-gate.md)
 - [TD-004 — Send Preflight Authority Refresh Race](td-004-send-preflight-authority-refresh-race.md)
 - [TD-005 — Pi Extension Autoload Failure](td-005-pi-extension-autoload-failure.md)
+- [TD-006 — Bounded Reconciliation Review](td-006-bounded-reconciliation-review.md)
