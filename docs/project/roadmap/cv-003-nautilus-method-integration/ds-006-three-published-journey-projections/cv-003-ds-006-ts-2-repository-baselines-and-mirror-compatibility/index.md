@@ -14,3 +14,6 @@ Agentic Protocol and Mirror Extension have independent Git baselines, and the ex
 - [Plan](plan.md)
 - [Test Guide](test-guide.md)
 - [Implementation](implementation.md)
+- [Validation](validation.md)
+- [Debt Review](review.md)
+- [Done](done.md)

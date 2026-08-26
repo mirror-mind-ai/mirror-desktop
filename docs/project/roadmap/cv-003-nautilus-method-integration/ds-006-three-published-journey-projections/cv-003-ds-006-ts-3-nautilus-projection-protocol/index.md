@@ -14,3 +14,6 @@ Tactical and Strategic projections have strict, source-grounded JSON contracts o
 - [Plan](plan.md)
 - [Test Guide](test-guide.md)
 - [Implementation](implementation.md)
+- [Validation](validation.md)
+- [Debt Review](review.md)
+- [Done](done.md)

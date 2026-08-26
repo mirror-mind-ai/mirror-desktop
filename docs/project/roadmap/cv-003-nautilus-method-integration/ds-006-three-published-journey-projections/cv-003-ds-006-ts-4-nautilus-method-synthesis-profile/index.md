@@ -14,3 +14,6 @@ Pi can load a compact versioned Method profile that preserves Nautilus semantic 
 - [Plan](plan.md)
 - [Test Guide](test-guide.md)
 - [Implementation](implementation.md)
+- [Validation](validation.md)
+- [Debt Review](review.md)
+- [Done](done.md)
