@@ -51,3 +51,4 @@ And no load invokes Pi, synthesis, a provider or projection mutation
 - [TD-002 — Harness Journey Authority and Synthesis Routing Defect](td-002-harness-journey-authority-and-synthesis-routing-defect.md)
 - [TD-003 — Canonical Conversation Reactivation Gate](td-003-canonical-conversation-reactivation-gate.md)
 - [TD-004 — Send Preflight Authority Refresh Race](td-004-send-preflight-authority-refresh-race.md)
+- [TD-005 — Pi Extension Autoload Failure](td-005-pi-extension-autoload-failure.md)
