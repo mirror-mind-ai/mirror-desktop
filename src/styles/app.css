@@ -663,6 +663,22 @@ h3 {
   color: #71868c;
 }
 
+.journey-projection-notice {
+  background: rgba(18, 28, 30, 0.88);
+  border: 1px solid rgba(133, 223, 210, 0.2);
+  border-radius: 10px;
+  color: #9fb2b7;
+  font-size: 0.78rem;
+  margin: 0 auto 16px;
+  max-width: 1120px;
+  padding: 9px 12px;
+}
+
+.journey-projection-notice.notice-stale {
+  border-color: rgba(220, 178, 92, 0.32);
+  color: #d7c49b;
+}
+
 .tactical-journey-workspace {
   min-height: 0;
   overflow-x: hidden;

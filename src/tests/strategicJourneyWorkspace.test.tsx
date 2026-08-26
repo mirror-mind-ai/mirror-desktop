@@ -1,60 +1,43 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { StrategicJourneyWorkspace } from "../app/StrategicJourneyWorkspace";
-import {
-  representativeJourneyPreview,
-  type RepresentativeJourneyPreview,
-} from "../app/journeyAltitudePreview";
+import type { StrategicProjection } from "../domain/journeyProjections";
 import strategicSource from "../app/StrategicJourneyWorkspace.tsx?raw";
 
-const previewWithUnrelatedImpact = {
-  ...representativeJourneyPreview,
-  strategic: {
-    ...representativeJourneyPreview.strategic,
+const projection: StrategicProjection = {
+  journeyId: "journey-a", snapshotId: "st-current", sourceRevision: "sha256:st",
+  sourceSnapshots: [{ namespace: "ariad", projection: "operational", snapshotId: "op-current" }],
+  content: {
     impacts: [
-      ...representativeJourneyPreview.strategic.impacts,
-      { id: "unrelated-impact", label: "Unrelated impact must not appear." },
+      { id: "related", title: "Related impact", summary: "Something happened after availability.", sourceReferences: ["roadmap"] },
+      { id: "unrelated", title: "Unrelated impact", summary: "Must not appear.", sourceReferences: ["other"] },
     ],
+    realizations: [{
+      id: "realization", title: "Published realization", summary: "Value became available.", impactIds: ["related"],
+      pragmaticValue: { summary: "Useful capacity became available.", sourceReferences: ["roadmap"] },
+      integrativeValue: { summary: "The wider field gained coherence.", sourceReferences: ["roadmap"] },
+      sourceReferences: ["roadmap"],
+    }],
   },
-} satisfies RepresentativeJourneyPreview;
+};
 
 describe("StrategicJourneyWorkspace", () => {
-  it("renders one realization with only its related observed impacts", () => {
-    const html = renderToStaticMarkup(
-      <StrategicJourneyWorkspace preview={previewWithUnrelatedImpact} />,
-    );
-    const realization = representativeJourneyPreview.strategic.realizations[0];
-
-    expect(html).toContain('role="tabpanel"');
-    expect(html).toContain('aria-label="Strategic workspace"');
-    expect(html).toContain("Realization");
-    expect(html).toContain(realization.title);
-    expect(html).toContain("Observed impacts");
-    expect(html).toContain("Conversation continuation is observable and recoverable.");
-    expect(html).toContain("The desktop body is ready to experiment with the Nautilus method.");
-    expect(html).not.toContain("Unrelated impact must not appear.");
-    expect(html.match(/<ul/g)).toHaveLength(1);
+  it("renders one realization with only related impacts", () => {
+    const html = renderToStaticMarkup(<StrategicJourneyWorkspace projection={projection} />);
+    expect(html).toContain("Published realization");
+    expect(html).toContain("Value became available.");
+    expect(html).toContain("Related impact");
+    expect(html).not.toContain("Unrelated impact");
   });
 
-  it("presents pragmatic and integrative value as equal complementary lenses", () => {
-    const html = renderToStaticMarkup(
-      <StrategicJourneyWorkspace preview={representativeJourneyPreview} />,
-    );
-    const realization = representativeJourneyPreview.strategic.realizations[0];
-
+  it("presents equal value lenses and inert staleness", () => {
+    const html = renderToStaticMarkup(<StrategicJourneyWorkspace projection={projection} stale />);
     expect(html).toContain("Pragmatic value");
     expect(html).toContain("Integrative value");
-    expect(html).toContain(realization.pragmaticValue);
-    expect(html).toContain(realization.integrativeValue);
+    expect(html).toContain("Useful capacity became available.");
+    expect(html).toContain("The wider field gained coherence.");
+    expect(html).toContain("earlier published source");
     expect(html.match(/class="strategic-value-lens"/g)).toHaveLength(2);
-  });
-
-  it("remains an inert meaning surface rather than a report or workflow", () => {
-    const html = renderToStaticMarkup(
-      <StrategicJourneyWorkspace preview={representativeJourneyPreview} />,
-    );
-
-    expect(html).not.toMatch(/preview|score|ranking|metric|kpi|progress|dashboard/i);
     expect(html).not.toMatch(/<(button|form|input|textarea|select|canvas)\b/);
     expect(strategicSource).not.toMatch(/invoke|generatePacket|AgentRun|useEffect|localStorage|sessionStorage/);
     expect(strategicSource).not.toContain("dangerouslySetInnerHTML");

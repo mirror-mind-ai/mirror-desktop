@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs::{self, File},
     io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
@@ -910,6 +910,118 @@ fn registered_journey_root(app: &AppHandle, journey_id: &str) -> Result<PathBuf,
         .filter(|path| !path.trim().is_empty())
         .map(PathBuf::from)
         .ok_or_else(|| "The selected Journey has no configured workspace path.".to_string())
+}
+
+const PROJECTION_MANIFEST_MAX_BYTES: u64 = 1024 * 1024;
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct JourneyProjectionBundleTransport {
+    journey_id: String,
+    operational: Option<Value>,
+    tactical: Option<Value>,
+    strategic: Option<Value>,
+    errors: Vec<String>,
+}
+
+fn projection_manifest_coordinates_at(journey_root: &Path, journey_id: &str) -> Result<HashSet<String>, String> {
+    let canonical_root = bounded_documentation_root(journey_root)?;
+    let manifest = canonical_root.join(".mirror").join("projections").join("current.json");
+    if !manifest.exists() {
+        return Ok(HashSet::new());
+    }
+    for component in [canonical_root.join(".mirror"), canonical_root.join(".mirror").join("projections"), manifest.clone()] {
+        let metadata = fs::symlink_metadata(&component)
+            .map_err(|_| "Could not inspect the Journey projection manifest.".to_string())?;
+        if metadata.file_type().is_symlink() {
+            return Err("Journey projection state cannot use symbolic links.".to_string());
+        }
+    }
+    let canonical_manifest = manifest.canonicalize()
+        .map_err(|_| "Could not resolve the Journey projection manifest.".to_string())?;
+    if !canonical_manifest.starts_with(&canonical_root) {
+        return Err("Journey projection manifest escaped the registered Journey.".to_string());
+    }
+    let metadata = canonical_manifest.metadata()
+        .map_err(|_| "Could not inspect the Journey projection manifest.".to_string())?;
+    if !metadata.is_file() || metadata.len() > PROJECTION_MANIFEST_MAX_BYTES {
+        return Err("Journey projection manifest is unavailable or oversized.".to_string());
+    }
+    let payload: Value = serde_json::from_slice(&fs::read(canonical_manifest)
+        .map_err(|_| "Could not read the Journey projection manifest.".to_string())?)
+        .map_err(|_| "Journey projection manifest is invalid.".to_string())?;
+    if payload.get("journeyId").and_then(Value::as_str) != Some(journey_id) {
+        return Err("Journey projection manifest belongs to another Journey.".to_string());
+    }
+    let projections = payload.get("projections").and_then(Value::as_object)
+        .ok_or_else(|| "Journey projection manifest is invalid.".to_string())?;
+    Ok(projections.keys().cloned().collect())
+}
+
+fn production_mirror_home() -> Result<PathBuf, String> {
+    if let Ok(value) = std::env::var("MIRROR_HOME") {
+        if !value.trim().is_empty() {
+            return Ok(PathBuf::from(value));
+        }
+    }
+    let home = std::env::var("HOME").map_err(|_| "Could not resolve the local Mirror home.".to_string())?;
+    let user = std::env::var("MIRROR_USER").unwrap_or_else(|_| "alisson-vale".to_string());
+    Ok(PathBuf::from(home).join(".mirror-minds").join(user))
+}
+
+fn inspect_published_projection(journey_id: &str, namespace: &str, projection: &str) -> Result<Value, String> {
+    let output = Command::new("uv")
+        .args([
+            "run", "python", "-m", "memory", "journey-projection", "inspect",
+            "--journey", journey_id, "--namespace", namespace, "--projection", projection,
+            "--mirror-home",
+        ])
+        .arg(production_mirror_home()?)
+        .args(["--format", "json"])
+        .current_dir(mirror_runtime_root()?)
+        .output()
+        .map_err(|_| format!("Could not inspect the {} Journey projection.", projection))?;
+    if !output.status.success() {
+        return Err(format!("The {} Journey projection is unavailable or divergent.", projection));
+    }
+    let value: Value = serde_json::from_slice(&output.stdout)
+        .map_err(|_| format!("The {} Journey projection returned invalid data.", projection))?;
+    if value.get("status").and_then(Value::as_str) != Some("ok") {
+        return Err(format!("The {} Journey projection is unavailable or divergent.", projection));
+    }
+    Ok(value)
+}
+
+fn load_journey_projections_at(journey_root: &Path, journey_id: &str) -> JourneyProjectionBundleTransport {
+    let coordinates = match projection_manifest_coordinates_at(journey_root, journey_id) {
+        Ok(value) => value,
+        Err(error) => return JourneyProjectionBundleTransport { journey_id: journey_id.to_string(), operational: None, tactical: None, strategic: None, errors: vec![error] },
+    };
+    let mut errors = Vec::new();
+    let mut load = |key: &str, namespace: &str, projection: &str| -> Option<Value> {
+        if !coordinates.contains(key) {
+            return None;
+        }
+        match inspect_published_projection(journey_id, namespace, projection) {
+            Ok(value) => Some(value),
+            Err(error) => { errors.push(error); None }
+        }
+    };
+    let operational = load("ariad:operational", "ariad", "operational");
+    let tactical = load("nautilus-synthesis:tactical", "nautilus-synthesis", "tactical");
+    let strategic = load("nautilus-synthesis:strategic", "nautilus-synthesis", "strategic");
+    drop(load);
+    if operational.is_none() && !coordinates.contains("ariad:operational") {
+        errors.push("The current Operational Journey projection is unavailable.".to_string());
+    }
+    JourneyProjectionBundleTransport { journey_id: journey_id.to_string(), operational, tactical, strategic, errors }
+}
+
+#[tauri::command]
+fn load_journey_projections(app: AppHandle, journey_id: String) -> Result<JourneyProjectionBundleTransport, String> {
+    sanitize_journey_id(&journey_id)?;
+    let journey_root = registered_journey_root(&app, &journey_id)?;
+    Ok(load_journey_projections_at(&journey_root, &journey_id))
 }
 
 #[tauri::command]
@@ -2475,6 +2587,7 @@ fn main() {
             reload_journey_from_mirror,
             inspect_mirror_conversation_activity,
             reconcile_mirror_conversation,
+            load_journey_projections,
             list_journey_documentation,
             read_journey_document,
             open_local_reference,
@@ -2499,6 +2612,7 @@ mod tests {
         inspect_external_pi_content, validate_turn_correlation,
         validate_mirror_reconciliation_messages, activate_reconciled_files,
         list_journey_documentation_at, read_journey_document_at, find_registered_journey_path,
+        projection_manifest_coordinates_at,
         ExternalPiFileFingerprint, ExternalPiInspection, MirrorObservedMessage,
         PiSessionContextSnapshot, TurnCorrelation, DOCUMENT_PREVIEW_MAX_BYTES,
     };
@@ -2815,6 +2929,43 @@ mod tests {
         let tree = list_journey_documentation_at(&directory).unwrap();
         assert_eq!(tree.status, "empty");
         assert!(read_journey_document_at(&directory, "escape.md").is_err());
+        fs::remove_file(outside).unwrap();
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn reads_only_fixed_projection_coordinates_from_the_journey_manifest() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("nautilus-projections-{}-{}", std::process::id(), nonce));
+        fs::create_dir_all(directory.join(".mirror/projections")).unwrap();
+        fs::write(directory.join(".mirror/projections/current.json"), serde_json::to_vec(&json!({
+            "contractVersion": "1.0",
+            "schemaVersion": "1",
+            "journeyId": "selected",
+            "projections": {
+                "ariad:operational": {},
+                "nautilus-synthesis:tactical": {}
+            }
+        })).unwrap()).unwrap();
+        let coordinates = projection_manifest_coordinates_at(&directory, "selected").unwrap();
+        assert!(coordinates.contains("ariad:operational"));
+        assert!(coordinates.contains("nautilus-synthesis:tactical"));
+        assert!(!coordinates.contains("nautilus-synthesis:strategic"));
+        assert!(projection_manifest_coordinates_at(&directory, "other").is_err());
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symbolic_link_projection_manifests() {
+        use std::os::unix::fs::symlink;
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("nautilus-projection-link-{}-{}", std::process::id(), nonce));
+        let outside = directory.parent().unwrap().join(format!("projection-outside-{}.json", nonce));
+        fs::create_dir_all(directory.join(".mirror/projections")).unwrap();
+        fs::write(&outside, "{}").unwrap();
+        symlink(&outside, directory.join(".mirror/projections/current.json")).unwrap();
+        assert!(projection_manifest_coordinates_at(&directory, "selected").is_err());
         fs::remove_file(outside).unwrap();
         fs::remove_dir_all(directory).unwrap();
     }

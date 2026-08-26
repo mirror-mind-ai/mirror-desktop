@@ -41,16 +41,17 @@ describe("Operational Journey workspace", () => {
     expect(documentationBrowserSource).not.toContain("href=");
   });
 
-  it("mounts Journey-contextual altitude data or an honest empty surface", () => {
-    expect(appSource).toContain("representativeJourneyPreviewForJourney(selectedJourneyItem.id)");
+  it("mounts published Journey projections or an honest empty surface", () => {
+    expect(appSource).toContain("loadJourneyProjections(selectedJourney)");
     expect(appSource).toContain("<TacticalJourneyWorkspace");
     expect(appSource).toContain("<StrategicJourneyWorkspace");
-    expect(appSource.match(/preview=\{contextualJourneyPreview\}/g)).toHaveLength(2);
+    expect(appSource).toContain("projection={journeyProjections.tactical}");
+    expect(appSource).toContain("projection={journeyProjections.strategic}");
     expect(appSource).toContain('altitude="tactical"');
     expect(appSource).toContain('altitude="strategic"');
     expect(appSource).toContain("journeyName={selectedJourneyItem.name}");
     expect(appSource).not.toContain("<JourneyAltitudePlaceholder");
-    expect(appSource).not.toContain("preview={representativeJourneyPreview}");
+    expect(appSource).not.toContain("representativeJourneyPreviewForJourney");
   });
 
   it("simplifies the header and keeps altitude state separate from runtime ownership", () => {

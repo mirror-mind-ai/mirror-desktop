@@ -49,14 +49,14 @@ import { JourneyAltitudeEmptyState } from "./JourneyAltitudeEmptyState";
 import { JourneyDocumentationBrowser } from "./JourneyDocumentationBrowser";
 import { TacticalJourneyWorkspace } from "./TacticalJourneyWorkspace";
 import { StrategicJourneyWorkspace } from "./StrategicJourneyWorkspace";
+import { JourneyProjectionNotice } from "./JourneyProjectionNotice";
+import { JourneyProjectionLoadingState } from "./JourneyProjectionLoadingState";
 import {
   OperationalWorkspaceSwitcher,
   type OperationalSurface,
 } from "./OperationalWorkspaceSwitcher";
-import {
-  defaultJourneyAltitude,
-  representativeJourneyPreviewForJourney,
-} from "./journeyAltitudePreview";
+import { defaultJourneyAltitude } from "./journeyAltitudePreview";
+import { loadJourneyProjections } from "./journeyProjectionStorage";
 import {
   inspectMirrorConversationActivity,
   reconcileMirrorConversation,
@@ -131,6 +131,7 @@ import {
   type JourneyPreferenceState,
 } from "../domain/journeyPreferencePersistence";
 import type { NautilusViewModel } from "../domain/nautilusViewModel";
+import type { JourneyProjectionBundle } from "../domain/journeyProjections";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
 
 type AppProps = {
@@ -230,6 +231,8 @@ export function App({ model }: AppProps) {
   const [registryLoaded, setRegistryLoaded] = useState(false);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [loadedJourneyRegistry, setLoadedJourneyRegistry] = useState<JourneyRegistry>(emptyJourneyRegistry);
+  const [journeyProjections, setJourneyProjections] = useState<JourneyProjectionBundle | undefined>();
+  const [projectionLoadStatus, setProjectionLoadStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const chatStreamRef = useRef<HTMLElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const journeyMenuRef = useRef<HTMLDivElement | null>(null);
@@ -267,7 +270,6 @@ export function App({ model }: AppProps) {
       breadcrumb: [selectedJourney],
       depth: 0,
     };
-  const contextualJourneyPreview = representativeJourneyPreviewForJourney(selectedJourneyItem.id);
   const selectedJourneyVisual = journeyVisual(selectedJourneyItem.id);
   const selectedJourneyBasePath = selectedJourneyItem.projectPath;
   const messages = conversation.messages;
@@ -295,7 +297,7 @@ export function App({ model }: AppProps) {
       }
     : undefined;
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
-  const altitudeSwitchDisabled = isStreaming || agentRun.status === "running" || isJourneyReloading;
+  const altitudeSwitchDisabled = isStreaming || agentRun.status === "running" || isJourneyReloading || projectionLoadStatus === "loading";
   const operationalChatSelected = selectedAltitude === "operational" && selectedOperationalSurface === "chat";
   const rightPanelVisible = operationalChatSelected && !rightPanelCollapsed;
 
@@ -586,6 +588,27 @@ export function App({ model }: AppProps) {
       cancelled = true;
     };
   }, [selectedJourney, registryLoaded, preferencesLoaded]);
+
+  useEffect(() => {
+    if (!registryLoaded) return;
+    let cancelled = false;
+    setJourneyProjections(undefined);
+    setProjectionLoadStatus("loading");
+    void loadJourneyProjections(selectedJourney)
+      .then((bundle) => {
+        if (cancelled || bundle.journeyId !== selectedJourney) return;
+        setJourneyProjections(bundle);
+        setProjectionLoadStatus(bundle.errors.length > 0 ? "error" : "ready");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setJourneyProjections(undefined);
+        setProjectionLoadStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedJourney, registryLoaded]);
 
   useEffect(() => {
     if (!conversationLoaded || isStreaming || providerConfig.safeTestMode) {
@@ -1438,23 +1461,27 @@ export function App({ model }: AppProps) {
           />
         ) : null}
         {selectedAltitude === "tactical" ? (
-          contextualJourneyPreview ? (
-            <TacticalJourneyWorkspace preview={contextualJourneyPreview} />
+          projectionLoadStatus === "loading" ? (
+            <JourneyProjectionLoadingState altitude="tactical" />
+          ) : journeyProjections?.tactical ? (
+            <TacticalJourneyWorkspace projection={journeyProjections.tactical} stale={journeyProjections.tacticalStale} />
           ) : (
-            <JourneyAltitudeEmptyState
-              altitude="tactical"
-              journeyName={selectedJourneyItem.name}
-            />
+            <>
+              {projectionLoadStatus === "error" ? <JourneyProjectionNotice altitude="tactical" kind="error" /> : null}
+              <JourneyAltitudeEmptyState altitude="tactical" journeyName={selectedJourneyItem.name} />
+            </>
           )
         ) : null}
         {selectedAltitude === "strategic" ? (
-          contextualJourneyPreview && contextualJourneyPreview.strategic.realizations.length > 0 ? (
-            <StrategicJourneyWorkspace preview={contextualJourneyPreview} />
+          projectionLoadStatus === "loading" ? (
+            <JourneyProjectionLoadingState altitude="strategic" />
+          ) : journeyProjections?.strategic ? (
+            <StrategicJourneyWorkspace projection={journeyProjections.strategic} stale={journeyProjections.strategicStale} />
           ) : (
-            <JourneyAltitudeEmptyState
-              altitude="strategic"
-              journeyName={selectedJourneyItem.name}
-            />
+            <>
+              {projectionLoadStatus === "error" ? <JourneyProjectionNotice altitude="strategic" kind="error" /> : null}
+              <JourneyAltitudeEmptyState altitude="strategic" journeyName={selectedJourneyItem.name} />
+            </>
           )
         ) : null}
 
