@@ -4,20 +4,20 @@
 
 ## Description
 
-Nautilus Harness é a aplicação desktop agêntica dedicada à prática da gramática Nautilus e à operação de trabalho Pi apoiado pelo Mirror. O walking skeleton original evoluiu para um cockpit conversacional com Jornadas persistidas, execução local explícita, atividade operacional visível e superfícies Mirror.
+Nautilus Harness é a aplicação desktop agêntica dedicada à prática da gramática Nautilus e à operação de trabalho Pi apoiado pelo Mirror. O cockpit preserva uma conversa por Journey e publica três leituras coordenadas do mesmo território: Operational por Ariad, Tactical e Strategic por interpretação Pi explícita.
 
 ## Current focus
 
-Integrar o método Nautilus ao Harness sem transformar a aplicação em um editor de ontologia. A mesma Jornada deve poder ser habitada nas altitudes operacional, tática e estratégica.
+Consolidar a fronteira de três projeções publicadas com autoridade de Journey verificável. O Harness já hidrata Operational, Tactical e Strategic por inspeção pública read-only; agora cada invocação deve permanecer vinculada à Journey visualmente selecionada, reconciliar avanço externo antes do provider e aceitar síntese apenas por publicação validada com recibos e reinspeção.
 
 ## Near slice
 
-Preparar `CV-003.DS-001 - Three-Altitude GUI Experiment`: preservar a seleção lateral e a conversa atual, compor as três altitudes com conteúdo representativo coerente e validar a direção visual no aplicativo desktop antes de implementar derivação semântica ou acesso real a artefatos.
+Executar a primeira publicação Tactical e Strategic real para `nautilus-harness` somente após reiniciar o Harness corrigido e confirmar que a conversa ativa está reconciliada com a conversa Mirror `8f36cada`.
 
 ## Later
 
-A integração avança do experimento visual para artefatos operacionais, síntese tática, realização estratégica e checkpoints de significado derivados. `DS-009 - Concurrent Journey Operations` permanece planejada para permitir múltiplas Journeys em execução simultânea sem mistura de processos, eventos, respostas ou persistência.
+Avançar `CV-003.DS-003`, `CV-003.DS-004` e `CV-003.DS-005` para comportamento semântico Tactical, reconhecimento Strategic e checkpoints corrigíveis. `DS-009 — Concurrent Journey Operations` permanece planejada.
 
 ## Done condition
 
-A etapa atual estará pronta quando o Navigator puder operar uma Jornada pela conversa e por seus artefatos, reconhecer missões, evidências e entregáveis na altitude tática, e perceber realizações, impactos e valor nas lentes pragmática e integrativa, com interpretações derivadas rastreáveis e corrigíveis.
+A etapa estará pronta quando Operational, Tactical e Strategic forem leituras rastreáveis da mesma Journey; nenhuma seleção, conversa, sessão Pi ou contexto Mirror puder escapar da autoridade visível; sínteses forem publicadas apenas por intent explícito e recibos válidos; e divergência, ausência e staleness permanecerem observáveis sem reparo ou provider implícito.
