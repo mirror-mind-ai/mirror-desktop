@@ -34,6 +34,9 @@ The existence of one Delivery Story does not authorize crossing these gates impl
 | Code | Work Package | Type | Outcome | Status |
 |------|--------------|------|---------|--------|
 | [CV-003.DS-006.TS-1](cv-003-ds-006-ts-1-mirror-journey-projection-contract/index.md) | Mirror Journey Projection Contract v1 and Return Probe | Technical Story | Give the independent Mirror release session a self-sufficient public contract and executable consumer acceptance kit without implementing Mirror Core here | ✅ Done |
+| [CV-003.DS-006.TS-2](cv-003-ds-006-ts-2-repository-baselines-and-mirror-compatibility/index.md) | Repository Baselines and Mirror Compatibility | Technical Story | Version Protocol and Mirror Extension independently and prove the extension consumes the released public API without internal imports | ✅ Done |
+| [CV-003.DS-006.TS-3](cv-003-ds-006-ts-3-nautilus-projection-protocol/index.md) | Nautilus Projection Protocol | Technical Story | Define validated Tactical and Strategic document contracts over the released Mirror envelope | 🟠 In Progress |
+| [CV-003.DS-006.TS-4](cv-003-ds-006-ts-4-nautilus-method-synthesis-profile/index.md) | Nautilus Method Synthesis Profile | Technical Story | Export compact versioned semantic guidance for explicit Tactical and Strategic interpretation | 🟡 Planned |
 
 ## Later Work Packages
 
