@@ -1864,7 +1864,7 @@ export function App({ model }: AppProps) {
           <form className="settings-window journey-admin-dialog" role="dialog" aria-modal="true" aria-label="Journey administration" onSubmit={submitJourneyAdministration}>
             <div className="settings-header">
               <div>
-                <p className="eyebrow">Canonical Mirror administration</p>
+                <p className="eyebrow">{journeyAdminDialog.mode === "create" ? "Journey details" : journeyAdminDialog.mode === "path" ? "Journey settings" : "Journey organization"}</p>
                 <h2>{journeyAdminDialog.mode === "create" ? "Create Journey" : journeyAdminDialog.mode === "path" ? "Project path" : "Move Journey"}</h2>
               </div>
               <button type="button" onClick={() => setJourneyAdminDialog(null)} disabled={journeyAdminState === "saving"}>×</button>
