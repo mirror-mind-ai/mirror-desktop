@@ -22,5 +22,8 @@ describe("central header actions", () => {
     expect(appSource).toContain('title="Conversation"');
     expect(appSource).toContain("chatEndRef.current?.scrollIntoView");
     expect(appSource).toContain('aria-current={operationalChatSelected ? "location" : undefined}');
+    expect(appSource.indexOf('aria-label="Go to conversation"')).toBeLessThan(
+      appSource.indexOf('aria-label="Journey conversation menu"'),
+    );
   });
 });

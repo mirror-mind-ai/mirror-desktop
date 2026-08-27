@@ -1561,6 +1561,19 @@ export function App({ model }: AppProps) {
                 </div>
               </div>
               <div className="chat-header-actions">
+                <button
+                  className={`menu-button conversation-shortcut ${operationalChatSelected ? "selected" : ""}`}
+                  type="button"
+                  onClick={showConversation}
+                  disabled={altitudeSwitchDisabled}
+                  aria-label="Go to conversation"
+                  aria-current={operationalChatSelected ? "location" : undefined}
+                  title="Conversation"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 5.75h14v9.5H9.25L5 18.5V5.75Z" />
+                  </svg>
+                </button>
                 <div className="journey-menu-wrap" ref={journeyMenuRef}>
                   <button
                     className="menu-button"
@@ -1586,19 +1599,6 @@ export function App({ model }: AppProps) {
                     </div>
                   ) : null}
                 </div>
-                <button
-                  className={`menu-button conversation-shortcut ${operationalChatSelected ? "selected" : ""}`}
-                  type="button"
-                  onClick={showConversation}
-                  disabled={altitudeSwitchDisabled}
-                  aria-label="Go to conversation"
-                  aria-current={operationalChatSelected ? "location" : undefined}
-                  title="Conversation"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 5.75h14v9.5H9.25L5 18.5V5.75Z" />
-                  </svg>
-                </button>
               </div>
             </div>
             <div className="journey-altitude-row">
