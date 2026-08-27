@@ -1855,6 +1855,12 @@ h3 {
   padding: 18px 34px 28px;
 }
 
+.turn-finalization-status {
+  color: #8eabb2;
+  font-size: 0.76rem;
+  margin: 0 0 8px;
+}
+
 .conversation-authority-notice {
   display: flex;
   align-items: center;
@@ -2825,4 +2831,55 @@ dd {
 
 @media (max-width: 720px) {
   .journey-arrival-suggestions { grid-template-columns: 1fr; }
+}
+
+.restart-conversation-dialog { max-width: 600px; }
+
+.restart-assurances {
+  background: rgba(133, 223, 210, 0.07);
+  border: 1px solid rgba(133, 223, 210, 0.2);
+  border-radius: 12px;
+  color: #a9c1c7;
+  display: grid;
+  gap: 6px;
+  margin: 18px 0;
+  padding: 12px 14px;
+}
+
+.restart-assurances p { margin: 0; }
+
+.generation-history {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  display: grid;
+  margin-bottom: 18px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.generation-history-row {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 11px 13px;
+}
+
+.generation-history-row + .generation-history-row { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.generation-history-row span:first-child { display: grid; gap: 3px; }
+.generation-history-row small { color: #78959c; }
+
+.generation-status {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: #8ca0a5;
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  text-transform: uppercase;
+}
+
+.generation-status.active {
+  background: rgba(133, 223, 210, 0.1);
+  border-color: rgba(133, 223, 210, 0.28);
+  color: #bff2eb;
 }

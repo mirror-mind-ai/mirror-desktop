@@ -62,6 +62,26 @@ export async function provisionNautilusJourneyThread(
   }
 }
 
+export async function restartNautilusJourneyThread(
+  journeyId: string,
+  journeyName: string,
+  onProgress?: (phase: string) => void,
+): Promise<NautilusJourneyThread> {
+  const unlisten = await listen<JourneyProvisioningEvent>("nautilus-journey-restart", (event) => {
+    if (event.payload.journeyId === journeyId) onProgress?.(event.payload.phase);
+  });
+  try {
+    const value = await invoke<unknown>("restart_journey_thread", { journeyId, journeyName });
+    const thread = parseNautilusJourneyThread(value);
+    if (!thread || classifyNautilusJourneyThread(thread, journeyId).kind !== "ready") {
+      throw new Error("Restarted Journey thread authority is invalid.");
+    }
+    return thread;
+  } finally {
+    unlisten();
+  }
+}
+
 export async function saveNautilusJourneyThread(thread: NautilusJourneyThread): Promise<void> {
   await invoke("save_journey_thread", {
     journeyId: thread.journeyId,

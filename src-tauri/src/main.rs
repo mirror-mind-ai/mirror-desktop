@@ -15,6 +15,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 const PI_PROCESS_EVENT: &str = "nautilus-pi-process";
 const JOURNEY_PROVISIONING_EVENT: &str = "nautilus-journey-provisioning";
+const JOURNEY_RESTART_EVENT: &str = "nautilus-journey-restart";
 const JOURNEY_REGISTRY_FILE: &str = "journey-registry.json";
 const JOURNEY_PREFERENCES_FILE: &str = "journey-preferences.json";
 
@@ -31,11 +32,19 @@ struct JourneyProvisioningEvent {
     phase: String,
 }
 
-fn emit_journey_provisioning(app: &AppHandle, journey_id: &str, phase: &str) {
-    let _ = app.emit(JOURNEY_PROVISIONING_EVENT, JourneyProvisioningEvent {
+fn emit_journey_lifecycle(app: &AppHandle, event: &str, journey_id: &str, phase: &str) {
+    let _ = app.emit(event, JourneyProvisioningEvent {
         journey_id: journey_id.to_string(),
         phase: phase.to_string(),
     });
+}
+
+fn emit_journey_provisioning(app: &AppHandle, journey_id: &str, phase: &str) {
+    emit_journey_lifecycle(app, JOURNEY_PROVISIONING_EVENT, journey_id, phase);
+}
+
+fn emit_journey_restart(app: &AppHandle, journey_id: &str, phase: &str) {
+    emit_journey_lifecycle(app, JOURNEY_RESTART_EVENT, journey_id, phase);
 }
 
 #[derive(Default)]
@@ -481,6 +490,125 @@ async fn provision_journey_thread(
     fs::rename(&staged, &path).map_err(|error| format!("Could not publish ready Journey thread: {}", error))?;
     let _ = fs::remove_file(operation_path);
     Ok(thread)
+}
+
+#[tauri::command]
+async fn restart_journey_thread(
+    app: AppHandle,
+    state: State<'_, JourneyProvisioningState>,
+    journey_id: String,
+    journey_name: String,
+) -> Result<Value, String> {
+    sanitize_journey_id(&journey_id)?;
+    {
+        let mut active = state.active.lock().map_err(|_| "Could not inspect active Journey lifecycle operation.".to_string())?;
+        if !active.insert(journey_id.clone()) { return Err("This Journey already has an active lifecycle operation.".to_string()); }
+    }
+    let _lease = JourneyProvisioningLease { active: state.active.clone(), journey_id: journey_id.clone() };
+    emit_journey_restart(&app, &journey_id, "reserving_generation");
+    let path = journey_thread_path(&app, &journey_id)?;
+    let mut envelope: Value = serde_json::from_str(&fs::read_to_string(&path)
+        .map_err(|error| format!("Could not read active Journey thread: {}", error))?)
+        .map_err(|error| format!("Could not parse active Journey thread: {}", error))?;
+    let thread = envelope.get_mut("thread").ok_or_else(|| "Stored Journey thread envelope is invalid.".to_string())?;
+    if thread.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str()) {
+        return Err("Stored Journey thread belongs to another Journey.".to_string());
+    }
+    let prior_generation = thread.get("activeGeneration").and_then(Value::as_u64)
+        .ok_or_else(|| "Stored Journey thread has no active generation.".to_string())?;
+    let prior = thread.get("generations").and_then(Value::as_array)
+        .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == Some(prior_generation)))
+        .ok_or_else(|| "Stored active generation is missing.".to_string())?;
+    if prior.get("status").and_then(Value::as_str) != Some("ready") {
+        return Err("Only a ready active generation can be restarted.".to_string());
+    }
+    let next_generation = prior_generation + 1;
+    let operation_path = journey_thread_operation_path(&app, &journey_id)?;
+    let (operation_id, requested_pi_id) = if operation_path.exists() {
+        let operation: Value = serde_json::from_str(&fs::read_to_string(&operation_path)
+            .map_err(|error| format!("Could not recover Journey restart operation: {}", error))?)
+            .map_err(|error| format!("Could not parse Journey restart operation: {}", error))?;
+        let operation_prior = operation.get("priorGeneration").and_then(Value::as_u64);
+        let operation_next = operation.get("nextGeneration").and_then(Value::as_u64);
+        if operation.get("journeyId").and_then(Value::as_str) == Some(journey_id.as_str())
+            && operation_next == Some(prior_generation)
+            && operation_prior.and_then(|value| value.checked_add(1)) == operation_next {
+            let recovered = thread.clone();
+            let _ = fs::remove_file(&operation_path);
+            return Ok(recovered);
+        }
+        if operation.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
+            || operation_prior != Some(prior_generation)
+            || operation_next != Some(next_generation) {
+            return Err("Recovered Journey restart operation is stale.".to_string());
+        }
+        (
+            operation.get("operationId").and_then(Value::as_str).ok_or_else(|| "Restart operation id is missing.".to_string())?.to_string(),
+            operation.get("piSessionId").and_then(Value::as_str).ok_or_else(|| "Restart Pi authority is missing.".to_string())?.to_string(),
+        )
+    } else {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+        let operation_id = format!("restart-{}-g{}-{:x}", journey_id, next_generation, nonce);
+        let bounded_journey = journey_id.chars().take(64).collect::<String>();
+        let requested_pi_id = format!("nautilus-{}-g{}-{:x}", bounded_journey, next_generation, nonce);
+        if let Some(parent) = operation_path.parent() { fs::create_dir_all(parent).map_err(|error| error.to_string())?; }
+        let operation = json!({
+            "schemaVersion": "1.0.0", "operationId": operation_id, "status": "reserved",
+            "journeyId": journey_id, "threadId": thread.get("threadId").and_then(Value::as_str),
+            "priorGeneration": prior_generation, "nextGeneration": next_generation, "piSessionId": requested_pi_id
+        });
+        fs::write(&operation_path, serde_json::to_vec_pretty(&operation).map_err(|error| error.to_string())?)
+            .map_err(|error| format!("Could not reserve Journey restart: {}", error))?;
+        (operation_id, requested_pi_id)
+    };
+    let pi_session_dir = app.path().app_data_dir().map_err(|error| error.to_string())?.join("pi-sessions");
+    let (pi_name, mirror_name) = dedicated_native_names(&journey_name, next_generation);
+    let task_journey = journey_id.clone();
+    let progress_app = app.clone();
+    emit_journey_restart(&app, &journey_id, "creating_pi_session");
+    let reserved_pi_id = requested_pi_id.clone();
+    let (pi_session_id, pi_session_file, mirror_conversation_id) = tauri::async_runtime::spawn_blocking(move || {
+        let (pi_id, pi_file) = provision_pi_session(&reserved_pi_id, &pi_name, &pi_session_dir)?;
+        emit_journey_restart(&progress_app, &task_journey, "creating_mirror_conversation");
+        let mirror_id = provision_mirror_conversation(&pi_file, &task_journey, &mirror_name)?;
+        emit_journey_restart(&progress_app, &task_journey, "activating_journey_context");
+        Ok::<_, String>((pi_id, pi_file, mirror_id))
+    }).await.map_err(|error| format!("Journey restart task failed: {}", error))??;
+    emit_journey_restart(&app, &journey_id, "verifying_replacement");
+    if pi_session_id != requested_pi_id { return Err("Pi restart authority diverged from its reservation.".to_string()); }
+    let activated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let thread_id = thread.get("threadId").and_then(Value::as_str).ok_or_else(|| "Thread id is missing.".to_string())?.to_string();
+    let (pi_session_name, mirror_conversation_name) = dedicated_native_names(&journey_name, next_generation);
+    let receipt = json!({
+        "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
+        "generation": next_generation, "piSessionId": pi_session_id, "mirrorConversationId": mirror_conversation_id,
+        "mode": "mirror", "commandAuthority": "installed", "activatedAt": activated_at
+    });
+    let replacement = json!({
+        "generation": next_generation, "status": "ready", "piSessionId": pi_session_id,
+        "piSessionFile": pi_session_file, "mirrorConversationId": mirror_conversation_id,
+        "piSessionName": pi_session_name, "mirrorConversationName": mirror_conversation_name,
+        "createdAt": activated_at, "activatedAt": activated_at, "activationReceipt": receipt
+    });
+    let generations = thread.get_mut("generations").and_then(Value::as_array_mut)
+        .ok_or_else(|| "Stored Journey generations are invalid.".to_string())?;
+    let prior_mut = generations.iter_mut().find(|item| item.get("generation").and_then(Value::as_u64) == Some(prior_generation))
+        .ok_or_else(|| "Stored active generation disappeared.".to_string())?;
+    prior_mut["status"] = Value::String("inactive".to_string());
+    prior_mut["closedAt"] = Value::String(activated_at.clone());
+    generations.push(replacement);
+    thread["activeGeneration"] = Value::Number(next_generation.into());
+    envelope["savedAt"] = Value::String(activated_at);
+    emit_journey_restart(&app, &journey_id, "switching_generation");
+    let staged = path.with_extension(format!("json.{}.tmp", operation_id));
+    fs::write(&staged, serde_json::to_vec_pretty(&envelope).map_err(|error| error.to_string())?)
+        .map_err(|error| format!("Could not stage restarted Journey thread: {}", error))?;
+    if let Err(error) = fs::rename(&staged, &path) {
+        let _ = fs::remove_file(&staged);
+        return Err(format!("Could not publish restarted Journey thread: {}", error));
+    }
+    let _ = fs::remove_file(operation_path);
+    Ok(envelope.get("thread").cloned().ok_or_else(|| "Restarted thread is missing.".to_string())?)
 }
 
 #[tauri::command]
@@ -1839,7 +1967,7 @@ fn retry_mirror_turn_commit(
     validate_persisted_turn_authority(&app, &correlation, Some(&session_file))?;
     validate_pi_session_file(&session_file, &correlation.pi_session_id)?;
     let conversation_path = if correlation.schema_version == "0.2.0" {
-        dedicated_journey_conversation_path(&app, &journey_id)?
+        dedicated_journey_conversation_path(&app, &journey_id, correlation.generation)?
     } else {
         journey_conversation_path(&app, &journey_id)?
     };
@@ -3030,20 +3158,30 @@ fn unwrap_persisted_thread(value: &Value) -> &Value {
     value.get("thread").unwrap_or(value)
 }
 
-fn dedicated_journey_conversation_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
+fn legacy_dedicated_journey_conversation_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
     let safe_journey_id = sanitize_journey_id(journey_id)?;
     let app_data_dir = app.path().app_data_dir()
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     Ok(app_data_dir.join("dedicated-journey-conversations").join(format!("{}.json", safe_journey_id)))
 }
 
+fn dedicated_journey_conversation_path(app: &AppHandle, journey_id: &str, generation: u64) -> Result<PathBuf, String> {
+    if generation == 0 { return Err("Dedicated conversation generation must be positive.".to_string()); }
+    let safe_journey_id = sanitize_journey_id(journey_id)?;
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
+    Ok(app_data_dir.join("dedicated-journey-conversations").join(safe_journey_id)
+        .join(format!("generation-{}.json", generation)))
+}
+
 #[tauri::command]
-fn save_dedicated_journey_conversation(app: AppHandle, journey_id: String, payload: String) -> Result<(), String> {
-    let path = dedicated_journey_conversation_path(&app, &journey_id)?;
+fn save_dedicated_journey_conversation(app: AppHandle, journey_id: String, generation: u64, payload: String) -> Result<(), String> {
+    let path = dedicated_journey_conversation_path(&app, &journey_id, generation)?;
     let parsed: Value = serde_json::from_str(&payload).map_err(|error| format!("Invalid dedicated conversation payload: {}", error))?;
     let live = parsed.get("conversation").and_then(|value| value.get("liveIdentity"))
         .ok_or_else(|| "Dedicated conversation identity is missing.".to_string())?;
     if live.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
+        || live.get("generation").and_then(Value::as_u64) != Some(generation)
         || live.get("activationReceiptActivatedAt").and_then(Value::as_str).is_none()
     {
         return Err("Dedicated conversation payload lacks dedicated authority.".to_string());
@@ -3055,10 +3193,19 @@ fn save_dedicated_journey_conversation(app: AppHandle, journey_id: String, paylo
 }
 
 #[tauri::command]
-fn load_dedicated_journey_conversation(app: AppHandle, journey_id: String) -> Result<Option<String>, String> {
-    let path = dedicated_journey_conversation_path(&app, &journey_id)?;
-    if !path.exists() { return Ok(None); }
-    fs::read_to_string(path).map(Some).map_err(|error| error.to_string())
+fn load_dedicated_journey_conversation(app: AppHandle, journey_id: String, generation: u64) -> Result<Option<String>, String> {
+    let path = dedicated_journey_conversation_path(&app, &journey_id, generation)?;
+    if path.exists() { return fs::read_to_string(path).map(Some).map_err(|error| error.to_string()); }
+    let legacy = legacy_dedicated_journey_conversation_path(&app, &journey_id)?;
+    if !legacy.exists() { return Ok(None); }
+    let payload = fs::read_to_string(&legacy).map_err(|error| error.to_string())?;
+    let value: Value = serde_json::from_str(&payload).map_err(|error| error.to_string())?;
+    let matches = value.get("conversation").and_then(|item| item.get("liveIdentity"))
+        .and_then(|live| live.get("generation")).and_then(Value::as_u64) == Some(generation);
+    if !matches { return Ok(None); }
+    if let Some(parent) = path.parent() { fs::create_dir_all(parent).map_err(|error| error.to_string())?; }
+    fs::rename(&legacy, &path).map_err(|error| format!("Could not migrate dedicated generation projection: {}", error))?;
+    Ok(Some(payload))
 }
 
 fn journey_thread_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
@@ -3104,7 +3251,7 @@ fn validate_persisted_turn_authority(app: &AppHandle, value: &TurnCorrelation, s
     }
     let payload: Value = serde_json::from_str(
         &fs::read_to_string(if value.schema_version == "0.2.0" {
-            dedicated_journey_conversation_path(app, &value.journey_id)?
+            dedicated_journey_conversation_path(app, &value.journey_id, value.generation)?
         } else {
             journey_conversation_path(app, &value.journey_id)?
         })
@@ -3239,6 +3386,7 @@ fn main() {
             save_journey_thread,
             load_journey_thread,
             provision_journey_thread,
+            restart_journey_thread,
             load_journey_registry,
             load_journey_preferences,
             save_journey_preferences,

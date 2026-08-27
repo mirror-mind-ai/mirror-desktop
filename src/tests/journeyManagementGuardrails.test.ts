@@ -58,11 +58,14 @@ describe("Journey management guardrails", () => {
 
   it("does not invoke Pi from Journey selection or Mirror reload flows", () => {
     const selectJourney = appSource.slice(appSource.indexOf("function selectJourney"), appSource.indexOf("function togglePinnedJourney"));
-    const mirrorPicker = appSource.slice(appSource.indexOf("async function openMirrorConversationPicker"), appSource.indexOf("function clearChatSession"));
+    const mirrorPicker = appSource.slice(appSource.indexOf("async function openMirrorConversationPicker"), appSource.indexOf("function requestConversationRestart"));
+    const restartFlow = appSource.slice(appSource.indexOf("function requestConversationRestart"), appSource.indexOf("function applyProviderConfiguration"));
 
     expect(selectJourney).not.toContain("generatePacket");
     expect(selectJourney).not.toContain("livePiAgentStream");
     expect(mirrorPicker).not.toContain("generatePacket");
     expect(mirrorPicker).not.toContain("livePiAgentStream");
+    expect(restartFlow).not.toContain("generatePacket");
+    expect(restartFlow).not.toContain("livePiAgentStream");
   });
 });

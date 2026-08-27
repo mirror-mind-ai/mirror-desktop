@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamProvider, type TurnCorrelation } from "../agent/agentStream";
+import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamProvider, type MirrorCommitEvent, type TurnCorrelation } from "../agent/agentStream";
 import {
   cancelLivePiInvocation,
   hydrateJourneyPiSession,
@@ -8,7 +8,6 @@ import {
   readJourneyPiContextStats,
   readMirrorTurnCommitStatus,
   retryMirrorTurnCommit,
-  restartJourneyPiSession,
 } from "../agent/piProcessStream";
 import { normalizePiResponse, type NormalizedPiResponse } from "../agent/piResponseNormalizer";
 import {
@@ -55,8 +54,9 @@ import { JourneyProjectionNotice } from "./JourneyProjectionNotice";
 import { JourneyProjectionLoadingState } from "./JourneyProjectionLoadingState";
 import { JourneyThreadState, type JourneyThreadDisplayState } from "./JourneyThreadState";
 import { JourneyArrivalSurface } from "./JourneyArrivalSurface";
-import { loadDedicatedPiTranscript, loadNautilusJourneyThread, provisionNautilusJourneyThread } from "./journeyThreadStorage";
+import { loadDedicatedPiTranscript, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
+import { projectGenerationHistory } from "../domain/journeyThreadRestart";
 import {
   OperationalWorkspaceSwitcher,
   type OperationalSurface,
@@ -104,7 +104,6 @@ import {
   createDedicatedJourneyConversation,
   restoreDedicatedJourneyConversation,
   replaceJourneyConversationMessages,
-  resetJourneyConversation,
 } from "../domain/journeyConversation";
 import {
   applyMirrorCommitEvent,
@@ -203,6 +202,7 @@ export function App({ model }: AppProps) {
   );
   const [packetJson, setPacketJson] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isFinalizingTurn, setIsFinalizingTurn] = useState(false);
   const [streamMissionDraft, setStreamMissionDraft] = useState<MissionDraft | undefined>();
   const [streamWarnings, setStreamWarnings] = useState<string[]>([]);
   const [streamDiagnostics, setStreamDiagnostics] = useState<string[]>([]);
@@ -237,6 +237,7 @@ export function App({ model }: AppProps) {
   const [journeyStartError, setJourneyStartError] = useState<string | undefined>();
   const [journeyReloadStatus, setJourneyReloadStatus] = useState<string | undefined>();
   const [isJourneyReloading, setIsJourneyReloading] = useState(false);
+  const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false);
   const [mirrorConversationPickerOpen, setMirrorConversationPickerOpen] = useState(false);
   const [mirrorConversationCandidates, setMirrorConversationCandidates] = useState<MirrorConversationCandidate[]>([]);
   const [selectedMirrorConversationId, setSelectedMirrorConversationId] = useState<string | undefined>();
@@ -610,7 +611,7 @@ export function App({ model }: AppProps) {
         if (cancelled) return;
         const classified = classifyNautilusJourneyThread(dedicatedThread, selectedJourney);
         const persistedConversation = classified.kind === "ready"
-          ? await loadDedicatedJourneyConversation(selectedJourney)
+          ? await loadDedicatedJourneyConversation(selectedJourney, classified.activeGeneration.generation)
           : undefined;
         if (cancelled) return;
         let restoredConversation = classified.kind === "ready"
@@ -1040,6 +1041,7 @@ export function App({ model }: AppProps) {
     let runReachedAgent = false;
     let runWasCancelled = false;
     let runFailed = false;
+    let observedAssistantMirrorCommit: MirrorCommitEvent | undefined;
     const diagnostics: string[] = [];
     let streamedAssistantContent = "";
 
@@ -1082,6 +1084,7 @@ export function App({ model }: AppProps) {
           );
         }
         if (event.type === "mirror_commit" && correlation) {
+          if (event.commit.phase === "assistant") observedAssistantMirrorCommit = event.commit;
           setConversation((currentConversation) => applyMirrorCommitEvent(
             currentConversation,
             correlation,
@@ -1160,6 +1163,7 @@ export function App({ model }: AppProps) {
       );
       setStreamWarnings((warnings) => [...warnings, message]);
     } finally {
+      setIsStreaming(false);
       if (runFailed && !runReachedAgent) {
         setConversation(conversationBeforeRun);
       } else if (runWasCancelled || runFailed) {
@@ -1172,14 +1176,20 @@ export function App({ model }: AppProps) {
           ),
         );
       } else if (correlation) {
+        setIsFinalizingTurn(true);
         let settled = commitHarnessTurn(conversationRef.current, correlation, new Date().toISOString());
         const sessionFile = settled.liveIdentity.piSessionFile;
         try {
           if (!sessionFile) throw new Error("Dedicated Pi session file is missing.");
-          await saveDedicatedJourneyConversation(settled);
-          const status = await retryMirrorTurnCommit(settled.journeyId, sessionFile, correlation);
-          settled = applyMirrorTurnCommitStatus(settled, correlation, status, new Date().toISOString());
-          await saveDedicatedJourneyConversation(settled);
+          if (observedAssistantMirrorCommit?.status === "committed") {
+            settled = applyMirrorCommitEvent(settled, correlation, observedAssistantMirrorCommit, new Date().toISOString());
+            await saveDedicatedJourneyConversation(settled);
+          } else {
+            await saveDedicatedJourneyConversation(settled);
+            const status = await retryMirrorTurnCommit(settled.journeyId, sessionFile, correlation);
+            settled = applyMirrorTurnCommitStatus(settled, correlation, status, new Date().toISOString());
+            await saveDedicatedJourneyConversation(settled);
+          }
           if (
             selectedJourneyRef.current === settled.journeyId
             && conversationRef.current.liveIdentity.generation === settled.liveIdentity.generation
@@ -1191,9 +1201,10 @@ export function App({ model }: AppProps) {
           setMirrorCommitError(error instanceof Error ? error.message : String(error));
           conversationRef.current = settled;
           setConversation(settled);
+        } finally {
+          setIsFinalizingTurn(false);
         }
       }
-      setIsStreaming(false);
     }
   }
 
@@ -1370,23 +1381,43 @@ export function App({ model }: AppProps) {
     }
   }
 
-  async function clearChatSession() {
-    if (isStreaming || isJourneyReloading) {
-      return;
-    }
-
+  function requestConversationRestart() {
+    if (isStreaming || isJourneyReloading || journeyThreadState.kind !== "ready" || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)) return;
     setJourneyMenuOpen(false);
+    setRestartConfirmationOpen(true);
+    setJourneyReloadStatus(undefined);
+  }
+
+  async function confirmConversationRestart() {
+    if (isStreaming || isJourneyReloading || journeyThreadState.kind !== "ready" || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)) return;
+    const ownerJourneyId = selectedJourney;
+    const previousGeneration = journeyThreadState.activeGeneration.generation;
     setIsJourneyReloading(true);
-    setJourneyReloadStatus("Restarting Harness conversation and Pi session...");
+    setJourneyReloadStatus("Reserving next generation…");
     try {
-      const resetSummary = await restartJourneyPiSession(
-        selectedJourney,
-        conversation.liveIdentity.piSessionId,
-      );
+      const thread = await restartNautilusJourneyThread(ownerJourneyId, selectedJourneyItem.name, (phase) => {
+        if (selectedJourneyRef.current !== ownerJourneyId) return;
+        const labels: Record<string, string> = {
+          reserving_generation: "Reserving next generation…",
+          creating_pi_session: "Creating native Pi session…",
+          creating_mirror_conversation: "Creating Mirror conversation…",
+          activating_journey_context: "Activating Journey context…",
+          verifying_replacement: "Verifying replacement authority…",
+          switching_generation: "Switching active generation…",
+        };
+        setJourneyReloadStatus(labels[phase] ?? "Restarting conversation…");
+      });
+      if (selectedJourneyRef.current !== ownerJourneyId) return;
+      const classified = classifyNautilusJourneyThread(thread, ownerJourneyId);
+      if (classified.kind !== "ready" || classified.activeGeneration.generation !== previousGeneration + 1) {
+        throw new Error("Restart did not publish the expected next generation.");
+      }
+      const restartedConversation = createDedicatedJourneyConversation({ thread, initialMessages: [] });
+      await saveDedicatedJourneyConversation(restartedConversation);
+      conversationRef.current = restartedConversation;
+      setConversation(restartedConversation);
+      setJourneyThreadState(classified);
       setDraft("");
-      setConversation((currentConversation) =>
-        resetJourneyConversation({ conversation: currentConversation, initialMessages }),
-      );
       setPacketJson("");
       setStreamMissionDraft(undefined);
       setStreamWarnings([]);
@@ -1395,12 +1426,13 @@ export function App({ model }: AppProps) {
       setStreamMode(undefined);
       setRuntimeProjection(initialRuntimeProjectionState);
       setRuntimeProjectionMessageId(undefined);
-      setJourneyPreferences((preferences) => markJourneyRecent(preferences, selectedJourney));
-      setJourneyReloadStatus(`Conversation restarted. ${resetSummary}`);
+      setPiContextState("not_initialized");
+      setJourneyPreferences((preferences) => markJourneyRecent(preferences, ownerJourneyId));
+      setRestartConfirmationOpen(false);
+      setJourneyReloadStatus(`Generation ${classified.activeGeneration.generation} is ready. Previous conversation preserved.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setStreamWarnings((warnings) => [...warnings, message]);
-      setJourneyReloadStatus(`Could not restart conversation: ${message}`);
+      setJourneyReloadStatus(`Restart failed. The current generation remains active. ${message}`);
     } finally {
       setIsJourneyReloading(false);
     }
@@ -1591,21 +1623,22 @@ export function App({ model }: AppProps) {
                     className="menu-button"
                     type="button"
                     onClick={() => setJourneyMenuOpen((open) => !open)}
-                    disabled
-                    aria-label="Journey conversation lifecycle is unavailable in this delivery"
+                    disabled={journeyThreadState.kind !== "ready"}
+                    aria-label="Journey conversation menu"
                     aria-expanded={journeyMenuOpen}
                     title="Journey menu"
                   >
                     ⋯
                   </button>
-                  {false && journeyMenuOpen ? (
+                  {journeyMenuOpen ? (
                     <div className="journey-menu" role="menu">
-                      <button type="button" role="menuitem" onClick={() => void clearChatSession()} disabled={isStreaming || isJourneyReloading}>
-                        {isJourneyReloading ? "Restarting Conversation..." : "Restart Conversation"}
-                      </button>
-                      <div className="journey-menu-separator" role="separator" />
-                      <button type="button" role="menuitem" onClick={() => void openMirrorConversationPicker()} disabled={isStreaming || isJourneyReloading}>
-                        {isJourneyReloading ? "Loading from Mirror..." : "Load Conversation from Mirror..."}
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={requestConversationRestart}
+                        disabled={isStreaming || isJourneyReloading || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)}
+                      >
+                        Restart Conversation…
                       </button>
                     </div>
                   ) : null}
@@ -1806,6 +1839,7 @@ export function App({ model }: AppProps) {
               onRetry={() => void retryPendingMirrorCommit()}
             />
           ) : null}
+          {isFinalizingTurn ? <p className="turn-finalization-status" aria-live="polite">Recording the completed turn… You can draft the next message now.</p> : null}
           <div className="composer-input-wrap">
             <textarea
               aria-label="Natural-language intention"
@@ -1818,9 +1852,9 @@ export function App({ model }: AppProps) {
                 }
               }}
               placeholder={reconciliationBlocksInvocation
-                ? "Synchronize this conversation before writing another command."
+                ? "Draft your next message while the completed turn is recorded."
                 : "Write a message to this journey agent."}
-              disabled={reconciliationBlocksInvocation || conversationAuthorityChecking || isJourneyReloading || agentRun.status === "running"}
+              disabled={conversationAuthorityChecking || isJourneyReloading || agentRun.status === "running"}
             />
             <ComposerRuntimeFooter
               projection={runtimeProjection}
@@ -1924,6 +1958,50 @@ export function App({ model }: AppProps) {
           </section>
         ) : null}
       </aside>
+
+      {restartConfirmationOpen && journeyThreadState.kind === "ready" ? (
+        <div className="settings-backdrop" role="presentation" onClick={() => !isJourneyReloading && setRestartConfirmationOpen(false)}>
+          <section
+            className="settings-window restart-conversation-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Confirm conversation restart"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="settings-header">
+              <div>
+                <p className="eyebrow">Fresh context boundary</p>
+                <h2>Restart conversation?</h2>
+                <p className="settings-intro">
+                  Nautilus will create Generation {journeyThreadState.activeGeneration.generation + 1} with a new Pi session and Mirror conversation.
+                  Generation {journeyThreadState.activeGeneration.generation} and its transcript will remain preserved and read-only.
+                </p>
+              </div>
+            </header>
+            <div className="restart-assurances">
+              <p>No model will be called and no synthetic greeting will be created.</p>
+              <p>The current generation remains active unless the replacement is fully verified.</p>
+            </div>
+            <div className="generation-history" aria-label="Generation history">
+              {projectGenerationHistory(journeyThreadState.thread).map((item) => (
+                <div className="generation-history-row" key={item.generation}>
+                  <span><strong>Generation {item.generation}</strong><small>{item.piSessionName ?? "Dedicated Nautilus conversation"}</small></span>
+                  <span className={`generation-status ${item.status}`}>{item.status}</span>
+                </div>
+              ))}
+            </div>
+            {journeyReloadStatus ? <p className="journey-reload-status" aria-live="polite">{journeyReloadStatus}</p> : null}
+            <div className="provider-actions">
+              <button type="button" onClick={() => void confirmConversationRestart()} disabled={isJourneyReloading}>
+                {isJourneyReloading ? "Restarting…" : "Restart conversation"}
+              </button>
+              <button className="secondary-button" type="button" onClick={() => setRestartConfirmationOpen(false)} disabled={isJourneyReloading}>
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {mirrorConversationPickerOpen ? (
         <div className="settings-backdrop" role="presentation" onClick={closeMirrorConversationPicker}>
