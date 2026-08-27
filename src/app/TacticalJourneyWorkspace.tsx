@@ -1,4 +1,5 @@
 import type { TacticalProjection } from "../domain/journeyProjections";
+import { DerivedMeaningCheckpointPanel } from "./DerivedMeaningCheckpointPanel";
 import { JourneyProjectionNotice } from "./JourneyProjectionNotice";
 
 type TacticalJourneyWorkspaceProps = {
@@ -7,7 +8,7 @@ type TacticalJourneyWorkspaceProps = {
 };
 
 export function TacticalJourneyWorkspace({ projection, stale = false }: TacticalJourneyWorkspaceProps) {
-  const { mission, evidence, deliverables, ambiguities } = projection.content;
+  const { mission, evidence, deliverables, ambiguities, meaningCheckpoints } = projection.content;
   return (
     <section id="journey-altitude-tactical-panel" className="tactical-journey-workspace" role="tabpanel" aria-label="Tactical workspace">
       {stale ? <JourneyProjectionNotice altitude="tactical" kind="stale" /> : null}
@@ -28,6 +29,7 @@ export function TacticalJourneyWorkspace({ projection, stale = false }: Tactical
             <ul>{deliverables.map((item) => <li key={item.id}><span className="tactical-deliverable-mark" aria-hidden="true">◇</span><div><strong>{item.title}</strong><p>{item.summary}</p><EvidenceLinks evidenceIds={item.evidenceIds} /><SourceReferences references={item.sourceReferences} label="Deliverable sources" /></div></li>)}</ul>
           </section>
         </div>
+        <DerivedMeaningCheckpointPanel checkpoints={meaningCheckpoints} />
         {ambiguities.length > 0 ? (
           <section className="tactical-ambiguity-panel" aria-labelledby="tactical-ambiguities-title">
             <div className="tactical-reading-label"><span aria-hidden="true">◌</span><span>Ambiguity preserved</span></div>

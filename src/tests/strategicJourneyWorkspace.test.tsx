@@ -18,6 +18,7 @@ const projection: StrategicProjection = {
       integrativeValue: { summary: "The wider field gained coherence.", sourceReferences: ["tactical-source"] },
       sourceReferences: ["realization-source"],
     }],
+    meaningCheckpoints: [{ id: "checkpoint", title: "Strategic meaning accepted", summary: "The realization is explicit synthesis, not a live inference.", state: "consolidated", sourceReferences: ["checkpoint-source"], correctionBoundary: "Corrections append review without rewriting original evidence." }],
   },
 };
 
@@ -31,6 +32,12 @@ describe("StrategicJourneyWorkspace", () => {
     expect(html).toContain("realization-source");
     expect(html).toContain("Impact sources");
     expect(html).toContain("impact-source");
+    expect(html).toContain("Meaning checkpoints");
+    expect(html).toContain("Consolidated checkpoint");
+    expect(html).toContain("Strategic meaning accepted");
+    expect(html).toContain("Correction boundary");
+    expect(html).toContain("without rewriting original evidence");
+    expect(html).toContain("checkpoint-source");
     expect(html).not.toContain("Unrelated impact");
   });
 

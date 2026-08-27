@@ -68,6 +68,15 @@ export type OperationalExploratoryStory = {
   handoff?: { path?: string; status?: string };
 };
 
+export type DerivedMeaningCheckpoint = {
+  id: string;
+  title: string;
+  summary: string;
+  state: "provisional" | "consolidated" | "contested" | "correction_requested" | "stale";
+  sourceReferences: string[];
+  correctionBoundary?: string;
+};
+
 export type TacticalProjection = OperationalProjection & {
   sourceSnapshots: ProjectionSource[];
   content: {
@@ -75,6 +84,7 @@ export type TacticalProjection = OperationalProjection & {
     evidence: { id: string; title: string; summary: string; sourceReferences: string[] }[];
     deliverables: { id: string; title: string; summary: string; evidenceIds: string[]; sourceReferences: string[] }[];
     ambiguities: { id: string; title: string; summary: string; sourceReferences: string[] }[];
+    meaningCheckpoints: DerivedMeaningCheckpoint[];
   };
 };
 
@@ -91,6 +101,7 @@ export type StrategicProjection = OperationalProjection & {
       integrativeValue: { summary: string; sourceReferences: string[] };
       sourceReferences: string[];
     }[];
+    meaningCheckpoints: DerivedMeaningCheckpoint[];
   };
 };
 
@@ -146,7 +157,7 @@ function parseOperational(value: unknown, journeyId: string): OperationalProject
 function parseTactical(value: unknown, journeyId: string): TacticalProjection {
   const document = validatedInspection(value, journeyId, "nautilus-synthesis", "tactical", "tactical");
   const content = record(document.content, "Tactical content");
-  exactKeys(content, ["mission", "evidence", "deliverables"], "Tactical content", ["ambiguities"]);
+  exactKeys(content, ["mission", "evidence", "deliverables"], "Tactical content", ["ambiguities", "meaningCheckpoints"]);
   const mission = record(content.mission, "Tactical mission");
   exactKeys(mission, ["id", "title", "purpose"], "Tactical mission", ["sourceReferences"]);
   const evidence = records(content.evidence, "Tactical evidence").map((item) => ({
@@ -179,6 +190,7 @@ function parseTactical(value: unknown, journeyId: string): TacticalProjection {
       evidence,
       deliverables,
       ambiguities,
+      meaningCheckpoints: optionalRecords(content.meaningCheckpoints).map(meaningCheckpoint),
     },
   };
 }
@@ -186,7 +198,7 @@ function parseTactical(value: unknown, journeyId: string): TacticalProjection {
 function parseStrategic(value: unknown, journeyId: string): StrategicProjection {
   const document = validatedInspection(value, journeyId, "nautilus-synthesis", "strategic", "strategic");
   const content = record(document.content, "Strategic content");
-  exactKeys(content, ["realizations", "impacts"], "Strategic content");
+  exactKeys(content, ["realizations", "impacts"], "Strategic content", ["meaningCheckpoints"]);
   const impacts = records(content.impacts, "Strategic impacts").map((item) => ({
     id: text(item.id, "Impact id"), title: text(item.title, "Impact title"), summary: text(item.summary, "Impact summary"),
     sourceReferences: stringArray(item.sourceReferences, "Impact sources"),
@@ -208,7 +220,7 @@ function parseStrategic(value: unknown, journeyId: string): StrategicProjection 
   if (!findSource(sourceSnapshots, "ariad", "operational")) throw new Error("Strategic projection requires Operational ancestry.");
   return {
     journeyId, snapshotId: text(document.snapshotId, "Strategic snapshot"), sourceRevision: text(document.sourceRevision, "Strategic revision"),
-    sourceSnapshots, content: { impacts, realizations },
+    sourceSnapshots, content: { impacts, realizations, meaningCheckpoints: optionalRecords(content.meaningCheckpoints).map(meaningCheckpoint) },
   };
 }
 
@@ -315,6 +327,19 @@ function exploratoryStory(value: RecordValue): OperationalExploratoryStory {
 function valueReading(value: unknown, label: string) {
   const item = record(value, label);
   return { summary: text(item.summary, `${label} summary`), sourceReferences: stringArray(item.sourceReferences, `${label} sources`) };
+}
+
+function meaningCheckpoint(value: RecordValue): DerivedMeaningCheckpoint {
+  const state = text(value.state, "Meaning checkpoint state");
+  if (!["provisional", "consolidated", "contested", "correction_requested", "stale"].includes(state)) throw new Error("Meaning checkpoint state is invalid.");
+  return {
+    id: text(value.id, "Meaning checkpoint id"),
+    title: text(value.title, "Meaning checkpoint title"),
+    summary: text(value.summary, "Meaning checkpoint summary"),
+    state: state as DerivedMeaningCheckpoint["state"],
+    sourceReferences: stringArray(value.sourceReferences, "Meaning checkpoint sources"),
+    correctionBoundary: optionalText(value.correctionBoundary),
+  };
 }
 
 function record(value: unknown, label: string): RecordValue {

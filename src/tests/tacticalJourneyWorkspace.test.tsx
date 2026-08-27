@@ -12,6 +12,7 @@ const projection: TacticalProjection = {
     evidence: [{ id: "evidence", title: "Published evidence", summary: "A grounded signal.", sourceReferences: ["evidence-source"] }],
     deliverables: [{ id: "delivery", title: "Published delivery", summary: "A concrete available form.", evidenceIds: ["evidence"], sourceReferences: ["deliverable-source"] }],
     ambiguities: [{ id: "ambiguity", title: "Open tactical tension", summary: "Evidence supports two possible missions.", sourceReferences: ["ambiguity-source"] }],
+    meaningCheckpoints: [{ id: "checkpoint", title: "Tactical reading still emerging", summary: "The interpretation is available but not consolidated.", state: "provisional", sourceReferences: ["checkpoint-source"] }],
   },
 };
 
@@ -29,6 +30,10 @@ describe("TacticalJourneyWorkspace", () => {
     expect(html).toContain("evidence-source");
     expect(html).toContain("deliverable-source");
     expect(html).toContain("Open tactical tension");
+    expect(html).toContain("Meaning checkpoints");
+    expect(html).toContain("Provisional reading");
+    expect(html).toContain("Tactical reading still emerging");
+    expect(html).toContain("checkpoint-source");
     expect(html).not.toMatch(/preview/i);
   });
 

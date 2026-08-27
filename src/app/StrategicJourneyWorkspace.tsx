@@ -1,4 +1,5 @@
 import type { StrategicProjection } from "../domain/journeyProjections";
+import { DerivedMeaningCheckpointPanel } from "./DerivedMeaningCheckpointPanel";
 import { JourneyProjectionNotice } from "./JourneyProjectionNotice";
 
 type StrategicJourneyWorkspaceProps = {
@@ -29,6 +30,7 @@ export function StrategicJourneyWorkspace({ projection, stale = false }: Strateg
           <section className="strategic-value-lens" aria-labelledby="strategic-pragmatic-title"><span className="strategic-lens-mark" aria-hidden="true">01</span><p className="eyebrow">Capacity created</p><h3 id="strategic-pragmatic-title">Pragmatic value</h3><p>{realization.pragmaticValue.summary}</p><SourceReferences references={realization.pragmaticValue.sourceReferences} label="Pragmatic value sources" /></section>
           <section className="strategic-value-lens" aria-labelledby="strategic-integrative-title"><span className="strategic-lens-mark" aria-hidden="true">02</span><p className="eyebrow">Meaning integrated</p><h3 id="strategic-integrative-title">Integrative value</h3><p>{realization.integrativeValue.summary}</p><SourceReferences references={realization.integrativeValue.sourceReferences} label="Integrative value sources" /></section>
         </div>
+        <DerivedMeaningCheckpointPanel checkpoints={projection.content.meaningCheckpoints} />
       </div>
     </section>
   );

@@ -20,6 +20,7 @@ const tactical = {
       evidence: [{ id: "evidence", title: "Evidence", summary: "Grounded signal.", sourceReferences: ["roadmap"] }],
       deliverables: [{ id: "delivery", title: "Delivery", summary: "Available form.", evidenceIds: ["evidence"], sourceReferences: ["roadmap"] }],
       ambiguities: [{ id: "ambiguity", title: "Open ambiguity", summary: "Two readings remain possible.", sourceReferences: ["roadmap"] }],
+      meaningCheckpoints: [{ id: "checkpoint", title: "Provisional checkpoint", summary: "Interpretation is still emerging.", state: "provisional", sourceReferences: ["checkpoint-source"] }],
     },
   },
   manifest: { namespace: "nautilus-synthesis", projection: "tactical", snapshotId: "ta-current", sourceRevision: "sha256:ta" },
@@ -41,6 +42,7 @@ const strategic = {
         integrativeValue: { summary: "Field coherence.", sourceReferences: ["roadmap"] },
         sourceReferences: ["roadmap"],
       }],
+      meaningCheckpoints: [{ id: "strategic-checkpoint", title: "Consolidated meaning", summary: "Meaning was explicitly published.", state: "consolidated", sourceReferences: ["strategic-source"], correctionBoundary: "Correction appends review without rewriting the source." }],
     },
   },
   manifest: { namespace: "nautilus-synthesis", projection: "strategic", snapshotId: "st-current", sourceRevision: "sha256:st" },
@@ -53,7 +55,9 @@ describe("published Journey projections", () => {
     expect(bundle.tactical?.content.mission.title).toBe("Current mission");
     expect(bundle.tactical?.content.mission.sourceReferences).toEqual(["mission-source"]);
     expect(bundle.tactical?.content.ambiguities[0].title).toBe("Open ambiguity");
+    expect(bundle.tactical?.content.meaningCheckpoints[0].state).toBe("provisional");
     expect(bundle.strategic?.content.realizations[0].title).toBe("Realization");
+    expect(bundle.strategic?.content.meaningCheckpoints[0].correctionBoundary).toContain("without rewriting");
     expect(bundle.tacticalStale).toBe(false);
     expect(bundle.strategicStale).toBe(false);
   });
@@ -85,5 +89,8 @@ describe("published Journey projections", () => {
     const ungrounded = structuredClone(tactical);
     ungrounded.document.sourceSnapshots = [];
     expect(() => normalizeJourneyProjectionBundle({ journeyId: "journey-a", operational, tactical: ungrounded, errors: [] }, "journey-a")).toThrow("ancestry");
+    const badCheckpoint = structuredClone(strategic);
+    badCheckpoint.document.content.meaningCheckpoints[0].state = "invented";
+    expect(() => normalizeJourneyProjectionBundle({ journeyId: "journey-a", operational, tactical, strategic: badCheckpoint, errors: [] }, "journey-a")).toThrow("checkpoint state");
   });
 });
