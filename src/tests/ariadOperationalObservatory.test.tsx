@@ -29,7 +29,7 @@ describe("AriadOperationalObservatory", () => {
     const html = renderToStaticMarkup(<AriadOperationalObservatory journeyId="nautilus-harness" journeyName="Nautilus Harness" projection={projection} />);
 
     expect(html).toContain('aria-label="Ariad observatory"');
-    expect(html).toContain("Ariad Home");
+    expect(html).toContain("Ariad Observatory");
     expect(html).toContain("Next Safe Movement");
     expect(html).toContain("Delivery");
     expect(html).toContain("Refinement");

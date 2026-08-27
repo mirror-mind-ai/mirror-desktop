@@ -51,7 +51,7 @@ export function AriadOperationalObservatory({
         <header className="ariad-hero">
           <div>
             <p className="eyebrow">Operational Ariad</p>
-            <h2>Ariad Home</h2>
+            <h2>Ariad Observatory</h2>
             <p>{journeyName} as read-only method cartography.</p>
           </div>
           <span className={`ariad-source-badge ${model.availability}`}>{model.availability === "ready" ? "Published" : "Unavailable"}</span>
@@ -183,12 +183,26 @@ function FieldSummary({
 }
 
 function DeliveryNode({ node, depth, onSelect }: { node: AriadRoadmapNode; depth: number; onSelect: (matter: AriadSelectedMatter) => void }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const hasChildren = node.children.length > 0;
   return (
     <div className="ariad-tree-group">
-      <button type="button" style={{ "--ariad-depth": depth } as CSSProperties} onClick={() => onSelect(selectedMatterFromDelivery(node))}>
-        <span>{node.children.length > 0 ? "▼" : "○"}</span><strong>{node.id}</strong><small>{node.title}</small><em>{node.status}</em>
-      </button>
-      {node.children.map((child) => <DeliveryNode key={child.id} node={child} depth={depth + 1} onSelect={onSelect} />)}
+      <div className="ariad-tree-row" style={{ "--ariad-depth": depth } as CSSProperties}>
+        <button
+          className="ariad-tree-toggle"
+          type="button"
+          aria-label={hasChildren ? `${collapsed ? "Expand" : "Collapse"} ${node.id}` : `${node.id} has no children`}
+          aria-expanded={hasChildren ? !collapsed : undefined}
+          disabled={!hasChildren}
+          onClick={() => setCollapsed((current) => !current)}
+        >
+          {hasChildren ? collapsed ? "▶" : "▼" : "○"}
+        </button>
+        <button className="ariad-tree-selection" type="button" onClick={() => onSelect(selectedMatterFromDelivery(node))}>
+          <strong>{node.id}</strong><small>{node.title}</small><em>{node.status}</em>
+        </button>
+      </div>
+      {hasChildren && !collapsed ? node.children.map((child) => <DeliveryNode key={child.id} node={child} depth={depth + 1} onSelect={onSelect} />) : null}
     </div>
   );
 }

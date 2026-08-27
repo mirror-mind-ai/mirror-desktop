@@ -11,8 +11,8 @@ Implemented the first complete local version of the Ariad Operational Observator
 - Added `Operational > Ariad` beside Conversation and Artifacts.
 - Extended the published Operational projection model to preserve Ariad content needed by the UI.
 - Added a typed Ariad observatory read model for Ariad State, Next Safe Movement, Delivery, Refinement and Exploration.
-- Added Ariad Home with Structure and Selected Matter panels.
-- Added Delivery observation from roadmap hierarchy.
+- Added Ariad Observatory with Structure and Selected Matter panels.
+- Added Delivery observation from roadmap hierarchy, including collapsible tree rows for roadmap items with children.
 - Added Refinement observation from published Refinement Stories and Change Requests when present.
 - Added Exploration observation from published Exploratory Stories, attractors, experiments and handoff metadata.
 - Added unavailable-source and read-only boundary states.
