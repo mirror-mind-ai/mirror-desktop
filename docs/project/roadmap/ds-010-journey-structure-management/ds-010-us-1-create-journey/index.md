@@ -15,7 +15,7 @@ So that a new field of work can enter Mirror and the Harness without manual data
 
 ## Outcome
 
-**Create Journey…** opens a deliberate screen for display name, editable suggested slug, description, root/parent and sibling position, and optional `project_path`. A confirmation summary precedes one canonical model-free creation transaction and verified tree reload.
+**Create Journey…** is available from the Tree control context menu for root placement and from every Journey item's context menu for child placement. The item action opens a deliberate screen with that Journey already selected as the editable parent, alongside display name, editable suggested slug, description, sibling position and optional `project_path`. A confirmation summary precedes one canonical model-free creation transaction and verified tree reload.
 
 ## Acceptance Behavior
 
@@ -27,7 +27,9 @@ Then the Journey appears at the requested canonical position and remains unstart
 
 ## Scope
 
-- Tree context-menu entry and accessible equivalent.
+- Root creation from the Tree control context menu.
+- Child creation from a Journey item's right-click context menu, with `Shift+F10` and Context Menu key parity.
+- Item-scoped creation preselects that exact native Journey as parent while keeping parent and position editable before confirmation.
 - Name, slug, description, position and optional path fields.
 - Slug suggestion with explicit editability.
 - Parent/position picker and confirmation summary.

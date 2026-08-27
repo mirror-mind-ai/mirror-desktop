@@ -1,16 +1,19 @@
 export type JourneyRegistryItem = {
   id: string;
+  nativeId?: string;
   name: string;
   description?: string;
   status?: string;
   stage?: string;
   parentId?: string;
   projectPath?: string;
+  siblingPosition?: number;
   children?: JourneyRegistryItem[];
 };
 
 export type JourneyRegistry = {
-  schemaVersion: "0.1.0";
+  schemaVersion: "0.1.0" | "0.2.0";
+  sourceVersion?: string;
   source: "mirror" | "fixture";
   syncedAt: string;
   roots: JourneyRegistryItem[];
@@ -91,8 +94,11 @@ export function reconcileReloadedJourneyState(
 
 export function validateJourneyRegistry(registry: JourneyRegistry): string[] {
   const errors: string[] = [];
-  if (registry.schemaVersion !== "0.1.0") {
+  if (registry.schemaVersion !== "0.1.0" && registry.schemaVersion !== "0.2.0") {
     errors.push("Unsupported Journey registry schema version.");
+  }
+  if (registry.schemaVersion === "0.2.0" && !/^[a-f0-9]{64}$/.test(registry.sourceVersion ?? "")) {
+    errors.push("Journey registry sourceVersion is invalid.");
   }
   if (!registry.syncedAt.trim()) {
     errors.push("Journey registry syncedAt is required.");

@@ -22,7 +22,7 @@ The desktop should make these operations deliberate without making a Journey syn
 |------|-------|------|---------|--------|
 | [DS-010.TS-1](ds-010-ts-1-canonical-journey-mutation-contract/index.md) | Canonical Journey Mutation Contract | Technical Story | Define versioned authority, hierarchy/order invariants, stale-source rejection and rollback semantics shared by every Journey administration operation | 🟡 Planned |
 | [DS-010.TS-2](ds-010-ts-2-atomic-mirror-mutation-gateway/index.md) | Atomic Mirror Mutation Gateway | Technical Story | Execute bounded model-free Mirror identity mutations and publish a verified replacement registry without exposing partial desktop state | 🟡 Planned |
-| [DS-010.US-1](ds-010-us-1-create-journey/index.md) | Create Journey | User Story | Create a canonical Journey from the Tree context menu with name, slug, description, tree position and optional project path | 🟡 Planned |
+| [DS-010.US-1](ds-010-us-1-create-journey/index.md) | Create Journey | User Story | Create a canonical root from the Tree control menu or a child from an item context menu with its parent preselected, using name, slug, description, tree position and optional project path | 🟡 Planned |
 | [DS-010.US-2](ds-010-us-2-reorganize-journey-tree/index.md) | Reorganize Journey Tree | User Story | Reparent and reorder Journeys with drag-and-drop plus keyboard parity while preserving all non-structural authority | 🟡 Planned |
 | [DS-010.US-3](ds-010-us-3-assign-journey-project-path/index.md) | Assign Journey Project Path | User Story | Assign, replace or clear a Journey's canonical local project association through an explicit safe desktop action | 🟡 Planned |
 

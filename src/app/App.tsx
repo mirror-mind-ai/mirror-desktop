@@ -1,6 +1,7 @@
 import {
   useEffect, useMemo, useRef, useState,
   type CSSProperties,
+  type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
@@ -81,6 +82,7 @@ import {
 } from "./journeyConversationStorage";
 import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPreferenceStorage";
 import { loadJourneyRegistry, refreshJourneyRegistry } from "./journeyRegistryStorage";
+import { chooseProjectDirectory, mutateJourneyRegistry } from "./journeyMutationStorage";
 import {
   createMissionExtractionPacket,
   createUserConversationMessage,
@@ -124,6 +126,7 @@ import {
   sanitizeJourneyPreferenceState,
   type JourneyPreferenceState,
 } from "../domain/journeyPreferencePersistence";
+import { createMutationRequest, suggestJourneySlug, type JourneyMutationRequest } from "../domain/journeyMutation";
 import type { NautilusViewModel } from "../domain/nautilusViewModel";
 import type { JourneyProjectionBundle } from "../domain/journeyProjections";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
@@ -186,6 +189,18 @@ export function App({ model }: AppProps) {
   const [journeyTreeMenuOpen, setJourneyTreeMenuOpen] = useState(false);
   const [journeyRegistryRefreshState, setJourneyRegistryRefreshState] = useState<"idle" | "refreshing" | "succeeded" | "failed">("idle");
   const [journeyRegistryRefreshMessage, setJourneyRegistryRefreshMessage] = useState<string | undefined>();
+  const [journeyItemMenu, setJourneyItemMenu] = useState<{ journeyId: string; x: number; y: number } | null>(null);
+  const [journeyAdminDialog, setJourneyAdminDialog] = useState<{ mode: "create" | "path" | "move"; journeyId?: string; parentId?: string } | null>(null);
+  const [journeyAdminName, setJourneyAdminName] = useState("");
+  const [journeyAdminSlug, setJourneyAdminSlug] = useState("");
+  const [journeyAdminDescription, setJourneyAdminDescription] = useState("");
+  const [journeyAdminParent, setJourneyAdminParent] = useState("");
+  const [journeyAdminPosition, setJourneyAdminPosition] = useState(0);
+  const [journeyAdminPath, setJourneyAdminPath] = useState("");
+  const [journeyAdminState, setJourneyAdminState] = useState<"idle" | "saving" | "failed">("idle");
+  const [journeyAdminMessage, setJourneyAdminMessage] = useState<string | undefined>();
+  const [journeyAdminPendingRequest, setJourneyAdminPendingRequest] = useState<JourneyMutationRequest | null>(null);
+  const [draggedJourneyId, setDraggedJourneyId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [conversation, setConversation] = useState(() =>
     createJourneyConversation({ journeyId: selectedJourney, initialMessages }),
@@ -1179,6 +1194,72 @@ export function App({ model }: AppProps) {
     }));
   }
 
+  function openCreateJourney(parentId = "") {
+    const parent = parentId ? findJourneyById(journeyRegistry, parentId) : undefined;
+    setJourneyAdminDialog({ mode: "create", parentId: parentId || undefined });
+    setJourneyAdminName(""); setJourneyAdminSlug(""); setJourneyAdminDescription("");
+    setJourneyAdminParent(parentId); setJourneyAdminPosition(parent?.children?.length ?? journeyRegistry.roots.length);
+    setJourneyAdminPath(""); setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null);
+    setJourneyTreeMenuOpen(false); setJourneyItemMenu(null);
+  }
+
+  function openJourneyPath(journeyId: string) {
+    setJourneyAdminDialog({ mode: "path", journeyId });
+    setJourneyAdminPath(findJourneyById(journeyRegistry, journeyId)?.projectPath ?? "");
+    setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null); setJourneyItemMenu(null);
+  }
+
+  function openMoveJourney(journeyId: string) {
+    const journey = findJourneyById(journeyRegistry, journeyId);
+    setJourneyAdminDialog({ mode: "move", journeyId });
+    setJourneyAdminParent(journey?.parentId ?? ""); setJourneyAdminPosition(journey?.siblingPosition ?? 0);
+    setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null); setJourneyItemMenu(null);
+  }
+
+  async function executeJourneyMutation(operation: "create_journey" | "set_project_path" | "clear_project_path" | "move_journey", payload: Record<string, unknown>) {
+    setJourneyAdminState("saving"); setJourneyAdminMessage(undefined);
+    try {
+      const request = journeyAdminPendingRequest?.operation === operation && JSON.stringify(journeyAdminPendingRequest.payload) === JSON.stringify(payload)
+        ? journeyAdminPendingRequest
+        : createMutationRequest(journeyRegistry, operation, payload);
+      setJourneyAdminPendingRequest(request);
+      const result = await mutateJourneyRegistry(selectedJourney, request);
+      const reconciled = reconcileReloadedJourneyState(result.registry, {
+        selectedJourneyId: selectedJourney, pinnedJourneyIds: journeyPreferences.pinnedJourneyIds,
+        recentJourneyIds: journeyPreferences.recentJourneyIds, collapsedJourneyIds,
+      });
+      if (!reconciled) throw new Error("Verified Journey authority no longer contains the active Journey.");
+      setLoadedJourneyRegistry(result.registry);
+      setJourneyPreferences((current) => ({ ...current, pinnedJourneyIds: reconciled.pinnedJourneyIds, recentJourneyIds: reconciled.recentJourneyIds }));
+      setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
+      setJourneyAdminDialog(null); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null);
+      setJourneyRegistryRefreshState("succeeded"); setJourneyRegistryRefreshMessage("Journey structure updated from Mirror.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Journey administration failed without replacing the current tree.";
+      setJourneyAdminState("failed"); setJourneyAdminMessage(message);
+      setJourneyRegistryRefreshState("failed"); setJourneyRegistryRefreshMessage(message);
+    }
+  }
+
+  async function submitJourneyAdministration(event: FormEvent) {
+    event.preventDefault();
+    if (!journeyAdminDialog) return;
+    if (journeyAdminDialog.mode === "create") {
+      await executeJourneyMutation("create_journey", {
+        name: journeyAdminName.trim(), slug: journeyAdminSlug.trim(), description: journeyAdminDescription.trim(),
+        parentId: journeyAdminParent || null, position: journeyAdminPosition,
+        ...(journeyAdminPath.trim() ? { projectPath: journeyAdminPath.trim() } : {}),
+      });
+    } else if (journeyAdminDialog.mode === "path") {
+      await executeJourneyMutation(journeyAdminPath.trim() ? "set_project_path" : "clear_project_path", {
+        journeyId: journeyAdminDialog.journeyId,
+        ...(journeyAdminPath.trim() ? { projectPath: journeyAdminPath.trim() } : {}),
+      });
+    } else {
+      await executeJourneyMutation("move_journey", { journeyId: journeyAdminDialog.journeyId, parentId: journeyAdminParent || null, position: journeyAdminPosition });
+    }
+  }
+
   return (
     <main className={`app-shell altitude-${selectedAltitude} ${rightPanelVisible ? "" : "right-panel-collapsed"} ${isJourneyReloading ? "is-busy" : ""}`}>
       <aside className="journey-sidebar" aria-label="Journeys">
@@ -1247,6 +1328,10 @@ export function App({ model }: AppProps) {
           </button>
           {journeyTreeMenuOpen ? (
             <div className="journey-tree-context-menu" role="menu" ref={journeyTreeMenuRef} aria-label="Journey tree options">
+              <button type="button" role="menuitem" onClick={() => openCreateJourney()}>
+                <span aria-hidden="true">＋</span>
+                Create Journey…
+              </button>
               <button
                 type="button"
                 role="menuitem"
@@ -1298,12 +1383,32 @@ export function App({ model }: AppProps) {
                 role="button"
                 tabIndex={isStreaming ? -1 : 0}
                 aria-disabled={isStreaming}
+                draggable={journeyListOrder === "tree" && !isStreaming}
+                onDragStart={() => setDraggedJourneyId(journey.id)}
+                onDragOver={(event) => { if (draggedJourneyId && draggedJourneyId !== journey.id) event.preventDefault(); }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  if (draggedJourneyId && draggedJourneyId !== journey.id) {
+                    const position = journey.children?.length ?? 0;
+                    void executeJourneyMutation("move_journey", { journeyId: draggedJourneyId, parentId: journey.id, position });
+                  }
+                  setDraggedJourneyId(null);
+                }}
+                onDragEnd={() => setDraggedJourneyId(null)}
+                onContextMenu={journeyListOrder === "tree" ? (event) => {
+                  event.preventDefault(); event.stopPropagation();
+                  setJourneyItemMenu({ journeyId: journey.id, x: event.clientX, y: event.clientY });
+                } : undefined}
                 onClick={() => {
                   selectJourney(journey.id);
                   setJourneySearch("");
                 }}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
+                  if (journeyListOrder === "tree" && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))) {
+                    event.preventDefault(); event.stopPropagation();
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setJourneyItemMenu({ journeyId: journey.id, x: rect.left + 24, y: rect.top + 24 });
+                  } else if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
                     selectJourney(journey.id);
                     setJourneySearch("");
@@ -1354,6 +1459,14 @@ export function App({ model }: AppProps) {
             );
           })}
         </div>
+        {journeyItemMenu ? (
+          <div className="journey-item-context-menu" role="menu" aria-label="Journey options" style={{ left: journeyItemMenu.x, top: journeyItemMenu.y }}>
+            <button type="button" role="menuitem" onClick={() => openCreateJourney(journeyItemMenu.journeyId)}>Create Journey…</button>
+            <button type="button" role="menuitem" onClick={() => openJourneyPath(journeyItemMenu.journeyId)}>Assign project path…</button>
+            <button type="button" role="menuitem" onClick={() => openMoveJourney(journeyItemMenu.journeyId)}>Move Journey…</button>
+            <button type="button" role="menuitem" onClick={() => setJourneyItemMenu(null)}>Cancel</button>
+          </div>
+        ) : null}
         <div className="sidebar-footer">
           <button
             className="sidebar-settings-button"
@@ -1743,6 +1856,57 @@ export function App({ model }: AppProps) {
               </button>
             </div>
           </section>
+        </div>
+      ) : null}
+
+      {journeyAdminDialog ? (
+        <div className="settings-backdrop" role="presentation">
+          <form className="settings-window journey-admin-dialog" role="dialog" aria-modal="true" aria-label="Journey administration" onSubmit={submitJourneyAdministration}>
+            <div className="settings-header">
+              <div>
+                <p className="eyebrow">Canonical Mirror administration</p>
+                <h2>{journeyAdminDialog.mode === "create" ? "Create Journey" : journeyAdminDialog.mode === "path" ? "Project path" : "Move Journey"}</h2>
+              </div>
+              <button type="button" onClick={() => setJourneyAdminDialog(null)} disabled={journeyAdminState === "saving"}>×</button>
+            </div>
+            {journeyAdminDialog.mode === "create" ? (
+              <>
+                <label>Name<input value={journeyAdminName} onChange={(event) => {
+                  const next = event.target.value;
+                  if (!journeyAdminSlug || journeyAdminSlug === suggestJourneySlug(journeyAdminName)) setJourneyAdminSlug(suggestJourneySlug(next));
+                  setJourneyAdminName(next);
+                }} required maxLength={160} /></label>
+                <label>Slug<input value={journeyAdminSlug} onChange={(event) => setJourneyAdminSlug(event.target.value)} required pattern="[a-z0-9][a-z0-9-]{1,78}[a-z0-9]" /></label>
+                <label>Description<textarea value={journeyAdminDescription} onChange={(event) => setJourneyAdminDescription(event.target.value)} required minLength={20} maxLength={4000} /></label>
+              </>
+            ) : null}
+            {journeyAdminDialog.mode !== "path" ? (
+              <div className="settings-grid two-column">
+                <label>Parent<select value={journeyAdminParent} onChange={(event) => { setJourneyAdminParent(event.target.value); setJourneyAdminPosition(0); }}>
+                  <option value="">Root</option>
+                  {flattenJourneyRegistry(journeyRegistry).filter((journey) => journey.id !== journeyAdminDialog.journeyId).map((journey) => (
+                    <option key={journey.id} value={journey.id}>{"—".repeat(journey.depth)} {journey.name}</option>
+                  ))}
+                </select></label>
+                <label>Sibling position<input type="number" min={0} value={journeyAdminPosition} onChange={(event) => setJourneyAdminPosition(Number(event.target.value))} required /></label>
+              </div>
+            ) : null}
+            {journeyAdminDialog.mode !== "move" ? (
+              <label>Project path {journeyAdminDialog.mode === "create" ? "(optional)" : "(clear to remove)"}
+                <span className="journey-path-picker"><input value={journeyAdminPath} onChange={(event) => setJourneyAdminPath(event.target.value)} placeholder="/absolute/path/to/project" /><button type="button" onClick={async () => { const path = await chooseProjectDirectory(); if (path) setJourneyAdminPath(path); }}>Choose…</button></span>
+              </label>
+            ) : null}
+            <div className="journey-admin-summary">
+              {journeyAdminDialog.mode === "create" ? `Create ${journeyAdminSlug || "this Journey"} under ${journeyAdminParent || "Root"} at position ${journeyAdminPosition}. No repository or conversation will be created.` :
+                journeyAdminDialog.mode === "path" ? `Update only project_path for ${journeyAdminDialog.journeyId}.` :
+                  `Move ${journeyAdminDialog.journeyId} under ${journeyAdminParent || "Root"} at position ${journeyAdminPosition}.`}
+            </div>
+            {journeyAdminMessage ? <p className="settings-error" role="alert">{journeyAdminMessage}</p> : null}
+            <div className="settings-actions">
+              <button type="button" onClick={() => setJourneyAdminDialog(null)} disabled={journeyAdminState === "saving"}>Cancel</button>
+              <button type="submit" disabled={journeyAdminState === "saving"}>{journeyAdminState === "saving" ? "Verifying…" : "Confirm"}</button>
+            </div>
+          </form>
         </div>
       ) : null}
 

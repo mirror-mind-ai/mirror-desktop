@@ -512,7 +512,9 @@ fn validate_journey_registry_payload(payload: &str) -> Result<Value, String> {
     }
     let value: Value = serde_json::from_str(payload)
         .map_err(|_| "Refreshed Journey registry is invalid JSON.".to_string())?;
-    if value.get("schemaVersion").and_then(Value::as_str) != Some("0.1.0")
+    let schema_version = value.get("schemaVersion").and_then(Value::as_str);
+    if !matches!(schema_version, Some("0.1.0") | Some("0.2.0"))
+        || (schema_version == Some("0.2.0") && value.get("sourceVersion").and_then(Value::as_str).map(str::len) != Some(64))
         || value.get("source").and_then(Value::as_str) != Some("mirror")
         || value.get("syncedAt").and_then(Value::as_str).map(str::is_empty) != Some(false)
     {
@@ -591,26 +593,64 @@ fn refresh_journey_registry(app: AppHandle, active_journey_id: String) -> Result
         }
         fs::remove_file(&staged).map_err(|error| error.to_string())?;
     }
-    let script = harness_root()?.join("scripts").join("export_mirror_bootstrap.py");
-    let database = production_mirror_home()?.join("memory.db");
-    if !script.is_file() || !database.is_file() {
-        return Err("Canonical Mirror Journey source is unavailable.".to_string());
-    }
-    let output = Command::new("python3")
-        .arg(&script).arg("--db").arg(&database).arg("--output").arg(&staged)
-        .current_dir(harness_root()?)
+    let mirror_root = mirror_runtime_root()?;
+    let output = Command::new("uv")
+        .args(["run", "python", "-m", "memory", "journey", "export-registry", "--mirror-home"])
+        .arg(production_mirror_home()?)
+        .current_dir(mirror_root)
         .output().map_err(|error| format!("Could not start the Journey registry exporter: {}", error))?;
     if !output.status.success() {
-        let _ = fs::remove_file(&staged);
         return Err("Could not refresh Journeys from Mirror.".to_string());
     }
-    let payload = fs::read_to_string(&staged).map_err(|error| format!("Could not read refreshed Journey registry: {}", error))?;
-    let _ = fs::remove_file(&staged);
+    let payload = String::from_utf8(output.stdout).map_err(|_| "Journey registry exporter returned invalid text.".to_string())?;
     let validated = validate_journey_registry_payload(&payload)?;
     if !journey_registry_contains_id(&validated, &active_journey_id) {
         return Err("Refreshed registry does not contain the active Journey.".to_string());
     }
     publish_refreshed_journey_registry(&app_data_dir, &payload)
+}
+
+#[tauri::command]
+fn choose_project_directory() -> Result<Option<String>, String> {
+    let selected = rfd::FileDialog::new().set_title("Choose Journey project directory").pick_folder();
+    match selected {
+        Some(path) => {
+            let metadata = fs::symlink_metadata(&path).map_err(|error| format!("Could not inspect selected directory: {}", error))?;
+            if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                return Err("Selected project path is not a safe directory.".to_string());
+            }
+            Ok(Some(path.to_string_lossy().to_string()))
+        }
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
+fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_json: String) -> Result<String, String> {
+    let mirror_root = mirror_runtime_root()?;
+    let mut child = Command::new("uv")
+        .args(["run", "python", "-m", "memory", "journey", "mutate", "--mirror-home"])
+        .arg(production_mirror_home()?)
+        .current_dir(mirror_root)
+        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
+        .spawn().map_err(|error| format!("Could not start canonical Journey mutation: {}", error))?;
+    child.stdin.as_mut().ok_or_else(|| "Journey mutation input is unavailable.".to_string())?
+        .write_all(request_json.as_bytes()).map_err(|error| format!("Could not submit Journey mutation: {}", error))?;
+    let output = child.wait_with_output().map_err(|error| format!("Could not await Journey mutation: {}", error))?;
+    if !output.status.success() {
+        return Err("Mirror rejected the Journey mutation.".to_string());
+    }
+    let payload = String::from_utf8(output.stdout).map_err(|_| "Journey mutation returned invalid text.".to_string())?;
+    let result: Value = serde_json::from_str(&payload).map_err(|_| "Journey mutation returned malformed JSON.".to_string())?;
+    let registry = result.get("registry").ok_or_else(|| "Journey mutation omitted the verified registry.".to_string())?;
+    let registry_payload = serde_json::to_string_pretty(registry).map_err(|error| error.to_string())?;
+    let validated = validate_journey_registry_payload(&registry_payload)?;
+    if !journey_registry_contains_id(&validated, &active_journey_id) {
+        return Err("Mutated registry does not contain the active Journey.".to_string());
+    }
+    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    publish_refreshed_journey_registry(&app_data_dir, &registry_payload)?;
+    Ok(payload)
 }
 
 #[tauri::command]
@@ -2411,6 +2451,8 @@ fn main() {
             restart_journey_thread,
             load_journey_registry,
             refresh_journey_registry,
+            mutate_journey_registry,
+            choose_project_directory,
             load_journey_preferences,
             save_journey_preferences,
             load_journey_projections,
@@ -2466,6 +2508,12 @@ mod tests {
             "roots": [{"id": "root", "name": "Root", "children": [{"id": "child", "name": "Child"}]}]
         }).to_string();
         assert!(validate_journey_registry_payload(&valid).is_ok());
+        let versioned = json!({
+            "schemaVersion": "0.2.0", "source": "mirror", "sourceVersion": "a".repeat(64), "syncedAt": "2026-08-27T00:00:00Z",
+            "roots": [{"id": "root", "nativeId": "native-root", "name": "Root", "siblingPosition": 0}]
+        }).to_string();
+        assert!(validate_journey_registry_payload(&versioned).is_ok());
+        assert!(validate_journey_registry_payload(&json!({"schemaVersion": "0.2.0", "source": "mirror", "syncedAt": "now", "roots": []}).to_string()).is_err());
         assert_eq!(publish_refreshed_journey_registry(&root, &valid).unwrap(), valid);
         let target = root.join(JOURNEY_REGISTRY_FILE);
         let before = fs::read_to_string(&target).unwrap();

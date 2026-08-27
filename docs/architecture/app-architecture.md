@@ -125,6 +125,22 @@ Minimum test cases for the first implementation story:
 - Mission status other than `formulated` fails in the current slice;
 - view model exposes identity and Mission values for the GUI.
 
+## Canonical Journey administration boundary
+
+Journey creation, hierarchy/order changes and `project_path` assignment cross a
+single model-free native boundary. React owns explicit Navigator intent and
+local interaction state; Tauri invokes the Mirror-owned JSON CLI, validates the
+returned registry and atomically publishes it; Mirror alone owns mutation
+validation, optimistic concurrency, SQLite transaction and idempotency receipt.
+The Harness never mutates Journey SQL and never exposes an optimistic tree as
+canonical.
+
+The `0.2.0` registry adds exact `sourceVersion`, native identity evidence and
+stable sibling position. Every mutation carries that source version and native
+Journey IDs. A stale or malformed result leaves the prior desktop registry
+intact. Creation remains identity-only and cannot provision repositories,
+files, Pi sessions, Mirror conversations or dedicated Nautilus threads.
+
 ## Next implementation story
 
 The next implementation story should create the Tauri app skeleton and migrate DS-001/DS-002 protocol validation into TypeScript while preserving the Python scripts as temporary references until parity is validated.

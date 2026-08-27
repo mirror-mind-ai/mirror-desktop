@@ -160,6 +160,43 @@ textarea {
   outline: none;
 }
 
+.journey-item-context-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 210px;
+  padding: 6px;
+  border: 1px solid rgba(133, 223, 210, 0.22);
+  border-radius: 8px;
+  background: #171c1e;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
+}
+
+.journey-item-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #d7e8eb;
+  text-align: left;
+}
+
+.journey-item-context-menu button:hover,
+.journey-item-context-menu button:focus-visible { background: rgba(133, 223, 210, 0.11); }
+
+.journey-admin-dialog { max-width: 680px; }
+.journey-admin-dialog label { display: grid; gap: 6px; }
+.journey-admin-dialog textarea { min-height: 110px; resize: vertical; }
+.journey-path-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.journey-admin-summary {
+  padding: 12px;
+  border: 1px solid rgba(133, 223, 210, 0.16);
+  border-radius: 8px;
+  color: #9eb0b4;
+  background: rgba(255, 255, 255, 0.025);
+}
+
 .journey-tree-refresh-status {
   color: #8fa3a8;
   font-size: 0.7rem;
