@@ -8,9 +8,10 @@ const projection: TacticalProjection = {
   journeyId: "journey-a", snapshotId: "ta-current", sourceRevision: "sha256:ta",
   sourceSnapshots: [{ namespace: "ariad", projection: "operational", snapshotId: "op-current" }],
   content: {
-    mission: { id: "mission", title: "Published mission", purpose: "Orient the selected Journey." },
-    evidence: [{ id: "evidence", title: "Published evidence", summary: "A grounded signal.", sourceReferences: ["roadmap"] }],
-    deliverables: [{ id: "delivery", title: "Published delivery", summary: "A concrete available form.", evidenceIds: ["evidence"], sourceReferences: ["roadmap"] }],
+    mission: { id: "mission", title: "Published mission", purpose: "Orient the selected Journey.", sourceReferences: ["mission-source"] },
+    evidence: [{ id: "evidence", title: "Published evidence", summary: "A grounded signal.", sourceReferences: ["evidence-source"] }],
+    deliverables: [{ id: "delivery", title: "Published delivery", summary: "A concrete available form.", evidenceIds: ["evidence"], sourceReferences: ["deliverable-source"] }],
+    ambiguities: [{ id: "ambiguity", title: "Open tactical tension", summary: "Evidence supports two possible missions.", sourceReferences: ["ambiguity-source"] }],
   },
 };
 
@@ -24,6 +25,10 @@ describe("TacticalJourneyWorkspace", () => {
     expect(html).toContain("A grounded signal.");
     expect(html).toContain("Published delivery");
     expect(html).toContain("A concrete available form.");
+    expect(html).toContain("Mission sources");
+    expect(html).toContain("evidence-source");
+    expect(html).toContain("deliverable-source");
+    expect(html).toContain("Open tactical tension");
     expect(html).not.toMatch(/preview/i);
   });
 

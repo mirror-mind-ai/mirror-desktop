@@ -71,9 +71,10 @@ export type OperationalExploratoryStory = {
 export type TacticalProjection = OperationalProjection & {
   sourceSnapshots: ProjectionSource[];
   content: {
-    mission: { id: string; title: string; purpose: string };
+    mission: { id: string; title: string; purpose: string; sourceReferences: string[] };
     evidence: { id: string; title: string; summary: string; sourceReferences: string[] }[];
     deliverables: { id: string; title: string; summary: string; evidenceIds: string[]; sourceReferences: string[] }[];
+    ambiguities: { id: string; title: string; summary: string; sourceReferences: string[] }[];
   };
 };
 
@@ -145,9 +146,9 @@ function parseOperational(value: unknown, journeyId: string): OperationalProject
 function parseTactical(value: unknown, journeyId: string): TacticalProjection {
   const document = validatedInspection(value, journeyId, "nautilus-synthesis", "tactical", "tactical");
   const content = record(document.content, "Tactical content");
-  exactKeys(content, ["mission", "evidence", "deliverables"], "Tactical content");
+  exactKeys(content, ["mission", "evidence", "deliverables"], "Tactical content", ["ambiguities"]);
   const mission = record(content.mission, "Tactical mission");
-  exactKeys(mission, ["id", "title", "purpose"], "Tactical mission");
+  exactKeys(mission, ["id", "title", "purpose"], "Tactical mission", ["sourceReferences"]);
   const evidence = records(content.evidence, "Tactical evidence").map((item) => ({
     id: text(item.id, "Evidence id"), title: text(item.title, "Evidence title"), summary: text(item.summary, "Evidence summary"),
     sourceReferences: stringArray(item.sourceReferences, "Evidence sources"),
@@ -162,10 +163,23 @@ function parseTactical(value: unknown, journeyId: string): TacticalProjection {
   if (deliverables.some((item) => item.evidenceIds.some((id) => !evidenceIds.has(id)))) throw new Error("Tactical deliverable references unknown evidence.");
   const sourceSnapshots = sources(document.sourceSnapshots);
   if (!findSource(sourceSnapshots, "ariad", "operational")) throw new Error("Tactical projection requires Operational ancestry.");
+  const ambiguities = optionalRecords(content.ambiguities).map((item) => ({
+    id: text(item.id, "Ambiguity id"), title: text(item.title, "Ambiguity title"), summary: text(item.summary, "Ambiguity summary"),
+    sourceReferences: stringArray(item.sourceReferences, "Ambiguity sources"),
+  }));
+  uniqueIds(ambiguities, "ambiguity");
   return {
     journeyId, snapshotId: text(document.snapshotId, "Tactical snapshot"), sourceRevision: text(document.sourceRevision, "Tactical revision"),
     sourceSnapshots,
-    content: { mission: { id: text(mission.id, "Mission id"), title: text(mission.title, "Mission title"), purpose: text(mission.purpose, "Mission purpose") }, evidence, deliverables },
+    content: {
+      mission: {
+        id: text(mission.id, "Mission id"), title: text(mission.title, "Mission title"), purpose: text(mission.purpose, "Mission purpose"),
+        sourceReferences: mission.sourceReferences == null ? [] : stringArray(mission.sourceReferences, "Mission sources", true),
+      },
+      evidence,
+      deliverables,
+      ambiguities,
+    },
   };
 }
 
@@ -346,9 +360,9 @@ function stringArray(value: unknown, label: string, allowEmpty = false): string[
   return value as string[];
 }
 
-function exactKeys(value: RecordValue, expected: string[], label: string) {
-  const actual = Object.keys(value).sort();
-  const wanted = [...expected].sort();
+function exactKeys(value: RecordValue, expected: string[], label: string, optional: string[] = []) {
+  const actual = Object.keys(value).filter((key) => value[key] !== undefined).sort();
+  const wanted = [...expected, ...optional.filter((key) => value[key] !== undefined)].sort();
   if (actual.length !== wanted.length || actual.some((key, index) => key !== wanted[index])) throw new Error(`${label} has unexpected fields.`);
 }
 

@@ -3434,3 +3434,78 @@ dd {
   white-space: nowrap;
   width: 1px;
 }
+
+.tactical-source-references {
+  margin-top: 12px;
+}
+
+.tactical-source-references summary {
+  color: #85dfd2;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 720;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tactical-source-references ul {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 9px 0 0;
+  padding: 0;
+}
+
+.tactical-source-references li,
+.tactical-evidence-links {
+  color: #78959c;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.tactical-evidence-links {
+  margin-top: 9px;
+}
+
+.tactical-ambiguity-panel {
+  background: rgba(12, 18, 19, 0.62);
+  border: 1px solid rgba(226, 201, 141, 0.18);
+  border-radius: 20px;
+  padding: 24px;
+}
+
+.tactical-ambiguity-panel h3 {
+  color: #edf7f8;
+  font-size: 1.18rem;
+  margin: 10px 0 16px;
+}
+
+.tactical-ambiguity-panel ul {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tactical-ambiguity-panel li {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 14px;
+}
+
+.tactical-ambiguity-panel li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.tactical-ambiguity-panel strong {
+  color: #e2c98d;
+}
+
+.tactical-ambiguity-panel p {
+  color: #a9bec2;
+  line-height: 1.55;
+  margin: 6px 0 0;
+}

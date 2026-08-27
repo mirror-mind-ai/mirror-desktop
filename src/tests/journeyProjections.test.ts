@@ -16,9 +16,10 @@ const tactical = {
     namespace: "nautilus-synthesis", projection: "tactical", snapshotId: "ta-current", sourceRevision: "sha256:ta",
     sourceSnapshots: [{ namespace: "ariad", projection: "operational", snapshotId: "op-current" }],
     content: {
-      mission: { id: "mission", title: "Current mission", purpose: "Orient the Journey." },
+      mission: { id: "mission", title: "Current mission", purpose: "Orient the Journey.", sourceReferences: ["mission-source"] },
       evidence: [{ id: "evidence", title: "Evidence", summary: "Grounded signal.", sourceReferences: ["roadmap"] }],
       deliverables: [{ id: "delivery", title: "Delivery", summary: "Available form.", evidenceIds: ["evidence"], sourceReferences: ["roadmap"] }],
+      ambiguities: [{ id: "ambiguity", title: "Open ambiguity", summary: "Two readings remain possible.", sourceReferences: ["roadmap"] }],
     },
   },
   manifest: { namespace: "nautilus-synthesis", projection: "tactical", snapshotId: "ta-current", sourceRevision: "sha256:ta" },
@@ -50,6 +51,8 @@ describe("published Journey projections", () => {
     const bundle = normalizeJourneyProjectionBundle({ journeyId: "journey-a", operational, tactical, strategic, errors: [] }, "journey-a");
     expect(bundle.operational?.snapshotId).toBe("op-current");
     expect(bundle.tactical?.content.mission.title).toBe("Current mission");
+    expect(bundle.tactical?.content.mission.sourceReferences).toEqual(["mission-source"]);
+    expect(bundle.tactical?.content.ambiguities[0].title).toBe("Open ambiguity");
     expect(bundle.strategic?.content.realizations[0].title).toBe("Realization");
     expect(bundle.tacticalStale).toBe(false);
     expect(bundle.strategicStale).toBe(false);
