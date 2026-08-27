@@ -126,7 +126,7 @@ import {
   sanitizeJourneyPreferenceState,
   type JourneyPreferenceState,
 } from "../domain/journeyPreferencePersistence";
-import { createMutationRequest, replacementJourneyAfterDeletion, suggestJourneySlug, type JourneyMutationRequest } from "../domain/journeyMutation";
+import { appendJourneyPosition, createMutationRequest, journeyAdministrationError, replacementJourneyAfterDeletion, suggestJourneySlug, type JourneyMutationRequest } from "../domain/journeyMutation";
 import type { NautilusViewModel } from "../domain/nautilusViewModel";
 import type { JourneyProjectionBundle } from "../domain/journeyProjections";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
@@ -1195,10 +1195,9 @@ export function App({ model }: AppProps) {
   }
 
   function openCreateJourney(parentId = "") {
-    const parent = parentId ? findJourneyById(journeyRegistry, parentId) : undefined;
     setJourneyAdminDialog({ mode: "create", parentId: parentId || undefined });
     setJourneyAdminName(""); setJourneyAdminSlug(""); setJourneyAdminDescription("");
-    setJourneyAdminParent(parentId); setJourneyAdminPosition(parent?.children?.length ?? journeyRegistry.roots.length);
+    setJourneyAdminParent(parentId); setJourneyAdminPosition(appendJourneyPosition(journeyRegistry, parentId));
     setJourneyAdminPath(""); setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null);
     setJourneyTreeMenuOpen(false); setJourneyItemMenu(null);
   }
@@ -1247,7 +1246,7 @@ export function App({ model }: AppProps) {
       setJourneyAdminDialog(null); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null);
       setJourneyRegistryRefreshState("succeeded"); setJourneyRegistryRefreshMessage("Journey structure updated from Mirror.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Journey administration failed without replacing the current tree.";
+      const message = journeyAdministrationError(error);
       setJourneyAdminState("failed"); setJourneyAdminMessage(message);
       setJourneyRegistryRefreshState("failed"); setJourneyRegistryRefreshMessage(message);
     }
@@ -1259,7 +1258,7 @@ export function App({ model }: AppProps) {
     if (journeyAdminDialog.mode === "create") {
       await executeJourneyMutation("create_journey", {
         name: journeyAdminName.trim(), slug: journeyAdminSlug.trim(), description: journeyAdminDescription.trim(),
-        parentId: journeyAdminParent || null, position: journeyAdminPosition,
+        parentId: journeyAdminParent || null, position: appendJourneyPosition(journeyRegistry, journeyAdminParent),
         ...(journeyAdminPath.trim() ? { projectPath: journeyAdminPath.trim() } : {}),
       });
     } else if (journeyAdminDialog.mode === "path") {
@@ -1906,13 +1905,19 @@ export function App({ model }: AppProps) {
             ) : null}
             {journeyAdminDialog.mode === "create" || journeyAdminDialog.mode === "move" ? (
               <div className="settings-grid two-column">
-                <label>Parent<select value={journeyAdminParent} onChange={(event) => { setJourneyAdminParent(event.target.value); setJourneyAdminPosition(0); }}>
+                <label>Parent<select value={journeyAdminParent} onChange={(event) => {
+                  const parentId = event.target.value;
+                  setJourneyAdminParent(parentId);
+                  setJourneyAdminPosition(appendJourneyPosition(journeyRegistry, parentId));
+                }}>
                   <option value="">Root</option>
                   {flattenJourneyRegistry(journeyRegistry).filter((journey) => journey.id !== journeyAdminDialog.journeyId).map((journey) => (
                     <option key={journey.id} value={journey.id}>{"—".repeat(journey.depth)} {journey.name}</option>
                   ))}
                 </select></label>
-                <label>Sibling position<input type="number" min={0} value={journeyAdminPosition} onChange={(event) => setJourneyAdminPosition(Number(event.target.value))} required /></label>
+                {journeyAdminDialog.mode === "move" ? (
+                  <label>Sibling position<input type="number" min={0} value={journeyAdminPosition} onChange={(event) => setJourneyAdminPosition(Number(event.target.value))} required /></label>
+                ) : null}
               </div>
             ) : null}
             {journeyAdminDialog.mode === "create" || journeyAdminDialog.mode === "path" ? (
@@ -1921,7 +1926,7 @@ export function App({ model }: AppProps) {
               </label>
             ) : null}
             <div className="journey-admin-summary">
-              {journeyAdminDialog.mode === "create" ? `Create ${journeyAdminSlug || "this Journey"} under ${journeyAdminParent || "Root"} at position ${journeyAdminPosition}. No repository or conversation will be created.` :
+              {journeyAdminDialog.mode === "create" ? `Create ${journeyAdminSlug || "this Journey"} under ${journeyAdminParent || "Root"}. It will be appended after the existing Journeys. No repository or conversation will be created.` :
                 journeyAdminDialog.mode === "path" ? `Update only project_path for ${journeyAdminDialog.journeyId}.` :
                   journeyAdminDialog.mode === "move" ? `Move ${journeyAdminDialog.journeyId} under ${journeyAdminParent || "Root"} at position ${journeyAdminPosition}.` :
                     `Permanently delete ${findJourneyById(journeyRegistry, journeyAdminDialog.journeyId ?? "")?.name ?? journeyAdminDialog.journeyId}. Project files, repositories and protected history will not be deleted.${journeyAdminDialog.journeyId === selectedJourney ? ` The active Journey will change to ${findJourneyById(journeyRegistry, replacementJourneyAfterDeletion(journeyRegistry, journeyAdminDialog.journeyId ?? "") ?? "")?.name ?? "another Journey"}.` : ""}`}

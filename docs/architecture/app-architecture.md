@@ -139,7 +139,10 @@ The `0.2.0` registry adds exact `sourceVersion`, native identity evidence and
 stable sibling position. Every mutation carries that source version and native
 Journey IDs. A stale or malformed result leaves the prior desktop registry
 intact. Creation remains identity-only and cannot provision repositories, files, Pi
-sessions, Mirror conversations or dedicated Nautilus threads. Deletion is the
+sessions, Mirror conversations or dedicated Nautilus threads. The desktop does
+not expose zero-based sibling position during creation: it derives append
+placement from the selected parent's direct child count and recalculates it when
+the parent changes. Deletion is the
 inverse only for a canonical leaf with no protected association: parents are
 disabled in the desktop, Tauri blocks native dedicated-thread evidence, and
 Mirror re-checks every database-backed association transactionally without

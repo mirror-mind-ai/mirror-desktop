@@ -14,6 +14,24 @@ export type JourneyMutationResult = {
   registry: JourneyRegistry;
 };
 
+export function appendJourneyPosition(registry: JourneyRegistry, parentJourneyId: string): number {
+  if (!parentJourneyId) return registry.roots.length;
+  const pending = [...registry.roots];
+  while (pending.length > 0) {
+    const journey = pending.shift();
+    if (!journey) break;
+    if (journey.id === parentJourneyId) return journey.children?.length ?? 0;
+    pending.push(...(journey.children ?? []));
+  }
+  throw new Error("The selected parent Journey is no longer available. Reload Journeys and try again.");
+}
+
+export function journeyAdministrationError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+  return "Journey administration failed without replacing the current tree.";
+}
+
 export function replacementJourneyAfterDeletion(registry: JourneyRegistry, targetJourneyId: string): string | undefined {
   const ordered: Array<{ id: string; parentId?: string }> = [];
   const visit = (items: JourneyRegistry["roots"], parentId?: string) => {

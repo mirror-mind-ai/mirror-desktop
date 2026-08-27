@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMutationRequest, replacementJourneyAfterDeletion, suggestJourneySlug } from "../domain/journeyMutation";
+import { appendJourneyPosition, createMutationRequest, journeyAdministrationError, replacementJourneyAfterDeletion, suggestJourneySlug } from "../domain/journeyMutation";
 import type { JourneyRegistry } from "../domain/journeyRegistry";
 import appSource from "../app/App.tsx?raw";
 import storageSource from "../app/journeyMutationStorage.ts?raw";
@@ -36,6 +36,26 @@ describe("Journey administration boundary", () => {
 
   it("suggests editable deterministic slugs", () => {
     expect(suggestJourneySlug("Criação de Jornadas! ")).toBe("criacao-de-jornadas");
+  });
+
+  it("appends new Journeys without asking for a zero-based sibling position", () => {
+    const nested: JourneyRegistry = {
+      ...registry,
+      roots: [
+        { id: "vida-tecnica", name: "Vida Técnica", children: [{ id: "existing", name: "Existing", parentId: "vida-tecnica" }] },
+        { id: "other", name: "Other" },
+      ],
+    };
+    expect(appendJourneyPosition(nested, "vida-tecnica")).toBe(1);
+    expect(appendJourneyPosition(nested, "")).toBe(2);
+    expect(() => appendJourneyPosition(nested, "missing")).toThrow(/parent/i);
+    expect(appSource).toContain('position: appendJourneyPosition(journeyRegistry, journeyAdminParent)');
+    expect(appSource).toContain('journeyAdminDialog.mode === "move" ? (');
+  });
+
+  it("preserves native administration errors for the Navigator", () => {
+    expect(journeyAdministrationError("Mirror rejected the Journey mutation.")).toBe("Mirror rejected the Journey mutation.");
+    expect(journeyAdministrationError(new Error("Reload Journeys."))).toBe("Reload Journeys.");
   });
 
   it("keeps mutation model-free and publishes only verified Mirror output", () => {

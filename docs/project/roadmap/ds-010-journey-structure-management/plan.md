@@ -12,7 +12,7 @@ Journey Structure Management
 
 Deliver one model-free, transactionally safe Journey administration capability across Mirror and the Nautilus Harness. Establish a versioned mutation contract and stable sibling-order grammar, add one confined Mirror-owned mutation gateway with optimistic concurrency, atomic write/read-back/export/publication and sanitized idempotent receipts, then expose creation, project-path assignment and hierarchy reorganization through accessible desktop interactions.
 
-Creation must be available both from the Tree control context menu for root placement and from a right-click or keyboard context menu on an individual Journey item. Item-scoped creation opens the form with that exact Journey already selected as the parent; the Navigator may still edit the parent and sibling position before confirmation.
+Creation must be available both from the Tree control context menu for root placement and from a right-click or keyboard context menu on an individual Journey item. Item-scoped creation opens the form with that exact Journey already selected as the parent; the Navigator may still edit the parent before confirmation. Creation automatically appends under that parent and does not expose the contract's zero-based sibling position.
 
 ## Child Work Packages and Sequence
 
@@ -106,11 +106,11 @@ The form includes:
 - deterministic local slug suggestion, explicitly editable;
 - description;
 - parent selector;
-- sibling position selector;
+- automatic append position derived from the selected parent's direct child count;
 - optional project path;
 - a confirmation summary naming the intended placement.
 
-Right-clicking an item passes only its canonical Journey ID into the form initializer. The form resolves the display label from the current validated registry and keeps parent/position editable. Context-menu opening never mutates Mirror.
+Right-clicking an item passes only its canonical Journey ID into the form initializer. The form resolves the display label from the current validated registry and keeps the parent editable. It recalculates append placement whenever the parent changes. Context-menu opening never mutates Mirror.
 
 On confirmation the Harness submits one mutation, shows bounded progress, accepts only the verified replacement registry and may select the new Journey. Selection must leave it in the existing unstarted state: no repository, directory, identity file, Pi session, Mirror conversation, Nautilus thread or provider turn is created.
 
@@ -162,7 +162,7 @@ And the operation invokes no provider or conversation lifecycle.
 Given the Navigator opens the context menu on Journey A
 When Create Journey… is chosen
 Then the form opens with Journey A selected as parent
-And the parent and sibling position remain editable
+And the parent remains editable while append position stays automatic
 And no canonical state changes until explicit confirmation.
 ```
 

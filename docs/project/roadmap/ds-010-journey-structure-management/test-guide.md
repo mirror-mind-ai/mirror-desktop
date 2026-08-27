@@ -13,7 +13,7 @@ All automated mutation tests use disposable Mirror homes and temporary databases
 Cover valid requests and receipts for:
 
 - root Journey creation;
-- nested creation with an exact parent ID and sibling position;
+- nested creation with an exact parent ID and automatically derived append position;
 - optional project path during creation;
 - assign, replace and clear project path;
 - reparent before, after and inside another Journey;
@@ -61,9 +61,9 @@ Characterize the existing `refresh_journey_registry` path before extracting shar
 - Choose **Create Journey…**.
 - Verify parent defaults to Root.
 - Enter name and description; verify deterministic editable slug suggestion.
-- Choose sibling position and optional path.
+- Choose an optional path; no sibling index is requested.
 - Confirm the summary and create.
-- Verify exact Mirror identity, requested root position and replacement registry.
+- Verify exact Mirror identity, append position and replacement registry.
 
 ### Item-scoped child creation
 
@@ -71,9 +71,9 @@ Characterize the existing `refresh_journey_registry` path before extracting shar
 - Repeat through `Shift+F10` and the Context Menu key.
 - Choose **Create Journey…**.
 - Verify the clicked Journey's exact native ID initializes the parent field.
-- Verify the parent and sibling position remain editable.
+- Verify the parent remains editable and no sibling-position field is shown.
 - Cancel and prove no mutation occurred.
-- Reopen, confirm and verify the child appears at the requested position.
+- Reopen, confirm and verify the child appears after the parent's existing children.
 
 ### Creation failures and side effects
 
@@ -154,8 +154,8 @@ Record exact test counts in Validation rather than predicting them here.
 Use a disposable isolated Mirror home and a desktop build. The Navigator must observe:
 
 1. root creation from the Tree control menu;
-2. child creation from an item menu with the parent already positioned;
-3. editable parent/position before confirmation;
+2. child creation from an item menu with the parent already selected;
+3. editable parent and automatic append placement before confirmation;
 4. cancellation without mutation;
 5. successful verified reload and unstarted Journey state;
 6. assign/replace/clear project path;
