@@ -24,6 +24,7 @@ The operational life of the Journey remains the source. Tactical and strategic v
 | [CV-003.DS-004](ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and generated value through pragmatic and integrative lenses | 🟡 Planned |
 | [CV-003.DS-005](ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can distinguish provisional readings from explicit synthesis checkpoints and inspect or correct their supporting sources | 🟡 Planned |
 | [CV-003.DS-006](ds-006-three-published-journey-projections/index.md) | Three Published Journey Projections | Ariad, Mirror/Pi and Harness coordinate versioned Operational, Tactical and Strategic Journey read models through a gated cross-body contract | ✅ Done |
+| [CV-003.DS-007](ds-007-ariad-operational-observatory/index.md) | Ariad Operational Observatory | Operational exposes a read-only Ariad observatory for Delivery, Refinement and Exploration structure without becoming an editor | 🟡 Planned |
 
 ## Done Condition
 
@@ -42,3 +43,4 @@ CV-003 is done when the Journey sidebar remains the stable navigation axis; the 
 
 - [Three Altitudes of the Journey in Nautilus Harness](../../explorations/tres-altitudes-da-jornada-no-nautilus-harness/index.md)
 - [Three Published Journey Projections](../../explorations/three-published-journey-projections-2/index.md)
+- [Ariad Operational Observatory](../../explorations/ariad-operational-observatory/index.md)

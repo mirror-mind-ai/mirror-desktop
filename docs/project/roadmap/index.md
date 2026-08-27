@@ -54,6 +54,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 | [CV-003.DS-004](cv-003-nautilus-method-integration/ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and value through pragmatic and integrative lenses | 🟡 Planned |
 | [CV-003.DS-005](cv-003-nautilus-method-integration/ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can inspect and correct the movement from provisional interpretation to explicit synthesis | 🟡 Planned |
 | [CV-003.DS-006](cv-003-nautilus-method-integration/ds-006-three-published-journey-projections/index.md) | Three Published Journey Projections | Operational, Tactical and Strategic read models share a versioned, gated publication contract across Ariad, Mirror/Pi and Harness | ✅ Done |
+| [CV-003.DS-007](cv-003-nautilus-method-integration/ds-007-ariad-operational-observatory/index.md) | Ariad Operational Observatory | Operational exposes a read-only Ariad observatory for Delivery, Refinement and Exploration structure without becoming an editor | 🟡 Planned |
 
 ## Delivery Arc — Dedicated Nautilus Journey Thread
 
@@ -67,7 +68,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 
 ## Current Recommendation
 
-Pull `CV-003.DS-003 — Tactical Journey Synthesis` as the next semantic delivery. Continue through Strategic Realization and Derived Meaning Checkpoints after Tactical establishes the first real interpreted reading. `CV-004` is complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008`, `DS-009` and `DS-010` remain planned and independent until explicitly selected. `DS-010` owns canonical Journey creation, hierarchy/order and project-path administration promoted from Refinement Work.
+Pull `CV-003.DS-007 - Ariad Operational Observatory` when the Navigator wants the newly promoted Ariad structure visualization implemented. It should establish the read-only Operational Ariad surface before deeper Tactical and Strategic meaning work resumes. Continue through `CV-003.DS-003`, `CV-003.DS-004` and `CV-003.DS-005` after the operational method map is visible. `CV-004` is complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008`, `DS-009` and `DS-010` under Operable Agent Cockpit remain planned and independent until explicitly selected. `DS-010` owns canonical Journey creation, hierarchy/order and project-path administration promoted from Refinement Work.
 
 ## Boundaries
 
