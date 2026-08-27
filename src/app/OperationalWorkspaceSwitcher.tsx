@@ -1,4 +1,4 @@
-export type OperationalSurface = "chat" | "artifacts";
+export type OperationalSurface = "chat" | "artifacts" | "ariad";
 
 type OperationalWorkspaceSwitcherProps = {
   value: OperationalSurface;
@@ -9,6 +9,7 @@ type OperationalWorkspaceSwitcherProps = {
 const operationalSurfaces = [
   { id: "chat", label: "Conversation", icon: "◌", iconName: "conversation" },
   { id: "artifacts", label: "Artifacts", icon: "▱", iconName: "artifacts" },
+  { id: "ariad", label: "Ariad", icon: "△", iconName: "ariad" },
 ] as const satisfies readonly {
   id: OperationalSurface;
   label: string;

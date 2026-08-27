@@ -48,6 +48,7 @@ import { ConversationSyncNotice } from "./ConversationSyncNotice";
 import { JourneyAltitudeSwitcher } from "./JourneyAltitudeSwitcher";
 import { JourneyAltitudeEmptyState } from "./JourneyAltitudeEmptyState";
 import { JourneyDocumentationBrowser } from "./JourneyDocumentationBrowser";
+import { AriadOperationalObservatory } from "./AriadOperationalObservatory";
 import { TacticalJourneyWorkspace } from "./TacticalJourneyWorkspace";
 import { StrategicJourneyWorkspace } from "./StrategicJourneyWorkspace";
 import { JourneyProjectionNotice } from "./JourneyProjectionNotice";
@@ -1589,6 +1590,15 @@ export function App({ model }: AppProps) {
           <JourneyDocumentationBrowser
             journeyId={selectedJourneyItem.id}
             journeyName={selectedJourneyItem.name}
+          />
+        ) : null}
+        {selectedAltitude === "operational" && selectedOperationalSurface === "ariad" ? (
+          <AriadOperationalObservatory
+            journeyId={selectedJourneyItem.id}
+            journeyName={selectedJourneyItem.name}
+            projection={journeyProjections?.operational}
+            loading={projectionLoadStatus === "loading"}
+            errors={journeyProjections?.errors}
           />
         ) : null}
         {selectedAltitude === "tactical" ? (

@@ -8,6 +8,64 @@ export type OperationalProjection = {
   journeyId: string;
   snapshotId: string;
   sourceRevision: string;
+  content?: OperationalProjectionContent;
+};
+
+export type OperationalProjectionContent = {
+  activeWork?: {
+    activeItem?: string;
+    checkpoint?: string;
+    pendingConfirmation?: string;
+    status?: string;
+  };
+  roadmap?: {
+    roots: OperationalRoadmapNode[];
+  };
+  refinementStories?: OperationalRefinementStory[];
+  exploratoryStories?: OperationalExploratoryStory[];
+};
+
+export type OperationalRoadmapNode = {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  outcome?: string;
+  path?: string;
+  artifacts?: Record<string, string>;
+  children: OperationalRoadmapNode[];
+};
+
+export type OperationalRefinementStory = {
+  id: string;
+  title: string;
+  status: string;
+  active?: boolean;
+  path?: string;
+  changeRequests: {
+    id: string;
+    title: string;
+    status: string;
+    active?: boolean;
+    problem?: string;
+    expectedBehavior?: string;
+    evidence?: string;
+    outcome?: string;
+    driver?: string;
+    delivery?: string;
+    path?: string;
+  }[];
+};
+
+export type OperationalExploratoryStory = {
+  id: string;
+  title: string;
+  status: string;
+  summary?: string;
+  path?: string;
+  attractors: { title: string; description?: string; status?: string }[];
+  experiments: { title: string; description?: string; status?: string }[];
+  handoff?: { path?: string; status?: string };
 };
 
 export type TacticalProjection = OperationalProjection & {
@@ -76,7 +134,12 @@ export function normalizeJourneyProjectionBundle(value: unknown, expectedJourney
 
 function parseOperational(value: unknown, journeyId: string): OperationalProjection {
   const document = validatedInspection(value, journeyId, "ariad", "operational", "operational");
-  return { journeyId, snapshotId: text(document.snapshotId, "Operational snapshot"), sourceRevision: text(document.sourceRevision, "Operational revision") };
+  return {
+    journeyId,
+    snapshotId: text(document.snapshotId, "Operational snapshot"),
+    sourceRevision: text(document.sourceRevision, "Operational revision"),
+    content: parseOperationalContent(document.content),
+  };
 }
 
 function parseTactical(value: unknown, journeyId: string): TacticalProjection {
@@ -156,6 +219,85 @@ function findSource(items: ProjectionSource[], namespace: string, projection: st
   return items.find((item) => item.namespace === namespace && item.projection === projection);
 }
 
+function parseOperationalContent(value: unknown): OperationalProjectionContent | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const content = value as RecordValue;
+  const activeWork = optionalRecord(content.activeWork);
+  const roadmap = optionalRecord(content.roadmap);
+  return {
+    activeWork: activeWork ? {
+      activeItem: optionalText(activeWork.activeItem),
+      checkpoint: optionalText(activeWork.checkpoint),
+      pendingConfirmation: optionalText(activeWork.pendingConfirmation),
+      status: optionalText(activeWork.status),
+    } : undefined,
+    roadmap: roadmap ? { roots: optionalRecords(roadmap.roots).map(roadmapNode) } : undefined,
+    refinementStories: optionalRecords(content.refinementStories).map(refinementStory),
+    exploratoryStories: optionalRecords(content.exploratoryStories).map(exploratoryStory),
+  };
+}
+
+function roadmapNode(value: RecordValue): OperationalRoadmapNode {
+  return {
+    id: text(value.id, "Roadmap item id"),
+    title: text(value.title, "Roadmap item title"),
+    type: text(value.type, "Roadmap item type"),
+    status: text(value.status, "Roadmap item status"),
+    outcome: optionalText(value.outcome),
+    path: optionalText(value.path),
+    artifacts: optionalStringRecord(value.artifacts),
+    children: optionalRecords(value.children).map(roadmapNode),
+  };
+}
+
+function refinementStory(value: RecordValue): OperationalRefinementStory {
+  return {
+    id: text(value.id, "Refinement Story id"),
+    title: text(value.title, "Refinement Story title"),
+    status: text(value.status, "Refinement Story status"),
+    active: optionalBoolean(value.active),
+    path: optionalText(value.path),
+    changeRequests: optionalRecords(value.changeRequests).map((request) => ({
+      id: text(request.id, "Change Request id"),
+      title: text(request.title, "Change Request title"),
+      status: text(request.status, "Change Request status"),
+      active: optionalBoolean(request.active),
+      problem: optionalText(request.problem),
+      expectedBehavior: optionalText(request.expectedBehavior),
+      evidence: optionalText(request.evidence),
+      outcome: optionalText(request.outcome),
+      driver: optionalText(request.driver),
+      delivery: optionalText(request.delivery),
+      path: optionalText(request.path),
+    })),
+  };
+}
+
+function exploratoryStory(value: RecordValue): OperationalExploratoryStory {
+  const handoff = optionalRecord(value.handoff);
+  return {
+    id: text(value.id, "Exploratory Story id"),
+    title: text(value.title, "Exploratory Story title"),
+    status: text(value.status, "Exploratory Story status"),
+    summary: optionalText(value.summary),
+    path: optionalText(value.path),
+    attractors: optionalRecords(value.attractors).map((item) => ({
+      title: text(item.title, "Attractor title"),
+      description: optionalText(item.description),
+      status: optionalText(item.status),
+    })),
+    experiments: optionalRecords(value.experiments).map((item) => ({
+      title: text(item.title, "Experiment title"),
+      description: optionalText(item.description),
+      status: optionalText(item.status),
+    })),
+    handoff: handoff ? {
+      path: optionalText(handoff.path),
+      status: optionalText(handoff.status),
+    } : undefined,
+  };
+}
+
 function valueReading(value: unknown, label: string) {
   const item = record(value, label);
   return { summary: text(item.summary, `${label} summary`), sourceReferences: stringArray(item.sourceReferences, `${label} sources`) };
@@ -169,6 +311,29 @@ function record(value: unknown, label: string): RecordValue {
 function records(value: unknown, label: string, allowEmpty = false): RecordValue[] {
   if (!Array.isArray(value) || (!allowEmpty && value.length === 0)) throw new Error(`${label} is invalid.`);
   return value.map((item) => record(item, label));
+}
+
+function optionalRecord(value: unknown): RecordValue | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as RecordValue : undefined;
+}
+
+function optionalRecords(value: unknown): RecordValue[] {
+  return Array.isArray(value) ? value.filter((item) => item && typeof item === "object" && !Array.isArray(item)) as RecordValue[] : [];
+}
+
+function optionalText(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() !== "" ? value : undefined;
+}
+
+function optionalBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function optionalStringRecord(value: unknown): Record<string, string> | undefined {
+  const item = optionalRecord(value);
+  if (!item) return undefined;
+  const entries = Object.entries(item).filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim() !== "");
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
 function text(value: unknown, label: string): string {
