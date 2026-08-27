@@ -126,7 +126,7 @@ import {
   sanitizeJourneyPreferenceState,
   type JourneyPreferenceState,
 } from "../domain/journeyPreferencePersistence";
-import { createMutationRequest, suggestJourneySlug, type JourneyMutationRequest } from "../domain/journeyMutation";
+import { createMutationRequest, replacementJourneyAfterDeletion, suggestJourneySlug, type JourneyMutationRequest } from "../domain/journeyMutation";
 import type { NautilusViewModel } from "../domain/nautilusViewModel";
 import type { JourneyProjectionBundle } from "../domain/journeyProjections";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
@@ -1218,7 +1218,7 @@ export function App({ model }: AppProps) {
 
   function openDeleteJourney(journeyId: string) {
     const journey = findJourneyById(journeyRegistry, journeyId);
-    if (!journey || journey.id === selectedJourney || (journey.children?.length ?? 0) > 0) return;
+    if (!journey || (journey.children?.length ?? 0) > 0) return;
     setJourneyAdminDialog({ mode: "delete", journeyId });
     setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null); setJourneyItemMenu(null);
   }
@@ -1230,14 +1230,19 @@ export function App({ model }: AppProps) {
         ? journeyAdminPendingRequest
         : createMutationRequest(journeyRegistry, operation, payload);
       setJourneyAdminPendingRequest(request);
-      const result = await mutateJourneyRegistry(selectedJourney, request);
+      const deletedJourneyId = operation === "delete_journey" && typeof payload.journeyId === "string" ? payload.journeyId : undefined;
+      const replacementJourneyId = deletedJourneyId === selectedJourney ? replacementJourneyAfterDeletion(journeyRegistry, deletedJourneyId) : undefined;
+      if (deletedJourneyId === selectedJourney && !replacementJourneyId) throw new Error("The only remaining Journey cannot be deleted.");
+      const selectedAfterMutation = replacementJourneyId ?? selectedJourney;
+      const result = await mutateJourneyRegistry(selectedJourney, request, replacementJourneyId);
       const reconciled = reconcileReloadedJourneyState(result.registry, {
-        selectedJourneyId: selectedJourney, pinnedJourneyIds: journeyPreferences.pinnedJourneyIds,
+        selectedJourneyId: selectedAfterMutation, pinnedJourneyIds: journeyPreferences.pinnedJourneyIds,
         recentJourneyIds: journeyPreferences.recentJourneyIds, collapsedJourneyIds,
       });
       if (!reconciled) throw new Error("Verified Journey authority no longer contains the active Journey.");
       setLoadedJourneyRegistry(result.registry);
-      setJourneyPreferences((current) => ({ ...current, pinnedJourneyIds: reconciled.pinnedJourneyIds, recentJourneyIds: reconciled.recentJourneyIds }));
+      if (selectedAfterMutation !== selectedJourney) setSelectedJourney(selectedAfterMutation);
+      setJourneyPreferences((current) => ({ ...current, activeJourneyId: selectedAfterMutation, pinnedJourneyIds: reconciled.pinnedJourneyIds, recentJourneyIds: reconciled.recentJourneyIds }));
       setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
       setJourneyAdminDialog(null); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null);
       setJourneyRegistryRefreshState("succeeded"); setJourneyRegistryRefreshMessage("Journey structure updated from Mirror.");
@@ -1477,8 +1482,8 @@ export function App({ model }: AppProps) {
               className="danger-menu-item"
               type="button"
               role="menuitem"
-              disabled={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0 || journeyItemMenu.journeyId === selectedJourney}
-              title={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0 ? "Move or delete child Journeys first." : journeyItemMenu.journeyId === selectedJourney ? "The active Journey cannot be deleted." : "Permanently delete this empty Journey."}
+              disabled={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0}
+              title={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0 ? "Move or delete child Journeys first." : "Permanently delete this empty Journey."}
               onClick={() => openDeleteJourney(journeyItemMenu.journeyId)}
             >
               Delete Journey…
@@ -1919,7 +1924,7 @@ export function App({ model }: AppProps) {
               {journeyAdminDialog.mode === "create" ? `Create ${journeyAdminSlug || "this Journey"} under ${journeyAdminParent || "Root"} at position ${journeyAdminPosition}. No repository or conversation will be created.` :
                 journeyAdminDialog.mode === "path" ? `Update only project_path for ${journeyAdminDialog.journeyId}.` :
                   journeyAdminDialog.mode === "move" ? `Move ${journeyAdminDialog.journeyId} under ${journeyAdminParent || "Root"} at position ${journeyAdminPosition}.` :
-                    `Permanently delete ${findJourneyById(journeyRegistry, journeyAdminDialog.journeyId ?? "")?.name ?? journeyAdminDialog.journeyId}. Project files, repositories and protected history will not be deleted.`}
+                    `Permanently delete ${findJourneyById(journeyRegistry, journeyAdminDialog.journeyId ?? "")?.name ?? journeyAdminDialog.journeyId}. Project files, repositories and protected history will not be deleted.${journeyAdminDialog.journeyId === selectedJourney ? ` The active Journey will change to ${findJourneyById(journeyRegistry, replacementJourneyAfterDeletion(journeyRegistry, journeyAdminDialog.journeyId ?? "") ?? "")?.name ?? "another Journey"}.` : ""}`}
             </div>
             {journeyAdminMessage ? <p className="settings-error" role="alert">{journeyAdminMessage}</p> : null}
             <div className="settings-actions">

@@ -31,7 +31,7 @@ Inside `BEGIN IMMEDIATE`, Mirror must:
 3. resolve or reject the idempotency receipt;
 4. count child Journeys from canonical metadata;
 5. count every protected association;
-6. reject the active/non-empty/non-leaf target before deletion;
+6. reject the non-empty/non-leaf target before deletion;
 7. delete exactly one `identity(layer='journey')` row;
 8. read back absence and the remaining registry authority;
 9. write a sanitized durable receipt;
@@ -47,7 +47,7 @@ Add `delete_journey` to the Harness mutation type without creating a second nati
 
 If Mirror commits but export/publication fails, the old desktop projection remains intact and an exact idempotent retry recovers model-free. No compensating write may restore stale canonical state.
 
-The active Journey cannot be deleted. Harness disables it and Mirror re-checks protected runtime associations; the UI must never infer a replacement selection.
+An empty active Journey may be deleted only when Harness supplies an explicit replacement Journey. The deterministic replacement is its canonical parent when present, otherwise the first remaining Journey in registry order. Tauri verifies that replacement in the returned registry before publication, and Harness changes selection only after verified success. The only remaining Journey cannot be deleted.
 
 ### 4. Add the Tree item action
 
@@ -55,7 +55,6 @@ In each Tree item context menu:
 
 - render **Delete Journey…** after non-destructive actions;
 - disable it whenever `children.length > 0`;
-- disable it for the active Journey;
 - retain right-click, `Shift+F10` and Context Menu key parity;
 - expose an accessible reason through title/description when disabled.
 
@@ -99,14 +98,14 @@ And no mutation request can be submitted.
 ```
 
 ```text
-Given an inactive leaf with no protected associations
+Given a leaf with no protected associations
 When the Navigator confirms its exact destructive dialog
 Then Mirror deletes exactly that Journey identity once
 And Harness publishes only the verified replacement registry.
 ```
 
 ```text
-Given an active, stale, populated, malformed or conflicting target
+Given a stale, populated, malformed or conflicting target
 When deletion is attempted
 Then Mirror rejects it before deletion
 And Harness preserves the prior visible tree and every protected namespace.

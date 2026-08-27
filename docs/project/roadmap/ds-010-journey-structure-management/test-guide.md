@@ -48,7 +48,7 @@ Use isolated SQLite databases to prove:
 8. malformed replacement registry never reaches the published path;
 9. staging/target symlinks and unsafe file types fail closed;
 10. atomic rename exposes either the prior complete registry or the new complete registry;
-11. active Journey authority remains present after every accepted mutation;
+11. active Journey authority remains present after non-deletion mutations, and active-leaf deletion binds publication to an explicit verified replacement;
 12. no provider, Pi, conversation logger or dedicated-thread command is invoked.
 
 Characterize the existing `refresh_journey_registry` path before extracting shared export/validation/publication helpers.

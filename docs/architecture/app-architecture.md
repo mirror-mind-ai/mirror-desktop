@@ -140,11 +140,12 @@ stable sibling position. Every mutation carries that source version and native
 Journey IDs. A stale or malformed result leaves the prior desktop registry
 intact. Creation remains identity-only and cannot provision repositories, files, Pi
 sessions, Mirror conversations or dedicated Nautilus threads. Deletion is the
-inverse only for an inactive canonical leaf with no protected association:
-parents and the active Journey are disabled in the desktop, Tauri also blocks
-native dedicated-thread evidence, and Mirror re-checks every database-backed
-association transactionally without cascade. Project files and repositories are
-never deletion targets.
+inverse only for a canonical leaf with no protected association: parents are
+disabled in the desktop, Tauri blocks native dedicated-thread evidence, and
+Mirror re-checks every database-backed association transactionally without
+cascade. When the empty leaf is active, Harness binds publication and selection
+to its parent or the first remaining canonical Journey before accepting the
+replacement registry. Project files and repositories are never deletion targets.
 
 ## Next implementation story
 

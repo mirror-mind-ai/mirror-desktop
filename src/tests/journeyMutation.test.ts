@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMutationRequest, suggestJourneySlug } from "../domain/journeyMutation";
+import { createMutationRequest, replacementJourneyAfterDeletion, suggestJourneySlug } from "../domain/journeyMutation";
 import type { JourneyRegistry } from "../domain/journeyRegistry";
 import appSource from "../app/App.tsx?raw";
 import storageSource from "../app/journeyMutationStorage.ts?raw";
@@ -24,6 +24,16 @@ describe("Journey administration boundary", () => {
     });
   });
 
+  it("chooses a deterministic replacement when deleting the active Journey", () => {
+    const nested: JourneyRegistry = {
+      ...registry,
+      roots: [{ id: "root", name: "Root", children: [{ id: "active", name: "Active", parentId: "root" }] }, { id: "other", name: "Other" }],
+    };
+    expect(replacementJourneyAfterDeletion(nested, "active")).toBe("root");
+    expect(replacementJourneyAfterDeletion(nested, "root")).toBe("active");
+    expect(replacementJourneyAfterDeletion({ ...registry, roots: [{ id: "only", name: "Only" }] }, "only")).toBeUndefined();
+  });
+
   it("suggests editable deterministic slugs", () => {
     expect(suggestJourneySlug("Criação de Jornadas! ")).toBe("criacao-de-jornadas");
   });
@@ -43,13 +53,14 @@ describe("Journey administration boundary", () => {
     expect(appSource).toContain('draggable={journeyListOrder === "tree" && !isStreaming}');
   });
 
-  it("offers guarded destructive deletion only for inactive leaves", () => {
+  it("offers guarded destructive deletion for leaves and replaces active selection safely", () => {
     expect(appSource).toContain("Delete Journey…");
     expect(appSource).toContain('role={journeyAdminDialog.mode === "delete" ? "alertdialog" : "dialog"}');
     expect(appSource).toContain('(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0');
-    expect(appSource).toContain('journeyItemMenu.journeyId === selectedJourney');
+    expect(appSource).not.toContain('journeyItemMenu.journeyId === selectedJourney ? "The active Journey cannot be deleted."');
     expect(appSource).toContain('executeJourneyMutation("delete_journey"');
-    expect(tauriSource).toContain('journey_id == active_journey_id');
+    expect(appSource).toContain('replacementJourneyAfterDeletion(journeyRegistry, deletedJourneyId)');
+    expect(tauriSource).toContain('replacement_journey_id');
     expect(tauriSource).toContain('dedicated-journey-conversations');
     expect(tauriSource).toContain('journey_not_empty:');
   });

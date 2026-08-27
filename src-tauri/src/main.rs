@@ -626,21 +626,30 @@ fn choose_project_directory() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_json: String) -> Result<String, String> {
+fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_json: String, replacement_journey_id: Option<String>) -> Result<String, String> {
     let request: Value = serde_json::from_str(&request_json).map_err(|_| "Journey mutation request is malformed.".to_string())?;
-    if request.get("operation").and_then(Value::as_str) == Some("delete_journey") {
+    let delete_target = if request.get("operation").and_then(Value::as_str) == Some("delete_journey") {
         let journey_id = request.get("payload").and_then(|payload| payload.get("journeyId")).and_then(Value::as_str)
             .ok_or_else(|| "Journey deletion target is missing.".to_string())?;
-        if journey_id == active_journey_id {
-            return Err("The active Journey cannot be deleted.".to_string());
-        }
         let thread_path = journey_thread_path(&app, journey_id)?;
         let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
         let generation_dir = app_data_dir.join("dedicated-journey-conversations").join(sanitize_journey_id(journey_id)?);
         if thread_path.exists() || generation_dir.exists() {
             return Err("Journey cannot be deleted because dedicated conversation history exists.".to_string());
         }
-    }
+        Some(journey_id.to_string())
+    } else {
+        None
+    };
+    let publication_journey_id = if delete_target.as_deref() == Some(active_journey_id.as_str()) {
+        let replacement = replacement_journey_id.as_deref().ok_or_else(|| "Deleting the active Journey requires an explicit replacement Journey.".to_string())?;
+        if replacement == active_journey_id || replacement == delete_target.as_deref().unwrap_or_default() {
+            return Err("Replacement Journey authority is invalid.".to_string());
+        }
+        sanitize_journey_id(replacement)?
+    } else {
+        active_journey_id.clone()
+    };
     let mirror_root = mirror_runtime_root()?;
     let mut child = Command::new("uv")
         .args(["run", "python", "-m", "memory", "journey", "mutate", "--mirror-home"])
@@ -671,8 +680,8 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
     let registry = result.get("registry").ok_or_else(|| "Journey mutation omitted the verified registry.".to_string())?;
     let registry_payload = serde_json::to_string_pretty(registry).map_err(|error| error.to_string())?;
     let validated = validate_journey_registry_payload(&registry_payload)?;
-    if !journey_registry_contains_id(&validated, &active_journey_id) {
-        return Err("Mutated registry does not contain the active Journey.".to_string());
+    if !journey_registry_contains_id(&validated, &publication_journey_id) {
+        return Err("Mutated registry does not contain the selected Journey authority.".to_string());
     }
     let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     publish_refreshed_journey_registry(&app_data_dir, &registry_payload)?;

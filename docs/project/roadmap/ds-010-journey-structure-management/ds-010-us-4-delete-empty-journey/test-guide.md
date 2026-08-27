@@ -6,7 +6,7 @@
 
 ### Successful empty-leaf deletion
 
-- Create an isolated root and an inactive empty leaf.
+- Create an isolated root and an empty leaf.
 - Submit exact schema, idempotency key, source version and leaf Journey ID.
 - Assert one Journey identity row is deleted.
 - Assert result source version changes and the leaf is absent from read-back.
@@ -18,7 +18,7 @@ Reject without source-version change:
 
 - unknown Journey ID;
 - malformed or stale source version;
-- active Journey;
+- deletion of the only remaining Journey without a replacement;
 - Journey with one or more children;
 - request with unauthorized fields;
 - conflicting payload under an existing idempotency key;
@@ -51,14 +51,14 @@ Assert bounded error classes/counts contain no private content or path.
 
 - `delete_journey` uses the existing `mutate_journey_registry` command.
 - No provider command or conversation lifecycle appears in deletion source paths.
-- Tauri validates the returned registry and active Journey before publication.
+- Tauri validates the returned registry and either the retained active Journey or the explicit replacement before publication.
 - Malformed output and unsafe staging/target paths preserve the previous registry.
 - Exact request is retained after recoverable failure.
 
 ## Presentation Tests
 
 - Parent item: **Delete Journey…** is present and disabled.
-- Leaf item: action is enabled unless it is the active Journey.
+- Leaf item: action remains enabled when it is active and names the deterministic replacement in confirmation.
 - Right-click, `Shift+F10` and Context Menu key expose the same action.
 - Disabled action communicates why it cannot run.
 - Eligible action opens an accessible `alertdialog` with exact Journey name.
@@ -91,22 +91,22 @@ Record actual counts during Validation.
 Use a disposable isolated Mirror home containing:
 
 - one parent with a child;
-- one active leaf;
+- one active empty leaf with a parent or another root;
 - one populated inactive leaf;
 - one empty inactive leaf.
 
 Expected observations:
 
 1. parent deletion is disabled;
-2. active deletion is disabled;
+2. active empty leaf deletion names and selects its deterministic replacement only after success;
 3. populated leaf reaches confirmation but Mirror blocks it honestly;
 4. Cancel changes nothing;
-5. empty inactive leaf deletes after explicit confirmation;
-6. restart/reload preserves the canonical result;
+5. empty leaf deletes after explicit confirmation;
+6. restart/reload preserves the canonical result and replacement selection;
 7. project directories and all protected histories remain untouched;
 8. no provider activity occurs.
 
-**Pass:** only the empty inactive leaf identity disappears after verified publication.  
+**Pass:** only the confirmed empty leaf identity disappears after verified publication, with a valid replacement selected when it was active.
 **Fail:** any cascade, optimistic disappearance, inferred selection, provider call, inaccessible action or protected-state change.
 
 ## Validation Evidence

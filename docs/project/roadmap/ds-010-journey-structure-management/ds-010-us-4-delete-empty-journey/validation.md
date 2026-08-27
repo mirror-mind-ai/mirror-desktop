@@ -6,7 +6,7 @@ Blocked
 
 ## Automated Checks
 
-- Harness: 49 Vitest files / 266 tests passed
+- Harness: 49 Vitest files / 267 tests passed
 - Harness production TypeScript/Vite build passed
 - Harness: 18 Rust tests and cargo check passed
 - Harness: 2 Python adapter tests passed
@@ -23,15 +23,15 @@ Evidence: Automated isolated-database deletion proves empty-leaf success, non-le
 
 ## Navigator Validation
 
-Route: In Tree mode, right-click a parent, the active Journey, a populated inactive leaf and an empty inactive leaf in a disposable Mirror home. Verify parent/active actions are disabled; cancel the empty-leaf dialog; verify the populated leaf is blocked by Mirror; then confirm the empty inactive leaf and reload.
+Route: In Tree mode, right-click a parent, an active empty leaf with another Journey available, a populated inactive leaf and an empty inactive leaf in a disposable Mirror home. Verify the parent action is disabled; cancel an empty-leaf dialog; verify the populated leaf is blocked by Mirror; confirm the active empty leaf and verify its parent or first remaining Journey becomes selected only after success; then confirm another empty leaf and reload.
 
 Navigator accepted: no
 
-Expected observation: Only the confirmed empty inactive leaf disappears after verified reload. Parent and active actions remain disabled; populated history is retained with an honest reason; project files, conversations, memories, threads and generations remain unchanged; no provider activity occurs.
+Expected observation: Only confirmed empty leaves disappear after verified reload. Parent actions remain disabled; deleting the active empty leaf selects its canonical parent or first remaining Journey only after success; populated history is retained with an honest reason; project files, conversations, memories, threads and generations remain unchanged; no provider activity occurs.
 
-Pass condition: Exactly one empty inactive Journey identity is deleted after confirmation and every protected namespace remains unchanged.
+Pass condition: Each confirmed empty Journey identity is deleted exactly once, active deletion converges on an explicit valid replacement, and every protected namespace remains unchanged.
 
-Fail condition: Any cascade, optimistic disappearance, active/parent deletion, inferred replacement selection, provider call, filesystem deletion, inaccessible action or protected-state mutation.
+Fail condition: Any cascade, optimistic disappearance, parent deletion, unverified or missing replacement selection, provider call, filesystem deletion, inaccessible action or protected-state mutation.
 
 ## Missing Evidence
 

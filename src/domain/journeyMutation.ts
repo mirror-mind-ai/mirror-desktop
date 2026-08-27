@@ -14,6 +14,20 @@ export type JourneyMutationResult = {
   registry: JourneyRegistry;
 };
 
+export function replacementJourneyAfterDeletion(registry: JourneyRegistry, targetJourneyId: string): string | undefined {
+  const ordered: Array<{ id: string; parentId?: string }> = [];
+  const visit = (items: JourneyRegistry["roots"], parentId?: string) => {
+    for (const item of items) {
+      ordered.push({ id: item.id, parentId: item.parentId ?? parentId });
+      visit(item.children ?? [], item.id);
+    }
+  };
+  visit(registry.roots);
+  const target = ordered.find((journey) => journey.id === targetJourneyId);
+  if (target?.parentId && target.parentId !== targetJourneyId) return target.parentId;
+  return ordered.find((journey) => journey.id !== targetJourneyId)?.id;
+}
+
 export function suggestJourneySlug(name: string): string {
   return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
