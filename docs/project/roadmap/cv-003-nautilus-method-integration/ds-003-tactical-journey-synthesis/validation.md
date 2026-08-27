@@ -2,11 +2,11 @@
 
 ## Status
 
-pending_navigator_validation
+passed
 
 ## Summary
 
-Implementation complete for CV-003.DS-003: Tactical mission, evidence and deliverables now expose source references; deliverables show evidence IDs; Tactical projections support optional ambiguity records rendered as a dedicated ambiguity-preserved panel; Tactical remains read-only with no form or implicit invocation controls. Checks passed: npm test and npm run build. Commit: 7b10592.
+Navigator validated CV-003.DS-003 after source reference wrapping fix. Tactical source references now render as readable paths instead of breaking character-by-character. Implementation commits: 7b10592 and a60b323. Checks passed: npm test and npm run build.
 
 ## Child Work Packages
 
@@ -18,4 +18,4 @@ Implementation complete for CV-003.DS-003: Tactical mission, evidence and delive
 
 ## Boundary
 
-Do not proceed to DS-level Debt Review until Navigator validation is accepted.
+No push or release action is authorized by this checkpoint.
