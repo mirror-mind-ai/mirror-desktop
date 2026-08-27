@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deriveOrderedSidebarJourneys,
   deriveSidebarJourneys,
+  filterCollapsedJourneyTree,
   findJourneyById,
   flattenJourneyRegistry,
   journeyBreadcrumb,
@@ -149,6 +150,25 @@ describe("hierarchical Journey registry", () => {
 
     expect(sidebar.map((journey) => journey.name)).toEqual([...sidebar.map((journey) => journey.name)].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })));
     expect(sidebar.map((journey) => journey.id)).toContain("nautilus-harness");
+  });
+
+  it("hides descendants of collapsed Journey nodes without disturbing later roots", () => {
+    const tree = deriveOrderedSidebarJourneys(fixtureJourneyRegistry, {
+      pinnedJourneyIds: [],
+      activeJourneyId: "nautilus-harness",
+      recentJourneyIds: [],
+    }, "tree");
+
+    expect(filterCollapsedJourneyTree(tree, new Set(["nautilus"])).map((journey) => journey.id)).toEqual([
+      "vida-criativa",
+      "nautilus",
+      "amplia",
+      "lideranca-soberana",
+      "livro-lideranca-soberana",
+      "mirror-dev",
+      "softwarezen",
+      "ariad",
+    ]);
   });
 
   it("orders all Journeys by hierarchy for Tree mode", () => {

@@ -98,6 +98,7 @@ import {
 } from "../domain/threeBodyTurnCommit";
 import {
   deriveOrderedSidebarJourneys,
+  filterCollapsedJourneyTree,
   findJourneyById,
   flattenJourneyRegistry,
   markJourneyRecent,
@@ -119,6 +120,7 @@ import {
 import type { NautilusViewModel } from "../domain/nautilusViewModel";
 import type { JourneyProjectionBundle } from "../domain/journeyProjections";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
+import { JourneyTreeIcon } from "./JourneyTreeIcon";
 
 type AppProps = {
   model: NautilusViewModel;
@@ -172,6 +174,7 @@ export function App({ model }: AppProps) {
   });
   const [journeySearch, setJourneySearch] = useState("");
   const [journeyListOrder, setJourneyListOrder] = useState<JourneyListOrder>(defaultJourneyPreferenceState.journeyListOrder);
+  const [collapsedJourneyIds, setCollapsedJourneyIds] = useState<Set<string>>(() => new Set());
   const [draft, setDraft] = useState("");
   const [conversation, setConversation] = useState(() =>
     createJourneyConversation({ journeyId: selectedJourney, initialMessages }),
@@ -238,7 +241,12 @@ export function App({ model }: AppProps) {
       })),
     [journeyPreferences, journeyListOrder, journeySearch, selectedJourney, journeyRegistry],
   );
-  const visibleSidebarJourneys = journeySearch.trim() ? searchResults : sidebarJourneys;
+  const visibleSidebarJourneys = useMemo(() => {
+    if (journeySearch.trim()) return searchResults;
+    return journeyListOrder === "tree"
+      ? filterCollapsedJourneyTree(sidebarJourneys, collapsedJourneyIds)
+      : sidebarJourneys;
+  }, [collapsedJourneyIds, journeyListOrder, journeySearch, searchResults, sidebarJourneys]);
   const selectedJourneyItem = findJourneyById(journeyRegistry, selectedJourney) ??
     sidebarJourneys[0] ?? {
       id: selectedJourney,
@@ -1068,6 +1076,15 @@ export function App({ model }: AppProps) {
     setRuntimeProjectionMessageId(undefined);
   }
 
+  function toggleCollapsedJourney(journeyId: string) {
+    setCollapsedJourneyIds((current) => {
+      const next = new Set(current);
+      if (next.has(journeyId)) next.delete(journeyId);
+      else next.add(journeyId);
+      return next;
+    });
+  }
+
   function togglePinnedJourney(journeyId: string) {
     setJourneyPreferences((preferences) => ({
       ...preferences,
@@ -1115,7 +1132,7 @@ export function App({ model }: AppProps) {
           ))}
         </div>
 
-        <div className="journey-list">
+        <div className={`journey-list ${journeyListOrder === "tree" ? "tree-mode" : "card-mode"}`}>
           {visibleSidebarJourneys.length === 0 ? (
             <div className="journey-empty-state">
               {journeySearch.trim() ? (
@@ -1133,10 +1150,12 @@ export function App({ model }: AppProps) {
           ) : null}
           {visibleSidebarJourneys.map((journey) => {
             const visual = journeyVisual(journey.id);
+            const hasChildren = (journey.children?.length ?? 0) > 0;
+            const collapsed = collapsedJourneyIds.has(journey.id);
             return (
               <div
                 key={journey.id}
-                className={`journey-item accent-${visual.accent} ${journey.id === selectedJourney ? "selected" : ""} ${isStreaming ? "disabled" : ""}`}
+                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${journey.id === selectedJourney ? "selected" : ""} ${isStreaming ? "disabled" : ""}`}
                 style={{ "--journey-depth": journeyListOrder === "tree" ? journey.depth : 0 } as CSSProperties & Record<"--journey-depth", number>}
                 role="button"
                 tabIndex={isStreaming ? -1 : 0}
@@ -1153,7 +1172,28 @@ export function App({ model }: AppProps) {
                   }
                 }}
               >
-                <span className="journey-icon">{visual.icon}</span>
+                {journeyListOrder === "tree" ? (
+                  hasChildren ? (
+                    <button
+                      className="journey-tree-toggle"
+                      type="button"
+                      aria-label={`${collapsed ? "Expand" : "Collapse"} ${journey.name}`}
+                      aria-expanded={!collapsed}
+                      disabled={isStreaming}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleCollapsedJourney(journey.id);
+                      }}
+                    >
+                      {collapsed ? "›" : "▾"}
+                    </button>
+                  ) : <span className="journey-tree-toggle-placeholder" aria-hidden="true" />
+                ) : null}
+                {journeyListOrder === "tree" ? (
+                  <span className="journey-tree-icon"><JourneyTreeIcon /></span>
+                ) : (
+                  <span className="journey-icon">{visual.icon}</span>
+                )}
                 <span className="journey-copy">
                   <strong>{journey.name}</strong>
                   <small>{sidebarDescription(journey)}</small>

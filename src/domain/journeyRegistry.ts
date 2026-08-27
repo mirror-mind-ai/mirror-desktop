@@ -162,6 +162,27 @@ export function deriveOrderedSidebarJourneys(
   );
 }
 
+export function filterCollapsedJourneyTree<T extends FlattenedJourney>(
+  journeys: T[],
+  collapsedJourneyIds: ReadonlySet<string>,
+): T[] {
+  let hiddenBelowDepth: number | undefined;
+  const visible: T[] = [];
+
+  for (const journey of journeys) {
+    if (hiddenBelowDepth !== undefined && journey.depth > hiddenBelowDepth) {
+      continue;
+    }
+    hiddenBelowDepth = undefined;
+    visible.push(journey);
+    if (journey.children?.length && collapsedJourneyIds.has(journey.id)) {
+      hiddenBelowDepth = journey.depth;
+    }
+  }
+
+  return visible;
+}
+
 export function orderSearchResults(
   journeys: FlattenedJourney[],
   preferences: JourneyPreferences,
