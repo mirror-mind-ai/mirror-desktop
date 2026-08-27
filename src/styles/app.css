@@ -185,16 +185,88 @@ textarea {
 .journey-item-context-menu button:hover,
 .journey-item-context-menu button:focus-visible { background: rgba(133, 223, 210, 0.11); }
 
-.journey-admin-dialog { max-width: 680px; }
-.journey-admin-dialog label { display: grid; gap: 6px; }
-.journey-admin-dialog textarea { min-height: 110px; resize: vertical; }
+.settings-window.journey-admin-dialog {
+  display: grid;
+  gap: 11px;
+  max-width: 620px;
+  padding: 20px;
+  border-radius: 16px;
+  color-scheme: dark;
+}
+
+.journey-admin-dialog .settings-header { margin: 0 0 2px; }
+.journey-admin-dialog .settings-header h2 { font-size: 1.2rem; }
+.journey-admin-dialog .settings-header > button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #b9cbd0;
+  font-size: 1.1rem;
+}
+
+.journey-admin-dialog > label,
+.journey-admin-dialog .settings-grid label {
+  display: grid;
+  gap: 5px;
+  color: #a9bdc2;
+  font-size: 0.76rem;
+  font-weight: 620;
+}
+
+.journey-admin-dialog input,
+.journey-admin-dialog select,
+.journey-admin-dialog textarea {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(133, 223, 210, 0.22);
+  border-radius: 8px;
+  background: rgba(7, 18, 22, 0.84);
+  color: #eef9fb;
+  font-size: 0.84rem;
+}
+
+.journey-admin-dialog textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.journey-admin-dialog .settings-grid.two-column {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  gap: 10px;
+}
+
 .journey-path-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.journey-path-picker button { padding: 7px 12px; border-radius: 8px; }
 .journey-admin-summary {
-  padding: 12px;
+  padding: 9px 10px;
   border: 1px solid rgba(133, 223, 210, 0.16);
   border-radius: 8px;
   color: #9eb0b4;
   background: rgba(255, 255, 255, 0.025);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.journey-admin-dialog .settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.journey-admin-dialog .settings-actions button { padding: 8px 13px; border-radius: 8px; }
+.journey-admin-dialog .settings-actions button:first-child {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #b5cdd4;
+}
+
+@media (max-width: 560px) {
+  .journey-admin-dialog .settings-grid.two-column { grid-template-columns: 1fr; }
 }
 
 .journey-tree-refresh-status {
