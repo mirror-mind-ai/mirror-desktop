@@ -104,6 +104,7 @@ import {
 import {
   deriveOrderedSidebarJourneys,
   filterCollapsedJourneyTree,
+  filterPinnedJourneys,
   findJourneyById,
   flattenJourneyRegistry,
   markJourneyRecent,
@@ -181,6 +182,7 @@ export function App({ model }: AppProps) {
   const [journeySearch, setJourneySearch] = useState("");
   const [journeyListOrder, setJourneyListOrder] = useState<JourneyListOrder>(defaultJourneyPreferenceState.journeyListOrder);
   const [collapsedJourneyIds, setCollapsedJourneyIds] = useState<Set<string>>(() => new Set());
+  const [pinnedOnly, setPinnedOnly] = useState(false);
   const [journeyTreeMenuOpen, setJourneyTreeMenuOpen] = useState(false);
   const [journeyRegistryRefreshState, setJourneyRegistryRefreshState] = useState<"idle" | "refreshing" | "succeeded" | "failed">("idle");
   const [journeyRegistryRefreshMessage, setJourneyRegistryRefreshMessage] = useState<string | undefined>();
@@ -253,11 +255,13 @@ export function App({ model }: AppProps) {
     [journeyPreferences, journeyListOrder, journeySearch, selectedJourney, journeyRegistry],
   );
   const visibleSidebarJourneys = useMemo(() => {
-    if (journeySearch.trim()) return searchResults;
-    return journeyListOrder === "tree"
-      ? filterCollapsedJourneyTree(sidebarJourneys, collapsedJourneyIds)
-      : sidebarJourneys;
-  }, [collapsedJourneyIds, journeyListOrder, journeySearch, searchResults, sidebarJourneys]);
+    const orderedJourneys = journeySearch.trim()
+      ? searchResults
+      : journeyListOrder === "tree"
+        ? filterCollapsedJourneyTree(sidebarJourneys, collapsedJourneyIds)
+        : sidebarJourneys;
+    return pinnedOnly ? filterPinnedJourneys(orderedJourneys) : orderedJourneys;
+  }, [collapsedJourneyIds, journeyListOrder, journeySearch, pinnedOnly, searchResults, sidebarJourneys]);
   const selectedJourneyItem = findJourneyById(journeyRegistry, selectedJourney) ??
     sidebarJourneys[0] ?? {
       id: selectedJourney,
@@ -1195,34 +1199,52 @@ export function App({ model }: AppProps) {
           aria-label="Search journeys"
         />
 
-        <div className="journey-order-control" aria-label="Journey list order">
-          {([
-            ["recent", "Recent"],
-            ["name", "A–Z"],
-            ["tree", "Tree"],
-          ] as const).map(([order, label]) => (
-            <button
-              key={order}
-              ref={order === "tree" ? journeyTreeButtonRef : undefined}
-              className={journeyListOrder === order ? "selected" : ""}
-              type="button"
-              onClick={() => {
-                setJourneyListOrder(order);
-                setJourneyTreeMenuOpen(false);
-              }}
-              onContextMenu={order === "tree" ? (event) => openJourneyTreeMenu(event.currentTarget, event) : undefined}
-              onKeyDown={order === "tree" ? (event) => {
-                if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
-                  openJourneyTreeMenu(event.currentTarget, event);
-                }
-              } : undefined}
-              aria-pressed={journeyListOrder === order}
-              aria-haspopup={order === "tree" ? "menu" : undefined}
-              aria-expanded={order === "tree" ? journeyTreeMenuOpen : undefined}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="journey-order-control" aria-label="Journey list view">
+          <button
+            className={!pinnedOnly && journeyListOrder === "recent" ? "selected" : ""}
+            type="button"
+            onClick={() => {
+              setPinnedOnly(false);
+              setJourneyListOrder("recent");
+              setJourneyTreeMenuOpen(false);
+            }}
+            aria-pressed={!pinnedOnly && journeyListOrder === "recent"}
+          >
+            Recent
+          </button>
+          <button
+            className={pinnedOnly ? "selected" : ""}
+            type="button"
+            onClick={() => {
+              setPinnedOnly(true);
+              setJourneyListOrder("recent");
+              setJourneyTreeMenuOpen(false);
+            }}
+            aria-pressed={pinnedOnly}
+          >
+            Pinned
+          </button>
+          <button
+            ref={journeyTreeButtonRef}
+            className={!pinnedOnly && journeyListOrder === "tree" ? "selected" : ""}
+            type="button"
+            onClick={() => {
+              setPinnedOnly(false);
+              setJourneyListOrder("tree");
+              setJourneyTreeMenuOpen(false);
+            }}
+            onContextMenu={(event) => openJourneyTreeMenu(event.currentTarget, event)}
+            onKeyDown={(event) => {
+              if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+                openJourneyTreeMenu(event.currentTarget, event);
+              }
+            }}
+            aria-pressed={!pinnedOnly && journeyListOrder === "tree"}
+            aria-haspopup="menu"
+            aria-expanded={journeyTreeMenuOpen}
+          >
+            Tree
+          </button>
           {journeyTreeMenuOpen ? (
             <div className="journey-tree-context-menu" role="menu" ref={journeyTreeMenuRef} aria-label="Journey tree options">
               <button
@@ -1246,7 +1268,12 @@ export function App({ model }: AppProps) {
         <div className={`journey-list ${journeyListOrder === "tree" ? "tree-mode" : "card-mode"}`}>
           {visibleSidebarJourneys.length === 0 ? (
             <div className="journey-empty-state">
-              {journeySearch.trim() ? (
+              {pinnedOnly ? (
+                <>
+                  <strong>{journeySearch.trim() ? `No pinned Journeys found for “${journeySearch.trim()}”` : "No pinned Journeys"}</strong>
+                  <small>{journeySearch.trim() ? "Try another search or clear the Pinned filter." : "Pin a Journey to make it available in this filter."}</small>
+                </>
+              ) : journeySearch.trim() ? (
                 <>
                   <strong>No Journeys found for “{journeySearch.trim()}”</strong>
                   <small>Try another search or switch the Journey list order.</small>

@@ -93,7 +93,8 @@ function parseStringArray(value: unknown): string[] | undefined {
 }
 
 function parseJourneyListOrder(value: unknown): JourneyListOrder | undefined {
-  return value === "recent" || value === "name" || value === "tree" ? value : undefined;
+  if (value === "name") return "recent";
+  return value === "recent" || value === "tree" ? value : undefined;
 }
 
 function uniqueExistingJourneyIds(journeyIds: string[], registry: JourneyRegistry): string[] {

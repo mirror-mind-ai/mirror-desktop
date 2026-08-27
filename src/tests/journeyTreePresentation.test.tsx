@@ -15,6 +15,17 @@ describe("Journey tree presentation", () => {
     expect(html).not.toContain("artifact-type-icon");
   });
 
+  it("replaces A-Z with an exclusive Pinned-only view", () => {
+    expect(appSource).not.toContain('["name", "A–Z"]');
+    expect(appSource).toMatch(/setPinnedOnly\(true\);\s+setJourneyListOrder\("recent"\)/);
+    expect(appSource.match(/setPinnedOnly\(false\)/g)).toHaveLength(2);
+    expect(appSource).toContain('aria-pressed={pinnedOnly}');
+    expect(appSource).toContain('aria-pressed={!pinnedOnly && journeyListOrder === "recent"}');
+    expect(appSource).toContain('aria-pressed={!pinnedOnly && journeyListOrder === "tree"}');
+    expect(appSource).toContain('pinnedOnly ? filterPinnedJourneys(orderedJourneys) : orderedJourneys');
+    expect(appSource).toContain("No pinned Journeys");
+  });
+
   it("keeps the dense hierarchy treatment confined to Tree mode", () => {
     expect(appSource).toContain('journeyListOrder === "tree" ? "tree-mode" : "card-mode"');
     expect(appSource).toContain('journeyListOrder === "tree" ? "tree-node" : "card-node"');
@@ -24,7 +35,7 @@ describe("Journey tree presentation", () => {
     expect(appSource).toContain("journey-tree-toggle");
     expect(appSource).toContain('collapsed ? "›" : "▾"');
     expect(appSource).toContain("journey-tree-toggle-placeholder");
-    expect(appSource).toContain('onContextMenu={order === "tree" ? (event) => openJourneyTreeMenu(event.currentTarget, event) : undefined}');
+    expect(appSource).toContain("onContextMenu={(event) => openJourneyTreeMenu(event.currentTarget, event)}");
     expect(appSource).toContain('event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")');
     expect(appSource).toContain('role="menu"');
     expect(appSource).toContain('role="menuitem"');

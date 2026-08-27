@@ -3,6 +3,7 @@ import {
   deriveOrderedSidebarJourneys,
   deriveSidebarJourneys,
   filterCollapsedJourneyTree,
+  filterPinnedJourneys,
   findJourneyById,
   flattenJourneyRegistry,
   journeyBreadcrumb,
@@ -93,6 +94,17 @@ describe("hierarchical Journey registry", () => {
     ]);
   });
 
+  it("filters any ordered Journey projection to pinned IDs without reordering it", () => {
+    const tree = deriveOrderedSidebarJourneys(fixtureJourneyRegistry, {
+      pinnedJourneyIds: ["amplia", "nautilus"],
+      activeJourneyId: "nautilus-harness",
+      recentJourneyIds: [],
+    }, "tree");
+
+    expect(filterPinnedJourneys(tree).map((journey) => journey.id)).toEqual(["nautilus", "amplia"]);
+    expect(filterPinnedJourneys(tree.map((journey) => ({ ...journey, pinned: false })))).toEqual([]);
+  });
+
   it("shows active and recent Journeys in recency order when nothing is pinned", () => {
     const sidebar = deriveSidebarJourneys(fixtureJourneyRegistry, {
       pinnedJourneyIds: [],
@@ -164,17 +176,6 @@ describe("hierarchical Journey registry", () => {
     ]);
   });
 
-  it("orders all Journeys alphabetically by display name", () => {
-    const sidebar = deriveOrderedSidebarJourneys(fixtureJourneyRegistry, {
-      pinnedJourneyIds: [],
-      activeJourneyId: "nautilus-harness",
-      recentJourneyIds: [],
-    }, "name");
-
-    expect(sidebar.map((journey) => journey.name)).toEqual([...sidebar.map((journey) => journey.name)].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })));
-    expect(sidebar.map((journey) => journey.id)).toContain("nautilus-harness");
-  });
-
   it("hides descendants of collapsed Journey nodes without disturbing later roots", () => {
     const tree = deriveOrderedSidebarJourneys(fixtureJourneyRegistry, {
       pinnedJourneyIds: [],
@@ -214,15 +215,15 @@ describe("hierarchical Journey registry", () => {
     ]);
   });
 
-  it("applies selected ordering to search results", () => {
+  it("applies Recent or Tree ordering to search results", () => {
     const results = searchJourneyRegistry(fixtureJourneyRegistry, "vida");
 
     expect(orderSearchResults(results, { pinnedJourneyIds: [], activeJourneyId: "amplia", recentJourneyIds: [] }, "recent").map((journey) => journey.id)[0]).toBe("amplia");
-    expect(orderSearchResults(results, { pinnedJourneyIds: [], recentJourneyIds: [] }, "name").map((journey) => journey.name)).toEqual([
-      "Amplia",
+    expect(orderSearchResults(results, { pinnedJourneyIds: [], recentJourneyIds: [] }, "tree").map((journey) => journey.name)).toEqual([
+      "Vida Criativa",
       "Nautilus",
       "Nautilus Harness",
-      "Vida Criativa",
+      "Amplia",
     ]);
   });
 });

@@ -22,7 +22,7 @@ export type JourneyPreferences = {
   recentJourneyIds: string[];
 };
 
-export type JourneyListOrder = "recent" | "name" | "tree";
+export type JourneyListOrder = "recent" | "tree";
 
 export type FlattenedJourney = JourneyRegistryItem & {
   breadcrumb: string[];
@@ -184,6 +184,10 @@ export function deriveOrderedSidebarJourneys(
   );
 }
 
+export function filterPinnedJourneys<T extends { pinned: boolean }>(journeys: T[]): T[] {
+  return journeys.filter((journey) => journey.pinned);
+}
+
 export function filterCollapsedJourneyTree<T extends FlattenedJourney>(
   journeys: T[],
   collapsedJourneyIds: ReadonlySet<string>,
@@ -234,13 +238,7 @@ export function orderSearchResults(
   return orderFlattenedJourneys(journeys, order);
 }
 
-function orderFlattenedJourneys(journeys: FlattenedJourney[], order: JourneyListOrder): FlattenedJourney[] {
-  if (order === "name") {
-    return [...journeys].sort((left, right) =>
-      left.name.localeCompare(right.name, undefined, { sensitivity: "base" }) || compareByTreePosition(left, right),
-    );
-  }
-
+function orderFlattenedJourneys(journeys: FlattenedJourney[], _order: JourneyListOrder): FlattenedJourney[] {
   return [...journeys];
 }
 

@@ -32,7 +32,7 @@ describe("Journey preference persistence", () => {
     });
   });
 
-  it("parses persisted Journey preferences", () => {
+  it("migrates the removed A-Z order to Recent while preserving current orders", () => {
     expect(
       parsePersistedJourneyPreferences({
         schemaVersion: "0.1.0",
@@ -44,7 +44,18 @@ describe("Journey preference persistence", () => {
         },
         savedAt: "2026-08-23T10:00:00.000Z",
       })?.preferences.journeyListOrder,
-    ).toBe("name");
+    ).toBe("recent");
+    expect(
+      parsePersistedJourneyPreferences({
+        schemaVersion: "0.1.0",
+        preferences: {
+          pinnedJourneyIds: [],
+          recentJourneyIds: [],
+          journeyListOrder: "tree",
+        },
+        savedAt: "2026-08-23T10:00:00.000Z",
+      })?.preferences.journeyListOrder,
+    ).toBe("tree");
   });
 
   it("rejects malformed or unsupported preferences", () => {
