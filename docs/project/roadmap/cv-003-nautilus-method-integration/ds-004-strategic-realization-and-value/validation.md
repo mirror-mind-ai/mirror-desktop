@@ -2,11 +2,11 @@
 
 ## Status
 
-pending_navigator_validation
+passed
 
 ## Summary
 
-Implementation complete for CV-003.DS-004: Strategic realization, related impacts and pragmatic/integrative value lenses now expose source references in expandable readable sections; unrelated impacts remain hidden; Strategic remains read-only with no forms, scoring, dashboards or implicit invocation controls. Checks passed: npm test and npm run build. Commit: 7fea41a.
+Navigator validated CV-003.DS-004: Strategic source references are readable, related impacts and pragmatic/integrative value lenses are source-grounded, and the Strategic tab remains read-only without scoring or implicit invocation. Checks passed: npm test and npm run build. Implementation commit: 7fea41a.
 
 ## Child Work Packages
 
@@ -19,4 +19,4 @@ Implementation complete for CV-003.DS-004: Strategic realization, related impact
 
 ## Boundary
 
-Do not proceed to DS-level Debt Review until Navigator validation is accepted.
+No push or release action is authorized by this checkpoint.
