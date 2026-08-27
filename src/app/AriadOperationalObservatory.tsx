@@ -25,6 +25,22 @@ const fieldLabels: Record<AriadFieldId, string> = {
   exploration: "Exploration",
 };
 
+const roadmapStatusVisuals: Record<string, { icon: string; label: string; tone: string }> = {
+  planned: { icon: "○", label: "Planned", tone: "planned" },
+  in_progress: { icon: "◐", label: "In progress", tone: "in-progress" },
+  done: { icon: "✓", label: "Done", tone: "done" },
+  blocked: { icon: "!", label: "Blocked", tone: "blocked" },
+};
+
+function roadmapStatusVisual(status: string) {
+  const normalized = status.trim().toLowerCase();
+  return roadmapStatusVisuals[normalized] ?? { icon: "•", label: humanizeStatus(status), tone: "unknown" };
+}
+
+function humanizeStatus(status: string) {
+  return status.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export function AriadOperationalObservatory({
   journeyId,
   journeyName,
@@ -185,6 +201,7 @@ function FieldSummary({
 function DeliveryNode({ node, depth, onSelect }: { node: AriadRoadmapNode; depth: number; onSelect: (matter: AriadSelectedMatter) => void }) {
   const [collapsed, setCollapsed] = useState(false);
   const hasChildren = node.children.length > 0;
+  const status = roadmapStatusVisual(node.status);
   return (
     <div className="ariad-tree-group">
       <div className="ariad-tree-row" style={{ "--ariad-depth": depth } as CSSProperties}>
@@ -199,7 +216,11 @@ function DeliveryNode({ node, depth, onSelect }: { node: AriadRoadmapNode; depth
           {hasChildren ? collapsed ? "▶" : "▼" : "○"}
         </button>
         <button className="ariad-tree-selection" type="button" onClick={() => onSelect(selectedMatterFromDelivery(node))}>
-          <strong>{node.id}</strong><small>{node.title}</small><em>{node.status}</em>
+          <strong>{node.id}</strong><small>{node.title}</small>
+          <span className={`ariad-roadmap-status status-${status.tone}`} title={status.label} aria-label={`Status: ${status.label}`}>
+            <span aria-hidden="true">{status.icon}</span>
+            <span className="sr-only">{status.label}</span>
+          </span>
         </button>
       </div>
       {hasChildren && !collapsed ? node.children.map((child) => <DeliveryNode key={child.id} node={child} depth={depth + 1} onSelect={onSelect} />) : null}
@@ -222,7 +243,7 @@ function SelectedMatterPanel({ selected, boundary }: { selected?: AriadSelectedM
       <p className="eyebrow">Selected Matter</p>
       <h3>{selected.id}</h3>
       <h2>{selected.title}</h2>
-      <div className="ariad-selected-meta"><span>{fieldLabels[selected.field]}</span><span>{selected.kind}</span><span>{selected.status}</span></div>
+      <div className="ariad-selected-meta"><span>{fieldLabels[selected.field]}</span><span>{selected.kind}</span><span>{humanizeStatus(selected.status)}</span></div>
       {selected.summary ? <p>{selected.summary}</p> : null}
       {selected.details.length > 0 ? (
         <dl className="ariad-kv detail-list">

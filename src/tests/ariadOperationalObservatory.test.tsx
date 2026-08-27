@@ -14,7 +14,7 @@ const projection: OperationalProjection = {
         id: "CV-003.DS-007",
         title: "Ariad Operational Observatory",
         type: "delivery_story",
-        status: "planned",
+        status: "in_progress",
         outcome: "Operational exposes a read-only Ariad observatory.",
         children: [],
       }],
@@ -35,6 +35,9 @@ describe("AriadOperationalObservatory", () => {
     expect(html).toContain("Refinement");
     expect(html).toContain("Exploration");
     expect(html).toContain("Selected Matter");
+    expect(html).toContain('class="ariad-roadmap-status status-in-progress"');
+    expect(html).toContain('aria-label="Status: In progress"');
+    expect(html).not.toContain(">in_progress<");
     expect(html).toContain("read-only");
   });
 

@@ -3381,3 +3381,56 @@ dd {
     grid-template-columns: 1fr;
   }
 }
+
+.ariad-roadmap-status {
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.74rem;
+  font-weight: 820;
+  height: 22px;
+  justify-content: center;
+  justify-self: end;
+  min-width: 22px;
+  padding: 0 6px;
+}
+
+.ariad-roadmap-status.status-planned {
+  border-color: rgba(130, 150, 156, 0.28);
+  color: #9eb4b8;
+}
+
+.ariad-roadmap-status.status-in-progress {
+  background: rgba(226, 201, 141, 0.09);
+  border-color: rgba(226, 201, 141, 0.28);
+  color: #e2c98d;
+}
+
+.ariad-roadmap-status.status-done {
+  background: rgba(133, 223, 210, 0.1);
+  border-color: rgba(133, 223, 210, 0.28);
+  color: #8fe9dd;
+}
+
+.ariad-roadmap-status.status-blocked {
+  background: rgba(241, 138, 164, 0.1);
+  border-color: rgba(241, 138, 164, 0.32);
+  color: #f18aa4;
+}
+
+.ariad-roadmap-status.status-unknown {
+  color: #b5cdd4;
+}
+
+.sr-only {
+  border: 0;
+  clip: rect(0, 0, 0, 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
