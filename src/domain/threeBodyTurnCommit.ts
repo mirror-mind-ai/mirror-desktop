@@ -35,8 +35,12 @@ export function pendingMirrorTurnRepair(conversation: JourneyConversation): Pend
   ) return undefined;
   return {
     correlation: {
-      schemaVersion: "0.1.0",
+      schemaVersion: conversation.liveIdentity.activationReceiptActivatedAt ? "0.2.0" : "0.1.0",
       journeyId: conversation.liveIdentity.journeyId,
+      ...(conversation.liveIdentity.activationReceiptActivatedAt ? {
+        threadId: conversation.liveIdentity.harnessConversationId,
+        activationReceiptActivatedAt: conversation.liveIdentity.activationReceiptActivatedAt,
+      } : {}),
       harnessConversationId: conversation.liveIdentity.harnessConversationId,
       piSessionId: conversation.liveIdentity.piSessionId,
       generation: conversation.liveIdentity.generation,
@@ -62,8 +66,12 @@ export function createTurnCorrelation(input: {
 }): TurnCorrelation {
   const identity = input.conversation.liveIdentity;
   return {
-    schemaVersion: "0.1.0",
+    schemaVersion: identity.activationReceiptActivatedAt ? "0.2.0" : "0.1.0",
     journeyId: identity.journeyId,
+    ...(identity.activationReceiptActivatedAt ? {
+      threadId: identity.harnessConversationId,
+      activationReceiptActivatedAt: identity.activationReceiptActivatedAt,
+    } : {}),
     harnessConversationId: identity.harnessConversationId,
     piSessionId: identity.piSessionId,
     generation: identity.generation,
@@ -215,6 +223,16 @@ export function applyMirrorTurnCommitStatus(
         reconciliation, correlation.turnId, "mirror", "mirror_conversation_mismatch", observedAt,
       ),
     };
+  }
+  if (status.piEvidence) {
+    reconciliation = observePiTurnCommit(reconciliation, correlation.turnId, {
+      userEntryId: status.piEvidence.userEntryId,
+      assistantEntryId: status.piEvidence.assistantEntryId,
+      leafEntryId: status.piEvidence.leafEntryId,
+      entryCount: status.piEvidence.entryCount,
+      sessionFile: status.piEvidence.sessionFile,
+      committedAt: observedAt,
+    });
   }
   if (status.userMessageId) {
     reconciliation = observeMirrorUserCommit(

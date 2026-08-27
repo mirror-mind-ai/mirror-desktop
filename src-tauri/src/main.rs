@@ -114,9 +114,13 @@ struct ProviderConfig {
 struct TurnCorrelation {
     schema_version: String,
     journey_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thread_id: Option<String>,
     harness_conversation_id: String,
     pi_session_id: String,
     generation: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    activation_receipt_activated_at: Option<String>,
     turn_id: String,
     run_id: String,
     harness_user_message_id: String,
@@ -161,6 +165,18 @@ struct ExternalPiInspection {
     ancestor_entry_ids: Option<Vec<String>>,
     turns: Option<Vec<ExternalPiProjectedTurn>>,
     reason_code: Option<String>,
+}
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct DedicatedPiTranscriptTurn {
+    user_entry_id: String,
+    assistant_entry_id: String,
+    user_text: String,
+    assistant_text: String,
+    entry_count: usize,
+    started_at: String,
+    committed_at: String,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, PartialEq)]
@@ -325,7 +341,33 @@ fn provision_pi_session(requested_id: &str, session_name: &str, session_dir: &Pa
     if !output.status.success() {
         return Err(format!("Native Pi session provisioning failed: {}", String::from_utf8_lossy(&output.stderr).trim()));
     }
-    parse_pi_session_state(&output.stdout)
+    let (session_id, session_file) = parse_pi_session_state(&output.stdout)?;
+    materialize_empty_pi_session(&session_id, &session_file, session_dir, &mirror_root)?;
+    Ok((session_id, session_file))
+}
+
+fn materialize_empty_pi_session(
+    session_id: &str,
+    session_file: &str,
+    session_dir: &Path,
+    cwd: &Path,
+) -> Result<(), String> {
+    let path = PathBuf::from(session_file);
+    let canonical_dir = session_dir.canonicalize().map_err(|error| error.to_string())?;
+    let parent = path.parent().ok_or_else(|| "Pi session file has no parent directory.".to_string())?;
+    if parent.canonicalize().map_err(|error| error.to_string())? != canonical_dir {
+        return Err("Pi returned a session file outside its dedicated directory.".to_string());
+    }
+    if path.exists() { return validate_pi_session_header(&path, session_id); }
+    let header = serde_json::json!({
+        "cwd": cwd.to_string_lossy(),
+        "id": session_id,
+        "timestamp": Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
+        "type": "session",
+        "version": 3,
+    });
+    fs::write(&path, format!("{}\n", header)).map_err(|error| format!("Could not preserve empty Pi session authority: {}", error))?;
+    validate_pi_session_header(&path, session_id)
 }
 
 fn provision_mirror_conversation(session_file: &str, journey_id: &str, title: &str) -> Result<String, String> {
@@ -1337,7 +1379,7 @@ fn start_pi_invocation(
     }
     if let Some(value) = correlation.as_ref() {
         validate_turn_correlation(value, &journey_id, &session_id)?;
-        validate_persisted_turn_authority(&app, value)?;
+        validate_persisted_turn_authority(&app, value, session_file.as_deref())?;
     }
     if state
         .child
@@ -1666,7 +1708,105 @@ fn hydrate_pi_session_from_local_conversation(
 }
 
 #[tauri::command]
+fn load_dedicated_pi_transcript(
+    app: AppHandle,
+    journey_id: String,
+    session_id: String,
+    session_file: String,
+) -> Result<Vec<DedicatedPiTranscriptTurn>, String> {
+    validate_pi_session_file(&session_file, &session_id)?;
+    let stored_thread: Value = serde_json::from_str(&fs::read_to_string(journey_thread_path(&app, &journey_id)?)
+        .map_err(|error| format!("Could not read dedicated thread: {}", error))?)
+        .map_err(|error| format!("Could not parse dedicated thread: {}", error))?;
+    let thread = unwrap_persisted_thread(&stored_thread);
+    let active = thread.get("activeGeneration").and_then(Value::as_u64);
+    let generation = thread.get("generations").and_then(Value::as_array)
+        .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active))
+        .ok_or_else(|| "Dedicated active generation is missing.".to_string())?;
+    if thread.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
+        || generation.get("status").and_then(Value::as_str) != Some("ready")
+        || generation.get("piSessionId").and_then(Value::as_str) != Some(session_id.as_str())
+        || generation.get("piSessionFile").and_then(Value::as_str) != Some(session_file.as_str())
+    {
+        return Err("Dedicated transcript authority mismatch.".to_string());
+    }
+    project_complete_pi_transcript(&fs::read_to_string(session_file).map_err(|error| error.to_string())?)
+}
+
+fn project_complete_pi_transcript(content: &str) -> Result<Vec<DedicatedPiTranscriptTurn>, String> {
+    let mut entries = Vec::new();
+    for line in content.lines() {
+        let value: Value = serde_json::from_str(line).map_err(|_| "Dedicated Pi session JSONL is invalid.".to_string())?;
+        if value.get("type").and_then(Value::as_str) == Some("session") { continue; }
+        let Some(id) = value.get("id").and_then(Value::as_str) else { continue };
+        let message = value.get("message");
+        entries.push(PiBranchEntry {
+            id: id.to_string(),
+            parent_id: value.get("parentId").and_then(Value::as_str).map(str::to_string),
+            role: message.and_then(|item| item.get("role")).and_then(Value::as_str).map(str::to_string),
+            text: message.map(extract_pi_visible_text).unwrap_or_default(),
+            stop_reason: message.and_then(|item| item.get("stopReason")).and_then(Value::as_str).map(str::to_string),
+            timestamp: value.get("timestamp").and_then(Value::as_str).unwrap_or("").to_string(),
+        });
+    }
+    if entries.is_empty() { return Ok(Vec::new()); }
+    let by_id = entries.iter().enumerate().map(|(index, entry)| (entry.id.as_str(), index))
+        .collect::<std::collections::HashMap<_, _>>();
+    let mut branch = Vec::new();
+    let mut cursor = entries.last();
+    let mut seen = std::collections::HashSet::new();
+    while let Some(entry) = cursor {
+        if !seen.insert(entry.id.as_str()) { return Err("Dedicated Pi ancestry contains a cycle.".to_string()); }
+        branch.push(entry.clone());
+        cursor = entry.parent_id.as_deref().and_then(|parent| by_id.get(parent)).map(|index| &entries[*index]);
+    }
+    branch.reverse();
+    let mut turns = Vec::new();
+    let mut pending_user: Option<&PiBranchEntry> = None;
+    let mut assistant_texts = Vec::new();
+    for (entry_index, entry) in branch.iter().enumerate() {
+        match entry.role.as_deref() {
+            Some("user") => {
+                pending_user = Some(entry);
+                assistant_texts.clear();
+            }
+            Some("assistant") if pending_user.is_some() => {
+                if !entry.text.trim().is_empty() { assistant_texts.push(entry.text.trim().to_string()); }
+                if matches!(entry.stop_reason.as_deref(), Some("stop" | "length")) {
+                    let user = pending_user.take().unwrap();
+                    let assistant_text = assistant_texts.join("\n\n");
+                    if !user.text.trim().is_empty() && !assistant_text.trim().is_empty() {
+                        turns.push(DedicatedPiTranscriptTurn {
+                            user_entry_id: user.id.clone(),
+                            assistant_entry_id: entry.id.clone(),
+                            user_text: project_dedicated_user_text(&user.text),
+                            assistant_text,
+                            entry_count: entry_index + 1,
+                            started_at: user.timestamp.clone(),
+                            committed_at: entry.timestamp.clone(),
+                        });
+                    }
+                    assistant_texts.clear();
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(turns)
+}
+
+fn project_dedicated_user_text(value: &str) -> String {
+    for marker in ["\n\nExplicit Navigator intent:\n", "\n\nUser request:\n"] {
+        if let Some((_, visible)) = value.rsplit_once(marker) {
+            return visible.trim().to_string();
+        }
+    }
+    value.trim().to_string()
+}
+
+#[tauri::command]
 fn read_mirror_turn_commit_status(
+    app: AppHandle,
     state: State<'_, PiProcessState>,
     journey_id: String,
     session_file: String,
@@ -1674,13 +1814,15 @@ fn read_mirror_turn_commit_status(
 ) -> Result<String, String> {
     ensure_pi_idle(&state)?;
     validate_turn_correlation(&correlation, &journey_id, &correlation.pi_session_id)?;
+    validate_persisted_turn_authority(&app, &correlation, Some(&session_file))?;
     validate_pi_session_file(&session_file, &correlation.pi_session_id)?;
-    let value = run_mirror_logger_json(&[
+    let mut value = run_mirror_logger_json(&[
         "commit-status".to_string(),
-        session_file,
+        session_file.clone(),
         "--correlation-json".to_string(),
         serde_json::to_string(&correlation).map_err(|error| error.to_string())?,
     ])?;
+    attach_latest_pi_evidence(&mut value, &session_file)?;
     serde_json::to_string(&value).map_err(|error| error.to_string())
 }
 
@@ -1694,8 +1836,13 @@ fn retry_mirror_turn_commit(
 ) -> Result<String, String> {
     ensure_pi_idle(&state)?;
     validate_turn_correlation(&correlation, &journey_id, &correlation.pi_session_id)?;
+    validate_persisted_turn_authority(&app, &correlation, Some(&session_file))?;
     validate_pi_session_file(&session_file, &correlation.pi_session_id)?;
-    let conversation_path = journey_conversation_path(&app, &journey_id)?;
+    let conversation_path = if correlation.schema_version == "0.2.0" {
+        dedicated_journey_conversation_path(&app, &journey_id)?
+    } else {
+        journey_conversation_path(&app, &journey_id)?
+    };
     let payload: Value = serde_json::from_str(&fs::read_to_string(conversation_path)
         .map_err(|error| format!("Could not read staged Journey conversation: {}", error))?)
         .map_err(|error| format!("Could not parse staged Journey conversation: {}", error))?;
@@ -1734,9 +1881,56 @@ fn retry_mirror_turn_commit(
         ])?;
     }
     status = run_mirror_logger_json(&[
-        "commit-status".to_string(), session_file, "--correlation-json".to_string(), correlation_json,
+        "commit-status".to_string(), session_file.clone(), "--correlation-json".to_string(), correlation_json,
     ])?;
+    attach_latest_pi_evidence(&mut status, &session_file)?;
     serde_json::to_string(&status).map_err(|error| error.to_string())
+}
+
+fn attach_latest_pi_evidence(status: &mut Value, session_file: &str) -> Result<(), String> {
+    let content = fs::read_to_string(session_file).map_err(|error| error.to_string())?;
+    let mut entries = Vec::new();
+    for line in content.lines() {
+        let value: Value = serde_json::from_str(line).map_err(|_| "Dedicated Pi session JSONL is invalid.".to_string())?;
+        if value.get("type").and_then(Value::as_str) == Some("session") { continue; }
+        let Some(id) = value.get("id").and_then(Value::as_str) else { continue };
+        let message = value.get("message");
+        entries.push(PiBranchEntry {
+            id: id.to_string(),
+            parent_id: value.get("parentId").and_then(Value::as_str).map(str::to_string),
+            role: message.and_then(|item| item.get("role")).and_then(Value::as_str).map(str::to_string),
+            text: String::new(),
+            stop_reason: message.and_then(|item| item.get("stopReason")).and_then(Value::as_str).map(str::to_string),
+            timestamp: value.get("timestamp").and_then(Value::as_str).unwrap_or("").to_string(),
+        });
+    }
+    let by_id = entries.iter().enumerate().map(|(index, entry)| (entry.id.as_str(), index))
+        .collect::<std::collections::HashMap<_, _>>();
+    let mut branch = Vec::new();
+    let mut cursor = entries.last();
+    let mut seen = std::collections::HashSet::new();
+    while let Some(entry) = cursor {
+        if !seen.insert(entry.id.as_str()) { return Err("Dedicated Pi ancestry contains a cycle.".to_string()); }
+        branch.push(entry.clone());
+        cursor = entry.parent_id.as_deref().and_then(|parent| by_id.get(parent)).map(|index| &entries[*index]);
+    }
+    branch.reverse();
+    let assistant_index = branch.iter().rposition(|entry| entry.role.as_deref() == Some("assistant")
+        && matches!(entry.stop_reason.as_deref(), Some("stop" | "length")))
+        .ok_or_else(|| "Dedicated Pi turn is not complete.".to_string())?;
+    let user = branch[..assistant_index].iter().rev().find(|entry| entry.role.as_deref() == Some("user"))
+        .ok_or_else(|| "Dedicated Pi turn user entry is missing.".to_string())?;
+    let assistant = &branch[assistant_index];
+    if let Some(object) = status.as_object_mut() {
+        object.insert("piEvidence".to_string(), serde_json::json!({
+            "userEntryId": user.id,
+            "assistantEntryId": assistant.id,
+            "leafEntryId": assistant.id,
+            "entryCount": assistant_index + 1,
+            "sessionFile": session_file,
+        }));
+    }
+    Ok(())
 }
 
 fn ensure_pi_idle(state: &State<'_, PiProcessState>) -> Result<(), String> {
@@ -1753,20 +1947,28 @@ fn validate_pi_session_file(session_file: &str, pi_session_id: &str) -> Result<(
     }
     let canonical = path.canonicalize()
         .map_err(|_| "Mirror reconciliation Pi session file is unavailable.".to_string())?;
-    let sessions_root = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?)
-        .join(".pi").join("agent").join("sessions").canonicalize()
+    let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
+    let sessions_root = home.join(".pi").join("agent").join("sessions").canonicalize()
         .map_err(|_| "Pi sessions root is unavailable.".to_string())?;
-    if !canonical.starts_with(sessions_root) {
-        return Err("Mirror reconciliation session is outside the Pi sessions root.".to_string());
+    let dedicated_root = home.join("Library").join("Application Support")
+        .join("com.nautilus.harness").join("pi-sessions").canonicalize().ok();
+    if !canonical.starts_with(&sessions_root)
+        && dedicated_root.as_ref().is_none_or(|root| !canonical.starts_with(root))
+    {
+        return Err("Mirror reconciliation session is outside the allowed Pi sessions roots.".to_string());
     }
-    let contents = fs::read_to_string(&canonical).map_err(|error| error.to_string())?;
+    validate_pi_session_header(&canonical, pi_session_id)
+}
+
+fn validate_pi_session_header(path: &Path, pi_session_id: &str) -> Result<(), String> {
+    let contents = fs::read_to_string(path).map_err(|error| error.to_string())?;
     let first_line = contents.lines().next().unwrap_or_default();
     let header: Value = serde_json::from_str(first_line)
-        .map_err(|_| "Mirror reconciliation session header is invalid.".to_string())?;
+        .map_err(|_| "Pi session header is invalid.".to_string())?;
     if header.get("type").and_then(Value::as_str) != Some("session")
         || header.get("id").and_then(Value::as_str) != Some(pi_session_id)
     {
-        return Err("Mirror reconciliation session does not match the Pi authority.".to_string());
+        return Err("Pi session does not match native authority.".to_string());
     }
     Ok(())
 }
@@ -2824,6 +3026,41 @@ fn journey_conversation_path(app: &AppHandle, journey_id: &str) -> Result<PathBu
         .join(format!("{}.json", safe_journey_id)))
 }
 
+fn unwrap_persisted_thread(value: &Value) -> &Value {
+    value.get("thread").unwrap_or(value)
+}
+
+fn dedicated_journey_conversation_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
+    let safe_journey_id = sanitize_journey_id(journey_id)?;
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
+    Ok(app_data_dir.join("dedicated-journey-conversations").join(format!("{}.json", safe_journey_id)))
+}
+
+#[tauri::command]
+fn save_dedicated_journey_conversation(app: AppHandle, journey_id: String, payload: String) -> Result<(), String> {
+    let path = dedicated_journey_conversation_path(&app, &journey_id)?;
+    let parsed: Value = serde_json::from_str(&payload).map_err(|error| format!("Invalid dedicated conversation payload: {}", error))?;
+    let live = parsed.get("conversation").and_then(|value| value.get("liveIdentity"))
+        .ok_or_else(|| "Dedicated conversation identity is missing.".to_string())?;
+    if live.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
+        || live.get("activationReceiptActivatedAt").and_then(Value::as_str).is_none()
+    {
+        return Err("Dedicated conversation payload lacks dedicated authority.".to_string());
+    }
+    if let Some(parent) = path.parent() { fs::create_dir_all(parent).map_err(|error| error.to_string())?; }
+    let staged = path.with_extension("json.tmp");
+    fs::write(&staged, payload).map_err(|error| error.to_string())?;
+    fs::rename(staged, path).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn load_dedicated_journey_conversation(app: AppHandle, journey_id: String) -> Result<Option<String>, String> {
+    let path = dedicated_journey_conversation_path(&app, &journey_id)?;
+    if !path.exists() { return Ok(None); }
+    fs::read_to_string(path).map(Some).map_err(|error| error.to_string())
+}
+
 fn journey_thread_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
     let safe_journey_id = sanitize_journey_id(journey_id)?;
     let app_data_dir = app.path().app_data_dir()
@@ -2838,9 +3075,39 @@ fn journey_thread_operation_path(app: &AppHandle, journey_id: &str) -> Result<Pa
     Ok(app_data_dir.join("journey-thread-operations").join(format!("{}.json", safe_journey_id)))
 }
 
-fn validate_persisted_turn_authority(app: &AppHandle, value: &TurnCorrelation) -> Result<(), String> {
+fn validate_persisted_turn_authority(app: &AppHandle, value: &TurnCorrelation, session_file: Option<&str>) -> Result<(), String> {
+    if value.schema_version == "0.2.0" {
+        let stored_thread: Value = serde_json::from_str(
+            &fs::read_to_string(journey_thread_path(app, &value.journey_id)?)
+                .map_err(|error| format!("Could not read dedicated thread authority: {}", error))?,
+        ).map_err(|error| format!("Could not parse dedicated thread authority: {}", error))?;
+        let thread = unwrap_persisted_thread(&stored_thread);
+        let active_generation = thread.get("activeGeneration").and_then(Value::as_u64);
+        let generation = thread.get("generations").and_then(Value::as_array)
+            .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active_generation))
+            .ok_or_else(|| "Dedicated active generation is missing.".to_string())?;
+        let receipt = generation.get("activationReceipt").and_then(Value::as_object)
+            .ok_or_else(|| "Dedicated activation receipt is missing.".to_string())?;
+        let dedicated_matches = thread.get("journeyId").and_then(Value::as_str) == Some(value.journey_id.as_str())
+            && thread.get("threadId").and_then(Value::as_str) == value.thread_id.as_deref()
+            && value.thread_id.as_deref() == Some(value.harness_conversation_id.as_str())
+            && active_generation == Some(value.generation)
+            && generation.get("status").and_then(Value::as_str) == Some("ready")
+            && generation.get("piSessionId").and_then(Value::as_str) == Some(value.pi_session_id.as_str())
+            && generation.get("piSessionFile").and_then(Value::as_str) == session_file
+            && generation.get("mirrorConversationId").and_then(Value::as_str) == value.mirror_conversation_id.as_deref()
+            && receipt.get("activatedAt").and_then(Value::as_str) == value.activation_receipt_activated_at.as_deref();
+        if !dedicated_matches {
+            return Err("Turn no longer matches the active dedicated generation.".to_string());
+        }
+        validate_pi_session_file(session_file.ok_or_else(|| "Dedicated Pi session file is missing.".to_string())?, &value.pi_session_id)?;
+    }
     let payload: Value = serde_json::from_str(
-        &fs::read_to_string(journey_conversation_path(app, &value.journey_id)?)
+        &fs::read_to_string(if value.schema_version == "0.2.0" {
+            dedicated_journey_conversation_path(app, &value.journey_id)?
+        } else {
+            journey_conversation_path(app, &value.journey_id)?
+        })
             .map_err(|error| format!("Could not read staged turn authority: {}", error))?,
     ).map_err(|error| format!("Could not parse staged turn authority: {}", error))?;
     let conversation = payload.get("conversation").and_then(Value::as_object)
@@ -2872,7 +3139,7 @@ fn validate_turn_correlation(
     journey_id: &str,
     session_id: &str,
 ) -> Result<(), String> {
-    if value.schema_version != "0.1.0"
+    if !matches!(value.schema_version.as_str(), "0.1.0" | "0.2.0")
         || value.journey_id != journey_id
         || value.pi_session_id != session_id
         || value.harness_conversation_id.trim().is_empty()
@@ -2881,6 +3148,11 @@ fn validate_turn_correlation(
         || value.harness_user_message_id.trim().is_empty()
         || value.harness_assistant_message_id.trim().is_empty()
         || value.mirror_conversation_id.as_ref().is_some_and(|id| id.trim().is_empty())
+        || (value.schema_version == "0.2.0" && (
+            value.thread_id.as_ref().is_none_or(|id| id.trim().is_empty())
+            || value.activation_receipt_activated_at.as_ref().is_none_or(|value| value.trim().is_empty())
+            || value.mirror_conversation_id.is_none()
+        ))
     {
         return Err("Turn correlation does not match the active Journey/Pi authority.".to_string());
     }
@@ -2962,6 +3234,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             save_journey_conversation,
             load_journey_conversation,
+            save_dedicated_journey_conversation,
+            load_dedicated_journey_conversation,
             save_journey_thread,
             load_journey_thread,
             provision_journey_thread,
@@ -2980,6 +3254,7 @@ fn main() {
             start_pi_invocation,
             read_pi_session_context_stats,
             inspect_external_pi_activity,
+            load_dedicated_pi_transcript,
             hydrate_pi_session_from_local_conversation,
             read_mirror_turn_commit_status,
             retry_mirror_turn_commit,
@@ -2999,14 +3274,14 @@ mod tests {
         validate_mirror_reconciliation_messages, activate_reconciled_files,
         list_journey_documentation_at, read_journey_document_at, find_registered_journey_path,
         projection_manifest_coordinates_at, apply_hydrated_reconciliation_baseline,
-        dedicated_native_names, parse_pi_session_state,
-        ExternalPiFileFingerprint, ExternalPiInspection, MirrorObservedMessage, MirrorSnapshotFingerprint,
+        dedicated_native_names, materialize_empty_pi_session, parse_pi_session_state, project_complete_pi_transcript,
+        unwrap_persisted_thread, ExternalPiFileFingerprint, ExternalPiInspection, MirrorObservedMessage, MirrorSnapshotFingerprint,
         PiSessionContextSnapshot, TurnCorrelation, DOCUMENT_PREVIEW_MAX_BYTES,
     };
     use serde_json::json;
     use std::{
         fs,
-        path::PathBuf,
+        path::{Path, PathBuf},
         time::{SystemTime, UNIX_EPOCH},
     };
 
@@ -3092,13 +3367,51 @@ mod tests {
     }
 
     #[test]
+    fn preserves_an_empty_native_pi_session_after_rpc_settlement() {
+        let root = std::env::temp_dir().join(format!("nautilus-empty-pi-{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+        fs::create_dir_all(&root).unwrap();
+        let file = root.join("native-session.jsonl");
+        materialize_empty_pi_session("native-session", file.to_str().unwrap(), &root, Path::new("/tmp")).unwrap();
+        let header: serde_json::Value = serde_json::from_str(fs::read_to_string(&file).unwrap().lines().next().unwrap()).unwrap();
+        assert_eq!(header.get("type").and_then(|value| value.as_str()), Some("session"));
+        assert_eq!(header.get("id").and_then(|value| value.as_str()), Some("native-session"));
+        assert_eq!(fs::read_to_string(&file).unwrap().lines().count(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reads_dedicated_thread_authority_from_its_persisted_envelope() {
+        let stored = json!({"schemaVersion":"1.0.0","savedAt":"2026-08-26T10:00:00Z","thread":{"activeGeneration":1}});
+        assert_eq!(unwrap_persisted_thread(&stored).get("activeGeneration").and_then(|value| value.as_u64()), Some(1));
+        let raw = json!({"activeGeneration":2});
+        assert_eq!(unwrap_persisted_thread(&raw).get("activeGeneration").and_then(|value| value.as_u64()), Some(2));
+    }
+
+    #[test]
+    fn projects_only_complete_dedicated_pi_turns_and_removes_the_runtime_wrapper() {
+        let session = [
+            r#"{"type":"session","id":"session-1"}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-08-26T10:00:00Z","message":{"role":"user","content":[{"type":"text","text":"[Nautilus Harness Journey authority]\nselected\n\nUser request:\nOlá"}]}}"#,
+            r#"{"type":"message","id":"assistant-1","parentId":"user-1","timestamp":"2026-08-26T10:00:01Z","message":{"role":"assistant","content":[{"type":"text","text":"Resposta"}],"stopReason":"stop"}}"#,
+            r#"{"type":"message","id":"user-2","parentId":"assistant-1","timestamp":"2026-08-26T10:00:02Z","message":{"role":"user","content":[{"type":"text","text":"incomplete"}]}}"#,
+        ].join("\n");
+        let turns = project_complete_pi_transcript(&session).unwrap();
+        assert_eq!(turns.len(), 1);
+        assert_eq!(turns[0].user_text, "Olá");
+        assert_eq!(turns[0].assistant_text, "Resposta");
+        assert_eq!(turns[0].entry_count, 2);
+    }
+
+    #[test]
     fn validates_allowlisted_turn_correlation_against_invocation_authority() {
         let correlation = TurnCorrelation {
             schema_version: "0.1.0".to_string(),
             journey_id: "nautilus-harness".to_string(),
+            thread_id: None,
             harness_conversation_id: "harness-conversation".to_string(),
             pi_session_id: "nautilus-nautilus-harness".to_string(),
             generation: 2,
+            activation_receipt_activated_at: None,
             turn_id: "turn-1".to_string(),
             run_id: "run-1".to_string(),
             harness_user_message_id: "user-1".to_string(),

@@ -12,6 +12,23 @@ export async function saveJourneyConversation(conversation: JourneyConversation)
   });
 }
 
+export async function saveDedicatedJourneyConversation(conversation: JourneyConversation): Promise<void> {
+  await invoke("save_dedicated_journey_conversation", {
+    journeyId: conversation.journeyId,
+    payload: JSON.stringify(createPersistedJourneyConversation(conversation)),
+  });
+}
+
+export async function loadDedicatedJourneyConversation(journeyId: string): Promise<JourneyConversation | undefined> {
+  const payload = await invoke<string | null>("load_dedicated_journey_conversation", { journeyId });
+  if (!payload) return undefined;
+  try {
+    return parsePersistedJourneyConversation(JSON.parse(payload))?.conversation;
+  } catch {
+    return undefined;
+  }
+}
+
 export type MirrorConversationCandidate = {
   id: string;
   code: string;

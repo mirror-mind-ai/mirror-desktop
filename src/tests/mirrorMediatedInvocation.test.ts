@@ -20,12 +20,12 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(piProcessStreamSource).toContain("/skill:ext-nautilus-synthesis journey-id=");
   });
 
-  it("rechecks conversation authority immediately before a live provider run", () => {
-    expect(appSource).toContain("await refreshExternalConversationActivity()");
+  it("rechecks dedicated authority immediately before a live provider run", () => {
+    expect(appSource).not.toContain("await refreshExternalConversationActivity()");
     expect(appSource).toContain("baseConversation = conversationRef.current");
-    expect(appSource).toContain("externalPiInFlightRef.current.size > 0");
-    expect(appSource).toContain('baseConversation.reconciliation.classification !== "in_sync"');
-    expect(appSource).toContain('conversation.reconciliation.classification !== "in_sync"');
+    expect(appSource).toContain('journeyThreadState.kind !== "ready"');
+    expect(appSource).toContain("dedicatedTurnBlocksNewInvocation(classifyDedicatedTurnState(baseConversation))");
+    expect(appSource).toContain("createDedicatedTurnAuthority(");
     expect(appSource).toContain("Live invocation stopped because Journey conversation authority changed");
     expect(appSource).toContain("<ConversationAuthorityNotice");
     expect(appSource).toContain("const synchronizedConversation = await loadJourneyConversation(selectedJourney)");

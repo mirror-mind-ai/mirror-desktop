@@ -530,12 +530,19 @@ export async function readJourneyPiContextStats(
 }
 
 export type MirrorTurnCommitStatus = {
-  schemaVersion: "0.1.0";
+  schemaVersion: "0.1.0" | "0.2.0";
   status: "missing" | "partial" | "committed";
   conversationId?: string | null;
   userMessageId?: string | null;
   assistantMessageId?: string | null;
   messageCount: number;
+  piEvidence?: {
+    userEntryId: string;
+    assistantEntryId: string;
+    leafEntryId: string;
+    entryCount: number;
+    sessionFile: string;
+  };
 };
 
 export async function readMirrorTurnCommitStatus(

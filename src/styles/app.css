@@ -130,10 +130,38 @@ textarea {
 .journey-list {
   display: flex;
   flex-direction: column;
+  flex: 1;
   gap: 9px;
   min-height: 0;
   overflow-y: auto;
   padding-right: 3px;
+}
+
+.sidebar-footer {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-settings-button {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: #aab9bd;
+  text-align: left;
+}
+
+.sidebar-settings-button:hover,
+.sidebar-settings-button:focus-visible {
+  color: #effafb;
+  border-color: rgba(133, 223, 210, 0.22);
+  background: rgba(133, 223, 210, 0.07);
 }
 
 .journey-empty-state {

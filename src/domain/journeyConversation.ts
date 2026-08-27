@@ -15,6 +15,7 @@ export type LiveConversationIdentity = {
   piSessionId: string;
   piSessionFile?: string;
   mirrorConversationId?: string;
+  activationReceiptActivatedAt?: string;
   generation: number;
   origin: "new" | "continued" | "mirror_import" | "mirror_reconciliation" | "restart" | "legacy";
 };
@@ -96,14 +97,34 @@ export function createDedicatedJourneyConversation(input: {
   const liveIdentity: LiveConversationIdentity = {
     schemaVersion: "0.1.0",
     journeyId: input.thread.journeyId,
-    harnessConversationId: base.id,
+    harnessConversationId: input.thread.threadId,
     piSessionId: generation.piSessionId,
     piSessionFile: generation.piSessionFile,
     mirrorConversationId: generation.mirrorConversationId,
+    activationReceiptActivatedAt: generation.activationReceipt?.activatedAt,
     generation: generation.generation,
     origin: "new",
   };
-  return { ...base, liveIdentity, reconciliation: createConversationReconciliationState(liveIdentity, base.createdAt) };
+  return { ...base, id: input.thread.threadId, liveIdentity, reconciliation: createConversationReconciliationState(liveIdentity, base.createdAt) };
+}
+
+export function restoreDedicatedJourneyConversation(
+  thread: NautilusJourneyThread,
+  persisted?: JourneyConversation,
+): JourneyConversation {
+  const generation = thread.generations.find((item) => item.generation === thread.activeGeneration);
+  if (
+    persisted
+    && generation?.status === "ready"
+    && persisted.journeyId === thread.journeyId
+    && persisted.liveIdentity.harnessConversationId === thread.threadId
+    && persisted.liveIdentity.generation === generation.generation
+    && persisted.liveIdentity.piSessionId === generation.piSessionId
+    && persisted.liveIdentity.piSessionFile === generation.piSessionFile
+    && persisted.liveIdentity.mirrorConversationId === generation.mirrorConversationId
+    && persisted.liveIdentity.activationReceiptActivatedAt === generation.activationReceipt?.activatedAt
+  ) return persisted;
+  return createDedicatedJourneyConversation({ thread, initialMessages: [] });
 }
 
 export function summarizeJourneyConversation(conversation: JourneyConversation): JourneyConversationSummary {

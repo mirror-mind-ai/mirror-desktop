@@ -2,7 +2,7 @@
 
 # CV-004.DS-003 - Dedicated Turn Integrity
 
-**Status:** 🟡 Planned
+**Status:** 🟠 Implemented — awaiting Navigator validation
 
 ## Outcome
 
@@ -12,11 +12,11 @@ Every message submitted in Nautilus advances only the selected Journey's active 
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-004.DS-003.TS-1 | Dedicated Invocation Authority | Technical Story | Bind each run to thread, generation, Journey, Pi session and Mirror conversation and reject stale or cross-Journey execution | 🟡 Planned |
-| CV-004.DS-003.TS-2 | Active Pair Turn Commit | Technical Story | Commit context receipt, complete native Pi turn, Harness projection and Mirror recording through idempotent body-specific checkpoints | 🟡 Planned |
-| CV-004.DS-003.TS-3 | Internal Recovery Classifier | Technical Story | Replace global parity states with bounded active-pair states for checking, pending projection, pending Mirror recording, retrying and ready | 🟡 Planned |
-| CV-004.DS-003.US-1 | Resume the Dedicated Conversation | User Story | Returning to a Journey restores complete turns from its exact dedicated Pi session without a conversation picker or external activity import | 🟡 Planned |
-| CV-004.DS-003.US-2 | Recover an Interrupted Turn | User Story | Navigator receives a specific retry action when the active pair is incomplete, without provider reinvocation or transcript merge | 🟡 Planned |
+| CV-004.DS-003.TS-1 | Dedicated Invocation Authority | Technical Story | Bind each run to thread, generation, Journey, Pi session and Mirror conversation and reject stale or cross-Journey execution | 🟠 Implemented |
+| CV-004.DS-003.TS-2 | Active Pair Turn Commit | Technical Story | Commit context receipt, complete native Pi turn, Harness projection and Mirror recording through idempotent body-specific checkpoints | 🟠 Implemented |
+| CV-004.DS-003.TS-3 | Internal Recovery Classifier | Technical Story | Replace global parity states with bounded active-pair states for checking, pending projection, pending Mirror recording, retrying and ready | 🟠 Implemented |
+| CV-004.DS-003.US-1 | Resume the Dedicated Conversation | User Story | Returning to a Journey restores complete turns from its exact dedicated Pi session without a conversation picker or external activity import | 🟠 Implemented |
+| CV-004.DS-003.US-2 | Recover an Interrupted Turn | User Story | Navigator receives a specific retry action when the active pair is incomplete, without provider reinvocation or transcript merge | 🟠 Implemented |
 
 ## Runtime Direction
 

@@ -55,7 +55,7 @@ import { JourneyProjectionNotice } from "./JourneyProjectionNotice";
 import { JourneyProjectionLoadingState } from "./JourneyProjectionLoadingState";
 import { JourneyThreadState, type JourneyThreadDisplayState } from "./JourneyThreadState";
 import { JourneyArrivalSurface } from "./JourneyArrivalSurface";
-import { loadNautilusJourneyThread, provisionNautilusJourneyThread } from "./journeyThreadStorage";
+import { loadDedicatedPiTranscript, loadNautilusJourneyThread, provisionNautilusJourneyThread } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import {
   OperationalWorkspaceSwitcher,
@@ -82,8 +82,10 @@ import {
 import { inferMessageSpeaker, stripMessageSpeakerSignature, withCertifiedPersona } from "./conversationPresentation";
 import {
   listMirrorConversations,
+  loadDedicatedJourneyConversation,
   loadJourneyConversation,
   reloadJourneyFromMirror,
+  saveDedicatedJourneyConversation,
   saveJourneyConversation,
   generateMirrorConversationTitle,
   type MirrorConversationCandidate,
@@ -100,6 +102,7 @@ import {
 import {
   createJourneyConversation,
   createDedicatedJourneyConversation,
+  restoreDedicatedJourneyConversation,
   replaceJourneyConversationMessages,
   resetJourneyConversation,
 } from "../domain/journeyConversation";
@@ -107,7 +110,6 @@ import {
   applyMirrorCommitEvent,
   applyMirrorTurnCommitStatus,
   commitHarnessTurn,
-  createTurnCorrelation,
   pendingMirrorTurnRepair,
   stageCorrelatedTurn,
 } from "../domain/threeBodyTurnCommit";
@@ -132,6 +134,8 @@ import {
   type MirrorReconciliationReview,
 } from "../domain/mirrorOnlyReconciliation";
 import type { JourneyConversation } from "../domain/journeyConversation";
+import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
+import { classifyDedicatedTurnState, dedicatedTurnBlocksNewInvocation } from "../domain/dedicatedTurnCommit";
 import {
   defaultJourneyPreferenceState,
   sanitizeJourneyPreferenceState,
@@ -312,7 +316,10 @@ export function App({ model }: AppProps) {
   const reportedContextUsage = contextIdentityMatches ? authoritativeContextStats.usage : undefined;
   const pendingMirrorRepair = useMemo(() => pendingMirrorTurnRepair(conversation), [conversation]);
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
-  const reconciliationBlocksInvocation = !dedicatedThreadReady && conversation.reconciliation.classification !== "in_sync";
+  const dedicatedTurnState = classifyDedicatedTurnState(conversation, isStreaming || agentRun.status === "running");
+  const reconciliationBlocksInvocation = dedicatedThreadReady
+    ? dedicatedTurnBlocksNewInvocation(dedicatedTurnState)
+    : conversation.reconciliation.classification !== "in_sync";
   const configuredContextWindow = configuredModelContextWindow(providerConfig);
   const displayContextWindow = configuredContextWindow ?? reportedContextUsage?.contextWindow ?? null;
   const authoritativeContextUsage = reportedContextUsage
@@ -344,7 +351,8 @@ export function App({ model }: AppProps) {
     const current = conversationRef.current;
     const checkpoint = current.reconciliation.checkpoints.pi;
     if (
-      !runtime.conversationLoaded
+      current.liveIdentity.activationReceiptActivatedAt
+      || !runtime.conversationLoaded
       || runtime.isStreaming
       || runtime.agentRunStatus === "running"
       || runtime.safeTestMode
@@ -423,7 +431,8 @@ export function App({ model }: AppProps) {
     const current = conversationRef.current;
     const checkpoint = current.reconciliation.checkpoints.mirror;
     if (
-      !runtime.conversationLoaded
+      current.liveIdentity.activationReceiptActivatedAt
+      || !runtime.conversationLoaded
       || runtime.isStreaming
       || runtime.agentRunStatus === "running"
       || runtime.safeTestMode
@@ -600,9 +609,68 @@ export function App({ model }: AppProps) {
         const dedicatedThread = await loadNautilusJourneyThread(selectedJourney);
         if (cancelled) return;
         const classified = classifyNautilusJourneyThread(dedicatedThread, selectedJourney);
-        const restoredConversation = classified.kind === "ready"
-          ? createDedicatedJourneyConversation({ thread: classified.thread, initialMessages: [] })
+        const persistedConversation = classified.kind === "ready"
+          ? await loadDedicatedJourneyConversation(selectedJourney)
+          : undefined;
+        if (cancelled) return;
+        let restoredConversation = classified.kind === "ready"
+          ? restoreDedicatedJourneyConversation(classified.thread, persistedConversation)
           : createJourneyConversation({ journeyId: selectedJourney, initialMessages });
+        if (classified.kind === "ready" && classified.activeGeneration.piSessionFile) {
+          const turns = await loadDedicatedPiTranscript(
+            selectedJourney,
+            classified.activeGeneration.piSessionId,
+            classified.activeGeneration.piSessionFile,
+          );
+          if (cancelled) return;
+          const pendingTurn = [...restoredConversation.reconciliation.turns].reverse().find((turn) =>
+            turn.origin === "nautilus" && turn.runId && turn.pi.state !== "committed",
+          );
+          const stagedUser = [...restoredConversation.messages].reverse().find((message) => message.role === "user");
+          const stagedAssistant = [...restoredConversation.messages].reverse().find((message) => message.role === "assistant");
+          const nativeTurn = turns.at(-1);
+          if (pendingTurn?.runId && stagedUser && stagedAssistant && nativeTurn) {
+            restoredConversation = replaceJourneyConversationMessages(restoredConversation,
+              restoredConversation.messages.map((message) => message.id === stagedAssistant.id
+                ? { ...message, content: nativeTurn.assistantText }
+                : message),
+            );
+            const recoveryCorrelation = createDedicatedTurnAuthority(
+              classified.thread,
+              pendingTurn.runId,
+              pendingTurn.turnId,
+              stagedUser.id,
+              stagedAssistant.id,
+            );
+            restoredConversation = applyMirrorTurnCommitStatus(restoredConversation, recoveryCorrelation, {
+              schemaVersion: "0.1.0",
+              status: "missing",
+              conversationId: classified.activeGeneration.mirrorConversationId,
+              messageCount: 0,
+              piEvidence: {
+                userEntryId: nativeTurn.userEntryId,
+                assistantEntryId: nativeTurn.assistantEntryId,
+                leafEntryId: nativeTurn.assistantEntryId,
+                entryCount: nativeTurn.entryCount,
+                sessionFile: classified.activeGeneration.piSessionFile,
+              },
+            }, new Date().toISOString());
+            restoredConversation = commitHarnessTurn(restoredConversation, recoveryCorrelation, new Date().toISOString());
+            await saveDedicatedJourneyConversation(restoredConversation);
+          } else {
+            restoredConversation = replaceJourneyConversationMessages(restoredConversation, turns.flatMap((turn) => [{
+              id: `pi-${turn.userEntryId}`,
+              role: "user" as const,
+              content: turn.userText,
+              createdAt: turn.startedAt,
+            }, {
+              id: `pi-${turn.assistantEntryId}`,
+              role: "assistant" as const,
+              content: turn.assistantText,
+              createdAt: turn.committedAt,
+            }]));
+          }
+        }
         conversationRef.current = restoredConversation;
         setConversation(restoredConversation);
         setJourneyThreadState(classified);
@@ -737,6 +805,13 @@ export function App({ model }: AppProps) {
       journeyListOrder,
     });
   }, [journeyPreferences, journeyListOrder, registryLoaded, preferencesLoaded]);
+
+  useEffect(() => {
+    if (!conversationLoaded || journeyThreadState.kind !== "ready" || isStreaming) return;
+    void saveDedicatedJourneyConversation(conversation).catch((error) => {
+      console.warn("Could not persist dedicated Journey projection.", error);
+    });
+  }, [conversation, conversationLoaded, isStreaming, journeyThreadState.kind]);
 
   useEffect(() => {
     if (!conversationLoaded || conversation.certifiedMirrorMode !== undefined) {
@@ -893,11 +968,11 @@ export function App({ model }: AppProps) {
 
     let baseConversation = conversation;
     if (mode === "live") {
-      await refreshExternalConversationActivity();
       baseConversation = conversationRef.current;
       const preflightBlocked = externalPiInFlightRef.current.size > 0
         || baseConversation.journeyId !== selectedJourney
-        || baseConversation.reconciliation.classification !== "in_sync";
+        || journeyThreadState.kind !== "ready"
+        || dedicatedTurnBlocksNewInvocation(classifyDedicatedTurnState(baseConversation));
       if (preflightBlocked) {
         setStreamWarnings((warnings) => [
           ...warnings,
@@ -922,14 +997,14 @@ export function App({ model }: AppProps) {
       createdAt: new Date().toISOString(),
     };
     const run = startAgentRun({ content, mode });
-    const correlation: TurnCorrelation | undefined = mode === "live" && run.id && journeyThreadState.kind !== "ready"
-      ? createTurnCorrelation({
-          conversation: baseConversation,
-          runId: run.id,
-          turnId: `turn-${run.id}`,
-          userMessageId: userMessage.id,
-          assistantMessageId: assistantMessage.id,
-        })
+    const correlation: TurnCorrelation | undefined = mode === "live" && run.id && journeyThreadState.kind === "ready"
+      ? createDedicatedTurnAuthority(
+          journeyThreadState.thread,
+          run.id,
+          `turn-${run.id}`,
+          userMessage.id,
+          assistantMessage.id,
+        )
       : undefined;
     const stagedConversation = correlation
       ? stageCorrelatedTurn(baseConversation, correlation, userMessage, assistantMessage)
@@ -938,6 +1013,14 @@ export function App({ model }: AppProps) {
       ? mockPiAgentStream
       : (packet) => livePiAgentStream(packet, providerConfig, correlation);
 
+    if (correlation) {
+      try {
+        await saveDedicatedJourneyConversation(stagedConversation);
+      } catch (error) {
+        setStreamWarnings((warnings) => [...warnings, error instanceof Error ? error.message : String(error)]);
+        return;
+      }
+    }
     conversationRef.current = stagedConversation;
     setConversation(stagedConversation);
     setPacketJson(JSON.stringify(packet, null, 2));
@@ -1089,11 +1172,26 @@ export function App({ model }: AppProps) {
           ),
         );
       } else if (correlation) {
-        setConversation((currentConversation) => commitHarnessTurn(
-          currentConversation,
-          correlation,
-          new Date().toISOString(),
-        ));
+        let settled = commitHarnessTurn(conversationRef.current, correlation, new Date().toISOString());
+        const sessionFile = settled.liveIdentity.piSessionFile;
+        try {
+          if (!sessionFile) throw new Error("Dedicated Pi session file is missing.");
+          await saveDedicatedJourneyConversation(settled);
+          const status = await retryMirrorTurnCommit(settled.journeyId, sessionFile, correlation);
+          settled = applyMirrorTurnCommitStatus(settled, correlation, status, new Date().toISOString());
+          await saveDedicatedJourneyConversation(settled);
+          if (
+            selectedJourneyRef.current === settled.journeyId
+            && conversationRef.current.liveIdentity.generation === settled.liveIdentity.generation
+          ) {
+            conversationRef.current = settled;
+            setConversation(settled);
+          }
+        } catch (error) {
+          setMirrorCommitError(error instanceof Error ? error.message : String(error));
+          conversationRef.current = settled;
+          setConversation(settled);
+        }
       }
       setIsStreaming(false);
     }
@@ -1461,6 +1559,18 @@ export function App({ model }: AppProps) {
               </div>
             );
           })}
+        </div>
+        <div className="sidebar-footer">
+          <button
+            className="sidebar-settings-button"
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Open settings"
+            title="Settings"
+          >
+            <span aria-hidden="true">⚙</span>
+            <span>Settings</span>
+          </button>
         </div>
       </aside>
 

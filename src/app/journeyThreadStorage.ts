@@ -22,6 +22,24 @@ export async function loadNautilusJourneyThread(journeyId: string): Promise<Naut
   }
 }
 
+export type DedicatedPiTranscriptTurn = {
+  userEntryId: string;
+  assistantEntryId: string;
+  userText: string;
+  assistantText: string;
+  entryCount: number;
+  startedAt: string;
+  committedAt: string;
+};
+
+export async function loadDedicatedPiTranscript(
+  journeyId: string,
+  sessionId: string,
+  sessionFile: string,
+): Promise<DedicatedPiTranscriptTurn[]> {
+  return invoke<DedicatedPiTranscriptTurn[]>("load_dedicated_pi_transcript", { journeyId, sessionId, sessionFile });
+}
+
 type JourneyProvisioningEvent = { journeyId: string; phase: string };
 
 export async function provisionNautilusJourneyThread(
