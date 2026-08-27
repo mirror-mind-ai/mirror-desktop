@@ -18,6 +18,12 @@ describe("Journey administration boundary", () => {
     expect(() => createMutationRequest({ ...registry, schemaVersion: "0.1.0", sourceVersion: undefined }, "clear_project_path", {})).toThrow(/Reload Journeys/);
   });
 
+  it("builds a delete request from exact registry authority", () => {
+    expect(createMutationRequest(registry, "delete_journey", { journeyId: "empty-leaf" }, "delete-request-001")).toMatchObject({
+      operation: "delete_journey", expectedSourceVersion: "a".repeat(64), payload: { journeyId: "empty-leaf" },
+    });
+  });
+
   it("suggests editable deterministic slugs", () => {
     expect(suggestJourneySlug("Criação de Jornadas! ")).toBe("criacao-de-jornadas");
   });
@@ -35,5 +41,16 @@ describe("Journey administration boundary", () => {
     expect(appSource).toContain('journeyListOrder === "tree" && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))');
     expect(appSource).toContain('setJourneyAdminParent(parentId)');
     expect(appSource).toContain('draggable={journeyListOrder === "tree" && !isStreaming}');
+  });
+
+  it("offers guarded destructive deletion only for inactive leaves", () => {
+    expect(appSource).toContain("Delete Journey…");
+    expect(appSource).toContain('role={journeyAdminDialog.mode === "delete" ? "alertdialog" : "dialog"}');
+    expect(appSource).toContain('(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0');
+    expect(appSource).toContain('journeyItemMenu.journeyId === selectedJourney');
+    expect(appSource).toContain('executeJourneyMutation("delete_journey"');
+    expect(tauriSource).toContain('journey_id == active_journey_id');
+    expect(tauriSource).toContain('dedicated-journey-conversations');
+    expect(tauriSource).toContain('journey_not_empty:');
   });
 });

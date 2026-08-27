@@ -190,7 +190,7 @@ export function App({ model }: AppProps) {
   const [journeyRegistryRefreshState, setJourneyRegistryRefreshState] = useState<"idle" | "refreshing" | "succeeded" | "failed">("idle");
   const [journeyRegistryRefreshMessage, setJourneyRegistryRefreshMessage] = useState<string | undefined>();
   const [journeyItemMenu, setJourneyItemMenu] = useState<{ journeyId: string; x: number; y: number } | null>(null);
-  const [journeyAdminDialog, setJourneyAdminDialog] = useState<{ mode: "create" | "path" | "move"; journeyId?: string; parentId?: string } | null>(null);
+  const [journeyAdminDialog, setJourneyAdminDialog] = useState<{ mode: "create" | "path" | "move" | "delete"; journeyId?: string; parentId?: string } | null>(null);
   const [journeyAdminName, setJourneyAdminName] = useState("");
   const [journeyAdminSlug, setJourneyAdminSlug] = useState("");
   const [journeyAdminDescription, setJourneyAdminDescription] = useState("");
@@ -1216,7 +1216,14 @@ export function App({ model }: AppProps) {
     setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null); setJourneyItemMenu(null);
   }
 
-  async function executeJourneyMutation(operation: "create_journey" | "set_project_path" | "clear_project_path" | "move_journey", payload: Record<string, unknown>) {
+  function openDeleteJourney(journeyId: string) {
+    const journey = findJourneyById(journeyRegistry, journeyId);
+    if (!journey || journey.id === selectedJourney || (journey.children?.length ?? 0) > 0) return;
+    setJourneyAdminDialog({ mode: "delete", journeyId });
+    setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null); setJourneyItemMenu(null);
+  }
+
+  async function executeJourneyMutation(operation: "create_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey", payload: Record<string, unknown>) {
     setJourneyAdminState("saving"); setJourneyAdminMessage(undefined);
     try {
       const request = journeyAdminPendingRequest?.operation === operation && JSON.stringify(journeyAdminPendingRequest.payload) === JSON.stringify(payload)
@@ -1255,8 +1262,10 @@ export function App({ model }: AppProps) {
         journeyId: journeyAdminDialog.journeyId,
         ...(journeyAdminPath.trim() ? { projectPath: journeyAdminPath.trim() } : {}),
       });
-    } else {
+    } else if (journeyAdminDialog.mode === "move") {
       await executeJourneyMutation("move_journey", { journeyId: journeyAdminDialog.journeyId, parentId: journeyAdminParent || null, position: journeyAdminPosition });
+    } else {
+      await executeJourneyMutation("delete_journey", { journeyId: journeyAdminDialog.journeyId });
     }
   }
 
@@ -1464,6 +1473,16 @@ export function App({ model }: AppProps) {
             <button type="button" role="menuitem" onClick={() => openCreateJourney(journeyItemMenu.journeyId)}>Create Journey…</button>
             <button type="button" role="menuitem" onClick={() => openJourneyPath(journeyItemMenu.journeyId)}>Assign project path…</button>
             <button type="button" role="menuitem" onClick={() => openMoveJourney(journeyItemMenu.journeyId)}>Move Journey…</button>
+            <button
+              className="danger-menu-item"
+              type="button"
+              role="menuitem"
+              disabled={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0 || journeyItemMenu.journeyId === selectedJourney}
+              title={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0 ? "Move or delete child Journeys first." : journeyItemMenu.journeyId === selectedJourney ? "The active Journey cannot be deleted." : "Permanently delete this empty Journey."}
+              onClick={() => openDeleteJourney(journeyItemMenu.journeyId)}
+            >
+              Delete Journey…
+            </button>
             <button type="button" role="menuitem" onClick={() => setJourneyItemMenu(null)}>Cancel</button>
           </div>
         ) : null}
@@ -1861,11 +1880,11 @@ export function App({ model }: AppProps) {
 
       {journeyAdminDialog ? (
         <div className="settings-backdrop" role="presentation">
-          <form className="settings-window journey-admin-dialog" role="dialog" aria-modal="true" aria-label="Journey administration" onSubmit={submitJourneyAdministration}>
+          <form className={`settings-window journey-admin-dialog ${journeyAdminDialog.mode === "delete" ? "danger-dialog" : ""}`} role={journeyAdminDialog.mode === "delete" ? "alertdialog" : "dialog"} aria-modal="true" aria-label="Journey administration" onSubmit={submitJourneyAdministration}>
             <div className="settings-header">
               <div>
-                <p className="eyebrow">{journeyAdminDialog.mode === "create" ? "Journey details" : journeyAdminDialog.mode === "path" ? "Journey settings" : "Journey organization"}</p>
-                <h2>{journeyAdminDialog.mode === "create" ? "Create Journey" : journeyAdminDialog.mode === "path" ? "Project path" : "Move Journey"}</h2>
+                <p className="eyebrow">{journeyAdminDialog.mode === "create" ? "Journey details" : journeyAdminDialog.mode === "path" ? "Journey settings" : journeyAdminDialog.mode === "move" ? "Journey organization" : "Journey safety"}</p>
+                <h2>{journeyAdminDialog.mode === "create" ? "Create Journey" : journeyAdminDialog.mode === "path" ? "Project path" : journeyAdminDialog.mode === "move" ? "Move Journey" : "Delete Journey"}</h2>
               </div>
               <button type="button" onClick={() => setJourneyAdminDialog(null)} disabled={journeyAdminState === "saving"}>×</button>
             </div>
@@ -1880,7 +1899,7 @@ export function App({ model }: AppProps) {
                 <label>Description<textarea value={journeyAdminDescription} onChange={(event) => setJourneyAdminDescription(event.target.value)} required minLength={20} maxLength={4000} /></label>
               </>
             ) : null}
-            {journeyAdminDialog.mode !== "path" ? (
+            {journeyAdminDialog.mode === "create" || journeyAdminDialog.mode === "move" ? (
               <div className="settings-grid two-column">
                 <label>Parent<select value={journeyAdminParent} onChange={(event) => { setJourneyAdminParent(event.target.value); setJourneyAdminPosition(0); }}>
                   <option value="">Root</option>
@@ -1891,7 +1910,7 @@ export function App({ model }: AppProps) {
                 <label>Sibling position<input type="number" min={0} value={journeyAdminPosition} onChange={(event) => setJourneyAdminPosition(Number(event.target.value))} required /></label>
               </div>
             ) : null}
-            {journeyAdminDialog.mode !== "move" ? (
+            {journeyAdminDialog.mode === "create" || journeyAdminDialog.mode === "path" ? (
               <label>Project path {journeyAdminDialog.mode === "create" ? "(optional)" : "(clear to remove)"}
                 <span className="journey-path-picker"><input value={journeyAdminPath} onChange={(event) => setJourneyAdminPath(event.target.value)} placeholder="/absolute/path/to/project" /><button type="button" onClick={async () => { const path = await chooseProjectDirectory(); if (path) setJourneyAdminPath(path); }}>Choose…</button></span>
               </label>
@@ -1899,12 +1918,13 @@ export function App({ model }: AppProps) {
             <div className="journey-admin-summary">
               {journeyAdminDialog.mode === "create" ? `Create ${journeyAdminSlug || "this Journey"} under ${journeyAdminParent || "Root"} at position ${journeyAdminPosition}. No repository or conversation will be created.` :
                 journeyAdminDialog.mode === "path" ? `Update only project_path for ${journeyAdminDialog.journeyId}.` :
-                  `Move ${journeyAdminDialog.journeyId} under ${journeyAdminParent || "Root"} at position ${journeyAdminPosition}.`}
+                  journeyAdminDialog.mode === "move" ? `Move ${journeyAdminDialog.journeyId} under ${journeyAdminParent || "Root"} at position ${journeyAdminPosition}.` :
+                    `Permanently delete ${findJourneyById(journeyRegistry, journeyAdminDialog.journeyId ?? "")?.name ?? journeyAdminDialog.journeyId}. Project files, repositories and protected history will not be deleted.`}
             </div>
             {journeyAdminMessage ? <p className="settings-error" role="alert">{journeyAdminMessage}</p> : null}
             <div className="settings-actions">
               <button type="button" onClick={() => setJourneyAdminDialog(null)} disabled={journeyAdminState === "saving"}>Cancel</button>
-              <button type="submit" disabled={journeyAdminState === "saving"}>{journeyAdminState === "saving" ? "Verifying…" : "Confirm"}</button>
+              <button className={journeyAdminDialog.mode === "delete" ? "danger-button" : ""} type="submit" disabled={journeyAdminState === "saving"}>{journeyAdminState === "saving" ? "Verifying…" : journeyAdminDialog.mode === "delete" ? "Delete Journey" : "Confirm"}</button>
             </div>
           </form>
         </div>

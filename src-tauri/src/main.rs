@@ -627,6 +627,20 @@ fn choose_project_directory() -> Result<Option<String>, String> {
 
 #[tauri::command]
 fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_json: String) -> Result<String, String> {
+    let request: Value = serde_json::from_str(&request_json).map_err(|_| "Journey mutation request is malformed.".to_string())?;
+    if request.get("operation").and_then(Value::as_str) == Some("delete_journey") {
+        let journey_id = request.get("payload").and_then(|payload| payload.get("journeyId")).and_then(Value::as_str)
+            .ok_or_else(|| "Journey deletion target is missing.".to_string())?;
+        if journey_id == active_journey_id {
+            return Err("The active Journey cannot be deleted.".to_string());
+        }
+        let thread_path = journey_thread_path(&app, journey_id)?;
+        let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+        let generation_dir = app_data_dir.join("dedicated-journey-conversations").join(sanitize_journey_id(journey_id)?);
+        if thread_path.exists() || generation_dir.exists() {
+            return Err("Journey cannot be deleted because dedicated conversation history exists.".to_string());
+        }
+    }
     let mirror_root = mirror_runtime_root()?;
     let mut child = Command::new("uv")
         .args(["run", "python", "-m", "memory", "journey", "mutate", "--mirror-home"])
@@ -638,7 +652,19 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
         .write_all(request_json.as_bytes()).map_err(|error| format!("Could not submit Journey mutation: {}", error))?;
     let output = child.wait_with_output().map_err(|error| format!("Could not await Journey mutation: {}", error))?;
     if !output.status.success() {
-        return Err("Mirror rejected the Journey mutation.".to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let code = stderr.lines().rev().find_map(|line| serde_json::from_str::<Value>(line).ok())
+            .and_then(|value| value.get("error").and_then(Value::as_str).map(str::to_string));
+        return Err(match code.as_deref() {
+            Some("stale_source") => "Journeys changed in Mirror. Reload the tree and try again.".to_string(),
+            Some("unknown_journey") => "Journey no longer exists in Mirror.".to_string(),
+            Some(value) if value.starts_with("journey_not_empty:") => {
+                let classes = value.trim_start_matches("journey_not_empty:").replace('_', " ");
+                format!("Journey cannot be deleted because protected records remain: {}.", classes)
+            }
+            Some("idempotency_conflict") => "Journey deletion retry no longer matches the original request.".to_string(),
+            _ => "Mirror rejected the Journey mutation.".to_string(),
+        });
     }
     let payload = String::from_utf8(output.stdout).map_err(|_| "Journey mutation returned invalid text.".to_string())?;
     let result: Value = serde_json::from_str(&payload).map_err(|_| "Journey mutation returned malformed JSON.".to_string())?;

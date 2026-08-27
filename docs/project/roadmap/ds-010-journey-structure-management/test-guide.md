@@ -108,6 +108,17 @@ Verify drop indicators, cancellation and bounded auto-scroll. Reload and restart
 
 Reject cycle, self-drop, descendant target, stale source, unknown target and interrupted publication. Verify native Journey ID, slug, semantic content, project path, pins, memories, attachments, threads, generations and conversations remain unchanged.
 
+## DS-010.US-4 — Delete Empty Journey
+
+- Verify **Delete Journey…** is disabled for every node with children using pointer and keyboard context menus.
+- Verify a leaf opens a destructive confirmation with its exact display name and no mutation before confirmation.
+- Cancel and prove source version and registry bytes remain unchanged.
+- Delete one empty leaf and verify only its Journey identity disappears.
+- Exercise each protected association class: conversations, memories, tasks, attachments, runtime sessions, Explorer/Builder state, dedicated thread and generation.
+- Exercise stale source, idempotent retry, transaction failure and desktop publication failure.
+- Snapshot project paths, repositories, Pi sessions, Mirror conversations, memories, threads and generation projections before/after to prove no cascade or filesystem deletion.
+- Prove no provider invocation participates in eligibility, confirmation, deletion or recovery.
+
 ## Cross-Cutting Harness Regression
 
 - Tree collapse remains local presentation state.

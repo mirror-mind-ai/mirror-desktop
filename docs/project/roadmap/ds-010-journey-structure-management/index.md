@@ -25,6 +25,7 @@ The desktop should make these operations deliberate without making a Journey syn
 | [DS-010.US-1](ds-010-us-1-create-journey/index.md) | Create Journey | User Story | Create a canonical root from the Tree control menu or a child from an item context menu with its parent preselected, using name, slug, description, tree position and optional project path | 🟡 Planned |
 | [DS-010.US-2](ds-010-us-2-reorganize-journey-tree/index.md) | Reorganize Journey Tree | User Story | Reparent and reorder Journeys with drag-and-drop plus keyboard parity while preserving all non-structural authority | 🟡 Planned |
 | [DS-010.US-3](ds-010-us-3-assign-journey-project-path/index.md) | Assign Journey Project Path | User Story | Assign, replace or clear a Journey's canonical local project association through an explicit safe desktop action | 🟡 Planned |
+| [DS-010.US-4](ds-010-us-4-delete-empty-journey/index.md) | Delete Empty Journey | User Story | Delete only an empty canonical leaf identity after explicit confirmation and transactional protected-association checks | 🟡 Planned |
 
 ## Shared Product Contract
 
@@ -41,7 +42,7 @@ Names, text, paths and visual position never establish authority. Native Journey
 
 ## Done Condition
 
-DS-010 is done when the Navigator can create a Journey, move it within the canonical hierarchy, establish stable sibling order and assign or clear its project path from the Harness; every operation validates exact native authority, rejects cycles/stale input/invalid paths, commits atomically in Mirror, reloads and verifies the registry before reporting success, preserves unrelated Journey identity and dedicated conversation state, provides keyboard-accessible equivalents, and invokes no provider.
+DS-010 is done when the Navigator can create a Journey, move it within the canonical hierarchy, establish stable sibling order, assign or clear its project path, and delete an empty leaf Journey from the Harness; every operation validates exact native authority, rejects cycles/stale input/invalid paths, commits atomically in Mirror, reloads and verifies the registry before reporting success, preserves unrelated Journey identity and dedicated conversation state, provides keyboard-accessible equivalents, and invokes no provider.
 
 ## Boundaries
 
@@ -52,7 +53,7 @@ DS-010 is done when the Navigator can create a Journey, move it within the canon
 - Assigning `project_path` grants no filesystem mutation authority.
 - No operation infers identity or paths from names, recency or filesystem discovery.
 - No provider, Pi run or conversational turn participates in administration.
-- Automatic watchers, implicit synchronization, deletion and Journey merging remain out of scope.
+- Automatic watchers, implicit synchronization, cascading/forced deletion and Journey merging remain out of scope.
 
 ## Refinement Sources
 

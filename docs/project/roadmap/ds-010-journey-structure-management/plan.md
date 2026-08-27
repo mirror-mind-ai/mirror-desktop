@@ -21,6 +21,9 @@ Creation must be available both from the Tree control context menu for root plac
 3. **DS-010.US-1 — Create Journey**
 4. **DS-010.US-3 — Assign Journey Project Path**
 5. **DS-010.US-2 — Reorganize Journey Tree**
+6. **DS-010.US-4 — Delete Empty Journey**
+
+> **Navigator-approved scope addendum:** US-4 was added after the original aggregate implementation and before aggregate validation acceptance. Because deletion was an original non-goal and is destructive, US-4 receives its own User Story Plan and Navigator validation before DS-010 can resume aggregate closure.
 
 The technical stories precede every interface mutation. Creation is the first vertical user slice. Project-path assignment follows because it reuses the form, picker and gateway without introducing structural gestures. Reorganization is last because it adds the broadest pointer, keyboard and hierarchy interaction surface.
 
@@ -32,7 +35,8 @@ Define a versioned, bounded request/receipt contract for:
 
 - `create_journey`;
 - `set_project_path` and `clear_project_path`;
-- `move_journey`, including reparenting and sibling reordering.
+- `move_journey`, including reparenting and sibling reordering;
+- `delete_journey`, limited to empty canonical leaf identities.
 
 Every request carries:
 
@@ -127,9 +131,15 @@ Add drag handles and keyboard parity for moving a Journey:
 
 Render explicit drop intent, bounded auto-scroll and cancellation. Submit native IDs plus the expected source version, never names or visual coordinates as authority. Mirror validates cycles, parent existence and the resulting stable sibling order before commit. A verified reload confirms success; stale, invalid or interrupted operations preserve the prior visible projection.
 
+### Delete empty Journey
+
+Add **Delete Journey…** to the Tree item context menu with keyboard parity. The action is disabled when the current verified registry shows children. A leaf action opens an explicit destructive confirmation naming the Journey and stating that deletion is permanent.
+
+Confirmation submits the exact native Journey ID and registry source version. Mirror re-checks leaf status and every protected association inside the deletion transaction. Any conversation, memory, task, attachment, runtime session, Explorer/Builder record, dedicated thread or generation blocks deletion without cascade. Success removes only the empty Journey identity and publishes a verified replacement registry. Project directories, repositories and files are never deletion targets.
+
 ## Non-Goals
 
-- Journey deletion, merge, duplication or post-creation slug rename.
+- Cascading or forced Journey deletion, merge, duplication or post-creation slug rename.
 - Automatic repository, directory, file or identity-file creation.
 - Automatic Pi session, Mirror conversation, dedicated Journey thread or generation creation.
 - Provider-generated names, descriptions, slugs, hierarchy or path suggestions.

@@ -127,8 +127,8 @@ Minimum test cases for the first implementation story:
 
 ## Canonical Journey administration boundary
 
-Journey creation, hierarchy/order changes and `project_path` assignment cross a
-single model-free native boundary. React owns explicit Navigator intent and
+Journey creation, hierarchy/order changes, `project_path` assignment and guarded
+empty-leaf deletion cross a single model-free native boundary. React owns explicit Navigator intent and
 local interaction state; Tauri invokes the Mirror-owned JSON CLI, validates the
 returned registry and atomically publishes it; Mirror alone owns mutation
 validation, optimistic concurrency, SQLite transaction and idempotency receipt.
@@ -138,8 +138,13 @@ canonical.
 The `0.2.0` registry adds exact `sourceVersion`, native identity evidence and
 stable sibling position. Every mutation carries that source version and native
 Journey IDs. A stale or malformed result leaves the prior desktop registry
-intact. Creation remains identity-only and cannot provision repositories,
-files, Pi sessions, Mirror conversations or dedicated Nautilus threads.
+intact. Creation remains identity-only and cannot provision repositories, files, Pi
+sessions, Mirror conversations or dedicated Nautilus threads. Deletion is the
+inverse only for an inactive canonical leaf with no protected association:
+parents and the active Journey are disabled in the desktop, Tauri also blocks
+native dedicated-thread evidence, and Mirror re-checks every database-backed
+association transactionally without cascade. Project files and repositories are
+never deletion targets.
 
 ## Next implementation story
 

@@ -182,8 +182,11 @@ textarea {
   text-align: left;
 }
 
-.journey-item-context-menu button:hover,
-.journey-item-context-menu button:focus-visible { background: rgba(133, 223, 210, 0.11); }
+.journey-item-context-menu button:hover:not(:disabled),
+.journey-item-context-menu button:focus-visible:not(:disabled) { background: rgba(133, 223, 210, 0.11); }
+.journey-item-context-menu button:disabled { cursor: not-allowed; opacity: 0.42; }
+.journey-item-context-menu .danger-menu-item { color: #f2a6a6; }
+.journey-item-context-menu .danger-menu-item:hover:not(:disabled) { background: rgba(226, 92, 92, 0.12); }
 
 .settings-window.journey-admin-dialog {
   display: grid;
@@ -264,6 +267,9 @@ textarea {
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: #b5cdd4;
 }
+.journey-admin-dialog.danger-dialog { border-color: rgba(226, 92, 92, 0.42); }
+.journey-admin-dialog .danger-button { background: #d85f5f; color: #190707; }
+.journey-admin-dialog .danger-button:hover:not(:disabled) { background: #eb7474; }
 
 @media (max-width: 560px) {
   .journey-admin-dialog .settings-grid.two-column { grid-template-columns: 1fr; }
