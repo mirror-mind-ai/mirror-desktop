@@ -506,6 +506,113 @@ async fn restart_journey_thread(
     Ok(envelope.get("thread").cloned().ok_or_else(|| "Restarted thread is missing.".to_string())?)
 }
 
+fn validate_journey_registry_payload(payload: &str) -> Result<Value, String> {
+    if payload.len() > 2 * 1024 * 1024 {
+        return Err("Refreshed Journey registry is oversized.".to_string());
+    }
+    let value: Value = serde_json::from_str(payload)
+        .map_err(|_| "Refreshed Journey registry is invalid JSON.".to_string())?;
+    if value.get("schemaVersion").and_then(Value::as_str) != Some("0.1.0")
+        || value.get("source").and_then(Value::as_str) != Some("mirror")
+        || value.get("syncedAt").and_then(Value::as_str).map(str::is_empty) != Some(false)
+    {
+        return Err("Refreshed Journey registry authority is invalid.".to_string());
+    }
+    let roots = value.get("roots").and_then(Value::as_array)
+        .ok_or_else(|| "Refreshed Journey registry roots are invalid.".to_string())?;
+    let mut ids = HashSet::new();
+    let mut count = 0usize;
+    fn validate_nodes(nodes: &[Value], depth: usize, count: &mut usize, ids: &mut HashSet<String>) -> Result<(), String> {
+        if depth > 16 { return Err("Refreshed Journey registry is too deep.".to_string()); }
+        for node in nodes {
+            *count += 1;
+            if *count > 10_000 { return Err("Refreshed Journey registry has too many entries.".to_string()); }
+            let id = node.get("id").and_then(Value::as_str).filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| "Refreshed Journey registry contains an invalid id.".to_string())?;
+            if !ids.insert(id.to_string()) { return Err("Refreshed Journey registry contains duplicate ids.".to_string()); }
+            node.get("name").and_then(Value::as_str).filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| "Refreshed Journey registry contains an invalid name.".to_string())?;
+            if let Some(children) = node.get("children") {
+                validate_nodes(children.as_array().ok_or_else(|| "Refreshed Journey children are invalid.".to_string())?, depth + 1, count, ids)?;
+            }
+        }
+        Ok(())
+    }
+    validate_nodes(roots, 0, &mut count, &mut ids)?;
+    Ok(value)
+}
+
+fn publish_refreshed_journey_registry(app_data_dir: &Path, payload: &str) -> Result<String, String> {
+    validate_journey_registry_payload(payload)?;
+    fs::create_dir_all(app_data_dir).map_err(|error| format!("Could not prepare Journey registry storage: {}", error))?;
+    let target = app_data_dir.join(JOURNEY_REGISTRY_FILE);
+    if target.exists() {
+        let metadata = fs::symlink_metadata(&target).map_err(|error| error.to_string())?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err("Journey registry target is not a safe file.".to_string());
+        }
+    }
+    let staged = app_data_dir.join("journey-registry.refresh.tmp");
+    if staged.exists() {
+        let metadata = fs::symlink_metadata(&staged).map_err(|error| error.to_string())?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err("Journey registry staging path is unsafe.".to_string());
+        }
+        fs::remove_file(&staged).map_err(|error| error.to_string())?;
+    }
+    fs::write(&staged, payload).map_err(|error| format!("Could not stage Journey registry: {}", error))?;
+    fs::rename(&staged, &target).map_err(|error| format!("Could not publish Journey registry: {}", error))?;
+    let published = fs::read_to_string(&target).map_err(|error| format!("Could not verify Journey registry: {}", error))?;
+    validate_journey_registry_payload(&published)?;
+    Ok(published)
+}
+
+fn journey_registry_contains_id(value: &Value, journey_id: &str) -> bool {
+    fn nodes_contain(nodes: &[Value], journey_id: &str) -> bool {
+        nodes.iter().any(|node| {
+            node.get("id").and_then(Value::as_str) == Some(journey_id)
+                || node.get("children").and_then(Value::as_array)
+                    .map(|children| nodes_contain(children, journey_id)).unwrap_or(false)
+        })
+    }
+    value.get("roots").and_then(Value::as_array)
+        .map(|roots| nodes_contain(roots, journey_id)).unwrap_or(false)
+}
+
+#[tauri::command]
+fn refresh_journey_registry(app: AppHandle, active_journey_id: String) -> Result<String, String> {
+    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    fs::create_dir_all(&app_data_dir).map_err(|error| error.to_string())?;
+    let staged = app_data_dir.join("journey-registry.export.tmp");
+    if staged.exists() {
+        let metadata = fs::symlink_metadata(&staged).map_err(|error| error.to_string())?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err("Journey registry export path is unsafe.".to_string());
+        }
+        fs::remove_file(&staged).map_err(|error| error.to_string())?;
+    }
+    let script = harness_root()?.join("scripts").join("export_mirror_bootstrap.py");
+    let database = production_mirror_home()?.join("memory.db");
+    if !script.is_file() || !database.is_file() {
+        return Err("Canonical Mirror Journey source is unavailable.".to_string());
+    }
+    let output = Command::new("python3")
+        .arg(&script).arg("--db").arg(&database).arg("--output").arg(&staged)
+        .current_dir(harness_root()?)
+        .output().map_err(|error| format!("Could not start the Journey registry exporter: {}", error))?;
+    if !output.status.success() {
+        let _ = fs::remove_file(&staged);
+        return Err("Could not refresh Journeys from Mirror.".to_string());
+    }
+    let payload = fs::read_to_string(&staged).map_err(|error| format!("Could not read refreshed Journey registry: {}", error))?;
+    let _ = fs::remove_file(&staged);
+    let validated = validate_journey_registry_payload(&payload)?;
+    if !journey_registry_contains_id(&validated, &active_journey_id) {
+        return Err("Refreshed registry does not contain the active Journey.".to_string());
+    }
+    publish_refreshed_journey_registry(&app_data_dir, &payload)
+}
+
 #[tauri::command]
 fn load_journey_registry(app: AppHandle) -> Result<Option<String>, String> {
     let path = journey_registry_path(&app)?;
@@ -2303,6 +2410,7 @@ fn main() {
             provision_journey_thread,
             restart_journey_thread,
             load_journey_registry,
+            refresh_journey_registry,
             load_journey_preferences,
             save_journey_preferences,
             load_journey_projections,
@@ -2328,8 +2436,10 @@ mod tests {
         extract_pi_mirror_commit_events, find_registered_journey_path,
         list_journey_documentation_at, materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, projection_manifest_coordinates_at,
-        read_journey_document_at, retire_legacy_parity_state_at, unwrap_persisted_thread,
-        validate_turn_correlation, PiSessionContextSnapshot, TurnCorrelation,
+        publish_refreshed_journey_registry, read_journey_document_at,
+        retire_legacy_parity_state_at, unwrap_persisted_thread,
+        validate_journey_registry_payload, validate_turn_correlation,
+        PiSessionContextSnapshot, TurnCorrelation, JOURNEY_REGISTRY_FILE,
         DOCUMENT_PREVIEW_MAX_BYTES,
     };
     use serde_json::json;
@@ -2338,6 +2448,34 @@ mod tests {
         path::Path,
         time::{SystemTime, UNIX_EPOCH},
     };
+
+    fn test_root(label: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "nautilus-{}-{}",
+            label,
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(),
+        ))
+    }
+
+    #[test]
+    fn publishes_only_valid_mirror_journey_registries_without_replacing_on_failure() {
+        let root = test_root("registry-refresh");
+        fs::create_dir_all(&root).unwrap();
+        let valid = json!({
+            "schemaVersion": "0.1.0", "source": "mirror", "syncedAt": "2026-08-27T00:00:00Z",
+            "roots": [{"id": "root", "name": "Root", "children": [{"id": "child", "name": "Child"}]}]
+        }).to_string();
+        assert!(validate_journey_registry_payload(&valid).is_ok());
+        assert_eq!(publish_refreshed_journey_registry(&root, &valid).unwrap(), valid);
+        let target = root.join(JOURNEY_REGISTRY_FILE);
+        let before = fs::read_to_string(&target).unwrap();
+        let invalid = json!({"schemaVersion": "0.1.0", "source": "mirror", "syncedAt": "now", "roots": [
+            {"id": "same", "name": "One"}, {"id": "same", "name": "Two"}
+        ]}).to_string();
+        assert!(publish_refreshed_journey_registry(&root, &invalid).is_err());
+        assert_eq!(fs::read_to_string(target).unwrap(), before);
+        let _ = fs::remove_dir_all(root);
+    }
 
     #[test]
     fn derives_bounded_deterministic_native_names() {

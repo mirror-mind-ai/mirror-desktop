@@ -111,6 +111,7 @@ textarea {
   grid-template-columns: repeat(3, 1fr);
   margin-bottom: 14px;
   padding: 4px;
+  position: relative;
 }
 
 .journey-order-control button {
@@ -126,6 +127,48 @@ textarea {
   background: rgba(133, 223, 210, 0.12);
   color: #c6f4ee;
 }
+
+.journey-tree-context-menu {
+  background: #171c1e;
+  border: 1px solid rgba(133, 223, 210, 0.22);
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
+  min-width: 174px;
+  padding: 4px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 5px);
+  z-index: 40;
+}
+
+.journey-tree-context-menu button {
+  align-items: center;
+  border-radius: 7px;
+  color: #d7e8eb;
+  display: flex;
+  font-size: 0.76rem;
+  gap: 8px;
+  padding: 8px 9px;
+  text-align: left;
+  width: 100%;
+}
+
+.journey-tree-context-menu button:hover:not(:disabled),
+.journey-tree-context-menu button:focus-visible {
+  background: rgba(133, 223, 210, 0.11);
+  color: #eafffc;
+  outline: none;
+}
+
+.journey-tree-refresh-status {
+  color: #8fa3a8;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  margin: -7px 4px 10px;
+}
+
+.journey-tree-refresh-status.succeeded { color: #8bdc93; }
+.journey-tree-refresh-status.failed { color: #f18aa4; }
 
 .journey-list {
   display: flex;

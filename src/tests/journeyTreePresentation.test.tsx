@@ -24,5 +24,12 @@ describe("Journey tree presentation", () => {
     expect(appSource).toContain("journey-tree-toggle");
     expect(appSource).toContain('collapsed ? "›" : "▾"');
     expect(appSource).toContain("journey-tree-toggle-placeholder");
+    expect(appSource).toContain('onContextMenu={order === "tree" ? (event) => openJourneyTreeMenu(event.currentTarget, event) : undefined}');
+    expect(appSource).toContain('event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")');
+    expect(appSource).toContain('role="menu"');
+    expect(appSource).toContain('role="menuitem"');
+    expect(appSource).toContain("Reload Journey tree");
+    expect(appSource).toContain("event.preventDefault()");
+    expect(appSource).toContain("event.stopPropagation()");
   });
 });

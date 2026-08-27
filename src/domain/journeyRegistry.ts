@@ -67,6 +67,28 @@ export function searchJourneyRegistry(registry: JourneyRegistry, query: string):
   );
 }
 
+export type ReloadedJourneyState = {
+  selectedJourneyId: string;
+  pinnedJourneyIds: string[];
+  recentJourneyIds: string[];
+  collapsedJourneyIds: Set<string>;
+};
+
+export function reconcileReloadedJourneyState(
+  registry: JourneyRegistry,
+  current: ReloadedJourneyState,
+): ReloadedJourneyState | undefined {
+  if (validateJourneyRegistry(registry).length > 0) return undefined;
+  const ids = new Set(flattenJourneyRegistry(registry).map((journey) => journey.id));
+  if (!ids.has(current.selectedJourneyId)) return undefined;
+  return {
+    selectedJourneyId: current.selectedJourneyId,
+    pinnedJourneyIds: current.pinnedJourneyIds.filter((id) => ids.has(id)),
+    recentJourneyIds: current.recentJourneyIds.filter((id) => ids.has(id)),
+    collapsedJourneyIds: new Set([...current.collapsedJourneyIds].filter((id) => ids.has(id))),
+  };
+}
+
 export function validateJourneyRegistry(registry: JourneyRegistry): string[] {
   const errors: string[] = [];
   if (registry.schemaVersion !== "0.1.0") {

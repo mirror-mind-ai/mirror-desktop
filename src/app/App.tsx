@@ -1,4 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect, useMemo, useRef, useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamProvider, type MirrorCommitEvent, type TurnCorrelation } from "../agent/agentStream";
 import {
   cancelLivePiInvocation,
@@ -75,7 +80,7 @@ import {
   saveDedicatedJourneyConversation,
 } from "./journeyConversationStorage";
 import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPreferenceStorage";
-import { loadJourneyRegistry } from "./journeyRegistryStorage";
+import { loadJourneyRegistry, refreshJourneyRegistry } from "./journeyRegistryStorage";
 import {
   createMissionExtractionPacket,
   createUserConversationMessage,
@@ -103,6 +108,7 @@ import {
   flattenJourneyRegistry,
   markJourneyRecent,
   orderSearchResults,
+  reconcileReloadedJourneyState,
   searchJourneyRegistry,
   type JourneyListOrder,
   type JourneyPreferences,
@@ -175,6 +181,9 @@ export function App({ model }: AppProps) {
   const [journeySearch, setJourneySearch] = useState("");
   const [journeyListOrder, setJourneyListOrder] = useState<JourneyListOrder>(defaultJourneyPreferenceState.journeyListOrder);
   const [collapsedJourneyIds, setCollapsedJourneyIds] = useState<Set<string>>(() => new Set());
+  const [journeyTreeMenuOpen, setJourneyTreeMenuOpen] = useState(false);
+  const [journeyRegistryRefreshState, setJourneyRegistryRefreshState] = useState<"idle" | "refreshing" | "succeeded" | "failed">("idle");
+  const [journeyRegistryRefreshMessage, setJourneyRegistryRefreshMessage] = useState<string | undefined>();
   const [draft, setDraft] = useState("");
   const [conversation, setConversation] = useState(() =>
     createJourneyConversation({ journeyId: selectedJourney, initialMessages }),
@@ -219,6 +228,8 @@ export function App({ model }: AppProps) {
   const chatStreamRef = useRef<HTMLElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const journeyMenuRef = useRef<HTMLDivElement | null>(null);
+  const journeyTreeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const journeyTreeMenuRef = useRef<HTMLDivElement | null>(null);
   const checkedMirrorTurnRef = useRef<string | undefined>(undefined);
   const conversationRef = useRef<JourneyConversation>(conversation);
   const selectedJourneyRef = useRef(selectedJourney);
@@ -303,6 +314,32 @@ export function App({ model }: AppProps) {
     document.addEventListener("mousedown", closeMenuOnOutsidePointer);
     return () => document.removeEventListener("mousedown", closeMenuOnOutsidePointer);
   }, [journeyMenuOpen]);
+
+  useEffect(() => {
+    if (!journeyTreeMenuOpen) return;
+    const focusTimer = window.setTimeout(() => {
+      journeyTreeMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    }, 0);
+    function closeTreeMenu(event: MouseEvent) {
+      const target = event.target as Node;
+      if (!journeyTreeMenuRef.current?.contains(target) && !journeyTreeButtonRef.current?.contains(target)) {
+        setJourneyTreeMenuOpen(false);
+      }
+    }
+    function closeTreeMenuWithKeyboard(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setJourneyTreeMenuOpen(false);
+        journeyTreeButtonRef.current?.focus();
+      }
+    }
+    document.addEventListener("mousedown", closeTreeMenu);
+    document.addEventListener("keydown", closeTreeMenuWithKeyboard);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("mousedown", closeTreeMenu);
+      document.removeEventListener("keydown", closeTreeMenuWithKeyboard);
+    };
+  }, [journeyTreeMenuOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1076,6 +1113,50 @@ export function App({ model }: AppProps) {
     setRuntimeProjectionMessageId(undefined);
   }
 
+  function openJourneyTreeMenu(
+    button: HTMLButtonElement,
+    event: Pick<ReactMouseEvent<HTMLButtonElement> | ReactKeyboardEvent<HTMLButtonElement>, "preventDefault" | "stopPropagation">,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    journeyTreeButtonRef.current = button;
+    setJourneyTreeMenuOpen(true);
+  }
+
+  async function reloadJourneyTree() {
+    if (journeyRegistryRefreshState === "refreshing") return;
+    setJourneyTreeMenuOpen(false);
+    setJourneyRegistryRefreshState("refreshing");
+    setJourneyRegistryRefreshMessage("Reloading Journeys from Mirror…");
+    try {
+      const refreshedRegistry = await refreshJourneyRegistry(selectedJourney);
+      const reconciled = reconcileReloadedJourneyState(refreshedRegistry, {
+        selectedJourneyId: selectedJourney,
+        pinnedJourneyIds: journeyPreferences.pinnedJourneyIds,
+        recentJourneyIds: journeyPreferences.recentJourneyIds,
+        collapsedJourneyIds,
+      });
+      if (!reconciled) {
+        throw new Error("The refreshed registry no longer contains the active Journey.");
+      }
+      setLoadedJourneyRegistry(refreshedRegistry);
+      setJourneyPreferences((current) => ({
+        ...current,
+        activeJourneyId: reconciled.selectedJourneyId,
+        pinnedJourneyIds: reconciled.pinnedJourneyIds,
+        recentJourneyIds: reconciled.recentJourneyIds,
+      }));
+      setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
+      setJourneyRegistryRefreshState("succeeded");
+      setJourneyRegistryRefreshMessage("Journey tree reloaded.");
+    } catch (error) {
+      setJourneyRegistryRefreshState("failed");
+      setJourneyRegistryRefreshMessage(error instanceof Error ? error.message : "Could not reload the Journey tree.");
+    } finally {
+      journeyTreeButtonRef.current?.focus();
+    }
+  }
+
   function toggleCollapsedJourney(journeyId: string) {
     setCollapsedJourneyIds((current) => {
       const next = new Set(current);
@@ -1122,15 +1203,45 @@ export function App({ model }: AppProps) {
           ] as const).map(([order, label]) => (
             <button
               key={order}
+              ref={order === "tree" ? journeyTreeButtonRef : undefined}
               className={journeyListOrder === order ? "selected" : ""}
               type="button"
-              onClick={() => setJourneyListOrder(order)}
+              onClick={() => {
+                setJourneyListOrder(order);
+                setJourneyTreeMenuOpen(false);
+              }}
+              onContextMenu={order === "tree" ? (event) => openJourneyTreeMenu(event.currentTarget, event) : undefined}
+              onKeyDown={order === "tree" ? (event) => {
+                if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+                  openJourneyTreeMenu(event.currentTarget, event);
+                }
+              } : undefined}
               aria-pressed={journeyListOrder === order}
+              aria-haspopup={order === "tree" ? "menu" : undefined}
+              aria-expanded={order === "tree" ? journeyTreeMenuOpen : undefined}
             >
               {label}
             </button>
           ))}
+          {journeyTreeMenuOpen ? (
+            <div className="journey-tree-context-menu" role="menu" ref={journeyTreeMenuRef} aria-label="Journey tree options">
+              <button
+                type="button"
+                role="menuitem"
+                disabled={journeyRegistryRefreshState === "refreshing"}
+                onClick={() => void reloadJourneyTree()}
+              >
+                <span aria-hidden="true">↻</span>
+                {journeyRegistryRefreshState === "refreshing" ? "Reloading…" : "Reload Journey tree"}
+              </button>
+            </div>
+          ) : null}
         </div>
+        {journeyRegistryRefreshMessage ? (
+          <p className={`journey-tree-refresh-status ${journeyRegistryRefreshState}`} role="status">
+            {journeyRegistryRefreshMessage}
+          </p>
+        ) : null}
 
         <div className={`journey-list ${journeyListOrder === "tree" ? "tree-mode" : "card-mode"}`}>
           {visibleSidebarJourneys.length === 0 ? (

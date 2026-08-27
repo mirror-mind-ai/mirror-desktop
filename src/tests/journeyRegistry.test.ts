@@ -8,6 +8,7 @@ import {
   journeyBreadcrumb,
   markJourneyRecent,
   orderSearchResults,
+  reconcileReloadedJourneyState,
   searchJourneyRegistry,
   validateJourneyRegistry,
   type JourneyRegistry,
@@ -41,6 +42,28 @@ describe("hierarchical Journey registry", () => {
       "mirror-dev",
     ]);
     expect(searchJourneyRegistry(fixtureJourneyRegistry, "   ")).toEqual([]);
+  });
+
+  it("preserves valid sidebar state when a refreshed registry keeps the active Journey", () => {
+    const result = reconcileReloadedJourneyState(fixtureJourneyRegistry, {
+      selectedJourneyId: "nautilus-harness",
+      pinnedJourneyIds: ["nautilus-harness", "removed"],
+      recentJourneyIds: ["removed", "amplia"],
+      collapsedJourneyIds: new Set(["nautilus", "removed"]),
+    });
+
+    expect(result).toEqual({
+      selectedJourneyId: "nautilus-harness",
+      pinnedJourneyIds: ["nautilus-harness"],
+      recentJourneyIds: ["amplia"],
+      collapsedJourneyIds: new Set(["nautilus"]),
+    });
+    expect(reconcileReloadedJourneyState(fixtureJourneyRegistry, {
+      selectedJourneyId: "removed",
+      pinnedJourneyIds: [],
+      recentJourneyIds: [],
+      collapsedJourneyIds: new Set(),
+    })).toBeUndefined();
   });
 
   it("validates duplicate Journey ids", () => {
