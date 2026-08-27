@@ -2,7 +2,7 @@
 
 # DS-010.TS-1 — Canonical Journey Mutation Contract
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** Technical Story
 
 ---

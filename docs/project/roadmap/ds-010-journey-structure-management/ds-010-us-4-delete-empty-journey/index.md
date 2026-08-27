@@ -2,7 +2,7 @@
 
 # DS-010.US-4 — Delete Empty Journey
 
-**Status:** 🟡 Planned  
+**Status:** 🟢 Done
 **Type:** User Story
 
 ---

@@ -2,7 +2,7 @@
 
 # DS-010.US-2 — Reorganize Journey Tree
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ---

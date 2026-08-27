@@ -2,7 +2,7 @@
 
 # DS-010.US-3 — Assign Journey Project Path
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ---

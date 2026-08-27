@@ -2,7 +2,7 @@
 
 # DS-010.US-1 — Create Journey
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ---

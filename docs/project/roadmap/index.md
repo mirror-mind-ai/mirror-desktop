@@ -33,7 +33,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 | [DS-007](ds-007-workspace-context-attachments/index.md) | Workspace Context Attachments | Navigator can attach bounded local context to an agent request without granting broad uncontrolled filesystem authority | 🟡 Planned |
 | [DS-008](ds-008-provider-settings-persistence/index.md) | Provider Settings Persistence | Harness remembers non-sensitive provider/model settings locally without storing secrets | 🟡 Planned |
 | [DS-009](ds-009-concurrent-journey-operations/index.md) | Concurrent Journey Operations | Navigator can operate multiple Journey-bound Pi runs concurrently without cross-run event, response, control or persistence leakage | 🟡 Planned |
-| [DS-010](ds-010-journey-structure-management/index.md) | Journey Structure Management | Navigator can create, position and configure canonical Journeys from the Harness through explicit model-free Mirror transactions | 🟡 Planned |
+| [DS-010](ds-010-journey-structure-management/index.md) | Journey Structure Management | Navigator can create, position and configure canonical Journeys from the Harness through explicit model-free Mirror transactions | 🟢 Done |
 
 ## Delivery Arc — Mirror Integration
 
@@ -68,7 +68,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 
 ## Current Recommendation
 
-Pull `CV-003.DS-007 - Ariad Operational Observatory` when the Navigator wants the newly promoted Ariad structure visualization implemented. It should establish the read-only Operational Ariad surface before deeper Tactical and Strategic meaning work resumes. Continue through `CV-003.DS-003`, `CV-003.DS-004` and `CV-003.DS-005` after the operational method map is visible. `CV-004` is complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008`, `DS-009` and `DS-010` under Operable Agent Cockpit remain planned and independent until explicitly selected. `DS-010` owns canonical Journey creation, hierarchy/order and project-path administration promoted from Refinement Work.
+Pull `CV-003.DS-007 - Ariad Operational Observatory` when the Navigator wants the newly promoted Ariad structure visualization implemented. It should establish the read-only Operational Ariad surface before deeper Tactical and Strategic meaning work resumes. Continue through `CV-003.DS-003`, `CV-003.DS-004` and `CV-003.DS-005` after the operational method map is visible. `CV-004` is complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008` and `DS-009` under Operable Agent Cockpit remain planned and independent until explicitly selected. `DS-010` is complete with canonical Journey creation, hierarchy/order, project-path administration and guarded empty-leaf deletion promoted from Refinement Work.
 
 ## Boundaries
 
