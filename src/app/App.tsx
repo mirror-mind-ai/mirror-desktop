@@ -121,7 +121,7 @@ import {
 } from "../domain/journeyRegistry";
 import type { JourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
-import { classifyDedicatedTurnState, dedicatedTurnBlocksNewInvocation } from "../domain/dedicatedTurnCommit";
+import { classifyDedicatedTurnState, dedicatedTurnBlocksNewInvocation, interruptDedicatedTurn } from "../domain/dedicatedTurnCommit";
 import {
   defaultJourneyPreferenceState,
   sanitizeJourneyPreferenceState,
@@ -441,13 +441,21 @@ export function App({ model }: AppProps) {
             classified.activeGeneration.piSessionFile,
           );
           if (cancelled) return;
-          const pendingTurn = [...restoredConversation.reconciliation.turns].reverse().find((turn) =>
-            turn.origin === "nautilus" && turn.runId && turn.pi.state !== "committed",
+          const latestNautilusTurn = [...restoredConversation.reconciliation.turns].reverse().find((turn) =>
+            turn.origin === "nautilus" && turn.runId,
           );
+          const pendingTurn = latestNautilusTurn?.pi.state === "pending" ? latestNautilusTurn : undefined;
           const stagedUser = [...restoredConversation.messages].reverse().find((message) => message.role === "user");
           const stagedAssistant = [...restoredConversation.messages].reverse().find((message) => message.role === "assistant");
           const nativeTurn = turns.at(-1);
-          if (pendingTurn?.runId && stagedUser && stagedAssistant && nativeTurn) {
+          const nativeTurnMatchesPending = Boolean(
+            pendingTurn
+            && stagedUser
+            && nativeTurn
+            && nativeTurn.userText.trim() === stagedUser.content.trim()
+            && Date.parse(nativeTurn.committedAt) >= Date.parse(pendingTurn.startedAt),
+          );
+          if (pendingTurn?.runId && stagedUser && stagedAssistant && nativeTurn && nativeTurnMatchesPending) {
             restoredConversation = replaceJourneyConversationMessages(restoredConversation,
               restoredConversation.messages.map((message) => message.id === stagedAssistant.id
                 ? { ...message, content: nativeTurn.assistantText }
@@ -475,7 +483,19 @@ export function App({ model }: AppProps) {
             }, new Date().toISOString());
             restoredConversation = commitHarnessTurn(restoredConversation, recoveryCorrelation, new Date().toISOString());
             await saveDedicatedJourneyConversation(restoredConversation);
-          } else {
+          } else if (pendingTurn) {
+            restoredConversation = interruptDedicatedTurn(
+              restoredConversation,
+              pendingTurn.turnId,
+              "provider_interrupted",
+              new Date().toISOString(),
+            );
+            restoredConversation = replaceJourneyConversationMessages(
+              restoredConversation,
+              restoredConversation.messages.filter((message) => message.id !== stagedAssistant?.id || message.content.trim().length > 0),
+            );
+            await saveDedicatedJourneyConversation(restoredConversation);
+          } else if (latestNautilusTurn?.pi.state !== "failed") {
             restoredConversation = replaceJourneyConversationMessages(restoredConversation, turns.flatMap((turn) => [{
               id: `pi-${turn.userEntryId}`,
               role: "user" as const,
@@ -909,16 +929,39 @@ export function App({ model }: AppProps) {
     } finally {
       setIsStreaming(false);
       if (runFailed && !runReachedAgent) {
+        conversationRef.current = conversationBeforeRun;
         setConversation(conversationBeforeRun);
+        if (correlation) {
+          try {
+            await saveDedicatedJourneyConversation(conversationBeforeRun);
+          } catch (error) {
+            setStreamWarnings((warnings) => [...warnings, error instanceof Error ? error.message : String(error)]);
+          }
+        }
       } else if (runWasCancelled || runFailed) {
-        setConversation((currentConversation) =>
-          replaceJourneyConversationMessages(
-            currentConversation,
-            currentConversation.messages.filter(
-              (message) => message.id !== assistantMessage.id || message.content.trim().length > 0,
-            ),
+        let interrupted = replaceJourneyConversationMessages(
+          conversationRef.current,
+          conversationRef.current.messages.filter(
+            (message) => message.id !== assistantMessage.id || message.content.trim().length > 0,
           ),
         );
+        if (correlation) {
+          interrupted = interruptDedicatedTurn(
+            interrupted,
+            correlation.turnId,
+            runWasCancelled ? "provider_cancelled" : "provider_failed",
+            new Date().toISOString(),
+          );
+        }
+        conversationRef.current = interrupted;
+        setConversation(interrupted);
+        if (correlation) {
+          try {
+            await saveDedicatedJourneyConversation(interrupted);
+          } catch (error) {
+            setStreamWarnings((warnings) => [...warnings, error instanceof Error ? error.message : String(error)]);
+          }
+        }
       } else if (correlation) {
         setIsFinalizingTurn(true);
         let settled = commitHarnessTurn(conversationRef.current, correlation, new Date().toISOString());
@@ -1720,8 +1763,8 @@ export function App({ model }: AppProps) {
         >
           {reconciliationBlocksInvocation && !pendingMirrorRepair && !isStreaming ? (
             <section className="dedicated-turn-notice" role="status">
-              <strong>Finishing the dedicated turn</strong>
-              <p>Nautilus will enable the next send after the active Pi/Mirror pair settles.</p>
+              <strong>Recording the completed turn</strong>
+              <p>The next send becomes available after the completed response is durably recorded.</p>
             </section>
           ) : null}
           {pendingMirrorRepair && !isStreaming ? (

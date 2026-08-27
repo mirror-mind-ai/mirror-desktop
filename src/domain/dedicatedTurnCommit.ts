@@ -1,3 +1,4 @@
+import { markTurnBodyFailed } from "./conversationReconciliation";
 import type { JourneyConversation } from "./journeyConversation";
 
 export type DedicatedTurnState =
@@ -19,5 +20,23 @@ export function classifyDedicatedTurnState(conversation: JourneyConversation, pr
 }
 
 export function dedicatedTurnBlocksNewInvocation(state: DedicatedTurnState): boolean {
-  return state !== "ready";
+  return state === "provider_running" || state === "projection_pending" || state === "mirror_pending";
+}
+
+export function interruptDedicatedTurn(
+  conversation: JourneyConversation,
+  turnId: string,
+  failureCode: string,
+  interruptedAt: string,
+): JourneyConversation {
+  return {
+    ...conversation,
+    reconciliation: markTurnBodyFailed(
+      conversation.reconciliation,
+      turnId,
+      "pi",
+      failureCode,
+      interruptedAt,
+    ),
+  };
 }

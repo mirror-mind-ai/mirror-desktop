@@ -30,7 +30,8 @@ describe("legacy parity removal", () => {
     for (const symbol of obsoleteSymbols) expect(appSource).not.toContain(symbol);
     expect(appSource).not.toContain("Select Mirror conversation");
     expect(appSource).not.toContain("ConversationAuthorityNotice");
-    expect(appSource).toContain("Finishing the dedicated turn");
+    expect(appSource).toContain("Recording the completed turn");
+    expect(appSource).not.toContain("active Pi/Mirror pair settles");
   });
 
   it("removes obsolete TypeScript persistence and process APIs", () => {

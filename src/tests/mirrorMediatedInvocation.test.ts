@@ -27,7 +27,8 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(appSource).toContain("dedicatedTurnBlocksNewInvocation(classifyDedicatedTurnState(baseConversation))");
     expect(appSource).toContain("createDedicatedTurnAuthority(");
     expect(appSource).toContain("Live invocation stopped because Journey conversation authority changed");
-    expect(appSource).toContain("Finishing the dedicated turn");
+    expect(appSource).toContain("Recording the completed turn");
+    expect(appSource).not.toContain("active Pi/Mirror pair settles");
     expect(appSource).not.toContain("openMirrorConversationPicker");
   });
 
@@ -49,6 +50,8 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(appSource).not.toContain("await saveJourneyConversation(stagedConversation)");
     expect(appSource).toContain("runFailed && !runReachedAgent");
     expect(appSource).toContain("setConversation(conversationBeforeRun)");
+    expect(appSource).toContain("await saveDedicatedJourneyConversation(conversationBeforeRun)");
+    expect(appSource).toContain("interruptDedicatedTurn(");
   });
 
   it("does not hydrate or adopt arbitrary Mirror conversations", () => {

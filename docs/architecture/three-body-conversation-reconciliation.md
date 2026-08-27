@@ -43,7 +43,9 @@ Only correlation schema `0.2.0` is accepted. Native IDs establish authority. Nam
 3. Accept only a complete native Pi user/assistant pair.
 4. Commit the Harness generation projection idempotently.
 5. Record deterministic user/assistant messages in the exact dedicated Mirror conversation.
-6. Enable the next invocation only after all three bodies settle.
+6. For a completed response, enable the next invocation after its bounded durable recording finishes.
+
+This is not continuous three-body parity. A provider failure or cancellation marks that invocation as interrupted and releases the composer; it never waits indefinitely for Pi or Mirror evidence that cannot exist. A pre-provider failure rolls back the staged turn. On restart, native recovery may complete a pending turn only when the exact staged user message and native completion time match; otherwise the pending turn becomes interrupted without another provider call.
 
 A completed Pi answer remains visible if downstream projection or Mirror recording fails. Recovery after Pi completion is model-free and cannot invoke the provider again. Duplicate evidence completes the same turn; contradictory native evidence fails closed.
 
