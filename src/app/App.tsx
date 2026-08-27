@@ -206,7 +206,6 @@ export function App({ model }: AppProps) {
   const [conversation, setConversation] = useState(() =>
     createJourneyConversation({ journeyId: selectedJourney, initialMessages }),
   );
-  const [packetJson, setPacketJson] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isFinalizingTurn, setIsFinalizingTurn] = useState(false);
   const [streamMissionDraft, setStreamMissionDraft] = useState<MissionDraft | undefined>();
@@ -227,8 +226,6 @@ export function App({ model }: AppProps) {
   const [providerInvocationMode, setProviderInvocationMode] = useState<AgentInvocationMode>(defaultPiProviderConfig.invocationMode);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
-  const [headerExpanded, setHeaderExpanded] = useState(true);
-  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(true);
   const [agentRun, setAgentRun] = useState(initialAgentRunState);
   const [conversationLoaded, setConversationLoaded] = useState(false);
   const [journeyThreadState, setJourneyThreadState] = useState<JourneyThreadDisplayState>({ kind: "loading" });
@@ -318,7 +315,6 @@ export function App({ model }: AppProps) {
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
   const altitudeSwitchDisabled = isStreaming || agentRun.status === "running" || isJourneyReloading || projectionLoadStatus === "loading";
   const operationalChatSelected = selectedAltitude === "operational" && selectedOperationalSurface === "chat";
-  const rightPanelVisible = operationalChatSelected && !rightPanelCollapsed;
 
   useEffect(() => {
     if (!journeyMenuOpen) {
@@ -788,7 +784,6 @@ export function App({ model }: AppProps) {
     }
     conversationRef.current = stagedConversation;
     setConversation(stagedConversation);
-    setPacketJson(JSON.stringify(packet, null, 2));
     setDraft("");
     setIsStreaming(true);
     setAgentRun(run);
@@ -1110,7 +1105,6 @@ export function App({ model }: AppProps) {
       setConversation(restartedConversation);
       setJourneyThreadState(classified);
       setDraft("");
-      setPacketJson("");
       setStreamMissionDraft(undefined);
       setStreamWarnings([]);
       setStreamDiagnostics([]);
@@ -1166,7 +1160,6 @@ export function App({ model }: AppProps) {
       activeJourneyId: journeyId,
     }));
     setDraft("");
-    setPacketJson("");
     setStreamMissionDraft(undefined);
     setStreamWarnings([]);
     setStreamDiagnostics([]);
@@ -1317,8 +1310,16 @@ export function App({ model }: AppProps) {
     }
   }
 
+  function showConversation() {
+    setSelectedAltitude("operational");
+    setSelectedOperationalSurface("chat");
+    requestAnimationFrame(() => {
+      chatEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    });
+  }
+
   return (
-    <main className={`app-shell altitude-${selectedAltitude} ${rightPanelVisible ? "" : "right-panel-collapsed"} ${isJourneyReloading ? "is-busy" : ""}`}>
+    <main className={`app-shell altitude-${selectedAltitude} ${isJourneyReloading ? "is-busy" : ""}`}>
       <aside className="journey-sidebar" aria-label="Journeys">
         <div className="brand-block">
           <img className="brand-mark" src={appIconUrl} alt="" aria-hidden="true" />
@@ -1549,7 +1550,7 @@ export function App({ model }: AppProps) {
       </aside>
 
       <section className="chat-shell" aria-label={`${selectedJourneyItem.name} agent chat`}>
-        <header className={`chat-header accent-${selectedJourneyVisual.accent} ${headerExpanded ? "" : "chat-header-collapsed"}`}>
+        <header className={`chat-header accent-${selectedJourneyVisual.accent}`}>
           <div className="realization-header-copy">
             <div className="journey-title-row">
               <div className="active-journey-title">
@@ -1586,29 +1587,17 @@ export function App({ model }: AppProps) {
                   ) : null}
                 </div>
                 <button
-                  className="menu-button header-toggle"
+                  className={`menu-button conversation-shortcut ${operationalChatSelected ? "selected" : ""}`}
                   type="button"
-                  onClick={() => setHeaderExpanded((expanded) => !expanded)}
-                  aria-label={headerExpanded ? "Hide header" : "Show header"}
-                  aria-pressed={!headerExpanded}
-                  title={headerExpanded ? "Hide header" : "Show header"}
+                  onClick={showConversation}
+                  disabled={altitudeSwitchDisabled}
+                  aria-label="Go to conversation"
+                  aria-current={operationalChatSelected ? "location" : undefined}
+                  title="Conversation"
                 >
-                  {headerExpanded ? "⌃" : "⌄"}
-                </button>
-                <button
-                  className="menu-button right-panel-toggle"
-                  type="button"
-                  onClick={() => setRightPanelCollapsed((collapsed) => !collapsed)}
-                  disabled={!operationalChatSelected}
-                  aria-label={!operationalChatSelected
-                    ? "Journey details are available in Operational Chat"
-                    : rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
-                  aria-pressed={rightPanelCollapsed}
-                  title={!operationalChatSelected
-                    ? "Journey details are available in Operational Chat"
-                    : rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
-                >
-                  {rightPanelCollapsed ? "◨" : "◧"}
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 5.75h14v9.5H9.25L5 18.5V5.75Z" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -1827,70 +1816,6 @@ export function App({ model }: AppProps) {
         </section>
       </section>
 
-      <aside className="grammar-panel" aria-label="Journey details" aria-hidden={!rightPanelVisible}>
-        <section className="grammar-card grammar-card-primary">
-          <p className="eyebrow">Inspector</p>
-          <h2>On-demand grammar</h2>
-          <p className="grammar-summary">
-            The conversation is the primary field. This panel is an auxiliary lens for reviewing extracted structure.
-          </p>
-        </section>
-
-        <section className="grammar-card">
-          <p className="eyebrow">Summary</p>
-          <dl>
-            <Row label="Identity" value={model.identity.name} />
-            <Row label="Mission" value={streamMissionDraft?.title ?? model.mission?.title ?? "none"} />
-            <Row label="Questions" value={String(streamWarnings.length)} />
-          </dl>
-        </section>
-
-        <section className="grammar-card settings-card">
-          <p className="eyebrow">App</p>
-          <h3>Agent model</h3>
-          <p className="provider-model-label">{providerModelLabel(providerConfig)}</p>
-          <dl>
-            <Row label="Run" value={agentRun.status} />
-            <Row label="Started" value={agentRun.startedAt ? formatTime(agentRun.startedAt) : "none"} />
-            <Row label="Conversation" value={conversationLoaded ? "local" : "loading"} />
-          </dl>
-          {agentRun.error ? <p className="provider-error">{agentRun.error}</p> : null}
-          <button className="settings-button" type="button" onClick={() => setSettingsOpen(true)}>
-            Settings
-          </button>
-        </section>
-
-
-        {streamDiagnostics.length > 0 ? (
-          <section className="grammar-card diagnostics-card">
-            <p className="eyebrow">Diagnostics</p>
-            <ul>
-              {streamDiagnostics.map((diagnostic) => (
-                <li key={diagnostic}>{diagnostic}</li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {packetJson ? (
-          <section className="grammar-card packet-card">
-            <p className="eyebrow">Pi Task Packet</p>
-            <pre className="packet-preview">{packetJson}</pre>
-          </section>
-        ) : null}
-
-        {model.errors.length > 0 ? (
-          <section className="grammar-card errors" role="alert">
-            <h2>Validation errors</h2>
-            <ul>
-              {model.errors.map((error) => (
-                <li key={error}>{error}</li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-      </aside>
-
       {restartConfirmationOpen && journeyThreadState.kind === "ready" ? (
         <div className="settings-backdrop" role="presentation" onClick={() => !isJourneyReloading && setRestartConfirmationOpen(false)}>
           <section
@@ -2077,13 +2002,6 @@ function Row({ label, value }: RowProps) {
       <dd>{value}</dd>
     </div>
   );
-}
-
-function formatTime(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }
 
 function formatDateTime(value: string): string {

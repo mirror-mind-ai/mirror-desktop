@@ -21,28 +21,13 @@ textarea {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 292px minmax(560px, 1fr) 360px;
+  grid-template-columns: 292px minmax(560px, 1fr);
   height: 100vh;
   min-height: 100vh;
   overflow: hidden;
   background:
     radial-gradient(circle at 55% 12%, rgba(77, 192, 177, 0.14), transparent 28rem),
     linear-gradient(135deg, #0b0d0e 0%, #101516 50%, #101b1f 100%);
-}
-
-.app-shell.right-panel-collapsed {
-  grid-template-columns: 292px minmax(560px, 1fr) 0;
-}
-
-.app-shell.right-panel-collapsed .grammar-panel {
-  border-left: 0;
-  overflow: hidden;
-  padding: 0;
-  pointer-events: none;
-}
-
-.app-shell.right-panel-collapsed .grammar-panel > * {
-  display: none;
 }
 
 .app-shell.is-busy,
@@ -675,11 +660,6 @@ textarea {
   margin-top: 8px;
 }
 
-.chat-header-collapsed {
-  padding-bottom: 14px;
-  padding-top: 14px;
-}
-
 .realization-header-copy {
   flex: 1 1 auto;
   min-width: 0;
@@ -855,9 +835,19 @@ textarea {
   color: #bff2eb;
 }
 
-.header-toggle,
-.right-panel-toggle {
-  font-size: 0.92rem;
+.conversation-shortcut svg {
+  fill: none;
+  height: 18px;
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+  width: 18px;
+}
+
+.conversation-shortcut.selected {
+  background: rgba(133, 223, 210, 0.12);
+  border-color: rgba(133, 223, 210, 0.48);
+  color: #bff2eb;
 }
 
 .journey-menu {
@@ -2312,28 +2302,8 @@ button:disabled {
   padding: 8px 12px;
 }
 
-.settings-card .settings-button {
-  width: 100%;
-}
-
-.provider-model-label {
-  color: #bff2eb;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.82rem;
-  margin-bottom: 12px;
-  overflow-wrap: anywhere;
-}
-
 .copy-status {
   color: #b5cdd4;
-}
-
-.grammar-panel {
-  background: rgba(8, 13, 15, 0.76);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  box-sizing: border-box;
-  overflow: auto;
-  padding: 18px;
 }
 
 .operational-artifacts-workspace {
@@ -2644,32 +2614,6 @@ button:disabled {
   padding: 0;
 }
 
-.grammar-card {
-  background: rgba(255, 255, 255, 0.065);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  color: #c6dce2;
-  margin-bottom: 14px;
-  padding: 18px;
-}
-
-.grammar-card-primary {
-  background: linear-gradient(135deg, rgba(113, 224, 208, 0.14), rgba(255, 255, 255, 0.06));
-  border-color: rgba(113, 224, 208, 0.22);
-}
-
-.grammar-card h2,
-.grammar-card h3 {
-  color: #f5fbfd;
-  margin-bottom: 10px;
-}
-
-.grammar-summary {
-  color: #aebfc4;
-  line-height: 1.45;
-  margin-bottom: 0;
-}
-
 dl {
   margin: 0;
 }
@@ -2816,33 +2760,9 @@ dd {
   color: #ffb7b7;
 }
 
-.packet-card {
-  max-height: 420px;
-}
-
-.packet-preview {
-  background: rgba(0, 0, 0, 0.32);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  color: #d7edf2;
-  max-height: 320px;
-  overflow: auto;
-  padding: 14px;
-  white-space: pre-wrap;
-}
-
-.errors {
-  border-color: rgba(255, 134, 134, 0.4);
-  color: #ffd0d0;
-}
-
 @media (max-width: 1120px) {
   .app-shell {
     grid-template-columns: 240px 1fr;
-  }
-
-  .grammar-panel {
-    display: none;
   }
 }
 
