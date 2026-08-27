@@ -15,10 +15,10 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 
 | Code | Capability Value | Outcome | Status |
 |------|------------------|---------|--------|
-| [CV-001](cv-001-operable-agent-cockpit/index.md) | Operable Agent Cockpit | Harness becomes a usable desktop cockpit for running Pi-backed agent conversations with local session control, provider configuration, run control and durable history | 🟡 Planned |
+| [CV-001](cv-001-operable-agent-cockpit/index.md) | Operable Agent Cockpit | Harness becomes a usable desktop cockpit for running Pi-backed agent conversations with local session control, provider configuration, run control and durable history | 🟠 In Progress |
 | [CV-002](cv-002-mirror-integration/index.md) | Mirror Integration | Harness becomes the desktop projection of the essential Pi/Mirror operational loop and context lifecycle | ✅ Done |
-| [CV-003](cv-003-nautilus-method-integration/index.md) | Nautilus Method Integration | Harness lets the Navigator inhabit one Journey at operational, tactical and strategic altitudes | 🟡 Planned |
-| [CV-004](cv-004-dedicated-nautilus-journey-thread/index.md) | Dedicated Nautilus Journey Thread | Every Journey owns one Nautilus thread whose active generation is a dedicated, Journey-activated Pi/Mirror pair, independent from conversations in other environments | 🟡 Planned |
+| [CV-003](cv-003-nautilus-method-integration/index.md) | Nautilus Method Integration | Harness lets the Navigator inhabit one Journey at operational, tactical and strategic altitudes | 🟠 In Progress |
+| [CV-004](cv-004-dedicated-nautilus-journey-thread/index.md) | Dedicated Nautilus Journey Thread | Every Journey owns one Nautilus thread whose active generation is a dedicated, Journey-activated Pi/Mirror pair, independent from conversations in other environments | ✅ Done |
 
 ## Delivery Arc — Operable Agent Cockpit
 
@@ -47,25 +47,26 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-003.DS-001](cv-003-nautilus-method-integration/ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude Journey Workspace Foundation | Navigator can move among durable Operational, Tactical and Strategic workspace shells while the existing conversation remains usable | 🟠 In Progress |
-| [CV-003.DS-002](cv-003-nautilus-method-integration/ds-002-operational-journey-artifacts/index.md) | Operational Journey Artifacts | Artifacts presents a bounded visible Journey-root tree with a safe content, details and metadata viewer | 🟠 In Progress |
+| [CV-003.DS-001](cv-003-nautilus-method-integration/ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude Journey Workspace Foundation | Navigator can move among durable Operational, Tactical and Strategic workspace shells while the existing conversation remains usable | ✅ Done |
+| [CV-003.DS-002](cv-003-nautilus-method-integration/ds-002-operational-journey-artifacts/index.md) | Operational Journey Artifacts | Artifacts presents a bounded visible Journey-root tree with a safe content, details and metadata viewer | ✅ Done |
 | [CV-003.DS-003](cv-003-nautilus-method-integration/ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | 🟡 Planned |
 | [CV-003.DS-004](cv-003-nautilus-method-integration/ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and value through pragmatic and integrative lenses | 🟡 Planned |
 | [CV-003.DS-005](cv-003-nautilus-method-integration/ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can inspect and correct the movement from provisional interpretation to explicit synthesis | 🟡 Planned |
+| [CV-003.DS-006](cv-003-nautilus-method-integration/ds-006-three-published-journey-projections/index.md) | Three Published Journey Projections | Operational, Tactical and Strategic read models share a versioned, gated publication contract across Ariad, Mirror/Pi and Harness | ✅ Done |
 
 ## Delivery Arc — Dedicated Nautilus Journey Thread
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-004.DS-001](cv-004-dedicated-nautilus-journey-thread/ds-001-dedicated-thread-and-generation-contract/index.md) | Dedicated Thread and Generation Contract | Harness represents one Nautilus thread per Journey, append-only generations and one active dedicated Pi/Mirror pair | 🟡 Planned |
-| [CV-004.DS-002](cv-004-dedicated-nautilus-journey-thread/ds-002-journey-first-thread-provisioning/index.md) | Journey-First Thread Provisioning | A central start action creates and activates the dedicated pair before conversation is enabled | 🟡 Planned |
-| [CV-004.DS-003](cv-004-dedicated-nautilus-journey-thread/ds-003-dedicated-turn-integrity/index.md) | Dedicated Turn Integrity | Live turns and recovery remain confined to the active dedicated pair without external parity machinery | 🟡 Planned |
-| [CV-004.DS-004](cv-004-dedicated-nautilus-journey-thread/ds-004-conversation-restart-and-generation-history/index.md) | Conversation Restart and Generation History | Restart creates a fresh activated generation while preserving prior conversation history | 🟡 Planned |
-| [CV-004.DS-005](cv-004-dedicated-nautilus-journey-thread/ds-005-legacy-parity-removal-and-desktop-review/index.md) | Legacy Parity Removal and Desktop Review | Superseded selection, import and reconciliation paths are removed after full desktop validation | 🟡 Planned |
+| [CV-004.DS-001](cv-004-dedicated-nautilus-journey-thread/ds-001-dedicated-thread-and-generation-contract/index.md) | Dedicated Thread and Generation Contract | Harness represents one Nautilus thread per Journey, append-only generations and one active dedicated Pi/Mirror pair | ✅ Done |
+| [CV-004.DS-002](cv-004-dedicated-nautilus-journey-thread/ds-002-journey-first-thread-provisioning/index.md) | Journey-First Thread Provisioning | A central start action creates and activates the dedicated pair before conversation is enabled | ✅ Done |
+| [CV-004.DS-003](cv-004-dedicated-nautilus-journey-thread/ds-003-dedicated-turn-integrity/index.md) | Dedicated Turn Integrity | Live turns and recovery remain confined to the active dedicated pair without external parity machinery | ✅ Done |
+| [CV-004.DS-004](cv-004-dedicated-nautilus-journey-thread/ds-004-conversation-restart-and-generation-history/index.md) | Conversation Restart and Generation History | Restart creates a fresh activated generation while preserving prior conversation history | ✅ Done |
+| [CV-004.DS-005](cv-004-dedicated-nautilus-journey-thread/ds-005-legacy-parity-removal-and-desktop-review/index.md) | Legacy Parity Removal and Desktop Review | Superseded selection, import and reconciliation paths are removed after full desktop validation | ✅ Done |
 
 ## Current Recommendation
 
-Close the remaining `CV-003` projection validation without expanding the old parity model. Then begin `CV-004.DS-001` to establish dedicated thread and generation authority before changing initialization, transcript recovery or lifecycle UI. Preserve the current fail-closed gate only as a temporary migration safety net; do not extend federated continuity behavior that CV-004 will remove. `DS-007`, `DS-008` and `DS-009` remain planned and independent until explicitly selected.
+Pull `CV-003.DS-003 — Tactical Journey Synthesis` as the next semantic delivery. Continue through Strategic Realization and Derived Meaning Checkpoints after Tactical establishes the first real interpreted reading. `CV-004` is complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008` and `DS-009` remain planned and independent until explicitly selected.
 
 ## Boundaries
 

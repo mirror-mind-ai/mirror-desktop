@@ -2,7 +2,7 @@
 
 # CV-004.DS-005.TS-2 — Legacy State Retirement
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Outcome

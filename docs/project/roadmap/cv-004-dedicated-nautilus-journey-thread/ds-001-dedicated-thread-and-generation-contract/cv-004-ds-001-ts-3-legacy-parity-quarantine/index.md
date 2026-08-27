@@ -2,7 +2,7 @@
 
 # CV-004.DS-001.TS-3 - Legacy Parity Quarantine
 
-**Status:** 🟠 Implemented — awaiting Navigator validation
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

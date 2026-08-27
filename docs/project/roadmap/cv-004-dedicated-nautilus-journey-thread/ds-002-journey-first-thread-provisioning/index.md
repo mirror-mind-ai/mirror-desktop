@@ -2,7 +2,7 @@
 
 # CV-004.DS-002 - Journey-First Thread Provisioning
 
-**Status:** 🟠 Implemented — awaiting Navigator validation
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -12,11 +12,11 @@ Navigator can start a Journey from a central desktop action that creates and act
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-004.DS-002.TS-1 | Atomic Dedicated Pair Provisioner | Technical Story | Create thread, generation, Pi session and Mirror conversation through one idempotent, rollback-safe operation scoped to the selected Journey | 🟡 Planned |
-| CV-004.DS-002.TS-2 | Journey Activation Receipt | Technical Story | Prove that Journey identity, Mirror mode/context and Pi command authority are installed for the exact dedicated pair before readiness | 🟡 Planned |
-| CV-004.DS-002.TS-3 | Deterministic Native Naming | Technical Story | Assign bounded human-readable Pi and Mirror names from Journey and generation metadata without using a model or names as authority | 🟡 Planned |
-| CV-004.DS-002.US-1 | Start This Journey | User Story | A Journey without a dedicated thread displays one central action and visible provisioning progress instead of a disabled generic chatbot | 🟡 Planned |
-| CV-004.DS-002.US-2 | Begin Already Situated | User Story | After successful start, the composer opens and the first real message reaches a model with Journey context active from the beginning | 🟡 Planned |
+| CV-004.DS-002.TS-1 | Atomic Dedicated Pair Provisioner | Technical Story | Create thread, generation, Pi session and Mirror conversation through one idempotent, rollback-safe operation scoped to the selected Journey | ✅ Done |
+| CV-004.DS-002.TS-2 | Journey Activation Receipt | Technical Story | Prove that Journey identity, Mirror mode/context and Pi command authority are installed for the exact dedicated pair before readiness | ✅ Done |
+| CV-004.DS-002.TS-3 | Deterministic Native Naming | Technical Story | Assign bounded human-readable Pi and Mirror names from Journey and generation metadata without using a model or names as authority | ✅ Done |
+| CV-004.DS-002.US-1 | Start This Journey | User Story | A Journey without a dedicated thread displays one central action and visible provisioning progress instead of a disabled generic chatbot | ✅ Done |
+| CV-004.DS-002.US-2 | Begin Already Situated | User Story | After successful start, the composer opens and the first real message reaches a model with Journey context active from the beginning | ✅ Done |
 
 ## Interaction Direction
 

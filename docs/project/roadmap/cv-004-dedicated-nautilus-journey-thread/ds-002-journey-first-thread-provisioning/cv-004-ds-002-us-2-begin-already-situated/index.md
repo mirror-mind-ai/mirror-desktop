@@ -2,7 +2,7 @@
 
 # CV-004.DS-002.US-2 — Begin Already Situated
 
-**Status:** 🟠 Implemented — awaiting Navigator validation  
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story

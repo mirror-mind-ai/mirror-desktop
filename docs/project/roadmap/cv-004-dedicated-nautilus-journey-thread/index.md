@@ -2,7 +2,7 @@
 
 # CV-004 - Dedicated Nautilus Journey Thread
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -20,11 +20,11 @@ This capability replaces cross-environment conversation parity with a smaller in
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-004.DS-001](ds-001-dedicated-thread-and-generation-contract/index.md) | Dedicated Thread and Generation Contract | Harness can represent one Nautilus thread per Journey, one active generation and its dedicated Pi/Mirror pair without adopting legacy or external conversations | 🟡 Planned |
-| [CV-004.DS-002](ds-002-journey-first-thread-provisioning/index.md) | Journey-First Thread Provisioning | Navigator can start a Journey through an atomic, model-free operation that creates and activates the dedicated pair before enabling conversation | 🟡 Planned |
-| [CV-004.DS-003](ds-003-dedicated-turn-integrity/index.md) | Dedicated Turn Integrity | Each Nautilus turn advances only the active dedicated Pi/Mirror pair and remains recoverable without cross-environment parity machinery | 🟡 Planned |
-| [CV-004.DS-004](ds-004-conversation-restart-and-generation-history/index.md) | Conversation Restart and Generation History | Navigator can restart conversation as a new activated generation while prior generations remain preserved and non-authoritative | 🟡 Planned |
-| [CV-004.DS-005](ds-005-legacy-parity-removal-and-desktop-review/index.md) | Legacy Parity Removal and Desktop Review | Obsolete import, selection and external reconciliation paths are removed and the simplified lifecycle is validated across existing Journeys | 🟡 Planned |
+| [CV-004.DS-001](ds-001-dedicated-thread-and-generation-contract/index.md) | Dedicated Thread and Generation Contract | Harness can represent one Nautilus thread per Journey, one active generation and its dedicated Pi/Mirror pair without adopting legacy or external conversations | ✅ Done |
+| [CV-004.DS-002](ds-002-journey-first-thread-provisioning/index.md) | Journey-First Thread Provisioning | Navigator can start a Journey through an atomic, model-free operation that creates and activates the dedicated pair before enabling conversation | ✅ Done |
+| [CV-004.DS-003](ds-003-dedicated-turn-integrity/index.md) | Dedicated Turn Integrity | Each Nautilus turn advances only the active dedicated Pi/Mirror pair and remains recoverable without cross-environment parity machinery | ✅ Done |
+| [CV-004.DS-004](ds-004-conversation-restart-and-generation-history/index.md) | Conversation Restart and Generation History | Navigator can restart conversation as a new activated generation while prior generations remain preserved and non-authoritative | ✅ Done |
+| [CV-004.DS-005](ds-005-legacy-parity-removal-and-desktop-review/index.md) | Legacy Parity Removal and Desktop Review | Obsolete import, selection and external reconciliation paths are removed and the simplified lifecycle is validated across existing Journeys | ✅ Done |
 
 ## Delivery Order
 
@@ -63,7 +63,7 @@ The thread is the durable Nautilus continuity for the Journey. A generation is o
 
 ## Migration Policy
 
-Current parity-era mappings, imported Mirror transcripts, external Pi projections and reconciliation records remain preserved as legacy data during migration. They are not converted into generation 1 by inference. Every Journey without a proven dedicated Nautilus generation presents **Start this Journey** and creates a clean pair. Removal of obsolete local state happens only after the dedicated lifecycle is validated and rollback evidence exists.
+Parity-era mappings were never converted into generation 1 by inference. Every Journey without a proven dedicated Nautilus generation presents **Start this Journey** and creates a clean pair. After desktop validation, obsolete Harness parity projections and backups were retired through bounded content-free receipts; native Pi and Mirror history, Journey semantics, dedicated threads and generation projections remain preserved.
 
 ## Design Constraints
 

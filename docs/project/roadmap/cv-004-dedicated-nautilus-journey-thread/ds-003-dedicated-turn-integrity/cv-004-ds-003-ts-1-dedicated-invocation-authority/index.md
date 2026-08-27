@@ -2,7 +2,7 @@
 
 # CV-004.DS-003.TS-1 — Dedicated Invocation Authority
 
-**Status:** 🟠 Implemented — awaiting aggregate validation  
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Outcome

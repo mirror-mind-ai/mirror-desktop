@@ -2,7 +2,7 @@
 
 # CV-001 - Operable Agent Cockpit
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Progress
 
 ## Outcome
 

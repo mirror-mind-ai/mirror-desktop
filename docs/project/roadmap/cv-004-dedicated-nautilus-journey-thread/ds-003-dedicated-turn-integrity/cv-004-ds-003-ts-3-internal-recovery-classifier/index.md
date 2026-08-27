@@ -2,7 +2,7 @@
 
 # CV-004.DS-003.TS-3 — Internal Recovery Classifier
 
-**Status:** 🟠 Implemented — awaiting aggregate validation  
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Outcome

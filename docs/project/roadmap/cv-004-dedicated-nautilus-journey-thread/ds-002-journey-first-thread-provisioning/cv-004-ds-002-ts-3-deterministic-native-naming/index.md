@@ -2,7 +2,7 @@
 
 # CV-004.DS-002.TS-3 — Deterministic Native Naming
 
-**Status:** 🟠 Implemented — awaiting Navigator validation  
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

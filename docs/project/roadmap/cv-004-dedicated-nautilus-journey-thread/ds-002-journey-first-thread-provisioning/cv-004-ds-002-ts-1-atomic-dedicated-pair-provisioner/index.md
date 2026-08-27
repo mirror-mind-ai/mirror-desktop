@@ -2,7 +2,7 @@
 
 # CV-004.DS-002.TS-1 — Atomic Dedicated Pair Provisioner
 
-**Status:** 🟠 Implemented — awaiting Navigator validation  
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

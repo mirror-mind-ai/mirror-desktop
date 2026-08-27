@@ -2,7 +2,7 @@
 
 # CV-004.DS-001 - Dedicated Thread and Generation Contract
 
-**Status:** 🟠 Implemented — awaiting Navigator validation
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -12,10 +12,10 @@ Harness can represent one durable Nautilus thread per Journey, append-only conve
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-004.DS-001.TS-1 | Dedicated Thread Authority Grammar | Technical Story | Define thread, generation, dedicated native pair, lifecycle state and active-generation authority as distinct persisted coordinates | 🟡 Planned |
-| CV-004.DS-001.TS-2 | Generation Persistence and Invariants | Technical Story | Persist monotonic generations while rejecting duplicate active generations, native-ID reuse, cross-Journey pairs and partial-ready state | 🟡 Planned |
-| CV-004.DS-001.TS-3 | Legacy Parity Quarantine | Technical Story | Classify existing mappings, imported transcripts and reconciliation checkpoints as non-authoritative legacy state without deleting them | 🟡 Planned |
-| CV-004.DS-001.US-1 | Recognize Whether a Journey Has Started | User Story | Navigator sees a Journey as ready only when a dedicated generation is proven; otherwise the desktop presents a clear start state | 🟡 Planned |
+| CV-004.DS-001.TS-1 | Dedicated Thread Authority Grammar | Technical Story | Define thread, generation, dedicated native pair, lifecycle state and active-generation authority as distinct persisted coordinates | ✅ Done |
+| CV-004.DS-001.TS-2 | Generation Persistence and Invariants | Technical Story | Persist monotonic generations while rejecting duplicate active generations, native-ID reuse, cross-Journey pairs and partial-ready state | ✅ Done |
+| CV-004.DS-001.TS-3 | Legacy Parity Quarantine | Technical Story | Classify existing mappings, imported transcripts and reconciliation checkpoints as non-authoritative legacy state without deleting them | ✅ Done |
+| CV-004.DS-001.US-1 | Recognize Whether a Journey Has Started | User Story | Navigator sees a Journey as ready only when a dedicated generation is proven; otherwise the desktop presents a clear start state | ✅ Done |
 
 ## Contract Direction
 

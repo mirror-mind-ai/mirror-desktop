@@ -2,7 +2,7 @@
 
 # CV-004.DS-001.TS-2 - Generation Persistence and Invariants
 
-**Status:** 🟠 Implemented — awaiting Navigator validation
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

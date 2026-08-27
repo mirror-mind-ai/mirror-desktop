@@ -2,7 +2,7 @@
 
 # CV-004.DS-001.TS-1 - Dedicated Thread Authority Grammar
 
-**Status:** 🟠 Implemented — awaiting Navigator validation
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

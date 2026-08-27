@@ -2,7 +2,7 @@
 
 # CV-004.DS-003.US-1 — Resume the Dedicated Conversation
 
-**Status:** 🟠 Implemented — awaiting aggregate validation  
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story

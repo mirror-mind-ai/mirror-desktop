@@ -2,7 +2,7 @@
 
 # CV-004.DS-003 - Dedicated Turn Integrity
 
-**Status:** 🟠 Implemented — awaiting Navigator validation
+**Status:** ✅ Done
 
 ## Outcome
 

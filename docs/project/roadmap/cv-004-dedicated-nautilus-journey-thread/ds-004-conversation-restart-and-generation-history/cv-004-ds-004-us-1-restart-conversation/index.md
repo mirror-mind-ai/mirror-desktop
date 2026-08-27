@@ -2,7 +2,7 @@
 
 # CV-004.DS-004.US-1 — Restart Conversation
 
-**Status:** 🟡 Planned  
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story

@@ -2,7 +2,7 @@
 
 # CV-004.DS-005.US-1 — Dedicated Thread Desktop Review
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story

@@ -2,7 +2,7 @@
 
 # CV-004.DS-004.US-2 — Resume After Restart
 
-**Status:** 🟡 Planned  
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story

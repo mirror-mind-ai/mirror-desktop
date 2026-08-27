@@ -2,7 +2,7 @@
 
 # CV-004.DS-002.US-1 — Start This Journey
 
-**Status:** 🟠 Implemented — awaiting Navigator validation  
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story

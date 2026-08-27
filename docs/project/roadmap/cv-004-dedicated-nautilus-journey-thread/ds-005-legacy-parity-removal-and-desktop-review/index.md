@@ -2,7 +2,7 @@
 
 # CV-004.DS-005 - Legacy Parity Removal and Desktop Review
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -12,9 +12,9 @@ The desktop no longer exposes or executes the superseded cross-environment parit
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-004.DS-005.TS-1 | Obsolete Continuity Code Removal | Technical Story | Remove Mirror conversation selection, arbitrary transcript hydration, external Pi continuation projection and cross-environment reconciliation once replacements are proven | 🟡 Planned |
-| CV-004.DS-005.TS-2 | Legacy State Retirement | Technical Story | Preserve bounded migration evidence while deleting unreachable parity-era local state, commands and branches without affecting native Mirror/Pi history | 🟡 Planned |
-| CV-004.DS-005.US-1 | Dedicated Thread Desktop Review | User Story | Navigator validates start, situated first turn, resume, terminal independence, restart and active-generation recovery across representative Journeys | 🟡 Planned |
+| CV-004.DS-005.TS-1 | Obsolete Continuity Code Removal | Technical Story | Remove Mirror conversation selection, arbitrary transcript hydration, external Pi continuation projection and cross-environment reconciliation once replacements are proven | ✅ Done |
+| CV-004.DS-005.TS-2 | Legacy State Retirement | Technical Story | Preserve bounded migration evidence while deleting unreachable parity-era local state, commands and branches without affecting native Mirror/Pi history | ✅ Done |
+| CV-004.DS-005.US-1 | Dedicated Thread Desktop Review | User Story | Navigator validates start, situated first turn, resume, terminal independence, restart and active-generation recovery across representative Journeys | ✅ Done |
 
 ## Required Review Scenarios
 

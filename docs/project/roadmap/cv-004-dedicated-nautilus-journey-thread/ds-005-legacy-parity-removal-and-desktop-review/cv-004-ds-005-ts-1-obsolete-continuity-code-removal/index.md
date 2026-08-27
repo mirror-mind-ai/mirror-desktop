@@ -2,7 +2,7 @@
 
 # CV-004.DS-005.TS-1 — Obsolete Continuity Code Removal
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Outcome

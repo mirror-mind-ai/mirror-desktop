@@ -2,7 +2,7 @@
 
 # CV-004.DS-003.US-2 — Recover an Interrupted Turn
 
-**Status:** 🟠 Implemented — awaiting aggregate validation  
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story

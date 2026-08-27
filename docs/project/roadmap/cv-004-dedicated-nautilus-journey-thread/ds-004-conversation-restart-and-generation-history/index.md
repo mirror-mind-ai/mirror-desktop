@@ -2,7 +2,7 @@
 
 # CV-004.DS-004 - Conversation Restart and Generation History
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -12,10 +12,10 @@ Navigator can deliberately restart the Nautilus conversation for a Journey, crea
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-004.DS-004.TS-1 | Generation Restart Transaction | Technical Story | Close the active generation and activate a fresh dedicated Pi/Mirror pair atomically, restoring the prior generation if creation fails | 🟡 Planned |
-| CV-004.DS-004.TS-2 | Generation Naming and History Projection | Technical Story | Distinguish generations in Pi, Mirror and bounded desktop history while keeping native IDs as authority | 🟡 Planned |
-| CV-004.DS-004.US-1 | Restart Conversation | User Story | The Journey menu offers an explicit restart action that explains the fresh context boundary and preserves prior conversation history | 🟡 Planned |
-| CV-004.DS-004.US-2 | Resume After Restart | User Story | Returning to the Journey opens only the newest ready generation without selecting among old Mirror or Pi conversations | 🟡 Planned |
+| CV-004.DS-004.TS-1 | Generation Restart Transaction | Technical Story | Close the active generation and activate a fresh dedicated Pi/Mirror pair atomically, restoring the prior generation if creation fails | ✅ Done |
+| CV-004.DS-004.TS-2 | Generation Naming and History Projection | Technical Story | Distinguish generations in Pi, Mirror and bounded desktop history while keeping native IDs as authority | ✅ Done |
+| CV-004.DS-004.US-1 | Restart Conversation | User Story | The Journey menu offers an explicit restart action that explains the fresh context boundary and preserves prior conversation history | ✅ Done |
+| CV-004.DS-004.US-2 | Resume After Restart | User Story | Returning to the Journey opens only the newest ready generation without selecting among old Mirror or Pi conversations | ✅ Done |
 
 ## Lifecycle Direction
 

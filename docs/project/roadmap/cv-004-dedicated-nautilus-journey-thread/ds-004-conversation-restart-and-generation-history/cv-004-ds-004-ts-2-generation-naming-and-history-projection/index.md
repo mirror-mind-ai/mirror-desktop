@@ -2,7 +2,7 @@
 
 # CV-004.DS-004.TS-2 — Generation Naming and History Projection
 
-**Status:** 🟡 Planned  
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Outcome

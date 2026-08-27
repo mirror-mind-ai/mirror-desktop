@@ -2,7 +2,7 @@
 
 # CV-003 - Nautilus Method Integration
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Progress
 
 ## Outcome
 
@@ -19,7 +19,7 @@ The operational life of the Journey remains the source. Tactical and strategic v
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
 | [CV-003.DS-001](ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude Journey Workspace Foundation | Navigator can move among durable Operational, Tactical and Strategic workspace shells while the existing conversation remains usable | ✅ Done |
-| [CV-003.DS-002](ds-002-operational-journey-artifacts/index.md) | Operational Journey Artifacts | Artifacts presents a bounded visible Journey-root tree with a safe content, details and metadata viewer while Conversation retains full width | 🟠 In Progress |
+| [CV-003.DS-002](ds-002-operational-journey-artifacts/index.md) | Operational Journey Artifacts | Artifacts presents a bounded visible Journey-root tree with a safe content, details and metadata viewer while Conversation retains full width | ✅ Done |
 | [CV-003.DS-003](ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | 🟡 Planned |
 | [CV-003.DS-004](ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and generated value through pragmatic and integrative lenses | 🟡 Planned |
 | [CV-003.DS-005](ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can distinguish provisional readings from explicit synthesis checkpoints and inspect or correct their supporting sources | 🟡 Planned |
@@ -35,7 +35,7 @@ CV-003 is done when the Journey sidebar remains the stable navigation axis; the 
 - DS-001 commits the spatial and navigation grammar while DS-002 through DS-005 hydrate its shells with real capabilities.
 - DS-006 establishes the cross-body publication contract and release gate that must exist before DS-003 through DS-005 can replace representative readings safely.
 - Provisional fixture data must remain distinguishable from live filesystem or derived Journey truth until its owning delivery story replaces it.
-- Pi and Mirror conversation, invocation, reconciliation and context ownership remain unchanged.
+- Dedicated Journey thread authority remains unchanged: Pi owns native transcript and compaction, Mirror owns semantic context and recording, and Harness owns generation coordination.
 - Filesystem access remains bounded to the selected Journey workspace and must not imply mutation authority.
 
 ## Exploration Source

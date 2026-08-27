@@ -2,7 +2,7 @@
 
 # CV-003.DS-002.US-1 — Journey Workspace Browser
 
-**Status:** 🟠 In Validation
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

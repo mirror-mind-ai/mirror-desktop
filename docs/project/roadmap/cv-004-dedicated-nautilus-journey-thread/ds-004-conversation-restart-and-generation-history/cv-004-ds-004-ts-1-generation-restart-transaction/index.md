@@ -2,7 +2,7 @@
 
 # CV-004.DS-004.TS-1 — Generation Restart Transaction
 
-**Status:** 🟡 Planned  
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Outcome

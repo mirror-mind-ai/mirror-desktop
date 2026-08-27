@@ -2,7 +2,7 @@
 
 # CV-004.DS-001.US-1 - Recognize Whether a Journey Has Started
 
-**Status:** 🟠 Implemented — awaiting Navigator validation
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story

@@ -2,7 +2,7 @@
 
 # CV-003.DS-002 - Operational Journey Artifacts
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -21,7 +21,7 @@ Navigator can inspect a bounded, read-only projection of the selected Journey wo
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| [CV-003.DS-002.US-1](cv-003-ds-002-us-1-journey-documentation-browser/index.md) | Journey Workspace Browser | User Story | Browse the visible registered Journey hierarchy on the left and inspect safe content, details or metadata on the right | 🟠 In Validation |
+| [CV-003.DS-002.US-1](cv-003-ds-002-us-1-journey-documentation-browser/index.md) | Journey Workspace Browser | User Story | Browse the visible registered Journey hierarchy on the left and inspect safe content, details or metadata on the right | ✅ Done |
 
 ## Done Condition
 
