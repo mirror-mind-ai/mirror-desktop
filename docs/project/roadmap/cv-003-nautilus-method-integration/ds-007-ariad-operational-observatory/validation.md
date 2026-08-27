@@ -2,11 +2,11 @@
 
 ## Status
 
-pending_navigator_validation
+passed
 
 ## Summary
 
-Implementation complete for CV-003.DS-007: added Operational > Ariad read-only observatory, read model, field views, unavailable-source boundaries, tests, documentation and commit 0a1a600. Checks passed: npm test and npm run build.
+Navigator validated CV-003.DS-007 after refinements: Ariad Observatory naming accepted and roadmap tree rows collapse and expand stories with children. Automated checks passed: npm test and npm run build. Implementation commits: 0a1a600 and 7326c00.
 
 ## Child Work Packages
 
@@ -19,4 +19,4 @@ Implementation complete for CV-003.DS-007: added Operational > Ariad read-only o
 
 ## Boundary
 
-Do not proceed to DS-level Debt Review until Navigator validation is accepted.
+No push or release action is authorized by this checkpoint.
