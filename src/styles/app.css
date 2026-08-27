@@ -3515,3 +3515,34 @@ dd {
   line-height: 1.55;
   margin: 6px 0 0;
 }
+
+.strategic-source-references {
+  margin-top: 12px;
+}
+
+.strategic-source-references summary {
+  color: #9ce7dc;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 720;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.strategic-source-references ul {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 9px 0 0;
+  padding: 0;
+}
+
+.strategic-source-references li {
+  color: #78959c;
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  padding: 0;
+}
