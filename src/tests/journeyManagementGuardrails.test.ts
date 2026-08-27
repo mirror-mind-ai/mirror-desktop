@@ -23,24 +23,20 @@ describe("Journey management guardrails", () => {
     expect(JSON.stringify(persisted).toLowerCase()).not.toMatch(/api[_-]?key|token|secret|password|env/);
   });
 
-  it("keeps Mirror list and reload paths read-only except explicit title generation", () => {
-    expect(mirrorImportScriptSource).toContain("read_only = not args.generate_conversation_title");
-    expect(mirrorImportScriptSource).toContain("--list-conversations");
-    expect(mirrorImportScriptSource).toContain("--conversation-id");
-    expect(mirrorImportScriptSource).toContain("--generate-conversation-title");
-    expect(mirrorImportScriptSource).toContain('uri = f"file:{args.db}?mode=ro" if read_only else str(args.db)');
+  it("keeps Mirror bootstrap read-only and registry-only", () => {
+    expect(mirrorImportScriptSource).toContain('sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)');
+    expect(mirrorImportScriptSource).toContain("load_journeys(conn)");
+    expect(mirrorImportScriptSource).not.toContain("write_local_conversations");
+    expect(mirrorImportScriptSource).not.toContain("conversation-id");
+    expect(mirrorImportScriptSource).not.toContain("list-conversations");
   });
 
-  it("keeps Journey reload scoped to a selected conversation without broad registry rewrite", () => {
-    const selectedBranch = mirrorImportScriptSource.slice(
-      mirrorImportScriptSource.indexOf("if args.conversation_id:"),
-      mirrorImportScriptSource.indexOf("if args.journey_id:"),
-    );
-
-    expect(selectedBranch).toContain("load_selected_conversation");
-    expect(selectedBranch).toContain("write_local_conversations");
-    expect(selectedBranch).not.toContain("args.output.write_text");
-    expect(selectedBranch).not.toContain("load_journeys");
+  it("retires legacy Harness projections without exposing continuity commands", () => {
+    expect(tauriMainSource).toContain("fn retire_legacy_parity_state_at");
+    expect(tauriMainSource).toContain('join("journey-conversations")');
+    expect(tauriMainSource).toContain("superseded_by_dedicated_thread");
+    expect(tauriMainSource).not.toContain("fn reload_journey_from_mirror");
+    expect(tauriMainSource).not.toContain("fn inspect_external_pi_activity");
   });
 
   it("keeps imported activity presentation inert", () => {
@@ -56,16 +52,14 @@ describe("Journey management guardrails", () => {
     expect(tauriMainSource).toContain("canonical_path.starts_with(&harness_root)");
   });
 
-  it("does not invoke Pi from Journey selection or Mirror reload flows", () => {
+  it("does not invoke Pi from Journey selection or restart lifecycle", () => {
     const selectJourney = appSource.slice(appSource.indexOf("function selectJourney"), appSource.indexOf("function togglePinnedJourney"));
-    const mirrorPicker = appSource.slice(appSource.indexOf("async function openMirrorConversationPicker"), appSource.indexOf("function requestConversationRestart"));
     const restartFlow = appSource.slice(appSource.indexOf("function requestConversationRestart"), appSource.indexOf("function applyProviderConfiguration"));
 
     expect(selectJourney).not.toContain("generatePacket");
     expect(selectJourney).not.toContain("livePiAgentStream");
-    expect(mirrorPicker).not.toContain("generatePacket");
-    expect(mirrorPicker).not.toContain("livePiAgentStream");
     expect(restartFlow).not.toContain("generatePacket");
     expect(restartFlow).not.toContain("livePiAgentStream");
+    expect(appSource).not.toContain("openMirrorConversationPicker");
   });
 });

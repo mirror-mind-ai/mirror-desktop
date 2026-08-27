@@ -10,6 +10,12 @@ import {
   type NautilusJourneyThread,
 } from "../domain/nautilusJourneyThread";
 
+export type LegacyParityRetirementSummary = { retired: number; retained: number; alreadyRetired: number };
+
+export async function retireLegacyParityState(): Promise<LegacyParityRetirementSummary> {
+  return invoke<LegacyParityRetirementSummary>("retire_legacy_parity_state");
+}
+
 export async function loadNautilusJourneyThread(journeyId: string): Promise<NautilusJourneyThread | undefined> {
   const payload = await invoke<string | null>("load_journey_thread", { journeyId });
   if (!payload) return undefined;

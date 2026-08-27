@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createJourneyConversation } from "../domain/journeyConversation";
+import { createDedicatedJourneyConversation } from "../domain/journeyConversation";
+import { readyThread } from "./fixtures/readyThread";
 import {
   applyMirrorCommitEvent,
   applyMirrorTurnCommitStatus,
@@ -14,7 +15,10 @@ const user: ConversationMessage = { id: "h-user", role: "user", content: "hello"
 const assistant: ConversationMessage = { id: "h-assistant", role: "assistant", content: "hi", createdAt: "2026-08-24T10:00:01Z" };
 
 function staged() {
-  const conversation = createJourneyConversation({ journeyId: "nautilus-harness", initialMessages: [], now: new Date("2026-08-24T09:00:00Z") });
+  const thread = readyThread("nautilus-harness");
+  thread.generations[0].mirrorConversationId = "mirror-1";
+  thread.generations[0].activationReceipt!.mirrorConversationId = "mirror-1";
+  const conversation = createDedicatedJourneyConversation({ thread, initialMessages: [], now: new Date("2026-08-24T09:00:00Z") });
   const correlation = createTurnCorrelation({
     conversation,
     runId: "run-1",
@@ -90,7 +94,7 @@ describe("observable three-body turn commit", () => {
     const repair = pendingMirrorTurnRepair(conversation);
     expect(repair).toMatchObject({ sessionFile: "/pi/session.jsonl", failureCode: "mirror_cli_failed" });
     conversation = applyMirrorTurnCommitStatus(conversation, repair!.correlation, {
-      schemaVersion: "0.1.0", status: "committed", conversationId: "mirror-1",
+      schemaVersion: "0.2.0", status: "committed", conversationId: "mirror-1",
       userMessageId: "m-user", assistantMessageId: "m-assistant", messageCount: 2,
     }, "2026-08-24T10:00:05Z");
 
@@ -106,6 +110,6 @@ describe("observable three-body turn commit", () => {
     }, "2026-08-24T10:00:02Z");
 
     expect(conversation.reconciliation.classification).toBe("commit_failed");
-    expect(conversation.liveIdentity.mirrorConversationId).toBeUndefined();
+    expect(conversation.liveIdentity.mirrorConversationId).toBe("mirror-1");
   });
 });

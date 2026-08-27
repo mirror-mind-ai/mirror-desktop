@@ -12,22 +12,12 @@ export type ReconciliationClassification =
   | "in_sync"
   | "commit_pending"
   | "commit_failed"
-  | "pi_advanced"
-  | "mirror_advanced"
-  | "both_advanced"
   | "conflicted";
 export type ReconciliationReasonCode =
-  | "explicit_hydration_baseline"
   | "turn_identity_mismatch"
   | "native_id_mismatch"
   | "checkpoint_regression"
-  | "pi_checkpoint_missing"
-  | "pi_ancestry_mismatch"
-  | "mirror_checkpoint_missing"
-  | "mirror_conversation_mismatch"
-  | "mirror_cursor_mismatch"
-  | "generation_mismatch"
-  | "authority_mismatch";
+  | "mirror_conversation_mismatch";
 
 export type HarnessCheckpoint = {
   lastMessageId: string;
@@ -77,32 +67,11 @@ export type MirrorTurnEvidence = {
 export type CorrelatedConversationTurn = {
   turnId: string;
   runId?: string;
-  origin: "nautilus" | "pi_external" | "mirror_external" | "hydration";
+  origin: "nautilus";
   startedAt: string;
   harness: HarnessTurnEvidence;
   pi: PiTurnEvidence;
   mirror: MirrorTurnEvidence;
-};
-
-export type PiAdvancement = {
-  generation: number;
-  baseLeafEntryId: string;
-  leafEntryId: string;
-  observedEntryIds: string[];
-  ancestorEntryIds: string[];
-  entryCount: number;
-  sessionFile?: string;
-  observedAt: string;
-};
-
-export type MirrorAdvancement = {
-  conversationId: string;
-  baseMessageId: string;
-  lastMessageId: string;
-  observedMessageIds: string[];
-  messageCount: number;
-  updatedAt?: string;
-  observedAt: string;
 };
 
 export type ConversationReconciliationState = {
@@ -114,10 +83,6 @@ export type ConversationReconciliationState = {
     mirror?: MirrorCheckpoint;
   };
   turns: CorrelatedConversationTurn[];
-  advancement: {
-    pi?: PiAdvancement;
-    mirror?: MirrorAdvancement;
-  };
   classification: ReconciliationClassification;
   classifiedAt: string;
   reasonCodes: ReconciliationReasonCode[];
@@ -151,38 +116,9 @@ export function createConversationReconciliationState(
     authority: cloneAuthority(authority),
     checkpoints: {},
     turns: [],
-    advancement: {},
     classification: "uninitialized",
     classifiedAt,
     reasonCodes: [],
-  };
-}
-
-export function createHydratedReconciliationState(
-  authority: ReconciliationAuthority,
-  baseline: {
-    harness: HarnessCheckpoint;
-    pi: PiCheckpoint;
-    mirror: MirrorCheckpoint;
-    establishedAt: string;
-  },
-): ConversationReconciliationState {
-  if (baseline.mirror.conversationId !== authority.mirrorConversationId) {
-    return conflict(
-      createConversationReconciliationState(authority, baseline.establishedAt),
-      "mirror_conversation_mismatch",
-      baseline.establishedAt,
-    );
-  }
-  return {
-    ...createConversationReconciliationState(authority, baseline.establishedAt),
-    checkpoints: {
-      harness: { ...baseline.harness },
-      pi: { ...baseline.pi },
-      mirror: { ...baseline.mirror },
-    },
-    classification: "in_sync",
-    reasonCodes: ["explicit_hydration_baseline"],
   };
 }
 
@@ -220,7 +156,7 @@ export function bindMirrorConversation(
 ): ConversationReconciliationState {
   if (!isNonEmpty(conversationId)) return conflict(state, "mirror_conversation_mismatch", boundAt);
   if (state.authority.mirrorConversationId === conversationId) return state;
-  if (state.authority.mirrorConversationId || state.checkpoints.mirror || state.advancement.mirror) {
+  if (state.authority.mirrorConversationId || state.checkpoints.mirror) {
     return conflict(state, "mirror_conversation_mismatch", boundAt);
   }
   return classify({
@@ -395,114 +331,13 @@ export function markTurnBodyFailed(
   });
 }
 
-export function observeExternalPiAdvancement(
-  state: ConversationReconciliationState,
-  observation: PiAdvancement,
-): ConversationReconciliationState {
-  if (observation.generation !== state.authority.generation) {
-    return conflict(state, "generation_mismatch", observation.observedAt);
-  }
-  const checkpoint = state.checkpoints.pi;
-  if (!checkpoint) return conflict(state, "pi_checkpoint_missing", observation.observedAt);
-  if (
-    observation.baseLeafEntryId !== checkpoint.leafEntryId
-    || !observation.ancestorEntryIds.includes(checkpoint.leafEntryId)
-  ) {
-    return conflict(state, "pi_ancestry_mismatch", observation.observedAt);
-  }
-  if (observation.entryCount < checkpoint.entryCount) {
-    return conflict(state, "checkpoint_regression", observation.observedAt);
-  }
-  if (state.advancement.pi && sameEvidence(state.advancement.pi, observation)) return state;
-  return classify({
-    ...state,
-    advancement: { ...state.advancement, pi: clonePiAdvancement(observation) },
-    classifiedAt: observation.observedAt,
-  });
-}
-
-export function materializeExternalPiProjection(
-  state: ConversationReconciliationState,
-  advancement: PiAdvancement,
-  harnessCheckpoint: HarnessCheckpoint,
-): ConversationReconciliationState {
-  if (
-    state.classification === "conflicted"
-    || state.advancement.pi?.leafEntryId !== advancement.leafEntryId
-    || state.advancement.pi?.baseLeafEntryId !== advancement.baseLeafEntryId
-  ) {
-    return conflict(state, "pi_ancestry_mismatch", advancement.observedAt);
-  }
-  if (
-    advancement.entryCount < (state.checkpoints.pi?.entryCount ?? 0)
-    || harnessCheckpoint.messageCount < (state.checkpoints.harness?.messageCount ?? 0)
-  ) {
-    return conflict(state, "checkpoint_regression", advancement.observedAt);
-  }
-  return classify({
-    ...state,
-    checkpoints: {
-      ...state.checkpoints,
-      harness: { ...harnessCheckpoint },
-      pi: {
-        leafEntryId: advancement.leafEntryId,
-        entryCount: advancement.entryCount,
-        ...(advancement.sessionFile ? { sessionFile: advancement.sessionFile } : {}),
-      },
-    },
-    classifiedAt: advancement.observedAt,
-  });
-}
-
-export function markReconciliationConflict(
-  state: ConversationReconciliationState,
-  reason: ReconciliationReasonCode,
-  observedAt: string,
-): ConversationReconciliationState {
-  return conflict(state, reason, observedAt);
-}
-
-export function observeExternalMirrorAdvancement(
-  state: ConversationReconciliationState,
-  observation: MirrorAdvancement,
-): ConversationReconciliationState {
-  const checkpoint = state.checkpoints.mirror;
-  if (!checkpoint) return conflict(state, "mirror_checkpoint_missing", observation.observedAt);
-  if (
-    observation.conversationId !== state.authority.mirrorConversationId
-    || observation.conversationId !== checkpoint.conversationId
-  ) {
-    return conflict(state, "mirror_conversation_mismatch", observation.observedAt);
-  }
-  if (observation.baseMessageId !== checkpoint.lastMessageId) {
-    return conflict(state, "mirror_cursor_mismatch", observation.observedAt);
-  }
-  if (observation.messageCount < checkpoint.messageCount) {
-    return conflict(state, "checkpoint_regression", observation.observedAt);
-  }
-  if (state.advancement.mirror && sameEvidence(state.advancement.mirror, observation)) return state;
-  return classify({
-    ...state,
-    advancement: { ...state.advancement, mirror: cloneMirrorAdvancement(observation) },
-    classifiedAt: observation.observedAt,
-  });
-}
-
-export function resetReconciliationAuthority(
-  _state: ConversationReconciliationState,
-  authority: ReconciliationAuthority,
-  resetAt: string = new Date().toISOString(),
-): ConversationReconciliationState {
-  return createConversationReconciliationState(authority, resetAt);
-}
-
 export function parseConversationReconciliationState(
   value: unknown,
   expectedAuthority: ReconciliationAuthority,
 ): ConversationReconciliationState | undefined {
   if (!isRecord(value) || value.schemaVersion !== "0.1.0") return undefined;
   if (!isAuthority(value.authority) || !sameAuthority(value.authority, expectedAuthority)) return undefined;
-  if (!isRecord(value.checkpoints) || !Array.isArray(value.turns) || !isRecord(value.advancement)) return undefined;
+  if (!isRecord(value.checkpoints) || !Array.isArray(value.turns)) return undefined;
   if (!isClassification(value.classification) || typeof value.classifiedAt !== "string") return undefined;
   if (!Array.isArray(value.reasonCodes) || !value.reasonCodes.every(isReasonCode)) return undefined;
 
@@ -520,15 +355,6 @@ export function parseConversationReconciliationState(
   const turnIds = turns.map((turn) => turn.turnId);
   if (new Set(turnIds).size !== turnIds.length) return undefined;
 
-  const advancement = value.advancement;
-  if (advancement.pi !== undefined && !isPiAdvancement(advancement.pi)) return undefined;
-  if (advancement.mirror !== undefined && !isMirrorAdvancement(advancement.mirror)) return undefined;
-  if (isRecord(advancement.pi) && advancement.pi.generation !== expectedAuthority.generation) return undefined;
-  if (
-    isRecord(advancement.mirror)
-    && advancement.mirror.conversationId !== expectedAuthority.mirrorConversationId
-  ) return undefined;
-
   const candidate = value as unknown as ConversationReconciliationState;
   if (deriveClassification(candidate) !== candidate.classification) return undefined;
   return candidate;
@@ -545,10 +371,7 @@ function deriveClassification(state: ConversationReconciliationState): Reconcili
     .some((body) => body.state === "pending" || body.state === "unknown"));
   if (failed) return "commit_failed";
   if (unresolved) return "commit_pending";
-  if (state.advancement.pi && state.advancement.mirror) return "both_advanced";
-  if (state.advancement.pi) return "pi_advanced";
-  if (state.advancement.mirror) return "mirror_advanced";
-  if (state.turns.length > 0 || state.reasonCodes.includes("explicit_hydration_baseline")) return "in_sync";
+  if (state.turns.length > 0) return "in_sync";
   return "uninitialized";
 }
 
@@ -566,11 +389,11 @@ function conflict(
 }
 
 function clearNonConflictReasons(reasons: ReconciliationReasonCode[]): ReconciliationReasonCode[] {
-  return reasons.filter(isConflictReason);
+  return reasons;
 }
 
-function isConflictReason(reason: ReconciliationReasonCode): boolean {
-  return reason !== "explicit_hydration_baseline";
+function isConflictReason(): boolean {
+  return true;
 }
 
 function findTurn(state: ConversationReconciliationState, turnId: string) {
@@ -599,14 +422,6 @@ function stableValue(value: unknown): unknown {
   return Object.fromEntries(
     Object.keys(value).sort().map((key) => [key, stableValue(value[key])]),
   );
-}
-
-function clonePiAdvancement(value: PiAdvancement): PiAdvancement {
-  return { ...value, observedEntryIds: [...value.observedEntryIds], ancestorEntryIds: [...value.ancestorEntryIds] };
-}
-
-function cloneMirrorAdvancement(value: MirrorAdvancement): MirrorAdvancement {
-  return { ...value, observedMessageIds: [...value.observedMessageIds] };
 }
 
 function cloneAuthority(authority: ReconciliationAuthority): ReconciliationAuthority {
@@ -653,7 +468,7 @@ function isMirrorCheckpoint(value: unknown): value is MirrorCheckpoint {
 function isTurn(value: unknown): value is CorrelatedConversationTurn {
   if (!isRecord(value) || !isNonEmpty(value.turnId) || typeof value.startedAt !== "string") return false;
   if (value.runId !== undefined && !isNonEmpty(value.runId)) return false;
-  if (!["nautilus", "pi_external", "mirror_external", "hydration"].includes(String(value.origin))) return false;
+  if (value.origin !== "nautilus") return false;
   return isHarnessEvidence(value.harness) && isPiEvidence(value.pi) && isMirrorEvidence(value.mirror);
 }
 
@@ -677,26 +492,12 @@ function isBodyEvidence(value: unknown): value is Record<string, unknown> & { st
   return true;
 }
 
-function isPiAdvancement(value: unknown): value is PiAdvancement {
-  return isRecord(value) && isNonNegativeInteger(value.generation) && isNonEmpty(value.baseLeafEntryId)
-    && isNonEmpty(value.leafEntryId) && isStringArray(value.observedEntryIds) && isStringArray(value.ancestorEntryIds)
-    && isNonNegativeInteger(value.entryCount) && typeof value.observedAt === "string"
-    && (value.sessionFile === undefined || isNonEmpty(value.sessionFile));
-}
-
-function isMirrorAdvancement(value: unknown): value is MirrorAdvancement {
-  return isRecord(value) && isNonEmpty(value.conversationId) && isNonEmpty(value.baseMessageId)
-    && isNonEmpty(value.lastMessageId) && isStringArray(value.observedMessageIds)
-    && isNonNegativeInteger(value.messageCount) && typeof value.observedAt === "string"
-    && (value.updatedAt === undefined || typeof value.updatedAt === "string");
-}
-
 function isClassification(value: unknown): value is ReconciliationClassification {
-  return ["uninitialized", "in_sync", "commit_pending", "commit_failed", "pi_advanced", "mirror_advanced", "both_advanced", "conflicted"].includes(String(value));
+  return ["uninitialized", "in_sync", "commit_pending", "commit_failed", "conflicted"].includes(String(value));
 }
 
 function isReasonCode(value: unknown): value is ReconciliationReasonCode {
-  return ["explicit_hydration_baseline", "turn_identity_mismatch", "native_id_mismatch", "checkpoint_regression", "pi_checkpoint_missing", "pi_ancestry_mismatch", "mirror_checkpoint_missing", "mirror_conversation_mismatch", "mirror_cursor_mismatch", "generation_mismatch", "authority_mismatch"].includes(String(value));
+  return ["turn_identity_mismatch", "native_id_mismatch", "checkpoint_regression", "mirror_conversation_mismatch"].includes(String(value));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -709,8 +510,4 @@ function isNonEmpty(value: unknown): value is string {
 
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every(isNonEmpty);
 }

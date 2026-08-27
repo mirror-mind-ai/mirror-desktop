@@ -3,7 +3,6 @@ import {
   createJourneyConversation,
   createDedicatedJourneyConversation,
   replaceJourneyConversationMessages,
-  resetJourneyConversation,
   summarizeJourneyConversation,
 } from "../domain/journeyConversation";
 import type { ConversationMessage } from "../agent/piTaskPacket";
@@ -53,7 +52,6 @@ describe("journey conversation lifecycle", () => {
         },
         checkpoints: {},
         turns: [],
-        advancement: {},
         classification: "uninitialized",
         classifiedAt: "2026-08-22T00:00:00.000Z",
         reasonCodes: [],
@@ -97,36 +95,4 @@ describe("journey conversation lifecycle", () => {
     });
   });
 
-  it("resets the active Journey conversation without creating another Journey slot", () => {
-    const conversation = createJourneyConversation({
-      journeyId: "nautilus",
-      initialMessages: [opening, userMessage],
-      now: new Date("2026-08-22T00:00:00.000Z"),
-    });
-
-    const reset = resetJourneyConversation({
-      conversation,
-      initialMessages: [opening],
-      now: new Date("2026-08-22T00:05:00.000Z"),
-    });
-
-    expect(reset.journeyId).toBe("nautilus");
-    expect(reset.id).not.toBe(conversation.id);
-    expect(reset.messages).toEqual([opening]);
-    expect(reset.liveIdentity).toMatchObject({
-      piSessionId: "nautilus-nautilus",
-      generation: 1,
-      origin: "restart",
-    });
-    expect(reset.reconciliation).toMatchObject({
-      authority: {
-        piSessionId: "nautilus-nautilus",
-        generation: 1,
-      },
-      classification: "uninitialized",
-      checkpoints: {},
-      turns: [],
-    });
-    expect(summarizeJourneyConversation(reset).isFresh).toBe(true);
-  });
 });

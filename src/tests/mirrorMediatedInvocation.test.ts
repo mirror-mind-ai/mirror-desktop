@@ -27,8 +27,8 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(appSource).toContain("dedicatedTurnBlocksNewInvocation(classifyDedicatedTurnState(baseConversation))");
     expect(appSource).toContain("createDedicatedTurnAuthority(");
     expect(appSource).toContain("Live invocation stopped because Journey conversation authority changed");
-    expect(appSource).toContain("<ConversationAuthorityNotice");
-    expect(appSource).toContain("const synchronizedConversation = await loadJourneyConversation(selectedJourney)");
+    expect(appSource).toContain("Finishing the dedicated turn");
+    expect(appSource).not.toContain("openMirrorConversationPicker");
   });
 
   it("runs Mirror-mediated processes from the Mirror runtime root without duplicate after-the-fact logging", () => {
@@ -51,13 +51,13 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(appSource).toContain("setConversation(conversationBeforeRun)");
   });
 
-  it("hydrates an explicitly selected Mirror conversation into the mapped Pi session", () => {
-    expect(appSource).toContain("hydrateJourneyPiSession");
-    expect(appSource).toContain("importedConversation.liveIdentity.piSessionId");
-    expect(tauriMainSource).toContain("hydrate_pi_session_from_local_conversation");
-    expect(tauriMainSource).toContain("Only an explicitly selected Mirror conversation can hydrate a Pi session.");
-    expect(mirrorExportScriptSource).toContain('"origin": "mirror_import"');
-    expect(mirrorExportScriptSource).toContain('"mirrorConversationId": conversation["source"]["conversationId"]');
+  it("does not hydrate or adopt arbitrary Mirror conversations", () => {
+    expect(appSource).not.toContain("hydrateJourneyPiSession");
+    expect(appSource).not.toContain("loadJourneyConversation");
+    expect(tauriMainSource).not.toContain("hydrate_pi_session_from_local_conversation");
+    expect(tauriMainSource).not.toContain("reload_journey_from_mirror");
+    expect(mirrorExportScriptSource).not.toContain('"origin": "mirror_import"');
+    expect(mirrorExportScriptSource).not.toContain("write_local_conversations");
   });
 
   it("keeps the old narrow Mirror logging helper outside the live runtime", () => {

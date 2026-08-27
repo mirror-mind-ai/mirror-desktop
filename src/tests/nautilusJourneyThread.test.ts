@@ -28,9 +28,8 @@ const readyThread = (journeyId = "nautilus-harness"): NautilusJourneyThread => (
 });
 
 describe("dedicated Nautilus Journey thread authority", () => {
-  it("keeps missing and legacy-only state absent", () => {
-    expect(classifyNautilusJourneyThread(undefined, "nautilus-harness")).toEqual({ kind: "absent", legacyStatePresent: false });
-    expect(classifyNautilusJourneyThread(undefined, "nautilus-harness", true)).toEqual({ kind: "absent", legacyStatePresent: true });
+  it("keeps missing state absent without adopting other conversations", () => {
+    expect(classifyNautilusJourneyThread(undefined, "nautilus-harness")).toEqual({ kind: "absent" });
   });
 
   it("recognizes one exact ready generation", () => {

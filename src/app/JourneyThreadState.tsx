@@ -42,7 +42,6 @@ export function JourneyThreadState({ journeyName, state, starting = false, start
       <p>{journeyName} does not yet have a dedicated Nautilus conversation.</p>
       {error ? <p className="journey-thread-error">Start did not complete: {error}</p> : null}
       {onStart ? <button type="button" className="journey-thread-start" onClick={onStart}>{error ? "Retry starting this Journey" : "Start this Journey"}</button> : null}
-      {state.legacyStatePresent ? <small>Existing conversations remain preserved as legacy history and will not be adopted automatically.</small> : null}
     </section>
   );
 }

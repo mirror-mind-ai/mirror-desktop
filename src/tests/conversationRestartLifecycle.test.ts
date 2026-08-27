@@ -29,6 +29,6 @@ describe("dedicated conversation restart lifecycle", () => {
   it("unlocks drafting when provider work ends and skips redundant Mirror repair", () => {
     expect(appSource).toContain("Recording the completed turn… You can draft the next message now.");
     expect(appSource).toContain('observedAssistantMirrorCommit?.status === "committed"');
-    expect(appSource).toContain("disabled={conversationAuthorityChecking || isJourneyReloading || agentRun.status === \"running\"}");
+    expect(appSource).toContain("disabled={isJourneyReloading || agentRun.status === \"running\"}");
   });
 });

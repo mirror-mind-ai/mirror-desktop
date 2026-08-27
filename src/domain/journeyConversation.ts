@@ -17,7 +17,7 @@ export type LiveConversationIdentity = {
   mirrorConversationId?: string;
   activationReceiptActivatedAt?: string;
   generation: number;
-  origin: "new" | "continued" | "mirror_import" | "mirror_reconciliation" | "restart" | "legacy";
+  origin: "new";
 };
 
 export type AuthoritativeContextStats = {
@@ -140,32 +140,6 @@ export function summarizeJourneyConversation(conversation: JourneyConversation):
     assistantMessageCount,
     isFresh: userMessageCount === 0,
     isDirty: userMessageCount > 0,
-  };
-}
-
-export function resetJourneyConversation(input: {
-  conversation: JourneyConversation;
-  initialMessages: ConversationMessage[];
-  now?: Date;
-}): JourneyConversation {
-  const restarted = createJourneyConversation({
-    journeyId: input.conversation.journeyId,
-    initialMessages: input.initialMessages,
-    now: input.now,
-  });
-  const liveIdentity: LiveConversationIdentity = {
-    ...restarted.liveIdentity,
-    piSessionId: input.conversation.liveIdentity.piSessionId,
-    generation: input.conversation.liveIdentity.generation + 1,
-    origin: "restart",
-  };
-  return {
-    ...restarted,
-    liveIdentity,
-    reconciliation: createConversationReconciliationState(
-      liveIdentity,
-      input.now?.toISOString() ?? restarted.createdAt,
-    ),
   };
 }
 

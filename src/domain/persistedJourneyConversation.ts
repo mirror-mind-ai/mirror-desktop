@@ -1,7 +1,4 @@
-import {
-  createConversationReconciliationState,
-  parseConversationReconciliationState,
-} from "./conversationReconciliation";
+import { parseConversationReconciliationState } from "./conversationReconciliation";
 import type { ConversationReconciliationState } from "./conversationReconciliation";
 import type {
   AuthoritativeContextStats,
@@ -60,7 +57,7 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
   }
 
   const record = value as Record<string, unknown>;
-  if (!["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0"].includes(String(record.schemaVersion))) {
+  if (record.schemaVersion !== "0.5.0") {
     return undefined;
   }
   if (!record.conversation || typeof record.conversation !== "object") {
@@ -93,27 +90,20 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
     return undefined;
   }
 
-  const importedMirrorConversationId = parseImportedMirrorConversationId(conversation.importedActivity);
   const parsedLiveIdentity = parseLiveConversationIdentity(conversation.liveIdentity, {
     journeyId: conversation.journeyId,
     harnessConversationId: conversation.id,
-    mirrorConversationId: importedMirrorConversationId,
   });
   if (!parsedLiveIdentity) {
     return undefined;
   }
 
-  const parsedReconciliation = record.schemaVersion === "0.5.0"
-    ? parseConversationReconciliationState(conversation.reconciliation, parsedLiveIdentity)
-    : createConversationReconciliationState(parsedLiveIdentity, conversation.createdAt);
+  const parsedReconciliation = parseConversationReconciliationState(conversation.reconciliation, parsedLiveIdentity);
   if (!parsedReconciliation) {
     return undefined;
   }
-  const { liveIdentity, reconciliation } = normalizeImportedMirrorAuthority(
-    parsedLiveIdentity,
-    parsedReconciliation,
-    importedMirrorConversationId,
-  );
+  const liveIdentity = parsedLiveIdentity;
+  const reconciliation = parsedReconciliation;
   const authoritativeContextStats = parseAuthoritativeContextStats(conversation.authoritativeContextStats);
   const certifiedMirrorMode = parseCertifiedMirrorModeState(conversation.certifiedMirrorMode);
   const {
@@ -132,48 +122,6 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
       reconciliation,
       ...(authoritativeContextStats ? { authoritativeContextStats } : {}),
       ...(certifiedMirrorMode ? { certifiedMirrorMode } : {}),
-    },
-  };
-}
-
-function normalizeImportedMirrorAuthority(
-  identity: LiveConversationIdentity,
-  reconciliation: ConversationReconciliationState,
-  nativeConversationId: string | undefined,
-): { liveIdentity: LiveConversationIdentity; reconciliation: ConversationReconciliationState } {
-  const legacyConversationId = identity.mirrorConversationId;
-  if (
-    identity.origin !== "mirror_import"
-    || !nativeConversationId
-    || legacyConversationId !== `mirror-${nativeConversationId}`
-  ) {
-    return { liveIdentity: identity, reconciliation };
-  }
-  const normalizeConversationId = (value: string) =>
-    value === legacyConversationId ? nativeConversationId : value;
-  return {
-    liveIdentity: { ...identity, mirrorConversationId: nativeConversationId },
-    reconciliation: {
-      ...reconciliation,
-      authority: { ...reconciliation.authority, mirrorConversationId: nativeConversationId },
-      checkpoints: {
-        ...reconciliation.checkpoints,
-        ...(reconciliation.checkpoints.mirror ? {
-          mirror: {
-            ...reconciliation.checkpoints.mirror,
-            conversationId: normalizeConversationId(reconciliation.checkpoints.mirror.conversationId),
-          },
-        } : {}),
-      },
-      advancement: {
-        ...reconciliation.advancement,
-        ...(reconciliation.advancement.mirror ? {
-          mirror: {
-            ...reconciliation.advancement.mirror,
-            conversationId: normalizeConversationId(reconciliation.advancement.mirror.conversationId),
-          },
-        } : {}),
-      },
     },
   };
 }
@@ -219,19 +167,8 @@ function parseAuthoritativeContextStats(value: unknown): AuthoritativeContextSta
 
 function parseLiveConversationIdentity(
   value: unknown,
-  fallback: { journeyId: string; harnessConversationId: string; mirrorConversationId?: string },
+  fallback: { journeyId: string; harnessConversationId: string },
 ): LiveConversationIdentity | undefined {
-  if (value === undefined) {
-    return {
-      schemaVersion: "0.1.0",
-      journeyId: fallback.journeyId,
-      harnessConversationId: fallback.harnessConversationId,
-      piSessionId: `nautilus-${fallback.journeyId}`,
-      ...(fallback.mirrorConversationId ? { mirrorConversationId: fallback.mirrorConversationId } : {}),
-      generation: 0,
-      origin: fallback.mirrorConversationId ? "mirror_import" : "legacy",
-    };
-  }
   if (!value || typeof value !== "object") {
     return undefined;
   }
@@ -243,18 +180,12 @@ function parseLiveConversationIdentity(
     typeof identity.piSessionId !== "string" ||
     typeof identity.generation !== "number" ||
     !Number.isInteger(identity.generation) ||
-    identity.generation < 0 ||
-    !["new", "continued", "mirror_import", "mirror_reconciliation", "restart", "legacy"].includes(String(identity.origin))
+    identity.generation < 1 ||
+    identity.origin !== "new" ||
+    typeof identity.mirrorConversationId !== "string" ||
+    typeof identity.activationReceiptActivatedAt !== "string"
   ) {
     return undefined;
   }
   return identity as unknown as LiveConversationIdentity;
-}
-
-function parseImportedMirrorConversationId(value: unknown): string | undefined {
-  if (!value || typeof value !== "object") {
-    return undefined;
-  }
-  const activity = value as Record<string, unknown>;
-  return typeof activity.sourceConversationId === "string" ? activity.sourceConversationId : undefined;
 }

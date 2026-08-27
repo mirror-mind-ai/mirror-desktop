@@ -4,7 +4,7 @@ export type AgentRunStatus = "starting" | "working" | "completed";
 export type AgentOperationStatus = "preparing" | "running" | "completed" | "failed" | "interrupted";
 
 export type TurnCorrelation = {
-  schemaVersion: "0.1.0" | "0.2.0";
+  schemaVersion: "0.2.0";
   journeyId: string;
   threadId?: string;
   harnessConversationId: string;

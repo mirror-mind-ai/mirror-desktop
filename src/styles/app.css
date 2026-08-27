@@ -1861,24 +1861,19 @@ h3 {
   margin: 0 0 8px;
 }
 
-.conversation-authority-notice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 14px;
-  border: 1px solid rgba(230, 174, 80, 0.34);
-  border-radius: 12px;
-  background: rgba(230, 174, 80, 0.08);
+.dedicated-turn-notice {
+  background: rgba(133, 223, 210, 0.07);
+  border: 1px solid rgba(133, 223, 210, 0.22);
+  border-radius: 10px;
+  color: #c8d6da;
+  font-size: 0.78rem;
+  margin-bottom: 8px;
+  padding: 8px 10px;
 }
 
-.conversation-authority-notice p {
-  margin: 4px 0 0;
-  color: var(--text-muted);
-}
-
-.conversation-authority-notice button {
-  flex: 0 0 auto;
+.dedicated-turn-notice p {
+  color: #8eabb2;
+  margin: 3px 0 0;
 }
 
 .conversation-sync-notice {
@@ -1895,86 +1890,10 @@ h3 {
   padding: 8px 10px;
 }
 
-.external-pi-sync-notice > div {
-  align-items: baseline;
-  display: flex;
-  gap: 8px;
-}
-
-.external-pi-sync-notice span {
-  opacity: 0.72;
-}
-
 .conversation-sync-notice .secondary-button {
   flex: 0 0 auto;
   min-height: 28px;
   padding: 4px 10px;
-}
-
-.mirror-reconciliation-notice {
-  display: block;
-}
-
-.mirror-reconciliation-notice details,
-.mirror-reconciliation-notice summary {
-  width: 100%;
-}
-
-.mirror-reconciliation-notice summary {
-  cursor: pointer;
-}
-
-.mirror-reconciliation-notice summary span {
-  float: right;
-  opacity: 0.72;
-}
-
-.mirror-reconciliation-preview {
-  border-top: 1px solid rgba(205, 151, 61, 0.22);
-  margin-top: 8px;
-  padding-top: 8px;
-}
-
-.mirror-reconciliation-records {
-  max-height: min(38vh, 360px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding-right: 4px;
-  scrollbar-gutter: stable;
-}
-
-.mirror-reconciliation-records:focus-visible {
-  outline: 1px solid rgba(205, 151, 61, 0.52);
-  outline-offset: 2px;
-}
-
-.mirror-reconciliation-record {
-  background: rgba(7, 18, 22, 0.42);
-  border-radius: 7px;
-  margin: 6px 0;
-  padding: 7px 9px;
-}
-
-.mirror-reconciliation-record > span {
-  float: right;
-  opacity: 0.6;
-}
-
-.mirror-reconciliation-record p {
-  margin: 4px 0 0;
-  white-space: pre-wrap;
-}
-
-.mirror-reconciliation-actions {
-  align-items: center;
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 10px;
-}
-
-.mirror-reconciliation-actions p {
-  margin: 0;
 }
 
 .composer-input-wrap {
@@ -2498,98 +2417,6 @@ dd {
   color: #9bbbc3;
   font-size: 0.84rem;
   margin: 6px 0 0;
-}
-
-.mirror-conversation-picker {
-  max-width: 760px;
-}
-
-.mirror-conversation-list {
-  display: grid;
-  gap: 8px;
-}
-
-.mirror-conversation-option {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.055);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 14px;
-  color: #e8f4f6;
-  cursor: pointer;
-  display: flex;
-  gap: 10px;
-  justify-content: space-between;
-  padding: 8px;
-  text-align: left;
-  width: 100%;
-}
-
-.mirror-conversation-option:hover,
-.mirror-conversation-option.selected {
-  background: rgba(133, 223, 210, 0.12);
-  border-color: rgba(133, 223, 210, 0.42);
-}
-
-.mirror-conversation-select {
-  align-items: center;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  display: flex;
-  flex: 1 1 auto;
-  gap: 16px;
-  justify-content: space-between;
-  padding: 4px 6px;
-  text-align: left;
-}
-
-.mirror-conversation-option strong,
-.mirror-conversation-option small {
-  display: block;
-}
-
-.mirror-conversation-option small,
-.mirror-conversation-date {
-  color: #9bbbc3;
-  font-size: 0.76rem;
-}
-
-.mirror-conversation-date {
-  flex: 0 0 auto;
-}
-
-.mirror-title-button {
-  align-items: center;
-  cursor: pointer;
-  display: inline-flex;
-  flex: 0 0 auto;
-  font-size: 0.95rem;
-  justify-content: center;
-  min-height: 32px;
-  min-width: 32px;
-  padding: 6px;
-}
-
-.app-shell.is-busy .mirror-title-button,
-.app-shell.is-busy .mirror-title-button * {
-  cursor: wait !important;
-}
-
-.mirror-load-confirmation {
-  background: rgba(133, 223, 210, 0.1);
-  border: 1px solid rgba(133, 223, 210, 0.28);
-  border-radius: 16px;
-  margin-top: 12px;
-  padding: 14px;
-}
-
-.mirror-load-confirmation p {
-  color: #f5fbfd;
-  margin: 4px 0;
-}
-
-.mirror-load-confirmation small {
-  color: #9bbbc3;
 }
 
 .empty-chat-copy {

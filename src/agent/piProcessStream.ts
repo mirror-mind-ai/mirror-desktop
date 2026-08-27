@@ -9,11 +9,6 @@ import {
   type AgentProviderConfig,
 } from "./providerConfig";
 import { stripAnsiControlSequences } from "./terminalText";
-import type {
-  ExternalPiFileFingerprint,
-  ExternalPiInspection,
-} from "../domain/externalPiProjection";
-import type { JourneyConversation } from "../domain/journeyConversation";
 
 const PI_PROCESS_EVENT = "nautilus-pi-process";
 
@@ -510,10 +505,6 @@ export async function cancelLivePiInvocation(): Promise<void> {
   await invoke("cancel_pi_invocation");
 }
 
-export async function restartJourneyPiSession(journeyId: string, sessionId: string): Promise<string> {
-  return invoke<string>("reset_pi_session", { journeyId, sessionId });
-}
-
 export type PiSessionContextInspection = {
   status: "missing" | "waiting" | "available";
   snapshot?: { tokens: number; providerModel: string };
@@ -530,7 +521,7 @@ export async function readJourneyPiContextStats(
 }
 
 export type MirrorTurnCommitStatus = {
-  schemaVersion: "0.1.0" | "0.2.0";
+  schemaVersion: "0.2.0";
   status: "missing" | "partial" | "committed";
   conversationId?: string | null;
   userMessageId?: string | null;
@@ -563,41 +554,6 @@ export async function retryMirrorTurnCommit(
   return JSON.parse(await invoke<string>("retry_mirror_turn_commit", {
     journeyId, sessionFile, correlation,
   })) as MirrorTurnCommitStatus;
-}
-
-export async function inspectExternalPiActivity(
-  conversation: JourneyConversation,
-  fingerprint?: ExternalPiFileFingerprint,
-): Promise<ExternalPiInspection | undefined> {
-  const checkpoint = conversation.reconciliation.checkpoints.pi;
-  if (!checkpoint?.sessionFile) return undefined;
-  return invoke<ExternalPiInspection>("inspect_external_pi_activity", {
-    journeyId: conversation.journeyId,
-    sessionId: conversation.liveIdentity.piSessionId,
-    generation: conversation.liveIdentity.generation,
-    sessionFile: checkpoint.sessionFile,
-    baseLeafEntryId: checkpoint.leafEntryId,
-    baseEntryCount: checkpoint.entryCount,
-    fingerprint,
-  });
-}
-
-export async function hydrateJourneyPiSession(
-  journeyId: string,
-  sessionId: string,
-  config: AgentProviderConfig,
-): Promise<string> {
-  return invoke<string>("hydrate_pi_session_from_local_conversation", {
-    journeyId,
-    sessionId,
-    provider: invocationArgValue(config.args, "--provider") ?? "openai-codex",
-    model: invocationArgValue(config.args, "--model") ?? "gpt-5.4-mini",
-  });
-}
-
-function invocationArgValue(args: string[], flag: string): string | undefined {
-  const index = args.indexOf(flag);
-  return index >= 0 ? args[index + 1] : undefined;
 }
 
 export async function* livePiAgentStream(

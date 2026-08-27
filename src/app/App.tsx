@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamProvider, type MirrorCommitEvent, type TurnCorrelation } from "../agent/agentStream";
 import {
   cancelLivePiInvocation,
-  hydrateJourneyPiSession,
-  inspectExternalPiActivity,
   livePiAgentStream,
   readJourneyPiContextStats,
   readMirrorTurnCommitStatus,
@@ -40,11 +38,7 @@ import {
 import { MessageContent } from "./MessageContent";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { ComposerRuntimeFooter } from "./ComposerRuntimeFooter";
-import { ConversationAuthorityNotice } from "./ConversationAuthorityNotice";
-import { createConversationAuthorityRefreshCoordinator } from "./conversationAuthorityRefresh";
 import { ConversationSyncNotice } from "./ConversationSyncNotice";
-import { ExternalPiSyncNotice } from "./ExternalPiSyncNotice";
-import { MirrorReconciliationNotice } from "./MirrorReconciliationNotice";
 import { JourneyAltitudeSwitcher } from "./JourneyAltitudeSwitcher";
 import { JourneyAltitudeEmptyState } from "./JourneyAltitudeEmptyState";
 import { JourneyDocumentationBrowser } from "./JourneyDocumentationBrowser";
@@ -54,7 +48,7 @@ import { JourneyProjectionNotice } from "./JourneyProjectionNotice";
 import { JourneyProjectionLoadingState } from "./JourneyProjectionLoadingState";
 import { JourneyThreadState, type JourneyThreadDisplayState } from "./JourneyThreadState";
 import { JourneyArrivalSurface } from "./JourneyArrivalSurface";
-import { loadDedicatedPiTranscript, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread } from "./journeyThreadStorage";
+import { loadDedicatedPiTranscript, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import { projectGenerationHistory } from "../domain/journeyThreadRestart";
 import {
@@ -63,10 +57,6 @@ import {
 } from "./OperationalWorkspaceSwitcher";
 import { defaultJourneyAltitude } from "./journeyAltitudePreview";
 import { loadJourneyProjections } from "./journeyProjectionStorage";
-import {
-  inspectMirrorConversationActivity,
-  reconcileMirrorConversation,
-} from "./mirrorReconciliationStorage";
 import {
   deriveLatestCertifiedModeTransition,
   extractCertifiedModeTransition,
@@ -81,14 +71,8 @@ import {
 } from "./runtimeActivityModel";
 import { inferMessageSpeaker, stripMessageSpeakerSignature, withCertifiedPersona } from "./conversationPresentation";
 import {
-  listMirrorConversations,
   loadDedicatedJourneyConversation,
-  loadJourneyConversation,
-  reloadJourneyFromMirror,
   saveDedicatedJourneyConversation,
-  saveJourneyConversation,
-  generateMirrorConversationTitle,
-  type MirrorConversationCandidate,
 } from "./journeyConversationStorage";
 import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPreferenceStorage";
 import { loadJourneyRegistry } from "./journeyRegistryStorage";
@@ -124,14 +108,6 @@ import {
   type JourneyRegistry,
   type SidebarJourneyItem,
 } from "../domain/journeyRegistry";
-import {
-  projectExternalPiInspection,
-  type ExternalPiFileFingerprint,
-} from "../domain/externalPiProjection";
-import {
-  projectMirrorConversationInspection,
-  type MirrorReconciliationReview,
-} from "../domain/mirrorOnlyReconciliation";
 import type { JourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { classifyDedicatedTurnState, dedicatedTurnBlocksNewInvocation } from "../domain/dedicatedTurnCommit";
@@ -211,14 +187,8 @@ export function App({ model }: AppProps) {
   const [runtimeProjection, setRuntimeProjection] = useState<RuntimeProjectionState>(initialRuntimeProjectionState);
   const [runtimeProjectionMessageId, setRuntimeProjectionMessageId] = useState<string | undefined>();
   const [piContextState, setPiContextState] = useState<"checking" | "waiting" | "available" | "not_initialized">("checking");
-  const [isInitializingPiContext, setIsInitializingPiContext] = useState(false);
   const [isRetryingMirrorCommit, setIsRetryingMirrorCommit] = useState(false);
   const [mirrorCommitError, setMirrorCommitError] = useState<string | undefined>();
-  const [externalPiConflict, setExternalPiConflict] = useState<string | undefined>();
-  const [mirrorReconciliationReview, setMirrorReconciliationReview] = useState<MirrorReconciliationReview | undefined>();
-  const [isReconcilingMirror, setIsReconcilingMirror] = useState(false);
-  const [mirrorReconciliationError, setMirrorReconciliationError] = useState<string | undefined>();
-  const [conversationAuthorityChecking, setConversationAuthorityChecking] = useState(false);
   const [providerConfig, setProviderConfig] = useState(defaultPiProviderConfig);
   const [providerCommand, setProviderCommand] = useState(defaultPiProviderConfig.command);
   const [providerArgsText, setProviderArgsText] = useState(providerConfigToArgsText(defaultPiProviderConfig));
@@ -238,13 +208,6 @@ export function App({ model }: AppProps) {
   const [journeyReloadStatus, setJourneyReloadStatus] = useState<string | undefined>();
   const [isJourneyReloading, setIsJourneyReloading] = useState(false);
   const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false);
-  const [mirrorConversationPickerOpen, setMirrorConversationPickerOpen] = useState(false);
-  const [mirrorConversationCandidates, setMirrorConversationCandidates] = useState<MirrorConversationCandidate[]>([]);
-  const [selectedMirrorConversationId, setSelectedMirrorConversationId] = useState<string | undefined>();
-  const [mirrorConversationPickerError, setMirrorConversationPickerError] = useState<string | undefined>();
-  const [mirrorConversationPickerLoading, setMirrorConversationPickerLoading] = useState(false);
-  const [generatingMirrorTitleId, setGeneratingMirrorTitleId] = useState<string | undefined>();
-  const [mirrorConversationLoadCandidate, setMirrorConversationLoadCandidate] = useState<MirrorConversationCandidate | undefined>();
   const [registryLoaded, setRegistryLoaded] = useState(false);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [loadedJourneyRegistry, setLoadedJourneyRegistry] = useState<JourneyRegistry>(emptyJourneyRegistry);
@@ -253,30 +216,11 @@ export function App({ model }: AppProps) {
   const chatStreamRef = useRef<HTMLElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const journeyMenuRef = useRef<HTMLDivElement | null>(null);
-  const mirrorTitleGenerationInFlightRef = useRef(false);
   const checkedMirrorTurnRef = useRef<string | undefined>(undefined);
   const conversationRef = useRef<JourneyConversation>(conversation);
   const selectedJourneyRef = useRef(selectedJourney);
-  const externalPiFingerprintRef = useRef(new Map<string, ExternalPiFileFingerprint>());
-  const externalPiInFlightRef = useRef(new Set<string>());
-  const externalPiRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const externalPiRuntimeRef = useRef({ conversationLoaded, isStreaming, agentRunStatus: agentRun.status, safeTestMode: providerConfig.safeTestMode });
-  const conversationAuthorityRefreshRef = useRef<ReturnType<typeof createConversationAuthorityRefreshCoordinator> | undefined>(undefined);
-  if (!conversationAuthorityRefreshRef.current) {
-    conversationAuthorityRefreshRef.current = createConversationAuthorityRefreshCoordinator(async () => {
-      setConversationAuthorityChecking(true);
-      try {
-        await refreshExternalPiActivity();
-        await new Promise<void>((resolve) => setTimeout(resolve, 0));
-        await refreshMirrorConversationActivity();
-      } finally {
-        setConversationAuthorityChecking(false);
-      }
-    });
-  }
   conversationRef.current = conversation;
   selectedJourneyRef.current = selectedJourney;
-  externalPiRuntimeRef.current = { conversationLoaded, isStreaming, agentRunStatus: agentRun.status, safeTestMode: providerConfig.safeTestMode };
 
   const currentState = useMemo(() => grammarStateFromViewModel(model), [model]);
   const journeyRegistry = loadedJourneyRegistry;
@@ -337,204 +281,6 @@ export function App({ model }: AppProps) {
   const operationalChatSelected = selectedAltitude === "operational" && selectedOperationalSurface === "chat";
   const rightPanelVisible = operationalChatSelected && !rightPanelCollapsed;
 
-  function scheduleExternalPiRefresh(delayMs = 200) {
-    if (externalPiRefreshTimerRef.current) {
-      clearTimeout(externalPiRefreshTimerRef.current);
-    }
-    externalPiRefreshTimerRef.current = setTimeout(() => {
-      externalPiRefreshTimerRef.current = undefined;
-      void refreshExternalConversationActivity();
-    }, delayMs);
-  }
-
-  async function refreshExternalPiActivity() {
-    const runtime = externalPiRuntimeRef.current;
-    const current = conversationRef.current;
-    const checkpoint = current.reconciliation.checkpoints.pi;
-    if (
-      current.liveIdentity.activationReceiptActivatedAt
-      || !runtime.conversationLoaded
-      || runtime.isStreaming
-      || runtime.agentRunStatus === "running"
-      || runtime.safeTestMode
-      || !checkpoint?.sessionFile
-      || !current.reconciliation.checkpoints.harness
-    ) return;
-
-    const authorityKey = [
-      current.journeyId,
-      current.liveIdentity.piSessionId,
-      current.liveIdentity.generation,
-      checkpoint.sessionFile,
-    ].join(":");
-    if (externalPiInFlightRef.current.has(authorityKey)) return;
-    externalPiInFlightRef.current.add(authorityKey);
-    const requestedLeaf = checkpoint.leafEntryId;
-    try {
-      const inspection = await inspectExternalPiActivity(
-        current,
-        externalPiFingerprintRef.current.get(authorityKey),
-      );
-      if (!inspection) return;
-      externalPiFingerprintRef.current.set(authorityKey, inspection.fingerprint);
-      const currentRuntime = externalPiRuntimeRef.current;
-      if (currentRuntime.isStreaming || currentRuntime.agentRunStatus === "running") return;
-      if (inspection.status === "unchanged" || inspection.status === "waiting") {
-        setExternalPiConflict(undefined);
-      }
-      const latest = conversationRef.current;
-      if (
-        latest.journeyId !== current.journeyId
-        || latest.liveIdentity.piSessionId !== current.liveIdentity.piSessionId
-        || latest.liveIdentity.generation !== current.liveIdentity.generation
-        || latest.reconciliation.checkpoints.pi?.leafEntryId !== requestedLeaf
-      ) return;
-
-      const result = projectExternalPiInspection(latest, inspection, new Date().toISOString());
-      if (!result.changed) return;
-      await saveJourneyConversation(result.conversation);
-      const afterSave = conversationRef.current;
-      if (
-        afterSave.journeyId !== latest.journeyId
-        || afterSave.liveIdentity.generation !== latest.liveIdentity.generation
-        || afterSave.reconciliation.checkpoints.pi?.leafEntryId !== requestedLeaf
-      ) return;
-      setConversation((currentConversation) => {
-        if (
-          currentConversation.journeyId !== result.conversation.journeyId
-          || currentConversation.liveIdentity.generation !== result.conversation.liveIdentity.generation
-          || currentConversation.reconciliation.checkpoints.pi?.leafEntryId !== requestedLeaf
-        ) return currentConversation;
-        const projectedConversation = {
-          ...result.conversation,
-          importedActivity: currentConversation.importedActivity,
-          authoritativeContextStats: currentConversation.authoritativeContextStats,
-          certifiedMirrorMode: currentConversation.certifiedMirrorMode,
-        };
-        conversationRef.current = projectedConversation;
-        return projectedConversation;
-      });
-      setExternalPiConflict(result.conflictCode);
-    } catch (error) {
-      console.warn("Could not refresh external Pi activity.", error);
-      setExternalPiConflict("pi_session_unavailable");
-    } finally {
-      externalPiInFlightRef.current.delete(authorityKey);
-    }
-  }
-
-  function refreshExternalConversationActivity() {
-    return conversationAuthorityRefreshRef.current!.refresh();
-  }
-
-  async function refreshMirrorConversationActivity() {
-    const runtime = externalPiRuntimeRef.current;
-    const current = conversationRef.current;
-    const checkpoint = current.reconciliation.checkpoints.mirror;
-    if (
-      current.liveIdentity.activationReceiptActivatedAt
-      || !runtime.conversationLoaded
-      || runtime.isStreaming
-      || runtime.agentRunStatus === "running"
-      || runtime.safeTestMode
-      || !checkpoint
-      || !current.liveIdentity.mirrorConversationId
-      || !["in_sync", "pi_advanced", "mirror_advanced", "both_advanced"].includes(current.reconciliation.classification)
-    ) return;
-
-    const authorityKey = `mirror:${current.journeyId}:${current.liveIdentity.generation}:${checkpoint.conversationId}`;
-    if (externalPiInFlightRef.current.has(authorityKey)) return;
-    externalPiInFlightRef.current.add(authorityKey);
-    const requestedCursor = checkpoint.lastMessageId;
-    try {
-      const inspection = await inspectMirrorConversationActivity(current);
-      if (!inspection) return;
-      const currentRuntime = externalPiRuntimeRef.current;
-      if (currentRuntime.isStreaming || currentRuntime.agentRunStatus === "running") return;
-      const latest = conversationRef.current;
-      if (
-        latest.journeyId !== current.journeyId
-        || latest.liveIdentity.generation !== current.liveIdentity.generation
-        || latest.reconciliation.checkpoints.mirror?.lastMessageId !== requestedCursor
-      ) return;
-      const result = projectMirrorConversationInspection(latest, inspection, new Date().toISOString());
-      if (result.changed) {
-        await saveJourneyConversation(result.conversation);
-        const afterSave = conversationRef.current;
-        if (
-          afterSave.journeyId !== latest.journeyId
-          || afterSave.liveIdentity.generation !== latest.liveIdentity.generation
-          || afterSave.reconciliation.checkpoints.mirror?.lastMessageId !== requestedCursor
-        ) return;
-        conversationRef.current = result.conversation;
-        setConversation(result.conversation);
-      }
-      setMirrorReconciliationReview(
-        result.review && result.review.status !== "waiting" ? result.review : undefined,
-      );
-      setMirrorReconciliationError(undefined);
-    } catch (error) {
-      console.warn("Could not refresh Mirror conversation activity.", error);
-    } finally {
-      externalPiInFlightRef.current.delete(authorityKey);
-    }
-  }
-
-  async function applyMirrorReconciliation() {
-    const review = mirrorReconciliationReview;
-    const current = conversationRef.current;
-    const independentlyReviewed = review?.status === "independent" || review?.reasonCode === "independent_pi_advancement";
-    if (!review || (review.status !== "eligible" && !independentlyReviewed) || isReconcilingMirror || isStreaming || agentRun.status === "running") return;
-    const providerIndex = providerConfig.args.indexOf("--provider");
-    const modelIndex = providerConfig.args.indexOf("--model");
-    const provider = providerIndex >= 0 ? providerConfig.args[providerIndex + 1] : undefined;
-    const modelName = modelIndex >= 0 ? providerConfig.args[modelIndex + 1] : undefined;
-    if (!provider || !modelName) {
-      setMirrorReconciliationError("Configured Pi provider and model are required.");
-      return;
-    }
-    setIsReconcilingMirror(true);
-    setMirrorReconciliationError(undefined);
-    try {
-      await reconcileMirrorConversation({
-        conversation: current,
-        fingerprint: review.fingerprint,
-        provider,
-        model: modelName,
-        resolutionMode: independentlyReviewed ? "independent_review" : "mirror_only",
-      });
-      const reconciled = await loadJourneyConversation(current.journeyId);
-      if (!reconciled || reconciled.liveIdentity.generation !== current.liveIdentity.generation + 1) {
-        throw new Error("Reconciled conversation could not be restored.");
-      }
-      setConversation(reconciled);
-      setMirrorReconciliationReview(undefined);
-      setJourneyReloadStatus("Mirror updates reconciled into a new Pi generation.");
-    } catch (error) {
-      setMirrorReconciliationError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setIsReconcilingMirror(false);
-    }
-  }
-
-  useEffect(() => {
-    const onFocus = () => scheduleExternalPiRefresh();
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") scheduleExternalPiRefresh();
-    };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      if (externalPiRefreshTimerRef.current) clearTimeout(externalPiRefreshTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (conversationLoaded) scheduleExternalPiRefresh(0);
-  }, [conversation.id, conversation.liveIdentity.generation, conversationLoaded]);
-
   useEffect(() => {
     if (!journeyMenuOpen) {
       return;
@@ -557,7 +303,13 @@ export function App({ model }: AppProps) {
       let registry = emptyJourneyRegistry;
       let preferences: JourneyPreferenceState = defaultJourneyPreferenceState;
       try {
-        const [loadedRegistry, loadedPreferences] = await Promise.all([loadJourneyRegistry(), loadJourneyPreferences()]);
+        const [loadedRegistry, loadedPreferences] = await Promise.all([
+          loadJourneyRegistry(),
+          loadJourneyPreferences(),
+          retireLegacyParityState().catch((error) => {
+            console.warn("Legacy parity state was retained for manual review.", error);
+          }),
+        ]);
         registry = loadedRegistry ?? emptyJourneyRegistry;
         preferences = loadedPreferences ? { ...defaultJourneyPreferenceState, ...loadedPreferences } : defaultJourneyPreferenceState;
       } catch (error) {
@@ -644,7 +396,7 @@ export function App({ model }: AppProps) {
               stagedAssistant.id,
             );
             restoredConversation = applyMirrorTurnCommitStatus(restoredConversation, recoveryCorrelation, {
-              schemaVersion: "0.1.0",
+              schemaVersion: "0.2.0",
               status: "missing",
               conversationId: classified.activeGeneration.mirrorConversationId,
               messageCount: 0,
@@ -678,7 +430,7 @@ export function App({ model }: AppProps) {
         setJourneyStartError(undefined);
       } catch {
         if (!cancelled) {
-          setJourneyThreadState({ kind: "inconsistent", reasonCodes: ["invalid_record"], legacyStatePresent: false });
+          setJourneyThreadState({ kind: "inconsistent", reasonCodes: ["invalid_record"] });
         }
       } finally {
         if (!cancelled) {
@@ -686,16 +438,6 @@ export function App({ model }: AppProps) {
         }
       }
 
-      try {
-        const legacyConversation = await loadJourneyConversation(selectedJourney);
-        if (!cancelled && legacyConversation?.journeyId === selectedJourney) {
-          setJourneyThreadState((state) => state.kind === "loading"
-            ? state
-            : { ...state, legacyStatePresent: true });
-        }
-      } catch {
-        // Legacy parity state is bounded evidence only and cannot block readiness.
-      }
     }
 
     void restoreConversation();
@@ -753,9 +495,7 @@ export function App({ model }: AppProps) {
       }
       const snapshot = inspection.snapshot;
       if (inspection.status !== "available" || !snapshot || snapshot.providerModel !== providerModel) {
-        const importedConversation = conversation.liveIdentity.origin === "mirror_import"
-          && Boolean(conversation.liveIdentity.mirrorConversationId);
-        setPiContextState(inspection.status === "missing" && importedConversation ? "not_initialized" : "waiting");
+        setPiContextState("waiting");
         return;
       }
       setPiContextState("available");
@@ -867,9 +607,6 @@ export function App({ model }: AppProps) {
   useEffect(() => {
     checkedMirrorTurnRef.current = undefined;
     setMirrorCommitError(undefined);
-    setExternalPiConflict(undefined);
-    setMirrorReconciliationReview(undefined);
-    setMirrorReconciliationError(undefined);
   }, [selectedJourney]);
 
   useEffect(() => {
@@ -904,63 +641,6 @@ export function App({ model }: AppProps) {
     });
   }
 
-  async function initializeCurrentPiContext() {
-    if (
-      isInitializingPiContext
-      || isStreaming
-      || !["mirror_import", "mirror_reconciliation"].includes(conversation.liveIdentity.origin)
-      || !conversation.liveIdentity.mirrorConversationId
-    ) {
-      return;
-    }
-
-    setIsInitializingPiContext(true);
-    setPiContextState("checking");
-    try {
-      await hydrateJourneyPiSession(
-        conversation.journeyId,
-        conversation.liveIdentity.piSessionId,
-        providerConfig,
-      );
-      const hydratedConversation = await loadJourneyConversation(conversation.journeyId);
-      if (!hydratedConversation || hydratedConversation.reconciliation.classification !== "in_sync") {
-        throw new Error("Hydrated conversation did not establish synchronized Pi and Mirror authority.");
-      }
-      conversationRef.current = hydratedConversation;
-      setConversation(hydratedConversation);
-      const inspection = await readJourneyPiContextStats(
-        conversation.journeyId,
-        conversation.liveIdentity.piSessionId,
-      );
-      const snapshot = inspection.snapshot;
-      if (
-        inspection.status !== "available"
-        || !snapshot
-        || snapshot.providerModel !== providerModelLabel(providerConfig)
-      ) {
-        setPiContextState("waiting");
-        return;
-      }
-      setConversation((currentConversation) => ({
-        ...currentConversation,
-        authoritativeContextStats: {
-          piSessionId: currentConversation.liveIdentity.piSessionId,
-          generation: currentConversation.liveIdentity.generation,
-          providerModel: snapshot.providerModel,
-          capturedAt: new Date().toISOString(),
-          usage: { tokens: snapshot.tokens, contextWindow: null, percent: null },
-        },
-      }));
-      setPiContextState("available");
-    } catch (error) {
-      setPiContextState("not_initialized");
-      const message = error instanceof Error ? error.message : String(error);
-      setStreamWarnings((warnings) => [...warnings, message]);
-    } finally {
-      setIsInitializingPiContext(false);
-    }
-  }
-
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
     const content = (retryContent ?? draft).trim();
     if (!content || journeyThreadState.kind !== "ready" || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || (mode === "live" && providerErrors.length > 0)) {
@@ -970,8 +650,7 @@ export function App({ model }: AppProps) {
     let baseConversation = conversation;
     if (mode === "live") {
       baseConversation = conversationRef.current;
-      const preflightBlocked = externalPiInFlightRef.current.size > 0
-        || baseConversation.journeyId !== selectedJourney
+      const preflightBlocked = baseConversation.journeyId !== selectedJourney
         || journeyThreadState.kind !== "ready"
         || dedicatedTurnBlocksNewInvocation(classifyDedicatedTurnState(baseConversation));
       if (preflightBlocked) {
@@ -1283,101 +962,6 @@ export function App({ model }: AppProps) {
         reduceRuntimeProjection(currentProjection, { type: "error", message }),
       );
       setStreamWarnings((warnings) => [...warnings, message]);
-    }
-  }
-
-  async function openMirrorConversationPicker() {
-    if (isStreaming || isJourneyReloading) {
-      return;
-    }
-
-    setJourneyMenuOpen(false);
-    setMirrorConversationPickerOpen(true);
-    setMirrorConversationPickerLoading(true);
-    setMirrorConversationPickerError(undefined);
-    setSelectedMirrorConversationId(undefined);
-    try {
-      const candidates = await listMirrorConversations(selectedJourney);
-      setMirrorConversationCandidates(candidates);
-      setSelectedMirrorConversationId(candidates[0]?.id);
-      setMirrorConversationLoadCandidate(undefined);
-    } catch (error) {
-      setMirrorConversationCandidates([]);
-      setMirrorConversationPickerError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setMirrorConversationPickerLoading(false);
-    }
-  }
-
-  function closeMirrorConversationPicker() {
-    if (isJourneyReloading) {
-      return;
-    }
-    setMirrorConversationPickerOpen(false);
-    setMirrorConversationPickerError(undefined);
-    setMirrorConversationLoadCandidate(undefined);
-  }
-
-  async function generateCandidateTitle(candidate: MirrorConversationCandidate) {
-    if (mirrorTitleGenerationInFlightRef.current) {
-      return;
-    }
-
-    mirrorTitleGenerationInFlightRef.current = true;
-    setSelectedMirrorConversationId(candidate.id);
-    setIsJourneyReloading(true);
-    setGeneratingMirrorTitleId(candidate.id);
-    setMirrorConversationPickerError(undefined);
-    try {
-      await generateMirrorConversationTitle(selectedJourney, candidate.id);
-      const candidates = await listMirrorConversations(selectedJourney);
-      setMirrorConversationCandidates(candidates);
-      setSelectedMirrorConversationId(candidate.id);
-    } catch (error) {
-      setMirrorConversationPickerError(error instanceof Error ? error.message : String(error));
-    } finally {
-      mirrorTitleGenerationInFlightRef.current = false;
-      setGeneratingMirrorTitleId(undefined);
-      setIsJourneyReloading(false);
-    }
-  }
-
-  async function reloadSelectedMirrorConversation() {
-    const conversationId = mirrorConversationLoadCandidate?.id ?? selectedMirrorConversationId;
-    if (isStreaming || isJourneyReloading || !conversationId) {
-      return;
-    }
-
-    setIsJourneyReloading(true);
-    setJourneyReloadStatus("Reloading selected Mirror conversation...");
-    try {
-      const summary = await reloadJourneyFromMirror(selectedJourney, conversationId);
-      const importedConversation = await loadJourneyConversation(selectedJourney);
-      if (importedConversation?.journeyId === selectedJourney) {
-        const hydrationSummary = await hydrateJourneyPiSession(
-          selectedJourney,
-          importedConversation.liveIdentity.piSessionId,
-          providerConfig,
-        );
-        const synchronizedConversation = await loadJourneyConversation(selectedJourney);
-        if (!synchronizedConversation || synchronizedConversation.reconciliation.classification !== "in_sync") {
-          throw new Error("Reloaded conversation did not establish synchronized Pi and Mirror authority.");
-        }
-        conversationRef.current = synchronizedConversation;
-        setConversation(synchronizedConversation);
-        setJourneyReloadStatus(`${summary} ${hydrationSummary}`.trim());
-      }
-      setMirrorConversationPickerOpen(false);
-      setMirrorConversationLoadCandidate(undefined);
-      if (!importedConversation) {
-        setJourneyReloadStatus(summary || "Selected Mirror conversation reloaded.");
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setMirrorConversationPickerError(message);
-      setJourneyReloadStatus(message);
-    } finally {
-      setIsJourneyReloading(false);
     }
   }
 
@@ -1810,27 +1394,11 @@ export function App({ model }: AppProps) {
           aria-label="Message composer"
           hidden={!operationalChatSelected || journeyThreadState.kind !== "ready"}
         >
-          {reconciliationBlocksInvocation
-            && !mirrorReconciliationReview
-            && !pendingMirrorRepair
-            && !isStreaming ? (
-            <ConversationAuthorityNotice
-              classification={conversation.reconciliation.classification}
-              checking={piContextState === "checking" || conversationAuthorityChecking}
-              disabled={isJourneyReloading || agentRun.status === "running"}
-              onReview={() => void openMirrorConversationPicker()}
-            />
-          ) : null}
-          {mirrorReconciliationReview && !isStreaming ? (
-            <MirrorReconciliationNotice
-              review={mirrorReconciliationReview}
-              disabled={isReconcilingMirror || agentRun.status === "running" || providerConfig.safeTestMode}
-              error={mirrorReconciliationError}
-              onApply={() => void applyMirrorReconciliation()}
-            />
-          ) : null}
-          {externalPiConflict && !isStreaming ? (
-            <ExternalPiSyncNotice reason={externalPiConflict} />
+          {reconciliationBlocksInvocation && !pendingMirrorRepair && !isStreaming ? (
+            <section className="dedicated-turn-notice" role="status">
+              <strong>Finishing the dedicated turn</strong>
+              <p>Nautilus will enable the next send after the active Pi/Mirror pair settles.</p>
+            </section>
           ) : null}
           {pendingMirrorRepair && !isStreaming ? (
             <ConversationSyncNotice
@@ -1854,7 +1422,7 @@ export function App({ model }: AppProps) {
               placeholder={reconciliationBlocksInvocation
                 ? "Draft your next message while the completed turn is recorded."
                 : "Write a message to this journey agent."}
-              disabled={conversationAuthorityChecking || isJourneyReloading || agentRun.status === "running"}
+              disabled={isJourneyReloading || agentRun.status === "running"}
             />
             <ComposerRuntimeFooter
               projection={runtimeProjection}
@@ -1863,9 +1431,6 @@ export function App({ model }: AppProps) {
               activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}
               contextState={piContextState}
               providerModel={providerModelLabel(providerConfig)}
-              canInitializeContext={piContextState === "not_initialized"}
-              initializingContext={isInitializingPiContext}
-              onInitializeContext={() => void initializeCurrentPiContext()}
             />
             <div className="composer-inline-actions">
               {agentRun.status === "running" && streamMode === "live" ? (
@@ -1883,7 +1448,7 @@ export function App({ model }: AppProps) {
                   className="icon-button send-button"
                   type="button"
                   onClick={() => void generatePacket("live")}
-                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || conversationAuthorityChecking || providerErrors.length > 0}
+                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || providerErrors.length > 0}
                   aria-label="Send message"
                   title="Send message"
                 >
@@ -1997,97 +1562,6 @@ export function App({ model }: AppProps) {
               </button>
               <button className="secondary-button" type="button" onClick={() => setRestartConfirmationOpen(false)} disabled={isJourneyReloading}>
                 Cancel
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {mirrorConversationPickerOpen ? (
-        <div className="settings-backdrop" role="presentation" onClick={closeMirrorConversationPicker}>
-          <section
-            className="settings-window mirror-conversation-picker"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Select Mirror conversation"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <header className="settings-header">
-              <div>
-                <p className="eyebrow">Mirror reload</p>
-                <h2>Select conversation</h2>
-                <p className="settings-intro">Choose which Mirror conversation to materialize for {selectedJourneyItem.name}.</p>
-              </div>
-              <button className="secondary-button" type="button" onClick={closeMirrorConversationPicker} disabled={isJourneyReloading}>
-                Cancel
-              </button>
-            </header>
-
-            {mirrorConversationPickerError ? <p className="provider-error">{mirrorConversationPickerError}</p> : null}
-            {mirrorConversationPickerLoading ? <p className="journey-reload-status">Loading Mirror conversations...</p> : null}
-            {!mirrorConversationPickerLoading && mirrorConversationCandidates.length === 0 ? (
-              <p className="empty-chat-copy">No Mirror conversations found for this Journey.</p>
-            ) : null}
-
-            {mirrorConversationCandidates.length > 0 ? (
-              <div className="mirror-conversation-list" role="listbox" aria-label="Mirror conversations">
-                {mirrorConversationCandidates.map((candidate) => (
-                  <div
-                    key={candidate.id}
-                    className={`mirror-conversation-option ${candidate.id === selectedMirrorConversationId ? "selected" : ""}`}
-                    onClick={() => {
-                      setSelectedMirrorConversationId(candidate.id);
-                      setMirrorConversationLoadCandidate(candidate);
-                    }}
-                    role="option"
-                    aria-selected={candidate.id === selectedMirrorConversationId}
-                  >
-                    <div className="mirror-conversation-select">
-                      <span>
-                        <strong>{candidate.title}</strong>
-                        <small>Code {candidate.code} · {candidate.messageCount} messages</small>
-                      </span>
-                      <span className="mirror-conversation-date">{formatDateTime(candidate.lastUpdatedAt)}</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="secondary-button mirror-title-button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void generateCandidateTitle(candidate);
-                      }}
-                      disabled={isJourneyReloading}
-                      aria-label={`Generate title for ${candidate.title}`}
-                      title="Generate title with Mirror"
-                    >
-                      {generatingMirrorTitleId === candidate.id ? "…" : "✦"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
-            {mirrorConversationLoadCandidate ? (
-              <section className="mirror-load-confirmation" role="alertdialog" aria-label="Confirm conversation load">
-                <div>
-                  <strong>Load this conversation?</strong>
-                  <p>{mirrorConversationLoadCandidate.title}</p>
-                  <small>Code {mirrorConversationLoadCandidate.code} · {mirrorConversationLoadCandidate.messageCount} messages · {formatDateTime(mirrorConversationLoadCandidate.lastUpdatedAt)}</small>
-                </div>
-                <div className="provider-actions">
-                  <button type="button" onClick={() => void reloadSelectedMirrorConversation()} disabled={isJourneyReloading}>
-                    {isJourneyReloading ? "Loading..." : "Confirm"}
-                  </button>
-                  <button className="secondary-button" type="button" onClick={() => setMirrorConversationLoadCandidate(undefined)} disabled={isJourneyReloading}>
-                    Cancel
-                  </button>
-                </div>
-              </section>
-            ) : null}
-
-            <div className="provider-actions">
-              <button className="secondary-button" type="button" onClick={closeMirrorConversationPicker} disabled={isJourneyReloading}>
-                Close
               </button>
             </div>
           </section>

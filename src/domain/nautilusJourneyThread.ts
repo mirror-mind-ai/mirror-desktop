@@ -39,9 +39,9 @@ export type NautilusThreadReasonCode =
   | "active_generation_regressed";
 
 export type NautilusJourneyThreadReadiness =
-  | { kind: "absent"; legacyStatePresent: boolean }
-  | { kind: "ready"; thread: NautilusJourneyThread; activeGeneration: NautilusThreadGeneration; legacyStatePresent: boolean }
-  | { kind: "inconsistent"; reasonCodes: NautilusThreadReasonCode[]; legacyStatePresent: boolean };
+  | { kind: "absent" }
+  | { kind: "ready"; thread: NautilusJourneyThread; activeGeneration: NautilusThreadGeneration }
+  | { kind: "inconsistent"; reasonCodes: NautilusThreadReasonCode[] };
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 const isId = (value: unknown): value is string => typeof value === "string" && ID_PATTERN.test(value);
@@ -82,11 +82,10 @@ export function parseNautilusJourneyThread(value: unknown): NautilusJourneyThrea
 export function classifyNautilusJourneyThread(
   value: unknown,
   journeyId: string,
-  legacyStatePresent = false,
 ): NautilusJourneyThreadReadiness {
-  if (value === undefined || value === null) return { kind: "absent", legacyStatePresent };
+  if (value === undefined || value === null) return { kind: "absent" };
   const thread = parseNautilusJourneyThread(value);
-  if (!thread) return { kind: "inconsistent", reasonCodes: ["invalid_record"], legacyStatePresent };
+  if (!thread) return { kind: "inconsistent", reasonCodes: ["invalid_record"] };
   const reasons: NautilusThreadReasonCode[] = [];
   if (thread.journeyId !== journeyId) reasons.push("journey_mismatch");
   const ordered = [...thread.generations].sort((a, b) => a.generation - b.generation);
@@ -112,8 +111,8 @@ export function classifyNautilusJourneyThread(
     piIds.add(generation.piSessionId);
     mirrorIds.add(generation.mirrorConversationId);
   }
-  if (reasons.length || !active) return { kind: "inconsistent", reasonCodes: [...new Set(reasons)], legacyStatePresent };
-  return { kind: "ready", thread, activeGeneration: active, legacyStatePresent };
+  if (reasons.length || !active) return { kind: "inconsistent", reasonCodes: [...new Set(reasons)] };
+  return { kind: "ready", thread, activeGeneration: active };
 }
 
 export function validateNautilusThreadTransition(

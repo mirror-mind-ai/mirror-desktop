@@ -29,18 +29,18 @@ export function pendingMirrorTurnRepair(conversation: JourneyConversation): Pend
   );
   if (
     !turn?.runId
+    || !conversation.liveIdentity.activationReceiptActivatedAt
+    || !conversation.liveIdentity.mirrorConversationId
     || !turn.harness.userMessageId
     || !turn.harness.assistantMessageId
     || !turn.pi.sessionFile
   ) return undefined;
   return {
     correlation: {
-      schemaVersion: conversation.liveIdentity.activationReceiptActivatedAt ? "0.2.0" : "0.1.0",
+      schemaVersion: "0.2.0",
       journeyId: conversation.liveIdentity.journeyId,
-      ...(conversation.liveIdentity.activationReceiptActivatedAt ? {
-        threadId: conversation.liveIdentity.harnessConversationId,
-        activationReceiptActivatedAt: conversation.liveIdentity.activationReceiptActivatedAt,
-      } : {}),
+      threadId: conversation.liveIdentity.harnessConversationId,
+      activationReceiptActivatedAt: conversation.liveIdentity.activationReceiptActivatedAt,
       harnessConversationId: conversation.liveIdentity.harnessConversationId,
       piSessionId: conversation.liveIdentity.piSessionId,
       generation: conversation.liveIdentity.generation,
@@ -65,13 +65,14 @@ export function createTurnCorrelation(input: {
   assistantMessageId: string;
 }): TurnCorrelation {
   const identity = input.conversation.liveIdentity;
+  if (!identity.activationReceiptActivatedAt || !identity.mirrorConversationId) {
+    throw new Error("dedicated_turn_authority_required");
+  }
   return {
-    schemaVersion: identity.activationReceiptActivatedAt ? "0.2.0" : "0.1.0",
+    schemaVersion: "0.2.0",
     journeyId: identity.journeyId,
-    ...(identity.activationReceiptActivatedAt ? {
-      threadId: identity.harnessConversationId,
-      activationReceiptActivatedAt: identity.activationReceiptActivatedAt,
-    } : {}),
+    threadId: identity.harnessConversationId,
+    activationReceiptActivatedAt: identity.activationReceiptActivatedAt,
     harnessConversationId: identity.harnessConversationId,
     piSessionId: identity.piSessionId,
     generation: identity.generation,
