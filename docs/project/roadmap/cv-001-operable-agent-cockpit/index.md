@@ -27,10 +27,11 @@ This Capability Value makes the Harness useful as an application before returnin
 | [DS-007](../ds-007-workspace-context-attachments/index.md) | Workspace Context Attachments | Navigator can attach bounded local context to an agent request without granting broad uncontrolled filesystem authority | 🟡 Planned |
 | [DS-008](../ds-008-provider-settings-persistence/index.md) | Provider Settings Persistence | Harness remembers non-sensitive provider/model settings locally without storing secrets | 🟡 Planned |
 | [DS-009](../ds-009-concurrent-journey-operations/index.md) | Concurrent Journey Operations | Navigator can operate multiple Journey-bound Pi runs concurrently without cross-run event, response, control or persistence leakage | 🟡 Planned |
+| [DS-010](../ds-010-journey-structure-management/index.md) | Journey Structure Management | Navigator can create, position and configure canonical Journeys from the Harness through explicit model-free Mirror transactions | 🟡 Planned |
 
 ## Done Condition
 
-CV-001 is complete when the Harness can be used as a practical local agent cockpit: sessions are explicit, provider setup is visible, Journey-bound runs are independently controllable and may proceed concurrently, useful Journey conversations can be reopened, Journeys can be searched/ordered/pinned, non-sensitive provider preferences can be retained locally, the GUI is coherent in daily use, and local context can be attached deliberately.
+CV-001 is complete when the Harness can be used as a practical local agent cockpit: sessions are explicit, provider setup is visible, Journey-bound runs are independently controllable and may proceed concurrently, useful Journey conversations can be reopened, Journeys can be searched/ordered/pinned and administered canonically, non-sensitive provider preferences can be retained locally, the GUI is coherent in daily use, and local context can be attached deliberately.
 
 ## Boundary
 

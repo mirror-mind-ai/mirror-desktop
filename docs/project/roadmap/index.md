@@ -33,6 +33,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 | [DS-007](ds-007-workspace-context-attachments/index.md) | Workspace Context Attachments | Navigator can attach bounded local context to an agent request without granting broad uncontrolled filesystem authority | 🟡 Planned |
 | [DS-008](ds-008-provider-settings-persistence/index.md) | Provider Settings Persistence | Harness remembers non-sensitive provider/model settings locally without storing secrets | 🟡 Planned |
 | [DS-009](ds-009-concurrent-journey-operations/index.md) | Concurrent Journey Operations | Navigator can operate multiple Journey-bound Pi runs concurrently without cross-run event, response, control or persistence leakage | 🟡 Planned |
+| [DS-010](ds-010-journey-structure-management/index.md) | Journey Structure Management | Navigator can create, position and configure canonical Journeys from the Harness through explicit model-free Mirror transactions | 🟡 Planned |
 
 ## Delivery Arc — Mirror Integration
 
@@ -66,7 +67,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 
 ## Current Recommendation
 
-Pull `CV-003.DS-003 — Tactical Journey Synthesis` as the next semantic delivery. Continue through Strategic Realization and Derived Meaning Checkpoints after Tactical establishes the first real interpreted reading. `CV-004` is complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008` and `DS-009` remain planned and independent until explicitly selected.
+Pull `CV-003.DS-003 — Tactical Journey Synthesis` as the next semantic delivery. Continue through Strategic Realization and Derived Meaning Checkpoints after Tactical establishes the first real interpreted reading. `CV-004` is complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008`, `DS-009` and `DS-010` remain planned and independent until explicitly selected. `DS-010` owns canonical Journey creation, hierarchy/order and project-path administration promoted from Refinement Work.
 
 ## Boundaries
 
