@@ -11,18 +11,18 @@
 
 In order to keep context attachment predictable and safe under local failure,
 As the Harness validation and compatibility boundary,
-I want explicit limits, staleness checks and atomic failure semantics,
+I want explicit limits, immutable-snapshot integrity checks and atomic failure semantics,
 So that oversized, changed, ambiguous or partially read context never reaches Pi or corrupts existing Journey conversation state.
 
 ## Outcome
 
-Attachment limits and failure classes are centralized and observable. Selection and send preflight handle missing roots, changed registry authority, changed files, unsupported encoding, count/size overflow, duplicate paths, malformed persisted records and native read failures without partial staging, provider activity or composer deadlock.
+Attachment limits and failure classes are centralized and observable. Capture handles missing roots, changed registry authority, files that disappear during capture, unsupported encoding, count/size overflow, duplicate paths and native read failures atomically. Send preflight verifies immutable snapshot ownership and integrity without silently rereading changed source files, partial staging, provider activity or composer deadlock.
 
 ## Acceptance Behavior
 
 ```text
-Given an attachment set that becomes invalid before Send
-When Harness revalidates the set
+Given an attachment set whose snapshot ownership or integrity becomes invalid before Send
+When Harness validates the immutable set
 Then Send fails before provider launch with a bounded actionable explanation
 And the dedicated turn, conversation, source files and other Journeys remain unchanged
 ```
@@ -30,8 +30,8 @@ And the dedicated turn, conversation, source files and other Journeys remain unc
 ## Scope
 
 - Establish and document maximum file count, per-file bytes and aggregate bytes during planning.
-- Classify selection, snapshot, ownership, staleness, serialization and persistence failures.
-- Decide digest/content behavior when a file changes between selection and send without silently substituting content.
+- Classify selection, capture, snapshot ownership, integrity, serialization and persistence failures.
+- Preserve the captured bytes when a source file changes after successful selection; refresh requires explicit remove and reattach, never silent substitution.
 - Fail the complete attachment set atomically; never send a partial subset.
 - Release composer state correctly after native, provider, cancellation and durable-recording failures.
 - Reject malformed or oversized persisted attachment metadata while retaining bounded recovery paths.
