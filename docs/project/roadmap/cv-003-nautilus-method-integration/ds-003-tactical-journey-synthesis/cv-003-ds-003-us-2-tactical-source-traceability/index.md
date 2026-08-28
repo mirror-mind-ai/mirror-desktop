@@ -2,7 +2,7 @@
 
 # CV-003.DS-003.US-2 — Tactical Source Traceability
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

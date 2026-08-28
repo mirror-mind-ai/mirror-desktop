@@ -2,7 +2,7 @@
 
 # CV-003.DS-007.US-1 - Operational Ariad Home
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

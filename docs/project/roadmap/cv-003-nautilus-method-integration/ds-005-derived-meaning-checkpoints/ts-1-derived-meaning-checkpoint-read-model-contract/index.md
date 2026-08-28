@@ -2,7 +2,7 @@
 
 # TS-1 — Derived Meaning Checkpoint Read Model Contract
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

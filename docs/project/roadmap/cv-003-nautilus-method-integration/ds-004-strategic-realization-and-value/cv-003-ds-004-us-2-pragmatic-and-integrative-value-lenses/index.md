@@ -2,7 +2,7 @@
 
 # CV-003.DS-004.US-2 — Pragmatic and Integrative Value Lenses
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

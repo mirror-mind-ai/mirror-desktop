@@ -2,7 +2,7 @@
 
 # DS-008.US-2 — Select a Journey Model
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

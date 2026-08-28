@@ -2,7 +2,7 @@
 
 # CV-003 - Nautilus Method Integration
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -20,15 +20,15 @@ The operational life of the Journey remains the source. Tactical and strategic v
 |------|----------------|---------|--------|
 | [CV-003.DS-001](ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude Journey Workspace Foundation | Navigator can move among durable Operational, Tactical and Strategic workspace shells while the existing conversation remains usable | ✅ Done |
 | [CV-003.DS-002](ds-002-operational-journey-artifacts/index.md) | Operational Journey Artifacts | Artifacts presents a bounded visible Journey-root tree with a safe content, details and metadata viewer while Conversation retains full width | ✅ Done |
-| [CV-003.DS-003](ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | 🟡 Planned |
-| [CV-003.DS-004](ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and generated value through pragmatic and integrative lenses | 🟡 Planned |
-| [CV-003.DS-005](ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can distinguish provisional readings from explicit synthesis checkpoints and inspect or correct their supporting sources | 🟡 Planned |
+| [CV-003.DS-003](ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | ✅ Done |
+| [CV-003.DS-004](ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and generated value through pragmatic and integrative lenses | ✅ Done |
+| [CV-003.DS-005](ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can distinguish provisional readings from explicit synthesis checkpoints and inspect or correct their supporting sources | ✅ Done |
 | [CV-003.DS-006](ds-006-three-published-journey-projections/index.md) | Three Published Journey Projections | Ariad, Mirror/Pi and Harness coordinate versioned Operational, Tactical and Strategic Journey read models through a gated cross-body contract | ✅ Done |
-| [CV-003.DS-007](ds-007-ariad-operational-observatory/index.md) | Ariad Operational Observatory | Operational exposes a read-only Ariad observatory for Delivery, Refinement and Exploration structure without becoming an editor | 🟡 Planned |
+| [CV-003.DS-007](ds-007-ariad-operational-observatory/index.md) | Ariad Operational Observatory | Operational exposes a read-only Ariad observatory for Delivery, Refinement and Exploration structure without becoming an editor | ✅ Done |
 
-## Done Condition
+## Closure
 
-CV-003 is done when the Journey sidebar remains the stable navigation axis; the selected Journey can be experienced at operational, tactical and strategic altitudes; the operational view joins conversation with bounded artifacts; tactical and strategic meaning is derived rather than maintained as parallel form state; pragmatic and integrative value remain two readings of the same realization; and the Navigator can understand, inspect and correct how operational signals become durable meaning.
+CV-003 is complete. The Journey sidebar remains the stable navigation axis; the selected Journey is experienced through Operational, Tactical and Strategic published projections; Operational joins conversation, bounded artifacts and the Ariad Observatory; Tactical and Strategic meaning is derived rather than maintained as parallel form state; pragmatic and integrative value remain two readings of the same realization; and source-grounded checkpoints make the movement from provisional interpretation to durable meaning inspectable and correctable.
 
 ## Boundary
 

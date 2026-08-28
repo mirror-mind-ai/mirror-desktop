@@ -2,7 +2,7 @@
 
 # CV-003.DS-003.TS-1 — Tactical Projection Read Model Contract
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

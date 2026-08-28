@@ -2,7 +2,7 @@
 
 # CV-003.DS-004.TS-2 — Strategic Publication Boundary
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

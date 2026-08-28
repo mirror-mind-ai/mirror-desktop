@@ -2,7 +2,7 @@
 
 # DS-008 - Persistent Agent Configuration and Journey Overrides
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -30,14 +30,14 @@ The effective profile applies to the next explicit invocation. Loading, saving, 
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| DS-008.US-1 | Remember Global Agent Defaults | User Story | Navigator reopens Harness with the last allowlisted global provider/model, thinking level and invocation preferences | 🟡 Planned |
-| DS-008.US-2 | Select a Journey Model | User Story | Navigator can let a Journey inherit the global provider/model or select an explicit override | 🟡 Planned |
-| DS-008.US-3 | Select a Journey Thinking Level | User Story | Navigator can let a Journey inherit the global thinking level or select an explicit supported override | 🟡 Planned |
-| DS-008.US-4 | Inspect and Reset Effective Configuration | User Story | Settings show whether each value is inherited or overridden and can restore either the Journey or global defaults explicitly | 🟡 Planned |
-| DS-008.TS-1 | Versioned Non-secret Settings Store | Technical Story | Harness persists allowlisted global and per-Journey profiles atomically in local application data | 🟡 Planned |
-| DS-008.TS-2 | Effective Agent Profile Resolution | Technical Story | One deterministic resolver produces the provider/model and thinking level used by the next Journey-bound Pi invocation | 🟡 Planned |
-| DS-008.TS-3 | Pi Model and Thinking Projection | Technical Story | Explicit Harness fields map to supported Pi CLI configuration without treating arbitrary arguments as durable profile authority | 🟡 Planned |
-| DS-008.TS-4 | Persistence and Compatibility Guardrails | Technical Story | Malformed, stale, unknown or secret-bearing settings fail closed while legacy current-session configuration migrates safely | 🟡 Planned |
+| DS-008.US-1 | Remember Global Agent Defaults | User Story | Navigator reopens Harness with the last allowlisted global provider/model, thinking level and invocation preferences | ✅ Done |
+| DS-008.US-2 | Select a Journey Model | User Story | Navigator can let a Journey inherit the global provider/model or select an explicit override | ✅ Done |
+| DS-008.US-3 | Select a Journey Thinking Level | User Story | Navigator can let a Journey inherit the global thinking level or select an explicit supported override | ✅ Done |
+| DS-008.US-4 | Inspect and Reset Effective Configuration | User Story | Settings show whether each value is inherited or overridden and can restore either the Journey or global defaults explicitly | ✅ Done |
+| DS-008.TS-1 | Versioned Non-secret Settings Store | Technical Story | Harness persists allowlisted global and per-Journey profiles atomically in local application data | ✅ Done |
+| DS-008.TS-2 | Effective Agent Profile Resolution | Technical Story | One deterministic resolver produces the provider/model and thinking level used by the next Journey-bound Pi invocation | ✅ Done |
+| DS-008.TS-3 | Pi Model and Thinking Projection | Technical Story | Explicit Harness fields map to supported Pi CLI configuration without treating arbitrary arguments as durable profile authority | ✅ Done |
+| DS-008.TS-4 | Persistence and Compatibility Guardrails | Technical Story | Malformed, stale, unknown or secret-bearing settings fail closed while legacy current-session configuration migrates safely | ✅ Done |
 
 ## Done Condition
 

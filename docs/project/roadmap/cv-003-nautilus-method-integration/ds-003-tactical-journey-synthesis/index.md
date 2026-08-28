@@ -2,7 +2,7 @@
 
 # CV-003.DS-003 - Tactical Journey Synthesis
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -12,11 +12,11 @@ Navigator can perceive missions, evidence and deliverables as a tactical reading
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-003.DS-003.TS-1 | Tactical Projection Read Model Contract | Technical Story | Harness has a typed tactical read model that preserves mission, evidence, deliverables, source references, ambiguity and unavailable states from the published Tactical projection | 🟡 Planned |
-| CV-003.DS-003.US-1 | Evidence-grounded Tactical Workspace | User Story | Navigator sees mission, evidence and deliverables in Tactical as a derived reading grounded in Journey evidence, not as manually maintained form state | 🟡 Planned |
-| CV-003.DS-003.US-2 | Tactical Source Traceability | User Story | Navigator can inspect which operational sources support Tactical mission, evidence and deliverable items | 🟡 Planned |
-| CV-003.DS-003.TS-2 | Tactical Publication Boundary | Technical Story | Tactical renders only explicit published projections and bounded unavailable or stale states, without silently invoking synthesis or inventing content | 🟡 Planned |
-| CV-003.DS-003.TS-3 | Tactical Projection Validation Fixtures | Technical Story | Representative fixtures and tests cover complete, ambiguous, stale, missing and invalid Tactical projections | 🟡 Planned |
+| CV-003.DS-003.TS-1 | Tactical Projection Read Model Contract | Technical Story | Harness has a typed tactical read model that preserves mission, evidence, deliverables, source references, ambiguity and unavailable states from the published Tactical projection | ✅ Done |
+| CV-003.DS-003.US-1 | Evidence-grounded Tactical Workspace | User Story | Navigator sees mission, evidence and deliverables in Tactical as a derived reading grounded in Journey evidence, not as manually maintained form state | ✅ Done |
+| CV-003.DS-003.US-2 | Tactical Source Traceability | User Story | Navigator can inspect which operational sources support Tactical mission, evidence and deliverable items | ✅ Done |
+| CV-003.DS-003.TS-2 | Tactical Publication Boundary | Technical Story | Tactical renders only explicit published projections and bounded unavailable or stale states, without silently invoking synthesis or inventing content | ✅ Done |
+| CV-003.DS-003.TS-3 | Tactical Projection Validation Fixtures | Technical Story | Representative fixtures and tests cover complete, ambiguous, stale, missing and invalid Tactical projections | ✅ Done |
 
 ## Done Condition
 

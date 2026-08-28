@@ -2,7 +2,7 @@
 
 # US-2 — Provisional and Consolidated Meaning Distinction
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

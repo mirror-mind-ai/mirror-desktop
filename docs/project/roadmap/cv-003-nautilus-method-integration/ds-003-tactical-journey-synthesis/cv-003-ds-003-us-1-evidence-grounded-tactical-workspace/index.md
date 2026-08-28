@@ -2,7 +2,7 @@
 
 # CV-003.DS-003.US-1 — Evidence-grounded Tactical Workspace
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

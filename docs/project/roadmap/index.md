@@ -17,7 +17,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 |------|------------------|---------|--------|
 | [CV-001](cv-001-operable-agent-cockpit/index.md) | Operable Agent Cockpit | Harness becomes a usable desktop cockpit for running Pi-backed agent conversations with local session control, provider configuration, run control and durable history | 🟠 In Progress |
 | [CV-002](cv-002-mirror-integration/index.md) | Mirror Integration | Harness becomes the desktop projection of the essential Pi/Mirror operational loop and context lifecycle | ✅ Done |
-| [CV-003](cv-003-nautilus-method-integration/index.md) | Nautilus Method Integration | Harness lets the Navigator inhabit one Journey at operational, tactical and strategic altitudes | 🟠 In Progress |
+| [CV-003](cv-003-nautilus-method-integration/index.md) | Nautilus Method Integration | Harness lets the Navigator inhabit one Journey at operational, tactical and strategic altitudes | ✅ Done |
 | [CV-004](cv-004-dedicated-nautilus-journey-thread/index.md) | Dedicated Nautilus Journey Thread | Every Journey owns one Nautilus thread whose active generation is a dedicated, Journey-activated Pi/Mirror pair, independent from conversations in other environments | ✅ Done |
 
 ## Delivery Arc — Operable Agent Cockpit
@@ -31,7 +31,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 | [DS-005](ds-005-local-conversation-history/index.md) | Persisted Journey Conversation | Harness preserves and restores the single local conversation for each Journey across app restarts | ✅ Done |
 | [DS-006](ds-006-journey-management/index.md) | Journey Management | Navigator can switch across Journey sessions, search Journeys, order the list and pin important Journeys | ✅ Done |
 | [DS-007](ds-007-workspace-context-attachments/index.md) | Workspace Context Attachments | Navigator can attach bounded local context to an agent request without granting broad uncontrolled filesystem authority | 🟡 Planned |
-| [DS-008](ds-008-provider-settings-persistence/index.md) | Persistent Agent Configuration and Journey Overrides | Harness remembers non-sensitive global agent defaults and lets each Journey inherit or override its model and thinking level | 🟡 Planned |
+| [DS-008](ds-008-provider-settings-persistence/index.md) | Persistent Agent Configuration and Journey Overrides | Harness remembers non-sensitive global agent defaults and lets each Journey inherit or override its model and thinking level | ✅ Done |
 | [DS-009](ds-009-concurrent-journey-operations/index.md) | Concurrent Journey Operations | Navigator can operate multiple Journey-bound Pi runs concurrently without cross-run event, response, control or persistence leakage | 🟡 Planned |
 | [DS-010](ds-010-journey-structure-management/index.md) | Journey Structure Management | Navigator can create, position and configure canonical Journeys from the Harness through explicit model-free Mirror transactions | 🟢 Done |
 
@@ -50,11 +50,11 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 |------|----------------|---------|--------|
 | [CV-003.DS-001](cv-003-nautilus-method-integration/ds-001-three-altitude-gui-experiment/index.md) | Three-Altitude Journey Workspace Foundation | Navigator can move among durable Operational, Tactical and Strategic workspace shells while the existing conversation remains usable | ✅ Done |
 | [CV-003.DS-002](cv-003-nautilus-method-integration/ds-002-operational-journey-artifacts/index.md) | Operational Journey Artifacts | Artifacts presents a bounded visible Journey-root tree with a safe content, details and metadata viewer | ✅ Done |
-| [CV-003.DS-003](cv-003-nautilus-method-integration/ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | 🟡 Planned |
-| [CV-003.DS-004](cv-003-nautilus-method-integration/ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and value through pragmatic and integrative lenses | 🟡 Planned |
-| [CV-003.DS-005](cv-003-nautilus-method-integration/ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can inspect and correct the movement from provisional interpretation to explicit synthesis | 🟡 Planned |
+| [CV-003.DS-003](cv-003-nautilus-method-integration/ds-003-tactical-journey-synthesis/index.md) | Tactical Journey Synthesis | Tactical view derives missions, evidence and deliverables from Journey activity and artifacts | ✅ Done |
+| [CV-003.DS-004](cv-003-nautilus-method-integration/ds-004-strategic-realization-and-value/index.md) | Strategic Realization and Value | Strategic view derives realizations, impacts and value through pragmatic and integrative lenses | ✅ Done |
+| [CV-003.DS-005](cv-003-nautilus-method-integration/ds-005-derived-meaning-checkpoints/index.md) | Derived Meaning Checkpoints | Navigator can inspect and correct the movement from provisional interpretation to explicit synthesis | ✅ Done |
 | [CV-003.DS-006](cv-003-nautilus-method-integration/ds-006-three-published-journey-projections/index.md) | Three Published Journey Projections | Operational, Tactical and Strategic read models share a versioned, gated publication contract across Ariad, Mirror/Pi and Harness | ✅ Done |
-| [CV-003.DS-007](cv-003-nautilus-method-integration/ds-007-ariad-operational-observatory/index.md) | Ariad Operational Observatory | Operational exposes a read-only Ariad observatory for Delivery, Refinement and Exploration structure without becoming an editor | 🟡 Planned |
+| [CV-003.DS-007](cv-003-nautilus-method-integration/ds-007-ariad-operational-observatory/index.md) | Ariad Operational Observatory | Operational exposes a read-only Ariad observatory for Delivery, Refinement and Exploration structure without becoming an editor | ✅ Done |
 
 ## Delivery Arc — Dedicated Nautilus Journey Thread
 
@@ -68,7 +68,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 
 ## Current Recommendation
 
-Pull `CV-003.DS-007 - Ariad Operational Observatory` when the Navigator wants the newly promoted Ariad structure visualization implemented. It should establish the read-only Operational Ariad surface before deeper Tactical and Strategic meaning work resumes. Continue through `CV-003.DS-003`, `CV-003.DS-004` and `CV-003.DS-005` after the operational method map is visible. `CV-004` is complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008` and `DS-009` under Operable Agent Cockpit remain planned and independent until explicitly selected. `DS-010` is complete with canonical Journey creation, hierarchy/order, project-path administration and guarded empty-leaf deletion promoted from Refinement Work.
+`CV-003 — Nautilus Method Integration` is complete: the three altitudes are hydrated from canonical published projections, Tactical and Strategic readings are source-grounded, checkpoint states and correction boundaries are visible, and Operational includes the read-only Ariad Observatory. `CV-004` is also complete: dedicated generations are authoritative and the obsolete parity model has been retired. The remaining planned Harness deliveries are `DS-007 — Workspace Context Attachments` and `DS-009 — Concurrent Journey Operations`; Ariad currently recommends pulling `DS-007` next. `DS-008` and `DS-010` are complete.
 
 ## Boundaries
 

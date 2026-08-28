@@ -2,7 +2,7 @@
 
 # US-3 — Correction and Source Evidence Boundary
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

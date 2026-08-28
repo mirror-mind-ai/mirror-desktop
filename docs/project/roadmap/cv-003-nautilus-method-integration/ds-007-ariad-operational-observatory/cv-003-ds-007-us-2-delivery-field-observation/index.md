@@ -2,7 +2,7 @@
 
 # CV-003.DS-007.US-2 - Delivery Field Observation
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

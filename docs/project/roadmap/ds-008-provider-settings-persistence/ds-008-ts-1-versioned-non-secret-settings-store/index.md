@@ -2,7 +2,7 @@
 
 # DS-008.TS-1 — Versioned Non-secret Settings Store
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

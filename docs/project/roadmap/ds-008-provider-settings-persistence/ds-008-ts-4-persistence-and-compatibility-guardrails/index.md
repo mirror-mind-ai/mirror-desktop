@@ -2,7 +2,7 @@
 
 # DS-008.TS-4 — Persistence and Compatibility Guardrails
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

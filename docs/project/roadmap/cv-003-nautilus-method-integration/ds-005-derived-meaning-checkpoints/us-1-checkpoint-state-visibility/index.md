@@ -2,7 +2,7 @@
 
 # US-1 — Checkpoint State Visibility
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

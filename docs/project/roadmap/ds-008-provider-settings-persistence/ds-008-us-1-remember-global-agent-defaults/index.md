@@ -2,7 +2,7 @@
 
 # DS-008.US-1 — Remember Global Agent Defaults
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

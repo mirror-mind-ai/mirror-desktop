@@ -2,7 +2,7 @@
 
 # TS-2 — Checkpoint Publication Boundary
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

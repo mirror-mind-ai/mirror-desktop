@@ -2,7 +2,7 @@
 
 # DS-008.US-3 — Select a Journey Thinking Level
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

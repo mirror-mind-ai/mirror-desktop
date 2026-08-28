@@ -2,7 +2,7 @@
 
 # DS-008.US-4 — Inspect and Reset Effective Configuration
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

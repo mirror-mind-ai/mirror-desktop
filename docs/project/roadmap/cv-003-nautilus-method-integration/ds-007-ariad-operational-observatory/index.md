@@ -2,7 +2,7 @@
 
 # CV-003.DS-007 - Ariad Operational Observatory
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ---
 
@@ -19,12 +19,12 @@ Operational gains a read-only Ariad observatory for the selected Journey. The Na
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| [CV-003.DS-007.TS-1](cv-003-ds-007-ts-1-ariad-observatory-read-model-contract/index.md) | Ariad Observatory Read Model Contract | Technical Story | Harness has one read-only projection contract for Ariad state, Delivery, Refinement and Exploration fields | 🟡 Planned |
-| [CV-003.DS-007.US-1](cv-003-ds-007-us-1-operational-ariad-home/index.md) | Operational Ariad Home | User Story | Navigator can open `Operational > Ariad` and understand Ariad state, next safe movement, field summaries and selected matter | 🟡 Planned |
-| [CV-003.DS-007.US-2](cv-003-ds-007-us-2-delivery-field-observation/index.md) | Delivery Field Observation | User Story | Navigator can inspect the Delivery roadmap field with selected item details and allowed runtime movement without editing it | 🟡 Planned |
-| [CV-003.DS-007.US-3](cv-003-ds-007-us-3-refinement-field-workbench/index.md) | Refinement Field Workbench | User Story | Navigator can inspect active and historical Refinement Stories and Change Requests as a workbench for friction | 🟡 Planned |
-| [CV-003.DS-007.US-4](cv-003-ds-007-us-4-exploration-field-observation/index.md) | Exploration Field Observation | User Story | Navigator can inspect active and historical Exploratory Stories as organized uncertainty, including attractors, experiments and handoff state | 🟡 Planned |
-| [CV-003.DS-007.TS-2](cv-003-ds-007-ts-2-read-only-boundary-guardrails/index.md) | Read-only Boundary Guardrails | Technical Story | The Ariad observatory exposes no direct mutation path and reports missing, stale or unavailable source data safely | 🟡 Planned |
+| [CV-003.DS-007.TS-1](cv-003-ds-007-ts-1-ariad-observatory-read-model-contract/index.md) | Ariad Observatory Read Model Contract | Technical Story | Harness has one read-only projection contract for Ariad state, Delivery, Refinement and Exploration fields | ✅ Done |
+| [CV-003.DS-007.US-1](cv-003-ds-007-us-1-operational-ariad-home/index.md) | Operational Ariad Home | User Story | Navigator can open `Operational > Ariad` and understand Ariad state, next safe movement, field summaries and selected matter | ✅ Done |
+| [CV-003.DS-007.US-2](cv-003-ds-007-us-2-delivery-field-observation/index.md) | Delivery Field Observation | User Story | Navigator can inspect the Delivery roadmap field with selected item details and allowed runtime movement without editing it | ✅ Done |
+| [CV-003.DS-007.US-3](cv-003-ds-007-us-3-refinement-field-workbench/index.md) | Refinement Field Workbench | User Story | Navigator can inspect active and historical Refinement Stories and Change Requests as a workbench for friction | ✅ Done |
+| [CV-003.DS-007.US-4](cv-003-ds-007-us-4-exploration-field-observation/index.md) | Exploration Field Observation | User Story | Navigator can inspect active and historical Exploratory Stories as organized uncertainty, including attractors, experiments and handoff state | ✅ Done |
+| [CV-003.DS-007.TS-2](cv-003-ds-007-ts-2-read-only-boundary-guardrails/index.md) | Read-only Boundary Guardrails | Technical Story | The Ariad observatory exposes no direct mutation path and reports missing, stale or unavailable source data safely | ✅ Done |
 
 ## Done Condition
 

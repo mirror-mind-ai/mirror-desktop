@@ -2,7 +2,7 @@
 
 # CV-003.DS-007.US-4 - Exploration Field Observation
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

@@ -2,7 +2,7 @@
 
 # CV-003.DS-007.TS-2 - Read-only Boundary Guardrails
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

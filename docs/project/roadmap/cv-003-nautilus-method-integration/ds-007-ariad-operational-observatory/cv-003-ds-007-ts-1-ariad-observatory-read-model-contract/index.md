@@ -2,7 +2,7 @@
 
 # CV-003.DS-007.TS-1 - Ariad Observatory Read Model Contract
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---
