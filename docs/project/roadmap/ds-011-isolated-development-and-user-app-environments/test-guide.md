@@ -64,6 +64,7 @@ For Journey administration specifically, test the complete process boundary rath
 - global registry administration does not inherit `NAUTILUS_TURN_CORRELATION_V1` from an agent turn;
 - an unavailable prior selection reconciles to canonical refreshed data, while an empty registry still fails closed;
 - native mutation rejection codes remain visible and actionable;
+- Journeys with missing recorded parents use the same effective root grouping in registry projection and append-position validation;
 - successful reload feedback dismisses automatically, while failures remain visible.
 
 ### Harness persistence and dedicated authority
