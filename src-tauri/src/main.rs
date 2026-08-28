@@ -1,6 +1,8 @@
 mod agent_settings;
+mod runtime_channel;
 
 use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
+use runtime_channel::{RuntimeChannelDiagnostic, RuntimeChannelProfile};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use chrono::{SecondsFormat, Utc};
 use image::{ImageFormat, ImageReader};
@@ -173,6 +175,7 @@ fn save_journey_thread(app: AppHandle, journey_id: String, payload: String) -> R
     {
         return Err("Journey thread authority does not match the requested Journey.".to_string());
     }
+    validate_thread_runtime_channel(value.get("thread").unwrap_or(&Value::Null))?;
     let parent = path.parent().ok_or_else(|| "Journey thread path has no parent.".to_string())?;
     fs::create_dir_all(parent).map_err(|error| format!("Could not create Journey thread directory: {}", error))?;
     let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
@@ -200,7 +203,17 @@ fn load_journey_thread(app: AppHandle, journey_id: String) -> Result<Option<Stri
     {
         return Err("Stored Journey thread authority is invalid.".to_string());
     }
+    validate_thread_runtime_channel(value.get("thread").unwrap_or(&Value::Null))?;
     Ok(Some(payload))
+}
+
+fn validate_thread_runtime_channel(thread: &Value) -> Result<(), String> {
+    let active = active_runtime_channel()?.channel.as_str();
+    match thread.get("runtimeChannel").and_then(Value::as_str) {
+        Some(stored) if stored == active => Ok(()),
+        None if active == "user" => Ok(()),
+        _ => Err("Stored Journey thread belongs to another Nautilus runtime channel.".to_string()),
+    }
 }
 
 fn dedicated_native_names(journey_name: &str, generation: u64) -> (String, String) {
@@ -233,14 +246,14 @@ fn parse_pi_session_state(stdout: &[u8]) -> Result<(String, String), String> {
 fn provision_pi_session(requested_id: &str, session_name: &str, session_dir: &Path) -> Result<(String, String), String> {
     let mirror_root = mirror_runtime_root()?;
     fs::create_dir_all(session_dir).map_err(|error| format!("Could not create Pi session directory: {}", error))?;
-    let mut child = Command::new("pi")
+    let mut command = mirror_runtime_command("pi")?;
+    let mut child = command
         .args(["--mode", "rpc", "--offline", "--session-id", &requested_id, "--session-dir"])
         .arg(session_dir)
         .args([
             "--name", session_name, "--no-tools", "--no-extensions", "--no-skills",
             "--no-prompt-templates", "--no-context-files", "--approve",
         ])
-        .current_dir(&mirror_root)
         .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn().map_err(|error| format!("Could not start native Pi session provisioning: {}", error))?;
     child.stdin.as_mut().ok_or_else(|| "Pi provisioning stdin is unavailable.".to_string())?
@@ -284,11 +297,13 @@ fn provision_mirror_conversation(session_file: &str, journey_id: &str, title: &s
     let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent()
         .ok_or_else(|| "Could not resolve Harness project root.".to_string())?
         .join("scripts/provision_mirror_conversation.py");
-    let output = Command::new("uv")
+    let profile = active_runtime_channel()?;
+    let mut command = mirror_runtime_command("uv")?;
+    let output = command
         .args(["run", "python"]).arg(script)
-        .args(["--session-id", session_file, "--journey-id", journey_id, "--title", title, "--mirror-home"])
-        .arg(production_mirror_home()?)
-        .current_dir(mirror_runtime_root()?)
+        .args(["--session-id", session_file, "--journey-id", journey_id, "--title", title, "--mirror-root"])
+        .arg(&profile.mirror_root)
+        .args(["--mirror-home"]).arg(&profile.mirror_home)
         .output().map_err(|error| format!("Could not provision Mirror conversation: {}", error))?;
     if !output.status.success() {
         return Err(format!("Mirror conversation provisioning failed: {}", String::from_utf8_lossy(&output.stderr).trim()));
@@ -323,7 +338,9 @@ async fn provision_journey_thread(
         let envelope: Value = serde_json::from_str(&fs::read_to_string(&path)
             .map_err(|error| format!("Could not recover Journey thread: {}", error))?)
             .map_err(|error| format!("Could not parse recovered Journey thread: {}", error))?;
-        return envelope.get("thread").cloned().ok_or_else(|| "Recovered Journey thread is invalid.".to_string());
+        let thread = envelope.get("thread").ok_or_else(|| "Recovered Journey thread is invalid.".to_string())?;
+        validate_thread_runtime_channel(thread)?;
+        return Ok(thread.clone());
     }
     let operation_path = journey_thread_operation_path(&app, &journey_id)?;
     let requested_pi_id = if operation_path.exists() {
@@ -364,16 +381,18 @@ async fn provision_journey_thread(
     }).await.map_err(|error| format!("Journey thread provisioning task failed: {}", error))??;
     emit_journey_provisioning(&app, &journey_id, "verifying_authority");
     let activated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let runtime_channel = active_runtime_channel()?.channel.as_str();
     let thread_id = format!("nautilus-thread-{}", journey_id);
     let (pi_session_name, mirror_conversation_name) = dedicated_native_names(&journey_name, 1);
     let receipt = json!({
         "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
         "generation": 1, "piSessionId": pi_session_id, "mirrorConversationId": mirror_conversation_id,
-        "mode": "mirror", "commandAuthority": "installed", "activatedAt": activated_at,
+        "mode": "mirror", "commandAuthority": "installed", "runtimeChannel": runtime_channel,
+        "activatedAt": activated_at,
     });
     let thread = json!({
         "schemaVersion": "1.0.0", "threadId": thread_id, "journeyId": journey_id,
-        "createdAt": activated_at, "activeGeneration": 1,
+        "runtimeChannel": runtime_channel, "createdAt": activated_at, "activeGeneration": 1,
         "generations": [{
             "generation": 1, "status": "ready", "piSessionId": pi_session_id,
             "mirrorConversationId": mirror_conversation_id, "piSessionName": pi_session_name,
@@ -415,6 +434,7 @@ async fn restart_journey_thread(
     if thread.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str()) {
         return Err("Stored Journey thread belongs to another Journey.".to_string());
     }
+    validate_thread_runtime_channel(thread)?;
     let prior_generation = thread.get("activeGeneration").and_then(Value::as_u64)
         .ok_or_else(|| "Stored Journey thread has no active generation.".to_string())?;
     let prior = thread.get("generations").and_then(Value::as_array)
@@ -478,12 +498,14 @@ async fn restart_journey_thread(
     emit_journey_restart(&app, &journey_id, "verifying_replacement");
     if pi_session_id != requested_pi_id { return Err("Pi restart authority diverged from its reservation.".to_string()); }
     let activated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let runtime_channel = active_runtime_channel()?.channel.as_str();
     let thread_id = thread.get("threadId").and_then(Value::as_str).ok_or_else(|| "Thread id is missing.".to_string())?.to_string();
     let (pi_session_name, mirror_conversation_name) = dedicated_native_names(&journey_name, next_generation);
     let receipt = json!({
         "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
         "generation": next_generation, "piSessionId": pi_session_id, "mirrorConversationId": mirror_conversation_id,
-        "mode": "mirror", "commandAuthority": "installed", "activatedAt": activated_at
+        "mode": "mirror", "commandAuthority": "installed", "runtimeChannel": runtime_channel,
+        "activatedAt": activated_at
     });
     let replacement = json!({
         "generation": next_generation, "status": "ready", "piSessionId": pi_session_id,
@@ -499,6 +521,7 @@ async fn restart_journey_thread(
     prior_mut["closedAt"] = Value::String(activated_at.clone());
     generations.push(replacement);
     thread["activeGeneration"] = Value::Number(next_generation.into());
+    thread["runtimeChannel"] = Value::String(runtime_channel.to_string());
     envelope["savedAt"] = Value::String(activated_at);
     emit_journey_restart(&app, &journey_id, "switching_generation");
     let staged = path.with_extension(format!("json.{}.tmp", operation_id));
@@ -599,11 +622,11 @@ fn refresh_journey_registry(app: AppHandle, active_journey_id: String) -> Result
         }
         fs::remove_file(&staged).map_err(|error| error.to_string())?;
     }
-    let mirror_root = mirror_runtime_root()?;
-    let output = Command::new("uv")
+    let profile = active_runtime_channel()?;
+    let mut command = mirror_runtime_command("uv")?;
+    let output = command
         .args(["run", "python", "-m", "memory", "journey", "export-registry", "--mirror-home"])
-        .arg(production_mirror_home()?)
-        .current_dir(mirror_root)
+        .arg(&profile.mirror_home)
         .output().map_err(|error| format!("Could not start the Journey registry exporter: {}", error))?;
     if !output.status.success() {
         return Err("Could not refresh Journeys from Mirror.".to_string());
@@ -656,11 +679,11 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
     } else {
         active_journey_id.clone()
     };
-    let mirror_root = mirror_runtime_root()?;
-    let mut child = Command::new("uv")
+    let profile = active_runtime_channel()?;
+    let mut command = mirror_runtime_command("uv")?;
+    let mut child = command
         .args(["run", "python", "-m", "memory", "journey", "mutate", "--mirror-home"])
-        .arg(production_mirror_home()?)
-        .current_dir(mirror_root)
+        .arg(&profile.mirror_home)
         .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn().map_err(|error| format!("Could not start canonical Journey mutation: {}", error))?;
     child.stdin.as_mut().ok_or_else(|| "Journey mutation input is unavailable.".to_string())?
@@ -735,13 +758,27 @@ fn harness_root() -> Result<PathBuf, String> {
         .to_path_buf())
 }
 
+fn active_runtime_channel() -> Result<RuntimeChannelProfile, String> {
+    RuntimeChannelProfile::active()
+}
+
 fn mirror_runtime_root() -> Result<PathBuf, String> {
-    let mirror_root = PathBuf::from("/Users/alissonvale/mirror");
-    if mirror_root.exists() {
-        Ok(mirror_root)
-    } else {
-        harness_root()
-    }
+    Ok(active_runtime_channel()?.mirror_root)
+}
+
+fn mirror_runtime_command(program: &str) -> Result<Command, String> {
+    let profile = active_runtime_channel()?;
+    let mut command = Command::new(program);
+    profile.apply_to_command(&mut command);
+    Ok(command)
+}
+
+#[tauri::command]
+fn inspect_runtime_channel(app: AppHandle) -> Result<RuntimeChannelDiagnostic, String> {
+    let profile = active_runtime_channel()?;
+    let app_data_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    profile.validate_app_identity(&app.config().identifier, &app_data_root)?;
+    Ok(profile.diagnostic(&app_data_root))
 }
 
 const DOCUMENT_PREVIEW_MAX_BYTES: u64 = 1024 * 1024;
@@ -1210,27 +1247,17 @@ fn projection_manifest_coordinates_at(journey_root: &Path, journey_id: &str) -> 
     Ok(projections.keys().cloned().collect())
 }
 
-fn production_mirror_home() -> Result<PathBuf, String> {
-    if let Ok(value) = std::env::var("MIRROR_HOME") {
-        if !value.trim().is_empty() {
-            return Ok(PathBuf::from(value));
-        }
-    }
-    let home = std::env::var("HOME").map_err(|_| "Could not resolve the local Mirror home.".to_string())?;
-    let user = std::env::var("MIRROR_USER").unwrap_or_else(|_| "alisson-vale".to_string());
-    Ok(PathBuf::from(home).join(".mirror-minds").join(user))
-}
-
 fn inspect_published_projection(journey_id: &str, namespace: &str, projection: &str) -> Result<Value, String> {
-    let output = Command::new("uv")
+    let profile = active_runtime_channel()?;
+    let mut command = mirror_runtime_command("uv")?;
+    let output = command
         .args([
             "run", "python", "-m", "memory", "journey-projection", "inspect",
             "--journey", journey_id, "--namespace", namespace, "--projection", projection,
             "--mirror-home",
         ])
-        .arg(production_mirror_home()?)
+        .arg(&profile.mirror_home)
         .args(["--format", "json"])
-        .current_dir(mirror_runtime_root()?)
         .output()
         .map_err(|_| format!("Could not inspect the {} Journey projection.", projection))?;
     if !output.status.success() {
@@ -1690,9 +1717,9 @@ fn extract_pi_visible_text(message: &Value) -> String {
 fn run_mirror_logger_json(args: &[String]) -> Result<Value, String> {
     let mut command_args = vec!["run".to_string(), "python".to_string(), "-m".to_string(), "memory".to_string(), "conversation-logger".to_string()];
     command_args.extend_from_slice(args);
-    let output = Command::new("uv")
+    let mut command = mirror_runtime_command("uv")?;
+    let output = command
         .args(command_args)
-        .current_dir(mirror_runtime_root()?)
         .output()
         .map_err(|error| format!("Could not run Mirror reconciliation: {}", error))?;
     if !output.status.success() {
@@ -1799,9 +1826,15 @@ fn run_pi_process(
     let mut process_command = Command::new(&command);
     process_command.args(args);
     if mirror_mediated {
-        if let Ok(mirror_root) = mirror_runtime_root() {
-            process_command.current_dir(mirror_root);
-        }
+        let profile = match active_runtime_channel() {
+            Ok(profile) => profile,
+            Err(error) => {
+                emit(&app, PiProcessEventKind::Error, error);
+                emit(&app, PiProcessEventKind::Done, "Pi invocation finished.".to_string());
+                return;
+            }
+        };
+        profile.apply_to_command(&mut process_command);
         if let Some(value) = correlation.as_ref() {
             match serde_json::to_string(value) {
                 Ok(payload) => {
@@ -2386,6 +2419,7 @@ fn validate_persisted_turn_authority(app: &AppHandle, value: &TurnCorrelation, s
                 .map_err(|error| format!("Could not read dedicated thread authority: {}", error))?,
         ).map_err(|error| format!("Could not parse dedicated thread authority: {}", error))?;
         let thread = unwrap_persisted_thread(&stored_thread);
+        validate_thread_runtime_channel(thread)?;
         let active_generation = thread.get("activeGeneration").and_then(Value::as_u64);
         let generation = thread.get("generations").and_then(Value::as_array)
             .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active_generation))
@@ -2623,6 +2657,15 @@ fn retire_legacy_parity_state(app: AppHandle) -> Result<LegacyParityRetirementSu
 
 fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            let profile = active_runtime_channel().map_err(std::io::Error::other)?;
+            let app_data_root = app.path().app_data_dir().map_err(std::io::Error::other)?;
+            profile
+                .validate_app_identity(&app.config().identifier, &app_data_root)
+                .map_err(std::io::Error::other)?;
+            app.manage(profile);
+            Ok(())
+        })
         .manage(PiProcessState::default())
         .manage(JourneyProvisioningState::default())
         .invoke_handler(tauri::generate_handler![
@@ -2641,6 +2684,7 @@ fn main() {
             load_agent_settings,
             save_agent_settings,
             list_pi_models,
+            inspect_runtime_channel,
             load_journey_projections,
             list_journey_documentation,
             read_journey_document,

@@ -7,6 +7,7 @@ export type JourneyActivationReceipt = {
   mirrorConversationId: string;
   mode: "mirror";
   commandAuthority: "installed";
+  runtimeChannel?: "user" | "development";
   activatedAt: string;
 };
 

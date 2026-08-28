@@ -7,23 +7,22 @@ import json
 import sys
 from pathlib import Path
 
-DEFAULT_MIRROR_HOME = Path.home() / ".mirror-minds" / "alisson-vale"
-DEFAULT_MIRROR_SRC = Path.home() / "mirror" / "src"
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--session-id", required=True)
     parser.add_argument("--journey-id", required=True)
     parser.add_argument("--title", required=True)
-    parser.add_argument("--mirror-home", type=Path, default=DEFAULT_MIRROR_HOME)
+    parser.add_argument("--mirror-root", type=Path, required=True)
+    parser.add_argument("--mirror-home", type=Path, required=True)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    if DEFAULT_MIRROR_SRC.exists():
-        sys.path.insert(0, str(DEFAULT_MIRROR_SRC))
+    mirror_src = args.mirror_root / "src"
+    if not mirror_src.is_dir():
+        raise SystemExit("Configured Mirror runtime has no src directory.")
+    sys.path.insert(0, str(mirror_src))
     from memory import MemoryClient  # type: ignore
     from memory.cli.common import db_path_from_mirror_home  # type: ignore
 

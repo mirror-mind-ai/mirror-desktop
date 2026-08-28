@@ -8,7 +8,9 @@ describe("Journey registry refresh boundary", () => {
     expect(storageSource).toContain('invoke<string>("refresh_journey_registry", { activeJourneyId })');
     expect(tauriSource).toContain("fn refresh_journey_registry(app: AppHandle, active_journey_id: String)");
     expect(tauriSource).toContain('["run", "python", "-m", "memory", "journey", "export-registry", "--mirror-home"]');
-    expect(tauriSource).toContain("production_mirror_home()");
+    expect(tauriSource).toContain("let profile = active_runtime_channel()?");
+    expect(tauriSource).toContain("mirror_runtime_command(\"uv\")");
+    expect(tauriSource).toContain(".arg(&profile.mirror_home)");
     expect(tauriSource).toContain("validate_journey_registry_payload");
     expect(tauriSource).toContain("fs::rename(&staged, &target)");
     expect(tauriSource).not.toContain("refresh_journey_registry_provider");

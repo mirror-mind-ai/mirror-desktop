@@ -16,26 +16,34 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-DEFAULT_DB = Path.home() / ".mirror-minds" / "alisson-vale" / "memory.db"
-APP_IDENTIFIER = "com.nautilus.harness"
+def configured_mirror_home() -> Path:
+    if value := os.environ.get("MIRROR_HOME"):
+        return Path(value)
+    mirror_user = os.environ.get("MIRROR_USER", "alisson-vale")
+    return Path.home() / ".mirror-minds" / mirror_user
 
 
-def default_app_data_dir() -> Path:
+def configured_db_path() -> Path:
+    return Path(os.environ.get("DB_PATH", configured_mirror_home() / "memory.db"))
+
+
+def default_app_data_dir(identifier: str) -> Path:
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / APP_IDENTIFIER
+        return Path.home() / "Library" / "Application Support" / identifier
     if sys.platform.startswith("win"):
-        return Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / APP_IDENTIFIER
-    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / APP_IDENTIFIER
-
-
-DEFAULT_OUTPUT = default_app_data_dir() / "journey-registry.json"
+        return Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / identifier
+    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / identifier
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--db", type=Path, default=DEFAULT_DB)
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    return parser.parse_args()
+    parser.add_argument("--db", type=Path, default=configured_db_path())
+    parser.add_argument("--app-identifier", default=os.environ.get("NAUTILUS_APP_IDENTIFIER", "com.nautilus.harness"))
+    parser.add_argument("--output", type=Path)
+    args = parser.parse_args()
+    if args.output is None:
+        args.output = default_app_data_dir(args.app_identifier) / "journey-registry.json"
+    return args
 
 
 def first_line_match(pattern: str, text: str) -> str | None:

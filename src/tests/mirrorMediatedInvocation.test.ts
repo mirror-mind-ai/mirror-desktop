@@ -34,8 +34,8 @@ describe("Mirror-mediated Pi invocation", () => {
 
   it("runs Mirror-mediated processes from the Mirror runtime root without duplicate after-the-fact logging", () => {
     expect(tauriMainSource).toContain('config.invocation_mode == "mirror"');
-    expect(tauriMainSource).toContain("mirror_runtime_root");
-    expect(tauriMainSource).toContain("process_command.current_dir(mirror_root)");
+    expect(tauriMainSource).toContain("active_runtime_channel");
+    expect(tauriMainSource).toContain("profile.apply_to_command(&mut process_command)");
     expect(tauriMainSource).toContain('args.push("--session-id".to_string())');
     expect(tauriMainSource).toContain('args.push("--approve".to_string())');
     expect(tauriMainSource).not.toContain('log_mirror_message(&session_id, &journey_id, "user", &prompt)');

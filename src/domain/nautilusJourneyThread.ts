@@ -20,6 +20,7 @@ export type NautilusJourneyThread = {
   schemaVersion: "1.0.0";
   threadId: string;
   journeyId: string;
+  runtimeChannel?: "user" | "development";
   createdAt: string;
   activeGeneration: number;
   generations: NautilusThreadGeneration[];
@@ -54,6 +55,7 @@ export function parseNautilusJourneyThread(value: unknown): NautilusJourneyThrea
     thread.schemaVersion !== "1.0.0"
     || !isId(thread.threadId)
     || !isId(thread.journeyId)
+    || (thread.runtimeChannel !== undefined && !["user", "development"].includes(String(thread.runtimeChannel)))
     || !isTimestamp(thread.createdAt)
     || !Number.isInteger(thread.activeGeneration)
     || Number(thread.activeGeneration) < 1

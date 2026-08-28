@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "import:mirror": "python3 scripts/export_mirror_bootstrap.py",
     "test": "vitest run",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:dev": "node scripts/nautilus_channel.mjs dev",
+    "tauri:build:dev": "node scripts/nautilus_channel.mjs build-dev",
+    "tauri:build:user": "node scripts/nautilus_channel.mjs build-user"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",
