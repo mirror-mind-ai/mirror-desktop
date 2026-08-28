@@ -40,7 +40,7 @@ Dedicated threads provisioned after DS-011 record `runtimeChannel` in the thread
 
 ## Visible Development Identity
 
-Development has a committed violet Nautilus icon with a `DEV` badge, distinct system product/title, persistent sidebar `DEV` text and a violet shell palette. Settings contains an allowlisted native Runtime Channel diagnostic with bundle, app-data and Mirror coordinates. The stable appearance remains unchanged.
+Development has a committed violet Nautilus icon with a `DEV` badge, distinct system product/title, persistent sidebar `DEV` text and a violet shell palette. The native development runtime reapplies that committed image to `NSApplication` after Tauri reaches `Ready`, so direct `tauri:dev` execution is also distinct in the macOS Dock instead of relying on bundle metadata or Dock caching. Settings contains an allowlisted native Runtime Channel diagnostic with bundle, app-data and Mirror coordinates. The stable appearance remains unchanged.
 
 ## Python Boundaries
 
@@ -76,8 +76,11 @@ Desktop smoke evidence:
 - LaunchServices registered separate stable and development application identities;
 - development binary remained running with Mirror Dev coordinates;
 - the same binary exited before startup with a bounded error when given production Mirror coordinates;
-- development registry was written only below `com.nautilus.harness.dev` from the Mirror Dev database.
+- development registry was written only below `com.nautilus.harness.dev` from the Mirror Dev database;
+- Navigator confirmed the development palette, in-app icon and Mirror Dev diagnostic;
+- the promoted stable 0.1.0 app was installed and launched from `/Applications/Nautilus Harness.app` after explicit authorization;
+- development runtime was relaunched after the Dock-icon correction without startup failure.
 
 ## Remaining Gate
 
-Navigator must inspect the real development window, icon, `DEV` presentation and Settings diagnostic, then exercise a disposable Mirror Dev Journey while the stable app remains intact. No push, release, production installation replacement or deployment is authorized.
+Navigator must confirm that the currently running development app now shows the violet `DEV` icon in the macOS Dock and exercise a disposable Mirror Dev Journey while stable state remains intact. No push, remote release publication or deployment is authorized.

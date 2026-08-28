@@ -2699,8 +2699,17 @@ fn main() {
             cancel_pi_invocation,
             retire_legacy_parity_state
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Nautilus Harness");
+        .build(tauri::generate_context!())
+        .expect("error while building Nautilus Harness")
+        .run(|app_handle, event| {
+            if matches!(event, tauri::RunEvent::Ready) {
+                let profile = app_handle.state::<RuntimeChannelProfile>();
+                if let Err(error) = profile.apply_macos_dock_icon() {
+                    eprintln!("Nautilus runtime channel icon validation failed: {error}");
+                    app_handle.exit(1);
+                }
+            }
+        });
 }
 
 #[cfg(test)]

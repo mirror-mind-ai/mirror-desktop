@@ -154,6 +154,28 @@ impl RuntimeChannelProfile {
             .env("DB_PATH", &self.db_path);
     }
 
+    pub fn apply_macos_dock_icon(&self) -> Result<(), String> {
+        #[cfg(target_os = "macos")]
+        {
+            if self.channel == RuntimeChannel::Development {
+                use objc2::{AllocAnyThread, MainThreadMarker};
+                use objc2_app_kit::{NSApplication, NSImage};
+                use objc2_foundation::NSData;
+
+                let marker = MainThreadMarker::new().ok_or_else(|| {
+                    "Development Dock icon must be applied on the main thread.".to_string()
+                })?;
+                let data = NSData::with_bytes(include_bytes!("../icons/dev/icon.png"));
+                let icon = NSImage::initWithData(NSImage::alloc(), &data).ok_or_else(|| {
+                    "Could not decode the Nautilus development Dock icon.".to_string()
+                })?;
+                let application = NSApplication::sharedApplication(marker);
+                unsafe { application.setApplicationIconImage(Some(&icon)) };
+            }
+        }
+        Ok(())
+    }
+
     pub fn diagnostic(&self, app_data_root: &Path) -> RuntimeChannelDiagnostic {
         RuntimeChannelDiagnostic {
             channel: self.channel.as_str(),

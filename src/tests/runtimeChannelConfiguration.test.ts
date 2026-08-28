@@ -23,6 +23,9 @@ describe("runtime channel configuration", () => {
     expect(developmentConfig.identifier).toBe("com.nautilus.harness.dev");
     expect(developmentConfig.productName).toBe("Nautilus Harness Dev");
     expect(developmentConfig.bundle.icon).toContain("icons/dev/icon.png");
+    expect(runtimeChannelSource).toContain("apply_macos_dock_icon");
+    expect(runtimeChannelSource).toContain("setApplicationIconImage");
+    expect(runtimeChannelSource).toContain('include_bytes!("../icons/dev/icon.png")');
   });
 
   it("always pairs channel commands with the closed native launcher", () => {
