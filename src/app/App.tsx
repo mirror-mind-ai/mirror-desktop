@@ -1475,7 +1475,7 @@ export function App({ model }: AppProps) {
       setJourneyRegistryRefreshMessage("Journey tree reloaded.");
     } catch (error) {
       setJourneyRegistryRefreshState("failed");
-      setJourneyRegistryRefreshMessage(error instanceof Error ? error.message : "Could not reload the Journey tree.");
+      setJourneyRegistryRefreshMessage(journeyAdministrationError(error));
     } finally {
       journeyTreeButtonRef.current?.focus();
     }

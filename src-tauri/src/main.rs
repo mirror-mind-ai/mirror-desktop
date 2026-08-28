@@ -629,7 +629,12 @@ fn refresh_journey_registry(app: AppHandle, active_journey_id: String) -> Result
         .arg(&profile.mirror_home)
         .output().map_err(|error| format!("Could not start the Journey registry exporter: {}", error))?;
     if !output.status.success() {
-        return Err("Could not refresh Journeys from Mirror.".to_string());
+        let detail = String::from_utf8_lossy(&output.stderr).trim().chars().take(800).collect::<String>();
+        return Err(if detail.is_empty() {
+            "Could not refresh Journeys from Mirror.".to_string()
+        } else {
+            format!("Could not refresh Journeys from Mirror: {detail}")
+        });
     }
     let payload = String::from_utf8(output.stdout).map_err(|_| "Journey registry exporter returned invalid text.".to_string())?;
     let validated = validate_journey_registry_payload(&payload)?;

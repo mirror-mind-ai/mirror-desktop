@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import appSource from "../app/App.tsx?raw";
 import storageSource from "../app/journeyRegistryStorage.ts?raw";
 import tauriSource from "../../src-tauri/src/main.rs?raw";
 
@@ -11,9 +12,11 @@ describe("Journey registry refresh boundary", () => {
     expect(tauriSource).toContain("let profile = active_runtime_channel()?");
     expect(tauriSource).toContain("mirror_administrative_command(\"uv\")");
     expect(tauriSource).toContain("detach_journey_turn_authority");
+    expect(tauriSource).toContain("Could not refresh Journeys from Mirror: {detail}");
     expect(tauriSource).toContain(".arg(&profile.mirror_home)");
     expect(tauriSource).toContain("validate_journey_registry_payload");
     expect(tauriSource).toContain("fs::rename(&staged, &target)");
     expect(tauriSource).not.toContain("refresh_journey_registry_provider");
+    expect(appSource).toContain("journeyAdministrationError(error)");
   });
 });
