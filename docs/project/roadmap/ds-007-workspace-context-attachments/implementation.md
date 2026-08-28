@@ -168,6 +168,8 @@ The corrected Harness now:
 
 Obsolete `ContextAttachmentSelector`, `PendingContextAttachments`, native text snapshot capture and active snapshot integrity logic were removed. `contextAttachments.ts` now contains only the strict read-only parser needed for legacy `0.6.0` provenance.
 
+After Navigator desktop validation, one adjacent footer regression was corrected: Harness now loads the local Pi model catalog at application startup rather than waiting for Settings to open. This restores the model-authoritative denominator and percentage for newly catalogued models such as `openai-codex/gpt-5.5` (`23k` becomes approximately `8.5%/272k`). Catalog inspection remains offline and model-free.
+
 Correction evidence:
 
 ```text

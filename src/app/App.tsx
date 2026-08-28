@@ -446,7 +446,7 @@ export function App({ model }: AppProps) {
   }, [agentSettings, journeyAgentProfileOpen, selectedJourney]);
 
   useEffect(() => {
-    if ((!settingsOpen && !journeyAgentProfileOpen) || piModelCatalogState !== "idle") return;
+    if (piModelCatalogState !== "idle") return;
     setPiModelCatalogState("loading");
     void listPiModels()
       .then((catalog) => {
@@ -457,7 +457,7 @@ export function App({ model }: AppProps) {
         setPiModelCatalogState("error");
         setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
       });
-  }, [journeyAgentProfileOpen, piModelCatalogState, settingsOpen]);
+  }, [piModelCatalogState]);
 
   useEffect(() => {
     let cancelled = false;
