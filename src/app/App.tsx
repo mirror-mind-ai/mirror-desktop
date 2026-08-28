@@ -26,7 +26,6 @@ import {
   configuredModelContextWindow,
   createProviderConfig,
   defaultPiProviderConfig,
-  describeProviderMode,
   providerConfigToArgsText,
   providerModelLabel,
   projectAgentProfile,
@@ -244,6 +243,7 @@ export function App({ model }: AppProps) {
   const [globalThinkingDraft, setGlobalThinkingDraft] = useState<AgentThinkingLevel>(createDefaultAgentSettings().globalProfile.thinkingLevel);
   const [journeyModelDraft, setJourneyModelDraft] = useState("inherit");
   const [journeyThinkingDraft, setJourneyThinkingDraft] = useState<AgentThinkingLevel | "inherit">("inherit");
+  const [journeyAgentProfileOpen, setJourneyAgentProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
   const [agentRun, setAgentRun] = useState(initialAgentRunState);
@@ -415,16 +415,19 @@ export function App({ model }: AppProps) {
 
   useEffect(() => {
     if (!settingsOpen) return;
-    const override = agentSettings.journeyOverrides[selectedJourney];
     setGlobalModelDraft(modelOptionValue(agentSettings.globalProfile.model));
     setGlobalThinkingDraft(agentSettings.globalProfile.thinkingLevel);
     setProviderInvocationMode(agentSettings.globalProfile.invocationMode);
-    setJourneyModelDraft(override?.model ? modelOptionValue(override.model) : "inherit");
-    setJourneyThinkingDraft(override?.thinkingLevel ?? "inherit");
-  }, [agentSettings, selectedJourney, settingsOpen]);
+  }, [agentSettings, settingsOpen]);
 
   useEffect(() => {
-    if (!settingsOpen || piModelCatalogState !== "idle") return;
+    if (!journeyAgentProfileOpen) return;
+    setJourneyModelDraft(modelOptionValue(effectiveAgentProfile.model));
+    setJourneyThinkingDraft(effectiveAgentProfile.thinkingLevel);
+  }, [effectiveAgentProfile, journeyAgentProfileOpen]);
+
+  useEffect(() => {
+    if ((!settingsOpen && !journeyAgentProfileOpen) || piModelCatalogState !== "idle") return;
     setPiModelCatalogState("loading");
     void listPiModels()
       .then((catalog) => {
@@ -435,7 +438,7 @@ export function App({ model }: AppProps) {
         setPiModelCatalogState("error");
         setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
       });
-  }, [piModelCatalogState, settingsOpen]);
+  }, [journeyAgentProfileOpen, piModelCatalogState, settingsOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1212,9 +1215,11 @@ export function App({ model }: AppProps) {
       setAgentSettings(next);
       setAgentSettingsState("ready");
       setAgentSettingsMessage(successMessage);
+      return true;
     } catch (error) {
       setAgentSettingsState("error");
       setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
+      return false;
     }
   }
 
@@ -1237,23 +1242,30 @@ export function App({ model }: AppProps) {
   async function saveSelectedJourneyAgentOverride() {
     try {
       const override = {
-        model: journeyModelDraft === "inherit" ? undefined : modelFromOptionValue(journeyModelDraft),
-        thinkingLevel: journeyThinkingDraft === "inherit" ? undefined : journeyThinkingDraft,
+        model: modelFromOptionValue(journeyModelDraft),
+        thinkingLevel: journeyThinkingDraft === "inherit" ? effectiveAgentProfile.thinkingLevel : journeyThinkingDraft,
       };
-      await persistAgentSettings(
+      const saved = await persistAgentSettings(
         setJourneyAgentOverride(agentSettings, selectedJourney, override),
-        `Agent overrides saved for ${selectedJourneyItem.name}.`,
+        `Agent profile saved for ${selectedJourneyItem.name}.`,
       );
+      if (saved) setJourneyAgentProfileOpen(false);
     } catch (error) {
       setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
     }
   }
 
   async function resetSelectedJourneyAgentOverride() {
-    await persistAgentSettings(
+    const saved = await persistAgentSettings(
       setJourneyAgentOverride(agentSettings, selectedJourney, {}),
       `${selectedJourneyItem.name} now inherits global agent defaults.`,
     );
+    if (saved) setJourneyAgentProfileOpen(false);
+  }
+
+  function openJourneyAgentProfileSelector() {
+    setAgentSettingsMessage(undefined);
+    setJourneyAgentProfileOpen(true);
   }
 
   async function restoreDefaultAgentSettings() {
@@ -1929,6 +1941,8 @@ export function App({ model }: AppProps) {
               activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}
               contextState={piContextState}
               providerModel={providerModelLabel(effectiveProviderConfig)}
+              onSelectProviderModel={() => openJourneyAgentProfileSelector()}
+              providerSelectionDisabled={isStreaming || agentRun.status === "running" || agentSettingsState === "saving"}
             />
             <div className="composer-inline-actions">
               {agentRun.status === "running" && streamMode === "live" ? (
@@ -2072,22 +2086,12 @@ export function App({ model }: AppProps) {
             <header className="settings-header">
               <div>
                 <p className="eyebrow">Settings</p>
-                <h2>Agent provider</h2>
+                <h2>Agent defaults</h2>
               </div>
               <button className="secondary-button" type="button" onClick={() => setSettingsOpen(false)}>
                 Close
               </button>
             </header>
-
-            <section className="settings-section provider-card" aria-label="Effective agent profile">
-              <h3>Effective for {selectedJourneyItem.name}</h3>
-              <dl>
-                <Row label="Model" value={`${providerModelLabel(effectiveProviderConfig)} · ${effectiveAgentProfile.modelSource}`} />
-                <Row label="Thinking" value={`${effectiveAgentProfile.thinkingLevel} · ${effectiveAgentProfile.thinkingSource}`} />
-                <Row label="Runtime" value={describeProviderMode(effectiveProviderConfig)} />
-              </dl>
-              <p className="provider-note">Changes affect only the next explicit invocation. They never create or restart a Journey conversation.</p>
-            </section>
 
             <section className="settings-section provider-card" aria-label="Global agent defaults">
               <h3>Global defaults</h3>
@@ -2123,39 +2127,6 @@ export function App({ model }: AppProps) {
               <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>
             </section>
 
-            <section className="settings-section provider-card" aria-label="Journey agent overrides">
-              <h3>{selectedJourneyItem.name}</h3>
-              <label className="provider-field">
-                Journey model
-                <select value={journeyModelDraft} onChange={(event) => {
-                  const next = event.target.value;
-                  setJourneyModelDraft(next);
-                  const resolvedModel = next === "inherit" ? globalModelDraft : next;
-                  if (!modelSupportsThinking(piModelCatalog, resolvedModel) && journeyThinkingDraft !== "inherit" && !["pi-default", "off"].includes(journeyThinkingDraft)) setJourneyThinkingDraft("off");
-                }}>
-                  <option value="inherit">Inherit global · {agentSettings.globalProfile.model.provider}/{agentSettings.globalProfile.model.model}</option>
-                  {modelOptions.map((model) => (
-                    <option key={modelOptionValue(model)} value={modelOptionValue(model)}>{model.provider} / {model.model}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="provider-field">
-                Journey thinking
-                <select value={journeyThinkingDraft} onChange={(event) => setJourneyThinkingDraft(event.target.value as AgentThinkingLevel | "inherit")}>
-                  <option value="inherit">Inherit global · {agentSettings.globalProfile.thinkingLevel}</option>
-                  {thinkingOptions(
-                    piModelCatalog,
-                    journeyModelDraft === "inherit" ? globalModelDraft : journeyModelDraft,
-                    journeyThinkingDraft === "inherit" ? undefined : journeyThinkingDraft,
-                  ).map((level) => <option key={level} value={level}>{level}</option>)}
-                </select>
-              </label>
-              <div className="provider-actions">
-                <button type="button" onClick={() => void saveSelectedJourneyAgentOverride()} disabled={isStreaming || agentSettingsState === "saving"}>Save Journey profile</button>
-                <button className="secondary-button" type="button" onClick={() => void resetSelectedJourneyAgentOverride()} disabled={isStreaming || agentSettingsState === "saving"}>Reset to inheritance</button>
-              </div>
-            </section>
-
             <section className="settings-section provider-card" aria-label="Current session invocation controls">
               <h3>Current session controls</h3>
               <label className="provider-field">Command<input value={providerCommand} onChange={(event) => setProviderCommand(event.target.value)} disabled={providerSafeTestMode} /></label>
@@ -2170,6 +2141,59 @@ export function App({ model }: AppProps) {
               <p className="provider-note">Command, arguments, stdin and test mode are never persisted. Effective model and thinking flags replace conflicting raw arguments.</p>
             </section>
             {agentSettingsMessage ? <p className={agentSettingsState === "error" ? "settings-error" : "provider-note"} role={agentSettingsState === "error" ? "alert" : "status"}>{agentSettingsMessage}</p> : null}
+          </section>
+        </div>
+      ) : null}
+
+      {journeyAgentProfileOpen ? (
+        <div className="settings-backdrop" role="presentation" onClick={() => agentSettingsState !== "saving" && setJourneyAgentProfileOpen(false)}>
+          <section
+            className="settings-window journey-agent-profile-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choose Journey agent profile"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="settings-header">
+              <div>
+                <p className="eyebrow">{selectedJourneyItem.name}</p>
+                <h2>Choose model and thinking</h2>
+                <p className="settings-intro">This profile is saved only for the active Journey.</p>
+              </div>
+              <button className="secondary-button" type="button" onClick={() => setJourneyAgentProfileOpen(false)} disabled={agentSettingsState === "saving"}>Close</button>
+            </header>
+            <section className="settings-section provider-card">
+              <label className="provider-field">
+                Provider and model
+                <select value={journeyModelDraft} onChange={(event) => {
+                  const next = event.target.value;
+                  setJourneyModelDraft(next);
+                  if (!modelSupportsThinking(piModelCatalog, next) && journeyThinkingDraft !== "inherit" && !["pi-default", "off"].includes(journeyThinkingDraft)) setJourneyThinkingDraft("off");
+                }}>
+                  {modelOptions.map((model) => (
+                    <option key={modelOptionValue(model)} value={modelOptionValue(model)}>{model.provider} / {model.model}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="provider-field">
+                Thinking level
+                <select value={journeyThinkingDraft} onChange={(event) => setJourneyThinkingDraft(event.target.value as AgentThinkingLevel)}>
+                  {thinkingOptions(
+                    piModelCatalog,
+                    journeyModelDraft,
+                    journeyThinkingDraft === "inherit" ? undefined : journeyThinkingDraft,
+                  ).map((level) => <option key={level} value={level}>{level}</option>)}
+                </select>
+              </label>
+              <p className="provider-note">Changes affect only the next explicit invocation. The current conversation and generation remain unchanged.</p>
+              {agentSettingsMessage ? <p className={agentSettingsState === "error" ? "settings-error" : "provider-note"} role={agentSettingsState === "error" ? "alert" : "status"}>{agentSettingsMessage}</p> : null}
+              <div className="provider-actions journey-agent-profile-actions">
+                <button type="button" onClick={() => void saveSelectedJourneyAgentOverride()} disabled={isStreaming || agentSettingsState === "saving"}>Use model for this Journey</button>
+                <button className="secondary-button" type="button" onClick={() => void resetSelectedJourneyAgentOverride()} disabled={isStreaming || agentSettingsState === "saving"}>Use global defaults</button>
+                <button className="secondary-button" type="button" onClick={() => setJourneyAgentProfileOpen(false)} disabled={agentSettingsState === "saving"}>Cancel</button>
+              </div>
+              <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>
+            </section>
           </section>
         </div>
       ) : null}
@@ -2211,20 +2235,6 @@ function thinkingOptions(
   const supported: AgentThinkingLevel[] = ["pi-default", "off"];
   if (current && !supported.includes(current)) supported.push(current);
   return supported;
-}
-
-type RowProps = {
-  label: string;
-  value: string;
-};
-
-function Row({ label, value }: RowProps) {
-  return (
-    <div className="row">
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
 }
 
 function formatDateTime(value: string): string {

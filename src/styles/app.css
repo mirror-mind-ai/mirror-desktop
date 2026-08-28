@@ -1405,10 +1405,34 @@ h3 {
   white-space: nowrap;
 }
 
-.composer-runtime-metadata span:last-child {
+.composer-runtime-metadata span:last-child,
+.composer-provider-model {
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.composer-provider-model {
+  background: transparent;
+  border: 0;
+  color: #75c9bd;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  pointer-events: auto;
+  text-decoration: underline;
+  text-decoration-color: rgba(117, 201, 189, 0.35);
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.composer-provider-model:hover:not(:disabled) {
+  color: #a0e2d8;
+}
+
+.composer-provider-model:disabled {
+  cursor: default;
+  opacity: 0.65;
 }
 
 .composer-runtime-separator {
@@ -2665,6 +2689,10 @@ dd {
   overflow: auto;
   padding: 22px;
   width: min(680px, 100%);
+}
+
+.journey-agent-profile-dialog {
+  max-width: 540px;
 }
 
 .settings-header {

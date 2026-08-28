@@ -11,11 +11,12 @@ describe("persistent agent profile application boundary", () => {
     expect(appSource).toContain("livePiAgentStream(packet, effectiveProviderConfig, correlation)");
   });
 
-  it("makes inheritance, effective values and reset explicit in Settings", () => {
+  it("opens Journey selection from the model link beside Send instead of global Settings", () => {
     expect(appSource).toContain('aria-label="Global agent defaults"');
-    expect(appSource).toContain('aria-label="Journey agent overrides"');
-    expect(appSource).toContain('aria-label="Effective agent profile"');
-    expect(appSource).toContain("Reset to inheritance");
+    expect(appSource).not.toContain('aria-label="Journey agent overrides"');
+    expect(appSource).toContain('aria-label="Choose Journey agent profile"');
+    expect(appSource).toContain("Use model for this Journey");
+    expect(appSource).toContain("Use global defaults");
     expect(appSource).toContain("Changes affect only the next explicit invocation");
   });
 

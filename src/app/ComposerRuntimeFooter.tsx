@@ -11,6 +11,8 @@ type ComposerRuntimeFooterProps = {
   canInitializeContext?: boolean;
   initializingContext?: boolean;
   onInitializeContext?: () => void;
+  onSelectProviderModel?: () => void;
+  providerSelectionDisabled?: boolean;
 };
 
 const ACTIVE_STATUS_LABEL = {
@@ -28,6 +30,8 @@ export function ComposerRuntimeFooter({
   canInitializeContext = false,
   initializingContext = false,
   onInitializeContext,
+  onSelectProviderModel,
+  providerSelectionDisabled = false,
 }: ComposerRuntimeFooterProps) {
   const showActiveStatus = runActive
     && (projection.status === "starting" || projection.status === "working");
@@ -65,7 +69,17 @@ export function ComposerRuntimeFooter({
           </button>
         ) : null}
         <span className="composer-runtime-separator" aria-hidden="true">·</span>
-        <span>{providerModel}</span>
+        {onSelectProviderModel ? (
+          <button
+            type="button"
+            className="composer-provider-model"
+            onClick={onSelectProviderModel}
+            disabled={providerSelectionDisabled}
+            aria-label={`Choose model and thinking for ${providerModel}`}
+          >
+            {providerModel}
+          </button>
+        ) : <span>{providerModel}</span>}
       </div>
     </div>
   );

@@ -49,6 +49,7 @@ describe("runtime projection component", () => {
         contextUsage={{ tokens: 14880, contextWindow: 272000, percent: 5.470588235294118 }}
         activeMode="builder"
         providerModel="openai-codex/gpt-5.4-mini"
+        onSelectProviderModel={() => undefined}
       />,
     );
     const activeStartingHtml = renderToStaticMarkup(
@@ -105,6 +106,8 @@ describe("runtime projection component", () => {
     expect(completedHtml).toContain("Builder Mode");
     expect(completedHtml).toContain("5.5%/272k");
     expect(completedHtml).toContain("openai-codex/gpt-5.4-mini");
+    expect(completedHtml).toContain('aria-label="Choose model and thinking for openai-codex/gpt-5.4-mini"');
+    expect(completedHtml).toContain('class="composer-provider-model"');
     expect(idleStartingHtml).not.toContain("Starting");
     expect(idleStartingHtml).toContain("Waiting for context stats…");
     expect(uninitializedHtml).toContain("Pi context not initialized");
@@ -117,6 +120,7 @@ describe("runtime projection component", () => {
     expect(appSource).not.toContain("queryJourneyPiContext");
     expect(appSource).toContain("readJourneyPiContextStats");
     expect(appSource).toContain("providerModel={providerModelLabel(effectiveProviderConfig)}");
+    expect(appSource).toContain("onSelectProviderModel={() => openJourneyAgentProfileSelector()}");
   });
 
   it("uses a fixed middle-truncated preview of the first tool argument", () => {
