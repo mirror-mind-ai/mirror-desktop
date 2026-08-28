@@ -47,6 +47,17 @@ The Mirror extension validates bounded turn correlation, writes deterministic id
 
 Resume loads only the exact active generation's Pi transcript and generation-scoped Harness projection. Restart creates a fresh native pair, preserves the prior generation and switches authority only after verification.
 
+## Runtime channels
+
+The stable and development desktop channels have distinct native runtime profiles. The profile is selected at build time, validated against Tauri bundle/app-data identity during setup and applied to every Mirror-sensitive Pi, `uv` and Python subprocess.
+
+```text
+user         $HOME/mirror           $HOME/.mirror-minds/alisson-vale
+ development $HOME/Code/mirror-dev  $HOME/.mirror-minds/mirror-dev
+```
+
+Development uses `MIRROR_USER=mirror-dev` and its own `DB_PATH`, equivalent to `~/mirror-dev.sh`. Missing or mixed coordinates fail before provisioning, mutation or provider invocation; there is no fallback across channels. Newly provisioned thread authority records the runtime channel, while legacy unmarked records are accepted only in the stable user app-data root.
+
 ## Safety
 
 - Invocation is always user-triggered.
@@ -54,5 +65,5 @@ Resume loads only the exact active generation's Pi transcript and generation-sco
 - Provider settings remain separate from Journey preferences.
 - No secrets or arbitrary environment values are persisted.
 - No conversation selector, arbitrary hydration or external-activity polling exists.
-- Local links remain confined to allowed workspace roots.
+- Local links open only after a deliberate click and current-path validation.
 - Per-Journey concurrency remains owned by `DS-009`.

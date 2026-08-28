@@ -180,6 +180,19 @@ immediately before explicit send, removing existing `--provider`, `--model` and
 clamping. Profile changes never provision or restart a thread, generation, Pi
 session or Mirror conversation.
 
+## Stable and development desktop channels
+
+DS-011 defines two Tauri application identities over the same source tree:
+
+```text
+Nautilus Harness      com.nautilus.harness
+Nautilus Harness Dev  com.nautilus.harness.dev
+```
+
+The stable `tauri.conf.json` remains the user baseline. A committed Tauri overlay plus the Rust `development-channel` feature selects development. Tauri bundle identity separates application data; a closed native runtime profile additionally binds Mirror code/home/user/database and applies those coordinates to all Mirror-sensitive subprocesses. React consumes only a sanitized native diagnostic to project the DEV icon, badge, palette and Settings details. Visual state never establishes authority.
+
+The canonical setup and verification route is [Development Environment](../development/environment-setup.md).
+
 ## Next implementation story
 
 The next implementation story should create the Tauri app skeleton and migrate DS-001/DS-002 protocol validation into TypeScript while preserving the Python scripts as temporary references until parity is validated.
