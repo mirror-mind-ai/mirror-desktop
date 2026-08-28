@@ -223,6 +223,10 @@ Unset stale values before launching, or set them exactly to the Mirror Dev contr
 
 Stop the previous Vite/Tauri development process. The stable installed app does not use this development server.
 
+### An app launched from Finder cannot start Pi or uv
+
+Finder launches macOS apps with a minimal process `PATH`. Nautilus does not inherit or trust that incomplete value: the native runtime resolves only `pi` and `uv` from its bounded executable search path, then supplies that same controlled path to Pi and Mirror subprocesses. Verify the tools are installed in a standard supported location such as `/usr/local/bin` or `/opt/homebrew/bin`; do not solve this by embedding an interactive shell profile in the app.
+
 ## Reset Safety
 
 There is no automatic reset command in this guide. Before deleting any development data, verify the path ends in either:

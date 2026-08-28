@@ -50,6 +50,9 @@ describe("runtime channel configuration", () => {
     expect(runtimeChannelSource).toContain('.env("MIRROR_HOME"');
     expect(runtimeChannelSource).toContain('.env("MIRROR_USER"');
     expect(runtimeChannelSource).toContain('.env("DB_PATH"');
+    expect(runtimeChannelSource).toContain('.env("PATH"');
+    expect(runtimeChannelSource).toContain('runtime_command("pi")');
+    expect(runtimeChannelSource).toContain('runtime_command("uv")');
     expect(rustSource).toContain("mirror_runtime_command");
     expect(rustSource).not.toContain('PathBuf::from("/Users/alissonvale/mirror")');
     expect(rustSource).not.toContain("Ok(mirror_root)\n    } else {\n        harness_root()");

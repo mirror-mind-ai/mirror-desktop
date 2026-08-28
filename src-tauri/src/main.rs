@@ -767,10 +767,7 @@ fn mirror_runtime_root() -> Result<PathBuf, String> {
 }
 
 fn mirror_runtime_command(program: &str) -> Result<Command, String> {
-    let profile = active_runtime_channel()?;
-    let mut command = Command::new(program);
-    profile.apply_to_command(&mut command);
-    Ok(command)
+    active_runtime_channel()?.runtime_command(program)
 }
 
 #[tauri::command]

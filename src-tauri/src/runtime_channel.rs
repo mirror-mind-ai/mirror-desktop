@@ -20,6 +20,7 @@ pub struct RuntimeChannelProfile {
     pub mirror_home: PathBuf,
     pub mirror_user: &'static str,
     pub db_path: PathBuf,
+    home: PathBuf,
 }
 
 #[derive(Clone, Serialize, Debug, PartialEq, Eq)]
@@ -58,6 +59,8 @@ impl RuntimeChannelProfile {
         let profile = Self::for_home(channel, &home);
         profile.validate_inherited_environment()?;
         profile.validate_mirror_coordinates()?;
+        profile.runtime_command("pi")?;
+        profile.runtime_command("uv")?;
         Ok(profile)
     }
 
@@ -73,6 +76,7 @@ impl RuntimeChannelProfile {
                     db_path: mirror_home.join("memory.db"),
                     mirror_home,
                     mirror_user: "alisson-vale",
+                    home: home.to_path_buf(),
                 }
             }
             RuntimeChannel::Development => {
@@ -85,6 +89,7 @@ impl RuntimeChannelProfile {
                     db_path: mirror_home.join("memory.db"),
                     mirror_home,
                     mirror_user: "mirror-dev",
+                    home: home.to_path_buf(),
                 }
             }
         }
@@ -146,12 +151,52 @@ impl RuntimeChannelProfile {
         Ok(())
     }
 
+    fn runtime_search_directories(&self) -> Vec<PathBuf> {
+        vec![
+            self.home.join(".pi/agent/bin"),
+            self.home.join(".local/bin"),
+            self.home.join(".pyenv/shims"),
+            self.home.join(".pyenv/bin"),
+            PathBuf::from("/usr/local/bin"),
+            PathBuf::from("/opt/homebrew/bin"),
+            PathBuf::from("/usr/bin"),
+            PathBuf::from("/bin"),
+            PathBuf::from("/usr/sbin"),
+            PathBuf::from("/sbin"),
+            self.home.join(".cargo/bin"),
+        ]
+    }
+
+    pub fn runtime_command(&self, program: &str) -> Result<Command, String> {
+        if !matches!(program, "pi" | "uv") {
+            return Err(format!(
+                "Runtime channel rejects unsupported program {program}."
+            ));
+        }
+        let executable = self
+            .runtime_search_directories()
+            .into_iter()
+            .map(|directory| directory.join(program))
+            .find(|candidate| is_executable_file(candidate))
+            .ok_or_else(|| {
+                format!(
+                    "Runtime channel could not resolve the required {program} executable from its trusted search path."
+                )
+            })?;
+        let mut command = Command::new(executable);
+        self.apply_to_command(&mut command);
+        Ok(command)
+    }
+
     pub fn apply_to_command(&self, command: &mut Command) {
+        let runtime_path = env::join_paths(self.runtime_search_directories())
+            .expect("trusted Nautilus runtime paths must be joinable");
         command
             .current_dir(&self.mirror_root)
             .env("MIRROR_HOME", &self.mirror_home)
             .env("MIRROR_USER", self.mirror_user)
-            .env("DB_PATH", &self.db_path);
+            .env("DB_PATH", &self.db_path)
+            .env("PATH", runtime_path);
     }
 
     pub fn apply_macos_dock_icon(&self) -> Result<(), String> {
@@ -188,6 +233,24 @@ impl RuntimeChannelProfile {
             db_path: self.db_path.to_string_lossy().to_string(),
             status: "validated",
         }
+    }
+}
+
+fn is_executable_file(path: &Path) -> bool {
+    let Ok(metadata) = std::fs::metadata(path) else {
+        return false;
+    };
+    if !metadata.is_file() {
+        return false;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        metadata.permissions().mode() & 0o111 != 0
+    }
+    #[cfg(not(unix))]
+    {
+        true
     }
 }
 
@@ -289,6 +352,13 @@ mod tests {
     }
 
     #[test]
+    fn rejects_programs_outside_the_closed_runtime_toolset() {
+        let profile =
+            RuntimeChannelProfile::for_home(RuntimeChannel::User, Path::new("/Users/example"));
+        assert!(profile.runtime_command("bash").is_err());
+    }
+
+    #[test]
     fn applies_only_the_channel_mirror_coordinates_to_a_process() {
         let profile = RuntimeChannelProfile::for_home(
             RuntimeChannel::Development,
@@ -321,6 +391,9 @@ mod tests {
             environment.get("DB_PATH").map(String::as_str),
             Some("/Users/example/.mirror-minds/mirror-dev/memory.db")
         );
-        assert_eq!(environment.len(), 3);
+        assert!(environment
+            .get("PATH")
+            .is_some_and(|value| value.contains("/usr/local/bin")));
+        assert_eq!(environment.len(), 4);
     }
 }

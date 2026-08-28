@@ -24,7 +24,7 @@ Nautilus Harness Dev
 
 `src-tauri/src/runtime_channel.rs` defines a closed build-time channel profile. The Cargo `development-channel` feature selects development; the stable default selects user. Tauri setup verifies bundle identifier, application-data identity, safe Mirror checkout/home/database and inherited allowlisted variables before commands or windows become usable.
 
-Every Mirror-sensitive Pi, `uv` and Python subprocess now receives the validated channel cwd plus `MIRROR_HOME`, `MIRROR_USER` and `DB_PATH`. The prior hard-coded `/Users/alissonvale/mirror` and fallback to Harness root were removed. Missing or mixed coordinates fail before provider or mutation work.
+Every Mirror-sensitive Pi, `uv` and Python subprocess now receives the validated channel cwd plus `MIRROR_HOME`, `MIRROR_USER`, `DB_PATH` and a bounded executable search path. The native profile resolves only `pi` and `uv` from trusted standard coordinates, so an installed app launched by Finder does not depend on Finder's minimal `/usr/bin:/bin:/usr/sbin:/sbin` environment. The prior hard-coded `/Users/alissonvale/mirror` and fallback to Harness root were removed. Missing or mixed coordinates fail before provider or mutation work.
 
 Dedicated threads provisioned after DS-011 record `runtimeChannel` in the thread and activation receipt. Unmarked legacy records remain accepted only by the stable channel; development rejects them.
 
@@ -55,7 +55,7 @@ Conversation bridge scripts now require explicit Mirror root/home coordinates an
 ```text
 63 Vitest files / 328 tests passed
 production TypeScript/Vite build passed
-29 Rust tests passed in stable and development feature configurations
+30 Rust tests passed in stable and development feature configurations
 cargo check passed in stable and development feature configurations
 2 Python script tests passed
 stable and development Tauri debug no-bundle builds passed
@@ -79,7 +79,9 @@ Desktop smoke evidence:
 - development registry was written only below `com.nautilus.harness.dev` from the Mirror Dev database;
 - Navigator confirmed the development palette, in-app icon and Mirror Dev diagnostic;
 - the promoted stable 0.1.0 app was installed and launched from `/Applications/Nautilus Harness.app` after explicit authorization;
-- development runtime was relaunched after the Dock-icon correction without startup failure.
+- development runtime was relaunched after the Dock-icon correction without startup failure;
+- Finder-launched production exposed a missing-Pi defect because macOS supplied a minimal `PATH`;
+- the corrected bounded GUI runtime path provisioned an offline native Pi session successfully without provider invocation.
 
 ## Remaining Gate
 
