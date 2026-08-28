@@ -73,26 +73,27 @@ Also run focused Python or source guardrail checks when adapter scripts are intr
 
 1. Open Settings.
 2. Select a non-default available Pi model and thinking level as global defaults.
-3. Save and verify the effective-profile disclosure updates.
+3. Save, close Settings and verify the linked provider/model label beside Send updates.
 4. Quit Harness completely and reopen it.
-5. Reopen Settings and verify the same values were restored before any send.
+5. Reopen Settings and verify the same global values were restored before any send.
 
 Pass when both values survive restart without provider activity. Fail if defaults return silently, settings appear saved only in memory, or startup calls a model.
 
 ### Journey overrides
 
-1. Select Journey A and override both model and thinking.
-2. Select Journey B and leave both fields inherited.
-3. Switch repeatedly between A and B.
-4. Change the global defaults.
+1. Select Journey A and click the linked provider/model label beside Send.
+2. Choose explicit model and thinking values, then click **Use model for this Journey**.
+3. Select Journey B, open the same selector and leave both fields on their global values.
+4. Switch repeatedly between A and B, observing the linked provider/model label.
+5. Change the global defaults.
 
-Pass when A remains explicit and B follows the new global profile, with exact selected-Journey disclosure and no conversation/thread change. Fail on cross-Journey leakage, title-based matching or global overwrite of A.
+Pass when A remains explicit and B follows the new global profile, with exact active-Journey selection and no conversation/thread change. Fail on cross-Journey leakage, title-based matching or global overwrite of A.
 
 ### Independent inheritance and reset
 
-1. In Journey A, inherit model but override thinking.
-2. Verify the effective profile combines the global model with Journey thinking.
-3. Reset Journey A to full inheritance.
+1. From Journey A's provider/model link, choose **Use global model** but override thinking.
+2. Save and verify the footer combines the global model with Journey thinking.
+3. Reopen the selector and click **Use global defaults**.
 
 Pass when independent precedence is visible and reset changes settings only. Fail if reset restarts the conversation, creates a generation, modifies Mirror or loses the current transcript.
 

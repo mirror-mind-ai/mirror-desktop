@@ -422,9 +422,10 @@ export function App({ model }: AppProps) {
 
   useEffect(() => {
     if (!journeyAgentProfileOpen) return;
-    setJourneyModelDraft(modelOptionValue(effectiveAgentProfile.model));
-    setJourneyThinkingDraft(effectiveAgentProfile.thinkingLevel);
-  }, [effectiveAgentProfile, journeyAgentProfileOpen]);
+    const override = agentSettings.journeyOverrides[selectedJourney];
+    setJourneyModelDraft(override?.model ? modelOptionValue(override.model) : "inherit");
+    setJourneyThinkingDraft(override?.thinkingLevel ?? "inherit");
+  }, [agentSettings, journeyAgentProfileOpen, selectedJourney]);
 
   useEffect(() => {
     if ((!settingsOpen && !journeyAgentProfileOpen) || piModelCatalogState !== "idle") return;
@@ -1242,8 +1243,8 @@ export function App({ model }: AppProps) {
   async function saveSelectedJourneyAgentOverride() {
     try {
       const override = {
-        model: modelFromOptionValue(journeyModelDraft),
-        thinkingLevel: journeyThinkingDraft === "inherit" ? effectiveAgentProfile.thinkingLevel : journeyThinkingDraft,
+        model: journeyModelDraft === "inherit" ? undefined : modelFromOptionValue(journeyModelDraft),
+        thinkingLevel: journeyThinkingDraft === "inherit" ? undefined : journeyThinkingDraft,
       };
       const saved = await persistAgentSettings(
         setJourneyAgentOverride(agentSettings, selectedJourney, override),
@@ -2168,8 +2169,10 @@ export function App({ model }: AppProps) {
                 <select value={journeyModelDraft} onChange={(event) => {
                   const next = event.target.value;
                   setJourneyModelDraft(next);
-                  if (!modelSupportsThinking(piModelCatalog, next) && journeyThinkingDraft !== "inherit" && !["pi-default", "off"].includes(journeyThinkingDraft)) setJourneyThinkingDraft("off");
+                  const resolvedModel = next === "inherit" ? modelOptionValue(agentSettings.globalProfile.model) : next;
+                  if (!modelSupportsThinking(piModelCatalog, resolvedModel) && journeyThinkingDraft !== "inherit" && !["pi-default", "off"].includes(journeyThinkingDraft)) setJourneyThinkingDraft("off");
                 }}>
+                  <option value="inherit">Use global model · {agentSettings.globalProfile.model.provider}/{agentSettings.globalProfile.model.model}</option>
                   {modelOptions.map((model) => (
                     <option key={modelOptionValue(model)} value={modelOptionValue(model)}>{model.provider} / {model.model}</option>
                   ))}
@@ -2177,10 +2180,11 @@ export function App({ model }: AppProps) {
               </label>
               <label className="provider-field">
                 Thinking level
-                <select value={journeyThinkingDraft} onChange={(event) => setJourneyThinkingDraft(event.target.value as AgentThinkingLevel)}>
+                <select value={journeyThinkingDraft} onChange={(event) => setJourneyThinkingDraft(event.target.value as AgentThinkingLevel | "inherit")}>
+                  <option value="inherit">Use global thinking · {agentSettings.globalProfile.thinkingLevel}</option>
                   {thinkingOptions(
                     piModelCatalog,
-                    journeyModelDraft,
+                    journeyModelDraft === "inherit" ? modelOptionValue(agentSettings.globalProfile.model) : journeyModelDraft,
                     journeyThinkingDraft === "inherit" ? undefined : journeyThinkingDraft,
                   ).map((level) => <option key={level} value={level}>{level}</option>)}
                 </select>

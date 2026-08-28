@@ -169,8 +169,10 @@ rename. API keys, tokens, headers, environment variables, command arguments,
 prompts, conversations and paths cannot enter this schema. Malformed persisted
 state blocks live send until the Navigator restores a valid profile.
 
-Settings obtains selectable models from `PI_OFFLINE=1 pi --list-models`. This is
-a local catalog inspection, not a provider invocation or remote refresh. React
+Global Settings and the active-Journey selector obtain selectable models from
+`PI_OFFLINE=1 pi --list-models`. The Journey selector opens from the effective
+provider/model link beside Send, keeping local override choice at its point of
+use. Catalog inspection is local, not a provider invocation or remote refresh. React
 projects the resolved profile into the current-session provider configuration
 immediately before explicit send, removing existing `--provider`, `--model` and
 `--thinking` values and appending one effective selection. `pi-default` omits

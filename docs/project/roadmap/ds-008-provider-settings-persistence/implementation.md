@@ -55,15 +55,11 @@ Startup inspects persisted settings before live send is enabled. Malformed persi
 
 ## Settings experience
 
-The existing global Settings window now contains:
+The existing global Settings window contains persisted global model, thinking and invocation defaults plus clearly separated current-session-only command, arguments, stdin and safe-test controls.
 
-1. effective profile disclosure for the active Journey;
-2. persisted global model, thinking and invocation defaults;
-3. independent active-Journey model and thinking inheritance/overrides;
-4. explicit reset to inheritance and restore-Harness-default actions;
-5. clearly separated current-session-only command, arguments, stdin and safe-test controls.
+Journey-specific selection lives at the point of use instead: the effective `provider/model` label beside the Send button is an accessible link. It opens a focused selector for the active Journey, where the Navigator chooses provider/model and thinking in one focused surface. Each field can remain inherited or become an exact-ID Journey override; **Use global defaults** clears both overrides. The selector closes only after durable publication succeeds.
 
-Locally available Pi models populate the selectors. Thinking options are constrained when the catalog reports that a model does not support thinking; Pi remains final model-specific clamping authority.
+Locally available Pi models populate the selector. Thinking options are constrained when the catalog reports that a model does not support thinking; Pi remains final model-specific clamping authority.
 
 ## Files
 
@@ -94,4 +90,5 @@ Coverage includes schema round-trip and rejection, independent inheritance, exac
 ```text
 62f2a27 Establish non-secret Journey agent profile authority
 fa49b68 Resolve effective agent profiles in desktop Settings
+dc57e0a Move Journey model selection beside the composer
 ```
