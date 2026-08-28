@@ -529,6 +529,15 @@ export function App({ model }: AppProps) {
   }, []);
 
   useEffect(() => {
+    if (journeyRegistryRefreshState !== "succeeded") return;
+    const timeout = window.setTimeout(() => {
+      setJourneyRegistryRefreshMessage(undefined);
+      setJourneyRegistryRefreshState("idle");
+    }, 3000);
+    return () => window.clearTimeout(timeout);
+  }, [journeyRegistryRefreshState]);
+
+  useEffect(() => {
     if (!registryLoaded || !preferencesLoaded) {
       return;
     }

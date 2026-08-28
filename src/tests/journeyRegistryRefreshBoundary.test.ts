@@ -23,6 +23,9 @@ describe("Journey registry refresh boundary", () => {
     expect(tauriSource).not.toContain("refresh_journey_registry_provider");
     expect(appSource).toContain("journeyAdministrationError(error)");
     expect(appSource).toContain('setJourneyRegistryRefreshMessage("Journey tree reloaded.")');
+    expect(appSource).toContain('journeyRegistryRefreshState !== "succeeded"');
+    expect(appSource).toContain("setJourneyRegistryRefreshMessage(undefined)");
+    expect(appSource).toContain("window.clearTimeout(timeout)");
     expect(appSource).not.toContain("because the previous Journey is no longer available");
     expect(appSource).toContain("Mirror returned an empty Journey registry.");
   });
