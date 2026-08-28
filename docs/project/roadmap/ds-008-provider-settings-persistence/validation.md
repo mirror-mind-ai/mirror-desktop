@@ -2,11 +2,11 @@
 
 ## Status
 
-pending_navigator_validation
+passed
 
 ## Summary
 
-Implemented the approved eight-package DS-008 scope: versioned allowlisted agent-settings persistence, exact Journey inheritance and overrides, offline Pi model discovery, effective provider/model/thinking projection, startup gating and compatibility guardrails. Following initial Navigator feedback, Journey selection moved from global Settings to the linked effective provider/model label beside Send; its focused selector persists model and thinking for the active Journey or restores inheritance. Automated evidence remains green: 55 Vitest files with 294 tests, production Vite/TypeScript build, 22 Rust tests, and cargo check.
+Navigator validated the point-of-use Journey model selector, persistence, inheritance and global reset behavior after the UI adjustment.
 
 ## Child Work Packages
 
@@ -21,4 +21,4 @@ Implemented the approved eight-package DS-008 scope: versioned allowlisted agent
 
 ## Boundary
 
-Do not proceed to DS-level Debt Review until Navigator validation is accepted.
+No push or release action is authorized by this checkpoint.
