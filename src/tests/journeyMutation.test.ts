@@ -61,6 +61,7 @@ describe("Journey administration boundary", () => {
   it("keeps mutation model-free and publishes only verified Mirror output", () => {
     expect(storageSource).toContain('invoke<string>("mutate_journey_registry"');
     expect(tauriSource).toContain('"memory", "journey", "mutate"');
+    expect(tauriSource).toContain("mirror_administrative_command(\"uv\")");
     expect(tauriSource).toContain("publish_refreshed_journey_registry");
     expect(tauriSource).not.toContain("mutate_journey_registry_provider");
   });

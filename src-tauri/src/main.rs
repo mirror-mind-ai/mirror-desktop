@@ -623,7 +623,7 @@ fn refresh_journey_registry(app: AppHandle, active_journey_id: String) -> Result
         fs::remove_file(&staged).map_err(|error| error.to_string())?;
     }
     let profile = active_runtime_channel()?;
-    let mut command = mirror_runtime_command("uv")?;
+    let mut command = mirror_administrative_command("uv")?;
     let output = command
         .args(["run", "python", "-m", "memory", "journey", "export-registry", "--mirror-home"])
         .arg(&profile.mirror_home)
@@ -680,7 +680,7 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
         active_journey_id.clone()
     };
     let profile = active_runtime_channel()?;
-    let mut command = mirror_runtime_command("uv")?;
+    let mut command = mirror_administrative_command("uv")?;
     let mut child = command
         .args(["run", "python", "-m", "memory", "journey", "mutate", "--mirror-home"])
         .arg(&profile.mirror_home)
@@ -768,6 +768,13 @@ fn mirror_runtime_root() -> Result<PathBuf, String> {
 
 fn mirror_runtime_command(program: &str) -> Result<Command, String> {
     active_runtime_channel()?.runtime_command(program)
+}
+
+fn mirror_administrative_command(program: &str) -> Result<Command, String> {
+    let profile = active_runtime_channel()?;
+    let mut command = profile.runtime_command(program)?;
+    profile.detach_journey_turn_authority(&mut command);
+    Ok(command)
 }
 
 #[tauri::command]

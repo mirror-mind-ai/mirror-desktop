@@ -199,6 +199,10 @@ impl RuntimeChannelProfile {
             .env("PATH", runtime_path);
     }
 
+    pub fn detach_journey_turn_authority(&self, command: &mut Command) {
+        command.env_remove("NAUTILUS_TURN_CORRELATION_V1");
+    }
+
     pub fn apply_macos_dock_icon(&self) -> Result<(), String> {
         #[cfg(target_os = "macos")]
         {
@@ -395,5 +399,20 @@ mod tests {
             .get("PATH")
             .is_some_and(|value| value.contains("/usr/local/bin")));
         assert_eq!(environment.len(), 4);
+    }
+
+    #[test]
+    fn detaches_turn_correlation_from_administrative_commands() {
+        let profile = RuntimeChannelProfile::for_home(
+            RuntimeChannel::Development,
+            Path::new("/Users/example"),
+        );
+        let mut command = Command::new("uv");
+        command.env("NAUTILUS_TURN_CORRELATION_V1", "journey-bound-turn");
+        profile.detach_journey_turn_authority(&mut command);
+
+        assert!(command.get_envs().any(|(key, value)| {
+            key == "NAUTILUS_TURN_CORRELATION_V1" && value.is_none()
+        }));
     }
 }
