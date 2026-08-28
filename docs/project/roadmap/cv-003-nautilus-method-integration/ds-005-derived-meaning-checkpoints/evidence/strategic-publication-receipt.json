@@ -1,0 +1,22 @@
+{
+  "contractId": "mirror.journey-projections",
+  "contractVersion": "1.0",
+  "journeyId": "nautilus-harness",
+  "namespace": "nautilus-synthesis",
+  "projection": "strategic",
+  "snapshotId": "st-ae390ae29848417caaa73b13333fc5e6",
+  "sourceRevision": "sha256:32ababb835deb63e88d11954ff8c4130faebfb562862e767388e68b791032526",
+  "sourceSnapshots": [
+    {
+      "namespace": "ariad",
+      "projection": "operational",
+      "snapshotId": "op-760e46daa3ad48fe810cf0aafacf005d"
+    },
+    {
+      "namespace": "nautilus-synthesis",
+      "projection": "tactical",
+      "snapshotId": "ta-151be9edf03a4e2bb2e3e35a85bff47a"
+    }
+  ],
+  "status": "published"
+}

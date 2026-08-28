@@ -54,6 +54,7 @@ The correction now delivers:
 ```text
 Agentic Protocol  e92aef9 Make derived meaning checkpoints canonically publishable
 Mirror Extension  c053096 Publish source-grounded derived meaning checkpoints
+Mirror Extension  b2ce2b5 Version checkpoint publication as extension 0.3.0
 ```
 
 ## Checks
@@ -65,9 +66,24 @@ Harness:          55 Vitest files / 294 tests passed
 Harness build:    production TypeScript/Vite build passed
 ```
 
-## Remaining Authorized Boundary
+## Controlled Production Publication
 
-Code implementation is complete. Before visual validation, the updated Mirror Extension must be installed into the production Mirror home and must publish controlled Tactical and Strategic checkpoints for exact `journey-id=nautilus-harness`. Installation is a local deployment and publication mutates canonical projection coordinates, so both remain behind an explicit final Navigator authorization.
+After explicit Navigator authorization, the updated extension was installed into the production Mirror home and the Pi runtime extension catalog was rebuilt without evicting the other installed extensions. A production database backup was created first:
+
+```text
+memory_20260827_232610.zip
+```
+
+Controlled provider-free publication then produced:
+
+```text
+Extension version     0.3.0
+Operational ancestry  op-760e46daa3ad48fe810cf0aafacf005d
+Tactical              ta-151be9edf03a4e2bb2e3e35a85bff47a
+Strategic             st-ae390ae29848417caaa73b13333fc5e6
+```
+
+Tactical publishes one consolidated and one provisional checkpoint. Strategic publishes one provisional checkpoint and records the new Tactical snapshot as exact ancestry. Final public inspection confirmed extension producer version `0.3.0` and that both manifest coordinates match their receipts. Temporary candidates were deleted. The first `0.2.0` deployment receipts are retained as explicitly superseded audit evidence; the unsuffixed evidence files are authoritative for visual validation.
 
 ## Boundary
 

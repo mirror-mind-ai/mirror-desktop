@@ -6,7 +6,7 @@ pending_navigator_validation
 
 ## Summary
 
-Implementation complete for CV-003.DS-005: Tactical and Strategic published projections now support optional derived meaning checkpoints with explicit states, source references and correction boundaries; invalid states are rejected; provisional and consolidated meanings are visibly distinct; absent checkpoints are not fabricated; Tactical and Strategic remain read-only with no checkpoint creation, provider invocation, synthesis generation, forms or source mutation. Checks passed: npm test and npm run build. Commit: bcc405f.
+Implementation and controlled publication are complete for CV-003.DS-005. Canonical Agentic Protocol and the installed Mirror Extension now validate and publish optional source-grounded `meaningCheckpoints`; invalid states fail before mutation and checkpoint-free projections remain compatible. Harness remains a read-only consumer. Automated evidence is green: 13 Agentic Protocol tests, 14 Mirror Extension tests with synchronized runtime assets, 55 Harness test files / 294 tests, and production build. Exact provider-free publication for `nautilus-harness` through extension `0.3.0` produced Tactical `ta-151be9edf03a4e2bb2e3e35a85bff47a` with consolidated and provisional checkpoints and Strategic `st-ae390ae29848417caaa73b13333fc5e6` with exact Tactical ancestry. Awaiting Navigator desktop validation.
 
 ## Child Work Packages
 

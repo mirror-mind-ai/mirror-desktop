@@ -1,0 +1,27 @@
+{
+  "journeyId": "nautilus-harness",
+  "operationalSnapshotId": "op-760e46daa3ad48fe810cf0aafacf005d",
+  "strategic": {
+    "checkpointIds": [
+      "checkpoint-strategic-publication-provisional"
+    ],
+    "checkpointStates": [
+      "provisional"
+    ],
+    "manifestSnapshotId": "st-a7a6b339f23a4e8d98165e9e034886f8",
+    "snapshotId": "st-a7a6b339f23a4e8d98165e9e034886f8",
+    "tacticalAncestorSnapshotId": "ta-73723096e77f4b278486972ed6a01a01"
+  },
+  "tactical": {
+    "checkpointIds": [
+      "checkpoint-read-model-established",
+      "checkpoint-publication-awaits-validation"
+    ],
+    "checkpointStates": [
+      "consolidated",
+      "provisional"
+    ],
+    "manifestSnapshotId": "ta-73723096e77f4b278486972ed6a01a01",
+    "snapshotId": "ta-73723096e77f4b278486972ed6a01a01"
+  }
+}

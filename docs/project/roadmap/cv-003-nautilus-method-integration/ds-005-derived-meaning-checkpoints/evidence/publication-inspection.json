@@ -1,0 +1,28 @@
+{
+  "extensionVersion": "0.3.0",
+  "journeyId": "nautilus-harness",
+  "operationalSnapshotId": "op-760e46daa3ad48fe810cf0aafacf005d",
+  "strategic": {
+    "checkpointIds": [
+      "checkpoint-strategic-publication-provisional"
+    ],
+    "checkpointStates": [
+      "provisional"
+    ],
+    "manifestSnapshotId": "st-ae390ae29848417caaa73b13333fc5e6",
+    "snapshotId": "st-ae390ae29848417caaa73b13333fc5e6",
+    "tacticalAncestorSnapshotId": "ta-151be9edf03a4e2bb2e3e35a85bff47a"
+  },
+  "tactical": {
+    "checkpointIds": [
+      "checkpoint-read-model-established",
+      "checkpoint-publication-awaits-validation"
+    ],
+    "checkpointStates": [
+      "consolidated",
+      "provisional"
+    ],
+    "manifestSnapshotId": "ta-151be9edf03a4e2bb2e3e35a85bff47a",
+    "snapshotId": "ta-151be9edf03a4e2bb2e3e35a85bff47a"
+  }
+}
