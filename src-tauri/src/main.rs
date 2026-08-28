@@ -1,3 +1,6 @@
+mod agent_settings;
+
+use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -2490,6 +2493,9 @@ fn main() {
             choose_project_directory,
             load_journey_preferences,
             save_journey_preferences,
+            load_agent_settings,
+            save_agent_settings,
+            list_pi_models,
             load_journey_projections,
             list_journey_documentation,
             read_journey_document,

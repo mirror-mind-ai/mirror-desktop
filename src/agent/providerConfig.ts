@@ -1,3 +1,5 @@
+import type { EffectiveAgentProfile } from "../domain/agentProfile";
+
 export type AgentInvocationMode = "raw" | "mirror";
 
 export type AgentProviderConfig = {
@@ -61,6 +63,17 @@ export function providerConfigToArgsText(config: AgentProviderConfig): string {
   return config.args.join(" ");
 }
 
+export function projectAgentProfile(
+  config: AgentProviderConfig,
+  profile: EffectiveAgentProfile,
+): AgentProviderConfig {
+  if (config.safeTestMode) return config;
+  const args = stripOptionPairs(config.args, new Set(["--provider", "--model", "--thinking"]));
+  args.push("--provider", profile.model.provider, "--model", profile.model.model);
+  if (profile.thinkingLevel !== "pi-default") args.push("--thinking", profile.thinkingLevel);
+  return { ...config, args, invocationMode: profile.invocationMode };
+}
+
 export function describeProviderMode(config: AgentProviderConfig): string {
   if (config.safeTestMode) {
     return "Safe test command";
@@ -120,6 +133,20 @@ export function validateProviderConfig(config: AgentProviderConfig): string[] {
 function normalizeCommand(command: string): string {
   const trimmed = command.trim();
   return trimmed || defaultPiProviderConfig.command;
+}
+
+function stripOptionPairs(args: string[], options: Set<string>): string[] {
+  const kept: string[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (options.has(arg)) {
+      index += 1;
+      continue;
+    }
+    if ([...options].some((option) => arg.startsWith(`${option}=`))) continue;
+    kept.push(arg);
+  }
+  return kept;
 }
 
 function argValue(args: string[], name: string): string | undefined {

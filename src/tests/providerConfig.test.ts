@@ -7,6 +7,7 @@ import {
   parseProviderArgs,
   providerConfigToArgsText,
   providerModelLabel,
+  projectAgentProfile,
   safeTestProviderConfig,
   validateProviderConfig,
 } from "../agent/providerConfig";
@@ -59,6 +60,37 @@ describe("agent provider configuration", () => {
     expect(configuredModelContextWindow(config)).toBe(400000);
     expect(describeProviderMode(config)).toBe("Mirror runtime Pi via prompt argument");
     expect(validateProviderConfig(config)).toEqual([]);
+  });
+
+  it("projects one effective model and thinking selection without conflicting flags", () => {
+    const projected = projectAgentProfile({
+      ...defaultPiProviderConfig,
+      args: ["--print", "--provider", "old", "--model=old-model", "--thinking", "low", "--no-tools"],
+    }, {
+      journeyId: "alpha",
+      model: { provider: "anthropic", model: "claude-sonnet-4-6" },
+      thinkingLevel: "high",
+      invocationMode: "mirror",
+      modelSource: "journey",
+      thinkingSource: "journey",
+    });
+
+    expect(projected.args).toEqual([
+      "--print", "--no-tools", "--provider", "anthropic", "--model", "claude-sonnet-4-6", "--thinking", "high",
+    ]);
+  });
+
+  it("omits thinking for the native Pi default and never rewrites safe-test mode", () => {
+    const effective = {
+      journeyId: "alpha",
+      model: { provider: "openai-codex", model: "gpt-5.4" },
+      thinkingLevel: "pi-default" as const,
+      invocationMode: "mirror" as const,
+      modelSource: "global" as const,
+      thinkingSource: "global" as const,
+    };
+    expect(projectAgentProfile(defaultPiProviderConfig, effective).args).not.toContain("--thinking");
+    expect(projectAgentProfile(safeTestProviderConfig, effective)).toEqual(safeTestProviderConfig);
   });
 
   it("labels raw local Pi separately", () => {
