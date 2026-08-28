@@ -150,6 +150,34 @@ cascade. When the empty leaf is active, Harness binds publication and selection
 to its parent or the first remaining canonical Journey before accepting the
 replacement registry. Project files and repositories are never deletion targets.
 
+## Persistent agent-profile boundary
+
+Harness owns a versioned, non-secret `agent-settings.json` record under Tauri's
+application-data directory. It stores one global provider/model, thinking level
+and invocation mode plus optional overrides keyed by exact native Journey ID.
+Mirror Journey metadata is not changed. The pure TypeScript resolver applies
+precedence independently:
+
+```text
+effective model = Journey model override ?? global model
+effective thinking = Journey thinking override ?? global thinking
+```
+
+The native `agent_settings` module validates the same allowlisted shape, rejects
+unknown fields and unsafe file types, and publishes through a staged sibling plus
+rename. API keys, tokens, headers, environment variables, command arguments,
+prompts, conversations and paths cannot enter this schema. Malformed persisted
+state blocks live send until the Navigator restores a valid profile.
+
+Settings obtains selectable models from `PI_OFFLINE=1 pi --list-models`. This is
+a local catalog inspection, not a provider invocation or remote refresh. React
+projects the resolved profile into the current-session provider configuration
+immediately before explicit send, removing existing `--provider`, `--model` and
+`--thinking` values and appending one effective selection. `pi-default` omits
+`--thinking`; Pi remains final authority for model-specific thinking-level
+clamping. Profile changes never provision or restart a thread, generation, Pi
+session or Mirror conversation.
+
 ## Next implementation story
 
 The next implementation story should create the Tauri app skeleton and migrate DS-001/DS-002 protocol validation into TypeScript while preserving the Python scripts as temporary references until parity is validated.

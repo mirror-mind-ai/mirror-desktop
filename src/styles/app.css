@@ -2698,6 +2698,10 @@ dd {
   padding: 18px;
 }
 
+.settings-section + .settings-section {
+  margin-top: 12px;
+}
+
 .provider-card dl {
   margin-bottom: 12px;
 }

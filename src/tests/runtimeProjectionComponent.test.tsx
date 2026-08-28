@@ -116,7 +116,7 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}");
     expect(appSource).not.toContain("queryJourneyPiContext");
     expect(appSource).toContain("readJourneyPiContextStats");
-    expect(appSource).toContain("providerModel={providerModelLabel(providerConfig)}");
+    expect(appSource).toContain("providerModel={providerModelLabel(effectiveProviderConfig)}");
   });
 
   it("uses a fixed middle-truncated preview of the first tool argument", () => {

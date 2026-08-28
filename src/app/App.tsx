@@ -29,6 +29,7 @@ import {
   describeProviderMode,
   providerConfigToArgsText,
   providerModelLabel,
+  projectAgentProfile,
   validateProviderConfig,
   type AgentInvocationMode,
 } from "../agent/providerConfig";
@@ -82,6 +83,7 @@ import {
   saveDedicatedJourneyConversation,
 } from "./journeyConversationStorage";
 import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPreferenceStorage";
+import { listPiModels, loadAgentSettings, saveAgentSettings, type PiModelCatalogEntry } from "./agentSettingsStorage";
 import { loadJourneyRegistry, refreshJourneyRegistry } from "./journeyRegistryStorage";
 import { chooseProjectDirectory, mutateJourneyRegistry } from "./journeyMutationStorage";
 import {
@@ -128,6 +130,15 @@ import {
   type JourneyPreferenceState,
 } from "../domain/journeyPreferencePersistence";
 import { appendJourneyPosition, createMutationRequest, journeyAdministrationError, replacementJourneyAfterDeletion, suggestJourneySlug, type JourneyMutationRequest } from "../domain/journeyMutation";
+import {
+  agentThinkingLevels,
+  createDefaultAgentSettings,
+  resolveAgentProfile,
+  setJourneyAgentOverride,
+  type AgentModelSelection,
+  type AgentSettings,
+  type AgentThinkingLevel,
+} from "../domain/agentProfile";
 import type { NautilusViewModel } from "../domain/nautilusViewModel";
 import type { JourneyProjectionBundle } from "../domain/journeyProjections";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
@@ -224,6 +235,15 @@ export function App({ model }: AppProps) {
   const [providerUseStdin, setProviderUseStdin] = useState(defaultPiProviderConfig.useStdin);
   const [providerSafeTestMode, setProviderSafeTestMode] = useState(defaultPiProviderConfig.safeTestMode);
   const [providerInvocationMode, setProviderInvocationMode] = useState<AgentInvocationMode>(defaultPiProviderConfig.invocationMode);
+  const [agentSettings, setAgentSettings] = useState<AgentSettings>(() => createDefaultAgentSettings());
+  const [agentSettingsState, setAgentSettingsState] = useState<"checking" | "ready" | "saving" | "error">("checking");
+  const [agentSettingsMessage, setAgentSettingsMessage] = useState<string | undefined>();
+  const [piModelCatalog, setPiModelCatalog] = useState<PiModelCatalogEntry[]>([]);
+  const [piModelCatalogState, setPiModelCatalogState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [globalModelDraft, setGlobalModelDraft] = useState(() => modelOptionValue(createDefaultAgentSettings().globalProfile.model));
+  const [globalThinkingDraft, setGlobalThinkingDraft] = useState<AgentThinkingLevel>(createDefaultAgentSettings().globalProfile.thinkingLevel);
+  const [journeyModelDraft, setJourneyModelDraft] = useState("inherit");
+  const [journeyThinkingDraft, setJourneyThinkingDraft] = useState<AgentThinkingLevel | "inherit">("inherit");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
   const [agentRun, setAgentRun] = useState(initialAgentRunState);
@@ -289,11 +309,26 @@ export function App({ model }: AppProps) {
     () => groupImportedActivityByMessage(conversation.importedActivity?.events ?? []),
     [conversation.importedActivity?.events],
   );
-  const providerErrors = useMemo(() => validateProviderConfig(providerConfig), [providerConfig]);
+  const effectiveAgentProfile = useMemo(
+    () => resolveAgentProfile(agentSettings, selectedJourney),
+    [agentSettings, selectedJourney],
+  );
+  const effectiveProviderConfig = useMemo(
+    () => projectAgentProfile(providerConfig, effectiveAgentProfile),
+    [effectiveAgentProfile, providerConfig],
+  );
+  const providerErrors = useMemo(() => validateProviderConfig(effectiveProviderConfig), [effectiveProviderConfig]);
+  const modelOptions = useMemo(() => uniqueModelOptions([
+    ...piModelCatalog.map(({ provider, model }) => ({ provider, model })),
+    agentSettings.globalProfile.model,
+    effectiveAgentProfile.model,
+    ...Object.values(agentSettings.journeyOverrides).flatMap((override) => override.model ? [override.model] : []),
+  ]), [agentSettings, effectiveAgentProfile.model, piModelCatalog]);
   const authoritativeContextStats = conversation.authoritativeContextStats;
   const contextIdentityMatches = authoritativeContextStats
     && authoritativeContextStats.piSessionId === conversation.liveIdentity.piSessionId
-    && authoritativeContextStats.generation === conversation.liveIdentity.generation;
+    && authoritativeContextStats.generation === conversation.liveIdentity.generation
+    && authoritativeContextStats.providerModel === providerModelLabel(effectiveProviderConfig);
   const reportedContextUsage = contextIdentityMatches ? authoritativeContextStats.usage : undefined;
   const pendingMirrorRepair = useMemo(() => pendingMirrorTurnRepair(conversation), [conversation]);
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
@@ -301,7 +336,9 @@ export function App({ model }: AppProps) {
   const reconciliationBlocksInvocation = dedicatedThreadReady
     ? dedicatedTurnBlocksNewInvocation(dedicatedTurnState)
     : conversation.reconciliation.classification !== "in_sync";
-  const configuredContextWindow = configuredModelContextWindow(providerConfig);
+  const configuredContextWindow = piModelCatalog.find((entry) =>
+    entry.provider === effectiveAgentProfile.model.provider && entry.model === effectiveAgentProfile.model.model,
+  )?.contextWindow ?? configuredModelContextWindow(effectiveProviderConfig);
   const displayContextWindow = configuredContextWindow ?? reportedContextUsage?.contextWindow ?? null;
   const authoritativeContextUsage = reportedContextUsage
     ? {
@@ -356,6 +393,49 @@ export function App({ model }: AppProps) {
       document.removeEventListener("keydown", closeTreeMenuWithKeyboard);
     };
   }, [journeyTreeMenuOpen]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgentSettings()
+      .then((stored) => {
+        if (cancelled) return;
+        const next = stored ?? createDefaultAgentSettings();
+        setAgentSettings(next);
+        setProviderInvocationMode(next.globalProfile.invocationMode);
+        setAgentSettingsState("ready");
+        setAgentSettingsMessage(stored ? "Agent defaults restored from this device." : "Using Harness agent defaults.");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setAgentSettingsState("error");
+        setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const override = agentSettings.journeyOverrides[selectedJourney];
+    setGlobalModelDraft(modelOptionValue(agentSettings.globalProfile.model));
+    setGlobalThinkingDraft(agentSettings.globalProfile.thinkingLevel);
+    setProviderInvocationMode(agentSettings.globalProfile.invocationMode);
+    setJourneyModelDraft(override?.model ? modelOptionValue(override.model) : "inherit");
+    setJourneyThinkingDraft(override?.thinkingLevel ?? "inherit");
+  }, [agentSettings, selectedJourney, settingsOpen]);
+
+  useEffect(() => {
+    if (!settingsOpen || piModelCatalogState !== "idle") return;
+    setPiModelCatalogState("loading");
+    void listPiModels()
+      .then((catalog) => {
+        setPiModelCatalog(catalog);
+        setPiModelCatalogState("ready");
+      })
+      .catch((error) => {
+        setPiModelCatalogState("error");
+        setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
+      });
+  }, [piModelCatalogState, settingsOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -550,10 +630,10 @@ export function App({ model }: AppProps) {
   }, [selectedJourney, registryLoaded]);
 
   useEffect(() => {
-    if (!conversationLoaded || isStreaming || providerConfig.safeTestMode) {
+    if (!conversationLoaded || isStreaming || effectiveProviderConfig.safeTestMode) {
       return;
     }
-    const providerModel = providerModelLabel(providerConfig);
+    const providerModel = providerModelLabel(effectiveProviderConfig);
     const cachedStats = conversation.authoritativeContextStats;
     if (
       cachedStats
@@ -614,7 +694,7 @@ export function App({ model }: AppProps) {
     conversation.liveIdentity.piSessionId,
     conversationLoaded,
     isStreaming,
-    providerConfig,
+    effectiveProviderConfig,
   ]);
 
   useEffect(() => {
@@ -724,7 +804,7 @@ export function App({ model }: AppProps) {
 
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
     const content = (retryContent ?? draft).trim();
-    if (!content || journeyThreadState.kind !== "ready" || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || (mode === "live" && providerErrors.length > 0)) {
+    if (!content || journeyThreadState.kind !== "ready" || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
       return;
     }
 
@@ -772,7 +852,7 @@ export function App({ model }: AppProps) {
       : replaceJourneyConversationMessages(baseConversation, [...nextMessages, assistantMessage]);
     const provider: AgentStreamProvider = mode === "mock"
       ? mockPiAgentStream
-      : (packet) => livePiAgentStream(packet, providerConfig, correlation);
+      : (packet) => livePiAgentStream(packet, effectiveProviderConfig, correlation);
 
     if (correlation) {
       try {
@@ -817,13 +897,13 @@ export function App({ model }: AppProps) {
             const sameAuthority = currentStats
               && currentStats.piSessionId === currentConversation.liveIdentity.piSessionId
               && currentStats.generation === currentConversation.liveIdentity.generation
-              && currentStats.providerModel === providerModelLabel(providerConfig);
+              && currentStats.providerModel === providerModelLabel(effectiveProviderConfig);
             return {
               ...currentConversation,
               authoritativeContextStats: {
                 piSessionId: currentConversation.liveIdentity.piSessionId,
                 generation: currentConversation.liveIdentity.generation,
-                providerModel: providerModelLabel(providerConfig),
+                providerModel: providerModelLabel(effectiveProviderConfig),
                 capturedAt: new Date().toISOString(),
                 usage: mergeRuntimeContextUsage(sameAuthority ? currentStats.usage : undefined, event.usage),
               },
@@ -1124,20 +1204,77 @@ export function App({ model }: AppProps) {
     }
   }
 
+  async function persistAgentSettings(next: AgentSettings, successMessage: string) {
+    setAgentSettingsState("saving");
+    setAgentSettingsMessage(undefined);
+    try {
+      await saveAgentSettings(next);
+      setAgentSettings(next);
+      setAgentSettingsState("ready");
+      setAgentSettingsMessage(successMessage);
+    } catch (error) {
+      setAgentSettingsState("error");
+      setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function saveGlobalAgentProfile() {
+    try {
+      const model = modelFromOptionValue(globalModelDraft);
+      await persistAgentSettings({
+        ...agentSettings,
+        globalProfile: {
+          model,
+          thinkingLevel: globalThinkingDraft,
+          invocationMode: providerInvocationMode,
+        },
+      }, "Global agent defaults saved on this device.");
+    } catch (error) {
+      setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function saveSelectedJourneyAgentOverride() {
+    try {
+      const override = {
+        model: journeyModelDraft === "inherit" ? undefined : modelFromOptionValue(journeyModelDraft),
+        thinkingLevel: journeyThinkingDraft === "inherit" ? undefined : journeyThinkingDraft,
+      };
+      await persistAgentSettings(
+        setJourneyAgentOverride(agentSettings, selectedJourney, override),
+        `Agent overrides saved for ${selectedJourneyItem.name}.`,
+      );
+    } catch (error) {
+      setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function resetSelectedJourneyAgentOverride() {
+    await persistAgentSettings(
+      setJourneyAgentOverride(agentSettings, selectedJourney, {}),
+      `${selectedJourneyItem.name} now inherits global agent defaults.`,
+    );
+  }
+
+  async function restoreDefaultAgentSettings() {
+    const defaults = createDefaultAgentSettings();
+    await persistAgentSettings(defaults, "Harness agent defaults restored.");
+    setProviderInvocationMode(defaults.globalProfile.invocationMode);
+  }
+
   function applyProviderConfiguration() {
     const nextConfig = createProviderConfig({
       command: providerCommand,
       argsText: providerArgsText,
       useStdin: providerUseStdin,
       safeTestMode: providerSafeTestMode,
-      invocationMode: providerInvocationMode,
+      invocationMode: agentSettings.globalProfile.invocationMode,
     });
     setProviderConfig(nextConfig);
     setProviderCommand(nextConfig.command);
     setProviderArgsText(providerConfigToArgsText(nextConfig));
     setProviderUseStdin(nextConfig.useStdin);
     setProviderSafeTestMode(nextConfig.safeTestMode);
-    setProviderInvocationMode(nextConfig.invocationMode);
   }
 
   function resetProviderConfiguration() {
@@ -1146,7 +1283,6 @@ export function App({ model }: AppProps) {
     setProviderArgsText(providerConfigToArgsText(defaultPiProviderConfig));
     setProviderUseStdin(defaultPiProviderConfig.useStdin);
     setProviderSafeTestMode(defaultPiProviderConfig.safeTestMode);
-    setProviderInvocationMode(defaultPiProviderConfig.invocationMode);
   }
 
   function selectJourney(journeyId: string) {
@@ -1750,6 +1886,12 @@ export function App({ model }: AppProps) {
           aria-label="Message composer"
           hidden={!operationalChatSelected || journeyThreadState.kind !== "ready"}
         >
+          {agentSettingsState !== "ready" && agentSettingsState !== "saving" ? (
+            <section className="dedicated-turn-notice" role="alert">
+              <strong>Agent settings require attention</strong>
+              <p>{agentSettingsMessage ?? "Agent settings are still being inspected."} Open Settings to restore a valid non-secret profile.</p>
+            </section>
+          ) : null}
           {reconciliationBlocksInvocation && !pendingMirrorRepair && !isStreaming ? (
             <section className="dedicated-turn-notice" role="status">
               <strong>Recording the completed turn</strong>
@@ -1786,7 +1928,7 @@ export function App({ model }: AppProps) {
               contextUsage={authoritativeContextUsage}
               activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}
               contextState={piContextState}
-              providerModel={providerModelLabel(providerConfig)}
+              providerModel={providerModelLabel(effectiveProviderConfig)}
             />
             <div className="composer-inline-actions">
               {agentRun.status === "running" && streamMode === "live" ? (
@@ -1804,7 +1946,7 @@ export function App({ model }: AppProps) {
                   className="icon-button send-button"
                   type="button"
                   onClick={() => void generatePacket("live")}
-                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || providerErrors.length > 0}
+                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || providerErrors.length > 0 || agentSettingsState !== "ready"}
                   aria-label="Send message"
                   title="Send message"
                 >
@@ -1937,57 +2079,138 @@ export function App({ model }: AppProps) {
               </button>
             </header>
 
-            <section className="settings-section provider-card">
-              <h3>{describeProviderMode(providerConfig)}</h3>
+            <section className="settings-section provider-card" aria-label="Effective agent profile">
+              <h3>Effective for {selectedJourneyItem.name}</h3>
               <dl>
-                <Row label="Model" value={providerModelLabel(providerConfig)} />
-                <Row label="Command" value={providerConfig.command} />
-                <Row label="Args" value={providerConfig.args.length > 0 ? providerConfig.args.join(" ") : "none"} />
-                <Row label="Input" value={providerConfig.useStdin ? "stdin" : "prompt argument"} />
+                <Row label="Model" value={`${providerModelLabel(effectiveProviderConfig)} · ${effectiveAgentProfile.modelSource}`} />
+                <Row label="Thinking" value={`${effectiveAgentProfile.thinkingLevel} · ${effectiveAgentProfile.thinkingSource}`} />
+                <Row label="Runtime" value={describeProviderMode(effectiveProviderConfig)} />
               </dl>
+              <p className="provider-note">Changes affect only the next explicit invocation. They never create or restart a Journey conversation.</p>
+            </section>
+
+            <section className="settings-section provider-card" aria-label="Global agent defaults">
+              <h3>Global defaults</h3>
+              <label className="provider-field">
+                Pi model
+                <select value={globalModelDraft} onChange={(event) => {
+                  const next = event.target.value;
+                  setGlobalModelDraft(next);
+                  if (!modelSupportsThinking(piModelCatalog, next) && !["pi-default", "off"].includes(globalThinkingDraft)) setGlobalThinkingDraft("off");
+                }}>
+                  {modelOptions.map((model) => (
+                    <option key={modelOptionValue(model)} value={modelOptionValue(model)}>{model.provider} / {model.model}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="provider-field">
+                Thinking level
+                <select value={globalThinkingDraft} onChange={(event) => setGlobalThinkingDraft(event.target.value as AgentThinkingLevel)}>
+                  {thinkingOptions(piModelCatalog, globalModelDraft, globalThinkingDraft).map((level) => <option key={level} value={level}>{level}</option>)}
+                </select>
+              </label>
               <label className="provider-field">
                 Invocation mode
-                <select
-                  value={providerInvocationMode}
-                  onChange={(event) => setProviderInvocationMode(event.target.value as AgentInvocationMode)}
-                  disabled={providerSafeTestMode}
-                >
+                <select value={providerInvocationMode} onChange={(event) => setProviderInvocationMode(event.target.value as AgentInvocationMode)} disabled={providerSafeTestMode}>
                   <option value="mirror">Mirror runtime Pi</option>
                   <option value="raw">Raw local Pi</option>
                 </select>
               </label>
+              <div className="provider-actions">
+                <button type="button" onClick={() => void saveGlobalAgentProfile()} disabled={isStreaming || agentSettingsState === "saving"}>Save global defaults</button>
+                <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={isStreaming || agentSettingsState === "saving"}>Restore Harness defaults</button>
+              </div>
+              <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>
+            </section>
+
+            <section className="settings-section provider-card" aria-label="Journey agent overrides">
+              <h3>{selectedJourneyItem.name}</h3>
               <label className="provider-field">
-                Command
-                <input value={providerCommand} onChange={(event) => setProviderCommand(event.target.value)} disabled={providerSafeTestMode} />
+                Journey model
+                <select value={journeyModelDraft} onChange={(event) => {
+                  const next = event.target.value;
+                  setJourneyModelDraft(next);
+                  const resolvedModel = next === "inherit" ? globalModelDraft : next;
+                  if (!modelSupportsThinking(piModelCatalog, resolvedModel) && journeyThinkingDraft !== "inherit" && !["pi-default", "off"].includes(journeyThinkingDraft)) setJourneyThinkingDraft("off");
+                }}>
+                  <option value="inherit">Inherit global · {agentSettings.globalProfile.model.provider}/{agentSettings.globalProfile.model.model}</option>
+                  {modelOptions.map((model) => (
+                    <option key={modelOptionValue(model)} value={modelOptionValue(model)}>{model.provider} / {model.model}</option>
+                  ))}
+                </select>
               </label>
               <label className="provider-field">
-                Arguments
-                <input value={providerArgsText} onChange={(event) => setProviderArgsText(event.target.value)} disabled={providerSafeTestMode} />
+                Journey thinking
+                <select value={journeyThinkingDraft} onChange={(event) => setJourneyThinkingDraft(event.target.value as AgentThinkingLevel | "inherit")}>
+                  <option value="inherit">Inherit global · {agentSettings.globalProfile.thinkingLevel}</option>
+                  {thinkingOptions(
+                    piModelCatalog,
+                    journeyModelDraft === "inherit" ? globalModelDraft : journeyModelDraft,
+                    journeyThinkingDraft === "inherit" ? undefined : journeyThinkingDraft,
+                  ).map((level) => <option key={level} value={level}>{level}</option>)}
+                </select>
               </label>
-              <label className="provider-check">
-                <input type="checkbox" checked={providerUseStdin} onChange={(event) => setProviderUseStdin(event.target.checked)} disabled={providerSafeTestMode} />
-                Send prompt through stdin
-              </label>
-              <label className="provider-check">
-                <input type="checkbox" checked={providerSafeTestMode} onChange={(event) => setProviderSafeTestMode(event.target.checked)} />
-                Safe test mode (cat)
-              </label>
+              <div className="provider-actions">
+                <button type="button" onClick={() => void saveSelectedJourneyAgentOverride()} disabled={isStreaming || agentSettingsState === "saving"}>Save Journey profile</button>
+                <button className="secondary-button" type="button" onClick={() => void resetSelectedJourneyAgentOverride()} disabled={isStreaming || agentSettingsState === "saving"}>Reset to inheritance</button>
+              </div>
+            </section>
+
+            <section className="settings-section provider-card" aria-label="Current session invocation controls">
+              <h3>Current session controls</h3>
+              <label className="provider-field">Command<input value={providerCommand} onChange={(event) => setProviderCommand(event.target.value)} disabled={providerSafeTestMode} /></label>
+              <label className="provider-field">Arguments<input value={providerArgsText} onChange={(event) => setProviderArgsText(event.target.value)} disabled={providerSafeTestMode} /></label>
+              <label className="provider-check"><input type="checkbox" checked={providerUseStdin} onChange={(event) => setProviderUseStdin(event.target.checked)} disabled={providerSafeTestMode} />Send prompt through stdin</label>
+              <label className="provider-check"><input type="checkbox" checked={providerSafeTestMode} onChange={(event) => setProviderSafeTestMode(event.target.checked)} />Safe test mode (cat)</label>
               {providerErrors.length > 0 ? <p className="provider-error">{providerErrors.join(" ")}</p> : null}
               <div className="provider-actions">
-                <button type="button" onClick={applyProviderConfiguration} disabled={isStreaming}>
-                  Apply provider settings
-                </button>
-                <button className="secondary-button" type="button" onClick={resetProviderConfiguration} disabled={isStreaming}>
-                  Reset provider
-                </button>
+                <button type="button" onClick={applyProviderConfiguration} disabled={isStreaming}>Apply for this session</button>
+                <button className="secondary-button" type="button" onClick={resetProviderConfiguration} disabled={isStreaming}>Reset session controls</button>
               </div>
-              <p className="provider-note">Current app session only. No secrets are stored. Mirror runtime mode sends the natural user message through Pi from the Mirror runtime root for the active Journey.</p>
+              <p className="provider-note">Command, arguments, stdin and test mode are never persisted. Effective model and thinking flags replace conflicting raw arguments.</p>
             </section>
+            {agentSettingsMessage ? <p className={agentSettingsState === "error" ? "settings-error" : "provider-note"} role={agentSettingsState === "error" ? "alert" : "status"}>{agentSettingsMessage}</p> : null}
           </section>
         </div>
       ) : null}
     </main>
   );
+}
+
+function modelOptionValue(model: AgentModelSelection): string {
+  return `${model.provider}\t${model.model}`;
+}
+
+function modelFromOptionValue(value: string): AgentModelSelection {
+  const separator = value.indexOf("\t");
+  if (separator <= 0 || separator === value.length - 1) throw new Error("Select a valid Pi model.");
+  return { provider: value.slice(0, separator), model: value.slice(separator + 1) };
+}
+
+function uniqueModelOptions(models: AgentModelSelection[]): AgentModelSelection[] {
+  const seen = new Set<string>();
+  return models.filter((model) => {
+    const key = modelOptionValue(model);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((left, right) => modelOptionValue(left).localeCompare(modelOptionValue(right)));
+}
+
+function modelSupportsThinking(catalog: PiModelCatalogEntry[], modelKey: string): boolean {
+  const model = modelFromOptionValue(modelKey);
+  return catalog.find((entry) => entry.provider === model.provider && entry.model === model.model)?.thinking ?? true;
+}
+
+function thinkingOptions(
+  catalog: PiModelCatalogEntry[],
+  modelKey: string,
+  current?: AgentThinkingLevel,
+): AgentThinkingLevel[] {
+  if (modelSupportsThinking(catalog, modelKey)) return [...agentThinkingLevels];
+  const supported: AgentThinkingLevel[] = ["pi-default", "off"];
+  if (current && !supported.includes(current)) supported.push(current);
+  return supported;
 }
 
 type RowProps = {
