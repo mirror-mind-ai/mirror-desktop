@@ -1,5 +1,6 @@
 import { parseConversationReconciliationState } from "./conversationReconciliation";
 import type { ConversationReconciliationState } from "./conversationReconciliation";
+import { normalizeConversationAttachmentProvenance } from "./contextAttachments";
 import type {
   AuthoritativeContextStats,
   CertifiedMirrorModeState,
@@ -35,7 +36,7 @@ export type ImportedConversationActivity = {
 };
 
 export type PersistedJourneyConversation = {
-  schemaVersion: "0.5.0";
+  schemaVersion: "0.6.0";
   conversation: JourneyConversation;
   savedAt: string;
 };
@@ -45,7 +46,7 @@ export function createPersistedJourneyConversation(
   now: Date = new Date(),
 ): PersistedJourneyConversation {
   return {
-    schemaVersion: "0.5.0",
+    schemaVersion: "0.6.0",
     conversation,
     savedAt: now.toISOString(),
   };
@@ -57,7 +58,7 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
   }
 
   const record = value as Record<string, unknown>;
-  if (record.schemaVersion !== "0.5.0") {
+  if (record.schemaVersion !== "0.5.0" && record.schemaVersion !== "0.6.0") {
     return undefined;
   }
   if (!record.conversation || typeof record.conversation !== "object") {
@@ -84,9 +85,30 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
         ((message as Record<string, unknown>).role === "user" ||
           (message as Record<string, unknown>).role === "assistant") &&
         typeof (message as Record<string, unknown>).content === "string" &&
-        typeof (message as Record<string, unknown>).createdAt === "string",
+        typeof (message as Record<string, unknown>).createdAt === "string" &&
+        ((message as Record<string, unknown>).attachments === undefined
+          || Array.isArray((message as Record<string, unknown>).attachments)),
     )
   ) {
+    return undefined;
+  }
+  let parsedMessages;
+  try {
+    parsedMessages = messages.map((message) => {
+      const item = message as Record<string, unknown>;
+      const attachments = item.attachments as unknown[] | undefined;
+      if (record.schemaVersion === "0.5.0" && attachments?.length) throw new Error("Legacy conversations cannot carry attachments.");
+      return {
+        id: item.id as string,
+        role: item.role as "user" | "assistant",
+        content: item.content as string,
+        createdAt: item.createdAt as string,
+        ...(attachments?.length
+          ? { attachments: attachments.map((attachment) => normalizeConversationAttachmentProvenance(attachment, conversation.journeyId as string)) }
+          : {}),
+      };
+    });
+  } catch {
     return undefined;
   }
 
@@ -114,10 +136,11 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
   } = conversation;
 
   return {
-    schemaVersion: "0.5.0",
+    schemaVersion: "0.6.0",
     savedAt: typeof record.savedAt === "string" ? record.savedAt : new Date(0).toISOString(),
     conversation: {
       ...(conversationWithoutRuntimeState as unknown as JourneyConversation),
+      messages: parsedMessages,
       liveIdentity,
       reconciliation,
       ...(authoritativeContextStats ? { authoritativeContextStats } : {}),

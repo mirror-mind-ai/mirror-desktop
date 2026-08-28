@@ -45,6 +45,9 @@ import { MessageContent } from "./MessageContent";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { ComposerRuntimeFooter } from "./ComposerRuntimeFooter";
 import { ConversationSyncNotice } from "./ConversationSyncNotice";
+import { ContextAttachmentSelector } from "./ContextAttachmentSelector";
+import { PendingContextAttachments } from "./PendingContextAttachments";
+import { MessageAttachmentProvenance } from "./MessageAttachmentProvenance";
 import { JourneyAltitudeSwitcher } from "./JourneyAltitudeSwitcher";
 import { JourneyAltitudeEmptyState } from "./JourneyAltitudeEmptyState";
 import { JourneyDocumentationBrowser } from "./JourneyDocumentationBrowser";
@@ -140,6 +143,16 @@ import {
 } from "../domain/agentProfile";
 import type { NautilusViewModel } from "../domain/nautilusViewModel";
 import type { JourneyProjectionBundle } from "../domain/journeyProjections";
+import {
+  addContextSnapshots,
+  clearContextSnapshots,
+  provenanceFromSnapshot,
+  removeContextSnapshot,
+  validateContextSnapshotsForSend,
+  type ContextAttachmentLimits,
+  type ContextAttachmentSnapshot,
+  type ContextAttachmentSnapshotResponse,
+} from "../domain/contextAttachments";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
 
@@ -213,6 +226,10 @@ export function App({ model }: AppProps) {
   const [journeyAdminPendingRequest, setJourneyAdminPendingRequest] = useState<JourneyMutationRequest | null>(null);
   const [draggedJourneyId, setDraggedJourneyId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [pendingContextSnapshots, setPendingContextSnapshots] = useState<ContextAttachmentSnapshot[]>([]);
+  const [contextAttachmentLimits, setContextAttachmentLimits] = useState<ContextAttachmentLimits>();
+  const [contextAttachmentSelectorOpen, setContextAttachmentSelectorOpen] = useState(false);
+  const [contextAttachmentError, setContextAttachmentError] = useState<string>();
   const [conversation, setConversation] = useState(() =>
     createJourneyConversation({ journeyId: selectedJourney, initialMessages }),
   );
@@ -806,9 +823,23 @@ export function App({ model }: AppProps) {
     });
   }
 
+  function addPendingContext(response: ContextAttachmentSnapshotResponse) {
+    try {
+      const ownerJourneyId = selectedJourneyRef.current;
+      const combined = addContextSnapshots(pendingContextSnapshots, response.snapshots, ownerJourneyId);
+      const errors = validateContextSnapshotsForSend(combined, ownerJourneyId, response.limits);
+      if (errors.length) throw new Error(errors.join(" "));
+      setPendingContextSnapshots(combined);
+      setContextAttachmentLimits(response.limits);
+      setContextAttachmentError(undefined);
+    } catch (error) {
+      setContextAttachmentError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
     const content = (retryContent ?? draft).trim();
-    if (!content || journeyThreadState.kind !== "ready" || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
+    if (!content || contextAttachmentError || journeyThreadState.kind !== "ready" || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
       return;
     }
 
@@ -827,13 +858,27 @@ export function App({ model }: AppProps) {
       }
     }
 
-    const userMessage = createUserConversationMessage(content);
+    const contextAttachments = pendingContextSnapshots;
+    if (contextAttachments.length) {
+      const contextErrors = contextAttachmentLimits
+        ? validateContextSnapshotsForSend(contextAttachments, selectedJourney, contextAttachmentLimits)
+        : ["Pending context limits are unavailable."];
+      if (contextErrors.length) {
+        setContextAttachmentError(contextErrors.join(" "));
+        return;
+      }
+    }
+    const userMessage: ConversationMessage = {
+      ...createUserConversationMessage(content),
+      ...(contextAttachments.length ? { attachments: contextAttachments.map(provenanceFromSnapshot) } : {}),
+    };
     const nextMessages = [...baseConversation.messages, userMessage];
     const packet = createMissionExtractionPacket({
       conversation: nextMessages,
       currentState,
       journeyId: selectedJourney,
       liveConversation: baseConversation.liveIdentity,
+      contextAttachments,
     });
     const assistantMessage: ConversationMessage = {
       id: `assistant-${new Date().toISOString()}`,
@@ -869,6 +914,10 @@ export function App({ model }: AppProps) {
     conversationRef.current = stagedConversation;
     setConversation(stagedConversation);
     setDraft("");
+    setPendingContextSnapshots([]);
+    setContextAttachmentLimits(undefined);
+    setContextAttachmentError(undefined);
+    setContextAttachmentSelectorOpen(false);
     setIsStreaming(true);
     setAgentRun(run);
     setJourneyPreferences((preferences) => markJourneyRecent(preferences, selectedJourney));
@@ -1189,6 +1238,10 @@ export function App({ model }: AppProps) {
       setConversation(restartedConversation);
       setJourneyThreadState(classified);
       setDraft("");
+      setPendingContextSnapshots([]);
+      setContextAttachmentLimits(undefined);
+      setContextAttachmentError(undefined);
+      setContextAttachmentSelectorOpen(false);
       setStreamMissionDraft(undefined);
       setStreamWarnings([]);
       setStreamDiagnostics([]);
@@ -1309,6 +1362,10 @@ export function App({ model }: AppProps) {
       activeJourneyId: journeyId,
     }));
     setDraft("");
+    setPendingContextSnapshots([]);
+    setContextAttachmentLimits(undefined);
+    setContextAttachmentError(undefined);
+    setContextAttachmentSelectorOpen(false);
     setStreamMissionDraft(undefined);
     setStreamWarnings([]);
     setStreamDiagnostics([]);
@@ -1884,6 +1941,7 @@ export function App({ model }: AppProps) {
                         <MessageContent content={bodyContent} basePath={selectedJourneyBasePath} />
                       )
                     ) : null}
+                    <MessageAttachmentProvenance attachments={message.attachments} />
                   </article>
                 ) : null}
                 <ImportedActivity events={messageActivity} basePath={selectedJourneyBasePath} />
@@ -1919,6 +1977,20 @@ export function App({ model }: AppProps) {
             />
           ) : null}
           {isFinalizingTurn ? <p className="turn-finalization-status" aria-live="polite">Recording the completed turn… You can draft the next message now.</p> : null}
+          {contextAttachmentError ? <p className="context-attachment-error" role="alert">{contextAttachmentError}</p> : null}
+          <PendingContextAttachments
+            snapshots={pendingContextSnapshots}
+            disabled={isStreaming || agentRun.status === "running"}
+            onRemove={(attachmentId) => {
+              setPendingContextSnapshots((current) => removeContextSnapshot(current, attachmentId));
+              setContextAttachmentError(undefined);
+            }}
+            onClear={() => {
+              setPendingContextSnapshots((current) => clearContextSnapshots(current));
+              setContextAttachmentLimits(undefined);
+              setContextAttachmentError(undefined);
+            }}
+          />
           <div className="composer-input-wrap">
             <textarea
               aria-label="Natural-language intention"
@@ -1946,6 +2018,19 @@ export function App({ model }: AppProps) {
               providerSelectionDisabled={isStreaming || agentRun.status === "running" || agentSettingsState === "saving"}
             />
             <div className="composer-inline-actions">
+              <button
+                className="icon-button context-attachment-button"
+                type="button"
+                onClick={() => {
+                  setContextAttachmentError(undefined);
+                  setContextAttachmentSelectorOpen(true);
+                }}
+                disabled={isStreaming || agentRun.status === "running" || isJourneyReloading}
+                aria-label="Attach Journey context"
+                title="Attach Journey context"
+              >
+                ⌕
+              </button>
               {agentRun.status === "running" && streamMode === "live" ? (
                 <button
                   className="icon-button"
@@ -1961,7 +2046,7 @@ export function App({ model }: AppProps) {
                   className="icon-button send-button"
                   type="button"
                   onClick={() => void generatePacket("live")}
-                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || providerErrors.length > 0 || agentSettingsState !== "ready"}
+                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(contextAttachmentError)}
                   aria-label="Send message"
                   title="Send message"
                 >
@@ -1972,6 +2057,16 @@ export function App({ model }: AppProps) {
           </div>
         </section>
       </section>
+
+      {contextAttachmentSelectorOpen && journeyThreadState.kind === "ready" ? (
+        <ContextAttachmentSelector
+          journeyId={selectedJourney}
+          journeyName={selectedJourneyItem.name}
+          existingPaths={pendingContextSnapshots.map((snapshot) => snapshot.relativePath)}
+          onAdd={addPendingContext}
+          onClose={() => setContextAttachmentSelectorOpen(false)}
+        />
+      ) : null}
 
       {restartConfirmationOpen && journeyThreadState.kind === "ready" ? (
         <div className="settings-backdrop" role="presentation" onClick={() => !isJourneyReloading && setRestartConfirmationOpen(false)}>

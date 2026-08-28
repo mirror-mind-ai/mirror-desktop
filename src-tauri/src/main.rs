@@ -4,6 +4,7 @@ use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::{
     collections::HashSet,
     fs,
@@ -742,6 +743,9 @@ fn mirror_runtime_root() -> Result<PathBuf, String> {
 }
 
 const DOCUMENT_PREVIEW_MAX_BYTES: u64 = 1024 * 1024;
+const CONTEXT_ATTACHMENT_MAX_FILES: usize = 8;
+const CONTEXT_ATTACHMENT_MAX_FILE_BYTES: u64 = 128 * 1024;
+const CONTEXT_ATTACHMENT_MAX_AGGREGATE_BYTES: u64 = 512 * 1024;
 const WORKSPACE_TREE_MAX_DEPTH: usize = 16;
 const WORKSPACE_TREE_MAX_ENTRIES: usize = 10_000;
 
@@ -927,6 +931,18 @@ fn validate_document_relative_path(relative_path: &str) -> Result<PathBuf, Strin
     if relative_path.trim().is_empty() || relative_path.contains('\0') {
         return Err("Document relative path is required.".to_string());
     }
+    let portable = relative_path.replace('\\', "/");
+    let bytes = portable.as_bytes();
+    let windows_prefixed = bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && bytes[2] == b'/';
+    if portable.starts_with('/')
+        || windows_prefixed
+        || portable.split('/').any(|component| component.is_empty() || component == "." || component == "..")
+    {
+        return Err("Artifact path is outside the visible Journey workspace.".to_string());
+    }
     let path = PathBuf::from(relative_path);
     if path.is_absolute()
         || path.components().any(|component| !matches!(component, std::path::Component::Normal(_)))
@@ -995,6 +1011,140 @@ fn read_journey_document_at(journey_root: &Path, relative_path: &str) -> Result<
         size_bytes: Some(metadata.len()),
         modified_at: documentation_modified_at(&metadata),
         reason: None,
+    })
+}
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct ContextAttachmentLimitsTransport {
+    max_files: usize,
+    max_file_bytes: u64,
+    max_aggregate_bytes: u64,
+}
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct ContextAttachmentSnapshotTransport {
+    schema_version: String,
+    attachment_id: String,
+    journey_id: String,
+    relative_path: String,
+    display_name: String,
+    media_type: String,
+    size_bytes: u64,
+    sha256: String,
+    captured_at: String,
+    content: String,
+}
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct ContextAttachmentSnapshotResponse {
+    schema_version: String,
+    limits: ContextAttachmentLimitsTransport,
+    snapshots: Vec<ContextAttachmentSnapshotTransport>,
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+fn snapshot_journey_context_at(
+    journey_root: &Path,
+    journey_id: &str,
+    relative_paths: &[String],
+) -> Result<ContextAttachmentSnapshotResponse, String> {
+    if journey_id.trim().is_empty() || journey_id.contains('\0') {
+        return Err("Journey id is required for context attachment.".to_string());
+    }
+    if relative_paths.is_empty() || relative_paths.len() > CONTEXT_ATTACHMENT_MAX_FILES {
+        return Err("Context attachment count exceeds the bounded limit.".to_string());
+    }
+    let workspace_root = bounded_documentation_root(journey_root)?;
+    let mut normalized = relative_paths
+        .iter()
+        .map(|value| validate_document_relative_path(value).map(|path| (value.clone(), path)))
+        .collect::<Result<Vec<_>, _>>()?;
+    normalized.sort_by(|left, right| left.0.cmp(&right.0));
+    if normalized.windows(2).any(|pair| pair[0].0 == pair[1].0) {
+        return Err("Context attachment paths must be unique.".to_string());
+    }
+
+    let captured_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let mut aggregate_bytes = 0_u64;
+    let mut snapshots = Vec::with_capacity(normalized.len());
+    for (relative_path, safe_relative) in normalized {
+        let candidate = workspace_root.join(&safe_relative);
+        let symlink_metadata = fs::symlink_metadata(&candidate)
+            .map_err(|_| "Could not resolve a selected context file.".to_string())?;
+        if symlink_metadata.file_type().is_symlink() {
+            return Err("Symbolic links cannot be attached as context.".to_string());
+        }
+        let canonical = candidate.canonicalize()
+            .map_err(|_| "Could not resolve a selected context file.".to_string())?;
+        if !canonical.starts_with(&workspace_root) {
+            return Err("Context file escaped the registered Journey root.".to_string());
+        }
+        let metadata = canonical.metadata()
+            .map_err(|_| "Could not inspect a selected context file.".to_string())?;
+        if !metadata.is_file() {
+            return Err("Only regular files can be attached as context.".to_string());
+        }
+        let preview_kind = documentation_preview_kind(&canonical);
+        let media_type = match preview_kind {
+            "markdown" => "text/markdown",
+            "text" => "text/plain",
+            _ => return Err("The selected context file type is unsupported.".to_string()),
+        };
+        if metadata.len() > CONTEXT_ATTACHMENT_MAX_FILE_BYTES {
+            return Err("A selected context file exceeds the per-file byte limit.".to_string());
+        }
+        aggregate_bytes = aggregate_bytes
+            .checked_add(metadata.len())
+            .ok_or_else(|| "Context attachment size overflowed the bounded limit.".to_string())?;
+        if aggregate_bytes > CONTEXT_ATTACHMENT_MAX_AGGREGATE_BYTES {
+            return Err("Selected context exceeds the aggregate byte limit.".to_string());
+        }
+        let bytes = fs::read(&canonical)
+            .map_err(|_| "Could not read a selected context file.".to_string())?;
+        if bytes.len() as u64 != metadata.len() {
+            return Err("A selected context file changed during capture.".to_string());
+        }
+        let content = String::from_utf8(bytes.clone())
+            .map_err(|_| "Context attachments must contain valid UTF-8 text.".to_string())?;
+        if content.contains('\0') {
+            return Err("Context attachments cannot contain null bytes.".to_string());
+        }
+        let content_sha256 = sha256_hex(&bytes);
+        let attachment_id = sha256_hex(
+            format!("{}\0{}\0{}", journey_id, relative_path, content_sha256).as_bytes(),
+        );
+        let display_name = canonical.file_name()
+            .and_then(|value| value.to_str())
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| "Context attachment has no display name.".to_string())?
+            .to_string();
+        snapshots.push(ContextAttachmentSnapshotTransport {
+            schema_version: "0.1.0".to_string(),
+            attachment_id: format!("ctx-{}", &attachment_id[..24]),
+            journey_id: journey_id.to_string(),
+            relative_path,
+            display_name,
+            media_type: media_type.to_string(),
+            size_bytes: metadata.len(),
+            sha256: content_sha256,
+            captured_at: captured_at.clone(),
+            content,
+        });
+    }
+    Ok(ContextAttachmentSnapshotResponse {
+        schema_version: "0.1.0".to_string(),
+        limits: ContextAttachmentLimitsTransport {
+            max_files: CONTEXT_ATTACHMENT_MAX_FILES,
+            max_file_bytes: CONTEXT_ATTACHMENT_MAX_FILE_BYTES,
+            max_aggregate_bytes: CONTEXT_ATTACHMENT_MAX_AGGREGATE_BYTES,
+        },
+        snapshots,
     })
 }
 
@@ -1153,6 +1303,16 @@ fn list_journey_documentation(app: AppHandle, journey_id: String) -> Result<Jour
 fn read_journey_document(app: AppHandle, journey_id: String, relative_path: String) -> Result<JourneyDocumentContent, String> {
     let journey_root = registered_journey_root(&app, &journey_id)?;
     read_journey_document_at(&journey_root, &relative_path)
+}
+
+#[tauri::command]
+fn snapshot_journey_context(
+    app: AppHandle,
+    journey_id: String,
+    relative_paths: Vec<String>,
+) -> Result<ContextAttachmentSnapshotResponse, String> {
+    let journey_root = registered_journey_root(&app, &journey_id)?;
+    snapshot_journey_context_at(&journey_root, &journey_id, &relative_paths)
 }
 
 #[tauri::command]
@@ -2499,6 +2659,7 @@ fn main() {
             load_journey_projections,
             list_journey_documentation,
             read_journey_document,
+            snapshot_journey_context,
             open_local_reference,
             start_pi_invocation,
             read_pi_session_context_stats,
@@ -2520,10 +2681,11 @@ mod tests {
         list_journey_documentation_at, materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, projection_manifest_coordinates_at,
         publish_refreshed_journey_registry, read_journey_document_at,
-        retire_legacy_parity_state_at, unwrap_persisted_thread,
+        retire_legacy_parity_state_at, snapshot_journey_context_at, unwrap_persisted_thread,
         validate_journey_registry_payload, validate_turn_correlation,
         PiSessionContextSnapshot, TurnCorrelation, JOURNEY_REGISTRY_FILE,
-        DOCUMENT_PREVIEW_MAX_BYTES,
+        CONTEXT_ATTACHMENT_MAX_AGGREGATE_BYTES, CONTEXT_ATTACHMENT_MAX_FILE_BYTES,
+        CONTEXT_ATTACHMENT_MAX_FILES, DOCUMENT_PREVIEW_MAX_BYTES,
     };
     use serde_json::json;
     use std::{
@@ -2791,6 +2953,85 @@ mod tests {
         let tree = list_journey_documentation_at(&directory).unwrap();
         assert_eq!(tree.status, "empty");
         assert!(read_journey_document_at(&directory, "escape.md").is_err());
+        fs::remove_file(outside).unwrap();
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn captures_journey_context_as_deterministic_immutable_snapshots() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("nautilus-context-{}-{}", std::process::id(), nonce));
+        fs::create_dir_all(directory.join("docs")).unwrap();
+        fs::write(directory.join("notes.txt"), "notes").unwrap();
+        fs::write(directory.join("docs/brief.md"), "# Brief").unwrap();
+
+        let response = snapshot_journey_context_at(
+            &directory,
+            "journey-a",
+            &["notes.txt".to_string(), "docs/brief.md".to_string()],
+        ).unwrap();
+        assert_eq!(response.schema_version, "0.1.0");
+        assert_eq!(response.limits.max_files, CONTEXT_ATTACHMENT_MAX_FILES);
+        assert_eq!(response.limits.max_file_bytes, CONTEXT_ATTACHMENT_MAX_FILE_BYTES);
+        assert_eq!(response.limits.max_aggregate_bytes, CONTEXT_ATTACHMENT_MAX_AGGREGATE_BYTES);
+        assert_eq!(response.snapshots.iter().map(|item| item.relative_path.as_str()).collect::<Vec<_>>(), vec!["docs/brief.md", "notes.txt"]);
+        assert_eq!(response.snapshots[0].journey_id, "journey-a");
+        assert_eq!(response.snapshots[0].media_type, "text/markdown");
+        assert_eq!(response.snapshots[0].content, "# Brief");
+        assert_eq!(response.snapshots[0].sha256.len(), 64);
+        assert!(response.snapshots[0].attachment_id.starts_with("ctx-"));
+        assert_eq!(fs::read_to_string(directory.join("docs/brief.md")).unwrap(), "# Brief");
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn rejects_context_sets_atomically_when_any_member_is_unsafe() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("nautilus-context-invalid-{}-{}", std::process::id(), nonce));
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("safe.md"), "safe").unwrap();
+        fs::write(directory.join("binary.png"), [0_u8, 1, 2]).unwrap();
+        fs::write(directory.join("invalid.txt"), [0xff_u8]).unwrap();
+        fs::write(directory.join("null.txt"), b"before\0after").unwrap();
+        fs::write(directory.join("large.txt"), vec![b'x'; CONTEXT_ATTACHMENT_MAX_FILE_BYTES as usize + 1]).unwrap();
+        let many_paths = (0..=CONTEXT_ATTACHMENT_MAX_FILES).map(|index| {
+            let name = format!("many-{}.txt", index);
+            fs::write(directory.join(&name), "x").unwrap();
+            name
+        }).collect::<Vec<_>>();
+        let aggregate_paths = (0..5).map(|index| {
+            let name = format!("aggregate-{}.txt", index);
+            fs::write(directory.join(&name), vec![b'x'; 110 * 1024]).unwrap();
+            name
+        }).collect::<Vec<_>>();
+
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &[]).is_err());
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &many_paths).is_err());
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &aggregate_paths).is_err());
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &["safe.md".to_string(), "safe.md".to_string()]).is_err());
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &["safe.md".to_string(), "binary.png".to_string()]).is_err());
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &["invalid.txt".to_string()]).is_err());
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &["null.txt".to_string()]).is_err());
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &["large.txt".to_string()]).is_err());
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &["../outside.md".to_string()]).is_err());
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &["docs\\..\\outside.md".to_string()]).is_err());
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &["C:\\outside.md".to_string()]).is_err());
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &[".env".to_string()]).is_err());
+        assert!(snapshot_journey_context_at(&directory, "", &["safe.md".to_string()]).is_err());
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symbolic_links_as_context_authority() {
+        use std::os::unix::fs::symlink;
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("nautilus-context-link-{}-{}", std::process::id(), nonce));
+        let outside = directory.parent().unwrap().join(format!("context-outside-{}.md", nonce));
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(&outside, "outside").unwrap();
+        symlink(&outside, directory.join("escape.md")).unwrap();
+        assert!(snapshot_journey_context_at(&directory, "journey-a", &["escape.md".to_string()]).is_err());
         fs::remove_file(outside).unwrap();
         fs::remove_dir_all(directory).unwrap();
     }

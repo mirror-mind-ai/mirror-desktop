@@ -14,8 +14,27 @@ function conversation() {
 describe("generation-scoped dedicated conversation persistence", () => {
   it("round-trips only the current dedicated shape", () => {
     const persisted = createPersistedJourneyConversation(conversation(), new Date("2026-08-26T11:00:00Z"));
-    expect(persisted.schemaVersion).toBe("0.5.0");
+    expect(persisted.schemaVersion).toBe("0.6.0");
     expect(parsePersistedJourneyConversation(persisted)).toEqual(persisted);
+  });
+
+  it("loads the attachment-free 0.5.0 schema as a compatibility baseline", () => {
+    const legacy = { ...createPersistedJourneyConversation(conversation()), schemaVersion: "0.5.0" };
+    expect(parsePersistedJourneyConversation(legacy)?.conversation.messages[0].content).toBe("hello");
+  });
+
+  it("preserves inert attachment provenance without reusable content", () => {
+    const current = conversation();
+    current.messages[0].attachments = [{
+      schemaVersion: "0.1.0", attachmentId: "ctx-1", journeyId: "nautilus-harness",
+      relativePath: "docs/brief.md", displayName: "brief.md", mediaType: "text/markdown",
+      sizeBytes: 5, sha256: "a".repeat(64), capturedAt: "2026-08-28T12:00:00.000Z",
+    }];
+    const parsed = parsePersistedJourneyConversation(createPersistedJourneyConversation(current));
+    expect(parsed?.conversation.messages[0].attachments?.[0].relativePath).toBe("docs/brief.md");
+    const malformed = createPersistedJourneyConversation(current) as unknown as { conversation: { messages: Array<{ attachments: Array<Record<string, unknown>> }> } };
+    malformed.conversation.messages[0].attachments[0].content = "must not persist";
+    expect(parsePersistedJourneyConversation(malformed)).toBeUndefined();
   });
 
   it("preserves validated context and certified Mirror mode", () => {
