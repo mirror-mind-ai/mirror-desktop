@@ -312,3 +312,23 @@ Aggregate validation requires:
 ---
 
 _Approval and lifecycle state are tracked by the Builder runtime, not duplicated in this plan._
+
+## CR026 Superseding Correction Plan
+
+Navigator rejected the Journey-confined snapshot semantics during desktop validation and approved `RS011 / CR026`. The original plan above remains as historical evidence; this section supersedes it for implementation and validation.
+
+The correction replaces embedded text snapshots with Pi-style path references:
+
+1. Introduce a strict `FileAttachment` contract for regular files at arbitrary absolute locations. Preserve exact selected Journey ownership only to prevent pending UI state from crossing conversations.
+2. Replace `snapshot_journey_context` with native multi-file selection and dropped-path inspection. Canonicalize existing regular files, accept every format, and never read arbitrary content except to derive bounded thumbnails from decodable images.
+3. Use a paperclip labeled `Anexar arquivos`. Native picker and Tauri drag/drop feed the same pending collection, support removal/clear and never auto-send.
+4. Persist a maximum 256 by 256 PNG thumbnail for decodable images. Do not place thumbnail bytes or source bytes in Pi prompts.
+5. Project only absolute path and display name into a structured `Files explicitly selected by the user` section after the request. Pi decides with its tools whether and how to read each file.
+6. Persist full local presentation references in conversation schema `0.7.0`; accept attachment-free `0.5.0` and legacy snapshot `0.6.0` records.
+7. Render historical file cards with clickable paths and persisted image thumbnails. Remove Journey/Harness root checks from deliberate `open_local_reference` clicks while retaining URL/null rejection, path resolution and OS-mediated opening.
+8. Preserve durable user-turn staging before clearing pending files or launching the provider. Journey switching and generation restart clear pending files; provider interruption never silently restores them.
+9. Remove obsolete documentation selector, text-content capture, SHA integrity, UTF-8/extension limits and content preview surfaces.
+
+Correction validation requires native picker, drag/drop, arbitrary external PDF/binary references, image thumbnail persistence, explicit Pi path projection, clickable external paths, legacy conversation loading, no implicit provider invocation, full Vitest/build/Rust checks and real Tauri Navigator validation.
+
+No push, release or deployment is authorized.

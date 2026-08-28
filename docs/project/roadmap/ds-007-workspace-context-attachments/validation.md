@@ -6,7 +6,7 @@ pending_navigator_validation
 
 ## Summary
 
-DS-007 implementation is complete across all seven approved work packages. Harness now captures up to eight Journey-confined UTF-8 Markdown/text snapshots through an atomic native boundary, presents review/remove controls in the composer, frames exact content as untrusted reference material for only the next explicit dedicated turn, persists strict content-free provenance in conversation schema 0.6.0 and preserves 0.5.0 compatibility. Automated evidence: 60 Vitest files / 319 tests, production build, 25 Rust tests and cargo check passed. The first desktop inspection found the context action overlapped by the provider/model footer; Harness now reserves space for both trailing actions and a layout regression test covers the correction. Awaiting Navigator revalidation in the real Tauri desktop.
+The original Journey-confined snapshot implementation was rejected during Navigator validation and superseded through `RS011 / CR026`. Harness now provides Pi-style file references: a paperclip and native multi-file picker, Tauri drag/drop, arbitrary regular-file formats and absolute locations, removable pending cards, bounded persisted image thumbnails, path-only dedicated-turn projection and clickable historical references without Journey/Harness root confinement. Conversation schema `0.7.0` preserves `0.5.0` and legacy `0.6.0` compatibility. Automated correction evidence: 61 Vitest files / 320 tests, production build, 25 Rust tests and cargo check passed. Awaiting Navigator validation of the corrected real Tauri desktop flow.
 
 ## Child Work Packages
 

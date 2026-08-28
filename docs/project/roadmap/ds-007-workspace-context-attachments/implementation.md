@@ -2,7 +2,7 @@
 
 ## Status
 
-implementation_complete_awaiting_navigator_validation
+cr026_correction_implemented_awaiting_navigator_validation
 
 ## Delivered Capability
 
@@ -147,6 +147,53 @@ a84e295 Attach bounded Journey context to one dedicated turn
 
 The first desktop inspection showed the new context button underneath the provider/model footer text because that footer still reserved width for only one trailing action. The composer now reserves `104px` for both context and Send controls. A focused layout regression test proves the footer cannot return to the former single-action reservation, and the production build remains green.
 
+## CR026 Product-Semantics Replacement
+
+Navigator rejected the implementation above because Journey-confined text capture did not match the Pi attachment gesture. `RS011 / CR026` preserves the evidence above as history and replaces the active implementation.
+
+The corrected Harness now:
+
+- opens a native multi-file dialog from a `📎` button with tooltip `Anexar arquivos`;
+- accepts up to 32 regular files from any absolute disk location and any format;
+- accepts external Tauri file drops into the same pending state without auto-send;
+- shows removable pending file cards with full clickable paths and byte sizes;
+- generates a persisted PNG thumbnail up to 256 by 256 for common decodable images;
+- serializes only absolute path and display name to Pi, leaving format interpretation to the agent and its tools;
+- strips thumbnail data from raw provider packets;
+- preserves clickable historical file references and thumbnails in conversation schema `0.7.0`;
+- reads attachment-free `0.5.0` and legacy snapshot `0.6.0` conversations;
+- opens deliberate absolute local references without Journey/Harness root confinement;
+- retains durable dedicated-turn staging before pending-file clearing and provider invocation;
+- clears pending files on Journey switch and generation restart.
+
+Obsolete `ContextAttachmentSelector`, `PendingContextAttachments`, native text snapshot capture and active snapshot integrity logic were removed. `contextAttachments.ts` now contains only the strict read-only parser needed for legacy `0.6.0` provenance.
+
+Correction evidence:
+
+```text
+61 Vitest files / 320 tests passed
+production TypeScript/Vite build passed
+25 Rust tests passed
+cargo check passed
+```
+
+Primary corrected files:
+
+```text
+src/domain/fileAttachments.ts
+src/app/fileAttachmentStorage.ts
+src/app/fileAttachmentDrop.ts
+src/app/PendingFileAttachments.tsx
+src/app/MessageFileAttachments.tsx
+src/agent/piTaskPacket.ts
+src/agent/piProcessStream.ts
+src/domain/persistedJourneyConversation.ts
+src/app/App.tsx
+src/styles/app.css
+src-tauri/src/main.rs
+src-tauri/Cargo.toml
+```
+
 ## Remaining Gate
 
-Navigator must revalidate the corrected real Tauri desktop flow before aggregate Validation can be accepted. Push, release and deployment remain separate unauthorized gates.
+Navigator must validate the corrected real Tauri flow for picker, drag/drop, image thumbnail, arbitrary external format, clickable path and explicit Send before aggregate Validation can be accepted. Push, release and deployment remain separate unauthorized gates.

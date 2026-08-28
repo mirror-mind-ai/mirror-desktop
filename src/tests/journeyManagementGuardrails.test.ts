@@ -44,12 +44,12 @@ describe("Journey management guardrails", () => {
     expect(importedActivitySource).not.toContain("invoke(");
   });
 
-  it("constrains local reference opening to local allowed roots", () => {
+  it("opens deliberate local references without treating URLs or null paths as files", () => {
     expect(tauriMainSource).toContain('path.starts_with("http://")');
     expect(tauriMainSource).toContain('path.starts_with("https://")');
     expect(tauriMainSource).toContain("path.contains('\\0')");
-    expect(tauriMainSource).toContain("canonical_path.starts_with(&base_root)");
-    expect(tauriMainSource).toContain("canonical_path.starts_with(&harness_root)");
+    expect(tauriMainSource).toContain("let canonical_path = resolved_path");
+    expect(tauriMainSource).not.toContain("Local reference is outside the allowed workspace roots.");
   });
 
   it("does not invoke Pi from Journey selection or restart lifecycle", () => {

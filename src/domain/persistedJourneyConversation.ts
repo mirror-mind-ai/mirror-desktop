@@ -1,6 +1,7 @@
 import { parseConversationReconciliationState } from "./conversationReconciliation";
 import type { ConversationReconciliationState } from "./conversationReconciliation";
 import { normalizeConversationAttachmentProvenance } from "./contextAttachments";
+import { normalizePersistedFileAttachment } from "./fileAttachments";
 import type {
   AuthoritativeContextStats,
   CertifiedMirrorModeState,
@@ -36,7 +37,7 @@ export type ImportedConversationActivity = {
 };
 
 export type PersistedJourneyConversation = {
-  schemaVersion: "0.6.0";
+  schemaVersion: "0.7.0";
   conversation: JourneyConversation;
   savedAt: string;
 };
@@ -46,7 +47,7 @@ export function createPersistedJourneyConversation(
   now: Date = new Date(),
 ): PersistedJourneyConversation {
   return {
-    schemaVersion: "0.6.0",
+    schemaVersion: "0.7.0",
     conversation,
     savedAt: now.toISOString(),
   };
@@ -58,7 +59,7 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
   }
 
   const record = value as Record<string, unknown>;
-  if (record.schemaVersion !== "0.5.0" && record.schemaVersion !== "0.6.0") {
+  if (!["0.5.0", "0.6.0", "0.7.0"].includes(String(record.schemaVersion))) {
     return undefined;
   }
   if (!record.conversation || typeof record.conversation !== "object") {
@@ -98,14 +99,20 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
       const item = message as Record<string, unknown>;
       const attachments = item.attachments as unknown[] | undefined;
       if (record.schemaVersion === "0.5.0" && attachments?.length) throw new Error("Legacy conversations cannot carry attachments.");
+      const parsedAttachments = attachments?.map((attachment) => {
+        const schemaVersion = (attachment as Record<string, unknown> | undefined)?.schemaVersion;
+        if (schemaVersion === "0.2.0") {
+          if (record.schemaVersion !== "0.7.0") throw new Error("File references require conversation schema 0.7.0.");
+          return normalizePersistedFileAttachment(attachment, conversation.journeyId as string);
+        }
+        return normalizeConversationAttachmentProvenance(attachment, conversation.journeyId as string);
+      });
       return {
         id: item.id as string,
         role: item.role as "user" | "assistant",
         content: item.content as string,
         createdAt: item.createdAt as string,
-        ...(attachments?.length
-          ? { attachments: attachments.map((attachment) => normalizeConversationAttachmentProvenance(attachment, conversation.journeyId as string)) }
-          : {}),
+        ...(parsedAttachments?.length ? { attachments: parsedAttachments } : {}),
       };
     });
   } catch {
@@ -136,7 +143,7 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
   } = conversation;
 
   return {
-    schemaVersion: "0.6.0",
+    schemaVersion: "0.7.0",
     savedAt: typeof record.savedAt === "string" ? record.savedAt : new Date(0).toISOString(),
     conversation: {
       ...(conversationWithoutRuntimeState as unknown as JourneyConversation),

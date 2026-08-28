@@ -3605,65 +3605,11 @@ dd {
   overflow-wrap: anywhere;
 }
 
-/* DS-007 — bounded workspace context */
-.context-selector-backdrop {
-  align-items: center;
-  background: rgba(3, 9, 11, 0.78);
-  display: flex;
-  inset: 0;
-  justify-content: center;
-  padding: 28px;
-  position: fixed;
-  z-index: 90;
-}
-
-.context-selector {
-  background: #0d171a;
-  border: 1px solid rgba(126, 210, 199, 0.2);
-  border-radius: 18px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
-  display: grid;
-  gap: 16px;
-  max-height: min(760px, calc(100vh - 56px));
-  max-width: 720px;
-  overflow: hidden;
-  padding: 22px;
-  width: 100%;
-}
-
-.context-selector > header,
-.context-selector > footer,
-.pending-context > header {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-}
-
-.context-selector h2 { margin: 2px 0 0; }
-.context-selector-intro { color: #8da6ac; margin: 0; }
-.context-selector-list { display: grid; gap: 7px; min-height: 120px; overflow: auto; }
-.context-selector-row {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 11px;
-  cursor: pointer;
-  display: grid;
-  gap: 11px;
-  grid-template-columns: auto 1fr auto;
-  padding: 11px 12px;
-}
-.context-selector-row.is-disabled { cursor: not-allowed; opacity: 0.5; }
-.context-selector-row span { display: grid; gap: 3px; }
-.context-selector-row small,
-.context-selector-row em,
-.context-selector footer > span { color: #718b91; font-size: 0.7rem; }
-.context-selector-row em { font-style: normal; }
-.context-selector footer > div { display: flex; gap: 8px; }
-.context-selector-error,
+/* CR026: Pi-style desktop file attachments */
 .context-attachment-error { color: #ffada8; font-size: 0.78rem; margin: 0; }
+.context-attachment-button { color: #8bd8cd; font-size: 1rem; }
 
-.pending-context {
+.pending-files {
   background: rgba(80, 181, 166, 0.055);
   border: 1px solid rgba(126, 210, 199, 0.13);
   border-radius: 13px;
@@ -3671,34 +3617,77 @@ dd {
   gap: 9px;
   padding: 10px 12px;
 }
-.pending-context header button,
-.pending-context-detail button {
+.pending-files > header { align-items: center; display: flex; justify-content: space-between; }
+.pending-files > header button,
+.remove-file-button {
   background: transparent;
   border: 0;
   color: #8bd8cd;
-  cursor: pointer;
   font-size: 0.72rem;
+  padding: 4px 6px;
 }
-.pending-context-list { display: grid; gap: 6px; }
-.pending-context-item { border-top: 1px solid rgba(255,255,255,0.055); padding-top: 7px; }
-.pending-context-item summary { align-items: center; cursor: pointer; display: flex; gap: 8px; }
-.pending-context-item summary > span:last-child { display: grid; gap: 2px; }
-.pending-context-item small { color: #6f8a90; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.65rem; }
-.pending-context-detail { display: grid; gap: 8px; padding: 9px 0 2px 24px; }
-.pending-context-detail p { color: #789399; font-size: 0.7rem; margin: 0; }
-.pending-context-detail pre {
-  background: rgba(0,0,0,0.26);
-  border-radius: 9px;
-  color: #cfe2e5;
-  font-size: 0.7rem;
-  margin: 0;
-  max-height: 180px;
-  overflow: auto;
-  padding: 10px;
-  white-space: pre-wrap;
+.pending-file-list { display: grid; gap: 7px; }
+.pending-file-item {
+  align-items: center;
+  border-top: 1px solid rgba(255,255,255,0.055);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  padding-top: 8px;
 }
-.context-attachment-button { color: #8bd8cd; }
+.pending-file-item img,
+.message-file-item img {
+  background: rgba(0,0,0,0.22);
+  border-radius: 8px;
+  height: 44px;
+  object-fit: cover;
+  width: 44px;
+}
+.pending-file-item > div { display: grid; gap: 2px; min-width: 0; }
+.pending-file-item small { color: #718b91; font-size: 0.66rem; }
+.file-attachment-glyph {
+  align-items: center;
+  background: rgba(139,216,205,0.08);
+  border: 1px solid rgba(139,216,205,0.16);
+  border-radius: 8px;
+  color: #8bd8cd;
+  display: flex;
+  font-size: 1.15rem;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+.file-path-button {
+  background: transparent;
+  border: 0;
+  color: #789ea3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.65rem;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-path-button:hover { color: #bff2eb; text-decoration: underline; }
+.composer-input-wrap.is-file-drop-active textarea { border-color: #85dfd2; box-shadow: 0 0 0 2px rgba(133,223,210,0.16); }
+.file-drop-overlay {
+  align-items: center;
+  background: rgba(9, 27, 30, 0.92);
+  border: 1px dashed #85dfd2;
+  border-radius: 20px;
+  color: #bff2eb;
+  display: flex;
+  font-weight: 650;
+  inset: 0;
+  justify-content: center;
+  pointer-events: none;
+  position: absolute;
+  z-index: 4;
+}
 
+.message-file-attachments,
 .message-attachment-provenance {
   border-top: 1px solid rgba(255,255,255,0.07);
   display: grid;
@@ -3706,7 +3695,25 @@ dd {
   margin-top: 12px;
   padding-top: 10px;
 }
+.message-file-attachments > strong,
 .message-attachment-provenance > strong { color: #8bd8cd; font-size: 0.7rem; text-transform: uppercase; }
+.message-file-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.message-file-item {
+  align-items: center;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  color: #d7e5e8;
+  display: grid;
+  gap: 9px;
+  grid-template-columns: 44px minmax(0, 1fr);
+  max-width: min(100%, 420px);
+  padding: 8px;
+  text-align: left;
+}
+.message-file-item:hover { border-color: rgba(133,223,210,0.4); }
+.message-file-item > span:last-child { display: grid; gap: 3px; min-width: 0; }
+.message-file-item small { color: #718b91; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.62rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .message-attachment-provenance ul { display: grid; gap: 5px; list-style: none; margin: 0; padding: 0; }
 .message-attachment-provenance li { display: grid; gap: 2px; }
 .message-attachment-provenance small,

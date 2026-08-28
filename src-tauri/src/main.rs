@@ -1,14 +1,16 @@
 mod agent_settings;
 
 use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use chrono::{SecondsFormat, Utc};
+use image::{ImageFormat, ImageReader};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashSet,
     fs,
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Cursor, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{Arc, Mutex},
@@ -743,9 +745,10 @@ fn mirror_runtime_root() -> Result<PathBuf, String> {
 }
 
 const DOCUMENT_PREVIEW_MAX_BYTES: u64 = 1024 * 1024;
-const CONTEXT_ATTACHMENT_MAX_FILES: usize = 8;
-const CONTEXT_ATTACHMENT_MAX_FILE_BYTES: u64 = 128 * 1024;
-const CONTEXT_ATTACHMENT_MAX_AGGREGATE_BYTES: u64 = 512 * 1024;
+const FILE_ATTACHMENT_MAX_FILES: usize = 32;
+const FILE_ATTACHMENT_THUMBNAIL_EDGE: u32 = 256;
+const FILE_ATTACHMENT_THUMBNAIL_SOURCE_MAX_BYTES: u64 = 50 * 1024 * 1024;
+const FILE_ATTACHMENT_THUMBNAIL_MAX_PIXELS: u64 = 20_000_000;
 const WORKSPACE_TREE_MAX_DEPTH: usize = 16;
 const WORKSPACE_TREE_MAX_ENTRIES: usize = 10_000;
 
@@ -1016,135 +1019,117 @@ fn read_journey_document_at(journey_root: &Path, relative_path: &str) -> Result<
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct ContextAttachmentLimitsTransport {
-    max_files: usize,
-    max_file_bytes: u64,
-    max_aggregate_bytes: u64,
+struct FileAttachmentThumbnailTransport {
+    schema_version: String,
+    media_type: String,
+    data_url: String,
+    width: u32,
+    height: u32,
 }
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct ContextAttachmentSnapshotTransport {
+struct FileAttachmentTransport {
     schema_version: String,
     attachment_id: String,
     journey_id: String,
-    relative_path: String,
+    absolute_path: String,
     display_name: String,
-    media_type: String,
     size_bytes: u64,
-    sha256: String,
-    captured_at: String,
-    content: String,
+    selected_at: String,
+    kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thumbnail: Option<FileAttachmentThumbnailTransport>,
 }
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct ContextAttachmentSnapshotResponse {
+struct FileAttachmentResponse {
     schema_version: String,
-    limits: ContextAttachmentLimitsTransport,
-    snapshots: Vec<ContextAttachmentSnapshotTransport>,
+    max_files: usize,
+    attachments: Vec<FileAttachmentTransport>,
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
-fn snapshot_journey_context_at(
-    journey_root: &Path,
-    journey_id: &str,
-    relative_paths: &[String],
-) -> Result<ContextAttachmentSnapshotResponse, String> {
+fn image_thumbnail(path: &Path, source_bytes: u64) -> Option<FileAttachmentThumbnailTransport> {
+    if source_bytes > FILE_ATTACHMENT_THUMBNAIL_SOURCE_MAX_BYTES {
+        return None;
+    }
+    let dimensions = ImageReader::open(path).ok()?.with_guessed_format().ok()?.into_dimensions().ok()?;
+    if u64::from(dimensions.0).saturating_mul(u64::from(dimensions.1)) > FILE_ATTACHMENT_THUMBNAIL_MAX_PIXELS {
+        return None;
+    }
+    let image = ImageReader::open(path).ok()?.with_guessed_format().ok()?.decode().ok()?;
+    let thumbnail = image.thumbnail(FILE_ATTACHMENT_THUMBNAIL_EDGE, FILE_ATTACHMENT_THUMBNAIL_EDGE);
+    let width = thumbnail.width();
+    let height = thumbnail.height();
+    let mut encoded = Cursor::new(Vec::new());
+    thumbnail.write_to(&mut encoded, ImageFormat::Png).ok()?;
+    let data_url = format!("data:image/png;base64,{}", BASE64_STANDARD.encode(encoded.into_inner()));
+    Some(FileAttachmentThumbnailTransport {
+        schema_version: "0.1.0".to_string(),
+        media_type: "image/png".to_string(),
+        data_url,
+        width,
+        height,
+    })
+}
+
+fn inspect_file_attachments_at(journey_id: &str, paths: &[PathBuf]) -> Result<FileAttachmentResponse, String> {
     if journey_id.trim().is_empty() || journey_id.contains('\0') {
-        return Err("Journey id is required for context attachment.".to_string());
+        return Err("Journey id is required for file attachment selection.".to_string());
     }
-    if relative_paths.is_empty() || relative_paths.len() > CONTEXT_ATTACHMENT_MAX_FILES {
-        return Err("Context attachment count exceeds the bounded limit.".to_string());
+    if paths.len() > FILE_ATTACHMENT_MAX_FILES {
+        return Err(format!("Attach no more than {} files to one message.", FILE_ATTACHMENT_MAX_FILES));
     }
-    let workspace_root = bounded_documentation_root(journey_root)?;
-    let mut normalized = relative_paths
-        .iter()
-        .map(|value| validate_document_relative_path(value).map(|path| (value.clone(), path)))
-        .collect::<Result<Vec<_>, _>>()?;
-    normalized.sort_by(|left, right| left.0.cmp(&right.0));
-    if normalized.windows(2).any(|pair| pair[0].0 == pair[1].0) {
-        return Err("Context attachment paths must be unique.".to_string());
+    let selected_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let mut canonical_paths = paths.iter().map(|path| {
+        if !path.is_absolute() {
+            return Err("Dropped file paths must be absolute.".to_string());
+        }
+        path.canonicalize().map_err(|_| "Could not resolve a selected file.".to_string())
+    }).collect::<Result<Vec<_>, _>>()?;
+    canonical_paths.sort();
+    canonical_paths.dedup();
+    if canonical_paths.len() != paths.len() {
+        return Err("Selected file paths must be unique.".to_string());
     }
 
-    let captured_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-    let mut aggregate_bytes = 0_u64;
-    let mut snapshots = Vec::with_capacity(normalized.len());
-    for (relative_path, safe_relative) in normalized {
-        let candidate = workspace_root.join(&safe_relative);
-        let symlink_metadata = fs::symlink_metadata(&candidate)
-            .map_err(|_| "Could not resolve a selected context file.".to_string())?;
-        if symlink_metadata.file_type().is_symlink() {
-            return Err("Symbolic links cannot be attached as context.".to_string());
-        }
-        let canonical = candidate.canonicalize()
-            .map_err(|_| "Could not resolve a selected context file.".to_string())?;
-        if !canonical.starts_with(&workspace_root) {
-            return Err("Context file escaped the registered Journey root.".to_string());
-        }
-        let metadata = canonical.metadata()
-            .map_err(|_| "Could not inspect a selected context file.".to_string())?;
+    let mut attachments = Vec::with_capacity(canonical_paths.len());
+    for canonical in canonical_paths {
+        let metadata = canonical.metadata().map_err(|_| "Could not inspect a selected file.".to_string())?;
         if !metadata.is_file() {
-            return Err("Only regular files can be attached as context.".to_string());
+            return Err("Only regular files can be attached.".to_string());
         }
-        let preview_kind = documentation_preview_kind(&canonical);
-        let media_type = match preview_kind {
-            "markdown" => "text/markdown",
-            "text" => "text/plain",
-            _ => return Err("The selected context file type is unsupported.".to_string()),
-        };
-        if metadata.len() > CONTEXT_ATTACHMENT_MAX_FILE_BYTES {
-            return Err("A selected context file exceeds the per-file byte limit.".to_string());
+        let absolute_path = canonical.to_string_lossy().into_owned();
+        if absolute_path.contains('\0') {
+            return Err("Selected file path is invalid.".to_string());
         }
-        aggregate_bytes = aggregate_bytes
-            .checked_add(metadata.len())
-            .ok_or_else(|| "Context attachment size overflowed the bounded limit.".to_string())?;
-        if aggregate_bytes > CONTEXT_ATTACHMENT_MAX_AGGREGATE_BYTES {
-            return Err("Selected context exceeds the aggregate byte limit.".to_string());
-        }
-        let bytes = fs::read(&canonical)
-            .map_err(|_| "Could not read a selected context file.".to_string())?;
-        if bytes.len() as u64 != metadata.len() {
-            return Err("A selected context file changed during capture.".to_string());
-        }
-        let content = String::from_utf8(bytes.clone())
-            .map_err(|_| "Context attachments must contain valid UTF-8 text.".to_string())?;
-        if content.contains('\0') {
-            return Err("Context attachments cannot contain null bytes.".to_string());
-        }
-        let content_sha256 = sha256_hex(&bytes);
-        let attachment_id = sha256_hex(
-            format!("{}\0{}\0{}", journey_id, relative_path, content_sha256).as_bytes(),
-        );
         let display_name = canonical.file_name()
-            .and_then(|value| value.to_str())
+            .map(|value| value.to_string_lossy().into_owned())
             .filter(|value| !value.is_empty())
-            .ok_or_else(|| "Context attachment has no display name.".to_string())?
-            .to_string();
-        snapshots.push(ContextAttachmentSnapshotTransport {
-            schema_version: "0.1.0".to_string(),
-            attachment_id: format!("ctx-{}", &attachment_id[..24]),
+            .ok_or_else(|| "Selected file has no display name.".to_string())?;
+        let thumbnail = image_thumbnail(&canonical, metadata.len());
+        let identifier = sha256_hex(format!("{}\0{}", journey_id, absolute_path).as_bytes());
+        attachments.push(FileAttachmentTransport {
+            schema_version: "0.2.0".to_string(),
+            attachment_id: format!("file-{}", &identifier[..24]),
             journey_id: journey_id.to_string(),
-            relative_path,
+            absolute_path,
             display_name,
-            media_type: media_type.to_string(),
             size_bytes: metadata.len(),
-            sha256: content_sha256,
-            captured_at: captured_at.clone(),
-            content,
+            selected_at: selected_at.clone(),
+            kind: if thumbnail.is_some() { "image" } else { "file" }.to_string(),
+            thumbnail,
         });
     }
-    Ok(ContextAttachmentSnapshotResponse {
-        schema_version: "0.1.0".to_string(),
-        limits: ContextAttachmentLimitsTransport {
-            max_files: CONTEXT_ATTACHMENT_MAX_FILES,
-            max_file_bytes: CONTEXT_ATTACHMENT_MAX_FILE_BYTES,
-            max_aggregate_bytes: CONTEXT_ATTACHMENT_MAX_AGGREGATE_BYTES,
-        },
-        snapshots,
+    Ok(FileAttachmentResponse {
+        schema_version: "0.2.0".to_string(),
+        max_files: FILE_ATTACHMENT_MAX_FILES,
+        attachments,
     })
 }
 
@@ -1306,13 +1291,17 @@ fn read_journey_document(app: AppHandle, journey_id: String, relative_path: Stri
 }
 
 #[tauri::command]
-fn snapshot_journey_context(
-    app: AppHandle,
-    journey_id: String,
-    relative_paths: Vec<String>,
-) -> Result<ContextAttachmentSnapshotResponse, String> {
-    let journey_root = registered_journey_root(&app, &journey_id)?;
-    snapshot_journey_context_at(&journey_root, &journey_id, &relative_paths)
+fn choose_file_attachments(journey_id: String) -> Result<FileAttachmentResponse, String> {
+    let paths = rfd::FileDialog::new()
+        .set_title("Anexar arquivos")
+        .pick_files()
+        .unwrap_or_default();
+    inspect_file_attachments_at(&journey_id, &paths)
+}
+
+#[tauri::command]
+fn inspect_file_attachments(journey_id: String, paths: Vec<String>) -> Result<FileAttachmentResponse, String> {
+    inspect_file_attachments_at(&journey_id, &paths.into_iter().map(PathBuf::from).collect::<Vec<_>>())
 }
 
 #[tauri::command]
@@ -1325,31 +1314,22 @@ fn open_local_reference(path: String, base_path: Option<String>) -> Result<(), S
         return Err("Unsupported local reference.".to_string());
     }
 
-    let harness_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .ok_or_else(|| "Could not resolve Harness root.".to_string())?
-        .canonicalize()
-        .map_err(|error| format!("Could not resolve Harness root: {}", error))?;
-    let base_root = match base_path.filter(|value| !value.trim().is_empty()) {
-        Some(value) => PathBuf::from(value)
-            .canonicalize()
-            .map_err(|error| format!("Could not resolve Journey base path: {}", error))?,
-        None => harness_root.clone(),
-    };
-
     let requested_path = PathBuf::from(path.trim());
     let resolved_path = if requested_path.is_absolute() {
         requested_path
     } else {
+        let base_root = match base_path.filter(|value| !value.trim().is_empty()) {
+            Some(value) => PathBuf::from(value)
+                .canonicalize()
+                .map_err(|error| format!("Could not resolve local reference base path: {}", error))?,
+            None => harness_root()?.canonicalize()
+                .map_err(|error| format!("Could not resolve Harness root: {}", error))?,
+        };
         base_root.join(requested_path)
     };
     let canonical_path = resolved_path
         .canonicalize()
         .map_err(|error| format!("Could not open local reference: {}", error))?;
-
-    if !canonical_path.starts_with(&base_root) && !canonical_path.starts_with(&harness_root) {
-        return Err("Local reference is outside the allowed workspace roots.".to_string());
-    }
 
     open_path(&canonical_path)
 }
@@ -1519,7 +1499,12 @@ fn project_complete_pi_transcript(content: &str) -> Result<Vec<DedicatedPiTransc
 fn project_dedicated_user_text(value: &str) -> String {
     for marker in ["\n\nExplicit Navigator intent:\n", "\n\nUser request:\n"] {
         if let Some((_, visible)) = value.rsplit_once(marker) {
-            return visible.trim().to_string();
+            return visible
+                .split("\n\nFiles explicitly selected by the user\n")
+                .next()
+                .unwrap_or(visible)
+                .trim()
+                .to_string();
         }
     }
     value.trim().to_string()
@@ -2659,7 +2644,8 @@ fn main() {
             load_journey_projections,
             list_journey_documentation,
             read_journey_document,
-            snapshot_journey_context,
+            choose_file_attachments,
+            inspect_file_attachments,
             open_local_reference,
             start_pi_invocation,
             read_pi_session_context_stats,
@@ -2680,12 +2666,11 @@ mod tests {
         extract_pi_mirror_commit_events, find_registered_journey_path,
         list_journey_documentation_at, materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, projection_manifest_coordinates_at,
-        publish_refreshed_journey_registry, read_journey_document_at,
-        retire_legacy_parity_state_at, snapshot_journey_context_at, unwrap_persisted_thread,
+        inspect_file_attachments_at, publish_refreshed_journey_registry, read_journey_document_at,
+        retire_legacy_parity_state_at, unwrap_persisted_thread,
         validate_journey_registry_payload, validate_turn_correlation,
         PiSessionContextSnapshot, TurnCorrelation, JOURNEY_REGISTRY_FILE,
-        CONTEXT_ATTACHMENT_MAX_AGGREGATE_BYTES, CONTEXT_ATTACHMENT_MAX_FILE_BYTES,
-        CONTEXT_ATTACHMENT_MAX_FILES, DOCUMENT_PREVIEW_MAX_BYTES,
+        FILE_ATTACHMENT_MAX_FILES, DOCUMENT_PREVIEW_MAX_BYTES,
     };
     use serde_json::json;
     use std::{
@@ -2791,7 +2776,7 @@ mod tests {
     fn projects_only_complete_dedicated_pi_turns_and_removes_the_runtime_wrapper() {
         let session = [
             r#"{"type":"session","id":"session-1"}"#,
-            r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-08-26T10:00:00Z","message":{"role":"user","content":[{"type":"text","text":"[Nautilus Harness Journey authority]\nselected\n\nUser request:\nOlá"}]}}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-08-26T10:00:00Z","message":{"role":"user","content":[{"type":"text","text":"[Nautilus Harness Journey authority]\nselected\n\nUser request:\nOlá\n\nFiles explicitly selected by the user\n```json\n[{\"absolutePath\":\"/tmp/file.pdf\"}]\n```"}]}}"#,
             r#"{"type":"message","id":"assistant-1","parentId":"user-1","timestamp":"2026-08-26T10:00:01Z","message":{"role":"assistant","content":[{"type":"text","text":"Resposta"}],"stopReason":"stop"}}"#,
             r#"{"type":"message","id":"user-2","parentId":"assistant-1","timestamp":"2026-08-26T10:00:02Z","message":{"role":"user","content":[{"type":"text","text":"incomplete"}]}}"#,
         ].join("\n");
@@ -2958,81 +2943,55 @@ mod tests {
     }
 
     #[test]
-    fn captures_journey_context_as_deterministic_immutable_snapshots() {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let directory = std::env::temp_dir().join(format!("nautilus-context-{}-{}", std::process::id(), nonce));
-        fs::create_dir_all(directory.join("docs")).unwrap();
-        fs::write(directory.join("notes.txt"), "notes").unwrap();
-        fs::write(directory.join("docs/brief.md"), "# Brief").unwrap();
+    fn inspects_arbitrary_file_formats_as_path_references() {
+        let directory = test_root("file-attachments");
+        fs::create_dir_all(&directory).unwrap();
+        let pdf = directory.join("reference.pdf");
+        let archive = directory.join("archive.zip");
+        fs::write(&pdf, b"%PDF-not-parsed").unwrap();
+        fs::write(&archive, [0_u8, 1, 2, 3]).unwrap();
 
-        let response = snapshot_journey_context_at(
-            &directory,
-            "journey-a",
-            &["notes.txt".to_string(), "docs/brief.md".to_string()],
-        ).unwrap();
-        assert_eq!(response.schema_version, "0.1.0");
-        assert_eq!(response.limits.max_files, CONTEXT_ATTACHMENT_MAX_FILES);
-        assert_eq!(response.limits.max_file_bytes, CONTEXT_ATTACHMENT_MAX_FILE_BYTES);
-        assert_eq!(response.limits.max_aggregate_bytes, CONTEXT_ATTACHMENT_MAX_AGGREGATE_BYTES);
-        assert_eq!(response.snapshots.iter().map(|item| item.relative_path.as_str()).collect::<Vec<_>>(), vec!["docs/brief.md", "notes.txt"]);
-        assert_eq!(response.snapshots[0].journey_id, "journey-a");
-        assert_eq!(response.snapshots[0].media_type, "text/markdown");
-        assert_eq!(response.snapshots[0].content, "# Brief");
-        assert_eq!(response.snapshots[0].sha256.len(), 64);
-        assert!(response.snapshots[0].attachment_id.starts_with("ctx-"));
-        assert_eq!(fs::read_to_string(directory.join("docs/brief.md")).unwrap(), "# Brief");
+        let response = inspect_file_attachments_at("journey-a", &[archive.clone(), pdf.clone()]).unwrap();
+        assert_eq!(response.schema_version, "0.2.0");
+        assert_eq!(response.max_files, FILE_ATTACHMENT_MAX_FILES);
+        assert_eq!(response.attachments.len(), 2);
+        assert!(response.attachments.iter().all(|item| item.kind == "file" && item.thumbnail.is_none()));
+        assert!(response.attachments.iter().all(|item| Path::new(&item.absolute_path).is_absolute()));
+        assert!(response.attachments.iter().all(|item| item.attachment_id.starts_with("file-")));
         fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]
-    fn rejects_context_sets_atomically_when_any_member_is_unsafe() {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let directory = std::env::temp_dir().join(format!("nautilus-context-invalid-{}-{}", std::process::id(), nonce));
+    fn creates_a_bounded_png_thumbnail_for_selected_images() {
+        let directory = test_root("image-attachment");
         fs::create_dir_all(&directory).unwrap();
-        fs::write(directory.join("safe.md"), "safe").unwrap();
-        fs::write(directory.join("binary.png"), [0_u8, 1, 2]).unwrap();
-        fs::write(directory.join("invalid.txt"), [0xff_u8]).unwrap();
-        fs::write(directory.join("null.txt"), b"before\0after").unwrap();
-        fs::write(directory.join("large.txt"), vec![b'x'; CONTEXT_ATTACHMENT_MAX_FILE_BYTES as usize + 1]).unwrap();
-        let many_paths = (0..=CONTEXT_ATTACHMENT_MAX_FILES).map(|index| {
-            let name = format!("many-{}.txt", index);
-            fs::write(directory.join(&name), "x").unwrap();
-            name
-        }).collect::<Vec<_>>();
-        let aggregate_paths = (0..5).map(|index| {
-            let name = format!("aggregate-{}.txt", index);
-            fs::write(directory.join(&name), vec![b'x'; 110 * 1024]).unwrap();
-            name
-        }).collect::<Vec<_>>();
+        let image_path = directory.join("photo.png");
+        image::RgbaImage::from_pixel(640, 320, image::Rgba([12, 34, 56, 255])).save(&image_path).unwrap();
 
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &[]).is_err());
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &many_paths).is_err());
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &aggregate_paths).is_err());
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &["safe.md".to_string(), "safe.md".to_string()]).is_err());
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &["safe.md".to_string(), "binary.png".to_string()]).is_err());
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &["invalid.txt".to_string()]).is_err());
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &["null.txt".to_string()]).is_err());
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &["large.txt".to_string()]).is_err());
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &["../outside.md".to_string()]).is_err());
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &["docs\\..\\outside.md".to_string()]).is_err());
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &["C:\\outside.md".to_string()]).is_err());
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &[".env".to_string()]).is_err());
-        assert!(snapshot_journey_context_at(&directory, "", &["safe.md".to_string()]).is_err());
+        let response = inspect_file_attachments_at("journey-a", &[image_path]).unwrap();
+        let image = &response.attachments[0];
+        let thumbnail = image.thumbnail.as_ref().unwrap();
+        assert_eq!(image.kind, "image");
+        assert!(thumbnail.data_url.starts_with("data:image/png;base64,"));
+        assert!(thumbnail.width <= 256 && thumbnail.height <= 256);
         fs::remove_dir_all(directory).unwrap();
     }
 
-    #[cfg(unix)]
     #[test]
-    fn rejects_symbolic_links_as_context_authority() {
-        use std::os::unix::fs::symlink;
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let directory = std::env::temp_dir().join(format!("nautilus-context-link-{}-{}", std::process::id(), nonce));
-        let outside = directory.parent().unwrap().join(format!("context-outside-{}.md", nonce));
+    fn rejects_directories_duplicates_and_excessive_file_counts_atomically() {
+        let directory = test_root("invalid-file-attachments");
         fs::create_dir_all(&directory).unwrap();
-        fs::write(&outside, "outside").unwrap();
-        symlink(&outside, directory.join("escape.md")).unwrap();
-        assert!(snapshot_journey_context_at(&directory, "journey-a", &["escape.md".to_string()]).is_err());
-        fs::remove_file(outside).unwrap();
+        let file = directory.join("file.bin");
+        fs::write(&file, [1_u8]).unwrap();
+        assert!(inspect_file_attachments_at("journey-a", &[directory.clone()]).is_err());
+        assert!(inspect_file_attachments_at("journey-a", &[file.clone(), file]).is_err());
+        assert!(inspect_file_attachments_at("", &[]).is_err());
+        let too_many = (0..=FILE_ATTACHMENT_MAX_FILES).map(|index| {
+            let path = directory.join(format!("{}.bin", index));
+            fs::write(&path, [1_u8]).unwrap();
+            path
+        }).collect::<Vec<_>>();
+        assert!(inspect_file_attachments_at("journey-a", &too_many).is_err());
         fs::remove_dir_all(directory).unwrap();
     }
 

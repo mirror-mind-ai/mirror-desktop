@@ -45,9 +45,11 @@ import { MessageContent } from "./MessageContent";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { ComposerRuntimeFooter } from "./ComposerRuntimeFooter";
 import { ConversationSyncNotice } from "./ConversationSyncNotice";
-import { ContextAttachmentSelector } from "./ContextAttachmentSelector";
-import { PendingContextAttachments } from "./PendingContextAttachments";
+import { PendingFileAttachments } from "./PendingFileAttachments";
+import { MessageFileAttachments } from "./MessageFileAttachments";
 import { MessageAttachmentProvenance } from "./MessageAttachmentProvenance";
+import { chooseFileAttachments, inspectDroppedFileAttachments } from "./fileAttachmentStorage";
+import { listenForFileAttachments } from "./fileAttachmentDrop";
 import { JourneyAltitudeSwitcher } from "./JourneyAltitudeSwitcher";
 import { JourneyAltitudeEmptyState } from "./JourneyAltitudeEmptyState";
 import { JourneyDocumentationBrowser } from "./JourneyDocumentationBrowser";
@@ -144,15 +146,13 @@ import {
 import type { NautilusViewModel } from "../domain/nautilusViewModel";
 import type { JourneyProjectionBundle } from "../domain/journeyProjections";
 import {
-  addContextSnapshots,
-  clearContextSnapshots,
-  provenanceFromSnapshot,
-  removeContextSnapshot,
-  validateContextSnapshotsForSend,
-  type ContextAttachmentLimits,
-  type ContextAttachmentSnapshot,
-  type ContextAttachmentSnapshotResponse,
-} from "../domain/contextAttachments";
+  addFileAttachments,
+  MAX_FILE_ATTACHMENTS,
+  removeFileAttachment,
+  toAgentFileReferences,
+  type FileAttachment,
+  type FileAttachmentResponse,
+} from "../domain/fileAttachments";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
 
@@ -226,10 +226,11 @@ export function App({ model }: AppProps) {
   const [journeyAdminPendingRequest, setJourneyAdminPendingRequest] = useState<JourneyMutationRequest | null>(null);
   const [draggedJourneyId, setDraggedJourneyId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
-  const [pendingContextSnapshots, setPendingContextSnapshots] = useState<ContextAttachmentSnapshot[]>([]);
-  const [contextAttachmentLimits, setContextAttachmentLimits] = useState<ContextAttachmentLimits>();
-  const [contextAttachmentSelectorOpen, setContextAttachmentSelectorOpen] = useState(false);
-  const [contextAttachmentError, setContextAttachmentError] = useState<string>();
+  const [pendingFileAttachments, setPendingFileAttachments] = useState<FileAttachment[]>([]);
+  const [fileAttachmentMaxFiles, setFileAttachmentMaxFiles] = useState(MAX_FILE_ATTACHMENTS);
+  const [fileAttachmentBusy, setFileAttachmentBusy] = useState(false);
+  const [fileDropActive, setFileDropActive] = useState(false);
+  const [fileAttachmentError, setFileAttachmentError] = useState<string>();
   const [conversation, setConversation] = useState(() =>
     createJourneyConversation({ journeyId: selectedJourney, initialMessages }),
   );
@@ -803,6 +804,26 @@ export function App({ model }: AppProps) {
     });
   }, [messages, isStreaming, runtimeProjection]);
 
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listenForFileAttachments({
+      onActiveChange: (active) => {
+        if (!disposed) setFileDropActive(active && journeyThreadState.kind === "ready" && !isStreaming && agentRun.status !== "running" && !isJourneyReloading);
+      },
+      onDrop: (paths) => {
+        if (!disposed) void attachDroppedFiles(paths);
+      },
+    }).then((dispose) => {
+      if (disposed) dispose();
+      else unlisten = dispose;
+    }).catch(() => undefined);
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [journeyThreadState.kind, isStreaming, agentRun.status, isJourneyReloading]);
+
   function recordCertifiedModeTransition(transition: CertifiedModeTransition, sourceId: string) {
     setConversation((currentConversation) => {
       const mode = transition.kind === "activate" ? transition.mode : null;
@@ -823,23 +844,52 @@ export function App({ model }: AppProps) {
     });
   }
 
-  function addPendingContext(response: ContextAttachmentSnapshotResponse) {
+  function addPendingFiles(response: FileAttachmentResponse, ownerJourneyId: string) {
+    if (selectedJourneyRef.current !== ownerJourneyId) return;
+    setFileAttachmentMaxFiles(response.maxFiles);
+    setPendingFileAttachments((current) => {
+      try {
+        const combined = addFileAttachments(current, response.attachments, ownerJourneyId, response.maxFiles);
+        setFileAttachmentError(undefined);
+        return combined;
+      } catch (error) {
+        setFileAttachmentError(error instanceof Error ? error.message : String(error));
+        return current;
+      }
+    });
+  }
+
+  async function chooseFiles() {
+    if (fileAttachmentBusy || isStreaming || agentRun.status === "running" || isJourneyReloading) return;
+    const ownerJourneyId = selectedJourneyRef.current;
+    setFileAttachmentBusy(true);
+    setFileAttachmentError(undefined);
     try {
-      const ownerJourneyId = selectedJourneyRef.current;
-      const combined = addContextSnapshots(pendingContextSnapshots, response.snapshots, ownerJourneyId);
-      const errors = validateContextSnapshotsForSend(combined, ownerJourneyId, response.limits);
-      if (errors.length) throw new Error(errors.join(" "));
-      setPendingContextSnapshots(combined);
-      setContextAttachmentLimits(response.limits);
-      setContextAttachmentError(undefined);
+      addPendingFiles(await chooseFileAttachments(ownerJourneyId), ownerJourneyId);
     } catch (error) {
-      setContextAttachmentError(error instanceof Error ? error.message : String(error));
+      if (selectedJourneyRef.current === ownerJourneyId) setFileAttachmentError(error instanceof Error ? error.message : String(error));
+    } finally {
+      if (selectedJourneyRef.current === ownerJourneyId) setFileAttachmentBusy(false);
+    }
+  }
+
+  async function attachDroppedFiles(paths: string[]) {
+    if (journeyThreadState.kind !== "ready" || isStreaming || agentRun.status === "running" || isJourneyReloading) return;
+    const ownerJourneyId = selectedJourneyRef.current;
+    setFileAttachmentBusy(true);
+    setFileAttachmentError(undefined);
+    try {
+      addPendingFiles(await inspectDroppedFileAttachments(ownerJourneyId, paths), ownerJourneyId);
+    } catch (error) {
+      if (selectedJourneyRef.current === ownerJourneyId) setFileAttachmentError(error instanceof Error ? error.message : String(error));
+    } finally {
+      if (selectedJourneyRef.current === ownerJourneyId) setFileAttachmentBusy(false);
     }
   }
 
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
     const content = (retryContent ?? draft).trim();
-    if (!content || contextAttachmentError || journeyThreadState.kind !== "ready" || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
+    if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
       return;
     }
 
@@ -858,19 +908,14 @@ export function App({ model }: AppProps) {
       }
     }
 
-    const contextAttachments = pendingContextSnapshots;
-    if (contextAttachments.length) {
-      const contextErrors = contextAttachmentLimits
-        ? validateContextSnapshotsForSend(contextAttachments, selectedJourney, contextAttachmentLimits)
-        : ["Pending context limits are unavailable."];
-      if (contextErrors.length) {
-        setContextAttachmentError(contextErrors.join(" "));
-        return;
-      }
+    const fileAttachments = pendingFileAttachments;
+    if (fileAttachments.some((attachment) => attachment.journeyId !== selectedJourney) || fileAttachments.length > fileAttachmentMaxFiles) {
+      setFileAttachmentError("Pending files no longer match the selected Journey or file-count limit.");
+      return;
     }
     const userMessage: ConversationMessage = {
       ...createUserConversationMessage(content),
-      ...(contextAttachments.length ? { attachments: contextAttachments.map(provenanceFromSnapshot) } : {}),
+      ...(fileAttachments.length ? { attachments: fileAttachments } : {}),
     };
     const nextMessages = [...baseConversation.messages, userMessage];
     const packet = createMissionExtractionPacket({
@@ -878,7 +923,7 @@ export function App({ model }: AppProps) {
       currentState,
       journeyId: selectedJourney,
       liveConversation: baseConversation.liveIdentity,
-      contextAttachments,
+      fileAttachments: toAgentFileReferences(fileAttachments),
     });
     const assistantMessage: ConversationMessage = {
       id: `assistant-${new Date().toISOString()}`,
@@ -914,10 +959,9 @@ export function App({ model }: AppProps) {
     conversationRef.current = stagedConversation;
     setConversation(stagedConversation);
     setDraft("");
-    setPendingContextSnapshots([]);
-    setContextAttachmentLimits(undefined);
-    setContextAttachmentError(undefined);
-    setContextAttachmentSelectorOpen(false);
+    setPendingFileAttachments([]);
+    setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
+    setFileAttachmentError(undefined);
     setIsStreaming(true);
     setAgentRun(run);
     setJourneyPreferences((preferences) => markJourneyRecent(preferences, selectedJourney));
@@ -1238,10 +1282,10 @@ export function App({ model }: AppProps) {
       setConversation(restartedConversation);
       setJourneyThreadState(classified);
       setDraft("");
-      setPendingContextSnapshots([]);
-      setContextAttachmentLimits(undefined);
-      setContextAttachmentError(undefined);
-      setContextAttachmentSelectorOpen(false);
+      setPendingFileAttachments([]);
+      setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
+      setFileAttachmentError(undefined);
+      setFileDropActive(false);
       setStreamMissionDraft(undefined);
       setStreamWarnings([]);
       setStreamDiagnostics([]);
@@ -1362,10 +1406,10 @@ export function App({ model }: AppProps) {
       activeJourneyId: journeyId,
     }));
     setDraft("");
-    setPendingContextSnapshots([]);
-    setContextAttachmentLimits(undefined);
-    setContextAttachmentError(undefined);
-    setContextAttachmentSelectorOpen(false);
+    setPendingFileAttachments([]);
+    setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
+    setFileAttachmentError(undefined);
+    setFileDropActive(false);
     setStreamMissionDraft(undefined);
     setStreamWarnings([]);
     setStreamDiagnostics([]);
@@ -1941,6 +1985,7 @@ export function App({ model }: AppProps) {
                         <MessageContent content={bodyContent} basePath={selectedJourneyBasePath} />
                       )
                     ) : null}
+                    <MessageFileAttachments attachments={message.attachments} />
                     <MessageAttachmentProvenance attachments={message.attachments} />
                   </article>
                 ) : null}
@@ -1977,21 +2022,22 @@ export function App({ model }: AppProps) {
             />
           ) : null}
           {isFinalizingTurn ? <p className="turn-finalization-status" aria-live="polite">Recording the completed turn… You can draft the next message now.</p> : null}
-          {contextAttachmentError ? <p className="context-attachment-error" role="alert">{contextAttachmentError}</p> : null}
-          <PendingContextAttachments
-            snapshots={pendingContextSnapshots}
-            disabled={isStreaming || agentRun.status === "running"}
+          {fileAttachmentError ? <p className="context-attachment-error" role="alert">{fileAttachmentError}</p> : null}
+          <PendingFileAttachments
+            attachments={pendingFileAttachments}
+            disabled={isStreaming || agentRun.status === "running" || fileAttachmentBusy}
             onRemove={(attachmentId) => {
-              setPendingContextSnapshots((current) => removeContextSnapshot(current, attachmentId));
-              setContextAttachmentError(undefined);
+              setPendingFileAttachments((current) => removeFileAttachment(current, attachmentId));
+              setFileAttachmentError(undefined);
             }}
             onClear={() => {
-              setPendingContextSnapshots((current) => clearContextSnapshots(current));
-              setContextAttachmentLimits(undefined);
-              setContextAttachmentError(undefined);
+              setPendingFileAttachments([]);
+              setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
+              setFileAttachmentError(undefined);
             }}
           />
-          <div className="composer-input-wrap">
+          <div className={`composer-input-wrap${fileDropActive ? " is-file-drop-active" : ""}`}>
+            {fileDropActive ? <div className="file-drop-overlay" role="status">Drop files to attach</div> : null}
             <textarea
               aria-label="Natural-language intention"
               value={draft}
@@ -2021,15 +2067,12 @@ export function App({ model }: AppProps) {
               <button
                 className="icon-button context-attachment-button"
                 type="button"
-                onClick={() => {
-                  setContextAttachmentError(undefined);
-                  setContextAttachmentSelectorOpen(true);
-                }}
-                disabled={isStreaming || agentRun.status === "running" || isJourneyReloading}
-                aria-label="Attach Journey context"
-                title="Attach Journey context"
+                onClick={() => void chooseFiles()}
+                disabled={isStreaming || agentRun.status === "running" || isJourneyReloading || fileAttachmentBusy}
+                aria-label="Anexar arquivos"
+                title="Anexar arquivos"
               >
-                ⌕
+                📎
               </button>
               {agentRun.status === "running" && streamMode === "live" ? (
                 <button
@@ -2046,7 +2089,7 @@ export function App({ model }: AppProps) {
                   className="icon-button send-button"
                   type="button"
                   onClick={() => void generatePacket("live")}
-                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(contextAttachmentError)}
+                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(fileAttachmentError) || fileAttachmentBusy}
                   aria-label="Send message"
                   title="Send message"
                 >
@@ -2058,15 +2101,6 @@ export function App({ model }: AppProps) {
         </section>
       </section>
 
-      {contextAttachmentSelectorOpen && journeyThreadState.kind === "ready" ? (
-        <ContextAttachmentSelector
-          journeyId={selectedJourney}
-          journeyName={selectedJourneyItem.name}
-          existingPaths={pendingContextSnapshots.map((snapshot) => snapshot.relativePath)}
-          onAdd={addPendingContext}
-          onClose={() => setContextAttachmentSelectorOpen(false)}
-        />
-      ) : null}
 
       {restartConfirmationOpen && journeyThreadState.kind === "ready" ? (
         <div className="settings-backdrop" role="presentation" onClick={() => !isJourneyReloading && setRestartConfirmationOpen(false)}>

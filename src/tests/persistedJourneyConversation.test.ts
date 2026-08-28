@@ -14,13 +14,25 @@ function conversation() {
 describe("generation-scoped dedicated conversation persistence", () => {
   it("round-trips only the current dedicated shape", () => {
     const persisted = createPersistedJourneyConversation(conversation(), new Date("2026-08-26T11:00:00Z"));
-    expect(persisted.schemaVersion).toBe("0.6.0");
+    expect(persisted.schemaVersion).toBe("0.7.0");
     expect(parsePersistedJourneyConversation(persisted)).toEqual(persisted);
   });
 
   it("loads the attachment-free 0.5.0 schema as a compatibility baseline", () => {
     const legacy = { ...createPersistedJourneyConversation(conversation()), schemaVersion: "0.5.0" };
     expect(parsePersistedJourneyConversation(legacy)?.conversation.messages[0].content).toBe("hello");
+  });
+
+  it("loads legacy 0.6.0 snapshot provenance", () => {
+    const current = conversation();
+    current.messages[0].attachments = [{
+      schemaVersion: "0.1.0", attachmentId: "ctx-1", journeyId: "nautilus-harness",
+      relativePath: "docs/brief.md", displayName: "brief.md", mediaType: "text/markdown",
+      sizeBytes: 5, sha256: "a".repeat(64), capturedAt: "2026-08-28T12:00:00.000Z",
+    }];
+    const legacy = { ...createPersistedJourneyConversation(current), schemaVersion: "0.6.0" };
+    const attachment = parsePersistedJourneyConversation(legacy)?.conversation.messages[0].attachments?.[0];
+    expect(attachment?.schemaVersion === "0.1.0" ? attachment.relativePath : undefined).toBe("docs/brief.md");
   });
 
   it("preserves inert attachment provenance without reusable content", () => {
@@ -31,10 +43,25 @@ describe("generation-scoped dedicated conversation persistence", () => {
       sizeBytes: 5, sha256: "a".repeat(64), capturedAt: "2026-08-28T12:00:00.000Z",
     }];
     const parsed = parsePersistedJourneyConversation(createPersistedJourneyConversation(current));
-    expect(parsed?.conversation.messages[0].attachments?.[0].relativePath).toBe("docs/brief.md");
+    const attachment = parsed?.conversation.messages[0].attachments?.[0];
+    expect(attachment?.schemaVersion === "0.1.0" ? attachment.relativePath : undefined).toBe("docs/brief.md");
     const malformed = createPersistedJourneyConversation(current) as unknown as { conversation: { messages: Array<{ attachments: Array<Record<string, unknown>> }> } };
     malformed.conversation.messages[0].attachments[0].content = "must not persist";
     expect(parsePersistedJourneyConversation(malformed)).toBeUndefined();
+  });
+
+  it("persists arbitrary paths and bounded image thumbnails in 0.7.0", () => {
+    const current = conversation();
+    current.messages[0].attachments = [{
+      schemaVersion: "0.2.0", attachmentId: "file-1", journeyId: "nautilus-harness",
+      absolutePath: "/Users/example/Desktop/photo.png", displayName: "photo.png", sizeBytes: 20,
+      selectedAt: "2026-08-28T12:00:00.000Z", kind: "image",
+      thumbnail: { schemaVersion: "0.1.0", mediaType: "image/png", dataUrl: "data:image/png;base64,aGVsbG8=", width: 20, height: 10 },
+    }];
+    const parsed = parsePersistedJourneyConversation(createPersistedJourneyConversation(current));
+    const attachment = parsed?.conversation.messages[0].attachments?.[0];
+    expect(attachment?.schemaVersion === "0.2.0" ? attachment.absolutePath : undefined).toBe("/Users/example/Desktop/photo.png");
+    expect(attachment?.schemaVersion === "0.2.0" ? attachment.thumbnail?.dataUrl : undefined).toContain("image/png");
   });
 
   it("preserves validated context and certified Mirror mode", () => {

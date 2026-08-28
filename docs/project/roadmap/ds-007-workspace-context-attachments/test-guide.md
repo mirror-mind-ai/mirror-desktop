@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Validate DS-007 as one aggregate capability: explicit Journey-confined text snapshots move from Navigator selection to exactly one dedicated Pi turn and then to inert historical provenance without broad filesystem authority, implicit provider activity, source mutation, partial failure or cross-Journey reuse.
+Validate DS-007 as corrected by `RS011 / CR026`. The original Journey-confined snapshot cases below remain historical characterization. The superseding pass condition is Pi-style file attachment parity: arbitrary regular files enter through picker or drag/drop, image thumbnails remain visible, paths reach the explicit Pi turn and historical local paths can be deliberately opened.
 
 ## Child Work Packages
 
@@ -229,17 +229,35 @@ Open a Journey conversation persisted before DS-007.
 
 Pass when it loads unchanged, remains sendable, and shows no fabricated attachment surface.
 
+## CR026 Superseding Validation Matrix
+
+Automated pass requires:
+
+- arbitrary absolute PDF, archive, binary and text paths normalize without reading their content;
+- directories, duplicate canonical paths, missing paths, cross-Journey pending state and more than 32 files fail before Send;
+- common decodable images produce PNG thumbnails no larger than 256 by 256 and the persisted data URL stays bounded;
+- picker invokes `choose_file_attachments`; Tauri drops invoke `inspect_file_attachments`; neither invokes a provider;
+- pending file cards show full clickable paths, sizes, thumbnails where available and remove/clear actions;
+- paperclip and tooltip both communicate `Anexar arquivos`;
+- the Pi packet and Mirror prompt contain only absolute path and display name, never persisted thumbnail bytes or arbitrary source bytes;
+- the dedicated user turn is saved before pending files clear and before provider iteration begins;
+- Journey switch, generation restart and successful staging clear pending files;
+- conversation `0.7.0` round-trips path references and thumbnails, while `0.5.0` and `0.6.0` remain readable;
+- `open_local_reference` resolves any deliberate absolute local path without Journey/Harness root confinement;
+- attachment-free turns remain unchanged.
+
+Real Tauri validation must cover picker selection outside the Journey, drag/drop, a visible image thumbnail, an opaque non-image file, removal before Send, one explicit provider run, historical thumbnail/path rendering and successful click-open. Clicking uses the operating system association and therefore remains an explicit Navigator action.
+
 ## Navigator Pass Condition
 
 Navigator accepts DS-007 only when:
 
-- selection feels explicit and clearly Journey-bound;
-- pending context is understandable before Send;
-- remove/clear behavior preserves control;
-- exact context appears once in the intended run;
-- historical provenance is useful but visibly inert;
-- failure surfaces are bounded and recoverable;
-- no source mutation, broad browsing permission, implicit provider call or cross-Journey leakage is observed.
+- picker and drag/drop feel equivalent, explicit and do not auto-send;
+- any selected regular-file format and disk location appears clearly before Send;
+- image thumbnails and removable pending files are understandable;
+- exact paths appear once in the intended Pi turn and remain readable in history;
+- clicking an existing historical path opens it through the operating system;
+- failure surfaces are recoverable and no source mutation, implicit provider call or cross-Journey pending leakage is observed.
 
 ## Navigator Fail Condition
 
