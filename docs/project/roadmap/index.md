@@ -34,6 +34,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 | [DS-008](ds-008-provider-settings-persistence/index.md) | Persistent Agent Configuration and Journey Overrides | Harness remembers non-sensitive global agent defaults and lets each Journey inherit or override its model and thinking level | ✅ Done |
 | [DS-009](ds-009-concurrent-journey-operations/index.md) | Concurrent Journey Operations | Navigator can operate multiple Journey-bound Pi runs concurrently without cross-run event, response, control or persistence leakage | 🟡 Planned |
 | [DS-010](ds-010-journey-structure-management/index.md) | Journey Structure Management | Navigator can create, position and configure canonical Journeys from the Harness through explicit model-free Mirror transactions | 🟢 Done |
+| [DS-011](ds-011-isolated-development-and-user-app-environments/index.md) | Isolated Development and User App Environments | Navigator can run a stable daily-use app and an unmistakable development app side by side without installation or Harness-state collisions | 🟡 Planned |
 
 ## Delivery Arc — Mirror Integration
 
@@ -68,7 +69,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 
 ## Current Recommendation
 
-`CV-003 — Nautilus Method Integration` is complete: the three altitudes are hydrated from canonical published projections, Tactical and Strategic readings are source-grounded, checkpoint states and correction boundaries are visible, and Operational includes the read-only Ariad Observatory. `CV-004` is also complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008` and `DS-010` are complete. `DS-009 — Concurrent Journey Operations` is the next planned delivery candidate.
+`CV-003 — Nautilus Method Integration` is complete: the three altitudes are hydrated from canonical published projections, Tactical and Strategic readings are source-grounded, checkpoint states and correction boundaries are visible, and Operational includes the read-only Ariad Observatory. `CV-004` is also complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008` and `DS-010` are complete. `DS-009 — Concurrent Journey Operations` remains the current recommended delivery candidate. `DS-011 — Isolated Development and User App Environments` is newly planned so Harness development can proceed without colliding with the stable daily-use desktop app.
 
 ## Boundaries
 
