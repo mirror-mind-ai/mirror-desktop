@@ -163,6 +163,27 @@ describe("runtime projection component", () => {
     expect(html).not.toContain("Reasoning summary");
   });
 
+  it("renders the settled run outcome after all ordered agent activity", () => {
+    const projection: RuntimeProjectionState = {
+      status: "completed",
+      operations: [
+        { id: "bash-1", name: "bash", status: "completed", output: "final tool output" },
+      ],
+      reasoningSummaries: [
+        { id: "reasoning-1", content: "Checking final state", status: "completed" },
+      ],
+      activityOrder: [
+        { type: "reasoning_summary", id: "reasoning-1" },
+        { type: "operation", id: "bash-1" },
+      ],
+    };
+
+    const html = renderToStaticMarkup(<LiveRuntimeActivity projection={projection} />);
+
+    expect(html.indexOf("Checking final state")).toBeLessThan(html.indexOf("final tool output"));
+    expect(html.indexOf("final tool output")).toBeLessThan(html.indexOf("Completed"));
+  });
+
   it.each([
     ["completed", "Completed", undefined],
     ["cancelled", "Cancelled", "Pi invocation cancelled."],

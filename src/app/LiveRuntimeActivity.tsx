@@ -38,13 +38,6 @@ export function LiveRuntimeActivity({ projection, basePath, suppressedSurfaceCon
 
   return (
     <section className={`live-runtime-activity ${active ? "is-active" : `is-settled status-${projection.status}`}`} aria-label="Pi runtime activity">
-      {!active ? (
-        <div className="runtime-terminal-status" role="status">
-          <strong>{RUN_STATUS_LABEL[projection.status]}</strong>
-          {projection.terminalMessage ? <span>{projection.terminalMessage}</span> : null}
-        </div>
-      ) : null}
-
       {projection.activityOrder.length > 0 ? (
         <section className="runtime-activity-region" aria-label="Ordered agent activity">
           <span className="runtime-region-label">Runtime activity</span>
@@ -81,6 +74,13 @@ export function LiveRuntimeActivity({ projection, basePath, suppressedSurfaceCon
             })}
           </div>
         </section>
+      ) : null}
+
+      {!active ? (
+        <div className="runtime-terminal-status" role="status">
+          <strong>{RUN_STATUS_LABEL[projection.status]}</strong>
+          {projection.terminalMessage ? <span>{projection.terminalMessage}</span> : null}
+        </div>
       ) : null}
     </section>
   );
