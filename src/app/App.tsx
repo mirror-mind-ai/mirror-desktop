@@ -1461,7 +1461,7 @@ export function App({ model }: AppProps) {
         collapsedJourneyIds,
       });
       if (!reconciled) {
-        throw new Error("The refreshed registry no longer contains the active Journey.");
+        throw new Error("Mirror returned an empty Journey registry.");
       }
       const selectionChanged = reconciled.selectedJourneyId !== selectedJourney;
       setLoadedJourneyRegistry(refreshedRegistry);

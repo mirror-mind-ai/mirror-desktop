@@ -62,6 +62,11 @@ describe("Journey administration boundary", () => {
     expect(storageSource).toContain('invoke<string>("mutate_journey_registry"');
     expect(tauriSource).toContain('"memory", "journey", "mutate"');
     expect(tauriSource).toContain("mirror_administrative_command(\"uv\")");
+    const mutationCommand = tauriSource.slice(
+      tauriSource.indexOf("fn mutate_journey_registry"),
+      tauriSource.indexOf("fn load_journey_registry"),
+    );
+    expect(mutationCommand).not.toContain("--mirror-home");
     expect(tauriSource).toContain("publish_refreshed_journey_registry");
     expect(tauriSource).not.toContain("mutate_journey_registry_provider");
   });

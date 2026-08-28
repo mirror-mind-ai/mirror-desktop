@@ -622,11 +622,9 @@ fn refresh_journey_registry(app: AppHandle) -> Result<String, String> {
         }
         fs::remove_file(&staged).map_err(|error| error.to_string())?;
     }
-    let profile = active_runtime_channel()?;
     let mut command = mirror_administrative_command("uv")?;
     let output = command
-        .args(["run", "python", "-m", "memory", "journey", "export-registry", "--mirror-home"])
-        .arg(&profile.mirror_home)
+        .args(["run", "python", "-m", "memory", "journey", "export-registry"])
         .output().map_err(|error| format!("Could not start the Journey registry exporter: {}", error))?;
     if !output.status.success() {
         let detail = String::from_utf8_lossy(&output.stderr).trim().chars().take(800).collect::<String>();
@@ -681,11 +679,9 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
     } else {
         active_journey_id.clone()
     };
-    let profile = active_runtime_channel()?;
     let mut command = mirror_administrative_command("uv")?;
     let mut child = command
-        .args(["run", "python", "-m", "memory", "journey", "mutate", "--mirror-home"])
-        .arg(&profile.mirror_home)
+        .args(["run", "python", "-m", "memory", "journey", "mutate"])
         .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn().map_err(|error| format!("Could not start canonical Journey mutation: {}", error))?;
     child.stdin.as_mut().ok_or_else(|| "Journey mutation input is unavailable.".to_string())?
