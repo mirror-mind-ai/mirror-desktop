@@ -28,6 +28,7 @@ The distinction must be structural before it is cosmetic. A different color alon
 - Apply a persistent development visual identity inside the app, including a clearly different accent/theme and a compact `DEV` indicator that cannot be confused with Journey state.
 - Keep application behavior and feature contracts equivalent across channels unless a difference is explicitly channel-owned.
 - Expose enough runtime identity for tests and diagnostics to prove which channel and data root are active.
+- Provide one concise, canonical development-environment guide that a human or coding agent can follow from prerequisites through first verified launch without relying on conversation history or machine folklore.
 - Fail closed when a development launch resolves to the user bundle identity or user Harness data root.
 
 ## Mirror Development Runtime Contract
@@ -62,7 +63,8 @@ No automatic migration, copying or synchronization may move user-channel convers
 | DS-011.TS-3 | Reproducible Development Launch and Build | Technical Story | Repository commands select the development manifest, app identity and `mirror-dev.sh`-equivalent Mirror environment without manual production edits | 🟡 Planned |
 | DS-011.TS-4 | Channel Isolation Guardrails | Technical Story | Automated and desktop checks fail when bundle identity, Harness data roots, Mirror runtime coordinates or visible channel identity converge unexpectedly | 🟡 Planned |
 | DS-011.US-3 | Inspect Active Runtime Channel | User Story | Navigator and diagnostics can verify the active channel and local state root without guessing from process ancestry | 🟡 Planned |
+| DS-011.US-4 | Build a Development Environment from One Guide | User Story | A human or coding agent can construct and verify an isolated Nautilus Dev plus Mirror Dev environment from one concise canonical document | 🟡 Planned |
 
 ## Done Condition
 
-DS-011 is done when the installed user app and a development build can run simultaneously; each has a distinct system name, bundle identifier, icon and unmistakable in-app appearance; each writes only to its own Harness application-data root; the development app invokes Pi and provisions/records conversations exclusively through the `~/Code/mirror-dev` and `~/.mirror-minds/mirror-dev` runtime established by `~/mirror-dev.sh`; restarting, resetting or exercising development state leaves the user app's settings, generations and production Mirror database unchanged; normal development uses documented deterministic commands; and automated plus real desktop evidence proves app-channel and Mirror-runtime identity fail closed.
+DS-011 is done when the installed user app and a development build can run simultaneously; each has a distinct system name, bundle identifier, icon and unmistakable in-app appearance; each writes only to its own Harness application-data root; the development app invokes Pi and provisions/records conversations exclusively through the `~/Code/mirror-dev` and `~/.mirror-minds/mirror-dev` runtime established by `~/mirror-dev.sh`; restarting, resetting or exercising development state leaves the user app's settings, generations and production Mirror database unchanged; normal development uses documented deterministic commands; one concise guide enables both a human and a coding agent to construct and verify the environment without hidden context; and automated plus real desktop evidence proves app-channel and Mirror-runtime identity fail closed.
