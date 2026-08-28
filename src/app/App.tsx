@@ -162,6 +162,8 @@ type AppProps = {
   model: NautilusViewModel;
 };
 
+const DEVELOPMENT_BADGE_LABEL = "DEV LAB";
+
 const journeyVisuals: Record<string, { icon: string; accent: string }> = {
   "vida-criativa": { icon: "✺", accent: "green" },
   nautilus: { icon: "◌", accent: "teal" },
@@ -1595,7 +1597,7 @@ export function App({ model }: AppProps) {
         <div className="brand-block">
           <img className="brand-mark" src={developmentChannel ? devAppIconUrl : appIconUrl} alt="" aria-hidden="true" />
           <div>
-            <strong>Nautilus {developmentChannel ? <span className="development-badge">DEV</span> : null}</strong>
+            <strong>Nautilus {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</strong>
             <small>{developmentChannel ? "Development cockpit" : "Journey cockpit"}</small>
           </div>
         </div>
@@ -2279,7 +2281,7 @@ export function App({ model }: AppProps) {
             </section>
 
             <section className="settings-section runtime-channel-card" aria-label="Runtime channel">
-              <h3>Runtime channel {developmentChannel ? <span className="development-badge">DEV</span> : null}</h3>
+              <h3>Runtime channel {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</h3>
               {runtimeChannel ? (
                 <dl className="runtime-channel-diagnostic">
                   <div><dt>Channel</dt><dd>{runtimeChannel.channel}</dd></div>
