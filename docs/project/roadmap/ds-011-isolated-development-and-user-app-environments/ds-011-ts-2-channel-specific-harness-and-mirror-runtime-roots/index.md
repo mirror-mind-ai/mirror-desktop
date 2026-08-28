@@ -5,36 +5,37 @@
 **Status:** 🟡 Planned
 **Type:** Technical Story
 
----
-
 ## Technical Story
 
-In order to support the delivery capability,
-As an engineering team/system component,
-I want to Channel-Specific Harness and Mirror Runtime Roots,
-So that the expected technical outcome is available.
+In order to make isolation structural, route Harness persistence and every Mirror/Pi subprocess through the validated runtime-channel profile and bind dedicated generation authority to that channel.
 
 ## Outcome
 
-Navigator can validate Channel-Specific Harness and Mirror Runtime Roots as an observable behavior.
+Development uses only `~/Code/mirror-dev`, `~/.mirror-minds/mirror-dev`, `MIRROR_USER=mirror-dev` and its development database/app-data root. Stable use preserves its existing roots and history. No missing path can fall back across channels.
 
 ## Acceptance Behavior
 
 ```text
-Given the system is ready for Channel-Specific Harness and Mirror Runtime Roots
-When the planned technical change is applied
-Then the expected technical outcome is observable
-And unrelated Delivery Story scope remains untouched
+Given Nautilus Dev is active
+When registry, projection, provisioning, logging, reconciliation or Pi work runs
+Then cwd and allowlisted Mirror environment resolve only to Mirror Dev
+And stable Harness files and production Mirror rows remain unchanged
 ```
 
 ## Scope
 
-- Channel-Specific Harness and Mirror Runtime Roots
+- One native command-profile helper for `uv`, Python and Pi.
+- Removal of hard-coded production roots and Harness-root fallback.
+- Channel-aware Python bridges and bootstrap output.
+- Channel marker in new thread/generation authority.
+- Model-free stable legacy compatibility; no development adoption.
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- Copying production data into development.
+- Provider credential management.
+- Concurrent runs from DS-009.
 
 ## Validation
 
-Navigator-visible validation route plus automated checks.
+Rust, TypeScript and Python tests plus bounded before/after file and database evidence.

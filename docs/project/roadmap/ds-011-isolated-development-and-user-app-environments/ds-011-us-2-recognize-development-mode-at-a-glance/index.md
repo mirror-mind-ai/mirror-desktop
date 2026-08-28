@@ -5,35 +5,35 @@
 **Status:** 🟡 Planned
 **Type:** User Story
 
----
-
 ## User Story
 
-As a user,
-I want to Recognize Development Mode at a Glance,
-So that I can receive the value of this story.
+As the Navigator, I want Nautilus Dev to be unmistakable before interaction so that I do not confuse experimental work with the stable daily-use app.
 
 ## Outcome
 
-Navigator can validate Recognize Development Mode at a Glance as an observable behavior.
+Development has a distinct committed icon, window/product name, coherent accent palette and persistent textual `DEV` indicator. Stable appearance remains recognizable and unchanged.
 
 ## Acceptance Behavior
 
 ```text
-Given the user is ready for Recognize Development Mode at a Glance
-When the user performs the planned action
-Then the expected observable behavior is visible
-And unrelated Delivery Story scope remains untouched
+Given both Nautilus channels are open
+When I inspect Finder, Dock, app switching or either window
+Then I can identify development without opening Settings
+And the distinction does not depend on color alone
 ```
 
 ## Scope
 
-- Recognize Development Mode at a Glance
+- Development icon assets and Tauri bundle mapping.
+- Root channel class/data attribute.
+- Persistent DEV badge and development palette.
+- Development in-app brand icon.
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- General stable-app redesign.
+- Using visual state as runtime authority.
 
 ## Validation
 
-Navigator-visible validation route plus automated checks.
+Component/config tests and real macOS Finder, Dock, app-switcher and window review.

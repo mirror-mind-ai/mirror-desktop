@@ -5,35 +5,35 @@
 **Status:** 🟡 Planned
 **Type:** User Story
 
----
-
 ## User Story
 
-As a user,
-I want to Inspect Active Runtime Channel,
-So that I can receive the value of this story.
+As the Navigator or diagnosing agent, I want to inspect the active runtime channel and its bounded roots so that I can verify isolation without guessing from process ancestry.
 
 ## Outcome
 
-Navigator can validate Inspect Active Runtime Channel as an observable behavior.
+A Settings or DEV-indicator surface renders the native validated channel, product/bundle identity, app-data root, Mirror root/home/user/database and validation status.
 
 ## Acceptance Behavior
 
 ```text
-Given the user is ready for Inspect Active Runtime Channel
-When the user performs the planned action
-Then the expected observable behavior is visible
-And unrelated Delivery Story scope remains untouched
+Given either channel has passed native startup validation
+When I open runtime diagnostics
+Then I see its exact allowlisted coordinates
+And no credentials or arbitrary environment variables are exposed
 ```
 
 ## Scope
 
-- Inspect Active Runtime Channel
+- Strict native diagnostic command and TypeScript parser.
+- Compact discoverable diagnostic UI.
+- Copy/read support for troubleshooting if safe.
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- Environment-variable editor.
+- Secret or token display.
+- User-selectable runtime channel.
 
 ## Validation
 
-Navigator-visible validation route plus automated checks.
+Parser/component tests and comparison with actual stable/development runtime coordinates.

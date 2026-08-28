@@ -5,36 +5,35 @@
 **Status:** 🟡 Planned
 **Type:** Technical Story
 
----
-
 ## Technical Story
 
-In order to support the delivery capability,
-As an engineering team/system component,
-I want to Reproducible Development Launch and Build,
-So that the expected technical outcome is available.
+In order to eliminate manual production-manifest edits and forgotten shell exports, provide deterministic commands that pair each Tauri configuration with the correct Rust channel and Mirror runtime.
 
 ## Outcome
 
-Navigator can validate Reproducible Development Launch and Build as an observable behavior.
+Repository commands launch/build development with its config overlay, Cargo feature and `~/mirror-dev.sh`-equivalent environment, while the user build retains the stable baseline.
 
 ## Acceptance Behavior
 
 ```text
-Given the system is ready for Reproducible Development Launch and Build
-When the planned technical change is applied
-Then the expected technical outcome is observable
-And unrelated Delivery Story scope remains untouched
+Given a prepared repository
+When the documented development command runs
+Then it always builds com.nautilus.harness.dev with the development Rust channel
+And no manual export or stable manifest edit is required
 ```
 
 ## Scope
 
-- Reproducible Development Launch and Build
+- Tauri development config overlay.
+- Cargo development-channel feature.
+- Explicit dev/user package scripts or committed launcher.
+- Build-time pairing guardrails.
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- Universal installer or update service.
+- Replacing `~/mirror-dev.sh` for direct Pi CLI sessions.
 
 ## Validation
 
-Navigator-visible validation route plus automated checks.
+Static config tests and compilation/bundle metadata checks for both channels.

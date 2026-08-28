@@ -5,36 +5,36 @@
 **Status:** 🟡 Planned
 **Type:** Technical Story
 
----
-
 ## Technical Story
 
-In order to support the delivery capability,
-As an engineering team/system component,
-I want to Channel Isolation Guardrails,
-So that the expected technical outcome is available.
+In order to keep future changes from collapsing the channel boundary, add aggregate fail-closed checks across app identity, persistence, subprocess routing and documentation.
 
 ## Outcome
 
-Navigator can validate Channel Isolation Guardrails as an observable behavior.
+Mismatched bundle ID, app-data root, Mirror root/home/user/database or dedicated channel marker stops before mutation or provider activity with a bounded actionable diagnostic.
 
 ## Acceptance Behavior
 
 ```text
-Given the system is ready for Channel Isolation Guardrails
-When the planned technical change is applied
-Then the expected technical outcome is observable
-And unrelated Delivery Story scope remains untouched
+Given any stable/development coordinate is mixed
+When startup or command preflight runs
+Then the operation is rejected before Journey mutation, provisioning or Pi invocation
+And no cross-channel state changes
 ```
 
 ## Scope
 
-- Channel Isolation Guardrails
+- Negative profile matrix.
+- Source/config checks for removed hard-coded fallback.
+- Command preflight and dedicated authority checks.
+- Documentation/link drift checks.
+- Aggregate isolation evidence.
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- Filesystem sandboxing for Pi.
+- Security credential storage.
 
 ## Validation
 
-Navigator-visible validation route plus automated checks.
+Automated mismatch matrix plus model-free real-runtime probes and production non-mutation evidence.
