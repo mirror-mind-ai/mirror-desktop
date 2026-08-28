@@ -6,7 +6,7 @@ pending_navigator_validation
 
 ## Summary
 
-DS-007 implementation is complete across all seven approved work packages. Harness now captures up to eight Journey-confined UTF-8 Markdown/text snapshots through an atomic native boundary, presents review/remove controls in the composer, frames exact content as untrusted reference material for only the next explicit dedicated turn, persists strict content-free provenance in conversation schema 0.6.0 and preserves 0.5.0 compatibility. Automated evidence: 59 Vitest files / 318 tests, production build, 25 Rust tests and cargo check passed. Awaiting Navigator validation in the real Tauri desktop.
+DS-007 implementation is complete across all seven approved work packages. Harness now captures up to eight Journey-confined UTF-8 Markdown/text snapshots through an atomic native boundary, presents review/remove controls in the composer, frames exact content as untrusted reference material for only the next explicit dedicated turn, persists strict content-free provenance in conversation schema 0.6.0 and preserves 0.5.0 compatibility. Automated evidence: 60 Vitest files / 319 tests, production build, 25 Rust tests and cargo check passed. The first desktop inspection found the context action overlapped by the provider/model footer; Harness now reserves space for both trailing actions and a layout regression test covers the correction. Awaiting Navigator revalidation in the real Tauri desktop.
 
 ## Child Work Packages
 

@@ -121,7 +121,7 @@ src-tauri/src/main.rs (native unit tests)
 ## Evidence
 
 ```text
-59 Vitest files / 318 tests passed
+60 Vitest files / 319 tests passed
 production TypeScript/Vite build passed
 25 Rust tests passed
 cargo check passed
@@ -143,6 +143,10 @@ a84e295 Attach bounded Journey context to one dedicated turn
 - No DS-009 concurrent-run behavior.
 - Native Journey IDs establish authority; paths and hashes remain evidence only.
 
+## Validation Correction
+
+The first desktop inspection showed the new context button underneath the provider/model footer text because that footer still reserved width for only one trailing action. The composer now reserves `104px` for both context and Send controls. A focused layout regression test proves the footer cannot return to the former single-action reservation, and the production build remains green.
+
 ## Remaining Gate
 
-Navigator must validate the real Tauri desktop flow before aggregate Validation can be accepted. Push, release and deployment remain separate unauthorized gates.
+Navigator must revalidate the corrected real Tauri desktop flow before aggregate Validation can be accepted. Push, release and deployment remain separate unauthorized gates.
