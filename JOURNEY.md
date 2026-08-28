@@ -1,6 +1,6 @@
 # Nautilus Harness
 **Status:** active
-**Stage:** Capability Selection
+**Stage:** Workspace Context Attachments
 
 ## Description
 
@@ -8,16 +8,16 @@ Nautilus Harness é a aplicação desktop agêntica dedicada à prática da gram
 
 ## Current focus
 
-`CV-003 — Nautilus Method Integration` e `CV-004 — Dedicated Nautilus Journey Thread` estão concluídas. Não há Delivery Story ativa: as três altitudes, o observatório Ariad, a publicação canônica, os checkpoints de significado e a autoridade dedicada de conversa estão entregues e validados.
+`DS-007 — Workspace Context Attachments` está ativa. O trabalho define como o Navigator seleciona snapshots textuais confinados à Journey, revisa o contexto antes do envio e o projeta em exatamente um turno dedicado sem conceder ao Pi autoridade ampla de filesystem.
 
 ## Near slice
 
-Escolher o próximo pull entre `DS-007 — Workspace Context Attachments`, recomendado pelo Ariad, e `DS-009 — Concurrent Journey Operations`.
+Planejar a DS-007 agregada a partir dos sete pacotes autorais já expandidos: contrato de domínio, seleção e revisão no composer, snapshot nativo confinado, projeção no turno dedicado, proveniência histórica e guardrails de limite/falha.
 
 ## Later
 
-Depois da próxima seleção, preservar as fronteiras já consolidadas: invocação explícita, autoridade por IDs nativos, projeções read-only, ausência de segredos persistidos e nenhum vazamento entre Journeys.
+`DS-009 — Concurrent Journey Operations` permanece planejada para depois da entrega de contexto anexado.
 
 ## Done condition
 
-A etapa de seleção termina quando o Navigator escolher explicitamente a próxima Delivery Story; nenhuma implementação começa apenas por esta atualização de posição.
+A etapa termina quando anexos de contexto forem explicitamente selecionados, revisados, enviados uma única vez e preservados como proveniência inerte; nenhum caminho pode mutar fontes, invocar provider implicitamente, escapar da raiz da Journey ou vazar contexto entre Journeys.
