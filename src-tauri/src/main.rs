@@ -611,7 +611,7 @@ fn journey_registry_contains_id(value: &Value, journey_id: &str) -> bool {
 }
 
 #[tauri::command]
-fn refresh_journey_registry(app: AppHandle, active_journey_id: String) -> Result<String, String> {
+fn refresh_journey_registry(app: AppHandle) -> Result<String, String> {
     let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     fs::create_dir_all(&app_data_dir).map_err(|error| error.to_string())?;
     let staged = app_data_dir.join("journey-registry.export.tmp");
@@ -637,10 +637,7 @@ fn refresh_journey_registry(app: AppHandle, active_journey_id: String) -> Result
         });
     }
     let payload = String::from_utf8(output.stdout).map_err(|_| "Journey registry exporter returned invalid text.".to_string())?;
-    let validated = validate_journey_registry_payload(&payload)?;
-    if !journey_registry_contains_id(&validated, &active_journey_id) {
-        return Err("Refreshed registry does not contain the active Journey.".to_string());
-    }
+    validate_journey_registry_payload(&payload)?;
     publish_refreshed_journey_registry(&app_data_dir, &payload)
 }
 

@@ -61,6 +61,23 @@ describe("hierarchical Journey registry", () => {
     });
     expect(reconcileReloadedJourneyState(fixtureJourneyRegistry, {
       selectedJourneyId: "removed",
+      pinnedJourneyIds: ["removed", "amplia"],
+      recentJourneyIds: ["removed", "nautilus-harness"],
+      collapsedJourneyIds: new Set(["removed", "nautilus"]),
+    })).toEqual({
+      selectedJourneyId: "vida-criativa",
+      pinnedJourneyIds: ["amplia"],
+      recentJourneyIds: ["nautilus-harness"],
+      collapsedJourneyIds: new Set(["nautilus"]),
+    });
+    expect(reconcileReloadedJourneyState({
+      schemaVersion: "0.2.0",
+      sourceVersion: "a".repeat(64),
+      source: "mirror",
+      syncedAt: "2026-08-28T00:00:00Z",
+      roots: [],
+    }, {
+      selectedJourneyId: "removed",
       pinnedJourneyIds: [],
       recentJourneyIds: [],
       collapsedJourneyIds: new Set(),

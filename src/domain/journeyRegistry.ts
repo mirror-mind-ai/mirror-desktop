@@ -82,10 +82,11 @@ export function reconcileReloadedJourneyState(
   current: ReloadedJourneyState,
 ): ReloadedJourneyState | undefined {
   if (validateJourneyRegistry(registry).length > 0) return undefined;
-  const ids = new Set(flattenJourneyRegistry(registry).map((journey) => journey.id));
-  if (!ids.has(current.selectedJourneyId)) return undefined;
+  const journeys = flattenJourneyRegistry(registry);
+  if (journeys.length === 0) return undefined;
+  const ids = new Set(journeys.map((journey) => journey.id));
   return {
-    selectedJourneyId: current.selectedJourneyId,
+    selectedJourneyId: ids.has(current.selectedJourneyId) ? current.selectedJourneyId : journeys[0].id,
     pinnedJourneyIds: current.pinnedJourneyIds.filter((id) => ids.has(id)),
     recentJourneyIds: current.recentJourneyIds.filter((id) => ids.has(id)),
     collapsedJourneyIds: new Set([...current.collapsedJourneyIds].filter((id) => ids.has(id))),

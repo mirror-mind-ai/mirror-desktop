@@ -1453,7 +1453,7 @@ export function App({ model }: AppProps) {
     setJourneyRegistryRefreshState("refreshing");
     setJourneyRegistryRefreshMessage("Reloading Journeys from Mirror…");
     try {
-      const refreshedRegistry = await refreshJourneyRegistry(selectedJourney);
+      const refreshedRegistry = await refreshJourneyRegistry();
       const reconciled = reconcileReloadedJourneyState(refreshedRegistry, {
         selectedJourneyId: selectedJourney,
         pinnedJourneyIds: journeyPreferences.pinnedJourneyIds,
@@ -1463,6 +1463,7 @@ export function App({ model }: AppProps) {
       if (!reconciled) {
         throw new Error("The refreshed registry no longer contains the active Journey.");
       }
+      const selectionChanged = reconciled.selectedJourneyId !== selectedJourney;
       setLoadedJourneyRegistry(refreshedRegistry);
       setJourneyPreferences((current) => ({
         ...current,
@@ -1470,9 +1471,12 @@ export function App({ model }: AppProps) {
         pinnedJourneyIds: reconciled.pinnedJourneyIds,
         recentJourneyIds: reconciled.recentJourneyIds,
       }));
+      if (selectionChanged) setSelectedJourney(reconciled.selectedJourneyId);
       setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
       setJourneyRegistryRefreshState("succeeded");
-      setJourneyRegistryRefreshMessage("Journey tree reloaded.");
+      setJourneyRegistryRefreshMessage(selectionChanged
+        ? `Journey tree reloaded. Selected ${findJourneyById(refreshedRegistry, reconciled.selectedJourneyId)?.name ?? reconciled.selectedJourneyId} because the previous Journey is no longer available.`
+        : "Journey tree reloaded.");
     } catch (error) {
       setJourneyRegistryRefreshState("failed");
       setJourneyRegistryRefreshMessage(journeyAdministrationError(error));
