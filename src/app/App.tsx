@@ -154,6 +154,8 @@ import {
   type FileAttachmentResponse,
 } from "../domain/fileAttachments";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
+import devAppIconUrl from "../../src-tauri/icons/dev/icon.svg";
+import { inspectRuntimeChannel, type RuntimeChannelDiagnostic } from "./runtimeChannelStorage";
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
 
 type AppProps = {
@@ -263,6 +265,8 @@ export function App({ model }: AppProps) {
   const [journeyThinkingDraft, setJourneyThinkingDraft] = useState<AgentThinkingLevel | "inherit">("inherit");
   const [journeyAgentProfileOpen, setJourneyAgentProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [runtimeChannel, setRuntimeChannel] = useState<RuntimeChannelDiagnostic>();
+  const [runtimeChannelError, setRuntimeChannelError] = useState<string>();
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
   const [agentRun, setAgentRun] = useState(initialAgentRunState);
   const [conversationLoaded, setConversationLoaded] = useState(false);
@@ -427,6 +431,18 @@ export function App({ model }: AppProps) {
         if (cancelled) return;
         setAgentSettingsState("error");
         setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void inspectRuntimeChannel()
+      .then((diagnostic) => {
+        if (!cancelled) setRuntimeChannel(diagnostic);
+      })
+      .catch((error) => {
+        if (!cancelled) setRuntimeChannelError(error instanceof Error ? error.message : String(error));
       });
     return () => { cancelled = true; };
   }, []);
@@ -1568,14 +1584,19 @@ export function App({ model }: AppProps) {
     });
   }
 
+  const developmentChannel = runtimeChannel?.channel === "development";
+
   return (
-    <main className={`app-shell altitude-${selectedAltitude} ${isJourneyReloading ? "is-busy" : ""}`}>
+    <main
+      className={`app-shell altitude-${selectedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${isJourneyReloading ? "is-busy" : ""}`}
+      data-runtime-channel={runtimeChannel?.channel}
+    >
       <aside className="journey-sidebar" aria-label="Journeys">
         <div className="brand-block">
-          <img className="brand-mark" src={appIconUrl} alt="" aria-hidden="true" />
+          <img className="brand-mark" src={developmentChannel ? devAppIconUrl : appIconUrl} alt="" aria-hidden="true" />
           <div>
-            <strong>Nautilus</strong>
-            <small>Journey cockpit</small>
+            <strong>Nautilus {developmentChannel ? <span className="development-badge">DEV</span> : null}</strong>
+            <small>{developmentChannel ? "Development cockpit" : "Journey cockpit"}</small>
           </div>
         </div>
 
@@ -2255,6 +2276,22 @@ export function App({ model }: AppProps) {
                 <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={isStreaming || agentSettingsState === "saving"}>Restore Harness defaults</button>
               </div>
               <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>
+            </section>
+
+            <section className="settings-section runtime-channel-card" aria-label="Runtime channel">
+              <h3>Runtime channel {developmentChannel ? <span className="development-badge">DEV</span> : null}</h3>
+              {runtimeChannel ? (
+                <dl className="runtime-channel-diagnostic">
+                  <div><dt>Channel</dt><dd>{runtimeChannel.channel}</dd></div>
+                  <div><dt>Bundle</dt><dd>{runtimeChannel.bundleIdentifier}</dd></div>
+                  <div><dt>App data</dt><dd>{runtimeChannel.appDataRoot}</dd></div>
+                  <div><dt>Mirror code</dt><dd>{runtimeChannel.mirrorRoot}</dd></div>
+                  <div><dt>Mirror home</dt><dd>{runtimeChannel.mirrorHome}</dd></div>
+                  <div><dt>Mirror user</dt><dd>{runtimeChannel.mirrorUser}</dd></div>
+                  <div><dt>Database</dt><dd>{runtimeChannel.dbPath}</dd></div>
+                  <div><dt>Status</dt><dd>{runtimeChannel.status}</dd></div>
+                </dl>
+              ) : <p className="provider-note">{runtimeChannelError ?? "Inspecting the native runtime channel…"}</p>}
             </section>
 
             <section className="settings-section provider-card" aria-label="Current session invocation controls">

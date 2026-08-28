@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Nautilus Harness Dev icon</title>
+  <desc id="desc">A luminous violet nautilus spiral with a DEV badge on a dark plum rounded square.</desc>
+  <defs>
+    <radialGradient id="bg" cx="55%" cy="32%" r="84%">
+      <stop offset="0" stop-color="#61358a"/>
+      <stop offset="0.48" stop-color="#261332"/>
+      <stop offset="1" stop-color="#100817"/>
+    </radialGradient>
+    <linearGradient id="spiral" x1="116" y1="112" x2="394" y2="402">
+      <stop offset="0" stop-color="#fff0ff"/>
+      <stop offset="0.5" stop-color="#d49af5"/>
+      <stop offset="1" stop-color="#8752bd"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bg)"/>
+  <path d="M141 350c-53-75-28-183 52-229 74-43 171-17 209 58 35 69 3 153-66 181-62 25-132-10-145-72-11-52 26-101 75-103 42-2 73 36 62 74-9 31-44 47-70 29-20-14-20-46 0-58" fill="none" stroke="#321641" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" opacity=".58"/>
+  <path d="M141 350c-53-75-28-183 52-229 74-43 171-17 209 58 35 69 3 153-66 181-62 25-132-10-145-72-11-52 26-101 75-103 42-2 73 36 62 74-9 31-44 47-70 29-20-14-20-46 0-58" fill="none" stroke="url(#spiral)" stroke-width="31" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+  <circle cx="258" cy="230" r="13" fill="#fff0ff"/>
+  <rect x="302" y="366" width="154" height="72" rx="28" fill="#a45bd3" stroke="#f2d8ff" stroke-width="4"/>
+  <text x="379" y="414" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="38" font-weight="800" letter-spacing="4" fill="#fff8ff">DEV</text>
+</svg>

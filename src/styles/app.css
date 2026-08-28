@@ -30,6 +30,22 @@ textarea {
     linear-gradient(135deg, #0b0d0e 0%, #101516 50%, #101b1f 100%);
 }
 
+.app-shell.channel-development {
+  background:
+    radial-gradient(circle at 55% 12%, rgba(160, 92, 246, 0.2), transparent 30rem),
+    linear-gradient(135deg, #100b18 0%, #171020 50%, #22132b 100%);
+}
+
+.app-shell.channel-development .journey-sidebar {
+  background: rgba(23, 14, 31, 0.97);
+  border-right-color: rgba(202, 147, 255, 0.18);
+}
+
+.app-shell.channel-development .brand-mark {
+  border-color: rgba(215, 163, 255, 0.56);
+  box-shadow: 0 0 24px rgba(158, 82, 224, 0.2);
+}
+
 .app-shell.is-busy,
 .app-shell.is-busy * {
   cursor: wait !important;
@@ -76,6 +92,52 @@ textarea {
   color: #7f8b8f;
   font-size: 0.8rem;
   margin-top: 2px;
+}
+
+.development-badge {
+  background: #9d5bd2;
+  border: 1px solid rgba(238, 213, 255, 0.42);
+  border-radius: 999px;
+  color: #fff6ff;
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  margin-left: 5px;
+  padding: 2px 6px;
+  vertical-align: 0.12em;
+}
+
+.runtime-channel-card {
+  background: rgba(128, 73, 168, 0.08);
+  border: 1px solid rgba(185, 124, 229, 0.18);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.runtime-channel-diagnostic {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+}
+
+.runtime-channel-diagnostic > div {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 86px minmax(0, 1fr);
+}
+
+.runtime-channel-diagnostic dt {
+  color: #9ca8ab;
+  font-size: 0.75rem;
+}
+
+.runtime-channel-diagnostic dd {
+  color: #dfe9eb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.74rem;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .sidebar-search {
