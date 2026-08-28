@@ -22,7 +22,8 @@ describe("Journey registry refresh boundary", () => {
     expect(tauriSource).toContain("fs::rename(&staged, &target)");
     expect(tauriSource).not.toContain("refresh_journey_registry_provider");
     expect(appSource).toContain("journeyAdministrationError(error)");
-    expect(appSource).toContain("because the previous Journey is no longer available");
+    expect(appSource).toContain('setJourneyRegistryRefreshMessage("Journey tree reloaded.")');
+    expect(appSource).not.toContain("because the previous Journey is no longer available");
     expect(appSource).toContain("Mirror returned an empty Journey registry.");
   });
 });

@@ -1474,9 +1474,7 @@ export function App({ model }: AppProps) {
       if (selectionChanged) setSelectedJourney(reconciled.selectedJourneyId);
       setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
       setJourneyRegistryRefreshState("succeeded");
-      setJourneyRegistryRefreshMessage(selectionChanged
-        ? `Journey tree reloaded. Selected ${findJourneyById(refreshedRegistry, reconciled.selectedJourneyId)?.name ?? reconciled.selectedJourneyId} because the previous Journey is no longer available.`
-        : "Journey tree reloaded.");
+      setJourneyRegistryRefreshMessage("Journey tree reloaded.");
     } catch (error) {
       setJourneyRegistryRefreshState("failed");
       setJourneyRegistryRefreshMessage(journeyAdministrationError(error));
