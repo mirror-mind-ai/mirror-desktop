@@ -9,6 +9,7 @@ import runtimeChannelSource from "../../src-tauri/src/runtime_channel.rs?raw";
 import appSource from "../app/App.tsx?raw";
 import provisionScript from "../../scripts/provision_mirror_conversation.py?raw";
 import channelLauncher from "../../scripts/nautilus_channel.mjs?raw";
+import productionPromotion from "../../scripts/promote_production.mjs?raw";
 
 const scripts = packageJson.scripts as Record<string, string>;
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
@@ -24,8 +25,13 @@ describe("runtime channel configuration", () => {
     expect(developmentConfig.bundle.icon).toContain("icons/dev/icon.png");
   });
 
-  it("always pairs development commands with the overlay and Rust feature", () => {
-    for (const command of [scripts["tauri:dev"], scripts["tauri:build:dev"], scripts["tauri:build:user"]]) {
+  it("always pairs channel commands with the closed native launcher", () => {
+    for (const command of [
+      scripts["tauri:dev"],
+      scripts["tauri:user"],
+      scripts["tauri:build:dev"],
+      scripts["tauri:build:user"],
+    ]) {
       expect(command).toContain("scripts/nautilus_channel.mjs");
     }
     expect(channelLauncher).toContain('"src-tauri/tauri.dev.conf.json"');
@@ -55,11 +61,23 @@ describe("runtime channel configuration", () => {
     expect(cssSource).toContain(".app-shell.channel-development");
   });
 
+  it("promotes a validated stable bundle only through the explicit macOS installer", () => {
+    expect(scripts["promote:production"]).toContain("scripts/promote_production.mjs");
+    expect(productionPromotion).toContain('"npm", ["test"]');
+    expect(productionPromotion).toContain('"npm", ["run", "tauri:build:user"]');
+    expect(productionPromotion).toContain('EXPECTED_BUNDLE_ID = "com.nautilus.harness"');
+    expect(productionPromotion).toContain('resolve("/Applications", "Nautilus Harness.app")');
+    expect(productionPromotion).toContain("CFBundleIdentifier");
+    expect(productionPromotion).toContain("assertCleanWorktree");
+  });
+
   it("keeps one discoverable canonical setup guide for humans and agents", () => {
     expect(readmeSource).toContain("docs/development/environment-setup.md");
     expect(agentsSource).toContain("docs/development/environment-setup.md");
     expect(setupGuide).toContain("npm run tauri:dev");
     expect(setupGuide).toContain("$HOME/Code/mirror-dev");
     expect(setupGuide).toContain("com.nautilus.harness.dev");
+    expect(setupGuide).toContain("npm run promote:production");
+    expect(setupGuide).toContain("/Applications/Nautilus Harness.app");
   });
 });

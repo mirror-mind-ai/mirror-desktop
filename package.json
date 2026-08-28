@@ -11,8 +11,10 @@
     "test": "vitest run",
     "tauri": "tauri",
     "tauri:dev": "node scripts/nautilus_channel.mjs dev",
+    "tauri:user": "node scripts/nautilus_channel.mjs user",
     "tauri:build:dev": "node scripts/nautilus_channel.mjs build-dev",
-    "tauri:build:user": "node scripts/nautilus_channel.mjs build-user"
+    "tauri:build:user": "node scripts/nautilus_channel.mjs build-user",
+    "promote:production": "node scripts/promote_production.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",

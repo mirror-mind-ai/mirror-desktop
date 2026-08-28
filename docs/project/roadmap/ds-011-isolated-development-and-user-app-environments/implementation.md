@@ -28,13 +28,15 @@ Every Mirror-sensitive Pi, `uv` and Python subprocess now receives the validated
 
 Dedicated threads provisioned after DS-011 record `runtimeChannel` in the thread and activation receipt. Unmarked legacy records remain accepted only by the stable channel; development rejects them.
 
-## Reproducible Builds
+## Reproducible Builds and Promotion
 
 - `src-tauri/tauri.conf.json` remains the stable baseline.
 - `src-tauri/tauri.dev.conf.json` defines development product, bundle, window and icon.
 - `scripts/nautilus_channel.mjs` pairs the correct Tauri config, Cargo feature and Mirror environment.
 - `npm run tauri:dev` also materializes the development Journey registry from the Mirror Dev database before launching.
 - `npm run tauri:build:dev` and `npm run tauri:build:user` produce explicit bundles without manual manifest edits.
+- `npm run promote:production` is the explicit local promotion gate: it requires a clean worktree, reruns frontend and Rust validation, builds and verifies the stable native identity, refuses a running installed app and installs with rollback protection at `/Applications/Nautilus Harness.app`.
+- Promotion never invokes `sudo`, migrates channel data, pushes Git, publishes a release or performs a remote deployment.
 
 ## Visible Development Identity
 
@@ -51,7 +53,7 @@ Conversation bridge scripts now require explicit Mirror root/home coordinates an
 ## Automated Evidence
 
 ```text
-63 Vitest files / 327 tests passed
+63 Vitest files / 328 tests passed
 production TypeScript/Vite build passed
 29 Rust tests passed in stable and development feature configurations
 cargo check passed in stable and development feature configurations

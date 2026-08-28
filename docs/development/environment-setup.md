@@ -140,7 +140,44 @@ npm run tauri:build:user
 
 Building does not authorize installing over the daily-use app, publishing, releasing or deploying it.
 
-## 6. Run Validation
+To run the current source tree against the stable channel without installing it:
+
+```bash
+npm run tauri:user
+```
+
+Use this only for an explicit stable-channel check. Daily development belongs in `tauri:dev`.
+
+## 6. Promote an Approved Build to Production
+
+The phrase **“promova para produção”** authorizes the coding agent to invoke the repository promotion command for that turn:
+
+```bash
+npm run promote:production
+```
+
+The command:
+
+1. refuses a dirty Git worktree;
+2. runs frontend, Rust and production-build validation;
+3. builds only the stable `com.nautilus.harness` bundle;
+4. verifies `CFBundleIdentifier` and `CFBundleName` from the native bundle;
+5. refuses to replace a running stable app;
+6. stages and replaces the app with rollback protection at:
+
+```text
+/Applications/Nautilus Harness.app
+```
+
+It does not invoke `sudo`, alter stable Harness app-data, copy development state, publish a release or push Git commits. Close the installed stable app before promotion. The development app may remain installed and its data remains isolated.
+
+Inspect the non-mutating destination plan with:
+
+```bash
+npm run promote:production -- --plan
+```
+
+## 7. Run Validation
 
 ```bash
 npm test

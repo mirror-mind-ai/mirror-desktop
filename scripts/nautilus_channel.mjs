@@ -9,6 +9,15 @@ const tauri = resolve("node_modules", ".bin", process.platform === "win32" ? "ta
 const home = homedir();
 
 const channels = {
+  user: {
+    args: ["dev"],
+    env: {
+      MIRROR_HOME: resolve(home, ".mirror-minds", "alisson-vale"),
+      MIRROR_USER: "alisson-vale",
+      DB_PATH: resolve(home, ".mirror-minds", "alisson-vale", "memory.db"),
+      NAUTILUS_APP_IDENTIFIER: "com.nautilus.harness",
+    },
+  },
   dev: {
     args: ["dev", "--config", "src-tauri/tauri.dev.conf.json", "--features", "development-channel"],
     env: {
@@ -40,7 +49,7 @@ const channels = {
 
 const selected = channels[mode];
 if (!selected) {
-  console.error("Usage: node scripts/nautilus_channel.mjs <dev|build-dev|build-user>");
+  console.error("Usage: node scripts/nautilus_channel.mjs <user|dev|build-dev|build-user>");
   process.exit(2);
 }
 
