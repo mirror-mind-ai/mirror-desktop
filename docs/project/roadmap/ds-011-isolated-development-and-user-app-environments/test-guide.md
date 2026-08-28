@@ -56,6 +56,16 @@ Cover:
 
 Assert no command builder retains `/Users/alissonvale/mirror`, production-only Python defaults or fallback to the Harness root.
 
+For Journey administration specifically, test the complete process boundary rather than individual environment fields:
+
+- an explicit `DB_PATH` remains authoritative even when the Mirror checkout `.env` declares a different `MEMORY_ENV`;
+- administrative commands do not pass partial path arguments that cause Mirror to derive a competing database name;
+- bootstrap, refresh and mutation resolve the same Mirror home, user and database;
+- global registry administration does not inherit `NAUTILUS_TURN_CORRELATION_V1` from an agent turn;
+- an unavailable prior selection reconciles to canonical refreshed data, while an empty registry still fails closed;
+- native mutation rejection codes remain visible and actionable;
+- successful reload feedback dismisses automatically, while failures remain visible.
+
 ### Harness persistence and dedicated authority
 
 - Tauri app-data resolution differs by bundle identifier;

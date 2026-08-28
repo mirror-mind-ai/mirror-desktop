@@ -208,6 +208,18 @@ ls -l "$HOME/.mirror-minds/mirror-dev/memory.db"
 
 Initialize or repair Mirror Dev from its own repository instructions. Do not point `DB_PATH` at production.
 
+### Journey reload or creation uses the wrong development database
+
+The authoritative development database is always the `DB_PATH` shown in Settings:
+
+```text
+$HOME/.mirror-minds/mirror-dev/memory.db
+```
+
+A checkout `.env` may declare `MEMORY_ENV=development`, but Harness subprocesses must not use that value to derive `memory_dev.db`. Journey bootstrap, reload and mutation must consume the native channel's complete environment projection. If the tree is unexpectedly empty, compare Settings with bounded file metadata for both names; do not copy or delete either database as a repair.
+
+Mirror Dev must also contain the canonical `journey export-registry` and `journey mutate` commands expected by the Harness. Update the checkout without discarding unrelated local work when those capabilities are absent.
+
 ### Runtime channel rejects an inherited variable
 
 Inspect only the three channel variables:

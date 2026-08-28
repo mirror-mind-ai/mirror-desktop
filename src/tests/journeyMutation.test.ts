@@ -68,6 +68,9 @@ describe("Journey administration boundary", () => {
     );
     expect(mutationCommand).not.toContain("--mirror-home");
     expect(tauriSource).toContain("publish_refreshed_journey_registry");
+    expect(tauriSource).toContain('Some("invalid_or_duplicate_slug")');
+    expect(tauriSource).toContain("Mirror rejected the Journey mutation: {value}.");
+    expect(tauriSource).toContain("without diagnostic detail");
     expect(tauriSource).not.toContain("mutate_journey_registry_provider");
   });
 

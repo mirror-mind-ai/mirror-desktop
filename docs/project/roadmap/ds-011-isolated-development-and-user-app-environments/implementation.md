@@ -83,6 +83,18 @@ Desktop smoke evidence:
 - Finder-launched production exposed a missing-Pi defect because macOS supplied a minimal `PATH`;
 - the corrected bounded GUI runtime path provisioned an offline native Pi session successfully without provider invocation.
 
+## Validation Finding: Journey Administration Across Isolated Channels
+
+The real desktop exercise exposed a chain of boundary defects that unit-level channel identity alone did not reveal:
+
+- Mirror Dev initially lacked the canonical `journey export-registry` and `journey mutate` capabilities expected by the Harness. The required Mirror commits were integrated while preserving unrelated local Mirror Dev work.
+- Administrative subprocesses inherited a Journey turn correlation when launched from an agent-mediated environment. Global tree administration now detaches only that turn correlation while retaining the validated runtime channel.
+- Passing `--mirror-home` caused Mirror to combine the explicit home with `MEMORY_ENV=development` from the checkout `.env`, deriving `memory_dev.db` even though the closed Harness profile declared `DB_PATH=.../memory.db`. Administrative commands now rely on the complete native environment projection and do not recalculate the database path.
+- A valid refreshed registry may no longer contain the previously selected Journey. Explicit reload now publishes canonical data, reconciles to an available Journey and removes stale preferences instead of blocking publication.
+- Native Tauri errors were strings rather than JavaScript `Error` objects. Reload and mutation diagnostics now preserve bounded native detail, while successful reload feedback is concise and transient.
+
+The governing lesson is that an isolated channel is not merely a set of correct values. Every subprocess must consume the same complete coordinate contract without deriving a competing database from partial inputs. Bootstrap, refresh and mutation must also share one registry schema and authority path; that remaining consolidation is tracked as prospective Refinement Work rather than hidden inside the completed fixes.
+
 ## Remaining Gate
 
 Navigator must confirm that the currently running development app now shows the violet `DEV` icon in the macOS Dock and exercise a disposable Mirror Dev Journey while stable state remains intact. No push, remote release publication or deployment is authorized.

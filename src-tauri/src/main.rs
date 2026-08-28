@@ -698,8 +698,22 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
                 let classes = value.trim_start_matches("journey_not_empty:").replace('_', " ");
                 format!("Journey cannot be deleted because protected records remain: {}.", classes)
             }
-            Some("idempotency_conflict") => "Journey deletion retry no longer matches the original request.".to_string(),
-            _ => "Mirror rejected the Journey mutation.".to_string(),
+            Some("idempotency_conflict") => "Journey mutation retry no longer matches the original request.".to_string(),
+            Some("invalid_or_duplicate_slug") => "Journey slug is invalid or already exists.".to_string(),
+            Some("invalid_name") => "Journey name is invalid.".to_string(),
+            Some("invalid_description") => "Journey description is invalid.".to_string(),
+            Some("unknown_parent") => "The selected parent Journey no longer exists.".to_string(),
+            Some("invalid_position") => "Journey position is invalid for the selected parent.".to_string(),
+            Some("malformed_order") => "Journey ordering metadata in Mirror is invalid.".to_string(),
+            Some(value) => format!("Mirror rejected the Journey mutation: {value}."),
+            None => {
+                let detail = stderr.trim().chars().rev().take(800).collect::<String>().chars().rev().collect::<String>();
+                if detail.is_empty() {
+                    "Mirror rejected the Journey mutation without diagnostic detail.".to_string()
+                } else {
+                    format!("Mirror rejected the Journey mutation: {detail}")
+                }
+            }
         });
     }
     let payload = String::from_utf8(output.stdout).map_err(|_| "Journey mutation returned invalid text.".to_string())?;
