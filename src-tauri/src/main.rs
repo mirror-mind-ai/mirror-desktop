@@ -1602,26 +1602,34 @@ fn retry_mirror_turn_commit(
     }
     let messages = conversation.get("messages").and_then(Value::as_array)
         .ok_or_else(|| "Staged messages are missing.".to_string())?;
-    let content_for = |id: &str| -> Result<String, String> {
-        messages.iter().find(|message| message.get("id").and_then(Value::as_str) == Some(id))
-            .and_then(|message| message.get("content").and_then(Value::as_str))
-            .filter(|content| !content.trim().is_empty())
-            .map(|content| content.chars().take(50_000).collect())
+    let content_for = |id: &str, pi_entry_id: Option<&str>| -> Result<String, String> {
+        let mut staged_ids = vec![id.to_string()];
+        if let Some(entry_id) = pi_entry_id {
+            staged_ids.push(format!("pi-{}", entry_id));
+        }
+        staged_ids.iter()
+            .find_map(|message_id| messages.iter().find(|message| message.get("id").and_then(Value::as_str) == Some(message_id.as_str()))
+                .and_then(|message| message.get("content").and_then(Value::as_str))
+                .filter(|content| !content.trim().is_empty())
+                .map(|content| content.chars().take(50_000).collect()))
             .ok_or_else(|| format!("Eligible durable message is missing for {}.", id))
     };
     let correlation_json = serde_json::to_string(&correlation).map_err(|error| error.to_string())?;
     let mut status = run_mirror_logger_json(&[
         "commit-status".to_string(), session_file.clone(), "--correlation-json".to_string(), correlation_json.clone(),
     ])?;
+    attach_latest_pi_evidence(&mut status, &session_file)?;
+    let pi_user_entry_id = status.get("piEvidence").and_then(|pi| pi.get("userEntryId")).and_then(Value::as_str).map(str::to_string);
+    let pi_assistant_entry_id = status.get("piEvidence").and_then(|pi| pi.get("assistantEntryId")).and_then(Value::as_str).map(str::to_string);
     if status.get("userMessageId").and_then(Value::as_str).is_none() {
         run_mirror_logger_json(&[
-            "log-user".to_string(), session_file.clone(), content_for(&correlation.harness_user_message_id)?,
+            "log-user".to_string(), session_file.clone(), content_for(&correlation.harness_user_message_id, pi_user_entry_id.as_deref())?,
             "--interface".to_string(), "pi".to_string(), "--correlation-json".to_string(), correlation_json.clone(),
         ])?;
     }
     if status.get("assistantMessageId").and_then(Value::as_str).is_none() {
         run_mirror_logger_json(&[
-            "log-assistant".to_string(), session_file.clone(), content_for(&correlation.harness_assistant_message_id)?,
+            "log-assistant".to_string(), session_file.clone(), content_for(&correlation.harness_assistant_message_id, pi_assistant_entry_id.as_deref())?,
             "--interface".to_string(), "pi".to_string(), "--correlation-json".to_string(), correlation_json.clone(),
         ])?;
     }
