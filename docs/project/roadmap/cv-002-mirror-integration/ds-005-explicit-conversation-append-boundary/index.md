@@ -29,10 +29,29 @@ The Navigator should experience Mirror persistence as a reliable background ledg
 - Remove normal Harness retry dependence on `conversation-logger commit-status`, runtime session conversation ownership and Pi JSONL transcript recovery.
 - Preserve Pi JSONL only as execution evidence and exceptional recovery material, not as the normal Mirror commit source.
 - Add a Harness local outbox for Mirror append attempts that stores bounded durable turn payloads until Mirror accepts them.
+- Bind every outbox item to the exact Journey generation and explicit Mirror conversation that produced it.
+- Remove confirmed payloads from the outbox so it never becomes a transcript, archive or fourth conversation store.
+- Preserve generation ownership across restart: old pending items may retry only against their original conversation and can never enter the new generation.
 - Keep the composer operable when Mirror append is pending and local dedicated Pi/Harness authority is valid.
 - Fail closed only when the explicit conversation id is missing, belongs to another Journey, the channel/root authority is unsafe, or local generation authority is corrupt.
 - Surface bounded append diagnostics that name the failed layer without exposing secrets or arbitrary environment data.
 - Ensure successful append does not create, select or rebind unrelated Mirror runtime conversations.
+- Define bounded item-count, payload-size and diagnostic behavior without deleting unconfirmed work silently.
+
+## Lifecycle Separation
+
+```text
+Pi compaction
+bounds the model context while preserving the active generation
+
+Generation restart
+bounds operational continuity by creating a new Pi/Mirror pair
+
+Mirror outbox
+bounds only unconfirmed persistence work and disappears after acknowledgement
+```
+
+These mechanisms must remain distinct. Compaction does not clear the outbox or shrink durable history. Restart does not move pending payloads into the new generation. The outbox does not replace the Pi transcript, Harness projection or Mirror conversation.
 
 ## Candidate Stories
 
@@ -43,10 +62,11 @@ The Navigator should experience Mirror persistence as a reliable background ledg
 | CV-002.DS-005.TS-3 | Replace Conversation Logger Commit Path | Technical Story | Dedicated Harness turns use the explicit append boundary instead of runtime-session reconciliation for normal Mirror persistence | 🟡 Planned |
 | CV-002.DS-005.US-1 | Continue While Mirror Append Is Pending | User Story | Navigator can keep conversing in the dedicated Journey thread while Mirror persistence is visibly pending and retryable | 🟡 Planned |
 | CV-002.DS-005.TS-4 | Drift and Recovery Guardrails | Technical Story | Tests prove transient Mirror conversations, stale runtime sessions and recovered Pi transcript ids cannot redirect or block explicit append | 🟡 Planned |
+| CV-002.DS-005.TS-5 | Bounded Generation-Scoped Mirror Outbox | Technical Story | Pending payloads remain bounded and attached to their original generation until acknowledgement, then are removed without becoming parallel history | 🟡 Planned |
 
 ## Done Condition
 
-This story is done when a completed Harness turn is appended to its explicit dedicated Mirror conversation through a generic Mirror append command; repeated append attempts are idempotent; stale or divergent runtime-session conversation bindings cannot redirect the append; Pi JSONL is not part of the normal commit path; pending Mirror append is visible and retryable without blocking further local conversation; unsafe channel, missing conversation or Journey mismatch still fail closed; and automated plus desktop evidence prove no transient Mirror conversation is created or adopted during normal Harness operation.
+This story is done when a completed Harness turn is appended to its explicit dedicated Mirror conversation through a generic Mirror append command; repeated append attempts are idempotent; stale or divergent runtime-session conversation bindings cannot redirect the append; Pi JSONL is not part of the normal commit path; pending Mirror append is visible and retryable without blocking further local conversation; every pending payload remains bounded and tied to its original generation across compaction, app reopen and conversation restart; acknowledged payloads are removed; unsafe channel, missing conversation, Journey mismatch or outbox overflow still fail visibly and without silent data loss; and automated plus desktop evidence prove no transient Mirror conversation is created or adopted during normal Harness operation.
 
 ## Boundaries
 
@@ -55,5 +75,8 @@ This story is done when a completed Harness turn is appended to its explicit ded
 - Mirror remains the canonical store for conversations, messages, identity and memory.
 - Harness remains the authority for local generation state, UI transcript and outbox retry intent.
 - Pi remains execution evidence and agentic operator, not the owner of Mirror conversation routing.
-- This story does not implement DS-009 concurrent Journey operations.
+- Pi continues to own model-context compaction; this story does not reimplement or control it.
+- Conversation restart continues to own generation renewal; this story does not automate restart or historical rotation.
+- The outbox must not truncate Pi transcripts, compact Mirror conversations or retain acknowledged turns.
+- This story does not define global history retention, delete old generations or implement DS-009 concurrent Journey operations.
 - This story does not migrate existing historical conversations except through bounded compatibility needed for pending local outbox recovery.
