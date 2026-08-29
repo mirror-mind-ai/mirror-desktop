@@ -16,7 +16,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 | Code | Capability Value | Outcome | Status |
 |------|------------------|---------|--------|
 | [CV-001](cv-001-operable-agent-cockpit/index.md) | Operable Agent Cockpit | Harness becomes a usable desktop cockpit for running Pi-backed agent conversations with local session control, provider configuration, run control and durable history | 🟠 In Progress |
-| [CV-002](cv-002-mirror-integration/index.md) | Mirror Integration | Harness becomes the desktop projection of the essential Pi/Mirror operational loop and context lifecycle | ✅ Done |
+| [CV-002](cv-002-mirror-integration/index.md) | Mirror Integration | Harness becomes the desktop projection of the essential Pi/Mirror operational loop and context lifecycle | 🟠 In Progress |
 | [CV-003](cv-003-nautilus-method-integration/index.md) | Nautilus Method Integration | Harness lets the Navigator inhabit one Journey at operational, tactical and strategic altitudes | ✅ Done |
 | [CV-004](cv-004-dedicated-nautilus-journey-thread/index.md) | Dedicated Nautilus Journey Thread | Every Journey owns one Nautilus thread whose active generation is a dedicated, Journey-activated Pi/Mirror pair, independent from conversations in other environments | ✅ Done |
 
@@ -44,6 +44,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 | [CV-002.DS-002](cv-002-mirror-integration/ds-002-mirror-mediated-pi-invocation/index.md) | Mirror-mediated Pi Invocation | Harness invokes Pi through Mirror context so agent work participates in Mirror conversation logging and memory instead of bypassing it | ✅ Done |
 | [CV-002.DS-003](cv-002-mirror-integration/ds-003-pi-cli-output-parity/index.md) | Pi/Mirror Operational Loop Parity | The essential send-observe-answer loop preserves the meaningful visible execution phases of Pi with Mirror active | ✅ Done |
 | [CV-002.DS-004](cv-002-mirror-integration/ds-004-conversation-and-mirror-context-parity/index.md) | Conversation and Mirror Context Parity | Conversation continuity, Pi-owned context usage/compaction, Journey, identity/persona and Mirror modes shape the live answer | ✅ Done |
+| [CV-002.DS-005](cv-002-mirror-integration/ds-005-explicit-conversation-append-boundary/index.md) | Explicit Conversation Append Boundary | Harness records completed Journey turns through a generic explicit Mirror append primitive instead of runtime-session reconciliation | 🟡 Planned |
 
 ## Delivery Arc — Nautilus Method Integration
 
@@ -69,7 +70,7 @@ The guiding question has expanded: can I operate a real Journey here, change alt
 
 ## Current Recommendation
 
-`CV-003 — Nautilus Method Integration` is complete: the three altitudes are hydrated from canonical published projections, Tactical and Strategic readings are source-grounded, checkpoint states and correction boundaries are visible, and Operational includes the read-only Ariad Observatory. `CV-004` is also complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008` and `DS-010` are complete. `DS-009 — Concurrent Journey Operations` remains the current recommended delivery candidate. `DS-011 — Isolated Development and User App Environments` is newly planned so Harness development can proceed without colliding with the stable daily-use desktop app.
+`CV-003 — Nautilus Method Integration` is complete: the three altitudes are hydrated from canonical published projections, Tactical and Strategic readings are source-grounded, checkpoint states and correction boundaries are visible, and Operational includes the read-only Ariad Observatory. `CV-004` is also complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008` and `DS-010` are complete. `DS-011 — Isolated Development and User App Environments` is in real validation. `CV-002.DS-005 — Explicit Conversation Append Boundary` is the newly planned structural simplification for Mirror persistence, so Harness can append completed turns to explicit Mirror conversations without runtime-session reconciliation drift. `DS-009 — Concurrent Journey Operations` remains planned after the isolation and Mirror-append boundaries are stable.
 
 ## Boundaries
 
