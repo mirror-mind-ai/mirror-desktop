@@ -53,6 +53,12 @@ bounds only unconfirmed persistence work and disappears after acknowledgement
 
 These mechanisms must remain distinct. Compaction does not clear the outbox or shrink durable history. Restart does not move pending payloads into the new generation. The outbox does not replace the Pi transcript, Harness projection or Mirror conversation.
 
+## Provider Dependency
+
+[Mirror Dev handoff](mirror-dev-handoff.md) defines the generic provider contract, classifies the four production-drift commits and establishes the cross-session plan, implementation, release and installed-runtime checkpoints. Mirror implementation and release happen in Journey `mirror-dev`; this Harness story remains blocked at provider consumption until the capability reaches the installed stable Mirror runtime.
+
+The selected-Journey command-authority intent found in incident commits `4dc74c5` and `a2068df` is companion Harness work, not part of the Mirror append API. Those commits must not be replayed in Mirror.
+
 ## Candidate Stories
 
 | Code | Story | Type | Outcome | Status |

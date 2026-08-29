@@ -10,7 +10,7 @@ Isolated Development and User App Environments
 
 ## Objective
 
-Deliver two fail-closed Nautilus desktop channels: a stable user app and an unmistakable development app whose Tauri identity, Harness data root, Pi sessions and every Mirror operation are bound to the isolated Mirror Dev runtime established by `~/mirror-dev.sh`, with reproducible commands, visible diagnostics and one canonical setup guide for humans and coding agents.
+Deliver two fail-closed Nautilus desktop channels: a stable user app and an unmistakable development app whose Tauri identity, Harness data root, Pi sessions and every Mirror operation are bound to the isolated checkout associated with Journey `mirror-dev`, with reproducible commands, visible diagnostics and one canonical setup guide for humans and coding agents.
 
 ## Child Work Packages
 
@@ -58,13 +58,13 @@ Mirror DB     $HOME/.mirror-minds/alisson-vale/memory.db
 channel       development
 product       Nautilus Harness Dev
 bundle id     com.nautilus.harness.dev
-Mirror code   $HOME/Code/mirror-dev
+Mirror code   $HOME/.mirror-journeys/mirror-mind/mirror-dev
 Mirror home   $HOME/.mirror-minds/mirror-dev
 Mirror user   mirror-dev
 Mirror DB     $HOME/.mirror-minds/mirror-dev/memory.db
 ```
 
-The development coordinates are the same contract exported by `~/mirror-dev.sh`. Harness may materialize them through a versioned launcher/configuration boundary rather than invoking that script recursively, but the effective environment must be equivalent.
+The development coordinates bind code to the checkout associated with Journey `mirror-dev` and runtime state to its isolated Mirror home. Harness materializes them through a versioned native profile and never delegates this authority to a machine-local launcher.
 
 ## Scope
 
@@ -177,7 +177,7 @@ Create one canonical guide, preferably `docs/development/environment-setup.md`, 
 - supported platform and toolchain prerequisites;
 - the repository/runtime directory layout;
 - Mirror Dev checkout and home preparation;
-- the `~/mirror-dev.sh`-equivalent contract;
+- the Journey-associated Mirror Dev code and isolated-state contract;
 - copy-pastable test, launch and build commands;
 - first-run Journey initialization without production copying;
 - a verification checklist for app and Mirror identities;
@@ -220,7 +220,7 @@ TDD remains package-local, but Navigator validation is aggregate at the Delivery
 - Sharing dedicated generations between channels.
 - Managing provider credentials or installing provider accounts.
 - Building a universal multi-platform installer or release/update channel.
-- Replacing `~/mirror-dev.sh` for Pi CLI use.
+- Governing machine-local Pi launchers outside the Harness.
 - Containerizing Mirror, Pi or Harness.
 - Redesigning the stable Nautilus visual language.
 - Treating color, file paths, names or hashes as Journey/conversation authority.
@@ -234,7 +234,7 @@ When Nautilus Dev is launched through the documented command
 Then macOS treats it as a separate application with a distinct name, bundle identifier and icon
 And its window shows an unmistakable DEV identity
 And its Harness state resolves only below the development app-data root
-And every Pi/Mirror operation uses ~/Code/mirror-dev and ~/.mirror-minds/mirror-dev
+And every Pi/Mirror operation uses ~/.mirror-journeys/mirror-mind/mirror-dev and ~/.mirror-minds/mirror-dev
 And production Harness files and Mirror database rows remain unchanged
 ```
 

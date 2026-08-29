@@ -11,7 +11,7 @@ In order to make isolation structural, route Harness persistence and every Mirro
 
 ## Outcome
 
-Development uses only `~/Code/mirror-dev`, `~/.mirror-minds/mirror-dev`, `MIRROR_USER=mirror-dev` and its development database/app-data root. Stable use preserves its existing roots and history. No missing path can fall back across channels.
+Development uses only `~/.mirror-journeys/mirror-mind/mirror-dev`, `~/.mirror-minds/mirror-dev`, `MIRROR_USER=mirror-dev` and its development database/app-data root. Stable use preserves its existing roots and history. No missing path can fall back across channels.
 
 ## Acceptance Behavior
 

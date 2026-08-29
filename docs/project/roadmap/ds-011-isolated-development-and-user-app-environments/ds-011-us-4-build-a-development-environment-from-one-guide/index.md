@@ -42,7 +42,7 @@ The canonical guide must include:
 
 - supported operating-system scope and required toolchains;
 - repository and runtime directory layout using `$HOME`-relative examples;
-- how to obtain or prepare `~/Code/mirror-dev`;
+- how to materialize or prepare the `mirror-dev` Journey checkout at `~/.mirror-journeys/mirror-mind/mirror-dev`;
 - the `MIRROR_HOME`, `MIRROR_USER` and `DB_PATH` development contract established by `~/mirror-dev.sh`;
 - Nautilus Dev installation, launch, build and test commands;
 - first-run initialization that does not copy production conversations, memories or credentials;

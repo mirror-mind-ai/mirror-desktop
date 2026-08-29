@@ -9,10 +9,10 @@ Nautilus Harness       com.nautilus.harness       stable Mirror and app data
 Nautilus Harness Dev   com.nautilus.harness.dev   Mirror Dev and isolated app data
 ```
 
-Nautilus Dev uses the same Mirror development contract as `~/mirror-dev.sh`:
+Nautilus Dev uses the checkout associated with Journey `mirror-dev` and its isolated runtime state:
 
 ```text
-Mirror code   $HOME/Code/mirror-dev
+Mirror code   $HOME/.mirror-journeys/mirror-mind/mirror-dev
 MIRROR_HOME   $HOME/.mirror-minds/mirror-dev
 MIRROR_USER   mirror-dev
 DB_PATH       $HOME/.mirror-minds/mirror-dev/memory.db
@@ -24,7 +24,7 @@ It never falls back to the stable Mirror checkout or database.
 
 `$HOME/mirror` is the installed production Mirror runtime. Humans and coding agents may inspect it or invoke its published commands while validating the stable Harness, but Harness development must never edit, patch, test source changes in or commit to that checkout.
 
-Any Mirror capability required by Harness must be implemented in `$HOME/Code/mirror-dev`, pass the Mirror repository gates, enter an official Mirror release and reach `$HOME/mirror` through the runtime updater. A consumer depending on production Mirror has execution authority, not source-modification authority. Emergency production repair requires separate explicit Navigator authorization naming the production checkout.
+Any Mirror capability required by Harness must be implemented in `$HOME/.mirror-journeys/mirror-mind/mirror-dev`, pass the Mirror repository gates, enter an official Mirror release and reach `$HOME/mirror` through the runtime updater. A consumer depending on production Mirror has execution authority, not source-modification authority. Emergency production repair requires separate explicit Navigator authorization naming the production checkout.
 
 ## Prerequisites
 
@@ -49,21 +49,21 @@ pi --version
 
 ## 1. Prepare Mirror Dev
 
-Mirror Dev must live at the exact development root:
+Mirror Dev must live at the exact Journey-associated development root:
 
 ```bash
-mkdir -p "$HOME/Code"
-git clone https://github.com/mirror-mind-ai/mirror.git "$HOME/Code/mirror-dev"
-cd "$HOME/Code/mirror-dev"
-uv sync
+test -d "$HOME/.mirror-journeys/mirror-mind/mirror-dev/.git"
+cd "$HOME/.mirror-journeys/mirror-mind/mirror-dev"
+git status --short --branch
+uv sync --frozen
 ```
 
-Do not clone over an existing checkout. If `$HOME/Code/mirror-dev` already exists, inspect its branch and worktree before changing it.
+If the checkout is absent, materialize or associate Journey `mirror-dev` before continuing. Do not substitute `$HOME/mirror` or an unrelated clone.
 
 Create an isolated Mirror home only when it does not already exist:
 
 ```bash
-cd "$HOME/Code/mirror-dev"
+cd "$HOME/.mirror-journeys/mirror-mind/mirror-dev"
 MIRROR_HOME="$HOME/.mirror-minds/mirror-dev" \
 MIRROR_USER="mirror-dev" \
 DB_PATH="$HOME/.mirror-minds/mirror-dev/memory.db" \
@@ -78,11 +78,7 @@ Verify the database exists:
 test -f "$HOME/.mirror-minds/mirror-dev/memory.db"
 ```
 
-The existing Pi development launcher should now work:
-
-```bash
-"$HOME/mirror-dev.sh" --version
-```
+Machine-local launchers such as `~/mirror-dev.sh` are outside the Harness runtime contract. If used independently, they must be configured to the same Journey-associated checkout rather than assumed to match.
 
 ## 2. Prepare Nautilus Harness
 
@@ -121,7 +117,7 @@ Inside the app, confirm the sidebar shows `Nautilus DEV`. Open **Settings → Ru
 Channel       development
 Bundle        com.nautilus.harness.dev
 App data      .../com.nautilus.harness.dev
-Mirror code   $HOME/Code/mirror-dev
+Mirror code   $HOME/.mirror-journeys/mirror-mind/mirror-dev
 Mirror home   $HOME/.mirror-minds/mirror-dev
 Mirror user   mirror-dev
 Database      $HOME/.mirror-minds/mirror-dev/memory.db
@@ -201,7 +197,7 @@ For final DS-011 validation, open the installed stable app and Nautilus Dev simu
 Confirm the checkout exists and is a real directory, not a symlink:
 
 ```bash
-ls -ld "$HOME/Code/mirror-dev"
+ls -ld "$HOME/.mirror-journeys/mirror-mind/mirror-dev"
 ```
 
 Nautilus Dev intentionally refuses to fall back to `$HOME/mirror`.

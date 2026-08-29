@@ -53,10 +53,10 @@ The stable and development desktop channels have distinct native runtime profile
 
 ```text
 user         $HOME/mirror           $HOME/.mirror-minds/alisson-vale
- development $HOME/Code/mirror-dev  $HOME/.mirror-minds/mirror-dev
+ development $HOME/.mirror-journeys/mirror-mind/mirror-dev  $HOME/.mirror-minds/mirror-dev
 ```
 
-Development uses `MIRROR_USER=mirror-dev` and its own `DB_PATH`, equivalent to `~/mirror-dev.sh`. Missing or mixed coordinates fail before provisioning, mutation or provider invocation; there is no fallback across channels. Newly provisioned thread authority records the runtime channel, while legacy unmarked records are accepted only in the stable user app-data root.
+Development uses `MIRROR_USER=mirror-dev`, its own `DB_PATH` and the checkout associated with Journey `mirror-dev`. Missing or mixed coordinates fail before provisioning, mutation or provider invocation; there is no fallback across channels. Newly provisioned thread authority records the runtime channel, while legacy unmarked records are accepted only in the stable user app-data root.
 
 ## Safety
 

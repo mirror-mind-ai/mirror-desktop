@@ -7,7 +7,7 @@
 
 ## What Happened
 
-During Nautilus Harness implementation and troubleshooting, agents used `/Users/alissonvale/mirror` as both the stable runtime dependency and a source-development workspace. Four Nautilus-related experimental commits entered the local `stable` branch without passing through `/Users/alissonvale/Code/mirror-dev`, Mirror CI, release notes or the official release/promotion path:
+During Nautilus Harness implementation and troubleshooting, agents used `/Users/alissonvale/mirror` as both the stable runtime dependency and a source-development workspace. Four Nautilus-related experimental commits entered the local `stable` branch without passing through an isolated Mirror Dev checkout, Mirror CI, release notes or the official release/promotion path:
 
 ```text
 4dc74c5 Prevent Harness turns from escaping selected Journey authority
@@ -53,7 +53,7 @@ No suspect commit was pushed or silently transplanted. The incident branch is ev
 ## Corrective Boundary
 
 - `$HOME/mirror` is a production runtime dependency and may be inspected or executed, not developed in.
-- `$HOME/Code/mirror-dev` is the only normal Mirror source-development workspace for Harness dependencies.
+- `$HOME/.mirror-journeys/mirror-mind/mirror-dev`, the checkout associated with Journey `mirror-dev`, is the only normal Mirror source-development workspace for Harness dependencies.
 - Mirror changes require Mirror-owned tests, formatting, CI, release notes and release promotion.
 - Production receives Mirror changes only through the runtime updater.
 - Harness promotion authority never implies Mirror source, commit, push or release authority.
@@ -61,4 +61,4 @@ No suspect commit was pushed or silently transplanted. The incident branch is ev
 
 ## Remaining Work
 
-`CR029` owns durable process and tooling guardrails. `CV-002.DS-005 — Explicit Conversation Append Boundary` remains the architectural replacement for the experimental correlated logger path. It must be delivered through the separated Mirror Dev and release lifecycle before Harness consumes it in production.
+`CR029` owns durable process and tooling guardrails. [The Mirror Dev handoff](../cv-002-mirror-integration/ds-005-explicit-conversation-append-boundary/mirror-dev-handoff.md) classifies the four incident commits instead of treating them as one patch to replay. `e7fa03c` and `3699558` become a generic Mirror append boundary; `4dc74c5` and `a2068df` remain evidence for a separate Harness-owned Journey authority guardrail. No incident commit may be cherry-picked. The Mirror capability must pass the separated Mirror Dev and release lifecycle before Harness consumes it in production.

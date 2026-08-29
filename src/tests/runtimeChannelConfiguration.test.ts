@@ -46,7 +46,9 @@ describe("runtime channel configuration", () => {
   });
 
   it("routes Mirror operations through the closed native profile without production fallback", () => {
-    expect(runtimeChannelSource).toContain('home.join("Code").join("mirror-dev")');
+    expect(runtimeChannelSource).toContain('.join(".mirror-journeys")');
+    expect(runtimeChannelSource).toContain('.join("mirror-mind")');
+    expect(runtimeChannelSource).toContain('.join("mirror-dev")');
     expect(runtimeChannelSource).toContain('.env("MIRROR_HOME"');
     expect(runtimeChannelSource).toContain('.env("MIRROR_USER"');
     expect(runtimeChannelSource).toContain('.env("DB_PATH"');
@@ -82,7 +84,7 @@ describe("runtime channel configuration", () => {
     expect(readmeSource).toContain("docs/development/environment-setup.md");
     expect(agentsSource).toContain("docs/development/environment-setup.md");
     expect(setupGuide).toContain("npm run tauri:dev");
-    expect(setupGuide).toContain("$HOME/Code/mirror-dev");
+    expect(setupGuide).toContain("$HOME/.mirror-journeys/mirror-mind/mirror-dev");
     expect(setupGuide).toContain("com.nautilus.harness.dev");
     expect(setupGuide).toContain("npm run promote:production");
     expect(setupGuide).toContain("/Applications/Nautilus Harness.app");

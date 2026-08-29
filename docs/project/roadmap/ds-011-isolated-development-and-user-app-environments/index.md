@@ -21,7 +21,7 @@ The distinction must be structural before it is cosmetic. A different color alon
 - Give the user and development channels distinct Tauri bundle identifiers and product names.
 - Ensure development builds and launches do not overwrite, replace or masquerade as the user application.
 - Route Harness-owned application data to separate channel-specific roots, including settings, Journey registry projections, dedicated thread/generation records, local conversations and Pi session artifacts.
-- Bind the development channel to the same Mirror development runtime used by `~/mirror-dev.sh`: code from `~/Code/mirror-dev`, `MIRROR_HOME=~/.mirror-minds/mirror-dev`, `MIRROR_USER=mirror-dev` and `DB_PATH=~/.mirror-minds/mirror-dev/memory.db`.
+- Bind the development channel to the checkout associated with Journey `mirror-dev`: code from `~/.mirror-journeys/mirror-mind/mirror-dev`, `MIRROR_HOME=~/.mirror-minds/mirror-dev`, `MIRROR_USER=mirror-dev` and `DB_PATH=~/.mirror-minds/mirror-dev/memory.db`.
 - Keep the stable user channel bound to the stable Mirror runtime and user Mirror home; development must never provision or record its dedicated conversations in the user's production Mirror database.
 - Provide explicit development commands and configuration so ordinary development does not require editing the user-channel manifest by hand or remembering to export Mirror development variables manually.
 - Give the development app a distinct application icon visible in Finder, Dock, window switching and system surfaces.
@@ -38,7 +38,7 @@ The distinction must be structural before it is cosmetic. A different color alon
 `~/mirror-dev.sh` establishes the existing machine-local development boundary:
 
 ```text
-Mirror code   ~/Code/mirror-dev
+Mirror code   ~/.mirror-journeys/mirror-mind/mirror-dev
 MIRROR_HOME   ~/.mirror-minds/mirror-dev
 MIRROR_USER   mirror-dev
 DB_PATH       ~/.mirror-minds/mirror-dev/memory.db
@@ -69,4 +69,4 @@ No automatic migration, copying or synchronization may move user-channel convers
 
 ## Done Condition
 
-DS-011 is done when the installed user app and a development build can run simultaneously; each has a distinct system name, bundle identifier, icon and unmistakable in-app appearance; each writes only to its own Harness application-data root; the development app invokes Pi and provisions/records conversations exclusively through the `~/Code/mirror-dev` and `~/.mirror-minds/mirror-dev` runtime established by `~/mirror-dev.sh`; restarting, resetting or exercising development state leaves the user app's settings, generations, production Mirror database and production Mirror Git checkout unchanged; required Mirror changes are developed only in Mirror Dev and arrive in production through a published release plus runtime update; normal development uses documented deterministic commands; one concise guide enables both a human and a coding agent to construct and verify the environment without hidden context; and automated plus real desktop evidence proves app-channel, Mirror-runtime, authorship and promotion identity fail closed.
+DS-011 is done when the installed user app and a development build can run simultaneously; each has a distinct system name, bundle identifier, icon and unmistakable in-app appearance; each writes only to its own Harness application-data root; the development app invokes Pi and provisions/records conversations exclusively through the Journey-associated `~/.mirror-journeys/mirror-mind/mirror-dev` checkout and `~/.mirror-minds/mirror-dev` runtime state; restarting, resetting or exercising development state leaves the user app's settings, generations, production Mirror database and production Mirror Git checkout unchanged; required Mirror changes are developed only in Mirror Dev and arrive in production through a published release plus runtime update; normal development uses documented deterministic commands; one concise guide enables both a human and a coding agent to construct and verify the environment without hidden context; and automated plus real desktop evidence proves app-channel, Mirror-runtime, authorship and promotion identity fail closed.

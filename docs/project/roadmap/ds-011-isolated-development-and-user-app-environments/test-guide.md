@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Validate two structurally isolated Nautilus desktop channels. Visual distinction is necessary but not sufficient: the development channel must use a distinct Tauri identity and Harness data root, and every Pi/Mirror operation must use the Mirror Dev code, home, user and database established by `~/mirror-dev.sh`.
+Validate two structurally isolated Nautilus desktop channels. Visual distinction is necessary but not sufficient: the development channel must use a distinct Tauri identity and Harness data root, and every Pi/Mirror operation must use the code checkout associated with Journey `mirror-dev` plus its isolated home, user and database.
 
 ## Required Channel Matrix
 
@@ -12,7 +12,7 @@ Validate two structurally isolated Nautilus desktop channels. Visual distinction
 |---|---|---|
 | Product | `Nautilus Harness` | `Nautilus Harness Dev` |
 | Bundle identifier | `com.nautilus.harness` | `com.nautilus.harness.dev` |
-| Mirror code | `$HOME/mirror` | `$HOME/Code/mirror-dev` |
+| Mirror code | `$HOME/mirror` | `$HOME/.mirror-journeys/mirror-mind/mirror-dev` |
 | Mirror home | `$HOME/.mirror-minds/alisson-vale` | `$HOME/.mirror-minds/mirror-dev` |
 | Mirror user | `alisson-vale` | `mirror-dev` |
 | Mirror DB | `$HOME/.mirror-minds/alisson-vale/memory.db` | `$HOME/.mirror-minds/mirror-dev/memory.db` |
@@ -108,7 +108,7 @@ For Journey administration specifically, test the complete process boundary rath
 
 - record the production Mirror branch, HEAD, upstream relation and clean-worktree evidence before Harness development;
 - Harness implementation and troubleshooting create no source diff or commit in `$HOME/mirror`;
-- commands that require a Mirror source change stop and hand off to `$HOME/Code/mirror-dev` rather than patching production;
+- commands that require a Mirror source change stop and hand off to `$HOME/.mirror-journeys/mirror-mind/mirror-dev` rather than patching production;
 - Mirror Dev changes use a non-`stable` branch and pass Mirror-owned tests, formatting, CI and release-note gates;
 - stable Mirror consumes the capability only after official release and runtime update;
 - a Harness production-promotion request authorizes only the Harness promotion command and cannot authorize a Mirror commit, push or release;
@@ -164,7 +164,7 @@ Open the runtime diagnostic and verify every development coordinate:
 ```text
 channel       development
 bundle id     com.nautilus.harness.dev
-Mirror code   $HOME/Code/mirror-dev
+Mirror code   $HOME/.mirror-journeys/mirror-mind/mirror-dev
 Mirror home   $HOME/.mirror-minds/mirror-dev
 Mirror user   mirror-dev
 Mirror DB     $HOME/.mirror-minds/mirror-dev/memory.db
@@ -227,7 +227,7 @@ After the complete development and stable-app exercise:
 
 ## Pass Condition
 
-Navigator accepts DS-011 only when stable and development applications operate side by side with unmistakable identities; all Harness and Mirror state is demonstrably channel-confined; Mirror Dev parity with `~/mirror-dev.sh` is visible; negative mismatches fail before mutation/provider activity; existing stable history remains intact; and the canonical guide works for both a human and an agent.
+Navigator accepts DS-011 only when stable and development applications operate side by side with unmistakable identities; all Harness and Mirror state is demonstrably channel-confined; the Journey-associated Mirror Dev coordinates are visible; negative mismatches fail before mutation/provider activity; existing stable history remains intact; and the canonical guide works for both a human and an agent.
 
 ## Failure Condition
 

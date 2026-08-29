@@ -85,7 +85,10 @@ impl RuntimeChannelProfile {
                     channel,
                     product_name: "Nautilus Harness Dev",
                     bundle_identifier: "com.nautilus.harness.dev",
-                    mirror_root: home.join("Code").join("mirror-dev"),
+                    mirror_root: home
+                        .join(".mirror-journeys")
+                        .join("mirror-mind")
+                        .join("mirror-dev"),
                     db_path: mirror_home.join("memory.db"),
                     mirror_home,
                     mirror_user: "mirror-dev",
@@ -303,7 +306,10 @@ mod tests {
 
         assert_eq!(user.bundle_identifier, "com.nautilus.harness");
         assert_eq!(development.bundle_identifier, "com.nautilus.harness.dev");
-        assert_eq!(development.mirror_root, home.join("Code/mirror-dev"));
+        assert_eq!(
+            development.mirror_root,
+            home.join(".mirror-journeys/mirror-mind/mirror-dev")
+        );
         assert_eq!(
             development.mirror_home,
             home.join(".mirror-minds/mirror-dev")
@@ -381,7 +387,9 @@ mod tests {
             .collect::<std::collections::HashMap<_, _>>();
         assert_eq!(
             command.get_current_dir(),
-            Some(Path::new("/Users/example/Code/mirror-dev"))
+            Some(Path::new(
+                "/Users/example/.mirror-journeys/mirror-mind/mirror-dev"
+            ))
         );
         assert_eq!(
             environment.get("MIRROR_HOME").map(String::as_str),

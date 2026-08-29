@@ -1,5 +1,7 @@
 # Implementation — CV-004.DS-003 Dedicated Turn Integrity
 
+> Historical implementation record. The provider-side correlation support described here existed only on the contained production-drift branch and is not part of released Mirror `stable`. Harness keeps local operation available through the pending-commit hotfix while [CV-002.DS-005](../../cv-002-mirror-integration/ds-005-explicit-conversation-append-boundary/index.md) replaces that path through an official generic Mirror release.
+
 ## Delivered
 
 - Added `mirror.turn-correlation@0.2` coordinates binding Journey, thread, generation, activation receipt, Pi session/file, Mirror conversation, run and turn.
@@ -22,9 +24,9 @@ dedicated-journey-conversations/<journey>.json Harness projection and bounded co
 journey-conversations/<journey>.json            legacy parity evidence, not dedicated authority
 ```
 
-## Cross-Body Support
+## Withdrawn Experimental Cross-Body Support
 
-Mirror's Pi logger now recognizes correlation schema `0.2.0`, writes deterministic message IDs with bounded turn metadata and exposes idempotent commit status through the existing conversation-logger CLI. Generic terminal behavior remains unchanged when no dedicated correlation is present.
+The implementation cycle temporarily taught Mirror's Pi logger to recognize correlation schema `0.2.0`, write deterministic message IDs and expose commit status through `conversation-logger`. Those changes were made incorrectly in the production checkout, preserved only as incident evidence and removed from the released runtime during containment. They must not be replayed. The valid requirement is restated as the shell-agnostic explicit append contract in CV-002.DS-005.
 
 ## Verification
 

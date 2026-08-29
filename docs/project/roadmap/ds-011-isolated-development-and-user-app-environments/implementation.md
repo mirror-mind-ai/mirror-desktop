@@ -15,7 +15,7 @@ Nautilus Harness
 
 Nautilus Harness Dev
   bundle       com.nautilus.harness.dev
-  Mirror code  $HOME/Code/mirror-dev
+  Mirror code  $HOME/.mirror-journeys/mirror-mind/mirror-dev
   Mirror home  $HOME/.mirror-minds/mirror-dev
   Mirror user  mirror-dev
 ```
