@@ -18,6 +18,8 @@ Validate two structurally isolated Nautilus desktop channels. Visual distinction
 | Mirror DB | `$HOME/.mirror-minds/alisson-vale/memory.db` | `$HOME/.mirror-minds/mirror-dev/memory.db` |
 | Harness app data | stable bundle root | development bundle root |
 | Visible identity | stable existing appearance | distinct icon, palette and `DEV` text |
+| Source modification | released runtime, no Harness-authored commits | Mirror development workspace and non-`stable` branch |
+| Promotion authority | official Mirror runtime updater only | Mirror CI, release notes and release flow before update |
 
 ## Automated Validation
 
@@ -101,6 +103,16 @@ For Journey administration specifically, test the complete process boundary rath
 - bootstrap output resolves to the selected bundle's app-data root;
 - production defaults cannot leak into a development invocation;
 - malformed or missing channel coordinates fail before database mutation.
+
+### Authorship and promotion isolation
+
+- record the production Mirror branch, HEAD, upstream relation and clean-worktree evidence before Harness development;
+- Harness implementation and troubleshooting create no source diff or commit in `$HOME/mirror`;
+- commands that require a Mirror source change stop and hand off to `$HOME/Code/mirror-dev` rather than patching production;
+- Mirror Dev changes use a non-`stable` branch and pass Mirror-owned tests, formatting, CI and release-note gates;
+- stable Mirror consumes the capability only after official release and runtime update;
+- a Harness production-promotion request authorizes only the Harness promotion command and cannot authorize a Mirror commit, push or release;
+- final evidence proves `$HOME/mirror` equals its published stable ref with no local ahead commits.
 
 ### Documentation
 
@@ -198,7 +210,16 @@ Using safe test configuration, attempt each mismatch without invoking a provider
 
 Each attempt must stop before Journey mutation, conversation provisioning or Pi invocation and report a bounded actionable mismatch.
 
-### 7. Documentation walkthrough
+### 7. Verify production checkout non-mutation
+
+After the complete development and stable-app exercise:
+
+- compare `$HOME/mirror` branch, HEAD, upstream relation and worktree with the baseline;
+- confirm there are no Harness-authored local commits or source modifications;
+- if Mirror capability work was required, show its separate Mirror Dev branch, green gates, release evidence and runtime-update receipt;
+- fail validation if the stable checkout was used as an implementation workspace, even when the resulting app behavior appears correct.
+
+### 8. Documentation walkthrough
 
 - One human follows the canonical guide from prerequisites to verified launch.
 - One coding agent, given only repository instructions, locates the same guide and explains or executes the non-destructive verification route.
@@ -216,6 +237,7 @@ DS-011 fails validation if any of the following occurs:
 - visual identity is the only isolation mechanism;
 - any development process uses stable Mirror code, home, user or database;
 - production Harness files or Mirror rows change during the bounded development exercise;
+- Harness work edits or commits to the production Mirror checkout, or bypasses Mirror Dev, CI, release notes and runtime promotion;
 - an unmarked stable thread is adopted by development;
 - startup silently falls back after a missing development prerequisite;
 - diagnostics expose secrets/arbitrary environment values;

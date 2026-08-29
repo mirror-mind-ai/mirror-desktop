@@ -96,6 +96,12 @@ The real desktop exercise exposed a chain of boundary defects that unit-level ch
 
 The governing lesson is that an isolated channel is not merely a set of correct values. Every subprocess must consume the same complete coordinate contract without deriving a competing database from partial inputs. Bootstrap, refresh and mutation must also share one registry schema and authority path; that remaining consolidation is tracked as prospective Refinement Work rather than hidden inside the completed fixes.
 
+## Production Checkout Incident
+
+Real use later exposed an isolation gap outside app/runtime coordinates: Harness agents had edited and committed experimental Nautilus patches directly in the production Mirror checkout on local `stable`. The divergent line was preserved as incident evidence, production was restored to published Mirror `0.31.12`, and the complete finding is recorded in [Production Mirror Checkout Drift](incident-production-mirror-checkout-drift.md).
+
+`RS013 / CR029` owns the durable guardrails. DS-011 validation now includes authorship and promotion isolation: Harness work must leave the production Mirror Git checkout unchanged, and every required Mirror source capability must travel through Mirror Dev, repository gates, release notes, official release and runtime update.
+
 ## Remaining Gate
 
-Navigator must confirm that the currently running development app now shows the violet `DEV` icon in the macOS Dock and exercise a disposable Mirror Dev Journey while stable state remains intact. No push, remote release publication or deployment is authorized.
+Navigator must confirm that the currently running development app now shows the violet `DEV` icon in the macOS Dock, exercise a disposable Mirror Dev Journey while stable app/runtime state remains intact, and verify that `$HOME/mirror` remains clean and exactly aligned with its published stable ref throughout the exercise. No push, remote release publication or deployment is authorized.

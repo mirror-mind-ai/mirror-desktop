@@ -30,6 +30,8 @@ The distinction must be structural before it is cosmetic. A different color alon
 - Expose enough runtime identity for tests and diagnostics to prove which channel and data root are active.
 - Provide one concise, canonical development-environment guide that a human or coding agent can follow from prerequisites through first verified launch without relying on conversation history or machine folklore.
 - Fail closed when a development launch resolves to the user bundle identity or user Harness data root.
+- Treat the stable Mirror checkout as a released runtime dependency only: Harness work may inspect and execute it but cannot edit, patch, test source changes in or commit to it.
+- Route every required Mirror source change through Mirror Dev, Mirror repository gates, release notes and the official release/runtime-update path before stable Harness consumes it.
 
 ## Mirror Development Runtime Contract
 
@@ -67,4 +69,4 @@ No automatic migration, copying or synchronization may move user-channel convers
 
 ## Done Condition
 
-DS-011 is done when the installed user app and a development build can run simultaneously; each has a distinct system name, bundle identifier, icon and unmistakable in-app appearance; each writes only to its own Harness application-data root; the development app invokes Pi and provisions/records conversations exclusively through the `~/Code/mirror-dev` and `~/.mirror-minds/mirror-dev` runtime established by `~/mirror-dev.sh`; restarting, resetting or exercising development state leaves the user app's settings, generations and production Mirror database unchanged; normal development uses documented deterministic commands; one concise guide enables both a human and a coding agent to construct and verify the environment without hidden context; and automated plus real desktop evidence proves app-channel and Mirror-runtime identity fail closed.
+DS-011 is done when the installed user app and a development build can run simultaneously; each has a distinct system name, bundle identifier, icon and unmistakable in-app appearance; each writes only to its own Harness application-data root; the development app invokes Pi and provisions/records conversations exclusively through the `~/Code/mirror-dev` and `~/.mirror-minds/mirror-dev` runtime established by `~/mirror-dev.sh`; restarting, resetting or exercising development state leaves the user app's settings, generations, production Mirror database and production Mirror Git checkout unchanged; required Mirror changes are developed only in Mirror Dev and arrive in production through a published release plus runtime update; normal development uses documented deterministic commands; one concise guide enables both a human and a coding agent to construct and verify the environment without hidden context; and automated plus real desktop evidence proves app-channel, Mirror-runtime, authorship and promotion identity fail closed.

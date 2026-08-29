@@ -20,6 +20,12 @@ DB_PATH       $HOME/.mirror-minds/mirror-dev/memory.db
 
 It never falls back to the stable Mirror checkout or database.
 
+## Source modification boundary
+
+`$HOME/mirror` is the installed production Mirror runtime. Humans and coding agents may inspect it or invoke its published commands while validating the stable Harness, but Harness development must never edit, patch, test source changes in or commit to that checkout.
+
+Any Mirror capability required by Harness must be implemented in `$HOME/Code/mirror-dev`, pass the Mirror repository gates, enter an official Mirror release and reach `$HOME/mirror` through the runtime updater. A consumer depending on production Mirror has execution authority, not source-modification authority. Emergency production repair requires separate explicit Navigator authorization naming the production checkout.
+
 ## Prerequisites
 
 The current supported desktop validation platform is macOS. Install:
