@@ -9,7 +9,7 @@ function conversation() { return createDedicatedJourneyConversation({ thread: re
 describe("dedicated turn commit classifier", () => {
   it("is ready before the first turn", () => expect(classifyDedicatedTurnState(conversation())).toBe("ready"));
 
-  it("blocks only unresolved active-pair checkpoints", () => {
+  it("blocks only unresolved local active-pair checkpoints", () => {
     let value = conversation();
     value.reconciliation = beginNautilusTurn(value.reconciliation, { turnId: "turn-1", runId: "run-1", startedAt: "2026-08-26T10:00:00Z" });
     expect(classifyDedicatedTurnState(value)).toBe("failed");
@@ -23,7 +23,7 @@ describe("dedicated turn commit classifier", () => {
     value.reconciliation = observeMirrorTurnCommit(value.reconciliation, "turn-1", { userMessageId: "mu", assistantMessageId: "ma", messageCount: 2, committedAt: "2026-08-26T10:00:03Z" });
     expect(classifyDedicatedTurnState(value)).toBe("ready");
     expect(dedicatedTurnBlocksNewInvocation("projection_pending")).toBe(true);
-    expect(dedicatedTurnBlocksNewInvocation("mirror_pending")).toBe(true);
+    expect(dedicatedTurnBlocksNewInvocation("mirror_pending")).toBe(false);
   });
 
   it("records an interrupted provider turn without permanently blocking the next send", () => {

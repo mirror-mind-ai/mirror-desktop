@@ -20,7 +20,7 @@ export function classifyDedicatedTurnState(conversation: JourneyConversation, pr
 }
 
 export function dedicatedTurnBlocksNewInvocation(state: DedicatedTurnState): boolean {
-  return state === "provider_running" || state === "projection_pending" || state === "mirror_pending";
+  return state === "provider_running" || state === "projection_pending";
 }
 
 export function interruptDedicatedTurn(
