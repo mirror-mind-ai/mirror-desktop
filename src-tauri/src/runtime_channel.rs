@@ -419,8 +419,8 @@ mod tests {
         command.env("NAUTILUS_TURN_CORRELATION_V1", "journey-bound-turn");
         profile.detach_journey_turn_authority(&mut command);
 
-        assert!(command
-            .get_envs()
-            .any(|(key, value)| { key == "NAUTILUS_TURN_CORRELATION_V1" && value.is_none() }));
+        assert!(command.get_envs().any(|(key, value)| {
+            key == "NAUTILUS_TURN_CORRELATION_V1" && value.is_none()
+        }));
     }
 }
