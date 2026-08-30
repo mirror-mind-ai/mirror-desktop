@@ -2,7 +2,7 @@
 
 # DS-011.TS-1 — Desktop Channel Identity Contract
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** Technical Story
 
 ## Technical Story

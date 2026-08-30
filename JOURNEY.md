@@ -1,27 +1,27 @@
 # Nautilus Harness
 **Status:** active
-**Stage:** Isolated Development and User Environments
+**Stage:** Concurrent Journey Operations preparation
 
 ## Description
 
-Nautilus Harness é a aplicação desktop agêntica dedicada à prática da gramática Nautilus e à operação de trabalho Pi apoiado pelo Mirror. O cockpit preserva uma thread dedicada por Journey e publica três leituras coordenadas do mesmo território: Operational por Ariad, Tactical e Strategic por interpretação Pi explícita.
+Nautilus Harness é a aplicação desktop agêntica dedicada à prática da gramática Nautilus e à operação de trabalho Pi apoiado pelo Mirror. O aplicativo preserva uma thread dedicada por Journey e publica três leituras coordenadas do mesmo território: Operational por Ariad, Tactical e Strategic por interpretação Pi explícita.
 
 ## Current focus
 
-`DS-011 — Isolated Development and User App Environments` está implementada e em validação real. Nautilus Harness Dev usa identidade violeta `DEV`, ícone distinto no Dock, bundle `com.nautilus.harness.dev`, app-data isolado e o contrato Mirror Dev em `$HOME/Code/mirror-dev` e `$HOME/.mirror-minds/mirror-dev`. Nautilus Harness 0.1.0 está promovido em `/Applications/Nautilus Harness.app`, com bundle `com.nautilus.harness` e Mirror de produção.
+`DS-011 — Isolated Development and User App Environments` está concluída. Os canais stable e development possuem identidades Tauri, app-data e coordenadas Mirror separadas; falham diante de autoridade cruzada; preservam o checkout Mirror de produção; e usam o fluxo oficial de release e runtime update para dependências Mirror. `CR027` removeu o último exportador direto do registry: bootstrap, refresh e mutation agora compartilham a projeção canônica Mirror em schema `0.2.0`.
 
-A validação do Navigator já confirmou execução simultânea, identidade visual, diagnóstico Mirror Dev, promoção local e início bem-sucedido da Journey pelo aplicativo instalado. Dois defeitos macOS foram fechados: `tauri:dev` agora aplica explicitamente o ícone DEV ao Dock; e o aplicativo aberto pelo Finder resolve `pi` e `uv` por um PATH nativo, limitado e confiável.
+`CV-002.DS-005 — Explicit Conversation Append Boundary` também está concluída e validada em produção. Turnos dedicados usam outbox limitado e pertencente à geração, append explícito e idempotente, settlement por IDs exatos e acknowledgement após projeção verificada. Falhas recuperáveis não bloqueiam o Composer; lacunas legadas sem payload permanecem honestamente não committed.
 
 ## Near slice
 
-Reiniciar a conversa dedicada da Journey no aplicativo estável e usar seu agente Pi/Mirror de produção para realizar uma alteração visual pequena e exclusiva do canal development — sugestão: mudar o badge lateral de `DEV` para `DEV LAB` —, atualizar o teste focado e criar um commit sem promoção ou push. Observar o hot reload no Dev enquanto o aplicativo estável instalado permanece inalterado.
+Preparar e executar `DS-009 — Concurrent Journey Operations` com redução explícita de risco. A evolução deve introduzir correlação completa e estado por Journey enquanto o limite de execução ainda é um, trocar o backend global por um registry limitado sem aumentar concorrência, e somente então habilitar duas Journeys simultâneas no canal development. Nenhum delta, operação, cancelamento, settlement ou append Mirror pode depender da Journey atualmente selecionada como autoridade de destino.
 
-Depois do experimento, concluir os gates de validação do Navigator, Debt Review e Done da DS-011.
+Antes do pull, o plano precisa fixar o limite local, a chave composta de execução e cancelamento, a política para eventos tardios, a migração do estado React global e os testes determinísticos de interleaving.
 
 ## Later
 
-`DS-009 — Concurrent Journey Operations` permanece planejada. Evoluções futuras também devem separar versões de código por branch/worktree quando for necessário manter trabalho não integrado fora de `main`; os canais DS-011 isolam identidade, runtime e dados, não branches Git.
+`RS015 — Journey Sidebar Organization and Personalization Refinements` está parked por decisão do Navigator. Suas CRs de sidebar compacta, iconografia, linguagem, atividade recente e temas serão retomadas em sessão separada somente depois que DS-009 estiver concluída e validada.
 
 ## Done condition
 
-A etapa termina quando os canais estável e development permanecerem distinguíveis e isolados em uso real; o agente do aplicativo estável conseguir operar uma mudança development-only sem alterar o app instalado ou dados de produção; o mecanismo explícito de promoção para `/Applications` estiver validado; e DS-011 passar por Validation, Debt Review e Done sem push ou release remoto não autorizado.
+DS-009 termina quando pelo menos duas Journeys executam trabalho Pi simultaneamente no canal development; navegação permanece disponível; cada evento e projeção conserva Journey, run e geração proprietários; uma Journey pode ser cancelada ou falhar sem alterar a outra; cada resposta persiste somente em sua conversa local e Mirror de origem; o limite de concorrência é explícito e aplicado; e testes automatizados mais validação desktop cobrem interleavings, retorno à Journey e settlement independente antes de qualquer promoção stable.

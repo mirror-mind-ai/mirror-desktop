@@ -2,7 +2,7 @@
 
 # DS-011.TS-4 — Channel Isolation Guardrails
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** Technical Story
 
 ## Technical Story

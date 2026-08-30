@@ -2,7 +2,7 @@
 
 # DS-011.TS-2 — Channel-Specific Harness and Mirror Runtime Roots
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** Technical Story
 
 ## Technical Story

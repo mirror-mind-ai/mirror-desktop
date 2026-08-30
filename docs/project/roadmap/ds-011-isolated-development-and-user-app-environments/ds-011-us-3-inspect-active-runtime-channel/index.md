@@ -2,7 +2,7 @@
 
 # DS-011.US-3 — Inspect Active Runtime Channel
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ## User Story

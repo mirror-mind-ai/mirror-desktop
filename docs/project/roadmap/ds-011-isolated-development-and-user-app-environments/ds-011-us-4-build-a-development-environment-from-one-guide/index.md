@@ -2,7 +2,7 @@
 
 # DS-011.US-4 — Build a Development Environment from One Guide
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ---

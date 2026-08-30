@@ -2,7 +2,7 @@
 
 # DS-011.US-2 — Recognize Development Mode at a Glance
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ## User Story

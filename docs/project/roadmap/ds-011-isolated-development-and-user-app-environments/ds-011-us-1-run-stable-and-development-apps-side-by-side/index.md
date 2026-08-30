@@ -2,7 +2,7 @@
 
 # DS-011.US-1 — Run Stable and Development Apps Side by Side
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ## User Story
