@@ -1899,7 +1899,7 @@ fn validate_outbox_generation_authority(app: &AppHandle, item: &Value) -> Result
             Some("ready" | "inactive")
         )
     {
-        return Err("mirror_append_authority_mismatch".to_string());
+        return Err("mirror_append_thread_authority_mismatch".to_string());
     }
     let projection_path = dedicated_journey_conversation_path(
         app,
@@ -1930,7 +1930,7 @@ fn validate_outbox_generation_authority(app: &AppHandle, item: &Value) -> Result
         || turn.pointer("/harness/state").and_then(Value::as_str) != Some("committed")
         || turn.pointer("/pi/state").and_then(Value::as_str) != Some("committed")
     {
-        return Err("mirror_append_authority_mismatch".to_string());
+        return Err("mirror_append_projection_authority_mismatch".to_string());
     }
     let durable_messages = conversation
         .get("messages")
@@ -1943,7 +1943,7 @@ fn validate_outbox_generation_authority(app: &AppHandle, item: &Value) -> Result
             .ok_or_else(|| "mirror_append_authority_missing".to_string())?;
         for key in ["id", "role", "content", "createdAt"] {
             if durable.get(key) != expected.get(key) {
-                return Err("mirror_append_authority_mismatch".to_string());
+                return Err("mirror_append_message_authority_mismatch".to_string());
             }
         }
     }

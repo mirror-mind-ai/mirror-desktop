@@ -2,7 +2,7 @@
 
 # CV-002.DS-005 — Explicit Conversation Append Boundary
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 
 ---
 
@@ -64,11 +64,11 @@ The provider checkpoint is complete: Mirror `0.31.13` is installed and the expli
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
 | CV-002.DS-005.TS-1 | Generic Mirror Append Contract | Technical Story | Mirror exposes a shell-agnostic append primitive for explicit conversations with idempotent external message ids and Journey guardrails | ✅ Done |
-| CV-002.DS-005.TS-2 | Harness Mirror Outbox | Technical Story | Harness persists completed turn payloads locally until Mirror append succeeds, independent of current runtime-session ownership | 🟠 Implemented; validation pending |
-| CV-002.DS-005.TS-3 | Replace Conversation Logger Commit Path | Technical Story | Dedicated Harness turns use the explicit append boundary instead of runtime-session reconciliation for normal Mirror persistence | 🟠 Implemented; validation pending |
-| CV-002.DS-005.US-1 | Continue While Mirror Append Is Pending | User Story | Navigator can keep conversing in the dedicated Journey thread while Mirror persistence is visibly pending and retryable | 🟠 Implemented; validation pending |
-| CV-002.DS-005.TS-4 | Drift and Recovery Guardrails | Technical Story | Tests prove transient Mirror conversations, stale runtime sessions and recovered Pi transcript ids cannot redirect or block explicit append | 🟠 Desktop validation pending |
-| CV-002.DS-005.TS-5 | Bounded Generation-Scoped Mirror Outbox | Technical Story | Pending payloads remain bounded and attached to their original generation until acknowledgement, then are removed without becoming parallel history | 🟠 Implemented; validation pending |
+| CV-002.DS-005.TS-2 | Harness Mirror Outbox | Technical Story | Harness persists completed turn payloads locally until Mirror append succeeds, independent of current runtime-session ownership | ✅ Done |
+| CV-002.DS-005.TS-3 | Replace Conversation Logger Commit Path | Technical Story | Dedicated Harness turns use the explicit append boundary instead of runtime-session reconciliation for normal Mirror persistence | ✅ Done |
+| CV-002.DS-005.US-1 | Continue While Mirror Append Is Pending | User Story | Navigator can keep conversing in the dedicated Journey thread while Mirror persistence is visibly pending and retryable | ✅ Done |
+| CV-002.DS-005.TS-4 | Drift and Recovery Guardrails | Technical Story | Tests prove transient Mirror conversations, stale runtime sessions and recovered Pi transcript ids cannot redirect or block explicit append | ✅ Done |
+| CV-002.DS-005.TS-5 | Bounded Generation-Scoped Mirror Outbox | Technical Story | Pending payloads remain bounded and attached to their original generation until acknowledgement, then are removed without becoming parallel history | ✅ Done |
 
 ## Done Condition
 

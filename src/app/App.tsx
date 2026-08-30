@@ -768,11 +768,11 @@ export function App({ model }: AppProps) {
   }, [journeyPreferences, journeyListOrder, registryLoaded, preferencesLoaded]);
 
   useEffect(() => {
-    if (!conversationLoaded || journeyThreadState.kind !== "ready" || isStreaming) return;
+    if (!conversationLoaded || journeyThreadState.kind !== "ready" || isStreaming || isFinalizingTurn) return;
     void saveDedicatedJourneyConversation(conversation).catch((error) => {
       console.warn("Could not persist dedicated Journey projection.", error);
     });
-  }, [conversation, conversationLoaded, isStreaming, journeyThreadState.kind]);
+  }, [conversation, conversationLoaded, isStreaming, isFinalizingTurn, journeyThreadState.kind]);
 
   useEffect(() => {
     if (!conversationLoaded || conversation.certifiedMirrorMode !== undefined) {
