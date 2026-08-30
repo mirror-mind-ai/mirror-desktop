@@ -13,9 +13,10 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(providerConfigSource).toContain("Raw local Pi via");
   });
 
-  it("passes active Journey and a stable Nautilus session id into the Tauri invocation", () => {
-    expect(piProcessStreamSource).toContain('journeyId: packet.journeyId ?? "nautilus-harness"');
-    expect(piProcessStreamSource).toContain('packet.liveConversation?.piSessionId ?? `nautilus-${packet.journeyId ?? "nautilus-harness"}`');
+  it("passes active Journey authority and a stable Nautilus session id into the Tauri invocation", () => {
+    expect(piProcessStreamSource).toContain("runAuthority: RunAuthority");
+    expect(piProcessStreamSource).toContain("expectedAuthority: runAuthority");
+    expect(piProcessStreamSource).toContain("runAuthority,");
     expect(piProcessStreamSource).toContain("The selected Journey ID for this turn is exactly:");
     expect(piProcessStreamSource).toContain("/skill:ext-nautilus-synthesis journey-id=");
   });
@@ -36,7 +37,7 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(tauriMainSource).toContain('let mirror_mediated = config.invocation_mode == "mirror"');
     expect(tauriMainSource).toContain("active_runtime_channel");
     expect(tauriMainSource).toContain("profile.apply_to_command(&mut process_command)");
-    expect(tauriMainSource).toContain('args.push("--session-id".to_string())');
+    expect(tauriMainSource).toContain("run_authority.pi_session_file");
     expect(tauriMainSource).toContain('args.push("--approve".to_string())');
     expect(tauriMainSource).toContain('args.push("--no-extensions".to_string())');
     expect(tauriMainSource).toContain("mirror_runtime_skill_paths");

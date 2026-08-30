@@ -2,10 +2,10 @@ mod agent_settings;
 mod runtime_channel;
 
 use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
-use runtime_channel::{RuntimeChannelDiagnostic, RuntimeChannelProfile};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use chrono::{SecondsFormat, Utc};
 use image::{ImageFormat, ImageReader};
+use runtime_channel::{RuntimeChannelDiagnostic, RuntimeChannelProfile};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -39,6 +39,7 @@ const COMPOSER_DRAFT_MAX_JOURNEYS: usize = 256;
 struct PiProcessState {
     child: Arc<Mutex<Option<Child>>>,
     cancelling: Arc<Mutex<bool>>,
+    authority: Arc<Mutex<Option<PiProcessEventAuthority>>>,
 }
 
 #[derive(Clone, Serialize)]
@@ -49,10 +50,13 @@ struct JourneyProvisioningEvent {
 }
 
 fn emit_journey_lifecycle(app: &AppHandle, event: &str, journey_id: &str, phase: &str) {
-    let _ = app.emit(event, JourneyProvisioningEvent {
-        journey_id: journey_id.to_string(),
-        phase: phase.to_string(),
-    });
+    let _ = app.emit(
+        event,
+        JourneyProvisioningEvent {
+            journey_id: journey_id.to_string(),
+            phase: phase.to_string(),
+        },
+    );
 }
 
 fn emit_journey_provisioning(app: &AppHandle, journey_id: &str, phase: &str) {
@@ -99,6 +103,7 @@ impl Drop for JourneyProvisioningLease {
 struct PiProcessEvent {
     kind: PiProcessEventKind,
     content: String,
+    authority: PiProcessEventAuthority,
 }
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
@@ -156,6 +161,40 @@ struct TurnCorrelation {
     mirror_conversation_id: Option<String>,
 }
 
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RunAuthority {
+    schema_version: String,
+    correlation: TurnCorrelation,
+    journey_id: String,
+    run_id: String,
+    turn_id: String,
+    thread_id: String,
+    harness_conversation_id: String,
+    generation: u64,
+    pi_session_id: String,
+    pi_session_file: String,
+    mirror_conversation_id: String,
+    activation_receipt_activated_at: String,
+    harness_user_message_id: String,
+    harness_assistant_message_id: String,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PiProcessEventAuthority {
+    schema_version: String,
+    journey_id: String,
+    run_id: String,
+    turn_id: String,
+    thread_id: String,
+    generation: u64,
+    pi_session_id: String,
+    mirror_conversation_id: String,
+    harness_user_message_id: String,
+    harness_assistant_message_id: String,
+}
+
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct DedicatedPiTranscriptTurn {
@@ -184,16 +223,27 @@ fn save_journey_thread(app: AppHandle, journey_id: String, payload: String) -> R
     let value: Value = serde_json::from_str(&payload)
         .map_err(|error| format!("Could not parse Journey thread: {}", error))?;
     if value.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
-        || value.get("thread").and_then(|thread| thread.get("journeyId")).and_then(Value::as_str) != Some(journey_id.as_str())
+        || value
+            .get("thread")
+            .and_then(|thread| thread.get("journeyId"))
+            .and_then(Value::as_str)
+            != Some(journey_id.as_str())
     {
         return Err("Journey thread authority does not match the requested Journey.".to_string());
     }
     validate_thread_runtime_channel(value.get("thread").unwrap_or(&Value::Null))?;
-    let parent = path.parent().ok_or_else(|| "Journey thread path has no parent.".to_string())?;
-    fs::create_dir_all(parent).map_err(|error| format!("Could not create Journey thread directory: {}", error))?;
-    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Journey thread path has no parent.".to_string())?;
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("Could not create Journey thread directory: {}", error))?;
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
     let staged = path.with_extension(format!("json.{}.tmp", nonce));
-    fs::write(&staged, payload).map_err(|error| format!("Could not stage Journey thread: {}", error))?;
+    fs::write(&staged, payload)
+        .map_err(|error| format!("Could not stage Journey thread: {}", error))?;
     if let Err(error) = fs::rename(&staged, &path) {
         let _ = fs::remove_file(&staged);
         return Err(format!("Could not activate Journey thread: {}", error));
@@ -212,7 +262,11 @@ fn load_journey_thread(app: AppHandle, journey_id: String) -> Result<Option<Stri
     let value: Value = serde_json::from_str(&payload)
         .map_err(|error| format!("Could not parse Journey thread: {}", error))?;
     if value.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
-        || value.get("thread").and_then(|thread| thread.get("journeyId")).and_then(Value::as_str) != Some(journey_id.as_str())
+        || value
+            .get("thread")
+            .and_then(|thread| thread.get("journeyId"))
+            .and_then(Value::as_str)
+            != Some(journey_id.as_str())
     {
         return Err("Stored Journey thread authority is invalid.".to_string());
     }
@@ -230,8 +284,15 @@ fn validate_thread_runtime_channel(thread: &Value) -> Result<(), String> {
 }
 
 fn dedicated_native_names(journey_name: &str, generation: u64) -> (String, String) {
-    let readable = journey_name.split_whitespace().collect::<Vec<_>>().join(" ");
-    let readable = if readable.is_empty() { "Journey" } else { readable.as_str() };
+    let readable = journey_name
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let readable = if readable.is_empty() {
+        "Journey"
+    } else {
+        readable.as_str()
+    };
     let suffix = format!(" · Nautilus · Generation {}", generation);
     let bounded = |limit: usize| {
         let available = limit.saturating_sub(suffix.chars().count()).max(1);
@@ -243,39 +304,81 @@ fn dedicated_native_names(journey_name: &str, generation: u64) -> (String, Strin
 
 fn parse_pi_session_state(stdout: &[u8]) -> Result<(String, String), String> {
     for line in String::from_utf8_lossy(stdout).lines().rev() {
-        let Ok(value) = serde_json::from_str::<Value>(line) else { continue };
+        let Ok(value) = serde_json::from_str::<Value>(line) else {
+            continue;
+        };
         if value.get("command").and_then(Value::as_str) != Some("get_state")
-            || value.get("success").and_then(Value::as_bool) != Some(true) { continue; }
-        let data = value.get("data").ok_or_else(|| "Pi state response has no data.".to_string())?;
-        let id = data.get("sessionId").and_then(Value::as_str).filter(|value| !value.is_empty())
+            || value.get("success").and_then(Value::as_bool) != Some(true)
+        {
+            continue;
+        }
+        let data = value
+            .get("data")
+            .ok_or_else(|| "Pi state response has no data.".to_string())?;
+        let id = data
+            .get("sessionId")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
             .ok_or_else(|| "Pi state response has no session id.".to_string())?;
-        let file = data.get("sessionFile").and_then(Value::as_str).filter(|value| !value.is_empty())
+        let file = data
+            .get("sessionFile")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
             .ok_or_else(|| "Pi state response has no session file.".to_string())?;
         return Ok((id.to_string(), file.to_string()));
     }
     Err("Pi did not return native session authority.".to_string())
 }
 
-fn provision_pi_session(requested_id: &str, session_name: &str, session_dir: &Path) -> Result<(String, String), String> {
+fn provision_pi_session(
+    requested_id: &str,
+    session_name: &str,
+    session_dir: &Path,
+) -> Result<(String, String), String> {
     let mirror_root = mirror_runtime_root()?;
-    fs::create_dir_all(session_dir).map_err(|error| format!("Could not create Pi session directory: {}", error))?;
+    fs::create_dir_all(session_dir)
+        .map_err(|error| format!("Could not create Pi session directory: {}", error))?;
     let mut command = mirror_runtime_command("pi")?;
     let mut child = command
-        .args(["--mode", "rpc", "--offline", "--session-id", &requested_id, "--session-dir"])
+        .args([
+            "--mode",
+            "rpc",
+            "--offline",
+            "--session-id",
+            &requested_id,
+            "--session-dir",
+        ])
         .arg(session_dir)
         .args([
-            "--name", session_name, "--no-tools", "--no-extensions", "--no-skills",
-            "--no-prompt-templates", "--no-context-files", "--approve",
+            "--name",
+            session_name,
+            "--no-tools",
+            "--no-extensions",
+            "--no-skills",
+            "--no-prompt-templates",
+            "--no-context-files",
+            "--approve",
         ])
-        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
-        .spawn().map_err(|error| format!("Could not start native Pi session provisioning: {}", error))?;
-    child.stdin.as_mut().ok_or_else(|| "Pi provisioning stdin is unavailable.".to_string())?
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("Could not start native Pi session provisioning: {}", error))?;
+    child
+        .stdin
+        .as_mut()
+        .ok_or_else(|| "Pi provisioning stdin is unavailable.".to_string())?
         .write_all(b"{\"type\":\"get_state\"}\n")
         .map_err(|error| format!("Could not inspect native Pi session: {}", error))?;
     drop(child.stdin.take());
-    let output = child.wait_with_output().map_err(|error| format!("Could not settle native Pi session provisioning: {}", error))?;
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("Could not settle native Pi session provisioning: {}", error))?;
     if !output.status.success() {
-        return Err(format!("Native Pi session provisioning failed: {}", String::from_utf8_lossy(&output.stderr).trim()));
+        return Err(format!(
+            "Native Pi session provisioning failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
     }
     let (session_id, session_file) = parse_pi_session_state(&output.stdout)?;
     materialize_empty_pi_session(&session_id, &session_file, session_dir, &mirror_root)?;
@@ -289,12 +392,18 @@ fn materialize_empty_pi_session(
     cwd: &Path,
 ) -> Result<(), String> {
     let path = PathBuf::from(session_file);
-    let canonical_dir = session_dir.canonicalize().map_err(|error| error.to_string())?;
-    let parent = path.parent().ok_or_else(|| "Pi session file has no parent directory.".to_string())?;
+    let canonical_dir = session_dir
+        .canonicalize()
+        .map_err(|error| error.to_string())?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Pi session file has no parent directory.".to_string())?;
     if parent.canonicalize().map_err(|error| error.to_string())? != canonical_dir {
         return Err("Pi returned a session file outside its dedicated directory.".to_string());
     }
-    if path.exists() { return validate_pi_session_header(&path, session_id); }
+    if path.exists() {
+        return validate_pi_session_header(&path, session_id);
+    }
     let header = serde_json::json!({
         "cwd": cwd.to_string_lossy(),
         "id": session_id,
@@ -302,32 +411,59 @@ fn materialize_empty_pi_session(
         "type": "session",
         "version": 3,
     });
-    fs::write(&path, format!("{}\n", header)).map_err(|error| format!("Could not preserve empty Pi session authority: {}", error))?;
+    fs::write(&path, format!("{}\n", header))
+        .map_err(|error| format!("Could not preserve empty Pi session authority: {}", error))?;
     validate_pi_session_header(&path, session_id)
 }
 
-fn provision_mirror_conversation(session_file: &str, journey_id: &str, title: &str) -> Result<String, String> {
-    let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent()
+fn provision_mirror_conversation(
+    session_file: &str,
+    journey_id: &str,
+    title: &str,
+) -> Result<String, String> {
+    let script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
         .ok_or_else(|| "Could not resolve Harness project root.".to_string())?
         .join("scripts/provision_mirror_conversation.py");
     let profile = active_runtime_channel()?;
     let mut command = mirror_runtime_command("uv")?;
     let output = command
-        .args(["run", "python"]).arg(script)
-        .args(["--session-id", session_file, "--journey-id", journey_id, "--title", title, "--mirror-root"])
+        .args(["run", "python"])
+        .arg(script)
+        .args([
+            "--session-id",
+            session_file,
+            "--journey-id",
+            journey_id,
+            "--title",
+            title,
+            "--mirror-root",
+        ])
         .arg(&profile.mirror_root)
-        .args(["--mirror-home"]).arg(&profile.mirror_home)
-        .output().map_err(|error| format!("Could not provision Mirror conversation: {}", error))?;
+        .args(["--mirror-home"])
+        .arg(&profile.mirror_home)
+        .output()
+        .map_err(|error| format!("Could not provision Mirror conversation: {}", error))?;
     if !output.status.success() {
-        return Err(format!("Mirror conversation provisioning failed: {}", String::from_utf8_lossy(&output.stderr).trim()));
+        return Err(format!(
+            "Mirror conversation provisioning failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let last_line = stdout.lines().rev().find(|line| !line.trim().is_empty())
+    let last_line = stdout
+        .lines()
+        .rev()
+        .find(|line| !line.trim().is_empty())
         .ok_or_else(|| "Mirror returned no conversation authority.".to_string())?;
     let value: Value = serde_json::from_str(last_line)
         .map_err(|error| format!("Mirror conversation authority was invalid: {}", error))?;
-    value.get("conversationId").and_then(Value::as_str).filter(|value| !value.is_empty())
-        .map(str::to_string).ok_or_else(|| "Mirror did not return native conversation authority.".to_string())
+    value
+        .get("conversationId")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| "Mirror did not return native conversation authority.".to_string())
 }
 
 #[tauri::command]
@@ -339,59 +475,99 @@ async fn provision_journey_thread(
 ) -> Result<Value, String> {
     sanitize_journey_id(&journey_id)?;
     {
-        let mut active = state.active.lock().map_err(|_| "Could not inspect active Journey provisioning.".to_string())?;
+        let mut active = state
+            .active
+            .lock()
+            .map_err(|_| "Could not inspect active Journey provisioning.".to_string())?;
         if !active.insert(journey_id.clone()) {
             return Err("This Journey is already being started.".to_string());
         }
     }
-    let _lease = JourneyProvisioningLease { active: state.active.clone(), journey_id: journey_id.clone() };
+    let _lease = JourneyProvisioningLease {
+        active: state.active.clone(),
+        journey_id: journey_id.clone(),
+    };
     emit_journey_provisioning(&app, &journey_id, "reserving_operation");
     let path = journey_thread_path(&app, &journey_id)?;
     if path.exists() {
-        let envelope: Value = serde_json::from_str(&fs::read_to_string(&path)
-            .map_err(|error| format!("Could not recover Journey thread: {}", error))?)
-            .map_err(|error| format!("Could not parse recovered Journey thread: {}", error))?;
-        let thread = envelope.get("thread").ok_or_else(|| "Recovered Journey thread is invalid.".to_string())?;
+        let envelope: Value = serde_json::from_str(
+            &fs::read_to_string(&path)
+                .map_err(|error| format!("Could not recover Journey thread: {}", error))?,
+        )
+        .map_err(|error| format!("Could not parse recovered Journey thread: {}", error))?;
+        let thread = envelope
+            .get("thread")
+            .ok_or_else(|| "Recovered Journey thread is invalid.".to_string())?;
         validate_thread_runtime_channel(thread)?;
         return Ok(thread.clone());
     }
     let operation_path = journey_thread_operation_path(&app, &journey_id)?;
     let requested_pi_id = if operation_path.exists() {
-        let operation: Value = serde_json::from_str(&fs::read_to_string(&operation_path)
-            .map_err(|error| format!("Could not recover Journey start operation: {}", error))?)
+        let operation: Value =
+            serde_json::from_str(&fs::read_to_string(&operation_path).map_err(|error| {
+                format!("Could not recover Journey start operation: {}", error)
+            })?)
             .map_err(|error| format!("Could not parse Journey start operation: {}", error))?;
-        operation.get("piSessionId").and_then(Value::as_str).filter(|value| !value.is_empty())
-            .map(str::to_string).ok_or_else(|| "Recovered Journey start operation is invalid.".to_string())?
+        operation
+            .get("piSessionId")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+            .ok_or_else(|| "Recovered Journey start operation is invalid.".to_string())?
     } else {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
         let operation_id = format!("start-{}-g1-{}", journey_id, nonce);
         let bounded_journey = journey_id.chars().take(72).collect::<String>();
         let requested = format!("nautilus-{}-g1-{:x}", bounded_journey, nonce);
         if let Some(parent) = operation_path.parent() {
-            fs::create_dir_all(parent).map_err(|error| format!("Could not create Journey operation directory: {}", error))?;
+            fs::create_dir_all(parent).map_err(|error| {
+                format!("Could not create Journey operation directory: {}", error)
+            })?;
         }
-        fs::write(&operation_path, serde_json::to_vec_pretty(&json!({
-            "schemaVersion": "1.0.0", "operationId": operation_id, "journeyId": journey_id,
-            "threadId": format!("nautilus-thread-{}", journey_id), "generation": 1,
-            "piSessionId": requested, "status": "provisioning"
-        })).map_err(|error| format!("Could not serialize Journey start operation: {}", error))?)
-            .map_err(|error| format!("Could not reserve Journey start operation: {}", error))?;
+        fs::write(
+            &operation_path,
+            serde_json::to_vec_pretty(&json!({
+                "schemaVersion": "1.0.0", "operationId": operation_id, "journeyId": journey_id,
+                "threadId": format!("nautilus-thread-{}", journey_id), "generation": 1,
+                "piSessionId": requested, "status": "provisioning"
+            }))
+            .map_err(|error| format!("Could not serialize Journey start operation: {}", error))?,
+        )
+        .map_err(|error| format!("Could not reserve Journey start operation: {}", error))?;
         requested
     };
-    let pi_session_dir = app.path().app_data_dir()
+    let pi_session_dir = app
+        .path()
+        .app_data_dir()
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?
         .join("pi-sessions");
     let journey_id_for_task = journey_id.clone();
     let progress_app = app.clone();
     let (pi_name, mirror_name) = dedicated_native_names(&journey_name, 1);
     emit_journey_provisioning(&app, &journey_id, "creating_pi_session");
-    let (pi_session_id, pi_session_file, mirror_conversation_id) = tauri::async_runtime::spawn_blocking(move || {
-        let (pi_id, pi_file) = provision_pi_session(&requested_pi_id, &pi_name, &pi_session_dir)?;
-        emit_journey_provisioning(&progress_app, &journey_id_for_task, "creating_mirror_conversation");
-        let mirror_id = provision_mirror_conversation(&pi_file, &journey_id_for_task, &mirror_name)?;
-        emit_journey_provisioning(&progress_app, &journey_id_for_task, "activating_journey_context");
-        Ok::<_, String>((pi_id, pi_file, mirror_id))
-    }).await.map_err(|error| format!("Journey thread provisioning task failed: {}", error))??;
+    let (pi_session_id, pi_session_file, mirror_conversation_id) =
+        tauri::async_runtime::spawn_blocking(move || {
+            let (pi_id, pi_file) =
+                provision_pi_session(&requested_pi_id, &pi_name, &pi_session_dir)?;
+            emit_journey_provisioning(
+                &progress_app,
+                &journey_id_for_task,
+                "creating_mirror_conversation",
+            );
+            let mirror_id =
+                provision_mirror_conversation(&pi_file, &journey_id_for_task, &mirror_name)?;
+            emit_journey_provisioning(
+                &progress_app,
+                &journey_id_for_task,
+                "activating_journey_context",
+            );
+            Ok::<_, String>((pi_id, pi_file, mirror_id))
+        })
+        .await
+        .map_err(|error| format!("Journey thread provisioning task failed: {}", error))??;
     emit_journey_provisioning(&app, &journey_id, "verifying_authority");
     let activated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     let runtime_channel = active_runtime_channel()?.channel.as_str();
@@ -414,13 +590,19 @@ async fn provision_journey_thread(
         }]
     });
     let envelope = json!({ "schemaVersion": "1.0.0", "thread": thread, "savedAt": activated_at });
-    let payload = serde_json::to_string_pretty(&envelope).map_err(|error| format!("Could not serialize Journey thread: {}", error))?;
-    let parent = path.parent().ok_or_else(|| "Journey thread path has no parent.".to_string())?;
-    fs::create_dir_all(parent).map_err(|error| format!("Could not create Journey thread directory: {}", error))?;
+    let payload = serde_json::to_string_pretty(&envelope)
+        .map_err(|error| format!("Could not serialize Journey thread: {}", error))?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Journey thread path has no parent.".to_string())?;
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("Could not create Journey thread directory: {}", error))?;
     emit_journey_provisioning(&app, &journey_id, "publishing_ready_thread");
     let staged = path.with_extension("json.provisioning.tmp");
-    fs::write(&staged, payload).map_err(|error| format!("Could not stage ready Journey thread: {}", error))?;
-    fs::rename(&staged, &path).map_err(|error| format!("Could not publish ready Journey thread: {}", error))?;
+    fs::write(&staged, payload)
+        .map_err(|error| format!("Could not stage ready Journey thread: {}", error))?;
+    fs::rename(&staged, &path)
+        .map_err(|error| format!("Could not publish ready Journey thread: {}", error))?;
     let _ = fs::remove_file(operation_path);
     Ok(thread)
 }
@@ -434,24 +616,44 @@ async fn restart_journey_thread(
 ) -> Result<Value, String> {
     sanitize_journey_id(&journey_id)?;
     {
-        let mut active = state.active.lock().map_err(|_| "Could not inspect active Journey lifecycle operation.".to_string())?;
-        if !active.insert(journey_id.clone()) { return Err("This Journey already has an active lifecycle operation.".to_string()); }
+        let mut active = state
+            .active
+            .lock()
+            .map_err(|_| "Could not inspect active Journey lifecycle operation.".to_string())?;
+        if !active.insert(journey_id.clone()) {
+            return Err("This Journey already has an active lifecycle operation.".to_string());
+        }
     }
-    let _lease = JourneyProvisioningLease { active: state.active.clone(), journey_id: journey_id.clone() };
+    let _lease = JourneyProvisioningLease {
+        active: state.active.clone(),
+        journey_id: journey_id.clone(),
+    };
     emit_journey_restart(&app, &journey_id, "reserving_generation");
     let path = journey_thread_path(&app, &journey_id)?;
-    let mut envelope: Value = serde_json::from_str(&fs::read_to_string(&path)
-        .map_err(|error| format!("Could not read active Journey thread: {}", error))?)
-        .map_err(|error| format!("Could not parse active Journey thread: {}", error))?;
-    let thread = envelope.get_mut("thread").ok_or_else(|| "Stored Journey thread envelope is invalid.".to_string())?;
+    let mut envelope: Value = serde_json::from_str(
+        &fs::read_to_string(&path)
+            .map_err(|error| format!("Could not read active Journey thread: {}", error))?,
+    )
+    .map_err(|error| format!("Could not parse active Journey thread: {}", error))?;
+    let thread = envelope
+        .get_mut("thread")
+        .ok_or_else(|| "Stored Journey thread envelope is invalid.".to_string())?;
     if thread.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str()) {
         return Err("Stored Journey thread belongs to another Journey.".to_string());
     }
     validate_thread_runtime_channel(thread)?;
-    let prior_generation = thread.get("activeGeneration").and_then(Value::as_u64)
+    let prior_generation = thread
+        .get("activeGeneration")
+        .and_then(Value::as_u64)
         .ok_or_else(|| "Stored Journey thread has no active generation.".to_string())?;
-    let prior = thread.get("generations").and_then(Value::as_array)
-        .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == Some(prior_generation)))
+    let prior = thread
+        .get("generations")
+        .and_then(Value::as_array)
+        .and_then(|items| {
+            items.iter().find(|item| {
+                item.get("generation").and_then(Value::as_u64) == Some(prior_generation)
+            })
+        })
         .ok_or_else(|| "Stored active generation is missing.".to_string())?;
     if prior.get("status").and_then(Value::as_str) != Some("ready") {
         return Err("Only a ready active generation can be restarted.".to_string());
@@ -459,61 +661,99 @@ async fn restart_journey_thread(
     let next_generation = prior_generation + 1;
     let operation_path = journey_thread_operation_path(&app, &journey_id)?;
     let (operation_id, requested_pi_id) = if operation_path.exists() {
-        let operation: Value = serde_json::from_str(&fs::read_to_string(&operation_path)
-            .map_err(|error| format!("Could not recover Journey restart operation: {}", error))?)
+        let operation: Value =
+            serde_json::from_str(&fs::read_to_string(&operation_path).map_err(|error| {
+                format!("Could not recover Journey restart operation: {}", error)
+            })?)
             .map_err(|error| format!("Could not parse Journey restart operation: {}", error))?;
         let operation_prior = operation.get("priorGeneration").and_then(Value::as_u64);
         let operation_next = operation.get("nextGeneration").and_then(Value::as_u64);
         if operation.get("journeyId").and_then(Value::as_str) == Some(journey_id.as_str())
             && operation_next == Some(prior_generation)
-            && operation_prior.and_then(|value| value.checked_add(1)) == operation_next {
+            && operation_prior.and_then(|value| value.checked_add(1)) == operation_next
+        {
             let recovered = thread.clone();
             let _ = fs::remove_file(&operation_path);
             return Ok(recovered);
         }
         if operation.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
             || operation_prior != Some(prior_generation)
-            || operation_next != Some(next_generation) {
+            || operation_next != Some(next_generation)
+        {
             return Err("Recovered Journey restart operation is stale.".to_string());
         }
         (
-            operation.get("operationId").and_then(Value::as_str).ok_or_else(|| "Restart operation id is missing.".to_string())?.to_string(),
-            operation.get("piSessionId").and_then(Value::as_str).ok_or_else(|| "Restart Pi authority is missing.".to_string())?.to_string(),
+            operation
+                .get("operationId")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Restart operation id is missing.".to_string())?
+                .to_string(),
+            operation
+                .get("piSessionId")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Restart Pi authority is missing.".to_string())?
+                .to_string(),
         )
     } else {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
         let operation_id = format!("restart-{}-g{}-{:x}", journey_id, next_generation, nonce);
         let bounded_journey = journey_id.chars().take(64).collect::<String>();
-        let requested_pi_id = format!("nautilus-{}-g{}-{:x}", bounded_journey, next_generation, nonce);
-        if let Some(parent) = operation_path.parent() { fs::create_dir_all(parent).map_err(|error| error.to_string())?; }
+        let requested_pi_id = format!(
+            "nautilus-{}-g{}-{:x}",
+            bounded_journey, next_generation, nonce
+        );
+        if let Some(parent) = operation_path.parent() {
+            fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+        }
         let operation = json!({
             "schemaVersion": "1.0.0", "operationId": operation_id, "status": "reserved",
             "journeyId": journey_id, "threadId": thread.get("threadId").and_then(Value::as_str),
             "priorGeneration": prior_generation, "nextGeneration": next_generation, "piSessionId": requested_pi_id
         });
-        fs::write(&operation_path, serde_json::to_vec_pretty(&operation).map_err(|error| error.to_string())?)
-            .map_err(|error| format!("Could not reserve Journey restart: {}", error))?;
+        fs::write(
+            &operation_path,
+            serde_json::to_vec_pretty(&operation).map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| format!("Could not reserve Journey restart: {}", error))?;
         (operation_id, requested_pi_id)
     };
-    let pi_session_dir = app.path().app_data_dir().map_err(|error| error.to_string())?.join("pi-sessions");
+    let pi_session_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("pi-sessions");
     let (pi_name, mirror_name) = dedicated_native_names(&journey_name, next_generation);
     let task_journey = journey_id.clone();
     let progress_app = app.clone();
     emit_journey_restart(&app, &journey_id, "creating_pi_session");
     let reserved_pi_id = requested_pi_id.clone();
-    let (pi_session_id, pi_session_file, mirror_conversation_id) = tauri::async_runtime::spawn_blocking(move || {
-        let (pi_id, pi_file) = provision_pi_session(&reserved_pi_id, &pi_name, &pi_session_dir)?;
-        emit_journey_restart(&progress_app, &task_journey, "creating_mirror_conversation");
-        let mirror_id = provision_mirror_conversation(&pi_file, &task_journey, &mirror_name)?;
-        emit_journey_restart(&progress_app, &task_journey, "activating_journey_context");
-        Ok::<_, String>((pi_id, pi_file, mirror_id))
-    }).await.map_err(|error| format!("Journey restart task failed: {}", error))??;
+    let (pi_session_id, pi_session_file, mirror_conversation_id) =
+        tauri::async_runtime::spawn_blocking(move || {
+            let (pi_id, pi_file) =
+                provision_pi_session(&reserved_pi_id, &pi_name, &pi_session_dir)?;
+            emit_journey_restart(&progress_app, &task_journey, "creating_mirror_conversation");
+            let mirror_id = provision_mirror_conversation(&pi_file, &task_journey, &mirror_name)?;
+            emit_journey_restart(&progress_app, &task_journey, "activating_journey_context");
+            Ok::<_, String>((pi_id, pi_file, mirror_id))
+        })
+        .await
+        .map_err(|error| format!("Journey restart task failed: {}", error))??;
     emit_journey_restart(&app, &journey_id, "verifying_replacement");
-    if pi_session_id != requested_pi_id { return Err("Pi restart authority diverged from its reservation.".to_string()); }
+    if pi_session_id != requested_pi_id {
+        return Err("Pi restart authority diverged from its reservation.".to_string());
+    }
     let activated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     let runtime_channel = active_runtime_channel()?.channel.as_str();
-    let thread_id = thread.get("threadId").and_then(Value::as_str).ok_or_else(|| "Thread id is missing.".to_string())?.to_string();
-    let (pi_session_name, mirror_conversation_name) = dedicated_native_names(&journey_name, next_generation);
+    let thread_id = thread
+        .get("threadId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "Thread id is missing.".to_string())?
+        .to_string();
+    let (pi_session_name, mirror_conversation_name) =
+        dedicated_native_names(&journey_name, next_generation);
     let receipt = json!({
         "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
         "generation": next_generation, "piSessionId": pi_session_id, "mirrorConversationId": mirror_conversation_id,
@@ -526,9 +766,13 @@ async fn restart_journey_thread(
         "piSessionName": pi_session_name, "mirrorConversationName": mirror_conversation_name,
         "createdAt": activated_at, "activatedAt": activated_at, "activationReceipt": receipt
     });
-    let generations = thread.get_mut("generations").and_then(Value::as_array_mut)
+    let generations = thread
+        .get_mut("generations")
+        .and_then(Value::as_array_mut)
         .ok_or_else(|| "Stored Journey generations are invalid.".to_string())?;
-    let prior_mut = generations.iter_mut().find(|item| item.get("generation").and_then(Value::as_u64) == Some(prior_generation))
+    let prior_mut = generations
+        .iter_mut()
+        .find(|item| item.get("generation").and_then(Value::as_u64) == Some(prior_generation))
         .ok_or_else(|| "Stored active generation disappeared.".to_string())?;
     prior_mut["status"] = Value::String("inactive".to_string());
     prior_mut["closedAt"] = Value::String(activated_at.clone());
@@ -538,14 +782,23 @@ async fn restart_journey_thread(
     envelope["savedAt"] = Value::String(activated_at);
     emit_journey_restart(&app, &journey_id, "switching_generation");
     let staged = path.with_extension(format!("json.{}.tmp", operation_id));
-    fs::write(&staged, serde_json::to_vec_pretty(&envelope).map_err(|error| error.to_string())?)
-        .map_err(|error| format!("Could not stage restarted Journey thread: {}", error))?;
+    fs::write(
+        &staged,
+        serde_json::to_vec_pretty(&envelope).map_err(|error| error.to_string())?,
+    )
+    .map_err(|error| format!("Could not stage restarted Journey thread: {}", error))?;
     if let Err(error) = fs::rename(&staged, &path) {
         let _ = fs::remove_file(&staged);
-        return Err(format!("Could not publish restarted Journey thread: {}", error));
+        return Err(format!(
+            "Could not publish restarted Journey thread: {}",
+            error
+        ));
     }
     let _ = fs::remove_file(operation_path);
-    Ok(envelope.get("thread").cloned().ok_or_else(|| "Restarted thread is missing.".to_string())?)
+    Ok(envelope
+        .get("thread")
+        .cloned()
+        .ok_or_else(|| "Restarted thread is missing.".to_string())?)
 }
 
 fn validate_journey_registry_payload(payload: &str) -> Result<Value, String> {
@@ -556,28 +809,64 @@ fn validate_journey_registry_payload(payload: &str) -> Result<Value, String> {
         .map_err(|_| "Refreshed Journey registry is invalid JSON.".to_string())?;
     let schema_version = value.get("schemaVersion").and_then(Value::as_str);
     if !matches!(schema_version, Some("0.1.0") | Some("0.2.0"))
-        || (schema_version == Some("0.2.0") && value.get("sourceVersion").and_then(Value::as_str).map(str::len) != Some(64))
+        || (schema_version == Some("0.2.0")
+            && value
+                .get("sourceVersion")
+                .and_then(Value::as_str)
+                .map(str::len)
+                != Some(64))
         || value.get("source").and_then(Value::as_str) != Some("mirror")
-        || value.get("syncedAt").and_then(Value::as_str).map(str::is_empty) != Some(false)
+        || value
+            .get("syncedAt")
+            .and_then(Value::as_str)
+            .map(str::is_empty)
+            != Some(false)
     {
         return Err("Refreshed Journey registry authority is invalid.".to_string());
     }
-    let roots = value.get("roots").and_then(Value::as_array)
+    let roots = value
+        .get("roots")
+        .and_then(Value::as_array)
         .ok_or_else(|| "Refreshed Journey registry roots are invalid.".to_string())?;
     let mut ids = HashSet::new();
     let mut count = 0usize;
-    fn validate_nodes(nodes: &[Value], depth: usize, count: &mut usize, ids: &mut HashSet<String>) -> Result<(), String> {
-        if depth > 16 { return Err("Refreshed Journey registry is too deep.".to_string()); }
+    fn validate_nodes(
+        nodes: &[Value],
+        depth: usize,
+        count: &mut usize,
+        ids: &mut HashSet<String>,
+    ) -> Result<(), String> {
+        if depth > 16 {
+            return Err("Refreshed Journey registry is too deep.".to_string());
+        }
         for node in nodes {
             *count += 1;
-            if *count > 10_000 { return Err("Refreshed Journey registry has too many entries.".to_string()); }
-            let id = node.get("id").and_then(Value::as_str).filter(|value| !value.trim().is_empty())
+            if *count > 10_000 {
+                return Err("Refreshed Journey registry has too many entries.".to_string());
+            }
+            let id = node
+                .get("id")
+                .and_then(Value::as_str)
+                .filter(|value| !value.trim().is_empty())
                 .ok_or_else(|| "Refreshed Journey registry contains an invalid id.".to_string())?;
-            if !ids.insert(id.to_string()) { return Err("Refreshed Journey registry contains duplicate ids.".to_string()); }
-            node.get("name").and_then(Value::as_str).filter(|value| !value.trim().is_empty())
-                .ok_or_else(|| "Refreshed Journey registry contains an invalid name.".to_string())?;
+            if !ids.insert(id.to_string()) {
+                return Err("Refreshed Journey registry contains duplicate ids.".to_string());
+            }
+            node.get("name")
+                .and_then(Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| {
+                    "Refreshed Journey registry contains an invalid name.".to_string()
+                })?;
             if let Some(children) = node.get("children") {
-                validate_nodes(children.as_array().ok_or_else(|| "Refreshed Journey children are invalid.".to_string())?, depth + 1, count, ids)?;
+                validate_nodes(
+                    children
+                        .as_array()
+                        .ok_or_else(|| "Refreshed Journey children are invalid.".to_string())?,
+                    depth + 1,
+                    count,
+                    ids,
+                )?;
             }
         }
         Ok(())
@@ -586,9 +875,13 @@ fn validate_journey_registry_payload(payload: &str) -> Result<Value, String> {
     Ok(value)
 }
 
-fn publish_refreshed_journey_registry(app_data_dir: &Path, payload: &str) -> Result<String, String> {
+fn publish_refreshed_journey_registry(
+    app_data_dir: &Path,
+    payload: &str,
+) -> Result<String, String> {
     validate_journey_registry_payload(payload)?;
-    fs::create_dir_all(app_data_dir).map_err(|error| format!("Could not prepare Journey registry storage: {}", error))?;
+    fs::create_dir_all(app_data_dir)
+        .map_err(|error| format!("Could not prepare Journey registry storage: {}", error))?;
     let target = app_data_dir.join(JOURNEY_REGISTRY_FILE);
     if target.exists() {
         let metadata = fs::symlink_metadata(&target).map_err(|error| error.to_string())?;
@@ -604,9 +897,12 @@ fn publish_refreshed_journey_registry(app_data_dir: &Path, payload: &str) -> Res
         }
         fs::remove_file(&staged).map_err(|error| error.to_string())?;
     }
-    fs::write(&staged, payload).map_err(|error| format!("Could not stage Journey registry: {}", error))?;
-    fs::rename(&staged, &target).map_err(|error| format!("Could not publish Journey registry: {}", error))?;
-    let published = fs::read_to_string(&target).map_err(|error| format!("Could not verify Journey registry: {}", error))?;
+    fs::write(&staged, payload)
+        .map_err(|error| format!("Could not stage Journey registry: {}", error))?;
+    fs::rename(&staged, &target)
+        .map_err(|error| format!("Could not publish Journey registry: {}", error))?;
+    let published = fs::read_to_string(&target)
+        .map_err(|error| format!("Could not verify Journey registry: {}", error))?;
     validate_journey_registry_payload(&published)?;
     Ok(published)
 }
@@ -615,17 +911,26 @@ fn journey_registry_contains_id(value: &Value, journey_id: &str) -> bool {
     fn nodes_contain(nodes: &[Value], journey_id: &str) -> bool {
         nodes.iter().any(|node| {
             node.get("id").and_then(Value::as_str) == Some(journey_id)
-                || node.get("children").and_then(Value::as_array)
-                    .map(|children| nodes_contain(children, journey_id)).unwrap_or(false)
+                || node
+                    .get("children")
+                    .and_then(Value::as_array)
+                    .map(|children| nodes_contain(children, journey_id))
+                    .unwrap_or(false)
         })
     }
-    value.get("roots").and_then(Value::as_array)
-        .map(|roots| nodes_contain(roots, journey_id)).unwrap_or(false)
+    value
+        .get("roots")
+        .and_then(Value::as_array)
+        .map(|roots| nodes_contain(roots, journey_id))
+        .unwrap_or(false)
 }
 
 #[tauri::command]
 fn refresh_journey_registry(app: AppHandle) -> Result<String, String> {
-    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
     fs::create_dir_all(&app_data_dir).map_err(|error| error.to_string())?;
     let staged = app_data_dir.join("journey-registry.export.tmp");
     if staged.exists() {
@@ -637,27 +942,43 @@ fn refresh_journey_registry(app: AppHandle) -> Result<String, String> {
     }
     let mut command = mirror_administrative_command("uv")?;
     let output = command
-        .args(["run", "python", "-m", "memory", "journey", "export-registry"])
-        .output().map_err(|error| format!("Could not start the Journey registry exporter: {}", error))?;
+        .args([
+            "run",
+            "python",
+            "-m",
+            "memory",
+            "journey",
+            "export-registry",
+        ])
+        .output()
+        .map_err(|error| format!("Could not start the Journey registry exporter: {}", error))?;
     if !output.status.success() {
-        let detail = String::from_utf8_lossy(&output.stderr).trim().chars().take(800).collect::<String>();
+        let detail = String::from_utf8_lossy(&output.stderr)
+            .trim()
+            .chars()
+            .take(800)
+            .collect::<String>();
         return Err(if detail.is_empty() {
             "Could not refresh Journeys from Mirror.".to_string()
         } else {
             format!("Could not refresh Journeys from Mirror: {detail}")
         });
     }
-    let payload = String::from_utf8(output.stdout).map_err(|_| "Journey registry exporter returned invalid text.".to_string())?;
+    let payload = String::from_utf8(output.stdout)
+        .map_err(|_| "Journey registry exporter returned invalid text.".to_string())?;
     validate_journey_registry_payload(&payload)?;
     publish_refreshed_journey_registry(&app_data_dir, &payload)
 }
 
 #[tauri::command]
 fn choose_project_directory() -> Result<Option<String>, String> {
-    let selected = rfd::FileDialog::new().set_title("Choose Journey project directory").pick_folder();
+    let selected = rfd::FileDialog::new()
+        .set_title("Choose Journey project directory")
+        .pick_folder();
     match selected {
         Some(path) => {
-            let metadata = fs::symlink_metadata(&path).map_err(|error| format!("Could not inspect selected directory: {}", error))?;
+            let metadata = fs::symlink_metadata(&path)
+                .map_err(|error| format!("Could not inspect selected directory: {}", error))?;
             if metadata.file_type().is_symlink() || !metadata.is_dir() {
                 return Err("Selected project path is not a safe directory.".to_string());
             }
@@ -668,24 +989,46 @@ fn choose_project_directory() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_json: String, replacement_journey_id: Option<String>) -> Result<String, String> {
-    let request: Value = serde_json::from_str(&request_json).map_err(|_| "Journey mutation request is malformed.".to_string())?;
-    let delete_target = if request.get("operation").and_then(Value::as_str) == Some("delete_journey") {
-        let journey_id = request.get("payload").and_then(|payload| payload.get("journeyId")).and_then(Value::as_str)
-            .ok_or_else(|| "Journey deletion target is missing.".to_string())?;
-        let thread_path = journey_thread_path(&app, journey_id)?;
-        let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
-        let generation_dir = app_data_dir.join("dedicated-journey-conversations").join(sanitize_journey_id(journey_id)?);
-        if thread_path.exists() || generation_dir.exists() {
-            return Err("Journey cannot be deleted because dedicated conversation history exists.".to_string());
-        }
-        Some(journey_id.to_string())
-    } else {
-        None
-    };
+fn mutate_journey_registry(
+    app: AppHandle,
+    active_journey_id: String,
+    request_json: String,
+    replacement_journey_id: Option<String>,
+) -> Result<String, String> {
+    let request: Value = serde_json::from_str(&request_json)
+        .map_err(|_| "Journey mutation request is malformed.".to_string())?;
+    let delete_target =
+        if request.get("operation").and_then(Value::as_str) == Some("delete_journey") {
+            let journey_id = request
+                .get("payload")
+                .and_then(|payload| payload.get("journeyId"))
+                .and_then(Value::as_str)
+                .ok_or_else(|| "Journey deletion target is missing.".to_string())?;
+            let thread_path = journey_thread_path(&app, journey_id)?;
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|error| error.to_string())?;
+            let generation_dir = app_data_dir
+                .join("dedicated-journey-conversations")
+                .join(sanitize_journey_id(journey_id)?);
+            if thread_path.exists() || generation_dir.exists() {
+                return Err(
+                    "Journey cannot be deleted because dedicated conversation history exists."
+                        .to_string(),
+                );
+            }
+            Some(journey_id.to_string())
+        } else {
+            None
+        };
     let publication_journey_id = if delete_target.as_deref() == Some(active_journey_id.as_str()) {
-        let replacement = replacement_journey_id.as_deref().ok_or_else(|| "Deleting the active Journey requires an explicit replacement Journey.".to_string())?;
-        if replacement == active_journey_id || replacement == delete_target.as_deref().unwrap_or_default() {
+        let replacement = replacement_journey_id.as_deref().ok_or_else(|| {
+            "Deleting the active Journey requires an explicit replacement Journey.".to_string()
+        })?;
+        if replacement == active_journey_id
+            || replacement == delete_target.as_deref().unwrap_or_default()
+        {
             return Err("Replacement Journey authority is invalid.".to_string());
         }
         sanitize_journey_id(replacement)?
@@ -695,32 +1038,72 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
     let mut command = mirror_administrative_command("uv")?;
     let mut child = command
         .args(["run", "python", "-m", "memory", "journey", "mutate"])
-        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
-        .spawn().map_err(|error| format!("Could not start canonical Journey mutation: {}", error))?;
-    child.stdin.as_mut().ok_or_else(|| "Journey mutation input is unavailable.".to_string())?
-        .write_all(request_json.as_bytes()).map_err(|error| format!("Could not submit Journey mutation: {}", error))?;
-    let output = child.wait_with_output().map_err(|error| format!("Could not await Journey mutation: {}", error))?;
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("Could not start canonical Journey mutation: {}", error))?;
+    child
+        .stdin
+        .as_mut()
+        .ok_or_else(|| "Journey mutation input is unavailable.".to_string())?
+        .write_all(request_json.as_bytes())
+        .map_err(|error| format!("Could not submit Journey mutation: {}", error))?;
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("Could not await Journey mutation: {}", error))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let code = stderr.lines().rev().find_map(|line| serde_json::from_str::<Value>(line).ok())
-            .and_then(|value| value.get("error").and_then(Value::as_str).map(str::to_string));
+        let code = stderr
+            .lines()
+            .rev()
+            .find_map(|line| serde_json::from_str::<Value>(line).ok())
+            .and_then(|value| {
+                value
+                    .get("error")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            });
         return Err(match code.as_deref() {
-            Some("stale_source") => "Journeys changed in Mirror. Reload the tree and try again.".to_string(),
+            Some("stale_source") => {
+                "Journeys changed in Mirror. Reload the tree and try again.".to_string()
+            }
             Some("unknown_journey") => "Journey no longer exists in Mirror.".to_string(),
             Some(value) if value.starts_with("journey_not_empty:") => {
-                let classes = value.trim_start_matches("journey_not_empty:").replace('_', " ");
-                format!("Journey cannot be deleted because protected records remain: {}.", classes)
+                let classes = value
+                    .trim_start_matches("journey_not_empty:")
+                    .replace('_', " ");
+                format!(
+                    "Journey cannot be deleted because protected records remain: {}.",
+                    classes
+                )
             }
-            Some("idempotency_conflict") => "Journey mutation retry no longer matches the original request.".to_string(),
-            Some("invalid_or_duplicate_slug") => "Journey slug is invalid or already exists.".to_string(),
+            Some("idempotency_conflict") => {
+                "Journey mutation retry no longer matches the original request.".to_string()
+            }
+            Some("invalid_or_duplicate_slug") => {
+                "Journey slug is invalid or already exists.".to_string()
+            }
             Some("invalid_name") => "Journey name is invalid.".to_string(),
             Some("invalid_description") => "Journey description is invalid.".to_string(),
             Some("unknown_parent") => "The selected parent Journey no longer exists.".to_string(),
-            Some("invalid_position") => "Journey position is invalid for the selected parent.".to_string(),
-            Some("malformed_order") => "Journey ordering metadata in Mirror is invalid.".to_string(),
+            Some("invalid_position") => {
+                "Journey position is invalid for the selected parent.".to_string()
+            }
+            Some("malformed_order") => {
+                "Journey ordering metadata in Mirror is invalid.".to_string()
+            }
             Some(value) => format!("Mirror rejected the Journey mutation: {value}."),
             None => {
-                let detail = stderr.trim().chars().rev().take(800).collect::<String>().chars().rev().collect::<String>();
+                let detail = stderr
+                    .trim()
+                    .chars()
+                    .rev()
+                    .take(800)
+                    .collect::<String>()
+                    .chars()
+                    .rev()
+                    .collect::<String>();
                 if detail.is_empty() {
                     "Mirror rejected the Journey mutation without diagnostic detail.".to_string()
                 } else {
@@ -729,15 +1112,25 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
             }
         });
     }
-    let payload = String::from_utf8(output.stdout).map_err(|_| "Journey mutation returned invalid text.".to_string())?;
-    let result: Value = serde_json::from_str(&payload).map_err(|_| "Journey mutation returned malformed JSON.".to_string())?;
-    let registry = result.get("registry").ok_or_else(|| "Journey mutation omitted the verified registry.".to_string())?;
-    let registry_payload = serde_json::to_string_pretty(registry).map_err(|error| error.to_string())?;
+    let payload = String::from_utf8(output.stdout)
+        .map_err(|_| "Journey mutation returned invalid text.".to_string())?;
+    let result: Value = serde_json::from_str(&payload)
+        .map_err(|_| "Journey mutation returned malformed JSON.".to_string())?;
+    let registry = result
+        .get("registry")
+        .ok_or_else(|| "Journey mutation omitted the verified registry.".to_string())?;
+    let registry_payload =
+        serde_json::to_string_pretty(registry).map_err(|error| error.to_string())?;
     let validated = validate_journey_registry_payload(&registry_payload)?;
     if !journey_registry_contains_id(&validated, &publication_journey_id) {
-        return Err("Mutated registry does not contain the selected Journey authority.".to_string());
+        return Err(
+            "Mutated registry does not contain the selected Journey authority.".to_string(),
+        );
     }
-    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
     publish_refreshed_journey_registry(&app_data_dir, &registry_payload)?;
     Ok(payload)
 }
@@ -782,17 +1175,21 @@ fn validate_composer_drafts_payload(payload: &str) -> Result<Value, String> {
     }
     let value: Value = serde_json::from_str(payload)
         .map_err(|_| "Composer draft storage is malformed.".to_string())?;
-    let object = value.as_object()
+    let object = value
+        .as_object()
         .filter(|object| object.len() == 3)
         .ok_or_else(|| "Composer draft storage has an invalid shape.".to_string())?;
     if object.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
-        || object.get("savedAt").and_then(Value::as_str).is_none_or(|saved_at| {
-            chrono::DateTime::parse_from_rfc3339(saved_at).is_err()
-        })
+        || object
+            .get("savedAt")
+            .and_then(Value::as_str)
+            .is_none_or(|saved_at| chrono::DateTime::parse_from_rfc3339(saved_at).is_err())
     {
         return Err("Composer draft storage has invalid metadata.".to_string());
     }
-    let drafts = object.get("drafts").and_then(Value::as_object)
+    let drafts = object
+        .get("drafts")
+        .and_then(Value::as_object)
         .filter(|drafts| drafts.len() <= COMPOSER_DRAFT_MAX_JOURNEYS)
         .ok_or_else(|| "Composer draft storage has invalid entries.".to_string())?;
     for (journey_id, text) in drafts {
@@ -832,7 +1229,8 @@ fn load_composer_drafts(app: AppHandle) -> Result<Option<String>, String> {
 fn save_composer_drafts(app: AppHandle, payload: String) -> Result<(), String> {
     validate_composer_drafts_payload(&payload)?;
     let path = composer_drafts_path(&app)?;
-    let parent = path.parent()
+    let parent = path
+        .parent()
         .ok_or_else(|| "Composer draft path has no parent.".to_string())?;
     fs::create_dir_all(parent)
         .map_err(|error| format!("Could not create Composer draft directory: {}", error))?;
@@ -872,7 +1270,10 @@ fn mirror_administrative_command(program: &str) -> Result<Command, String> {
 #[tauri::command]
 fn inspect_runtime_channel(app: AppHandle) -> Result<RuntimeChannelDiagnostic, String> {
     let profile = active_runtime_channel()?;
-    let app_data_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let app_data_root = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
     profile.validate_app_identity(&app.config().identifier, &app_data_root)?;
     Ok(profile.diagnostic(&app_data_root))
 }
@@ -937,13 +1338,7 @@ fn omitted_workspace_component(name: &str) -> bool {
     name.starts_with('.')
         || matches!(
             name,
-            "node_modules"
-                | "target"
-                | "dist"
-                | "build"
-                | "venv"
-                | "__pycache__"
-                | "coverage"
+            "node_modules" | "target" | "dist" | "build" | "venv" | "__pycache__" | "coverage"
         )
 }
 
@@ -957,7 +1352,11 @@ fn documentation_modified_at(metadata: &fs::Metadata) -> Option<u64> {
 }
 
 fn documentation_preview_kind(path: &Path) -> &'static str {
-    match path.extension().and_then(|value| value.to_str()).map(|value| value.to_ascii_lowercase()) {
+    match path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.to_ascii_lowercase())
+    {
         Some(extension) if extension == "md" || extension == "markdown" => "markdown",
         Some(extension) if extension == "txt" => "text",
         _ => "unavailable",
@@ -1026,8 +1425,17 @@ fn collect_documentation_nodes(
             relative_path: documentation_relative_path(root, &canonical)?,
             name,
             kind: if is_directory { "folder" } else { "file" }.to_string(),
-            preview_kind: if is_directory { "unavailable" } else { documentation_preview_kind(&canonical) }.to_string(),
-            size_bytes: if is_directory { None } else { Some(metadata.len()) },
+            preview_kind: if is_directory {
+                "unavailable"
+            } else {
+                documentation_preview_kind(&canonical)
+            }
+            .to_string(),
+            size_bytes: if is_directory {
+                None
+            } else {
+                Some(metadata.len())
+            },
             modified_at: documentation_modified_at(&metadata),
             children: if is_directory {
                 collect_documentation_nodes(root, &canonical, depth + 1, entry_count)?
@@ -1069,20 +1477,24 @@ fn validate_document_relative_path(relative_path: &str) -> Result<PathBuf, Strin
     }
     let portable = relative_path.replace('\\', "/");
     let bytes = portable.as_bytes();
-    let windows_prefixed = bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && bytes[2] == b'/';
+    let windows_prefixed =
+        bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/';
     if portable.starts_with('/')
         || windows_prefixed
-        || portable.split('/').any(|component| component.is_empty() || component == "." || component == "..")
+        || portable
+            .split('/')
+            .any(|component| component.is_empty() || component == "." || component == "..")
     {
         return Err("Artifact path is outside the visible Journey workspace.".to_string());
     }
     let path = PathBuf::from(relative_path);
     if path.is_absolute()
-        || path.components().any(|component| !matches!(component, std::path::Component::Normal(_)))
-        || path.components().any(|component| omitted_workspace_component(&component.as_os_str().to_string_lossy()))
+        || path
+            .components()
+            .any(|component| !matches!(component, std::path::Component::Normal(_)))
+        || path
+            .components()
+            .any(|component| omitted_workspace_component(&component.as_os_str().to_string_lossy()))
     {
         return Err("Artifact path is outside the visible Journey workspace.".to_string());
     }
@@ -1099,13 +1511,20 @@ fn unavailable_document_content(
         relative_path: relative_path.to_string(),
         preview_kind: "unavailable".to_string(),
         content: None,
-        size_bytes: if metadata.is_file() { Some(metadata.len()) } else { None },
+        size_bytes: if metadata.is_file() {
+            Some(metadata.len())
+        } else {
+            None
+        },
         modified_at: documentation_modified_at(metadata),
         reason: Some(reason.to_string()),
     }
 }
 
-fn read_journey_document_at(journey_root: &Path, relative_path: &str) -> Result<JourneyDocumentContent, String> {
+fn read_journey_document_at(
+    journey_root: &Path,
+    relative_path: &str,
+) -> Result<JourneyDocumentContent, String> {
     let workspace_root = bounded_documentation_root(journey_root)?;
     let safe_relative = validate_document_relative_path(relative_path)?;
     let candidate = workspace_root.join(&safe_relative);
@@ -1124,20 +1543,38 @@ fn read_journey_document_at(journey_root: &Path, relative_path: &str) -> Result<
         .metadata()
         .map_err(|_| "Could not inspect the selected Journey document.".to_string())?;
     if metadata.is_dir() {
-        return Ok(unavailable_document_content(relative_path, &metadata, "folder"));
+        return Ok(unavailable_document_content(
+            relative_path,
+            &metadata,
+            "folder",
+        ));
     }
     let preview_kind = documentation_preview_kind(&canonical);
     if preview_kind == "unavailable" {
-        return Ok(unavailable_document_content(relative_path, &metadata, "unsupported_type"));
+        return Ok(unavailable_document_content(
+            relative_path,
+            &metadata,
+            "unsupported_type",
+        ));
     }
     if metadata.len() > DOCUMENT_PREVIEW_MAX_BYTES {
-        return Ok(unavailable_document_content(relative_path, &metadata, "oversized"));
+        return Ok(unavailable_document_content(
+            relative_path,
+            &metadata,
+            "oversized",
+        ));
     }
     let bytes = fs::read(&canonical)
         .map_err(|_| "Could not read the selected Journey document.".to_string())?;
     let content = match String::from_utf8(bytes) {
         Ok(content) => content,
-        Err(_) => return Ok(unavailable_document_content(relative_path, &metadata, "invalid_utf8")),
+        Err(_) => {
+            return Ok(unavailable_document_content(
+                relative_path,
+                &metadata,
+                "invalid_utf8",
+            ))
+        }
     };
     Ok(JourneyDocumentContent {
         status: "ready".to_string(),
@@ -1191,17 +1628,35 @@ fn image_thumbnail(path: &Path, source_bytes: u64) -> Option<FileAttachmentThumb
     if source_bytes > FILE_ATTACHMENT_THUMBNAIL_SOURCE_MAX_BYTES {
         return None;
     }
-    let dimensions = ImageReader::open(path).ok()?.with_guessed_format().ok()?.into_dimensions().ok()?;
-    if u64::from(dimensions.0).saturating_mul(u64::from(dimensions.1)) > FILE_ATTACHMENT_THUMBNAIL_MAX_PIXELS {
+    let dimensions = ImageReader::open(path)
+        .ok()?
+        .with_guessed_format()
+        .ok()?
+        .into_dimensions()
+        .ok()?;
+    if u64::from(dimensions.0).saturating_mul(u64::from(dimensions.1))
+        > FILE_ATTACHMENT_THUMBNAIL_MAX_PIXELS
+    {
         return None;
     }
-    let image = ImageReader::open(path).ok()?.with_guessed_format().ok()?.decode().ok()?;
-    let thumbnail = image.thumbnail(FILE_ATTACHMENT_THUMBNAIL_EDGE, FILE_ATTACHMENT_THUMBNAIL_EDGE);
+    let image = ImageReader::open(path)
+        .ok()?
+        .with_guessed_format()
+        .ok()?
+        .decode()
+        .ok()?;
+    let thumbnail = image.thumbnail(
+        FILE_ATTACHMENT_THUMBNAIL_EDGE,
+        FILE_ATTACHMENT_THUMBNAIL_EDGE,
+    );
     let width = thumbnail.width();
     let height = thumbnail.height();
     let mut encoded = Cursor::new(Vec::new());
     thumbnail.write_to(&mut encoded, ImageFormat::Png).ok()?;
-    let data_url = format!("data:image/png;base64,{}", BASE64_STANDARD.encode(encoded.into_inner()));
+    let data_url = format!(
+        "data:image/png;base64,{}",
+        BASE64_STANDARD.encode(encoded.into_inner())
+    );
     Some(FileAttachmentThumbnailTransport {
         schema_version: "0.1.0".to_string(),
         media_type: "image/png".to_string(),
@@ -1211,20 +1666,30 @@ fn image_thumbnail(path: &Path, source_bytes: u64) -> Option<FileAttachmentThumb
     })
 }
 
-fn inspect_file_attachments_at(journey_id: &str, paths: &[PathBuf]) -> Result<FileAttachmentResponse, String> {
+fn inspect_file_attachments_at(
+    journey_id: &str,
+    paths: &[PathBuf],
+) -> Result<FileAttachmentResponse, String> {
     if journey_id.trim().is_empty() || journey_id.contains('\0') {
         return Err("Journey id is required for file attachment selection.".to_string());
     }
     if paths.len() > FILE_ATTACHMENT_MAX_FILES {
-        return Err(format!("Attach no more than {} files to one message.", FILE_ATTACHMENT_MAX_FILES));
+        return Err(format!(
+            "Attach no more than {} files to one message.",
+            FILE_ATTACHMENT_MAX_FILES
+        ));
     }
     let selected_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-    let mut canonical_paths = paths.iter().map(|path| {
-        if !path.is_absolute() {
-            return Err("Dropped file paths must be absolute.".to_string());
-        }
-        path.canonicalize().map_err(|_| "Could not resolve a selected file.".to_string())
-    }).collect::<Result<Vec<_>, _>>()?;
+    let mut canonical_paths = paths
+        .iter()
+        .map(|path| {
+            if !path.is_absolute() {
+                return Err("Dropped file paths must be absolute.".to_string());
+            }
+            path.canonicalize()
+                .map_err(|_| "Could not resolve a selected file.".to_string())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     canonical_paths.sort();
     canonical_paths.dedup();
     if canonical_paths.len() != paths.len() {
@@ -1233,7 +1698,9 @@ fn inspect_file_attachments_at(journey_id: &str, paths: &[PathBuf]) -> Result<Fi
 
     let mut attachments = Vec::with_capacity(canonical_paths.len());
     for canonical in canonical_paths {
-        let metadata = canonical.metadata().map_err(|_| "Could not inspect a selected file.".to_string())?;
+        let metadata = canonical
+            .metadata()
+            .map_err(|_| "Could not inspect a selected file.".to_string())?;
         if !metadata.is_file() {
             return Err("Only regular files can be attached.".to_string());
         }
@@ -1241,7 +1708,8 @@ fn inspect_file_attachments_at(journey_id: &str, paths: &[PathBuf]) -> Result<Fi
         if absolute_path.contains('\0') {
             return Err("Selected file path is invalid.".to_string());
         }
-        let display_name = canonical.file_name()
+        let display_name = canonical
+            .file_name()
             .map(|value| value.to_string_lossy().into_owned())
             .filter(|value| !value.is_empty())
             .ok_or_else(|| "Selected file has no display name.".to_string())?;
@@ -1269,7 +1737,10 @@ fn inspect_file_attachments_at(journey_id: &str, paths: &[PathBuf]) -> Result<Fi
 fn find_registered_journey_path(nodes: &[Value], journey_id: &str) -> Option<String> {
     for node in nodes {
         if node.get("id").and_then(Value::as_str) == Some(journey_id) {
-            return node.get("projectPath").and_then(Value::as_str).map(str::to_string);
+            return node
+                .get("projectPath")
+                .and_then(Value::as_str)
+                .map(str::to_string);
         }
         if let Some(children) = node.get("children").and_then(Value::as_array) {
             if let Some(path) = find_registered_journey_path(children, journey_id) {
@@ -1289,7 +1760,9 @@ fn registered_journey_root(app: &AppHandle, journey_id: &str) -> Result<PathBuf,
         .map_err(|_| "Could not read the local Journey registry.".to_string())?;
     let payload: Value = serde_json::from_str(&registry)
         .map_err(|_| "The local Journey registry is invalid.".to_string())?;
-    let roots = payload.get("roots").and_then(Value::as_array)
+    let roots = payload
+        .get("roots")
+        .and_then(Value::as_array)
         .ok_or_else(|| "The local Journey registry is invalid.".to_string())?;
     find_registered_journey_path(roots, journey_id)
         .filter(|path| !path.trim().is_empty())
@@ -1309,47 +1782,77 @@ struct JourneyProjectionBundleTransport {
     errors: Vec<String>,
 }
 
-fn projection_manifest_coordinates_at(journey_root: &Path, journey_id: &str) -> Result<HashSet<String>, String> {
+fn projection_manifest_coordinates_at(
+    journey_root: &Path,
+    journey_id: &str,
+) -> Result<HashSet<String>, String> {
     let canonical_root = bounded_documentation_root(journey_root)?;
-    let manifest = canonical_root.join(".mirror").join("projections").join("current.json");
+    let manifest = canonical_root
+        .join(".mirror")
+        .join("projections")
+        .join("current.json");
     if !manifest.exists() {
         return Ok(HashSet::new());
     }
-    for component in [canonical_root.join(".mirror"), canonical_root.join(".mirror").join("projections"), manifest.clone()] {
+    for component in [
+        canonical_root.join(".mirror"),
+        canonical_root.join(".mirror").join("projections"),
+        manifest.clone(),
+    ] {
         let metadata = fs::symlink_metadata(&component)
             .map_err(|_| "Could not inspect the Journey projection manifest.".to_string())?;
         if metadata.file_type().is_symlink() {
             return Err("Journey projection state cannot use symbolic links.".to_string());
         }
     }
-    let canonical_manifest = manifest.canonicalize()
+    let canonical_manifest = manifest
+        .canonicalize()
         .map_err(|_| "Could not resolve the Journey projection manifest.".to_string())?;
     if !canonical_manifest.starts_with(&canonical_root) {
         return Err("Journey projection manifest escaped the registered Journey.".to_string());
     }
-    let metadata = canonical_manifest.metadata()
+    let metadata = canonical_manifest
+        .metadata()
         .map_err(|_| "Could not inspect the Journey projection manifest.".to_string())?;
     if !metadata.is_file() || metadata.len() > PROJECTION_MANIFEST_MAX_BYTES {
         return Err("Journey projection manifest is unavailable or oversized.".to_string());
     }
-    let payload: Value = serde_json::from_slice(&fs::read(canonical_manifest)
-        .map_err(|_| "Could not read the Journey projection manifest.".to_string())?)
-        .map_err(|_| "Journey projection manifest is invalid.".to_string())?;
+    let payload: Value = serde_json::from_slice(
+        &fs::read(canonical_manifest)
+            .map_err(|_| "Could not read the Journey projection manifest.".to_string())?,
+    )
+    .map_err(|_| "Journey projection manifest is invalid.".to_string())?;
     if payload.get("journeyId").and_then(Value::as_str) != Some(journey_id) {
         return Err("Journey projection manifest belongs to another Journey.".to_string());
     }
-    let projections = payload.get("projections").and_then(Value::as_object)
+    let projections = payload
+        .get("projections")
+        .and_then(Value::as_object)
         .ok_or_else(|| "Journey projection manifest is invalid.".to_string())?;
     Ok(projections.keys().cloned().collect())
 }
 
-fn inspect_published_projection(journey_id: &str, namespace: &str, projection: &str) -> Result<Value, String> {
+fn inspect_published_projection(
+    journey_id: &str,
+    namespace: &str,
+    projection: &str,
+) -> Result<Value, String> {
     let profile = active_runtime_channel()?;
     let mut command = mirror_runtime_command("uv")?;
     let output = command
         .args([
-            "run", "python", "-m", "memory", "journey-projection", "inspect",
-            "--journey", journey_id, "--namespace", namespace, "--projection", projection,
+            "run",
+            "python",
+            "-m",
+            "memory",
+            "journey-projection",
+            "inspect",
+            "--journey",
+            journey_id,
+            "--namespace",
+            namespace,
+            "--projection",
+            projection,
             "--mirror-home",
         ])
         .arg(&profile.mirror_home)
@@ -1357,20 +1860,41 @@ fn inspect_published_projection(journey_id: &str, namespace: &str, projection: &
         .output()
         .map_err(|_| format!("Could not inspect the {} Journey projection.", projection))?;
     if !output.status.success() {
-        return Err(format!("The {} Journey projection is unavailable or divergent.", projection));
+        return Err(format!(
+            "The {} Journey projection is unavailable or divergent.",
+            projection
+        ));
     }
-    let value: Value = serde_json::from_slice(&output.stdout)
-        .map_err(|_| format!("The {} Journey projection returned invalid data.", projection))?;
+    let value: Value = serde_json::from_slice(&output.stdout).map_err(|_| {
+        format!(
+            "The {} Journey projection returned invalid data.",
+            projection
+        )
+    })?;
     if value.get("status").and_then(Value::as_str) != Some("ok") {
-        return Err(format!("The {} Journey projection is unavailable or divergent.", projection));
+        return Err(format!(
+            "The {} Journey projection is unavailable or divergent.",
+            projection
+        ));
     }
     Ok(value)
 }
 
-fn load_journey_projections_at(journey_root: &Path, journey_id: &str) -> JourneyProjectionBundleTransport {
+fn load_journey_projections_at(
+    journey_root: &Path,
+    journey_id: &str,
+) -> JourneyProjectionBundleTransport {
     let coordinates = match projection_manifest_coordinates_at(journey_root, journey_id) {
         Ok(value) => value,
-        Err(error) => return JourneyProjectionBundleTransport { journey_id: journey_id.to_string(), operational: None, tactical: None, strategic: None, errors: vec![error] },
+        Err(error) => {
+            return JourneyProjectionBundleTransport {
+                journey_id: journey_id.to_string(),
+                operational: None,
+                tactical: None,
+                strategic: None,
+                errors: vec![error],
+            }
+        }
     };
     let mut errors = Vec::new();
     let mut load = |key: &str, namespace: &str, projection: &str| -> Option<Value> {
@@ -1379,36 +1903,65 @@ fn load_journey_projections_at(journey_root: &Path, journey_id: &str) -> Journey
         }
         match inspect_published_projection(journey_id, namespace, projection) {
             Ok(value) => Some(value),
-            Err(error) => { errors.push(error); None }
+            Err(error) => {
+                errors.push(error);
+                None
+            }
         }
     };
     let operational = load("ariad:operational", "ariad", "operational");
-    let tactical = load("nautilus-synthesis:tactical", "nautilus-synthesis", "tactical");
-    let strategic = load("nautilus-synthesis:strategic", "nautilus-synthesis", "strategic");
+    let tactical = load(
+        "nautilus-synthesis:tactical",
+        "nautilus-synthesis",
+        "tactical",
+    );
+    let strategic = load(
+        "nautilus-synthesis:strategic",
+        "nautilus-synthesis",
+        "strategic",
+    );
     drop(load);
     if operational.is_none() && !coordinates.contains("ariad:operational") {
         errors.push("The current Operational Journey projection is unavailable.".to_string());
     }
-    JourneyProjectionBundleTransport { journey_id: journey_id.to_string(), operational, tactical, strategic, errors }
+    JourneyProjectionBundleTransport {
+        journey_id: journey_id.to_string(),
+        operational,
+        tactical,
+        strategic,
+        errors,
+    }
 }
 
 #[tauri::command]
-async fn load_journey_projections(app: AppHandle, journey_id: String) -> Result<JourneyProjectionBundleTransport, String> {
+async fn load_journey_projections(
+    app: AppHandle,
+    journey_id: String,
+) -> Result<JourneyProjectionBundleTransport, String> {
     sanitize_journey_id(&journey_id)?;
     let journey_root = registered_journey_root(&app, &journey_id)?;
-    tauri::async_runtime::spawn_blocking(move || load_journey_projections_at(&journey_root, &journey_id))
-        .await
-        .map_err(|error| format!("Could not inspect Journey projections: {}", error))
+    tauri::async_runtime::spawn_blocking(move || {
+        load_journey_projections_at(&journey_root, &journey_id)
+    })
+    .await
+    .map_err(|error| format!("Could not inspect Journey projections: {}", error))
 }
 
 #[tauri::command]
-fn list_journey_documentation(app: AppHandle, journey_id: String) -> Result<JourneyDocumentationTree, String> {
+fn list_journey_documentation(
+    app: AppHandle,
+    journey_id: String,
+) -> Result<JourneyDocumentationTree, String> {
     let journey_root = registered_journey_root(&app, &journey_id)?;
     list_journey_documentation_at(&journey_root)
 }
 
 #[tauri::command]
-fn read_journey_document(app: AppHandle, journey_id: String, relative_path: String) -> Result<JourneyDocumentContent, String> {
+fn read_journey_document(
+    app: AppHandle,
+    journey_id: String,
+    relative_path: String,
+) -> Result<JourneyDocumentContent, String> {
     let journey_root = registered_journey_root(&app, &journey_id)?;
     read_journey_document_at(&journey_root, &relative_path)
 }
@@ -1423,8 +1976,14 @@ fn choose_file_attachments(journey_id: String) -> Result<FileAttachmentResponse,
 }
 
 #[tauri::command]
-fn inspect_file_attachments(journey_id: String, paths: Vec<String>) -> Result<FileAttachmentResponse, String> {
-    inspect_file_attachments_at(&journey_id, &paths.into_iter().map(PathBuf::from).collect::<Vec<_>>())
+fn inspect_file_attachments(
+    journey_id: String,
+    paths: Vec<String>,
+) -> Result<FileAttachmentResponse, String> {
+    inspect_file_attachments_at(
+        &journey_id,
+        &paths.into_iter().map(PathBuf::from).collect::<Vec<_>>(),
+    )
 }
 
 fn resolve_existing_local_file(path: &str, base_path: Option<&str>) -> Result<PathBuf, String> {
@@ -1441,10 +2000,11 @@ fn resolve_existing_local_file(path: &str, base_path: Option<&str>) -> Result<Pa
         requested_path
     } else {
         let base_root = match base_path.filter(|value| !value.trim().is_empty()) {
-            Some(value) => PathBuf::from(value)
+            Some(value) => PathBuf::from(value).canonicalize().map_err(|error| {
+                format!("Could not resolve local reference base path: {}", error)
+            })?,
+            None => harness_root()?
                 .canonicalize()
-                .map_err(|error| format!("Could not resolve local reference base path: {}", error))?,
-            None => harness_root()?.canonicalize()
                 .map_err(|error| format!("Could not resolve Harness root: {}", error))?,
         };
         base_root.join(requested_path)
@@ -1461,11 +2021,15 @@ fn resolve_existing_local_file(path: &str, base_path: Option<&str>) -> Result<Pa
 }
 
 #[tauri::command]
-fn inspect_local_references(paths: Vec<String>, base_path: Option<String>) -> Result<Vec<String>, String> {
+fn inspect_local_references(
+    paths: Vec<String>,
+    base_path: Option<String>,
+) -> Result<Vec<String>, String> {
     if paths.len() > 64 || paths.iter().any(|path| path.len() > 4096) {
         return Err("Local reference inspection exceeds its bounded input.".to_string());
     }
-    Ok(paths.into_iter()
+    Ok(paths
+        .into_iter()
         .filter(|path| resolve_existing_local_file(path, base_path.as_deref()).is_ok())
         .collect())
 }
@@ -1476,8 +2040,8 @@ fn open_local_reference(path: String, base_path: Option<String>) -> Result<(), S
 }
 
 fn validate_external_url(value: &str) -> Result<url::Url, String> {
-    let parsed = url::Url::parse(value.trim())
-        .map_err(|_| "Unsupported external URL.".to_string())?;
+    let parsed =
+        url::Url::parse(value.trim()).map_err(|_| "Unsupported external URL.".to_string())?;
     if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
         return Err("Unsupported external URL.".to_string());
     }
@@ -1490,16 +2054,28 @@ fn open_external_url(url: String) -> Result<(), String> {
     open_url(validated.as_str())
 }
 
+fn event_authority(value: &RunAuthority) -> PiProcessEventAuthority {
+    PiProcessEventAuthority {
+        schema_version: "0.1.0".to_string(),
+        journey_id: value.journey_id.clone(),
+        run_id: value.run_id.clone(),
+        turn_id: value.turn_id.clone(),
+        thread_id: value.thread_id.clone(),
+        generation: value.generation,
+        pi_session_id: value.pi_session_id.clone(),
+        mirror_conversation_id: value.mirror_conversation_id.clone(),
+        harness_user_message_id: value.harness_user_message_id.clone(),
+        harness_assistant_message_id: value.harness_assistant_message_id.clone(),
+    }
+}
+
 #[tauri::command]
 fn start_pi_invocation(
     app: AppHandle,
     state: State<'_, PiProcessState>,
     prompt: String,
     config: ProviderConfig,
-    journey_id: String,
-    session_id: String,
-    session_file: Option<String>,
-    correlation: Option<TurnCorrelation>,
+    run_authority: RunAuthority,
 ) -> Result<(), String> {
     if prompt.trim().is_empty() {
         return Err("Pi invocation requires a non-empty prompt packet.".to_string());
@@ -1510,10 +2086,8 @@ fn start_pi_invocation(
     if config.command.contains("..") {
         return Err("Provider command must not contain parent-directory traversal.".to_string());
     }
-    if let Some(value) = correlation.as_ref() {
-        validate_turn_correlation(value, &journey_id, &session_id)?;
-        validate_persisted_turn_authority(&app, value, session_file.as_deref())?;
-    }
+    validate_run_authority(&app, &run_authority)?;
+    let authority = event_authority(&run_authority);
     if state
         .child
         .lock()
@@ -1526,9 +2100,15 @@ fn start_pi_invocation(
     if let Ok(mut cancelling) = state.cancelling.lock() {
         *cancelling = false;
     }
+    if let Ok(mut authority_slot) = state.authority.lock() {
+        *authority_slot = Some(authority.clone());
+    } else {
+        return Err("Could not store active run authority.".to_string());
+    }
 
     let child_state = state.child.clone();
     let cancelling_state = state.cancelling.clone();
+    let authority_state = state.authority.clone();
     thread::spawn(move || {
         run_pi_process(
             app,
@@ -1536,10 +2116,9 @@ fn start_pi_invocation(
             cancelling_state,
             prompt,
             config,
-            journey_id,
-            session_id,
-            session_file,
-            correlation,
+            run_authority,
+            authority,
+            authority_state,
         )
     });
 
@@ -1554,7 +2133,9 @@ async fn read_pi_session_context_stats(
     let safe_journey_id = sanitize_journey_id(&journey_id)?;
     let safe_session_id = sanitize_session_id(&session_id)?;
     if !safe_session_id.starts_with(&format!("nautilus-{}", safe_journey_id)) {
-        return Err("Pi session id does not belong to the selected Journey conversation.".to_string());
+        return Err(
+            "Pi session id does not belong to the selected Journey conversation.".to_string(),
+        );
     }
 
     tauri::async_runtime::spawn_blocking(move || {
@@ -1572,13 +2153,21 @@ fn load_dedicated_pi_transcript(
     session_file: String,
 ) -> Result<Vec<DedicatedPiTranscriptTurn>, String> {
     validate_pi_session_file(&app, &session_file, &session_id)?;
-    let stored_thread: Value = serde_json::from_str(&fs::read_to_string(journey_thread_path(&app, &journey_id)?)
-        .map_err(|error| format!("Could not read dedicated thread: {}", error))?)
-        .map_err(|error| format!("Could not parse dedicated thread: {}", error))?;
+    let stored_thread: Value = serde_json::from_str(
+        &fs::read_to_string(journey_thread_path(&app, &journey_id)?)
+            .map_err(|error| format!("Could not read dedicated thread: {}", error))?,
+    )
+    .map_err(|error| format!("Could not parse dedicated thread: {}", error))?;
     let thread = unwrap_persisted_thread(&stored_thread);
     let active = thread.get("activeGeneration").and_then(Value::as_u64);
-    let generation = thread.get("generations").and_then(Value::as_array)
-        .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active))
+    let generation = thread
+        .get("generations")
+        .and_then(Value::as_array)
+        .and_then(|items| {
+            items
+                .iter()
+                .find(|item| item.get("generation").and_then(Value::as_u64) == active)
+        })
         .ok_or_else(|| "Dedicated active generation is missing.".to_string())?;
     if thread.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
         || generation.get("status").and_then(Value::as_str) != Some("ready")
@@ -1587,35 +2176,66 @@ fn load_dedicated_pi_transcript(
     {
         return Err("Dedicated transcript authority mismatch.".to_string());
     }
-    project_complete_pi_transcript(&fs::read_to_string(session_file).map_err(|error| error.to_string())?)
+    project_complete_pi_transcript(
+        &fs::read_to_string(session_file).map_err(|error| error.to_string())?,
+    )
 }
 
 fn project_complete_pi_transcript(content: &str) -> Result<Vec<DedicatedPiTranscriptTurn>, String> {
     let mut entries = Vec::new();
     for line in content.lines() {
-        let value: Value = serde_json::from_str(line).map_err(|_| "Dedicated Pi session JSONL is invalid.".to_string())?;
-        if value.get("type").and_then(Value::as_str) == Some("session") { continue; }
-        let Some(id) = value.get("id").and_then(Value::as_str) else { continue };
+        let value: Value = serde_json::from_str(line)
+            .map_err(|_| "Dedicated Pi session JSONL is invalid.".to_string())?;
+        if value.get("type").and_then(Value::as_str) == Some("session") {
+            continue;
+        }
+        let Some(id) = value.get("id").and_then(Value::as_str) else {
+            continue;
+        };
         let message = value.get("message");
         entries.push(PiBranchEntry {
             id: id.to_string(),
-            parent_id: value.get("parentId").and_then(Value::as_str).map(str::to_string),
-            role: message.and_then(|item| item.get("role")).and_then(Value::as_str).map(str::to_string),
+            parent_id: value
+                .get("parentId")
+                .and_then(Value::as_str)
+                .map(str::to_string),
+            role: message
+                .and_then(|item| item.get("role"))
+                .and_then(Value::as_str)
+                .map(str::to_string),
             text: message.map(extract_pi_visible_text).unwrap_or_default(),
-            stop_reason: message.and_then(|item| item.get("stopReason")).and_then(Value::as_str).map(str::to_string),
-            timestamp: value.get("timestamp").and_then(Value::as_str).unwrap_or("").to_string(),
+            stop_reason: message
+                .and_then(|item| item.get("stopReason"))
+                .and_then(Value::as_str)
+                .map(str::to_string),
+            timestamp: value
+                .get("timestamp")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string(),
         });
     }
-    if entries.is_empty() { return Ok(Vec::new()); }
-    let by_id = entries.iter().enumerate().map(|(index, entry)| (entry.id.as_str(), index))
+    if entries.is_empty() {
+        return Ok(Vec::new());
+    }
+    let by_id = entries
+        .iter()
+        .enumerate()
+        .map(|(index, entry)| (entry.id.as_str(), index))
         .collect::<std::collections::HashMap<_, _>>();
     let mut branch = Vec::new();
     let mut cursor = entries.last();
     let mut seen = std::collections::HashSet::new();
     while let Some(entry) = cursor {
-        if !seen.insert(entry.id.as_str()) { return Err("Dedicated Pi ancestry contains a cycle.".to_string()); }
+        if !seen.insert(entry.id.as_str()) {
+            return Err("Dedicated Pi ancestry contains a cycle.".to_string());
+        }
         branch.push(entry.clone());
-        cursor = entry.parent_id.as_deref().and_then(|parent| by_id.get(parent)).map(|index| &entries[*index]);
+        cursor = entry
+            .parent_id
+            .as_deref()
+            .and_then(|parent| by_id.get(parent))
+            .map(|index| &entries[*index]);
     }
     branch.reverse();
     let mut turns = Vec::new();
@@ -1628,7 +2248,9 @@ fn project_complete_pi_transcript(content: &str) -> Result<Vec<DedicatedPiTransc
                 assistant_texts.clear();
             }
             Some("assistant") if pending_user.is_some() => {
-                if !entry.text.trim().is_empty() { assistant_texts.push(entry.text.trim().to_string()); }
+                if !entry.text.trim().is_empty() {
+                    assistant_texts.push(entry.text.trim().to_string());
+                }
                 if matches!(entry.stop_reason.as_deref(), Some("stop" | "length")) {
                     let user = pending_user.take().unwrap();
                     let assistant_text = assistant_texts.join("\n\n");
@@ -1666,9 +2288,16 @@ fn project_dedicated_user_text(value: &str) -> String {
     value.trim().to_string()
 }
 
-fn validate_pi_session_file(app: &AppHandle, session_file: &str, pi_session_id: &str) -> Result<(), String> {
-    let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
-    let app_data_root = app.path().app_data_dir()
+fn validate_pi_session_file(
+    app: &AppHandle,
+    session_file: &str,
+    pi_session_id: &str,
+) -> Result<(), String> {
+    let home =
+        PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
+    let app_data_root = app
+        .path()
+        .app_data_dir()
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     validate_pi_session_file_at(
         session_file,
@@ -1688,14 +2317,21 @@ fn validate_pi_session_file_at(
     if !path.is_absolute() || path.extension().and_then(|value| value.to_str()) != Some("jsonl") {
         return Err("Mirror reconciliation requires an exact Pi JSONL session file.".to_string());
     }
-    let canonical = path.canonicalize()
+    let canonical = path
+        .canonicalize()
         .map_err(|_| "Mirror reconciliation Pi session file is unavailable.".to_string())?;
     let global_root = global_sessions_root.canonicalize().ok();
     let dedicated_root = app_data_root.join("pi-sessions").canonicalize().ok();
-    let allowed = global_root.as_ref().is_some_and(|root| canonical.starts_with(root))
-        || dedicated_root.as_ref().is_some_and(|root| canonical.starts_with(root));
+    let allowed = global_root
+        .as_ref()
+        .is_some_and(|root| canonical.starts_with(root))
+        || dedicated_root
+            .as_ref()
+            .is_some_and(|root| canonical.starts_with(root));
     if !allowed {
-        return Err("Mirror reconciliation session is outside the allowed Pi sessions roots.".to_string());
+        return Err(
+            "Mirror reconciliation session is outside the allowed Pi sessions roots.".to_string(),
+        );
     }
     validate_pi_session_header(&canonical, pi_session_id)
 }
@@ -1716,7 +2352,8 @@ fn validate_pi_session_header(path: &Path, pi_session_id: &str) -> Result<(), St
 fn extract_pi_visible_text(message: &Value) -> String {
     match message.get("content") {
         Some(Value::String(text)) => text.clone(),
-        Some(Value::Array(blocks)) => blocks.iter()
+        Some(Value::Array(blocks)) => blocks
+            .iter()
             .filter(|block| block.get("type").and_then(Value::as_str) == Some("text"))
             .filter_map(|block| block.get("text").and_then(Value::as_str))
             .collect::<Vec<_>>()
@@ -1738,11 +2375,18 @@ fn cancel_pi_invocation(app: AppHandle, state: State<'_, PiProcessState>) -> Res
     if let Ok(mut cancelling) = state.cancelling.lock() {
         *cancelling = true;
     }
+    let authority = state
+        .authority
+        .lock()
+        .map_err(|_| "Could not inspect active run authority.".to_string())?
+        .clone()
+        .ok_or_else(|| "Active run authority is missing.".to_string())?;
     child
         .kill()
         .map_err(|error| format!("Could not cancel local Pi invocation: {}", error))?;
     emit(
         &app,
+        &authority,
         PiProcessEventKind::Cancelled,
         "Pi invocation cancelled.".to_string(),
     );
@@ -1922,12 +2566,23 @@ fn write_mirror_append_outbox(path: &Path, mut value: Value) -> Result<(), Strin
 
 fn enqueue_mirror_append_item_at(path: &Path, item: Value) -> Result<(), String> {
     let mut outbox = read_mirror_append_outbox(path)?;
-    let items = outbox.get_mut("items").and_then(Value::as_array_mut)
+    let items = outbox
+        .get_mut("items")
+        .and_then(Value::as_array_mut)
         .ok_or_else(|| "mirror_append_outbox_invalid".to_string())?;
-    if let Some(existing) = items.iter().find(|candidate| candidate.get("itemId") == item.get("itemId")) {
-        return if existing == &item { Ok(()) } else { Err("mirror_append_item_conflict".to_string()) };
+    if let Some(existing) = items
+        .iter()
+        .find(|candidate| candidate.get("itemId") == item.get("itemId"))
+    {
+        return if existing == &item {
+            Ok(())
+        } else {
+            Err("mirror_append_item_conflict".to_string())
+        };
     }
-    if items.len() >= MIRROR_APPEND_MAX_ITEMS { return Err("mirror_append_outbox_full".to_string()); }
+    if items.len() >= MIRROR_APPEND_MAX_ITEMS {
+        return Err("mirror_append_outbox_full".to_string());
+    }
     items.push(item);
     write_mirror_append_outbox(path, outbox)
 }
@@ -2056,18 +2711,33 @@ fn validate_outbox_generation_authority(app: &AppHandle, item: &Value) -> Result
 
 fn validate_outbox_acknowledgement(app: &AppHandle, item: &Value) -> Result<(), String> {
     validate_outbox_generation_authority(app, item)?;
-    let journey_id = item.get("journeyId").and_then(Value::as_str)
+    let journey_id = item
+        .get("journeyId")
+        .and_then(Value::as_str)
         .ok_or_else(|| "mirror_append_item_invalid".to_string())?;
-    let generation = item.get("generation").and_then(Value::as_u64)
+    let generation = item
+        .get("generation")
+        .and_then(Value::as_u64)
         .ok_or_else(|| "mirror_append_item_invalid".to_string())?;
     let projection: Value = serde_json::from_str(
-        &fs::read_to_string(dedicated_journey_conversation_path(app, journey_id, generation)?)
-            .map_err(|_| "mirror_append_authority_missing".to_string())?,
-    ).map_err(|_| "mirror_append_authority_invalid".to_string())?;
-    let turn = projection.pointer("/conversation/reconciliation/turns").and_then(Value::as_array)
-        .and_then(|turns| turns.iter().find(|turn| turn.get("turnId") == item.get("itemId")))
+        &fs::read_to_string(dedicated_journey_conversation_path(
+            app, journey_id, generation,
+        )?)
+        .map_err(|_| "mirror_append_authority_missing".to_string())?,
+    )
+    .map_err(|_| "mirror_append_authority_invalid".to_string())?;
+    let turn = projection
+        .pointer("/conversation/reconciliation/turns")
+        .and_then(Value::as_array)
+        .and_then(|turns| {
+            turns
+                .iter()
+                .find(|turn| turn.get("turnId") == item.get("itemId"))
+        })
         .ok_or_else(|| "mirror_append_authority_missing".to_string())?;
-    let expected = item.get("messages").and_then(Value::as_array)
+    let expected = item
+        .get("messages")
+        .and_then(Value::as_array)
         .ok_or_else(|| "mirror_append_item_invalid".to_string())?;
     if turn.pointer("/mirror/state").and_then(Value::as_str) != Some("committed")
         || turn.pointer("/mirror/userMessageId") != expected[0].get("id")
@@ -2139,8 +2809,14 @@ fn run_explicit_mirror_append(item: &Value) -> Result<Value, String> {
         .and_then(Value::as_array)
         .filter(|values| values.len() == 2)
         .ok_or_else(|| "mirror_append_invalid_receipt".to_string())?;
-    let inserted_count = messages.iter().filter(|message| message.get("state").and_then(Value::as_str) == Some("inserted")).count() as u64;
-    let existing_count = messages.iter().filter(|message| message.get("state").and_then(Value::as_str) == Some("existing")).count() as u64;
+    let inserted_count = messages
+        .iter()
+        .filter(|message| message.get("state").and_then(Value::as_str) == Some("inserted"))
+        .count() as u64;
+    let existing_count = messages
+        .iter()
+        .filter(|message| message.get("state").and_then(Value::as_str) == Some("existing"))
+        .count() as u64;
     if receipt.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
         || receipt.get("status").and_then(Value::as_str) != Some("accepted")
         || receipt.get("insertedCount").and_then(Value::as_u64) != Some(inserted_count)
@@ -2210,10 +2886,14 @@ fn acknowledge_mirror_append_item(
         .get_mut("items")
         .and_then(Value::as_array_mut)
         .ok_or_else(|| "mirror_append_outbox_invalid".to_string())?;
-    let item = items.iter().find(|item| {
-        item.get("itemId").and_then(Value::as_str) == Some(item_id.as_str())
-            && item.get("conversationId").and_then(Value::as_str) == Some(conversation_id.as_str())
-    }).ok_or_else(|| "mirror_append_item_missing".to_string())?;
+    let item = items
+        .iter()
+        .find(|item| {
+            item.get("itemId").and_then(Value::as_str) == Some(item_id.as_str())
+                && item.get("conversationId").and_then(Value::as_str)
+                    == Some(conversation_id.as_str())
+        })
+        .ok_or_else(|| "mirror_append_item_missing".to_string())?;
     validate_outbox_acknowledgement(&app, item)?;
     items.retain(|item| {
         !(item.get("itemId").and_then(Value::as_str) == Some(item_id.as_str())
@@ -2230,7 +2910,11 @@ fn mirror_runtime_skill_paths() -> Result<Vec<PathBuf>, String> {
         .join("skills")
         .canonicalize()
         .map_err(|_| "Mirror core skills are unavailable.".to_string())?;
-    let runtime_root = profile.mirror_home.join("runtime").join("skills").join("pi");
+    let runtime_root = profile
+        .mirror_home
+        .join("runtime")
+        .join("skills")
+        .join("pi");
     let catalog_path = runtime_root.join("extensions.json");
     let mut paths = vec![core];
     if !catalog_path.exists() {
@@ -2284,10 +2968,9 @@ fn run_pi_process(
     cancelling_state: Arc<Mutex<bool>>,
     prompt: String,
     config: ProviderConfig,
-    journey_id: String,
-    session_id: String,
-    session_file: Option<String>,
-    correlation: Option<TurnCorrelation>,
+    run_authority: RunAuthority,
+    authority: PiProcessEventAuthority,
+    authority_state: Arc<Mutex<Option<PiProcessEventAuthority>>>,
 ) {
     let mirror_mediated = config.invocation_mode == "mirror" && !config.safe_test_mode;
     let command = if config.safe_test_mode {
@@ -2303,27 +2986,33 @@ fn run_pi_process(
     if mirror_mediated {
         args = mirror_json_event_args(args);
     }
-    if mirror_mediated && !args.iter().any(|arg| arg == "--session-id" || arg == "--session") {
-        if let Some(file) = session_file.as_ref() {
-            args.push("--session".to_string());
-            args.push(file.clone());
-        } else {
-            args.push("--session-id".to_string());
-            args.push(session_id.clone());
-        }
+    if mirror_mediated
+        && !args
+            .iter()
+            .any(|arg| arg == "--session-id" || arg == "--session")
+    {
+        args.push("--session".to_string());
+        args.push(run_authority.pi_session_file.clone());
     }
     if mirror_mediated {
         args.retain(|arg| arg != "--approve" && arg != "--no-approve");
         args.push("--approve".to_string());
         args.push("--no-extensions".to_string());
         match mirror_runtime_skill_paths() {
-            Ok(paths) => for path in paths {
-                args.push("--skill".to_string());
-                args.push(path.to_string_lossy().into_owned());
-            },
+            Ok(paths) => {
+                for path in paths {
+                    args.push("--skill".to_string());
+                    args.push(path.to_string_lossy().into_owned());
+                }
+            }
             Err(error) => {
-                emit(&app, PiProcessEventKind::Error, error);
-                emit(&app, PiProcessEventKind::Done, "Pi invocation finished.".to_string());
+                emit(&app, &authority, PiProcessEventKind::Error, error);
+                emit(
+                    &app,
+                    &authority,
+                    PiProcessEventKind::Done,
+                    "Pi invocation finished.".to_string(),
+                );
                 return;
             }
         }
@@ -2337,10 +3026,11 @@ fn run_pi_process(
     if mirror_mediated {
         emit(
             &app,
+            &authority,
             PiProcessEventKind::Started,
             format!(
                 "Starting Mirror runtime Pi command for Journey {}: {} {}",
-                journey_id,
+                run_authority.journey_id,
                 command,
                 args_for_display(&args)
             ),
@@ -2348,6 +3038,7 @@ fn run_pi_process(
     } else {
         emit(
             &app,
+            &authority,
             PiProcessEventKind::Started,
             format!(
                 "Starting raw local Pi command: {} {}",
@@ -2363,22 +3054,35 @@ fn run_pi_process(
         let profile = match active_runtime_channel() {
             Ok(profile) => profile,
             Err(error) => {
-                emit(&app, PiProcessEventKind::Error, error);
-                emit(&app, PiProcessEventKind::Done, "Pi invocation finished.".to_string());
+                emit(&app, &authority, PiProcessEventKind::Error, error);
+                emit(
+                    &app,
+                    &authority,
+                    PiProcessEventKind::Done,
+                    "Pi invocation finished.".to_string(),
+                );
                 return;
             }
         };
         profile.apply_to_command(&mut process_command);
-        if let Some(value) = correlation.as_ref() {
-            match serde_json::to_string(value) {
-                Ok(payload) => {
-                    process_command.env("NAUTILUS_TURN_CORRELATION_V1", payload);
-                }
-                Err(error) => {
-                    emit(&app, PiProcessEventKind::Error, format!("Could not serialize turn correlation: {}", error));
-                    emit(&app, PiProcessEventKind::Done, "Pi invocation finished.".to_string());
-                    return;
-                }
+        match serde_json::to_string(&run_authority.correlation) {
+            Ok(payload) => {
+                process_command.env("NAUTILUS_TURN_CORRELATION_V1", payload);
+            }
+            Err(error) => {
+                emit(
+                    &app,
+                    &authority,
+                    PiProcessEventKind::Error,
+                    format!("Could not serialize turn correlation: {}", error),
+                );
+                emit(
+                    &app,
+                    &authority,
+                    PiProcessEventKind::Done,
+                    "Pi invocation finished.".to_string(),
+                );
+                return;
             }
         }
     }
@@ -2397,11 +3101,13 @@ fn run_pi_process(
         Err(error) => {
             emit(
                 &app,
+                &authority,
                 PiProcessEventKind::Error,
                 format!("Could not start local Pi command '{}': {}", command, error),
             );
             emit(
                 &app,
+                &authority,
                 PiProcessEventKind::Done,
                 "Pi invocation finished.".to_string(),
             );
@@ -2414,6 +3120,7 @@ fn run_pi_process(
             if let Err(error) = stdin.write_all(prompt.as_bytes()) {
                 emit(
                     &app,
+                    &authority,
                     PiProcessEventKind::Error,
                     format!("Could not write prompt packet to Pi stdin: {}", error),
                 );
@@ -2423,14 +3130,21 @@ fn run_pi_process(
 
     let stdout_handle = child.stdout.take().map(|stdout| {
         let app = app.clone();
+        let authority = authority.clone();
         thread::spawn(move || {
             for line in BufReader::new(stdout).lines() {
                 match line {
                     Ok(line) => {
-                        emit(&app, PiProcessEventKind::Stdout, format!("{}\n", line));
+                        emit(
+                            &app,
+                            &authority,
+                            PiProcessEventKind::Stdout,
+                            format!("{}\n", line),
+                        );
                     }
                     Err(error) => emit(
                         &app,
+                        &authority,
                         PiProcessEventKind::Error,
                         format!("Could not read Pi stdout: {}", error),
                     ),
@@ -2441,12 +3155,14 @@ fn run_pi_process(
 
     let stderr_handle = child.stderr.take().map(|stderr| {
         let app = app.clone();
+        let authority = authority.clone();
         thread::spawn(move || {
             for line in BufReader::new(stderr).lines() {
                 match line {
-                    Ok(line) => emit(&app, PiProcessEventKind::Stderr, line),
+                    Ok(line) => emit(&app, &authority, PiProcessEventKind::Stderr, line),
                     Err(error) => emit(
                         &app,
+                        &authority,
                         PiProcessEventKind::Error,
                         format!("Could not read Pi stderr: {}", error),
                     ),
@@ -2460,11 +3176,13 @@ fn run_pi_process(
     } else {
         emit(
             &app,
+            &authority,
             PiProcessEventKind::Error,
             "Could not track local Pi process.".to_string(),
         );
         emit(
             &app,
+            &authority,
             PiProcessEventKind::Done,
             "Pi invocation finished.".to_string(),
         );
@@ -2478,6 +3196,7 @@ fn run_pi_process(
                 Err(_) => {
                     emit(
                         &app,
+                        &authority,
                         PiProcessEventKind::Error,
                         "Could not inspect local Pi process.".to_string(),
                     );
@@ -2499,6 +3218,7 @@ fn run_pi_process(
                 if !status.success() && !was_cancelled {
                     emit(
                         &app,
+                        &authority,
                         PiProcessEventKind::Error,
                         format!("Pi command exited with status {}", status),
                     );
@@ -2509,6 +3229,7 @@ fn run_pi_process(
             Err(error) => {
                 emit(
                     &app,
+                    &authority,
                     PiProcessEventKind::Error,
                     format!("Could not wait for Pi command: {}", error),
                 );
@@ -2523,6 +3244,9 @@ fn run_pi_process(
     if let Ok(mut cancelling) = cancelling_state.lock() {
         *cancelling = false;
     }
+    if let Ok(mut authority_slot) = authority_state.lock() {
+        *authority_slot = None;
+    }
 
     if let Some(handle) = stdout_handle {
         let _ = handle.join();
@@ -2532,24 +3256,27 @@ fn run_pi_process(
     }
 
     if mirror_mediated {
-        if let Some(value) = correlation.as_ref() {
-            match read_latest_pi_mirror_commit_events(&session_id, value) {
-                Ok(events) => {
-                    for event in events {
-                        emit(&app, PiProcessEventKind::Stdout, event);
-                    }
+        match read_latest_pi_mirror_commit_events(
+            &run_authority.pi_session_id,
+            &run_authority.correlation,
+        ) {
+            Ok(events) => {
+                for event in events {
+                    emit(&app, &authority, PiProcessEventKind::Stdout, event);
                 }
-                Err(error) => emit(
-                    &app,
-                    PiProcessEventKind::Stderr,
-                    format!("Could not read durable Mirror commit evidence: {}", error),
-                ),
             }
+            Err(error) => emit(
+                &app,
+                &authority,
+                PiProcessEventKind::Stderr,
+                format!("Could not read durable Mirror commit evidence: {}", error),
+            ),
         }
     }
 
     emit(
         &app,
+        &authority,
         PiProcessEventKind::Done,
         "Pi invocation finished.".to_string(),
     );
@@ -2587,8 +3314,20 @@ fn mirror_json_event_args(args: Vec<String>) -> Vec<String> {
     next_args
 }
 
-fn emit(app: &AppHandle, kind: PiProcessEventKind, content: String) {
-    let _ = app.emit(PI_PROCESS_EVENT, PiProcessEvent { kind, content });
+fn emit(
+    app: &AppHandle,
+    authority: &PiProcessEventAuthority,
+    kind: PiProcessEventKind,
+    content: String,
+) {
+    let _ = app.emit(
+        PI_PROCESS_EVENT,
+        PiProcessEvent {
+            kind,
+            content,
+            authority: authority.clone(),
+        },
+    );
 }
 
 fn journey_registry_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -2610,83 +3349,130 @@ fn read_latest_pi_mirror_commit_events(
         .filter_map(Result::ok)
         .filter(|entry| entry.file_name().to_string_lossy().ends_with(&suffix))
         .max_by_key(|entry| {
-            entry.metadata().and_then(|metadata| metadata.modified()).unwrap_or(UNIX_EPOCH)
+            entry
+                .metadata()
+                .and_then(|metadata| metadata.modified())
+                .unwrap_or(UNIX_EPOCH)
         });
-    let Some(entry) = latest else { return Ok(Vec::new()) };
+    let Some(entry) = latest else {
+        return Ok(Vec::new());
+    };
     let content = fs::read_to_string(entry.path())
         .map_err(|error| format!("Could not read the mapped Pi session: {}", error))?;
     Ok(extract_pi_mirror_commit_events(&content, correlation))
 }
 
 fn extract_pi_mirror_commit_events(content: &str, correlation: &TurnCorrelation) -> Vec<String> {
-    content.lines().filter_map(|line| {
-        let entry: Value = serde_json::from_str(line).ok()?;
-        if entry.get("type").and_then(Value::as_str) != Some("custom") {
-            return None;
-        }
-        let custom_type = entry.get("customType").and_then(Value::as_str)?;
-        let data = entry.get("data")?;
-        if data.get("schemaVersion").and_then(Value::as_str) != Some("0.1.0")
-            || data.get("turnId").and_then(Value::as_str) != Some(correlation.turn_id.as_str())
-            || data.get("runId").and_then(Value::as_str) != Some(correlation.run_id.as_str())
-        {
-            return None;
-        }
-        if custom_type == "nautilus_mirror_context" {
-            let persona = data.get("persona").and_then(Value::as_str)?;
-            if data.get("type").and_then(Value::as_str) != Some("mirror_context")
-                || data.get("journeyId").and_then(Value::as_str) != Some(correlation.journey_id.as_str())
-                || data.get("mode").and_then(Value::as_str) != Some("mirror")
-                || persona.is_empty()
-                || persona.len() > 128
-                || !persona.chars().all(|character| character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-')
+    content
+        .lines()
+        .filter_map(|line| {
+            let entry: Value = serde_json::from_str(line).ok()?;
+            if entry.get("type").and_then(Value::as_str) != Some("custom") {
+                return None;
+            }
+            let custom_type = entry.get("customType").and_then(Value::as_str)?;
+            let data = entry.get("data")?;
+            if data.get("schemaVersion").and_then(Value::as_str) != Some("0.1.0")
+                || data.get("turnId").and_then(Value::as_str) != Some(correlation.turn_id.as_str())
+                || data.get("runId").and_then(Value::as_str) != Some(correlation.run_id.as_str())
             {
                 return None;
             }
-            let safe = json!({
-                "type": "mirror_context",
-                "schemaVersion": "0.1.0",
-                "turnId": correlation.turn_id,
-                "runId": correlation.run_id,
-                "journeyId": correlation.journey_id,
-                "mode": "mirror",
-                "persona": persona,
-            });
-            return serde_json::to_string(&safe).ok();
-        }
-        if custom_type != "nautilus_mirror_commit"
-            || data.get("type").and_then(Value::as_str) != Some("mirror_commit")
-            || !matches!(data.get("phase").and_then(Value::as_str), Some("user" | "assistant"))
-            || !matches!(data.get("status").and_then(Value::as_str), Some("committed" | "failed"))
-        {
-            return None;
-        }
-        let mut safe = serde_json::Map::new();
-        for key in ["type", "schemaVersion", "turnId", "runId", "phase", "status"] {
-            safe.insert(key.to_string(), data.get(key)?.clone());
-        }
-        for key in ["mirrorConversationId", "mirrorMessageId", "reasonCode", "piUserEntryId"] {
-            if let Some(value) = data.get(key).and_then(Value::as_str).filter(|value| !value.is_empty() && value.len() <= 4096) {
-                safe.insert(key.to_string(), Value::String(value.to_string()));
+            if custom_type == "nautilus_mirror_context" {
+                let persona = data.get("persona").and_then(Value::as_str)?;
+                if data.get("type").and_then(Value::as_str) != Some("mirror_context")
+                    || data.get("journeyId").and_then(Value::as_str)
+                        != Some(correlation.journey_id.as_str())
+                    || data.get("mode").and_then(Value::as_str) != Some("mirror")
+                    || persona.is_empty()
+                    || persona.len() > 128
+                    || !persona.chars().all(|character| {
+                        character.is_ascii_lowercase()
+                            || character.is_ascii_digit()
+                            || character == '-'
+                    })
+                {
+                    return None;
+                }
+                let safe = json!({
+                    "type": "mirror_context",
+                    "schemaVersion": "0.1.0",
+                    "turnId": correlation.turn_id,
+                    "runId": correlation.run_id,
+                    "journeyId": correlation.journey_id,
+                    "mode": "mirror",
+                    "persona": persona,
+                });
+                return serde_json::to_string(&safe).ok();
             }
-        }
-        if let Some(value) = data.get("mirrorMessageCount").and_then(Value::as_u64) {
-            safe.insert("mirrorMessageCount".to_string(), Value::Number(value.into()));
-        }
-        if let Some(evidence) = data.get("piEvidence").and_then(Value::as_object) {
-            let mut safe_evidence = serde_json::Map::new();
-            for key in ["userEntryId", "assistantEntryId", "leafEntryId", "sessionFile"] {
-                if let Some(value) = evidence.get(key).and_then(Value::as_str).filter(|value| !value.is_empty() && value.len() <= 4096) {
-                    safe_evidence.insert(key.to_string(), Value::String(value.to_string()));
+            if custom_type != "nautilus_mirror_commit"
+                || data.get("type").and_then(Value::as_str) != Some("mirror_commit")
+                || !matches!(
+                    data.get("phase").and_then(Value::as_str),
+                    Some("user" | "assistant")
+                )
+                || !matches!(
+                    data.get("status").and_then(Value::as_str),
+                    Some("committed" | "failed")
+                )
+            {
+                return None;
+            }
+            let mut safe = serde_json::Map::new();
+            for key in [
+                "type",
+                "schemaVersion",
+                "turnId",
+                "runId",
+                "phase",
+                "status",
+            ] {
+                safe.insert(key.to_string(), data.get(key)?.clone());
+            }
+            for key in [
+                "mirrorConversationId",
+                "mirrorMessageId",
+                "reasonCode",
+                "piUserEntryId",
+            ] {
+                if let Some(value) = data
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .filter(|value| !value.is_empty() && value.len() <= 4096)
+                {
+                    safe.insert(key.to_string(), Value::String(value.to_string()));
                 }
             }
-            if let Some(value) = evidence.get("entryCount").and_then(Value::as_u64) {
-                safe_evidence.insert("entryCount".to_string(), Value::Number(value.into()));
+            if let Some(value) = data.get("mirrorMessageCount").and_then(Value::as_u64) {
+                safe.insert(
+                    "mirrorMessageCount".to_string(),
+                    Value::Number(value.into()),
+                );
             }
-            safe.insert("piEvidence".to_string(), Value::Object(safe_evidence));
-        }
-        serde_json::to_string(&Value::Object(safe)).ok()
-    }).collect()
+            if let Some(evidence) = data.get("piEvidence").and_then(Value::as_object) {
+                let mut safe_evidence = serde_json::Map::new();
+                for key in [
+                    "userEntryId",
+                    "assistantEntryId",
+                    "leafEntryId",
+                    "sessionFile",
+                ] {
+                    if let Some(value) = evidence
+                        .get(key)
+                        .and_then(Value::as_str)
+                        .filter(|value| !value.is_empty() && value.len() <= 4096)
+                    {
+                        safe_evidence.insert(key.to_string(), Value::String(value.to_string()));
+                    }
+                }
+                if let Some(value) = evidence.get("entryCount").and_then(Value::as_u64) {
+                    safe_evidence.insert("entryCount".to_string(), Value::Number(value.into()));
+                }
+                safe.insert("piEvidence".to_string(), Value::Object(safe_evidence));
+            }
+            serde_json::to_string(&Value::Object(safe)).ok()
+        })
+        .collect()
 }
 
 fn read_latest_pi_session_context_stats(
@@ -2694,7 +3480,10 @@ fn read_latest_pi_session_context_stats(
 ) -> Result<PiSessionContextInspection, String> {
     let session_dir = default_pi_session_dir(&mirror_runtime_root()?)?;
     if !session_dir.exists() {
-        return Ok(PiSessionContextInspection { status: "missing".to_string(), snapshot: None });
+        return Ok(PiSessionContextInspection {
+            status: "missing".to_string(),
+            snapshot: None,
+        });
     }
     let suffix = format!("_{}.jsonl", session_id);
     let latest = fs::read_dir(&session_dir)
@@ -2702,16 +3491,27 @@ fn read_latest_pi_session_context_stats(
         .filter_map(Result::ok)
         .filter(|entry| entry.file_name().to_string_lossy().ends_with(&suffix))
         .max_by_key(|entry| {
-            entry.metadata().and_then(|metadata| metadata.modified()).unwrap_or(UNIX_EPOCH)
+            entry
+                .metadata()
+                .and_then(|metadata| metadata.modified())
+                .unwrap_or(UNIX_EPOCH)
         });
     let Some(entry) = latest else {
-        return Ok(PiSessionContextInspection { status: "missing".to_string(), snapshot: None });
+        return Ok(PiSessionContextInspection {
+            status: "missing".to_string(),
+            snapshot: None,
+        });
     };
     let content = fs::read_to_string(entry.path())
         .map_err(|error| format!("Could not read the mapped Pi session: {}", error))?;
     let snapshot = extract_context_stats_from_pi_session(&content);
     Ok(PiSessionContextInspection {
-        status: if snapshot.is_some() { "available" } else { "waiting" }.to_string(),
+        status: if snapshot.is_some() {
+            "available"
+        } else {
+            "waiting"
+        }
+        .to_string(),
         snapshot,
     })
 }
@@ -2750,8 +3550,14 @@ fn extract_context_stats_from_pi_session(content: &str) -> Option<PiSessionConte
             }
         }
         let valid_usage = is_assistant
-            && !matches!(message.get("stopReason").and_then(Value::as_str), Some("aborted" | "error"))
-            && message.get("usage").and_then(calculate_pi_context_tokens).is_some();
+            && !matches!(
+                message.get("stopReason").and_then(Value::as_str),
+                Some("aborted" | "error")
+            )
+            && message
+                .get("usage")
+                .and_then(calculate_pi_context_tokens)
+                .is_some();
         if valid_usage {
             latest_usage = Some(PiSessionContextSnapshot {
                 tokens: calculate_pi_context_tokens(message.get("usage").unwrap()).unwrap(),
@@ -2795,29 +3601,59 @@ fn calculate_pi_context_tokens(usage: &Value) -> Option<u64> {
 fn estimate_pi_message_tokens(message: &Value) -> u64 {
     let role = message.get("role").and_then(Value::as_str).unwrap_or("");
     let chars = match role {
-        "user" | "custom" | "toolResult" => estimate_text_image_content_chars(message.get("content")),
+        "user" | "custom" | "toolResult" => {
+            estimate_text_image_content_chars(message.get("content"))
+        }
         "assistant" => message
             .get("content")
             .and_then(Value::as_array)
             .map(|blocks| {
-                blocks.iter().map(|block| match block.get("type").and_then(Value::as_str) {
-                    Some("text") => block.get("text").and_then(Value::as_str).map(str::len).unwrap_or(0),
-                    Some("thinking") => block.get("thinking").and_then(Value::as_str).map(str::len).unwrap_or(0),
-                    Some("toolCall") => {
-                        block.get("name").and_then(Value::as_str).map(str::len).unwrap_or(0)
-                            + block.get("arguments").map(|arguments| arguments.to_string().len()).unwrap_or(0)
-                    }
-                    _ => 0,
-                }).sum::<usize>()
+                blocks
+                    .iter()
+                    .map(|block| match block.get("type").and_then(Value::as_str) {
+                        Some("text") => block
+                            .get("text")
+                            .and_then(Value::as_str)
+                            .map(str::len)
+                            .unwrap_or(0),
+                        Some("thinking") => block
+                            .get("thinking")
+                            .and_then(Value::as_str)
+                            .map(str::len)
+                            .unwrap_or(0),
+                        Some("toolCall") => {
+                            block
+                                .get("name")
+                                .and_then(Value::as_str)
+                                .map(str::len)
+                                .unwrap_or(0)
+                                + block
+                                    .get("arguments")
+                                    .map(|arguments| arguments.to_string().len())
+                                    .unwrap_or(0)
+                        }
+                        _ => 0,
+                    })
+                    .sum::<usize>()
             })
             .unwrap_or(0),
         "bashExecution" => {
-            message.get("command").and_then(Value::as_str).map(str::len).unwrap_or(0)
-                + message.get("output").and_then(Value::as_str).map(str::len).unwrap_or(0)
+            message
+                .get("command")
+                .and_then(Value::as_str)
+                .map(str::len)
+                .unwrap_or(0)
+                + message
+                    .get("output")
+                    .and_then(Value::as_str)
+                    .map(str::len)
+                    .unwrap_or(0)
         }
-        "branchSummary" | "compactionSummary" => {
-            message.get("summary").and_then(Value::as_str).map(str::len).unwrap_or(0)
-        }
+        "branchSummary" | "compactionSummary" => message
+            .get("summary")
+            .and_then(Value::as_str)
+            .map(str::len)
+            .unwrap_or(0),
         _ => 0,
     };
     (chars as u64).div_ceil(4)
@@ -2826,11 +3662,18 @@ fn estimate_pi_message_tokens(message: &Value) -> u64 {
 fn estimate_text_image_content_chars(content: Option<&Value>) -> usize {
     match content {
         Some(Value::String(text)) => text.len(),
-        Some(Value::Array(blocks)) => blocks.iter().map(|block| match block.get("type").and_then(Value::as_str) {
-            Some("text") => block.get("text").and_then(Value::as_str).map(str::len).unwrap_or(0),
-            Some("image") => 4800,
-            _ => 0,
-        }).sum(),
+        Some(Value::Array(blocks)) => blocks
+            .iter()
+            .map(|block| match block.get("type").and_then(Value::as_str) {
+                Some("text") => block
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .map(str::len)
+                    .unwrap_or(0),
+                Some("image") => 4800,
+                _ => 0,
+            })
+            .sum(),
         _ => 0,
     }
 }
@@ -2890,116 +3733,241 @@ fn unwrap_persisted_thread(value: &Value) -> &Value {
     value.get("thread").unwrap_or(value)
 }
 
-fn legacy_dedicated_journey_conversation_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
+fn legacy_dedicated_journey_conversation_path(
+    app: &AppHandle,
+    journey_id: &str,
+) -> Result<PathBuf, String> {
     let safe_journey_id = sanitize_journey_id(journey_id)?;
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
-    Ok(app_data_dir.join("dedicated-journey-conversations").join(format!("{}.json", safe_journey_id)))
+    Ok(app_data_dir
+        .join("dedicated-journey-conversations")
+        .join(format!("{}.json", safe_journey_id)))
 }
 
-fn dedicated_journey_conversation_path(app: &AppHandle, journey_id: &str, generation: u64) -> Result<PathBuf, String> {
-    if generation == 0 { return Err("Dedicated conversation generation must be positive.".to_string()); }
+fn dedicated_journey_conversation_path(
+    app: &AppHandle,
+    journey_id: &str,
+    generation: u64,
+) -> Result<PathBuf, String> {
+    if generation == 0 {
+        return Err("Dedicated conversation generation must be positive.".to_string());
+    }
     let safe_journey_id = sanitize_journey_id(journey_id)?;
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
-    Ok(app_data_dir.join("dedicated-journey-conversations").join(safe_journey_id)
+    Ok(app_data_dir
+        .join("dedicated-journey-conversations")
+        .join(safe_journey_id)
         .join(format!("generation-{}.json", generation)))
 }
 
 #[tauri::command]
-fn save_dedicated_journey_conversation(app: AppHandle, journey_id: String, generation: u64, payload: String) -> Result<(), String> {
+fn save_dedicated_journey_conversation(
+    app: AppHandle,
+    journey_id: String,
+    generation: u64,
+    payload: String,
+) -> Result<(), String> {
     let path = dedicated_journey_conversation_path(&app, &journey_id, generation)?;
-    let parsed: Value = serde_json::from_str(&payload).map_err(|error| format!("Invalid dedicated conversation payload: {}", error))?;
-    let live = parsed.get("conversation").and_then(|value| value.get("liveIdentity"))
+    let parsed: Value = serde_json::from_str(&payload)
+        .map_err(|error| format!("Invalid dedicated conversation payload: {}", error))?;
+    let live = parsed
+        .get("conversation")
+        .and_then(|value| value.get("liveIdentity"))
         .ok_or_else(|| "Dedicated conversation identity is missing.".to_string())?;
     if live.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
         || live.get("generation").and_then(Value::as_u64) != Some(generation)
-        || live.get("activationReceiptActivatedAt").and_then(Value::as_str).is_none()
+        || live
+            .get("activationReceiptActivatedAt")
+            .and_then(Value::as_str)
+            .is_none()
     {
         return Err("Dedicated conversation payload lacks dedicated authority.".to_string());
     }
-    if let Some(parent) = path.parent() { fs::create_dir_all(parent).map_err(|error| error.to_string())?; }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
     let staged = path.with_extension("json.tmp");
     fs::write(&staged, payload).map_err(|error| error.to_string())?;
     fs::rename(staged, path).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-fn load_dedicated_journey_conversation(app: AppHandle, journey_id: String, generation: u64) -> Result<Option<String>, String> {
+fn load_dedicated_journey_conversation(
+    app: AppHandle,
+    journey_id: String,
+    generation: u64,
+) -> Result<Option<String>, String> {
     let path = dedicated_journey_conversation_path(&app, &journey_id, generation)?;
-    if path.exists() { return fs::read_to_string(path).map(Some).map_err(|error| error.to_string()); }
+    if path.exists() {
+        return fs::read_to_string(path)
+            .map(Some)
+            .map_err(|error| error.to_string());
+    }
     let legacy = legacy_dedicated_journey_conversation_path(&app, &journey_id)?;
-    if !legacy.exists() { return Ok(None); }
+    if !legacy.exists() {
+        return Ok(None);
+    }
     let payload = fs::read_to_string(&legacy).map_err(|error| error.to_string())?;
     let value: Value = serde_json::from_str(&payload).map_err(|error| error.to_string())?;
-    let matches = value.get("conversation").and_then(|item| item.get("liveIdentity"))
-        .and_then(|live| live.get("generation")).and_then(Value::as_u64) == Some(generation);
-    if !matches { return Ok(None); }
-    if let Some(parent) = path.parent() { fs::create_dir_all(parent).map_err(|error| error.to_string())?; }
-    fs::rename(&legacy, &path).map_err(|error| format!("Could not migrate dedicated generation projection: {}", error))?;
+    let matches = value
+        .get("conversation")
+        .and_then(|item| item.get("liveIdentity"))
+        .and_then(|live| live.get("generation"))
+        .and_then(Value::as_u64)
+        == Some(generation);
+    if !matches {
+        return Ok(None);
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    fs::rename(&legacy, &path).map_err(|error| {
+        format!(
+            "Could not migrate dedicated generation projection: {}",
+            error
+        )
+    })?;
     Ok(Some(payload))
 }
 
 fn journey_thread_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
     let safe_journey_id = sanitize_journey_id(journey_id)?;
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
-    Ok(app_data_dir.join("journey-threads").join(format!("{}.json", safe_journey_id)))
+    Ok(app_data_dir
+        .join("journey-threads")
+        .join(format!("{}.json", safe_journey_id)))
 }
 
 fn journey_thread_operation_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
     let safe_journey_id = sanitize_journey_id(journey_id)?;
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
-    Ok(app_data_dir.join("journey-thread-operations").join(format!("{}.json", safe_journey_id)))
+    Ok(app_data_dir
+        .join("journey-thread-operations")
+        .join(format!("{}.json", safe_journey_id)))
 }
 
-fn validate_persisted_turn_authority(app: &AppHandle, value: &TurnCorrelation, session_file: Option<&str>) -> Result<(), String> {
+fn validate_run_authority(app: &AppHandle, authority: &RunAuthority) -> Result<(), String> {
+    if authority.schema_version != "0.1.0"
+        || authority.journey_id != authority.correlation.journey_id
+        || authority.run_id != authority.correlation.run_id
+        || authority.turn_id != authority.correlation.turn_id
+        || Some(authority.thread_id.as_str()) != authority.correlation.thread_id.as_deref()
+        || authority.harness_conversation_id != authority.correlation.harness_conversation_id
+        || authority.generation != authority.correlation.generation
+        || authority.pi_session_id != authority.correlation.pi_session_id
+        || Some(authority.mirror_conversation_id.as_str())
+            != authority.correlation.mirror_conversation_id.as_deref()
+        || Some(authority.activation_receipt_activated_at.as_str())
+            != authority
+                .correlation
+                .activation_receipt_activated_at
+                .as_deref()
+        || authority.harness_user_message_id != authority.correlation.harness_user_message_id
+        || authority.harness_assistant_message_id
+            != authority.correlation.harness_assistant_message_id
+        || authority.pi_session_file.trim().is_empty()
+    {
+        return Err("Run authority does not match its turn correlation.".to_string());
+    }
+    validate_turn_correlation(&authority.correlation)?;
+    validate_persisted_turn_authority(app, authority)
+}
+
+fn validate_persisted_turn_authority(
+    app: &AppHandle,
+    authority: &RunAuthority,
+) -> Result<(), String> {
+    let value = &authority.correlation;
     {
         let stored_thread: Value = serde_json::from_str(
             &fs::read_to_string(journey_thread_path(app, &value.journey_id)?)
                 .map_err(|error| format!("Could not read dedicated thread authority: {}", error))?,
-        ).map_err(|error| format!("Could not parse dedicated thread authority: {}", error))?;
+        )
+        .map_err(|error| format!("Could not parse dedicated thread authority: {}", error))?;
         let thread = unwrap_persisted_thread(&stored_thread);
         validate_thread_runtime_channel(thread)?;
         let active_generation = thread.get("activeGeneration").and_then(Value::as_u64);
-        let generation = thread.get("generations").and_then(Value::as_array)
-            .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active_generation))
+        let generation = thread
+            .get("generations")
+            .and_then(Value::as_array)
+            .and_then(|items| {
+                items.iter().find(|item| {
+                    item.get("generation").and_then(Value::as_u64) == active_generation
+                })
+            })
             .ok_or_else(|| "Dedicated active generation is missing.".to_string())?;
-        let receipt = generation.get("activationReceipt").and_then(Value::as_object)
+        let receipt = generation
+            .get("activationReceipt")
+            .and_then(Value::as_object)
             .ok_or_else(|| "Dedicated activation receipt is missing.".to_string())?;
-        let dedicated_matches = thread.get("journeyId").and_then(Value::as_str) == Some(value.journey_id.as_str())
+        let dedicated_matches = thread.get("journeyId").and_then(Value::as_str)
+            == Some(value.journey_id.as_str())
             && thread.get("threadId").and_then(Value::as_str) == value.thread_id.as_deref()
             && value.thread_id.as_deref() == Some(value.harness_conversation_id.as_str())
             && active_generation == Some(value.generation)
             && generation.get("status").and_then(Value::as_str) == Some("ready")
-            && generation.get("piSessionId").and_then(Value::as_str) == Some(value.pi_session_id.as_str())
-            && generation.get("piSessionFile").and_then(Value::as_str) == session_file
-            && generation.get("mirrorConversationId").and_then(Value::as_str) == value.mirror_conversation_id.as_deref()
-            && receipt.get("activatedAt").and_then(Value::as_str) == value.activation_receipt_activated_at.as_deref();
+            && generation.get("piSessionId").and_then(Value::as_str)
+                == Some(value.pi_session_id.as_str())
+            && generation.get("piSessionFile").and_then(Value::as_str)
+                == Some(authority.pi_session_file.as_str())
+            && generation
+                .get("mirrorConversationId")
+                .and_then(Value::as_str)
+                == value.mirror_conversation_id.as_deref()
+            && receipt.get("activatedAt").and_then(Value::as_str)
+                == value.activation_receipt_activated_at.as_deref();
         if !dedicated_matches {
             return Err("Turn no longer matches the active dedicated generation.".to_string());
         }
-        validate_pi_session_file(app, session_file.ok_or_else(|| "Dedicated Pi session file is missing.".to_string())?, &value.pi_session_id)?;
+        validate_pi_session_file(app, &authority.pi_session_file, &value.pi_session_id)?;
     }
     let payload: Value = serde_json::from_str(
-        &fs::read_to_string(dedicated_journey_conversation_path(app, &value.journey_id, value.generation)?)
-            .map_err(|error| format!("Could not read staged turn authority: {}", error))?,
-    ).map_err(|error| format!("Could not parse staged turn authority: {}", error))?;
-    let conversation = payload.get("conversation").and_then(Value::as_object)
+        &fs::read_to_string(dedicated_journey_conversation_path(
+            app,
+            &value.journey_id,
+            value.generation,
+        )?)
+        .map_err(|error| format!("Could not read staged turn authority: {}", error))?,
+    )
+    .map_err(|error| format!("Could not parse staged turn authority: {}", error))?;
+    let conversation = payload
+        .get("conversation")
+        .and_then(Value::as_object)
         .ok_or_else(|| "Staged turn authority is missing its conversation.".to_string())?;
-    let live = conversation.get("liveIdentity").and_then(Value::as_object)
+    let live = conversation
+        .get("liveIdentity")
+        .and_then(Value::as_object)
         .ok_or_else(|| "Staged turn authority is missing its live identity.".to_string())?;
-    let live_matches = live.get("journeyId").and_then(Value::as_str) == Some(value.journey_id.as_str())
-        && live.get("harnessConversationId").and_then(Value::as_str) == Some(value.harness_conversation_id.as_str())
+    let live_matches = live.get("journeyId").and_then(Value::as_str)
+        == Some(value.journey_id.as_str())
+        && live.get("harnessConversationId").and_then(Value::as_str)
+            == Some(value.harness_conversation_id.as_str())
         && live.get("piSessionId").and_then(Value::as_str) == Some(value.pi_session_id.as_str())
+        && live.get("piSessionFile").and_then(Value::as_str)
+            == Some(authority.pi_session_file.as_str())
         && live.get("generation").and_then(Value::as_u64) == Some(value.generation)
-        && live.get("mirrorConversationId").and_then(Value::as_str) == value.mirror_conversation_id.as_deref();
+        && live.get("mirrorConversationId").and_then(Value::as_str)
+            == value.mirror_conversation_id.as_deref();
     if !live_matches {
         return Err("Staged turn no longer matches the live conversation identity.".to_string());
     }
-    let turns = conversation.get("reconciliation").and_then(|state| state.get("turns"))
-        .and_then(Value::as_array).ok_or_else(|| "Staged reconciliation turns are missing.".to_string())?;
+    let turns = conversation
+        .get("reconciliation")
+        .and_then(|state| state.get("turns"))
+        .and_then(Value::as_array)
+        .ok_or_else(|| "Staged reconciliation turns are missing.".to_string())?;
     let turn_matches = turns.iter().any(|turn| {
         turn.get("turnId").and_then(Value::as_str) == Some(value.turn_id.as_str())
             && turn.get("runId").and_then(Value::as_str) == Some(value.run_id.as_str())
@@ -3010,22 +3978,25 @@ fn validate_persisted_turn_authority(app: &AppHandle, value: &TurnCorrelation, s
     Ok(())
 }
 
-fn validate_turn_correlation(
-    value: &TurnCorrelation,
-    journey_id: &str,
-    session_id: &str,
-) -> Result<(), String> {
+fn validate_turn_correlation(value: &TurnCorrelation) -> Result<(), String> {
     if value.schema_version != "0.2.0"
-        || value.journey_id != journey_id
-        || value.pi_session_id != session_id
         || value.harness_conversation_id.trim().is_empty()
         || value.turn_id.trim().is_empty()
         || value.run_id.trim().is_empty()
         || value.harness_user_message_id.trim().is_empty()
         || value.harness_assistant_message_id.trim().is_empty()
-        || value.mirror_conversation_id.as_ref().is_some_and(|id| id.trim().is_empty())
-        || value.thread_id.as_ref().is_none_or(|id| id.trim().is_empty())
-        || value.activation_receipt_activated_at.as_ref().is_none_or(|value| value.trim().is_empty())
+        || value
+            .mirror_conversation_id
+            .as_ref()
+            .is_some_and(|id| id.trim().is_empty())
+        || value
+            .thread_id
+            .as_ref()
+            .is_none_or(|id| id.trim().is_empty())
+        || value
+            .activation_receipt_activated_at
+            .as_ref()
+            .is_none_or(|value| value.trim().is_empty())
         || value.mirror_conversation_id.is_none()
     {
         return Err("Turn correlation does not match the active Journey/Pi authority.".to_string());
@@ -3129,19 +4100,34 @@ fn args_for_display(args: &[String]) -> String {
 }
 
 fn write_legacy_retirement_receipt(path: &Path, receipt: &Value) -> Result<(), String> {
-    let parent = path.parent().ok_or_else(|| "Legacy retirement receipt path has no parent.".to_string())?;
-    fs::create_dir_all(parent).map_err(|error| format!("Could not create retirement receipt directory: {}", error))?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Legacy retirement receipt path has no parent.".to_string())?;
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("Could not create retirement receipt directory: {}", error))?;
     let staged = path.with_extension("json.tmp");
-    fs::write(&staged, serde_json::to_vec_pretty(receipt).map_err(|error| error.to_string())?)
-        .map_err(|error| format!("Could not stage retirement receipt: {}", error))?;
-    fs::rename(&staged, path).map_err(|error| format!("Could not publish retirement receipt: {}", error))
+    fs::write(
+        &staged,
+        serde_json::to_vec_pretty(receipt).map_err(|error| error.to_string())?,
+    )
+    .map_err(|error| format!("Could not stage retirement receipt: {}", error))?;
+    fs::rename(&staged, path)
+        .map_err(|error| format!("Could not publish retirement receipt: {}", error))
 }
 
-fn retire_legacy_parity_state_at(app_data_dir: &Path) -> Result<LegacyParityRetirementSummary, String> {
+fn retire_legacy_parity_state_at(
+    app_data_dir: &Path,
+) -> Result<LegacyParityRetirementSummary, String> {
     let source_dir = app_data_dir.join("journey-conversations");
     let receipt_dir = app_data_dir.join("retired-parity-state").join("receipts");
-    let mut summary = LegacyParityRetirementSummary { retired: 0, retained: 0, already_retired: 0 };
-    if !source_dir.exists() { return Ok(summary); }
+    let mut summary = LegacyParityRetirementSummary {
+        retired: 0,
+        retained: 0,
+        already_retired: 0,
+    };
+    if !source_dir.exists() {
+        return Ok(summary);
+    }
     let metadata = fs::symlink_metadata(&source_dir).map_err(|error| error.to_string())?;
     if !metadata.is_dir() || metadata.file_type().is_symlink() {
         return Err("Legacy parity namespace is not a safe directory.".to_string());
@@ -3165,7 +4151,10 @@ fn retire_legacy_parity_state_at(app_data_dir: &Path) -> Result<LegacyParityReti
         }
     }
     for path in files {
-        let Some(file_name) = path.file_name().and_then(|value| value.to_str()) else { summary.retained += 1; continue };
+        let Some(file_name) = path.file_name().and_then(|value| value.to_str()) else {
+            summary.retained += 1;
+            continue;
+        };
         let journey_id = if let Some(value) = file_name.strip_suffix(".json") {
             value
         } else if let Some((value, _)) = file_name.split_once(".json.") {
@@ -3173,18 +4162,42 @@ fn retire_legacy_parity_state_at(app_data_dir: &Path) -> Result<LegacyParityReti
         } else {
             continue;
         };
-        if sanitize_journey_id(journey_id).is_err() { summary.retained += 1; continue; }
-        let relative = path.strip_prefix(&source_dir).map_err(|_| "Legacy parity path escaped its namespace.".to_string())?;
-        let receipt_name = relative.to_string_lossy().chars()
-            .map(|value| if value.is_ascii_alphanumeric() || value == '-' || value == '_' { value } else { '_' })
+        if sanitize_journey_id(journey_id).is_err() {
+            summary.retained += 1;
+            continue;
+        }
+        let relative = path
+            .strip_prefix(&source_dir)
+            .map_err(|_| "Legacy parity path escaped its namespace.".to_string())?;
+        let receipt_name = relative
+            .to_string_lossy()
+            .chars()
+            .map(|value| {
+                if value.is_ascii_alphanumeric() || value == '-' || value == '_' {
+                    value
+                } else {
+                    '_'
+                }
+            })
             .collect::<String>();
         let receipt_path = receipt_dir.join(format!("{}.receipt.json", receipt_name));
         let file_metadata = fs::symlink_metadata(&path).map_err(|error| error.to_string())?;
         let reason = if file_metadata.file_type().is_symlink() || !file_metadata.is_file() {
             Some("unsafe_file_type")
         } else {
-            match fs::read_to_string(&path).ok().and_then(|payload| serde_json::from_str::<Value>(&payload).ok()) {
-                Some(value) if value.get("conversation").and_then(|item| item.get("journeyId")).and_then(Value::as_str) == Some(journey_id) => None,
+            match fs::read_to_string(&path)
+                .ok()
+                .and_then(|payload| serde_json::from_str::<Value>(&payload).ok())
+            {
+                Some(value)
+                    if value
+                        .get("conversation")
+                        .and_then(|item| item.get("journeyId"))
+                        .and_then(Value::as_str)
+                        == Some(journey_id) =>
+                {
+                    None
+                }
                 Some(_) => Some("journey_authority_mismatch"),
                 None => Some("invalid_record"),
             }
@@ -3196,32 +4209,47 @@ fn retire_legacy_parity_state_at(app_data_dir: &Path) -> Result<LegacyParityReti
             "journey_conversation_backup"
         };
         if let Some(reason) = reason {
-            write_legacy_retirement_receipt(&receipt_path, &json!({
-                "schemaVersion": "1.0.0", "journeyId": journey_id, "pathClass": path_class,
-                "status": "retained", "reasonCode": reason, "retiredAt": retired_at
-            }))?;
+            write_legacy_retirement_receipt(
+                &receipt_path,
+                &json!({
+                    "schemaVersion": "1.0.0", "journeyId": journey_id, "pathClass": path_class,
+                    "status": "retained", "reasonCode": reason, "retiredAt": retired_at
+                }),
+            )?;
             summary.retained += 1;
             continue;
         }
-        write_legacy_retirement_receipt(&receipt_path, &json!({
-            "schemaVersion": "1.0.0", "journeyId": journey_id, "pathClass": path_class,
-            "status": "approved_for_retirement", "reasonCode": "superseded_by_dedicated_thread", "retiredAt": retired_at
-        }))?;
-        fs::remove_file(&path).map_err(|error| format!("Could not retire legacy parity projection: {}", error))?;
-        write_legacy_retirement_receipt(&receipt_path, &json!({
-            "schemaVersion": "1.0.0", "journeyId": journey_id, "pathClass": path_class,
-            "status": "retired", "reasonCode": "superseded_by_dedicated_thread", "retiredAt": retired_at
-        }))?;
+        write_legacy_retirement_receipt(
+            &receipt_path,
+            &json!({
+                "schemaVersion": "1.0.0", "journeyId": journey_id, "pathClass": path_class,
+                "status": "approved_for_retirement", "reasonCode": "superseded_by_dedicated_thread", "retiredAt": retired_at
+            }),
+        )?;
+        fs::remove_file(&path)
+            .map_err(|error| format!("Could not retire legacy parity projection: {}", error))?;
+        write_legacy_retirement_receipt(
+            &receipt_path,
+            &json!({
+                "schemaVersion": "1.0.0", "journeyId": journey_id, "pathClass": path_class,
+                "status": "retired", "reasonCode": "superseded_by_dedicated_thread", "retiredAt": retired_at
+            }),
+        )?;
         summary.retired += 1;
     }
     directories.sort_by_key(|path| std::cmp::Reverse(path.components().count()));
-    for directory in directories { let _ = fs::remove_dir(&directory); }
+    for directory in directories {
+        let _ = fs::remove_dir(&directory);
+    }
     Ok(summary)
 }
 
 #[tauri::command]
 fn retire_legacy_parity_state(app: AppHandle) -> Result<LegacyParityRetirementSummary, String> {
-    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
     retire_legacy_parity_state_at(&app_data_dir)
 }
 
@@ -3293,16 +4321,17 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{
-        dedicated_native_names, enqueue_mirror_append_item_at, extract_context_stats_from_pi_session,
-        extract_pi_mirror_commit_events, find_registered_journey_path,
-        list_journey_documentation_at, materialize_empty_pi_session, parse_pi_session_state,
-        project_complete_pi_transcript, projection_manifest_coordinates_at,
-        inspect_file_attachments_at, publish_refreshed_journey_registry, read_journey_document_at,
-        resolve_existing_local_file, retire_legacy_parity_state_at, unwrap_persisted_thread,
-        validate_composer_drafts_payload, validate_external_url, validate_journey_registry_payload,
-        validate_mirror_append_item, validate_pi_session_file_at, validate_turn_correlation,
-        PiSessionContextSnapshot, TurnCorrelation, JOURNEY_REGISTRY_FILE,
-        FILE_ATTACHMENT_MAX_FILES, DOCUMENT_PREVIEW_MAX_BYTES,
+        dedicated_native_names, enqueue_mirror_append_item_at, event_authority,
+        extract_context_stats_from_pi_session, extract_pi_mirror_commit_events,
+        find_registered_journey_path, inspect_file_attachments_at, list_journey_documentation_at,
+        materialize_empty_pi_session, parse_pi_session_state, project_complete_pi_transcript,
+        projection_manifest_coordinates_at, publish_refreshed_journey_registry,
+        read_journey_document_at, resolve_existing_local_file, retire_legacy_parity_state_at,
+        unwrap_persisted_thread, validate_composer_drafts_payload, validate_external_url,
+        validate_journey_registry_payload, validate_mirror_append_item,
+        validate_pi_session_file_at, validate_turn_correlation, PiSessionContextSnapshot,
+        RunAuthority, TurnCorrelation, DOCUMENT_PREVIEW_MAX_BYTES, FILE_ATTACHMENT_MAX_FILES,
+        JOURNEY_REGISTRY_FILE,
     };
     use serde_json::{json, Value};
     use std::{
@@ -3315,7 +4344,10 @@ mod tests {
         std::env::temp_dir().join(format!(
             "nautilus-{}-{}",
             label,
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
         ))
     }
 
@@ -3333,13 +4365,22 @@ mod tests {
             "roots": [{"id": "root", "nativeId": "native-root", "name": "Root", "siblingPosition": 0}]
         }).to_string();
         assert!(validate_journey_registry_payload(&versioned).is_ok());
-        assert!(validate_journey_registry_payload(&json!({"schemaVersion": "0.2.0", "source": "mirror", "syncedAt": "now", "roots": []}).to_string()).is_err());
-        assert_eq!(publish_refreshed_journey_registry(&root, &valid).unwrap(), valid);
+        assert!(validate_journey_registry_payload(
+            &json!({"schemaVersion": "0.2.0", "source": "mirror", "syncedAt": "now", "roots": []})
+                .to_string()
+        )
+        .is_err());
+        assert_eq!(
+            publish_refreshed_journey_registry(&root, &valid).unwrap(),
+            valid
+        );
         let target = root.join(JOURNEY_REGISTRY_FILE);
         let before = fs::read_to_string(&target).unwrap();
-        let invalid = json!({"schemaVersion": "0.1.0", "source": "mirror", "syncedAt": "now", "roots": [
-            {"id": "same", "name": "One"}, {"id": "same", "name": "Two"}
-        ]}).to_string();
+        let invalid =
+            json!({"schemaVersion": "0.1.0", "source": "mirror", "syncedAt": "now", "roots": [
+                {"id": "same", "name": "One"}, {"id": "same", "name": "Two"}
+            ]})
+            .to_string();
         assert!(publish_refreshed_journey_registry(&root, &invalid).is_err());
         assert_eq!(fs::read_to_string(target).unwrap(), before);
         let _ = fs::remove_dir_all(root);
@@ -3370,22 +4411,32 @@ mod tests {
         let root = test_root("mirror-outbox");
         fs::create_dir_all(&root).unwrap();
         let path = root.join("outbox.json");
-        let item = |index: usize| json!({
-            "schemaVersion":"1.0.0", "itemId":format!("turn-{}", index), "journeyId":"journey-one",
-            "threadId":"thread-one", "generation":1, "conversationId":"mirror-one",
-            "sourceInterface":"nautilus-harness", "createdAt":"2026-08-30T10:00:00Z",
-            "messages":[
-                {"id":format!("user-{}", index),"role":"user","content":"hello","createdAt":"2026-08-30T10:00:00Z","metadata":{"sourceTurnId":format!("turn-{}", index),"generation":1}},
-                {"id":format!("assistant-{}", index),"role":"assistant","content":"hi","createdAt":"2026-08-30T10:00:01Z","metadata":{"sourceTurnId":format!("turn-{}", index),"generation":1}}
-            ]
-        });
+        let item = |index: usize| {
+            json!({
+                "schemaVersion":"1.0.0", "itemId":format!("turn-{}", index), "journeyId":"journey-one",
+                "threadId":"thread-one", "generation":1, "conversationId":"mirror-one",
+                "sourceInterface":"nautilus-harness", "createdAt":"2026-08-30T10:00:00Z",
+                "messages":[
+                    {"id":format!("user-{}", index),"role":"user","content":"hello","createdAt":"2026-08-30T10:00:00Z","metadata":{"sourceTurnId":format!("turn-{}", index),"generation":1}},
+                    {"id":format!("assistant-{}", index),"role":"assistant","content":"hi","createdAt":"2026-08-30T10:00:01Z","metadata":{"sourceTurnId":format!("turn-{}", index),"generation":1}}
+                ]
+            })
+        };
         enqueue_mirror_append_item_at(&path, item(0)).unwrap();
         enqueue_mirror_append_item_at(&path, item(0)).unwrap();
         let mut conflict = item(0);
         conflict["messages"][0]["content"] = Value::String("different".to_string());
-        assert_eq!(enqueue_mirror_append_item_at(&path, conflict).unwrap_err(), "mirror_append_item_conflict");
-        for index in 1..32 { enqueue_mirror_append_item_at(&path, item(index)).unwrap(); }
-        assert_eq!(enqueue_mirror_append_item_at(&path, item(32)).unwrap_err(), "mirror_append_outbox_full");
+        assert_eq!(
+            enqueue_mirror_append_item_at(&path, conflict).unwrap_err(),
+            "mirror_append_item_conflict"
+        );
+        for index in 1..32 {
+            enqueue_mirror_append_item_at(&path, item(index)).unwrap();
+        }
+        assert_eq!(
+            enqueue_mirror_append_item_at(&path, item(32)).unwrap_err(),
+            "mirror_append_outbox_full"
+        );
         let persisted: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(persisted["items"].as_array().unwrap().len(), 32);
         fs::remove_dir_all(root).unwrap();
@@ -3406,8 +4457,14 @@ mod tests {
         let output = br#"warning
 {"type":"response","command":"get_state","success":true,"data":{"sessionId":"pi-one","sessionFile":"/sessions/pi-one.jsonl"}}
 "#;
-        assert_eq!(parse_pi_session_state(output).unwrap(), ("pi-one".to_string(), "/sessions/pi-one.jsonl".to_string()));
-        assert!(parse_pi_session_state(br#"{"type":"response","command":"get_state","success":false}"#).is_err());
+        assert_eq!(
+            parse_pi_session_state(output).unwrap(),
+            ("pi-one".to_string(), "/sessions/pi-one.jsonl".to_string())
+        );
+        assert!(parse_pi_session_state(
+            br#"{"type":"response","command":"get_state","success":false}"#
+        )
+        .is_err());
     }
 
     #[test]
@@ -3431,13 +4488,33 @@ mod tests {
 
     #[test]
     fn preserves_an_empty_native_pi_session_after_rpc_settlement() {
-        let root = std::env::temp_dir().join(format!("nautilus-empty-pi-{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+        let root = std::env::temp_dir().join(format!(
+            "nautilus-empty-pi-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         fs::create_dir_all(&root).unwrap();
         let file = root.join("native-session.jsonl");
-        materialize_empty_pi_session("native-session", file.to_str().unwrap(), &root, Path::new("/tmp")).unwrap();
-        let header: serde_json::Value = serde_json::from_str(fs::read_to_string(&file).unwrap().lines().next().unwrap()).unwrap();
-        assert_eq!(header.get("type").and_then(|value| value.as_str()), Some("session"));
-        assert_eq!(header.get("id").and_then(|value| value.as_str()), Some("native-session"));
+        materialize_empty_pi_session(
+            "native-session",
+            file.to_str().unwrap(),
+            &root,
+            Path::new("/tmp"),
+        )
+        .unwrap();
+        let header: serde_json::Value =
+            serde_json::from_str(fs::read_to_string(&file).unwrap().lines().next().unwrap())
+                .unwrap();
+        assert_eq!(
+            header.get("type").and_then(|value| value.as_str()),
+            Some("session")
+        );
+        assert_eq!(
+            header.get("id").and_then(|value| value.as_str()),
+            Some("native-session")
+        );
         assert_eq!(fs::read_to_string(&file).unwrap().lines().count(), 1);
         fs::remove_dir_all(root).unwrap();
     }
@@ -3455,13 +4532,15 @@ mod tests {
             "native-session",
             &root.join("global-pi-sessions"),
             &root.join("com.nautilus.harness.dev"),
-        ).is_ok());
+        )
+        .is_ok());
         assert!(validate_pi_session_file_at(
             session.to_str().unwrap(),
             "native-session",
             &root.join("global-pi-sessions"),
             &root.join("com.nautilus.harness"),
-        ).is_err());
+        )
+        .is_err());
 
         fs::remove_dir_all(root).unwrap();
     }
@@ -3469,9 +4548,19 @@ mod tests {
     #[test]
     fn reads_dedicated_thread_authority_from_its_persisted_envelope() {
         let stored = json!({"schemaVersion":"1.0.0","savedAt":"2026-08-26T10:00:00Z","thread":{"activeGeneration":1}});
-        assert_eq!(unwrap_persisted_thread(&stored).get("activeGeneration").and_then(|value| value.as_u64()), Some(1));
+        assert_eq!(
+            unwrap_persisted_thread(&stored)
+                .get("activeGeneration")
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
         let raw = json!({"activeGeneration":2});
-        assert_eq!(unwrap_persisted_thread(&raw).get("activeGeneration").and_then(|value| value.as_u64()), Some(2));
+        assert_eq!(
+            unwrap_persisted_thread(&raw)
+                .get("activeGeneration")
+                .and_then(|value| value.as_u64()),
+            Some(2)
+        );
     }
 
     #[test]
@@ -3487,6 +4576,53 @@ mod tests {
         assert_eq!(turns[0].user_text, "Olá");
         assert_eq!(turns[0].assistant_text, "Resposta");
         assert_eq!(turns[0].entry_count, 2);
+    }
+
+    #[test]
+    fn projects_bounded_event_authority_without_private_paths() {
+        let correlation = TurnCorrelation {
+            schema_version: "0.2.0".to_string(),
+            journey_id: "nautilus-harness".to_string(),
+            thread_id: Some("harness-conversation".to_string()),
+            harness_conversation_id: "harness-conversation".to_string(),
+            pi_session_id: "nautilus-nautilus-harness".to_string(),
+            generation: 2,
+            activation_receipt_activated_at: Some("2026-08-26T10:00:00Z".to_string()),
+            turn_id: "turn-1".to_string(),
+            run_id: "run-1".to_string(),
+            harness_user_message_id: "user-1".to_string(),
+            harness_assistant_message_id: "assistant-1".to_string(),
+            mirror_conversation_id: Some("mirror-1".to_string()),
+        };
+        let authority = RunAuthority {
+            schema_version: "0.1.0".to_string(),
+            correlation,
+            journey_id: "nautilus-harness".to_string(),
+            run_id: "run-1".to_string(),
+            turn_id: "turn-1".to_string(),
+            thread_id: "harness-conversation".to_string(),
+            harness_conversation_id: "harness-conversation".to_string(),
+            generation: 2,
+            pi_session_id: "nautilus-nautilus-harness".to_string(),
+            pi_session_file: "/private/session.jsonl".to_string(),
+            mirror_conversation_id: "mirror-1".to_string(),
+            activation_receipt_activated_at: "2026-08-26T10:00:00Z".to_string(),
+            harness_user_message_id: "user-1".to_string(),
+            harness_assistant_message_id: "assistant-1".to_string(),
+        };
+
+        let projected = serde_json::to_value(event_authority(&authority)).unwrap();
+        assert_eq!(
+            projected.get("runId").and_then(Value::as_str),
+            Some("run-1")
+        );
+        assert_eq!(
+            projected
+                .get("mirrorConversationId")
+                .and_then(Value::as_str),
+            Some("mirror-1")
+        );
+        assert!(projected.get("piSessionFile").is_none());
     }
 
     #[test]
@@ -3506,16 +4642,12 @@ mod tests {
             mirror_conversation_id: Some("mirror-1".to_string()),
         };
 
-        assert!(validate_turn_correlation(
-            &correlation,
-            "nautilus-harness",
-            "nautilus-nautilus-harness",
-        ).is_ok());
-        assert!(validate_turn_correlation(
-            &correlation,
-            "another-journey",
-            "nautilus-nautilus-harness",
-        ).is_err());
+        assert!(validate_turn_correlation(&correlation).is_ok());
+        assert!(validate_turn_correlation(&TurnCorrelation {
+            journey_id: "another journey".to_string(),
+            ..correlation.clone()
+        })
+        .is_err());
         let serialized = serde_json::to_value(&correlation).expect("correlation should serialize");
         assert_eq!(serialized["mirrorConversationId"], "mirror-1");
 
@@ -3544,14 +4676,24 @@ mod tests {
                 "projectPath": "/journeys/selected"
             }]
         })];
-        assert_eq!(find_registered_journey_path(&roots, "selected").as_deref(), Some("/journeys/selected"));
+        assert_eq!(
+            find_registered_journey_path(&roots, "selected").as_deref(),
+            Some("/journeys/selected")
+        );
         assert_eq!(find_registered_journey_path(&roots, "unknown"), None);
     }
 
     #[test]
     fn projects_a_deterministic_bounded_documentation_tree() {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let directory = std::env::temp_dir().join(format!("nautilus-doc-tree-{}-{}", std::process::id(), nonce));
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "nautilus-doc-tree-{}-{}",
+            std::process::id(),
+            nonce
+        ));
         fs::create_dir_all(&directory).unwrap();
 
         let empty = list_journey_documentation_at(&directory).unwrap();
@@ -3566,10 +4708,22 @@ mod tests {
 
         let tree = list_journey_documentation_at(&directory).unwrap();
         assert_eq!(tree.status, "ready");
-        assert_eq!(tree.root_label, directory.file_name().unwrap().to_string_lossy());
-        assert_eq!(tree.items.iter().map(|node| node.name.as_str()).collect::<Vec<_>>(), vec!["guides", "Alpha.txt", "z.md"]);
+        assert_eq!(
+            tree.root_label,
+            directory.file_name().unwrap().to_string_lossy()
+        );
+        assert_eq!(
+            tree.items
+                .iter()
+                .map(|node| node.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["guides", "Alpha.txt", "z.md"]
+        );
         assert_eq!(tree.items[0].children[0].relative_path, "guides/start.md");
-        assert!(!tree.items.iter().any(|node| node.name == ".env" || node.name == "node_modules"));
+        assert!(!tree
+            .items
+            .iter()
+            .any(|node| node.name == ".env" || node.name == "node_modules"));
         let json = serde_json::to_string(&tree).unwrap();
         assert!(!json.contains(&directory.to_string_lossy().to_string()));
         assert!(!json.contains("SECRET"));
@@ -3578,8 +4732,15 @@ mod tests {
 
     #[test]
     fn rejects_workspace_hierarchies_beyond_the_depth_limit() {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let directory = std::env::temp_dir().join(format!("nautilus-doc-depth-{}-{}", std::process::id(), nonce));
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "nautilus-doc-depth-{}-{}",
+            std::process::id(),
+            nonce
+        ));
         let mut nested = directory.clone();
         for index in 0..18 {
             nested = nested.join(format!("level-{}", index));
@@ -3591,30 +4752,69 @@ mod tests {
 
     #[test]
     fn reads_only_bounded_supported_document_content() {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let directory = std::env::temp_dir().join(format!("nautilus-doc-content-{}-{}", std::process::id(), nonce));
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "nautilus-doc-content-{}-{}",
+            std::process::id(),
+            nonce
+        ));
         fs::create_dir_all(&directory).unwrap();
         fs::write(directory.join("readme.md"), "# Safe").unwrap();
         fs::write(directory.join("image.png"), [0_u8, 1, 2]).unwrap();
         fs::write(directory.join("invalid.txt"), [0xff_u8, 0xfe]).unwrap();
-        fs::write(directory.join("large.txt"), vec![b'x'; DOCUMENT_PREVIEW_MAX_BYTES as usize + 1]).unwrap();
+        fs::write(
+            directory.join("large.txt"),
+            vec![b'x'; DOCUMENT_PREVIEW_MAX_BYTES as usize + 1],
+        )
+        .unwrap();
 
         let ready = read_journey_document_at(&directory, "readme.md").unwrap();
         assert_eq!(ready.status, "ready");
         assert_eq!(ready.preview_kind, "markdown");
         assert_eq!(ready.content.as_deref(), Some("# Safe"));
-        assert_eq!(read_journey_document_at(&directory, "image.png").unwrap().reason.as_deref(), Some("unsupported_type"));
-        assert_eq!(read_journey_document_at(&directory, "invalid.txt").unwrap().reason.as_deref(), Some("invalid_utf8"));
-        assert_eq!(read_journey_document_at(&directory, "large.txt").unwrap().reason.as_deref(), Some("oversized"));
+        assert_eq!(
+            read_journey_document_at(&directory, "image.png")
+                .unwrap()
+                .reason
+                .as_deref(),
+            Some("unsupported_type")
+        );
+        assert_eq!(
+            read_journey_document_at(&directory, "invalid.txt")
+                .unwrap()
+                .reason
+                .as_deref(),
+            Some("invalid_utf8")
+        );
+        assert_eq!(
+            read_journey_document_at(&directory, "large.txt")
+                .unwrap()
+                .reason
+                .as_deref(),
+            Some("oversized")
+        );
         fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]
     fn rejects_document_traversal_and_absolute_paths() {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let directory = std::env::temp_dir().join(format!("nautilus-doc-traversal-{}-{}", std::process::id(), nonce));
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "nautilus-doc-traversal-{}-{}",
+            std::process::id(),
+            nonce
+        ));
         fs::create_dir_all(&directory).unwrap();
-        let outside = directory.parent().unwrap().join(format!("outside-{}.md", nonce));
+        let outside = directory
+            .parent()
+            .unwrap()
+            .join(format!("outside-{}.md", nonce));
         fs::write(&outside, "outside").unwrap();
         assert!(read_journey_document_at(&directory, &format!("../outside-{}.md", nonce)).is_err());
         assert!(read_journey_document_at(&directory, "/tmp/outside.md").is_err());
@@ -3629,10 +4829,20 @@ mod tests {
     #[test]
     fn omits_symbolic_links_from_documentation_projection() {
         use std::os::unix::fs::symlink;
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let directory = std::env::temp_dir().join(format!("nautilus-doc-symlink-{}-{}", std::process::id(), nonce));
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "nautilus-doc-symlink-{}-{}",
+            std::process::id(),
+            nonce
+        ));
         fs::create_dir_all(&directory).unwrap();
-        let outside = directory.parent().unwrap().join(format!("outside-symlink-{}.md", nonce));
+        let outside = directory
+            .parent()
+            .unwrap()
+            .join(format!("outside-symlink-{}.md", nonce));
         fs::write(&outside, "outside").unwrap();
         symlink(&outside, directory.join("escape.md")).unwrap();
         symlink(&directory, directory.join("loop")).unwrap();
@@ -3653,13 +4863,23 @@ mod tests {
         fs::write(&pdf, b"%PDF-not-parsed").unwrap();
         fs::write(&archive, [0_u8, 1, 2, 3]).unwrap();
 
-        let response = inspect_file_attachments_at("journey-a", &[archive.clone(), pdf.clone()]).unwrap();
+        let response =
+            inspect_file_attachments_at("journey-a", &[archive.clone(), pdf.clone()]).unwrap();
         assert_eq!(response.schema_version, "0.2.0");
         assert_eq!(response.max_files, FILE_ATTACHMENT_MAX_FILES);
         assert_eq!(response.attachments.len(), 2);
-        assert!(response.attachments.iter().all(|item| item.kind == "file" && item.thumbnail.is_none()));
-        assert!(response.attachments.iter().all(|item| Path::new(&item.absolute_path).is_absolute()));
-        assert!(response.attachments.iter().all(|item| item.attachment_id.starts_with("file-")));
+        assert!(response
+            .attachments
+            .iter()
+            .all(|item| item.kind == "file" && item.thumbnail.is_none()));
+        assert!(response
+            .attachments
+            .iter()
+            .all(|item| Path::new(&item.absolute_path).is_absolute()));
+        assert!(response
+            .attachments
+            .iter()
+            .all(|item| item.attachment_id.starts_with("file-")));
         fs::remove_dir_all(directory).unwrap();
     }
 
@@ -3668,7 +4888,9 @@ mod tests {
         let directory = test_root("image-attachment");
         fs::create_dir_all(&directory).unwrap();
         let image_path = directory.join("photo.png");
-        image::RgbaImage::from_pixel(640, 320, image::Rgba([12, 34, 56, 255])).save(&image_path).unwrap();
+        image::RgbaImage::from_pixel(640, 320, image::Rgba([12, 34, 56, 255]))
+            .save(&image_path)
+            .unwrap();
 
         let response = inspect_file_attachments_at("journey-a", &[image_path]).unwrap();
         let image = &response.attachments[0];
@@ -3688,29 +4910,43 @@ mod tests {
         assert!(inspect_file_attachments_at("journey-a", &[directory.clone()]).is_err());
         assert!(inspect_file_attachments_at("journey-a", &[file.clone(), file]).is_err());
         assert!(inspect_file_attachments_at("", &[]).is_err());
-        let too_many = (0..=FILE_ATTACHMENT_MAX_FILES).map(|index| {
-            let path = directory.join(format!("{}.bin", index));
-            fs::write(&path, [1_u8]).unwrap();
-            path
-        }).collect::<Vec<_>>();
+        let too_many = (0..=FILE_ATTACHMENT_MAX_FILES)
+            .map(|index| {
+                let path = directory.join(format!("{}.bin", index));
+                fs::write(&path, [1_u8]).unwrap();
+                path
+            })
+            .collect::<Vec<_>>();
         assert!(inspect_file_attachments_at("journey-a", &too_many).is_err());
         fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]
     fn reads_only_fixed_projection_coordinates_from_the_journey_manifest() {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let directory = std::env::temp_dir().join(format!("nautilus-projections-{}-{}", std::process::id(), nonce));
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "nautilus-projections-{}-{}",
+            std::process::id(),
+            nonce
+        ));
         fs::create_dir_all(directory.join(".mirror/projections")).unwrap();
-        fs::write(directory.join(".mirror/projections/current.json"), serde_json::to_vec(&json!({
-            "contractVersion": "1.0",
-            "schemaVersion": "1",
-            "journeyId": "selected",
-            "projections": {
-                "ariad:operational": {},
-                "nautilus-synthesis:tactical": {}
-            }
-        })).unwrap()).unwrap();
+        fs::write(
+            directory.join(".mirror/projections/current.json"),
+            serde_json::to_vec(&json!({
+                "contractVersion": "1.0",
+                "schemaVersion": "1",
+                "journeyId": "selected",
+                "projections": {
+                    "ariad:operational": {},
+                    "nautilus-synthesis:tactical": {}
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
         let coordinates = projection_manifest_coordinates_at(&directory, "selected").unwrap();
         assert!(coordinates.contains("ariad:operational"));
         assert!(coordinates.contains("nautilus-synthesis:tactical"));
@@ -3723,9 +4959,19 @@ mod tests {
     #[test]
     fn rejects_symbolic_link_projection_manifests() {
         use std::os::unix::fs::symlink;
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let directory = std::env::temp_dir().join(format!("nautilus-projection-link-{}-{}", std::process::id(), nonce));
-        let outside = directory.parent().unwrap().join(format!("projection-outside-{}.json", nonce));
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "nautilus-projection-link-{}-{}",
+            std::process::id(),
+            nonce
+        ));
+        let outside = directory
+            .parent()
+            .unwrap()
+            .join(format!("projection-outside-{}.json", nonce));
         fs::create_dir_all(directory.join(".mirror/projections")).unwrap();
         fs::write(&outside, "{}").unwrap();
         symlink(&outside, directory.join(".mirror/projections/current.json")).unwrap();
@@ -3736,7 +4982,10 @@ mod tests {
 
     #[test]
     fn retires_only_valid_legacy_harness_projections_after_a_bounded_receipt() {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let root = std::env::temp_dir().join(format!("nautilus-parity-retirement-{}", nonce));
         let legacy = root.join("journey-conversations");
         let pi = root.join("pi-sessions/native.jsonl");
@@ -3750,20 +4999,30 @@ mod tests {
         })).unwrap()).unwrap();
         fs::write(legacy.join("invalid.json"), "not-json").unwrap();
         fs::create_dir_all(legacy.join("backups/old")).unwrap();
-        fs::write(legacy.join("backups/old/valid.json"), serde_json::to_vec(&json!({
-            "schemaVersion": "0.4.0", "conversation": {"journeyId": "valid"}
-        })).unwrap()).unwrap();
+        fs::write(
+            legacy.join("backups/old/valid.json"),
+            serde_json::to_vec(&json!({
+                "schemaVersion": "0.4.0", "conversation": {"journeyId": "valid"}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
 
         let first = retire_legacy_parity_state_at(&root).unwrap();
         assert_eq!(first.retired, 2);
         assert_eq!(first.retained, 1);
         assert!(!legacy.join("valid.json").exists());
         assert!(legacy.join("invalid.json").exists());
-        let receipt = fs::read_to_string(root.join("retired-parity-state/receipts/valid_json.receipt.json")).unwrap();
+        let receipt =
+            fs::read_to_string(root.join("retired-parity-state/receipts/valid_json.receipt.json"))
+                .unwrap();
         assert!(receipt.contains("superseded_by_dedicated_thread"));
         assert!(!receipt.contains("private"));
         assert_eq!(fs::read_to_string(&pi).unwrap(), "native-pi-history");
-        assert_eq!(fs::read_to_string(&mirror).unwrap(), "native-mirror-history");
+        assert_eq!(
+            fs::read_to_string(&mirror).unwrap(),
+            "native-mirror-history"
+        );
 
         let second = retire_legacy_parity_state_at(&root).unwrap();
         assert_eq!(second.retired, 0);
@@ -3775,7 +5034,10 @@ mod tests {
     #[test]
     fn retains_symbolic_link_legacy_state_without_following_it() {
         use std::os::unix::fs::symlink;
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let root = std::env::temp_dir().join(format!("nautilus-parity-link-{}", nonce));
         let legacy = root.join("journey-conversations");
         let outside = root.join("outside.json");
@@ -3804,9 +5066,18 @@ mod tests {
         fs::create_dir_all(root.join("docs")).unwrap();
         fs::write(root.join("docs/real.md"), "real").unwrap();
 
-        assert!(resolve_existing_local_file("docs/real.md", Some(root.to_string_lossy().as_ref())).is_ok());
-        assert!(resolve_existing_local_file("docs/missing.md", Some(root.to_string_lossy().as_ref())).is_err());
-        assert!(resolve_existing_local_file("docs", Some(root.to_string_lossy().as_ref())).is_err());
+        assert!(
+            resolve_existing_local_file("docs/real.md", Some(root.to_string_lossy().as_ref()))
+                .is_ok()
+        );
+        assert!(resolve_existing_local_file(
+            "docs/missing.md",
+            Some(root.to_string_lossy().as_ref())
+        )
+        .is_err());
+        assert!(
+            resolve_existing_local_file("docs", Some(root.to_string_lossy().as_ref())).is_err()
+        );
 
         fs::remove_dir_all(root).unwrap();
     }
@@ -3817,14 +5088,16 @@ mod tests {
             "schemaVersion": "1.0.0",
             "drafts": {"journey-a": "draft text"},
             "savedAt": "2026-08-30T15:00:00Z"
-        }).to_string();
+        })
+        .to_string();
         assert!(validate_composer_drafts_payload(&valid).is_ok());
 
         let oversized = json!({
             "schemaVersion": "1.0.0",
             "drafts": {"journey-a": "x".repeat(51_201)},
             "savedAt": "2026-08-30T15:00:00Z"
-        }).to_string();
+        })
+        .to_string();
         assert!(validate_composer_drafts_payload(&oversized).is_err());
         assert!(validate_composer_drafts_payload("{bad-json").is_err());
     }

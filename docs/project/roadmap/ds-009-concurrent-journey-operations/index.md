@@ -42,7 +42,7 @@ A desktop agent cockpit should not turn one long-running Journey into a global a
 - Start and cancel commands require both `journeyId` and `runId`.
 - Live dedicated runs require correlated authority before spawn.
 - Provider configuration is captured as a backend snapshot at run start and is not emitted in events.
-- Every process event carries event authority derived from `RunAuthority`: `journeyId`, `runId`, `turnId`, `threadId`, `generation`, `piSessionId`, `piSessionFile` when available, and `mirrorConversationId`.
+- Every process event carries bounded event authority derived from `RunAuthority`: `journeyId`, `runId`, `turnId`, `threadId`, `generation`, `piSessionId` and `mirrorConversationId`; private paths such as `piSessionFile` stay out of event authority.
 - Frontend event dispatch is centralized through one app-level listener, not one listener per run.
 - Frontend event reducers reject events that are late, unauthoritative or attached to a replaced run; stale events are discarded or quarantined outside current run state.
 - Frontend runtime state migrates from global selected-Journey state to Journey-keyed state.

@@ -117,8 +117,9 @@ TS-1 introduces a bounded event authority projection derived from `RunAuthority`
 - `threadId`;
 - `generation`;
 - `piSessionId`;
-- `piSessionFile` when needed for settlement correlation;
 - `mirrorConversationId`;
+
+It must not include `piSessionFile`; that private path stays inside `RunAuthority` and backend settlement.
 - Harness message IDs when needed by frontend reducers.
 
 It must not include provider config, prompt content, assistant response content beyond the existing event `content`, private reasoning beyond existing event mapping, secrets, environment variables or arbitrary process metadata.
@@ -144,7 +145,7 @@ These tests should fail before implementation:
 - Backend pre-spawn validation rejects a live dedicated run whose `RunAuthority` does not match the stored active generation.
 - Backend pre-spawn validation rejects a live dedicated run whose persisted projection live identity does not match `RunAuthority`.
 - Bounded `PiProcessEvent` projection includes Journey, run, turn, thread, generation, Pi session and Mirror conversation authority.
-- Bounded `PiProcessEvent` projection does not include provider config, prompt, assistant response transcript beyond event content, secrets or environment variables.
+- Bounded `PiProcessEvent` projection does not include `piSessionFile`, provider config, prompt, assistant response transcript beyond event content, secrets or environment variables.
 - Live dedicated event mapping rejects events without authority before state reduction.
 - Live dedicated stale event mapping rejects mismatched `runId` without consulting selected Journey.
 - `safeTestMode` still requires valid `RunAuthority` at `start_pi_invocation`.

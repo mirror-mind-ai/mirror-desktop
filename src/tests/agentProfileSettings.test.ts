@@ -8,7 +8,7 @@ describe("persistent agent profile application boundary", () => {
     expect(appSource).toContain("resolveAgentProfile(agentSettings, selectedJourney)");
     expect(appSource).toContain("projectAgentProfile(providerConfig, effectiveAgentProfile)");
     expect(appSource).toContain('agentSettingsState !== "ready"');
-    expect(appSource).toContain("livePiAgentStream(packet, effectiveProviderConfig, correlation)");
+    expect(appSource).toContain("livePiAgentStream(packet, effectiveProviderConfig, runAuthority)");
   });
 
   it("opens Journey selection from the model link beside Send instead of global Settings", () => {

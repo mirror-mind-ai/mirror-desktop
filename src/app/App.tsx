@@ -5,7 +5,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamProvider, type TurnCorrelation } from "../agent/agentStream";
+import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamEvent, type AgentStreamProvider, type TurnCorrelation } from "../agent/agentStream";
 import {
   cancelLivePiInvocation,
   livePiAgentStream,
@@ -141,6 +141,7 @@ import {
 } from "../domain/journeyRegistry";
 import type { JourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
+import { createRunAuthority } from "../domain/runAuthority";
 import { classifyDedicatedTurnState, dedicatedTurnBlocksNewInvocation, interruptDedicatedTurn } from "../domain/dedicatedTurnCommit";
 import {
   defaultJourneyPreferenceState,
@@ -201,6 +202,15 @@ function journeyVisual(journeyId: string) {
 
 function sidebarDescription(journey: SidebarJourneyItem) {
   return journey.breadcrumb.length > 1 ? journey.breadcrumb.slice(0, -1).join(" / ") : "~";
+}
+
+async function* missingRunAuthorityStream(): AsyncGenerator<AgentStreamEvent> {
+  yield createMissingRunAuthorityEvent();
+  yield { type: "done" };
+}
+
+function createMissingRunAuthorityEvent() {
+  return { type: "error" as const, message: "Live dedicated invocation requires RunAuthority." };
 }
 
 const emptyJourneyRegistry: JourneyRegistry = {
@@ -1054,9 +1064,20 @@ export function App({ model }: AppProps) {
     const stagedConversation = correlation
       ? stageCorrelatedTurn(baseConversation, correlation, userMessage, assistantMessage)
       : replaceJourneyConversationMessages(baseConversation, [...nextMessages, assistantMessage]);
+    let runAuthority: ReturnType<typeof createRunAuthority> | undefined;
+    try {
+      runAuthority = correlation && journeyThreadState.kind === "ready"
+        ? createRunAuthority(correlation, baseConversation.liveIdentity, journeyThreadState.activeGeneration)
+        : undefined;
+    } catch (error) {
+      setStreamWarnings((warnings) => [...warnings, `Live invocation stopped because run authority could not be built: ${error instanceof Error ? error.message : String(error)}`]);
+      return;
+    }
     const provider: AgentStreamProvider = mode === "mock"
       ? mockPiAgentStream
-      : (packet) => livePiAgentStream(packet, effectiveProviderConfig, correlation);
+      : (packet) => runAuthority
+        ? livePiAgentStream(packet, effectiveProviderConfig, runAuthority)
+        : missingRunAuthorityStream();
 
     if (correlation) {
       try {

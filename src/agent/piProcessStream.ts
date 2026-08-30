@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { AgentStreamEvent, MirrorCommitEvent, TurnCorrelation } from "./agentStream";
+import type { AgentStreamEvent, MirrorCommitEvent } from "./agentStream";
 import type { PiTaskPacket } from "./piTaskPacket";
 import {
   configuredModelContextWindow,
@@ -9,6 +9,7 @@ import {
   type AgentProviderConfig,
 } from "./providerConfig";
 import { stripAnsiControlSequences } from "./terminalText";
+import { samePiProcessEventAuthority, type PiProcessEventAuthority, type RunAuthority } from "../domain/runAuthority";
 
 const PI_PROCESS_EVENT = "nautilus-pi-process";
 
@@ -17,6 +18,7 @@ type PiProcessEventKind = "started" | "stdout" | "stderr" | "error" | "cancelled
 export type PiProcessEvent = {
   kind: PiProcessEventKind;
   content: string;
+  authority?: PiProcessEventAuthority;
 };
 
 function packetWithoutPersistedThumbnails(packet: PiTaskPacket): PiTaskPacket {
@@ -114,12 +116,19 @@ type PiProcessMappingOptions = {
   projectReasoningSummaries?: boolean;
   mappingState?: PiProcessMappingState;
   contextWindow?: number;
+  expectedAuthority?: RunAuthority;
 };
 
 export function mapPiProcessEventToStreamEvents(
   event: PiProcessEvent,
   options: PiProcessMappingOptions = {},
 ): AgentStreamEvent[] {
+  if (options.expectedAuthority) {
+    if (!event.authority) return [{ type: "error", message: "Rejected Pi process event without run authority." }];
+    if (!samePiProcessEventAuthority(event.authority, options.expectedAuthority)) {
+      return [{ type: "error", message: "Rejected Pi process event for another run." }];
+    }
+  }
   switch (event.kind) {
     case "started":
       return [{ type: "run_status", status: "starting" }];
@@ -552,7 +561,7 @@ export async function readJourneyPiContextStats(
 export async function* livePiAgentStream(
   packet: PiTaskPacket,
   providerConfig: AgentProviderConfig = defaultPiProviderConfig,
-  correlation?: TurnCorrelation,
+  runAuthority: RunAuthority,
 ): AsyncGenerator<AgentStreamEvent> {
   const configErrors = validateProviderConfig(providerConfig);
   if (configErrors.length > 0) {
@@ -572,6 +581,7 @@ export async function* livePiAgentStream(
         projectReasoningSummaries: supportsDisplayableReasoningSummaries(providerConfig),
         mappingState,
         contextWindow: configuredModelContextWindow(providerConfig),
+        expectedAuthority: runAuthority,
       })) {
         queue.push(streamEvent);
         if (streamEvent.type === "done") {
@@ -590,10 +600,7 @@ export async function* livePiAgentStream(
     await invoke("start_pi_invocation", {
       prompt: createPiInvocationPrompt(packet, providerConfig.invocationMode),
       config: providerConfig,
-      journeyId: packet.journeyId ?? "nautilus-harness",
-      sessionId: packet.liveConversation?.piSessionId ?? `nautilus-${packet.journeyId ?? "nautilus-harness"}`,
-      sessionFile: packet.liveConversation?.piSessionFile,
-      correlation,
+      runAuthority,
     });
   } catch (error) {
     queue.push({ type: "error", message: `Could not invoke local Pi: ${formatUnknownError(error)}` });

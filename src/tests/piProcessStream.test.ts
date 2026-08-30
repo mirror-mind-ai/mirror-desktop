@@ -7,6 +7,10 @@ import {
 } from "../agent/piProcessStream";
 import { createMissionExtractionPacket, type NautilusGrammarState } from "../agent/piTaskPacket";
 import { defaultPiProviderConfig } from "../agent/providerConfig";
+import { createDedicatedJourneyConversation } from "../domain/journeyConversation";
+import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
+import { createRunAuthority } from "../domain/runAuthority";
+import { readyThread } from "./fixtures/readyThread";
 
 const currentState: NautilusGrammarState = {
   identity: {
@@ -17,6 +21,16 @@ const currentState: NautilusGrammarState = {
     grammarStatus: "experimental",
   },
 };
+
+function testRunAuthority() {
+  const thread = readyThread("journey-one");
+  const conversation = createDedicatedJourneyConversation({ thread, initialMessages: [] });
+  return createRunAuthority(
+    createDedicatedTurnAuthority(thread, "run-1", "turn-1", "user-1", "assistant-1"),
+    conversation.liveIdentity,
+    thread.generations[0],
+  );
+}
 
 describe("Pi process stream adapter", () => {
   it("maps plain stdout to raw output for later normalization", () => {
@@ -473,6 +487,29 @@ describe("Pi process stream adapter", () => {
     ]);
   });
 
+  it("rejects live process events without expected authority", () => {
+    expect(mapPiProcessEventToStreamEvents(
+      { kind: "stdout", content: "Olá\n" },
+      { expectedAuthority: testRunAuthority() },
+    )).toEqual([{ type: "error", message: "Rejected Pi process event without run authority." }]);
+  });
+
+  it("rejects stale live process events before mapping without consulting selected Journey", () => {
+    const authority = testRunAuthority();
+    expect(mapPiProcessEventToStreamEvents(
+      { kind: "stdout", content: "Olá\n", authority: { ...authority.eventAuthority, runId: "stale-run" } },
+      { expectedAuthority: authority },
+    )).toEqual([{ type: "error", message: "Rejected Pi process event for another run." }]);
+  });
+
+  it("maps authorized live process events", () => {
+    const authority = testRunAuthority();
+    expect(mapPiProcessEventToStreamEvents(
+      { kind: "stdout", content: "Olá\n", authority: authority.eventAuthority },
+      { expectedAuthority: authority },
+    )).toEqual([{ type: "raw_output", content: "Olá\n" }]);
+  });
+
   it("settles invalid provider setup as error before done", async () => {
     const packet = createMissionExtractionPacket({
       currentState,
@@ -485,7 +522,7 @@ describe("Pi process stream adapter", () => {
     });
     const events = [];
 
-    for await (const event of livePiAgentStream(packet, { ...defaultPiProviderConfig, command: "" })) {
+    for await (const event of livePiAgentStream(packet, { ...defaultPiProviderConfig, command: "" }, testRunAuthority())) {
       events.push(event);
     }
 
