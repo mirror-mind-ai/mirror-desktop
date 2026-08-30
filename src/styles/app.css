@@ -1437,34 +1437,23 @@ h3 {
 
 .composer-runtime-footer {
   align-items: center;
-  bottom: 14px;
-  display: flex;
-  gap: 14px;
-  justify-content: space-between;
-  left: 18px;
-  min-height: 34px;
-  pointer-events: none;
-  position: absolute;
-  right: 104px;
-}
-
-.composer-runtime-primary {
-  align-items: center;
   display: flex;
   flex: 1 1 auto;
+  min-height: 34px;
   min-width: 0;
+  pointer-events: none;
 }
 
 .composer-runtime-metadata {
   align-items: center;
   color: #78959c;
   display: flex;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
   font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
   font-size: 0.62rem;
-  gap: 7px;
+  gap: 5px 7px;
   min-width: 0;
-  white-space: nowrap;
 }
 
 .composer-runtime-metadata span:last-child,
@@ -1545,13 +1534,30 @@ h3 {
 
 .composer-runtime-status {
   align-items: center;
+  align-self: flex-start;
+  background: rgba(133, 223, 210, 0.08);
+  border: 1px solid rgba(133, 223, 210, 0.2);
+  border-radius: 999px;
   color: #bff2eb;
   display: flex;
   font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
   font-size: 0.7rem;
   gap: 7px;
   letter-spacing: 0.06em;
-  min-height: 24px;
+  margin: 0 0 10px;
+  min-height: 30px;
+  padding: 0 12px;
+}
+
+.composer-runtime-status.is-completed {
+  background: rgba(133, 223, 210, 0.04);
+  border-color: rgba(133, 223, 210, 0.14);
+  color: #91bbb5;
+}
+
+.runtime-complete-mark {
+  color: #85dfd2;
+  font-size: 0.78rem;
 }
 
 .runtime-live-dot {
@@ -1851,11 +1857,16 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .message {
   border-radius: 24px;
-  max-width: 900px;
+  box-sizing: border-box;
+  max-width: min(900px, 100%);
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 20px 22px;
 }
 
@@ -1902,6 +1913,48 @@ h3 {
   text-transform: uppercase;
 }
 
+.message-copy-action {
+  align-items: center;
+  background: transparent;
+  border: 1px solid rgba(133, 223, 210, 0.2);
+  border-radius: 999px;
+  color: #9eb5ba;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 30px;
+  height: 30px;
+  justify-content: center;
+  margin-left: auto;
+  padding: 0;
+  width: 30px;
+}
+
+.message-copy-action svg {
+  fill: none;
+  height: 15px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  width: 15px;
+}
+
+.message-copy-action:hover,
+.message-copy-action:focus-visible {
+  background: rgba(133, 223, 210, 0.1);
+  border-color: rgba(133, 223, 210, 0.4);
+  color: #d0fff8;
+}
+
+.message-copy-action.is-copied {
+  color: #85dfd2;
+}
+
+.message-copy-action.is-failed {
+  border-color: rgba(255, 159, 159, 0.36);
+  color: #ffb3b3;
+}
+
 .message.speaker-persona .message-avatar {
   background: rgba(177, 140, 255, 0.12);
   border-color: rgba(177, 140, 255, 0.28);
@@ -1916,6 +1969,8 @@ h3 {
   color: #d8e7eb;
   line-height: 1.55;
   margin-bottom: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .inline-grammar-card {
@@ -1978,6 +2033,8 @@ h3 {
 .message-content {
   color: #d8e7eb;
   line-height: 1.55;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .message-content > * + * {
@@ -2011,7 +2068,9 @@ h3 {
 
 .inline-link {
   color: #9ceade;
+  overflow-wrap: anywhere;
   text-decoration: underline;
+  word-break: break-word;
   text-decoration-color: rgba(156, 234, 222, 0.38);
   text-underline-offset: 3px;
 }
@@ -2039,7 +2098,10 @@ h3 {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
+  box-sizing: border-box;
   margin-bottom: 0;
+  max-width: 100%;
+  min-width: 0;
   overflow: auto;
   padding: 12px;
 }
@@ -2299,14 +2361,15 @@ h3 {
   position: relative;
 }
 
-textarea {
+.composer-input-wrap textarea {
   background: rgba(7, 18, 22, 0.74);
   border: 1px solid rgba(133, 223, 210, 0.28);
   border-radius: 20px;
   box-sizing: border-box;
   color: #f5fbfd;
+  display: block;
   min-height: 100px;
-  padding: 18px 62px 46px 18px;
+  padding: 18px;
   resize: vertical;
   width: 100%;
 }
@@ -2322,12 +2385,19 @@ input::placeholder {
   color: #78959c;
 }
 
-.composer-inline-actions {
-  bottom: 14px;
+.composer-input-footer {
+  align-items: center;
   display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 10px 4px 0;
+}
+
+.composer-inline-actions {
+  display: flex;
+  flex: 0 0 auto;
   gap: 8px;
-  position: absolute;
-  right: 14px;
 }
 
 button {

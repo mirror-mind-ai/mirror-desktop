@@ -40,8 +40,11 @@ import {
   stripMirrorSurfaceBlocks,
 } from "./ImportedActivity";
 import { MessageContent } from "./MessageContent";
+import { MessageCopyAction } from "./MessageCopyAction";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
-import { ComposerRuntimeFooter } from "./ComposerRuntimeFooter";
+import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
+import { deriveComposerTurnStatus } from "./composerTurnStatus";
+import { nextConversationAutoFollow } from "./conversationAutoFollow";
 import { ConversationSyncNotice, LegacyMirrorGapNotice } from "./ConversationSyncNotice";
 import { PendingFileAttachments } from "./PendingFileAttachments";
 import { MessageFileAttachments } from "./MessageFileAttachments";
@@ -85,6 +88,7 @@ import {
   saveDedicatedJourneyConversation,
 } from "./journeyConversationStorage";
 import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPreferenceStorage";
+import { loadComposerDrafts, saveComposerDrafts } from "./composerDraftStorage";
 import { listPiModels, loadAgentSettings, saveAgentSettings, type PiModelCatalogEntry } from "./agentSettingsStorage";
 import { loadJourneyRegistry, refreshJourneyRegistry } from "./journeyRegistryStorage";
 import { chooseProjectDirectory, mutateJourneyRegistry } from "./journeyMutationStorage";
@@ -154,6 +158,11 @@ import {
   type AgentThinkingLevel,
 } from "../domain/agentProfile";
 import type { NautilusViewModel } from "../domain/nautilusViewModel";
+import {
+  COMPOSER_DRAFT_MAX_CHARS,
+  updateComposerDraft,
+  type ComposerDraftMap,
+} from "../domain/composerDrafts";
 import type { JourneyProjectionBundle } from "../domain/journeyProjections";
 import {
   addFileAttachments,
@@ -240,6 +249,8 @@ export function App({ model }: AppProps) {
   const [journeyAdminPendingRequest, setJourneyAdminPendingRequest] = useState<JourneyMutationRequest | null>(null);
   const [draggedJourneyId, setDraggedJourneyId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [composerDrafts, setComposerDrafts] = useState<ComposerDraftMap>({});
+  const [composerDraftsLoaded, setComposerDraftsLoaded] = useState(false);
   const [pendingFileAttachments, setPendingFileAttachments] = useState<FileAttachment[]>([]);
   const [fileAttachmentMaxFiles, setFileAttachmentMaxFiles] = useState(MAX_FILE_ATTACHMENTS);
   const [fileAttachmentBusy, setFileAttachmentBusy] = useState(false);
@@ -282,6 +293,7 @@ export function App({ model }: AppProps) {
   const [runtimeChannelError, setRuntimeChannelError] = useState<string>();
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
   const [agentRun, setAgentRun] = useState(initialAgentRunState);
+  const [agentRunJourneyId, setAgentRunJourneyId] = useState<string>();
   const [conversationLoaded, setConversationLoaded] = useState(false);
   const [journeyThreadState, setJourneyThreadState] = useState<JourneyThreadDisplayState>({ kind: "loading" });
   const [startingJourneyId, setStartingJourneyId] = useState<string | undefined>();
@@ -297,6 +309,7 @@ export function App({ model }: AppProps) {
   const [projectionLoadStatus, setProjectionLoadStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const chatStreamRef = useRef<HTMLElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const chatAutoFollowRef = useRef(true);
   const journeyMenuRef = useRef<HTMLDivElement | null>(null);
   const journeyTreeButtonRef = useRef<HTMLButtonElement | null>(null);
   const journeyTreeMenuRef = useRef<HTMLDivElement | null>(null);
@@ -380,6 +393,14 @@ export function App({ model }: AppProps) {
   const reconciliationBlocksInvocation = mirrorAppendNeedsEnqueue || (dedicatedThreadReady
     ? dedicatedTurnBlocksNewInvocation(dedicatedTurnState)
     : conversation.reconciliation.classification !== "in_sync");
+  const composerTurnStatus = deriveComposerTurnStatus({
+    agentRunStatus: agentRun.status,
+    runBelongsToSelectedJourney: agentRunJourneyId === selectedJourney,
+    isStreaming,
+    isFinalizingTurn,
+    reconciliationBlocksInvocation,
+    mirrorRepairPending: Boolean(pendingMirrorRepair),
+  });
   const configuredContextWindow = piModelCatalog.find((entry) =>
     entry.provider === effectiveAgentProfile.model.provider && entry.model === effectiveAgentProfile.model.model,
   )?.contextWindow ?? configuredModelContextWindow(effectiveProviderConfig);
@@ -503,16 +524,22 @@ export function App({ model }: AppProps) {
     async function restoreJourneyRegistryAndPreferences() {
       let registry = emptyJourneyRegistry;
       let preferences: JourneyPreferenceState = defaultJourneyPreferenceState;
+      let restoredDrafts: ComposerDraftMap = {};
       try {
-        const [loadedRegistry, loadedPreferences] = await Promise.all([
+        const [loadedRegistry, loadedPreferences, loadedComposerDrafts] = await Promise.all([
           loadJourneyRegistry(),
           loadJourneyPreferences(),
+          loadComposerDrafts().catch((error) => {
+            console.warn("Composer drafts could not be restored.", error);
+            return {};
+          }),
           retireLegacyParityState().catch((error) => {
             console.warn("Legacy parity state was retained for manual review.", error);
           }),
         ]);
         registry = loadedRegistry ?? emptyJourneyRegistry;
         preferences = loadedPreferences ? { ...defaultJourneyPreferenceState, ...loadedPreferences } : defaultJourneyPreferenceState;
+        restoredDrafts = loadedComposerDrafts;
       } catch (error) {
         console.warn("Could not load Journey registry/preferences from user disk.", error);
       }
@@ -528,6 +555,7 @@ export function App({ model }: AppProps) {
       }
 
       setLoadedJourneyRegistry(registry);
+      setComposerDrafts(restoredDrafts);
       setJourneyPreferences({
         pinnedJourneyIds: sanitizedPreferences.pinnedJourneyIds,
         activeJourneyId: nextActiveJourney,
@@ -536,7 +564,9 @@ export function App({ model }: AppProps) {
       setJourneyListOrder(sanitizedPreferences.journeyListOrder);
       if (nextActiveJourney) {
         setSelectedJourney(nextActiveJourney);
+        setDraft(restoredDrafts[nextActiveJourney] ?? "");
       }
+      setComposerDraftsLoaded(true);
       setRegistryLoaded(true);
       setPreferencesLoaded(true);
     }
@@ -556,6 +586,17 @@ export function App({ model }: AppProps) {
     }, 3000);
     return () => window.clearTimeout(timeout);
   }, [journeyRegistryRefreshState]);
+
+  useEffect(() => {
+    setAgentRunJourneyId(undefined);
+    chatAutoFollowRef.current = nextConversationAutoFollow(
+      chatAutoFollowRef.current,
+      { type: "journey_changed" },
+    );
+    if (composerDraftsLoaded) {
+      setDraft(composerDrafts[selectedJourney] ?? "");
+    }
+  }, [selectedJourney, composerDraftsLoaded]);
 
   useEffect(() => {
     if (!registryLoaded || !preferencesLoaded) {
@@ -766,6 +807,13 @@ export function App({ model }: AppProps) {
   ]);
 
   useEffect(() => {
+    if (!composerDraftsLoaded) return;
+    void saveComposerDrafts(composerDrafts).catch((error) => {
+      console.warn("Could not persist Composer drafts.", error);
+    });
+  }, [composerDrafts, composerDraftsLoaded]);
+
+  useEffect(() => {
     if (!registryLoaded || !preferencesLoaded) {
       return;
     }
@@ -842,13 +890,20 @@ export function App({ model }: AppProps) {
   useEffect(() => {
     const chatStream = chatStreamRef.current;
     const chatEnd = chatEndRef.current;
-    if (!chatStream || !chatEnd) {
+    chatAutoFollowRef.current = nextConversationAutoFollow(
+      chatAutoFollowRef.current,
+      { type: "content_updated" },
+    );
+    if (!chatStream || !chatEnd || !chatAutoFollowRef.current) {
       return;
     }
 
-    requestAnimationFrame(() => {
-      chatEnd.scrollIntoView({ block: "end", behavior: isStreaming ? "auto" : "smooth" });
+    const frame = requestAnimationFrame(() => {
+      if (chatAutoFollowRef.current) {
+        chatEnd.scrollIntoView({ block: "end", behavior: isStreaming ? "auto" : "smooth" });
+      }
     });
+    return () => cancelAnimationFrame(frame);
   }, [messages, isStreaming, runtimeProjection]);
 
   useEffect(() => {
@@ -918,6 +973,14 @@ export function App({ model }: AppProps) {
     } finally {
       if (selectedJourneyRef.current === ownerJourneyId) setFileAttachmentBusy(false);
     }
+  }
+
+  function setJourneyComposerDraft(journeyId: string, text: string) {
+    const boundedText = text.slice(0, COMPOSER_DRAFT_MAX_CHARS);
+    if (selectedJourneyRef.current === journeyId) {
+      setDraft(boundedText);
+    }
+    setComposerDrafts((current) => updateComposerDraft(current, journeyId, boundedText));
   }
 
   async function attachDroppedFiles(paths: string[]) {
@@ -1003,13 +1066,18 @@ export function App({ model }: AppProps) {
         return;
       }
     }
+    chatAutoFollowRef.current = nextConversationAutoFollow(
+      chatAutoFollowRef.current,
+      { type: "explicit_bottom" },
+    );
     conversationRef.current = stagedConversation;
     setConversation(stagedConversation);
-    setDraft("");
+    setJourneyComposerDraft(baseConversation.journeyId, "");
     setPendingFileAttachments([]);
     setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
     setFileAttachmentError(undefined);
     setIsStreaming(true);
+    setAgentRunJourneyId(selectedJourney);
     setAgentRun(run);
     setJourneyPreferences((preferences) => markJourneyRecent(preferences, selectedJourney));
     setStreamMode(mode);
@@ -1366,7 +1434,7 @@ export function App({ model }: AppProps) {
       conversationRef.current = restartedConversation;
       setConversation(restartedConversation);
       setJourneyThreadState(classified);
-      setDraft("");
+      setJourneyComposerDraft(ownerJourneyId, "");
       setPendingFileAttachments([]);
       setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
       setFileAttachmentError(undefined);
@@ -1481,16 +1549,16 @@ export function App({ model }: AppProps) {
   }
 
   function selectJourney(journeyId: string) {
-    if (isStreaming || journeyId === selectedJourney) {
+    if (isStreaming || isFinalizingTurn || journeyId === selectedJourney) {
       return;
     }
 
     setSelectedJourney(journeyId);
+    setDraft(composerDrafts[journeyId] ?? "");
     setJourneyPreferences((preferences) => ({
       ...preferences,
       activeJourneyId: journeyId,
     }));
-    setDraft("");
     setPendingFileAttachments([]);
     setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
     setFileAttachmentError(undefined);
@@ -1650,6 +1718,10 @@ export function App({ model }: AppProps) {
   function showConversation() {
     setSelectedAltitude("operational");
     setSelectedOperationalSurface("chat");
+    chatAutoFollowRef.current = nextConversationAutoFollow(
+      chatAutoFollowRef.current,
+      { type: "explicit_bottom" },
+    );
     requestAnimationFrame(() => {
       chatEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
     });
@@ -2018,13 +2090,27 @@ export function App({ model }: AppProps) {
           aria-label="Conversation"
           hidden={!operationalChatSelected || journeyThreadState.kind !== "ready"}
           ref={chatStreamRef}
+          onScroll={(event) => {
+            const container = event.currentTarget;
+            chatAutoFollowRef.current = nextConversationAutoFollow(
+              chatAutoFollowRef.current,
+              {
+                type: "scroll",
+                metrics: {
+                  scrollTop: container.scrollTop,
+                  clientHeight: container.clientHeight,
+                  scrollHeight: container.scrollHeight,
+                },
+              },
+            );
+          }}
         >
           {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}
           {messages.length === 0 && journeyThreadState.kind === "ready" ? (
             <JourneyArrivalSurface
               journeyName={selectedJourneyItem.name}
               stage={selectedJourneyItem.stage}
-              onChoose={setDraft}
+              onChoose={(text) => setJourneyComposerDraft(selectedJourney, text)}
             />
           ) : null}
           <ImportedActivity events={importedActivity.unlinked} variant="summary" basePath={selectedJourneyBasePath} />
@@ -2057,6 +2143,7 @@ export function App({ model }: AppProps) {
                     <div className="message-speaker-row">
                       <span className="message-avatar" aria-hidden="true">{speaker.avatar}</span>
                       <span className="message-role">{speaker.label}</span>
+                      {bodyContent ? <MessageCopyAction body={bodyContent} /> : null}
                     </div>
                     {hasRuntimeActivity ? (
                       <LiveRuntimeActivity
@@ -2094,6 +2181,7 @@ export function App({ model }: AppProps) {
           aria-label="Message composer"
           hidden={!operationalChatSelected || journeyThreadState.kind !== "ready"}
         >
+          <ComposerRuntimeStatus status={composerTurnStatus} />
           {agentSettingsState !== "ready" && agentSettingsState !== "saving" ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Agent settings require attention</strong>
@@ -2134,7 +2222,8 @@ export function App({ model }: AppProps) {
             <textarea
               aria-label="Natural-language intention"
               value={draft}
-              onChange={(event) => setDraft(event.target.value)}
+              maxLength={COMPOSER_DRAFT_MAX_CHARS}
+              onChange={(event) => setJourneyComposerDraft(selectedJourney, event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
@@ -2146,49 +2235,49 @@ export function App({ model }: AppProps) {
                 : "Write a message to this journey agent."}
               disabled={isJourneyReloading || agentRun.status === "running"}
             />
-            <ComposerRuntimeFooter
-              projection={runtimeProjection}
-              runActive={agentRun.status === "running"}
-              contextUsage={authoritativeContextUsage}
-              activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}
-              contextState={piContextState}
-              providerModel={providerModelLabel(effectiveProviderConfig)}
-              onSelectProviderModel={() => openJourneyAgentProfileSelector()}
-              providerSelectionDisabled={isStreaming || agentRun.status === "running" || agentSettingsState === "saving"}
-            />
-            <div className="composer-inline-actions">
-              <button
-                className="icon-button context-attachment-button"
-                type="button"
-                onClick={() => void chooseFiles()}
-                disabled={isStreaming || agentRun.status === "running" || isJourneyReloading || fileAttachmentBusy}
-                aria-label="Anexar arquivos"
-                title="Anexar arquivos"
-              >
-                📎
-              </button>
-              {agentRun.status === "running" && streamMode === "live" ? (
+            <div className="composer-input-footer">
+              <ComposerRuntimeFooter
+                contextUsage={authoritativeContextUsage}
+                activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}
+                contextState={piContextState}
+                providerModel={providerModelLabel(effectiveProviderConfig)}
+                onSelectProviderModel={() => openJourneyAgentProfileSelector()}
+                providerSelectionDisabled={isStreaming || agentRun.status === "running" || agentSettingsState === "saving"}
+              />
+              <div className="composer-inline-actions">
                 <button
-                  className="icon-button"
+                  className="icon-button context-attachment-button"
                   type="button"
-                  onClick={() => void cancelActiveRun()}
-                  aria-label="Cancel run"
-                  title="Cancel run"
+                  onClick={() => void chooseFiles()}
+                  disabled={isStreaming || agentRun.status === "running" || isJourneyReloading || fileAttachmentBusy}
+                  aria-label="Anexar arquivos"
+                  title="Anexar arquivos"
                 >
-                  ✕
+                  📎
                 </button>
-              ) : (
-                <button
-                  className="icon-button send-button"
-                  type="button"
-                  onClick={() => void generatePacket("live")}
-                  disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(fileAttachmentError) || fileAttachmentBusy}
-                  aria-label="Send message"
-                  title="Send message"
-                >
-                  ↑
-                </button>
-              )}
+                {agentRun.status === "running" && streamMode === "live" ? (
+                  <button
+                    className="icon-button"
+                    type="button"
+                    onClick={() => void cancelActiveRun()}
+                    aria-label="Cancel run"
+                    title="Cancel run"
+                  >
+                    ✕
+                  </button>
+                ) : (
+                  <button
+                    className="icon-button send-button"
+                    type="button"
+                    onClick={() => void generatePacket("live")}
+                    disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(fileAttachmentError) || fileAttachmentBusy}
+                    aria-label="Send message"
+                    title="Send message"
+                  >
+                    ↑
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </section>

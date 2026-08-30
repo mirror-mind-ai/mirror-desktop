@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { LiveRuntimeActivity, summarizeOperationArgument } from "../app/LiveRuntimeActivity";
-import { ComposerRuntimeFooter } from "../app/ComposerRuntimeFooter";
+import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "../app/ComposerRuntimeFooter";
 import type { RuntimeProjectionState } from "../app/runtimeActivityModel";
 import appSource from "../app/App.tsx?raw";
 
@@ -30,48 +30,29 @@ describe("runtime projection component", () => {
     expect(html).not.toContain("Runtime history");
   });
 
-  it("pins active run status in the composer footer and removes it at settlement", () => {
-    const active: RuntimeProjectionState = {
-      status: "working",
-      operations: [],
-      reasoningSummaries: [],
-      activityOrder: [],
-    };
-    const completed: RuntimeProjectionState = { ...active, status: "completed" };
-
+  it("keeps Working through release and shows Completed after settlement", () => {
     const activeHtml = renderToStaticMarkup(
-      <ComposerRuntimeFooter projection={active} runActive contextUsage={undefined} providerModel="openai-codex/gpt-5.4-mini" />,
+      <ComposerRuntimeStatus status="working" />,
     );
     const completedHtml = renderToStaticMarkup(
       <ComposerRuntimeFooter
-        projection={completed}
-        runActive
         contextUsage={{ tokens: 14880, contextWindow: 272000, percent: 5.470588235294118 }}
         activeMode="builder"
         providerModel="openai-codex/gpt-5.4-mini"
         onSelectProviderModel={() => undefined}
       />,
     );
-    const activeStartingHtml = renderToStaticMarkup(
-      <ComposerRuntimeFooter
-        projection={{ ...active, status: "starting" }}
-        runActive
-        contextUsage={undefined}
-        providerModel="openai-codex/gpt-5.4-mini"
-      />,
+    const completedStatusHtml = renderToStaticMarkup(
+      <ComposerRuntimeStatus status="completed" />,
     );
-    const idleStartingHtml = renderToStaticMarkup(
-      <ComposerRuntimeFooter
-        projection={{ ...active, status: "starting" }}
-        runActive={false}
-        contextUsage={undefined}
-        providerModel="openai-codex/gpt-5.4-mini"
-      />,
+    const idleStatusHtml = renderToStaticMarkup(
+      <ComposerRuntimeStatus status={undefined} />,
+    );
+    const waitingHtml = renderToStaticMarkup(
+      <ComposerRuntimeFooter contextUsage={undefined} providerModel="openai-codex/gpt-5.4-mini" />,
     );
     const uninitializedHtml = renderToStaticMarkup(
       <ComposerRuntimeFooter
-        projection={active}
-        runActive={false}
         contextState="not_initialized"
         providerModel="openai-codex/gpt-5.4-mini"
         canInitializeContext
@@ -80,27 +61,24 @@ describe("runtime projection component", () => {
     );
     const warningHtml = renderToStaticMarkup(
       <ComposerRuntimeFooter
-        projection={completed}
-        runActive={false}
         contextUsage={{ tokens: 300000, contextWindow: 400000, percent: 75 }}
         providerModel="openai-codex/gpt-5.4-mini"
       />,
     );
     const errorHtml = renderToStaticMarkup(
       <ComposerRuntimeFooter
-        projection={completed}
-        runActive={false}
         contextUsage={{ tokens: 364000, contextWindow: 400000, percent: 91 }}
         providerModel="openai-codex/gpt-5.4-mini"
       />,
     );
 
-    expect(activeHtml).toContain('class="composer-runtime-footer"');
     expect(activeHtml).toContain('class="composer-runtime-status"');
+    expect(completedHtml).toContain('class="composer-runtime-footer"');
     expect(activeHtml).toContain("Working");
-    expect(activeStartingHtml).toContain("Working");
-    expect(activeStartingHtml).not.toContain("Starting");
     expect(activeHtml).toContain("runtime-live-dot");
+    expect(completedStatusHtml).toContain("Completed");
+    expect(completedStatusHtml).toContain("is-completed");
+    expect(completedStatusHtml).not.toContain("runtime-working-dots");
     expect(completedHtml).not.toContain("Working");
     expect(completedHtml).toContain("■");
     expect(completedHtml).toContain("Builder Mode");
@@ -108,13 +86,16 @@ describe("runtime projection component", () => {
     expect(completedHtml).toContain("openai-codex/gpt-5.4-mini");
     expect(completedHtml).toContain('aria-label="Choose model and thinking for openai-codex/gpt-5.4-mini"');
     expect(completedHtml).toContain('class="composer-provider-model"');
-    expect(idleStartingHtml).not.toContain("Starting");
-    expect(idleStartingHtml).toContain("Waiting for context stats…");
+    expect(idleStatusHtml).not.toContain("Working");
+    expect(idleStatusHtml).not.toContain("Completed");
+    expect(waitingHtml).toContain("Waiting for context stats…");
     expect(uninitializedHtml).toContain("Pi context not initialized");
     expect(uninitializedHtml).toContain("Initialize Pi context");
     expect(warningHtml).toContain('class="composer-context-warning"');
     expect(errorHtml).toContain('class="composer-context-error"');
-    expect(appSource).toContain('runActive={agentRun.status === "running"}');
+    expect(appSource).toContain("<ComposerRuntimeStatus");
+    expect(appSource).toContain("status={composerTurnStatus}");
+    expect(appSource).toContain("if (isStreaming || isFinalizingTurn || journeyId === selectedJourney)");
     expect(appSource).toContain("contextUsage={authoritativeContextUsage}");
     expect(appSource).toContain("activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}");
     expect(appSource).not.toContain("queryJourneyPiContext");

@@ -1,9 +1,8 @@
-import type { RuntimeContextUsage, RuntimeProjectionState } from "./runtimeActivityModel";
+import type { RuntimeContextUsage } from "./runtimeActivityModel";
+import type { ComposerTurnStatus } from "./composerTurnStatus";
 import { mirrorModeDisplay, type MirrorOperatingMode } from "./mirrorModeState";
 
 type ComposerRuntimeFooterProps = {
-  projection: RuntimeProjectionState;
-  runActive: boolean;
   contextUsage?: RuntimeContextUsage;
   activeMode?: MirrorOperatingMode;
   contextState?: "checking" | "waiting" | "available" | "not_initialized";
@@ -15,14 +14,30 @@ type ComposerRuntimeFooterProps = {
   providerSelectionDisabled?: boolean;
 };
 
-const ACTIVE_STATUS_LABEL = {
-  starting: "Working",
-  working: "Working",
-} as const;
+type ComposerRuntimeStatusProps = {
+  status: ComposerTurnStatus;
+};
+
+export function ComposerRuntimeStatus({ status }: ComposerRuntimeStatusProps) {
+  if (!status) {
+    return null;
+  }
+
+  const completed = status === "completed";
+  return (
+    <div className={`composer-runtime-status${completed ? " is-completed" : ""}`} role="status" aria-live="polite">
+      {completed
+        ? <span className="runtime-complete-mark" aria-hidden="true">✓</span>
+        : <span className="runtime-live-dot" aria-hidden="true" />}
+      <strong>{completed ? "Completed" : "Working"}</strong>
+      {!completed ? (
+        <span className="runtime-working-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>
+      ) : null}
+    </div>
+  );
+}
 
 export function ComposerRuntimeFooter({
-  projection,
-  runActive,
   contextUsage,
   activeMode,
   contextState = contextUsage ? "available" : "waiting",
@@ -33,20 +48,8 @@ export function ComposerRuntimeFooter({
   onSelectProviderModel,
   providerSelectionDisabled = false,
 }: ComposerRuntimeFooterProps) {
-  const showActiveStatus = runActive
-    && (projection.status === "starting" || projection.status === "working");
-
   return (
     <div className="composer-runtime-footer" aria-label="Agent session status">
-      <div className="composer-runtime-primary">
-        {showActiveStatus ? (
-          <div className="composer-runtime-status" role="status" aria-live="polite">
-            <span className="runtime-live-dot" aria-hidden="true" />
-            <strong>{ACTIVE_STATUS_LABEL[projection.status as "starting" | "working"]}</strong>
-            <span className="runtime-working-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>
-          </div>
-        ) : null}
-      </div>
       <div className="composer-runtime-metadata">
         {activeMode ? (
           <>

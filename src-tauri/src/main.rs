@@ -30,6 +30,10 @@ const MIRROR_APPEND_MAX_ITEMS: usize = 32;
 const MIRROR_APPEND_MAX_FILE_BYTES: usize = 4 * 1024 * 1024;
 const MIRROR_APPEND_MAX_ITEM_BYTES: usize = 131_072;
 const JOURNEY_PREFERENCES_FILE: &str = "journey-preferences.json";
+const COMPOSER_DRAFTS_FILE: &str = "composer-drafts.json";
+const COMPOSER_DRAFTS_MAX_BYTES: usize = 1024 * 1024;
+const COMPOSER_DRAFT_MAX_CHARS: usize = 51_200;
+const COMPOSER_DRAFT_MAX_JOURNEYS: usize = 256;
 
 #[derive(Default)]
 struct PiProcessState {
@@ -772,6 +776,73 @@ fn save_journey_preferences(app: AppHandle, payload: String) -> Result<(), Strin
         .map_err(|error| format!("Could not save Journey preferences: {}", error))
 }
 
+fn validate_composer_drafts_payload(payload: &str) -> Result<Value, String> {
+    if payload.len() > COMPOSER_DRAFTS_MAX_BYTES {
+        return Err("Composer draft storage exceeds its size limit.".to_string());
+    }
+    let value: Value = serde_json::from_str(payload)
+        .map_err(|_| "Composer draft storage is malformed.".to_string())?;
+    let object = value.as_object()
+        .filter(|object| object.len() == 3)
+        .ok_or_else(|| "Composer draft storage has an invalid shape.".to_string())?;
+    if object.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
+        || object.get("savedAt").and_then(Value::as_str).is_none_or(|saved_at| {
+            chrono::DateTime::parse_from_rfc3339(saved_at).is_err()
+        })
+    {
+        return Err("Composer draft storage has invalid metadata.".to_string());
+    }
+    let drafts = object.get("drafts").and_then(Value::as_object)
+        .filter(|drafts| drafts.len() <= COMPOSER_DRAFT_MAX_JOURNEYS)
+        .ok_or_else(|| "Composer draft storage has invalid entries.".to_string())?;
+    for (journey_id, text) in drafts {
+        if journey_id.len() > 128
+            || sanitize_journey_id(journey_id).is_err()
+            || text.as_str().is_none_or(|text| {
+                text.is_empty() || text.chars().count() > COMPOSER_DRAFT_MAX_CHARS
+            })
+        {
+            return Err("Composer draft storage has an invalid draft.".to_string());
+        }
+    }
+    Ok(value)
+}
+
+#[tauri::command]
+fn load_composer_drafts(app: AppHandle) -> Result<Option<String>, String> {
+    let path = composer_drafts_path(&app)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    let metadata = fs::symlink_metadata(&path)
+        .map_err(|error| format!("Could not inspect Composer draft storage: {}", error))?;
+    if !metadata.is_file()
+        || metadata.file_type().is_symlink()
+        || metadata.len() as usize > COMPOSER_DRAFTS_MAX_BYTES
+    {
+        return Err("Composer draft storage is not a bounded regular file.".to_string());
+    }
+    let payload = fs::read_to_string(path)
+        .map_err(|error| format!("Could not load Composer drafts: {}", error))?;
+    validate_composer_drafts_payload(&payload)?;
+    Ok(Some(payload))
+}
+
+#[tauri::command]
+fn save_composer_drafts(app: AppHandle, payload: String) -> Result<(), String> {
+    validate_composer_drafts_payload(&payload)?;
+    let path = composer_drafts_path(&app)?;
+    let parent = path.parent()
+        .ok_or_else(|| "Composer draft path has no parent.".to_string())?;
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("Could not create Composer draft directory: {}", error))?;
+    let staged = path.with_extension("json.tmp");
+    fs::write(&staged, payload)
+        .map_err(|error| format!("Could not stage Composer drafts: {}", error))?;
+    fs::rename(&staged, &path)
+        .map_err(|error| format!("Could not publish Composer drafts: {}", error))
+}
+
 fn harness_root() -> Result<PathBuf, String> {
     Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -1356,8 +1427,7 @@ fn inspect_file_attachments(journey_id: String, paths: Vec<String>) -> Result<Fi
     inspect_file_attachments_at(&journey_id, &paths.into_iter().map(PathBuf::from).collect::<Vec<_>>())
 }
 
-#[tauri::command]
-fn open_local_reference(path: String, base_path: Option<String>) -> Result<(), String> {
+fn resolve_existing_local_file(path: &str, base_path: Option<&str>) -> Result<PathBuf, String> {
     if path.trim().is_empty()
         || path.contains('\0')
         || path.starts_with("http://")
@@ -1382,8 +1452,42 @@ fn open_local_reference(path: String, base_path: Option<String>) -> Result<(), S
     let canonical_path = resolved_path
         .canonicalize()
         .map_err(|error| format!("Could not open local reference: {}", error))?;
+    let metadata = fs::metadata(&canonical_path)
+        .map_err(|error| format!("Could not inspect local reference: {}", error))?;
+    if !metadata.is_file() {
+        return Err("Local reference is not a file.".to_string());
+    }
+    Ok(canonical_path)
+}
 
-    open_path(&canonical_path)
+#[tauri::command]
+fn inspect_local_references(paths: Vec<String>, base_path: Option<String>) -> Result<Vec<String>, String> {
+    if paths.len() > 64 || paths.iter().any(|path| path.len() > 4096) {
+        return Err("Local reference inspection exceeds its bounded input.".to_string());
+    }
+    Ok(paths.into_iter()
+        .filter(|path| resolve_existing_local_file(path, base_path.as_deref()).is_ok())
+        .collect())
+}
+
+#[tauri::command]
+fn open_local_reference(path: String, base_path: Option<String>) -> Result<(), String> {
+    open_path(&resolve_existing_local_file(&path, base_path.as_deref())?)
+}
+
+fn validate_external_url(value: &str) -> Result<url::Url, String> {
+    let parsed = url::Url::parse(value.trim())
+        .map_err(|_| "Unsupported external URL.".to_string())?;
+    if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
+        return Err("Unsupported external URL.".to_string());
+    }
+    Ok(parsed)
+}
+
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    let validated = validate_external_url(&url)?;
+    open_url(validated.as_str())
 }
 
 #[tauri::command]
@@ -2774,6 +2878,14 @@ fn journey_preferences_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(app_data_dir.join(JOURNEY_PREFERENCES_FILE))
 }
 
+fn composer_drafts_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
+    Ok(app_data_dir.join(COMPOSER_DRAFTS_FILE))
+}
+
 fn unwrap_persisted_thread(value: &Value) -> &Value {
     value.get("thread").unwrap_or(value)
 }
@@ -2947,6 +3059,34 @@ fn sanitize_session_id(session_id: &str) -> Result<String, String> {
     }
 }
 
+fn open_url(url: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut command = Command::new("open");
+        command.arg(url);
+        command
+    };
+
+    #[cfg(target_os = "linux")]
+    let mut command = {
+        let mut command = Command::new("xdg-open");
+        command.arg(url);
+        command
+    };
+
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut command = Command::new("rundll32");
+        command.args(["url.dll,FileProtocolHandler", url]);
+        command
+    };
+
+    command
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Could not open external URL: {}", error))
+}
+
 fn open_path(path: &PathBuf) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let mut command = {
@@ -3087,6 +3227,7 @@ fn retire_legacy_parity_state(app: AppHandle) -> Result<LegacyParityRetirementSu
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             let profile = active_runtime_channel().map_err(std::io::Error::other)?;
             let app_data_root = app.path().app_data_dir().map_err(std::io::Error::other)?;
@@ -3112,6 +3253,8 @@ fn main() {
             choose_project_directory,
             load_journey_preferences,
             save_journey_preferences,
+            load_composer_drafts,
+            save_composer_drafts,
             load_agent_settings,
             save_agent_settings,
             list_pi_models,
@@ -3121,7 +3264,9 @@ fn main() {
             read_journey_document,
             choose_file_attachments,
             inspect_file_attachments,
+            inspect_local_references,
             open_local_reference,
+            open_external_url,
             start_pi_invocation,
             read_pi_session_context_stats,
             load_dedicated_pi_transcript,
@@ -3153,8 +3298,9 @@ mod tests {
         list_journey_documentation_at, materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, projection_manifest_coordinates_at,
         inspect_file_attachments_at, publish_refreshed_journey_registry, read_journey_document_at,
-        retire_legacy_parity_state_at, unwrap_persisted_thread,
-        validate_journey_registry_payload, validate_mirror_append_item, validate_pi_session_file_at, validate_turn_correlation,
+        resolve_existing_local_file, retire_legacy_parity_state_at, unwrap_persisted_thread,
+        validate_composer_drafts_payload, validate_external_url, validate_journey_registry_payload,
+        validate_mirror_append_item, validate_pi_session_file_at, validate_turn_correlation,
         PiSessionContextSnapshot, TurnCorrelation, JOURNEY_REGISTRY_FILE,
         FILE_ATTACHMENT_MAX_FILES, DOCUMENT_PREVIEW_MAX_BYTES,
     };
@@ -3640,5 +3786,46 @@ mod tests {
         assert_eq!(summary.retained, 1);
         assert_eq!(fs::read_to_string(&outside).unwrap(), "protected");
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accepts_bounded_http_urls_including_loopback() {
+        assert!(validate_external_url("https://example.com/docs").is_ok());
+        assert!(validate_external_url("http://127.0.0.1:8012/").is_ok());
+        assert!(validate_external_url("http://localhost:8012/").is_ok());
+        assert!(validate_external_url("file:///tmp/private").is_err());
+        assert!(validate_external_url("javascript:alert(1)").is_err());
+        assert!(validate_external_url("errado/incompleto").is_err());
+    }
+
+    #[test]
+    fn verifies_only_existing_local_files() {
+        let root = test_root("local-reference-inspection");
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::write(root.join("docs/real.md"), "real").unwrap();
+
+        assert!(resolve_existing_local_file("docs/real.md", Some(root.to_string_lossy().as_ref())).is_ok());
+        assert!(resolve_existing_local_file("docs/missing.md", Some(root.to_string_lossy().as_ref())).is_err());
+        assert!(resolve_existing_local_file("docs", Some(root.to_string_lossy().as_ref())).is_err());
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn validates_bounded_versioned_composer_drafts() {
+        let valid = json!({
+            "schemaVersion": "1.0.0",
+            "drafts": {"journey-a": "draft text"},
+            "savedAt": "2026-08-30T15:00:00Z"
+        }).to_string();
+        assert!(validate_composer_drafts_payload(&valid).is_ok());
+
+        let oversized = json!({
+            "schemaVersion": "1.0.0",
+            "drafts": {"journey-a": "x".repeat(51_201)},
+            "savedAt": "2026-08-30T15:00:00Z"
+        }).to_string();
+        assert!(validate_composer_drafts_payload(&oversized).is_err());
+        assert!(validate_composer_drafts_payload("{bad-json").is_err());
     }
 }

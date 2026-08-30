@@ -1,12 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-type LinkifiedTextPart =
+export type LinkifiedTextPart =
   | { type: "text"; text: string }
   | { type: "url"; text: string; href: string }
+  | { type: "local_path_candidate"; text: string }
   | { type: "local_path"; text: string };
 
-const linkPattern = /(https?:\/\/[^\s<>()]+|(?:\/[\w .@~+-][^\s<>()]*|(?:\.\.?\/)?(?:docs|src|scripts|src-tauri|agentic-method|agentic-protocol|mirror-extension|harness|artifacts)\/[^\s<>()]+|(?:[\w.@~+-]+\/)+[\w .@~+-]+\.[A-Za-z0-9]+|[\w.@~+-]+\.(?:md|yml|yaml|html|json|ts|tsx|py|rs|toml|css)))/g;
+const linkPattern = /(https?:\/\/[^\s<>()]+|(?<![\w])\/[\w .@~+-][^\s<>()]*|(?:\.\.?\/)?(?:docs|src|scripts|src-tauri|agentic-method|agentic-protocol|mirror-extension|harness|artifacts)\/[^\s<>()]+|(?:[\w.@~+-]+\/)+[\w .@~+-]+\.[A-Za-z0-9]+|[\w.@~+-]+\.(?:md|yml|yaml|html|json|ts|tsx|py|rs|toml|css))/g;
 const trailingPunctuationPattern = /[.,;:!?\]]+$/;
 
 export function parseLinkifiedText(text: string): LinkifiedTextPart[] {
@@ -26,7 +27,7 @@ export function parseLinkifiedText(text: string): LinkifiedTextPart[] {
     if (trimmedMatch.startsWith("http://") || trimmedMatch.startsWith("https://")) {
       parts.push({ type: "url", text: trimmedMatch, href: trimmedMatch });
     } else {
-      parts.push({ type: "local_path", text: trimmedMatch });
+      parts.push({ type: "local_path_candidate", text: trimmedMatch });
     }
 
     if (trailing) {
@@ -43,15 +44,58 @@ export function parseLinkifiedText(text: string): LinkifiedTextPart[] {
   return parts.length > 0 ? parts : [{ type: "text", text }];
 }
 
-export function LinkifiedText({ text, basePath }: { text: string; basePath?: string }) {
-  return <>{renderLinkifiedText(text, basePath)}</>;
+export function applyVerifiedLocalPaths(
+  parts: LinkifiedTextPart[],
+  verifiedPaths: ReadonlySet<string>,
+): LinkifiedTextPart[] {
+  return parts.map((part) => {
+    if (part.type !== "local_path_candidate") return part;
+    return verifiedPaths.has(part.text)
+      ? { type: "local_path", text: part.text }
+      : { type: "text", text: part.text };
+  });
 }
 
-export function renderLinkifiedText(text: string, basePath?: string): ReactNode[] {
-  return parseLinkifiedText(text).map((part, index) => {
+export function LinkifiedText({ text, basePath }: { text: string; basePath?: string }) {
+  const parsedParts = useMemo(() => parseLinkifiedText(text), [text]);
+  const candidates = useMemo(() => [...new Set(parsedParts
+    .filter((part): part is Extract<LinkifiedTextPart, { type: "local_path_candidate" }> => part.type === "local_path_candidate")
+    .map((part) => part.text))], [parsedParts]);
+  const [verifiedPaths, setVerifiedPaths] = useState<ReadonlySet<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    setVerifiedPaths(new Set());
+    if (candidates.length === 0) return () => { cancelled = true; };
+
+    void invoke<string[]>("inspect_local_references", { paths: candidates, basePath })
+      .then((paths) => {
+        if (!cancelled) setVerifiedPaths(new Set(paths));
+      })
+      .catch(() => {
+        if (!cancelled) setVerifiedPaths(new Set());
+      });
+
+    return () => { cancelled = true; };
+  }, [basePath, candidates]);
+
+  return <>{renderLinkifiedText(applyVerifiedLocalPaths(parsedParts, verifiedPaths), basePath)}</>;
+}
+
+export function renderLinkifiedText(parts: LinkifiedTextPart[], basePath?: string): ReactNode[] {
+  return parts.map((part, index) => {
     if (part.type === "url") {
       return (
-        <a key={index} href={part.href} target="_blank" rel="noreferrer" className="inline-link">
+        <a
+          key={index}
+          href={part.href}
+          className="inline-link"
+          onClick={(event) => {
+            event.preventDefault();
+            void invoke("open_external_url", { url: part.href });
+          }}
+          title="Open external URL"
+        >
           {part.text}
         </a>
       );

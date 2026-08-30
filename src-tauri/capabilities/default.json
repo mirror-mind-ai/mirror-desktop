@@ -3,5 +3,10 @@
   "identifier": "default",
   "description": "Default permissions for the Nautilus Harness main window, including explicit access to core event listening for the local Pi process stream.",
   "windows": ["main"],
-  "permissions": ["core:default", "core:event:allow-listen", "core:event:allow-unlisten"]
+  "permissions": [
+    "core:default",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "clipboard-manager:allow-write-text"
+  ]
 }
