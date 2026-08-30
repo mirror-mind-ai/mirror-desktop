@@ -67,7 +67,7 @@ A desktop agent cockpit should not turn one long-running Journey into a global a
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| DS-009.TS-1 | Correlated Journey Run Contract | Technical Story | Define complete `RunAuthority` derived from `TurnCorrelation` across serial process events, conversation updates, settlement and persistence | 🟡 Planned |
+| DS-009.TS-1 | Correlated Journey Run Contract | Technical Story | Define complete `RunAuthority` derived from `TurnCorrelation` across serial process events, conversation updates, settlement and persistence | ✅ Done |
 | DS-009.TS-3 | Journey-Keyed Frontend Runtime State | Technical Story | Deltas, operations, warnings, controls and terminal outcomes update only their owning Journey while execution remains serial | 🟡 Planned |
 | DS-009.US-1 | Navigate While Journeys Work | User Story | Navigator can switch Journeys while an existing serial run continues and see which Journey is active | 🟡 Planned |
 | DS-009.TS-2 | Per-Journey Tauri Process Registry | Technical Story | Backend owns a per-Journey registry with directed start/cancel and global limit 1 | 🟡 Planned |

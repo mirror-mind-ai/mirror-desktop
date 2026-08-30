@@ -2,12 +2,16 @@
 
 # DS-009.TS-1 — Correlated Journey Run Contract
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 **Order:** 1 of 7
 **Concurrency:** serial only
 **Plan:** [plan.md](plan.md)
 **Test guide:** [test-guide.md](test-guide.md)
+**Validation:** [validation.md](validation.md)
+**Review:** [review.md](review.md)
+**Coherence:** [coherence.md](coherence.md)
+**Done:** [done.md](done.md)
 
 ## Outcome
 
