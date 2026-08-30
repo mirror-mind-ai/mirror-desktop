@@ -62,7 +62,10 @@ For Journey administration specifically, test the complete process boundary rath
 
 - an explicit `DB_PATH` remains authoritative even when the Mirror checkout `.env` declares a different `MEMORY_ENV`;
 - administrative commands do not pass partial path arguments that cause Mirror to derive a competing database name;
-- bootstrap, refresh and mutation resolve the same Mirror home, user and database;
+- bootstrap, refresh and mutation resolve the same Mirror root, home, user and database;
+- bootstrap delegates to Mirror's canonical `journey export-registry` command, publishes schema `0.2.0`, and contains no direct SQLite Journey exporter;
+- bootstrap rejects legacy or malformed exporter output and atomically preserves the previous registry when canonical export fails;
+- `npm run import:mirror` uses the same explicit stable-channel launcher rather than implicit environment defaults;
 - global registry administration does not inherit `NAUTILUS_TURN_CORRELATION_V1` from an agent turn;
 - an unavailable prior selection reconciles to canonical refreshed data, while an empty registry still fails closed;
 - native mutation rejection codes remain visible and actionable;

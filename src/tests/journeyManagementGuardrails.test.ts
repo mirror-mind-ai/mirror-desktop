@@ -23,9 +23,11 @@ describe("Journey management guardrails", () => {
     expect(JSON.stringify(persisted).toLowerCase()).not.toMatch(/api[_-]?key|token|secret|password|env/);
   });
 
-  it("keeps Mirror bootstrap read-only and registry-only", () => {
-    expect(mirrorImportScriptSource).toContain('sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)');
-    expect(mirrorImportScriptSource).toContain("load_journeys(conn)");
+  it("delegates Mirror bootstrap to the canonical registry exporter", () => {
+    expect(mirrorImportScriptSource).toContain('"export-registry"');
+    expect(mirrorImportScriptSource).toContain('schema_version != "0.2.0"');
+    expect(mirrorImportScriptSource).not.toContain("sqlite3");
+    expect(mirrorImportScriptSource).not.toContain("load_journeys");
     expect(mirrorImportScriptSource).not.toContain("write_local_conversations");
     expect(mirrorImportScriptSource).not.toContain("conversation-id");
     expect(mirrorImportScriptSource).not.toContain("list-conversations");

@@ -1,30 +1,23 @@
 #!/usr/bin/env python3
-"""Export only the read-only Mirror Journey registry for Nautilus Harness.
+"""Publish Mirror's canonical Journey registry into Harness app data.
 
-Conversational continuity is owned by dedicated Journey threads. This bootstrap
-must never materialize Mirror conversations or parity-era transcript state.
+This adapter owns only channel coordinates and atomic local publication. Mirror's
+``journey export-registry`` command remains the sole registry exporter.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import os
-import re
-import sqlite3
+import subprocess
 import sys
-from datetime import datetime, timezone
+import tempfile
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-def configured_mirror_home() -> Path:
-    if value := os.environ.get("MIRROR_HOME"):
-        return Path(value)
-    mirror_user = os.environ.get("MIRROR_USER", "alisson-vale")
-    return Path.home() / ".mirror-minds" / mirror_user
-
-
-def configured_db_path() -> Path:
-    return Path(os.environ.get("DB_PATH", configured_mirror_home() / "memory.db"))
+MAX_REGISTRY_BYTES = 2 * 1024 * 1024
+CANONICAL_SCHEMA_VERSION = "0.2.0"
 
 
 def default_app_data_dir(identifier: str) -> Path:
@@ -37,92 +30,125 @@ def default_app_data_dir(identifier: str) -> Path:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--db", type=Path, default=configured_db_path())
-    parser.add_argument("--app-identifier", default=os.environ.get("NAUTILUS_APP_IDENTIFIER", "com.nautilus.harness"))
+    parser.add_argument("--mirror-root", type=Path, required=True)
+    parser.add_argument("--app-identifier", required=True)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--uv-command", default=os.environ.get("NAUTILUS_UV_COMMAND", "uv"))
     args = parser.parse_args()
     if args.output is None:
         args.output = default_app_data_dir(args.app_identifier) / "journey-registry.json"
     return args
 
 
-def first_line_match(pattern: str, text: str) -> str | None:
-    match = re.search(pattern, text, re.MULTILINE)
-    return match.group(1).strip() if match else None
-
-
-def section_match(pattern: str, text: str) -> str | None:
-    match = re.search(pattern, text, re.MULTILINE | re.DOTALL)
-    return match.group(1).strip() if match else None
-
-
-def parse_journey_content(content: str) -> dict[str, str | None]:
-    description = section_match(r"^## Description\s+(.+?)(?:\n## |\Z)", content)
-    return {
-        "title": first_line_match(r"^#\s+(.+)$", content),
-        "status": first_line_match(r"^\*\*Status:\*\*\s*(.+)$", content),
-        "stage": first_line_match(r"^\*\*Stage:\*\*\s*(.+)$", content),
-        "description": " ".join(description.split()) if description else None,
-    }
-
-
-def safe_json(value: str | None) -> dict[str, Any]:
+def validate_canonical_registry(payload: str) -> dict[str, Any]:
+    if len(payload.encode("utf-8")) > MAX_REGISTRY_BYTES:
+        raise ValueError("Canonical Journey registry is oversized.")
     try:
-        parsed = json.loads(value or "{}")
-        return parsed if isinstance(parsed, dict) else {}
-    except json.JSONDecodeError:
-        return {}
+        registry = json.loads(payload)
+    except json.JSONDecodeError as error:
+        raise ValueError("Canonical Journey registry is invalid JSON.") from error
+    if not isinstance(registry, dict):
+        raise ValueError("Canonical Journey registry is invalid.")
+    schema_version = registry.get("schemaVersion")
+    source_version = registry.get("sourceVersion")
+    if (
+        schema_version != "0.2.0"
+        or registry.get("source") != "mirror"
+        or not isinstance(source_version, str)
+        or len(source_version) != 64
+        or not isinstance(registry.get("syncedAt"), str)
+        or not registry["syncedAt"]
+        or not isinstance(registry.get("roots"), list)
+    ):
+        raise ValueError(
+            f"Mirror registry exporter did not return canonical schema {CANONICAL_SCHEMA_VERSION}."
+        )
+    return registry
 
 
-def load_journeys(conn: sqlite3.Connection) -> list[dict[str, Any]]:
-    rows = conn.execute(
-        "select key, content, metadata, updated_at from identity where layer = 'journey' order by key"
-    ).fetchall()
-    items: dict[str, dict[str, Any]] = {}
-    children: dict[str, list[str]] = {}
-    for key, content, metadata_raw, updated_at in rows:
-        metadata = safe_json(metadata_raw)
-        parsed = parse_journey_content(content)
-        parent_id = metadata.get("parent_journey")
-        items[key] = {
-            "id": key,
-            "name": metadata.get("display_name") or parsed["title"] or key,
-            "description": parsed["description"] or "",
-            "status": parsed["status"] or "",
-            "stage": parsed["stage"] or "",
-            "parentId": parent_id,
-            "projectPath": metadata.get("project_path"),
-            "updatedAt": updated_at,
-            "children": [],
-        }
-        if parent_id:
-            children.setdefault(parent_id, []).append(key)
+def export_canonical_registry(
+    mirror_root: Path,
+    *,
+    uv_command: str = "uv",
+    environment: Mapping[str, str] | None = None,
+    runner: Callable[..., Any] = subprocess.run,
+) -> str:
+    command: Sequence[str] = [
+        uv_command,
+        "run",
+        "python",
+        "-m",
+        "memory",
+        "journey",
+        "export-registry",
+    ]
+    result = runner(
+        list(command),
+        cwd=mirror_root,
+        env=dict(environment) if environment is not None else os.environ.copy(),
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip()[-800:]
+        raise RuntimeError(
+            f"Canonical Mirror Journey registry export failed: {detail}"
+            if detail
+            else "Canonical Mirror Journey registry export failed."
+        )
+    validate_canonical_registry(result.stdout)
+    return result.stdout
 
-    def attach(item_id: str) -> dict[str, Any]:
-        item = dict(items[item_id])
-        child_ids = children.get(item_id, [])
-        item["children"] = [attach(child_id) for child_id in child_ids if child_id in items]
-        for optional in ("children", "parentId", "description", "projectPath", "stage", "status"):
-            if not item.get(optional):
-                item.pop(optional, None)
-        return item
 
-    nested_ids = {child for values in children.values() for child in values}
-    return [attach(item_id) for item_id in items if item_id not in nested_ids]
+def publish_registry(output: Path, payload: str) -> None:
+    validate_canonical_registry(payload)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if output.is_symlink() or (output.exists() and not output.is_file()):
+        raise ValueError("Journey registry target is not a safe file.")
+
+    staged_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=output.parent,
+            prefix="journey-registry.",
+            suffix=".tmp",
+            delete=False,
+        ) as staged:
+            staged_path = Path(staged.name)
+            staged.write(payload if payload.endswith("\n") else f"{payload}\n")
+            staged.flush()
+            os.fsync(staged.fileno())
+        os.replace(staged_path, output)
+        staged_path = None
+        try:
+            parent_fd = os.open(output.parent, os.O_RDONLY)
+            try:
+                os.fsync(parent_fd)
+            finally:
+                os.close(parent_fd)
+        except OSError:
+            # Some supported platforms do not permit syncing directory handles.
+            pass
+    finally:
+        if staged_path is not None:
+            staged_path.unlink(missing_ok=True)
+
+    validate_canonical_registry(output.read_text(encoding="utf-8"))
 
 
 def main() -> None:
     args = parse_args()
-    conn = sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)
-    registry = {
-        "schemaVersion": "0.1.0",
-        "source": "mirror",
-        "syncedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "roots": load_journeys(conn),
-    }
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(registry, ensure_ascii=False, indent=2) + "\n")
-    print(f"Exported {len(registry['roots'])} root journeys to {args.output}")
+    mirror_root = args.mirror_root.expanduser().resolve()
+    if not mirror_root.is_dir():
+        raise SystemExit("Configured Mirror root is unavailable.")
+    payload = export_canonical_registry(mirror_root, uv_command=args.uv_command)
+    publish_registry(args.output, payload)
+    roots = validate_canonical_registry(payload)["roots"]
+    print(f"Published {len(roots)} canonical root Journeys to {args.output}")
 
 
 if __name__ == "__main__":

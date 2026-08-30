@@ -37,11 +37,14 @@ describe("runtime channel configuration", () => {
     ]) {
       expect(command).toContain("scripts/nautilus_channel.mjs");
     }
+    expect(scripts["import:mirror"]).toContain("scripts/nautilus_channel.mjs import-user");
     expect(channelLauncher).toContain('"src-tauri/tauri.dev.conf.json"');
     expect(channelLauncher).toContain('"development-channel"');
     expect(channelLauncher).toContain('MIRROR_USER: "mirror-dev"');
     expect(channelLauncher).toContain('NAUTILUS_APP_IDENTIFIER: "com.nautilus.harness.dev"');
+    expect(channelLauncher).toContain('mirrorRoot: resolve(home, ".mirror-journeys", "mirror-mind", "mirror-dev")');
     expect(channelLauncher).toContain('"scripts/export_mirror_bootstrap.py"');
+    expect(channelLauncher).toContain('"--mirror-root"');
     expect(channelLauncher).toContain('"com.nautilus.harness.dev"');
   });
 

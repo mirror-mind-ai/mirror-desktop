@@ -218,7 +218,7 @@ The authoritative development database is always the `DB_PATH` shown in Settings
 $HOME/.mirror-minds/mirror-dev/memory.db
 ```
 
-A checkout `.env` may declare `MEMORY_ENV=development`, but Harness subprocesses must not use that value to derive `memory_dev.db`. Journey bootstrap, reload and mutation must consume the native channel's complete environment projection. If the tree is unexpectedly empty, compare Settings with bounded file metadata for both names; do not copy or delete either database as a repair.
+A checkout `.env` may declare `MEMORY_ENV=development`, but Harness subprocesses must not use that value to derive `memory_dev.db`. Journey bootstrap, reload and mutation consume the native channel's complete environment projection. Bootstrap delegates to the same canonical Mirror `journey export-registry` command used by reload, requires registry schema `0.2.0`, and atomically publishes only into the selected bundle's app-data root; it does not query SQLite directly. If the tree is unexpectedly empty, compare Settings with bounded file metadata for both names; do not copy or delete either database as a repair.
 
 Mirror Dev must also contain the canonical `journey export-registry` and `journey mutate` commands expected by the Harness. Update the checkout without discarding unrelated local work when those capabilities are absent.
 

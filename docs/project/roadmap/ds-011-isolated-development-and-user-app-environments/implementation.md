@@ -33,7 +33,7 @@ Dedicated threads provisioned after DS-011 record `runtimeChannel` in the thread
 - `src-tauri/tauri.conf.json` remains the stable baseline.
 - `src-tauri/tauri.dev.conf.json` defines development product, bundle, window and icon.
 - `scripts/nautilus_channel.mjs` pairs the correct Tauri config, Cargo feature and Mirror environment.
-- `npm run tauri:dev` also materializes the development Journey registry from the Mirror Dev database before launching.
+- `npm run tauri:dev` materializes the development Journey registry before launching by delegating to Mirror Dev's canonical `memory journey export-registry` command under the complete development-channel environment.
 - `npm run tauri:build:dev` and `npm run tauri:build:user` produce explicit bundles without manual manifest edits.
 - `npm run promote:production` is the explicit local promotion gate: it requires a clean worktree, reruns frontend and Rust validation, builds and verifies the stable native identity, refuses a running installed app and installs with rollback protection at `/Applications/Nautilus Harness.app`.
 - Promotion never invokes `sudo`, migrates channel data, pushes Git, publishes a release or performs a remote deployment.
@@ -44,7 +44,7 @@ Development has a committed violet Nautilus icon with a `DEV` badge, distinct sy
 
 ## Python Boundaries
 
-Conversation bridge scripts now require explicit Mirror root/home coordinates and never prepend `$HOME/mirror/src` silently. The registry bootstrap derives database and application-data output from the active channel environment and bundle identifier.
+Conversation bridge scripts now require explicit Mirror root/home coordinates and never prepend `$HOME/mirror/src` silently. The registry bootstrap receives an explicit Mirror root and bundle identifier, delegates registry construction to Mirror's canonical `journey export-registry` command, requires schema `0.2.0`, and atomically publishes the result to channel-owned app data. It contains no SQLite query or parallel Journey projection logic. Manual `npm run import:mirror` uses the same closed launcher with explicit stable coordinates.
 
 ## Canonical Documentation
 
@@ -94,7 +94,7 @@ The real desktop exercise exposed a chain of boundary defects that unit-level ch
 - Native Tauri errors were strings rather than JavaScript `Error` objects. Reload and mutation diagnostics now preserve bounded native detail, while successful reload feedback is concise and transient.
 - Mirror projected Journeys whose recorded parent no longer existed as roots, but mutation ordering still grouped them under the missing parent. Root creation therefore submitted the visible append position while the service validated against a smaller hidden group. Mirror Dev now uses the same effective-parent rule for projection and mutation ordering.
 
-The governing lesson is that an isolated channel is not merely a set of correct values. Every subprocess must consume the same complete coordinate contract without deriving a competing database from partial inputs. Bootstrap, refresh and mutation must also share one registry schema and authority path; that remaining consolidation is tracked as prospective Refinement Work rather than hidden inside the completed fixes.
+The governing lesson is that an isolated channel is not merely a set of correct values. Every subprocess must consume the same complete coordinate contract without deriving a competing database from partial inputs. RS014/CR027 subsequently closed the remaining consolidation gap: bootstrap, refresh and mutation now share Mirror's canonical registry exporter, schema `0.2.0` and the same channel authority path, while legacy schema acceptance remains only at the native read/publication compatibility boundary.
 
 ## Validation Finding: Channel-Local Dedicated Pi Session Roots
 
