@@ -257,7 +257,11 @@ fn load_journey_thread(app: AppHandle, journey_id: String) -> Result<Option<Stri
 }
 
 fn validate_thread_runtime_channel(thread: &Value) -> Result<(), String> {
-    let active = active_runtime_channel()?.channel.as_str();
+    let active = active_runtime_channel()?.channel;
+    validate_thread_runtime_channel_name(thread, active.as_str())
+}
+
+fn validate_thread_runtime_channel_name(thread: &Value, active: &str) -> Result<(), String> {
     match thread.get("runtimeChannel").and_then(Value::as_str) {
         Some(stored) if stored == active => Ok(()),
         None if active == "user" => Ok(()),
@@ -3043,14 +3047,29 @@ fn validate_run_authority(app: &AppHandle, authority: &RunAuthority) -> Result<(
     let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
     let app_data_dir = app.path().app_data_dir()
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
-    validate_run_authority_at(
+    let runtime_channel = active_runtime_channel()?.channel;
+    validate_run_authority_at_with_channel(
         &app_data_dir,
         &home.join(".pi").join("agent").join("sessions"),
         authority,
+        runtime_channel.as_str(),
     )
 }
 
+#[cfg(test)]
 fn validate_run_authority_at(app_data_dir: &Path, global_pi_sessions_dir: &Path, authority: &RunAuthority) -> Result<(), String> {
+    validate_run_authority_at_with_channel(app_data_dir, global_pi_sessions_dir, authority, compiled_runtime_channel())
+}
+
+#[cfg(test)]
+fn compiled_runtime_channel() -> &'static str {
+    #[cfg(feature = "development-channel")]
+    { "development" }
+    #[cfg(not(feature = "development-channel"))]
+    { "user" }
+}
+
+fn validate_run_authority_at_with_channel(app_data_dir: &Path, global_pi_sessions_dir: &Path, authority: &RunAuthority, runtime_channel: &str) -> Result<(), String> {
     if authority.schema_version != "0.1.0"
         || authority.journey_id != authority.correlation.journey_id
         || authority.run_id != authority.correlation.run_id
@@ -3068,7 +3087,7 @@ fn validate_run_authority_at(app_data_dir: &Path, global_pi_sessions_dir: &Path,
         return Err("Run authority does not match its turn correlation.".to_string());
     }
     validate_turn_correlation(&authority.correlation)?;
-    validate_persisted_turn_authority_at(app_data_dir, global_pi_sessions_dir, authority)
+    validate_persisted_turn_authority_at(app_data_dir, global_pi_sessions_dir, authority, runtime_channel)
 }
 
 fn dedicated_journey_conversation_path_at(app_data_dir: &Path, journey_id: &str, generation: u64) -> Result<PathBuf, String> {
@@ -3081,7 +3100,7 @@ fn journey_thread_path_at(app_data_dir: &Path, journey_id: &str) -> Result<PathB
     Ok(app_data_dir.join("journey-threads").join(format!("{}.json", sanitize_journey_id(journey_id)?)))
 }
 
-fn validate_persisted_turn_authority_at(app_data_dir: &Path, global_pi_sessions_dir: &Path, authority: &RunAuthority) -> Result<(), String> {
+fn validate_persisted_turn_authority_at(app_data_dir: &Path, global_pi_sessions_dir: &Path, authority: &RunAuthority, runtime_channel: &str) -> Result<(), String> {
     let value = &authority.correlation;
     {
         let stored_thread: Value = serde_json::from_str(
@@ -3089,7 +3108,7 @@ fn validate_persisted_turn_authority_at(app_data_dir: &Path, global_pi_sessions_
                 .map_err(|error| format!("Could not read dedicated thread authority: {}", error))?,
         ).map_err(|error| format!("Could not parse dedicated thread authority: {}", error))?;
         let thread = unwrap_persisted_thread(&stored_thread);
-        validate_thread_runtime_channel(thread)?;
+        validate_thread_runtime_channel_name(thread, runtime_channel)?;
         let active_generation = thread.get("activeGeneration").and_then(Value::as_u64);
         let generation = thread.get("generations").and_then(Value::as_array)
             .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active_generation))
@@ -3417,7 +3436,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{
-        dedicated_native_names, enqueue_mirror_append_item_at, extract_context_stats_from_pi_session,
+        compiled_runtime_channel, dedicated_native_names, enqueue_mirror_append_item_at, extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
         list_journey_documentation_at, materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, projection_manifest_coordinates_at,
@@ -3491,6 +3510,7 @@ mod tests {
                 "schemaVersion":"1.0.0",
                 "threadId":"thread-one",
                 "journeyId":"journey-one",
+                "runtimeChannel":compiled_runtime_channel(),
                 "createdAt":"2026-08-26T09:00:00Z",
                 "activeGeneration":1,
                 "generations":[{
@@ -3714,13 +3734,14 @@ mod tests {
         let root = test_root("run-authority-live-identity");
         let authority = test_run_authority(&root);
         persist_run_authority_fixture(&root, &authority, "2026-08-26T10:00:00Z");
-        let mut divergent = authority;
-        divergent.pi_session_id = "other-session".to_string();
-        divergent.correlation.pi_session_id = "other-session".to_string();
+        let conversation_path = root.join("dedicated-journey-conversations/journey-one/generation-1.json");
+        let mut payload: Value = serde_json::from_str(&fs::read_to_string(&conversation_path).unwrap()).unwrap();
+        payload["conversation"]["liveIdentity"]["piSessionId"] = Value::String("other-session".to_string());
+        fs::write(&conversation_path, serde_json::to_vec(&payload).unwrap()).unwrap();
 
         assert_eq!(
-            validate_run_authority_at(&root, &root.join("global-pi-sessions"), &divergent).unwrap_err(),
-            "Turn no longer matches the active dedicated generation."
+            validate_run_authority_at(&root, &root.join("global-pi-sessions"), &authority).unwrap_err(),
+            "Staged turn no longer matches the live conversation identity."
         );
         fs::remove_dir_all(root).unwrap();
     }
