@@ -2,7 +2,7 @@
 
 # DS-009 — Concurrent Journey Operations
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Progress
 
 ---
 
@@ -28,6 +28,33 @@ A desktop agent cockpit should not turn one long-running Journey into a global a
 - Show compact running state in the Journey sidebar without rotating completed history.
 - Persist each Journey response to its own canonical local conversation.
 
+## Planning Decisions
+
+- Initial global concurrency limit after enablement is exactly two active Pi executions.
+- Per-Journey concurrency limit is exactly one active or finalizing execution.
+- Concurrency must not be enabled before TS-4 completes.
+- Delivery proceeds in mandatory order: TS-1, TS-3, US-1, TS-2, TS-4, US-2, US-3.
+- Backend process ownership moves to a registry keyed by `journeyId`; each registry entry owns exactly one `runId` and one `RunAuthority` constructed once at run start.
+- `RunAuthority` is based on `TurnCorrelation` plus validated active-generation live identity for `piSessionFile`, because persisted `TurnCorrelation` schema `0.2.0` does not contain that field.
+- `threadId`, `mirrorConversationId`, activation receipt evidence and `piSessionFile` are mandatory inside `RunAuthority` for live dedicated runs after active-generation validation.
+- No mutable authority copies or competing identity sources remain after `RunAuthority` construction.
+- Persisted `TurnCorrelation` schema is not changed without explicit TS-1 compatibility analysis.
+- Start and cancel commands require both `journeyId` and `runId`.
+- Live dedicated runs require correlated authority before spawn.
+- Provider configuration is captured as a backend snapshot at run start and is not emitted in events.
+- Every process event carries event authority derived from `RunAuthority`: `journeyId`, `runId`, `turnId`, `threadId`, `generation`, `piSessionId`, `piSessionFile` when available, and `mirrorConversationId`.
+- Frontend event dispatch is centralized through one app-level listener, not one listener per run.
+- Frontend event reducers reject events that are late, unauthoritative or attached to a replaced run; stale events are discarded or quarantined outside current run state.
+- Frontend runtime state migrates from global selected-Journey state to Journey-keyed state.
+- Settlement and persistence always use the authority captured at run start, never the Journey selected when the event or settlement callback arrives.
+- Saves and finalization are serialized per Journey.
+- The native lifecycle reserves `journeyId + runId` before spawn, releases process capacity on child termination, keeps the Journey leased through durable projection plus outbox enqueue, and handles spawn failure, cancellation/done races and process death idempotently.
+- The native registry exposes bounded inspection of running and finalizing leases for dispatcher reconciliation.
+- Finalization acknowledgement is idempotent after durable projection and outbox enqueue.
+- App restart uses persisted dedicated projection and outbox state as authority, not dead child handles.
+- Rollback reduces the single internal capacity constant to 1 without reverting correlated event, Journey-keyed state or directed API contracts.
+- Aggregate validation happens only in the development channel before any stable promotion.
+
 ## Boundaries
 
 - Do not share one Pi session, assistant response or runtime projection across Journeys.
@@ -40,13 +67,13 @@ A desktop agent cockpit should not turn one long-running Journey into a global a
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| DS-009.TS-1 | Correlated Journey Run Contract | Technical Story | Define `runId` and `journeyId` ownership across process events, conversation updates, settlement and persistence | 🟡 Planned |
-| DS-009.TS-2 | Per-Journey Tauri Process Registry | Technical Story | Backend can run and cancel bounded independent Pi processes without cross-run event leakage | 🟡 Planned |
-| DS-009.US-1 | Navigate While Journeys Work | User Story | Navigator can switch Journeys while existing runs continue and see which Journeys are active | 🟡 Planned |
-| DS-009.US-2 | Operate Multiple Journeys Concurrently | User Story | Navigator can start work in another Journey while one is already running, with one run allowed per Journey | 🟡 Planned |
-| DS-009.TS-3 | Journey-Keyed Frontend Runtime State | Technical Story | Deltas, operations, warnings, controls and terminal outcomes update only their owning Journey | 🟡 Planned |
-| DS-009.US-3 | Targeted Journey Cancellation and Settlement | User Story | Cancelling or failing one Journey does not disturb work or controls in another Journey | 🟡 Planned |
-| DS-009.TS-4 | Concurrent Persistence Guardrails | Technical Story | Background responses persist to the correct Journey conversation without overwrite, loss or stale selected-Journey writes | 🟡 Planned |
+| DS-009.TS-1 | Correlated Journey Run Contract | Technical Story | Define complete `RunAuthority` derived from `TurnCorrelation` across serial process events, conversation updates, settlement and persistence | 🟡 Planned |
+| DS-009.TS-3 | Journey-Keyed Frontend Runtime State | Technical Story | Deltas, operations, warnings, controls and terminal outcomes update only their owning Journey while execution remains serial | 🟡 Planned |
+| DS-009.US-1 | Navigate While Journeys Work | User Story | Navigator can switch Journeys while an existing serial run continues and see which Journey is active | 🟡 Planned |
+| DS-009.TS-2 | Per-Journey Tauri Process Registry | Technical Story | Backend owns a per-Journey registry with directed start/cancel and global limit 1 | 🟡 Planned |
+| DS-009.TS-4 | Concurrent Persistence Guardrails | Technical Story | Background settlement and persistence use captured authority and per-Journey finalization leases while global limit remains 1 | 🟡 Planned |
+| DS-009.US-2 | Operate Multiple Journeys Concurrently | User Story | Navigator can start work in another Journey after capacity is raised to 2, with one run allowed per Journey | 🟡 Planned |
+| DS-009.US-3 | Targeted Journey Cancellation and Settlement | User Story | Cancelling, failing or settling one Journey under real concurrency does not disturb another Journey | 🟡 Planned |
 
 ## Done Condition
 

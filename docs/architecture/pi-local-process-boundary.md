@@ -58,12 +58,38 @@ user         $HOME/mirror           $HOME/.mirror-minds/alisson-vale
 
 Development uses `MIRROR_USER=mirror-dev`, its own `DB_PATH` and the checkout associated with Journey `mirror-dev`. Missing or mixed coordinates fail before provisioning, mutation or provider invocation; there is no fallback across channels. Newly provisioned thread authority records the runtime channel, while legacy unmarked records are accepted only in the stable user app-data root.
 
+## Concurrent Journey operations boundary
+
+DS-009 changes process ownership without changing native conversation authority. Each live dedicated run is authorized by the ready active generation that existed at start time. The single runtime authority structure is `RunAuthority`, constructed once at run start. Its base is `TurnCorrelation`; because persisted `TurnCorrelation` schema `0.2.0` does not contain `piSessionFile`, `RunAuthority` adds `piSessionFile` from the validated live identity or active generation. After validation against the active generation, `threadId`, `mirrorConversationId`, activation receipt evidence and `piSessionFile` are mandatory for live dedicated runs. No mutable copies or competing authority sources remain after construction, and changing persisted `TurnCorrelation` requires explicit TS-1 compatibility analysis.
+
+Provider configuration is captured separately as a backend-owned snapshot and is not emitted in process events.
+
+```text
+RunAuthority:
+  base TurnCorrelation
+  required active-generation piSessionFile
+  required active-generation activationReceipt
+```
+
+The backend process registry is keyed by `journeyId`. Each entry owns one `RunAuthority`, one `runId`, one child process, one cancellation flag, one terminalization state, one finalization lease and one provider configuration snapshot. Start and cancel require both `journeyId` and `runId`. A second active or finalizing run for the same Journey is rejected until the current run settles. The initial global process limit is 2, enabled only after correlation, Journey-keyed frontend state, navigation, registry and persistence guardrails have passed under global limit 1.
+
+Native lifecycle is explicit: construct `RunAuthority` once; reserve `journeyId + runId` atomically before spawn; reject competing start; compare `runId` before altering or removing a registry entry; make terminalization idempotent; release process capacity when the child terminates; keep the Journey unavailable while finalization is pending; release the Journey lease only after durable local projection and successful outbox enqueue; keep the Journey blocked if no outbox item can be created; clear finalization by explicit acknowledgement; handle spawn failure, cancellation/done races and process death.
+
+The native registry exposes bounded lease inspection for running and finalizing leases. Dispatcher remount or reload reconciles those leases without duplicate listeners. Finalization acknowledgement is idempotent: once projection and outbox are durable, repeated acknowledgement leaves the Journey released. If no durable recovery handle exists, the Journey stays blocked with a recoverable diagnostic. App restart uses dedicated projection and outbox persistence as authority; it does not restore dead `Child` handles or infer live process continuity from stale native handles.
+
+Every Tauri process event must carry authority derived from `RunAuthority`: `journeyId`, `runId`, `turnId`, `threadId`, `generation`, `piSessionId`, `piSessionFile` when available and `mirrorConversationId`. Frontend consumers reject missing authority, stale generation/session evidence, late events from completed or cancelled runs and events from a replaced `runId`. Dispatch is centralized through a single app-level listener, not one listener per run. Stale events are discarded or routed to bounded diagnostic quarantine outside current run state; they must not become diagnostics for a replacement run in the same Journey.
+
+Settlement, transcript inspection, Harness projection, Mirror append and outbox acknowledgement use the captured authority from run start. They must not derive destination Journey, generation, session file or Mirror conversation from the UI selection at completion time. Saves and finalization are serialized per Journey. Durable local projection plus outbox enqueue releases the Journey for another invocation even when Mirror append remains recoverably pending.
+
+Rollback is capacity-only: the registry accepts an injected limit in tests, production capacity is defined by one internal profile or constant, there is no arbitrary environment override, and rollback changes only that capacity to 1 without removing `journeyId` plus `runId` commands, correlated process events, Journey-keyed frontend state or captured-authority settlement.
+
 ## Safety
 
 - Invocation is always user-triggered.
 - Lifecycle operations never invoke a provider.
-- Provider settings remain separate from Journey preferences.
+- Provider settings remain separate from Journey preferences; the effective provider configuration is snapshotted at run start and kept out of event payloads.
 - No secrets or arbitrary environment values are persisted.
 - No conversation selector, arbitrary hydration or external-activity polling exists.
 - Local links open only after a deliberate click and current-path validation.
-- Per-Journey concurrency remains owned by `DS-009`.
+- Per-Journey concurrency is bounded by DS-009: one active or finalizing run per Journey and an initial global limit of 2 after DEV validation.
+- Concurrency cannot be enabled before DS-009.TS-4 completes.

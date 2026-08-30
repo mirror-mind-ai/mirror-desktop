@@ -180,6 +180,36 @@ immediately before explicit send, removing existing `--provider`, `--model` and
 clamping. Profile changes never provision or restart a thread, generation, Pi
 session or Mirror conversation.
 
+## Concurrent Journey runtime architecture
+
+DS-009 moves live execution from selected-Journey global state to Journey-owned runtime state. React remains responsible for explicit Navigator intent and view projection, while Tauri owns bounded local process execution. The architecture is intentionally phased so correlation, keyed frontend state, navigation and persistence land before increased concurrency:
+
+```text
+TS-1 correlated serial runtime
+  -> TS-3 Journey-keyed frontend state while still serial
+  -> US-1 navigation during execution while still serial
+  -> TS-2 backend process registry with global limit 1
+  -> TS-4 captured-authority settlement with global limit 1
+  -> US-2 backend process registry with global limit 2
+  -> US-3 selective cancellation, failure and settlement under real concurrency
+```
+
+Concurrency must not be enabled before TS-4. The frontend runtime model is keyed by native `journeyId`. Conversation state, run status, stream state, runtime projection, warnings, diagnostics, context usage, Mirror append state and finalization state belong to the Journey that started the run. The selected Journey is only a view selector. It must never become settlement authority for a background run.
+
+The Tauri process registry is keyed by `journeyId`. Each entry owns exactly one `RunAuthority`, one `runId`, child process, cancellation flag, terminalization state, finalization lease and provider configuration snapshot. `RunAuthority` is constructed once at run start from `TurnCorrelation` plus validated active-generation live identity. Because current `TurnCorrelation` schema `0.2.0` does not contain `piSessionFile`, `piSessionFile` comes from the validated live identity or active generation and becomes mandatory inside `RunAuthority` for live dedicated runs alongside `threadId`, `mirrorConversationId` and activation receipt evidence. No mutable authority copies or competing sources survive construction. Persisted `TurnCorrelation` schema changes require explicit TS-1 compatibility analysis and are not implied by DS-009 planning.
+
+Start and cancel commands require both `journeyId` and `runId`; wrong or stale pairs fail closed. Live dedicated runs require correlation before spawn. Provider snapshots are backend-owned and are not emitted in process events.
+
+Native run lifecycle reserves `journeyId + runId` atomically before spawn, rejects competing starts, compares `runId` before any entry mutation or removal, terminalizes idempotently, releases process capacity when the child terminates and keeps the Journey leased while finalization is pending. Durable local projection plus outbox enqueue releases the Journey for another invocation even when Mirror append remains recoverably pending. If outbox enqueue cannot be created, the Journey remains blocked because there is no durable recovery handle. Spawn failure after reservation, cancellation/done races and process death are explicit cleanup paths.
+
+The native registry exposes bounded inspection of running and finalizing leases so dispatcher remount or reload can reconcile state without duplicate listeners. Finalization acknowledgement is idempotent: once projection and outbox are durable, repeated acknowledgement leaves the Journey released. If there is no durable recovery handle, the Journey remains blocked with a recoverable diagnostic. App restart uses persisted dedicated projection and outbox state as authority; it does not attempt to restore dead `Child` handles.
+
+Process events carry authority derived from `RunAuthority`: `journeyId`, `runId`, `turnId`, `threadId`, `generation`, `piSessionId`, `piSessionFile` when available and `mirrorConversationId`. Dispatch is centralized through one app-level Tauri listener. The architecture avoids one listener per run receiving all events. Reducers reject events that arrive late, lack authority, target a replaced run or mismatch the owning generation/session. Stale events are discarded or routed to bounded quarantine outside current run diagnostics.
+
+Settlement and persistence use captured run-start authority for transcript inspection, Harness projection, Mirror append, outbox acknowledgement and save ordering. Saves and finalization are serialized per Journey. Rollback is concrete and capacity-only: tests inject limit 1 and limit 2 into the same registry implementation, production capacity lives in one internal profile or constant, there is no arbitrary environment override, and rollback changes only that capacity to 1.
+
+Development validation happens in **Nautilus Harness Dev** only. Stable promotion is outside DS-009 until DEV proves interleaving, targeted cancellation, isolated failure, Journey switching, Mirror append behavior, generation rollover, app close with multiple children and rollback to global limit 1.
+
 ## Stable and development desktop channels
 
 DS-011 defines two Tauri application identities over the same source tree:
