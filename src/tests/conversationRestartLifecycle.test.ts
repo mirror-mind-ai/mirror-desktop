@@ -26,9 +26,11 @@ describe("dedicated conversation restart lifecycle", () => {
     expect(tauriSource).toContain("Could not migrate dedicated generation projection");
   });
 
-  it("unlocks drafting when provider work ends and skips redundant Mirror repair", () => {
+  it("unlocks drafting when provider work ends and uses the explicit append outbox", () => {
     expect(appSource).toContain("Recording the completed turn… You can draft the next message now.");
-    expect(appSource).toContain('observedAssistantMirrorCommit?.status === "committed"');
+    expect(appSource).toContain("createMirrorAppendOutboxItem");
+    expect(appSource).toContain("appendMirrorOutboxItem");
+    expect(appSource).not.toContain("observedAssistantMirrorCommit");
     expect(appSource).toContain("disabled={isJourneyReloading || agentRun.status === \"running\"}");
   });
 });

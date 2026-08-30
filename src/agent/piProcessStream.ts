@@ -549,42 +549,6 @@ export async function readJourneyPiContextStats(
   });
 }
 
-export type MirrorTurnCommitStatus = {
-  schemaVersion: "0.2.0";
-  status: "missing" | "partial" | "committed";
-  conversationId?: string | null;
-  userMessageId?: string | null;
-  assistantMessageId?: string | null;
-  messageCount: number;
-  piEvidence?: {
-    userEntryId: string;
-    assistantEntryId: string;
-    leafEntryId: string;
-    entryCount: number;
-    sessionFile: string;
-  };
-};
-
-export async function readMirrorTurnCommitStatus(
-  journeyId: string,
-  sessionFile: string,
-  correlation: TurnCorrelation,
-): Promise<MirrorTurnCommitStatus> {
-  return JSON.parse(await invoke<string>("read_mirror_turn_commit_status", {
-    journeyId, sessionFile, correlation,
-  })) as MirrorTurnCommitStatus;
-}
-
-export async function retryMirrorTurnCommit(
-  journeyId: string,
-  sessionFile: string,
-  correlation: TurnCorrelation,
-): Promise<MirrorTurnCommitStatus> {
-  return JSON.parse(await invoke<string>("retry_mirror_turn_commit", {
-    journeyId, sessionFile, correlation,
-  })) as MirrorTurnCommitStatus;
-}
-
 export async function* livePiAgentStream(
   packet: PiTaskPacket,
   providerConfig: AgentProviderConfig = defaultPiProviderConfig,

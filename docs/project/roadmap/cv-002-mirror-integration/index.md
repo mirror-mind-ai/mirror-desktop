@@ -22,7 +22,7 @@ The next integration steps are deliberately narrow and ordered. First, make the 
 | [CV-002.DS-002](ds-002-mirror-mediated-pi-invocation/index.md) | Mirror-mediated Pi Invocation | Harness invokes Pi through Mirror context so agent work participates in Mirror conversation logging and memory instead of bypassing it | ✅ Done |
 | [CV-002.DS-003](ds-003-pi-cli-output-parity/index.md) | Pi/Mirror Operational Loop Parity | For the essential send-observe-answer loop, Harness projects the same meaningful visible execution phases as Pi with Mirror active, without unrelated Pi features or a Nautilus-specific runtime metaphor | ✅ Done |
 | [CV-002.DS-004](ds-004-conversation-and-mirror-context-parity/index.md) | Conversation and Mirror Context Parity | The visible conversation, Pi-owned context budget/compaction, active Journey, identity, ego/persona routing and Mirror operating mode are the context lifecycle Pi actually uses to answer | ✅ Done |
-| [CV-002.DS-005](ds-005-explicit-conversation-append-boundary/index.md) | Explicit Conversation Append Boundary | Harness records completed Journey turns through a generic explicit Mirror append primitive instead of runtime-session reconciliation | 🟡 Planned |
+| [CV-002.DS-005](ds-005-explicit-conversation-append-boundary/index.md) | Explicit Conversation Append Boundary | Harness records completed Journey turns through a generic explicit Mirror append primitive instead of runtime-session reconciliation | 🟠 Desktop validation pending |
 
 ## Done Condition
 

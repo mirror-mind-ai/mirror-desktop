@@ -1,5 +1,4 @@
 import type { MirrorCommitEvent, TurnCorrelation } from "../agent/agentStream";
-import type { MirrorTurnCommitStatus } from "../agent/piProcessStream";
 import type { ConversationMessage } from "../agent/piTaskPacket";
 import {
   beginNautilusTurn,
@@ -13,15 +12,35 @@ import {
 } from "./conversationReconciliation";
 import type { JourneyConversation } from "./journeyConversation";
 
+type MirrorTurnCommitStatus = {
+  schemaVersion: "0.2.0";
+  status: "missing" | "partial" | "committed";
+  conversationId?: string | null;
+  userMessageId?: string | null;
+  assistantMessageId?: string | null;
+  messageCount: number;
+  piEvidence?: {
+    userEntryId: string;
+    assistantEntryId: string;
+    leafEntryId: string;
+    entryCount: number;
+    sessionFile: string;
+  };
+};
+
 export type PendingMirrorTurnRepair = {
   correlation: TurnCorrelation;
   sessionFile: string;
   failureCode?: string;
 };
 
-export function pendingMirrorTurnRepair(conversation: JourneyConversation): PendingMirrorTurnRepair | undefined {
+export function pendingMirrorTurnRepair(
+  conversation: JourneyConversation,
+  turnId?: string,
+): PendingMirrorTurnRepair | undefined {
   const turn = [...conversation.reconciliation.turns].reverse().find((item) =>
-    item.origin === "nautilus"
+    (!turnId || item.turnId === turnId)
+    && item.origin === "nautilus"
     && item.runId
     && item.harness.state === "committed"
     && item.pi.state === "committed"

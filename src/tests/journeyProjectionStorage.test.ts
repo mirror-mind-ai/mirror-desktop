@@ -14,7 +14,8 @@ describe("Journey projection storage boundary", () => {
 
   it("keeps projection subprocess inspection off the desktop UI thread", () => {
     expect(tauriSource).toContain("async fn load_journey_projections");
-    expect(tauriSource).toContain("tauri::async_runtime::spawn_blocking(move || load_journey_projections_at");
+    expect(tauriSource).toContain("tauri::async_runtime::spawn_blocking(move || {");
+    expect(tauriSource).toContain("load_journey_projections_at(&journey_root, &journey_id)");
   });
 
   it("clears readings per Journey and never falls back to representative production content", () => {

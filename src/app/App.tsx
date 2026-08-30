@@ -5,13 +5,11 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamProvider, type MirrorCommitEvent, type TurnCorrelation } from "../agent/agentStream";
+import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamProvider, type TurnCorrelation } from "../agent/agentStream";
 import {
   cancelLivePiInvocation,
   livePiAgentStream,
   readJourneyPiContextStats,
-  readMirrorTurnCommitStatus,
-  retryMirrorTurnCommit,
 } from "../agent/piProcessStream";
 import { normalizePiResponse, type NormalizedPiResponse } from "../agent/piResponseNormalizer";
 import {
@@ -104,12 +102,22 @@ import {
   replaceJourneyConversationMessages,
 } from "../domain/journeyConversation";
 import {
-  applyMirrorCommitEvent,
-  applyMirrorTurnCommitStatus,
   commitHarnessTurn,
   pendingMirrorTurnRepair,
   stageCorrelatedTurn,
 } from "../domain/threeBodyTurnCommit";
+import {
+  applyMirrorAppendReceipt,
+  applyPiExecutionEvidence,
+  createMirrorAppendOutboxItem,
+} from "../domain/mirrorAppendOutbox";
+import {
+  acknowledgeMirrorAppendItem,
+  appendMirrorOutboxItem,
+  enqueueMirrorAppendItem,
+  listMirrorAppendOutbox,
+  type MirrorAppendOutboxSummary,
+} from "./mirrorAppendOutboxStorage";
 import {
   deriveOrderedSidebarJourneys,
   filterCollapsedJourneyTree,
@@ -250,6 +258,7 @@ export function App({ model }: AppProps) {
   const [piContextState, setPiContextState] = useState<"checking" | "waiting" | "available" | "not_initialized">("checking");
   const [isRetryingMirrorCommit, setIsRetryingMirrorCommit] = useState(false);
   const [mirrorCommitError, setMirrorCommitError] = useState<string | undefined>();
+  const [mirrorOutboxItems, setMirrorOutboxItems] = useState<MirrorAppendOutboxSummary[]>([]);
   const [providerConfig, setProviderConfig] = useState(defaultPiProviderConfig);
   const [providerCommand, setProviderCommand] = useState(defaultPiProviderConfig.command);
   const [providerArgsText, setProviderArgsText] = useState(providerConfigToArgsText(defaultPiProviderConfig));
@@ -289,7 +298,7 @@ export function App({ model }: AppProps) {
   const journeyMenuRef = useRef<HTMLDivElement | null>(null);
   const journeyTreeButtonRef = useRef<HTMLButtonElement | null>(null);
   const journeyTreeMenuRef = useRef<HTMLDivElement | null>(null);
-  const checkedMirrorTurnRef = useRef<string | undefined>(undefined);
+  const checkedMirrorTurnRef = useRef<Set<string>>(new Set());
   const conversationRef = useRef<JourneyConversation>(conversation);
   const selectedJourneyRef = useRef(selectedJourney);
   conversationRef.current = conversation;
@@ -355,11 +364,13 @@ export function App({ model }: AppProps) {
     && authoritativeContextStats.providerModel === providerModelLabel(effectiveProviderConfig);
   const reportedContextUsage = contextIdentityMatches ? authoritativeContextStats.usage : undefined;
   const pendingMirrorRepair = useMemo(() => pendingMirrorTurnRepair(conversation), [conversation]);
+  const pendingMirrorOutboxItem = mirrorOutboxItems.find((item) => item.itemId === pendingMirrorRepair?.correlation.turnId);
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
   const dedicatedTurnState = classifyDedicatedTurnState(conversation, isStreaming || agentRun.status === "running");
-  const reconciliationBlocksInvocation = dedicatedThreadReady
+  const mirrorAppendNeedsEnqueue = Boolean(pendingMirrorRepair && !pendingMirrorOutboxItem);
+  const reconciliationBlocksInvocation = mirrorAppendNeedsEnqueue || (dedicatedThreadReady
     ? dedicatedTurnBlocksNewInvocation(dedicatedTurnState)
-    : conversation.reconciliation.classification !== "in_sync";
+    : conversation.reconciliation.classification !== "in_sync");
   const configuredContextWindow = piModelCatalog.find((entry) =>
     entry.provider === effectiveAgentProfile.model.provider && entry.model === effectiveAgentProfile.model.model,
   )?.contextWindow ?? configuredModelContextWindow(effectiveProviderConfig);
@@ -595,19 +606,14 @@ export function App({ model }: AppProps) {
               stagedUser.id,
               stagedAssistant.id,
             );
-            restoredConversation = applyMirrorTurnCommitStatus(restoredConversation, recoveryCorrelation, {
-              schemaVersion: "0.2.0",
-              status: "missing",
-              conversationId: classified.activeGeneration.mirrorConversationId,
-              messageCount: 0,
-              piEvidence: {
-                userEntryId: nativeTurn.userEntryId,
-                assistantEntryId: nativeTurn.assistantEntryId,
-                leafEntryId: nativeTurn.assistantEntryId,
-                entryCount: nativeTurn.entryCount,
-                sessionFile: classified.activeGeneration.piSessionFile,
-              },
-            }, new Date().toISOString());
+            restoredConversation = applyPiExecutionEvidence(restoredConversation, recoveryCorrelation, {
+              userEntryId: nativeTurn.userEntryId,
+              assistantEntryId: nativeTurn.assistantEntryId,
+              leafEntryId: nativeTurn.assistantEntryId,
+              entryCount: nativeTurn.entryCount,
+              sessionFile: classified.activeGeneration.piSessionFile,
+              committedAt: new Date().toISOString(),
+            });
             restoredConversation = commitHarnessTurn(restoredConversation, recoveryCorrelation, new Date().toISOString());
             await saveDedicatedJourneyConversation(restoredConversation);
           } else if (pendingTurn) {
@@ -622,7 +628,7 @@ export function App({ model }: AppProps) {
               restoredConversation.messages.filter((message) => message.id !== stagedAssistant?.id || message.content.trim().length > 0),
             );
             await saveDedicatedJourneyConversation(restoredConversation);
-          } else if (latestNautilusTurn?.pi.state !== "failed") {
+          } else if (!latestNautilusTurn) {
             restoredConversation = replaceJourneyConversationMessages(restoredConversation, turns.flatMap((turn) => [{
               id: `pi-${turn.userEntryId}`,
               role: "user" as const,
@@ -796,30 +802,31 @@ export function App({ model }: AppProps) {
   ]);
 
   useEffect(() => {
-    if (!conversationLoaded || isStreaming || !pendingMirrorRepair) return;
-    if (checkedMirrorTurnRef.current === pendingMirrorRepair.correlation.turnId) return;
-    checkedMirrorTurnRef.current = pendingMirrorRepair.correlation.turnId;
-    void readMirrorTurnCommitStatus(
-      conversation.journeyId,
-      pendingMirrorRepair.sessionFile,
-      pendingMirrorRepair.correlation,
-    ).then((status) => {
-      if (status.status === "committed") {
-        setConversation((currentConversation) => applyMirrorTurnCommitStatus(
-          currentConversation,
-          pendingMirrorRepair.correlation,
-          status,
-          new Date().toISOString(),
-        ));
-        setMirrorCommitError(undefined);
-      }
+    if (!conversationLoaded || isStreaming || journeyThreadState.kind !== "ready") return;
+    let cancelled = false;
+    void listMirrorAppendOutbox(conversation.journeyId).then((items) => {
+      if (cancelled) return;
+      setMirrorOutboxItems(items);
+      void (async () => {
+        for (const item of items) {
+          if (cancelled || checkedMirrorTurnRef.current.has(item.itemId)) continue;
+          checkedMirrorTurnRef.current.add(item.itemId);
+          try {
+            await retryMirrorAppendSummary(item);
+          } catch {
+            // Retain the durable item and continue retrying other generations.
+          }
+        }
+      })();
     }).catch((error) => {
-      setMirrorCommitError(error instanceof Error ? error.message : String(error));
+      if (!cancelled) setMirrorCommitError(error instanceof Error ? error.message : String(error));
     });
-  }, [conversation.journeyId, conversationLoaded, isStreaming, pendingMirrorRepair]);
+    return () => { cancelled = true; };
+  }, [conversation.journeyId, conversationLoaded, isStreaming, journeyThreadState.kind]);
 
   useEffect(() => {
-    checkedMirrorTurnRef.current = undefined;
+    checkedMirrorTurnRef.current.clear();
+    setMirrorOutboxItems([]);
     setMirrorCommitError(undefined);
   }, [selectedJourney]);
 
@@ -1008,7 +1015,6 @@ export function App({ model }: AppProps) {
     let runReachedAgent = false;
     let runWasCancelled = false;
     let runFailed = false;
-    let observedAssistantMirrorCommit: MirrorCommitEvent | undefined;
     const diagnostics: string[] = [];
     let streamedAssistantContent = "";
 
@@ -1049,15 +1055,6 @@ export function App({ model }: AppProps) {
               ),
             ),
           );
-        }
-        if (event.type === "mirror_commit" && correlation) {
-          if (event.commit.phase === "assistant") observedAssistantMirrorCommit = event.commit;
-          setConversation((currentConversation) => applyMirrorCommitEvent(
-            currentConversation,
-            correlation,
-            event.commit,
-            new Date().toISOString(),
-          ));
         }
         if (event.type === "message_delta") {
           streamedAssistantContent = `${streamedAssistantContent}${event.content}`;
@@ -1167,19 +1164,42 @@ export function App({ model }: AppProps) {
         }
       } else if (correlation) {
         setIsFinalizingTurn(true);
-        let settled = commitHarnessTurn(conversationRef.current, correlation, new Date().toISOString());
-        const sessionFile = settled.liveIdentity.piSessionFile;
+        let settled = conversationRef.current;
         try {
+          const sessionFile = settled.liveIdentity.piSessionFile;
           if (!sessionFile) throw new Error("Dedicated Pi session file is missing.");
-          if (observedAssistantMirrorCommit?.status === "committed") {
-            settled = applyMirrorCommitEvent(settled, correlation, observedAssistantMirrorCommit, new Date().toISOString());
-            await saveDedicatedJourneyConversation(settled);
-          } else {
-            await saveDedicatedJourneyConversation(settled);
-            const status = await retryMirrorTurnCommit(settled.journeyId, sessionFile, correlation);
-            settled = applyMirrorTurnCommitStatus(settled, correlation, status, new Date().toISOString());
-            await saveDedicatedJourneyConversation(settled);
-          }
+          const nativeTurns = await loadDedicatedPiTranscript(
+            settled.journeyId, settled.liveIdentity.piSessionId, sessionFile,
+          );
+          const nativeTurn = [...nativeTurns].reverse().find((turn) =>
+            turn.userText.trim() === userMessage.content.trim()
+            && Date.parse(turn.committedAt) >= Date.parse(userMessage.createdAt),
+          );
+          if (!nativeTurn) throw new Error("pi_native_evidence_missing");
+          settled = applyPiExecutionEvidence(settled, correlation, {
+            userEntryId: nativeTurn.userEntryId,
+            assistantEntryId: nativeTurn.assistantEntryId,
+            leafEntryId: nativeTurn.assistantEntryId,
+            entryCount: nativeTurn.entryCount,
+            sessionFile,
+            committedAt: new Date().toISOString(),
+          });
+          settled = commitHarnessTurn(settled, correlation, new Date().toISOString());
+          await saveDedicatedJourneyConversation(settled);
+          const outboxItem = createMirrorAppendOutboxItem(settled, correlation);
+          await enqueueMirrorAppendItem(outboxItem);
+          const summary: MirrorAppendOutboxSummary = {
+            schemaVersion: "1.0.0", itemId: outboxItem.itemId, journeyId: outboxItem.journeyId,
+            threadId: outboxItem.threadId, generation: outboxItem.generation,
+            conversationId: outboxItem.conversationId, createdAt: outboxItem.createdAt,
+          };
+          setMirrorOutboxItems((items) => items.some((item) => item.itemId === summary.itemId) ? items : [...items, summary]);
+          const receipt = await appendMirrorOutboxItem(summary.itemId);
+          settled = applyMirrorAppendReceipt(settled, correlation, receipt, new Date().toISOString());
+          await saveDedicatedJourneyConversation(settled);
+          await acknowledgeMirrorAppendItem(summary.itemId, summary.conversationId);
+          setMirrorOutboxItems((items) => items.filter((item) => item.itemId !== summary.itemId));
+          setMirrorCommitError(undefined);
           if (
             selectedJourneyRef.current === settled.journeyId
             && conversationRef.current.liveIdentity.generation === settled.liveIdentity.generation
@@ -1227,26 +1247,51 @@ export function App({ model }: AppProps) {
     }
   }
 
+  async function retryMirrorAppendSummary(item: MirrorAppendOutboxSummary) {
+    try {
+      const projected = await loadDedicatedJourneyConversation(item.journeyId, item.generation);
+      if (!projected) throw new Error("mirror_append_projection_missing");
+      const repair = pendingMirrorTurnRepair(projected, item.itemId);
+      if (!repair
+        || projected.liveIdentity.mirrorConversationId !== item.conversationId) {
+        throw new Error("mirror_append_projection_authority_mismatch");
+      }
+      const receipt = await appendMirrorOutboxItem(item.itemId);
+      const settled = applyMirrorAppendReceipt(projected, repair.correlation, receipt, new Date().toISOString());
+      await saveDedicatedJourneyConversation(settled);
+      await acknowledgeMirrorAppendItem(item.itemId, item.conversationId);
+      setMirrorOutboxItems((items) => items.filter((candidate) => candidate.itemId !== item.itemId));
+      if (selectedJourneyRef.current === item.journeyId
+        && conversationRef.current.liveIdentity.generation === item.generation) {
+        conversationRef.current = settled;
+        setConversation(settled);
+      }
+      setMirrorCommitError(undefined);
+    } catch (error) {
+      setMirrorCommitError(error instanceof Error ? error.message : String(error));
+      throw error;
+    }
+  }
+
   async function retryPendingMirrorCommit() {
     if (!pendingMirrorRepair || isStreaming || isRetryingMirrorCommit) return;
     setIsRetryingMirrorCommit(true);
     setMirrorCommitError(undefined);
     try {
-      const status = await retryMirrorTurnCommit(
-        conversation.journeyId,
-        pendingMirrorRepair.sessionFile,
-        pendingMirrorRepair.correlation,
-      );
-      if (status.status !== "committed") {
-        throw new Error("Mirror still reports an incomplete turn commit.");
+      let item = pendingMirrorOutboxItem;
+      if (!item) {
+        const outboxItem = createMirrorAppendOutboxItem(conversationRef.current, pendingMirrorRepair.correlation);
+        await enqueueMirrorAppendItem(outboxItem);
+        item = {
+          schemaVersion: "1.0.0", itemId: outboxItem.itemId, journeyId: outboxItem.journeyId,
+          threadId: outboxItem.threadId, generation: outboxItem.generation,
+          conversationId: outboxItem.conversationId, createdAt: outboxItem.createdAt,
+        };
+        setMirrorOutboxItems((items) => items.some((candidate) => candidate.itemId === item!.itemId)
+          ? items : [...items, item!]);
       }
-      setConversation((currentConversation) => applyMirrorTurnCommitStatus(
-        currentConversation,
-        pendingMirrorRepair.correlation,
-        status,
-        new Date().toISOString(),
-      ));
-      checkedMirrorTurnRef.current = pendingMirrorRepair.correlation.turnId;
+      await retryMirrorAppendSummary(item);
+      checkedMirrorTurnRef.current.add(item.itemId);
     } catch (error) {
       setMirrorCommitError(error instanceof Error ? error.message : String(error));
     } finally {
