@@ -147,11 +147,13 @@ export function applyMirrorAppendReceipt(
     || ids[0] !== correlation.harnessUserMessageId
     || ids[1] !== correlation.harnessAssistantMessageId
   ) throw new Error("mirror_append_receipt_authority_mismatch");
+  const cumulativeMessageCount = (conversation.reconciliation.checkpoints.mirror?.messageCount ?? 0) + 2;
   let reconciliation = observeMirrorUserCommit(
     conversation.reconciliation, correlation.turnId, ids[0], observedAt,
   );
   reconciliation = observeMirrorTurnCommit(reconciliation, correlation.turnId, {
-    userMessageId: ids[0], assistantMessageId: ids[1], messageCount: 2, committedAt: observedAt,
+    userMessageId: ids[0], assistantMessageId: ids[1],
+    messageCount: cumulativeMessageCount, committedAt: observedAt,
   });
   return { ...conversation, reconciliation };
 }

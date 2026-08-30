@@ -27,6 +27,8 @@ Pending items are listed on reopen and retried serially, preventing same-generat
 
 A pre-outbox projection can contain committed Harness/Pi reconciliation ids while both referenced Harness messages are absent. This exact bounded shape is terminal and non-recoverable automatically: Harness states that the legacy turn was not saved to Mirror, offers no impossible retry, and permits continued conversation. It preserves the pending evidence and never marks Mirror committed, reads Pi transcript content as message authority, or applies this treatment to partial/invalid pairs. A durable outbox item always remains retryable even if the local projection later loses its pair.
 
+Older projections can also carry a cumulative Mirror checkpoint larger than one explicit two-message append. Receipt settlement advances that existing checkpoint by the exact pair instead of comparing it with a batch-local count of two. This keeps acknowledgement compatible with historical conversations while exact message ids remain the settlement authority.
+
 ## Removed Normal Path
 
 The desktop no longer registers or invokes `read_mirror_turn_commit_status` or `retry_mirror_turn_commit`. The native `conversation-logger commit-status`/retry adapter was removed. Pi JSONL supplies execution ids and completion evidence only; it does not choose the Mirror destination or message ids.

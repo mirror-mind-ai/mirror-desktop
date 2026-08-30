@@ -83,4 +83,28 @@ describe("Mirror append outbox domain", () => {
       state: "committed", userMessageId: "user-one", assistantMessageId: "assistant-one",
     });
   });
+
+  it("settles an explicit pair after a larger legacy cumulative Mirror checkpoint", () => {
+    const { conversation, correlation } = fixture();
+    const legacyConversation = {
+      ...conversation,
+      reconciliation: {
+        ...conversation.reconciliation,
+        checkpoints: {
+          ...conversation.reconciliation.checkpoints,
+          mirror: { conversationId: "mirror-one", lastMessageId: "legacy-assistant", messageCount: 44 },
+        },
+      },
+    };
+    const settled = applyMirrorAppendReceipt(legacyConversation, correlation, {
+      schemaVersion: "1.0.0", status: "accepted", conversationId: "mirror-one", journeyId: "journey-one",
+      insertedCount: 0, existingCount: 2,
+      messages: [{ id: "user-one", state: "existing" }, { id: "assistant-one", state: "existing" }],
+    }, "2026-08-30T10:00:05Z");
+    expect(settled.reconciliation.turns[0].mirror.state).toBe("committed");
+    expect(settled.reconciliation.checkpoints.mirror).toMatchObject({
+      lastMessageId: "assistant-one", messageCount: 46,
+    });
+    expect(settled.reconciliation.reasonCodes).not.toContain("checkpoint_regression");
+  });
 });
