@@ -42,7 +42,7 @@ import {
 import { MessageContent } from "./MessageContent";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { ComposerRuntimeFooter } from "./ComposerRuntimeFooter";
-import { ConversationSyncNotice } from "./ConversationSyncNotice";
+import { ConversationSyncNotice, LegacyMirrorGapNotice } from "./ConversationSyncNotice";
 import { PendingFileAttachments } from "./PendingFileAttachments";
 import { MessageFileAttachments } from "./MessageFileAttachments";
 import { MessageAttachmentProvenance } from "./MessageAttachmentProvenance";
@@ -109,6 +109,8 @@ import {
 import {
   applyMirrorAppendReceipt,
   applyPiExecutionEvidence,
+  classifyMirrorAppendMessagePair,
+  classifyPendingMirrorAppend,
   createMirrorAppendOutboxItem,
 } from "../domain/mirrorAppendOutbox";
 import {
@@ -365,9 +367,16 @@ export function App({ model }: AppProps) {
   const reportedContextUsage = contextIdentityMatches ? authoritativeContextStats.usage : undefined;
   const pendingMirrorRepair = useMemo(() => pendingMirrorTurnRepair(conversation), [conversation]);
   const pendingMirrorOutboxItem = mirrorOutboxItems.find((item) => item.itemId === pendingMirrorRepair?.correlation.turnId);
+  const pendingMirrorDisposition = pendingMirrorRepair
+    ? classifyPendingMirrorAppend(
+        classifyMirrorAppendMessagePair(conversation, pendingMirrorRepair.correlation),
+        Boolean(pendingMirrorOutboxItem),
+      )
+    : undefined;
+  const legacyMirrorGap = pendingMirrorDisposition === "legacy_gap";
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
   const dedicatedTurnState = classifyDedicatedTurnState(conversation, isStreaming || agentRun.status === "running");
-  const mirrorAppendNeedsEnqueue = Boolean(pendingMirrorRepair && !pendingMirrorOutboxItem);
+  const mirrorAppendNeedsEnqueue = pendingMirrorDisposition === "enqueue_required";
   const reconciliationBlocksInvocation = mirrorAppendNeedsEnqueue || (dedicatedThreadReady
     ? dedicatedTurnBlocksNewInvocation(dedicatedTurnState)
     : conversation.reconciliation.classification !== "in_sync");
@@ -2097,7 +2106,8 @@ export function App({ model }: AppProps) {
               <p>The next send becomes available after the completed response is durably recorded.</p>
             </section>
           ) : null}
-          {pendingMirrorRepair && !isStreaming ? (
+          {legacyMirrorGap && !isStreaming ? <LegacyMirrorGapNotice /> : null}
+          {pendingMirrorRepair && !legacyMirrorGap && !isStreaming ? (
             <ConversationSyncNotice
               retrying={isRetryingMirrorCommit}
               error={mirrorCommitError ?? pendingMirrorRepair.failureCode}

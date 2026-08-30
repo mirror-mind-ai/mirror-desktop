@@ -14,3 +14,14 @@ export function ConversationSyncNotice({ retrying, error, onRetry }: Conversatio
     </div>
   );
 }
+
+export function LegacyMirrorGapNotice() {
+  return (
+    <div className="conversation-sync-notice" role="status" aria-live="polite">
+      <span>
+        This legacy turn was not saved to Mirror because its exact message payload was not preserved.{" "}
+        You can continue this conversation.
+      </span>
+    </div>
+  );
+}

@@ -57,6 +57,31 @@ export function applyPiExecutionEvidence(
   };
 }
 
+export type MirrorAppendMessagePairState = "available" | "legacy_absent" | "invalid";
+export type PendingMirrorAppendDisposition = "outbox_retry" | "enqueue_required" | "legacy_gap";
+
+export function classifyPendingMirrorAppend(
+  pairState: MirrorAppendMessagePairState,
+  hasOutboxItem: boolean,
+): PendingMirrorAppendDisposition {
+  if (hasOutboxItem) return "outbox_retry";
+  return pairState === "legacy_absent" ? "legacy_gap" : "enqueue_required";
+}
+
+export function classifyMirrorAppendMessagePair(
+  conversation: JourneyConversation,
+  correlation: TurnCorrelation,
+): MirrorAppendMessagePairState {
+  const user = conversation.messages.find((message) => message.id === correlation.harnessUserMessageId);
+  const assistant = conversation.messages.find((message) => message.id === correlation.harnessAssistantMessageId);
+  if (!user && !assistant) return "legacy_absent";
+  if (
+    !user || user.role !== "user" || !user.content
+    || !assistant || assistant.role !== "assistant" || !assistant.content
+  ) return "invalid";
+  return "available";
+}
+
 export function createMirrorAppendOutboxItem(
   conversation: JourneyConversation,
   correlation: TurnCorrelation,
@@ -67,8 +92,8 @@ export function createMirrorAppendOutboxItem(
   const conversationId = conversation.liveIdentity.mirrorConversationId;
   if (
     !turn || turn.pi.state !== "committed" || !turn.pi.committedAt || turn.harness.state !== "committed"
-    || !conversationId || !user || user.role !== "user" || !user.content
-    || !assistant || assistant.role !== "assistant" || !assistant.content
+    || !conversationId || classifyMirrorAppendMessagePair(conversation, correlation) !== "available"
+    || !user || !assistant
   ) throw new Error("mirror_append_item_authority_invalid");
   const message = (value: ConversationMessage): MirrorAppendMessage => ({
     id: value.id,

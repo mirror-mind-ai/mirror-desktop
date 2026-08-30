@@ -4,6 +4,8 @@ import { commitHarnessTurn, createTurnCorrelation, stageCorrelatedTurn } from ".
 import {
   applyMirrorAppendReceipt,
   applyPiExecutionEvidence,
+  classifyMirrorAppendMessagePair,
+  classifyPendingMirrorAppend,
   createMirrorAppendOutboxItem,
   parseMirrorAppendReceipt,
 } from "../domain/mirrorAppendOutbox";
@@ -42,6 +44,19 @@ describe("Mirror append outbox domain", () => {
         { id: "assistant-one", role: "assistant", content: "hi", createdAt: "2026-08-30T10:00:01Z", metadata: { sourceTurnId: "turn-one", generation: 1 } },
       ],
     });
+  });
+
+  it("distinguishes a complete append pair from the bounded legacy shape where both messages are absent", () => {
+    const { conversation, correlation } = fixture();
+    expect(classifyMirrorAppendMessagePair(conversation, correlation)).toBe("available");
+    expect(classifyMirrorAppendMessagePair({ ...conversation, messages: [] }, correlation)).toBe("legacy_absent");
+    expect(classifyMirrorAppendMessagePair({
+      ...conversation,
+      messages: conversation.messages.filter((message) => message.id !== "assistant-one"),
+    }, correlation)).toBe("invalid");
+    expect(classifyPendingMirrorAppend("legacy_absent", false)).toBe("legacy_gap");
+    expect(classifyPendingMirrorAppend("legacy_absent", true)).toBe("outbox_retry");
+    expect(classifyPendingMirrorAppend("invalid", false)).toBe("enqueue_required");
   });
 
   it("accepts only bounded receipts for the exact destination and message ids", () => {
