@@ -22,8 +22,15 @@ describe("Journey thread readiness surface", () => {
     expect(failed).toContain("Retry starting this Journey");
   });
 
-  it("renders loading and inconsistent states", () => {
+  it("distinguishes invalid authority from a runtime read failure", () => {
     expect(renderToStaticMarkup(createElement(JourneyThreadState, { journeyName: "Nautilus", state: { kind: "loading" } }))).toContain("Checking Journey conversation");
     expect(renderToStaticMarkup(createElement(JourneyThreadState, { journeyName: "Nautilus", state: { kind: "inconsistent", reasonCodes: ["invalid_record"] } }))).toContain("needs recovery");
+    const unavailable = renderToStaticMarkup(createElement(JourneyThreadState, {
+      journeyName: "Nautilus",
+      state: { kind: "unavailable", reason: "runtime_read_failed" },
+    }));
+    expect(unavailable).toContain("could not be loaded");
+    expect(unavailable).toContain("runtime_read_failed");
+    expect(unavailable).not.toContain("needs recovery");
   });
 });

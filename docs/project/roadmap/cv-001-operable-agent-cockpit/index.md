@@ -28,7 +28,7 @@ This Capability Value makes the Harness useful as an application before returnin
 | [DS-008](../ds-008-provider-settings-persistence/index.md) | Persistent Agent Configuration and Journey Overrides | Harness remembers non-sensitive global agent defaults and lets each Journey inherit or override its model and thinking level | ✅ Done |
 | [DS-009](../ds-009-concurrent-journey-operations/index.md) | Concurrent Journey Operations | Navigator can operate multiple Journey-bound Pi runs concurrently without cross-run event, response, control or persistence leakage | 🟡 Planned |
 | [DS-010](../ds-010-journey-structure-management/index.md) | Journey Structure Management | Navigator can create, position and configure canonical Journeys from the Harness through explicit model-free Mirror transactions | ✅ Done |
-| [DS-011](../ds-011-isolated-development-and-user-app-environments/index.md) | Isolated Development and User App Environments | Navigator can run a stable daily-use app and an unmistakable development app backed by Mirror Dev side by side without installation, Harness-state or Mirror-database collisions | 🟠 In Progress |
+| [DS-011](../ds-011-isolated-development-and-user-app-environments/index.md) | Isolated Development and User App Environments | Navigator can run a stable daily-use app and an unmistakable development app backed by Mirror Dev side by side without installation, Harness-state or Mirror-database collisions | 🟢 Done |
 
 ## Done Condition
 

@@ -548,8 +548,10 @@ export function App({ model }: AppProps) {
     setPiContextState("checking");
 
     async function restoreConversation() {
+      let threadAuthorityLoaded = false;
       try {
         const dedicatedThread = await loadNautilusJourneyThread(selectedJourney);
+        threadAuthorityLoaded = true;
         if (cancelled) return;
         const classified = classifyNautilusJourneyThread(dedicatedThread, selectedJourney);
         const persistedConversation = classified.kind === "ready"
@@ -640,7 +642,9 @@ export function App({ model }: AppProps) {
         setJourneyStartError(undefined);
       } catch {
         if (!cancelled) {
-          setJourneyThreadState({ kind: "inconsistent", reasonCodes: ["invalid_record"] });
+          setJourneyThreadState(threadAuthorityLoaded
+            ? { kind: "unavailable", reason: "runtime_read_failed" }
+            : { kind: "inconsistent", reasonCodes: ["invalid_record"] });
         }
       } finally {
         if (!cancelled) {

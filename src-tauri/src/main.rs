@@ -1458,7 +1458,7 @@ fn load_dedicated_pi_transcript(
     session_id: String,
     session_file: String,
 ) -> Result<Vec<DedicatedPiTranscriptTurn>, String> {
-    validate_pi_session_file(&session_file, &session_id)?;
+    validate_pi_session_file(&app, &session_file, &session_id)?;
     let stored_thread: Value = serde_json::from_str(&fs::read_to_string(journey_thread_path(&app, &journey_id)?)
         .map_err(|error| format!("Could not read dedicated thread: {}", error))?)
         .map_err(|error| format!("Could not parse dedicated thread: {}", error))?;
@@ -1564,7 +1564,7 @@ fn read_mirror_turn_commit_status(
     ensure_pi_idle(&state)?;
     validate_turn_correlation(&correlation, &journey_id, &correlation.pi_session_id)?;
     validate_persisted_turn_authority(&app, &correlation, Some(&session_file))?;
-    validate_pi_session_file(&session_file, &correlation.pi_session_id)?;
+    validate_pi_session_file(&app, &session_file, &correlation.pi_session_id)?;
     let mut value = run_mirror_logger_json(&[
         "commit-status".to_string(),
         session_file.clone(),
@@ -1586,7 +1586,7 @@ fn retry_mirror_turn_commit(
     ensure_pi_idle(&state)?;
     validate_turn_correlation(&correlation, &journey_id, &correlation.pi_session_id)?;
     validate_persisted_turn_authority(&app, &correlation, Some(&session_file))?;
-    validate_pi_session_file(&session_file, &correlation.pi_session_id)?;
+    validate_pi_session_file(&app, &session_file, &correlation.pi_session_id)?;
     let conversation_path = dedicated_journey_conversation_path(&app, &journey_id, correlation.generation)?;
     let payload: Value = serde_json::from_str(&fs::read_to_string(conversation_path)
         .map_err(|error| format!("Could not read staged Journey conversation: {}", error))?)
@@ -1693,21 +1693,35 @@ fn ensure_pi_idle(state: &State<'_, PiProcessState>) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_pi_session_file(session_file: &str, pi_session_id: &str) -> Result<(), String> {
+fn validate_pi_session_file(app: &AppHandle, session_file: &str, pi_session_id: &str) -> Result<(), String> {
+    let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
+    let app_data_root = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
+    validate_pi_session_file_at(
+        session_file,
+        pi_session_id,
+        &home.join(".pi").join("agent").join("sessions"),
+        &app_data_root,
+    )
+}
+
+fn validate_pi_session_file_at(
+    session_file: &str,
+    pi_session_id: &str,
+    global_sessions_root: &Path,
+    app_data_root: &Path,
+) -> Result<(), String> {
     let path = PathBuf::from(session_file);
     if !path.is_absolute() || path.extension().and_then(|value| value.to_str()) != Some("jsonl") {
         return Err("Mirror reconciliation requires an exact Pi JSONL session file.".to_string());
     }
     let canonical = path.canonicalize()
         .map_err(|_| "Mirror reconciliation Pi session file is unavailable.".to_string())?;
-    let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
-    let sessions_root = home.join(".pi").join("agent").join("sessions").canonicalize()
-        .map_err(|_| "Pi sessions root is unavailable.".to_string())?;
-    let dedicated_root = home.join("Library").join("Application Support")
-        .join("com.nautilus.harness").join("pi-sessions").canonicalize().ok();
-    if !canonical.starts_with(&sessions_root)
-        && dedicated_root.as_ref().is_none_or(|root| !canonical.starts_with(root))
-    {
+    let global_root = global_sessions_root.canonicalize().ok();
+    let dedicated_root = app_data_root.join("pi-sessions").canonicalize().ok();
+    let allowed = global_root.as_ref().is_some_and(|root| canonical.starts_with(root))
+        || dedicated_root.as_ref().is_some_and(|root| canonical.starts_with(root));
+    if !allowed {
         return Err("Mirror reconciliation session is outside the allowed Pi sessions roots.".to_string());
     }
     validate_pi_session_header(&canonical, pi_session_id)
@@ -2462,7 +2476,7 @@ fn validate_persisted_turn_authority(app: &AppHandle, value: &TurnCorrelation, s
         if !dedicated_matches {
             return Err("Turn no longer matches the active dedicated generation.".to_string());
         }
-        validate_pi_session_file(session_file.ok_or_else(|| "Dedicated Pi session file is missing.".to_string())?, &value.pi_session_id)?;
+        validate_pi_session_file(app, session_file.ok_or_else(|| "Dedicated Pi session file is missing.".to_string())?, &value.pi_session_id)?;
     }
     let payload: Value = serde_json::from_str(
         &fs::read_to_string(dedicated_journey_conversation_path(app, &value.journey_id, value.generation)?)
@@ -2745,7 +2759,7 @@ mod tests {
         project_complete_pi_transcript, projection_manifest_coordinates_at,
         inspect_file_attachments_at, publish_refreshed_journey_registry, read_journey_document_at,
         retire_legacy_parity_state_at, unwrap_persisted_thread,
-        validate_journey_registry_payload, validate_turn_correlation,
+        validate_journey_registry_payload, validate_pi_session_file_at, validate_turn_correlation,
         PiSessionContextSnapshot, TurnCorrelation, JOURNEY_REGISTRY_FILE,
         FILE_ATTACHMENT_MAX_FILES, DOCUMENT_PREVIEW_MAX_BYTES,
     };
@@ -2838,6 +2852,30 @@ mod tests {
         assert_eq!(header.get("type").and_then(|value| value.as_str()), Some("session"));
         assert_eq!(header.get("id").and_then(|value| value.as_str()), Some("native-session"));
         assert_eq!(fs::read_to_string(&file).unwrap().lines().count(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn validates_dedicated_pi_sessions_against_the_active_channel_app_data_root() {
+        let root = test_root("development-session-root");
+        let pi_sessions = root.join("com.nautilus.harness.dev/pi-sessions");
+        fs::create_dir_all(&pi_sessions).unwrap();
+        let session = pi_sessions.join("native-session.jsonl");
+        fs::write(&session, r#"{"type":"session","id":"native-session"}"#).unwrap();
+
+        assert!(validate_pi_session_file_at(
+            session.to_str().unwrap(),
+            "native-session",
+            &root.join("global-pi-sessions"),
+            &root.join("com.nautilus.harness.dev"),
+        ).is_ok());
+        assert!(validate_pi_session_file_at(
+            session.to_str().unwrap(),
+            "native-session",
+            &root.join("global-pi-sessions"),
+            &root.join("com.nautilus.harness"),
+        ).is_err());
+
         fs::remove_dir_all(root).unwrap();
     }
 

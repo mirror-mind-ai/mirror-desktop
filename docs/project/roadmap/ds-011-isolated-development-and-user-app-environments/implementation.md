@@ -2,7 +2,7 @@
 
 ## Status
 
-implementation_complete_awaiting_navigator_validation
+navigator_validated
 
 ## Delivered Channels
 
@@ -53,9 +53,9 @@ Conversation bridge scripts now require explicit Mirror root/home coordinates an
 ## Automated Evidence
 
 ```text
-63 Vitest files / 328 tests passed
+63 Vitest files / 329 tests passed
 production TypeScript/Vite build passed
-30 Rust tests passed in stable and development feature configurations
+32 Rust tests passed in stable and development feature configurations
 cargo check passed in stable and development feature configurations
 2 Python script tests passed
 stable and development Tauri debug no-bundle builds passed
@@ -96,12 +96,22 @@ The real desktop exercise exposed a chain of boundary defects that unit-level ch
 
 The governing lesson is that an isolated channel is not merely a set of correct values. Every subprocess must consume the same complete coordinate contract without deriving a competing database from partial inputs. Bootstrap, refresh and mutation must also share one registry schema and authority path; that remaining consolidation is tracked as prospective Refinement Work rather than hidden inside the completed fixes.
 
+## Validation Finding: Channel-Local Dedicated Pi Session Roots
+
+The final desktop exercise exposed one remaining hard-coded stable coordinate in `validate_pi_session_file()`. Development correctly created its native transcript below `com.nautilus.harness.dev/pi-sessions`, but transcript loading still allowlisted only `com.nautilus.harness/pi-sessions`. The frontend then collapsed that runtime read failure into the misleading `invalid_record` recovery state.
+
+The correction derives the dedicated session root from Tauri's validated active app-data directory instead of naming either bundle. A pure native test proves the development root is accepted while the stable sibling root is rejected. Runtime read failures now render as unavailable without classifying valid dedicated authority as corrupt. The originally provisioned record was retained unchanged; after recompilation, the same Journey reopened without recovery and completed a real provider turn.
+
+Restart validation restored both messages and left the composer available. It also exposed the already-planned persistence dependency: Harness still invokes the removed legacy `conversation-logger commit-status` contract, which exits successfully without structured output in released Mirror `0.31.13`. Mirror Dev nevertheless contained the explicit conversation and both messages, while production contained neither the development conversation ID nor its messages. Replacing this legacy reconciliation path with released `conversations append` remains owned by `CV-002.DS-005`; it does not weaken the channel-isolation evidence established here.
+
 ## Production Checkout Incident
 
 Real use later exposed an isolation gap outside app/runtime coordinates: Harness agents had edited and committed experimental Nautilus patches directly in the production Mirror checkout on local `stable`. The divergent line was preserved as incident evidence, production was restored to published Mirror `0.31.12`, and the complete finding is recorded in [Production Mirror Checkout Drift](incident-production-mirror-checkout-drift.md).
 
 `RS013 / CR029` owns the durable guardrails. DS-011 validation now includes authorship and promotion isolation: Harness work must leave the production Mirror Git checkout unchanged, and every required Mirror source capability must travel through Mirror Dev, repository gates, release notes, official release and runtime update.
 
-## Remaining Gate
+## Navigator Acceptance
 
-Navigator must confirm that the currently running development app now shows the violet `DEV` icon in the macOS Dock, exercise a disposable Mirror Dev Journey while stable app/runtime state remains intact, and verify that `$HOME/mirror` remains clean and exactly aligned with its published stable ref throughout the exercise. No push, remote release publication or deployment is authorized.
+Navigator confirmed the stable and development applications running side by side with distinct Dock identities, the violet `DEV` icon and persistent `DEV LAB` treatment. Runtime diagnostics reported the exact development bundle, app-data root, Mirror checkout, home, user and database.
+
+A disposable `sandbox-pet-store` generation completed the bounded response `DEV CHANNEL ISOLATED`, survived a full development-app restart and restored both messages with the composer available. Bounded database evidence showed one conversation and two messages only in Mirror Dev, with zero rows for that conversation ID in production. The installed stable app remained usable with its normal appearance, Journeys and conversations. `$HOME/mirror` remained clean on `stable` at released commit `fdd760f8f3532dbeb0841826107d1672f6bbb881` throughout the exercise.

@@ -2,7 +2,7 @@
 
 # DS-011 — Isolated Development and User App Environments
 
-**Status:** 🟠 In Progress
+**Status:** 🟢 Done
 
 ---
 
@@ -58,14 +58,14 @@ No automatic migration, copying or synchronization may move user-channel convers
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| DS-011.TS-1 | Desktop Channel Identity Contract | Technical Story | User and development apps have stable, inspectable and non-colliding names, bundle identifiers and runtime channel metadata | 🟡 Planned |
-| DS-011.TS-2 | Channel-Specific Harness and Mirror Runtime Roots | Technical Story | Harness state, Pi artifacts, Mirror code/home/user/database and dedicated conversations cannot cross channels accidentally | 🟡 Planned |
-| DS-011.US-1 | Run Stable and Development Apps Side by Side | User Story | Navigator can keep the daily-use app open while launching the development app without replacement or state collision | 🟡 Planned |
-| DS-011.US-2 | Recognize Development Mode at a Glance | User Story | Development mode has a distinct icon, accent palette and persistent `DEV` identity inside the window | 🟡 Planned |
-| DS-011.TS-3 | Reproducible Development Launch and Build | Technical Story | Repository commands select the development manifest, app identity and `mirror-dev.sh`-equivalent Mirror environment without manual production edits | 🟡 Planned |
-| DS-011.TS-4 | Channel Isolation Guardrails | Technical Story | Automated and desktop checks fail when bundle identity, Harness data roots, Mirror runtime coordinates or visible channel identity converge unexpectedly | 🟡 Planned |
-| DS-011.US-3 | Inspect Active Runtime Channel | User Story | Navigator and diagnostics can verify the active channel and local state root without guessing from process ancestry | 🟡 Planned |
-| DS-011.US-4 | Build a Development Environment from One Guide | User Story | A human or coding agent can construct and verify an isolated Nautilus Dev plus Mirror Dev environment from one concise canonical document | 🟡 Planned |
+| DS-011.TS-1 | Desktop Channel Identity Contract | Technical Story | User and development apps have stable, inspectable and non-colliding names, bundle identifiers and runtime channel metadata | 🟢 Done |
+| DS-011.TS-2 | Channel-Specific Harness and Mirror Runtime Roots | Technical Story | Harness state, Pi artifacts, Mirror code/home/user/database and dedicated conversations cannot cross channels accidentally | 🟢 Done |
+| DS-011.US-1 | Run Stable and Development Apps Side by Side | User Story | Navigator can keep the daily-use app open while launching the development app without replacement or state collision | 🟢 Done |
+| DS-011.US-2 | Recognize Development Mode at a Glance | User Story | Development mode has a distinct icon, accent palette and persistent `DEV` identity inside the window | 🟢 Done |
+| DS-011.TS-3 | Reproducible Development Launch and Build | Technical Story | Repository commands select the development manifest, app identity and `mirror-dev.sh`-equivalent Mirror environment without manual manifest or production edits | 🟢 Done |
+| DS-011.TS-4 | Channel Isolation Guardrails | Technical Story | Automated and desktop checks fail when bundle identity, Harness data roots, Mirror runtime coordinates or visible channel identity converge unexpectedly | 🟢 Done |
+| DS-011.US-3 | Inspect Active Runtime Channel | User Story | Navigator and diagnostics can verify the active channel and local state root without guessing from process ancestry | 🟢 Done |
+| DS-011.US-4 | Build a Development Environment from One Guide | User Story | A human or coding agent can construct and verify an isolated Nautilus Dev plus Mirror Dev environment from one concise canonical document | 🟢 Done |
 
 ## Done Condition
 

@@ -1,6 +1,8 @@
 import type { NautilusJourneyThreadReadiness, NautilusThreadReasonCode } from "../domain/nautilusJourneyThread";
 
-export type JourneyThreadDisplayState = NautilusJourneyThreadReadiness | { kind: "loading" };
+export type JourneyThreadDisplayState = NautilusJourneyThreadReadiness
+  | { kind: "loading" }
+  | { kind: "unavailable"; reason: "runtime_read_failed" };
 
 type Props = {
   journeyName: string;
@@ -22,6 +24,16 @@ export function JourneyThreadState({ journeyName, state, starting = false, start
         <h2>This Journey conversation needs recovery</h2>
         <p>Nautilus found incomplete or contradictory dedicated-thread authority for {journeyName}. Conversation remains unavailable and no repair will run automatically.</p>
         <small>{reasonLabel(state.reasonCodes)}</small>
+      </section>
+    );
+  }
+  if (state.kind === "unavailable") {
+    return (
+      <section className="journey-thread-state" role="alert">
+        <p className="eyebrow">Nautilus conversation</p>
+        <h2>This Journey conversation could not be loaded</h2>
+        <p>Nautilus could not read the dedicated runtime state for {journeyName}. Its authority has not been classified as invalid and no repair will run automatically.</p>
+        <small>Availability reason: {state.reason}</small>
       </section>
     );
   }

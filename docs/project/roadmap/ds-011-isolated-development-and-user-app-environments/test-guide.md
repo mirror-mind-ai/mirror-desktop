@@ -245,4 +245,17 @@ DS-011 fails validation if any of the following occurs:
 
 ## Validation Evidence
 
-Pending implementation. Evidence must include automated command summaries, both bundle identities, sanitized runtime diagnostics, bounded before/after isolation evidence and Navigator desktop acceptance. No push, release or installation replacement is implied by validation.
+Accepted by the Navigator on 2026-08-29:
+
+- stable and development applications ran simultaneously with distinct Dock identities, development icon, palette and `DEV LAB` label;
+- development diagnostics reported `com.nautilus.harness.dev`, its channel-local app-data root, the Journey-associated Mirror Dev checkout, `mirror-dev` home/user and `memory.db`;
+- a real bounded turn in disposable Journey `sandbox-pet-store` returned `DEV CHANNEL ISOLATED`;
+- the same generation survived a full development-app restart and restored both messages with the composer available;
+- a desktop-discovered hard-coded stable Pi-session root was corrected to use the active Tauri app-data root, with native regression coverage;
+- valid dedicated authority is no longer mislabeled `invalid_record` when a later runtime read fails;
+- bounded database checks found the development conversation plus two messages in Mirror Dev and no matching conversation or messages in production;
+- the installed stable app retained its normal appearance, Journeys and conversation history;
+- production Mirror remained clean on `stable` at released commit `fdd760f8f3532dbeb0841826107d1672f6bbb881`;
+- 63 Vitest files / 329 tests, production TypeScript/Vite build, 32 Rust tests in both stable and development feature configurations, and development `cargo check` passed.
+
+The restart also reproduced the non-blocking legacy reconciliation warning because released Mirror no longer returns structured evidence for Harness's old `conversation-logger commit-status` call. The messages were already present in Mirror Dev. `CV-002.DS-005` owns replacement with the released explicit append boundary; no retry or automatic repair was used during DS-011 acceptance.
