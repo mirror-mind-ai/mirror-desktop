@@ -39,8 +39,18 @@ Every callback helper receives the expected `journeyId + runId`. Assertions comp
 | Process death | Fake child reports unexpected non-success/process disappearance without cancellation | A1 becomes finalizing/process_died, capacity releases once and bounded failure evidence is retained |
 | Repeated terminal signal | Deliver the same or competing terminal callbacks multiple times | State remains the first accepted terminal outcome; no second capacity decrement or terminal event decision occurs |
 | Stale runId removal | Clean A1, reserve A2, then deliver A1 cleanup/terminal/cancel callbacks | A2 remains unchanged and present; stale callbacks return stale/idempotent results only |
-| Matching cleanup | A1 is finalizing with released process capacity; release exact A/A1 lease twice | First release removes A1; second is idempotent; no capacity underflow occurs |
-| Premature cleanup | A1 is reserved or running | Cleanup is rejected and cannot kill, terminalize or remove A1 |
+| Matching cleanup | A1 is finalizing with released process capacity and the caller has reached its applicable durable boundary; release exact A/A1 lease twice | First release removes A1; second is idempotent; no capacity underflow occurs |
+| Premature native cleanup | A1 is reserved or running | Cleanup is rejected and cannot kill, terminalize or remove A1 |
+| Successful save plus enqueue | Completed A1 has native evidence; dedicated projection/save and durable outbox enqueue succeed | Caller requests exact A1 cleanup once; lease is removed |
+| Enqueue durable, append/ack pending | Projection/save and enqueue succeed, but Mirror append or acknowledgement remains pending | Cleanup is allowed because the outbox is the durable recovery handle |
+| Projection/save failure before enqueue | Completed A1 cannot durably save its projection | No cleanup call occurs; A1 remains finalizing and limit 1 rejects another Journey |
+| Enqueue failure | Projection/save succeeds but outbox creation/enqueue fails | No cleanup call occurs; A1 remains finalizing and another Journey is rejected |
+| Missing native evidence | Completed presentation lacks required native completion evidence | No cleanup call occurs; A1 remains finalizing |
+| Interrupted-state save failure | Cancelled/failed A1 cannot durably save interrupted state | No cleanup call occurs; A1 remains finalizing and capacity admission stays blocked |
+| Interrupted-state save success | Cancelled/failed A1 saves interrupted state durably | Caller may request exact A1 cleanup once |
+| Later durable retry | A1 initially retains its lease after save/enqueue failure; matching retry later reaches durable enqueue | Retry uses captured A/A1 and releases exactly that lease |
+| Presentation finalization only | `finalization_finished` is emitted from `finally` without a durable branch result | No cleanup command is invoked and A1 remains finalizing |
+| Stale durable retry | A1 retry completes after A1 is gone and A2 is current | Exact A1 cleanup cannot release or mutate A2 |
 | Bounded inspection | Inspect reserved, running and finalizing fixtures | Deterministically ordered entries expose only bounded authority/lifecycle fields and allowed reason codes |
 | Inspection privacy | Populate prompt, provider config, private session path, environment-like values and raw failure text inside test entry/private fixture | Serialized inspection contains none of those values or field names |
 | Injected limit 1 | Construct through test limit 1 and through production constructor | Both enforce the same one-entry admission and serial-finalization behavior; production constant is exactly 1 |
@@ -114,7 +124,12 @@ Update or add focused tests proving:
 - `cancelLivePiInvocation(journeyId, runId)` passes both exact values to `cancel_pi_invocation`;
 - `App.tsx` derives cancel target from the selected runtime owner's captured identity, never from a stale selected Journey string alone;
 - mismatched/non-owner UI cannot issue a cancel target;
-- lease cleanup receives the same captured owner `journeyId + runId` after existing frontend finalization;
+- frontend presentation `finalization_finished` never invokes lease cleanup by itself or through an unconditional `finally`;
+- completed-turn cleanup receives the same captured owner `journeyId + runId` only after native evidence, dedicated projection/save and durable outbox enqueue succeed;
+- append or acknowledgement pending after enqueue does not suppress cleanup;
+- projection/save failure, missing native evidence, enqueue failure and interrupted-state save failure suppress cleanup and retain the lease;
+- cancelled/failed-turn cleanup occurs only after durable interrupted-state save;
+- later retry/recovery uses the original captured `journeyId + runId`, and a stale retry cannot release a replacement run;
 - inspection adapters expose the bounded native type only;
 - Journey-keyed frontend runtime and one app-lifetime dispatcher behavior remain unchanged; and
 - mock streaming remains Tauri-free.
@@ -125,6 +140,49 @@ Expected suites include compatible updates to:
 - `src/tests/piProcessEventDispatcher.test.ts`
 - `src/tests/journeyRuntimeIntegration.test.ts`
 - focused cancellation/finalization integration tests if a narrower file is introduced.
+
+## Frontend Durable Cleanup Authorization
+
+The registry itself remains persistence-agnostic, so use a pure/dependency-injected frontend decision seam to prove when the command is or is not invoked. The fixture must distinguish presentation completion from durable settlement results.
+
+Required deterministic cases:
+
+```text
+completed + native evidence + projection saved + outbox enqueued
+  => release exact captured lease
+
+completed + outbox enqueued + append pending
+  => release exact captured lease
+
+completed + outbox enqueued + acknowledgement pending
+  => release exact captured lease
+
+completed + projection/save failed before enqueue
+  => retain lease
+
+completed + enqueue failed
+  => retain lease and reject another Journey under production limit 1
+
+completed + native evidence missing
+  => retain lease
+
+cancelled/failed + interrupted save failed
+  => retain lease
+
+cancelled/failed + interrupted save succeeded
+  => release exact captured lease
+
+finalization_finished from finally, without a successful durable result
+  => retain lease; invoke no cleanup command
+
+matching retry later completes projection/save + enqueue
+  => release original captured journeyId + runId
+
+stale retry A1 after A2 replacement
+  => A2 unchanged; A1 cleanup rejected/idempotent
+```
+
+Tests must assert command call count and exact arguments, not only resulting presentation state. They must also assert that failure branches leave the native inspection in `finalizing` and that another Journey reservation remains rejected at production limit 1.
 
 ## Authority and Privacy Assertions
 
@@ -217,17 +275,18 @@ Use only **Nautilus Harness Dev** and disposable development Journeys. Stable mu
 
 1. Start one run in Journey A and observe normal correlated stream delivery.
 2. During A, verify another start remains blocked by existing aggregate occupancy and production limit 1.
-3. Let A complete and finalization finish; verify its lease disappears only at matching cleanup.
-4. Start Journey B only after A cleanup and verify normal serial operation.
-5. In a separate sequential scenario if required, cancel the selected owner and verify the directed pair cancels that run and reaches one terminal `done`.
-6. Inspect the bounded registry surface during available phases and confirm no private fields or payloads appear.
-7. Confirm there was never more than one admitted live/finalizing lease and no stable data was touched.
+3. Let A complete and distinguish the presentation `finalization_finished` action from durable settlement; verify presentation completion alone does not remove the lease.
+4. Verify the exact A lease disappears only after native evidence, dedicated projection/save and durable outbox enqueue succeed; append/ack may remain pending after enqueue.
+5. Start Journey B only after that durable matching cleanup and verify normal serial operation.
+6. In a separate sequential scenario if required, cancel the selected owner, durably save interrupted state, then verify the directed pair cancels and releases that run through one terminal `done` plus one matching cleanup.
+7. Inspect the bounded registry surface during available phases and confirm no private fields or payloads appear.
+8. Confirm there was never more than one admitted live/finalizing lease and no stable data was touched.
 
 Expected observation: visible behavior remains serial and coherent; start/cancel/completion still work; B cannot overlap A; no stale owner state or duplicate terminal signal appears.
 
 Pass condition: deterministic authority tests pass and the Dev smoke shows sequential registry lifecycle with no concurrency, leak or stable-channel interaction.
 
-Fail condition: a second Journey starts before A's matching lease cleanup; cancel targets the wrong run; completion duplicates or leaks capacity; inspection exposes private data; or validation requires capacity 2.
+Fail condition: `finalization_finished` or an unsuccessful durable branch releases A; a second Journey starts while a retained finalizing lease exists; cancel/cleanup targets the wrong run; completion duplicates or leaks capacity; inspection exposes private data; or validation requires capacity 2.
 
 ## E2E Decision
 
@@ -238,13 +297,14 @@ A development-channel serial smoke is required because Tauri command ownership c
 Review the diff and tests to prove TS-2 did not add:
 
 - per-Journey persistence queues or locks;
-- captured-authority save/outbox settlement changes;
-- durable finalization acknowledgement criteria;
+- new persistence/outbox ordering or a replacement settlement protocol;
 - outbox/projection recovery redesign;
-- another Journey process admitted while a finalizing lease occupies production limit 1; or
+- another Journey process admitted while a retained finalizing lease occupies production limit 1; or
 - any settlement concurrency fixture.
 
-TS-2 may expose and clean up a native finalizing lease at the existing frontend finalization boundary. TS-4 owns hardening that release against durable projection/outbox evidence.
+TS-2 preserves the existing serial durable safety boundary: completed turns request persistence-agnostic native cleanup only after native evidence, projection/save and durable outbox enqueue; cancelled/failed turns do so only after durable interrupted-state save. `finalization_finished` is presentation-only, and failed durable branches retain the lease until a matching retry succeeds.
+
+TS-4 does not introduce this basic enqueue/interrupted-save safety. It owns captured-authority persistence and settlement hardening, recovery and durable release authorization under future overlap, and safe concurrency prerequisites before capacity 2.
 
 ## Regression Invariants
 
@@ -256,7 +316,7 @@ TS-2 may expose and clean up a native finalizing lease at the existing frontend 
 - One central dispatcher remains app-lifetime authority.
 - Production capacity remains exactly 1.
 - No real process or settlement concurrency exists.
-- Existing Harness/Pi/Mirror settlement ordering remains unchanged.
+- Existing Harness/Pi/Mirror settlement ordering and fail-closed durable enqueue/interrupted-save boundary remain unchanged.
 - Mock streaming remains Tauri-free.
 - TS-4, US-2, US-3 and RS015 remain untouched.
 - No promotion, release or deployment occurs.
