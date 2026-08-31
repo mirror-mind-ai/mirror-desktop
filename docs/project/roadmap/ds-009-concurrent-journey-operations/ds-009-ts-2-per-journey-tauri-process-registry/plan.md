@@ -214,7 +214,14 @@ The existing `runtimeBusy`/operational-admission projection, or its explicitly n
 - any exact native lease is reserved, running or finalizing; or
 - native occupancy is unknown/reconciling after startup, reload or a divergent cleanup/retry response.
 
-While a native lease remains finalizing, text drafts stay Journey-scoped and editable as established by US-1, but Send, Enter, attachments, settings/profile mutation, Journey administration, restart/repair and every new start/staging path remain globally blocked. The retained owner may show an owner-scoped settlement error and retry affordance, but must not falsely show `Working` or `Recording` after presentation finalization has ended.
+While a native lease remains finalizing, the mutable-action allowlist is closed and exact. Only these actions are permitted:
+
+- Journey-scoped textual draft editing;
+- bounded native inspection/reconciliation;
+- exact owner-scoped settlement recovery for the same inspected `journeyId + runId`; and
+- matching lease cleanup after that recovery reaches the applicable durable boundary.
+
+Everything else remains blocked: Send, Enter, attachments, settings/profile mutation, Journey administration, generation restart, generic Journey repair, retry of another pending turn, stale retry, and every new start or staging path. The retained owner may show an owner-scoped settlement error and matching retry affordance, but must not falsely show `Working` or `Recording` after presentation finalization has ended. A selected non-owner may edit its text draft but cannot invoke the owner's recovery.
 
 The local occupancy entry is removed only after `release_pi_invocation_lease` returns success or idempotent success for the same captured `journeyId + runId`. Cleanup failure, mismatched identity, missing/unparseable response, or inspection that still reports the lease keeps admission blocked. An idempotent response for stale A1 must never remove a separately tracked or inspected A2 entry.
 
@@ -226,6 +233,23 @@ The local occupancy entry is removed only after `release_pi_invocation_lease` re
 - to reconcile exact leases after dispatcher/frontend remount without inventing process or settlement content.
 
 Reconciliation is bounded and trigger-driven; TS-2 adds no unbounded polling. Overlapping inspection requests carry a monotonic request token or equivalent freshness guard so a stale A1 result cannot replace or clear newer A2 occupancy. Inspection may establish occupancy identity and lease phase only. It cannot reconstruct prompts, messages, assistant deltas, conversation snapshots, settlement results or persistence authority.
+
+### Exact owner-scoped settlement recovery
+
+Inspection alone never invents recovery authority. After initialization/reload or any retained-lease reconciliation, the frontend must cross the inspected `journeyId + runId` with the persisted correlated turn and dedicated generation evidence. Retry is exposed only when all of these match the inspected lease:
+
+- owner `journeyId`;
+- persisted `runId` and `turnId` from the existing correlation;
+- active thread/generation and session identity required by the existing dedicated turn; and
+- an existing recoverable failure phase: projection/save, outbox enqueue/append/ack, or interrupted-state save.
+
+The allowed recovery resumes only the failed settlement work for that exact persisted turn. It must not start a child, call `start_pi_invocation`, create a new `runId` or `turnId`, construct new user/assistant messages, create a new staged turn, switch generation, or absorb another pending turn. It may only resume the already-authorized projection/save, outbox enqueue/append/ack or interrupted-state save appropriate to the recorded failure.
+
+The retry control is rendered only for the retained owner and only while the selected owner, inspected lease and persisted recovery evidence identify the same run. Journey B or any non-owner cannot dispatch A's recovery. A persisted retry for A0 cannot satisfy inspected lease A1. If inspection reports A1 but no matching persisted correlated recovery evidence exists, occupancy remains fail-closed and the owner receives a bounded diagnostic; cleanup is not forced and generic repair/restart remains blocked.
+
+Retry failure preserves the exact occupancy and global admission block. Retry success through durable outbox enqueue or durable interrupted-state save requests `release_pi_invocation_lease` exactly once for the same captured pair. Operations are re-enabled only after cleanup success/idempotent success is confirmed and no replacement occupancy exists.
+
+This carve-out keeps the already-existing serial settlement recovery operable under retained native leases. TS-4 remains responsible for captured-authority persistence/settlement hardening and recovery under future overlap; TS-2 does not generalize recovery or introduce concurrency.
 
 Frontend admission is an early fail-closed guard, not the atomic capacity decision. Before creating or saving a staged turn, `generatePacket` must prove native occupancy is known-free in addition to existing runtime/reconciliation checks. The native registry reservation remains the final atomic TOCTOU barrier. A reservation race may still reject after the early check, but no irreversible staging may survive that rejection: pre-reservation staging must remain rollback-safe and the existing pre-agent rollback must restore durable conversation state before operations can be re-enabled.
 
@@ -274,7 +298,7 @@ Expected implementation surface:
 - `src-tauri/src/main.rs` — replace `PiProcessState`, route start/cancel/worker exits through the registry, register cleanup/inspection commands and preserve existing process/event behavior.
 - `src/agent/piProcessStream.ts` — pass directed cancellation and expose typed cleanup/inspection adapters while preserving `start_pi_invocation(prompt, config, runAuthority)` and central dispatch.
 - `src/app/journeyRuntimeState.ts` or a focused occupancy module — retain presentation phases while representing exact native lease occupancy and reconciliation status separately; derive fail-closed aggregate operational admission without making inspection conversation authority.
-- `src/app/App.tsx` — consume occupancy inspection on initialization/reload and uncertainty boundaries; guard every pre-staging/mutation path; pass captured owner identity to cancel; keep `finalization_finished` presentation-only; request matching lease cleanup only on successful durable branches or later matching retry; clear occupancy only after exact confirmed cleanup.
+- `src/app/App.tsx` — consume occupancy inspection on initialization/reload and uncertainty boundaries; cross inspected identity with persisted correlated recovery evidence; expose only exact owner-scoped settlement retry; guard generic repair/restart and every pre-staging/mutation path; keep `finalization_finished` presentation-only; clear occupancy only after matching recovery reaches durability and exact cleanup is confirmed.
 - Focused TypeScript tests for command shapes, occupancy reconciliation, aggregate admission, captured-owner cleanup/retry and owner-scoped retained-lease errors.
 - Rust tests in the focused registry module and narrow native adapter tests.
 
@@ -336,6 +360,13 @@ But interrupted-state save failure retains the lease until a matching retry succ
 ```
 
 ```text
+Given native inspection reports retained A1
+When persisted correlated recovery evidence also identifies A1 and its existing failure phase
+Then only A's selected owner may retry that settlement phase without starting a child or creating a run, turn, messages or staging
+But persisted A0 evidence, non-owner selection or missing recovery evidence keeps A1 blocked with a bounded diagnostic.
+```
+
+```text
 Given A1 has been cleaned up and A2 is current
 When a late A1 wait, done, cancel or removal callback arrives
 Then A2 remains byte-for-byte unchanged
@@ -359,11 +390,12 @@ And contains no prompt, response, provider snapshot, private path, environment o
 6. Route every worker return and terminal signal through one expected-run terminalization path.
 7. Change cancel to `journeyId + runId`, add persistence-agnostic directed lease cleanup and bounded inspection.
 8. TDD an authority-bound frontend native-lease occupancy model separate from presentation phase, including unknown/reconciling fail-closed state and exact inspection reconciliation.
-9. TDD a fail-closed cleanup decision separate from `finalization_finished`: request cleanup only after completed projection/save plus durable outbox enqueue, or durable interrupted-state save; retain occupancy on missing evidence, cleanup ambiguity or failure and let later matching retry/recovery release it.
-10. Guard every operational and pre-staging path with aggregate frontend runtime plus native lease occupancy; keep text drafts editable and retained-owner error/retry owner-scoped without false Working/Recording.
-11. Update adapters/call sites to pass the same captured owner identity to cancel, durable cleanup and retry/recovery; consume inspection at initialization/reload and uncertainty boundaries without changing settlement ordering.
-12. Run focused Rust/TypeScript tests, full gates and a serial DEV-only smoke without enabling overlap.
-13. Inspect the diff for TS-4, US-2, US-3, RS015, schema, event-authority or capacity drift.
+9. TDD exact recovery matching between inspected lease and persisted correlated turn/generation evidence; expose retry only to the selected owner and only for the existing failed settlement phase.
+10. TDD a fail-closed cleanup decision separate from `finalization_finished`: retry creates no child/run/turn/messages/staging; request cleanup only after completed projection/save plus durable outbox enqueue, or durable interrupted-state save; retain occupancy on missing/mismatched evidence, retry failure or cleanup ambiguity.
+11. Guard every other operational and pre-staging path with aggregate frontend runtime plus native lease occupancy; keep only textual drafts, inspection, exact owner recovery and post-durability cleanup allowlisted.
+12. Update adapters/call sites to pass the same captured owner identity to cancel, durable cleanup and settlement recovery; consume inspection at initialization/reload and uncertainty boundaries without changing settlement ordering.
+13. Run focused Rust/TypeScript tests, full gates and a serial DEV-only smoke without enabling overlap.
+14. Inspect the diff for TS-4, US-2, US-3, RS015, schema, event-authority or capacity drift.
 
 ## Validation Route
 
@@ -427,7 +459,9 @@ TS-2 must not make the native registry inspect persistence artifacts, change Mir
 - **A worker may hold the registry lock while blocking on OS operations.** Keep lock-held sections bounded to state comparison/mutation; design child-control handoff so waits and joins happen outside the registry lock without losing expected-run checks.
 - **Child exit or `finalization_finished` can accidentally release the Journey.** Release only process capacity on terminalization; treat frontend presentation finalization as non-authoritative and request exact cleanup only after the existing durable projection/outbox or interrupted-state boundary.
 - **Projection, enqueue or interrupted-save failure can be hidden by `finally`.** Keep both native lease occupancy and global operational admission blocked on every failed durable branch; let only a later matching retry/recovery request cleanup.
-- **Presentation may look idle while native occupancy remains retained.** Model presentation and occupancy separately; show owner-scoped error/retry without false Working/Recording and keep all mutations except text drafting blocked.
+- **Presentation may look idle while native occupancy remains retained.** Model presentation and occupancy separately; allow only text drafting, bounded inspection, exact owner settlement recovery and matching post-durability cleanup; keep every generic operation blocked.
+- **A generic retry could become a back door to new work.** Match inspected `journeyId + runId` to persisted correlation/generation, resume only the recorded settlement phase, and assert no child, run, turn, message or staging creation.
+- **Inspection can identify a lease without proving recoverability.** Require matching persisted recovery evidence; otherwise retain occupancy, expose a bounded owner diagnostic and forbid forced cleanup.
 - **Frontend reload may forget an in-process native lease.** Reconcile bounded inspection before enabling operations and fail closed while inspection is unknown.
 - **Local free state can race native reservation.** Check occupancy before staging, keep staging rollback-safe, and retain the backend atomic reservation as the final TOCTOU barrier.
 - **Free child capacity can accidentally enable settlement overlap.** At production limit 1, admission counts the still-present finalizing lease and rejects new reservations until durable matching cleanup.

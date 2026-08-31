@@ -59,6 +59,14 @@ Every callback helper receives the expected `journeyId + runId`. Assertions comp
 | Native reservation TOCTOU | Local inspection says free, another reservation wins before start | Backend atomically rejects the loser, no second child exists and reversible staging is rolled back before controls re-enable |
 | Stale inspection/cleanup | Stale A1 inspection or idempotent cleanup response arrives while A2 is current | A2 occupancy remains unchanged; A1 result cannot mark the Journey or app free |
 | Retained owner error scope | A1 is finalizing after save/enqueue failure while B is selected | A error/retry is owner-scoped; neither A nor B falsely renders Working/Recording |
+| Matching persisted recovery | Inspection reports A1 and persisted correlated turn/generation evidence reports the same A1 failure | Retry is available only when A is selected and resumes only that failed settlement phase |
+| Recovery creates no new work | Execute matching A1 retry | No child/start call, new `runId`, `turnId`, user/assistant message, staged turn or generation restart occurs |
+| Non-owner recovery rejection | A1 is retained while B is selected | B cannot see or dispatch A1 retry; only B textual draft editing remains mutable |
+| Mismatched persisted recovery | Inspection reports A1 but persisted retry evidence reports A0 or another turn/generation | Retry is rejected, A1 remains occupied and no cleanup occurs |
+| Missing persisted recovery evidence | Inspection reports A1 but no matching correlated recoverable turn exists | Occupancy remains fail-closed; owner receives bounded diagnostic and forced cleanup is unavailable |
+| Recovery failure | Matching A1 retry fails again during projection/save, enqueue/append/ack or interrupted-state save | A1 lease and global admission block remain unchanged |
+| Recovery reaches durability | Matching A1 retry reaches durable enqueue or interrupted-state save | Exact A1 cleanup is called once; controls remain blocked until cleanup confirmation |
+| Generic restart/repair blocked | A1 lease is retained and UI attempts generation restart, generic Journey repair or another pending-turn retry | Every generic operation is absent/disabled or fails before mutation |
 | Stale durable retry | A1 retry completes after A1 is gone and A2 is current | Exact A1 cleanup cannot release or mutate A2 |
 | Bounded inspection | Inspect reserved, running and finalizing fixtures | Deterministically ordered entries expose only bounded authority/lifecycle fields and allowed reason codes |
 | Inspection privacy | Populate prompt, provider config, private session path, environment-like values and raw failure text inside test entry/private fixture | Serialized inspection contains none of those values or field names |
@@ -135,13 +143,18 @@ Update or add focused tests proving:
 - mismatched/non-owner UI cannot issue a cancel target;
 - frontend presentation `finalization_finished` never invokes lease cleanup by itself or through an unconditional `finally`, and does not clear aggregate operational occupancy;
 - explicit native occupancy remains keyed by complete captured identity after Recording ends;
-- B text drafting stays enabled under retained occupancy while Send, Enter, attachments, settings/admin mutations, restart/repair and all start/staging paths remain blocked;
-- no user/assistant message construction, `stageCorrelatedTurn`, conversation save or `start_pi_invocation` occurs while inspection is occupied or unknown;
+- B text drafting stays enabled under retained occupancy while Send, Enter, attachments, settings/admin mutations, generation restart, generic repair, unrelated pending-turn retry and all start/staging paths remain blocked;
+- exact settlement retry is rendered/dispatched only for the selected owner whose persisted correlation/generation matches the inspected `journeyId + runId`;
+- B or another non-owner cannot invoke A's retained settlement recovery;
+- no user/assistant message construction, new `runId`/`turnId`, `stageCorrelatedTurn`, new-turn conversation save or `start_pi_invocation` occurs during exact settlement retry or while inspection is occupied/unknown;
 - completed-turn cleanup receives the same captured owner `journeyId + runId` only after native evidence, dedicated projection/save and durable outbox enqueue succeed;
 - append or acknowledgement pending after enqueue does not suppress cleanup;
 - projection/save failure, missing native evidence, enqueue failure and interrupted-state save failure suppress cleanup and retain the lease;
 - cancelled/failed-turn cleanup occurs only after durable interrupted-state save;
-- later retry/recovery uses the original captured `journeyId + runId`, and a stale retry cannot release a replacement run;
+- initialization/reload inspection is crossed with persisted correlated turn/generation evidence before exposing retry; inspection alone never invents recovery authority;
+- inspected A1 with persisted A0 or missing recovery evidence remains blocked with bounded owner diagnostic and no forced cleanup;
+- later matching settlement recovery resumes only the recorded projection/save, outbox enqueue/append/ack or interrupted-state-save failure using the original captured `journeyId + runId`;
+- retry failure retains occupancy, while durable retry success calls exact cleanup once; a stale retry cannot release a replacement run;
 - exact cleanup success/idempotent success clears only matching occupancy; cleanup failure, mismatch, missing response or retained inspection stays fail-closed;
 - frontend initialization/reload reconciles native inspection before enabling operations, including local-empty/native-occupied state;
 - ambiguous cleanup/retry triggers bounded reinspection without polling, and stale inspection responses cannot clear newer occupancy;
@@ -186,6 +199,56 @@ assert controls enabled only after removal
 A second fixture must race a known-free local check against native reservation. The backend remains the final atomic decision; one reservation wins, the loser creates no second child, and any reversible pre-agent staging is durably rolled back before operational controls can become available.
 
 Inspection triggers are bounded to initialization/reload, unknown local state before enabling capacity, and divergent cleanup/retry outcomes. Tests must assert no interval/timer or unbounded polling loop is introduced. Inspection identity updates occupancy only; it must not populate conversation, prompt, message, stream or settlement fields.
+
+## Exact Owner-Scoped Settlement Recovery
+
+Inspection and persisted recovery evidence must be joined before retry is exposed:
+
+```text
+inspect native lease A1
+load persisted dedicated correlated turn
+compare journeyId, runId, turnId, thread/generation and session identity
+if exact and failure phase is recoverable:
+  expose retry only when A owner is selected
+else:
+  retain occupancy
+  expose bounded owner diagnostic
+  do not force cleanup
+```
+
+Required recovery fixture assertions:
+
+```text
+retained A1 + matching persisted A1 enqueue failure
+  => A-only retry available
+
+select B
+  => A retry absent and undispatchable
+
+invoke A1 retry
+  => start_pi_invocation calls = 0
+  => child spawn calls = 0
+  => new runId/turnId/messages/staging = 0
+  => only existing projection/save/outbox/interrupted phase may execute
+
+inspection A1 + persisted A0
+  => retry rejected; A1 retained
+
+inspection A1 + no persisted correlated turn
+  => bounded diagnostic; occupancy retained; cleanup calls = 0
+
+matching A1 retry fails
+  => occupancy retained; admission blocked
+
+matching A1 retry reaches durable enqueue or interrupted save
+  => release_pi_invocation_lease(A, A1) called exactly once
+  => operations remain blocked until exact cleanup confirmation
+
+generic generation restart/Journey repair/unrelated turn retry
+  => blocked before mutation
+```
+
+The recovery fixture must use the same persisted correlation and generation evidence already owned by the failed turn. It may not synthesize authority from inspection, selected Journey or current draft. Append/ack retry after durable enqueue remains model-free settlement work for the same turn and cannot create a child.
 
 ## Frontend Durable Cleanup Authorization
 
@@ -321,8 +384,8 @@ Use only **Nautilus Harness Dev** and disposable development Journeys. Stable mu
 
 1. Start one run in Journey A and observe normal correlated stream delivery.
 2. During A, verify another start remains blocked by frontend aggregate admission and production limit 1.
-3. Let A reach `finalization_finished` while deliberately observing native finalizing occupancy; verify Recording ends, A exposes only owner-scoped settlement error/retry when applicable, and B may edit text but cannot Send, press Enter, mutate attachments/settings/admin state or stage/start a turn.
-4. Reload/remount the frontend within the same Tauri process and verify inspection restores A occupancy before operational controls enable.
+3. Let A reach `finalization_finished` while deliberately observing native finalizing occupancy; verify Recording ends, A exposes retry only when persisted correlation matches the inspected lease, and B may edit text but cannot dispatch A retry, Send, press Enter, mutate attachments/settings/admin state, restart/repair or stage/start a turn.
+4. Reload/remount the frontend within the same Tauri process and verify inspection restores A occupancy before operational controls enable but exposes recovery only after matching persisted correlated turn evidence is loaded.
 5. Verify the exact A lease disappears only after native evidence, dedicated projection/save and durable outbox enqueue succeed; append/ack may remain pending after enqueue.
 6. Start Journey B only after exact cleanup confirmation removes aggregate occupancy and verify normal serial operation.
 7. In a separate sequential scenario if required, cancel the selected owner, durably save interrupted state, then verify the directed pair cancels and releases that run through one terminal `done` plus one matching cleanup.
@@ -351,7 +414,7 @@ Review the diff and tests to prove TS-2 did not add:
 
 TS-2 preserves the existing serial durable safety boundary and integrates registry-derived occupancy into frontend admission: completed turns request persistence-agnostic native cleanup only after native evidence, projection/save and durable outbox enqueue; cancelled/failed turns do so only after durable interrupted-state save. `finalization_finished` is presentation-only, failed durable branches retain the lease, and inspection keeps operations blocked across reload/uncertainty until exact cleanup succeeds.
 
-TS-4 does not introduce this basic enqueue/interrupted-save safety. It owns captured-authority persistence and settlement hardening, recovery and durable release authorization under future overlap, and safe concurrency prerequisites before capacity 2.
+TS-4 does not introduce this basic enqueue/interrupted-save safety or the narrow serial recovery carve-out. It owns captured-authority persistence and settlement hardening, recovery authorization under future overlap, cross-run race protection and safe concurrency prerequisites before capacity 2.
 
 ## Regression Invariants
 
