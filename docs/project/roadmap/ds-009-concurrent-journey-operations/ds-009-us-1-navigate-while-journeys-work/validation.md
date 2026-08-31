@@ -36,6 +36,35 @@ Evidence: A DEV-only attempt used disposable Journey A (`sandbox-pet-store`) and
 
 Repeat only after explicitly closing the pre-existing stable app and recording a before/after stable app-data baseline. Use fresh disposable Dev Journeys, exactly one invocation for that route, and a high-frequency observer for the Recording transition.
 
+## Isolated Incomplete DEV Rerun
+
+A second controlled attempt used new disposable Journeys `US1 Rerun A 0831` and `US1 Rerun B 0831` with exactly one invocation in A. Stable and production isolation passed, and the high-frequency observer captured the transient owner phase, but the required A → B → A route was not exercised because the pointer target was resolved from a Pinned layout that reordered before the click.
+
+### Passed observations
+
+- A rendered `Working`, entered `Recording`, and settled normally.
+- A 5 ms AX observer recorded the exact accessible transition `US1 Rerun A 0831 is recording the completed turn`, followed by `IDLE` and `completed_after_recording=true`.
+- The settled A generation contained exactly one user/assistant pair with no blank or duplicate message.
+- The only reconciliation turn classified `in_sync`; Harness, Pi, and Mirror states were `committed/committed/committed`, with empty reason codes and no failure or interruption.
+- The stable app-data manifest was byte-for-byte identical before and after: 472 entries and aggregate SHA-256 `1a98660e5439d860488c9b30e5be0dbbdbb5e5f66253e0e60424650f2b2a7d2d`.
+- The production Mirror database remained unchanged at size `92893184` and mtime `1788182123805850994` ns.
+
+### Incomplete observations
+
+- Pinned cards reordered after A became active. The pointer coordinate intended for B resolved to A's reordered card, so B was not selected.
+- Pointer A → B, keyboard B → A, B isolation under occupancy, and Recording while B was selected were therefore not exercised in this rerun.
+- No compensating click or second invocation was attempted.
+
+### External evidence
+
+- `/tmp/us1-rerun-runtime-phases.log`
+- `/tmp/us1-rerun-recording-direct.png`
+- `/tmp/us1-rerun-a-working.png`
+- `/tmp/us1-stable-before.json`
+- `/tmp/us1-stable-after.json`
+- `/tmp/us1-production-db-before.json`
+- `/tmp/us1-production-db-after.json`
+
 ## Navigator Validation
 
 Route: Blocked pending a clean repeat exclusively in Nautilus Harness Dev. Close stable first, establish a stable app-data baseline, use two fresh disposable Journeys and exactly one invocation, then capture A → B → A during Working and Recording.
