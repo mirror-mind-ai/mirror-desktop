@@ -86,6 +86,30 @@ External evidence:
 - `/tmp/us1-final-production-db-before.json`
 - `/tmp/us1-final-production-db-after.json`
 
+## Human-Assisted Pointer Attempt
+
+A fourth attempt used new disposable Journeys `US1 Assisted A 0831` and `US1 Assisted B 0831`, Tree view, one bounded invocation in A, and a human physical-pointer gesture. The environment was certified as Nautilus Harness Dev with `DEV LAB`, development bundle/app-data and no stable process.
+
+The human pointer gesture successfully changed the selected header to `US1 Assisted B 0831`. B presented its own empty conversation with zero messages and zero reconciliation turns, no A runtime content and no cancel. This confirms that the product pointer handler responds to a physical human gesture and that the prior AX clicks were automation delivery/hit-testing failures.
+
+The gesture arrived after A had already completed its approximately 114-second `Working` interval. The observer had recorded `Working`, then `Recording` with header A, then `IDLE` before the human click. Therefore B isolation and blocked controls under live occupancy, keyboard B → A during `Working`, and `Recording` while B remained selected were not exercised. No second invocation or compensating automated click occurred.
+
+A settled with exactly one user/assistant pair and one reconciliation turn classified `in_sync`; Harness, Pi, and Mirror states were `committed/committed/committed`, with empty reason codes and no failure or interruption. Stable app-data remained byte-for-byte identical at 472 entries and aggregate SHA-256 `1a98660e5439d860488c9b30e5be0dbbdbb5e5f66253e0e60424650f2b2a7d2d`.
+
+The production Mirror database comparison diverged and independently blocks acceptance: size remained `93016064`, but mtime changed from `1788186612999080274` ns to `1788187539641975535` ns across the human-assisted round trip. The Dev runtime remained bound to Mirror Dev, but the required production before/after equality did not hold. Dev was closed after settlement.
+
+External evidence:
+
+- `/tmp/us1-assisted-ready-for-human.png`
+- `/tmp/us1-assisted-after-human-b.txt`
+- `/tmp/us1-assisted-human-b.png`
+- `/tmp/us1-assisted-phases.log`
+- `/tmp/us1-assisted-recording.png`
+- `/tmp/us1-assisted-stable-before.json`
+- `/tmp/us1-assisted-stable-after.json`
+- `/tmp/us1-assisted-production-db-before.json`
+- `/tmp/us1-assisted-production-db-after.json`
+
 ## Navigator Validation
 
 Route: Blocked pending a clean repeat exclusively in Nautilus Harness Dev. Close stable first, establish a stable app-data baseline, use two fresh disposable Journeys and exactly one invocation, then capture A → B → A during Working and Recording.
