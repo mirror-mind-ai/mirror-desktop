@@ -65,6 +65,27 @@ A second controlled attempt used new disposable Journeys `US1 Rerun A 0831` and 
 - `/tmp/us1-production-db-before.json`
 - `/tmp/us1-production-db-after.json`
 
+## Failed Automated Pointer Validation
+
+A third controlled attempt used new disposable DEV Journeys `US1 Final A 0831` and `US1 Final B 0831`, Tree view, and exactly one invocation in A. The environment was certified as Nautilus Harness Dev with the `DEV LAB` badge, `development` channel, bundle `com.nautilus.harness.dev`, development app-data, Mirror Dev home/database, and no stable process.
+
+After A became `Working`, a new AX snapshot resolved B by the exact accessible name `US1 Final B 0831 Pin US1 Final B 0831`. Its fresh AX geometry was position `(102.0, 685.0)`, size `(212.0, 34.0)`, and the physical automation attempted `(162.0, 702.0)`. Immediate verification returned `selected_header=US1 Final A 0831`: the header remained in A. The procedure stopped immediately without a compensating click, keyboard navigation, or second invocation. This is evidence of automated pointer delivery/hit-testing failure, not yet a reproduced product pointer defect; the implementation retains its pointer handler and deterministic behavioral coverage.
+
+The 5 ms AX observer captured A transitioning from `Working` to the exact accessible state `US1 Final A 0831 is recording the completed turn`, then `IDLE` and `completed_after_recording=true`. A settled with exactly one user/assistant pair, one reconciliation turn classified `in_sync`, Harness/Pi/Mirror states `committed/committed/committed`, empty reason codes, and no failure or interruption. B retained zero messages and zero turns.
+
+Stable and production isolation remained exact. Stable contained 472 entries before and after with aggregate SHA-256 `1a98660e5439d860488c9b30e5be0dbbdbb5e5f66253e0e60424650f2b2a7d2d`. The production Mirror database retained size `92987392` and mtime `1788185203411348239` ns.
+
+External evidence:
+
+- `/tmp/us1-final-working-snapshot.txt`
+- `/tmp/us1-final-pointer-b.png`
+- `/tmp/us1-final-runtime-phases.log`
+- `/tmp/us1-final-recording-after-pointer-failure.png`
+- `/tmp/us1-final-stable-before.json`
+- `/tmp/us1-final-stable-after.json`
+- `/tmp/us1-final-production-db-before.json`
+- `/tmp/us1-final-production-db-after.json`
+
 ## Navigator Validation
 
 Route: Blocked pending a clean repeat exclusively in Nautilus Harness Dev. Close stable first, establish a stable app-data baseline, use two fresh disposable Journeys and exactly one invocation, then capture A → B → A during Working and Recording.
