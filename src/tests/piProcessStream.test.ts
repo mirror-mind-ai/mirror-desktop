@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createPiInvocationPrompt,
   livePiAgentStream,
@@ -508,6 +508,60 @@ describe("Pi process stream adapter", () => {
       { kind: "stdout", content: "Olá\n", authority: authority.eventAuthority },
       { expectedAuthority: authority },
     )).toEqual([{ type: "raw_output", content: "Olá\n" }]);
+  });
+
+  it("registers the authority route before invocation so an immediate started event is not lost", async () => {
+    const packet = createMissionExtractionPacket({
+      currentState,
+      conversation: [{ id: "msg-order", role: "user", content: "test", createdAt: "2026-08-21T00:00:00.000Z" }],
+    });
+    const runAuthority = testRunAuthority();
+    const order: string[] = [];
+    let deliver: ((event: Parameters<typeof mapPiProcessEventToStreamEvents>[0]) => void) | undefined;
+    const dispatcher = {
+      register: vi.fn(async (_authority, handler) => {
+        order.push("registered");
+        deliver = handler;
+        let closed = false;
+        return { isClosed: () => closed, abortBeforeInvocation: () => { closed = true; } };
+      }),
+    };
+    const invokeCommand = vi.fn(async () => {
+      order.push("invoked");
+      deliver?.({ kind: "started", content: "started", authority: runAuthority.eventAuthority });
+      deliver?.({ kind: "done", content: "done", authority: runAuthority.eventAuthority });
+    });
+    const events = [];
+
+    for await (const event of livePiAgentStream(packet, defaultPiProviderConfig, runAuthority, { dispatcher, invokeCommand })) {
+      events.push(event);
+    }
+
+    expect(order).toEqual(["registered", "invoked"]);
+    expect(invokeCommand).toHaveBeenCalledWith("start_pi_invocation", expect.objectContaining({ runAuthority }));
+    expect(events).toEqual([{ type: "run_status", status: "starting" }, { type: "done" }]);
+  });
+
+  it("does not invoke when authority-route registration fails", async () => {
+    const packet = createMissionExtractionPacket({
+      currentState,
+      conversation: [{ id: "msg-register-fail", role: "user", content: "test", createdAt: "2026-08-21T00:00:00.000Z" }],
+    });
+    const invokeCommand = vi.fn(async () => undefined);
+    const events = [];
+
+    for await (const event of livePiAgentStream(packet, defaultPiProviderConfig, testRunAuthority(), {
+      dispatcher: { register: vi.fn(async () => { throw new Error("registration failed"); }) },
+      invokeCommand,
+    })) {
+      events.push(event);
+    }
+
+    expect(invokeCommand).not.toHaveBeenCalled();
+    expect(events).toEqual([
+      { type: "error", message: "Could not attach to the Pi process event stream: registration failed" },
+      { type: "done" },
+    ]);
   });
 
   it("settles invalid provider setup as error before done", async () => {

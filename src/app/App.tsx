@@ -1,5 +1,5 @@
 import {
-  useEffect, useMemo, useRef, useState,
+  useEffect, useMemo, useReducer, useRef, useState,
   type CSSProperties,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -11,15 +11,9 @@ import {
   livePiAgentStream,
   readJourneyPiContextStats,
 } from "../agent/piProcessStream";
-import { normalizePiResponse, type NormalizedPiResponse } from "../agent/piResponseNormalizer";
-import {
-  cancelAgentRun,
-  completeAgentRun,
-  failAgentRun,
-  initialAgentRunState,
-  reduceAgentRunFromStreamEvent,
-  startAgentRun,
-} from "../agent/agentRun";
+import { normalizePiResponse } from "../agent/piResponseNormalizer";
+import { startAgentRun } from "../agent/agentRun";
+import { piProcessEventDispatcher } from "../agent/piProcessEventDispatcher";
 import {
   configuredModelContextWindow,
   createProviderConfig,
@@ -77,11 +71,16 @@ import {
 } from "./mirrorModeState";
 import {
   hasRuntimeProjectionContent,
-  initialRuntimeProjectionState,
   mergeRuntimeContextUsage,
-  reduceRuntimeProjection,
-  type RuntimeProjectionState,
 } from "./runtimeActivityModel";
+import {
+  createInitialJourneyRuntimeState,
+  hasActiveOrFinalizingJourneyRuntime,
+  identityJourneyId,
+  journeyRuntimeReducer,
+  selectJourneyRuntime,
+  type JourneyRunIdentity,
+} from "./journeyRuntimeState";
 import { inferMessageSpeaker, stripMessageSpeakerSignature, withCertifiedPersona } from "./conversationPresentation";
 import {
   loadDedicatedJourneyConversation,
@@ -97,7 +96,6 @@ import {
   createUserConversationMessage,
   grammarStateFromViewModel,
   type ConversationMessage,
-  type MissionDraft,
 } from "../agent/piTaskPacket";
 import {
   createJourneyConversation,
@@ -213,6 +211,24 @@ function createMissingRunAuthorityEvent() {
   return { type: "error" as const, message: "Live dedicated invocation requires RunAuthority." };
 }
 
+function applyCertifiedModeTransition(
+  conversation: JourneyConversation,
+  transition: CertifiedModeTransition,
+  sourceId: string,
+): JourneyConversation {
+  const mode = transition.kind === "activate" ? transition.mode : null;
+  if (
+    conversation.certifiedMirrorMode?.mode === mode
+    && conversation.certifiedMirrorMode.sourceId === sourceId
+  ) {
+    return conversation;
+  }
+  return {
+    ...conversation,
+    certifiedMirrorMode: { mode, certifiedAt: new Date().toISOString(), sourceId },
+  };
+}
+
 const emptyJourneyRegistry: JourneyRegistry = {
   schemaVersion: "0.1.0",
   source: "fixture",
@@ -269,15 +285,11 @@ export function App({ model }: AppProps) {
   const [conversation, setConversation] = useState(() =>
     createJourneyConversation({ journeyId: selectedJourney, initialMessages }),
   );
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [isFinalizingTurn, setIsFinalizingTurn] = useState(false);
-  const [streamMissionDraft, setStreamMissionDraft] = useState<MissionDraft | undefined>();
-  const [streamWarnings, setStreamWarnings] = useState<string[]>([]);
-  const [streamDiagnostics, setStreamDiagnostics] = useState<string[]>([]);
-  const [streamSafety, setStreamSafety] = useState<NormalizedPiResponse["safety"]>();
-  const [streamMode, setStreamMode] = useState<"mock" | "live" | undefined>();
-  const [runtimeProjection, setRuntimeProjection] = useState<RuntimeProjectionState>(initialRuntimeProjectionState);
-  const [runtimeProjectionMessageId, setRuntimeProjectionMessageId] = useState<string | undefined>();
+  const [journeyRuntimeState, dispatchJourneyRuntime] = useReducer(
+    journeyRuntimeReducer,
+    undefined,
+    createInitialJourneyRuntimeState,
+  );
   const [piContextState, setPiContextState] = useState<"checking" | "waiting" | "available" | "not_initialized">("checking");
   const [isRetryingMirrorCommit, setIsRetryingMirrorCommit] = useState(false);
   const [mirrorCommitError, setMirrorCommitError] = useState<string | undefined>();
@@ -302,8 +314,6 @@ export function App({ model }: AppProps) {
   const [runtimeChannel, setRuntimeChannel] = useState<RuntimeChannelDiagnostic>();
   const [runtimeChannelError, setRuntimeChannelError] = useState<string>();
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
-  const [agentRun, setAgentRun] = useState(initialAgentRunState);
-  const [agentRunJourneyId, setAgentRunJourneyId] = useState<string>();
   const [conversationLoaded, setConversationLoaded] = useState(false);
   const [journeyThreadState, setJourneyThreadState] = useState<JourneyThreadDisplayState>({ kind: "loading" });
   const [startingJourneyId, setStartingJourneyId] = useState<string | undefined>();
@@ -362,6 +372,20 @@ export function App({ model }: AppProps) {
     };
   const selectedJourneyVisual = journeyVisual(selectedJourneyItem.id);
   const selectedJourneyBasePath = selectedJourneyItem.projectPath;
+  const selectedRuntime = selectJourneyRuntime(journeyRuntimeState, selectedJourney);
+  const {
+    agentRun,
+    isStreaming,
+    isFinalizingTurn,
+    missionDraft: streamMissionDraft,
+    warnings: streamWarnings,
+    diagnostics: streamDiagnostics,
+    safety: streamSafety,
+    mode: streamMode,
+    runtimeProjection,
+    runtimeProjectionMessageId,
+  } = selectedRuntime;
+  const runtimeBusy = hasActiveOrFinalizingJourneyRuntime(journeyRuntimeState);
   const messages = conversation.messages;
   const importedActivity = useMemo(
     () => groupImportedActivityByMessage(conversation.importedActivity?.events ?? []),
@@ -398,14 +422,16 @@ export function App({ model }: AppProps) {
     : undefined;
   const legacyMirrorGap = pendingMirrorDisposition === "legacy_gap";
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
-  const dedicatedTurnState = classifyDedicatedTurnState(conversation, isStreaming || agentRun.status === "running");
+  const dedicatedTurnState = classifyDedicatedTurnState(conversation, runtimeBusy);
   const mirrorAppendNeedsEnqueue = pendingMirrorDisposition === "enqueue_required";
   const reconciliationBlocksInvocation = mirrorAppendNeedsEnqueue || (dedicatedThreadReady
     ? dedicatedTurnBlocksNewInvocation(dedicatedTurnState)
     : conversation.reconciliation.classification !== "in_sync");
   const composerTurnStatus = deriveComposerTurnStatus({
     agentRunStatus: agentRun.status,
-    runBelongsToSelectedJourney: agentRunJourneyId === selectedJourney,
+    runBelongsToSelectedJourney: selectedRuntime.identity
+      ? identityJourneyId(selectedRuntime.identity) === selectedJourney
+      : false,
     isStreaming,
     isFinalizingTurn,
     reconciliationBlocksInvocation,
@@ -425,8 +451,21 @@ export function App({ model }: AppProps) {
       }
     : undefined;
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
-  const altitudeSwitchDisabled = isStreaming || agentRun.status === "running" || isJourneyReloading || projectionLoadStatus === "loading";
+  const altitudeSwitchDisabled = runtimeBusy || isJourneyReloading || projectionLoadStatus === "loading";
   const operationalChatSelected = selectedAltitude === "operational" && selectedOperationalSurface === "chat";
+
+  useEffect(() => {
+    void piProcessEventDispatcher.mount().catch((error) => {
+      dispatchJourneyRuntime({
+        type: "append_warning",
+        journeyId: selectedJourneyRef.current,
+        message: `Could not attach to the Pi process event stream: ${error instanceof Error ? error.message : String(error)}`,
+      });
+    });
+    return () => {
+      void piProcessEventDispatcher.dispose();
+    };
+  }, []);
 
   useEffect(() => {
     if (!journeyMenuOpen) {
@@ -598,7 +637,6 @@ export function App({ model }: AppProps) {
   }, [journeyRegistryRefreshState]);
 
   useEffect(() => {
-    setAgentRunJourneyId(undefined);
     chatAutoFollowRef.current = nextConversationAutoFollow(
       chatAutoFollowRef.current,
       { type: "journey_changed" },
@@ -749,7 +787,7 @@ export function App({ model }: AppProps) {
   }, [selectedJourney, registryLoaded]);
 
   useEffect(() => {
-    if (!conversationLoaded || isStreaming || effectiveProviderConfig.safeTestMode) {
+    if (!conversationLoaded || runtimeBusy || effectiveProviderConfig.safeTestMode) {
       return;
     }
     const providerModel = providerModelLabel(effectiveProviderConfig);
@@ -812,7 +850,7 @@ export function App({ model }: AppProps) {
     conversation.liveIdentity.generation,
     conversation.liveIdentity.piSessionId,
     conversationLoaded,
-    isStreaming,
+    runtimeBusy,
     effectiveProviderConfig,
   ]);
 
@@ -835,11 +873,11 @@ export function App({ model }: AppProps) {
   }, [journeyPreferences, journeyListOrder, registryLoaded, preferencesLoaded]);
 
   useEffect(() => {
-    if (!conversationLoaded || journeyThreadState.kind !== "ready" || isStreaming || isFinalizingTurn) return;
+    if (!conversationLoaded || journeyThreadState.kind !== "ready" || runtimeBusy) return;
     void saveDedicatedJourneyConversation(conversation).catch((error) => {
       console.warn("Could not persist dedicated Journey projection.", error);
     });
-  }, [conversation, conversationLoaded, isStreaming, isFinalizingTurn, journeyThreadState.kind]);
+  }, [conversation, conversationLoaded, runtimeBusy, journeyThreadState.kind]);
 
   useEffect(() => {
     if (!conversationLoaded || conversation.certifiedMirrorMode !== undefined) {
@@ -869,7 +907,7 @@ export function App({ model }: AppProps) {
   ]);
 
   useEffect(() => {
-    if (!conversationLoaded || isStreaming || journeyThreadState.kind !== "ready") return;
+    if (!conversationLoaded || runtimeBusy || journeyThreadState.kind !== "ready") return;
     let cancelled = false;
     void listMirrorAppendOutbox(conversation.journeyId).then((items) => {
       if (cancelled) return;
@@ -889,7 +927,7 @@ export function App({ model }: AppProps) {
       if (!cancelled) setMirrorCommitError(error instanceof Error ? error.message : String(error));
     });
     return () => { cancelled = true; };
-  }, [conversation.journeyId, conversationLoaded, isStreaming, journeyThreadState.kind]);
+  }, [conversation.journeyId, conversationLoaded, runtimeBusy, journeyThreadState.kind]);
 
   useEffect(() => {
     checkedMirrorTurnRef.current.clear();
@@ -921,7 +959,7 @@ export function App({ model }: AppProps) {
     let unlisten: (() => void) | undefined;
     void listenForFileAttachments({
       onActiveChange: (active) => {
-        if (!disposed) setFileDropActive(active && journeyThreadState.kind === "ready" && !isStreaming && agentRun.status !== "running" && !isJourneyReloading);
+        if (!disposed) setFileDropActive(active && journeyThreadState.kind === "ready" && !runtimeBusy && !isJourneyReloading);
       },
       onDrop: (paths) => {
         if (!disposed) void attachDroppedFiles(paths);
@@ -934,27 +972,7 @@ export function App({ model }: AppProps) {
       disposed = true;
       unlisten?.();
     };
-  }, [journeyThreadState.kind, isStreaming, agentRun.status, isJourneyReloading]);
-
-  function recordCertifiedModeTransition(transition: CertifiedModeTransition, sourceId: string) {
-    setConversation((currentConversation) => {
-      const mode = transition.kind === "activate" ? transition.mode : null;
-      if (
-        currentConversation.certifiedMirrorMode?.mode === mode
-        && currentConversation.certifiedMirrorMode.sourceId === sourceId
-      ) {
-        return currentConversation;
-      }
-      return {
-        ...currentConversation,
-        certifiedMirrorMode: {
-          mode,
-          certifiedAt: new Date().toISOString(),
-          sourceId,
-        },
-      };
-    });
-  }
+  }, [journeyThreadState.kind, runtimeBusy, isJourneyReloading]);
 
   function addPendingFiles(response: FileAttachmentResponse, ownerJourneyId: string) {
     if (selectedJourneyRef.current !== ownerJourneyId) return;
@@ -972,7 +990,7 @@ export function App({ model }: AppProps) {
   }
 
   async function chooseFiles() {
-    if (fileAttachmentBusy || isStreaming || agentRun.status === "running" || isJourneyReloading) return;
+    if (fileAttachmentBusy || runtimeBusy || isJourneyReloading) return;
     const ownerJourneyId = selectedJourneyRef.current;
     setFileAttachmentBusy(true);
     setFileAttachmentError(undefined);
@@ -994,7 +1012,7 @@ export function App({ model }: AppProps) {
   }
 
   async function attachDroppedFiles(paths: string[]) {
-    if (journeyThreadState.kind !== "ready" || isStreaming || agentRun.status === "running" || isJourneyReloading) return;
+    if (journeyThreadState.kind !== "ready" || runtimeBusy || isJourneyReloading) return;
     const ownerJourneyId = selectedJourneyRef.current;
     setFileAttachmentBusy(true);
     setFileAttachmentError(undefined);
@@ -1009,7 +1027,7 @@ export function App({ model }: AppProps) {
 
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
     const content = (retryContent ?? draft).trim();
-    if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
+    if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || runtimeBusy || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
       return;
     }
 
@@ -1020,10 +1038,11 @@ export function App({ model }: AppProps) {
         || journeyThreadState.kind !== "ready"
         || dedicatedTurnBlocksNewInvocation(classifyDedicatedTurnState(baseConversation));
       if (preflightBlocked) {
-        setStreamWarnings((warnings) => [
-          ...warnings,
-          "Live invocation stopped because Journey conversation authority changed or is still being inspected. Reconcile the selected Journey and try again.",
-        ]);
+        dispatchJourneyRuntime({
+          type: "append_warning",
+          journeyId: selectedJourney,
+          message: "Live invocation stopped because Journey conversation authority changed or is still being inspected. Reconcile the selected Journey and try again.",
+        });
         return;
       }
     }
@@ -1070,9 +1089,16 @@ export function App({ model }: AppProps) {
         ? createRunAuthority(correlation, baseConversation.liveIdentity, journeyThreadState.activeGeneration)
         : undefined;
     } catch (error) {
-      setStreamWarnings((warnings) => [...warnings, `Live invocation stopped because run authority could not be built: ${error instanceof Error ? error.message : String(error)}`]);
+      dispatchJourneyRuntime({
+        type: "append_warning",
+        journeyId: selectedJourney,
+        message: `Live invocation stopped because run authority could not be built: ${error instanceof Error ? error.message : String(error)}`,
+      });
       return;
     }
+    const runtimeIdentity: JourneyRunIdentity = runAuthority
+      ? { kind: "live", authority: runAuthority }
+      : { kind: "mock", journeyId: selectedJourney, runId: run.id ?? `mock-${assistantMessage.id}` };
     const provider: AgentStreamProvider = mode === "mock"
       ? mockPiAgentStream
       : (packet) => runAuthority
@@ -1083,10 +1109,20 @@ export function App({ model }: AppProps) {
       try {
         await saveDedicatedJourneyConversation(stagedConversation);
       } catch (error) {
-        setStreamWarnings((warnings) => [...warnings, error instanceof Error ? error.message : String(error)]);
+        dispatchJourneyRuntime({
+          type: "append_warning",
+          journeyId: selectedJourney,
+          message: error instanceof Error ? error.message : String(error),
+        });
         return;
       }
     }
+    dispatchJourneyRuntime({
+      type: "register",
+      identity: runtimeIdentity,
+      run,
+      assistantMessageId: assistantMessage.id,
+    });
     chatAutoFollowRef.current = nextConversationAutoFollow(
       chatAutoFollowRef.current,
       { type: "explicit_bottom" },
@@ -1097,16 +1133,7 @@ export function App({ model }: AppProps) {
     setPendingFileAttachments([]);
     setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
     setFileAttachmentError(undefined);
-    setIsStreaming(true);
-    setAgentRunJourneyId(selectedJourney);
-    setAgentRun(run);
     setJourneyPreferences((preferences) => markJourneyRecent(preferences, selectedJourney));
-    setStreamMode(mode);
-    setRuntimeProjection(initialRuntimeProjectionState);
-    setRuntimeProjectionMessageId(assistantMessage.id);
-    setStreamWarnings([]);
-    setStreamDiagnostics([]);
-    setStreamSafety(undefined);
 
     const conversationBeforeRun = baseConversation;
     let rawLiveOutput = "";
@@ -1115,16 +1142,29 @@ export function App({ model }: AppProps) {
     let runFailed = false;
     const diagnostics: string[] = [];
     let streamedAssistantContent = "";
+    let runConversation = stagedConversation;
+    const ownerJourneyId = baseConversation.journeyId;
+    const ownerGeneration = baseConversation.liveIdentity.generation;
+
+    function updateRunConversation(update: (current: JourneyConversation) => JourneyConversation) {
+      runConversation = update(runConversation);
+      if (
+        selectedJourneyRef.current === ownerJourneyId
+        && conversationRef.current.liveIdentity.generation === ownerGeneration
+      ) {
+        conversationRef.current = runConversation;
+        setConversation(runConversation);
+      }
+    }
 
     try {
       for await (const event of provider(packet)) {
-        setRuntimeProjection((currentProjection) => reduceRuntimeProjection(currentProjection, event));
-        setAgentRun((currentRun) => reduceAgentRunFromStreamEvent(currentRun, event));
+        dispatchJourneyRuntime({ type: "stream_event", identity: runtimeIdentity, event });
         if (event.type === "run_status" && event.status === "working") {
           runReachedAgent = true;
         }
         if (event.type === "context_usage") {
-          setConversation((currentConversation) => {
+          updateRunConversation((currentConversation) => {
             const currentStats = currentConversation.authoritativeContextStats;
             const sameAuthority = currentStats
               && currentStats.piSessionId === currentConversation.liveIdentity.piSessionId
@@ -1143,7 +1183,7 @@ export function App({ model }: AppProps) {
           });
         }
         if (event.type === "persona_context") {
-          setConversation((currentConversation) =>
+          updateRunConversation((currentConversation) =>
             replaceJourneyConversationMessages(
               currentConversation,
               currentConversation.messages.map((message) =>
@@ -1157,24 +1197,26 @@ export function App({ model }: AppProps) {
         if (event.type === "message_delta") {
           streamedAssistantContent = `${streamedAssistantContent}${event.content}`;
           const transition = extractCertifiedModeTransition(streamedAssistantContent);
-          if (transition) {
-            recordCertifiedModeTransition(transition, assistantMessage.id);
-          }
-          setConversation((currentConversation) =>
-            replaceJourneyConversationMessages(
-              currentConversation,
-              currentConversation.messages.map((message) =>
+          updateRunConversation((currentConversation) => {
+            const withMode = transition
+              ? applyCertifiedModeTransition(currentConversation, transition, assistantMessage.id)
+              : currentConversation;
+            return replaceJourneyConversationMessages(
+              withMode,
+              withMode.messages.map((message) =>
                 message.id === assistantMessage.id
                   ? { ...message, content: reduceStreamedAssistantMessage(message.content, event) }
                   : message,
               ),
-            ),
-          );
+            );
+          });
         }
         if (event.type === "operation_update" && event.operation.output) {
           const transition = extractCertifiedModeTransition(event.operation.output);
           if (transition) {
-            recordCertifiedModeTransition(transition, `runtime-${event.operation.id}`);
+            updateRunConversation((currentConversation) =>
+              applyCertifiedModeTransition(currentConversation, transition, `runtime-${event.operation.id}`),
+            );
           }
         }
         if (event.type === "raw_output") {
@@ -1182,26 +1224,16 @@ export function App({ model }: AppProps) {
         }
         if (event.type === "diagnostic") {
           diagnostics.push(event.message);
-          setStreamDiagnostics((currentDiagnostics) => [...currentDiagnostics, event.message]);
-        }
-        if (event.type === "grammar_update") {
-          setStreamMissionDraft(event.update.missionDraft);
-          setStreamWarnings(event.update.openQuestions);
-        }
-        if (event.type === "warning") {
-          setStreamWarnings((warnings) => [...warnings, event.message]);
         }
         if (event.type === "cancelled") {
           runWasCancelled = true;
-          setStreamWarnings((warnings) => [...warnings, event.message]);
         }
         if (event.type === "error") {
           runFailed = true;
-          setStreamWarnings((warnings) => [...warnings, event.message]);
         }
         if (event.type === "done" && mode === "live" && !runWasCancelled && !runFailed && rawLiveOutput.trim().length > 0) {
           const normalized = normalizePiResponse(rawLiveOutput, diagnostics);
-          setConversation((currentConversation) =>
+          updateRunConversation((currentConversation) =>
             replaceJourneyConversationMessages(
               currentConversation,
               currentConversation.messages.map((message) =>
@@ -1209,37 +1241,45 @@ export function App({ model }: AppProps) {
               ),
             ),
           );
-          setStreamMissionDraft(normalized.missionDraft);
-          setStreamWarnings(normalized.openQuestions);
-          setStreamDiagnostics(normalized.diagnostics);
-          setStreamSafety(normalized.safety);
+          dispatchJourneyRuntime({
+            type: "patch",
+            journeyId: ownerJourneyId,
+            identity: runtimeIdentity,
+            patch: {
+              missionDraft: normalized.missionDraft,
+              warnings: normalized.openQuestions,
+              diagnostics: normalized.diagnostics,
+              safety: normalized.safety,
+            },
+          });
         }
       }
-      setAgentRun((currentRun) => completeAgentRun(currentRun));
     } catch (error) {
       runFailed = true;
       const message = error instanceof Error ? error.message : String(error);
-      setAgentRun((currentRun) => failAgentRun(currentRun, message));
-      setRuntimeProjection((currentProjection) =>
-        reduceRuntimeProjection(currentProjection, { type: "error", message }),
-      );
-      setStreamWarnings((warnings) => [...warnings, message]);
+      dispatchJourneyRuntime({ type: "stream_event", identity: runtimeIdentity, event: { type: "error", message } });
     } finally {
-      setIsStreaming(false);
+      dispatchJourneyRuntime({ type: "stream_finished", identity: runtimeIdentity });
       if (runFailed && !runReachedAgent) {
-        conversationRef.current = conversationBeforeRun;
-        setConversation(conversationBeforeRun);
+        runConversation = conversationBeforeRun;
+        if (selectedJourneyRef.current === ownerJourneyId && conversationRef.current.liveIdentity.generation === ownerGeneration) {
+          conversationRef.current = conversationBeforeRun;
+          setConversation(conversationBeforeRun);
+        }
         if (correlation) {
           try {
             await saveDedicatedJourneyConversation(conversationBeforeRun);
           } catch (error) {
-            setStreamWarnings((warnings) => [...warnings, error instanceof Error ? error.message : String(error)]);
+            dispatchJourneyRuntime({
+              type: "append_warning", journeyId: ownerJourneyId, identity: runtimeIdentity,
+              message: error instanceof Error ? error.message : String(error),
+            });
           }
         }
       } else if (runWasCancelled || runFailed) {
         let interrupted = replaceJourneyConversationMessages(
-          conversationRef.current,
-          conversationRef.current.messages.filter(
+          runConversation,
+          runConversation.messages.filter(
             (message) => message.id !== assistantMessage.id || message.content.trim().length > 0,
           ),
         );
@@ -1251,18 +1291,24 @@ export function App({ model }: AppProps) {
             new Date().toISOString(),
           );
         }
-        conversationRef.current = interrupted;
-        setConversation(interrupted);
+        runConversation = interrupted;
+        if (selectedJourneyRef.current === ownerJourneyId && conversationRef.current.liveIdentity.generation === ownerGeneration) {
+          conversationRef.current = interrupted;
+          setConversation(interrupted);
+        }
         if (correlation) {
           try {
             await saveDedicatedJourneyConversation(interrupted);
           } catch (error) {
-            setStreamWarnings((warnings) => [...warnings, error instanceof Error ? error.message : String(error)]);
+            dispatchJourneyRuntime({
+              type: "append_warning", journeyId: ownerJourneyId, identity: runtimeIdentity,
+              message: error instanceof Error ? error.message : String(error),
+            });
           }
         }
       } else if (correlation) {
-        setIsFinalizingTurn(true);
-        let settled = conversationRef.current;
+        dispatchJourneyRuntime({ type: "finalization_started", identity: runtimeIdentity });
+        let settled = runConversation;
         try {
           const sessionFile = settled.liveIdentity.piSessionFile;
           if (!sessionFile) throw new Error("Dedicated Pi session file is missing.");
@@ -1307,10 +1353,12 @@ export function App({ model }: AppProps) {
           }
         } catch (error) {
           setMirrorCommitError(error instanceof Error ? error.message : String(error));
-          conversationRef.current = settled;
-          setConversation(settled);
+          if (selectedJourneyRef.current === ownerJourneyId && conversationRef.current.liveIdentity.generation === ownerGeneration) {
+            conversationRef.current = settled;
+            setConversation(settled);
+          }
         } finally {
-          setIsFinalizingTurn(false);
+          dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
         }
       }
     }
@@ -1372,7 +1420,7 @@ export function App({ model }: AppProps) {
   }
 
   async function retryPendingMirrorCommit() {
-    if (!pendingMirrorRepair || isStreaming || isRetryingMirrorCommit) return;
+    if (!pendingMirrorRepair || runtimeBusy || isRetryingMirrorCommit) return;
     setIsRetryingMirrorCommit(true);
     setMirrorCommitError(undefined);
     try {
@@ -1398,36 +1446,36 @@ export function App({ model }: AppProps) {
   }
 
   async function cancelActiveRun() {
-    if (agentRun.status !== "running" || streamMode !== "live") {
+    if (agentRun.status !== "running" || streamMode !== "live" || !selectedRuntime.identity) {
       return;
     }
+    const identity = selectedRuntime.identity;
 
     try {
       await cancelLivePiInvocation();
-      const message = "Pi invocation cancelled.";
-      setAgentRun((currentRun) => cancelAgentRun(currentRun));
-      setRuntimeProjection((currentProjection) =>
-        reduceRuntimeProjection(currentProjection, { type: "cancelled", message }),
-      );
+      dispatchJourneyRuntime({
+        type: "cancel_requested",
+        identity,
+        message: "Pi invocation cancelled.",
+      });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setAgentRun((currentRun) => failAgentRun(currentRun, message));
-      setRuntimeProjection((currentProjection) =>
-        reduceRuntimeProjection(currentProjection, { type: "error", message }),
-      );
-      setStreamWarnings((warnings) => [...warnings, message]);
+      dispatchJourneyRuntime({
+        type: "stream_event",
+        identity,
+        event: { type: "error", message: error instanceof Error ? error.message : String(error) },
+      });
     }
   }
 
   function requestConversationRestart() {
-    if (isStreaming || isJourneyReloading || journeyThreadState.kind !== "ready" || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)) return;
+    if (runtimeBusy || isJourneyReloading || journeyThreadState.kind !== "ready" || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)) return;
     setJourneyMenuOpen(false);
     setRestartConfirmationOpen(true);
     setJourneyReloadStatus(undefined);
   }
 
   async function confirmConversationRestart() {
-    if (isStreaming || isJourneyReloading || journeyThreadState.kind !== "ready" || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)) return;
+    if (runtimeBusy || isJourneyReloading || journeyThreadState.kind !== "ready" || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)) return;
     const ownerJourneyId = selectedJourney;
     const previousGeneration = journeyThreadState.activeGeneration.generation;
     setIsJourneyReloading(true);
@@ -1460,13 +1508,7 @@ export function App({ model }: AppProps) {
       setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
       setFileAttachmentError(undefined);
       setFileDropActive(false);
-      setStreamMissionDraft(undefined);
-      setStreamWarnings([]);
-      setStreamDiagnostics([]);
-      setStreamSafety(undefined);
-      setStreamMode(undefined);
-      setRuntimeProjection(initialRuntimeProjectionState);
-      setRuntimeProjectionMessageId(undefined);
+      dispatchJourneyRuntime({ type: "reset", journeyId: ownerJourneyId });
       setPiContextState("not_initialized");
       setJourneyPreferences((preferences) => markJourneyRecent(preferences, ownerJourneyId));
       setRestartConfirmationOpen(false);
@@ -1570,7 +1612,7 @@ export function App({ model }: AppProps) {
   }
 
   function selectJourney(journeyId: string) {
-    if (isStreaming || isFinalizingTurn || journeyId === selectedJourney) {
+    if (runtimeBusy || journeyId === selectedJourney) {
       return;
     }
 
@@ -1584,13 +1626,6 @@ export function App({ model }: AppProps) {
     setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
     setFileAttachmentError(undefined);
     setFileDropActive(false);
-    setStreamMissionDraft(undefined);
-    setStreamWarnings([]);
-    setStreamDiagnostics([]);
-    setStreamSafety(undefined);
-    setStreamMode(undefined);
-    setRuntimeProjection(initialRuntimeProjectionState);
-    setRuntimeProjectionMessageId(undefined);
   }
 
   function openJourneyTreeMenu(
@@ -1871,12 +1906,12 @@ export function App({ model }: AppProps) {
             return (
               <div
                 key={journey.id}
-                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${journey.id === selectedJourney ? "selected" : ""} ${isStreaming ? "disabled" : ""}`}
+                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${journey.id === selectedJourney ? "selected" : ""} ${runtimeBusy ? "disabled" : ""}`}
                 style={{ "--journey-depth": journeyListOrder === "tree" ? journey.depth : 0 } as CSSProperties & Record<"--journey-depth", number>}
                 role="button"
-                tabIndex={isStreaming ? -1 : 0}
-                aria-disabled={isStreaming}
-                draggable={journeyListOrder === "tree" && !isStreaming}
+                tabIndex={runtimeBusy ? -1 : 0}
+                aria-disabled={runtimeBusy}
+                draggable={journeyListOrder === "tree" && !runtimeBusy}
                 onDragStart={() => setDraggedJourneyId(journey.id)}
                 onDragOver={(event) => { if (draggedJourneyId && draggedJourneyId !== journey.id) event.preventDefault(); }}
                 onDrop={(event) => {
@@ -1915,7 +1950,7 @@ export function App({ model }: AppProps) {
                       type="button"
                       aria-label={`${collapsed ? "Expand" : "Collapse"} ${journey.name}`}
                       aria-expanded={!collapsed}
-                      disabled={isStreaming}
+                      disabled={runtimeBusy}
                       onClick={(event) => {
                         event.stopPropagation();
                         toggleCollapsedJourney(journey.id);
@@ -1941,7 +1976,7 @@ export function App({ model }: AppProps) {
                     event.stopPropagation();
                     togglePinnedJourney(journey.id);
                   }}
-                  disabled={isStreaming}
+                  disabled={runtimeBusy}
                   aria-label={journey.pinned ? `Unpin ${journey.name}` : `Pin ${journey.name}`}
                   aria-pressed={journey.pinned}
                   title={journey.pinned ? "Unpin Journey" : "Pin Journey"}
@@ -2027,7 +2062,7 @@ export function App({ model }: AppProps) {
                         type="button"
                         role="menuitem"
                         onClick={requestConversationRestart}
-                        disabled={isStreaming || isJourneyReloading || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)}
+                        disabled={runtimeBusy || isJourneyReloading || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)}
                       >
                         Restart Conversation…
                       </button>
@@ -2227,7 +2262,7 @@ export function App({ model }: AppProps) {
           {fileAttachmentError ? <p className="context-attachment-error" role="alert">{fileAttachmentError}</p> : null}
           <PendingFileAttachments
             attachments={pendingFileAttachments}
-            disabled={isStreaming || agentRun.status === "running" || fileAttachmentBusy}
+            disabled={runtimeBusy || fileAttachmentBusy}
             onRemove={(attachmentId) => {
               setPendingFileAttachments((current) => removeFileAttachment(current, attachmentId));
               setFileAttachmentError(undefined);
@@ -2254,7 +2289,7 @@ export function App({ model }: AppProps) {
               placeholder={reconciliationBlocksInvocation
                 ? "Draft your next message while the completed turn is recorded."
                 : "Write a message to this journey agent."}
-              disabled={isJourneyReloading || agentRun.status === "running"}
+              disabled={isJourneyReloading || runtimeBusy}
             />
             <div className="composer-input-footer">
               <ComposerRuntimeFooter
@@ -2263,14 +2298,14 @@ export function App({ model }: AppProps) {
                 contextState={piContextState}
                 providerModel={providerModelLabel(effectiveProviderConfig)}
                 onSelectProviderModel={() => openJourneyAgentProfileSelector()}
-                providerSelectionDisabled={isStreaming || agentRun.status === "running" || agentSettingsState === "saving"}
+                providerSelectionDisabled={runtimeBusy || agentSettingsState === "saving"}
               />
               <div className="composer-inline-actions">
                 <button
                   className="icon-button context-attachment-button"
                   type="button"
                   onClick={() => void chooseFiles()}
-                  disabled={isStreaming || agentRun.status === "running" || isJourneyReloading || fileAttachmentBusy}
+                  disabled={runtimeBusy || isJourneyReloading || fileAttachmentBusy}
                   aria-label="Anexar arquivos"
                   title="Anexar arquivos"
                 >
@@ -2291,7 +2326,7 @@ export function App({ model }: AppProps) {
                     className="icon-button send-button"
                     type="button"
                     onClick={() => void generatePacket("live")}
-                    disabled={!draft.trim() || isStreaming || agentRun.status === "running" || reconciliationBlocksInvocation || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(fileAttachmentError) || fileAttachmentBusy}
+                    disabled={!draft.trim() || runtimeBusy || reconciliationBlocksInvocation || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(fileAttachmentError) || fileAttachmentBusy}
                     aria-label="Send message"
                     title="Send message"
                   >
@@ -2454,8 +2489,8 @@ export function App({ model }: AppProps) {
                 </select>
               </label>
               <div className="provider-actions">
-                <button type="button" onClick={() => void saveGlobalAgentProfile()} disabled={isStreaming || agentSettingsState === "saving"}>Save global defaults</button>
-                <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={isStreaming || agentSettingsState === "saving"}>Restore Harness defaults</button>
+                <button type="button" onClick={() => void saveGlobalAgentProfile()} disabled={runtimeBusy || agentSettingsState === "saving"}>Save global defaults</button>
+                <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={runtimeBusy || agentSettingsState === "saving"}>Restore Harness defaults</button>
               </div>
               <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>
             </section>
@@ -2484,8 +2519,8 @@ export function App({ model }: AppProps) {
               <label className="provider-check"><input type="checkbox" checked={providerSafeTestMode} onChange={(event) => setProviderSafeTestMode(event.target.checked)} />Safe test mode (cat)</label>
               {providerErrors.length > 0 ? <p className="provider-error">{providerErrors.join(" ")}</p> : null}
               <div className="provider-actions">
-                <button type="button" onClick={applyProviderConfiguration} disabled={isStreaming}>Apply for this session</button>
-                <button className="secondary-button" type="button" onClick={resetProviderConfiguration} disabled={isStreaming}>Reset session controls</button>
+                <button type="button" onClick={applyProviderConfiguration} disabled={runtimeBusy}>Apply for this session</button>
+                <button className="secondary-button" type="button" onClick={resetProviderConfiguration} disabled={runtimeBusy}>Reset session controls</button>
               </div>
               <p className="provider-note">Command, arguments, stdin and test mode are never persisted. Effective model and thinking flags replace conflicting raw arguments.</p>
             </section>
@@ -2540,8 +2575,8 @@ export function App({ model }: AppProps) {
               <p className="provider-note">Changes affect only the next explicit invocation. The current conversation and generation remain unchanged.</p>
               {agentSettingsMessage ? <p className={agentSettingsState === "error" ? "settings-error" : "provider-note"} role={agentSettingsState === "error" ? "alert" : "status"}>{agentSettingsMessage}</p> : null}
               <div className="provider-actions journey-agent-profile-actions">
-                <button type="button" onClick={() => void saveSelectedJourneyAgentOverride()} disabled={isStreaming || agentSettingsState === "saving"}>Use model for this Journey</button>
-                <button className="secondary-button" type="button" onClick={() => void resetSelectedJourneyAgentOverride()} disabled={isStreaming || agentSettingsState === "saving"}>Use global defaults</button>
+                <button type="button" onClick={() => void saveSelectedJourneyAgentOverride()} disabled={runtimeBusy || agentSettingsState === "saving"}>Use model for this Journey</button>
+                <button className="secondary-button" type="button" onClick={() => void resetSelectedJourneyAgentOverride()} disabled={runtimeBusy || agentSettingsState === "saving"}>Use global defaults</button>
                 <button className="secondary-button" type="button" onClick={() => setJourneyAgentProfileOpen(false)} disabled={agentSettingsState === "saving"}>Cancel</button>
               </div>
               <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>

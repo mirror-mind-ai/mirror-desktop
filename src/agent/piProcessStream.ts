@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import type { AgentStreamEvent, MirrorCommitEvent } from "./agentStream";
 import type { PiTaskPacket } from "./piTaskPacket";
 import {
@@ -9,17 +8,14 @@ import {
   type AgentProviderConfig,
 } from "./providerConfig";
 import { stripAnsiControlSequences } from "./terminalText";
-import { samePiProcessEventAuthority, type PiProcessEventAuthority, type RunAuthority } from "../domain/runAuthority";
+import { samePiProcessEventAuthority, type RunAuthority } from "../domain/runAuthority";
+import {
+  piProcessEventDispatcher,
+  type PiProcessEvent,
+  type PiProcessEventDispatcher,
+} from "./piProcessEventDispatcher";
 
-const PI_PROCESS_EVENT = "nautilus-pi-process";
-
-type PiProcessEventKind = "started" | "stdout" | "stderr" | "error" | "cancelled" | "done";
-
-export type PiProcessEvent = {
-  kind: PiProcessEventKind;
-  content: string;
-  authority?: PiProcessEventAuthority;
-};
+export type { PiProcessEvent } from "./piProcessEventDispatcher";
 
 function packetWithoutPersistedThumbnails(packet: PiTaskPacket): PiTaskPacket {
   return {
@@ -558,10 +554,21 @@ export async function readJourneyPiContextStats(
   });
 }
 
+export type LivePiAgentStreamDependencies = {
+  dispatcher: Pick<PiProcessEventDispatcher, "register">;
+  invokeCommand: (command: string, args: Record<string, unknown>) => Promise<unknown>;
+};
+
+const defaultLivePiAgentStreamDependencies: LivePiAgentStreamDependencies = {
+  dispatcher: piProcessEventDispatcher,
+  invokeCommand: invoke,
+};
+
 export async function* livePiAgentStream(
   packet: PiTaskPacket,
   providerConfig: AgentProviderConfig = defaultPiProviderConfig,
   runAuthority: RunAuthority,
+  dependencies: LivePiAgentStreamDependencies = defaultLivePiAgentStreamDependencies,
 ): AsyncGenerator<AgentStreamEvent> {
   const configErrors = validateProviderConfig(providerConfig);
   if (configErrors.length > 0) {
@@ -573,20 +580,18 @@ export async function* livePiAgentStream(
 
   const queue = createAsyncQueue<AgentStreamEvent>();
   const mappingState: PiProcessMappingState = {};
-  let unlisten: (() => void) | undefined;
+  let route;
 
   try {
-    unlisten = await listen<PiProcessEvent>(PI_PROCESS_EVENT, (event) => {
-      for (const streamEvent of mapPiProcessEventToStreamEvents(event.payload, {
+    route = await dependencies.dispatcher.register(runAuthority, (event) => {
+      for (const streamEvent of mapPiProcessEventToStreamEvents(event, {
         projectReasoningSummaries: supportsDisplayableReasoningSummaries(providerConfig),
         mappingState,
         contextWindow: configuredModelContextWindow(providerConfig),
         expectedAuthority: runAuthority,
       })) {
         queue.push(streamEvent);
-        if (streamEvent.type === "done") {
-          queue.close();
-        }
+        if (event.kind === "done" && streamEvent.type === "done") queue.close();
       }
     });
   } catch (error) {
@@ -597,23 +602,20 @@ export async function* livePiAgentStream(
   }
 
   try {
-    await invoke("start_pi_invocation", {
+    await dependencies.invokeCommand("start_pi_invocation", {
       prompt: createPiInvocationPrompt(packet, providerConfig.invocationMode),
       config: providerConfig,
       runAuthority,
     });
   } catch (error) {
+    route.abortBeforeInvocation();
     queue.push({ type: "error", message: `Could not invoke local Pi: ${formatUnknownError(error)}` });
     queue.push({ type: "done" });
     queue.close();
   }
 
-  try {
-    for await (const event of queue) {
-      yield event;
-    }
-  } finally {
-    unlisten?.();
+  for await (const event of queue) {
+    yield event;
   }
 }
 

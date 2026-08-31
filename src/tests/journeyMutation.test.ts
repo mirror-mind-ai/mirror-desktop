@@ -79,7 +79,7 @@ describe("Journey administration boundary", () => {
     expect(appSource).toContain("openCreateJourney(journeyItemMenu.journeyId)");
     expect(appSource).toContain('journeyListOrder === "tree" && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))');
     expect(appSource).toContain('setJourneyAdminParent(parentId)');
-    expect(appSource).toContain('draggable={journeyListOrder === "tree" && !isStreaming}');
+    expect(appSource).toContain('draggable={journeyListOrder === "tree" && !runtimeBusy}');
   });
 
   it("offers guarded destructive deletion for leaves and replaces active selection safely", () => {
