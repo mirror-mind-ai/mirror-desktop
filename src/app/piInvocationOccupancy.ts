@@ -71,41 +71,125 @@ export function beginPiInvocationReconciliation(
   return { ...state, status: "reconciling", requestId, diagnostic: null };
 }
 
-function validInspection(inspection: PiInvocationRegistryInspection): boolean {
-  if (
-    inspection.schemaVersion !== "0.1.0"
-    || inspection.limit !== 1
-    || !Number.isInteger(inspection.processCapacityInUse)
-    || inspection.processCapacityInUse < 0
-    || inspection.processCapacityInUse > inspection.limit
-    || inspection.entries.length > inspection.limit
-  ) {
+const AUTHORITY_KEYS = [
+  "schemaVersion",
+  "journeyId",
+  "runId",
+  "turnId",
+  "threadId",
+  "generation",
+  "piSessionId",
+  "mirrorConversationId",
+  "harnessUserMessageId",
+  "harnessAssistantMessageId",
+] as const;
+const ENTRY_KEYS = [
+  "authority",
+  "leasePhase",
+  "processCapacityState",
+  "cancellationState",
+  "terminalState",
+] as const;
+const INSPECTION_KEYS = ["schemaVersion", "limit", "processCapacityInUse", "entries"] as const;
+const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-]*$/;
+const MAX_AUTHORITY_FIELD_LENGTH = 512;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  const actual = Object.keys(value).sort();
+  const expected = [...keys].sort();
+  return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
+}
+
+function isBoundedIdentifier(value: unknown): value is string {
+  return typeof value === "string"
+    && value.length > 0
+    && value.length <= MAX_AUTHORITY_FIELD_LENGTH
+    && value === value.trim()
+    && IDENTIFIER_PATTERN.test(value);
+}
+
+function validAuthority(value: unknown): value is PiInvocationAuthorityInspection {
+  if (!isRecord(value) || !hasExactKeys(value, AUTHORITY_KEYS)) return false;
+  return value.schemaVersion === "0.1.0"
+    && isBoundedIdentifier(value.journeyId)
+    && isBoundedIdentifier(value.runId)
+    && isBoundedIdentifier(value.turnId)
+    && isBoundedIdentifier(value.threadId)
+    && Number.isSafeInteger(value.generation)
+    && Number(value.generation) >= 1
+    && Number(value.generation) <= 1_000_000_000
+    && isBoundedIdentifier(value.piSessionId)
+    && isBoundedIdentifier(value.mirrorConversationId)
+    && isBoundedIdentifier(value.harnessUserMessageId)
+    && isBoundedIdentifier(value.harnessAssistantMessageId);
+}
+
+function validEntry(value: unknown): value is PiInvocationLeaseInspection {
+  if (!isRecord(value) || !hasExactKeys(value, ENTRY_KEYS) || !validAuthority(value.authority)) return false;
+  const leasePhase = value.leasePhase;
+  const processState = value.processCapacityState;
+  const cancellation = value.cancellationState;
+  const terminal = value.terminalState;
+  if (!(["reserved", "running", "finalizing"] as unknown[]).includes(leasePhase)
+    || !(["reserved", "running", "released"] as unknown[]).includes(processState)
+    || !(["none", "requested"] as unknown[]).includes(cancellation)
+    || !(["open", "completed", "cancelled", "spawn_failed", "process_died"] as unknown[]).includes(terminal)) {
     return false;
   }
-  const journeys = new Set<string>();
-  const capacityEntries = inspection.entries.filter((entry) => entry.processCapacityState !== "released").length;
-  if (capacityEntries !== inspection.processCapacityInUse) {
+  if (leasePhase === "reserved" && (processState !== "reserved" || terminal !== "open")) return false;
+  if (leasePhase === "running" && (processState !== "running" || terminal !== "open")) return false;
+  if (leasePhase === "finalizing" && (processState !== "released" || terminal === "open")) return false;
+  if (terminal === "cancelled" && cancellation !== "requested") return false;
+  if (terminal === "completed" && cancellation !== "none") return false;
+  return true;
+}
+
+export function validatePiInvocationRegistryInspection(
+  value: unknown,
+): value is PiInvocationRegistryInspection {
+  if (!isRecord(value) || !hasExactKeys(value, INSPECTION_KEYS)) return false;
+  if (value.schemaVersion !== "0.1.0"
+    || value.limit !== 1
+    || !Number.isSafeInteger(value.processCapacityInUse)
+    || Number(value.processCapacityInUse) < 0
+    || Number(value.processCapacityInUse) > 1
+    || !Array.isArray(value.entries)
+    || value.entries.length > 1
+    || !value.entries.every(validEntry)) {
     return false;
   }
-  return inspection.entries.every((entry) => {
-    const { authority } = entry;
-    if (
-      authority.schemaVersion !== "0.1.0"
-      || !authority.journeyId
-      || !authority.runId
-      || !authority.turnId
-      || !authority.threadId
-      || !Number.isInteger(authority.generation)
-      || authority.generation < 1
-      || journeys.has(authority.journeyId)
-    ) {
-      return false;
-    }
-    journeys.add(authority.journeyId);
-    return entry.processCapacityState === "released"
-      ? entry.leasePhase === "finalizing"
-      : entry.terminalState === "open";
-  });
+  const entries = value.entries as PiInvocationLeaseInspection[];
+  const journeys = new Set(entries.map((entry) => entry.authority.journeyId));
+  const runs = new Set(entries.map((entry) => entry.authority.runId));
+  if (journeys.size !== entries.length || runs.size !== entries.length) return false;
+  const capacityEntries = entries.filter((entry) => entry.processCapacityState !== "released").length;
+  return capacityEntries === value.processCapacityInUse;
+}
+
+export async function releaseAndReinspectPiInvocationLease(
+  authority: PiInvocationAuthorityInspection,
+  dependencies: {
+    releaseLease: (journeyId: string, runId: string) => Promise<unknown>;
+    inspectRegistry: () => Promise<unknown>;
+  },
+): Promise<PiInvocationRegistryInspection> {
+  const release = await dependencies.releaseLease(authority.journeyId, authority.runId);
+  if (!isRecord(release)
+    || !hasExactKeys(release, ["journeyId", "runId", "status"])
+    || release.journeyId !== authority.journeyId
+    || release.runId !== authority.runId
+    || (release.status !== "released" && release.status !== "already_released")) {
+    throw new Error("Native Pi invocation cleanup returned mismatched authority.");
+  }
+  const inspection = await dependencies.inspectRegistry();
+  if (!validatePiInvocationRegistryInspection(inspection)) {
+    throw new Error("Native Pi invocation cleanup reinspection was invalid.");
+  }
+  return inspection;
 }
 
 export function applyPiInvocationInspection(
@@ -116,7 +200,7 @@ export function applyPiInvocationInspection(
   if (state.status !== "reconciling" || state.requestId !== requestId) {
     return state;
   }
-  if (!validInspection(inspection)) {
+  if (!validatePiInvocationRegistryInspection(inspection)) {
     return {
       status: "unknown",
       requestId: null,
@@ -159,29 +243,6 @@ export function retainExpectedPiInvocationLease(
     ...state,
     entries: [...otherEntries, expectedEntry]
       .sort((left, right) => left.authority.journeyId.localeCompare(right.authority.journeyId)),
-  };
-}
-
-export function confirmPiInvocationLeaseRelease(
-  state: PiInvocationOccupancyState,
-  release: PiInvocationLeaseRelease,
-): PiInvocationOccupancyState {
-  if (state.status !== "known") {
-    return state;
-  }
-  const matched = state.entries.some((entry) => (
-    entry.authority.journeyId === release.journeyId
-    && entry.authority.runId === release.runId
-  ));
-  if (!matched) {
-    return state;
-  }
-  return {
-    ...state,
-    entries: state.entries.filter((entry) => !(
-      entry.authority.journeyId === release.journeyId
-      && entry.authority.runId === release.runId
-    )),
   };
 }
 

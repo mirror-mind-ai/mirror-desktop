@@ -43,17 +43,23 @@ import { deriveComposerTurnStatus } from "./composerTurnStatus";
 import {
   applyPiInvocationInspection,
   beginPiInvocationReconciliation,
-  confirmPiInvocationLeaseRelease,
   createUnknownPiInvocationOccupancy,
   failPiInvocationReconciliation,
   hasBlockingPiInvocationOccupancy,
   piInvocationAuthorityFromRunAuthority,
+  releaseAndReinspectPiInvocationLease,
   resolveExactInterruptedRecovery,
   resolveExactSettlementRecovery,
   retainExpectedPiInvocationLease,
+  validatePiInvocationRegistryInspection,
   type PiInvocationAuthorityInspection,
 } from "./piInvocationOccupancy";
 import { nextConversationAutoFollow } from "./conversationAutoFollow";
+import {
+  executeCompletedSettlement,
+  executeInterruptedSettlement,
+  rollbackRejectedReservation,
+} from "./journeySettlement";
 import { ConversationSyncNotice, LegacyMirrorGapNotice } from "./ConversationSyncNotice";
 import { PendingFileAttachments } from "./PendingFileAttachments";
 import { MessageFileAttachments } from "./MessageFileAttachments";
@@ -563,7 +569,7 @@ export function App({ model }: AppProps) {
     try {
       const inspection = await inspectPiInvocations();
       setPiInvocationOccupancy((current) => applyPiInvocationInspection(current, requestId, inspection));
-      return inspection;
+      return validatePiInvocationRegistryInspection(inspection) ? inspection : undefined;
     } catch (error) {
       setPiInvocationOccupancy((current) => failPiInvocationReconciliation(
         current,
@@ -575,15 +581,23 @@ export function App({ model }: AppProps) {
   }
 
   async function releaseDurablePiInvocationLease(authority: PiInvocationAuthorityInspection) {
-    const release = await releasePiInvocationLease(authority.journeyId, authority.runId);
-    if (
-      release.journeyId !== authority.journeyId
-      || release.runId !== authority.runId
-      || (release.status !== "released" && release.status !== "already_released")
-    ) {
-      throw new Error("Native Pi invocation cleanup returned mismatched authority.");
+    const requestId = piInvocationInspectionSequenceRef.current + 1;
+    piInvocationInspectionSequenceRef.current = requestId;
+    setPiInvocationOccupancy((current) => beginPiInvocationReconciliation(current, requestId));
+    try {
+      const inspection = await releaseAndReinspectPiInvocationLease(authority, {
+        releaseLease: releasePiInvocationLease,
+        inspectRegistry: inspectPiInvocations,
+      });
+      setPiInvocationOccupancy((current) => applyPiInvocationInspection(current, requestId, inspection));
+    } catch (error) {
+      setPiInvocationOccupancy((current) => failPiInvocationReconciliation(
+        current,
+        requestId,
+        `Could not confirm native Pi invocation cleanup: ${error instanceof Error ? error.message : String(error)}`,
+      ));
+      throw error;
     }
-    setPiInvocationOccupancy((current) => confirmPiInvocationLeaseRelease(current, release));
   }
 
   useEffect(() => {
@@ -1432,15 +1446,22 @@ export function App({ model }: AppProps) {
         }
         if (correlation) {
           try {
-            await saveDedicatedJourneyConversation(conversationBeforeRun);
             if (invocationAuthority) {
-              const inspection = await reconcilePiInvocationOccupancy();
-              const exactLease = inspection?.entries.find((entry) => (
-                entry.authority.journeyId === invocationAuthority.journeyId
-                && entry.authority.runId === invocationAuthority.runId
-                && entry.leasePhase === "finalizing"
-              ));
-              if (exactLease) await releaseDurablePiInvocationLease(invocationAuthority);
+              await rollbackRejectedReservation({
+                projection: conversationBeforeRun,
+                authority: invocationAuthority,
+              }, {
+                saveRollbackProjection: saveDedicatedJourneyConversation,
+                inspectAfterRollback: reconcilePiInvocationOccupancy,
+                isExactFinalizingLease: (inspection, authority) => Boolean(inspection?.entries.some((entry) => (
+                  entry.authority.journeyId === authority.journeyId
+                  && entry.authority.runId === authority.runId
+                  && entry.leasePhase === "finalizing"
+                ))),
+                cleanupExactFinalizingLease: releaseDurablePiInvocationLease,
+              });
+            } else {
+              await saveDedicatedJourneyConversation(conversationBeforeRun);
             }
           } catch (error) {
             dispatchJourneyRuntime({
@@ -1472,8 +1493,17 @@ export function App({ model }: AppProps) {
         }
         if (correlation) {
           try {
-            await saveDedicatedJourneyConversation(interrupted);
-            if (invocationAuthority) await releaseDurablePiInvocationLease(invocationAuthority);
+            if (invocationAuthority) {
+              await executeInterruptedSettlement({
+                projection: interrupted,
+                authority: invocationAuthority,
+              }, {
+                saveInterruptedProjection: saveDedicatedJourneyConversation,
+                cleanupLease: releaseDurablePiInvocationLease,
+              });
+            } else {
+              await saveDedicatedJourneyConversation(interrupted);
+            }
           } catch (error) {
             dispatchJourneyRuntime({
               type: "append_warning", journeyId: ownerJourneyId, identity: runtimeIdentity,
@@ -1504,21 +1534,18 @@ export function App({ model }: AppProps) {
             committedAt: new Date().toISOString(),
           });
           settled = commitHarnessTurn(settled, correlation, new Date().toISOString());
-          await saveDedicatedJourneyConversation(settled);
-          const outboxItem = createMirrorAppendOutboxItem(settled, correlation);
-          await enqueueMirrorAppendItem(outboxItem);
-          if (invocationAuthority) await releaseDurablePiInvocationLease(invocationAuthority);
-          const summary: MirrorAppendOutboxSummary = {
-            schemaVersion: "1.0.0", itemId: outboxItem.itemId, journeyId: outboxItem.journeyId,
-            threadId: outboxItem.threadId, generation: outboxItem.generation,
-            conversationId: outboxItem.conversationId, createdAt: outboxItem.createdAt,
-          };
-          setMirrorOutboxItems((items) => items.some((item) => item.itemId === summary.itemId) ? items : [...items, summary]);
-          const receipt = await appendMirrorOutboxItem(summary.itemId);
-          settled = applyMirrorAppendReceipt(settled, correlation, receipt, new Date().toISOString());
-          await saveDedicatedJourneyConversation(settled);
-          await acknowledgeMirrorAppendItem(summary.itemId, summary.conversationId);
-          setMirrorOutboxItems((items) => items.filter((item) => item.itemId !== summary.itemId));
+          const settlement = await executeCompletedSettlement({
+            projection: settled,
+            authority: invocationAuthority,
+          }, {
+            saveProjection: saveDedicatedJourneyConversation,
+            enqueueOutbox: (projection) => enqueueExactProjectionOutbox(projection, correlation),
+            cleanupLease: releaseDurablePiInvocationLease,
+            appendAndAcknowledge: (projection, summary) => (
+              appendAndAcknowledgeExactProjection(projection, correlation, summary)
+            ),
+          });
+          settled = settlement.projection;
           setJourneyMirrorCommitError(ownerJourneyId, undefined);
           if (
             selectedJourneyRef.current === settled.journeyId
@@ -1575,6 +1602,59 @@ export function App({ model }: AppProps) {
     setMirrorCommitErrors((current) => ({ ...current, [journeyId]: error }));
   }
 
+  function validateExactOutboxSummary(
+    summary: MirrorAppendOutboxSummary,
+    projection: JourneyConversation,
+    correlation: TurnCorrelation,
+  ) {
+    if (!correlation.threadId
+      || !correlation.mirrorConversationId
+      || summary.itemId !== correlation.turnId
+      || summary.journeyId !== correlation.journeyId
+      || summary.threadId !== correlation.threadId
+      || summary.generation !== correlation.generation
+      || summary.conversationId !== correlation.mirrorConversationId
+      || projection.journeyId !== correlation.journeyId
+      || projection.liveIdentity.generation !== correlation.generation
+      || projection.liveIdentity.mirrorConversationId !== correlation.mirrorConversationId) {
+      throw new Error("mirror_append_outbox_authority_mismatch");
+    }
+  }
+
+  async function enqueueExactProjectionOutbox(
+    projection: JourneyConversation,
+    correlation: TurnCorrelation,
+  ): Promise<MirrorAppendOutboxSummary> {
+    const outboxItem = createMirrorAppendOutboxItem(projection, correlation);
+    await enqueueMirrorAppendItem(outboxItem);
+    const summary: MirrorAppendOutboxSummary = {
+      schemaVersion: "1.0.0",
+      itemId: outboxItem.itemId,
+      journeyId: outboxItem.journeyId,
+      threadId: outboxItem.threadId,
+      generation: outboxItem.generation,
+      conversationId: outboxItem.conversationId,
+      createdAt: outboxItem.createdAt,
+    };
+    setMirrorOutboxItems((items) => items.some((item) => item.itemId === summary.itemId)
+      ? items : [...items, summary]);
+    return summary;
+  }
+
+  async function appendAndAcknowledgeExactProjection(
+    projection: JourneyConversation,
+    correlation: TurnCorrelation,
+    summary: MirrorAppendOutboxSummary,
+  ): Promise<JourneyConversation> {
+    validateExactOutboxSummary(summary, projection, correlation);
+    const receipt = await appendMirrorOutboxItem(summary.itemId);
+    const settled = applyMirrorAppendReceipt(projection, correlation, receipt, new Date().toISOString());
+    await saveDedicatedJourneyConversation(settled);
+    await acknowledgeMirrorAppendItem(summary.itemId, summary.conversationId);
+    setMirrorOutboxItems((items) => items.filter((item) => item.itemId !== summary.itemId));
+    return settled;
+  }
+
   async function retryMirrorAppendSummary(item: MirrorAppendOutboxSummary) {
     try {
       const projected = await loadDedicatedJourneyConversation(item.journeyId, item.generation);
@@ -1584,11 +1664,7 @@ export function App({ model }: AppProps) {
         || projected.liveIdentity.mirrorConversationId !== item.conversationId) {
         throw new Error("mirror_append_projection_authority_mismatch");
       }
-      const receipt = await appendMirrorOutboxItem(item.itemId);
-      const settled = applyMirrorAppendReceipt(projected, repair.correlation, receipt, new Date().toISOString());
-      await saveDedicatedJourneyConversation(settled);
-      await acknowledgeMirrorAppendItem(item.itemId, item.conversationId);
-      setMirrorOutboxItems((items) => items.filter((candidate) => candidate.itemId !== item.itemId));
+      const settled = await appendAndAcknowledgeExactProjection(projected, repair.correlation, item);
       if (selectedJourneyRef.current === item.journeyId
         && conversationRef.current.liveIdentity.generation === item.generation) {
         conversationRef.current = settled;
@@ -1608,23 +1684,26 @@ export function App({ model }: AppProps) {
     setIsRetryingMirrorCommit(true);
     setJourneyMirrorCommitError(ownerJourneyId, undefined);
     try {
-      let item = pendingMirrorOutboxItem;
-      if (!item) {
-        const outboxItem = createMirrorAppendOutboxItem(conversationRef.current, pendingMirrorRepair.correlation);
-        await enqueueMirrorAppendItem(outboxItem);
-        item = {
-          schemaVersion: "1.0.0", itemId: outboxItem.itemId, journeyId: outboxItem.journeyId,
-          threadId: outboxItem.threadId, generation: outboxItem.generation,
-          conversationId: outboxItem.conversationId, createdAt: outboxItem.createdAt,
-        };
-        setMirrorOutboxItems((items) => items.some((candidate) => candidate.itemId === item!.itemId)
-          ? items : [...items, item!]);
+      const projection = conversationRef.current;
+      if (pendingMirrorOutboxItem) {
+        validateExactOutboxSummary(pendingMirrorOutboxItem, projection, pendingMirrorRepair.correlation);
       }
-      if (exactRetainedSettlementRecovery) {
-        await releaseDurablePiInvocationLease(exactRetainedSettlementRecovery.authority);
-      }
-      await retryMirrorAppendSummary(item);
-      checkedMirrorTurnRef.current.add(item.itemId);
+      const settlement = await executeCompletedSettlement({
+        projection,
+        authority: exactRetainedSettlementRecovery?.authority,
+        existingOutbox: pendingMirrorOutboxItem,
+      }, {
+        saveProjection: saveDedicatedJourneyConversation,
+        enqueueOutbox: (candidate) => enqueueExactProjectionOutbox(candidate, pendingMirrorRepair.correlation),
+        cleanupLease: releaseDurablePiInvocationLease,
+        appendAndAcknowledge: (candidate, summary) => (
+          appendAndAcknowledgeExactProjection(candidate, pendingMirrorRepair.correlation, summary)
+        ),
+      });
+      conversationRef.current = settlement.projection;
+      setConversation(settlement.projection);
+      setJourneyMirrorCommitError(ownerJourneyId, undefined);
+      checkedMirrorTurnRef.current.add(settlement.outbox.itemId);
     } catch (error) {
       setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
     } finally {
@@ -1664,10 +1743,15 @@ export function App({ model }: AppProps) {
           || message.content.trim().length > 0
         )),
       );
-      await saveDedicatedJourneyConversation(interrupted);
+      await executeInterruptedSettlement({
+        projection: interrupted,
+        authority: exactInterruptedRecovery.authority,
+      }, {
+        saveInterruptedProjection: saveDedicatedJourneyConversation,
+        cleanupLease: releaseDurablePiInvocationLease,
+      });
       conversationRef.current = interrupted;
       setConversation(interrupted);
-      await releaseDurablePiInvocationLease(exactInterruptedRecovery.authority);
     } catch (error) {
       setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
     } finally {

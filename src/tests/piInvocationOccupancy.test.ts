@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   applyPiInvocationInspection,
   beginPiInvocationReconciliation,
-  confirmPiInvocationLeaseRelease,
   createUnknownPiInvocationOccupancy,
   hasBlockingPiInvocationOccupancy,
   retainExpectedPiInvocationLease,
   resolveExactInterruptedRecovery,
   resolveExactSettlementRecovery,
+  releaseAndReinspectPiInvocationLease,
+  validatePiInvocationRegistryInspection,
   type PiInvocationAuthorityInspection,
   type PiInvocationRegistryInspection,
 } from "../app/piInvocationOccupancy";
@@ -63,12 +64,15 @@ describe("native Pi invocation occupancy", () => {
     expect(hasBlockingPiInvocationOccupancy(failed)).toBe(true);
   });
 
-  it("retains exact local authority until matching cleanup is confirmed", () => {
+  it("retains exact local authority until a fresh bounded inspection confirms absence", () => {
     const known = applyPiInvocationInspection(beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 1), 1, inspection({ entries: [] }));
     const retained = retainExpectedPiInvocationLease(known, authority);
     expect(hasBlockingPiInvocationOccupancy(retained)).toBe(true);
-    expect(confirmPiInvocationLeaseRelease(retained, { journeyId: "journey-a", runId: "stale", status: "released" })).toEqual(retained);
-    expect(hasBlockingPiInvocationOccupancy(confirmPiInvocationLeaseRelease(retained, { journeyId: "journey-a", runId: "run-a1", status: "released" }))).toBe(false);
+    const staleResponse = applyPiInvocationInspection(retained, 99, inspection({ entries: [] }));
+    expect(staleResponse).toEqual(retained);
+    const reconciling = beginPiInvocationReconciliation(retained, 2);
+    const fresh = applyPiInvocationInspection(reconciling, 2, inspection({ entries: [] }));
+    expect(hasBlockingPiInvocationOccupancy(fresh)).toBe(false);
   });
 
   it("authorizes recovery only for the exact owner and persisted correlation", () => {
@@ -99,5 +103,68 @@ describe("native Pi invocation occupancy", () => {
     const occupied = applyPiInvocationInspection(beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 1), 1, inspection());
     expect(occupied.entries[0]?.leasePhase).toBe("finalizing");
     expect(hasBlockingPiInvocationOccupancy(occupied)).toBe(true);
+  });
+
+  it("rejects invalid enums, lifecycle combinations, authority fields, duplicates, and unbounded values", () => {
+    expect(validatePiInvocationRegistryInspection(inspection())).toBe(true);
+    expect(validatePiInvocationRegistryInspection(inspection({ entries: [{
+      ...inspection().entries[0],
+      leasePhase: "invalid" as "finalizing",
+    }] }))).toBe(false);
+    expect(validatePiInvocationRegistryInspection(inspection({ entries: [{
+      ...inspection().entries[0],
+      terminalState: "open",
+    }] }))).toBe(false);
+    expect(validatePiInvocationRegistryInspection(inspection({ entries: [{
+      ...inspection().entries[0],
+      authority: { ...authority, turnId: "" },
+    }] }))).toBe(false);
+    expect(validatePiInvocationRegistryInspection(inspection({ entries: [{
+      ...inspection().entries[0],
+      authority: { ...authority, runId: "x".repeat(513) },
+    }] }))).toBe(false);
+    expect(validatePiInvocationRegistryInspection({
+      ...inspection(),
+      limit: 2,
+      entries: [inspection().entries[0], inspection().entries[0]],
+    })).toBe(false);
+  });
+
+  it("releases exact authority and always performs a fresh bounded reinspection", async () => {
+    const order: string[] = [];
+    const fresh = inspection({ entries: [] });
+    await expect(releaseAndReinspectPiInvocationLease(authority, {
+      releaseLease: async () => { order.push("release"); return { journeyId: "journey-a", runId: "run-a1", status: "released" }; },
+      inspectRegistry: async () => { order.push("inspect"); return fresh; },
+    })).resolves.toEqual(fresh);
+    expect(order).toEqual(["release", "inspect"]);
+  });
+
+  it("rejects cleanup ambiguity and preserves replacement occupancy from fresh inspection", async () => {
+    await expect(releaseAndReinspectPiInvocationLease(authority, {
+      releaseLease: async () => ({ journeyId: "journey-a", runId: "replacement", status: "released" }),
+      inspectRegistry: async () => inspection({ entries: [] }),
+    })).rejects.toThrow("mismatched");
+
+    const replacementAuthority = { ...authority, runId: "run-a2", turnId: "turn-a2", harnessUserMessageId: "user-a2", harnessAssistantMessageId: "assistant-a2" };
+    const replacement = inspection({ entries: [{
+      authority: replacementAuthority,
+      leasePhase: "running",
+      processCapacityState: "running",
+      cancellationState: "none",
+      terminalState: "open",
+    }], processCapacityInUse: 1 });
+    const fresh = await releaseAndReinspectPiInvocationLease(authority, {
+      releaseLease: async () => ({ journeyId: "journey-a", runId: "run-a1", status: "released" }),
+      inspectRegistry: async () => replacement,
+    });
+    const reconciled = applyPiInvocationInspection(
+      beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 9),
+      9,
+      fresh,
+    );
+    expect(reconciled.status).toBe("known");
+    expect(reconciled.entries[0]?.authority.runId).toBe("run-a2");
+    expect(hasBlockingPiInvocationOccupancy(reconciled)).toBe(true);
   });
 });

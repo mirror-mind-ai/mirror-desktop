@@ -1,5 +1,6 @@
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
+use std::sync::{Arc, Mutex};
 
 pub const PRODUCTION_PI_PROCESS_LIMIT: usize = 1;
 const MAX_PI_PROCESS_LIMIT: usize = 16;
@@ -113,6 +114,42 @@ pub enum ReleaseOutcome {
     AlreadyReleased,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum ReserveThenStartError<E> {
+    RegistryUnavailable,
+    Reservation(ReserveError),
+    Start {
+        target: RunTarget,
+        error: E,
+        first_terminal: bool,
+    },
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ChildControlError<E> {
+    Unavailable,
+    Operation(E),
+}
+
+pub fn control_child_handle<C, R, E>(
+    child: &Arc<Mutex<C>>,
+    operation: impl FnOnce(&mut C) -> Result<R, E>,
+) -> Result<R, ChildControlError<E>> {
+    let mut child = child.lock().map_err(|_| ChildControlError::Unavailable)?;
+    operation(&mut child).map_err(ChildControlError::Operation)
+}
+
+pub fn join_before_continuation<J>(
+    joiners: impl IntoIterator<Item = J>,
+    mut join: impl FnMut(J),
+    continuation: impl FnOnce(),
+) {
+    for joiner in joiners {
+        join(joiner);
+    }
+    continuation();
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PiInvocationLeaseInspection {
@@ -147,6 +184,38 @@ pub struct PiProcessRegistry<A, C, P> {
     process_capacity_in_use: usize,
     entries: HashMap<String, RegistryEntry<A, C, P>>,
     released_targets: VecDeque<RunTarget>,
+}
+
+pub fn reserve_then_start<A, C, P, F, E>(
+    registry: &Arc<Mutex<PiProcessRegistry<A, C, P>>>,
+    authority: A,
+    provider_snapshot: P,
+    start: F,
+) -> Result<RunTarget, ReserveThenStartError<E>>
+where
+    A: RegistryAuthority,
+    F: FnOnce(&RunTarget) -> Result<(), E>,
+{
+    let target = registry
+        .lock()
+        .map_err(|_| ReserveThenStartError::RegistryUnavailable)?
+        .reserve(authority, provider_snapshot)
+        .map_err(ReserveThenStartError::Reservation)?;
+    if let Err(error) = start(&target) {
+        let first_terminal = registry
+            .lock()
+            .map(|mut registry| {
+                registry.terminalize(&target, TerminalState::SpawnFailed)
+                    == TerminalizeOutcome::First
+            })
+            .unwrap_or(false);
+        return Err(ReserveThenStartError::Start {
+            target,
+            error,
+            first_terminal,
+        });
+    }
+    Ok(target)
 }
 
 impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
@@ -236,19 +305,17 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
         })
     }
 
-    pub fn with_child_mut<R>(
-        &mut self,
-        target: &RunTarget,
-        operation: impl FnOnce(&mut C) -> R,
-    ) -> Result<R, TargetError> {
-        let entry = self.matching_entry_mut(target)?;
+    pub fn child_handle(&self, target: &RunTarget) -> Result<C, TargetError>
+    where
+        C: Clone,
+    {
+        let entry = self.matching_entry(target)?;
         if entry.terminal_state != TerminalState::Open
             || entry.lease_phase != JourneyLeasePhase::Running
         {
             return Err(TargetError::NotRunning);
         }
-        let child = entry.child.as_mut().ok_or(TargetError::NotRunning)?;
-        Ok(operation(child))
+        entry.child.clone().ok_or(TargetError::NotRunning)
     }
 
     pub fn cancellation_requested(&self, target: &RunTarget) -> Result<bool, TargetError> {
@@ -362,7 +429,10 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
 mod tests {
     use super::*;
     use serde_json::to_value;
-    use std::sync::{Arc, Barrier, Mutex};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Barrier, Mutex,
+    };
     use std::thread;
 
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -396,8 +466,14 @@ mod tests {
     }
 
     #[derive(Debug, Default)]
-    struct FakeChild {
+    struct FakeChildState {
         kills: usize,
+        waits: usize,
+    }
+
+    #[derive(Clone, Debug, Default)]
+    struct FakeChild {
+        state: Arc<Mutex<FakeChildState>>,
     }
 
     #[allow(dead_code)]
@@ -470,6 +546,56 @@ mod tests {
         let inspection = registry.lock().unwrap().inspect();
         assert_eq!(inspection.entries.len(), 1);
         assert_eq!(inspection.process_capacity_in_use, 1);
+    }
+
+    #[test]
+    fn reservation_is_visible_before_start_and_rejection_never_calls_starter() {
+        let registry = Arc::new(Mutex::new(
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(1).unwrap(),
+        ));
+        let starts = Arc::new(Mutex::new(0_usize));
+        let observed_registry = registry.clone();
+        let observed_starts = starts.clone();
+        let target = reserve_then_start(
+            &registry,
+            authority("a", "a1"),
+            FakeProvider {
+                secret: "one".into(),
+            },
+            move |target| {
+                assert_eq!(
+                    observed_registry.lock().unwrap().inspect().entries[0]
+                        .authority
+                        .run_id,
+                    target.run_id
+                );
+                *observed_starts.lock().unwrap() += 1;
+                Ok::<(), ()>(())
+            },
+        )
+        .unwrap();
+        assert_eq!(target.run_id, "a1");
+        assert_eq!(*starts.lock().unwrap(), 1);
+
+        let rejected_starts = starts.clone();
+        let rejected = reserve_then_start(
+            &registry,
+            authority("b", "b1"),
+            FakeProvider {
+                secret: "two".into(),
+            },
+            move |_| {
+                *rejected_starts.lock().unwrap() += 1;
+                Ok::<(), ()>(())
+            },
+        );
+        assert!(matches!(
+            rejected,
+            Err(ReserveThenStartError::Reservation(
+                ReserveError::CapacityReached
+            ))
+        ));
+        assert_eq!(*starts.lock().unwrap(), 1);
     }
 
     #[test]
@@ -560,17 +686,107 @@ mod tests {
             registry.request_cancel(&a1),
             Ok(CancelOutcome::RequestedRunning)
         );
-        registry
-            .with_child_mut(&a1, |child| child.kills += 1)
-            .unwrap();
-        assert_eq!(
-            registry.with_child_mut(&a1, |child| child.kills).unwrap(),
-            1
-        );
+        let child = registry.child_handle(&a1).unwrap();
+        child.state.lock().unwrap().kills += 1;
+        assert_eq!(child.state.lock().unwrap().kills, 1);
         assert_eq!(
             registry.request_cancel(&a1),
             Ok(CancelOutcome::AlreadyRequested)
         );
+    }
+
+    #[test]
+    fn child_control_handle_does_not_hold_the_global_registry_mutex() {
+        let registry = Arc::new(Mutex::new(
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(1).unwrap(),
+        ));
+        let target = registry
+            .lock()
+            .unwrap()
+            .reserve(
+                authority("a", "a1"),
+                FakeProvider {
+                    secret: "one".into(),
+                },
+            )
+            .unwrap();
+        registry
+            .lock()
+            .unwrap()
+            .attach_child(&target, FakeChild::default())
+            .unwrap();
+        let child = registry.lock().unwrap().child_handle(&target).unwrap();
+        let child_locked = Arc::new(Barrier::new(2));
+        let release_child = Arc::new(Barrier::new(2));
+        let handle = {
+            let child_locked = child_locked.clone();
+            let release_child = release_child.clone();
+            thread::spawn(move || {
+                let mut state = child.state.lock().unwrap();
+                state.waits += 1;
+                child_locked.wait();
+                release_child.wait();
+            })
+        };
+        child_locked.wait();
+        assert_eq!(
+            registry
+                .lock()
+                .unwrap()
+                .terminalize(&target, TerminalState::ProcessDied),
+            TerminalizeOutcome::First,
+        );
+        release_child.wait();
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn directed_child_control_and_wait_failure_use_only_the_cloned_handle() {
+        let registry = Arc::new(Mutex::new(
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(1).unwrap(),
+        ));
+        let target = registry
+            .lock()
+            .unwrap()
+            .reserve(
+                authority("a", "a1"),
+                FakeProvider {
+                    secret: "one".into(),
+                },
+            )
+            .unwrap();
+        registry
+            .lock()
+            .unwrap()
+            .attach_child(&target, FakeChild::default())
+            .unwrap();
+        let child = registry.lock().unwrap().child_handle(&target).unwrap();
+        control_child_handle(&child.state, |state| {
+            state.kills += 1;
+            Ok::<(), &str>(())
+        })
+        .unwrap();
+        let wait = control_child_handle(&child.state, |state| {
+            state.waits += 1;
+            Err::<(), _>("wait_failed")
+        });
+        assert_eq!(wait, Err(ChildControlError::Operation("wait_failed")));
+        assert_eq!(child.state.lock().unwrap().kills, 1);
+        assert_eq!(child.state.lock().unwrap().waits, 1);
+    }
+
+    #[test]
+    fn output_joiners_complete_before_done_continuation() {
+        let order = Arc::new(Mutex::new(Vec::new()));
+        let joins = vec!["stdout", "stderr"];
+        let joined_order = order.clone();
+        let done_order = order.clone();
+        join_before_continuation(
+            joins,
+            move |name| joined_order.lock().unwrap().push(name),
+            move || done_order.lock().unwrap().push("done"),
+        );
+        assert_eq!(*order.lock().unwrap(), vec!["stdout", "stderr", "done"]);
     }
 
     #[test]
@@ -645,15 +861,21 @@ mod tests {
             .attach_child(&target, FakeChild::default())
             .unwrap();
         let barrier = Arc::new(Barrier::new(3));
+        let done_emissions = Arc::new(AtomicUsize::new(0));
         let handles = [TerminalState::Cancelled, TerminalState::Completed]
             .into_iter()
             .map(|terminal| {
                 let registry = registry.clone();
                 let target = target.clone();
                 let barrier = barrier.clone();
+                let done_emissions = done_emissions.clone();
                 thread::spawn(move || {
                     barrier.wait();
-                    registry.lock().unwrap().terminalize(&target, terminal)
+                    let outcome = registry.lock().unwrap().terminalize(&target, terminal);
+                    if outcome == TerminalizeOutcome::First {
+                        done_emissions.fetch_add(1, Ordering::SeqCst);
+                    }
+                    outcome
                 })
             })
             .collect::<Vec<_>>();
@@ -676,12 +898,65 @@ mod tests {
                 .count(),
             1
         );
+        assert_eq!(done_emissions.load(Ordering::SeqCst), 1);
         let inspection = registry.lock().unwrap().inspect();
         assert_eq!(inspection.process_capacity_in_use, 0);
         assert!(matches!(
             inspection.entries[0].terminal_state,
             TerminalState::Cancelled | TerminalState::Completed
         ));
+    }
+
+    #[test]
+    fn starter_failure_terminalizes_reservation_and_stale_attachment_is_harmless() {
+        let registry = Arc::new(Mutex::new(
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(1).unwrap(),
+        ));
+        let failed = reserve_then_start(
+            &registry,
+            authority("a", "a1"),
+            FakeProvider {
+                secret: "one".into(),
+            },
+            |_| Err::<(), _>("spawn_failed"),
+        );
+        assert!(matches!(
+            failed,
+            Err(ReserveThenStartError::Start {
+                error: "spawn_failed",
+                first_terminal: true,
+                ..
+            })
+        ));
+        let a1 = RunTarget::new("a", "a1");
+        assert_eq!(
+            registry.lock().unwrap().inspect().entries[0].terminal_state,
+            TerminalState::SpawnFailed
+        );
+        registry.lock().unwrap().release_lease(&a1).unwrap();
+        let a2 = registry
+            .lock()
+            .unwrap()
+            .reserve(
+                authority("a", "a2"),
+                FakeProvider {
+                    secret: "two".into(),
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            registry
+                .lock()
+                .unwrap()
+                .attach_child(&a1, FakeChild::default()),
+            Err(TargetError::Stale)
+        );
+        assert_eq!(
+            registry.lock().unwrap().inspect().entries[0]
+                .authority
+                .run_id,
+            a2.run_id
+        );
     }
 
     #[test]
