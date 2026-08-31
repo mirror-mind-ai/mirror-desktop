@@ -6,6 +6,8 @@
 **Type:** Technical Story
 **Order:** 4 of 7
 **Concurrency:** backend registry with global limit 1
+**Plan:** [plan.md](plan.md)
+**Test guide:** [test-guide.md](test-guide.md)
 
 ## Outcome
 
