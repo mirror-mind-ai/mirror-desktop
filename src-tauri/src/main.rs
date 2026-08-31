@@ -1,7 +1,13 @@
 mod agent_settings;
+mod pi_process_registry;
 mod runtime_channel;
 
 use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
+use pi_process_registry::{
+    AttachOutcome, CancelOutcome, PiInvocationRegistryInspection, PiProcessRegistry,
+    RegistryAuthority, RegistryAuthorityInspection, ReleaseOutcome, ReserveError, RunTarget,
+    TargetError, TerminalState, TerminalizeOutcome,
+};
 use runtime_channel::{RuntimeChannelDiagnostic, RuntimeChannelProfile};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use chrono::{SecondsFormat, Utc};
@@ -35,11 +41,14 @@ const COMPOSER_DRAFTS_MAX_BYTES: usize = 1024 * 1024;
 const COMPOSER_DRAFT_MAX_CHARS: usize = 51_200;
 const COMPOSER_DRAFT_MAX_JOURNEYS: usize = 256;
 
-#[derive(Default)]
 struct PiProcessState {
-    child: Arc<Mutex<Option<Child>>>,
-    cancelling: Arc<Mutex<bool>>,
-    authority: Arc<Mutex<Option<PiProcessEventAuthority>>>,
+    registry: Arc<Mutex<PiProcessRegistry<RunAuthority, Child, ProviderConfig>>>,
+}
+
+impl Default for PiProcessState {
+    fn default() -> Self {
+        Self { registry: Arc::new(Mutex::new(PiProcessRegistry::production())) }
+    }
 }
 
 #[derive(Clone, Serialize)]
@@ -190,6 +199,26 @@ struct PiProcessEventAuthority {
     mirror_conversation_id: String,
     harness_user_message_id: String,
     harness_assistant_message_id: String,
+}
+
+impl RegistryAuthority for RunAuthority {
+    fn journey_id(&self) -> &str { &self.journey_id }
+    fn run_id(&self) -> &str { &self.run_id }
+
+    fn inspection_identity(&self) -> RegistryAuthorityInspection {
+        RegistryAuthorityInspection {
+            schema_version: "0.1.0".to_string(),
+            journey_id: self.journey_id.clone(),
+            run_id: self.run_id.clone(),
+            turn_id: self.turn_id.clone(),
+            thread_id: self.thread_id.clone(),
+            generation: self.generation,
+            pi_session_id: self.pi_session_id.clone(),
+            mirror_conversation_id: self.mirror_conversation_id.clone(),
+            harness_user_message_id: self.harness_user_message_id.clone(),
+            harness_assistant_message_id: self.harness_assistant_message_id.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
@@ -1564,37 +1593,41 @@ fn start_pi_invocation(
     }
     validate_run_authority(&app, &run_authority)?;
     let authority = event_authority(&run_authority);
-    if state
-        .child
+    let target = state.registry
         .lock()
-        .map_err(|_| "Could not inspect active Pi process.".to_string())?
-        .is_some()
+        .map_err(|_| "Could not reserve the Pi process registry.".to_string())?
+        .reserve(run_authority.clone(), config.clone())
+        .map_err(|error| match error {
+            ReserveError::DuplicateJourney => "This Journey already has an active or finalizing Pi invocation.".to_string(),
+            ReserveError::CapacityReached => "The global Pi process capacity is occupied.".to_string(),
+        })?;
+
+    let registry = state.registry.clone();
+    let fallback_registry = registry.clone();
+    let fallback_target = target.clone();
+    let fallback_app = app.clone();
+    let fallback_authority = authority.clone();
+    if let Err(error) = thread::Builder::new()
+        .name(format!("nautilus-pi-{}", run_authority.journey_id))
+        .spawn(move || run_pi_process(
+            app,
+            registry,
+            target,
+            prompt,
+            config,
+            run_authority,
+            authority,
+        ))
     {
-        return Err("A local Pi invocation is already running.".to_string());
+        let first = fallback_registry.lock()
+            .map(|mut registry| registry.terminalize(&fallback_target, TerminalState::SpawnFailed))
+            .unwrap_or(TerminalizeOutcome::Stale);
+        if first == TerminalizeOutcome::First {
+            emit(&fallback_app, &fallback_authority, PiProcessEventKind::Error, format!("Could not start Pi worker: {}", error));
+            emit(&fallback_app, &fallback_authority, PiProcessEventKind::Done, "Pi invocation finished.".to_string());
+        }
+        return Err("Could not start the local Pi worker.".to_string());
     }
-
-    if let Ok(mut cancelling) = state.cancelling.lock() {
-        *cancelling = false;
-    }
-    if let Ok(mut authority_slot) = state.authority.lock() {
-        *authority_slot = Some(authority.clone());
-    } else {
-        return Err("Could not store active run authority.".to_string());
-    }
-
-    let child_state = state.child.clone();
-    let cancelling_state = state.cancelling.clone();
-    let authority_state = state.authority.clone();
-    thread::spawn(move || run_pi_process(
-        app,
-        child_state,
-        cancelling_state,
-        prompt,
-        config,
-        run_authority,
-        authority,
-        authority_state,
-    ));
 
     Ok(())
 }
@@ -1778,33 +1811,91 @@ fn extract_pi_visible_text(message: &Value) -> String {
     }
 }
 
-#[tauri::command]
-fn cancel_pi_invocation(app: AppHandle, state: State<'_, PiProcessState>) -> Result<(), String> {
-    let mut child_slot = state
-        .child
-        .lock()
-        .map_err(|_| "Could not access active Pi process.".to_string())?;
-    let Some(child) = child_slot.as_mut() else {
-        return Err("No local Pi invocation is running.".to_string());
-    };
-
-    if let Ok(mut cancelling) = state.cancelling.lock() {
-        *cancelling = true;
+fn target_error_message(error: TargetError) -> String {
+    match error {
+        TargetError::Missing => "The targeted Pi invocation does not exist.".to_string(),
+        TargetError::Stale => "The targeted Pi invocation was replaced by another run.".to_string(),
+        TargetError::NotRunning => "The targeted Pi invocation is not running.".to_string(),
+        TargetError::NotFinalizing => "The targeted Pi invocation is not ready for lease cleanup.".to_string(),
     }
-    let authority = state.authority.lock()
-        .map_err(|_| "Could not inspect active run authority.".to_string())?
-        .clone()
-        .ok_or_else(|| "Active run authority is missing.".to_string())?;
-    child
-        .kill()
-        .map_err(|error| format!("Could not cancel local Pi invocation: {}", error))?;
-    emit(
-        &app,
-        &authority,
-        PiProcessEventKind::Cancelled,
-        "Pi invocation cancelled.".to_string(),
-    );
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PiInvocationLeaseRelease {
+    journey_id: String,
+    run_id: String,
+    status: String,
+}
+
+#[tauri::command]
+fn cancel_pi_invocation(
+    app: AppHandle,
+    state: State<'_, PiProcessState>,
+    journey_id: String,
+    run_id: String,
+) -> Result<(), String> {
+    let target = RunTarget::new(journey_id, run_id);
+    let authority = {
+        let inspection = state.registry.lock()
+            .map_err(|_| "Could not access the Pi process registry.".to_string())?
+            .inspect();
+        inspection.entries.into_iter()
+            .find(|entry| entry.authority.journey_id == target.journey_id && entry.authority.run_id == target.run_id)
+            .map(|entry| PiProcessEventAuthority {
+                schema_version: entry.authority.schema_version,
+                journey_id: entry.authority.journey_id,
+                run_id: entry.authority.run_id,
+                turn_id: entry.authority.turn_id,
+                thread_id: entry.authority.thread_id,
+                generation: entry.authority.generation,
+                pi_session_id: entry.authority.pi_session_id,
+                mirror_conversation_id: entry.authority.mirror_conversation_id,
+                harness_user_message_id: entry.authority.harness_user_message_id,
+                harness_assistant_message_id: entry.authority.harness_assistant_message_id,
+            })
+            .ok_or_else(|| "The targeted Pi invocation does not exist or was replaced.".to_string())?
+    };
+    let mut registry = state.registry.lock()
+        .map_err(|_| "Could not access the Pi process registry.".to_string())?;
+    let outcome = registry.request_cancel(&target).map_err(target_error_message)?;
+    if outcome == CancelOutcome::RequestedRunning {
+        registry.with_child_mut(&target, |child| child.kill())
+            .map_err(target_error_message)?
+            .map_err(|error| format!("Could not cancel local Pi invocation: {}", error))?;
+    }
+    if outcome != CancelOutcome::AlreadyRequested {
+        emit(&app, &authority, PiProcessEventKind::Cancelled, "Pi invocation cancelled.".to_string());
+    }
     Ok(())
+}
+
+#[tauri::command]
+fn release_pi_invocation_lease(
+    state: State<'_, PiProcessState>,
+    journey_id: String,
+    run_id: String,
+) -> Result<PiInvocationLeaseRelease, String> {
+    let target = RunTarget::new(journey_id, run_id);
+    let outcome = state.registry.lock()
+        .map_err(|_| "Could not access the Pi process registry.".to_string())?
+        .release_lease(&target)
+        .map_err(target_error_message)?;
+    Ok(PiInvocationLeaseRelease {
+        journey_id: target.journey_id,
+        run_id: target.run_id,
+        status: match outcome {
+            ReleaseOutcome::Released => "released",
+            ReleaseOutcome::AlreadyReleased => "already_released",
+        }.to_string(),
+    })
+}
+
+#[tauri::command]
+fn inspect_pi_invocations(state: State<'_, PiProcessState>) -> Result<PiInvocationRegistryInspection, String> {
+    Ok(state.registry.lock()
+        .map_err(|_| "Could not inspect the Pi process registry.".to_string())?
+        .inspect())
 }
 
 fn mirror_append_outbox_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -2336,15 +2427,37 @@ fn mirror_runtime_skill_paths() -> Result<Vec<PathBuf>, String> {
     Ok(paths)
 }
 
+fn terminalize_pi_process(
+    registry: &Arc<Mutex<PiProcessRegistry<RunAuthority, Child, ProviderConfig>>>,
+    target: &RunTarget,
+    terminal: TerminalState,
+) -> bool {
+    registry.lock()
+        .map(|mut registry| registry.terminalize(target, terminal) == TerminalizeOutcome::First)
+        .unwrap_or(false)
+}
+
+fn fail_pi_process_before_completion(
+    app: &AppHandle,
+    registry: &Arc<Mutex<PiProcessRegistry<RunAuthority, Child, ProviderConfig>>>,
+    target: &RunTarget,
+    authority: &PiProcessEventAuthority,
+    message: String,
+) {
+    if terminalize_pi_process(registry, target, TerminalState::SpawnFailed) {
+        emit(app, authority, PiProcessEventKind::Error, message);
+        emit(app, authority, PiProcessEventKind::Done, "Pi invocation finished.".to_string());
+    }
+}
+
 fn run_pi_process(
     app: AppHandle,
-    child_state: Arc<Mutex<Option<Child>>>,
-    cancelling_state: Arc<Mutex<bool>>,
+    registry: Arc<Mutex<PiProcessRegistry<RunAuthority, Child, ProviderConfig>>>,
+    target: RunTarget,
     prompt: String,
     config: ProviderConfig,
     run_authority: RunAuthority,
     authority: PiProcessEventAuthority,
-    authority_state: Arc<Mutex<Option<PiProcessEventAuthority>>>,
 ) {
     let mirror_mediated = config.invocation_mode == "mirror" && !config.safe_test_mode;
     let command = if config.safe_test_mode {
@@ -2375,8 +2488,7 @@ fn run_pi_process(
                 args.push(path.to_string_lossy().into_owned());
             },
             Err(error) => {
-                emit(&app, &authority, PiProcessEventKind::Error, error);
-                emit(&app, &authority, PiProcessEventKind::Done, "Pi invocation finished.".to_string());
+                fail_pi_process_before_completion(&app, &registry, &target, &authority, error);
                 return;
             }
         }
@@ -2418,8 +2530,7 @@ fn run_pi_process(
         let profile = match active_runtime_channel() {
             Ok(profile) => profile,
             Err(error) => {
-                emit(&app, &authority, PiProcessEventKind::Error, error);
-                emit(&app, &authority, PiProcessEventKind::Done, "Pi invocation finished.".to_string());
+                fail_pi_process_before_completion(&app, &registry, &target, &authority, error);
                 return;
             }
         };
@@ -2429,8 +2540,10 @@ fn run_pi_process(
                 process_command.env("NAUTILUS_TURN_CORRELATION_V1", payload);
             }
             Err(error) => {
-                emit(&app, &authority, PiProcessEventKind::Error, format!("Could not serialize turn correlation: {}", error));
-                emit(&app, &authority, PiProcessEventKind::Done, "Pi invocation finished.".to_string());
+                fail_pi_process_before_completion(
+                    &app, &registry, &target, &authority,
+                    format!("Could not serialize turn correlation: {}", error),
+                );
                 return;
             }
         }
@@ -2448,17 +2561,9 @@ fn run_pi_process(
     {
         Ok(child) => child,
         Err(error) => {
-            emit(
-                &app,
-                &authority,
-                PiProcessEventKind::Error,
+            fail_pi_process_before_completion(
+                &app, &registry, &target, &authority,
                 format!("Could not start local Pi command '{}': {}", command, error),
-            );
-            emit(
-                &app,
-                &authority,
-                PiProcessEventKind::Done,
-                "Pi invocation finished.".to_string(),
             );
             return;
         }
@@ -2515,81 +2620,65 @@ fn run_pi_process(
         })
     });
 
-    if let Ok(mut child_slot) = child_state.lock() {
-        *child_slot = Some(child);
-    } else {
-        emit(
-            &app,
-            &authority,
-            PiProcessEventKind::Error,
-            "Could not track local Pi process.".to_string(),
-        );
-        emit(
-            &app,
-            &authority,
-            PiProcessEventKind::Done,
-            "Pi invocation finished.".to_string(),
-        );
-        return;
-    }
-
-    loop {
-        let wait_result = {
-            let mut child_slot = match child_state.lock() {
-                Ok(child_slot) => child_slot,
-                Err(_) => {
-                    emit(
-                        &app,
-                        &authority,
-                        PiProcessEventKind::Error,
-                        "Could not inspect local Pi process.".to_string(),
-                    );
-                    break;
-                }
-            };
-            match child_slot.as_mut() {
-                Some(child) => child.try_wait(),
-                None => break,
-            }
-        };
-
-        match wait_result {
-            Ok(Some(status)) => {
-                let was_cancelled = cancelling_state
-                    .lock()
-                    .map(|cancelling| *cancelling)
-                    .unwrap_or(false);
-                if !status.success() && !was_cancelled {
-                    emit(
-                        &app,
-                        &authority,
-                        PiProcessEventKind::Error,
-                        format!("Pi command exited with status {}", status),
-                    );
-                }
-                break;
-            }
-            Ok(None) => thread::sleep(Duration::from_millis(50)),
-            Err(error) => {
-                emit(
-                    &app,
-                    &authority,
-                    PiProcessEventKind::Error,
-                    format!("Could not wait for Pi command: {}", error),
-                );
-                break;
-            }
+    let attach_outcome = match registry.lock() {
+        Ok(mut registry) => registry.attach_child(&target, child),
+        Err(_) => {
+            fail_pi_process_before_completion(
+                &app, &registry, &target, &authority,
+                "Could not track local Pi process.".to_string(),
+            );
+            return;
+        }
+    };
+    let attach_outcome = match attach_outcome {
+        Ok(outcome) => outcome,
+        Err(error) => {
+            fail_pi_process_before_completion(
+                &app, &registry, &target, &authority,
+                target_error_message(error),
+            );
+            return;
+        }
+    };
+    if attach_outcome == AttachOutcome::CancelImmediately {
+        let kill_result = registry.lock()
+            .map_err(|_| "Could not access the Pi process registry.".to_string())
+            .and_then(|mut registry| registry.with_child_mut(&target, |child| child.kill()).map_err(target_error_message))
+            .and_then(|result| result.map_err(|error| format!("Could not cancel local Pi invocation: {}", error)));
+        if let Err(error) = kill_result {
+            emit(&app, &authority, PiProcessEventKind::Error, error);
         }
     }
 
-    if let Ok(mut child_slot) = child_state.lock() {
-        *child_slot = None;
-    }
-    if let Ok(mut cancelling) = cancelling_state.lock() {
-        *cancelling = false;
-    }
-    if let Ok(mut authority_slot) = authority_state.lock() {
-        *authority_slot = None;
+    let (terminal_state, terminal_error) = loop {
+        let wait_result = registry.lock()
+            .map_err(|_| "Could not inspect the Pi process registry.".to_string())
+            .and_then(|mut registry| registry.with_child_mut(&target, |child| child.try_wait()).map_err(target_error_message))
+            .and_then(|result| result.map_err(|error| format!("Could not wait for Pi command: {}", error)));
+
+        match wait_result {
+            Ok(Some(status)) => {
+                let was_cancelled = registry.lock()
+                    .ok()
+                    .and_then(|registry| registry.cancellation_requested(&target).ok())
+                    .unwrap_or(false);
+                if was_cancelled {
+                    break (TerminalState::Cancelled, None);
+                }
+                if status.success() {
+                    break (TerminalState::Completed, None);
+                }
+                break (TerminalState::ProcessDied, Some(format!("Pi command exited with status {}", status)));
+            }
+            Ok(None) => thread::sleep(Duration::from_millis(50)),
+            Err(error) => break (TerminalState::ProcessDied, Some(error)),
+        }
+    };
+    let first_terminal = terminalize_pi_process(&registry, &target, terminal_state);
+    if first_terminal {
+        if let Some(error) = terminal_error {
+            emit(&app, &authority, PiProcessEventKind::Error, error);
+        }
     }
 
     if let Some(handle) = stdout_handle {
@@ -2599,7 +2688,7 @@ fn run_pi_process(
         let _ = handle.join();
     }
 
-    if mirror_mediated {
+    if first_terminal && mirror_mediated {
         match read_latest_pi_mirror_commit_events(&run_authority.pi_session_id, &run_authority.correlation) {
             Ok(events) => {
                 for event in events {
@@ -2615,12 +2704,14 @@ fn run_pi_process(
         }
     }
 
-    emit(
-        &app,
-        &authority,
-        PiProcessEventKind::Done,
-        "Pi invocation finished.".to_string(),
-    );
+    if first_terminal {
+        emit(
+            &app,
+            &authority,
+            PiProcessEventKind::Done,
+            "Pi invocation finished.".to_string(),
+        );
+    }
 }
 
 fn remove_provider_session_args(args: Vec<String>) -> Vec<String> {
@@ -3418,6 +3509,8 @@ fn main() {
             append_mirror_outbox_item,
             acknowledge_mirror_append_item,
             cancel_pi_invocation,
+            release_pi_invocation_lease,
+            inspect_pi_invocations,
             retire_legacy_parity_state
         ])
         .build(tauri::generate_context!())

@@ -9,6 +9,10 @@ import {
 } from "./providerConfig";
 import { stripAnsiControlSequences } from "./terminalText";
 import { samePiProcessEventAuthority, type RunAuthority } from "../domain/runAuthority";
+import type {
+  PiInvocationLeaseRelease,
+  PiInvocationRegistryInspection,
+} from "../app/piInvocationOccupancy";
 import {
   piProcessEventDispatcher,
   type PiProcessEvent,
@@ -535,8 +539,19 @@ function extractToolOutput(result: PiJsonEvent["result"]): string | undefined {
   return text === undefined ? undefined : stripAnsiControlSequences(text);
 }
 
-export async function cancelLivePiInvocation(): Promise<void> {
-  await invoke("cancel_pi_invocation");
+export async function cancelLivePiInvocation(journeyId: string, runId: string): Promise<void> {
+  await invoke("cancel_pi_invocation", { journeyId, runId });
+}
+
+export async function inspectPiInvocations(): Promise<PiInvocationRegistryInspection> {
+  return invoke<PiInvocationRegistryInspection>("inspect_pi_invocations");
+}
+
+export async function releasePiInvocationLease(
+  journeyId: string,
+  runId: string,
+): Promise<PiInvocationLeaseRelease> {
+  return invoke<PiInvocationLeaseRelease>("release_pi_invocation_lease", { journeyId, runId });
 }
 
 export type PiSessionContextInspection = {

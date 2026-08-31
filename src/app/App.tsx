@@ -8,8 +8,10 @@ import {
 import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamEvent, type AgentStreamProvider, type TurnCorrelation } from "../agent/agentStream";
 import {
   cancelLivePiInvocation,
+  inspectPiInvocations,
   livePiAgentStream,
   readJourneyPiContextStats,
+  releasePiInvocationLease,
 } from "../agent/piProcessStream";
 import { normalizePiResponse } from "../agent/piResponseNormalizer";
 import { startAgentRun } from "../agent/agentRun";
@@ -38,6 +40,19 @@ import { MessageCopyAction } from "./MessageCopyAction";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
 import { deriveComposerTurnStatus } from "./composerTurnStatus";
+import {
+  applyPiInvocationInspection,
+  beginPiInvocationReconciliation,
+  confirmPiInvocationLeaseRelease,
+  createUnknownPiInvocationOccupancy,
+  failPiInvocationReconciliation,
+  hasBlockingPiInvocationOccupancy,
+  piInvocationAuthorityFromRunAuthority,
+  resolveExactInterruptedRecovery,
+  resolveExactSettlementRecovery,
+  retainExpectedPiInvocationLease,
+  type PiInvocationAuthorityInspection,
+} from "./piInvocationOccupancy";
 import { nextConversationAutoFollow } from "./conversationAutoFollow";
 import { ConversationSyncNotice, LegacyMirrorGapNotice } from "./ConversationSyncNotice";
 import { PendingFileAttachments } from "./PendingFileAttachments";
@@ -301,6 +316,7 @@ export function App({ model }: AppProps) {
     createInitialJourneyRuntimeState,
   );
   const [runStartReservation, setRunStartReservation] = useState<JourneyRunIdentity | undefined>(undefined);
+  const [piInvocationOccupancy, setPiInvocationOccupancy] = useState(createUnknownPiInvocationOccupancy);
   const [piContextState, setPiContextState] = useState<"checking" | "waiting" | "available" | "not_initialized">("checking");
   const [isRetryingMirrorCommit, setIsRetryingMirrorCommit] = useState(false);
   const [mirrorCommitErrors, setMirrorCommitErrors] = useState<Record<string, string | undefined>>({});
@@ -350,6 +366,7 @@ export function App({ model }: AppProps) {
   const journeyRuntimeStateRef = useRef(journeyRuntimeState);
   const conversationLoadCoordinatorRef = useRef(createJourneyConversationLoadCoordinator());
   const runStartReservationRef = useRef<JourneyRunIdentity | undefined>(undefined);
+  const piInvocationInspectionSequenceRef = useRef(0);
   conversationRef.current = conversation;
   selectedJourneyRef.current = selectedJourney;
   journeyRuntimeStateRef.current = journeyRuntimeState;
@@ -406,7 +423,9 @@ export function App({ model }: AppProps) {
     runtimeProjection,
     runtimeProjectionMessageId,
   } = selectedRuntime;
-  const runtimeBusy = Boolean(runStartReservation) || navigationPresentation.runtimeBusy;
+  const runtimeBusy = Boolean(runStartReservation)
+    || navigationPresentation.runtimeBusy
+    || hasBlockingPiInvocationOccupancy(piInvocationOccupancy);
   const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime);
   const mirrorCommitError = navigationPresentation.mirrorCommitError;
   const messages = navigationPresentation.messages;
@@ -437,6 +456,65 @@ export function App({ model }: AppProps) {
     && authoritativeContextStats.providerModel === providerModelLabel(effectiveProviderConfig);
   const reportedContextUsage = contextIdentityMatches ? authoritativeContextStats.usage : undefined;
   const pendingMirrorRepair = useMemo(() => pendingMirrorTurnRepair(conversation), [conversation]);
+  const pendingSettlementRecoveryEvidence: PiInvocationAuthorityInspection | undefined = pendingMirrorRepair
+    && pendingMirrorRepair.correlation.threadId
+    && pendingMirrorRepair.correlation.mirrorConversationId
+    ? {
+        schemaVersion: "0.1.0",
+        journeyId: pendingMirrorRepair.correlation.journeyId,
+        runId: pendingMirrorRepair.correlation.runId,
+        turnId: pendingMirrorRepair.correlation.turnId,
+        threadId: pendingMirrorRepair.correlation.threadId,
+        generation: pendingMirrorRepair.correlation.generation,
+        piSessionId: pendingMirrorRepair.correlation.piSessionId,
+        mirrorConversationId: pendingMirrorRepair.correlation.mirrorConversationId,
+        harnessUserMessageId: pendingMirrorRepair.correlation.harnessUserMessageId,
+        harnessAssistantMessageId: pendingMirrorRepair.correlation.harnessAssistantMessageId,
+      }
+    : undefined;
+  const exactRetainedSettlementRecovery = pendingSettlementRecoveryEvidence
+    ? resolveExactSettlementRecovery(piInvocationOccupancy, selectedJourney, pendingSettlementRecoveryEvidence)
+    : null;
+  const interruptedLeaseCandidate = piInvocationOccupancy.entries.find((entry) => (
+    entry.authority.journeyId === selectedJourney
+    && entry.leasePhase === "finalizing"
+    && entry.terminalState !== "completed"
+  ));
+  const persistedInterruptedTurn = interruptedLeaseCandidate
+    ? conversation.reconciliation.turns.find((turn) => (
+        turn.turnId === interruptedLeaseCandidate.authority.turnId
+        && turn.runId === interruptedLeaseCandidate.authority.runId
+      ))
+    : undefined;
+  const interruptedRecoveryEvidence: PiInvocationAuthorityInspection | undefined = interruptedLeaseCandidate
+    && persistedInterruptedTurn?.runId
+    && persistedInterruptedTurn.harness.userMessageId
+    && persistedInterruptedTurn.harness.assistantMessageId
+    && conversation.journeyId === selectedJourney
+    && conversation.liveIdentity.mirrorConversationId
+    ? {
+        schemaVersion: "0.1.0",
+        journeyId: conversation.journeyId,
+        runId: persistedInterruptedTurn.runId,
+        turnId: persistedInterruptedTurn.turnId,
+        threadId: conversation.liveIdentity.harnessConversationId,
+        generation: conversation.liveIdentity.generation,
+        piSessionId: conversation.liveIdentity.piSessionId,
+        mirrorConversationId: conversation.liveIdentity.mirrorConversationId,
+        harnessUserMessageId: persistedInterruptedTurn.harness.userMessageId,
+        harnessAssistantMessageId: persistedInterruptedTurn.harness.assistantMessageId,
+      }
+    : undefined;
+  const exactInterruptedRecovery = interruptedRecoveryEvidence
+    ? resolveExactInterruptedRecovery(piInvocationOccupancy, selectedJourney, interruptedRecoveryEvidence)
+    : null;
+  const selectedNativeLease = piInvocationOccupancy.entries.find((entry) => (
+    entry.authority.journeyId === selectedJourney
+  ));
+  const retainedLeaseWithoutRecovery = selectedNativeLease
+    && !selectedRuntimeBusy
+    && !exactRetainedSettlementRecovery
+    && !exactInterruptedRecovery;
   const pendingMirrorOutboxItem = mirrorOutboxItems.find((item) => item.itemId === pendingMirrorRepair?.correlation.turnId);
   const pendingMirrorDisposition = pendingMirrorRepair
     ? classifyPendingMirrorAppend(
@@ -478,6 +556,36 @@ export function App({ model }: AppProps) {
   const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading";
   const operationalChatSelected = selectedAltitude === "operational" && selectedOperationalSurface === "chat";
 
+  async function reconcilePiInvocationOccupancy() {
+    const requestId = piInvocationInspectionSequenceRef.current + 1;
+    piInvocationInspectionSequenceRef.current = requestId;
+    setPiInvocationOccupancy((current) => beginPiInvocationReconciliation(current, requestId));
+    try {
+      const inspection = await inspectPiInvocations();
+      setPiInvocationOccupancy((current) => applyPiInvocationInspection(current, requestId, inspection));
+      return inspection;
+    } catch (error) {
+      setPiInvocationOccupancy((current) => failPiInvocationReconciliation(
+        current,
+        requestId,
+        `Could not inspect native Pi invocation occupancy: ${error instanceof Error ? error.message : String(error)}`,
+      ));
+      return undefined;
+    }
+  }
+
+  async function releaseDurablePiInvocationLease(authority: PiInvocationAuthorityInspection) {
+    const release = await releasePiInvocationLease(authority.journeyId, authority.runId);
+    if (
+      release.journeyId !== authority.journeyId
+      || release.runId !== authority.runId
+      || (release.status !== "released" && release.status !== "already_released")
+    ) {
+      throw new Error("Native Pi invocation cleanup returned mismatched authority.");
+    }
+    setPiInvocationOccupancy((current) => confirmPiInvocationLeaseRelease(current, release));
+  }
+
   useEffect(() => {
     void piProcessEventDispatcher.mount().catch((error) => {
       dispatchJourneyRuntime({
@@ -489,6 +597,10 @@ export function App({ model }: AppProps) {
     return () => {
       void piProcessEventDispatcher.dispose();
     };
+  }, []);
+
+  useEffect(() => {
+    void reconcilePiInvocationOccupancy();
   }, []);
 
   useEffect(() => {
@@ -1133,6 +1245,9 @@ export function App({ model }: AppProps) {
     const runtimeIdentity: JourneyRunIdentity = runAuthority
       ? { kind: "live", authority: runAuthority }
       : { kind: "mock", journeyId: selectedJourney, runId: run.id ?? `mock-${assistantMessage.id}` };
+    const invocationAuthority = runAuthority
+      ? piInvocationAuthorityFromRunAuthority(runAuthority)
+      : undefined;
     const provider: AgentStreamProvider = mode === "mock"
       ? mockPiAgentStream
       : (packet) => runAuthority
@@ -1156,6 +1271,9 @@ export function App({ model }: AppProps) {
         setRunStartReservation((current) => current === runtimeIdentity ? undefined : current);
         return;
       }
+    }
+    if (invocationAuthority) {
+      setPiInvocationOccupancy((current) => retainExpectedPiInvocationLease(current, invocationAuthority));
     }
     dispatchJourneyRuntime({
       type: "register",
@@ -1303,6 +1421,9 @@ export function App({ model }: AppProps) {
       dispatchJourneyRuntime({ type: "stream_event", identity: runtimeIdentity, event: { type: "error", message } });
     } finally {
       dispatchJourneyRuntime({ type: "stream_finished", identity: runtimeIdentity });
+      if (invocationAuthority && !(runFailed && !runReachedAgent)) {
+        await reconcilePiInvocationOccupancy();
+      }
       if (runFailed && !runReachedAgent) {
         runConversation = conversationBeforeRun;
         if (selectedJourneyRef.current === ownerJourneyId && conversationRef.current.liveIdentity.generation === ownerGeneration) {
@@ -1312,6 +1433,15 @@ export function App({ model }: AppProps) {
         if (correlation) {
           try {
             await saveDedicatedJourneyConversation(conversationBeforeRun);
+            if (invocationAuthority) {
+              const inspection = await reconcilePiInvocationOccupancy();
+              const exactLease = inspection?.entries.find((entry) => (
+                entry.authority.journeyId === invocationAuthority.journeyId
+                && entry.authority.runId === invocationAuthority.runId
+                && entry.leasePhase === "finalizing"
+              ));
+              if (exactLease) await releaseDurablePiInvocationLease(invocationAuthority);
+            }
           } catch (error) {
             dispatchJourneyRuntime({
               type: "append_warning", journeyId: ownerJourneyId, identity: runtimeIdentity,
@@ -1343,6 +1473,7 @@ export function App({ model }: AppProps) {
         if (correlation) {
           try {
             await saveDedicatedJourneyConversation(interrupted);
+            if (invocationAuthority) await releaseDurablePiInvocationLease(invocationAuthority);
           } catch (error) {
             dispatchJourneyRuntime({
               type: "append_warning", journeyId: ownerJourneyId, identity: runtimeIdentity,
@@ -1376,6 +1507,7 @@ export function App({ model }: AppProps) {
           await saveDedicatedJourneyConversation(settled);
           const outboxItem = createMirrorAppendOutboxItem(settled, correlation);
           await enqueueMirrorAppendItem(outboxItem);
+          if (invocationAuthority) await releaseDurablePiInvocationLease(invocationAuthority);
           const summary: MirrorAppendOutboxSummary = {
             schemaVersion: "1.0.0", itemId: outboxItem.itemId, journeyId: outboxItem.journeyId,
             threadId: outboxItem.threadId, generation: outboxItem.generation,
@@ -1470,8 +1602,9 @@ export function App({ model }: AppProps) {
   }
 
   async function retryPendingMirrorCommit() {
-    if (!pendingMirrorRepair || runtimeBusy || isRetryingMirrorCommit) return;
+    if (!pendingMirrorRepair || (runtimeBusy && !exactRetainedSettlementRecovery) || isRetryingMirrorCommit) return;
     const ownerJourneyId = conversationRef.current.journeyId;
+    if (ownerJourneyId !== selectedJourneyRef.current) return;
     setIsRetryingMirrorCommit(true);
     setJourneyMirrorCommitError(ownerJourneyId, undefined);
     try {
@@ -1487,8 +1620,54 @@ export function App({ model }: AppProps) {
         setMirrorOutboxItems((items) => items.some((candidate) => candidate.itemId === item!.itemId)
           ? items : [...items, item!]);
       }
+      if (exactRetainedSettlementRecovery) {
+        await releaseDurablePiInvocationLease(exactRetainedSettlementRecovery.authority);
+      }
       await retryMirrorAppendSummary(item);
       checkedMirrorTurnRef.current.add(item.itemId);
+    } catch (error) {
+      setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsRetryingMirrorCommit(false);
+    }
+  }
+
+  async function retryInterruptedSettlement() {
+    if (!exactInterruptedRecovery || !interruptedRecoveryEvidence || isRetryingMirrorCommit) return;
+    const ownerJourneyId = selectedJourneyRef.current;
+    if (ownerJourneyId !== interruptedRecoveryEvidence.journeyId) return;
+    const persisted = conversationRef.current;
+    const turn = persisted.reconciliation.turns.find((candidate) => (
+      candidate.turnId === interruptedRecoveryEvidence.turnId
+      && candidate.runId === interruptedRecoveryEvidence.runId
+      && candidate.harness.userMessageId === interruptedRecoveryEvidence.harnessUserMessageId
+      && candidate.harness.assistantMessageId === interruptedRecoveryEvidence.harnessAssistantMessageId
+    ));
+    if (!turn
+      || persisted.liveIdentity.generation !== interruptedRecoveryEvidence.generation
+      || persisted.liveIdentity.piSessionId !== interruptedRecoveryEvidence.piSessionId
+      || persisted.liveIdentity.mirrorConversationId !== interruptedRecoveryEvidence.mirrorConversationId) return;
+
+    setIsRetryingMirrorCommit(true);
+    setJourneyMirrorCommitError(ownerJourneyId, undefined);
+    try {
+      let interrupted = interruptDedicatedTurn(
+        persisted,
+        turn.turnId,
+        exactInterruptedRecovery.terminalState === "cancelled" ? "provider_cancelled" : "provider_failed",
+        new Date().toISOString(),
+      );
+      interrupted = replaceJourneyConversationMessages(
+        interrupted,
+        interrupted.messages.filter((message) => (
+          message.id !== interruptedRecoveryEvidence.harnessAssistantMessageId
+          || message.content.trim().length > 0
+        )),
+      );
+      await saveDedicatedJourneyConversation(interrupted);
+      conversationRef.current = interrupted;
+      setConversation(interrupted);
+      await releaseDurablePiInvocationLease(exactInterruptedRecovery.authority);
     } catch (error) {
       setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
     } finally {
@@ -1503,7 +1682,8 @@ export function App({ model }: AppProps) {
     const identity = selectedRuntime.identity;
 
     try {
-      await cancelLivePiInvocation();
+      if (identity.kind !== "live") throw new Error("Only live Pi invocations have native cancellation authority.");
+      await cancelLivePiInvocation(identity.authority.journeyId, identity.authority.runId);
       dispatchJourneyRuntime({
         type: "cancel_requested",
         identity,
@@ -2332,6 +2512,27 @@ export function App({ model }: AppProps) {
             <section className="dedicated-turn-notice" role="status">
               <strong>Recording the completed turn</strong>
               <p>The next send becomes available after the completed response is durably recorded.</p>
+            </section>
+          ) : null}
+          {piInvocationOccupancy.status !== "known" ? (
+            <section className="dedicated-turn-notice" role="status">
+              <strong>Checking native operation occupancy</strong>
+              <p>{piInvocationOccupancy.diagnostic ?? "Operational actions remain blocked until bounded native inspection completes."}</p>
+            </section>
+          ) : null}
+          {exactInterruptedRecovery && !isStreaming ? (
+            <section className="dedicated-turn-notice" role="alert">
+              <strong>Interrupted turn settlement is retained</strong>
+              <p>The native lease stays occupied until this exact Journey turn is durably marked interrupted.</p>
+              <button type="button" onClick={() => void retryInterruptedSettlement()} disabled={isRetryingMirrorCommit}>
+                {isRetryingMirrorCommit ? "Recovering…" : "Recover interrupted turn"}
+              </button>
+            </section>
+          ) : null}
+          {retainedLeaseWithoutRecovery ? (
+            <section className="dedicated-turn-notice" role="alert">
+              <strong>Native Journey lease retained</strong>
+              <p>Operational actions remain blocked because persisted evidence does not authorize cleanup or recovery for this exact run.</p>
             </section>
           ) : null}
           {legacyMirrorGap && !isStreaming ? <LegacyMirrorGapNotice /> : null}

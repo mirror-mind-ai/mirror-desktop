@@ -40,7 +40,7 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("classifyDedicatedTurnState(conversation, selectedRuntimeBusy)");
     const cancellation = sourceBetween("async function cancelActiveRun", "function requestConversationRestart");
     expect(cancellation).toContain("selectedRuntime.identity");
-    expect(cancellation).toContain("cancelLivePiInvocation()");
+    expect(cancellation).toContain("cancelLivePiInvocation(identity.authority.journeyId, identity.authority.runId)");
   });
 
   it("allows read-only navigation and drafting but keeps operational mutation blocked", () => {
@@ -64,6 +64,18 @@ describe("Journey runtime integration guardrails", () => {
     const preAgentRollback = sourceBetween("if (runFailed && !runReachedAgent)", "} else if (runWasCancelled || runFailed)");
     expect(preAgentRollback).toContain("conversationBeforeRun");
     expect(preAgentRollback).not.toContain('type: "conversation_snapshot"');
+  });
+
+  it("keeps native occupancy authoritative through durable cleanup and exact recovery", () => {
+    expect(appSource).toContain("hasBlockingPiInvocationOccupancy(piInvocationOccupancy)");
+    expect(appSource).toContain("await enqueueMirrorAppendItem(outboxItem);\n          if (invocationAuthority) await releaseDurablePiInvocationLease(invocationAuthority);");
+    expect(appSource).toContain("await saveDedicatedJourneyConversation(interrupted);\n            if (invocationAuthority) await releaseDurablePiInvocationLease(invocationAuthority);");
+    expect(appSource).toContain("runtimeBusy && !exactRetainedSettlementRecovery");
+    expect(appSource).toContain("resolveExactInterruptedRecovery(piInvocationOccupancy");
+    expect(appSource).toContain("await reconcilePiInvocationOccupancy()");
+    expect(streamSource).toContain('invoke("cancel_pi_invocation", { journeyId, runId })');
+    expect(streamSource).toContain('invoke<PiInvocationRegistryInspection>("inspect_pi_invocations")');
+    expect(streamSource).toContain('invoke<PiInvocationLeaseRelease>("release_pi_invocation_lease", { journeyId, runId })');
   });
 
   it("mounts the shared dispatcher once and leaves mock streaming Tauri-free", () => {
