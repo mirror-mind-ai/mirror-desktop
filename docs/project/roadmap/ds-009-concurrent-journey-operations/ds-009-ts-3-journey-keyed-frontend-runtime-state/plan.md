@@ -60,11 +60,13 @@ Extract the `nautilus-pi-process` subscription from `livePiAgentStream()` into a
 - register and remove authority-bound run routes without adding listeners;
 - keep mapping state isolated per registered run;
 - map accepted raw process events into stream events only for the matching route;
-- close the matching route on terminal completion without affecting other Journey entries;
+- keep the matching route open through `run_status: completed`, `error` and `cancelled` stream events;
+- close the matching route only after receiving and delivering the authority-matching native `PiProcessEvent.kind === "done"`, so post-`agent_end` context, compaction and Mirror evidence emitted before native `done` cannot be lost;
+- close no other Journey route when native `done` arrives;
 - tolerate React remount/unmount without duplicate listeners or delivery after disposal; and
 - expose dependency-injected listener/dispatch seams for deterministic tests.
 
-`livePiAgentStream()` remains the invocation adapter and async stream surface, but consumes an authority-bound route from the central dispatcher instead of calling Tauri `listen` itself. Invocation validation and `start_pi_invocation(prompt, config, runAuthority)` remain unchanged. The mock stream must remain Tauri-free and must not register with the process-event dispatcher.
+`livePiAgentStream()` remains the invocation adapter and async stream surface, but consumes an authority-bound route from the central dispatcher instead of calling Tauri `listen` itself. It must complete authority-route registration before calling `start_pi_invocation(prompt, config, runAuthority)`. This ordering is a hard start barrier: an event emitted immediately by the native invocation must find the registered route, and registration failure must prevent `start_pi_invocation` from being called. Once invocation begins, `run_status: completed`, `error` and `cancelled` may update run presentation but may not release the route or end stream consumption; only the matching native `done` closes that route. The mock stream must remain Tauri-free and must not register with the process-event dispatcher.
 
 ### 4. App integration under serial execution
 
@@ -124,6 +126,21 @@ And remount does not duplicate event delivery.
 ```
 
 ```text
+Given an authority route receives agent_end, error or cancelled-derived stream state
+When post-processing context, compaction or Mirror evidence arrives before native done
+Then the route remains open and delivers that evidence
+And only an authority-matching PiProcessEvent.kind === "done" closes the route.
+```
+
+```text
+Given livePiAgentStream is ready to start a native invocation
+When route registration succeeds
+Then registration completes before start_pi_invocation is called
+And an immediately emitted started event is delivered
+But when registration fails, start_pi_invocation is not called.
+```
+
+```text
 Given backend execution remains globally serial
 When any Journey entry is active or finalizing
 Then a second invocation remains blocked across the app
@@ -134,8 +151,8 @@ And the native cancellation and process contracts remain unchanged.
 
 1. Add characterization tests for current stream mapping, listener ownership and global runtime fields before refactoring.
 2. TDD the Journey-keyed runtime reducer and selectors, including authority replacement, stale quarantine and safe cleanup.
-3. TDD the dependency-injected central dispatcher lifecycle and per-route mapping-state isolation.
-4. Refactor `livePiAgentStream()` to register one authority-bound dispatcher route while leaving mock execution independent of Tauri.
+3. TDD the dependency-injected central dispatcher lifecycle, per-route mapping-state isolation and native-`done`-only route closure.
+4. Refactor `livePiAgentStream()` to complete authority-route registration before native invocation, keep the route open until matching native `done`, and leave mock execution independent of Tauri.
 5. Integrate the keyed reducer/selectors into `App.tsx`, first preserving global capacity guards, then moving selected presentation reads and captured-owner callback writes.
 6. Add regression tests proving selected presentation cannot become mutation authority and stale diagnostics cannot leak into a replacement run.
 7. Run the story validation matrix and inspect the diff for native, sibling-story and RS015 changes.
@@ -171,6 +188,8 @@ A new automated desktop E2E is **not required** for this technical story. Pure r
 - **Async closures can still target the loaded conversation.** Capture owner authority/conversation identity at registration and route all callback actions through it; retain generation checks for durable updates.
 - **Late stderr can poison a replacement run.** Validate raw event authority before mapping stderr to warning/diagnostic and keep quarantine structurally separate.
 - **React lifecycle can duplicate listeners.** Make dispatcher mount/dispose idempotent and assert exact listen/unlisten counts across remount fixtures.
+- **Stream-level terminal state can close a route too early.** Treat only matching native `PiProcessEvent.kind === "done"` as route closure; test post-`agent_end`, error and cancellation evidence delivery.
+- **Native invocation can race route registration.** Await registration before invocation and test an immediate `started` emission plus fail-closed registration errors.
 - **Terminal cleanup can erase finalization state.** Separate process terminal state from frontend finalization and require authority match plus inactive/non-finalizing eligibility before pruning.
 - **The refactor may drift into US-1.** Preserve the active/finalizing selection guard and validate selection independence only through pure fixtures.
 

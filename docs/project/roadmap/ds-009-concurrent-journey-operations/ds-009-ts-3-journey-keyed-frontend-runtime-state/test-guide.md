@@ -36,11 +36,13 @@ Add dependency-injected dispatcher tests covering:
 3. Matching raw events reach exactly one route and use mapping state isolated to that run.
 4. Missing, unknown and divergent event authority is rejected before stdout/stderr mapping.
 5. Rejected stderr never becomes a warning or diagnostic on the current route.
-6. A terminal event closes only its matching route.
-7. Removing A1 after A2 registration cannot remove or close A2.
-8. Dispose calls `unlisten` exactly once, prevents later delivery and is safe when repeated.
-9. Remount creates one fresh listener without duplicate delivery from the disposed instance.
-10. Listener-attachment failure yields the existing bounded error path without starting an uncorrelated run.
+6. `run_status: completed` derived from `agent_end` does not close the route; context, compaction and Mirror evidence emitted afterward remain deliverable.
+7. `error` and `cancelled` stream events update the matching run but do not close its route.
+8. Only an authority-matching native `PiProcessEvent.kind === "done"` closes the matching route, after `done` has been delivered; divergent or stale native `done` cannot close a current/replacement route.
+9. Removing A1 after A2 registration cannot remove or close A2.
+10. Dispose calls `unlisten` exactly once, prevents later delivery and is safe when repeated.
+11. Remount creates one fresh listener without duplicate delivery from the disposed instance.
+12. Listener-attachment or route-registration failure yields the existing bounded error path without starting an uncorrelated run.
 
 Expected suite: a new focused test such as `src/tests/piProcessEventDispatcher.test.ts` and compatible updates to `src/tests/piProcessStream.test.ts`.
 
@@ -49,9 +51,11 @@ Expected suite: a new focused test such as `src/tests/piProcessEventDispatcher.t
 Retain or add tests proving:
 
 - `livePiAgentStream()` validates provider configuration and invokes `start_pi_invocation` with `prompt`, `config` and the original immutable `runAuthority`;
-- it registers an authority route with the shared dispatcher rather than importing/calling Tauri `listen` per invocation;
-- route registration is released in success, invoke failure, cancellation and generator cleanup paths;
-- event mapping still preserves ordered reasoning, operations, compaction, context usage and terminal semantics;
+- it awaits successful authority-route registration with the shared dispatcher before calling `start_pi_invocation`, rather than importing/calling Tauri `listen` per invocation;
+- a test invocation that emits `started` immediately from the `start_pi_invocation` mock delivers that event through the already-registered route, proving no initial event is lost;
+- route-registration failure prevents `start_pi_invocation` from being called;
+- after invocation starts, neither `run_status: completed`, `error`, `cancelled` nor generator-side terminal reduction releases the route; release occurs only after matching native `PiProcessEvent.kind === "done"` (or whole-dispatcher disposal on app unmount);
+- event mapping still preserves ordered reasoning, operations, post-`agent_end` compaction/context/Mirror evidence and terminal semantics;
 - `mockPiAgentStream` remains Tauri-free; and
 - `cancelLivePiInvocation()` and `cancel_pi_invocation` remain unchanged and untargeted in TS-3.
 
@@ -122,7 +126,10 @@ Listener lifecycle fixture:
 ```text
 mount dispatcher
 register A1
-close A1
+emit agent_end, post-processing evidence, error and cancelled
+assert A1 route remains open and evidence is delivered
+emit matching native done
+assert A1 route closes after done delivery
 register A2
 assert listen count = 1
 dispose twice
@@ -140,6 +147,8 @@ assert total active listeners = 1
    - selected presentation switched to Journey B while A receives matching events;
    - stale A1 stderr/terminal/cleanup rejected after A2 replacement;
    - one listener across route registration/replacement;
+   - route closure only on matching native `done`, with post-`agent_end` evidence preserved;
+   - route registration completing before invocation, including immediate `started` delivery and fail-closed registration failure;
    - active/finalizing cleanup preservation; and
    - aggregate serial guard remaining active.
 3. Review the implementation diff to confirm no backend registry, capacity, directed cancellation, navigation enablement or RS015 change.
