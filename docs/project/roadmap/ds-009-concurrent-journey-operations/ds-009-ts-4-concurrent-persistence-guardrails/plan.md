@@ -2,9 +2,9 @@
 
 ## Objective
 
-Harden Journey-scoped settlement and persistence while production remains globally serial at capacity 1. Every transcript lookup, projection mutation, durable save, outbox item, Mirror append receipt and acknowledgement must be authorized by the immutable `RunAuthority` captured at start. Finalization must serialize per Journey, reject stale run/generation work after every asynchronous boundary, release the native Journey lease only after durable projection plus durable outbox enqueue, and recover from persisted projection/outbox evidence without using the selected Journey or dead child handles.
+Harden Journey-scoped settlement and persistence while production remains globally serial at capacity 1. Every transcript lookup, projection mutation, durable save, outbox item, Mirror append receipt and acknowledgement must be authorized by the immutable `RunAuthority` captured at start. Finalization must serialize per Journey, apply phase-specific stale run/generation validation, release the native Journey lease only after durable projection plus durable outbox enqueue, and recover from persisted projection/outbox evidence without using the selected Journey or dead child handles.
 
-TS-4 establishes the persistence safety prerequisite for later concurrency. It does not enable overlap. US-2 alone may later raise production capacity to 2, and US-3 remains responsible for cancellation and settlement behavior under real concurrent execution.
+TS-4 establishes the persistence safety prerequisite for later concurrency. It permits and requires one narrow overlap after the durable frontier: once the old run's exact projection and outbox item are durable and its exact lease cleanup/reinspection reports free, one new serial Pi run may start while the old run's model-free append/receipt-save/ack remains pending or resumes. At most one Pi child and one active provider execution exist globally. TS-4 does not permit pre-frontier overlap or capacity 2. US-2 alone may later raise production capacity to 2, and US-3 remains responsible for cancellation and settlement behavior under real concurrent provider execution.
 
 ## Current-State Characterization
 
@@ -60,9 +60,15 @@ Any mismatch is stale or contradictory authority. It fails closed before write, 
 
 Background A completion while B is selected must use A's captured authority and A's captured/run-owned projection. Selection checks may update visible React state only after exact owner/generation comparison. No persistence helper may accept the selected Journey as a fallback.
 
-### Authority survives asynchronous boundaries
+### Authority survives asynchronous boundaries by phase
 
-Every continuation after transcript load, save, enqueue, cleanup, append, receipt application or acknowledgement must revalidate that the queued settlement still matches the current persisted generation/run evidence. A stale callback must terminate without mutating a replacement, without clearing its diagnostic and without releasing its lease.
+Revalidation is phase-specific rather than a generic active-generation check:
+
+- **Pre-frontier:** transcript lookup, projection construction, the initial durable settlement save, outbox creation and outbox enqueue require `RunAuthority` to still match the active thread generation and exact current persisted turn/run. Rollover or replacement before durable enqueue stops the continuation without a later write, enqueue or cleanup.
+- **Post-frontier:** after the exact generation-scoped projection and exact outbox item are both durable, append, receipt application, Mirror-committed projection save and acknowledgement may complete for that now-inactive original generation. These phases revalidate exact projection/outbox authority, not current active-generation ownership.
+- **Replacement isolation:** post-frontier recovery never writes the active replacement generation, never releases or cleans its lease, never removes its outbox item and never attaches a stale diagnostic to current state.
+
+Every continuation after an await validates the evidence required by its current phase. A stale pre-frontier callback terminates. An exact post-frontier callback may continue only inside its original generation-scoped projection/outbox boundary.
 
 ## Per-Journey Serialization Model
 
@@ -71,36 +77,42 @@ Every continuation after transcript load, save, enqueue, cleanup, append, receip
 Add a dependency-injected keyed coordinator, preferably in `src/app/journeySettlement.ts` or a focused `journeyPersistenceCoordinator.ts`:
 
 ```text
-serialize(journeyId, authority, operation)
-  queue operations FIFO for that Journey
+serializePersistencePhase(journeyId, authority, phase, operation)
+  queue persistence/finalization phases FIFO for that Journey
   allow independent Journey queues by construction
+  never hold provider child admission or lifetime in the queue
   expose no global selected-Journey dependency
   release queue bookkeeping in finally
-  reject stale authority before and after each awaited dependency
+  apply pre-frontier or post-frontier validation for the named phase
 ```
 
-The coordinator must use deferred Promises/barriers in tests, never timing sleeps. It serializes initial completion, retained recovery, interrupted save, append retry and acknowledgement for the same Journey. Repeated requests for the exact turn either join the in-flight operation or converge idempotently; they do not execute conflicting writes.
+The coordinator must use deferred Promises/barriers in tests, never timing sleeps. It serializes initial completion, retained recovery, interrupted save, post-frontier append/receipt-save/ack retry and later settlement for the same Journey. Repeated requests for the exact turn either join the in-flight phase or converge idempotently; they do not execute conflicting writes.
 
-Production capacity remains 1, so cross-Journey finalization overlap is not exercised in the app. Pure tests may prove independent keyed queues without starting processes or changing the native limit.
+The queue governs persistence/finalization phases, not provider execution. A2 may start after A1 cleanup even while an A1 post-frontier phase is pending. If A2 later reaches settlement, the same-Journey queue orders that settlement against A1 recovery so neither can retarget the other's generation. Cross-Journey queues remain independent.
+
+Production capacity remains 1. Required post-frontier overlap may occur in the app: one new serial Pi child may execute after the old lease is released while the old run's model-free persistence recovery remains pending. Cross-Journey keyed queues isolate A's post-frontier recovery from B's run/settlement. Pure deterministic tests prove both same-Journey ordering and cross-Journey isolation without ever starting two children or changing the native limit.
 
 ### Native durable projection save
 
-Harden the native projection boundary so commands for the same `journeyId + generation` cannot race the fixed staging path:
+Harden the native projection boundary so commands for the same `journeyId + generation` cannot race the fixed staging path. The save contract must distinguish two explicit modes without creating authority independent of `RunAuthority` and the durable outbox:
 
-- introduce a bounded keyed persistence lock/state or an equivalent exact per-Journey/generation serialization primitive;
-- validate the payload against the supplied settlement authority for settlement writes;
-- compare active thread/generation and persisted turn/run authority while holding the keyed write boundary;
-- reject inactive/replaced generation or conflicting run evidence;
+- **Active pre-frontier settlement save:** validates the supplied start-captured authority, active thread generation and exact current persisted turn/run while holding the keyed write boundary. Inactive/replaced generation or conflicting run evidence rejects before write.
+- **Generation-scoped post-frontier receipt save:** accepts only the exact inactive-or-active generation file proven by the already-durable matching projection and outbox item. It may write only that generation's Mirror-committed projection; it does not require the old generation to remain active and cannot target the active replacement.
+
+Both modes:
+
+- use a bounded keyed persistence lock/state or equivalent exact per-Journey/generation serialization primitive;
+- validate payload, mode and phase evidence before replacing bytes;
 - write a unique bounded staged sibling, `sync_all` the file, rename atomically and `sync_all` the parent directory before reporting success; and
-- keep non-settlement lifecycle saves explicit and unable to masquerade as settlement authorization.
+- keep non-settlement lifecycle saves explicit and unable to masquerade as either settlement mode.
 
 The frontend queue defines logical ordering; the native keyed boundary and persisted authority protect against remount, duplicate command and stale asynchronous callers.
 
 ### Outbox and append serialization
 
-The shared outbox file remains protected by native atomic serialization. Journey settlement coordination ensures same-Journey save/enqueue/append/ack order. A global outbox-file lock may remain as a file-integrity implementation detail; it must not become Journey ownership authority.
+The shared outbox file remains protected by native atomic serialization. Journey settlement coordination ensures same-Journey save/enqueue/append/ack order. A global outbox-file lock may remain as a file-integrity implementation detail; it must not become Journey ownership authority and must be held only for bounded local read/write/rename work, never across the remote Mirror append. A pending A append cannot prevent B from durably enqueueing its exact outbox item.
 
-Append and acknowledgement occur only from a durable exact outbox item. They may remain pending after lease release and are retried per Journey without starting a provider or blocking a new invocation.
+Append and acknowledgement occur only from a durable exact outbox item. They may remain pending after lease release and are retried per Journey without starting a provider. Once exact cleanup/reinspection reports free, they must not block the next serial invocation: one new child may run while the prior run's model-free post-frontier recovery remains pending.
 
 ## Lease Release Boundary
 
@@ -124,7 +136,7 @@ save exact Mirror-committed projection
 acknowledge exact outbox item idempotently
 ```
 
-Durable projection plus successful durable enqueue is the release frontier. Append and acknowledgement are downstream recoverable work and must not retain native occupancy after enqueue.
+Durable projection plus successful durable enqueue is the **lease-release authorization frontier**. Exact cleanup plus fresh reinspection is the **next-run admission frontier**. Append and acknowledgement are downstream recoverable work and must not retain native occupancy after cleanup/reinspection.
 
 ### Failure behavior
 
@@ -160,7 +172,9 @@ Use a bounded typed acknowledgement result rather than inferring success from mi
 
 ### Rollover and replacement
 
-Before every write phase, compare authority to the active thread generation and exact persisted turn. After generation rollover, inactive A1 may finish only already-durable append/ack recovery when its generation-scoped projection and outbox item still match; it cannot overwrite the active generation, stage work or release A2. A stale callback for replaced run A1 is a no-op/fail-closed result with no current-run diagnostic mutation.
+Before the durable frontier, compare authority to the active thread generation and exact current persisted turn/run before and after every await. If A1 rolls over or is replaced before enqueue completes, A1 performs no subsequent initial save, enqueue or cleanup.
+
+After the durable frontier, inactive A1 may finish exact append, receipt application, generation-1 Mirror-committed projection save and acknowledgement when its generation-scoped projection and outbox item match. This post-frontier recovery does not require generation 1 to remain active. It cannot write generation 2, overwrite A2, release A2's lease, remove A2/B outbox items or attach A1 diagnostics to current state.
 
 ## Remount, Reload and Restart Recovery
 
@@ -218,14 +232,14 @@ Exact file placement may change, but only TS-4 responsibilities may change. `src
 1. Add failing authority-fixture tests proving A settles while B is selected and every destination comes from A's `RunAuthority`.
 2. Introduce the immutable settlement context and replace correlation-only settlement dependencies with exact authority-bound dependencies.
 3. Add a deterministic per-Journey queue with deferred barriers; route initial completion, retry and interrupted settlement through it.
-4. TDD native per-Journey/generation projection serialization, durable fsync/rename and stale generation/run rejection.
-5. TDD exact outbox creation/enqueue validation and the durable enqueue release frontier.
-6. Decouple post-enqueue append/receipt-save/ack from lease occupancy while preserving exact retry handles.
+4. TDD native per-Journey/generation projection serialization, durable fsync/rename and distinct active pre-frontier versus generation-scoped post-frontier save modes.
+5. TDD exact outbox creation/enqueue validation, pre-frontier rollover rejection and the durable enqueue release frontier.
+6. Decouple post-enqueue append/receipt-save/ack from lease occupancy while preserving exact retry handles and permitting one later serial run after cleanup.
 7. Make `existing` receipt application and acknowledgement explicitly idempotent.
 8. Harden dispatcher remount/reload reconciliation and exact route rehydration without duplicate listeners.
 9. Add startup recovery from projection/outbox evidence and fail-closed missing-handle diagnostics without child restoration.
 10. Run focused suites, full frontend/build, stable and development-channel Rust suites, Markdown links, scope checks and `git diff --check`.
-11. Perform only a sequential Nautilus Harness Dev smoke if Validation later requires it; never admit overlap or capacity 2 during TS-4.
+11. Perform only a child-serial Nautilus Harness Dev smoke if Validation later requires it: never admit two children or capacity 2, but allow a later serial run after cleanup while prior model-free post-frontier recovery remains pending when that state occurs naturally.
 
 ## Acceptance Behavior
 
@@ -247,7 +261,14 @@ And a stale run or generation is rejected before every side effect.
 Given exact projection save and durable outbox enqueue succeed
 When append or acknowledgement remains pending
 Then exact lease cleanup and fresh inspection may release occupancy
-And the pending outbox remains the model-free recovery handle for later retry.
+And one later serial run may start while the pending outbox remains the model-free recovery handle.
+```
+
+```text
+Given A1's exact generation-1 projection and outbox are durable and generation 2 becomes active
+When A1 append, receipt-save and acknowledgement resume
+Then they complete only generation 1 from exact projection/outbox authority
+And never mutate generation 2 projection, diagnostics, lease or outbox items.
 ```
 
 ```text
@@ -287,22 +308,22 @@ And forced cleanup, restart and new staging remain unavailable.
 
 ## Validation Route
 
-Deterministic tests are authoritative for ordering, stale callbacks, failures, remount races, restart classification and byte-for-byte isolation. Use deferred Promises, barriers, fakes and temporary files; do not use timing sleeps or real Pi processes for race tests.
+Deterministic tests are authoritative for phase-specific rollover, pre-frontier ordering, post-frontier overlap, stale callbacks, failures, remount races, restart classification and byte-for-byte isolation. Use deferred Promises, barriers, fakes and temporary files; do not use timing sleeps or real Pi processes for race tests.
 
-A later supplementary smoke, if required at Validation, uses only **Nautilus Harness Dev**, disposable development Journeys and sequential invocations. It confirms A can complete while B is selected, B remains unchanged, durable enqueue releases A before append/ack retry, and restart/reload recovery remains model-free. Stable stays closed. No simultaneous process, capacity 2, forced production failure, retained-lease fabrication, promotion, release or deploy is authorized.
+A later supplementary smoke, if required at Validation, uses only **Nautilus Harness Dev**, disposable development Journeys and child-serial invocations. It confirms A can complete while B is selected, B remains unchanged, and durable enqueue plus exact cleanup releases A before any later run starts. Do not force append failure, corrupt persistence or fabricate a retained lease. If a pending append occurs naturally, one later serial run may start only after cleanup/reinspection while A's model-free post-frontier recovery continues. Stable stays closed. No two children, capacity 2, forced production failure, promotion, release or deploy is authorized.
 
-Expected observation: settlement remains serial and owner-correct; append/ack may continue recoverably after occupancy release; missing durable recovery evidence remains visibly blocked; reload/restart creates no duplicate listener or phantom run.
+Expected observation: pre-frontier settlement remains active-owner-correct; post-frontier append/ack may overlap one later serial child without retargeting; missing durable recovery evidence remains visibly blocked; reload/restart creates no duplicate listener or phantom run.
 
 Pass condition: the matrix in `test-guide.md`, full frontend/build and both Rust channel suites pass; production capacity is exactly 1; scope contains no US-2, US-3 or RS015 change; and no selected-Journey persistence authority remains.
 
-Fail condition: B changes during A settlement; stale work writes or releases a replacement; cleanup precedes durable projection/enqueue; append/ack pending retains occupancy; enqueue failure releases occupancy; receipt/ack repetition corrupts checkpoints; remount duplicates listeners; restart restores a dead child; inspection/recovery leaks private data; or capacity/overlap changes.
+Fail condition: B changes during A settlement; pre-frontier stale work writes; post-frontier work touches a replacement; cleanup precedes durable projection/enqueue; append/ack pending retains occupancy after exact cleanup; a later run starts before cleanup; two children exist; enqueue failure releases occupancy; receipt/ack repetition corrupts checkpoints; remount duplicates listeners; restart restores a dead child; inspection/recovery leaks private data; or capacity changes.
 
 ## Non-Goals and Boundaries
 
 - Do not change persisted `TurnCorrelation` schema `0.2.0` or redesign `RunAuthority`.
 - Do not change correlated `PiProcessEvent` authority or expose private `piSessionFile` in events/inspection.
 - Do not raise `PRODUCTION_PI_PROCESS_LIMIT`; it remains exactly 1 for all TS-4 implementation and validation.
-- Do not start two real processes, enable process/finalization overlap or validate capacity 2.
+- Do not start two Pi children, overlap a new run with pre-frontier settlement, or validate capacity 2. Post-frontier model-free persistence recovery overlapping one later serial child after exact cleanup is explicitly required.
 - Do not implement US-2. US-2 is the only later story authorized to raise capacity to 2 after TS-4 passes.
 - Do not implement US-3. US-3 owns cancel/failure/settlement behavior under real concurrency.
 - Do not change RS015, provider settings, imported conversation reconciliation, Mirror append primitives, stable promotion, release or deployment.
@@ -317,7 +338,7 @@ Fail condition: B changes during A settlement; stale work writes or releases a r
 - **Post-enqueue append failure may re-block occupancy.** Separate lease release status from Mirror commit diagnostics and retain only the durable outbox retry.
 - **Repeated `existing` receipts may increment checkpoints twice.** Detect exact already-committed evidence and return the projection unchanged.
 - **Repeated acknowledgement currently looks like missing item.** Prove exact committed projection before returning `already_acknowledged`; contradictory absence remains an error.
-- **Generation rollover may allow an old save.** Validate active/persisted authority before and after queue waits and inside the native keyed boundary.
+- **Generation rollover may allow the wrong phase to write.** Require active generation/current run for pre-frontier saves; require exact durable projection/outbox proof for post-frontier receipt saves; never let either mode target the replacement.
 - **Remount may leave an old listener pending.** Keep lifecycle epochs, one listener promise and idempotent disposal; race with deterministic deferred attachment.
 - **Inspection identifies a lease but not recovery content.** Join with exact persisted projection/outbox evidence; otherwise fail closed with a bounded reason.
 - **Restart recovery may infer liveness from persistence.** Explicitly classify native registry as empty after restart and resume persistence only.
@@ -327,7 +348,7 @@ Fail condition: B changes during A settlement; stale work writes or releases a r
 
 Stop planning/implementation and return to the Navigator if any of these becomes necessary:
 
-- production capacity above 1, simultaneous Pi children or process/finalization overlap;
+- production capacity above 1, simultaneous Pi children, a new run before the old projection/enqueue/cleanup frontier, or two active provider executions;
 - a `TurnCorrelation` schema change or `RunAuthority` redesign;
 - deriving any persistence target from selected Journey or mutable visible conversation state;
 - releasing a completed lease without both durable projection and durable outbox enqueue;
@@ -346,6 +367,8 @@ Stop planning/implementation and return to the Navigator if any of these becomes
 - Use start-captured authority for every settlement and persistence dependency.
 - Keep child capacity and Journey finalization lease separate.
 - Preserve the release frontier: durable projection plus durable outbox enqueue.
+- Require active generation/current run before the frontier and exact generation-scoped projection/outbox authority after it.
+- Permit one later serial child after cleanup while prior model-free post-frontier recovery remains pending.
 - Stage only TS-4 implementation and lifecycle files; do not use `git add .`.
 - Use descriptive English commits explaining why.
 - Do not implement until the Navigator explicitly approves this `after_plan` checkpoint through Ariad.
