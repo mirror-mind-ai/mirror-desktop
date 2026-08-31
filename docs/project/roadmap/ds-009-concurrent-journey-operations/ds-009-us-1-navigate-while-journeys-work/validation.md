@@ -110,6 +110,28 @@ External evidence:
 - `/tmp/us1-assisted-production-db-before.json`
 - `/tmp/us1-assisted-production-db-after.json`
 
+## Attentive Human Pointer Attempt
+
+A fifth attempt used new disposable Journeys `US1 Attentive A 0831` and `US1 Attentive B 0831`, Tree view, exactly one invocation in A, and an attentive human pointer gesture during occupancy. The physical click selected B while A was `Working`; immediate observation confirmed header B, B's own empty conversation, no A runtime content or cancel, disabled Send and attachments, and A still marked `Working`.
+
+The high-frequency observer then captured `US1 Attentive A 0831 is recording the completed turn` with header `US1 Attentive B 0831`, followed by `IDLE` while B remained selected. A settled with exactly one user/assistant pair and one turn classified `in_sync`, states `committed/committed/committed`, empty reason codes, and no failure or interruption. This proves the product pointer route and Recording ownership while B is selected; previous physical AX click failures were validation-harness delivery limitations.
+
+Keyboard B → A was not exercised. AX focus was assigned to A without first reactivating the Dev window; the subsequent synthetic text/Enter was delivered to the coding conversation instead of Nautilus. The mistake was detected, no keyboard result was claimed, and no second invocation occurred.
+
+Stable remained byte-for-byte identical at 472 entries and SHA-256 `1a98660e5439d860488c9b30e5be0dbbdbb5e5f66253e0e60424650f2b2a7d2d`. With conversation logging muted before the baseline, the production Mirror database also remained exact at size `93020160` and mtime `1788188050837066459` ns.
+
+External evidence:
+
+- `/tmp/us1-attentive-ready.png`
+- `/tmp/us1-attentive-human-B.png`
+- `/tmp/us1-attentive-after-human-b.txt`
+- `/tmp/us1-attentive-phases.log`
+- `/tmp/us1-attentive-recording.png`
+- `/tmp/us1-attentive-stable-before.json`
+- `/tmp/us1-attentive-stable-after.json`
+- `/tmp/us1-attentive-production-db-before.json`
+- `/tmp/us1-attentive-production-db-after.json`
+
 ## Navigator Validation
 
 Route: Blocked pending a clean repeat exclusively in Nautilus Harness Dev. Close stable first, establish a stable app-data baseline, use two fresh disposable Journeys and exactly one invocation, then capture A → B → A during Working and Recording.
