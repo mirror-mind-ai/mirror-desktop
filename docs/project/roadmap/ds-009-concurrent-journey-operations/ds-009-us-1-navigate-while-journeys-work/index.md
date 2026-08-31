@@ -2,7 +2,7 @@
 
 # DS-009.US-1 — Navigate While Journeys Work
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 **Order:** 3 of 7
 **Concurrency:** serial only

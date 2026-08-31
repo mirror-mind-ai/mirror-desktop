@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked
+Passed
 
 ## Automated Checks
 
@@ -159,20 +159,36 @@ External evidence:
 - `/tmp/us1-keyboard-production-db-before.json`
 - `/tmp/us1-keyboard-production-db-after.json`
 
+## Production Mirror DB Forensic Attribution
+
+A read-only forensic analysis covered `2026-08-31T15:35:28Z` through `2026-08-31T15:50:04Z`. The only writes attributable in that interval were eight messages from conversation `8a5008b2`, interface `pi`, journey `nautilus-harness`. The first message was written at `2026-08-31T15:43:55.997554Z`, the last at `2026-08-31T15:50:03.036221Z`, and the observed database mtime was `2026-08-31T15:50:03.057933Z`. No `runtime_session` update with interface `nautilus_harness` occurred in the interval. The same correlation recurred later between a Pi message at `2026-08-31T15:57:11.343928Z` and the database mtime at `15:57:11Z`.
+
+The production `memory.db` mtime divergence was therefore caused by the Pi session coordinating validation, not Nautilus Harness Dev. The Dev process remained certified against the development channel, bundle/app-data `com.nautilus.harness.dev`, and Mirror Dev coordinates. Stable app-data remained byte-for-byte identical.
+
+Absolute size/mtime equality is not a valid isolation criterion for a database shared with other authorized writers. Isolation evidence must instead attribute writes by interface, session and affected rows while also certifying the active Dev process coordinates. The reported `MUTED` state did not prevent the coordinating Pi session's writes; this is an external Mirror logging/infrastructure observation for separate investigation, not functional debt in DS-009.US-1.
+
 ## Navigator Validation
 
-Route: Blocked pending a clean repeat exclusively in Nautilus Harness Dev. Close stable first, establish a stable app-data baseline, use two fresh disposable Journeys and exactly one invocation, then capture A → B → A during Working and Recording.
+Route: Navigator directly performed and observed the complete DEV-only A → B → A → B route and accepted the read-only forensic attribution; no smoke repetition is required.
 
-Navigator accepted: no
+Navigator accepted: yes
 
-Expected observation: A alone shows Working then Recording; B stays presentation-clean and draft-editable while all submissions and mutations remain blocked; owner-only cancel; A restores one current correlated turn without provider_interrupted, blanks, duplicates, or a second run.
+Expected observation: A alone shows Working then Recording; B remains presentation-clean and draft-editable with submissions and mutations blocked; cancel is owner-only; returning to A restores its current correlated snapshot and exactly one settled turn.
 
-Pass condition: All approved US-1 Dev smoke observations pass without opening or mutating stable.
+Pass condition: The complete route passes with exactly one invocation, no cross-Journey leak or mutation, no provider_interrupted, blank, duplicate, failure, or second run, stable app-data unchanged, and no production write attributable to interface `nautilus_harness`.
 
-Fail condition: Any cross-Journey leak, mutation availability, missing owner snapshot, provider_interrupted recovery, duplicate or blank turn, second invocation, or stable-channel interaction.
+Fail condition: Any cross-Journey leak, mutation availability, missing owner snapshot, provider_interrupted recovery, duplicate or blank turn, second invocation, stable-channel interaction, or production write attributable to interface `nautilus_harness`.
 
 ## Missing Evidence
 
-- Navigator validation has not been accepted
-- Required Recording observation was not directly captured
-- Stable-channel isolation fail condition occurred; a clean DEV-only rerun is required
+- none
+
+## Resolved Evidence
+
+- Recording was captured directly by the 5 ms AX observer.
+- Pointer A → B was proven by a human physical gesture during `Working`.
+- Keyboard B → A was proven by a human Enter gesture during `Working`.
+- Recording for A was captured while B remained selected.
+- The complete route passed with exactly one invocation and one settled turn.
+- Stable app-data remained byte-for-byte identical.
+- The production database mtime divergence was diagnosed and attributed to the external Pi logger, with no `nautilus_harness` runtime-session update in the forensic window.
