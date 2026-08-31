@@ -132,6 +132,33 @@ External evidence:
 - `/tmp/us1-attentive-production-db-before.json`
 - `/tmp/us1-attentive-production-db-after.json`
 
+## Complete Human Navigation with Production Isolation Divergence
+
+A sixth controlled attempt used `US1 Keyboard A 0831` and `US1 Keyboard B 0831`, Tree view, and exactly one bounded invocation in A. Stable and Dev were absent before launch; only the certified Nautilus Harness Dev runtime was opened with `DEV LAB`, the development channel, bundle/app-data `com.nautilus.harness.dev`, validated Mirror Dev coordinates, and conversation logging muted before the baseline.
+
+During `Working`, a human pointer selected B. Observation confirmed header B, B's empty conversation, no A content or cancel, editable draft, disabled Send and attachments, and A still marked `Working`. The Dev window was then explicitly activated and A's exact fresh row focused. A human Enter selected A: the header returned to A, its current snapshot and cancel reappeared, A remained `Working`, and no `provider_interrupted` appeared. A second human pointer gesture selected B before completion.
+
+The 5 ms observer captured `Recording` for A with header B and then `IDLE` while B remained selected. A final human pointer returned to A after settlement; the transcript was present without blanking or duplication. Persistence contained exactly one user/assistant pair and one reconciliation turn classified `in_sync`, states `committed/committed/committed`, empty reason codes, and no failure or interruption. B remained uninitialized with zero messages and turns; no second run occurred.
+
+Stable isolation passed exactly: 472 entries before and after with SHA-256 `1a98660e5439d860488c9b30e5be0dbbdbb5e5f66253e0e60424650f2b2a7d2d`. Production Mirror isolation diverged despite muted conversation logging and the certified Dev coordinates: size remained `93024256`, but mtime changed from `1788190528215570617` ns to `1788191403057933403` ns. Therefore the complete behavioral route passed, but the mandatory isolation comparison keeps Validation blocked pending diagnosis or acceptance.
+
+External evidence:
+
+- `/tmp/us1-keyboard-ready.png`
+- `/tmp/us1-keyboard-human-B.txt`
+- `/tmp/us1-keyboard-A-focused-for-human-enter.png`
+- `/tmp/us1-keyboard-after-enter.txt`
+- `/tmp/us1-keyboard-ready-second-B.png`
+- `/tmp/us1-keyboard-second-B-working.png`
+- `/tmp/us1-keyboard-phases.log`
+- `/tmp/us1-keyboard-recording.png`
+- `/tmp/us1-keyboard-B-after-settlement.png`
+- `/tmp/us1-keyboard-final-A.png`
+- `/tmp/us1-keyboard-stable-before.json`
+- `/tmp/us1-keyboard-stable-after.json`
+- `/tmp/us1-keyboard-production-db-before.json`
+- `/tmp/us1-keyboard-production-db-after.json`
+
 ## Navigator Validation
 
 Route: Blocked pending a clean repeat exclusively in Nautilus Harness Dev. Close stable first, establish a stable app-data baseline, use two fresh disposable Journeys and exactly one invocation, then capture A → B → A during Working and Recording.
