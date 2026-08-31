@@ -75,7 +75,6 @@ import {
 } from "./runtimeActivityModel";
 import {
   createInitialJourneyRuntimeState,
-  hasActiveOrFinalizingJourneyRuntime,
   identityJourneyId,
   isJourneyRuntimeActiveOrFinalizing,
   journeyRuntimeReducer,
@@ -85,6 +84,14 @@ import {
   type JourneyRunIdentity,
 } from "./journeyRuntimeState";
 import { inferMessageSpeaker, stripMessageSpeakerSignature, withCertifiedPersona } from "./conversationPresentation";
+import {
+  createJourneyConversationLoadCoordinator,
+  deriveJourneyNavigationPresentation,
+  resolveJourneyConversationRestore,
+  resolveJourneySelection,
+  shouldSubmitJourneyDraft,
+  type JourneyNavigationIntent,
+} from "./journeyNavigationCoordinator";
 import {
   loadDedicatedJourneyConversation,
   saveDedicatedJourneyConversation,
@@ -341,6 +348,7 @@ export function App({ model }: AppProps) {
   const conversationRef = useRef<JourneyConversation>(conversation);
   const selectedJourneyRef = useRef(selectedJourney);
   const journeyRuntimeStateRef = useRef(journeyRuntimeState);
+  const conversationLoadCoordinatorRef = useRef(createJourneyConversationLoadCoordinator());
   const runStartReservationRef = useRef<JourneyRunIdentity | undefined>(undefined);
   conversationRef.current = conversation;
   selectedJourneyRef.current = selectedJourney;
@@ -379,7 +387,13 @@ export function App({ model }: AppProps) {
     };
   const selectedJourneyVisual = journeyVisual(selectedJourneyItem.id);
   const selectedJourneyBasePath = selectedJourneyItem.projectPath;
-  const selectedRuntime = selectJourneyRuntime(journeyRuntimeState, selectedJourney);
+  const navigationPresentation = deriveJourneyNavigationPresentation({
+    runtimeState: journeyRuntimeState,
+    selectedJourneyId: selectedJourney,
+    loadedConversation: conversation,
+    mirrorCommitErrors,
+  });
+  const selectedRuntime = navigationPresentation.selectedRuntime;
   const {
     agentRun,
     isStreaming,
@@ -392,13 +406,14 @@ export function App({ model }: AppProps) {
     runtimeProjection,
     runtimeProjectionMessageId,
   } = selectedRuntime;
-  const runtimeBusy = Boolean(runStartReservation) || hasActiveOrFinalizingJourneyRuntime(journeyRuntimeState);
+  const runtimeBusy = Boolean(runStartReservation) || navigationPresentation.runtimeBusy;
   const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime);
-  const mirrorCommitError = mirrorCommitErrors[selectedJourney];
-  const messages = conversation.messages;
+  const mirrorCommitError = navigationPresentation.mirrorCommitError;
+  const messages = navigationPresentation.messages;
+  const presentedImportedActivity = navigationPresentation.conversation?.importedActivity?.events;
   const importedActivity = useMemo(
-    () => groupImportedActivityByMessage(conversation.importedActivity?.events ?? []),
-    [conversation.importedActivity?.events],
+    () => groupImportedActivityByMessage(presentedImportedActivity ?? []),
+    [presentedImportedActivity],
   );
   const effectiveAgentProfile = useMemo(
     () => resolveAgentProfile(agentSettings, selectedJourney),
@@ -661,6 +676,9 @@ export function App({ model }: AppProps) {
     }
 
     let cancelled = false;
+    const loadRequest = conversationLoadCoordinatorRef.current.begin(selectedJourney);
+    const requestIsCurrent = () => !cancelled
+      && conversationLoadCoordinatorRef.current.isCurrent(loadRequest, selectedJourneyRef.current);
     setConversationLoaded(false);
     setJourneyThreadState({ kind: "loading" });
     setPiContextState("checking");
@@ -670,29 +688,30 @@ export function App({ model }: AppProps) {
       try {
         const dedicatedThread = await loadNautilusJourneyThread(selectedJourney);
         threadAuthorityLoaded = true;
-        if (cancelled) return;
+        if (!requestIsCurrent()) return;
         const classified = classifyNautilusJourneyThread(dedicatedThread, selectedJourney);
-        const runtimeConversation = classified.kind === "ready"
-          ? selectJourneyRuntimeConversation(
+        const restoreDecision = classified.kind === "ready"
+          ? resolveJourneyConversationRestore(
               journeyRuntimeStateRef.current,
               selectedJourney,
               classified.activeGeneration.generation,
             )
-          : undefined;
-        const persistedConversation = classified.kind === "ready" && !runtimeConversation
+          : { runtimeConversation: undefined, allowPersistedRecovery: true };
+        const persistedConversation = classified.kind === "ready" && restoreDecision.allowPersistedRecovery
           ? await loadDedicatedJourneyConversation(selectedJourney, classified.activeGeneration.generation)
           : undefined;
-        if (cancelled) return;
-        let restoredConversation = runtimeConversation ?? (classified.kind === "ready"
+        if (!requestIsCurrent()) return;
+        let restoredConversation = restoreDecision.runtimeConversation ?? (classified.kind === "ready"
           ? restoreDedicatedJourneyConversation(classified.thread, persistedConversation)
           : createJourneyConversation({ journeyId: selectedJourney, initialMessages }));
-        if (classified.kind === "ready" && classified.activeGeneration.piSessionFile && !runtimeConversation && !runtimeBusy) {
+        if (classified.kind === "ready" && classified.activeGeneration.piSessionFile
+          && restoreDecision.allowPersistedRecovery && !runtimeBusy) {
           const turns = await loadDedicatedPiTranscript(
             selectedJourney,
             classified.activeGeneration.piSessionId,
             classified.activeGeneration.piSessionFile,
           );
-          if (cancelled) return;
+          if (!requestIsCurrent()) return;
           const latestNautilusTurn = [...restoredConversation.reconciliation.turns].reverse().find((turn) =>
             turn.origin === "nautilus" && turn.runId,
           );
@@ -756,20 +775,19 @@ export function App({ model }: AppProps) {
             }]));
           }
         }
+        if (!requestIsCurrent()) return;
         conversationRef.current = restoredConversation;
         setConversation(restoredConversation);
         setJourneyThreadState(classified);
         setJourneyStartError(undefined);
       } catch {
-        if (!cancelled) {
+        if (requestIsCurrent()) {
           setJourneyThreadState(threadAuthorityLoaded
             ? { kind: "unavailable", reason: "runtime_read_failed" }
             : { kind: "inconsistent", reasonCodes: ["invalid_record"] });
         }
       } finally {
-        if (!cancelled) {
-          setConversationLoaded(true);
-        }
+        if (requestIsCurrent()) setConversationLoaded(true);
       }
 
     }
@@ -778,6 +796,7 @@ export function App({ model }: AppProps) {
 
     return () => {
       cancelled = true;
+      conversationLoadCoordinatorRef.current.cancel(loadRequest);
     };
   }, [selectedJourney, registryLoaded, preferencesLoaded, runtimeBusy]);
 
@@ -1286,7 +1305,6 @@ export function App({ model }: AppProps) {
       dispatchJourneyRuntime({ type: "stream_finished", identity: runtimeIdentity });
       if (runFailed && !runReachedAgent) {
         runConversation = conversationBeforeRun;
-        dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: runConversation });
         if (selectedJourneyRef.current === ownerJourneyId && conversationRef.current.liveIdentity.generation === ownerGeneration) {
           conversationRef.current = conversationBeforeRun;
           setConversation(conversationBeforeRun);
@@ -1479,7 +1497,7 @@ export function App({ model }: AppProps) {
   }
 
   async function cancelActiveRun() {
-    if (agentRun.status !== "running" || streamMode !== "live" || !selectedRuntime.identity) {
+    if (!navigationPresentation.cancelVisible || !selectedRuntime.identity) {
       return;
     }
     const identity = selectedRuntime.identity;
@@ -1644,10 +1662,9 @@ export function App({ model }: AppProps) {
     setProviderSafeTestMode(defaultPiProviderConfig.safeTestMode);
   }
 
-  function selectJourney(journeyId: string) {
-    if (journeyId === selectedJourney) {
-      return;
-    }
+  function selectJourney(journeyId: string, intent: JourneyNavigationIntent = "pointer") {
+    journeyId = resolveJourneySelection(selectedJourney, journeyId, intent);
+    if (journeyId === selectedJourney) return;
 
     const runtimeEntry = selectJourneyRuntime(journeyRuntimeState, journeyId);
     const runtimeSnapshot = runtimeEntry.conversationSnapshot
@@ -1983,7 +2000,7 @@ export function App({ model }: AppProps) {
                   setJourneyItemMenu({ journeyId: journey.id, x: event.clientX, y: event.clientY });
                 } : undefined}
                 onClick={() => {
-                  selectJourney(journey.id);
+                  selectJourney(journey.id, "pointer");
                   setJourneySearch("");
                 }}
                 onKeyDown={(event) => {
@@ -1993,7 +2010,10 @@ export function App({ model }: AppProps) {
                     setJourneyItemMenu({ journeyId: journey.id, x: rect.left + 24, y: rect.top + 24 });
                   } else if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    selectJourney(journey.id);
+                    selectJourney(
+                      journey.id,
+                      event.key === "Enter" ? "keyboard-enter" : "keyboard-space",
+                    );
                     setJourneySearch("");
                   }
                 }}
@@ -2347,7 +2367,9 @@ export function App({ model }: AppProps) {
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
-                  void generatePacket("live");
+                  if (shouldSubmitJourneyDraft(event, navigationPresentation)) {
+                    void generatePacket("live");
+                  }
                 }
               }}
               placeholder={reconciliationBlocksInvocation
@@ -2375,7 +2397,7 @@ export function App({ model }: AppProps) {
                 >
                   📎
                 </button>
-                {agentRun.status === "running" && streamMode === "live" ? (
+                {navigationPresentation.cancelVisible ? (
                   <button
                     className="icon-button"
                     type="button"

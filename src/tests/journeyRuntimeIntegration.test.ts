@@ -10,8 +10,8 @@ function sourceBetween(start: string, end: string): string {
 describe("Journey runtime integration guardrails", () => {
   it("uses one Journey-keyed reducer instead of selected-Journey runtime state hooks", () => {
     expect(appSource).toContain("useReducer(\n    journeyRuntimeReducer");
-    expect(appSource).toContain("selectJourneyRuntime(journeyRuntimeState, selectedJourney)");
-    expect(appSource).toContain("hasActiveOrFinalizingJourneyRuntime(journeyRuntimeState)");
+    expect(appSource).toContain("deriveJourneyNavigationPresentation({");
+    expect(appSource).toContain("const selectedRuntime = navigationPresentation.selectedRuntime");
     expect(appSource).not.toContain("const [isStreaming, setIsStreaming]");
     expect(appSource).not.toContain("const [agentRunJourneyId");
   });
@@ -27,16 +27,16 @@ describe("Journey runtime integration guardrails", () => {
   });
 
   it("restores an authority-bound owner conversation without running in-flight recovery", () => {
-    expect(appSource).toContain("selectJourneyRuntimeConversation(");
+    expect(appSource).toContain("resolveJourneyConversationRestore(");
     expect(appSource).toContain('type: "conversation_snapshot", identity: runtimeIdentity');
-    expect(appSource).toContain("if (classified.kind === \"ready\" && classified.activeGeneration.piSessionFile && !runtimeConversation && !runtimeBusy)");
+    expect(appSource).toContain("restoreDecision.allowPersistedRecovery && !runtimeBusy");
     expect(appSource).toContain("[selectedJourney, registryLoaded, preferencesLoaded, runtimeBusy]");
   });
 
   it("shows owner-only sidebar, cancellation, and finalization errors", () => {
     expect(appSource).toContain("selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id)");
     expect(appSource).toContain('journey-runtime-state ${runtimeOwnerPhase}');
-    expect(appSource).toContain("const mirrorCommitError = mirrorCommitErrors[selectedJourney]");
+    expect(appSource).toContain("const mirrorCommitError = navigationPresentation.mirrorCommitError");
     expect(appSource).toContain("classifyDedicatedTurnState(conversation, selectedRuntimeBusy)");
     const cancellation = sourceBetween("async function cancelActiveRun", "function requestConversationRestart");
     expect(cancellation).toContain("selectedRuntime.identity");
@@ -61,6 +61,9 @@ describe("Journey runtime integration guardrails", () => {
     expect(generation).toContain('type: "finalization_finished", identity: runtimeIdentity');
     expect(generation).toContain("let runConversation = stagedConversation");
     expect(generation).toContain("selectedJourneyRef.current === ownerJourneyId");
+    const preAgentRollback = sourceBetween("if (runFailed && !runReachedAgent)", "} else if (runWasCancelled || runFailed)");
+    expect(preAgentRollback).toContain("conversationBeforeRun");
+    expect(preAgentRollback).not.toContain('type: "conversation_snapshot"');
   });
 
   it("mounts the shared dispatcher once and leaves mock streaming Tauri-free", () => {

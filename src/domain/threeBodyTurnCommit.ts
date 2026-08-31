@@ -116,6 +116,8 @@ export function stageCorrelatedTurn(
       turnId: correlation.turnId,
       runId: correlation.runId,
       startedAt: userMessage.createdAt,
+      harnessUserMessageId: correlation.harnessUserMessageId,
+      harnessAssistantMessageId: correlation.harnessAssistantMessageId,
     }),
   };
 }

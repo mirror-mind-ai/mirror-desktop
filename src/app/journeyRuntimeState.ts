@@ -259,7 +259,14 @@ function conversationMatchesIdentity(
 ): boolean {
   if (identity.kind === "mock") return conversation.journeyId === identity.journeyId;
   const authority = identity.authority;
-  return conversation.journeyId === authority.journeyId
+  const correlatedTurn = conversation.reconciliation.turns.find((turn) =>
+    turn.turnId === authority.turnId
+    && turn.runId === authority.runId
+    && turn.harness.userMessageId === authority.harnessUserMessageId
+    && turn.harness.assistantMessageId === authority.harnessAssistantMessageId,
+  );
+  return Boolean(correlatedTurn)
+    && conversation.journeyId === authority.journeyId
     && conversation.liveIdentity.journeyId === authority.journeyId
     && conversation.liveIdentity.harnessConversationId === authority.harnessConversationId
     && conversation.liveIdentity.harnessConversationId === authority.threadId

@@ -124,7 +124,13 @@ export function createConversationReconciliationState(
 
 export function beginNautilusTurn(
   state: ConversationReconciliationState,
-  input: { turnId: string; runId: string; startedAt: string },
+  input: {
+    turnId: string;
+    runId: string;
+    startedAt: string;
+    harnessUserMessageId?: string;
+    harnessAssistantMessageId?: string;
+  },
 ): ConversationReconciliationState {
   const existing = state.turns.find((turn) => turn.turnId === input.turnId);
   if (existing) {
@@ -137,7 +143,11 @@ export function beginNautilusTurn(
     runId: input.runId,
     origin: "nautilus",
     startedAt: input.startedAt,
-    harness: { state: "pending" },
+    harness: {
+      state: "pending",
+      ...(input.harnessUserMessageId ? { userMessageId: input.harnessUserMessageId } : {}),
+      ...(input.harnessAssistantMessageId ? { assistantMessageId: input.harnessAssistantMessageId } : {}),
+    },
     pi: { state: "pending" },
     mirror: { state: "pending" },
   };

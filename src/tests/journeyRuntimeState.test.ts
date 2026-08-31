@@ -9,9 +9,10 @@ import {
   selectJourneyRuntimeOwnerPhase,
   type JourneyRunIdentity,
 } from "../app/journeyRuntimeState";
-import { createDedicatedJourneyConversation } from "../domain/journeyConversation";
+import { createDedicatedJourneyConversation, type JourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { createRunAuthority } from "../domain/runAuthority";
+import { stageCorrelatedTurn } from "../domain/threeBodyTurnCommit";
 import { readyThread } from "./fixtures/readyThread";
 
 function identity(journeyId: string, runId = `run-${journeyId}`): JourneyRunIdentity {
@@ -27,12 +28,31 @@ function identity(journeyId: string, runId = `run-${journeyId}`): JourneyRunIden
   };
 }
 
+function conversationFor(owner: JourneyRunIdentity, assistantContent = "") {
+  if (owner.kind !== "live") return undefined;
+  const base = createDedicatedJourneyConversation({ thread: readyThread(owner.authority.journeyId), initialMessages: [] });
+  return stageCorrelatedTurn(
+    base,
+    owner.authority.correlation,
+    {
+      id: owner.authority.harnessUserMessageId,
+      role: "user",
+      content: "hello",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    },
+    {
+      id: owner.authority.harnessAssistantMessageId,
+      role: "assistant",
+      content: assistantContent,
+      createdAt: "2026-01-01T00:00:01.000Z",
+    },
+  );
+}
+
 function register(
   state = createInitialJourneyRuntimeState(),
   owner = identity("journey-a"),
-  conversationSnapshot = owner.kind === "live"
-    ? createDedicatedJourneyConversation({ thread: readyThread(owner.authority.journeyId), initialMessages: [] })
-    : undefined,
+  conversationSnapshot = conversationFor(owner),
 ) {
   return journeyRuntimeReducer(state, {
     type: "register",
@@ -186,7 +206,7 @@ describe("Journey-keyed frontend runtime state", () => {
 
   it("keeps an identity-bound owner conversation snapshot across presentation changes", () => {
     const owner = identity("journey-a");
-    const initial = createDedicatedJourneyConversation({ thread: readyThread("journey-a"), initialMessages: [] });
+    const initial = conversationFor(owner)!;
     const updated = { ...initial, updatedAt: "2026-02-01T00:00:00.000Z" };
     let state = register(createInitialJourneyRuntimeState(), owner, initial);
     state = journeyRuntimeReducer(state, { type: "conversation_snapshot", identity: owner, conversation: updated });
@@ -197,6 +217,47 @@ describe("Journey-keyed frontend runtime state", () => {
     const stale = identity("journey-a", "stale-run");
     state = journeyRuntimeReducer(state, { type: "conversation_snapshot", identity: stale, conversation: initial });
     expect(selectJourneyRuntimeConversation(state, "journey-a", initial.liveIdentity.generation)).toEqual(updated);
+    expect(state.quarantine.at(-1)?.reason).toBe("authority_mismatch");
+  });
+
+  it("rejects another run snapshot from the same Journey generation", () => {
+    const owner = identity("journey-a", "run-a1");
+    const otherRun = identity("journey-a", "run-a2");
+    const original = conversationFor(owner)!;
+    const foreign = conversationFor(otherRun, "foreign response")!;
+    let state = register(createInitialJourneyRuntimeState(), owner, original);
+    state = journeyRuntimeReducer(state, {
+      type: "conversation_snapshot",
+      identity: owner,
+      conversation: foreign,
+    });
+
+    expect(selectJourneyRuntimeConversation(state, "journey-a", 1)).toEqual(original);
+    expect(state.quarantine.at(-1)).toMatchObject({
+      journeyId: "journey-a",
+      runId: "run-a1",
+      reason: "authority_mismatch",
+    });
+  });
+
+  it.each([
+    ["turnId", (turn: JourneyConversation["reconciliation"]["turns"][number]) => ({ ...turn, turnId: "other-turn" })],
+    ["runId", (turn: JourneyConversation["reconciliation"]["turns"][number]) => ({ ...turn, runId: "other-run" })],
+    ["harness user", (turn: JourneyConversation["reconciliation"]["turns"][number]) => ({ ...turn, harness: { ...turn.harness, userMessageId: "other-user" } })],
+    ["harness assistant", (turn: JourneyConversation["reconciliation"]["turns"][number]) => ({ ...turn, harness: { ...turn.harness, assistantMessageId: "other-assistant" } })],
+  ] as const)("rejects a snapshot with divergent reconciliation %s evidence", (_label, mutateTurn) => {
+    const owner = identity("journey-a", "run-a1");
+    const original = conversationFor(owner)!;
+    const divergent = {
+      ...original,
+      reconciliation: {
+        ...original.reconciliation,
+        turns: [mutateTurn(original.reconciliation.turns[0])],
+      },
+    };
+    let state = register(createInitialJourneyRuntimeState(), owner, original);
+    state = journeyRuntimeReducer(state, { type: "conversation_snapshot", identity: owner, conversation: divergent });
+    expect(selectJourneyRuntimeConversation(state, "journey-a", 1)).toEqual(original);
     expect(state.quarantine.at(-1)?.reason).toBe("authority_mismatch");
   });
 

@@ -67,7 +67,7 @@ describe("Operational Journey workspace", () => {
     expect(appSource).toContain('selectedAltitude === "operational"');
     expect(appSource).toContain('selectedOperationalSurface === "chat"');
     expect(appSource).toContain("isJourneyReloading");
-    expect(appSource).toContain('agentRun.status === "running"');
+    expect(appSource).toContain("navigationPresentation.cancelVisible");
     expect(appSource).not.toContain('className="journey-status-rail"');
     expect(appSource).not.toContain('className="status-pill');
     expect(appSource).not.toContain('className="present-map-summary"');
