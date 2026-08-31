@@ -49,7 +49,16 @@ Every callback helper receives the expected `journeyId + runId`. Assertions comp
 | Interrupted-state save failure | Cancelled/failed A1 cannot durably save interrupted state | No cleanup call occurs; A1 remains finalizing and capacity admission stays blocked |
 | Interrupted-state save success | Cancelled/failed A1 saves interrupted state durably | Caller may request exact A1 cleanup once |
 | Later durable retry | A1 initially retains its lease after save/enqueue failure; matching retry later reaches durable enqueue | Retry uses captured A/A1 and releases exactly that lease |
-| Presentation finalization only | `finalization_finished` is emitted from `finally` without a durable branch result | No cleanup command is invoked and A1 remains finalizing |
+| Presentation finalization only | `finalization_finished` is emitted from `finally` without a durable branch result | No cleanup command is invoked, Recording ends, A1 remains finalizing and `runtimeBusy`/aggregate operational admission stays blocked |
+| Retained lease with B selected | A1 presentation is terminal, native A1 lease is finalizing and B is selected | B text draft remains editable; Send, Enter, attachments, settings/admin mutations and every start/staging path remain blocked |
+| No staging while inspected occupied | Local presentation is idle but inspection reports A1 finalizing | No user/assistant message creation, correlated turn staging, conversation save or start command occurs |
+| Exact cleanup success | Cleanup returns success for captured A/A1 and reconciliation shows no blocking replacement | A1 occupancy is removed and only then are operational controls re-enabled |
+| Cleanup failure/mismatch | Cleanup fails, has no response, returns another pair or inspection still reports A1 | Occupancy and aggregate admission remain blocked |
+| Frontend reload reconciliation | Reload/remount occurs inside the same Tauri process while A1 lease exists | Inspection completes before controls enable and reconstructs exact occupancy only |
+| Empty local state, occupied native state | Frontend starts with no runtime/occupancy entry; inspection reports A1 | Admission remains fail-closed and no mutation/staging occurs |
+| Native reservation TOCTOU | Local inspection says free, another reservation wins before start | Backend atomically rejects the loser, no second child exists and reversible staging is rolled back before controls re-enable |
+| Stale inspection/cleanup | Stale A1 inspection or idempotent cleanup response arrives while A2 is current | A2 occupancy remains unchanged; A1 result cannot mark the Journey or app free |
+| Retained owner error scope | A1 is finalizing after save/enqueue failure while B is selected | A error/retry is owner-scoped; neither A nor B falsely renders Working/Recording |
 | Stale durable retry | A1 retry completes after A1 is gone and A2 is current | Exact A1 cleanup cannot release or mutate A2 |
 | Bounded inspection | Inspect reserved, running and finalizing fixtures | Deterministically ordered entries expose only bounded authority/lifecycle fields and allowed reason codes |
 | Inspection privacy | Populate prompt, provider config, private session path, environment-like values and raw failure text inside test entry/private fixture | Serialized inspection contains none of those values or field names |
@@ -124,12 +133,19 @@ Update or add focused tests proving:
 - `cancelLivePiInvocation(journeyId, runId)` passes both exact values to `cancel_pi_invocation`;
 - `App.tsx` derives cancel target from the selected runtime owner's captured identity, never from a stale selected Journey string alone;
 - mismatched/non-owner UI cannot issue a cancel target;
-- frontend presentation `finalization_finished` never invokes lease cleanup by itself or through an unconditional `finally`;
+- frontend presentation `finalization_finished` never invokes lease cleanup by itself or through an unconditional `finally`, and does not clear aggregate operational occupancy;
+- explicit native occupancy remains keyed by complete captured identity after Recording ends;
+- B text drafting stays enabled under retained occupancy while Send, Enter, attachments, settings/admin mutations, restart/repair and all start/staging paths remain blocked;
+- no user/assistant message construction, `stageCorrelatedTurn`, conversation save or `start_pi_invocation` occurs while inspection is occupied or unknown;
 - completed-turn cleanup receives the same captured owner `journeyId + runId` only after native evidence, dedicated projection/save and durable outbox enqueue succeed;
 - append or acknowledgement pending after enqueue does not suppress cleanup;
 - projection/save failure, missing native evidence, enqueue failure and interrupted-state save failure suppress cleanup and retain the lease;
 - cancelled/failed-turn cleanup occurs only after durable interrupted-state save;
 - later retry/recovery uses the original captured `journeyId + runId`, and a stale retry cannot release a replacement run;
+- exact cleanup success/idempotent success clears only matching occupancy; cleanup failure, mismatch, missing response or retained inspection stays fail-closed;
+- frontend initialization/reload reconciles native inspection before enabling operations, including local-empty/native-occupied state;
+- ambiguous cleanup/retry triggers bounded reinspection without polling, and stale inspection responses cannot clear newer occupancy;
+- owner error/retry stays owner-scoped without false Working or Recording;
 - inspection adapters expose the bounded native type only;
 - Journey-keyed frontend runtime and one app-lifetime dispatcher behavior remain unchanged; and
 - mock streaming remains Tauri-free.
@@ -140,6 +156,36 @@ Expected suites include compatible updates to:
 - `src/tests/piProcessEventDispatcher.test.ts`
 - `src/tests/journeyRuntimeIntegration.test.ts`
 - focused cancellation/finalization integration tests if a narrower file is introduced.
+
+## Frontend Occupancy and Admission Reconciliation
+
+Use a pure authority-bound occupancy model and dependency-injected inspection/cleanup adapters. Presentation state alone must not determine operational admission.
+
+Required fixture:
+
+```text
+frontend local runtime empty
+occupancy status = reconciling
+assert all operational controls and pre-staging paths blocked
+inspection returns A1 finalizing
+assert occupancy known occupied(A1)
+select B
+assert B text draft editable
+assert Send/Enter/attachments/settings/admin/start/stage blocked
+emit finalization_finished for A1 presentation
+assert no Working/Recording and occupancy still blocked
+cleanup A1 fails or response is missing
+assert occupancy still blocked
+matching retry reaches durable boundary
+cleanup returns success for A1
+reinspect if response is ambiguous
+assert occupancy removed only when exact outcome is known
+assert controls enabled only after removal
+```
+
+A second fixture must race a known-free local check against native reservation. The backend remains the final atomic decision; one reservation wins, the loser creates no second child, and any reversible pre-agent staging is durably rolled back before operational controls can become available.
+
+Inspection triggers are bounded to initialization/reload, unknown local state before enabling capacity, and divergent cleanup/retry outcomes. Tests must assert no interval/timer or unbounded polling loop is introduced. Inspection identity updates occupancy only; it must not populate conversation, prompt, message, stream or settlement fields.
 
 ## Frontend Durable Cleanup Authorization
 
@@ -274,15 +320,16 @@ Fail condition: atomicity depends on timing; two reservations win; child spawn p
 Use only **Nautilus Harness Dev** and disposable development Journeys. Stable must remain closed.
 
 1. Start one run in Journey A and observe normal correlated stream delivery.
-2. During A, verify another start remains blocked by existing aggregate occupancy and production limit 1.
-3. Let A complete and distinguish the presentation `finalization_finished` action from durable settlement; verify presentation completion alone does not remove the lease.
-4. Verify the exact A lease disappears only after native evidence, dedicated projection/save and durable outbox enqueue succeed; append/ack may remain pending after enqueue.
-5. Start Journey B only after that durable matching cleanup and verify normal serial operation.
-6. In a separate sequential scenario if required, cancel the selected owner, durably save interrupted state, then verify the directed pair cancels and releases that run through one terminal `done` plus one matching cleanup.
-7. Inspect the bounded registry surface during available phases and confirm no private fields or payloads appear.
-8. Confirm there was never more than one admitted live/finalizing lease and no stable data was touched.
+2. During A, verify another start remains blocked by frontend aggregate admission and production limit 1.
+3. Let A reach `finalization_finished` while deliberately observing native finalizing occupancy; verify Recording ends, A exposes only owner-scoped settlement error/retry when applicable, and B may edit text but cannot Send, press Enter, mutate attachments/settings/admin state or stage/start a turn.
+4. Reload/remount the frontend within the same Tauri process and verify inspection restores A occupancy before operational controls enable.
+5. Verify the exact A lease disappears only after native evidence, dedicated projection/save and durable outbox enqueue succeed; append/ack may remain pending after enqueue.
+6. Start Journey B only after exact cleanup confirmation removes aggregate occupancy and verify normal serial operation.
+7. In a separate sequential scenario if required, cancel the selected owner, durably save interrupted state, then verify the directed pair cancels and releases that run through one terminal `done` plus one matching cleanup.
+8. Inspect the bounded registry surface during available phases and confirm no private fields or payloads appear.
+9. Confirm there was never more than one admitted live/finalizing lease and no stable data was touched.
 
-Expected observation: visible behavior remains serial and coherent; start/cancel/completion still work; B cannot overlap A; no stale owner state or duplicate terminal signal appears.
+Expected observation: visible behavior remains serial and coherent; presentation Recording may finish while native occupancy keeps every mutation/start path blocked; drafts remain editable; inspection reconciles reload before enablement; only exact cleanup re-enables operations; B cannot overlap A; no stale owner state or duplicate terminal signal appears.
 
 Pass condition: deterministic authority tests pass and the Dev smoke shows sequential registry lifecycle with no concurrency, leak or stable-channel interaction.
 
@@ -302,7 +349,7 @@ Review the diff and tests to prove TS-2 did not add:
 - another Journey process admitted while a retained finalizing lease occupies production limit 1; or
 - any settlement concurrency fixture.
 
-TS-2 preserves the existing serial durable safety boundary: completed turns request persistence-agnostic native cleanup only after native evidence, projection/save and durable outbox enqueue; cancelled/failed turns do so only after durable interrupted-state save. `finalization_finished` is presentation-only, and failed durable branches retain the lease until a matching retry succeeds.
+TS-2 preserves the existing serial durable safety boundary and integrates registry-derived occupancy into frontend admission: completed turns request persistence-agnostic native cleanup only after native evidence, projection/save and durable outbox enqueue; cancelled/failed turns do so only after durable interrupted-state save. `finalization_finished` is presentation-only, failed durable branches retain the lease, and inspection keeps operations blocked across reload/uncertainty until exact cleanup succeeds.
 
 TS-4 does not introduce this basic enqueue/interrupted-save safety. It owns captured-authority persistence and settlement hardening, recovery and durable release authorization under future overlap, and safe concurrency prerequisites before capacity 2.
 
@@ -312,7 +359,7 @@ TS-4 does not introduce this basic enqueue/interrupted-save safety. It owns capt
 - `RunAuthority` remains the only complete runtime authority.
 - Existing correlated event shape remains unchanged.
 - Event authority excludes `piSessionFile`, prompt, provider configuration, raw private output, secrets and environment.
-- Frontend state remains Journey-keyed.
+- Frontend presentation remains Journey-keyed; exact native lease occupancy is added only as global operational admission authority.
 - One central dispatcher remains app-lifetime authority.
 - Production capacity remains exactly 1.
 - No real process or settlement concurrency exists.
