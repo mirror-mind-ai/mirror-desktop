@@ -6,6 +6,7 @@ import {
   observePiTurnCommit,
 } from "./conversationReconciliation";
 import type { JourneyConversation } from "./journeyConversation";
+import type { JourneySettlementAuthority } from "./journeySettlementAuthority";
 
 export const MIRROR_APPEND_MAX_ITEMS = 32;
 export const MIRROR_APPEND_MAX_FILE_BYTES = 4 * 1024 * 1024;
@@ -82,16 +83,39 @@ export function classifyMirrorAppendMessagePair(
   return "available";
 }
 
+function exactSettlementProjection(
+  conversation: JourneyConversation,
+  authority: JourneySettlementAuthority,
+): boolean {
+  const correlation = authority.runAuthority.correlation;
+  const turn = conversation.reconciliation.turns.find((candidate) => candidate.turnId === authority.turnId);
+  return correlation.schemaVersion === "0.2.0"
+    && correlation.journeyId === authority.journeyId
+    && correlation.runId === authority.runId
+    && correlation.turnId === authority.turnId
+    && conversation.journeyId === authority.journeyId
+    && conversation.id === authority.threadId
+    && conversation.liveIdentity.generation === authority.generation
+    && conversation.liveIdentity.piSessionId === authority.piSessionId
+    && conversation.liveIdentity.piSessionFile === authority.piSessionFile
+    && conversation.liveIdentity.mirrorConversationId === authority.mirrorConversationId
+    && turn?.runId === authority.runId
+    && turn.harness.userMessageId === authority.harnessUserMessageId
+    && turn.harness.assistantMessageId === authority.harnessAssistantMessageId;
+}
+
 export function createMirrorAppendOutboxItem(
   conversation: JourneyConversation,
-  correlation: TurnCorrelation,
+  authority: JourneySettlementAuthority,
 ): MirrorAppendOutboxItem {
+  const correlation = authority.runAuthority.correlation;
   const turn = conversation.reconciliation.turns.find((candidate) => candidate.turnId === correlation.turnId);
   const user = conversation.messages.find((message) => message.id === correlation.harnessUserMessageId);
   const assistant = conversation.messages.find((message) => message.id === correlation.harnessAssistantMessageId);
   const conversationId = conversation.liveIdentity.mirrorConversationId;
   if (
-    !turn || turn.pi.state !== "committed" || !turn.pi.committedAt || turn.harness.state !== "committed"
+    !exactSettlementProjection(conversation, authority)
+    || !turn || turn.pi.state !== "committed" || !turn.pi.committedAt || turn.harness.state !== "committed"
     || !conversationId || classifyMirrorAppendMessagePair(conversation, correlation) !== "available"
     || !user || !assistant
   ) throw new Error("mirror_append_item_authority_invalid");
@@ -136,17 +160,25 @@ export function parseMirrorAppendReceipt(value: unknown): MirrorAppendReceipt | 
 
 export function applyMirrorAppendReceipt(
   conversation: JourneyConversation,
-  correlation: TurnCorrelation,
+  authority: JourneySettlementAuthority,
   receipt: MirrorAppendReceipt,
   observedAt: string,
 ): JourneyConversation {
+  const correlation = authority.runAuthority.correlation;
   const ids = receipt.messages.map((message) => message.id);
   if (
-    receipt.conversationId !== conversation.liveIdentity.mirrorConversationId
-    || receipt.journeyId !== conversation.journeyId
-    || ids[0] !== correlation.harnessUserMessageId
-    || ids[1] !== correlation.harnessAssistantMessageId
+    !exactSettlementProjection(conversation, authority)
+    || receipt.conversationId !== authority.mirrorConversationId
+    || receipt.journeyId !== authority.journeyId
+    || ids[0] !== authority.harnessUserMessageId
+    || ids[1] !== authority.harnessAssistantMessageId
   ) throw new Error("mirror_append_receipt_authority_mismatch");
+  const turn = conversation.reconciliation.turns.find((candidate) => candidate.turnId === authority.turnId);
+  if (turn?.mirror.state === "committed"
+    && turn.mirror.userMessageId === authority.harnessUserMessageId
+    && turn.mirror.assistantMessageId === authority.harnessAssistantMessageId) {
+    return conversation;
+  }
   const cumulativeMessageCount = (conversation.reconciliation.checkpoints.mirror?.messageCount ?? 0) + 2;
   let reconciliation = observeMirrorUserCommit(
     conversation.reconciliation, correlation.turnId, ids[0], observedAt,

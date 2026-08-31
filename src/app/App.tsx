@@ -56,10 +56,15 @@ import {
 } from "./piInvocationOccupancy";
 import { nextConversationAutoFollow } from "./conversationAutoFollow";
 import {
+  createJourneySettlementAuthority,
   executeCompletedSettlement,
   executeInterruptedSettlement,
   rollbackRejectedReservation,
+  validatePreFrontierSettlement,
+  type JourneySettlementAuthority,
 } from "./journeySettlement";
+import { journeyPersistenceCoordinator } from "./journeyPersistenceCoordinator";
+import { resolvePersistedSettlementRecovery } from "./journeySettlementRecovery";
 import { ConversationSyncNotice, LegacyMirrorGapNotice } from "./ConversationSyncNotice";
 import { PendingFileAttachments } from "./PendingFileAttachments";
 import { MessageFileAttachments } from "./MessageFileAttachments";
@@ -115,7 +120,9 @@ import {
 } from "./journeyNavigationCoordinator";
 import {
   loadDedicatedJourneyConversation,
+  saveActiveSettlementProjection,
   saveDedicatedJourneyConversation,
+  savePostFrontierReceiptProjection,
 } from "./journeyConversationStorage";
 import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPreferenceStorage";
 import { loadComposerDrafts, saveComposerDrafts } from "./composerDraftStorage";
@@ -170,7 +177,7 @@ import {
 } from "../domain/journeyRegistry";
 import type { JourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
-import { createRunAuthority } from "../domain/runAuthority";
+import { createRunAuthority, samePiProcessEventAuthority } from "../domain/runAuthority";
 import { classifyDedicatedTurnState, dedicatedTurnBlocksNewInvocation, interruptDedicatedTurn } from "../domain/dedicatedTurnCommit";
 import {
   defaultJourneyPreferenceState,
@@ -616,6 +623,57 @@ export function App({ model }: AppProps) {
   useEffect(() => {
     void reconcilePiInvocationOccupancy();
   }, []);
+
+  useEffect(() => {
+    if (selectedRuntimeBusy
+      || !selectedNativeLease
+      || !conversationLoaded
+      || journeyThreadState.kind !== "ready"
+      || selectedNativeLease.authority.generation !== conversation.liveIdentity.generation) return;
+    const evidence = conversation.reconciliation.turns.find((turn) => (
+      turn.turnId === selectedNativeLease.authority.turnId
+      && turn.runId === selectedNativeLease.authority.runId
+      && turn.harness.userMessageId === selectedNativeLease.authority.harnessUserMessageId
+      && turn.harness.assistantMessageId === selectedNativeLease.authority.harnessAssistantMessageId
+    ));
+    if (!evidence) return;
+    try {
+      const correlation = createDedicatedTurnAuthority(
+        journeyThreadState.thread,
+        selectedNativeLease.authority.runId,
+        selectedNativeLease.authority.turnId,
+        selectedNativeLease.authority.harnessUserMessageId,
+        selectedNativeLease.authority.harnessAssistantMessageId,
+      );
+      const recoveredAuthority = createRunAuthority(
+        correlation,
+        conversation.liveIdentity,
+        journeyThreadState.activeGeneration,
+      );
+      if (!samePiProcessEventAuthority(selectedNativeLease.authority, recoveredAuthority)) return;
+      void piProcessEventDispatcher.rehydrate(recoveredAuthority, (event) => {
+        if (event.kind === "done") void reconcilePiInvocationOccupancy();
+      }).catch(() => {
+        dispatchJourneyRuntime({
+          type: "append_warning",
+          journeyId: recoveredAuthority.journeyId,
+          message: "settlement_route_rehydration_failed",
+        });
+      });
+    } catch {
+      dispatchJourneyRuntime({
+        type: "append_warning",
+        journeyId: selectedNativeLease.authority.journeyId,
+        message: "settlement_authority_mismatch",
+      });
+    }
+  }, [
+    conversation,
+    conversationLoaded,
+    journeyThreadState,
+    selectedNativeLease,
+    selectedRuntimeBusy,
+  ]);
 
   useEffect(() => {
     if (!journeyMenuOpen) {
@@ -1068,7 +1126,7 @@ export function App({ model }: AppProps) {
   ]);
 
   useEffect(() => {
-    if (!conversationLoaded || runtimeBusy || journeyThreadState.kind !== "ready") return;
+    if (!conversationLoaded || journeyThreadState.kind !== "ready") return;
     let cancelled = false;
     void listMirrorAppendOutbox(conversation.journeyId).then((items) => {
       if (cancelled) return;
@@ -1088,7 +1146,7 @@ export function App({ model }: AppProps) {
       if (!cancelled) setJourneyMirrorCommitError(conversation.journeyId, error instanceof Error ? error.message : String(error));
     });
     return () => { cancelled = true; };
-  }, [conversation.journeyId, conversationLoaded, runtimeBusy, journeyThreadState.kind]);
+  }, [conversation.journeyId, conversationLoaded, journeyThreadState.kind]);
 
   useEffect(() => {
     checkedMirrorTurnRef.current.clear();
@@ -1256,6 +1314,9 @@ export function App({ model }: AppProps) {
       });
       return;
     }
+    const settlementAuthority = runAuthority
+      ? createJourneySettlementAuthority(runAuthority)
+      : undefined;
     const runtimeIdentity: JourneyRunIdentity = runAuthority
       ? { kind: "live", authority: runAuthority }
       : { kind: "mock", journeyId: selectedJourney, runId: run.id ?? `mock-${assistantMessage.id}` };
@@ -1274,7 +1335,12 @@ export function App({ model }: AppProps) {
 
     if (correlation) {
       try {
-        await saveDedicatedJourneyConversation(stagedConversation);
+        if (!settlementAuthority) throw new Error("settlement_authority_missing");
+        await journeyPersistenceCoordinator.run(
+          settlementAuthority,
+          "pre_frontier",
+          () => saveDedicatedJourneyConversation(stagedConversation),
+        );
       } catch (error) {
         dispatchJourneyRuntime({
           type: "append_warning",
@@ -1493,14 +1559,15 @@ export function App({ model }: AppProps) {
         }
         if (correlation) {
           try {
-            if (invocationAuthority) {
-              await executeInterruptedSettlement({
+            if (settlementAuthority) {
+              await journeyPersistenceCoordinator.run(settlementAuthority, "interrupted", () => executeInterruptedSettlement({
                 projection: interrupted,
-                authority: invocationAuthority,
+                authority: settlementAuthority,
               }, {
-                saveInterruptedProjection: saveDedicatedJourneyConversation,
+                loadActiveEvidence: loadActiveSettlementEvidence,
+                saveInterruptedProjection: saveActiveSettlementProjection,
                 cleanupLease: releaseDurablePiInvocationLease,
-              });
+              }));
             } else {
               await saveDedicatedJourneyConversation(interrupted);
             }
@@ -1511,14 +1578,25 @@ export function App({ model }: AppProps) {
             });
           }
         }
-      } else if (correlation) {
+      } else if (correlation && settlementAuthority) {
         dispatchJourneyRuntime({ type: "finalization_started", identity: runtimeIdentity });
+        let finalizationReleased = false;
         let settled = runConversation;
         try {
-          const sessionFile = settled.liveIdentity.piSessionFile;
-          if (!sessionFile) throw new Error("Dedicated Pi session file is missing.");
+          validatePreFrontierSettlement(
+            settlementAuthority,
+            settled,
+            await loadActiveSettlementEvidence(settlementAuthority),
+          );
           const nativeTurns = await loadDedicatedPiTranscript(
-            settled.journeyId, settled.liveIdentity.piSessionId, sessionFile,
+            settlementAuthority.journeyId,
+            settlementAuthority.piSessionId,
+            settlementAuthority.piSessionFile,
+          );
+          validatePreFrontierSettlement(
+            settlementAuthority,
+            settled,
+            await loadActiveSettlementEvidence(settlementAuthority),
           );
           const nativeTurn = [...nativeTurns].reverse().find((turn) =>
             turn.userText.trim() === userMessage.content.trim()
@@ -1530,39 +1608,67 @@ export function App({ model }: AppProps) {
             assistantEntryId: nativeTurn.assistantEntryId,
             leafEntryId: nativeTurn.assistantEntryId,
             entryCount: nativeTurn.entryCount,
-            sessionFile,
+            sessionFile: settlementAuthority.piSessionFile,
             committedAt: new Date().toISOString(),
           });
           settled = commitHarnessTurn(settled, correlation, new Date().toISOString());
+          const projectionAtFrontier = settled;
           const settlement = await executeCompletedSettlement({
-            projection: settled,
-            authority: invocationAuthority,
+            projection: projectionAtFrontier,
+            authority: settlementAuthority,
+            cleanupLeaseAuthority: settlementAuthority,
           }, {
-            saveProjection: saveDedicatedJourneyConversation,
-            enqueueOutbox: (projection) => enqueueExactProjectionOutbox(projection, correlation),
+            loadActiveEvidence: loadActiveSettlementEvidence,
+            saveActiveProjection: (projection, authority) => journeyPersistenceCoordinator.run(
+              authority, "pre_frontier", () => saveActiveSettlementProjection(projection, authority),
+            ),
+            enqueueOutbox: (projection, authority) => journeyPersistenceCoordinator.run(
+              authority, "pre_frontier", () => enqueueExactProjectionOutbox(projection, authority),
+            ),
             cleanupLease: releaseDurablePiInvocationLease,
-            appendAndAcknowledge: (projection, summary) => (
-              appendAndAcknowledgeExactProjection(projection, correlation, summary)
+            onLeaseReleased: () => {
+                finalizationReleased = true;
+                dispatchJourneyRuntime({
+                  type: "conversation_snapshot",
+                  identity: runtimeIdentity,
+                  conversation: projectionAtFrontier,
+                });
+                if (selectedJourneyRef.current === settlementAuthority.journeyId
+                  && projectionCurrentTurnMatchesAuthority(conversationRef.current, settlementAuthority)) {
+                  conversationRef.current = projectionAtFrontier;
+                  setConversation(projectionAtFrontier);
+                }
+                dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
+              },
+            appendAndAcknowledge: (projection, summary, authority) => (
+              appendAndAcknowledgeExactProjection(projection, authority, summary)
             ),
           });
           settled = settlement.projection;
-          setJourneyMirrorCommitError(ownerJourneyId, undefined);
+          if (await persistedCurrentTurnMatchesAuthority(settlementAuthority)) {
+            setJourneyMirrorCommitError(ownerJourneyId, undefined);
+          }
           if (
             selectedJourneyRef.current === settled.journeyId
-            && conversationRef.current.liveIdentity.generation === settled.liveIdentity.generation
+            && projectionCurrentTurnMatchesAuthority(conversationRef.current, settlementAuthority)
           ) {
             conversationRef.current = settled;
             setConversation(settled);
           }
         } catch (error) {
-          setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
-          if (selectedJourneyRef.current === ownerJourneyId && conversationRef.current.liveIdentity.generation === ownerGeneration) {
+          if (!finalizationReleased || await persistedCurrentTurnMatchesAuthority(settlementAuthority)) {
+            setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
+          }
+          if (selectedJourneyRef.current === ownerJourneyId
+            && projectionCurrentTurnMatchesAuthority(conversationRef.current, settlementAuthority)) {
             conversationRef.current = settled;
             setConversation(settled);
           }
         } finally {
           dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: settled });
-          dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
+          if (!finalizationReleased) {
+            dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
+          }
         }
       }
     }
@@ -1602,31 +1708,69 @@ export function App({ model }: AppProps) {
     setMirrorCommitErrors((current) => ({ ...current, [journeyId]: error }));
   }
 
+  async function loadActiveSettlementEvidence(authority: JourneySettlementAuthority) {
+    const [thread, persisted] = await Promise.all([
+      loadNautilusJourneyThread(authority.journeyId),
+      loadDedicatedJourneyConversation(authority.journeyId, authority.generation),
+    ]);
+    const classified = classifyNautilusJourneyThread(thread, authority.journeyId);
+    const currentTurn = persisted?.reconciliation.turns.at(-1);
+    if (classified.kind !== "ready" || !persisted || !currentTurn) {
+      throw new Error("settlement_pre_frontier_authority_stale");
+    }
+    const evidence = {
+      activeGeneration: classified.activeGeneration.generation,
+      currentRunId: currentTurn.runId ?? "",
+      currentTurnId: currentTurn.turnId,
+    };
+    validatePreFrontierSettlement(authority, persisted, evidence);
+    return evidence;
+  }
+
+  function projectionCurrentTurnMatchesAuthority(
+    projection: JourneyConversation,
+    authority: JourneySettlementAuthority,
+  ): boolean {
+    const current = projection.reconciliation.turns.at(-1);
+    return projection.journeyId === authority.journeyId
+      && projection.liveIdentity.generation === authority.generation
+      && current?.turnId === authority.turnId
+      && current.runId === authority.runId
+      && current.harness.userMessageId === authority.harnessUserMessageId
+      && current.harness.assistantMessageId === authority.harnessAssistantMessageId;
+  }
+
+  async function persistedCurrentTurnMatchesAuthority(
+    authority: JourneySettlementAuthority,
+  ): Promise<boolean> {
+    const persisted = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation);
+    return Boolean(persisted && projectionCurrentTurnMatchesAuthority(persisted, authority));
+  }
+
   function validateExactOutboxSummary(
     summary: MirrorAppendOutboxSummary,
     projection: JourneyConversation,
-    correlation: TurnCorrelation,
+    authority: JourneySettlementAuthority,
   ) {
-    if (!correlation.threadId
-      || !correlation.mirrorConversationId
-      || summary.itemId !== correlation.turnId
-      || summary.journeyId !== correlation.journeyId
-      || summary.threadId !== correlation.threadId
-      || summary.generation !== correlation.generation
-      || summary.conversationId !== correlation.mirrorConversationId
-      || projection.journeyId !== correlation.journeyId
-      || projection.liveIdentity.generation !== correlation.generation
-      || projection.liveIdentity.mirrorConversationId !== correlation.mirrorConversationId) {
+    if (summary.itemId !== authority.turnId
+      || summary.journeyId !== authority.journeyId
+      || summary.threadId !== authority.threadId
+      || summary.generation !== authority.generation
+      || summary.conversationId !== authority.mirrorConversationId
+      || projection.journeyId !== authority.journeyId
+      || projection.id !== authority.threadId
+      || projection.liveIdentity.generation !== authority.generation
+      || projection.liveIdentity.mirrorConversationId !== authority.mirrorConversationId) {
       throw new Error("mirror_append_outbox_authority_mismatch");
     }
   }
 
   async function enqueueExactProjectionOutbox(
     projection: JourneyConversation,
-    correlation: TurnCorrelation,
+    authority: JourneySettlementAuthority,
   ): Promise<MirrorAppendOutboxSummary> {
-    const outboxItem = createMirrorAppendOutboxItem(projection, correlation);
-    await enqueueMirrorAppendItem(outboxItem);
+    const outboxItem = createMirrorAppendOutboxItem(projection, authority);
+    await enqueueMirrorAppendItem(outboxItem, authority);
     const summary: MirrorAppendOutboxSummary = {
       schemaVersion: "1.0.0",
       itemId: outboxItem.itemId,
@@ -1643,30 +1787,32 @@ export function App({ model }: AppProps) {
 
   async function appendAndAcknowledgeExactProjection(
     projection: JourneyConversation,
-    correlation: TurnCorrelation,
+    authority: JourneySettlementAuthority,
     summary: MirrorAppendOutboxSummary,
   ): Promise<JourneyConversation> {
-    validateExactOutboxSummary(summary, projection, correlation);
-    const receipt = await appendMirrorOutboxItem(summary.itemId);
-    const settled = applyMirrorAppendReceipt(projection, correlation, receipt, new Date().toISOString());
-    await saveDedicatedJourneyConversation(settled);
-    await acknowledgeMirrorAppendItem(summary.itemId, summary.conversationId);
-    setMirrorOutboxItems((items) => items.filter((item) => item.itemId !== summary.itemId));
-    return settled;
+    validateExactOutboxSummary(summary, projection, authority);
+    const receipt = await appendMirrorOutboxItem(summary.itemId, authority);
+    return journeyPersistenceCoordinator.run(authority, "post_frontier", async () => {
+      const latestProjection = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation);
+      if (!latestProjection) throw new Error("mirror_append_projection_missing");
+      validateExactOutboxSummary(summary, latestProjection, authority);
+      const settled = applyMirrorAppendReceipt(latestProjection, authority, receipt, new Date().toISOString());
+      await savePostFrontierReceiptProjection(settled, authority, summary);
+      await acknowledgeMirrorAppendItem(summary.itemId, summary.conversationId, authority);
+      setMirrorOutboxItems((items) => items.filter((item) => item.itemId !== summary.itemId));
+      return settled;
+    });
   }
 
   async function retryMirrorAppendSummary(item: MirrorAppendOutboxSummary) {
     try {
       const projected = await loadDedicatedJourneyConversation(item.journeyId, item.generation);
-      if (!projected) throw new Error("mirror_append_projection_missing");
-      const repair = pendingMirrorTurnRepair(projected, item.itemId);
-      if (!repair
-        || projected.liveIdentity.mirrorConversationId !== item.conversationId) {
-        throw new Error("mirror_append_projection_authority_mismatch");
-      }
-      const settled = await appendAndAcknowledgeExactProjection(projected, repair.correlation, item);
+      const recovery = resolvePersistedSettlementRecovery(projected, item);
+      if (recovery.status === "blocked") throw new Error(recovery.diagnostic);
+      const { authority } = recovery;
+      const settled = await appendAndAcknowledgeExactProjection(recovery.projection, authority, item);
       if (selectedJourneyRef.current === item.journeyId
-        && conversationRef.current.liveIdentity.generation === item.generation) {
+        && projectionCurrentTurnMatchesAuthority(conversationRef.current, authority)) {
         conversationRef.current = settled;
         setConversation(settled);
       }
@@ -1685,19 +1831,28 @@ export function App({ model }: AppProps) {
     setJourneyMirrorCommitError(ownerJourneyId, undefined);
     try {
       const projection = conversationRef.current;
+      const authority = createJourneySettlementAuthority(
+        createRunAuthority(pendingMirrorRepair.correlation, projection.liveIdentity),
+      );
       if (pendingMirrorOutboxItem) {
-        validateExactOutboxSummary(pendingMirrorOutboxItem, projection, pendingMirrorRepair.correlation);
+        validateExactOutboxSummary(pendingMirrorOutboxItem, projection, authority);
       }
       const settlement = await executeCompletedSettlement({
         projection,
-        authority: exactRetainedSettlementRecovery?.authority,
+        authority,
+        cleanupLeaseAuthority: exactRetainedSettlementRecovery ? authority : undefined,
         existingOutbox: pendingMirrorOutboxItem,
       }, {
-        saveProjection: saveDedicatedJourneyConversation,
-        enqueueOutbox: (candidate) => enqueueExactProjectionOutbox(candidate, pendingMirrorRepair.correlation),
+        loadActiveEvidence: loadActiveSettlementEvidence,
+        saveActiveProjection: (candidate, exactAuthority) => journeyPersistenceCoordinator.run(
+          exactAuthority, "pre_frontier", () => saveActiveSettlementProjection(candidate, exactAuthority),
+        ),
+        enqueueOutbox: (candidate, exactAuthority) => journeyPersistenceCoordinator.run(
+          exactAuthority, "pre_frontier", () => enqueueExactProjectionOutbox(candidate, exactAuthority),
+        ),
         cleanupLease: releaseDurablePiInvocationLease,
-        appendAndAcknowledge: (candidate, summary) => (
-          appendAndAcknowledgeExactProjection(candidate, pendingMirrorRepair.correlation, summary)
+        appendAndAcknowledge: (candidate, summary, exactAuthority) => (
+          appendAndAcknowledgeExactProjection(candidate, exactAuthority, summary)
         ),
       });
       conversationRef.current = settlement.projection;
@@ -1712,7 +1867,8 @@ export function App({ model }: AppProps) {
   }
 
   async function retryInterruptedSettlement() {
-    if (!exactInterruptedRecovery || !interruptedRecoveryEvidence || isRetryingMirrorCommit) return;
+    if (!exactInterruptedRecovery || !interruptedRecoveryEvidence || isRetryingMirrorCommit
+      || journeyThreadState.kind !== "ready") return;
     const ownerJourneyId = selectedJourneyRef.current;
     if (ownerJourneyId !== interruptedRecoveryEvidence.journeyId) return;
     const persisted = conversationRef.current;
@@ -1743,13 +1899,24 @@ export function App({ model }: AppProps) {
           || message.content.trim().length > 0
         )),
       );
-      await executeInterruptedSettlement({
+      const recoveryCorrelation = createDedicatedTurnAuthority(
+        journeyThreadState.thread,
+        interruptedRecoveryEvidence.runId,
+        interruptedRecoveryEvidence.turnId,
+        interruptedRecoveryEvidence.harnessUserMessageId,
+        interruptedRecoveryEvidence.harnessAssistantMessageId,
+      );
+      const authority = createJourneySettlementAuthority(
+        createRunAuthority(recoveryCorrelation, interrupted.liveIdentity),
+      );
+      await journeyPersistenceCoordinator.run(authority, "interrupted", () => executeInterruptedSettlement({
         projection: interrupted,
-        authority: exactInterruptedRecovery.authority,
+        authority,
       }, {
-        saveInterruptedProjection: saveDedicatedJourneyConversation,
+        loadActiveEvidence: loadActiveSettlementEvidence,
+        saveInterruptedProjection: saveActiveSettlementProjection,
         cleanupLease: releaseDurablePiInvocationLease,
-      });
+      }));
       conversationRef.current = interrupted;
       setConversation(interrupted);
     } catch (error) {

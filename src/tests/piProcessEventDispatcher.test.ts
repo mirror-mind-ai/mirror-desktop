@@ -125,6 +125,22 @@ describe("central Pi process event dispatcher", () => {
     expect(secondUnlisten).toHaveBeenCalledTimes(1);
   });
 
+  it("rehydrates an exact inspected/persisted route without duplicate listener or delivery", async () => {
+    const fixture = listenerFixture();
+    const dispatcher = createPiProcessEventDispatcher({ listen: fixture.listen });
+    const run = authority();
+    const staleHandler = vi.fn();
+    const recoveredHandler = vi.fn();
+    await dispatcher.rehydrate(run, staleHandler);
+    await dispatcher.rehydrate(run, recoveredHandler);
+    fixture.emit({ kind: "stdout", content: "recovered", authority: run.eventAuthority });
+    expect(fixture.listen).toHaveBeenCalledTimes(1);
+    expect(staleHandler).not.toHaveBeenCalled();
+    expect(recoveredHandler).toHaveBeenCalledTimes(1);
+    await expect(dispatcher.rehydrate(authority("run-2"), vi.fn()))
+      .rejects.toThrow("authority mismatch");
+  });
+
   it("fails route registration when listener attachment fails", async () => {
     const dispatcher = createPiProcessEventDispatcher({
       listen: vi.fn(async () => { throw new Error("listen failed"); }),

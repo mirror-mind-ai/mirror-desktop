@@ -1,52 +1,163 @@
+import type { JourneyConversation } from "../domain/journeyConversation";
+import {
+  createJourneySettlementAuthority,
+  type JourneySettlementAuthority,
+} from "../domain/journeySettlementAuthority";
+
+export { createJourneySettlementAuthority };
+export type { JourneySettlementAuthority };
+
 export type ExactLeaseAuthority = {
   journeyId: string;
   runId: string;
 };
 
-export type CompletedSettlementInput<TProjection, TOutbox, TAuthority extends ExactLeaseAuthority> = {
+export type ActiveSettlementEvidence = Readonly<{
+  activeGeneration: number;
+  currentRunId: string;
+  currentTurnId: string;
+}>;
+
+export type GenerationScopedOutboxAuthority = Readonly<{
+  itemId: string;
+  journeyId: string;
+  threadId: string;
+  generation: number;
+  conversationId: string;
+}>;
+
+function projectionMatchesAuthority(
+  authority: JourneySettlementAuthority,
+  projection: JourneyConversation,
+): boolean {
+  const turn = projection.reconciliation.turns.find((candidate) => candidate.turnId === authority.turnId);
+  return projection.journeyId === authority.journeyId
+    && projection.id === authority.threadId
+    && projection.liveIdentity.journeyId === authority.journeyId
+    && projection.liveIdentity.harnessConversationId === authority.threadId
+    && projection.liveIdentity.generation === authority.generation
+    && projection.liveIdentity.piSessionId === authority.piSessionId
+    && projection.liveIdentity.piSessionFile === authority.piSessionFile
+    && projection.liveIdentity.mirrorConversationId === authority.mirrorConversationId
+    && turn?.runId === authority.runId
+    && turn.harness.userMessageId === authority.harnessUserMessageId
+    && turn.harness.assistantMessageId === authority.harnessAssistantMessageId;
+}
+
+export function validatePreFrontierSettlement(
+  authority: JourneySettlementAuthority,
+  projection: JourneyConversation,
+  evidence: ActiveSettlementEvidence,
+): void {
+  if (!projectionMatchesAuthority(authority, projection)
+    || evidence.activeGeneration !== authority.generation
+    || evidence.currentRunId !== authority.runId
+    || evidence.currentTurnId !== authority.turnId) {
+    throw new Error("settlement_pre_frontier_authority_stale");
+  }
+}
+
+export function validatePostFrontierSettlement(
+  authority: JourneySettlementAuthority,
+  projection: JourneyConversation,
+  outbox: GenerationScopedOutboxAuthority,
+): void {
+  if (!projectionMatchesAuthority(authority, projection)
+    || outbox.itemId !== authority.turnId
+    || outbox.journeyId !== authority.journeyId
+    || outbox.threadId !== authority.threadId
+    || outbox.generation !== authority.generation
+    || outbox.conversationId !== authority.mirrorConversationId) {
+    throw new Error("settlement_post_frontier_authority_mismatch");
+  }
+}
+
+export type CompletedSettlementInput<
+  TProjection extends JourneyConversation,
+  TOutbox extends GenerationScopedOutboxAuthority,
+> = {
   projection: TProjection;
-  authority?: TAuthority;
+  authority: JourneySettlementAuthority;
+  cleanupLeaseAuthority?: JourneySettlementAuthority;
   existingOutbox?: TOutbox;
 };
 
-export type CompletedSettlementDependencies<TProjection, TOutbox, TAuthority extends ExactLeaseAuthority> = {
-  saveProjection: (projection: TProjection) => Promise<void>;
-  enqueueOutbox: (projection: TProjection) => Promise<TOutbox>;
-  cleanupLease?: (authority: TAuthority) => Promise<void>;
-  appendAndAcknowledge: (projection: TProjection, outbox: TOutbox) => Promise<TProjection>;
+export type CompletedSettlementDependencies<
+  TProjection extends JourneyConversation,
+  TOutbox extends GenerationScopedOutboxAuthority,
+> = {
+  loadActiveEvidence: (authority: JourneySettlementAuthority) => Promise<ActiveSettlementEvidence>;
+  saveActiveProjection: (projection: TProjection, authority: JourneySettlementAuthority) => Promise<void>;
+  enqueueOutbox: (projection: TProjection, authority: JourneySettlementAuthority) => Promise<TOutbox>;
+  cleanupLease?: (authority: JourneySettlementAuthority) => Promise<void>;
+  onLeaseReleased?: () => Promise<void> | void;
+  appendAndAcknowledge: (
+    projection: TProjection,
+    outbox: TOutbox,
+    authority: JourneySettlementAuthority,
+  ) => Promise<TProjection>;
 };
 
 export async function executeCompletedSettlement<
-  TProjection,
-  TOutbox,
-  TAuthority extends ExactLeaseAuthority,
+  TProjection extends JourneyConversation,
+  TOutbox extends GenerationScopedOutboxAuthority,
 >(
-  input: CompletedSettlementInput<TProjection, TOutbox, TAuthority>,
-  dependencies: CompletedSettlementDependencies<TProjection, TOutbox, TAuthority>,
+  input: CompletedSettlementInput<TProjection, TOutbox>,
+  dependencies: CompletedSettlementDependencies<TProjection, TOutbox>,
 ): Promise<{ projection: TProjection; outbox: TOutbox }> {
   let outbox = input.existingOutbox;
   if (outbox === undefined) {
-    await dependencies.saveProjection(input.projection);
-    outbox = await dependencies.enqueueOutbox(input.projection);
+    validatePreFrontierSettlement(
+      input.authority,
+      input.projection,
+      await dependencies.loadActiveEvidence(input.authority),
+    );
+    await dependencies.saveActiveProjection(input.projection, input.authority);
+    validatePreFrontierSettlement(
+      input.authority,
+      input.projection,
+      await dependencies.loadActiveEvidence(input.authority),
+    );
+    outbox = await dependencies.enqueueOutbox(input.projection, input.authority);
   }
-  if (input.authority) {
+  validatePostFrontierSettlement(input.authority, input.projection, outbox);
+  if (input.cleanupLeaseAuthority) {
     if (!dependencies.cleanupLease) {
       throw new Error("exact_settlement_cleanup_dependency_missing");
     }
-    await dependencies.cleanupLease(input.authority);
+    if (input.cleanupLeaseAuthority.journeyId !== input.authority.journeyId
+      || input.cleanupLeaseAuthority.runId !== input.authority.runId) {
+      throw new Error("exact_settlement_cleanup_authority_mismatch");
+    }
+    await dependencies.cleanupLease(input.cleanupLeaseAuthority);
+    await dependencies.onLeaseReleased?.();
   }
-  const projection = await dependencies.appendAndAcknowledge(input.projection, outbox);
+  const projection = await dependencies.appendAndAcknowledge(input.projection, outbox, input.authority);
   return { projection, outbox };
 }
 
-export async function executeInterruptedSettlement<TProjection, TAuthority extends ExactLeaseAuthority>(
-  input: { projection: TProjection; authority: TAuthority },
+export async function executeInterruptedSettlement<TProjection extends JourneyConversation>(
+  input: { projection: TProjection; authority: JourneySettlementAuthority },
   dependencies: {
-    saveInterruptedProjection: (projection: TProjection) => Promise<void>;
-    cleanupLease: (authority: TAuthority) => Promise<void>;
+    loadActiveEvidence: (authority: JourneySettlementAuthority) => Promise<ActiveSettlementEvidence>;
+    saveInterruptedProjection: (
+      projection: TProjection,
+      authority: JourneySettlementAuthority,
+    ) => Promise<void>;
+    cleanupLease: (authority: JourneySettlementAuthority) => Promise<void>;
   },
 ): Promise<TProjection> {
-  await dependencies.saveInterruptedProjection(input.projection);
+  validatePreFrontierSettlement(
+    input.authority,
+    input.projection,
+    await dependencies.loadActiveEvidence(input.authority),
+  );
+  await dependencies.saveInterruptedProjection(input.projection, input.authority);
+  validatePreFrontierSettlement(
+    input.authority,
+    input.projection,
+    await dependencies.loadActiveEvidence(input.authority),
+  );
   await dependencies.cleanupLease(input.authority);
   return input.projection;
 }

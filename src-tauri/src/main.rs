@@ -22,7 +22,10 @@ use std::{
     io::{BufRead, BufReader, Cursor, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex,
+    },
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -84,6 +87,33 @@ struct JourneyProvisioningState {
 #[derive(Default)]
 struct MirrorAppendOutboxState {
     lock: Mutex<()>,
+}
+
+const JOURNEY_PROJECTION_LOCK_STRIPES: usize = 32;
+
+struct JourneyProjectionPersistenceState {
+    stripes: Vec<Mutex<()>>,
+    staged_sequence: AtomicU64,
+}
+
+impl Default for JourneyProjectionPersistenceState {
+    fn default() -> Self {
+        Self {
+            stripes: (0..JOURNEY_PROJECTION_LOCK_STRIPES).map(|_| Mutex::new(())).collect(),
+            staged_sequence: AtomicU64::new(1),
+        }
+    }
+}
+
+impl JourneyProjectionPersistenceState {
+    fn stripe(&self, journey_id: &str, generation: u64) -> usize {
+        let mut hash = 0xcbf29ce484222325_u64;
+        for byte in journey_id.bytes().chain(generation.to_le_bytes()) {
+            hash ^= u64::from(byte);
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+        (hash as usize) % self.stripes.len()
+    }
 }
 
 struct JourneyProvisioningLease {
@@ -2097,6 +2127,7 @@ fn enqueue_mirror_append_item(
     app: AppHandle,
     state: State<'_, MirrorAppendOutboxState>,
     payload: String,
+    run_authority: RunAuthority,
 ) -> Result<(), String> {
     if payload.len() > MIRROR_APPEND_MAX_ITEM_BYTES {
         return Err("mirror_append_item_oversized".to_string());
@@ -2104,6 +2135,15 @@ fn enqueue_mirror_append_item(
     let item: Value =
         serde_json::from_str(&payload).map_err(|_| "mirror_append_item_invalid".to_string())?;
     validate_mirror_append_item(&item)?;
+    validate_run_authority(&app, &run_authority)?;
+    if item.get("itemId").and_then(Value::as_str) != Some(run_authority.turn_id.as_str())
+        || item.get("journeyId").and_then(Value::as_str) != Some(run_authority.journey_id.as_str())
+        || item.get("threadId").and_then(Value::as_str) != Some(run_authority.thread_id.as_str())
+        || item.get("generation").and_then(Value::as_u64) != Some(run_authority.generation)
+        || item.get("conversationId").and_then(Value::as_str) != Some(run_authority.mirror_conversation_id.as_str())
+    {
+        return Err("mirror_append_item_authority_mismatch".to_string());
+    }
     validate_outbox_generation_authority(&app, &item)?;
     let _guard = state
         .lock
@@ -2328,26 +2368,102 @@ fn append_mirror_outbox_item(
     app: AppHandle,
     state: State<'_, MirrorAppendOutboxState>,
     item_id: String,
+    run_authority: RunAuthority,
 ) -> Result<Value, String> {
     if !valid_append_id(&item_id) {
         return Err("mirror_append_item_invalid".to_string());
     }
-    let _guard = state
-        .lock
-        .lock()
-        .map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
-    let outbox = read_mirror_append_outbox(&mirror_append_outbox_path(&app)?)?;
-    let item = outbox
-        .get("items")
-        .and_then(Value::as_array)
-        .and_then(|items| {
-            items
-                .iter()
-                .find(|item| item.get("itemId").and_then(Value::as_str) == Some(item_id.as_str()))
-        })
-        .ok_or_else(|| "mirror_append_item_missing".to_string())?;
-    validate_outbox_generation_authority(&app, item)?;
-    run_explicit_mirror_append(item)
+    let item = {
+        let _guard = state
+            .lock
+            .lock()
+            .map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
+        let outbox = read_mirror_append_outbox(&mirror_append_outbox_path(&app)?)?;
+        let item = outbox
+            .get("items")
+            .and_then(Value::as_array)
+            .and_then(|items| {
+                items
+                    .iter()
+                    .find(|item| item.get("itemId").and_then(Value::as_str) == Some(item_id.as_str()))
+            })
+            .ok_or_else(|| "mirror_append_item_missing".to_string())?;
+        validate_outbox_generation_authority(&app, item)?;
+        let app_data_dir = app.path().app_data_dir()
+            .map_err(|_| "mirror_append_authority_missing".to_string())?;
+        validate_outbox_item_run_authority_at(&app_data_dir, item, &run_authority)?;
+        item.clone()
+    };
+    run_explicit_mirror_append(&item)
+}
+
+fn validate_outbox_item_run_authority_at(
+    app_data_dir: &Path,
+    item: &Value,
+    authority: &RunAuthority,
+) -> Result<(), String> {
+    validate_turn_correlation(&authority.correlation)?;
+    let messages = item.get("messages").and_then(Value::as_array)
+        .ok_or_else(|| "mirror_append_item_invalid".to_string())?;
+    if item.get("itemId").and_then(Value::as_str) != Some(authority.turn_id.as_str())
+        || item.get("journeyId").and_then(Value::as_str) != Some(authority.journey_id.as_str())
+        || item.get("threadId").and_then(Value::as_str) != Some(authority.thread_id.as_str())
+        || item.get("generation").and_then(Value::as_u64) != Some(authority.generation)
+        || item.get("conversationId").and_then(Value::as_str) != Some(authority.mirror_conversation_id.as_str())
+        || messages.first().and_then(|message| message.get("id")).and_then(Value::as_str)
+            != Some(authority.harness_user_message_id.as_str())
+        || messages.get(1).and_then(|message| message.get("id")).and_then(Value::as_str)
+            != Some(authority.harness_assistant_message_id.as_str())
+    {
+        return Err("mirror_append_item_authority_mismatch".to_string());
+    }
+    let projection: Value = serde_json::from_str(
+        &fs::read_to_string(dedicated_journey_conversation_path_at(
+            app_data_dir, &authority.journey_id, authority.generation,
+        )?).map_err(|_| "mirror_append_authority_missing".to_string())?,
+    ).map_err(|_| "mirror_append_authority_invalid".to_string())?;
+    validate_projection_payload_authority(&projection, authority)
+        .map_err(|_| "mirror_append_projection_authority_mismatch".to_string())
+}
+
+fn validate_acknowledged_projection_authority(
+    app: &AppHandle,
+    authority: &RunAuthority,
+    item_id: &str,
+    conversation_id: &str,
+) -> Result<(), String> {
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|_| "mirror_append_acknowledgement_missing".to_string())?;
+    validate_acknowledged_projection_authority_at(&app_data_dir, authority, item_id, conversation_id)
+}
+
+fn validate_acknowledged_projection_authority_at(
+    app_data_dir: &Path,
+    authority: &RunAuthority,
+    item_id: &str,
+    conversation_id: &str,
+) -> Result<(), String> {
+    if authority.turn_id != item_id || authority.mirror_conversation_id != conversation_id {
+        return Err("mirror_append_acknowledgement_authority_mismatch".to_string());
+    }
+    validate_turn_correlation(&authority.correlation)?;
+    let projection: Value = serde_json::from_str(
+        &fs::read_to_string(dedicated_journey_conversation_path_at(
+            app_data_dir, &authority.journey_id, authority.generation,
+        )?).map_err(|_| "mirror_append_acknowledgement_missing".to_string())?,
+    ).map_err(|_| "mirror_append_acknowledgement_missing".to_string())?;
+    validate_projection_payload_authority(&projection, authority)?;
+    let turn = projection.pointer("/conversation/reconciliation/turns").and_then(Value::as_array)
+        .and_then(|turns| turns.iter().find(|turn| {
+            turn.get("turnId").and_then(Value::as_str) == Some(authority.turn_id.as_str())
+        })).ok_or_else(|| "mirror_append_acknowledgement_missing".to_string())?;
+    if turn.pointer("/mirror/state").and_then(Value::as_str) != Some("committed")
+        || turn.pointer("/mirror/userMessageId").and_then(Value::as_str) != Some(authority.harness_user_message_id.as_str())
+        || turn.pointer("/mirror/assistantMessageId").and_then(Value::as_str) != Some(authority.harness_assistant_message_id.as_str())
+    {
+        return Err("mirror_append_acknowledgement_missing".to_string());
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -2356,30 +2472,40 @@ fn acknowledge_mirror_append_item(
     state: State<'_, MirrorAppendOutboxState>,
     item_id: String,
     conversation_id: String,
-) -> Result<(), String> {
+    run_authority: RunAuthority,
+) -> Result<Value, String> {
     if !valid_append_id(&item_id) || !valid_append_id(&conversation_id) {
         return Err("mirror_append_item_invalid".to_string());
     }
-    let _guard = state
-        .lock
-        .lock()
+    let _guard = state.lock.lock()
         .map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
     let path = mirror_append_outbox_path(&app)?;
     let mut outbox = read_mirror_append_outbox(&path)?;
-    let items = outbox
-        .get_mut("items")
-        .and_then(Value::as_array_mut)
+    let items = outbox.get_mut("items").and_then(Value::as_array_mut)
         .ok_or_else(|| "mirror_append_outbox_invalid".to_string())?;
-    let item = items.iter().find(|item| {
+    let existing = items.iter().find(|item| {
         item.get("itemId").and_then(Value::as_str) == Some(item_id.as_str())
             && item.get("conversationId").and_then(Value::as_str) == Some(conversation_id.as_str())
-    }).ok_or_else(|| "mirror_append_item_missing".to_string())?;
-    validate_outbox_acknowledgement(&app, item)?;
-    items.retain(|item| {
-        !(item.get("itemId").and_then(Value::as_str) == Some(item_id.as_str())
-            && item.get("conversationId").and_then(Value::as_str) == Some(conversation_id.as_str()))
     });
-    write_mirror_append_outbox(&path, outbox)
+    if let Some(item) = existing {
+        if item.get("journeyId").and_then(Value::as_str) != Some(run_authority.journey_id.as_str())
+            || item.get("threadId").and_then(Value::as_str) != Some(run_authority.thread_id.as_str())
+            || item.get("generation").and_then(Value::as_u64) != Some(run_authority.generation)
+            || item.get("itemId").and_then(Value::as_str) != Some(run_authority.turn_id.as_str())
+        {
+            return Err("mirror_append_acknowledgement_authority_mismatch".to_string());
+        }
+        validate_outbox_acknowledgement(&app, item)?;
+        validate_acknowledged_projection_authority(&app, &run_authority, &item_id, &conversation_id)?;
+        items.retain(|item| {
+            !(item.get("itemId").and_then(Value::as_str) == Some(item_id.as_str())
+                && item.get("conversationId").and_then(Value::as_str) == Some(conversation_id.as_str()))
+        });
+        write_mirror_append_outbox(&path, outbox)?;
+        return Ok(json!({"status":"acknowledged"}));
+    }
+    validate_acknowledged_projection_authority(&app, &run_authority, &item_id, &conversation_id)?;
+    Ok(json!({"status":"already_acknowledged"}))
 }
 
 fn mirror_runtime_skill_paths() -> Result<Vec<PathBuf>, String> {
@@ -3102,22 +3228,155 @@ fn dedicated_journey_conversation_path(app: &AppHandle, journey_id: &str, genera
         .join(format!("generation-{}.json", generation)))
 }
 
+fn validate_projection_payload_authority(parsed: &Value, authority: &RunAuthority) -> Result<(), String> {
+    let conversation = parsed.get("conversation")
+        .ok_or_else(|| "dedicated_projection_authority_mismatch".to_string())?;
+    let live = conversation.get("liveIdentity")
+        .ok_or_else(|| "dedicated_projection_authority_mismatch".to_string())?;
+    let turn = conversation.get("reconciliation").and_then(|value| value.get("turns"))
+        .and_then(Value::as_array)
+        .and_then(|turns| turns.iter().find(|turn| {
+            turn.get("turnId").and_then(Value::as_str) == Some(authority.turn_id.as_str())
+        }))
+        .ok_or_else(|| "dedicated_projection_authority_mismatch".to_string())?;
+    if authority.schema_version != "0.1.0"
+        || authority.correlation.schema_version != "0.2.0"
+        || authority.journey_id != authority.correlation.journey_id
+        || authority.run_id != authority.correlation.run_id
+        || authority.turn_id != authority.correlation.turn_id
+        || Some(authority.thread_id.as_str()) != authority.correlation.thread_id.as_deref()
+        || authority.harness_conversation_id != authority.correlation.harness_conversation_id
+        || authority.generation != authority.correlation.generation
+        || authority.pi_session_id != authority.correlation.pi_session_id
+        || Some(authority.mirror_conversation_id.as_str()) != authority.correlation.mirror_conversation_id.as_deref()
+        || Some(authority.activation_receipt_activated_at.as_str()) != authority.correlation.activation_receipt_activated_at.as_deref()
+        || authority.harness_user_message_id != authority.correlation.harness_user_message_id
+        || authority.harness_assistant_message_id != authority.correlation.harness_assistant_message_id
+        || conversation.get("journeyId").and_then(Value::as_str) != Some(authority.journey_id.as_str())
+        || conversation.get("id").and_then(Value::as_str) != Some(authority.thread_id.as_str())
+        || live.get("journeyId").and_then(Value::as_str) != Some(authority.journey_id.as_str())
+        || live.get("harnessConversationId").and_then(Value::as_str) != Some(authority.thread_id.as_str())
+        || live.get("generation").and_then(Value::as_u64) != Some(authority.generation)
+        || live.get("piSessionId").and_then(Value::as_str) != Some(authority.pi_session_id.as_str())
+        || live.get("piSessionFile").and_then(Value::as_str) != Some(authority.pi_session_file.as_str())
+        || live.get("mirrorConversationId").and_then(Value::as_str) != Some(authority.mirror_conversation_id.as_str())
+        || live.get("activationReceiptActivatedAt").and_then(Value::as_str)
+            != Some(authority.activation_receipt_activated_at.as_str())
+        || turn.get("runId").and_then(Value::as_str) != Some(authority.run_id.as_str())
+        || turn.pointer("/harness/userMessageId").and_then(Value::as_str) != Some(authority.harness_user_message_id.as_str())
+        || turn.pointer("/harness/assistantMessageId").and_then(Value::as_str) != Some(authority.harness_assistant_message_id.as_str())
+    {
+        return Err("dedicated_projection_authority_mismatch".to_string());
+    }
+    Ok(())
+}
+
+fn write_durable_projection_at(path: &Path, payload: &[u8], staged_nonce: u64) -> Result<(), String> {
+    let parent = path.parent().ok_or_else(|| "dedicated_projection_unavailable".to_string())?;
+    fs::create_dir_all(parent).map_err(|_| "dedicated_projection_unavailable".to_string())?;
+    let file_name = path.file_name().and_then(|value| value.to_str())
+        .ok_or_else(|| "dedicated_projection_unavailable".to_string())?;
+    let staged = parent.join(format!("{}.{}.tmp", file_name, staged_nonce));
+    let result = (|| {
+        let mut file = fs::OpenOptions::new().write(true).create_new(true).open(&staged)
+            .map_err(|_| "dedicated_projection_unavailable".to_string())?;
+        file.write_all(payload).map_err(|_| "dedicated_projection_unavailable".to_string())?;
+        file.sync_all().map_err(|_| "dedicated_projection_unavailable".to_string())?;
+        fs::rename(&staged, path).map_err(|_| "dedicated_projection_unavailable".to_string())?;
+        fs::File::open(parent).and_then(|directory| directory.sync_all())
+            .map_err(|_| "dedicated_projection_unavailable".to_string())
+    })();
+    if result.is_err() && staged.is_file() { let _ = fs::remove_file(staged); }
+    result
+}
+
+fn validate_post_frontier_outbox_authority(
+    app: &AppHandle,
+    state: &MirrorAppendOutboxState,
+    authority: &RunAuthority,
+    item_id: &str,
+    conversation_id: &str,
+) -> Result<(), String> {
+    let _guard = state.lock.lock().map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
+    let outbox = read_mirror_append_outbox(&mirror_append_outbox_path(app)?)?;
+    let item = outbox.get("items").and_then(Value::as_array)
+        .and_then(|items| items.iter().find(|item| {
+            item.get("itemId").and_then(Value::as_str) == Some(item_id)
+                && item.get("conversationId").and_then(Value::as_str) == Some(conversation_id)
+        })).ok_or_else(|| "mirror_append_item_missing".to_string())?;
+    validate_outbox_generation_authority(app, item)?;
+    if item_id != authority.turn_id
+        || conversation_id != authority.mirror_conversation_id
+        || item.get("journeyId").and_then(Value::as_str) != Some(authority.journey_id.as_str())
+        || item.get("threadId").and_then(Value::as_str) != Some(authority.thread_id.as_str())
+        || item.get("generation").and_then(Value::as_u64) != Some(authority.generation)
+    {
+        return Err("mirror_append_projection_authority_mismatch".to_string());
+    }
+    Ok(())
+}
+
 #[tauri::command]
-fn save_dedicated_journey_conversation(app: AppHandle, journey_id: String, generation: u64, payload: String) -> Result<(), String> {
+fn save_dedicated_journey_conversation(
+    app: AppHandle,
+    persistence: State<'_, JourneyProjectionPersistenceState>,
+    outbox: State<'_, MirrorAppendOutboxState>,
+    journey_id: String,
+    generation: u64,
+    payload: String,
+    mode: Option<String>,
+    run_authority: Option<RunAuthority>,
+    outbox_item_id: Option<String>,
+    outbox_conversation_id: Option<String>,
+) -> Result<(), String> {
     let path = dedicated_journey_conversation_path(&app, &journey_id, generation)?;
-    let parsed: Value = serde_json::from_str(&payload).map_err(|error| format!("Invalid dedicated conversation payload: {}", error))?;
+    let parsed: Value = serde_json::from_str(&payload)
+        .map_err(|_| "dedicated_projection_invalid".to_string())?;
     let live = parsed.get("conversation").and_then(|value| value.get("liveIdentity"))
-        .ok_or_else(|| "Dedicated conversation identity is missing.".to_string())?;
+        .ok_or_else(|| "dedicated_projection_authority_missing".to_string())?;
     if live.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
         || live.get("generation").and_then(Value::as_u64) != Some(generation)
         || live.get("activationReceiptActivatedAt").and_then(Value::as_str).is_none()
     {
-        return Err("Dedicated conversation payload lacks dedicated authority.".to_string());
+        return Err("dedicated_projection_authority_mismatch".to_string());
     }
-    if let Some(parent) = path.parent() { fs::create_dir_all(parent).map_err(|error| error.to_string())?; }
-    let staged = path.with_extension("json.tmp");
-    fs::write(&staged, payload).map_err(|error| error.to_string())?;
-    fs::rename(staged, path).map_err(|error| error.to_string())
+
+    let stripe = persistence.stripe(&journey_id, generation);
+    let _projection_guard = persistence.stripes[stripe].lock()
+        .map_err(|_| "dedicated_projection_unavailable".to_string())?;
+    match mode.as_deref().unwrap_or("lifecycle") {
+        "lifecycle" => {
+            if run_authority.is_some() || outbox_item_id.is_some() || outbox_conversation_id.is_some() {
+                return Err("dedicated_projection_mode_invalid".to_string());
+            }
+        }
+        "active_pre_frontier" => {
+            let authority = run_authority.as_ref()
+                .ok_or_else(|| "dedicated_projection_authority_missing".to_string())?;
+            if authority.journey_id != journey_id || authority.generation != generation {
+                return Err("dedicated_projection_authority_mismatch".to_string());
+            }
+            validate_run_authority(&app, authority)?;
+            validate_projection_payload_authority(&parsed, authority)?;
+        }
+        "generation_scoped_post_frontier" => {
+            let authority = run_authority.as_ref()
+                .ok_or_else(|| "dedicated_projection_authority_missing".to_string())?;
+            let item_id = outbox_item_id.as_deref()
+                .ok_or_else(|| "dedicated_projection_authority_missing".to_string())?;
+            let conversation_id = outbox_conversation_id.as_deref()
+                .ok_or_else(|| "dedicated_projection_authority_missing".to_string())?;
+            if authority.journey_id != journey_id || authority.generation != generation {
+                return Err("dedicated_projection_authority_mismatch".to_string());
+            }
+            validate_turn_correlation(&authority.correlation)?;
+            validate_projection_payload_authority(&parsed, authority)?;
+            validate_post_frontier_outbox_authority(&app, &outbox, authority, item_id, conversation_id)?;
+        }
+        _ => return Err("dedicated_projection_mode_invalid".to_string()),
+    }
+    let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+    write_durable_projection_at(&path, payload.as_bytes(), nonce)
 }
 
 #[tauri::command]
@@ -3489,6 +3748,7 @@ fn main() {
         })
         .manage(PiProcessState::default())
         .manage(JourneyProvisioningState::default())
+        .manage(JourneyProjectionPersistenceState::default())
         .manage(MirrorAppendOutboxState::default())
         .invoke_handler(tauri::generate_handler![
             save_dedicated_journey_conversation,
@@ -3551,10 +3811,14 @@ mod tests {
         project_complete_pi_transcript, projection_manifest_coordinates_at,
         inspect_file_attachments_at, publish_refreshed_journey_registry, read_journey_document_at,
         remove_provider_session_args, resolve_existing_local_file, retire_legacy_parity_state_at,
-        unwrap_persisted_thread, validate_composer_drafts_payload, validate_external_url,
-        validate_journey_registry_payload, validate_mirror_append_item, validate_pi_session_file_at,
-        validate_run_authority_at, validate_turn_correlation, PiSessionContextSnapshot, RunAuthority,
-        TurnCorrelation, JOURNEY_REGISTRY_FILE, FILE_ATTACHMENT_MAX_FILES, DOCUMENT_PREVIEW_MAX_BYTES,
+        unwrap_persisted_thread, validate_acknowledged_projection_authority_at,
+        validate_composer_drafts_payload, validate_external_url, validate_journey_registry_payload,
+        validate_mirror_append_item, validate_outbox_item_run_authority_at,
+        validate_pi_session_file_at, validate_projection_payload_authority, validate_run_authority_at,
+        validate_turn_correlation,
+        write_durable_projection_at, JourneyProjectionPersistenceState, PiSessionContextSnapshot,
+        RunAuthority, TurnCorrelation, JOURNEY_REGISTRY_FILE, FILE_ATTACHMENT_MAX_FILES,
+        DOCUMENT_PREVIEW_MAX_BYTES,
     };
     use serde_json::{json, Value};
     use std::{
@@ -3637,6 +3901,7 @@ mod tests {
         fs::write(root.join("dedicated-journey-conversations/journey-one/generation-1.json"), serde_json::to_vec(&json!({
             "schemaVersion":"1.0.0",
             "conversation":{
+                "id":"thread-one",
                 "journeyId":"journey-one",
                 "liveIdentity":{
                     "journeyId":"journey-one",
@@ -3647,7 +3912,7 @@ mod tests {
                     "activationReceiptActivatedAt":live_receipt,
                     "mirrorConversationId":"mirror-one"
                 },
-                "reconciliation":{"turns":[{"turnId":"turn-one","runId":"run-one"}]}
+                "reconciliation":{"turns":[{"turnId":"turn-one","runId":"run-one","harness":{"userMessageId":"user-one","assistantMessageId":"assistant-one"}}]}
             }
         })).unwrap()).unwrap();
     }
@@ -3721,6 +3986,105 @@ mod tests {
         assert_eq!(enqueue_mirror_append_item_at(&path, item(32)).unwrap_err(), "mirror_append_outbox_full");
         let persisted: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(persisted["items"].as_array().unwrap().len(), 32);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn serializes_same_journey_generation_without_globally_locking_independent_keys() {
+        let state = JourneyProjectionPersistenceState::default();
+        let a = state.stripe("journey-a", 1);
+        assert_eq!(a, state.stripe("journey-a", 1));
+        let other = (0..100).map(|index| format!("journey-b-{}", index))
+            .find(|candidate| state.stripe(candidate, 1) != a).unwrap();
+        let b = state.stripe(&other, 1);
+        let a_guard = state.stripes[a].lock().unwrap();
+        assert!(state.stripes[a].try_lock().is_err());
+        assert!(state.stripes[b].try_lock().is_ok());
+        drop(a_guard);
+        assert!(state.stripes[a].try_lock().is_ok());
+    }
+
+    #[test]
+    fn validates_exact_projection_authority_and_rejects_a_replacement() {
+        let root = test_root("projection-authority");
+        let authority = test_run_authority(&root);
+        persist_run_authority_fixture(&root, &authority, "2026-08-26T10:00:00Z");
+        let payload: Value = serde_json::from_str(&fs::read_to_string(
+            root.join("dedicated-journey-conversations/journey-one/generation-1.json"),
+        ).unwrap()).unwrap();
+        assert!(validate_projection_payload_authority(&payload, &authority).is_ok());
+        let mut replacement = payload;
+        replacement["conversation"]["reconciliation"]["turns"][0]["runId"] = Value::String("run-two".to_string());
+        assert_eq!(
+            validate_projection_payload_authority(&replacement, &authority).unwrap_err(),
+            "dedicated_projection_authority_mismatch",
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn authorizes_remote_append_with_the_complete_run_authority() {
+        let root = test_root("append-run-authority");
+        let authority = test_run_authority(&root);
+        persist_run_authority_fixture(&root, &authority, "2026-08-26T10:00:00Z");
+        let item = json!({
+            "schemaVersion":"1.0.0", "itemId":"turn-one", "journeyId":"journey-one",
+            "threadId":"thread-one", "generation":1, "conversationId":"mirror-one",
+            "sourceInterface":"nautilus-harness", "createdAt":"2026-08-30T10:00:00Z",
+            "messages":[
+                {"id":"user-one","role":"user","content":"hello","createdAt":"2026-08-30T10:00:00Z","metadata":{"sourceTurnId":"turn-one","generation":1}},
+                {"id":"assistant-one","role":"assistant","content":"hi","createdAt":"2026-08-30T10:00:01Z","metadata":{"sourceTurnId":"turn-one","generation":1}}
+            ]
+        });
+        validate_outbox_item_run_authority_at(&root, &item, &authority).unwrap();
+        let mut stale = authority;
+        stale.run_id = "run-two".to_string();
+        assert_eq!(
+            validate_outbox_item_run_authority_at(&root, &item, &stale).unwrap_err(),
+            "mirror_append_projection_authority_mismatch",
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn requires_exact_persisted_mirror_proof_for_idempotent_acknowledgement() {
+        let root = test_root("ack-proof");
+        let authority = test_run_authority(&root);
+        persist_run_authority_fixture(&root, &authority, "2026-08-26T10:00:00Z");
+        let path = root.join("dedicated-journey-conversations/journey-one/generation-1.json");
+        let mut projection: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(
+            validate_acknowledged_projection_authority_at(
+                &root, &authority, "turn-one", "mirror-one",
+            ).unwrap_err(),
+            "mirror_append_acknowledgement_missing",
+        );
+        projection["conversation"]["reconciliation"]["turns"][0]["mirror"] = json!({
+            "state":"committed", "userMessageId":"user-one", "assistantMessageId":"assistant-one"
+        });
+        fs::write(&path, serde_json::to_vec(&projection).unwrap()).unwrap();
+        validate_acknowledged_projection_authority_at(&root, &authority, "turn-one", "mirror-one").unwrap();
+        assert_eq!(
+            validate_acknowledged_projection_authority_at(&root, &authority, "turn-two", "mirror-one").unwrap_err(),
+            "mirror_append_acknowledgement_authority_mismatch",
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn durable_projection_write_syncs_unique_stage_and_preserves_previous_on_failure() {
+        let root = test_root("projection-durable");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("generation-1.json");
+        fs::write(&path, "before").unwrap();
+        write_durable_projection_at(&path, b"after", 7).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "after");
+        assert!(!root.join("generation-1.json.7.tmp").exists());
+
+        let blocked_stage = root.join("generation-1.json.8.tmp");
+        fs::create_dir(&blocked_stage).unwrap();
+        assert!(write_durable_projection_at(&path, b"corrupt", 8).is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "after");
         fs::remove_dir_all(root).unwrap();
     }
 

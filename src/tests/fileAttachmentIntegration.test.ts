@@ -8,7 +8,7 @@ describe("Pi-style file attachment dedicated-turn integration", () => {
   it("stages historical file references before clearing and provider invocation", () => {
     expect(appSource).toContain("attachments: fileAttachments");
     expect(appSource).toContain("fileAttachments: toAgentFileReferences(fileAttachments)");
-    const save = appSource.indexOf("await saveDedicatedJourneyConversation(stagedConversation)");
+    const save = appSource.indexOf("() => saveDedicatedJourneyConversation(stagedConversation)");
     const clear = appSource.indexOf("setPendingFileAttachments([])", save);
     const provider = appSource.indexOf("for await (const event of provider(packet))", save);
     expect(save).toBeGreaterThan(0);

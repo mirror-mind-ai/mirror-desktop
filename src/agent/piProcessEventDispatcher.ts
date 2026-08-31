@@ -36,6 +36,7 @@ export type PiProcessEventDispatcher = {
   mount(): Promise<void>;
   dispose(): Promise<void>;
   register(authority: RunAuthority, handler: (event: PiProcessEvent) => void): Promise<PiProcessEventRoute>;
+  rehydrate(authority: RunAuthority, handler: (event: PiProcessEvent) => void): Promise<PiProcessEventRoute>;
   quarantine(): ReadonlyArray<{ journeyId?: string; runId?: string; reason: string }>;
 };
 
@@ -129,6 +130,17 @@ export function createPiProcessEventDispatcher(
     routes.clear();
   }
 
+  function routeHandle(route: Route): PiProcessEventRoute {
+    return {
+      isClosed: () => route.closed,
+      abortBeforeInvocation() {
+        if (route.closed) return;
+        route.closed = true;
+        if (routes.get(route.authority.journeyId) === route) routes.delete(route.authority.journeyId);
+      },
+    };
+  }
+
   async function register(
     authority: RunAuthority,
     handler: (event: PiProcessEvent) => void,
@@ -139,20 +151,33 @@ export function createPiProcessEventDispatcher(
     if (current && !current.closed) throw new Error(`Pi process route already active for Journey ${authority.journeyId}.`);
     const route: Route = { authority, handler, closed: false };
     routes.set(authority.journeyId, route);
-    return {
-      isClosed: () => route.closed,
-      abortBeforeInvocation() {
-        if (route.closed) return;
-        route.closed = true;
-        if (routes.get(authority.journeyId) === route) routes.delete(authority.journeyId);
-      },
-    };
+    return routeHandle(route);
+  }
+
+  async function rehydrate(
+    authority: RunAuthority,
+    handler: (event: PiProcessEvent) => void,
+  ): Promise<PiProcessEventRoute> {
+    await mount();
+    if (!unlisten) throw new Error("Pi process event dispatcher is not mounted.");
+    const current = routes.get(authority.journeyId);
+    if (current && !current.closed) {
+      if (!samePiProcessEventAuthority(current.authority.eventAuthority, authority)) {
+        throw new Error(`Pi process route authority mismatch for Journey ${authority.journeyId}.`);
+      }
+      current.handler = handler;
+      return routeHandle(current);
+    }
+    const route: Route = { authority, handler, closed: false };
+    routes.set(authority.journeyId, route);
+    return routeHandle(route);
   }
 
   return {
     mount,
     dispose,
     register,
+    rehydrate,
     quarantine: () => [...rejected],
   };
 }

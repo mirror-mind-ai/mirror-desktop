@@ -68,11 +68,15 @@ describe("Journey runtime integration guardrails", () => {
 
   it("keeps native occupancy authoritative through durable cleanup and exact recovery", () => {
     expect(appSource).toContain("hasBlockingPiInvocationOccupancy(piInvocationOccupancy)");
+    expect(appSource).toContain("createJourneySettlementAuthority(runAuthority)");
     expect(appSource).toContain("const settlement = await executeCompletedSettlement({");
-    expect(appSource).toContain("saveProjection: saveDedicatedJourneyConversation");
-    expect(appSource).toContain("enqueueOutbox: (projection) => enqueueExactProjectionOutbox");
+    expect(appSource).toContain("saveActiveProjection: (projection, authority) => journeyPersistenceCoordinator.run");
+    expect(appSource).toContain("enqueueOutbox: (projection, authority) => journeyPersistenceCoordinator.run");
+    expect(appSource).toContain('journeyPersistenceCoordinator.run(');
+    expect(appSource).toContain('"post_frontier"');
+    expect(appSource).toContain("savePostFrontierReceiptProjection(settled, authority, summary)");
     expect(appSource).toContain("cleanupLease: releaseDurablePiInvocationLease");
-    expect(appSource).toContain("await executeInterruptedSettlement({");
+    expect(appSource).toContain("() => executeInterruptedSettlement({");
     expect(appSource).toContain("await rollbackRejectedReservation({");
     expect(appSource).toContain("releaseAndReinspectPiInvocationLease(authority");
     expect(appSource).toContain("runtimeBusy && !exactRetainedSettlementRecovery");

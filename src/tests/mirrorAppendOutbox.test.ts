@@ -9,6 +9,8 @@ import {
   createMirrorAppendOutboxItem,
   parseMirrorAppendReceipt,
 } from "../domain/mirrorAppendOutbox";
+import { createJourneySettlementAuthority } from "../domain/journeySettlementAuthority";
+import { createRunAuthority } from "../domain/runAuthority";
 import { readyThread } from "./fixtures/readyThread";
 
 function fixture() {
@@ -29,13 +31,16 @@ function fixture() {
     entryCount: 2, sessionFile: "/app/pi.jsonl", committedAt: "2026-08-30T10:00:02Z",
   });
   conversation = commitHarnessTurn(conversation, correlation, "2026-08-30T10:00:03Z");
-  return { conversation, correlation };
+  const authority = createJourneySettlementAuthority(
+    createRunAuthority(correlation, conversation.liveIdentity, thread.generations[0]),
+  );
+  return { conversation, correlation, authority };
 }
 
 describe("Mirror append outbox domain", () => {
   it("creates one exact generation-owned two-message append item", () => {
-    const { conversation, correlation } = fixture();
-    expect(createMirrorAppendOutboxItem(conversation, correlation)).toEqual({
+    const { conversation, authority } = fixture();
+    expect(createMirrorAppendOutboxItem(conversation, authority)).toEqual({
       schemaVersion: "1.0.0", itemId: "turn-one", journeyId: "journey-one",
       threadId: conversation.id, generation: 1, conversationId: "mirror-one",
       sourceInterface: "nautilus-harness", createdAt: "2026-08-30T10:00:02Z",
@@ -72,8 +77,8 @@ describe("Mirror append outbox domain", () => {
   });
 
   it("marks the exact reconciliation turn committed from an accepted append receipt", () => {
-    const { conversation, correlation } = fixture();
-    const settled = applyMirrorAppendReceipt(conversation, correlation, {
+    const { conversation, authority } = fixture();
+    const settled = applyMirrorAppendReceipt(conversation, authority, {
       schemaVersion: "1.0.0", status: "accepted", conversationId: "mirror-one", journeyId: "journey-one",
       insertedCount: 0, existingCount: 2,
       messages: [{ id: "user-one", state: "existing" }, { id: "assistant-one", state: "existing" }],
@@ -85,7 +90,7 @@ describe("Mirror append outbox domain", () => {
   });
 
   it("settles an explicit pair after a larger legacy cumulative Mirror checkpoint", () => {
-    const { conversation, correlation } = fixture();
+    const { conversation, authority } = fixture();
     const legacyConversation = {
       ...conversation,
       reconciliation: {
@@ -96,7 +101,7 @@ describe("Mirror append outbox domain", () => {
         },
       },
     };
-    const settled = applyMirrorAppendReceipt(legacyConversation, correlation, {
+    const settled = applyMirrorAppendReceipt(legacyConversation, authority, {
       schemaVersion: "1.0.0", status: "accepted", conversationId: "mirror-one", journeyId: "journey-one",
       insertedCount: 0, existingCount: 2,
       messages: [{ id: "user-one", state: "existing" }, { id: "assistant-one", state: "existing" }],
@@ -106,5 +111,18 @@ describe("Mirror append outbox domain", () => {
       lastMessageId: "assistant-one", messageCount: 46,
     });
     expect(settled.reconciliation.reasonCodes).not.toContain("checkpoint_regression");
+  });
+
+  it("applies an exact repeated existing receipt without incrementing the checkpoint", () => {
+    const { conversation, authority } = fixture();
+    const receipt = {
+      schemaVersion: "1.0.0" as const, status: "accepted" as const,
+      conversationId: "mirror-one", journeyId: "journey-one", insertedCount: 0, existingCount: 2,
+      messages: [{ id: "user-one", state: "existing" as const }, { id: "assistant-one", state: "existing" as const }],
+    };
+    const first = applyMirrorAppendReceipt(conversation, authority, receipt, "2026-08-30T10:00:05Z");
+    const repeated = applyMirrorAppendReceipt(first, authority, receipt, "2026-08-30T10:00:06Z");
+    expect(repeated).toBe(first);
+    expect(repeated.reconciliation.checkpoints.mirror?.messageCount).toBe(2);
   });
 });
