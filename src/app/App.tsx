@@ -77,8 +77,11 @@ import {
   createInitialJourneyRuntimeState,
   hasActiveOrFinalizingJourneyRuntime,
   identityJourneyId,
+  isJourneyRuntimeActiveOrFinalizing,
   journeyRuntimeReducer,
   selectJourneyRuntime,
+  selectJourneyRuntimeConversation,
+  selectJourneyRuntimeOwnerPhase,
   type JourneyRunIdentity,
 } from "./journeyRuntimeState";
 import { inferMessageSpeaker, stripMessageSpeakerSignature, withCertifiedPersona } from "./conversationPresentation";
@@ -290,9 +293,10 @@ export function App({ model }: AppProps) {
     undefined,
     createInitialJourneyRuntimeState,
   );
+  const [runStartReservation, setRunStartReservation] = useState<JourneyRunIdentity | undefined>(undefined);
   const [piContextState, setPiContextState] = useState<"checking" | "waiting" | "available" | "not_initialized">("checking");
   const [isRetryingMirrorCommit, setIsRetryingMirrorCommit] = useState(false);
-  const [mirrorCommitError, setMirrorCommitError] = useState<string | undefined>();
+  const [mirrorCommitErrors, setMirrorCommitErrors] = useState<Record<string, string | undefined>>({});
   const [mirrorOutboxItems, setMirrorOutboxItems] = useState<MirrorAppendOutboxSummary[]>([]);
   const [providerConfig, setProviderConfig] = useState(defaultPiProviderConfig);
   const [providerCommand, setProviderCommand] = useState(defaultPiProviderConfig.command);
@@ -336,8 +340,11 @@ export function App({ model }: AppProps) {
   const checkedMirrorTurnRef = useRef<Set<string>>(new Set());
   const conversationRef = useRef<JourneyConversation>(conversation);
   const selectedJourneyRef = useRef(selectedJourney);
+  const journeyRuntimeStateRef = useRef(journeyRuntimeState);
+  const runStartReservationRef = useRef<JourneyRunIdentity | undefined>(undefined);
   conversationRef.current = conversation;
   selectedJourneyRef.current = selectedJourney;
+  journeyRuntimeStateRef.current = journeyRuntimeState;
 
   const currentState = useMemo(() => grammarStateFromViewModel(model), [model]);
   const journeyRegistry = loadedJourneyRegistry;
@@ -385,7 +392,9 @@ export function App({ model }: AppProps) {
     runtimeProjection,
     runtimeProjectionMessageId,
   } = selectedRuntime;
-  const runtimeBusy = hasActiveOrFinalizingJourneyRuntime(journeyRuntimeState);
+  const runtimeBusy = Boolean(runStartReservation) || hasActiveOrFinalizingJourneyRuntime(journeyRuntimeState);
+  const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime);
+  const mirrorCommitError = mirrorCommitErrors[selectedJourney];
   const messages = conversation.messages;
   const importedActivity = useMemo(
     () => groupImportedActivityByMessage(conversation.importedActivity?.events ?? []),
@@ -422,7 +431,7 @@ export function App({ model }: AppProps) {
     : undefined;
   const legacyMirrorGap = pendingMirrorDisposition === "legacy_gap";
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
-  const dedicatedTurnState = classifyDedicatedTurnState(conversation, runtimeBusy);
+  const dedicatedTurnState = classifyDedicatedTurnState(conversation, selectedRuntimeBusy);
   const mirrorAppendNeedsEnqueue = pendingMirrorDisposition === "enqueue_required";
   const reconciliationBlocksInvocation = mirrorAppendNeedsEnqueue || (dedicatedThreadReady
     ? dedicatedTurnBlocksNewInvocation(dedicatedTurnState)
@@ -451,7 +460,7 @@ export function App({ model }: AppProps) {
       }
     : undefined;
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
-  const altitudeSwitchDisabled = runtimeBusy || isJourneyReloading || projectionLoadStatus === "loading";
+  const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading";
   const operationalChatSelected = selectedAltitude === "operational" && selectedOperationalSurface === "chat";
 
   useEffect(() => {
@@ -663,14 +672,21 @@ export function App({ model }: AppProps) {
         threadAuthorityLoaded = true;
         if (cancelled) return;
         const classified = classifyNautilusJourneyThread(dedicatedThread, selectedJourney);
-        const persistedConversation = classified.kind === "ready"
+        const runtimeConversation = classified.kind === "ready"
+          ? selectJourneyRuntimeConversation(
+              journeyRuntimeStateRef.current,
+              selectedJourney,
+              classified.activeGeneration.generation,
+            )
+          : undefined;
+        const persistedConversation = classified.kind === "ready" && !runtimeConversation
           ? await loadDedicatedJourneyConversation(selectedJourney, classified.activeGeneration.generation)
           : undefined;
         if (cancelled) return;
-        let restoredConversation = classified.kind === "ready"
+        let restoredConversation = runtimeConversation ?? (classified.kind === "ready"
           ? restoreDedicatedJourneyConversation(classified.thread, persistedConversation)
-          : createJourneyConversation({ journeyId: selectedJourney, initialMessages });
-        if (classified.kind === "ready" && classified.activeGeneration.piSessionFile) {
+          : createJourneyConversation({ journeyId: selectedJourney, initialMessages }));
+        if (classified.kind === "ready" && classified.activeGeneration.piSessionFile && !runtimeConversation && !runtimeBusy) {
           const turns = await loadDedicatedPiTranscript(
             selectedJourney,
             classified.activeGeneration.piSessionId,
@@ -763,7 +779,7 @@ export function App({ model }: AppProps) {
     return () => {
       cancelled = true;
     };
-  }, [selectedJourney, registryLoaded, preferencesLoaded]);
+  }, [selectedJourney, registryLoaded, preferencesLoaded, runtimeBusy]);
 
   useEffect(() => {
     if (!registryLoaded) return;
@@ -924,7 +940,7 @@ export function App({ model }: AppProps) {
         }
       })();
     }).catch((error) => {
-      if (!cancelled) setMirrorCommitError(error instanceof Error ? error.message : String(error));
+      if (!cancelled) setJourneyMirrorCommitError(conversation.journeyId, error instanceof Error ? error.message : String(error));
     });
     return () => { cancelled = true; };
   }, [conversation.journeyId, conversationLoaded, runtimeBusy, journeyThreadState.kind]);
@@ -932,7 +948,6 @@ export function App({ model }: AppProps) {
   useEffect(() => {
     checkedMirrorTurnRef.current.clear();
     setMirrorOutboxItems([]);
-    setMirrorCommitError(undefined);
   }, [selectedJourney]);
 
   useEffect(() => {
@@ -1027,7 +1042,7 @@ export function App({ model }: AppProps) {
 
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
     const content = (retryContent ?? draft).trim();
-    if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || runtimeBusy || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
+    if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || runtimeBusy || runStartReservationRef.current || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
       return;
     }
 
@@ -1104,6 +1119,10 @@ export function App({ model }: AppProps) {
       : (packet) => runAuthority
         ? livePiAgentStream(packet, effectiveProviderConfig, runAuthority)
         : missingRunAuthorityStream();
+    const ownerJourneyId = baseConversation.journeyId;
+    const ownerGeneration = baseConversation.liveIdentity.generation;
+    runStartReservationRef.current = runtimeIdentity;
+    setRunStartReservation(runtimeIdentity);
 
     if (correlation) {
       try {
@@ -1111,9 +1130,11 @@ export function App({ model }: AppProps) {
       } catch (error) {
         dispatchJourneyRuntime({
           type: "append_warning",
-          journeyId: selectedJourney,
+          journeyId: ownerJourneyId,
           message: error instanceof Error ? error.message : String(error),
         });
+        if (runStartReservationRef.current === runtimeIdentity) runStartReservationRef.current = undefined;
+        setRunStartReservation((current) => current === runtimeIdentity ? undefined : current);
         return;
       }
     }
@@ -1122,18 +1143,22 @@ export function App({ model }: AppProps) {
       identity: runtimeIdentity,
       run,
       assistantMessageId: assistantMessage.id,
+      conversationSnapshot: stagedConversation,
     });
-    chatAutoFollowRef.current = nextConversationAutoFollow(
-      chatAutoFollowRef.current,
-      { type: "explicit_bottom" },
-    );
-    conversationRef.current = stagedConversation;
-    setConversation(stagedConversation);
+    setRunStartReservation((current) => current === runtimeIdentity ? undefined : current);
+    if (selectedJourneyRef.current === ownerJourneyId) {
+      chatAutoFollowRef.current = nextConversationAutoFollow(
+        chatAutoFollowRef.current,
+        { type: "explicit_bottom" },
+      );
+      conversationRef.current = stagedConversation;
+      setConversation(stagedConversation);
+    }
     setJourneyComposerDraft(baseConversation.journeyId, "");
     setPendingFileAttachments([]);
     setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
     setFileAttachmentError(undefined);
-    setJourneyPreferences((preferences) => markJourneyRecent(preferences, selectedJourney));
+    setJourneyPreferences((preferences) => markJourneyRecent(preferences, ownerJourneyId));
 
     const conversationBeforeRun = baseConversation;
     let rawLiveOutput = "";
@@ -1143,11 +1168,10 @@ export function App({ model }: AppProps) {
     const diagnostics: string[] = [];
     let streamedAssistantContent = "";
     let runConversation = stagedConversation;
-    const ownerJourneyId = baseConversation.journeyId;
-    const ownerGeneration = baseConversation.liveIdentity.generation;
 
     function updateRunConversation(update: (current: JourneyConversation) => JourneyConversation) {
       runConversation = update(runConversation);
+      dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: runConversation });
       if (
         selectedJourneyRef.current === ownerJourneyId
         && conversationRef.current.liveIdentity.generation === ownerGeneration
@@ -1262,6 +1286,7 @@ export function App({ model }: AppProps) {
       dispatchJourneyRuntime({ type: "stream_finished", identity: runtimeIdentity });
       if (runFailed && !runReachedAgent) {
         runConversation = conversationBeforeRun;
+        dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: runConversation });
         if (selectedJourneyRef.current === ownerJourneyId && conversationRef.current.liveIdentity.generation === ownerGeneration) {
           conversationRef.current = conversationBeforeRun;
           setConversation(conversationBeforeRun);
@@ -1292,6 +1317,7 @@ export function App({ model }: AppProps) {
           );
         }
         runConversation = interrupted;
+        dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: runConversation });
         if (selectedJourneyRef.current === ownerJourneyId && conversationRef.current.liveIdentity.generation === ownerGeneration) {
           conversationRef.current = interrupted;
           setConversation(interrupted);
@@ -1343,7 +1369,7 @@ export function App({ model }: AppProps) {
           await saveDedicatedJourneyConversation(settled);
           await acknowledgeMirrorAppendItem(summary.itemId, summary.conversationId);
           setMirrorOutboxItems((items) => items.filter((item) => item.itemId !== summary.itemId));
-          setMirrorCommitError(undefined);
+          setJourneyMirrorCommitError(ownerJourneyId, undefined);
           if (
             selectedJourneyRef.current === settled.journeyId
             && conversationRef.current.liveIdentity.generation === settled.liveIdentity.generation
@@ -1352,20 +1378,22 @@ export function App({ model }: AppProps) {
             setConversation(settled);
           }
         } catch (error) {
-          setMirrorCommitError(error instanceof Error ? error.message : String(error));
+          setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
           if (selectedJourneyRef.current === ownerJourneyId && conversationRef.current.liveIdentity.generation === ownerGeneration) {
             conversationRef.current = settled;
             setConversation(settled);
           }
         } finally {
+          dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: settled });
           dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
         }
       }
     }
+    if (runStartReservationRef.current === runtimeIdentity) runStartReservationRef.current = undefined;
   }
 
   async function startSelectedJourney() {
-    if (journeyThreadState.kind !== "absent" || startingJourneyId) return;
+    if (runtimeBusy || journeyThreadState.kind !== "absent" || startingJourneyId) return;
     const ownerJourneyId = selectedJourney;
     const ownerJourneyName = selectedJourneyItem.name;
     setStartingJourneyId(ownerJourneyId);
@@ -1393,6 +1421,10 @@ export function App({ model }: AppProps) {
     }
   }
 
+  function setJourneyMirrorCommitError(journeyId: string, error: string | undefined) {
+    setMirrorCommitErrors((current) => ({ ...current, [journeyId]: error }));
+  }
+
   async function retryMirrorAppendSummary(item: MirrorAppendOutboxSummary) {
     try {
       const projected = await loadDedicatedJourneyConversation(item.journeyId, item.generation);
@@ -1412,17 +1444,18 @@ export function App({ model }: AppProps) {
         conversationRef.current = settled;
         setConversation(settled);
       }
-      setMirrorCommitError(undefined);
+      setJourneyMirrorCommitError(item.journeyId, undefined);
     } catch (error) {
-      setMirrorCommitError(error instanceof Error ? error.message : String(error));
+      setJourneyMirrorCommitError(item.journeyId, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
 
   async function retryPendingMirrorCommit() {
     if (!pendingMirrorRepair || runtimeBusy || isRetryingMirrorCommit) return;
+    const ownerJourneyId = conversationRef.current.journeyId;
     setIsRetryingMirrorCommit(true);
-    setMirrorCommitError(undefined);
+    setJourneyMirrorCommitError(ownerJourneyId, undefined);
     try {
       let item = pendingMirrorOutboxItem;
       if (!item) {
@@ -1439,7 +1472,7 @@ export function App({ model }: AppProps) {
       await retryMirrorAppendSummary(item);
       checkedMirrorTurnRef.current.add(item.itemId);
     } catch (error) {
-      setMirrorCommitError(error instanceof Error ? error.message : String(error));
+      setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
     } finally {
       setIsRetryingMirrorCommit(false);
     }
@@ -1612,10 +1645,26 @@ export function App({ model }: AppProps) {
   }
 
   function selectJourney(journeyId: string) {
-    if (runtimeBusy || journeyId === selectedJourney) {
+    if (journeyId === selectedJourney) {
       return;
     }
 
+    const runtimeEntry = selectJourneyRuntime(journeyRuntimeState, journeyId);
+    const runtimeSnapshot = runtimeEntry.conversationSnapshot
+      ? selectJourneyRuntimeConversation(
+          journeyRuntimeState,
+          journeyId,
+          runtimeEntry.conversationSnapshot.liveIdentity.generation,
+        )
+      : undefined;
+    const nextConversation = runtimeSnapshot
+      ?? createJourneyConversation({ journeyId, initialMessages });
+    conversationRef.current = nextConversation;
+    setConversation(nextConversation);
+    setConversationLoaded(false);
+    setJourneyThreadState({ kind: "loading" });
+    setPiContextState("checking");
+    setJourneyReloadStatus(undefined);
     setSelectedJourney(journeyId);
     setDraft(composerDrafts[journeyId] ?? "");
     setJourneyPreferences((preferences) => ({
@@ -1639,7 +1688,7 @@ export function App({ model }: AppProps) {
   }
 
   async function reloadJourneyTree() {
-    if (journeyRegistryRefreshState === "refreshing") return;
+    if (runtimeBusy || journeyRegistryRefreshState === "refreshing") return;
     setJourneyTreeMenuOpen(false);
     setJourneyRegistryRefreshState("refreshing");
     setJourneyRegistryRefreshMessage("Reloading Journeys from Mirror…");
@@ -1684,6 +1733,7 @@ export function App({ model }: AppProps) {
   }
 
   function togglePinnedJourney(journeyId: string) {
+    if (runtimeBusy) return;
     setJourneyPreferences((preferences) => ({
       ...preferences,
       pinnedJourneyIds: preferences.pinnedJourneyIds.includes(journeyId)
@@ -1693,6 +1743,7 @@ export function App({ model }: AppProps) {
   }
 
   function openCreateJourney(parentId = "") {
+    if (runtimeBusy) return;
     setJourneyAdminDialog({ mode: "create", parentId: parentId || undefined });
     setJourneyAdminName(""); setJourneyAdminSlug(""); setJourneyAdminDescription("");
     setJourneyAdminParent(parentId); setJourneyAdminPosition(appendJourneyPosition(journeyRegistry, parentId));
@@ -1701,12 +1752,14 @@ export function App({ model }: AppProps) {
   }
 
   function openJourneyPath(journeyId: string) {
+    if (runtimeBusy) return;
     setJourneyAdminDialog({ mode: "path", journeyId });
     setJourneyAdminPath(findJourneyById(journeyRegistry, journeyId)?.projectPath ?? "");
     setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null); setJourneyItemMenu(null);
   }
 
   function openMoveJourney(journeyId: string) {
+    if (runtimeBusy) return;
     const journey = findJourneyById(journeyRegistry, journeyId);
     setJourneyAdminDialog({ mode: "move", journeyId });
     setJourneyAdminParent(journey?.parentId ?? ""); setJourneyAdminPosition(journey?.siblingPosition ?? 0);
@@ -1714,6 +1767,7 @@ export function App({ model }: AppProps) {
   }
 
   function openDeleteJourney(journeyId: string) {
+    if (runtimeBusy) return;
     const journey = findJourneyById(journeyRegistry, journeyId);
     if (!journey || (journey.children?.length ?? 0) > 0) return;
     setJourneyAdminDialog({ mode: "delete", journeyId });
@@ -1721,6 +1775,7 @@ export function App({ model }: AppProps) {
   }
 
   async function executeJourneyMutation(operation: "create_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey", payload: Record<string, unknown>) {
+    if (runtimeBusy) return;
     setJourneyAdminState("saving"); setJourneyAdminMessage(undefined);
     try {
       const request = journeyAdminPendingRequest?.operation === operation && JSON.stringify(journeyAdminPendingRequest.payload) === JSON.stringify(payload)
@@ -1856,14 +1911,14 @@ export function App({ model }: AppProps) {
           </button>
           {journeyTreeMenuOpen ? (
             <div className="journey-tree-context-menu" role="menu" ref={journeyTreeMenuRef} aria-label="Journey tree options">
-              <button type="button" role="menuitem" onClick={() => openCreateJourney()}>
+              <button type="button" role="menuitem" disabled={runtimeBusy} onClick={() => openCreateJourney()}>
                 <span aria-hidden="true">＋</span>
                 Create Journey…
               </button>
               <button
                 type="button"
                 role="menuitem"
-                disabled={journeyRegistryRefreshState === "refreshing"}
+                disabled={runtimeBusy || journeyRegistryRefreshState === "refreshing"}
                 onClick={() => void reloadJourneyTree()}
               >
                 <span aria-hidden="true">↻</span>
@@ -1903,14 +1958,14 @@ export function App({ model }: AppProps) {
             const visual = journeyVisual(journey.id);
             const hasChildren = (journey.children?.length ?? 0) > 0;
             const collapsed = collapsedJourneyIds.has(journey.id);
+            const runtimeOwnerPhase = selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id);
             return (
               <div
                 key={journey.id}
-                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${journey.id === selectedJourney ? "selected" : ""} ${runtimeBusy ? "disabled" : ""}`}
+                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${journey.id === selectedJourney ? "selected" : ""} ${runtimeOwnerPhase ? "has-runtime" : ""}`}
                 style={{ "--journey-depth": journeyListOrder === "tree" ? journey.depth : 0 } as CSSProperties & Record<"--journey-depth", number>}
                 role="button"
-                tabIndex={runtimeBusy ? -1 : 0}
-                aria-disabled={runtimeBusy}
+                tabIndex={0}
                 draggable={journeyListOrder === "tree" && !runtimeBusy}
                 onDragStart={() => setDraggedJourneyId(journey.id)}
                 onDragOver={(event) => { if (draggedJourneyId && draggedJourneyId !== journey.id) event.preventDefault(); }}
@@ -1923,7 +1978,7 @@ export function App({ model }: AppProps) {
                   setDraggedJourneyId(null);
                 }}
                 onDragEnd={() => setDraggedJourneyId(null)}
-                onContextMenu={journeyListOrder === "tree" ? (event) => {
+                onContextMenu={journeyListOrder === "tree" && !runtimeBusy ? (event) => {
                   event.preventDefault(); event.stopPropagation();
                   setJourneyItemMenu({ journeyId: journey.id, x: event.clientX, y: event.clientY });
                 } : undefined}
@@ -1932,7 +1987,7 @@ export function App({ model }: AppProps) {
                   setJourneySearch("");
                 }}
                 onKeyDown={(event) => {
-                  if (journeyListOrder === "tree" && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))) {
+                  if (!runtimeBusy && journeyListOrder === "tree" && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))) {
                     event.preventDefault(); event.stopPropagation();
                     const rect = event.currentTarget.getBoundingClientRect();
                     setJourneyItemMenu({ journeyId: journey.id, x: rect.left + 24, y: rect.top + 24 });
@@ -1950,7 +2005,6 @@ export function App({ model }: AppProps) {
                       type="button"
                       aria-label={`${collapsed ? "Expand" : "Collapse"} ${journey.name}`}
                       aria-expanded={!collapsed}
-                      disabled={runtimeBusy}
                       onClick={(event) => {
                         event.stopPropagation();
                         toggleCollapsedJourney(journey.id);
@@ -1969,6 +2023,16 @@ export function App({ model }: AppProps) {
                   <strong>{journey.name}</strong>
                   <small>{sidebarDescription(journey)}</small>
                 </span>
+                {runtimeOwnerPhase ? (
+                  <span
+                    className={`journey-runtime-state ${runtimeOwnerPhase}`}
+                    role="status"
+                    aria-label={`${journey.name} is ${runtimeOwnerPhase === "running" ? "working" : "recording the completed turn"}`}
+                  >
+                    <span aria-hidden="true" />
+                    {runtimeOwnerPhase === "running" ? "Working" : "Recording"}
+                  </span>
+                ) : null}
                 <button
                   className={`journey-pin ${journey.pinned ? "pinned" : ""}`}
                   type="button"
@@ -1989,14 +2053,14 @@ export function App({ model }: AppProps) {
         </div>
         {journeyItemMenu ? (
           <div className="journey-item-context-menu" role="menu" aria-label="Journey options" style={{ left: journeyItemMenu.x, top: journeyItemMenu.y }}>
-            <button type="button" role="menuitem" onClick={() => openCreateJourney(journeyItemMenu.journeyId)}>Create Journey…</button>
-            <button type="button" role="menuitem" onClick={() => openJourneyPath(journeyItemMenu.journeyId)}>Assign project path…</button>
-            <button type="button" role="menuitem" onClick={() => openMoveJourney(journeyItemMenu.journeyId)}>Move Journey…</button>
+            <button type="button" role="menuitem" disabled={runtimeBusy} onClick={() => openCreateJourney(journeyItemMenu.journeyId)}>Create Journey…</button>
+            <button type="button" role="menuitem" disabled={runtimeBusy} onClick={() => openJourneyPath(journeyItemMenu.journeyId)}>Assign project path…</button>
+            <button type="button" role="menuitem" disabled={runtimeBusy} onClick={() => openMoveJourney(journeyItemMenu.journeyId)}>Move Journey…</button>
             <button
               className="danger-menu-item"
               type="button"
               role="menuitem"
-              disabled={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0}
+              disabled={runtimeBusy || (findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0}
               title={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0 ? "Move or delete child Journeys first." : "Permanently delete this empty Journey."}
               onClick={() => openDeleteJourney(journeyItemMenu.journeyId)}
             >
@@ -2135,7 +2199,7 @@ export function App({ model }: AppProps) {
             starting={startingJourneyId === selectedJourney}
             startingPhase={journeyStartPhase}
             error={journeyStartError}
-            onStart={journeyThreadState.kind === "absent" ? () => void startSelectedJourney() : undefined}
+            onStart={journeyThreadState.kind === "absent" && !runtimeBusy ? () => void startSelectedJourney() : undefined}
           />
         ) : null}
 
@@ -2289,7 +2353,7 @@ export function App({ model }: AppProps) {
               placeholder={reconciliationBlocksInvocation
                 ? "Draft your next message while the completed turn is recorded."
                 : "Write a message to this journey agent."}
-              disabled={isJourneyReloading || runtimeBusy}
+              disabled={isJourneyReloading}
             />
             <div className="composer-input-footer">
               <ComposerRuntimeFooter

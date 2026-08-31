@@ -5,6 +5,8 @@ import {
   hasActiveOrFinalizingJourneyRuntime,
   journeyRuntimeReducer,
   selectJourneyRuntime,
+  selectJourneyRuntimeConversation,
+  selectJourneyRuntimeOwnerPhase,
   type JourneyRunIdentity,
 } from "../app/journeyRuntimeState";
 import { createDedicatedJourneyConversation } from "../domain/journeyConversation";
@@ -25,12 +27,19 @@ function identity(journeyId: string, runId = `run-${journeyId}`): JourneyRunIden
   };
 }
 
-function register(state = createInitialJourneyRuntimeState(), owner = identity("journey-a")) {
+function register(
+  state = createInitialJourneyRuntimeState(),
+  owner = identity("journey-a"),
+  conversationSnapshot = owner.kind === "live"
+    ? createDedicatedJourneyConversation({ thread: readyThread(owner.authority.journeyId), initialMessages: [] })
+    : undefined,
+) {
   return journeyRuntimeReducer(state, {
     type: "register",
     identity: owner,
     run: startAgentRun({ content: "hello", mode: owner.kind === "live" ? "live" : "mock", now: new Date("2026-01-01T00:00:00Z") }),
     assistantMessageId: "assistant-a",
+    conversationSnapshot,
   });
 }
 
@@ -158,6 +167,57 @@ describe("Journey-keyed frontend runtime state", () => {
       warnings: [],
     });
     expect(hasActiveOrFinalizingJourneyRuntime(state)).toBe(true);
+  });
+
+  it("derives running and finalizing sidebar state only for the owning Journey", () => {
+    const owner = identity("journey-a");
+    let state = register(createInitialJourneyRuntimeState(), owner);
+    expect(selectJourneyRuntimeOwnerPhase(state, "journey-a")).toBe("running");
+    expect(selectJourneyRuntimeOwnerPhase(state, "journey-b")).toBeUndefined();
+
+    state = journeyRuntimeReducer(state, { type: "stream_event", identity: owner, event: { type: "done" } });
+    state = journeyRuntimeReducer(state, { type: "stream_finished", identity: owner });
+    state = journeyRuntimeReducer(state, { type: "finalization_started", identity: owner });
+    expect(selectJourneyRuntimeOwnerPhase(state, "journey-a")).toBe("finalizing");
+    state = journeyRuntimeReducer(state, { type: "finalization_finished", identity: owner });
+    expect(selectJourneyRuntimeOwnerPhase(state, "journey-a")).toBeUndefined();
+    expect(selectJourneyRuntimeConversation(state, "journey-a", 1)).toBeUndefined();
+  });
+
+  it("keeps an identity-bound owner conversation snapshot across presentation changes", () => {
+    const owner = identity("journey-a");
+    const initial = createDedicatedJourneyConversation({ thread: readyThread("journey-a"), initialMessages: [] });
+    const updated = { ...initial, updatedAt: "2026-02-01T00:00:00.000Z" };
+    let state = register(createInitialJourneyRuntimeState(), owner, initial);
+    state = journeyRuntimeReducer(state, { type: "conversation_snapshot", identity: owner, conversation: updated });
+
+    expect(selectJourneyRuntimeConversation(state, "journey-a", initial.liveIdentity.generation)).toEqual(updated);
+    expect(selectJourneyRuntimeConversation(state, "journey-b", initial.liveIdentity.generation)).toBeUndefined();
+
+    const stale = identity("journey-a", "stale-run");
+    state = journeyRuntimeReducer(state, { type: "conversation_snapshot", identity: stale, conversation: initial });
+    expect(selectJourneyRuntimeConversation(state, "journey-a", initial.liveIdentity.generation)).toEqual(updated);
+    expect(state.quarantine.at(-1)?.reason).toBe("authority_mismatch");
+  });
+
+  it("rejects a conversation snapshot whose generation does not match run authority", () => {
+    const owner = identity("journey-a");
+    const baseThread = readyThread("journey-a");
+    const wrongGeneration = createDedicatedJourneyConversation({
+      thread: {
+        ...baseThread,
+        activeGeneration: 2,
+        generations: [{ ...baseThread.generations[0], generation: 2 }],
+      },
+      initialMessages: [],
+    });
+    const state = journeyRuntimeReducer(register(createInitialJourneyRuntimeState(), owner), {
+      type: "conversation_snapshot",
+      identity: owner,
+      conversation: wrongGeneration,
+    });
+    expect(selectJourneyRuntimeConversation(state, "journey-a", 1)).not.toEqual(wrongGeneration);
+    expect(state.quarantine.at(-1)?.reason).toBe("authority_mismatch");
   });
 
   it("keeps mock identity keyed without live authority", () => {

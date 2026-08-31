@@ -7,6 +7,7 @@ import {
 import type { AgentStreamEvent } from "../agent/agentStream";
 import type { NormalizedPiResponse } from "../agent/piResponseNormalizer";
 import type { MissionDraft } from "../agent/piTaskPacket";
+import type { JourneyConversation } from "../domain/journeyConversation";
 import type { RunAuthority } from "../domain/runAuthority";
 import {
   initialRuntimeProjectionState,
@@ -34,6 +35,7 @@ export type JourneyRuntimeEntry = {
   runtimeProjection: RuntimeProjectionState;
   runtimeProjectionMessageId?: string;
   streamedAssistantContent: string;
+  conversationSnapshot?: JourneyConversation;
 };
 
 export type JourneyRuntimeQuarantineItem = {
@@ -62,7 +64,8 @@ type RuntimePatch = Partial<Pick<JourneyRuntimeEntry,
 >>;
 
 export type JourneyRuntimeAction =
-  | { type: "register"; identity: JourneyRunIdentity; run: AgentRunState; assistantMessageId: string }
+  | { type: "register"; identity: JourneyRunIdentity; run: AgentRunState; assistantMessageId: string; conversationSnapshot?: JourneyConversation }
+  | { type: "conversation_snapshot"; identity: JourneyRunIdentity; conversation: JourneyConversation }
   | { type: "stream_started"; identity: JourneyRunIdentity }
   | { type: "stream_event"; identity: JourneyRunIdentity; event: AgentStreamEvent }
   | { type: "stream_finished"; identity: JourneyRunIdentity }
@@ -111,6 +114,9 @@ export function journeyRuntimeReducer(
           isStreaming: true,
           mode: action.identity.kind === "live" ? "live" : "mock",
           runtimeProjectionMessageId: action.assistantMessageId,
+          conversationSnapshot: action.conversationSnapshot && conversationMatchesIdentity(action.conversationSnapshot, action.identity)
+            ? action.conversationSnapshot
+            : undefined,
         },
       },
     };
@@ -143,6 +149,12 @@ export function journeyRuntimeReducer(
     return quarantine(state, identity, "authority_mismatch");
   }
 
+  if (action.type === "conversation_snapshot") {
+    if (!conversationMatchesIdentity(action.conversation, identity)) {
+      return quarantine(state, identity, "authority_mismatch");
+    }
+    return replaceEntry(state, { ...current, conversationSnapshot: action.conversation });
+  }
   if (action.type === "stream_started") {
     return replaceEntry(state, { ...current, isStreaming: true });
   }
@@ -180,9 +192,33 @@ export function selectJourneyRuntime(state: JourneyRuntimeState, journeyId: stri
 }
 
 export function hasActiveOrFinalizingJourneyRuntime(state: JourneyRuntimeState): boolean {
-  return Object.values(state.entries).some((entry) =>
-    entry.isStreaming || entry.isFinalizingTurn || entry.agentRun.status === "running",
-  );
+  return Object.values(state.entries).some(isJourneyRuntimeActiveOrFinalizing);
+}
+
+export function isJourneyRuntimeActiveOrFinalizing(entry: JourneyRuntimeEntry): boolean {
+  return entry.isStreaming || entry.isFinalizingTurn || entry.agentRun.status === "running";
+}
+
+export function selectJourneyRuntimeOwnerPhase(
+  state: JourneyRuntimeState,
+  journeyId: string,
+): "running" | "finalizing" | undefined {
+  const entry = state.entries[journeyId];
+  if (!entry) return undefined;
+  if (entry.isFinalizingTurn) return "finalizing";
+  return entry.isStreaming || entry.agentRun.status === "running" ? "running" : undefined;
+}
+
+export function selectJourneyRuntimeConversation(
+  state: JourneyRuntimeState,
+  journeyId: string,
+  generation: number,
+): JourneyConversation | undefined {
+  const entry = state.entries[journeyId];
+  const snapshot = entry?.conversationSnapshot;
+  if (!entry?.identity || !snapshot || !isJourneyRuntimeActiveOrFinalizing(entry)
+    || snapshot.liveIdentity.generation !== generation) return undefined;
+  return conversationMatchesIdentity(snapshot, entry.identity) ? snapshot : undefined;
 }
 
 export function identityJourneyId(identity: JourneyRunIdentity): string {
@@ -215,6 +251,23 @@ export function sameJourneyRunIdentity(
       && a.harnessAssistantMessageId === b.harnessAssistantMessageId;
   }
   return false;
+}
+
+function conversationMatchesIdentity(
+  conversation: JourneyConversation,
+  identity: JourneyRunIdentity,
+): boolean {
+  if (identity.kind === "mock") return conversation.journeyId === identity.journeyId;
+  const authority = identity.authority;
+  return conversation.journeyId === authority.journeyId
+    && conversation.liveIdentity.journeyId === authority.journeyId
+    && conversation.liveIdentity.harnessConversationId === authority.harnessConversationId
+    && conversation.liveIdentity.harnessConversationId === authority.threadId
+    && conversation.liveIdentity.generation === authority.generation
+    && conversation.liveIdentity.piSessionId === authority.piSessionId
+    && conversation.liveIdentity.piSessionFile === authority.piSessionFile
+    && conversation.liveIdentity.mirrorConversationId === authority.mirrorConversationId
+    && conversation.liveIdentity.activationReceiptActivatedAt === authority.activationReceiptActivatedAt;
 }
 
 function reduceEntryFromStreamEvent(entry: JourneyRuntimeEntry, event: AgentStreamEvent): JourneyRuntimeEntry {

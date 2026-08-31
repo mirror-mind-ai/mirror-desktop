@@ -602,6 +602,34 @@ textarea {
   display: none;
 }
 
+.journey-runtime-state {
+  align-items: center;
+  color: #9ba9ad;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.66rem;
+  font-weight: 650;
+  gap: 5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.journey-runtime-state > span {
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+  height: 6px;
+  width: 6px;
+}
+
+.journey-runtime-state.finalizing > span {
+  animation: journey-runtime-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes journey-runtime-pulse {
+  50% { opacity: 0.35; }
+}
+
 .journey-item.tree-node .journey-pin {
   align-self: center;
   background: transparent;

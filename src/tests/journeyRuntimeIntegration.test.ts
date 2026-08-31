@@ -16,12 +16,41 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).not.toContain("const [agentRunJourneyId");
   });
 
-  it("keeps selection presentation-only and globally blocks navigation while runtime is busy", () => {
+  it("keeps selection presentation-only while aggregate guards preserve serial capacity", () => {
     const selection = sourceBetween("function selectJourney", "function openJourneyTreeMenu");
-    expect(selection).toContain("if (runtimeBusy || journeyId === selectedJourney)");
+    expect(selection).toContain("if (journeyId === selectedJourney)");
+    expect(selection).not.toContain("runtimeBusy");
     expect(selection).not.toContain("dispatchJourneyRuntime");
     expect(appSource).toContain("draggable={journeyListOrder === \"tree\" && !runtimeBusy}");
-    expect(appSource).toContain("journeyThreadState.kind !== \"ready\" || runtimeBusy || reconciliationBlocksInvocation");
+    expect(appSource).toContain("if (!content || fileAttachmentError || journeyThreadState.kind !== \"ready\" || runtimeBusy");
+    expect(appSource).toContain("runStartReservationRef.current || reconciliationBlocksInvocation");
+  });
+
+  it("restores an authority-bound owner conversation without running in-flight recovery", () => {
+    expect(appSource).toContain("selectJourneyRuntimeConversation(");
+    expect(appSource).toContain('type: "conversation_snapshot", identity: runtimeIdentity');
+    expect(appSource).toContain("if (classified.kind === \"ready\" && classified.activeGeneration.piSessionFile && !runtimeConversation && !runtimeBusy)");
+    expect(appSource).toContain("[selectedJourney, registryLoaded, preferencesLoaded, runtimeBusy]");
+  });
+
+  it("shows owner-only sidebar, cancellation, and finalization errors", () => {
+    expect(appSource).toContain("selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id)");
+    expect(appSource).toContain('journey-runtime-state ${runtimeOwnerPhase}');
+    expect(appSource).toContain("const mirrorCommitError = mirrorCommitErrors[selectedJourney]");
+    expect(appSource).toContain("classifyDedicatedTurnState(conversation, selectedRuntimeBusy)");
+    const cancellation = sourceBetween("async function cancelActiveRun", "function requestConversationRestart");
+    expect(cancellation).toContain("selectedRuntime.identity");
+    expect(cancellation).toContain("cancelLivePiInvocation()");
+  });
+
+  it("allows read-only navigation and drafting but keeps operational mutation blocked", () => {
+    expect(appSource).toContain('const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading"');
+    expect(appSource).toContain("disabled={isJourneyReloading}");
+    expect(appSource).toContain("disabled={!draft.trim() || runtimeBusy");
+    expect(appSource).toContain("disabled={runtimeBusy || isJourneyReloading || fileAttachmentBusy}");
+    expect(appSource).toContain("disabled={runtimeBusy}");
+    expect(appSource).toContain('journeyThreadState.kind === "absent" && !runtimeBusy');
+    expect(appSource).toContain('if (runtimeBusy || journeyThreadState.kind !== "absent" || startingJourneyId) return');
   });
 
   it("routes run mutations and finalization through captured identity", () => {

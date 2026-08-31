@@ -95,7 +95,8 @@ describe("runtime projection component", () => {
     expect(errorHtml).toContain('class="composer-context-error"');
     expect(appSource).toContain("<ComposerRuntimeStatus");
     expect(appSource).toContain("status={composerTurnStatus}");
-    expect(appSource).toContain("if (runtimeBusy || journeyId === selectedJourney)");
+    expect(appSource).toContain("if (journeyId === selectedJourney)");
+    expect(appSource).toContain("const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime)");
     expect(appSource).toContain("contextUsage={authoritativeContextUsage}");
     expect(appSource).toContain("activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}");
     expect(appSource).not.toContain("queryJourneyPiContext");
