@@ -2,7 +2,7 @@
 
 # DS-009.US-3 — Targeted Journey Cancellation and Settlement
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 **Order:** 7 of 7
 **Concurrency:** validate under real global limit 2

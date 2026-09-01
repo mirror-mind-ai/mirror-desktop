@@ -73,11 +73,11 @@ A desktop agent cockpit should not turn one long-running Journey into a global a
 | DS-009.TS-2 | Per-Journey Tauri Process Registry | Technical Story | Backend owns a per-Journey registry with directed start/cancel and global limit 1 | ✅ Done |
 | DS-009.TS-4 | Concurrent Persistence Guardrails | Technical Story | Background settlement and persistence use captured authority and per-Journey finalization leases while global limit remains 1 | ✅ Done |
 | DS-009.US-2 | Operate Multiple Journeys Concurrently | User Story | Navigator can start work in another Journey after capacity is raised to 2, with one run allowed per Journey | ✅ Done |
-| DS-009.US-3 | Targeted Journey Cancellation and Settlement | User Story | Cancelling, failing or settling one Journey under real concurrency does not disturb another Journey | 🟡 Planned |
+| DS-009.US-3 | Targeted Journey Cancellation and Settlement | User Story | Cancelling, failing or settling one Journey under real concurrency does not disturb another Journey | ✅ Done |
 
 ## Current Position
 
-DS-009 remains 🟠 In Progress with US-2 complete and production execution bounded at capacity 2 while preserving one active or finalizing lease per Journey. The next mandatory item is DS-009.US-3 — Targeted Journey Cancellation and Settlement, but it remains unpulled and requires separate Navigator authorization. US-2 closure does not authorize US-3, push, promotion, release or deployment.
+DS-009 remains 🟠 In Progress with all seven mandatory child stories complete. US-3 accepted validation proves exact targeted interruption, sibling-safe settlement, bounded two-child shutdown and model-free restart recovery while production execution remains bounded at capacity 2. Parent Delivery Story reconciliation and closure remain separate; US-3 closure authorizes no new roadmap item, push, promotion, release or deployment.
 
 ## Done Condition
 

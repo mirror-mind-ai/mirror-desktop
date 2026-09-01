@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked
+Passed
 
 ## Automated Checks
 
@@ -34,7 +34,7 @@ Stable app-data compared byte-for-byte before and after: `457` files, aggregate 
 
 Route: Review the DS-009.US-3 validation artifact and DEV evidence: Scenario A exact authority/PID files /tmp/us3-s1-*, Scenario B /tmp/us3-s2-*, Scenario C /tmp/us3-s3-*, stable comparison /tmp/us3-stable-before.txt and /tmp/us3-stable-after.txt, production Mirror comparison /tmp/us3-prod-mirror-before.txt and /tmp/us3-prod-mirror-after.txt, plus screenshots /tmp/us3-s1-*.png, /tmp/us3-s2-*.png, and /tmp/us3-s3-*.png. Confirm exact-owner interruption, sibling completion, bounded two-handle shutdown, and model-free restart recovery.
 
-Navigator accepted: no
+Navigator accepted: yes
 
 Expected observation: Cancelling or terminating A changes only A while B continues naturally; shutdown controls only the two exact owned children; restart restores no live invocation or working route and classifies persisted A/B evidence independently without model execution or duplicate persistence.
 
@@ -44,4 +44,4 @@ Fail condition: Any wrong or sibling process control, more than two invocation c
 
 ## Missing Evidence
 
-- Navigator validation has not been accepted
+- none
