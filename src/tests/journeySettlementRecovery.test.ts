@@ -8,13 +8,19 @@ import { createRunAuthority } from "../domain/runAuthority";
 import { commitHarnessTurn, stageCorrelatedTurn } from "../domain/threeBodyTurnCommit";
 import { readyThread } from "./fixtures/readyThread";
 
-function fixture() {
-  const thread = readyThread("journey-a");
+function fixture(journeyId = "journey-a", runId = "run-a1") {
+  const thread = readyThread(journeyId);
   let projection = createDedicatedJourneyConversation({ thread, initialMessages: [] });
-  const correlation = createDedicatedTurnAuthority(thread, "run-a1", "turn-a1", "user-a1", "assistant-a1");
+  const correlation = createDedicatedTurnAuthority(
+    thread,
+    runId,
+    `turn-${runId}`,
+    `user-${runId}`,
+    `assistant-${runId}`,
+  );
   projection = stageCorrelatedTurn(projection, correlation,
-    { id: "user-a1", role: "user", content: "hello", createdAt: "2026-09-01T10:00:00Z" },
-    { id: "assistant-a1", role: "assistant", content: "hi", createdAt: "2026-09-01T10:00:01Z" },
+    { id: `user-${runId}`, role: "user", content: "hello", createdAt: "2026-09-01T10:00:00Z" },
+    { id: `assistant-${runId}`, role: "assistant", content: "hi", createdAt: "2026-09-01T10:00:01Z" },
   );
   projection = applyPiExecutionEvidence(projection, correlation, {
     userEntryId: "pi-user", assistantEntryId: "pi-assistant", leafEntryId: "pi-assistant",
@@ -40,8 +46,26 @@ describe("persisted settlement restart recovery", () => {
     expect(recovered.status).toBe("ready");
     if (recovered.status === "ready") {
       expect(recovered.authority.generation).toBe(1);
-      expect(recovered.authority.turnId).toBe("turn-a1");
+      expect(recovered.authority.turnId).toBe("turn-run-a1");
     }
+    expect(startProvider).not.toHaveBeenCalled();
+    expect(activateGeneration).not.toHaveBeenCalled();
+  });
+
+  it("recovers two Journey outboxes independently without provider or generation activation", () => {
+    const a = fixture("journey-a", "run-a1");
+    const b = fixture("journey-b", "run-b1");
+    const startProvider = vi.fn();
+    const activateGeneration = vi.fn();
+
+    const recovered = [a, b].map(({ projection, outbox }) => (
+      resolvePersistedSettlementRecovery(projection, outbox)
+    ));
+
+    expect(recovered.map((result) => result.status)).toEqual(["ready", "ready"]);
+    expect(recovered.map((result) => (
+      result.status === "ready" ? result.authority.journeyId : result.journeyId
+    ))).toEqual(["journey-a", "journey-b"]);
     expect(startProvider).not.toHaveBeenCalled();
     expect(activateGeneration).not.toHaveBeenCalled();
   });

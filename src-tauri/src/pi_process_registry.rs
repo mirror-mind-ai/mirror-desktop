@@ -139,6 +139,20 @@ pub fn control_child_handle<C, R, E>(
     operation(&mut child).map_err(ChildControlError::Operation)
 }
 
+pub fn control_bounded_child_handles<C, R, E>(
+    handles: impl IntoIterator<Item = (RunTarget, C)>,
+    mut operation: impl FnMut(&RunTarget, &C) -> Result<R, E>,
+) -> Vec<(RunTarget, Result<R, E>)> {
+    handles
+        .into_iter()
+        .take(PRODUCTION_PI_PROCESS_LIMIT)
+        .map(|(target, child)| {
+            let outcome = operation(&target, &child);
+            (target, outcome)
+        })
+        .collect()
+}
+
 pub fn join_before_continuation<J>(
     joiners: impl IntoIterator<Item = J>,
     mut join: impl FnMut(J),
@@ -802,6 +816,78 @@ mod tests {
     }
 
     #[test]
+    fn targeted_cancel_at_limit_two_preserves_the_sibling_bytes_and_handle() {
+        let mut registry =
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(2).unwrap();
+        let a1 = registry.reserve(
+            authority("a", "a1"),
+            FakeProvider { secret: "a".into() },
+        ).unwrap();
+        let b1 = registry.reserve(
+            authority("b", "b1"),
+            FakeProvider { secret: "b".into() },
+        ).unwrap();
+        registry.attach_child(&a1, FakeChild::default()).unwrap();
+        registry.attach_child(&b1, FakeChild::default()).unwrap();
+        let b_before = registry.inspect().entries.into_iter()
+            .find(|entry| entry.authority.journey_id == "b").unwrap();
+        let b_child = registry.child_handle(&b1).unwrap();
+
+        assert_eq!(registry.request_cancel(&a1), Ok(CancelOutcome::RequestedRunning));
+        assert_eq!(registry.request_cancel(&a1), Ok(CancelOutcome::AlreadyRequested));
+        let a_child = registry.child_handle(&a1).unwrap();
+        control_child_handle(&a_child.state, |state| {
+            state.kills += 1;
+            Ok::<(), ()>(())
+        }).unwrap();
+
+        let b_after = registry.inspect().entries.into_iter()
+            .find(|entry| entry.authority.journey_id == "b").unwrap();
+        assert_eq!(b_after, b_before);
+        assert!(Arc::ptr_eq(&registry.child_handle(&b1).unwrap().state, &b_child.state));
+        assert_eq!(b_child.state.lock().unwrap().kills, 0);
+        assert_eq!(registry.inspect().process_capacity_in_use, 2);
+    }
+
+    #[test]
+    fn process_death_terminalizes_only_its_owner_and_rejects_late_cancel() {
+        let mut registry =
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(2).unwrap();
+        let a1 = registry.reserve(
+            authority("a", "a1"),
+            FakeProvider { secret: "a".into() },
+        ).unwrap();
+        let b1 = registry.reserve(
+            authority("b", "b1"),
+            FakeProvider { secret: "b".into() },
+        ).unwrap();
+        registry.attach_child(&a1, FakeChild::default()).unwrap();
+        registry.attach_child(&b1, FakeChild::default()).unwrap();
+        let b_before = registry.inspect().entries.into_iter()
+            .find(|entry| entry.authority.journey_id == "b").unwrap();
+
+        assert_eq!(
+            registry.terminalize(&a1, TerminalState::ProcessDied),
+            TerminalizeOutcome::First,
+        );
+        assert_eq!(registry.request_cancel(&a1), Err(TargetError::NotRunning));
+        assert_eq!(
+            registry.terminalize(&a1, TerminalState::Cancelled),
+            TerminalizeOutcome::Duplicate,
+        );
+
+        let inspection = registry.inspect();
+        let a_after = inspection.entries.iter()
+            .find(|entry| entry.authority.journey_id == "a").unwrap();
+        let b_after = inspection.entries.iter()
+            .find(|entry| entry.authority.journey_id == "b").unwrap();
+        assert_eq!(a_after.terminal_state, TerminalState::ProcessDied);
+        assert_eq!(b_after, &b_before);
+        assert!(registry.child_handle(&b1).is_ok());
+        assert_eq!(inspection.process_capacity_in_use, 1);
+    }
+
+    #[test]
     fn directed_cancel_rejects_mismatch_and_targets_exact_child() {
         let mut registry =
             PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(1).unwrap();
@@ -1191,6 +1277,29 @@ mod tests {
             registry.release_lease(&RunTarget::new("unknown", "unknown")),
             Err(TargetError::Missing)
         );
+    }
+
+    #[test]
+    fn bounded_child_control_attempts_both_exact_handles_after_one_failure() {
+        let handles = vec![
+            (RunTarget::new("a", "a1"), FakeChild::default()),
+            (RunTarget::new("b", "b1"), FakeChild::default()),
+        ];
+        let attempts = Arc::new(Mutex::new(Vec::new()));
+        let recorded = attempts.clone();
+        let outcomes = control_bounded_child_handles(handles, move |target, child| {
+            recorded.lock().unwrap().push(target.clone());
+            child.state.lock().unwrap().kills += 1;
+            if target.journey_id == "a" { Err("a_failed") } else { Ok(()) }
+        });
+
+        assert_eq!(*attempts.lock().unwrap(), vec![
+            RunTarget::new("a", "a1"),
+            RunTarget::new("b", "b1"),
+        ]);
+        assert_eq!(outcomes.len(), 2);
+        assert_eq!(outcomes[0], (RunTarget::new("a", "a1"), Err("a_failed")));
+        assert_eq!(outcomes[1], (RunTarget::new("b", "b1"), Ok(())));
     }
 
     #[test]

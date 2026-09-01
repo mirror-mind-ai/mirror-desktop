@@ -4,7 +4,8 @@ mod runtime_channel;
 
 use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
 use pi_process_registry::{
-    control_child_handle, join_before_continuation, reserve_then_start, AttachOutcome,
+    control_bounded_child_handles, control_child_handle, join_before_continuation,
+    reserve_then_start, AttachOutcome,
     CancelOutcome, ChildControlError, PiInvocationRegistryInspection, PiProcessRegistry,
     RegistryAuthority, RegistryAuthorityInspection, ReleaseOutcome, ReserveError,
     ReserveThenStartError, RunTarget, TargetError, TerminalState, TerminalizeOutcome,
@@ -1943,9 +1944,9 @@ fn shutdown_pi_invocations(state: &PiProcessState) {
     let child_handles = state.registry.lock()
         .map(|registry| registry.running_child_handles())
         .unwrap_or_default();
-    for (_target, child_handle) in child_handles {
-        let _ = control_child_handle(&child_handle, |child| child.kill());
-    }
+    let _ = control_bounded_child_handles(child_handles, |_target, child_handle| {
+        control_child_handle(child_handle, |child| child.kill())
+    });
 }
 
 fn mirror_append_outbox_path(app: &AppHandle) -> Result<PathBuf, String> {

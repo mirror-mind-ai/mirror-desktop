@@ -40,6 +40,8 @@ import { MessageCopyAction } from "./MessageCopyAction";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
 import { deriveComposerTurnStatus } from "./composerTurnStatus";
+import { cancelExactJourneyRun } from "./journeyCancellation";
+import { captureJourneyRunTerminal, type JourneyRunTerminal } from "./journeyRunTerminal";
 import {
   applyPiInvocationInspection,
   beginPiInvocationReconciliation,
@@ -1388,8 +1390,7 @@ export function App({ model }: AppProps) {
     const conversationBeforeRun = baseConversation;
     let rawLiveOutput = "";
     let runReachedAgent = false;
-    let runWasCancelled = false;
-    let runFailed = false;
+    let runTerminal: JourneyRunTerminal | undefined;
     const diagnostics: string[] = [];
     let streamedAssistantContent = "";
     let runConversation = stagedConversation;
@@ -1479,12 +1480,12 @@ export function App({ model }: AppProps) {
           diagnostics.push(event.message);
         }
         if (event.type === "cancelled") {
-          runWasCancelled = true;
+          runTerminal = captureJourneyRunTerminal(runTerminal, "cancelled");
         }
         if (event.type === "error") {
-          runFailed = true;
+          runTerminal = captureJourneyRunTerminal(runTerminal, "failed");
         }
-        if (event.type === "done" && mode === "live" && !runWasCancelled && !runFailed && rawLiveOutput.trim().length > 0) {
+        if (event.type === "done" && mode === "live" && !runTerminal && rawLiveOutput.trim().length > 0) {
           const normalized = normalizePiResponse(rawLiveOutput, diagnostics);
           updateRunConversation((currentConversation) =>
             replaceJourneyConversationMessages(
@@ -1508,10 +1509,12 @@ export function App({ model }: AppProps) {
         }
       }
     } catch (error) {
-      runFailed = true;
+      runTerminal = captureJourneyRunTerminal(runTerminal, "failed");
       const message = error instanceof Error ? error.message : String(error);
       dispatchJourneyRuntime({ type: "stream_event", identity: runtimeIdentity, event: { type: "error", message } });
     } finally {
+      const runWasCancelled = runTerminal === "cancelled";
+      const runFailed = runTerminal === "failed";
       dispatchJourneyRuntime({ type: "stream_finished", identity: runtimeIdentity });
       if (invocationAuthority && !(runFailed && !runReachedAgent)) {
         await reconcilePiInvocationOccupancy();
@@ -1956,8 +1959,7 @@ export function App({ model }: AppProps) {
     const identity = selectedRuntime.identity;
 
     try {
-      if (identity.kind !== "live") throw new Error("Only live Pi invocations have native cancellation authority.");
-      await cancelLivePiInvocation(identity.authority.journeyId, identity.authority.runId);
+      await cancelExactJourneyRun(identity, { cancelInvocation: cancelLivePiInvocation });
       dispatchJourneyRuntime({
         type: "cancel_requested",
         identity,

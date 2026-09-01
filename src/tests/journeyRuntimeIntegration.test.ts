@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import appSource from "../app/App.tsx?raw";
 import streamSource from "../agent/piProcessStream.ts?raw";
 import mockSource from "../agent/agentStream.ts?raw";
+import cancellationSource from "../app/journeyCancellation.ts?raw";
 
 function sourceBetween(start: string, end: string): string {
   return appSource.slice(appSource.indexOf(start), appSource.indexOf(end));
@@ -41,7 +42,9 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("classifyDedicatedTurnState(conversation, selectedRuntimeBusy)");
     const cancellation = sourceBetween("async function cancelActiveRun", "function requestConversationRestart");
     expect(cancellation).toContain("selectedRuntime.identity");
-    expect(cancellation).toContain("cancelLivePiInvocation(identity.authority.journeyId, identity.authority.runId)");
+    expect(cancellation).toContain("cancelExactJourneyRun(identity, { cancelInvocation: cancelLivePiInvocation })");
+    expect(cancellationSource).toContain("const { journeyId, runId } = identity.authority");
+    expect(cancellationSource).toContain("dependencies.cancelInvocation(journeyId, runId)");
   });
 
   it("allows admitted selected-Journey submission while keeping aggregate mutations blocked", () => {

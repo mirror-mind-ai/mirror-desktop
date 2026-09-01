@@ -32,13 +32,19 @@ function deferred<T = void>() {
   return { promise, resolve };
 }
 
-function fixture() {
-  const thread = readyThread("journey-a");
+function fixture(journeyId = "journey-a", runId = "run-a1") {
+  const thread = readyThread(journeyId);
   const base = createDedicatedJourneyConversation({ thread, initialMessages: [] });
-  const correlation = createDedicatedTurnAuthority(thread, "run-a1", "turn-a1", "user-a1", "assistant-a1");
+  const correlation = createDedicatedTurnAuthority(
+    thread,
+    runId,
+    `turn-${runId}`,
+    `user-${runId}`,
+    `assistant-${runId}`,
+  );
   const projection = stageCorrelatedTurn(base, correlation,
-    { id: "user-a1", role: "user", content: "hello", createdAt: "2026-09-01T10:00:00Z" },
-    { id: "assistant-a1", role: "assistant", content: "hi", createdAt: "2026-09-01T10:00:01Z" },
+    { id: `user-${runId}`, role: "user", content: "hello", createdAt: "2026-09-01T10:00:00Z" },
+    { id: `assistant-${runId}`, role: "assistant", content: "hi", createdAt: "2026-09-01T10:00:01Z" },
   );
   const authority = createJourneySettlementAuthority(
     createRunAuthority(correlation, base.liveIdentity, thread.generations[0]),
@@ -181,6 +187,45 @@ describe("phase-specific completed settlement boundary", () => {
     await settlement;
   });
 
+  it("lets B settle while A fails after its durable frontier without cross-owner cleanup", async () => {
+    const a = fixture("journey-a", "run-a1");
+    const b = fixture("journey-b", "run-b1");
+    const aAppendEntered = deferred();
+    const releaseAFailure = deferred();
+    const aOrder: string[] = [];
+    const bOrder: string[] = [];
+    const aDependencies = completedDependencies(aOrder, a.active, a.outbox);
+    aDependencies.appendAndAcknowledge = async () => {
+      aOrder.push("append_a_pending");
+      aAppendEntered.resolve();
+      await releaseAFailure.promise;
+      throw new Error("append_a_failed");
+    };
+    const bDependencies = completedDependencies(bOrder, b.active, b.outbox);
+
+    const aSettlement = executeCompletedSettlement({
+      projection: a.projection,
+      authority: a.authority,
+      cleanupLeaseAuthority: a.authority,
+    }, aDependencies);
+    await aAppendEntered.promise;
+    const bSettlement = await executeCompletedSettlement({
+      projection: b.projection,
+      authority: b.authority,
+      cleanupLeaseAuthority: b.authority,
+    }, bDependencies);
+    releaseAFailure.resolve();
+
+    await expect(aSettlement).rejects.toThrow("append_a_failed");
+    expect(bSettlement.projection.journeyId).toBe("journey-b");
+    expect(aOrder).toEqual([
+      "validate_active", "save_active", "validate_active", "enqueue", "cleanup", "append_a_pending",
+    ]);
+    expect(bOrder).toEqual([
+      "validate_active", "save_active", "validate_active", "enqueue", "cleanup", "append_ack",
+    ]);
+  });
+
   it("rejects a cleanup lease belonging to a replacement", async () => {
     const { projection, authority, outbox, active } = fixture();
     const order: string[] = [];
@@ -204,6 +249,28 @@ describe("interrupted and rejected reservation boundaries", () => {
       cleanupLease: async () => { order.push("cleanup"); },
     });
     expect(order).toEqual(["validate_active", "save_interrupted", "validate_active", "cleanup"]);
+  });
+
+  it("lets B interrupted-settle while A interrupted save remains failed and retained", async () => {
+    const a = fixture("journey-a", "run-a1");
+    const b = fixture("journey-b", "run-b1");
+    const order: string[] = [];
+    const aSettlement = executeInterruptedSettlement({ projection: a.projection, authority: a.authority }, {
+      loadActiveEvidence: async () => a.active,
+      saveInterruptedProjection: async () => { order.push("save_a"); throw new Error("save_a_failed"); },
+      cleanupLease: async () => { order.push("cleanup_a"); },
+    });
+    const bSettlement = executeInterruptedSettlement({ projection: b.projection, authority: b.authority }, {
+      loadActiveEvidence: async () => b.active,
+      saveInterruptedProjection: async () => { order.push("save_b"); },
+      cleanupLease: async () => { order.push("cleanup_b"); },
+    });
+
+    const [aResult, bResult] = await Promise.allSettled([aSettlement, bSettlement]);
+    expect(aResult).toMatchObject({ status: "rejected", reason: expect.objectContaining({ message: "save_a_failed" }) });
+    expect(bResult).toMatchObject({ status: "fulfilled", value: expect.objectContaining({ journeyId: "journey-b" }) });
+    expect(order).not.toContain("cleanup_a");
+    expect(order).toContain("cleanup_b");
   });
 
   it("does not clean up when interrupted-state save fails", async () => {
