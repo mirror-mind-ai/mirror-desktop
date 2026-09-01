@@ -68,6 +68,7 @@ import {
 } from "./journeySettlement";
 import { journeyPersistenceCoordinator } from "./journeyPersistenceCoordinator";
 import {
+  resolveCommittedLeaseBeforeInvocation,
   resolvePersistedSettlementRecovery,
   resolveRetainedLeaseForOutboxRecovery,
 } from "./journeySettlementRecovery";
@@ -388,6 +389,7 @@ export function App({ model }: AppProps) {
   const journeyRuntimeStateRef = useRef(journeyRuntimeState);
   const conversationLoadCoordinatorRef = useRef(createJourneyConversationLoadCoordinator());
   const runStartReservationRef = useRef<JourneyRunIdentity | undefined>(undefined);
+  const liveInvocationPreflightRef = useRef<string | undefined>(undefined);
   const piInvocationInspectionSequenceRef = useRef(0);
   conversationRef.current = conversation;
   selectedJourneyRef.current = selectedJourney;
@@ -1272,7 +1274,7 @@ export function App({ model }: AppProps) {
     const invocationAdmissionBlocked = mode === "live"
       ? selectedInvocationAdmissionBlocked
       : selectedRuntimeBusy;
-    if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || invocationAdmissionBlocked || runStartReservationRef.current || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
+    if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || invocationAdmissionBlocked || runStartReservationRef.current || liveInvocationPreflightRef.current || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
       return;
     }
 
@@ -1290,6 +1292,45 @@ export function App({ model }: AppProps) {
         });
         return;
       }
+      liveInvocationPreflightRef.current = selectedJourney;
+      let nativeInspection = await reconcilePiInvocationOccupancy();
+      if (!nativeInspection) {
+        liveInvocationPreflightRef.current = undefined;
+        dispatchJourneyRuntime({
+          type: "append_warning",
+          journeyId: selectedJourney,
+          message: "Message retained in the composer because native Pi admission could not be inspected.",
+        });
+        return;
+      }
+      const retainedCompletedLease = resolveCommittedLeaseBeforeInvocation(nativeInspection, baseConversation);
+      if (retainedCompletedLease) {
+        try {
+          await releaseDurablePiInvocationLease(retainedCompletedLease.authority);
+          nativeInspection = await reconcilePiInvocationOccupancy();
+        } catch (error) {
+          dispatchJourneyRuntime({
+            type: "append_warning",
+            journeyId: selectedJourney,
+            message: `Message retained in the composer because completed Pi cleanup failed: ${error instanceof Error ? error.message : String(error)}`,
+          });
+          liveInvocationPreflightRef.current = undefined;
+          return;
+        }
+      }
+      if (!nativeInspection
+        || nativeInspection.entries.some((entry) => entry.authority.journeyId === selectedJourney)
+        || nativeInspection.entries.length >= nativeInspection.limit
+        || nativeInspection.processCapacityInUse >= nativeInspection.limit) {
+        dispatchJourneyRuntime({
+          type: "append_warning",
+          journeyId: selectedJourney,
+          message: "Message retained in the composer because native Pi capacity is still occupied.",
+        });
+        liveInvocationPreflightRef.current = undefined;
+        return;
+      }
+      liveInvocationPreflightRef.current = undefined;
     }
 
     const fileAttachments = pendingFileAttachments;
@@ -1407,6 +1448,7 @@ export function App({ model }: AppProps) {
     let rawLiveOutput = "";
     let runReachedAgent = false;
     let runTerminal: JourneyRunTerminal | undefined;
+    let preAgentFailureMessage = "The local Pi invocation was rejected before the agent started.";
     const diagnostics: string[] = [];
     let streamedAssistantContent = "";
     let runConversation = stagedConversation;
@@ -1500,6 +1542,7 @@ export function App({ model }: AppProps) {
         }
         if (event.type === "error") {
           runTerminal = captureJourneyRunTerminal(runTerminal, "failed");
+          preAgentFailureMessage = event.message;
         }
         if (event.type === "done" && mode === "live" && !runTerminal && rawLiveOutput.trim().length > 0) {
           const normalized = normalizePiResponse(rawLiveOutput, diagnostics);
@@ -1527,6 +1570,7 @@ export function App({ model }: AppProps) {
     } catch (error) {
       runTerminal = captureJourneyRunTerminal(runTerminal, "failed");
       const message = error instanceof Error ? error.message : String(error);
+      preAgentFailureMessage = message;
       dispatchJourneyRuntime({ type: "stream_event", identity: runtimeIdentity, event: { type: "error", message } });
     } finally {
       const runWasCancelled = runTerminal === "cancelled";
@@ -1564,16 +1608,29 @@ export function App({ model }: AppProps) {
                 ))),
                 cleanupExactFinalizingLease: releaseDurablePiInvocationLease,
                 onRollbackConfirmed: () => {
+                  setJourneyComposerDraft(ownerJourneyId, content);
+                  if (selectedJourneyRef.current === ownerJourneyId) {
+                    setPendingFileAttachments(fileAttachments);
+                  }
                   dispatchJourneyRuntime({ type: "cleanup", identity: runtimeIdentity });
+                  dispatchJourneyRuntime({
+                    type: "append_warning",
+                    journeyId: ownerJourneyId,
+                    message: `Message returned to the composer: ${preAgentFailureMessage}`,
+                  });
                 },
               });
             } else {
               await saveDedicatedJourneyConversation(conversationBeforeRun);
             }
           } catch (error) {
+            setJourneyComposerDraft(ownerJourneyId, content);
+            if (selectedJourneyRef.current === ownerJourneyId) {
+              setPendingFileAttachments(fileAttachments);
+            }
             dispatchJourneyRuntime({
               type: "append_warning", journeyId: ownerJourneyId, identity: runtimeIdentity,
-              message: error instanceof Error ? error.message : String(error),
+              message: `Message returned to the composer after rollback failed: ${error instanceof Error ? error.message : String(error)}`,
             });
           }
         }

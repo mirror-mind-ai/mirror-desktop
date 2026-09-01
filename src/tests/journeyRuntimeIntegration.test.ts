@@ -25,7 +25,7 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("draggable={journeyListOrder === \"tree\" && !runtimeBusy}");
     expect(appSource).toContain("derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney)");
     expect(appSource).toContain("|| invocationAdmissionBlocked || runStartReservationRef.current");
-    expect(appSource).toContain("runStartReservationRef.current || reconciliationBlocksInvocation");
+    expect(appSource).toContain("runStartReservationRef.current || liveInvocationPreflightRef.current || reconciliationBlocksInvocation");
   });
 
   it("restores an authority-bound owner conversation without reacting to in-session busy transitions", () => {
@@ -71,6 +71,8 @@ describe("Journey runtime integration guardrails", () => {
     expect(generation).toContain("selectedJourneyRef.current === ownerJourneyId");
     const preAgentRollback = sourceBetween("if (runFailed && !runReachedAgent)", "} else if (runWasCancelled || runFailed)");
     expect(preAgentRollback).toContain("conversationBeforeRun");
+    expect(preAgentRollback).toContain("setJourneyComposerDraft(ownerJourneyId, content)");
+    expect(preAgentRollback).toContain("Message returned to the composer");
     expect(preAgentRollback).not.toContain('type: "conversation_snapshot"');
   });
 
@@ -90,6 +92,10 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("onRollbackConfirmed: () => {");
     expect(appSource).toContain('dispatchJourneyRuntime({ type: "cleanup", identity: runtimeIdentity })');
     expect(appSource).toContain("releaseAndReinspectPiInvocationLease(authority");
+    const nativePreflight = sourceBetween("async function generatePacket", "const fileAttachments = pendingFileAttachments");
+    expect(nativePreflight).toContain("resolveCommittedLeaseBeforeInvocation(nativeInspection, baseConversation)");
+    expect(nativePreflight).toContain("await releaseDurablePiInvocationLease(retainedCompletedLease.authority)");
+    expect(nativePreflight).toContain("Message retained in the composer");
     const durableOutboxRetry = sourceBetween("async function retryMirrorAppendSummary", "async function retryPendingMirrorCommit");
     expect(durableOutboxRetry).toContain("resolveRetainedLeaseForOutboxRecovery(inspection, authority)");
     expect(durableOutboxRetry.indexOf("releaseDurablePiInvocationLease(authority)")).toBeLessThan(
