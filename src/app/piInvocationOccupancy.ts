@@ -324,6 +324,16 @@ export function resolveExactSettlementRecovery(
   )) ?? null;
 }
 
+export function shouldRehydratePiProcessRoute(
+  lease: PiInvocationLeaseInspection | undefined,
+  selectedRuntimeBusy: boolean,
+): boolean {
+  return Boolean(lease)
+    && !selectedRuntimeBusy
+    && lease?.terminalState === "open"
+    && (lease.leasePhase === "reserved" || lease.leasePhase === "running");
+}
+
 export function resolveExactInterruptedRecovery(
   state: PiInvocationOccupancyState,
   ownerJourneyId: string,

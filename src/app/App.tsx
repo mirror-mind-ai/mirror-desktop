@@ -53,6 +53,7 @@ import {
   releaseAndReinspectPiInvocationLease,
   resolveExactInterruptedRecovery,
   resolveExactSettlementRecovery,
+  shouldRehydratePiProcessRoute,
   retainExpectedPiInvocationLease,
   validatePiInvocationRegistryInspection,
   type PiInvocationAuthorityInspection,
@@ -642,7 +643,7 @@ export function App({ model }: AppProps) {
   }, []);
 
   useEffect(() => {
-    if (selectedRuntimeBusy
+    if (!shouldRehydratePiProcessRoute(selectedNativeLease, selectedRuntimeBusy)
       || !selectedNativeLease
       || !conversationLoaded
       || journeyThreadState.kind !== "ready"

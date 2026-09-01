@@ -9,6 +9,7 @@ import {
   resolveExactInterruptedRecovery,
   resolveExactSettlementRecovery,
   releaseAndReinspectPiInvocationLease,
+  shouldRehydratePiProcessRoute,
   validatePiInvocationRegistryInspection,
   type PiInvocationAuthorityInspection,
   type PiInvocationRegistryInspection,
@@ -98,6 +99,24 @@ describe("native Pi invocation occupancy", () => {
       }],
     }));
     expect(resolveExactInterruptedRecovery(cancelled, "journey-a", authority)?.terminalState).toBe("cancelled");
+  });
+
+  it("never rehydrates a route for a terminal finalizing lease", () => {
+    const completed = inspection().entries[0];
+    expect(shouldRehydratePiProcessRoute(completed, false)).toBe(false);
+    expect(shouldRehydratePiProcessRoute({
+      ...completed,
+      leasePhase: "running",
+      processCapacityState: "running",
+      terminalState: "open",
+    }, false)).toBe(true);
+    expect(shouldRehydratePiProcessRoute({
+      ...completed,
+      leasePhase: "running",
+      processCapacityState: "running",
+      terminalState: "open",
+    }, true)).toBe(false);
+    expect(shouldRehydratePiProcessRoute(undefined, false)).toBe(false);
   });
 
   it("keeps finalizing occupancy separate from presentation phase", () => {

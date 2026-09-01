@@ -107,6 +107,7 @@ describe("Journey runtime integration guardrails", () => {
     );
     expect(appSource).toContain("runtimeBusy && !exactRetainedSettlementRecovery");
     expect(appSource).toContain("resolveExactInterruptedRecovery(piInvocationOccupancy");
+    expect(appSource).toContain("shouldRehydratePiProcessRoute(selectedNativeLease, selectedRuntimeBusy)");
     expect(appSource).toContain("await reconcilePiInvocationOccupancy()");
     expect(streamSource).toContain('invoke("cancel_pi_invocation", { journeyId, runId })');
     expect(streamSource).toContain('invoke<PiInvocationRegistryInspection>("inspect_pi_invocations")');
