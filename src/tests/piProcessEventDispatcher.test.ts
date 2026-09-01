@@ -166,6 +166,51 @@ describe("central Pi process event dispatcher", () => {
       .rejects.toThrow("authority mismatch");
   });
 
+  it("does not resurrect a terminal route from stale in-session occupancy", async () => {
+    const fixture = listenerFixture();
+    const dispatcher = createPiProcessEventDispatcher({ listen: fixture.listen });
+    const completed = authority("run-completed");
+    const replacement = authority("run-replacement");
+    const completedRoute = await dispatcher.register(completed, vi.fn());
+
+    fixture.emit({ kind: "done", content: "done", authority: completed.eventAuthority });
+    expect(completedRoute.isClosed()).toBe(true);
+
+    const staleRecovery = await dispatcher.rehydrate(completed, vi.fn());
+    expect(staleRecovery.isClosed()).toBe(true);
+    await expect(dispatcher.register(completed, vi.fn())).rejects.toThrow("already closed");
+
+    const replacementRoute = await dispatcher.register(replacement, vi.fn());
+    expect(replacementRoute.isClosed()).toBe(false);
+    expect(fixture.listen).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not resurrect a route aborted before native invocation", async () => {
+    const fixture = listenerFixture();
+    const dispatcher = createPiProcessEventDispatcher({ listen: fixture.listen });
+    const rejected = authority("run-rejected");
+    const route = await dispatcher.register(rejected, vi.fn());
+    route.abortBeforeInvocation();
+
+    expect(route.isClosed()).toBe(true);
+    expect((await dispatcher.rehydrate(rejected, vi.fn())).isClosed()).toBe(true);
+    expect((await dispatcher.register(authority("run-after-rejection"), vi.fn())).isClosed()).toBe(false);
+  });
+
+  it("allows genuine recovery after dispatcher disposal starts a new lifecycle", async () => {
+    const fixture = listenerFixture();
+    const dispatcher = createPiProcessEventDispatcher({ listen: fixture.listen });
+    const run = authority("run-restart-recovery");
+    await dispatcher.register(run, vi.fn());
+    fixture.emit({ kind: "done", content: "done", authority: run.eventAuthority });
+    expect((await dispatcher.rehydrate(run, vi.fn())).isClosed()).toBe(true);
+
+    await dispatcher.dispose();
+    const recovered = await dispatcher.rehydrate(run, vi.fn());
+    expect(recovered.isClosed()).toBe(false);
+    expect(fixture.listen).toHaveBeenCalledTimes(2);
+  });
+
   it("fails route registration when listener attachment fails", async () => {
     const dispatcher = createPiProcessEventDispatcher({
       listen: vi.fn(async () => { throw new Error("listen failed"); }),

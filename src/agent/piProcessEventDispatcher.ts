@@ -41,6 +41,7 @@ export type PiProcessEventDispatcher = {
 };
 
 const QUARANTINE_LIMIT = 20;
+const CLOSED_ROUTE_LIMIT = 20;
 
 export function createPiProcessEventDispatcher(
   dependencies: { listen?: Listen } = {},
@@ -48,6 +49,7 @@ export function createPiProcessEventDispatcher(
   const listen = dependencies.listen ?? (tauriListen as Listen);
   const routes = new Map<string, Route>();
   const rejected: Array<{ journeyId?: string; runId?: string; reason: string }> = [];
+  const closedAuthorities: PiProcessEventAuthority[] = [];
   let unlisten: (() => void) | undefined;
   let mounting: Promise<void> | undefined;
   let mountingLifecycle: number | undefined;
@@ -56,6 +58,19 @@ export function createPiProcessEventDispatcher(
   function reject(event: PiProcessEvent, reason: string) {
     rejected.push({ journeyId: event.authority?.journeyId, runId: event.authority?.runId, reason });
     if (rejected.length > QUARANTINE_LIMIT) rejected.splice(0, rejected.length - QUARANTINE_LIMIT);
+  }
+
+  function wasClosedInCurrentLifecycle(authority: RunAuthority): boolean {
+    return closedAuthorities.some((closed) => samePiProcessEventAuthority(closed, authority));
+  }
+
+  function rememberClosedAuthority(authority: PiProcessEventAuthority) {
+    const existing = closedAuthorities.findIndex((closed) => closed.journeyId === authority.journeyId);
+    if (existing >= 0) closedAuthorities.splice(existing, 1);
+    closedAuthorities.push(authority);
+    if (closedAuthorities.length > CLOSED_ROUTE_LIMIT) {
+      closedAuthorities.splice(0, closedAuthorities.length - CLOSED_ROUTE_LIMIT);
+    }
   }
 
   function deliver(event: PiProcessEvent) {
@@ -77,6 +92,7 @@ export function createPiProcessEventDispatcher(
       route.handler(event);
     } finally {
       if (event.kind === "done") {
+        rememberClosedAuthority(event.authority);
         route.closed = true;
         if (routes.get(route.authority.journeyId) === route) routes.delete(route.authority.journeyId);
       }
@@ -128,6 +144,7 @@ export function createPiProcessEventDispatcher(
     stop?.();
     for (const route of routes.values()) route.closed = true;
     routes.clear();
+    closedAuthorities.length = 0;
   }
 
   function routeHandle(route: Route): PiProcessEventRoute {
@@ -136,6 +153,7 @@ export function createPiProcessEventDispatcher(
       abortBeforeInvocation() {
         if (route.closed) return;
         route.closed = true;
+        rememberClosedAuthority(route.authority.eventAuthority);
         if (routes.get(route.authority.journeyId) === route) routes.delete(route.authority.journeyId);
       },
     };
@@ -149,6 +167,9 @@ export function createPiProcessEventDispatcher(
     if (!unlisten) throw new Error("Pi process event dispatcher is not mounted.");
     const current = routes.get(authority.journeyId);
     if (current && !current.closed) throw new Error(`Pi process route already active for Journey ${authority.journeyId}.`);
+    if (wasClosedInCurrentLifecycle(authority)) {
+      throw new Error(`Pi process route already closed for Journey ${authority.journeyId}.`);
+    }
     const route: Route = { authority, handler, closed: false };
     routes.set(authority.journeyId, route);
     return routeHandle(route);
@@ -160,6 +181,9 @@ export function createPiProcessEventDispatcher(
   ): Promise<PiProcessEventRoute> {
     await mount();
     if (!unlisten) throw new Error("Pi process event dispatcher is not mounted.");
+    if (wasClosedInCurrentLifecycle(authority)) {
+      return routeHandle({ authority, handler, closed: true });
+    }
     const current = routes.get(authority.journeyId);
     if (current && !current.closed) {
       if (!samePiProcessEventAuthority(current.authority.eventAuthority, authority)) {
