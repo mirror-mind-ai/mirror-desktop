@@ -173,6 +173,7 @@ export async function rollbackRejectedReservation<
     inspectAfterRollback: () => Promise<TInspection>;
     isExactFinalizingLease: (inspection: TInspection, authority: TAuthority) => boolean;
     cleanupExactFinalizingLease: (authority: TAuthority) => Promise<void>;
+    onRollbackConfirmed: (authority: TAuthority) => Promise<void> | void;
   },
 ): Promise<TInspection> {
   await dependencies.saveRollbackProjection(input.projection);
@@ -180,5 +181,6 @@ export async function rollbackRejectedReservation<
   if (dependencies.isExactFinalizingLease(inspection, input.authority)) {
     await dependencies.cleanupExactFinalizingLease(input.authority);
   }
+  await dependencies.onRollbackConfirmed(input.authority);
   return inspection;
 }

@@ -81,6 +81,9 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("cleanupLease: releaseDurablePiInvocationLease");
     expect(appSource).toContain("() => executeInterruptedSettlement({");
     expect(appSource).toContain("await rollbackRejectedReservation({");
+    expect(appSource).toContain('throw new Error("rejected_reservation_reinspection_invalid")');
+    expect(appSource).toContain("onRollbackConfirmed: () => {");
+    expect(appSource).toContain('dispatchJourneyRuntime({ type: "cleanup", identity: runtimeIdentity })');
     expect(appSource).toContain("releaseAndReinspectPiInvocationLease(authority");
     expect(appSource).toContain("runtimeBusy && !exactRetainedSettlementRecovery");
     expect(appSource).toContain("resolveExactInterruptedRecovery(piInvocationOccupancy");

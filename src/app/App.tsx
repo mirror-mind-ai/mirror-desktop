@@ -1533,13 +1533,20 @@ export function App({ model }: AppProps) {
                   if (!settlementAuthority) throw new Error("settlement_authority_missing");
                   return saveRejectedReservationRollback(projection, settlementAuthority);
                 },
-                inspectAfterRollback: reconcilePiInvocationOccupancy,
-                isExactFinalizingLease: (inspection, authority) => Boolean(inspection?.entries.some((entry) => (
+                inspectAfterRollback: async () => {
+                  const inspection = await reconcilePiInvocationOccupancy();
+                  if (!inspection) throw new Error("rejected_reservation_reinspection_invalid");
+                  return inspection;
+                },
+                isExactFinalizingLease: (inspection, authority) => Boolean(inspection.entries.some((entry) => (
                   entry.authority.journeyId === authority.journeyId
                   && entry.authority.runId === authority.runId
                   && entry.leasePhase === "finalizing"
                 ))),
                 cleanupExactFinalizingLease: releaseDurablePiInvocationLease,
+                onRollbackConfirmed: () => {
+                  dispatchJourneyRuntime({ type: "cleanup", identity: runtimeIdentity });
+                },
               });
             } else {
               await saveDedicatedJourneyConversation(conversationBeforeRun);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { startAgentRun } from "../agent/agentRun";
 import {
   createJourneySettlementAuthority,
   executeCompletedSettlement,
@@ -14,6 +15,11 @@ import {
   resolveExactInterruptedRecovery,
   type PiInvocationAuthorityInspection,
 } from "../app/piInvocationOccupancy";
+import {
+  createInitialJourneyRuntimeState,
+  journeyRuntimeReducer,
+  type JourneyRunIdentity,
+} from "../app/journeyRuntimeState";
 import { createDedicatedJourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { createRunAuthority } from "../domain/runAuthority";
@@ -50,6 +56,29 @@ function fixture() {
     currentTurnId: authority.turnId,
   };
   return { projection, authority, outbox, active };
+}
+
+function runtimeFixture(journeyId: string, runId: string) {
+  const thread = readyThread(journeyId);
+  const base = createDedicatedJourneyConversation({ thread, initialMessages: [] });
+  const correlation = createDedicatedTurnAuthority(
+    thread,
+    runId,
+    `turn-${runId}`,
+    `user-${runId}`,
+    `assistant-${runId}`,
+  );
+  const projection = stageCorrelatedTurn(
+    base,
+    correlation,
+    { id: `user-${runId}`, role: "user", content: runId, createdAt: "2026-09-01T11:00:00Z" },
+    { id: `assistant-${runId}`, role: "assistant", content: "", createdAt: "2026-09-01T11:00:01Z" },
+  );
+  const identity: JourneyRunIdentity = {
+    kind: "live",
+    authority: createRunAuthority(correlation, base.liveIdentity, thread.generations[0]),
+  };
+  return { base, projection, identity };
 }
 
 function completedDependencies(
@@ -195,8 +224,9 @@ describe("interrupted and rejected reservation boundaries", () => {
       inspectAfterRollback: async () => { order.push("inspect"); return "free"; },
       cleanupExactFinalizingLease: async () => { order.push("cleanup"); },
       isExactFinalizingLease: () => false,
+      onRollbackConfirmed: () => { order.push("runtime_cleanup"); },
     });
-    expect(order).toEqual(["save_rollback", "inspect"]);
+    expect(order).toEqual(["save_rollback", "inspect", "runtime_cleanup"]);
   });
 
   it("cleans an exact finalizing loser only after rollback and inspection", async () => {
@@ -206,8 +236,98 @@ describe("interrupted and rejected reservation boundaries", () => {
       inspectAfterRollback: async () => { order.push("inspect"); return "exact_finalizing"; },
       cleanupExactFinalizingLease: async () => { order.push("cleanup"); },
       isExactFinalizingLease: (value) => value === "exact_finalizing",
+      onRollbackConfirmed: () => { order.push("runtime_cleanup"); },
     });
-    expect(order).toEqual(["save_rollback", "inspect", "cleanup"]);
+    expect(order).toEqual(["save_rollback", "inspect", "cleanup", "runtime_cleanup"]);
+  });
+
+  it("removes only an exact stale-admission loser after rollback while preserving occupied A and B", async () => {
+    const a = runtimeFixture("journey-a", "run-a1");
+    const b = runtimeFixture("journey-b", "run-b1");
+    const c = runtimeFixture("journey-c", "run-c1");
+    let runtime = createInitialJourneyRuntimeState();
+    for (const candidate of [a, b, c]) {
+      runtime = journeyRuntimeReducer(runtime, {
+        type: "register",
+        identity: candidate.identity,
+        run: startAgentRun({ content: candidate.identity.kind === "live" ? candidate.identity.authority.runId : "", mode: "live" }),
+        assistantMessageId: candidate.identity.kind === "live" ? candidate.identity.authority.harnessAssistantMessageId : "",
+        conversationSnapshot: candidate.projection,
+      });
+    }
+    const aBefore = JSON.stringify(runtime.entries["journey-a"]);
+    const bBefore = JSON.stringify(runtime.entries["journey-b"]);
+    runtime = journeyRuntimeReducer(runtime, {
+      type: "stream_event",
+      identity: c.identity,
+      event: { type: "error", message: "The global Pi process capacity is occupied." },
+    });
+    runtime = journeyRuntimeReducer(runtime, { type: "stream_finished", identity: c.identity });
+    let persistedC = c.projection;
+
+    await rollbackRejectedReservation({
+      projection: c.base,
+      authority: c.identity.kind === "live" ? c.identity.authority : { journeyId: "", runId: "" },
+    }, {
+      saveRollbackProjection: async (projection) => { persistedC = projection; },
+      inspectAfterRollback: async () => ({ occupied: ["journey-a", "journey-b"] }),
+      isExactFinalizingLease: () => false,
+      cleanupExactFinalizingLease: async () => { throw new Error("unexpected_cleanup"); },
+      onRollbackConfirmed: () => {
+        runtime = journeyRuntimeReducer(runtime, { type: "cleanup", identity: c.identity });
+      },
+    });
+
+    expect(JSON.stringify(runtime.entries["journey-a"])).toBe(aBefore);
+    expect(JSON.stringify(runtime.entries["journey-b"])).toBe(bBefore);
+    expect(runtime.entries["journey-c"]).toBeUndefined();
+    expect(runtime.quarantine).toEqual([]);
+    expect(persistedC.reconciliation.turns).toEqual([]);
+    expect(persistedC.messages).toEqual([]);
+  });
+
+  it("retains rejected runtime evidence when rollback cannot be confirmed", async () => {
+    const c = runtimeFixture("journey-c", "run-c1");
+    let runtime = journeyRuntimeReducer(createInitialJourneyRuntimeState(), {
+      type: "register",
+      identity: c.identity,
+      run: startAgentRun({ content: "run-c1", mode: "live" }),
+      assistantMessageId: c.identity.kind === "live" ? c.identity.authority.harnessAssistantMessageId : "",
+      conversationSnapshot: c.projection,
+    });
+    runtime = journeyRuntimeReducer(runtime, {
+      type: "stream_event",
+      identity: c.identity,
+      event: { type: "error", message: "capacity_reached" },
+    });
+    runtime = journeyRuntimeReducer(runtime, { type: "stream_finished", identity: c.identity });
+    let cleanupCalls = 0;
+
+    await expect(rollbackRejectedReservation({
+      projection: c.base,
+      authority: c.identity.kind === "live" ? c.identity.authority : { journeyId: "", runId: "" },
+    }, {
+      saveRollbackProjection: async () => { throw new Error("rollback_save_failed"); },
+      inspectAfterRollback: async () => ({ occupied: ["journey-a", "journey-b"] }),
+      isExactFinalizingLease: () => false,
+      cleanupExactFinalizingLease: async () => undefined,
+      onRollbackConfirmed: () => { cleanupCalls += 1; },
+    })).rejects.toThrow("rollback_save_failed");
+
+    await expect(rollbackRejectedReservation({
+      projection: c.base,
+      authority: c.identity.kind === "live" ? c.identity.authority : { journeyId: "", runId: "" },
+    }, {
+      saveRollbackProjection: async () => undefined,
+      inspectAfterRollback: async () => { throw new Error("rollback_reinspection_failed"); },
+      isExactFinalizingLease: () => false,
+      cleanupExactFinalizingLease: async () => undefined,
+      onRollbackConfirmed: () => { cleanupCalls += 1; },
+    })).rejects.toThrow("rollback_reinspection_failed");
+
+    expect(cleanupCalls).toBe(0);
+    expect(runtime.entries["journey-c"]?.warnings).toContain("capacity_reached");
+    expect(runtime.entries["journey-c"]?.conversationSnapshot?.reconciliation.turns).toHaveLength(1);
   });
 
   it("does not mutate settlement for non-owner or stale interrupted recovery", async () => {
