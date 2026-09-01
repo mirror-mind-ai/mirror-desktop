@@ -389,7 +389,7 @@ export function App({ model }: AppProps) {
   const journeyRuntimeStateRef = useRef(journeyRuntimeState);
   const conversationLoadCoordinatorRef = useRef(createJourneyConversationLoadCoordinator());
   const runStartReservationRef = useRef<JourneyRunIdentity | undefined>(undefined);
-  const liveInvocationPreflightRef = useRef<string | undefined>(undefined);
+  const liveInvocationPreflightRef = useRef<Readonly<{ journeyId: string }> | undefined>(undefined);
   const piInvocationInspectionSequenceRef = useRef(0);
   conversationRef.current = conversation;
   selectedJourneyRef.current = selectedJourney;
@@ -1292,45 +1292,48 @@ export function App({ model }: AppProps) {
         });
         return;
       }
-      liveInvocationPreflightRef.current = selectedJourney;
-      let nativeInspection = await reconcilePiInvocationOccupancy();
-      if (!nativeInspection) {
-        liveInvocationPreflightRef.current = undefined;
-        dispatchJourneyRuntime({
-          type: "append_warning",
-          journeyId: selectedJourney,
-          message: "Message retained in the composer because native Pi admission could not be inspected.",
-        });
-        return;
-      }
-      const retainedCompletedLease = resolveCommittedLeaseBeforeInvocation(nativeInspection, baseConversation);
-      if (retainedCompletedLease) {
-        try {
-          await releaseDurablePiInvocationLease(retainedCompletedLease.authority);
-          nativeInspection = await reconcilePiInvocationOccupancy();
-        } catch (error) {
+      const preflightToken = Object.freeze({ journeyId: selectedJourney });
+      liveInvocationPreflightRef.current = preflightToken;
+      try {
+        let nativeInspection = await reconcilePiInvocationOccupancy();
+        if (!nativeInspection) {
           dispatchJourneyRuntime({
             type: "append_warning",
             journeyId: selectedJourney,
-            message: `Message retained in the composer because completed Pi cleanup failed: ${error instanceof Error ? error.message : String(error)}`,
+            message: "Message retained in the composer because native Pi admission could not be inspected.",
           });
-          liveInvocationPreflightRef.current = undefined;
           return;
         }
+        const retainedCompletedLease = resolveCommittedLeaseBeforeInvocation(nativeInspection, baseConversation);
+        if (retainedCompletedLease) {
+          try {
+            await releaseDurablePiInvocationLease(retainedCompletedLease.authority);
+            nativeInspection = await reconcilePiInvocationOccupancy();
+          } catch (error) {
+            dispatchJourneyRuntime({
+              type: "append_warning",
+              journeyId: selectedJourney,
+              message: `Message retained in the composer because completed Pi cleanup failed: ${error instanceof Error ? error.message : String(error)}`,
+            });
+            return;
+          }
+        }
+        if (!nativeInspection
+          || nativeInspection.entries.some((entry) => entry.authority.journeyId === selectedJourney)
+          || nativeInspection.entries.length >= nativeInspection.limit
+          || nativeInspection.processCapacityInUse >= nativeInspection.limit) {
+          dispatchJourneyRuntime({
+            type: "append_warning",
+            journeyId: selectedJourney,
+            message: "Message retained in the composer because native Pi capacity is still occupied.",
+          });
+          return;
+        }
+      } finally {
+        if (liveInvocationPreflightRef.current === preflightToken) {
+          liveInvocationPreflightRef.current = undefined;
+        }
       }
-      if (!nativeInspection
-        || nativeInspection.entries.some((entry) => entry.authority.journeyId === selectedJourney)
-        || nativeInspection.entries.length >= nativeInspection.limit
-        || nativeInspection.processCapacityInUse >= nativeInspection.limit) {
-        dispatchJourneyRuntime({
-          type: "append_warning",
-          journeyId: selectedJourney,
-          message: "Message retained in the composer because native Pi capacity is still occupied.",
-        });
-        liveInvocationPreflightRef.current = undefined;
-        return;
-      }
-      liveInvocationPreflightRef.current = undefined;
     }
 
     const fileAttachments = pendingFileAttachments;
@@ -2858,6 +2861,12 @@ export function App({ model }: AppProps) {
           hidden={!operationalChatSelected || journeyThreadState.kind !== "ready"}
         >
           <ComposerRuntimeStatus status={composerTurnStatus} />
+          {!selectedRuntimeBusy && streamWarnings.length > 0 ? (
+            <section className="dedicated-turn-notice" role="alert">
+              <strong>Message was not sent</strong>
+              <p>{streamWarnings.at(-1)}</p>
+            </section>
+          ) : null}
           {agentSettingsState !== "ready" && agentSettingsState !== "saving" ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Agent settings require attention</strong>

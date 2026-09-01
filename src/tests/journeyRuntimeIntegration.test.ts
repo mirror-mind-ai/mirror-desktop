@@ -96,6 +96,10 @@ describe("Journey runtime integration guardrails", () => {
     expect(nativePreflight).toContain("resolveCommittedLeaseBeforeInvocation(nativeInspection, baseConversation)");
     expect(nativePreflight).toContain("await releaseDurablePiInvocationLease(retainedCompletedLease.authority)");
     expect(nativePreflight).toContain("Message retained in the composer");
+    expect(nativePreflight).toContain("} finally {");
+    expect(nativePreflight).toContain("liveInvocationPreflightRef.current === preflightToken");
+    expect(appSource).toContain("Message was not sent");
+    expect(appSource).toContain("streamWarnings.at(-1)");
     const durableOutboxRetry = sourceBetween("async function retryMirrorAppendSummary", "async function retryPendingMirrorCommit");
     expect(durableOutboxRetry).toContain("resolveRetainedLeaseForOutboxRecovery(inspection, authority)");
     expect(durableOutboxRetry.indexOf("releaseDurablePiInvocationLease(authority)")).toBeLessThan(
