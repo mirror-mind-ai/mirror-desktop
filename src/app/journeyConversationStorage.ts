@@ -9,7 +9,7 @@ import type { JourneySettlementAuthority } from "../domain/journeySettlementAuth
 async function saveProjection(
   conversation: JourneyConversation,
   options: {
-    mode: "lifecycle" | "active_pre_frontier" | "generation_scoped_post_frontier";
+    mode: "lifecycle" | "active_pre_frontier" | "active_pre_frontier_rollback" | "generation_scoped_post_frontier";
     authority?: JourneySettlementAuthority;
     outbox?: { itemId: string; conversationId: string };
   },
@@ -34,6 +34,13 @@ export async function saveActiveSettlementProjection(
   authority: JourneySettlementAuthority,
 ): Promise<void> {
   await saveProjection(conversation, { mode: "active_pre_frontier", authority });
+}
+
+export async function saveRejectedReservationRollback(
+  conversation: JourneyConversation,
+  authority: JourneySettlementAuthority,
+): Promise<void> {
+  await saveProjection(conversation, { mode: "active_pre_frontier_rollback", authority });
 }
 
 export async function savePostFrontierReceiptProjection(

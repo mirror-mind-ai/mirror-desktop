@@ -123,6 +123,7 @@ import {
   saveActiveSettlementProjection,
   saveDedicatedJourneyConversation,
   savePostFrontierReceiptProjection,
+  saveRejectedReservationRollback,
 } from "./journeyConversationStorage";
 import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPreferenceStorage";
 import { loadComposerDrafts, saveComposerDrafts } from "./composerDraftStorage";
@@ -1517,7 +1518,10 @@ export function App({ model }: AppProps) {
                 projection: conversationBeforeRun,
                 authority: invocationAuthority,
               }, {
-                saveRollbackProjection: saveDedicatedJourneyConversation,
+                saveRollbackProjection: (projection) => {
+                  if (!settlementAuthority) throw new Error("settlement_authority_missing");
+                  return saveRejectedReservationRollback(projection, settlementAuthority);
+                },
                 inspectAfterRollback: reconcilePiInvocationOccupancy,
                 isExactFinalizingLease: (inspection, authority) => Boolean(inspection?.entries.some((entry) => (
                   entry.authority.journeyId === authority.journeyId
