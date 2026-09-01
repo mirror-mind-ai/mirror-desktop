@@ -56,7 +56,15 @@ export function applyVerifiedLocalPaths(
   });
 }
 
-export function LinkifiedText({ text, basePath }: { text: string; basePath?: string }) {
+export function LinkifiedText({
+  text,
+  basePath,
+  onLocalPathClick,
+}: {
+  text: string;
+  basePath?: string;
+  onLocalPathClick?: (path: string) => void;
+}) {
   const parsedParts = useMemo(() => parseLinkifiedText(text), [text]);
   const candidates = useMemo(() => [...new Set(parsedParts
     .filter((part): part is Extract<LinkifiedTextPart, { type: "local_path_candidate" }> => part.type === "local_path_candidate")
@@ -79,10 +87,14 @@ export function LinkifiedText({ text, basePath }: { text: string; basePath?: str
     return () => { cancelled = true; };
   }, [basePath, candidates]);
 
-  return <>{renderLinkifiedText(applyVerifiedLocalPaths(parsedParts, verifiedPaths), basePath)}</>;
+  return <>{renderLinkifiedText(applyVerifiedLocalPaths(parsedParts, verifiedPaths), basePath, onLocalPathClick)}</>;
 }
 
-export function renderLinkifiedText(parts: LinkifiedTextPart[], basePath?: string): ReactNode[] {
+export function renderLinkifiedText(
+  parts: LinkifiedTextPart[],
+  basePath?: string,
+  onLocalPathClick?: (path: string) => void,
+): ReactNode[] {
   return parts.map((part, index) => {
     if (part.type === "url") {
       return (
@@ -109,7 +121,8 @@ export function renderLinkifiedText(parts: LinkifiedTextPart[], basePath?: strin
           className="inline-link inline-local-path"
           onClick={(event) => {
             event.preventDefault();
-            void invoke("open_local_reference", { path: part.text, basePath });
+            if (onLocalPathClick) onLocalPathClick(part.text);
+            else void invoke("open_local_reference", { path: part.text, basePath });
           }}
           title="Open local path"
         >

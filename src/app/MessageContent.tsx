@@ -14,12 +14,20 @@ type InlineToken =
   | { type: "emphasis"; text: string }
   | { type: "code"; text: string };
 
-export function MessageContent({ content, basePath }: { content: string; basePath?: string }) {
+export function MessageContent({
+  content,
+  basePath,
+  onLocalPathClick,
+}: {
+  content: string;
+  basePath?: string;
+  onLocalPathClick?: (path: string) => void;
+}) {
   const blocks = parseMessageBlocks(content);
 
   return (
     <div className="message-content">
-      {blocks.map((block, index) => renderBlock(block, index, basePath))}
+      {blocks.map((block, index) => renderBlock(block, index, basePath, onLocalPathClick))}
     </div>
   );
 }
@@ -137,17 +145,22 @@ export function parseInlineTokens(text: string): InlineToken[] {
   return tokens.length > 0 ? tokens : [{ type: "text", text }];
 }
 
-function renderBlock(block: MessageBlock, index: number, basePath?: string) {
+function renderBlock(
+  block: MessageBlock,
+  index: number,
+  basePath?: string,
+  onLocalPathClick?: (path: string) => void,
+) {
   switch (block.type) {
     case "heading": {
       const Heading = block.level === 2 ? "h2" : "h3";
-      return <Heading key={index}>{renderInline(block.text, basePath)}</Heading>;
+      return <Heading key={index}>{renderInline(block.text, basePath, onLocalPathClick)}</Heading>;
     }
     case "unordered_list":
       return (
         <ul key={index}>
           {block.items.map((item) => (
-            <li key={item}>{renderInline(item, basePath)}</li>
+            <li key={item}>{renderInline(item, basePath, onLocalPathClick)}</li>
           ))}
         </ul>
       );
@@ -155,22 +168,26 @@ function renderBlock(block: MessageBlock, index: number, basePath?: string) {
       return (
         <ol key={index}>
           {block.items.map((item) => (
-            <li key={item}>{renderInline(item, basePath)}</li>
+            <li key={item}>{renderInline(item, basePath, onLocalPathClick)}</li>
           ))}
         </ol>
       );
     case "code":
       return (
         <pre key={index} className="message-code-block">
-          <code><LinkifiedText text={block.text} basePath={basePath} /></code>
+          <code><LinkifiedText text={block.text} basePath={basePath} onLocalPathClick={onLocalPathClick} /></code>
         </pre>
       );
     case "paragraph":
-      return <p key={index}>{renderInline(block.text, basePath)}</p>;
+      return <p key={index}>{renderInline(block.text, basePath, onLocalPathClick)}</p>;
   }
 }
 
-function renderInline(text: string, basePath?: string): ReactNode[] {
+function renderInline(
+  text: string,
+  basePath?: string,
+  onLocalPathClick?: (path: string) => void,
+): ReactNode[] {
   return parseInlineTokens(text).map((token, index) => {
     switch (token.type) {
       case "strong":
@@ -178,9 +195,9 @@ function renderInline(text: string, basePath?: string): ReactNode[] {
       case "emphasis":
         return <em key={index}>{token.text}</em>;
       case "code":
-        return <code key={index}><LinkifiedText text={token.text} basePath={basePath} /></code>;
+        return <code key={index}><LinkifiedText text={token.text} basePath={basePath} onLocalPathClick={onLocalPathClick} /></code>;
       case "text":
-        return <LinkifiedText key={index} text={token.text} basePath={basePath} />;
+        return <LinkifiedText key={index} text={token.text} basePath={basePath} onLocalPathClick={onLocalPathClick} />;
     }
   });
 }

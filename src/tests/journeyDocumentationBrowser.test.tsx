@@ -80,7 +80,7 @@ describe("JourneyDocumentationBrowser", () => {
     expect(html).toContain('data-artifact-icon="markdown"');
     expect(html).toContain("Safe documentation.");
     expect(html).not.toContain("href=");
-    expect(html).not.toContain("Open file");
+    expect(html).toContain("Open file");
   });
 
   it("shows metadata and an honest reason when preview is unavailable", () => {

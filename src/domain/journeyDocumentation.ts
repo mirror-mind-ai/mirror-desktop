@@ -152,6 +152,18 @@ export function normalizeDocumentationContent(value: unknown): DocumentationCont
   throw new Error("Journey document content is invalid.");
 }
 
+export function findDocumentationNode(
+  nodes: DocumentationNode[],
+  relativePath: string,
+): { node: DocumentationNode; ancestorPaths: string[] } | undefined {
+  for (const node of nodes) {
+    if (node.relativePath === relativePath) return { node, ancestorPaths: [] };
+    const child = findDocumentationNode(node.children, relativePath);
+    if (child) return { node: child.node, ancestorPaths: [node.relativePath, ...child.ancestorPaths] };
+  }
+  return undefined;
+}
+
 export function toggleExpandedDocumentationPath(paths: ReadonlySet<string>, path: string): Set<string> {
   const next = new Set(paths);
   if (next.has(path)) next.delete(path);

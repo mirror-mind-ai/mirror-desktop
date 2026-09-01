@@ -36,6 +36,10 @@ import {
   stripMirrorSurfaceBlocks,
 } from "./ImportedActivity";
 import { MessageContent } from "./MessageContent";
+import {
+  classifyChatLocalReference,
+  openExternalChatLocalReference,
+} from "./chatLocalReferenceNavigation";
 import { MessageCopyAction } from "./MessageCopyAction";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
@@ -298,6 +302,12 @@ export function App({ model }: AppProps) {
   const [selectedJourney, setSelectedJourney] = useState(defaultJourneyPreferenceState.activeJourneyId ?? "nautilus-harness");
   const [selectedAltitude, setSelectedAltitude] = useState(defaultJourneyAltitude);
   const [selectedOperationalSurface, setSelectedOperationalSurface] = useState<OperationalSurface>("chat");
+  const [artifactNavigationRequest, setArtifactNavigationRequest] = useState<{
+    journeyId: string;
+    relativePath: string;
+    requestId: number;
+  }>();
+  const [localReferenceError, setLocalReferenceError] = useState<string>();
   const [journeyPreferences, setJourneyPreferences] = useState<JourneyPreferences>({
     pinnedJourneyIds: defaultJourneyPreferenceState.pinnedJourneyIds,
     activeJourneyId: defaultJourneyPreferenceState.activeJourneyId,
@@ -2383,6 +2393,31 @@ export function App({ model }: AppProps) {
     }
   }
 
+  async function handleChatLocalPath(path: string) {
+    const ownerJourneyId = selectedJourneyRef.current;
+    const ownerBasePath = findJourneyById(journeyRegistry, ownerJourneyId)?.projectPath;
+    setLocalReferenceError(undefined);
+    try {
+      const disposition = await classifyChatLocalReference(ownerJourneyId, path);
+      if (selectedJourneyRef.current !== ownerJourneyId) return;
+      if (disposition.kind === "journey_document") {
+        setSelectedAltitude("operational");
+        setSelectedOperationalSurface("artifacts");
+        setArtifactNavigationRequest((current) => ({
+          journeyId: ownerJourneyId,
+          relativePath: disposition.relativePath,
+          requestId: (current?.requestId ?? 0) + 1,
+        }));
+        return;
+      }
+      await openExternalChatLocalReference(path, ownerBasePath);
+    } catch (error) {
+      if (selectedJourneyRef.current === ownerJourneyId) {
+        setLocalReferenceError(error instanceof Error ? error.message : String(error));
+      }
+    }
+  }
+
   function showConversation() {
     setSelectedAltitude("operational");
     setSelectedOperationalSurface("chat");
@@ -2716,6 +2751,12 @@ export function App({ model }: AppProps) {
           <JourneyDocumentationBrowser
             journeyId={selectedJourneyItem.id}
             journeyName={selectedJourneyItem.name}
+            requestedRelativePath={artifactNavigationRequest?.journeyId === selectedJourneyItem.id
+              ? artifactNavigationRequest.relativePath
+              : undefined}
+            requestId={artifactNavigationRequest?.journeyId === selectedJourneyItem.id
+              ? artifactNavigationRequest.requestId
+              : undefined}
           />
         ) : null}
         {selectedAltitude === "operational" && selectedOperationalSurface === "ariad" ? (
@@ -2838,10 +2879,10 @@ export function App({ model }: AppProps) {
                       isRuntimeMessage ? (
                         <div className="runtime-answer">
                           <span className="runtime-region-label">Assistant answer</span>
-                          <MessageContent content={bodyContent} basePath={selectedJourneyBasePath} />
+                          <MessageContent content={bodyContent} basePath={selectedJourneyBasePath} onLocalPathClick={(path) => void handleChatLocalPath(path)} />
                         </div>
                       ) : (
-                        <MessageContent content={bodyContent} basePath={selectedJourneyBasePath} />
+                        <MessageContent content={bodyContent} basePath={selectedJourneyBasePath} onLocalPathClick={(path) => void handleChatLocalPath(path)} />
                       )
                     ) : null}
                     <MessageFileAttachments attachments={message.attachments} />
@@ -2862,6 +2903,12 @@ export function App({ model }: AppProps) {
           hidden={!operationalChatSelected || journeyThreadState.kind !== "ready"}
         >
           <ComposerRuntimeStatus status={composerTurnStatus} />
+          {localReferenceError ? (
+            <section className="dedicated-turn-notice" role="alert">
+              <strong>File could not be opened</strong>
+              <p>{localReferenceError}</p>
+            </section>
+          ) : null}
           {!selectedRuntimeBusy && streamWarnings.length > 0 ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Message was not sent</strong>

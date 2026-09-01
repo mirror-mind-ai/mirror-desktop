@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
+  findDocumentationNode,
   toggleExpandedDocumentationPath,
   type DocumentationContentViewState,
   type DocumentationNode,
   type DocumentationTreeViewState,
 } from "../domain/journeyDocumentation";
 import { listJourneyDocumentation, readJourneyDocument } from "./journeyDocumentationStorage";
+import { openJourneyDocument } from "./chatLocalReferenceNavigation";
 import { ArtifactTypeIcon, artifactIconKind } from "./ArtifactTypeIcon";
 
 type JourneyDocumentationBrowserProps = {
   journeyId: string;
   journeyName: string;
+  requestedRelativePath?: string;
+  requestId?: number;
 };
 
 type JourneyDocumentationSurfaceProps = {
@@ -20,6 +24,9 @@ type JourneyDocumentationSurfaceProps = {
   content: DocumentationContentViewState;
   onToggle: (path: string) => void;
   onSelect: (node: DocumentationNode) => void;
+  onOpen?: (node: DocumentationNode) => void;
+  routingError?: string;
+  openError?: string;
 };
 
 const unavailableReasons: Record<string, string> = {
@@ -32,11 +39,15 @@ const unavailableReasons: Record<string, string> = {
 export function JourneyDocumentationBrowser({
   journeyId,
   journeyName,
+  requestedRelativePath,
+  requestId,
 }: JourneyDocumentationBrowserProps) {
   const [tree, setTree] = useState<DocumentationTreeViewState>({ status: "loading" });
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [selectedNode, setSelectedNode] = useState<DocumentationNode>();
   const [content, setContent] = useState<DocumentationContentViewState>({ status: "idle" });
+  const [routingError, setRoutingError] = useState<string>();
+  const [openError, setOpenError] = useState<string>();
   const treeRequestRef = useRef(0);
   const contentRequestRef = useRef(0);
 
@@ -46,6 +57,8 @@ export function JourneyDocumentationBrowser({
     setExpandedPaths(new Set());
     setSelectedNode(undefined);
     setContent({ status: "idle" });
+    setRoutingError(undefined);
+    setOpenError(undefined);
 
     setTree({ status: "loading" });
     void listJourneyDocumentation(journeyId)
@@ -61,6 +74,8 @@ export function JourneyDocumentationBrowser({
 
   function selectNode(node: DocumentationNode) {
     setSelectedNode(node);
+    setRoutingError(undefined);
+    setOpenError(undefined);
     const request = ++contentRequestRef.current;
     if (node.kind === "folder") {
       setContent({
@@ -101,6 +116,27 @@ export function JourneyDocumentationBrowser({
       });
   }
 
+  useEffect(() => {
+    if (!requestedRelativePath || tree.status !== "ready") return;
+    const match = findDocumentationNode(tree.items, requestedRelativePath);
+    if (!match || match.node.kind !== "file") {
+      setRoutingError("The linked Journey document is not visible in the bounded Artifacts workspace.");
+      return;
+    }
+    setExpandedPaths((current) => new Set([...current, ...match.ancestorPaths]));
+    selectNode(match.node);
+  }, [requestedRelativePath, requestId, tree]);
+
+  async function openSelectedNode(node: DocumentationNode) {
+    if (node.kind !== "file") return;
+    setOpenError(undefined);
+    try {
+      await openJourneyDocument(journeyId, node.relativePath);
+    } catch (error) {
+      setOpenError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   return (
     <JourneyDocumentationSurface
       tree={tree}
@@ -109,6 +145,9 @@ export function JourneyDocumentationBrowser({
       content={content}
       onToggle={(path) => setExpandedPaths((current) => toggleExpandedDocumentationPath(current, path))}
       onSelect={selectNode}
+      onOpen={(node) => void openSelectedNode(node)}
+      routingError={routingError}
+      openError={openError}
     />
   );
 }
@@ -120,6 +159,9 @@ export function JourneyDocumentationSurface({
   content,
   onToggle,
   onSelect,
+  onOpen = () => undefined,
+  routingError,
+  openError,
 }: JourneyDocumentationSurfaceProps) {
   return (
     <section
@@ -128,13 +170,14 @@ export function JourneyDocumentationSurface({
       role="tabpanel"
       aria-label="Journey workspace browser"
     >
+      {routingError ? <p className="journey-documentation-routing-error" role="alert">{routingError}</p> : null}
       <div className="operational-artifacts-layout">
         <div className="operational-artifacts-browser">
           <p className="operational-artifacts-section-label">Workspace structure</p>
           {renderTreeState(tree, expandedPaths, selectedNode, onToggle, onSelect)}
         </div>
         <div className="operational-artifact-document-viewer">
-          {renderViewer(selectedNode, content)}
+          {renderViewer(selectedNode, content, onOpen, openError)}
         </div>
       </div>
     </section>
@@ -213,7 +256,12 @@ function renderTreeNode(
   );
 }
 
-function renderViewer(selectedNode: DocumentationNode | undefined, content: DocumentationContentViewState): ReactNode {
+function renderViewer(
+  selectedNode: DocumentationNode | undefined,
+  content: DocumentationContentViewState,
+  onOpen: (node: DocumentationNode) => void,
+  openError?: string,
+): ReactNode {
   if (!selectedNode || content.status === "idle") {
     return <ViewerEmpty title="Select an artifact" detail="Content, details, and metadata will appear here." />;
   }
@@ -233,12 +281,20 @@ function renderViewer(selectedNode: DocumentationNode | undefined, content: Docu
     </div>
   );
 
+  const openAction = selectedNode.kind === "file" ? (
+    <div className="journey-documentation-open-action">
+      <button type="button" onClick={() => onOpen(selectedNode)}>Open file</button>
+      {openError ? <p role="alert">{openError}</p> : null}
+    </div>
+  ) : null;
+
   if (content.status === "unavailable") {
     return (
       <div className="journey-documentation-detail">
         <p className="operational-artifacts-section-label">Details and metadata</p>
         <ViewerArtifactTitle node={selectedNode} />
         {metadata}
+        {openAction}
         <div className="journey-documentation-unavailable">
           <strong>Preview unavailable</strong>
           <p>{unavailableReasons[content.reason] ?? "This item does not expose textual preview content."}</p>
@@ -252,6 +308,7 @@ function renderViewer(selectedNode: DocumentationNode | undefined, content: Docu
       <p className="operational-artifacts-section-label">Artifact content</p>
       <ViewerArtifactTitle node={selectedNode} />
       {metadata}
+      {openAction}
       <div className={`journey-documentation-body content-${content.previewKind}`}>
         {content.previewKind === "markdown" ? renderSafeMarkdown(content.content) : <pre>{content.content}</pre>}
       </div>

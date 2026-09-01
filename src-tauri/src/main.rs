@@ -1578,6 +1578,83 @@ fn open_local_reference(path: String, base_path: Option<String>) -> Result<(), S
     open_path(&resolve_existing_local_file(&path, base_path.as_deref())?)
 }
 
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct ChatLocalReferenceDisposition {
+    kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    relative_path: Option<String>,
+}
+
+fn resolve_journey_document_file_at(journey_root: &Path, relative_path: &str) -> Result<(PathBuf, String), String> {
+    let workspace_root = bounded_documentation_root(journey_root)?;
+    let safe_relative = validate_document_relative_path(relative_path)?;
+    let mut cursor = workspace_root.clone();
+    for component in safe_relative.components() {
+        cursor.push(component.as_os_str());
+        let metadata = fs::symlink_metadata(&cursor)
+            .map_err(|_| "Could not resolve the linked Journey document.".to_string())?;
+        if metadata.file_type().is_symlink() {
+            return Err("Symbolic-link documents are outside the Artifacts navigation boundary.".to_string());
+        }
+    }
+    let canonical = cursor.canonicalize()
+        .map_err(|_| "Could not resolve the linked Journey document.".to_string())?;
+    if !canonical.starts_with(&workspace_root) {
+        return Err("Linked document escaped the registered Journey workspace.".to_string());
+    }
+    let metadata = canonical.metadata()
+        .map_err(|_| "Could not inspect the linked Journey document.".to_string())?;
+    if !metadata.is_file() {
+        return Err("Linked Journey artifact is not a file.".to_string());
+    }
+    Ok((canonical, documentation_relative_path(&workspace_root, &cursor)?))
+}
+
+fn classify_chat_local_reference_at(journey_root: &Path, path: &str) -> Result<ChatLocalReferenceDisposition, String> {
+    if path.trim().is_empty() || path.contains('\0') || path.starts_with("http://") || path.starts_with("https://") {
+        return Err("Unsupported local reference.".to_string());
+    }
+    let workspace_root = bounded_documentation_root(journey_root)?;
+    let requested = PathBuf::from(path.trim());
+    if requested.is_absolute() && !requested.starts_with(&workspace_root) {
+        resolve_existing_local_file(path, None)?;
+        return Ok(ChatLocalReferenceDisposition { kind: "external_file".to_string(), relative_path: None });
+    }
+    let relative = if requested.is_absolute() {
+        requested.strip_prefix(&workspace_root)
+            .map_err(|_| "Linked document escaped the registered Journey workspace.".to_string())?
+            .components()
+            .map(|component| component.as_os_str().to_string_lossy().into_owned())
+            .collect::<Vec<_>>()
+            .join("/")
+    } else {
+        path.trim().replace('\\', "/")
+    };
+    let (_, relative_path) = resolve_journey_document_file_at(&workspace_root, &relative)?;
+    Ok(ChatLocalReferenceDisposition {
+        kind: "journey_document".to_string(),
+        relative_path: Some(relative_path),
+    })
+}
+
+#[tauri::command]
+fn classify_chat_local_reference(
+    app: AppHandle,
+    journey_id: String,
+    path: String,
+) -> Result<ChatLocalReferenceDisposition, String> {
+    let journey_root = registered_journey_root(&app, &journey_id)?;
+    classify_chat_local_reference_at(&journey_root, &path)
+}
+
+#[tauri::command]
+fn open_journey_document(app: AppHandle, journey_id: String, relative_path: String) -> Result<(), String> {
+    let journey_root = registered_journey_root(&app, &journey_id)?;
+    let (path, _) = resolve_journey_document_file_at(&journey_root, &relative_path)?;
+    open_path(&path)
+}
+
 fn validate_external_url(value: &str) -> Result<url::Url, String> {
     let parsed = url::Url::parse(value.trim())
         .map_err(|_| "Unsupported external URL.".to_string())?;
@@ -3967,6 +4044,8 @@ fn main() {
             inspect_file_attachments,
             inspect_local_references,
             open_local_reference,
+            classify_chat_local_reference,
+            open_journey_document,
             open_external_url,
             start_pi_invocation,
             read_pi_session_context_stats,
@@ -4006,6 +4085,7 @@ mod tests {
         project_complete_pi_transcript, projection_manifest_coordinates_at,
         inspect_file_attachments_at, publish_refreshed_journey_registry, read_journey_document_at,
         remove_provider_session_args, resolve_existing_local_file, retire_legacy_parity_state_at,
+        classify_chat_local_reference_at,
         unwrap_persisted_thread, validate_acknowledged_projection_authority_at,
         validate_composer_drafts_payload, validate_external_url, validate_journey_registry_payload,
         merge_persisted_mirror_evidence, validate_active_pre_frontier_projection_at,
@@ -4887,6 +4967,48 @@ mod tests {
         assert!(resolve_existing_local_file("docs", Some(root.to_string_lossy().as_ref())).is_err());
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn routes_journey_files_to_artifacts_and_external_files_to_native_opening() {
+        let root = test_root("chat-local-reference-routing");
+        let external_root = test_root("chat-external-reference-routing");
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::create_dir_all(&external_root).unwrap();
+        fs::write(root.join("docs/guide.md"), "guide").unwrap();
+        let external = external_root.join("outside.txt");
+        fs::write(&external, "outside").unwrap();
+
+        let internal = classify_chat_local_reference_at(&root, "docs/guide.md").unwrap();
+        assert_eq!(internal.kind, "journey_document");
+        assert_eq!(internal.relative_path.as_deref(), Some("docs/guide.md"));
+        let external_disposition = classify_chat_local_reference_at(&root, external.to_string_lossy().as_ref()).unwrap();
+        assert_eq!(external_disposition.kind, "external_file");
+        assert_eq!(external_disposition.relative_path, None);
+        assert!(classify_chat_local_reference_at(&root, "../outside.txt").is_err());
+        assert!(classify_chat_local_reference_at(&root, "docs/missing.md").is_err());
+
+        fs::remove_dir_all(root).unwrap();
+        fs::remove_dir_all(external_root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_journey_document_symlinks_instead_of_routing_escapes() {
+        use std::os::unix::fs::symlink;
+        let root = test_root("chat-local-reference-symlink");
+        let external_root = test_root("chat-local-reference-symlink-outside");
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::create_dir_all(&external_root).unwrap();
+        let outside = external_root.join("outside.md");
+        fs::write(&outside, "outside").unwrap();
+        symlink(&outside, root.join("docs/escaped.md")).unwrap();
+
+        let error = classify_chat_local_reference_at(&root, "docs/escaped.md").unwrap_err();
+        assert!(error.contains("Symbolic-link"));
+
+        fs::remove_dir_all(root).unwrap();
+        fs::remove_dir_all(external_root).unwrap();
     }
 
     #[test]

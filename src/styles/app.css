@@ -2735,6 +2735,33 @@ button:disabled {
   text-transform: uppercase;
 }
 
+.journey-documentation-open-action {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  margin: -2px 0 18px;
+}
+
+.journey-documentation-open-action button {
+  background: rgba(110, 210, 199, 0.1);
+  border: 1px solid rgba(110, 210, 199, 0.3);
+  border-radius: 10px;
+  color: #c9f3ed;
+  cursor: pointer;
+  padding: 8px 12px;
+}
+
+.journey-documentation-open-action p,
+.journey-documentation-routing-error {
+  color: #f0b5ad;
+  font-size: 0.74rem;
+  margin: 0;
+}
+
+.journey-documentation-routing-error {
+  padding: 0 0 12px;
+}
+
 .journey-documentation-unavailable {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   margin-top: 18px;

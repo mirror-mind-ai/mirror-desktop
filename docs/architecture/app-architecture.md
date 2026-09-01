@@ -150,6 +150,23 @@ cascade. When the empty leaf is active, Harness binds publication and selection
 to its parent or the first remaining canonical Journey before accepting the
 replacement registry. Project files and repositories are never deletion targets.
 
+## Journey-aware chat file navigation
+
+Verified local paths rendered inside conversation messages cross a Journey-aware
+native classification boundary before activation. Relative paths are resolved
+against the message owner's registered Journey workspace. Canonically contained,
+non-symlink files route to the Operational **Artifacts** surface, which expands
+and selects the exact relative path and offers an explicit **Open file** action.
+Absolute files outside that canonical root retain immediate opening through the
+existing safe native file boundary.
+
+Traversal, missing targets, directories, symbolic-link components and canonical
+escapes fail visibly. Classification and OS opening both revalidate native
+filesystem authority; Pi output and frontend selection never establish path
+authority. The async result is owner-scoped so navigation during classification
+cannot redirect another Journey. HTTP(S) links and non-chat activity rendering
+retain their existing behavior.
+
 ## Persistent agent-profile boundary
 
 Harness owns a versioned, non-secret `agent-settings.json` record under Tauri's

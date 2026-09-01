@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { applyVerifiedLocalPaths, parseLinkifiedText } from "../app/LinkifiedText";
+import { isValidElement, type ReactElement } from "react";
+import { describe, expect, it, vi } from "vitest";
+import { applyVerifiedLocalPaths, parseLinkifiedText, renderLinkifiedText } from "../app/LinkifiedText";
 
 describe("LinkifiedText", () => {
   it("detects public and loopback HTTP links without trailing punctuation", () => {
@@ -27,6 +28,20 @@ describe("LinkifiedText", () => {
       { type: "text", text: " and " },
       { type: "local_path_candidate", text: "/Users/example/note.md" },
     ]);
+  });
+
+  it("routes verified chat paths through the supplied Journey-aware handler", () => {
+    const onLocalPathClick = vi.fn();
+    const [link] = renderLinkifiedText(
+      [{ type: "local_path", text: "docs/guide.md" }],
+      "/journey",
+      onLocalPathClick,
+    );
+    expect(isValidElement(link)).toBe(true);
+    if (!isValidElement(link)) throw new Error("expected link element");
+    const localLink = link as ReactElement<{ onClick: (event: { preventDefault: () => void }) => void }>;
+    localLink.props.onClick({ preventDefault: vi.fn() });
+    expect(onLocalPathClick).toHaveBeenCalledWith("docs/guide.md");
   });
 
   it("promotes only native-verified files to local path links", () => {
