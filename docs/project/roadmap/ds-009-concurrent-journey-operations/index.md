@@ -72,12 +72,12 @@ A desktop agent cockpit should not turn one long-running Journey into a global a
 | DS-009.US-1 | Navigate While Journeys Work | User Story | Navigator can switch Journeys while an existing serial run continues and see which Journey is active | ✅ Done |
 | DS-009.TS-2 | Per-Journey Tauri Process Registry | Technical Story | Backend owns a per-Journey registry with directed start/cancel and global limit 1 | ✅ Done |
 | DS-009.TS-4 | Concurrent Persistence Guardrails | Technical Story | Background settlement and persistence use captured authority and per-Journey finalization leases while global limit remains 1 | ✅ Done |
-| DS-009.US-2 | Operate Multiple Journeys Concurrently | User Story | Navigator can start work in another Journey after capacity is raised to 2, with one run allowed per Journey | 🟡 Planned |
+| DS-009.US-2 | Operate Multiple Journeys Concurrently | User Story | Navigator can start work in another Journey after capacity is raised to 2, with one run allowed per Journey | ✅ Done |
 | DS-009.US-3 | Targeted Journey Cancellation and Settlement | User Story | Cancelling, failing or settling one Journey under real concurrency does not disturb another Journey | 🟡 Planned |
 
 ## Current Position
 
-DS-009 remains 🟠 In Progress with TS-4 complete and production execution still globally serial at capacity 1. The next mandatory item is DS-009.US-2 — Operate Multiple Journeys Concurrently, but it remains unpulled and unstarted pending separate Navigator authorization. Only US-2 may raise capacity to 2; this closure keeps capacity exactly 1.
+DS-009 remains 🟠 In Progress with US-2 complete and production execution bounded at capacity 2 while preserving one active or finalizing lease per Journey. The next mandatory item is DS-009.US-3 — Targeted Journey Cancellation and Settlement, but it remains unpulled and requires separate Navigator authorization. US-2 closure does not authorize US-3, push, promotion, release or deployment.
 
 ## Done Condition
 

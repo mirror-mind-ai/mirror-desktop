@@ -2,7 +2,7 @@
 
 # DS-009.US-2 — Operate Multiple Journeys Concurrently
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 **Order:** 6 of 7
 **Concurrency:** enable global limit 2
