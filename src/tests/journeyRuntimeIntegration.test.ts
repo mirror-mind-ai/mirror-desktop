@@ -16,13 +16,14 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).not.toContain("const [agentRunJourneyId");
   });
 
-  it("keeps selection presentation-only while aggregate guards preserve serial capacity", () => {
+  it("keeps selection presentation-only while exact native admission controls capacity two", () => {
     const selection = sourceBetween("function selectJourney", "function openJourneyTreeMenu");
     expect(selection).toContain("if (journeyId === selectedJourney)");
     expect(selection).not.toContain("runtimeBusy");
     expect(selection).not.toContain("dispatchJourneyRuntime");
     expect(appSource).toContain("draggable={journeyListOrder === \"tree\" && !runtimeBusy}");
-    expect(appSource).toContain("if (!content || fileAttachmentError || journeyThreadState.kind !== \"ready\" || runtimeBusy");
+    expect(appSource).toContain("derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney)");
+    expect(appSource).toContain("|| invocationAdmissionBlocked || runStartReservationRef.current");
     expect(appSource).toContain("runStartReservationRef.current || reconciliationBlocksInvocation");
   });
 
@@ -43,10 +44,10 @@ describe("Journey runtime integration guardrails", () => {
     expect(cancellation).toContain("cancelLivePiInvocation(identity.authority.journeyId, identity.authority.runId)");
   });
 
-  it("allows read-only navigation and drafting but keeps operational mutation blocked", () => {
+  it("allows admitted selected-Journey submission while keeping aggregate mutations blocked", () => {
     expect(appSource).toContain('const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading"');
     expect(appSource).toContain("disabled={isJourneyReloading}");
-    expect(appSource).toContain("disabled={!draft.trim() || runtimeBusy");
+    expect(appSource).toContain("disabled={!draft.trim() || selectedInvocationAdmissionBlocked");
     expect(appSource).toContain("disabled={runtimeBusy || isJourneyReloading || fileAttachmentBusy}");
     expect(appSource).toContain("disabled={runtimeBusy}");
     expect(appSource).toContain('journeyThreadState.kind === "absent" && !runtimeBusy');
@@ -60,6 +61,8 @@ describe("Journey runtime integration guardrails", () => {
     expect(generation).toContain('type: "finalization_started", identity: runtimeIdentity');
     expect(generation).toContain('type: "finalization_finished", identity: runtimeIdentity');
     expect(generation).toContain("let runConversation = stagedConversation");
+    expect(generation).toContain("for await (const event of provider(packet))");
+    expect(generation).toContain("runStartReservationRef.current === runtimeIdentity");
     expect(generation).toContain("selectedJourneyRef.current === ownerJourneyId");
     const preAgentRollback = sourceBetween("if (runFailed && !runReachedAgent)", "} else if (runWasCancelled || runFailed)");
     expect(preAgentRollback).toContain("conversationBeforeRun");

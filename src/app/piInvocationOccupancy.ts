@@ -37,9 +37,15 @@ export interface PiInvocationLeaseRelease {
 export interface PiInvocationOccupancyState {
   status: "unknown" | "reconciling" | "known";
   requestId: number | null;
+  limit: 1 | 2 | null;
+  processCapacityInUse: number | null;
   entries: PiInvocationLeaseInspection[];
   diagnostic: string | null;
 }
+
+export type PiInvocationAdmission =
+  | { allowed: true; reason: null }
+  | { allowed: false; reason: "inspection_unknown" | "same_journey_occupied" | "global_capacity_reached" };
 
 export type SettlementRecoveryEvidence = PiInvocationAuthorityInspection;
 
@@ -61,7 +67,14 @@ export function piInvocationAuthorityFromRunAuthority(
 }
 
 export function createUnknownPiInvocationOccupancy(): PiInvocationOccupancyState {
-  return { status: "unknown", requestId: null, entries: [], diagnostic: null };
+  return {
+    status: "unknown",
+    requestId: null,
+    limit: null,
+    processCapacityInUse: null,
+    entries: [],
+    diagnostic: null,
+  };
 }
 
 export function beginPiInvocationReconciliation(
@@ -153,12 +166,12 @@ export function validatePiInvocationRegistryInspection(
 ): value is PiInvocationRegistryInspection {
   if (!isRecord(value) || !hasExactKeys(value, INSPECTION_KEYS)) return false;
   if (value.schemaVersion !== "0.1.0"
-    || value.limit !== 1
+    || (value.limit !== 1 && value.limit !== 2)
     || !Number.isSafeInteger(value.processCapacityInUse)
     || Number(value.processCapacityInUse) < 0
-    || Number(value.processCapacityInUse) > 1
+    || Number(value.processCapacityInUse) > Number(value.limit)
     || !Array.isArray(value.entries)
-    || value.entries.length > 1
+    || value.entries.length > Number(value.limit)
     || !value.entries.every(validEntry)) {
     return false;
   }
@@ -204,6 +217,8 @@ export function applyPiInvocationInspection(
     return {
       status: "unknown",
       requestId: null,
+      limit: state.limit,
+      processCapacityInUse: state.processCapacityInUse,
       entries: state.entries,
       diagnostic: "Native Pi invocation occupancy inspection was invalid.",
     };
@@ -211,6 +226,8 @@ export function applyPiInvocationInspection(
   return {
     status: "known",
     requestId: null,
+    limit: inspection.limit as 1 | 2,
+    processCapacityInUse: inspection.processCapacityInUse,
     entries: [...inspection.entries].sort((left, right) => left.authority.journeyId.localeCompare(right.authority.journeyId)),
     diagnostic: null,
   };
@@ -224,7 +241,14 @@ export function failPiInvocationReconciliation(
   if (state.status !== "reconciling" || state.requestId !== requestId) {
     return state;
   }
-  return { status: "unknown", requestId: null, entries: state.entries, diagnostic };
+  return {
+    status: "unknown",
+    requestId: null,
+    limit: state.limit,
+    processCapacityInUse: state.processCapacityInUse,
+    entries: state.entries,
+    diagnostic,
+  };
 }
 
 export function retainExpectedPiInvocationLease(
@@ -239,11 +263,29 @@ export function retainExpectedPiInvocationLease(
     cancellationState: "none",
     terminalState: "open",
   };
+  const entries = [...otherEntries, expectedEntry]
+    .sort((left, right) => left.authority.journeyId.localeCompare(right.authority.journeyId));
   return {
     ...state,
-    entries: [...otherEntries, expectedEntry]
-      .sort((left, right) => left.authority.journeyId.localeCompare(right.authority.journeyId)),
+    entries,
+    processCapacityInUse: entries.filter((entry) => entry.processCapacityState !== "released").length,
   };
+}
+
+export function derivePiInvocationAdmission(
+  state: PiInvocationOccupancyState,
+  journeyId: string,
+): PiInvocationAdmission {
+  if (state.status !== "known" || state.limit === null || state.processCapacityInUse === null) {
+    return { allowed: false, reason: "inspection_unknown" };
+  }
+  if (state.entries.some((entry) => entry.authority.journeyId === journeyId)) {
+    return { allowed: false, reason: "same_journey_occupied" };
+  }
+  if (state.entries.length >= state.limit || state.processCapacityInUse >= state.limit) {
+    return { allowed: false, reason: "global_capacity_reached" };
+  }
+  return { allowed: true, reason: null };
 }
 
 export function hasBlockingPiInvocationOccupancy(state: PiInvocationOccupancyState): boolean {

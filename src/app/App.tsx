@@ -44,6 +44,7 @@ import {
   applyPiInvocationInspection,
   beginPiInvocationReconciliation,
   createUnknownPiInvocationOccupancy,
+  derivePiInvocationAdmission,
   failPiInvocationReconciliation,
   hasBlockingPiInvocationOccupancy,
   piInvocationAuthorityFromRunAuthority,
@@ -441,6 +442,10 @@ export function App({ model }: AppProps) {
     || navigationPresentation.runtimeBusy
     || hasBlockingPiInvocationOccupancy(piInvocationOccupancy);
   const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime);
+  const piInvocationAdmission = derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney);
+  const selectedInvocationAdmissionBlocked = Boolean(runStartReservation)
+    || selectedRuntimeBusy
+    || !piInvocationAdmission.allowed;
   const mirrorCommitError = navigationPresentation.mirrorCommitError;
   const messages = navigationPresentation.messages;
   const presentedImportedActivity = navigationPresentation.conversation?.importedActivity?.events;
@@ -1246,7 +1251,10 @@ export function App({ model }: AppProps) {
 
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
     const content = (retryContent ?? draft).trim();
-    if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || runtimeBusy || runStartReservationRef.current || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
+    const invocationAdmissionBlocked = mode === "live"
+      ? selectedInvocationAdmissionBlocked
+      : selectedRuntimeBusy;
+    if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || invocationAdmissionBlocked || runStartReservationRef.current || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
       return;
     }
 
@@ -1363,7 +1371,6 @@ export function App({ model }: AppProps) {
       assistantMessageId: assistantMessage.id,
       conversationSnapshot: stagedConversation,
     });
-    setRunStartReservation((current) => current === runtimeIdentity ? undefined : current);
     if (selectedJourneyRef.current === ownerJourneyId) {
       chatAutoFollowRef.current = nextConversationAutoFollow(
         chatAutoFollowRef.current,
@@ -1401,6 +1408,10 @@ export function App({ model }: AppProps) {
 
     try {
       for await (const event of provider(packet)) {
+        if (runStartReservationRef.current === runtimeIdentity) {
+          runStartReservationRef.current = undefined;
+          setRunStartReservation((current) => current === runtimeIdentity ? undefined : current);
+        }
         dispatchJourneyRuntime({ type: "stream_event", identity: runtimeIdentity, event });
         if (event.type === "run_status" && event.status === "working") {
           runReachedAgent = true;
@@ -1677,6 +1688,7 @@ export function App({ model }: AppProps) {
       }
     }
     if (runStartReservationRef.current === runtimeIdentity) runStartReservationRef.current = undefined;
+    setRunStartReservation((current) => current === runtimeIdentity ? undefined : current);
   }
 
   async function startSelectedJourney() {
@@ -2775,6 +2787,12 @@ export function App({ model }: AppProps) {
               <p>{piInvocationOccupancy.diagnostic ?? "Operational actions remain blocked until bounded native inspection completes."}</p>
             </section>
           ) : null}
+          {piInvocationAdmission.reason === "global_capacity_reached" && !selectedRuntimeBusy ? (
+            <section className="dedicated-turn-notice" role="status">
+              <strong>Global Pi capacity occupied</strong>
+              <p>All available Journey execution slots are occupied. You can keep drafting here and send after one exact lease is released.</p>
+            </section>
+          ) : null}
           {exactInterruptedRecovery && !isStreaming ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Interrupted turn settlement is retained</strong>
@@ -2823,7 +2841,7 @@ export function App({ model }: AppProps) {
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
-                  if (shouldSubmitJourneyDraft(event, navigationPresentation)) {
+                  if (shouldSubmitJourneyDraft(event, navigationPresentation, selectedInvocationAdmissionBlocked)) {
                     void generatePacket("live");
                   }
                 }
@@ -2868,7 +2886,7 @@ export function App({ model }: AppProps) {
                     className="icon-button send-button"
                     type="button"
                     onClick={() => void generatePacket("live")}
-                    disabled={!draft.trim() || runtimeBusy || reconciliationBlocksInvocation || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(fileAttachmentError) || fileAttachmentBusy}
+                    disabled={!draft.trim() || selectedInvocationAdmissionBlocked || reconciliationBlocksInvocation || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(fileAttachmentError) || fileAttachmentBusy}
                     aria-label="Send message"
                     title="Send message"
                   >

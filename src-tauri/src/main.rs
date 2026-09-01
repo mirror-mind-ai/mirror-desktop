@@ -1939,6 +1939,15 @@ fn inspect_pi_invocations(state: State<'_, PiProcessState>) -> Result<PiInvocati
         .inspect())
 }
 
+fn shutdown_pi_invocations(state: &PiProcessState) {
+    let child_handles = state.registry.lock()
+        .map(|registry| registry.running_child_handles())
+        .unwrap_or_default();
+    for (_target, child_handle) in child_handles {
+        let _ = control_child_handle(&child_handle, |child| child.kill());
+    }
+}
+
 fn mirror_append_outbox_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(app
         .path()
@@ -3972,14 +3981,18 @@ fn main() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building Nautilus Harness")
-        .run(|app_handle, event| {
-            if matches!(event, tauri::RunEvent::Ready) {
+        .run(|app_handle, event| match event {
+            tauri::RunEvent::Ready => {
                 let profile = app_handle.state::<RuntimeChannelProfile>();
                 if let Err(error) = profile.apply_macos_dock_icon() {
                     eprintln!("Nautilus runtime channel icon validation failed: {error}");
                     app_handle.exit(1);
                 }
             }
+            tauri::RunEvent::ExitRequested { .. } => {
+                shutdown_pi_invocations(&app_handle.state::<PiProcessState>());
+            }
+            _ => {}
         });
 }
 

@@ -145,7 +145,7 @@ describe("Journey navigation behavior under serial occupancy", () => {
     expect(presentationB.selectedRuntime.runtimeProjection.operations).toEqual([]);
     expect(presentationB.cancelVisible).toBe(false);
     expect(presentationB.draftEditable).toBe(true);
-    expect(presentationB.sendBlocked).toBe(true);
+    expect(presentationB.sendBlocked).toBe(false);
     expect(presentationB.attachmentsBlocked).toBe(true);
 
     selectedJourney = resolveJourneySelection(selectedJourney, "journey-a", "keyboard-enter");
@@ -224,7 +224,7 @@ describe("Journey navigation behavior under serial occupancy", () => {
     expect(coordinator.isCurrent(newA, "journey-a")).toBe(false);
   });
 
-  it("supports pointer and keyboard navigation while drafts remain editable but submission is blocked", () => {
+  it("supports pointer and keyboard navigation while native admission decides free-Journey submission", () => {
     expect(resolveJourneySelection("journey-a", "journey-b", "pointer")).toBe("journey-b");
     expect(resolveJourneySelection("journey-a", "journey-b", "keyboard-enter")).toBe("journey-b");
     expect(resolveJourneySelection("journey-a", "journey-b", "keyboard-space")).toBe("journey-b");
@@ -242,7 +242,9 @@ describe("Journey navigation behavior under serial occupancy", () => {
     expect(drafts).toEqual({ "journey-b": "B draft" });
     expect(presentationB.draftEditable).toBe(true);
     expect(presentationB.cancelVisible).toBe(false);
-    expect(shouldSubmitJourneyDraft({ key: "Enter", shiftKey: false }, presentationB)).toBe(false);
+    expect(presentationB.sendBlocked).toBe(false);
+    expect(shouldSubmitJourneyDraft({ key: "Enter", shiftKey: false }, presentationB)).toBe(true);
+    expect(shouldSubmitJourneyDraft({ key: "Enter", shiftKey: false }, presentationB, true)).toBe(false);
     expect(shouldSubmitJourneyDraft({ key: "Enter", shiftKey: true }, presentationB)).toBe(false);
   });
 });

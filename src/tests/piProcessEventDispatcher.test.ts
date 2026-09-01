@@ -5,8 +5,8 @@ import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { createRunAuthority } from "../domain/runAuthority";
 import { readyThread } from "./fixtures/readyThread";
 
-function authority(runId = "run-1") {
-  const thread = readyThread("journey-one");
+function authority(runId = "run-1", journeyId = "journey-one") {
+  const thread = readyThread(journeyId);
   const conversation = createDedicatedJourneyConversation({ thread, initialMessages: [] });
   return createRunAuthority(
     createDedicatedTurnAuthority(thread, runId, `turn-${runId}`, `user-${runId}`, `assistant-${runId}`),
@@ -47,6 +47,31 @@ describe("central Pi process event dispatcher", () => {
     await dispatcher.dispose();
     await dispatcher.dispose();
     expect(fixture.unlisten).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes two concurrent Journeys independently through one listener", async () => {
+    const fixture = listenerFixture();
+    const dispatcher = createPiProcessEventDispatcher({ listen: fixture.listen });
+    const first = authority("run-a1", "journey-a");
+    const second = authority("run-b1", "journey-b");
+    const receivedA = vi.fn();
+    const receivedB = vi.fn();
+    const routeA = await dispatcher.register(first, receivedA);
+    const routeB = await dispatcher.register(second, receivedB);
+
+    fixture.emit({ kind: "stdout", content: "B only", authority: second.eventAuthority });
+    fixture.emit({ kind: "stderr", content: "A only", authority: first.eventAuthority });
+    expect(receivedA).toHaveBeenCalledTimes(1);
+    expect(receivedA).toHaveBeenCalledWith(expect.objectContaining({ content: "A only" }));
+    expect(receivedB).toHaveBeenCalledTimes(1);
+    expect(receivedB).toHaveBeenCalledWith(expect.objectContaining({ content: "B only" }));
+
+    fixture.emit({ kind: "done", content: "A done", authority: first.eventAuthority });
+    expect(routeA.isClosed()).toBe(true);
+    expect(routeB.isClosed()).toBe(false);
+    fixture.emit({ kind: "stdout", content: "B later", authority: second.eventAuthority });
+    expect(receivedB).toHaveBeenCalledTimes(2);
+    expect(fixture.listen).toHaveBeenCalledTimes(1);
   });
 
   it("keeps a route open through completed, error, cancelled and post-agent_end evidence until native done", async () => {

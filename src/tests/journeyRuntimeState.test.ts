@@ -149,18 +149,45 @@ describe("Journey-keyed frontend runtime state", () => {
     expect(JSON.stringify(state.quarantine)).not.toContain("secret-");
   });
 
-  it("rejects replacement while any Journey is active or finalizing", () => {
+  it("allows different Journey runtimes while rejecting an active same-Journey replacement", () => {
+    const first = identity("journey-a", "run-a1");
+    const second = identity("journey-b", "run-b1");
+    const duplicate = identity("journey-a", "run-a2");
+    let state = register(createInitialJourneyRuntimeState(), first);
+    state = register(state, second);
+    expect(state.entries["journey-a"]?.identity).toEqual(first);
+    expect(state.entries["journey-b"]?.identity).toEqual(second);
+
+    const rejected = register(state, duplicate);
+    expect(rejected.entries["journey-a"]?.identity).toEqual(first);
+    expect(rejected.entries["journey-b"]?.identity).toEqual(second);
+    expect(rejected.quarantine.at(-1)).toMatchObject({
+      journeyId: "journey-a",
+      runId: "run-a2",
+      reason: "serial_capacity_rejected",
+    });
+  });
+
+  it("routes interleaved events to two active Journey owners", () => {
     const first = identity("journey-a", "run-a1");
     const second = identity("journey-b", "run-b1");
     let state = register(createInitialJourneyRuntimeState(), first);
-    const whileActive = register(state, second);
-    expect(whileActive.entries["journey-b"]).toBeUndefined();
+    state = register(state, second);
+    state = journeyRuntimeReducer(state, {
+      type: "stream_event",
+      identity: second,
+      event: { type: "message_delta", content: "B only" },
+    });
+    state = journeyRuntimeReducer(state, {
+      type: "stream_event",
+      identity: first,
+      event: { type: "warning", message: "A only" },
+    });
 
-    state = journeyRuntimeReducer(state, { type: "stream_event", identity: first, event: { type: "done" } });
-    state = journeyRuntimeReducer(state, { type: "stream_finished", identity: first });
-    state = journeyRuntimeReducer(state, { type: "finalization_started", identity: first });
-    const whileFinalizing = register(state, second);
-    expect(whileFinalizing.entries["journey-b"]).toBeUndefined();
+    expect(state.entries["journey-a"]?.warnings).toEqual(["A only"]);
+    expect(state.entries["journey-a"]?.streamedAssistantContent).toBe("");
+    expect(state.entries["journey-b"]?.warnings).toEqual([]);
+    expect(state.entries["journey-b"]?.streamedAssistantContent).toBe("B only");
   });
 
   it("requires authority-matching cleanup and preserves active or finalizing entries", () => {

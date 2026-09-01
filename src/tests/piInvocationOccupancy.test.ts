@@ -3,6 +3,7 @@ import {
   applyPiInvocationInspection,
   beginPiInvocationReconciliation,
   createUnknownPiInvocationOccupancy,
+  derivePiInvocationAdmission,
   hasBlockingPiInvocationOccupancy,
   retainExpectedPiInvocationLease,
   resolveExactInterruptedRecovery,
@@ -59,7 +60,7 @@ describe("native Pi invocation occupancy", () => {
   it("ignores stale inspection responses and rejects malformed capacity", () => {
     const reconciling = beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 2);
     expect(applyPiInvocationInspection(reconciling, 1, inspection({ entries: [] }))).toEqual(reconciling);
-    const failed = applyPiInvocationInspection(reconciling, 2, inspection({ limit: 2 }));
+    const failed = applyPiInvocationInspection(reconciling, 2, inspection({ limit: 3 }));
     expect(failed.status).toBe("unknown");
     expect(hasBlockingPiInvocationOccupancy(failed)).toBe(true);
   });
@@ -105,6 +106,74 @@ describe("native Pi invocation occupancy", () => {
     expect(hasBlockingPiInvocationOccupancy(occupied)).toBe(true);
   });
 
+  it("admits a second Journey only with known limit-two capacity", () => {
+    const unknown = createUnknownPiInvocationOccupancy();
+    expect(derivePiInvocationAdmission(unknown, "journey-b")).toEqual({
+      allowed: false,
+      reason: "inspection_unknown",
+    });
+
+    const limitTwo = applyPiInvocationInspection(
+      beginPiInvocationReconciliation(unknown, 1),
+      1,
+      inspection({ limit: 2 }),
+    );
+    expect(derivePiInvocationAdmission(limitTwo, "journey-a")).toEqual({
+      allowed: false,
+      reason: "same_journey_occupied",
+    });
+    expect(derivePiInvocationAdmission(limitTwo, "journey-b")).toEqual({
+      allowed: true,
+      reason: null,
+    });
+
+    const authorityB = {
+      ...authority,
+      journeyId: "journey-b",
+      runId: "run-b1",
+      turnId: "turn-b1",
+      threadId: "thread-b",
+      piSessionId: "pi-b",
+      mirrorConversationId: "mirror-b",
+      harnessUserMessageId: "user-b1",
+      harnessAssistantMessageId: "assistant-b1",
+    };
+    const full = retainExpectedPiInvocationLease(limitTwo, authorityB);
+    expect(derivePiInvocationAdmission(full, "journey-c")).toEqual({
+      allowed: false,
+      reason: "global_capacity_reached",
+    });
+  });
+
+  it("uses the same admission logic for rollback limit one", () => {
+    const limitOne = applyPiInvocationInspection(
+      beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 1),
+      1,
+      inspection(),
+    );
+    expect(derivePiInvocationAdmission(limitOne, "journey-b")).toEqual({
+      allowed: false,
+      reason: "global_capacity_reached",
+    });
+    const free = applyPiInvocationInspection(
+      beginPiInvocationReconciliation(limitOne, 2),
+      2,
+      inspection({ entries: [] }),
+    );
+    expect(derivePiInvocationAdmission(free, "journey-b")).toEqual({
+      allowed: true,
+      reason: null,
+    });
+  });
+
+  it("accepts only bounded rollback and enabled inspection limits", () => {
+    expect(validatePiInvocationRegistryInspection(inspection())).toBe(true);
+    expect(validatePiInvocationRegistryInspection(inspection({ limit: 2 }))).toBe(true);
+    expect(validatePiInvocationRegistryInspection(inspection({ limit: 0 }))).toBe(false);
+    expect(validatePiInvocationRegistryInspection(inspection({ limit: 3 }))).toBe(false);
+    expect(validatePiInvocationRegistryInspection(inspection({ limit: 2, processCapacityInUse: 3 }))).toBe(false);
+  });
+
   it("rejects invalid enums, lifecycle combinations, authority fields, duplicates, and unbounded values", () => {
     expect(validatePiInvocationRegistryInspection(inspection())).toBe(true);
     expect(validatePiInvocationRegistryInspection(inspection({ entries: [{
@@ -128,6 +197,13 @@ describe("native Pi invocation occupancy", () => {
       limit: 2,
       entries: [inspection().entries[0], inspection().entries[0]],
     })).toBe(false);
+    expect(validatePiInvocationRegistryInspection(inspection({
+      limit: 1,
+      entries: [inspection().entries[0], {
+        ...inspection().entries[0],
+        authority: { ...authority, journeyId: "journey-b", runId: "run-b1" },
+      }],
+    }))).toBe(false);
   });
 
   it("releases exact authority and always performs a fresh bounded reinspection", async () => {

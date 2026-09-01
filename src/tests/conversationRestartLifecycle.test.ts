@@ -32,6 +32,6 @@ describe("dedicated conversation restart lifecycle", () => {
     expect(appSource).toContain("appendMirrorOutboxItem");
     expect(appSource).not.toContain("observedAssistantMirrorCommit");
     expect(appSource).toContain("disabled={isJourneyReloading}");
-    expect(appSource).toContain("disabled={!draft.trim() || runtimeBusy");
+    expect(appSource).toContain("disabled={!draft.trim() || selectedInvocationAdmissionBlocked");
   });
 });

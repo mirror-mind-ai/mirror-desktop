@@ -1,6 +1,7 @@
 import type { JourneyConversation } from "../domain/journeyConversation";
 import {
   hasActiveOrFinalizingJourneyRuntime,
+  isJourneyRuntimeActiveOrFinalizing,
   selectJourneyRuntime,
   selectJourneyRuntimeConversation,
   type JourneyRuntimeEntry,
@@ -47,8 +48,12 @@ export function resolveJourneySelection(
 export function shouldSubmitJourneyDraft(
   input: { key: string; shiftKey: boolean },
   presentation: JourneyNavigationPresentation,
+  admissionBlocked = false,
 ): boolean {
-  return input.key === "Enter" && !input.shiftKey && !presentation.sendBlocked;
+  return input.key === "Enter"
+    && !input.shiftKey
+    && !presentation.sendBlocked
+    && !admissionBlocked;
 }
 
 export function createJourneyConversationLoadCoordinator(): JourneyConversationLoadCoordinator {
@@ -106,7 +111,7 @@ export function deriveJourneyNavigationPresentation(input: {
     runtimeBusy,
     cancelVisible,
     draftEditable: true,
-    sendBlocked: runtimeBusy,
+    sendBlocked: isJourneyRuntimeActiveOrFinalizing(selectedRuntime),
     attachmentsBlocked: runtimeBusy,
   };
 }

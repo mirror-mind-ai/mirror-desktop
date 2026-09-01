@@ -100,7 +100,8 @@ export function journeyRuntimeReducer(
 ): JourneyRuntimeState {
   if (action.type === "register") {
     const journeyId = identityJourneyId(action.identity);
-    if (hasActiveOrFinalizingJourneyRuntime(state)) {
+    const existing = state.entries[journeyId];
+    if (existing && isJourneyRuntimeActiveOrFinalizing(existing)) {
       return quarantine(state, action.identity, "serial_capacity_rejected");
     }
     return {
