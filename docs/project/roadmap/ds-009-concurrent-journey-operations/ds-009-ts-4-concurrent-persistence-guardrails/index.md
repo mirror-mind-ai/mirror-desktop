@@ -2,10 +2,16 @@
 
 # DS-009.TS-4 — Concurrent Persistence Guardrails
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 **Order:** 5 of 7
 **Concurrency:** backend registry with global limit 1
+**Plan:** [plan.md](plan.md)
+**Test guide:** [test-guide.md](test-guide.md)
+**Validation:** [validation.md](validation.md)
+**Debt review:** [review.md](review.md)
+**Coherence:** [coherence.md](coherence.md)
+**Done:** [done.md](done.md)
 
 ## Outcome
 
