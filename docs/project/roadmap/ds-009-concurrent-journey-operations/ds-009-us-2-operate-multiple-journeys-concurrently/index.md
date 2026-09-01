@@ -6,6 +6,8 @@
 **Type:** User Story
 **Order:** 6 of 7
 **Concurrency:** enable global limit 2
+**Plan:** [plan.md](plan.md)
+**Test guide:** [test-guide.md](test-guide.md)
 
 ## User Story
 
@@ -21,8 +23,10 @@ Only after TS-4 is complete, the DEV app permits two active Pi-backed runs in di
 - Use the same registry implementation already tested with injected limit 1.
 - Permit Journey B submission while Journey A is running.
 - Enforce one active or finalizing run per Journey.
-- Surface capacity and same-Journey rejection clearly.
-- Preserve rollback by returning the internal capacity constant to 1.
+- Surface unknown inspection, capacity and same-Journey rejection clearly.
+- Keep unrelated global operational mutations and selected-global attachment staging under their existing aggregate guards.
+- Characterize bounded two-child app shutdown without entering selective US-3 cancellation/failure behavior.
+- Preserve rollback by returning only the internal capacity constant to 1.
 
 ## Acceptance Behavior
 
@@ -42,4 +46,4 @@ And a second run in either Journey is rejected until that Journey settles.
 
 ## Validation
 
-Integration and DEV desktop validation cover two simultaneous Journeys, same-Journey rejection, global capacity rejection for a third run, and rollback to limit 1 using the same implementation.
+Deterministic integration and DEV-only desktop validation cover two simultaneous Journeys, same-Journey rejection, global capacity rejection for a third run, owner-correct natural settlement, restart without phantom children and rollback to limit 1 using the same implementation. Targeted cancellation and injected failure under real concurrency remain US-3.
