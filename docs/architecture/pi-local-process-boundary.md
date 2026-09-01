@@ -100,4 +100,4 @@ Rollback is capacity-only: the registry accepts injected limits 1 and 2 in tests
 - No conversation selector, arbitrary hydration or external-activity polling exists.
 - Local links open only after a deliberate click and current-path validation.
 - Per-Journey ownership is bounded by DS-009: one active or finalizing run per Journey and production global admission exactly 2 after US-2.
-- Capacity remains exactly 2. US-3 adds selective cancellation, controlled failure-frontier, sibling-isolation and model-free recovery coverage without introducing production fault injection; real process signalling remains a later DEV Validation action.
+- Capacity remains exactly 2. US-3 completed selective cancellation, controlled failure-frontier, sibling-isolation and model-free recovery coverage without production fault injection; accepted DEV validation used only exact recorded disposable child signalling and left stable app-data plus production Mirror unchanged.

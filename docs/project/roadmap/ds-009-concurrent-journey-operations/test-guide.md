@@ -95,4 +95,4 @@ Fail condition: any event, assistant delta, operation, warning, diagnostic, term
 
 ## Validation Evidence
 
-Pending implementation and validation. This guide records the required route only; it is not validation evidence and does not approve implementation.
+Completed through the seven child validation artifacts and the parent [validation](validation.md). Automated parent gates pass with 461 frontend tests, 73 stable Rust tests, 73 development-channel Rust tests and a successful production frontend build. Accepted DEV-only evidence proves natural capacity-2 overlap, third-Journey rejection without side effects, exact cancellation and process-death isolation, owner-correct settlement, bounded two-child shutdown and model-free restart recovery while stable app-data and production Mirror remain unchanged.

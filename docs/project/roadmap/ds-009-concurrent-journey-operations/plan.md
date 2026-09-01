@@ -3,7 +3,7 @@
 **Journey:** nautilus-harness
 **Method:** ariad
 **Navigator Flow Unit:** story_by_story
-**Plan state:** pending Navigator approval
+**Plan state:** completed through approved story-by-story child plans
 
 ## Delivery Story
 
@@ -146,7 +146,7 @@ Unit and integration tests should be written around pure reducers, central event
 
 Work remains under the child packages listed above and in the mandatory order. Behavior changes require TDD. Each phase must leave the app coherent and testable before moving to the next phase. Do not silently expand scope into RS015, provider settings redesign, Mirror runtime changes, stable promotion or release work.
 
-The plan is not approved. Implementation remains blocked until the Navigator explicitly approves the relevant story plan through Ariad. No child story is started by this aggregate planning document.
+This aggregate document did not itself authorize implementation. Each mandatory child story was independently planned, approved, implemented, validated and closed through Ariad in the declared order; DS-009 parent reconciliation now records their collective completion.
 
 ---
 

@@ -2,7 +2,7 @@
 
 # DS-009 — Concurrent Journey Operations
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 
 ---
 
@@ -77,7 +77,7 @@ A desktop agent cockpit should not turn one long-running Journey into a global a
 
 ## Current Position
 
-DS-009 remains 🟠 In Progress with all seven mandatory child stories complete. US-3 accepted validation proves exact targeted interruption, sibling-safe settlement, bounded two-child shutdown and model-free restart recovery while production execution remains bounded at capacity 2. Parent Delivery Story reconciliation and closure remain separate; US-3 closure authorizes no new roadmap item, push, promotion, release or deployment.
+DS-009 is ✅ Done. All seven mandatory child stories completed in order and collectively satisfy the outcome and Definition of Done. Production execution remains bounded at capacity 2 with one reserved, running or finalizing lease per Journey, exact owner-targeted control and settlement, bounded shutdown, model-free restart recovery and one-line capacity rollback. No new roadmap item, push, GitHub release or Mirror runtime change is authorized by closure.
 
 ## Done Condition
 
