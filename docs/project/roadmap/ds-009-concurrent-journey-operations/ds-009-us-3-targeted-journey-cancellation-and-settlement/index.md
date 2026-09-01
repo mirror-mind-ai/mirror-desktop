@@ -6,6 +6,8 @@
 **Type:** User Story
 **Order:** 7 of 7
 **Concurrency:** validate under real global limit 2
+**Plan:** [plan.md](plan.md)
+**Test guide:** [test-guide.md](test-guide.md)
 
 ## User Story
 
