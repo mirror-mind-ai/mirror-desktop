@@ -3,6 +3,10 @@ import { createJourneySettlementAuthority, type JourneySettlementAuthority } fro
 import { createRunAuthority } from "../domain/runAuthority";
 import { pendingMirrorTurnRepair } from "../domain/threeBodyTurnCommit";
 import type { MirrorAppendOutboxSummary } from "./mirrorAppendOutboxStorage";
+import type {
+  PiInvocationLeaseInspection,
+  PiInvocationRegistryInspection,
+} from "./piInvocationOccupancy";
 import { validatePostFrontierSettlement } from "./journeySettlement";
 
 export type SettlementRecoveryDiagnostic =
@@ -21,6 +25,32 @@ export type PersistedSettlementRecovery =
     journeyId: string;
     diagnostic: SettlementRecoveryDiagnostic;
   };
+
+function leaseAuthorityMatchesSettlement(
+  lease: PiInvocationLeaseInspection,
+  authority: JourneySettlementAuthority,
+): boolean {
+  return lease.authority.journeyId === authority.journeyId
+    && lease.authority.runId === authority.runId
+    && lease.authority.turnId === authority.turnId
+    && lease.authority.threadId === authority.threadId
+    && lease.authority.generation === authority.generation
+    && lease.authority.piSessionId === authority.piSessionId
+    && lease.authority.mirrorConversationId === authority.mirrorConversationId
+    && lease.authority.harnessUserMessageId === authority.harnessUserMessageId
+    && lease.authority.harnessAssistantMessageId === authority.harnessAssistantMessageId;
+}
+
+export function resolveRetainedLeaseForOutboxRecovery(
+  inspection: PiInvocationRegistryInspection,
+  authority: JourneySettlementAuthority,
+): PiInvocationLeaseInspection | null {
+  return inspection.entries.find((lease) => (
+    lease.leasePhase === "finalizing"
+    && lease.processCapacityState === "released"
+    && leaseAuthorityMatchesSettlement(lease, authority)
+  )) ?? null;
+}
 
 export function resolvePersistedSettlementRecovery(
   projection: JourneyConversation | undefined,

@@ -28,11 +28,13 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("runStartReservationRef.current || reconciliationBlocksInvocation");
   });
 
-  it("restores an authority-bound owner conversation without running in-flight recovery", () => {
+  it("restores an authority-bound owner conversation without reacting to in-session busy transitions", () => {
     expect(appSource).toContain("resolveJourneyConversationRestore(");
     expect(appSource).toContain('type: "conversation_snapshot", identity: runtimeIdentity');
-    expect(appSource).toContain("restoreDecision.allowPersistedRecovery && !runtimeBusy");
-    expect(appSource).toContain("[selectedJourney, registryLoaded, preferencesLoaded, runtimeBusy]");
+    expect(appSource).toContain("shouldRecoverPersistedPiTranscript({");
+    expect(appSource).toContain("piInvocationBootstrapComplete");
+    expect(appSource).toContain("[selectedJourney, registryLoaded, preferencesLoaded, piInvocationBootstrapComplete]");
+    expect(appSource).not.toContain("[selectedJourney, registryLoaded, preferencesLoaded, runtimeBusy]");
   });
 
   it("shows owner-only sidebar, cancellation, and finalization errors", () => {
@@ -88,6 +90,11 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("onRollbackConfirmed: () => {");
     expect(appSource).toContain('dispatchJourneyRuntime({ type: "cleanup", identity: runtimeIdentity })');
     expect(appSource).toContain("releaseAndReinspectPiInvocationLease(authority");
+    const durableOutboxRetry = sourceBetween("async function retryMirrorAppendSummary", "async function retryPendingMirrorCommit");
+    expect(durableOutboxRetry).toContain("resolveRetainedLeaseForOutboxRecovery(inspection, authority)");
+    expect(durableOutboxRetry.indexOf("releaseDurablePiInvocationLease(authority)")).toBeLessThan(
+      durableOutboxRetry.indexOf("appendAndAcknowledgeExactProjection"),
+    );
     expect(appSource).toContain("runtimeBusy && !exactRetainedSettlementRecovery");
     expect(appSource).toContain("resolveExactInterruptedRecovery(piInvocationOccupancy");
     expect(appSource).toContain("await reconcilePiInvocationOccupancy()");

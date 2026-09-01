@@ -67,7 +67,10 @@ import {
   type JourneySettlementAuthority,
 } from "./journeySettlement";
 import { journeyPersistenceCoordinator } from "./journeyPersistenceCoordinator";
-import { resolvePersistedSettlementRecovery } from "./journeySettlementRecovery";
+import {
+  resolvePersistedSettlementRecovery,
+  resolveRetainedLeaseForOutboxRecovery,
+} from "./journeySettlementRecovery";
 import { ConversationSyncNotice, LegacyMirrorGapNotice } from "./ConversationSyncNotice";
 import { PendingFileAttachments } from "./PendingFileAttachments";
 import { MessageFileAttachments } from "./MessageFileAttachments";
@@ -118,6 +121,7 @@ import {
   deriveJourneyNavigationPresentation,
   resolveJourneyConversationRestore,
   resolveJourneySelection,
+  shouldRecoverPersistedPiTranscript,
   shouldSubmitJourneyDraft,
   type JourneyNavigationIntent,
 } from "./journeyNavigationCoordinator";
@@ -334,6 +338,7 @@ export function App({ model }: AppProps) {
   );
   const [runStartReservation, setRunStartReservation] = useState<JourneyRunIdentity | undefined>(undefined);
   const [piInvocationOccupancy, setPiInvocationOccupancy] = useState(createUnknownPiInvocationOccupancy);
+  const [piInvocationBootstrapComplete, setPiInvocationBootstrapComplete] = useState(false);
   const [piContextState, setPiContextState] = useState<"checking" | "waiting" | "available" | "not_initialized">("checking");
   const [isRetryingMirrorCommit, setIsRetryingMirrorCommit] = useState(false);
   const [mirrorCommitErrors, setMirrorCommitErrors] = useState<Record<string, string | undefined>>({});
@@ -584,7 +589,9 @@ export function App({ model }: AppProps) {
     try {
       const inspection = await inspectPiInvocations();
       setPiInvocationOccupancy((current) => applyPiInvocationInspection(current, requestId, inspection));
-      return validatePiInvocationRegistryInspection(inspection) ? inspection : undefined;
+      const validInspection = validatePiInvocationRegistryInspection(inspection);
+      if (validInspection) setPiInvocationBootstrapComplete(true);
+      return validInspection ? inspection : undefined;
     } catch (error) {
       setPiInvocationOccupancy((current) => failPiInvocationReconciliation(
         current,
@@ -896,8 +903,17 @@ export function App({ model }: AppProps) {
         let restoredConversation = restoreDecision.runtimeConversation ?? (classified.kind === "ready"
           ? restoreDedicatedJourneyConversation(classified.thread, persistedConversation)
           : createJourneyConversation({ journeyId: selectedJourney, initialMessages }));
+        const ownerHasNativeLease = classified.kind === "ready" && piInvocationOccupancy.entries.some((entry) => (
+          entry.authority.journeyId === selectedJourney
+          && entry.authority.generation === classified.activeGeneration.generation
+        ));
         if (classified.kind === "ready" && classified.activeGeneration.piSessionFile
-          && restoreDecision.allowPersistedRecovery && !runtimeBusy) {
+          && piInvocationBootstrapComplete
+          && shouldRecoverPersistedPiTranscript({
+            allowPersistedRecovery: restoreDecision.allowPersistedRecovery,
+            nativeInspectionStatus: piInvocationOccupancy.status,
+            ownerHasNativeLease,
+          })) {
           const turns = await loadDedicatedPiTranscript(
             selectedJourney,
             classified.activeGeneration.piSessionId,
@@ -990,7 +1006,7 @@ export function App({ model }: AppProps) {
       cancelled = true;
       conversationLoadCoordinatorRef.current.cancel(loadRequest);
     };
-  }, [selectedJourney, registryLoaded, preferencesLoaded, runtimeBusy]);
+  }, [selectedJourney, registryLoaded, preferencesLoaded, piInvocationBootstrapComplete]);
 
   useEffect(() => {
     if (!registryLoaded) return;
@@ -1836,6 +1852,13 @@ export function App({ model }: AppProps) {
       const recovery = resolvePersistedSettlementRecovery(projected, item);
       if (recovery.status === "blocked") throw new Error(recovery.diagnostic);
       const { authority } = recovery;
+      const inspection = await inspectPiInvocations();
+      if (!validatePiInvocationRegistryInspection(inspection)) {
+        throw new Error("mirror_outbox_native_lease_inspection_invalid");
+      }
+      if (resolveRetainedLeaseForOutboxRecovery(inspection, authority)) {
+        await releaseDurablePiInvocationLease(authority);
+      }
       const settled = await appendAndAcknowledgeExactProjection(recovery.projection, authority, item);
       if (selectedJourneyRef.current === item.journeyId
         && projectionCurrentTurnMatchesAuthority(conversationRef.current, authority)) {

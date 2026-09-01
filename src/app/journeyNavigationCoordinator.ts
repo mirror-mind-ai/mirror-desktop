@@ -1,4 +1,5 @@
 import type { JourneyConversation } from "../domain/journeyConversation";
+import type { PiInvocationOccupancyState } from "./piInvocationOccupancy";
 import {
   hasActiveOrFinalizingJourneyRuntime,
   isJourneyRuntimeActiveOrFinalizing,
@@ -80,6 +81,16 @@ export function resolveJourneyConversationRestore(
 ): { runtimeConversation?: JourneyConversation; allowPersistedRecovery: boolean } {
   const runtimeConversation = selectJourneyRuntimeConversation(state, journeyId, generation);
   return { runtimeConversation, allowPersistedRecovery: !runtimeConversation };
+}
+
+export function shouldRecoverPersistedPiTranscript(input: {
+  allowPersistedRecovery: boolean;
+  nativeInspectionStatus: PiInvocationOccupancyState["status"];
+  ownerHasNativeLease: boolean;
+}): boolean {
+  return input.allowPersistedRecovery
+    && input.nativeInspectionStatus === "known"
+    && !input.ownerHasNativeLease;
 }
 
 export function deriveJourneyNavigationPresentation(input: {

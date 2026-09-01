@@ -5,6 +5,7 @@ import {
   deriveJourneyNavigationPresentation,
   resolveJourneyConversationRestore,
   resolveJourneySelection,
+  shouldRecoverPersistedPiTranscript,
   shouldSubmitJourneyDraft,
 } from "../app/journeyNavigationCoordinator";
 import {
@@ -86,6 +87,29 @@ function inactiveConversation(journeyId: string, content: string): JourneyConver
 }
 
 describe("Journey navigation behavior under serial occupancy", () => {
+  it("does not restart persisted transcript recovery when an in-session reservation changes", () => {
+    expect(shouldRecoverPersistedPiTranscript({
+      allowPersistedRecovery: true,
+      nativeInspectionStatus: "known",
+      ownerHasNativeLease: false,
+    })).toBe(true);
+    expect(shouldRecoverPersistedPiTranscript({
+      allowPersistedRecovery: true,
+      nativeInspectionStatus: "known",
+      ownerHasNativeLease: true,
+    })).toBe(false);
+    expect(shouldRecoverPersistedPiTranscript({
+      allowPersistedRecovery: false,
+      nativeInspectionStatus: "known",
+      ownerHasNativeLease: false,
+    })).toBe(false);
+    expect(shouldRecoverPersistedPiTranscript({
+      allowPersistedRecovery: true,
+      nativeInspectionStatus: "reconciling",
+      ownerHasNativeLease: false,
+    })).toBe(false);
+  });
+
   it("navigates A → B → A while A keeps streaming without leaking presentation", () => {
     const owner = liveIdentity("journey-a", "run-a1");
     const initialA = runConversation(owner);

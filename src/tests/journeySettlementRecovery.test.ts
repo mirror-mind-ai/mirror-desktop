@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { resolvePersistedSettlementRecovery } from "../app/journeySettlementRecovery";
+import {
+  resolvePersistedSettlementRecovery,
+  resolveRetainedLeaseForOutboxRecovery,
+} from "../app/journeySettlementRecovery";
 import { createDedicatedJourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { applyPiExecutionEvidence, createMirrorAppendOutboxItem } from "../domain/mirrorAppendOutbox";
@@ -34,7 +37,7 @@ function fixture(journeyId = "journey-a", runId = "run-a1") {
     threadId: item.threadId, generation: item.generation, conversationId: item.conversationId,
     createdAt: item.createdAt,
   };
-  return { projection, outbox };
+  return { projection, outbox, authority };
 }
 
 describe("persisted settlement restart recovery", () => {
@@ -68,6 +71,45 @@ describe("persisted settlement restart recovery", () => {
     ))).toEqual(["journey-a", "journey-b"]);
     expect(startProvider).not.toHaveBeenCalled();
     expect(activateGeneration).not.toHaveBeenCalled();
+  });
+
+  it("selects only an exact finalizing native lease for durable outbox cleanup", () => {
+    const { authority } = fixture();
+    const exactLease = {
+      authority: {
+        schemaVersion: "0.1.0" as const,
+        journeyId: authority.journeyId,
+        runId: authority.runId,
+        turnId: authority.turnId,
+        threadId: authority.threadId,
+        generation: authority.generation,
+        piSessionId: authority.piSessionId,
+        mirrorConversationId: authority.mirrorConversationId,
+        harnessUserMessageId: authority.harnessUserMessageId,
+        harnessAssistantMessageId: authority.harnessAssistantMessageId,
+      },
+      leasePhase: "finalizing" as const,
+      processCapacityState: "released" as const,
+      cancellationState: "none" as const,
+      terminalState: "completed" as const,
+    };
+    const inspection = {
+      schemaVersion: "0.1.0" as const,
+      limit: 2 as const,
+      processCapacityInUse: 0,
+      entries: [exactLease],
+    };
+
+    expect(resolveRetainedLeaseForOutboxRecovery(inspection, authority)).toEqual(exactLease);
+    expect(resolveRetainedLeaseForOutboxRecovery({
+      ...inspection,
+      entries: [{ ...exactLease, authority: { ...exactLease.authority, runId: "replacement-run" } }],
+    }, authority)).toBeNull();
+    expect(resolveRetainedLeaseForOutboxRecovery({
+      ...inspection,
+      entries: [{ ...exactLease, leasePhase: "running", processCapacityState: "running", terminalState: "open" }],
+      processCapacityInUse: 1,
+    }, authority)).toBeNull();
   });
 
   it("fails closed with bounded diagnostics when projection evidence is missing or contradictory", () => {
