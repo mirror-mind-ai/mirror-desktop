@@ -39,6 +39,12 @@ The first app body may read local fixtures and keep ephemeral UI state. Persiste
 
 If a fixture is invalid, the Harness should show the error clearly. A broken protocol document is not only a developer problem. It is part of the app's current relationship with the grammar.
 
+## Desktop validation is proportional
+
+Desktop E2E smoke is reserved for behavior that crosses a real desktop boundary and cannot be established through deterministic domain, native, persistence or integration evidence. It is not a default ceremony for every feature or story.
+
+When desktop interaction is necessary, related scenarios should be batched into the shortest useful session. The Driver states the expected duration and whether mouse, keyboard or screenshots will occupy the Navigator's computer before starting. Durable state, logs and native inspection are preferred over screenshots unless the visible surface itself is the acceptance evidence.
+
 ## Scripts are support, not product
 
 CLI scripts may remain useful for validation, migration and developer checks. They are not sufficient as the Harness body.
