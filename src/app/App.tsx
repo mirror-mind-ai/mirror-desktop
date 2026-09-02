@@ -246,6 +246,7 @@ type AppProps = {
 };
 
 const DEVELOPMENT_BADGE_LABEL = "DEV LAB";
+const PRODUCT_DESCRIPTOR = "Journey Navigation";
 
 const journeyVisuals: Record<string, { icon: string; accent: string }> = {
   "vida-criativa": { icon: "✺", accent: "green" },
@@ -2428,7 +2429,7 @@ export function App({ model }: AppProps) {
           </span>
           <div className="brand-copy">
             <strong>Nautilus {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</strong>
-            <small>{developmentChannel ? "Development cockpit" : "Journey cockpit"}</small>
+            <small>{PRODUCT_DESCRIPTOR}</small>
           </div>
           <button
             className="sidebar-toggle-button"

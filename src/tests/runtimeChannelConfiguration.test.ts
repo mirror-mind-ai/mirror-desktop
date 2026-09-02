@@ -82,6 +82,9 @@ describe("runtime channel configuration", () => {
   it("renders a textual development identity and bounded runtime diagnostics", () => {
     expect(appSource).toContain('className="development-badge"');
     expect(appSource).toContain('const DEVELOPMENT_BADGE_LABEL = "DEV LAB";');
+    expect(appSource).toContain('const PRODUCT_DESCRIPTOR = "Journey Navigation";');
+    expect(appSource).not.toContain('"Development cockpit"');
+    expect(appSource).not.toContain('"Journey cockpit"');
     expect(appSource).toContain("runtime-channel-diagnostic");
     expect(appSource).toContain("data-runtime-channel");
     expect(cssSource).toContain(".app-shell.channel-development");
