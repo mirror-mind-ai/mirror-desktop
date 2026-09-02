@@ -20,6 +20,7 @@ describe("Journey preference persistence", () => {
           sidebarCompact: true,
           lastWorkedAtByJourneyId: { nautilus: "2026-08-23T09:00:00.000Z" },
           applicationTheme: "violet",
+          journeyAppearanceById: { nautilus: { kind: "system", icon: "book" } },
         },
         new Date("2026-08-23T10:00:00.000Z"),
       ),
@@ -33,6 +34,7 @@ describe("Journey preference persistence", () => {
         sidebarCompact: true,
         lastWorkedAtByJourneyId: { nautilus: "2026-08-23T09:00:00.000Z" },
         applicationTheme: "violet",
+        journeyAppearanceById: { nautilus: { kind: "system", icon: "book" } },
       },
       savedAt: "2026-08-23T10:00:00.000Z",
     });
@@ -64,6 +66,7 @@ describe("Journey preference persistence", () => {
     expect(legacyPreferences?.sidebarCompact).toBe(false);
     expect(legacyPreferences?.lastWorkedAtByJourneyId).toEqual({});
     expect(legacyPreferences?.applicationTheme).toBe("channel");
+    expect(legacyPreferences?.journeyAppearanceById).toEqual({});
   });
 
   it("rejects malformed or unsupported preferences", () => {
@@ -99,6 +102,10 @@ describe("Journey preference persistence", () => {
             missing: "2026-08-23T08:00:00.000Z",
           },
           applicationTheme: "ember",
+          journeyAppearanceById: {
+            amplia: { kind: "system", icon: "book" },
+            missing: { kind: "custom" },
+          },
         },
         fixtureJourneyRegistry,
       ),
@@ -110,6 +117,7 @@ describe("Journey preference persistence", () => {
       sidebarCompact: true,
       lastWorkedAtByJourneyId: { amplia: "2026-08-23T09:00:00.000Z" },
       applicationTheme: "ember",
+      journeyAppearanceById: { amplia: { kind: "system", icon: "book" } },
     });
   });
 });

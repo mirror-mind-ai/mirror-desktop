@@ -1,9 +1,13 @@
 mod agent_settings;
+mod journey_appearance;
 mod pi_process_registry;
 mod runtime_channel;
 mod turn_journal;
 
 use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
+use journey_appearance::{
+    import_journey_custom_image, load_journey_custom_image, remove_journey_custom_image,
+};
 use pi_process_registry::{
     control_bounded_child_handles, control_child_handle, join_before_continuation,
     reserve_then_start, AttachOutcome,
@@ -4297,6 +4301,9 @@ fn main() {
             refresh_journey_registry,
             mutate_journey_registry,
             choose_project_directory,
+            import_journey_custom_image,
+            load_journey_custom_image,
+            remove_journey_custom_image,
             load_journey_preferences,
             save_journey_preferences,
             load_composer_drafts,

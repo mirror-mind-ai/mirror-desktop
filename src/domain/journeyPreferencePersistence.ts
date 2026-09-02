@@ -1,5 +1,10 @@
 import { findJourneyById, type JourneyListOrder, type JourneyPreferences, type JourneyRegistry } from "./journeyRegistry";
 import { parseApplicationTheme, type ApplicationTheme } from "./applicationTheme";
+import {
+  parseJourneyAppearanceById,
+  sanitizeJourneyAppearanceById,
+  type JourneyAppearanceById,
+} from "./journeyAppearance";
 
 export type PersistedJourneyPreferences = {
   schemaVersion: "0.1.0";
@@ -8,6 +13,7 @@ export type PersistedJourneyPreferences = {
     sidebarCompact: boolean;
     lastWorkedAtByJourneyId: Record<string, string>;
     applicationTheme: ApplicationTheme;
+    journeyAppearanceById: JourneyAppearanceById;
   };
   savedAt: string;
 };
@@ -22,6 +28,7 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   sidebarCompact: false,
   lastWorkedAtByJourneyId: {},
   applicationTheme: "channel",
+  journeyAppearanceById: {},
 };
 
 export function createPersistedJourneyPreferences(
@@ -56,7 +63,10 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
   const applicationTheme = preferences.applicationTheme === undefined
     ? "channel"
     : parseApplicationTheme(preferences.applicationTheme);
-  if (!pinnedJourneyIds || !recentJourneyIds || !journeyListOrder || typeof sidebarCompact !== "boolean" || !lastWorkedAtByJourneyId || !applicationTheme) {
+  const journeyAppearanceById = preferences.journeyAppearanceById === undefined
+    ? {}
+    : parseJourneyAppearanceById(preferences.journeyAppearanceById);
+  if (!pinnedJourneyIds || !recentJourneyIds || !journeyListOrder || typeof sidebarCompact !== "boolean" || !lastWorkedAtByJourneyId || !applicationTheme || !journeyAppearanceById) {
     return undefined;
   }
 
@@ -78,6 +88,7 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       sidebarCompact,
       lastWorkedAtByJourneyId,
       applicationTheme,
+      journeyAppearanceById,
     },
     savedAt: record.savedAt,
   };
@@ -100,6 +111,7 @@ export function sanitizeJourneyPreferenceState(
       Object.entries(preferences.lastWorkedAtByJourneyId).filter(([journeyId]) => Boolean(findJourneyById(registry, journeyId))),
     ),
     applicationTheme: preferences.applicationTheme,
+    journeyAppearanceById: sanitizeJourneyAppearanceById(preferences.journeyAppearanceById, registry),
   };
 }
 

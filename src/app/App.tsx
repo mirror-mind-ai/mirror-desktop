@@ -223,6 +223,13 @@ import {
 import type { JourneyProjectionBundle } from "../domain/journeyProjections";
 import { applicationThemes, type ApplicationTheme } from "../domain/applicationTheme";
 import {
+  journeySystemIcons,
+  isJourneySystemIconSelected,
+  sanitizeJourneyAppearanceById,
+  type JourneyAppearanceById,
+  type JourneySystemIconId,
+} from "../domain/journeyAppearance";
+import {
   addFileAttachments,
   MAX_FILE_ATTACHMENTS,
   removeFileAttachment,
@@ -236,6 +243,11 @@ import { JourneyTreeIcon } from "./JourneyTreeIcon";
 import { JourneySearchControl } from "./JourneySearchControl";
 import { JourneyItemCopy } from "./JourneyItemCopy";
 import { JourneyItemContextMenu } from "./JourneyItemContextMenu";
+import { cacheJourneyCustomImage, JourneyVisualMark } from "./JourneyVisualMark";
+import {
+  importJourneyCustomImage,
+  removeJourneyCustomImage,
+} from "./journeyAppearanceStorage";
 import { recordJourneyLastWorked, relativeLastWorkedLabel } from "./journeyLastWorked";
 import {
   activateJourneyTree,
@@ -336,6 +348,9 @@ export function App({ model }: AppProps) {
   const [sidebarCompact, setSidebarCompact] = useState(defaultJourneyPreferenceState.sidebarCompact);
   const [lastWorkedAtByJourneyId, setLastWorkedAtByJourneyId] = useState(defaultJourneyPreferenceState.lastWorkedAtByJourneyId);
   const [applicationTheme, setApplicationTheme] = useState<ApplicationTheme>(defaultJourneyPreferenceState.applicationTheme);
+  const [journeyAppearanceById, setJourneyAppearanceById] = useState<JourneyAppearanceById>(defaultJourneyPreferenceState.journeyAppearanceById);
+  const [journeyAppearanceBusy, setJourneyAppearanceBusy] = useState(false);
+  const [journeyAppearanceMessage, setJourneyAppearanceMessage] = useState<string>();
   const [relativeTimeNow, setRelativeTimeNow] = useState(() => Date.now());
   const [collapsedJourneyIds, setCollapsedJourneyIds] = useState<Set<string>>(() => new Set());
   const [pinnedOnly, setPinnedOnly] = useState(false);
@@ -461,6 +476,7 @@ export function App({ model }: AppProps) {
       depth: 0,
     };
   const selectedJourneyVisual = journeyVisual(selectedJourneyItem.id);
+  const selectedJourneyAppearance = journeyAppearanceById[selectedJourneyItem.id];
   const selectedJourneyBasePath = selectedJourneyItem.projectPath;
   const navigationPresentation = deriveJourneyNavigationPresentation({
     runtimeState: journeyRuntimeState,
@@ -843,6 +859,7 @@ export function App({ model }: AppProps) {
       setSidebarCompact(sanitizedPreferences.sidebarCompact);
       setLastWorkedAtByJourneyId(sanitizedPreferences.lastWorkedAtByJourneyId);
       setApplicationTheme(sanitizedPreferences.applicationTheme);
+      setJourneyAppearanceById(sanitizedPreferences.journeyAppearanceById);
       if (nextActiveJourney) {
         setSelectedJourney(nextActiveJourney);
         setDraft(restoredDrafts[nextActiveJourney] ?? "");
@@ -1149,8 +1166,9 @@ export function App({ model }: AppProps) {
       sidebarCompact,
       lastWorkedAtByJourneyId,
       applicationTheme,
+      journeyAppearanceById,
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, registryLoaded, preferencesLoaded]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setRelativeTimeNow(Date.now()), 60_000);
@@ -2342,7 +2360,58 @@ export function App({ model }: AppProps) {
     setJourneyAdminSlug(journey.id);
     setJourneyAdminDescription(journey.description ?? "");
     setJourneyAdminPath(journey.projectPath ?? "");
+    setJourneyAppearanceMessage(undefined);
     setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null); setJourneyItemMenu(null);
+  }
+
+  async function applyJourneySystemAppearance(journeyId: string, icon?: JourneySystemIconId) {
+    if (runtimeBusy || journeyAppearanceBusy) return;
+    if (icon && !journeyAppearanceById[journeyId] && Object.keys(journeyAppearanceById).length >= 256) {
+      setJourneyAppearanceMessage("At most 256 Journey appearance choices can be retained on this device.");
+      return;
+    }
+    setJourneyAppearanceBusy(true); setJourneyAppearanceMessage(undefined);
+    try {
+      await removeJourneyCustomImage(journeyId);
+      cacheJourneyCustomImage(journeyId, null);
+      setJourneyAppearanceById((current) => {
+        const next = { ...current };
+        if (icon) next[journeyId] = { kind: "system", icon };
+        else delete next[journeyId];
+        return next;
+      });
+      setJourneyAppearanceMessage(icon ? "System icon applied on this device." : "Default Journey appearance restored on this device.");
+    } catch (error) {
+      setJourneyAppearanceMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setJourneyAppearanceBusy(false);
+    }
+  }
+
+  async function chooseJourneyCustomAppearance(journeyId: string) {
+    if (runtimeBusy || journeyAppearanceBusy) return;
+    const currentIsCustom = journeyAppearanceById[journeyId]?.kind === "custom";
+    if (!journeyAppearanceById[journeyId] && Object.keys(journeyAppearanceById).length >= 256) {
+      setJourneyAppearanceMessage("At most 256 Journey appearance choices can be retained on this device.");
+      return;
+    }
+    const customCount = Object.values(journeyAppearanceById).filter((appearance) => appearance.kind === "custom").length;
+    if (!currentIsCustom && customCount >= 32) {
+      setJourneyAppearanceMessage("At most 32 Journeys can use custom images on this device.");
+      return;
+    }
+    setJourneyAppearanceBusy(true); setJourneyAppearanceMessage(undefined);
+    try {
+      const image = await importJourneyCustomImage(journeyId);
+      if (!image) return;
+      cacheJourneyCustomImage(journeyId, image);
+      setJourneyAppearanceById((current) => ({ ...current, [journeyId]: { kind: "custom" } }));
+      setJourneyAppearanceMessage("Custom image imported into channel-local Nautilus storage.");
+    } catch (error) {
+      setJourneyAppearanceMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setJourneyAppearanceBusy(false);
+    }
   }
 
   function openMoveJourney(journeyId: string) {
@@ -2380,6 +2449,12 @@ export function App({ model }: AppProps) {
       });
       if (!reconciled) throw new Error("Verified Journey authority no longer contains the active Journey.");
       setLoadedJourneyRegistry(result.registry);
+      if (deletedJourneyId && journeyAppearanceById[deletedJourneyId]?.kind === "custom") {
+        void removeJourneyCustomImage(deletedJourneyId)
+          .then(() => cacheJourneyCustomImage(deletedJourneyId, null))
+          .catch((error) => console.warn("Deleted Journey custom image could not be cleaned up.", error));
+      }
+      setJourneyAppearanceById((current) => sanitizeJourneyAppearanceById(current, result.registry));
       if (selectedAfterMutation !== selectedJourney) setSelectedJourney(selectedAfterMutation);
       setJourneyPreferences((current) => ({ ...current, activeJourneyId: selectedAfterMutation, pinnedJourneyIds: reconciled.pinnedJourneyIds, recentJourneyIds: reconciled.recentJourneyIds }));
       setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
@@ -2586,6 +2661,7 @@ export function App({ model }: AppProps) {
           ) : null}
           {visibleSidebarJourneys.map((journey) => {
             const visual = journeyVisual(journey.id);
+            const appearance = journeyAppearanceById[journey.id];
             const hasChildren = (journey.children?.length ?? 0) > 0;
             const collapsed = collapsedJourneyIds.has(journey.id);
             const runtimeOwnerPhase = selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id);
@@ -2649,9 +2725,15 @@ export function App({ model }: AppProps) {
                   ) : <span className="journey-tree-toggle-placeholder" aria-hidden="true" />
                 ) : null}
                 {journeyListOrder === "tree" ? (
-                  <span className="journey-tree-icon"><JourneyTreeIcon runtimePhase={runtimeOwnerPhase} /></span>
+                  <span className="journey-tree-icon">
+                    {appearance ? (
+                      <JourneyVisualMark journeyId={journey.id} appearance={appearance} fallbackGlyph={visual.icon} runtimePhase={runtimeOwnerPhase} className="tree-appearance" />
+                    ) : (
+                      <JourneyTreeIcon runtimePhase={runtimeOwnerPhase} />
+                    )}
+                  </span>
                 ) : (
-                  <span className="journey-icon">{visual.icon}</span>
+                  <JourneyVisualMark journeyId={journey.id} appearance={appearance} fallbackGlyph={visual.icon} runtimePhase={runtimeOwnerPhase} className="journey-icon" />
                 )}
                 <JourneyItemCopy
                   layout={journeyListOrder === "tree" ? "tree" : "card"}
@@ -2724,7 +2806,7 @@ export function App({ model }: AppProps) {
           <div className="realization-header-copy">
             <div className="journey-title-row">
               <div className="active-journey-title">
-                <span className="active-journey-icon" aria-hidden="true">{selectedJourneyVisual.icon}</span>
+                <JourneyVisualMark journeyId={selectedJourneyItem.id} appearance={selectedJourneyAppearance} fallbackGlyph={selectedJourneyVisual.icon} className="active-journey-icon" />
                 <div>
                   <p className="eyebrow">Active journey</p>
                   <h1>{selectedJourneyItem.name}</h1>
@@ -3136,7 +3218,7 @@ export function App({ model }: AppProps) {
                 <p className="eyebrow">{journeyAdminDialog.mode === "create" || journeyAdminDialog.mode === "edit" ? "Journey details" : journeyAdminDialog.mode === "move" ? "Journey organization" : "Journey safety"}</p>
                 <h2>{journeyAdminDialog.mode === "create" ? "Create Journey" : journeyAdminDialog.mode === "edit" ? "Edit Journey" : journeyAdminDialog.mode === "move" ? "Move Journey" : "Delete Journey"}</h2>
               </div>
-              <button type="button" onClick={() => setJourneyAdminDialog(null)} disabled={journeyAdminState === "saving"}>×</button>
+              <button type="button" onClick={() => setJourneyAdminDialog(null)} disabled={journeyAdminState === "saving" || journeyAppearanceBusy}>×</button>
             </div>
             {journeyAdminDialog.mode === "create" || journeyAdminDialog.mode === "edit" ? (
               <>
@@ -3153,6 +3235,52 @@ export function App({ model }: AppProps) {
                 <label>Description<textarea value={journeyAdminDescription} onChange={(event) => setJourneyAdminDescription(event.target.value)} required minLength={20} maxLength={4000} /></label>
                 {journeyAdminDialog.mode === "edit" ? <small id="journey-immutable-identity" className="journey-admin-immutable-note">Journey ID and slug remain unchanged.</small> : null}
               </>
+            ) : null}
+            {journeyAdminDialog.mode === "edit" && journeyAdminDialog.journeyId ? (
+              <fieldset className="journey-appearance-fieldset">
+                <legend>Journey appearance</legend>
+                <p>Applied immediately on this device. Canonical Mirror metadata remains unchanged.</p>
+                <div className="journey-system-icon-grid" role="radiogroup" aria-label="Journey system icon">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!journeyAppearanceById[journeyAdminDialog.journeyId]}
+                    className={!journeyAppearanceById[journeyAdminDialog.journeyId] ? "selected" : ""}
+                    disabled={journeyAppearanceBusy || runtimeBusy}
+                    onClick={() => void applyJourneySystemAppearance(journeyAdminDialog.journeyId!)}
+                  >
+                    <span aria-hidden="true">•</span><small>Default</small>
+                  </button>
+                  {journeySystemIcons.map((icon) => (
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={isJourneySystemIconSelected(journeyAppearanceById, journeyAdminDialog.journeyId!, icon.id)}
+                      className={isJourneySystemIconSelected(journeyAppearanceById, journeyAdminDialog.journeyId!, icon.id) ? "selected" : ""}
+                      disabled={journeyAppearanceBusy || runtimeBusy}
+                      onClick={() => void applyJourneySystemAppearance(journeyAdminDialog.journeyId!, icon.id)}
+                      key={icon.id}
+                      aria-label={icon.label}
+                      title={icon.label}
+                    >
+                      <span aria-hidden="true">{icon.glyph}</span><small>{icon.label}</small>
+                    </button>
+                  ))}
+                </div>
+                <div className="journey-custom-image-control">
+                  <JourneyVisualMark
+                    journeyId={journeyAdminDialog.journeyId}
+                    appearance={journeyAppearanceById[journeyAdminDialog.journeyId]}
+                    fallbackGlyph={journeyVisual(journeyAdminDialog.journeyId).icon}
+                    className="journey-appearance-preview"
+                  />
+                  <button type="button" disabled={journeyAppearanceBusy || runtimeBusy} onClick={() => void chooseJourneyCustomAppearance(journeyAdminDialog.journeyId!)}>
+                    {journeyAppearanceBusy ? "Importing…" : "Choose custom image…"}
+                  </button>
+                  <small>PNG, JPEG or WebP · up to 5 MiB · saved as a private 512px PNG.</small>
+                </div>
+                {journeyAppearanceMessage ? <p className="journey-appearance-message" role="status">{journeyAppearanceMessage}</p> : null}
+              </fieldset>
             ) : null}
             {journeyAdminDialog.mode === "create" || journeyAdminDialog.mode === "move" ? (
               <div className="settings-grid two-column">
@@ -3184,8 +3312,8 @@ export function App({ model }: AppProps) {
             </div>
             {journeyAdminMessage ? <p className="settings-error" role="alert">{journeyAdminMessage}</p> : null}
             <div className="settings-actions">
-              <button type="button" onClick={() => setJourneyAdminDialog(null)} disabled={journeyAdminState === "saving"}>Cancel</button>
-              <button className={journeyAdminDialog.mode === "delete" ? "danger-button" : ""} type="submit" disabled={journeyAdminState === "saving"}>{journeyAdminState === "saving" ? "Verifying…" : journeyAdminDialog.mode === "delete" ? "Delete Journey" : journeyAdminDialog.mode === "edit" ? "Save changes" : "Confirm"}</button>
+              <button type="button" onClick={() => setJourneyAdminDialog(null)} disabled={journeyAdminState === "saving" || journeyAppearanceBusy}>Cancel</button>
+              <button className={journeyAdminDialog.mode === "delete" ? "danger-button" : ""} type="submit" disabled={journeyAdminState === "saving" || journeyAppearanceBusy}>{journeyAdminState === "saving" ? "Verifying…" : journeyAdminDialog.mode === "delete" ? "Delete Journey" : journeyAdminDialog.mode === "edit" ? "Save changes" : "Confirm"}</button>
             </div>
           </form>
         </div>

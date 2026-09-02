@@ -165,6 +165,23 @@ restores focus to the invoking row. Menu availability follows the existing
 aggregate runtime administration guard and never changes Journey selection or
 execution authority.
 
+Journey appearance is deliberately split from canonical Mirror metadata. A
+bounded channel-local preference overlay keyed by immutable Journey ID stores
+only a curated system-icon ID or a `custom` marker; it never stores an external
+file path. Edit Journey exposes those device-local controls and applies them
+immediately, independently of canonical metadata submission. Native custom-image
+import accepts only decoded PNG, JPEG or WebP sources up to 5 MiB, rejects unsafe
+Journey IDs, GIF/SVG/unsupported formats and symbolic-link storage escapes,
+center-cover normalizes to a 512px square PNG, and atomically writes the result
+under the active channel's app-data `journey-appearance/` directory. Native
+read-back returns bounded PNG data rather than filesystem authority. At most 32
+custom assets and 256 appearance entries are retained; missing or corrupt assets
+fall back to the existing Journey glyph, selecting a system/default icon removes
+the custom asset idempotently, and Journey deletion attempts best-effort orphan
+cleanup without affecting canonical deletion authority. Runtime phase labels,
+semantic accents and exact Journey execution ownership remain independent of
+appearance.
+
 ## Journey-aware chat file navigation
 
 Verified local paths rendered inside conversation messages cross a Journey-aware

@@ -109,6 +109,19 @@ describe("Journey administration boundary", () => {
     expect(appSource).toContain("Journey ID and slug remain unchanged");
   });
 
+  it("extends Edit Journey with device-local appearance without adding canonical fields", () => {
+    expect(appSource).toContain("Journey appearance");
+    expect(appSource).toContain("Applied immediately on this device");
+    expect(appSource).toContain("journeySystemIcons.map");
+    expect(appSource).toContain("chooseJourneyCustomAppearance");
+    expect(appSource).toContain("Canonical Mirror metadata remains unchanged");
+    const canonicalPayload = appSource.slice(
+      appSource.indexOf('executeJourneyMutation("update_journey"'),
+      appSource.indexOf('} else if (journeyAdminDialog.mode === "move")'),
+    );
+    expect(canonicalPayload).not.toContain("journeyAppearanceById");
+  });
+
   it("keeps mutation failures inside the open administration form", () => {
     const mutationFlow = appSource.slice(
       appSource.indexOf("async function executeJourneyMutation"),

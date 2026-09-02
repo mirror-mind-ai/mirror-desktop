@@ -518,6 +518,66 @@ textarea {
   margin-top: -5px;
 }
 
+.journey-appearance-fieldset {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 11px;
+  border: 1px solid rgba(var(--ui-accent-rgb), 0.18);
+  border-radius: 10px;
+}
+
+.journey-appearance-fieldset legend {
+  padding: 0 5px;
+  color: #b9ccd1;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.journey-appearance-fieldset > p,
+.journey-custom-image-control small {
+  margin: 0;
+  color: #82979d;
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.journey-system-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.journey-system-icon-grid button {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  padding: 7px 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: #a9bdc2;
+}
+
+.journey-system-icon-grid button > span { font-size: 1rem; }
+.journey-system-icon-grid button small { overflow: hidden; font-size: 0.58rem; text-overflow: ellipsis; }
+.journey-system-icon-grid button.selected {
+  border-color: rgba(var(--ui-accent-rgb), 0.58);
+  background: rgba(var(--ui-accent-rgb), 0.13);
+  color: #eef9fb;
+}
+
+.journey-custom-image-control {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+
+.journey-custom-image-control > button { padding: 7px 11px; border-radius: 8px; }
+.journey-appearance-preview { width: 34px; height: 34px; border-radius: 9px; }
+.journey-appearance-message { margin: 0; color: #a9c7bd; font-size: 0.7rem; }
+
 .journey-admin-dialog .settings-grid.two-column {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 132px;
@@ -1103,6 +1163,48 @@ textarea {
 
 .accent-rose {
   --accent: #f18aa4;
+}
+
+.journey-visual-mark {
+  position: relative;
+  overflow: hidden;
+}
+
+.journey-visual-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.journey-visual-glyph {
+  line-height: 1;
+}
+
+.journey-visual-activity {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 6px;
+  height: 6px;
+  border: 1px solid rgba(5, 14, 17, 0.9);
+  border-radius: 50%;
+  background: var(--accent, #8bd6d0);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #8bd6d0) 28%, transparent);
+}
+
+.journey-tree-icon .tree-appearance {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  font-size: 0.78rem;
+}
+
+.journey-tree-icon .tree-appearance .journey-visual-activity {
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  height: 4px;
 }
 
 .journey-icon {
