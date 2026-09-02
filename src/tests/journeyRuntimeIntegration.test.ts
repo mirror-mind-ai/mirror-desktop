@@ -40,13 +40,12 @@ describe("Journey runtime integration guardrails", () => {
 
   it("shows owner-only sidebar, cancellation, and finalization errors", () => {
     expect(appSource).toContain("selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id)");
-    expect(appSource).toContain("<JourneyRuntimeIndicator journeyName={journey.name} phase={runtimeOwnerPhase} />");
-    const copyStart = appSource.indexOf('<span className="journey-copy">');
-    const indicator = appSource.indexOf("<JourneyRuntimeIndicator", copyStart);
-    const pinAction = appSource.indexOf("className={`journey-pin", copyStart);
-    expect(copyStart).toBeGreaterThan(-1);
-    expect(indicator).toBeGreaterThan(copyStart);
-    expect(indicator).toBeLessThan(pinAction);
+    expect(appSource).toContain("<JourneyItemCopy");
+    expect(appSource).toContain("runtimePhase={runtimeOwnerPhase}");
+    const copy = appSource.indexOf("<JourneyItemCopy");
+    const pinAction = appSource.indexOf("className={`journey-pin", copy);
+    expect(copy).toBeGreaterThan(-1);
+    expect(copy).toBeLessThan(pinAction);
     expect(appSource).toContain("const mirrorCommitError = navigationPresentation.mirrorCommitError");
     expect(appSource).toContain("const durableInterruptedTurn = latestNautilusTurn?.pi.state === \"failed\"");
     expect(appSource).toContain("classifyDedicatedTurnState(conversation, selectedRuntimeBusy)");

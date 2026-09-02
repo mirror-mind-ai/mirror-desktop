@@ -234,7 +234,7 @@ import devAppIconUrl from "../../src-tauri/icons/dev/icon.svg";
 import { inspectRuntimeChannel, type RuntimeChannelDiagnostic } from "./runtimeChannelStorage";
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
 import { JourneySearchControl } from "./JourneySearchControl";
-import { JourneyRuntimeIndicator } from "./JourneyRuntimeIndicator";
+import { JourneyItemCopy } from "./JourneyItemCopy";
 
 type AppProps = {
   model: NautilusViewModel;
@@ -2569,13 +2569,11 @@ export function App({ model }: AppProps) {
                 ) : (
                   <span className="journey-icon">{visual.icon}</span>
                 )}
-                <span className="journey-copy">
-                  <strong>{journey.name}</strong>
-                  <small>{sidebarDescription(journey)}</small>
-                  {runtimeOwnerPhase ? (
-                    <JourneyRuntimeIndicator journeyName={journey.name} phase={runtimeOwnerPhase} />
-                  ) : null}
-                </span>
+                <JourneyItemCopy
+                  journeyName={journey.name}
+                  description={sidebarDescription(journey)}
+                  runtimePhase={runtimeOwnerPhase}
+                />
                 <button
                   className={`journey-pin ${journey.pinned ? "pinned" : ""}`}
                   type="button"

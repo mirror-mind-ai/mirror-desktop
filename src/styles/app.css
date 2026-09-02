@@ -505,7 +505,60 @@ textarea {
 }
 
 .journey-item.card-node {
+  align-items: start;
+  column-gap: 12px;
+  display: grid;
+  grid-template-areas:
+    "icon name pin"
+    "context context context"
+    "runtime runtime runtime";
+  grid-template-columns: 40px minmax(0, 1fr) 28px;
   isolation: isolate;
+  min-height: 0;
+  padding: 14px;
+  row-gap: 0;
+}
+
+.journey-item.card-node .journey-icon {
+  grid-area: icon;
+}
+
+.journey-item.card-node .journey-copy {
+  display: contents;
+}
+
+.journey-item.card-node .journey-name {
+  align-self: center;
+  display: -webkit-box;
+  grid-area: name;
+  line-height: 1.18;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.journey-item.card-node .journey-context {
+  display: -webkit-box;
+  grid-area: context;
+  line-height: 1.35;
+  margin-top: 12px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.journey-item.card-node .journey-runtime-state {
+  grid-area: runtime;
+  margin-top: 11px;
+}
+
+.journey-item.card-node .journey-pin {
+  align-self: start;
+  grid-area: pin;
+  margin-left: 0;
 }
 
 .journey-item.tree-node {
