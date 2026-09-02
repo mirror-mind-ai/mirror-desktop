@@ -230,7 +230,6 @@ import {
   type FileAttachmentResponse,
 } from "../domain/fileAttachments";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
-import devAppIconUrl from "../../src-tauri/icons/dev/icon.svg";
 import { inspectRuntimeChannel, type RuntimeChannelDiagnostic } from "./runtimeChannelStorage";
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
 import { JourneySearchControl } from "./JourneySearchControl";
@@ -2423,7 +2422,10 @@ export function App({ model }: AppProps) {
     >
       <aside className="journey-sidebar" aria-label="Journeys">
         <div className="brand-block">
-          <img className="brand-mark" src={developmentChannel ? devAppIconUrl : appIconUrl} alt="" aria-hidden="true" />
+          <span className="brand-mark-wrap" aria-hidden="true">
+            <img className="brand-mark" src={appIconUrl} alt="" />
+            {developmentChannel ? <span className="brand-channel-badge">DEV</span> : null}
+          </span>
           <div className="brand-copy">
             <strong>Nautilus {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</strong>
             <small>{developmentChannel ? "Development cockpit" : "Journey cockpit"}</small>

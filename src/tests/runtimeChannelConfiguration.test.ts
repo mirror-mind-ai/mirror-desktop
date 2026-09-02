@@ -16,6 +16,8 @@ const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "u
 const readmeSource = readFileSync(new URL("../../README.md", import.meta.url), "utf8");
 const agentsSource = readFileSync(new URL("../../AGENTS.md", import.meta.url), "utf8");
 const setupGuide = readFileSync(new URL("../../docs/development/environment-setup.md", import.meta.url), "utf8");
+const stableIconSource = readFileSync(new URL("../../src-tauri/icons/icon.svg", import.meta.url), "utf8");
+const developmentIconSource = readFileSync(new URL("../../src-tauri/icons/dev/icon.svg", import.meta.url), "utf8");
 
 describe("runtime channel configuration", () => {
   it("keeps stable and development Tauri identities non-colliding", () => {
@@ -26,6 +28,18 @@ describe("runtime channel configuration", () => {
     expect(runtimeChannelSource).toContain("apply_macos_dock_icon");
     expect(runtimeChannelSource).toContain("setApplicationIconImage");
     expect(runtimeChannelSource).toContain('include_bytes!("../icons/dev/icon.png")');
+  });
+
+  it("uses one Nautilus artwork with DEV as the only channel icon overlay", () => {
+    expect(stableIconSource).toContain('stop-color="#61358a"');
+    expect(stableIconSource).toContain("M141 350c-53-75-28-183");
+    expect(stableIconSource).not.toContain(">DEV<");
+    expect(developmentIconSource).toContain('stop-color="#61358a"');
+    expect(developmentIconSource).toContain("M141 350c-53-75-28-183");
+    expect(developmentIconSource).toContain(">DEV<");
+    expect(appSource).toContain('import appIconUrl from "../../src-tauri/icons/icon.svg"');
+    expect(appSource).not.toContain("devAppIconUrl");
+    expect(appSource).toContain('className="brand-channel-badge"');
   });
 
   it("always pairs channel commands with the closed native launcher", () => {

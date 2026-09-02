@@ -96,6 +96,12 @@ textarea {
   color: #eafffc;
 }
 
+.brand-mark-wrap {
+  display: block;
+  flex: 0 0 auto;
+  position: relative;
+}
+
 .brand-mark {
   border: 1px solid rgba(133, 223, 210, 0.28);
   border-radius: 14px;
@@ -103,6 +109,21 @@ textarea {
   height: 42px;
   object-fit: cover;
   width: 42px;
+}
+
+.brand-channel-badge {
+  background: #a45bd3;
+  border: 1px solid rgba(255, 240, 255, 0.86);
+  border-radius: 999px;
+  bottom: 2px;
+  color: #fff8ff;
+  font-size: 0.42rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 2px 3px;
+  position: absolute;
+  right: 1px;
 }
 
 .brand-block strong,
