@@ -5,23 +5,23 @@ import appSource from "../app/App.tsx?raw";
 import documentationBrowserSource from "../app/JourneyDocumentationBrowser.tsx?raw";
 
 describe("Operational Journey workspace", () => {
-  it("switches between full-width Conversation, Artifacts and Ariad surfaces", () => {
+  it("shows only functional Conversation and Artifacts controls", () => {
     const html = renderToStaticMarkup(
       <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} />,
     );
 
     expect(html).toContain('aria-label="Operational workspace"');
-    expect(html.match(/role="tab"/g)).toHaveLength(3);
+    expect(html.match(/role="tab"/g)).toHaveLength(2);
     expect(html).toContain("Conversation");
     expect(html).toContain("Artifacts");
-    expect(html).toContain("Ariad");
+    expect(html).not.toContain("Ariad");
     expect(html).not.toContain(">Chat<");
     expect(html.match(/aria-selected="true"/g)).toHaveLength(1);
-    expect(html.match(/class="selector-option-icon"/g)).toHaveLength(3);
-    expect(html.match(/aria-hidden="true"/g)).toHaveLength(3);
+    expect(html.match(/class="selector-option-icon"/g)).toHaveLength(2);
+    expect(html.match(/aria-hidden="true"/g)).toHaveLength(2);
     expect(html).toContain('data-icon="conversation"');
     expect(html).toContain('data-icon="artifacts"');
-    expect(html).toContain('data-icon="ariad"');
+    expect(html).not.toContain('data-icon="ariad"');
   });
 
   it("keeps Operational surface switching disabled during active work", () => {
@@ -29,7 +29,7 @@ describe("Operational Journey workspace", () => {
       <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} disabled />,
     );
 
-    expect(html.match(/disabled=""/g)).toHaveLength(3);
+    expect(html.match(/disabled=""/g)).toHaveLength(2);
     expect(html).toContain('aria-disabled="true"');
   });
 
@@ -64,8 +64,8 @@ describe("Operational Journey workspace", () => {
     expect(appSource).toContain("setSelectedOperationalSurface");
     expect(appSource).toContain("<JourneyAltitudeSwitcher");
     expect(appSource).toContain("<OperationalWorkspaceSwitcher");
-    expect(appSource).toContain('selectedAltitude === "operational"');
-    expect(appSource).toContain('selectedOperationalSurface === "chat"');
+    expect(appSource).toContain('presentedAltitude === "operational"');
+    expect(appSource).toContain('presentedOperationalSurface === "chat"');
     expect(appSource).toContain("isJourneyReloading");
     expect(appSource).toContain("navigationPresentation.cancelVisible");
     expect(appSource).not.toContain('className="journey-status-rail"');

@@ -16,7 +16,7 @@ const forbiddenRuntimeDependencies = [
 
 describe("JourneyAltitudeSwitcher", () => {
   it.each(["operational", "tactical", "strategic"] as const)(
-    "renders %s as the only selected altitude",
+    "renders only Operational and safely normalizes stale %s selection",
     (selected) => {
       const html = renderToStaticMarkup(
         <JourneyAltitudeSwitcher value={selected} onChange={vi.fn()} />,
@@ -24,16 +24,14 @@ describe("JourneyAltitudeSwitcher", () => {
 
       expect(html).toContain('role="tablist"');
       expect(html).toContain('aria-label="Journey altitude"');
-      expect(html.match(/role="tab"/g)).toHaveLength(3);
+      expect(html.match(/role="tab"/g)).toHaveLength(1);
       expect(html.match(/aria-selected="true"/g)).toHaveLength(1);
-      expect(html.indexOf("Operational")).toBeLessThan(html.indexOf("Tactical"));
-      expect(html.indexOf("Tactical")).toBeLessThan(html.indexOf("Strategic"));
-      expect(html).toContain(`data-altitude="${selected}"`);
-      expect(html.match(/class="selector-option-icon"/g)).toHaveLength(3);
-      expect(html.match(/aria-hidden="true"/g)).toHaveLength(3);
-      expect(html).toContain('data-icon="operational"');
-      expect(html).toContain('data-icon="tactical"');
-      expect(html).toContain('data-icon="strategic"');
+      expect(html).toContain('data-altitude="operational"');
+      expect(html).toContain("Operational");
+      expect(html).not.toContain("Tactical");
+      expect(html).not.toContain("Strategic");
+      expect(html).not.toContain('data-icon="tactical"');
+      expect(html).not.toContain('data-icon="strategic"');
     },
   );
 
@@ -42,7 +40,7 @@ describe("JourneyAltitudeSwitcher", () => {
       <JourneyAltitudeSwitcher value="operational" onChange={vi.fn()} disabled />,
     );
 
-    expect(html.match(/disabled=""/g)).toHaveLength(3);
+    expect(html.match(/disabled=""/g)).toHaveLength(1);
     expect(html).toContain('aria-disabled="true"');
   });
 

@@ -1,3 +1,5 @@
+import { isOperationalSurfaceAvailable } from "./journeySurfaceAvailability";
+
 export type OperationalSurface = "chat" | "artifacts" | "ariad";
 
 type OperationalWorkspaceSwitcherProps = {
@@ -22,10 +24,11 @@ export function OperationalWorkspaceSwitcher({
   onChange,
   disabled = false,
 }: OperationalWorkspaceSwitcherProps) {
+  const selectedValue = isOperationalSurfaceAvailable(value) ? value : "chat";
   return (
     <div className="operational-workspace-switcher" role="tablist" aria-label="Operational workspace">
-      {operationalSurfaces.map((surface) => {
-        const selected = surface.id === value;
+      {operationalSurfaces.filter(({ id }) => isOperationalSurfaceAvailable(id)).map((surface) => {
+        const selected = surface.id === selectedValue;
         return (
           <button
             key={surface.id}

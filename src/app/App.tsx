@@ -99,6 +99,7 @@ import {
   type OperationalSurface,
 } from "./OperationalWorkspaceSwitcher";
 import { defaultJourneyAltitude } from "./journeyAltitudePreview";
+import { normalizeJourneySurfaceSelection } from "./journeySurfaceAvailability";
 import { loadJourneyProjections } from "./journeyProjectionStorage";
 import {
   deriveLatestCertifiedModeTransition,
@@ -332,6 +333,9 @@ export function App({ model }: AppProps) {
   const [selectedJourney, setSelectedJourney] = useState(defaultJourneyPreferenceState.activeJourneyId ?? "nautilus-harness");
   const [selectedAltitude, setSelectedAltitude] = useState(defaultJourneyAltitude);
   const [selectedOperationalSurface, setSelectedOperationalSurface] = useState<OperationalSurface>("chat");
+  const presentedJourneySurface = normalizeJourneySurfaceSelection(selectedAltitude, selectedOperationalSurface);
+  const presentedAltitude = presentedJourneySurface.altitude;
+  const presentedOperationalSurface = presentedJourneySurface.operationalSurface;
   const [artifactNavigationRequest, setArtifactNavigationRequest] = useState<{
     journeyId: string;
     relativePath: string;
@@ -602,7 +606,12 @@ export function App({ model }: AppProps) {
     : undefined;
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
   const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading";
-  const operationalChatSelected = selectedAltitude === "operational" && selectedOperationalSurface === "chat";
+  const operationalChatSelected = presentedAltitude === "operational" && presentedOperationalSurface === "chat";
+
+  useEffect(() => {
+    if (selectedAltitude !== presentedAltitude) setSelectedAltitude(presentedAltitude);
+    if (selectedOperationalSurface !== presentedOperationalSurface) setSelectedOperationalSurface(presentedOperationalSurface);
+  }, [presentedAltitude, presentedOperationalSurface, selectedAltitude, selectedOperationalSurface]);
 
   async function reconcilePiInvocationOccupancy() {
     const requestId = piInvocationInspectionSequenceRef.current + 1;
@@ -2530,7 +2539,7 @@ export function App({ model }: AppProps) {
 
   return (
     <main
-      className={`app-shell altitude-${selectedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
+      className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
       data-runtime-channel={runtimeChannel?.channel}
       data-application-theme={applicationTheme}
     >
@@ -2855,13 +2864,13 @@ export function App({ model }: AppProps) {
             </div>
             <div className="journey-altitude-row">
               <JourneyAltitudeSwitcher
-                value={selectedAltitude}
+                value={presentedAltitude}
                 onChange={setSelectedAltitude}
                 disabled={altitudeSwitchDisabled}
               />
-              {selectedAltitude === "operational" ? (
+              {presentedAltitude === "operational" ? (
                 <OperationalWorkspaceSwitcher
-                  value={selectedOperationalSurface}
+                  value={presentedOperationalSurface}
                   onChange={setSelectedOperationalSurface}
                   disabled={altitudeSwitchDisabled}
                 />
@@ -2870,7 +2879,7 @@ export function App({ model }: AppProps) {
           </div>
         </header>
 
-        {selectedAltitude === "operational" && selectedOperationalSurface === "artifacts" ? (
+        {presentedAltitude === "operational" && presentedOperationalSurface === "artifacts" ? (
           <JourneyDocumentationBrowser
             journeyId={selectedJourneyItem.id}
             journeyName={selectedJourneyItem.name}
@@ -2882,7 +2891,7 @@ export function App({ model }: AppProps) {
               : undefined}
           />
         ) : null}
-        {selectedAltitude === "operational" && selectedOperationalSurface === "ariad" ? (
+        {presentedAltitude === "operational" && presentedOperationalSurface === "ariad" ? (
           <AriadOperationalObservatory
             journeyId={selectedJourneyItem.id}
             journeyName={selectedJourneyItem.name}
@@ -2891,7 +2900,7 @@ export function App({ model }: AppProps) {
             errors={journeyProjections?.errors}
           />
         ) : null}
-        {selectedAltitude === "tactical" ? (
+        {presentedAltitude === "tactical" ? (
           projectionLoadStatus === "loading" ? (
             <JourneyProjectionLoadingState altitude="tactical" />
           ) : journeyProjections?.tactical ? (
@@ -2903,7 +2912,7 @@ export function App({ model }: AppProps) {
             </>
           )
         ) : null}
-        {selectedAltitude === "strategic" ? (
+        {presentedAltitude === "strategic" ? (
           projectionLoadStatus === "loading" ? (
             <JourneyProjectionLoadingState altitude="strategic" />
           ) : journeyProjections?.strategic ? (

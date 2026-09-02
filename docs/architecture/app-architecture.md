@@ -184,6 +184,20 @@ cleanup without affecting canonical deletion authority. Runtime phase labels,
 semantic accents and exact Journey execution ownership remain independent of
 appearance.
 
+## Temporary Journey surface availability
+
+One explicit presentation policy controls which already-implemented Journey
+surfaces are currently offered to users. Operational, Conversation and Artifacts
+are enabled; Tactical, Strategic and Ariad are temporarily disabled until their
+functional readiness is separately validated. Disabled surfaces remain in the
+codebase with their projection loading, empty states and rendering seams intact,
+but their controls are absent from the DOM, keyboard order and accessibility
+tree. Both switchers and App consume the same policy. Stale in-memory Tactical or
+Strategic selection normalizes to Operational, while stale Ariad selection
+normalizes to Conversation; an available Artifacts selection is preserved. Each
+surface returns through one explicit policy change plus tests, not by rebuilding
+removed implementation.
+
 ## Journey-aware chat file navigation
 
 Verified local paths rendered inside conversation messages cross a Journey-aware
