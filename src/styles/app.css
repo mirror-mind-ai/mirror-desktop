@@ -512,9 +512,9 @@ textarea {
     "icon name pin"
     "context context context"
     "runtime runtime runtime";
+  flex: 0 0 auto;
   grid-template-columns: 40px minmax(0, 1fr) 28px;
   isolation: isolate;
-  min-height: 0;
   padding: 14px;
   row-gap: 0;
 }
