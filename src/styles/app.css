@@ -683,6 +683,28 @@ textarea {
   fill: var(--accent);
   stroke: color-mix(in srgb, var(--accent) 42%, #0d1011);
   stroke-width: 0.8;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.journey-item.tree-node.runtime-running .journey-tree-waypoint {
+  animation: journey-tree-waypoint-working 1.35s ease-in-out infinite;
+  filter: drop-shadow(0 0 2px var(--accent));
+}
+
+.journey-item.tree-node.runtime-finalizing .journey-tree-waypoint {
+  animation: journey-tree-waypoint-recording 1.9s ease-in-out infinite;
+  fill: color-mix(in srgb, var(--accent) 55%, #ffffff);
+  filter: drop-shadow(0 0 1px var(--accent));
+}
+
+@keyframes journey-tree-waypoint-working {
+  0%, 100% { opacity: 0.62; transform: scale(0.82); }
+  50% { opacity: 1; transform: scale(1.34); }
+}
+
+@keyframes journey-tree-waypoint-recording {
+  50% { opacity: 0.42; }
 }
 
 .journey-copy {
@@ -704,6 +726,24 @@ textarea {
 
 .journey-item.tree-node .journey-copy small {
   display: none;
+}
+
+.journey-item.tree-node .journey-runtime-state {
+  animation: none;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.journey-item.tree-node .journey-runtime-dot {
+  animation: none;
 }
 
 .journey-runtime-state {
@@ -757,7 +797,9 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .journey-runtime-state.running,
   .journey-runtime-state.running .journey-runtime-dot,
-  .journey-runtime-state.finalizing .journey-runtime-dot {
+  .journey-runtime-state.finalizing .journey-runtime-dot,
+  .journey-item.tree-node.runtime-running .journey-tree-waypoint,
+  .journey-item.tree-node.runtime-finalizing .journey-tree-waypoint {
     animation: none;
   }
 }

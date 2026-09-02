@@ -30,6 +30,8 @@ describe("Journey tree presentation", () => {
     expect(appSource).toContain('journeyListOrder === "tree" ? "tree-mode" : "card-mode"');
     expect(appSource).toContain('journeyListOrder === "tree" ? "tree-node" : "card-node"');
     expect(appSource).toContain('journey.depth > 0 ? "is-nested" : "is-root"');
+    expect(appSource).toContain('runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : ""');
+    expect(appSource).toContain('data-runtime-phase={runtimeOwnerPhase}');
     expect(appSource).toContain("<JourneyTreeIcon />");
     expect(appSource).toContain("--journey-depth");
     expect(appSource).toContain("journey-tree-toggle");
