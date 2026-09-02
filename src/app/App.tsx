@@ -3212,9 +3212,9 @@ export function App({ model }: AppProps) {
                 type="button"
                 onClick={() => setApplicationTheme("channel")}
                 disabled={applicationTheme === "channel"}
-                aria-label="Restore channel default theme"
+                aria-label="Restore default theme"
               >
-                Restore channel default
+                Restore default
               </button>
             </section>
 

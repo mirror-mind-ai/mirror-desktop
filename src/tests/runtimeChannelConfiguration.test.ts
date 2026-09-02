@@ -91,6 +91,8 @@ describe("runtime channel configuration", () => {
     expect(cssSource).toContain('[data-application-theme="tide"]');
     expect(cssSource).toContain('[data-application-theme="violet"]');
     expect(cssSource).toContain('[data-application-theme="ember"]');
+    expect(cssSource).toContain('[data-application-theme="forest"]');
+    expect(cssSource).toContain('[data-application-theme="slate"]');
     expect(cssSource).not.toContain("--ui-accent: var(--ui-accent)");
   });
 

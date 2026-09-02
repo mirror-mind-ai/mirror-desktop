@@ -78,6 +78,26 @@ textarea {
   --sidebar-surface: rgba(25, 13, 10, 0.97);
 }
 
+.app-shell[data-application-theme="forest"] {
+  --ui-accent: #8fd694;
+  --ui-accent-rgb: 143, 214, 148;
+  --shell-radial: rgba(72, 164, 101, 0.2);
+  --shell-start: #09110c;
+  --shell-middle: #12231a;
+  --shell-end: #1d3427;
+  --sidebar-surface: rgba(10, 23, 15, 0.97);
+}
+
+.app-shell[data-application-theme="slate"] {
+  --ui-accent: #a9bac2;
+  --ui-accent-rgb: 169, 186, 194;
+  --shell-radial: rgba(113, 142, 158, 0.18);
+  --shell-start: #0c1013;
+  --shell-middle: #192127;
+  --shell-end: #263039;
+  --sidebar-surface: rgba(13, 18, 21, 0.97);
+}
+
 .app-shell.channel-development[data-application-theme="channel"] .journey-sidebar {
   border-right-color: rgba(202, 147, 255, 0.18);
 }
