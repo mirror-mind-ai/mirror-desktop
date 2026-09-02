@@ -235,6 +235,7 @@ import { inspectRuntimeChannel, type RuntimeChannelDiagnostic } from "./runtimeC
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
 import { JourneySearchControl } from "./JourneySearchControl";
 import { JourneyItemCopy } from "./JourneyItemCopy";
+import { defaultNewJourneyParentId, sidebarToggleLabel } from "./journeySidebarPresentation";
 
 type AppProps = {
   model: NautilusViewModel;
@@ -323,6 +324,7 @@ export function App({ model }: AppProps) {
   });
   const [journeySearch, dispatchJourneySearch] = useReducer(journeySearchReducer, "");
   const [journeyListOrder, setJourneyListOrder] = useState<JourneyListOrder>(defaultJourneyPreferenceState.journeyListOrder);
+  const [sidebarCompact, setSidebarCompact] = useState(defaultJourneyPreferenceState.sidebarCompact);
   const [collapsedJourneyIds, setCollapsedJourneyIds] = useState<Set<string>>(() => new Set());
   const [pinnedOnly, setPinnedOnly] = useState(false);
   const [journeyTreeMenuOpen, setJourneyTreeMenuOpen] = useState(false);
@@ -824,6 +826,7 @@ export function App({ model }: AppProps) {
         recentJourneyIds: sanitizedPreferences.recentJourneyIds,
       });
       setJourneyListOrder(sanitizedPreferences.journeyListOrder);
+      setSidebarCompact(sanitizedPreferences.sidebarCompact);
       if (nextActiveJourney) {
         setSelectedJourney(nextActiveJourney);
         setDraft(restoredDrafts[nextActiveJourney] ?? "");
@@ -1127,8 +1130,9 @@ export function App({ model }: AppProps) {
     void saveJourneyPreferences({
       ...journeyPreferences,
       journeyListOrder,
+      sidebarCompact,
     });
-  }, [journeyPreferences, journeyListOrder, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, registryLoaded, preferencesLoaded]);
 
   useEffect(() => {
     if (!conversationLoaded || journeyThreadState.kind !== "ready" || runtimeBusy) return;
@@ -2393,16 +2397,26 @@ export function App({ model }: AppProps) {
 
   return (
     <main
-      className={`app-shell altitude-${selectedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${isJourneyReloading ? "is-busy" : ""}`}
+      className={`app-shell altitude-${selectedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
       data-runtime-channel={runtimeChannel?.channel}
     >
       <aside className="journey-sidebar" aria-label="Journeys">
         <div className="brand-block">
           <img className="brand-mark" src={developmentChannel ? devAppIconUrl : appIconUrl} alt="" aria-hidden="true" />
-          <div>
+          <div className="brand-copy">
             <strong>Nautilus {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</strong>
             <small>{developmentChannel ? "Development cockpit" : "Journey cockpit"}</small>
           </div>
+          <button
+            className="sidebar-toggle-button"
+            type="button"
+            onClick={() => setSidebarCompact((compact) => !compact)}
+            aria-label={sidebarToggleLabel(sidebarCompact)}
+            aria-expanded={!sidebarCompact}
+            title={sidebarToggleLabel(sidebarCompact)}
+          >
+            <span aria-hidden="true">{sidebarCompact ? "›" : "‹"}</span>
+          </button>
         </div>
 
         <JourneySearchControl
@@ -2422,8 +2436,11 @@ export function App({ model }: AppProps) {
               setJourneyTreeMenuOpen(false);
             }}
             aria-pressed={!pinnedOnly && journeyListOrder === "recent"}
+            aria-label="Show Recent Journeys"
+            title="Recent"
           >
-            Recent
+            <span className="journey-order-icon" aria-hidden="true">◷</span>
+            <span className="journey-order-label">Recent</span>
           </button>
           <button
             className={pinnedOnly ? "selected" : ""}
@@ -2434,8 +2451,11 @@ export function App({ model }: AppProps) {
               setJourneyTreeMenuOpen(false);
             }}
             aria-pressed={pinnedOnly}
+            aria-label="Show Pinned Journeys"
+            title="Pinned"
           >
-            Pinned
+            <span className="journey-order-icon" aria-hidden="true">◆</span>
+            <span className="journey-order-label">Pinned</span>
           </button>
           <button
             ref={journeyTreeButtonRef}
@@ -2455,8 +2475,11 @@ export function App({ model }: AppProps) {
             aria-pressed={!pinnedOnly && journeyListOrder === "tree"}
             aria-haspopup="menu"
             aria-expanded={journeyTreeMenuOpen}
+            aria-label="Show Journey tree"
+            title="Tree"
           >
-            Tree
+            <span className="journey-order-icon" aria-hidden="true">⌘</span>
+            <span className="journey-order-label">Tree</span>
           </button>
           {journeyTreeMenuOpen ? (
             <div className="journey-tree-context-menu" role="menu" ref={journeyTreeMenuRef} aria-label="Journey tree options">
@@ -2515,6 +2538,7 @@ export function App({ model }: AppProps) {
                 style={{ "--journey-depth": journeyListOrder === "tree" ? journey.depth : 0 } as CSSProperties & Record<"--journey-depth", number>}
                 role="button"
                 tabIndex={0}
+                aria-label={`${journey.name}${runtimeOwnerPhase ? `, ${runtimeOwnerPhase === "running" ? "Working" : "Recording"}` : ""}`}
                 draggable={journeyListOrder === "tree" && !runtimeBusy}
                 onDragStart={() => setDraggedJourneyId(journey.id)}
                 onDragOver={(event) => { if (draggedJourneyId && draggedJourneyId !== journey.id) event.preventDefault(); }}
@@ -2613,14 +2637,23 @@ export function App({ model }: AppProps) {
         ) : null}
         <div className="sidebar-footer">
           <button
-            className="sidebar-settings-button"
+            className="sidebar-action-button"
+            type="button"
+            onClick={() => openCreateJourney(defaultNewJourneyParentId(journeyListOrder, pinnedOnly, selectedJourney))}
+            disabled={runtimeBusy}
+            aria-label="Create new Journey"
+            title="New Journey"
+          >
+            <span aria-hidden="true">＋</span>
+          </button>
+          <button
+            className="sidebar-action-button"
             type="button"
             onClick={() => setSettingsOpen(true)}
             aria-label="Open settings"
             title="Settings"
           >
             <span aria-hidden="true">⚙</span>
-            <span>Settings</span>
           </button>
         </div>
       </aside>

@@ -17,6 +17,7 @@ describe("Journey preference persistence", () => {
           activeJourneyId: "nautilus-harness",
           recentJourneyIds: ["amplia"],
           journeyListOrder: "tree",
+          sidebarCompact: true,
         },
         new Date("2026-08-23T10:00:00.000Z"),
       ),
@@ -27,6 +28,7 @@ describe("Journey preference persistence", () => {
         activeJourneyId: "nautilus-harness",
         recentJourneyIds: ["amplia"],
         journeyListOrder: "tree",
+        sidebarCompact: true,
       },
       savedAt: "2026-08-23T10:00:00.000Z",
     });
@@ -45,17 +47,17 @@ describe("Journey preference persistence", () => {
         savedAt: "2026-08-23T10:00:00.000Z",
       })?.preferences.journeyListOrder,
     ).toBe("recent");
-    expect(
-      parsePersistedJourneyPreferences({
-        schemaVersion: "0.1.0",
-        preferences: {
-          pinnedJourneyIds: [],
-          recentJourneyIds: [],
-          journeyListOrder: "tree",
-        },
-        savedAt: "2026-08-23T10:00:00.000Z",
-      })?.preferences.journeyListOrder,
-    ).toBe("tree");
+    const legacyPreferences = parsePersistedJourneyPreferences({
+      schemaVersion: "0.1.0",
+      preferences: {
+        pinnedJourneyIds: [],
+        recentJourneyIds: [],
+        journeyListOrder: "tree",
+      },
+      savedAt: "2026-08-23T10:00:00.000Z",
+    })?.preferences;
+    expect(legacyPreferences?.journeyListOrder).toBe("tree");
+    expect(legacyPreferences?.sidebarCompact).toBe(false);
   });
 
   it("rejects malformed or unsupported preferences", () => {
@@ -85,6 +87,7 @@ describe("Journey preference persistence", () => {
           activeJourneyId: "missing",
           recentJourneyIds: ["amplia", "missing", "amplia", "mirror-dev"],
           journeyListOrder: "tree",
+          sidebarCompact: true,
         },
         fixtureJourneyRegistry,
       ),
@@ -93,6 +96,7 @@ describe("Journey preference persistence", () => {
       activeJourneyId: defaultJourneyPreferenceState.activeJourneyId,
       recentJourneyIds: ["amplia", "mirror-dev"],
       journeyListOrder: "tree",
+      sidebarCompact: true,
     });
   });
 });

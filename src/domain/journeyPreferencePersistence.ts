@@ -4,6 +4,7 @@ export type PersistedJourneyPreferences = {
   schemaVersion: "0.1.0";
   preferences: JourneyPreferences & {
     journeyListOrder: JourneyListOrder;
+    sidebarCompact: boolean;
   };
   savedAt: string;
 };
@@ -15,6 +16,7 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   activeJourneyId: "nautilus-harness",
   recentJourneyIds: ["nautilus", "livro-lideranca-soberana", "amplia", "mirror-dev", "softwarezen", "ariad"],
   journeyListOrder: "recent",
+  sidebarCompact: false,
 };
 
 export function createPersistedJourneyPreferences(
@@ -42,7 +44,8 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
   const pinnedJourneyIds = parseStringArray(preferences.pinnedJourneyIds);
   const recentJourneyIds = parseStringArray(preferences.recentJourneyIds);
   const journeyListOrder = parseJourneyListOrder(preferences.journeyListOrder);
-  if (!pinnedJourneyIds || !recentJourneyIds || !journeyListOrder) {
+  const sidebarCompact = preferences.sidebarCompact === undefined ? false : preferences.sidebarCompact;
+  if (!pinnedJourneyIds || !recentJourneyIds || !journeyListOrder || typeof sidebarCompact !== "boolean") {
     return undefined;
   }
 
@@ -61,6 +64,7 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       activeJourneyId: preferences.activeJourneyId,
       recentJourneyIds,
       journeyListOrder,
+      sidebarCompact,
     },
     savedAt: record.savedAt,
   };
@@ -78,6 +82,7 @@ export function sanitizeJourneyPreferenceState(
         : defaultJourneyPreferenceState.activeJourneyId,
     recentJourneyIds: uniqueExistingJourneyIds(preferences.recentJourneyIds, registry),
     journeyListOrder: preferences.journeyListOrder,
+    sidebarCompact: preferences.sidebarCompact,
   };
 }
 

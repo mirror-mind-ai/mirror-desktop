@@ -12,6 +12,7 @@ describe("Journey management guardrails", () => {
       activeJourneyId: "nautilus-harness",
       recentJourneyIds: ["amplia"],
       journeyListOrder: "tree",
+      sidebarCompact: true,
     });
 
     expect(Object.keys(persisted.preferences).sort()).toEqual([
@@ -19,6 +20,7 @@ describe("Journey management guardrails", () => {
       "journeyListOrder",
       "pinnedJourneyIds",
       "recentJourneyIds",
+      "sidebarCompact",
     ]);
     expect(JSON.stringify(persisted).toLowerCase()).not.toMatch(/api[_-]?key|token|secret|password|env/);
   });
