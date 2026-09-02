@@ -108,6 +108,16 @@ describe("Journey administration boundary", () => {
     expect(appSource).toContain("Journey ID and slug remain unchanged");
   });
 
+  it("keeps mutation failures inside the open administration form", () => {
+    const mutationFlow = appSource.slice(
+      appSource.indexOf("async function executeJourneyMutation"),
+      appSource.indexOf("async function submitJourneyAdministration"),
+    );
+    expect(mutationFlow).toContain("setJourneyAdminMessage(message)");
+    expect(mutationFlow).not.toContain('setJourneyRegistryRefreshState("failed")');
+    expect(mutationFlow).not.toContain("setJourneyRegistryRefreshMessage(message)");
+  });
+
   it("offers guarded destructive deletion for leaves and replaces active selection safely", () => {
     expect(appSource).toContain("Delete Journey…");
     expect(appSource).toContain('role={journeyAdminDialog.mode === "delete" ? "alertdialog" : "dialog"}');

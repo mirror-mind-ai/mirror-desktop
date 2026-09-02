@@ -2386,7 +2386,6 @@ export function App({ model }: AppProps) {
     } catch (error) {
       const message = journeyAdministrationError(error);
       setJourneyAdminState("failed"); setJourneyAdminMessage(message);
-      setJourneyRegistryRefreshState("failed"); setJourneyRegistryRefreshMessage(message);
     }
   }
 

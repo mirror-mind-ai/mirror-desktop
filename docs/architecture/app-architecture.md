@@ -141,8 +141,10 @@ lossless editable description content and stable sibling position. Every mutatio
 carries that source version and native Journey IDs. Edit Journey keeps the id and
 slug read-only, leaves hierarchy to the directed move operation and updates the
 canonical heading, Description section, display metadata and optional project
-path in one Mirror transaction. A stale or malformed result leaves the prior desktop registry
-intact. Creation remains identity-only and cannot provision repositories, files, Pi
+path in one Mirror transaction. Legacy Journey prose is normalized without being
+discarded. A failed form submission remains visible inside that administration
+form and does not also leak into the sidebar registry-status surface. A stale or
+malformed result leaves the prior desktop registry intact. Creation remains identity-only and cannot provision repositories, files, Pi
 sessions, Mirror conversations or dedicated Nautilus threads. The desktop does
 not expose zero-based sibling position during creation: it derives append
 placement from the selected parent's direct child count and recalculates it when
