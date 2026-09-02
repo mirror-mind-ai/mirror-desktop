@@ -6,7 +6,6 @@ import {
   derivePiInvocationAdmission,
   hasBlockingPiInvocationOccupancy,
   retainExpectedPiInvocationLease,
-  resolveExactInterruptedRecovery,
   resolveExactSettlementRecovery,
   releaseAndReinspectPiInvocationLease,
   shouldRehydratePiProcessRoute,
@@ -84,21 +83,6 @@ describe("native Pi invocation occupancy", () => {
     expect(resolveExactSettlementRecovery(occupied, "journey-b", evidence)).toBeNull();
     expect(resolveExactSettlementRecovery(occupied, "journey-a", { ...evidence, generation: 3 })).toBeNull();
     expect(resolveExactSettlementRecovery(occupied, "journey-a", { ...evidence, turnId: "stale" })).toBeNull();
-  });
-
-  it("requires an interrupted native terminal for interrupted-save recovery", () => {
-    const completed = applyPiInvocationInspection(beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 1), 1, inspection());
-    expect(resolveExactInterruptedRecovery(completed, "journey-a", authority)).toBeNull();
-    const cancelled = applyPiInvocationInspection(beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 2), 2, inspection({
-      entries: [{
-        authority,
-        leasePhase: "finalizing",
-        processCapacityState: "released",
-        cancellationState: "requested",
-        terminalState: "cancelled",
-      }],
-    }));
-    expect(resolveExactInterruptedRecovery(cancelled, "journey-a", authority)?.terminalState).toBe("cancelled");
   });
 
   it("never rehydrates a route for a terminal finalizing lease", () => {

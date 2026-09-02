@@ -52,33 +52,6 @@ export function resolveRetainedLeaseForOutboxRecovery(
   )) ?? null;
 }
 
-export function resolveCommittedLeaseBeforeInvocation(
-  inspection: PiInvocationRegistryInspection,
-  projection: JourneyConversation,
-): PiInvocationLeaseInspection | null {
-  const turn = projection.reconciliation.turns.at(-1);
-  if (!turn?.runId
-    || turn.harness.state !== "committed"
-    || turn.pi.state !== "committed"
-    || turn.mirror.state !== "committed"
-    || !turn.harness.userMessageId
-    || !turn.harness.assistantMessageId) return null;
-  return inspection.entries.find((lease) => (
-    lease.leasePhase === "finalizing"
-    && lease.processCapacityState === "released"
-    && lease.terminalState === "completed"
-    && lease.authority.journeyId === projection.journeyId
-    && lease.authority.runId === turn.runId
-    && lease.authority.turnId === turn.turnId
-    && lease.authority.threadId === projection.id
-    && lease.authority.generation === projection.liveIdentity.generation
-    && lease.authority.piSessionId === projection.liveIdentity.piSessionId
-    && lease.authority.mirrorConversationId === projection.liveIdentity.mirrorConversationId
-    && lease.authority.harnessUserMessageId === turn.harness.userMessageId
-    && lease.authority.harnessAssistantMessageId === turn.harness.assistantMessageId
-  )) ?? null;
-}
-
 export function resolvePersistedSettlementRecovery(
   projection: JourneyConversation | undefined,
   outbox: MirrorAppendOutboxSummary,

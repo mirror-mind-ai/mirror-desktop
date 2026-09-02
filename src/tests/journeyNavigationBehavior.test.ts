@@ -3,9 +3,10 @@ import { startAgentRun } from "../agent/agentRun";
 import {
   createJourneyConversationLoadCoordinator,
   deriveJourneyNavigationPresentation,
+  journeySearchReducer,
   resolveJourneyConversationRestore,
   resolveJourneySelection,
-  shouldRecoverPersistedPiTranscript,
+  shouldRecoverDurableTurnJournal,
   shouldSubmitJourneyDraft,
 } from "../app/journeyNavigationCoordinator";
 import {
@@ -87,26 +88,26 @@ function inactiveConversation(journeyId: string, content: string): JourneyConver
 }
 
 describe("Journey navigation behavior under serial occupancy", () => {
-  it("does not restart persisted transcript recovery when an in-session reservation changes", () => {
-    expect(shouldRecoverPersistedPiTranscript({
+  it("recovers from the journal only without a live exact native execution", () => {
+    expect(shouldRecoverDurableTurnJournal({
       allowPersistedRecovery: true,
       nativeInspectionStatus: "known",
-      ownerHasNativeLease: false,
+      ownerHasLiveNativeExecution: false,
     })).toBe(true);
-    expect(shouldRecoverPersistedPiTranscript({
+    expect(shouldRecoverDurableTurnJournal({
       allowPersistedRecovery: true,
       nativeInspectionStatus: "known",
-      ownerHasNativeLease: true,
+      ownerHasLiveNativeExecution: true,
     })).toBe(false);
-    expect(shouldRecoverPersistedPiTranscript({
+    expect(shouldRecoverDurableTurnJournal({
       allowPersistedRecovery: false,
       nativeInspectionStatus: "known",
-      ownerHasNativeLease: false,
+      ownerHasLiveNativeExecution: false,
     })).toBe(false);
-    expect(shouldRecoverPersistedPiTranscript({
+    expect(shouldRecoverDurableTurnJournal({
       allowPersistedRecovery: true,
       nativeInspectionStatus: "reconciling",
-      ownerHasNativeLease: false,
+      ownerHasLiveNativeExecution: false,
     })).toBe(false);
   });
 
@@ -246,6 +247,17 @@ describe("Journey navigation behavior under serial occupancy", () => {
     expect(coordinator.isCurrent(newA, "journey-a")).toBe(true);
     coordinator.cancel(newA);
     expect(coordinator.isCurrent(newA, "journey-a")).toBe(false);
+  });
+
+  it("preserves the active search across pointer and keyboard Journey selection until explicitly changed", () => {
+    const query = "mirror";
+
+    expect(journeySearchReducer(query, { type: "journey_selected", intent: "pointer" })).toBe(query);
+    expect(journeySearchReducer(query, { type: "journey_selected", intent: "keyboard-enter" })).toBe(query);
+    expect(journeySearchReducer(query, { type: "journey_selected", intent: "keyboard-space" })).toBe(query);
+    expect(journeySearchReducer(query, { type: "query_changed", query: "nautilus" })).toBe("nautilus");
+    expect(journeySearchReducer(query, { type: "clear_requested" })).toBe("");
+    expect(journeySearchReducer(query, { type: "query_changed", query: "" })).toBe("");
   });
 
   it("supports pointer and keyboard navigation while native admission decides free-Journey submission", () => {

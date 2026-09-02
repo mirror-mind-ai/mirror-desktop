@@ -21,11 +21,12 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(piProcessStreamSource).toContain("/skill:ext-nautilus-synthesis journey-id=");
   });
 
-  it("rechecks dedicated authority immediately before a live provider run", () => {
+  it("captures exact dedicated authority while leaving lifecycle admission to native journal", () => {
     expect(appSource).not.toContain("await refreshExternalConversationActivity()");
     expect(appSource).toContain("baseConversation = conversationRef.current");
     expect(appSource).toContain('journeyThreadState.kind !== "ready"');
-    expect(appSource).toContain("dedicatedTurnBlocksNewInvocation(classifyDedicatedTurnState(baseConversation))");
+    expect(appSource).not.toContain("dedicatedTurnBlocksNewInvocation(classifyDedicatedTurnState(baseConversation))");
+    expect(appSource).toContain("requireExactTurnJournalRecord(journal, settlementAuthority)");
     expect(appSource).toContain("createDedicatedTurnAuthority(");
     expect(appSource).toContain("Live invocation stopped because Journey conversation authority changed");
     expect(appSource).toContain("Recording the completed turn");

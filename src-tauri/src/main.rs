@@ -1,6 +1,7 @@
 mod agent_settings;
 mod pi_process_registry;
 mod runtime_channel;
+mod turn_journal;
 
 use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
 use pi_process_registry::{
@@ -11,6 +12,11 @@ use pi_process_registry::{
     ReserveThenStartError, RunTarget, TargetError, TerminalState, TerminalizeOutcome,
 };
 use runtime_channel::{RuntimeChannelDiagnostic, RuntimeChannelProfile};
+use turn_journal::{
+    admit_turn, read_turn_journal, transition_turn, TurnJournalAuthority,
+    TurnJournalDocument, TurnJournalRecord, TurnPhase, TurnPiExecutionEvidence,
+    TurnRecoveryDisposition, TurnTerminalEvidence, TurnTerminalOutcome, TurnTransitionRequest,
+};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use chrono::{SecondsFormat, Utc};
 use image::{ImageFormat, ImageReader};
@@ -45,6 +51,7 @@ const COMPOSER_DRAFTS_FILE: &str = "composer-drafts.json";
 const COMPOSER_DRAFTS_MAX_BYTES: usize = 1024 * 1024;
 const COMPOSER_DRAFT_MAX_CHARS: usize = 51_200;
 const COMPOSER_DRAFT_MAX_JOURNEYS: usize = 256;
+const TURN_JOURNAL_DIRECTORY: &str = "turn-journal";
 
 type PiChildHandle = Arc<Mutex<Child>>;
 
@@ -1670,6 +1677,173 @@ fn open_external_url(url: String) -> Result<(), String> {
     open_url(validated.as_str())
 }
 
+fn journal_authority(value: &RunAuthority) -> TurnJournalAuthority {
+    TurnJournalAuthority {
+        schema_version: "0.1.0".to_string(),
+        journey_id: value.journey_id.clone(),
+        run_id: value.run_id.clone(),
+        turn_id: value.turn_id.clone(),
+        thread_id: value.thread_id.clone(),
+        generation: value.generation,
+        pi_session_id: value.pi_session_id.clone(),
+        mirror_conversation_id: value.mirror_conversation_id.clone(),
+        harness_user_message_id: value.harness_user_message_id.clone(),
+        harness_assistant_message_id: value.harness_assistant_message_id.clone(),
+    }
+}
+
+fn turn_journal_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
+    let safe_journey_id = sanitize_journey_id(journey_id)?;
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|_| "turn_journal_unavailable".to_string())?
+        .join(TURN_JOURNAL_DIRECTORY)
+        .join(format!("{}.json", safe_journey_id)))
+}
+
+fn with_turn_journal_lock<T>(
+    app: &AppHandle,
+    authority: &TurnJournalAuthority,
+    operation: impl FnOnce(&Path) -> Result<T, String>,
+) -> Result<T, String> {
+    let persistence = app.state::<JourneyProjectionPersistenceState>();
+    let stripe = persistence.stripe(&authority.journey_id, 0);
+    let _guard = persistence.stripes[stripe]
+        .lock()
+        .map_err(|_| "turn_journal_unavailable".to_string())?;
+    operation(&turn_journal_path(app, &authority.journey_id)?)
+}
+
+fn admit_turn_journal(app: &AppHandle, run_authority: &RunAuthority) -> Result<TurnJournalRecord, String> {
+    let authority = journal_authority(run_authority);
+    with_turn_journal_lock(app, &authority, |path| admit_turn(path, authority.clone(), None))
+}
+
+fn event_journal_authority(authority: &PiProcessEventAuthority) -> TurnJournalAuthority {
+    TurnJournalAuthority {
+        schema_version: authority.schema_version.clone(),
+        journey_id: authority.journey_id.clone(),
+        run_id: authority.run_id.clone(),
+        turn_id: authority.turn_id.clone(),
+        thread_id: authority.thread_id.clone(),
+        generation: authority.generation,
+        pi_session_id: authority.pi_session_id.clone(),
+        mirror_conversation_id: authority.mirror_conversation_id.clone(),
+        harness_user_message_id: authority.harness_user_message_id.clone(),
+        harness_assistant_message_id: authority.harness_assistant_message_id.clone(),
+    }
+}
+
+fn transition_running_journal(app: &AppHandle, authority: &PiProcessEventAuthority) -> Result<(), String> {
+    let journal_authority = event_journal_authority(authority);
+    with_turn_journal_lock(app, &journal_authority, |path| {
+        let record = read_turn_journal(path)?.records.into_iter()
+            .find(|record| record.authority == journal_authority)
+            .ok_or_else(|| "turn_journal_record_missing".to_string())?;
+        if record.phase == TurnPhase::Running {
+            return Ok(());
+        }
+        transition_turn(path, &journal_authority, TurnTransitionRequest {
+            expected_revision: record.revision,
+            expected_phase: TurnPhase::Admitted,
+            next_phase: TurnPhase::Running,
+            receipt_id: format!("running-{}", authority.run_id),
+            terminal_outcome: None,
+            terminal_evidence: None,
+            cancellation_intent: None,
+            recovery_disposition: Some(TurnRecoveryDisposition::ResumeExecution),
+        }).map(|_| ())
+    })
+}
+
+fn request_cancellation_journal(
+    app: &AppHandle,
+    authority: &PiProcessEventAuthority,
+) -> Result<(), String> {
+    let journal_authority = event_journal_authority(authority);
+    with_turn_journal_lock(app, &journal_authority, |path| {
+        let record = read_turn_journal(path)?.records.into_iter()
+            .find(|record| record.authority == journal_authority)
+            .ok_or_else(|| "turn_journal_record_missing".to_string())?;
+        if record.cancellation_intent == turn_journal::TurnCancellationIntent::Requested {
+            return Ok(());
+        }
+        if !matches!(record.phase, TurnPhase::Admitted | TurnPhase::Running) {
+            return Err("turn_journal_cancellation_stale".to_string());
+        }
+        transition_turn(path, &journal_authority, TurnTransitionRequest {
+            expected_revision: record.revision,
+            expected_phase: record.phase,
+            next_phase: record.phase,
+            receipt_id: format!("cancellation-{}", authority.run_id),
+            terminal_outcome: None,
+            terminal_evidence: None,
+            cancellation_intent: Some(turn_journal::TurnCancellationIntent::Requested),
+            recovery_disposition: Some(TurnRecoveryDisposition::ResumeExecution),
+        }).map(|_| ())
+    })
+}
+
+fn adopt_terminal_journal(
+    app: &AppHandle,
+    authority: &PiProcessEventAuthority,
+    terminal: TerminalState,
+    evidence: TurnTerminalEvidence,
+) -> Result<(), String> {
+    let journal_authority = event_journal_authority(authority);
+    let outcome = match terminal {
+        TerminalState::Completed => TurnTerminalOutcome::Completed,
+        TerminalState::Cancelled => TurnTerminalOutcome::Cancelled,
+        TerminalState::SpawnFailed => TurnTerminalOutcome::SpawnFailed,
+        TerminalState::ProcessDied => TurnTerminalOutcome::ProcessDied,
+        TerminalState::Open => return Err("turn_journal_terminal_invalid".to_string()),
+    };
+    with_turn_journal_lock(app, &journal_authority, |path| {
+        let record = read_turn_journal(path)?.records.into_iter()
+            .find(|record| record.authority == journal_authority)
+            .ok_or_else(|| "turn_journal_record_missing".to_string())?;
+        if record.phase == TurnPhase::TerminalDurable && record.terminal_outcome == Some(outcome) {
+            return Ok(());
+        }
+        if record.terminal_outcome.is_some() {
+            return Err("turn_journal_terminal_conflict".to_string());
+        }
+        transition_turn(path, &journal_authority, TurnTransitionRequest {
+            expected_revision: record.revision,
+            expected_phase: record.phase,
+            next_phase: TurnPhase::TerminalDurable,
+            receipt_id: format!("terminal-{}-{:?}", authority.run_id, outcome).to_ascii_lowercase(),
+            terminal_outcome: Some(outcome),
+            terminal_evidence: Some(evidence),
+            cancellation_intent: None,
+            recovery_disposition: Some(TurnRecoveryDisposition::ResumeProjection),
+        }).map(|_| ())
+    })
+}
+
+#[tauri::command]
+fn list_turn_journal(app: AppHandle, journey_id: String) -> Result<TurnJournalDocument, String> {
+    let path = turn_journal_path(&app, &journey_id)?;
+    let persistence = app.state::<JourneyProjectionPersistenceState>();
+    let stripe = persistence.stripe(&journey_id, 0);
+    let _guard = persistence.stripes[stripe]
+        .lock()
+        .map_err(|_| "turn_journal_unavailable".to_string())?;
+    read_turn_journal(&path)
+}
+
+#[tauri::command]
+fn transition_turn_journal(
+    app: AppHandle,
+    run_authority: RunAuthority,
+    request: TurnTransitionRequest,
+) -> Result<TurnJournalRecord, String> {
+    validate_run_authority(&app, &run_authority)?;
+    let authority = journal_authority(&run_authority);
+    with_turn_journal_lock(&app, &authority, |path| transition_turn(path, &authority, request))
+}
+
 fn event_authority(value: &RunAuthority) -> PiProcessEventAuthority {
     PiProcessEventAuthority {
         schema_version: "0.1.0".to_string(),
@@ -1713,6 +1887,7 @@ fn start_pi_invocation(
         run_authority.clone(),
         config.clone(),
         move |target| {
+            admit_turn_journal(&app, &run_authority)?;
             let target = target.clone();
             thread::Builder::new()
                 .name(worker_name)
@@ -1726,6 +1901,7 @@ fn start_pi_invocation(
                     authority,
                 ))
                 .map(|_| ())
+                .map_err(|error| error.to_string())
         },
     ) {
         Ok(_) => Ok(()),
@@ -1739,7 +1915,25 @@ fn start_pi_invocation(
         Err(ReserveThenStartError::Start { error, first_terminal, .. }) => {
             if first_terminal {
                 emit(&fallback_app, &fallback_authority, PiProcessEventKind::Error, format!("Could not start Pi worker: {}", error));
-                emit(&fallback_app, &fallback_authority, PiProcessEventKind::Done, "Pi invocation finished.".to_string());
+                match adopt_terminal_journal(
+                    &fallback_app,
+                    &fallback_authority,
+                    TerminalState::SpawnFailed,
+                    empty_terminal_evidence(),
+                ) {
+                    Ok(()) => emit(
+                        &fallback_app,
+                        &fallback_authority,
+                        PiProcessEventKind::Done,
+                        "Pi invocation finished.".to_string(),
+                    ),
+                    Err(journal_error) => emit(
+                        &fallback_app,
+                        &fallback_authority,
+                        PiProcessEventKind::Error,
+                        format!("Terminal turn evidence was not durable; native lease retained: {}", journal_error),
+                    ),
+                }
             }
             Err("Could not start the local Pi worker.".to_string())
         }
@@ -1950,10 +2144,9 @@ fn cancel_pi_invocation(
     run_id: String,
 ) -> Result<(), String> {
     let target = RunTarget::new(journey_id, run_id);
-    let (authority, outcome, child_handle) = {
-        let mut registry = state.registry.lock()
-            .map_err(|_| "Could not access the Pi process registry.".to_string())?;
-        let authority = registry.inspect().entries.into_iter()
+    let authority = state.registry.lock()
+        .map_err(|_| "Could not access the Pi process registry.".to_string())?
+        .inspect().entries.into_iter()
             .find(|entry| entry.authority.journey_id == target.journey_id && entry.authority.run_id == target.run_id)
             .map(|entry| PiProcessEventAuthority {
                 schema_version: entry.authority.schema_version,
@@ -1968,13 +2161,17 @@ fn cancel_pi_invocation(
                 harness_assistant_message_id: entry.authority.harness_assistant_message_id,
             })
             .ok_or_else(|| "The targeted Pi invocation does not exist or was replaced.".to_string())?;
+    request_cancellation_journal(&app, &authority)?;
+    let (outcome, child_handle) = {
+        let mut registry = state.registry.lock()
+            .map_err(|_| "Could not access the Pi process registry.".to_string())?;
         let outcome = registry.request_cancel(&target).map_err(target_error_message)?;
         let child_handle = if outcome == CancelOutcome::RequestedRunning {
             Some(registry.child_handle(&target).map_err(target_error_message)?)
         } else {
             None
         };
-        (authority, outcome, child_handle)
+        (outcome, child_handle)
     };
     if let Some(child_handle) = child_handle {
         control_child_handle(&child_handle, |child| child.kill())
@@ -2651,6 +2848,45 @@ fn mirror_runtime_skill_paths() -> Result<Vec<PathBuf>, String> {
     Ok(paths)
 }
 
+fn empty_terminal_evidence() -> TurnTerminalEvidence {
+    TurnTerminalEvidence {
+        legacy_stdout: String::new(),
+        legacy_stderr: String::new(),
+        legacy_stdout_truncated: false,
+        legacy_stderr_truncated: false,
+        captured_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
+        pi_execution: None,
+    }
+}
+
+fn bounded_utf8(value: &str, max_bytes: usize) -> String {
+    if value.len() <= max_bytes {
+        return value.to_string();
+    }
+    let boundary = value.char_indices()
+        .map(|(index, _)| index)
+        .take_while(|index| *index <= max_bytes)
+        .last()
+        .unwrap_or(0);
+    value[..boundary].to_string()
+}
+
+fn terminal_pi_execution_evidence(run_authority: &RunAuthority) -> Option<TurnPiExecutionEvidence> {
+    let content = fs::read_to_string(&run_authority.pi_session_file).ok()?;
+    let turn = project_complete_pi_transcript(&content).ok()?.pop()?;
+    let output_truncated = turn.assistant_text.len() > 65_536;
+    Some(TurnPiExecutionEvidence {
+        user_entry_id: turn.user_entry_id,
+        assistant_entry_id: turn.assistant_entry_id.clone(),
+        leaf_entry_id: turn.assistant_entry_id,
+        entry_count: turn.entry_count,
+        assistant_text: bounded_utf8(&turn.assistant_text, 65_536),
+        assistant_text_truncated: output_truncated,
+        started_at: turn.started_at,
+        committed_at: turn.committed_at,
+    })
+}
+
 fn terminalize_pi_process(
     registry: &Arc<Mutex<PiProcessRegistry<RunAuthority, PiChildHandle, ProviderConfig>>>,
     target: &RunTarget,
@@ -2670,7 +2906,15 @@ fn fail_pi_process_before_completion(
 ) {
     if terminalize_pi_process(registry, target, TerminalState::SpawnFailed) {
         emit(app, authority, PiProcessEventKind::Error, message);
-        emit(app, authority, PiProcessEventKind::Done, "Pi invocation finished.".to_string());
+        match adopt_terminal_journal(app, authority, TerminalState::SpawnFailed, empty_terminal_evidence()) {
+            Ok(()) => emit(app, authority, PiProcessEventKind::Done, "Pi invocation finished.".to_string()),
+            Err(error) => emit(
+                app,
+                authority,
+                PiProcessEventKind::Error,
+                format!("Terminal turn evidence was not durable; native lease retained: {}", error),
+            ),
+        }
     }
 }
 
@@ -2683,6 +2927,16 @@ fn run_pi_process(
     run_authority: RunAuthority,
     authority: PiProcessEventAuthority,
 ) {
+    if let Err(error) = transition_running_journal(&app, &authority) {
+        fail_pi_process_before_completion(
+            &app,
+            &registry,
+            &target,
+            &authority,
+            format!("Could not durably start turn lifecycle: {}", error),
+        );
+        return;
+    }
     let mirror_mediated = config.invocation_mode == "mirror" && !config.safe_test_mode;
     let command = if config.safe_test_mode {
         "cat".to_string()
@@ -2813,7 +3067,8 @@ fn run_pi_process(
             for line in BufReader::new(stdout).lines() {
                 match line {
                     Ok(line) => {
-                        emit(&app, &authority, PiProcessEventKind::Stdout, format!("{}\n", line));
+                        let content = format!("{}\n", line);
+                        emit(&app, &authority, PiProcessEventKind::Stdout, content);
                     }
                     Err(error) => emit(
                         &app,
@@ -2932,12 +3187,24 @@ fn run_pi_process(
             }
 
             if first_terminal {
-                emit(
-                    &app,
-                    &authority,
-                    PiProcessEventKind::Done,
-                    "Pi invocation finished.".to_string(),
-                );
+                let mut evidence = empty_terminal_evidence();
+                if terminal_state == TerminalState::Completed {
+                    evidence.pi_execution = terminal_pi_execution_evidence(&run_authority);
+                }
+                match adopt_terminal_journal(&app, &authority, terminal_state, evidence) {
+                    Ok(()) => emit(
+                        &app,
+                        &authority,
+                        PiProcessEventKind::Done,
+                        "Pi invocation finished.".to_string(),
+                    ),
+                    Err(error) => emit(
+                        &app,
+                        &authority,
+                        PiProcessEventKind::Error,
+                        format!("Terminal turn evidence was not durable; native lease retained: {}", error),
+                    ),
+                }
             }
         },
     );
@@ -3415,6 +3682,7 @@ fn validate_active_pre_frontier_rollback_at(
     Ok(())
 }
 
+#[cfg(test)]
 fn merge_persisted_mirror_evidence(
     persisted: &Value,
     candidate: &mut Value,
@@ -4048,6 +4316,8 @@ fn main() {
             open_journey_document,
             open_external_url,
             start_pi_invocation,
+            list_turn_journal,
+            transition_turn_journal,
             read_pi_session_context_stats,
             load_dedicated_pi_transcript,
             enqueue_mirror_append_item,

@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  resolveCommittedLeaseBeforeInvocation,
   resolvePersistedSettlementRecovery,
   resolveRetainedLeaseForOutboxRecovery,
 } from "../app/journeySettlementRecovery";
@@ -111,40 +110,6 @@ describe("persisted settlement restart recovery", () => {
       entries: [{ ...exactLease, leasePhase: "running", processCapacityState: "running", terminalState: "open" }],
       processCapacityInUse: 1,
     }, authority)).toBeNull();
-  });
-
-  it("releases only the exact committed completed lease before another invocation", () => {
-    const { projection, authority } = fixture();
-    const committedProjection = {
-      ...projection,
-      reconciliation: {
-        ...projection.reconciliation,
-        turns: projection.reconciliation.turns.map((turn) => ({
-          ...turn,
-          mirror: { state: "committed" as const, userMessageId: authority.harnessUserMessageId,
-            assistantMessageId: authority.harnessAssistantMessageId, committedAt: "2026-09-01T10:00:04Z" },
-        })),
-      },
-    };
-    const lease = {
-      authority: {
-        schemaVersion: "0.1.0" as const, journeyId: authority.journeyId, runId: authority.runId,
-        turnId: authority.turnId, threadId: authority.threadId, generation: authority.generation,
-        piSessionId: authority.piSessionId, mirrorConversationId: authority.mirrorConversationId,
-        harnessUserMessageId: authority.harnessUserMessageId,
-        harnessAssistantMessageId: authority.harnessAssistantMessageId,
-      },
-      leasePhase: "finalizing" as const, processCapacityState: "released" as const,
-      cancellationState: "none" as const, terminalState: "completed" as const,
-    };
-    const inspection = { schemaVersion: "0.1.0" as const, limit: 2, processCapacityInUse: 0, entries: [lease] };
-
-    expect(resolveCommittedLeaseBeforeInvocation(inspection, committedProjection)).toEqual(lease);
-    expect(resolveCommittedLeaseBeforeInvocation({
-      ...inspection,
-      entries: [{ ...lease, authority: { ...lease.authority, runId: "stale-run" } }],
-    }, committedProjection)).toBeNull();
-    expect(resolveCommittedLeaseBeforeInvocation(inspection, projection)).toBeNull();
   });
 
   it("fails closed with bounded diagnostics when projection evidence is missing or contradictory", () => {

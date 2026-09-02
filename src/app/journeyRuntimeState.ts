@@ -200,10 +200,12 @@ export function isJourneyRuntimeActiveOrFinalizing(entry: JourneyRuntimeEntry): 
   return entry.isStreaming || entry.isFinalizingTurn || entry.agentRun.status === "running";
 }
 
+export type JourneyRuntimeOwnerPhase = "running" | "finalizing";
+
 export function selectJourneyRuntimeOwnerPhase(
   state: JourneyRuntimeState,
   journeyId: string,
-): "running" | "finalizing" | undefined {
+): JourneyRuntimeOwnerPhase | undefined {
   const entry = state.entries[journeyId];
   if (!entry) return undefined;
   if (entry.isFinalizingTurn) return "finalizing";

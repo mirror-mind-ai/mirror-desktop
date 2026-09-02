@@ -2,7 +2,7 @@
 
 # DS-012.US-1 — Reliable Sequential Turn Settlement
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ---

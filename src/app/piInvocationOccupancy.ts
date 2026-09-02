@@ -333,12 +333,3 @@ export function shouldRehydratePiProcessRoute(
     && lease?.terminalState === "open"
     && (lease.leasePhase === "reserved" || lease.leasePhase === "running");
 }
-
-export function resolveExactInterruptedRecovery(
-  state: PiInvocationOccupancyState,
-  ownerJourneyId: string,
-  evidence: SettlementRecoveryEvidence,
-): PiInvocationLeaseInspection | null {
-  const lease = resolveExactSettlementRecovery(state, ownerJourneyId, evidence);
-  return lease && lease.terminalState !== "completed" ? lease : null;
-}

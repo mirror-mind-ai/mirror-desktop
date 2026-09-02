@@ -2,7 +2,7 @@
 
 # DS-012.TS-2 — Durable Native Terminal Adoption
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** Technical Story
 
 ---

@@ -55,7 +55,6 @@ import {
   hasBlockingPiInvocationOccupancy,
   piInvocationAuthorityFromRunAuthority,
   releaseAndReinspectPiInvocationLease,
-  resolveExactInterruptedRecovery,
   resolveExactSettlementRecovery,
   shouldRehydratePiProcessRoute,
   retainExpectedPiInvocationLease,
@@ -73,7 +72,6 @@ import {
 } from "./journeySettlement";
 import { journeyPersistenceCoordinator } from "./journeyPersistenceCoordinator";
 import {
-  resolveCommittedLeaseBeforeInvocation,
   resolvePersistedSettlementRecovery,
   resolveRetainedLeaseForOutboxRecovery,
 } from "./journeySettlementRecovery";
@@ -125,9 +123,10 @@ import { inferMessageSpeaker, stripMessageSpeakerSignature, withCertifiedPersona
 import {
   createJourneyConversationLoadCoordinator,
   deriveJourneyNavigationPresentation,
+  journeySearchReducer,
   resolveJourneyConversationRestore,
   resolveJourneySelection,
-  shouldRecoverPersistedPiTranscript,
+  shouldRecoverDurableTurnJournal,
   shouldSubmitJourneyDraft,
   type JourneyNavigationIntent,
 } from "./journeyNavigationCoordinator";
@@ -140,6 +139,13 @@ import {
 } from "./journeyConversationStorage";
 import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPreferenceStorage";
 import { loadComposerDrafts, saveComposerDrafts } from "./composerDraftStorage";
+import {
+  advanceTurnJournal,
+  decideTurnJournalRecovery,
+  decideTurnJournalTerminal,
+  loadTurnJournal,
+  requireExactTurnJournalRecord,
+} from "./turnJournal";
 import { listPiModels, loadAgentSettings, saveAgentSettings, type PiModelCatalogEntry } from "./agentSettingsStorage";
 import { loadJourneyRegistry, refreshJourneyRegistry } from "./journeyRegistryStorage";
 import { chooseProjectDirectory, mutateJourneyRegistry } from "./journeyMutationStorage";
@@ -227,6 +233,8 @@ import appIconUrl from "../../src-tauri/icons/icon.svg";
 import devAppIconUrl from "../../src-tauri/icons/dev/icon.svg";
 import { inspectRuntimeChannel, type RuntimeChannelDiagnostic } from "./runtimeChannelStorage";
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
+import { JourneySearchControl } from "./JourneySearchControl";
+import { JourneyRuntimeIndicator } from "./JourneyRuntimeIndicator";
 
 type AppProps = {
   model: NautilusViewModel;
@@ -313,7 +321,7 @@ export function App({ model }: AppProps) {
     activeJourneyId: defaultJourneyPreferenceState.activeJourneyId,
     recentJourneyIds: defaultJourneyPreferenceState.recentJourneyIds,
   });
-  const [journeySearch, setJourneySearch] = useState("");
+  const [journeySearch, dispatchJourneySearch] = useReducer(journeySearchReducer, "");
   const [journeyListOrder, setJourneyListOrder] = useState<JourneyListOrder>(defaultJourneyPreferenceState.journeyListOrder);
   const [collapsedJourneyIds, setCollapsedJourneyIds] = useState<Set<string>>(() => new Set());
   const [pinnedOnly, setPinnedOnly] = useState(false);
@@ -400,7 +408,6 @@ export function App({ model }: AppProps) {
   const journeyRuntimeStateRef = useRef(journeyRuntimeState);
   const conversationLoadCoordinatorRef = useRef(createJourneyConversationLoadCoordinator());
   const runStartReservationRef = useRef<JourneyRunIdentity | undefined>(undefined);
-  const liveInvocationPreflightRef = useRef<Readonly<{ journeyId: string }> | undefined>(undefined);
   const piInvocationInspectionSequenceRef = useRef(0);
   conversationRef.current = conversation;
   selectedJourneyRef.current = selectedJourney;
@@ -462,10 +469,9 @@ export function App({ model }: AppProps) {
     || navigationPresentation.runtimeBusy
     || hasBlockingPiInvocationOccupancy(piInvocationOccupancy);
   const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime);
-  const piInvocationAdmission = derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney);
+  const piInvocationPresentation = derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney);
   const selectedInvocationAdmissionBlocked = Boolean(runStartReservation)
-    || selectedRuntimeBusy
-    || !piInvocationAdmission.allowed;
+    || selectedRuntimeBusy;
   const mirrorCommitError = navigationPresentation.mirrorCommitError;
   const messages = navigationPresentation.messages;
   const presentedImportedActivity = navigationPresentation.conversation?.importedActivity?.events;
@@ -514,46 +520,12 @@ export function App({ model }: AppProps) {
   const exactRetainedSettlementRecovery = pendingSettlementRecoveryEvidence
     ? resolveExactSettlementRecovery(piInvocationOccupancy, selectedJourney, pendingSettlementRecoveryEvidence)
     : null;
-  const interruptedLeaseCandidate = piInvocationOccupancy.entries.find((entry) => (
-    entry.authority.journeyId === selectedJourney
-    && entry.leasePhase === "finalizing"
-    && entry.terminalState !== "completed"
-  ));
-  const persistedInterruptedTurn = interruptedLeaseCandidate
-    ? conversation.reconciliation.turns.find((turn) => (
-        turn.turnId === interruptedLeaseCandidate.authority.turnId
-        && turn.runId === interruptedLeaseCandidate.authority.runId
-      ))
-    : undefined;
-  const interruptedRecoveryEvidence: PiInvocationAuthorityInspection | undefined = interruptedLeaseCandidate
-    && persistedInterruptedTurn?.runId
-    && persistedInterruptedTurn.harness.userMessageId
-    && persistedInterruptedTurn.harness.assistantMessageId
-    && conversation.journeyId === selectedJourney
-    && conversation.liveIdentity.mirrorConversationId
-    ? {
-        schemaVersion: "0.1.0",
-        journeyId: conversation.journeyId,
-        runId: persistedInterruptedTurn.runId,
-        turnId: persistedInterruptedTurn.turnId,
-        threadId: conversation.liveIdentity.harnessConversationId,
-        generation: conversation.liveIdentity.generation,
-        piSessionId: conversation.liveIdentity.piSessionId,
-        mirrorConversationId: conversation.liveIdentity.mirrorConversationId,
-        harnessUserMessageId: persistedInterruptedTurn.harness.userMessageId,
-        harnessAssistantMessageId: persistedInterruptedTurn.harness.assistantMessageId,
-      }
-    : undefined;
-  const exactInterruptedRecovery = interruptedRecoveryEvidence
-    ? resolveExactInterruptedRecovery(piInvocationOccupancy, selectedJourney, interruptedRecoveryEvidence)
-    : null;
   const selectedNativeLease = piInvocationOccupancy.entries.find((entry) => (
     entry.authority.journeyId === selectedJourney
   ));
   const retainedLeaseWithoutRecovery = selectedNativeLease
     && !selectedRuntimeBusy
-    && !exactRetainedSettlementRecovery
-    && !exactInterruptedRecovery;
+    && !exactRetainedSettlementRecovery;
   const pendingMirrorOutboxItem = mirrorOutboxItems.find((item) => item.itemId === pendingMirrorRepair?.correlation.turnId);
   const pendingMirrorDisposition = pendingMirrorRepair
     ? classifyPendingMirrorAppend(
@@ -564,6 +536,11 @@ export function App({ model }: AppProps) {
   const legacyMirrorGap = pendingMirrorDisposition === "legacy_gap";
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
   const dedicatedTurnState = classifyDedicatedTurnState(conversation, selectedRuntimeBusy);
+  const latestNautilusTurn = [...conversation.reconciliation.turns].reverse().find((turn) => turn.origin === "nautilus");
+  const durableInterruptedTurn = latestNautilusTurn?.pi.state === "failed"
+    && latestNautilusTurn.pi.failureCode?.startsWith("turn_journal_")
+    ? latestNautilusTurn
+    : undefined;
   const mirrorAppendNeedsEnqueue = pendingMirrorDisposition === "enqueue_required";
   const reconciliationBlocksInvocation = mirrorAppendNeedsEnqueue || (dedicatedThreadReady
     ? dedicatedTurnBlocksNewInvocation(dedicatedTurnState)
@@ -916,22 +893,19 @@ export function App({ model }: AppProps) {
         let restoredConversation = restoreDecision.runtimeConversation ?? (classified.kind === "ready"
           ? restoreDedicatedJourneyConversation(classified.thread, persistedConversation)
           : createJourneyConversation({ journeyId: selectedJourney, initialMessages }));
-        const ownerHasNativeLease = classified.kind === "ready" && piInvocationOccupancy.entries.some((entry) => (
+        const ownerHasLiveNativeExecution = classified.kind === "ready" && piInvocationOccupancy.entries.some((entry) => (
           entry.authority.journeyId === selectedJourney
           && entry.authority.generation === classified.activeGeneration.generation
+          && entry.terminalState === "open"
         ));
         if (classified.kind === "ready" && classified.activeGeneration.piSessionFile
           && piInvocationBootstrapComplete
-          && shouldRecoverPersistedPiTranscript({
+          && shouldRecoverDurableTurnJournal({
             allowPersistedRecovery: restoreDecision.allowPersistedRecovery,
             nativeInspectionStatus: piInvocationOccupancy.status,
-            ownerHasNativeLease,
+            ownerHasLiveNativeExecution,
           })) {
-          const turns = await loadDedicatedPiTranscript(
-            selectedJourney,
-            classified.activeGeneration.piSessionId,
-            classified.activeGeneration.piSessionFile,
-          );
+          const journal = await loadTurnJournal(selectedJourney);
           if (!requestIsCurrent()) return;
           const latestNautilusTurn = [...restoredConversation.reconciliation.turns].reverse().find((turn) =>
             turn.origin === "nautilus" && turn.runId,
@@ -939,20 +913,7 @@ export function App({ model }: AppProps) {
           const pendingTurn = latestNautilusTurn?.pi.state === "pending" ? latestNautilusTurn : undefined;
           const stagedUser = [...restoredConversation.messages].reverse().find((message) => message.role === "user");
           const stagedAssistant = [...restoredConversation.messages].reverse().find((message) => message.role === "assistant");
-          const nativeTurn = turns.at(-1);
-          const nativeTurnMatchesPending = Boolean(
-            pendingTurn
-            && stagedUser
-            && nativeTurn
-            && nativeTurn.userText.trim() === stagedUser.content.trim()
-            && Date.parse(nativeTurn.committedAt) >= Date.parse(pendingTurn.startedAt),
-          );
-          if (pendingTurn?.runId && stagedUser && stagedAssistant && nativeTurn && nativeTurnMatchesPending) {
-            restoredConversation = replaceJourneyConversationMessages(restoredConversation,
-              restoredConversation.messages.map((message) => message.id === stagedAssistant.id
-                ? { ...message, content: nativeTurn.assistantText }
-                : message),
-            );
+          if (pendingTurn?.runId && stagedUser && stagedAssistant) {
             const recoveryCorrelation = createDedicatedTurnAuthority(
               classified.thread,
               pendingTurn.runId,
@@ -960,29 +921,63 @@ export function App({ model }: AppProps) {
               stagedUser.id,
               stagedAssistant.id,
             );
-            restoredConversation = applyPiExecutionEvidence(restoredConversation, recoveryCorrelation, {
-              userEntryId: nativeTurn.userEntryId,
-              assistantEntryId: nativeTurn.assistantEntryId,
-              leafEntryId: nativeTurn.assistantEntryId,
-              entryCount: nativeTurn.entryCount,
-              sessionFile: classified.activeGeneration.piSessionFile,
-              committedAt: new Date().toISOString(),
-            });
-            restoredConversation = commitHarnessTurn(restoredConversation, recoveryCorrelation, new Date().toISOString());
-            await saveDedicatedJourneyConversation(restoredConversation);
-          } else if (pendingTurn) {
-            restoredConversation = interruptDedicatedTurn(
-              restoredConversation,
-              pendingTurn.turnId,
-              "provider_interrupted",
-              new Date().toISOString(),
+            const recoveryAuthority = createJourneySettlementAuthority(
+              createRunAuthority(recoveryCorrelation, restoredConversation.liveIdentity),
             );
-            restoredConversation = replaceJourneyConversationMessages(
-              restoredConversation,
-              restoredConversation.messages.filter((message) => message.id !== stagedAssistant?.id || message.content.trim().length > 0),
-            );
-            await saveDedicatedJourneyConversation(restoredConversation);
+            const hasJournalRecord = journal.records.some((record) => record.authority.runId === pendingTurn.runId);
+            if (hasJournalRecord) {
+              const journalRecord = requireExactTurnJournalRecord(journal, recoveryAuthority);
+              const decision = decideTurnJournalRecovery(journalRecord);
+              if (decision === "project_completed") {
+                const execution = journalRecord.terminalEvidence?.piExecution;
+                if (!execution) throw new Error("turn_journal_completed_evidence_missing");
+                restoredConversation = replaceJourneyConversationMessages(
+                  restoredConversation,
+                  restoredConversation.messages.map((message) => message.id === stagedAssistant.id
+                    ? { ...message, content: execution.assistantText }
+                    : message),
+                );
+                restoredConversation = applyPiExecutionEvidence(restoredConversation, recoveryCorrelation, {
+                  userEntryId: execution.userEntryId,
+                  assistantEntryId: execution.assistantEntryId,
+                  leafEntryId: execution.leafEntryId,
+                  entryCount: execution.entryCount,
+                  sessionFile: classified.activeGeneration.piSessionFile,
+                  committedAt: execution.committedAt,
+                });
+                restoredConversation = commitHarnessTurn(restoredConversation, recoveryCorrelation, new Date().toISOString());
+                await saveProjectedTurnLifecycle(restoredConversation, recoveryAuthority);
+                await enqueueExactProjectionOutbox(restoredConversation, recoveryAuthority);
+              } else if (decision === "interrupt" || decision === "project_cancelled" || decision === "project_failed") {
+                restoredConversation = interruptDedicatedTurn(
+                  restoredConversation,
+                  pendingTurn.turnId,
+                  decision === "project_cancelled"
+                    ? "turn_journal_cancelled"
+                    : decision === "project_failed" ? "turn_journal_failed" : "turn_journal_interrupted",
+                  new Date().toISOString(),
+                );
+                restoredConversation = replaceJourneyConversationMessages(
+                  restoredConversation,
+                  restoredConversation.messages.filter((message) => message.id !== stagedAssistant.id || message.content.trim().length > 0),
+                );
+                await saveInterruptedTurnLifecycle(restoredConversation, recoveryAuthority);
+              } else {
+                throw new Error(`turn_journal_projection_divergence:${decision}`);
+              }
+            } else {
+              dispatchJourneyRuntime({
+                type: "append_warning",
+                journeyId: selectedJourney,
+                message: "Pending turn retained because no durable lifecycle journal authority exists for recovery.",
+              });
+            }
           } else if (!latestNautilusTurn) {
+            const turns = await loadDedicatedPiTranscript(
+              selectedJourney,
+              classified.activeGeneration.piSessionId,
+              classified.activeGeneration.piSessionFile,
+            ).catch(() => []);
             restoredConversation = replaceJourneyConversationMessages(restoredConversation, turns.flatMap((turn) => [{
               id: `pi-${turn.userEntryId}`,
               role: "user" as const,
@@ -1019,7 +1014,14 @@ export function App({ model }: AppProps) {
       cancelled = true;
       conversationLoadCoordinatorRef.current.cancel(loadRequest);
     };
-  }, [selectedJourney, registryLoaded, preferencesLoaded, piInvocationBootstrapComplete]);
+  }, [
+    selectedJourney,
+    registryLoaded,
+    preferencesLoaded,
+    piInvocationBootstrapComplete,
+    selectedNativeLease?.leasePhase,
+    selectedNativeLease?.terminalState,
+  ]);
 
   useEffect(() => {
     if (!registryLoaded) return;
@@ -1285,7 +1287,7 @@ export function App({ model }: AppProps) {
     const invocationAdmissionBlocked = mode === "live"
       ? selectedInvocationAdmissionBlocked
       : selectedRuntimeBusy;
-    if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || invocationAdmissionBlocked || runStartReservationRef.current || liveInvocationPreflightRef.current || reconciliationBlocksInvocation || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
+    if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || invocationAdmissionBlocked || runStartReservationRef.current || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
       return;
     }
 
@@ -1293,8 +1295,7 @@ export function App({ model }: AppProps) {
     if (mode === "live") {
       baseConversation = conversationRef.current;
       const preflightBlocked = baseConversation.journeyId !== selectedJourney
-        || journeyThreadState.kind !== "ready"
-        || dedicatedTurnBlocksNewInvocation(classifyDedicatedTurnState(baseConversation));
+        || journeyThreadState.kind !== "ready";
       if (preflightBlocked) {
         dispatchJourneyRuntime({
           type: "append_warning",
@@ -1302,48 +1303,6 @@ export function App({ model }: AppProps) {
           message: "Live invocation stopped because Journey conversation authority changed or is still being inspected. Reconcile the selected Journey and try again.",
         });
         return;
-      }
-      const preflightToken = Object.freeze({ journeyId: selectedJourney });
-      liveInvocationPreflightRef.current = preflightToken;
-      try {
-        let nativeInspection = await reconcilePiInvocationOccupancy();
-        if (!nativeInspection) {
-          dispatchJourneyRuntime({
-            type: "append_warning",
-            journeyId: selectedJourney,
-            message: "Message retained in the composer because native Pi admission could not be inspected.",
-          });
-          return;
-        }
-        const retainedCompletedLease = resolveCommittedLeaseBeforeInvocation(nativeInspection, baseConversation);
-        if (retainedCompletedLease) {
-          try {
-            await releaseDurablePiInvocationLease(retainedCompletedLease.authority);
-            nativeInspection = await reconcilePiInvocationOccupancy();
-          } catch (error) {
-            dispatchJourneyRuntime({
-              type: "append_warning",
-              journeyId: selectedJourney,
-              message: `Message retained in the composer because completed Pi cleanup failed: ${error instanceof Error ? error.message : String(error)}`,
-            });
-            return;
-          }
-        }
-        if (!nativeInspection
-          || nativeInspection.entries.some((entry) => entry.authority.journeyId === selectedJourney)
-          || nativeInspection.entries.length >= nativeInspection.limit
-          || nativeInspection.processCapacityInUse >= nativeInspection.limit) {
-          dispatchJourneyRuntime({
-            type: "append_warning",
-            journeyId: selectedJourney,
-            message: "Message retained in the composer because native Pi capacity is still occupied.",
-          });
-          return;
-        }
-      } finally {
-        if (liveInvocationPreflightRef.current === preflightToken) {
-          liveInvocationPreflightRef.current = undefined;
-        }
       }
     }
 
@@ -1551,14 +1510,20 @@ export function App({ model }: AppProps) {
         if (event.type === "diagnostic") {
           diagnostics.push(event.message);
         }
-        if (event.type === "cancelled") {
+        if (event.type === "cancelled" && mode === "mock") {
           runTerminal = captureJourneyRunTerminal(runTerminal, "cancelled");
         }
         if (event.type === "error") {
-          runTerminal = captureJourneyRunTerminal(runTerminal, "failed");
+          if (mode === "mock") runTerminal = captureJourneyRunTerminal(runTerminal, "failed");
           preAgentFailureMessage = event.message;
         }
-        if (event.type === "done" && mode === "live" && !runTerminal && rawLiveOutput.trim().length > 0) {
+        if (event.type === "done" && mode === "live") {
+          if (!settlementAuthority) throw new Error("turn_journal_settlement_authority_missing");
+          const journal = await loadTurnJournal(settlementAuthority.journeyId);
+          const journalRecord = requireExactTurnJournalRecord(journal, settlementAuthority);
+          const decision = decideTurnJournalTerminal(journalRecord);
+          runTerminal = decision === "cancelled" ? "cancelled" : decision === "failed" ? "failed" : undefined;
+          if (decision !== "completed" || rawLiveOutput.trim().length === 0) continue;
           const normalized = normalizePiResponse(rawLiveOutput, diagnostics);
           updateRunConversation((currentConversation) =>
             replaceJourneyConversationMessages(
@@ -1583,6 +1548,21 @@ export function App({ model }: AppProps) {
       }
     } catch (error) {
       runTerminal = captureJourneyRunTerminal(runTerminal, "failed");
+      if (mode === "live" && settlementAuthority) {
+        try {
+          const journal = await loadTurnJournal(settlementAuthority.journeyId);
+          const journalRecord = requireExactTurnJournalRecord(journal, settlementAuthority);
+          if (journalRecord.phase === "terminal_durable") {
+            runReachedAgent = true;
+            const decision = decideTurnJournalTerminal(journalRecord);
+            runTerminal = decision === "completed"
+              ? undefined
+              : decision === "cancelled" ? "cancelled" : "failed";
+          }
+        } catch {
+          // No exact durable terminal means reversible pre-agent rejection remains authoritative.
+        }
+      }
       const message = error instanceof Error ? error.message : String(error);
       preAgentFailureMessage = message;
       dispatchJourneyRuntime({ type: "stream_event", identity: runtimeIdentity, event: { type: "error", message } });
@@ -1659,7 +1639,9 @@ export function App({ model }: AppProps) {
           interrupted = interruptDedicatedTurn(
             interrupted,
             correlation.turnId,
-            runWasCancelled ? "provider_cancelled" : "provider_failed",
+            mode === "live"
+              ? runWasCancelled ? "turn_journal_cancelled" : "turn_journal_failed"
+              : runWasCancelled ? "provider_cancelled" : "provider_failed",
             new Date().toISOString(),
           );
         }
@@ -1677,7 +1659,7 @@ export function App({ model }: AppProps) {
                 authority: settlementAuthority,
               }, {
                 loadActiveEvidence: loadActiveSettlementEvidence,
-                saveInterruptedProjection: saveActiveSettlementProjection,
+                saveInterruptedProjection: saveInterruptedTurnLifecycle,
                 cleanupLease: releaseDurablePiInvocationLease,
               }));
             } else {
@@ -1700,28 +1682,31 @@ export function App({ model }: AppProps) {
             settled,
             await loadActiveSettlementEvidence(settlementAuthority),
           );
-          const nativeTurns = await loadDedicatedPiTranscript(
-            settlementAuthority.journeyId,
-            settlementAuthority.piSessionId,
-            settlementAuthority.piSessionFile,
-          );
+          const journal = await loadTurnJournal(settlementAuthority.journeyId);
+          const journalRecord = requireExactTurnJournalRecord(journal, settlementAuthority);
+          if (decideTurnJournalTerminal(journalRecord) !== "completed") {
+            throw new Error("turn_journal_completed_outcome_required");
+          }
+          const execution = journalRecord.terminalEvidence?.piExecution;
+          if (!execution) throw new Error("turn_journal_completed_evidence_missing");
           validatePreFrontierSettlement(
             settlementAuthority,
             settled,
             await loadActiveSettlementEvidence(settlementAuthority),
           );
-          const nativeTurn = [...nativeTurns].reverse().find((turn) =>
-            turn.userText.trim() === userMessage.content.trim()
-            && Date.parse(turn.committedAt) >= Date.parse(userMessage.createdAt),
+          settled = replaceJourneyConversationMessages(
+            settled,
+            settled.messages.map((message) => message.id === settlementAuthority.harnessAssistantMessageId
+              ? { ...message, content: execution.assistantText }
+              : message),
           );
-          if (!nativeTurn) throw new Error("pi_native_evidence_missing");
           settled = applyPiExecutionEvidence(settled, correlation, {
-            userEntryId: nativeTurn.userEntryId,
-            assistantEntryId: nativeTurn.assistantEntryId,
-            leafEntryId: nativeTurn.assistantEntryId,
-            entryCount: nativeTurn.entryCount,
+            userEntryId: execution.userEntryId,
+            assistantEntryId: execution.assistantEntryId,
+            leafEntryId: execution.leafEntryId,
+            entryCount: execution.entryCount,
             sessionFile: settlementAuthority.piSessionFile,
-            committedAt: new Date().toISOString(),
+            committedAt: execution.committedAt,
           });
           settled = commitHarnessTurn(settled, correlation, new Date().toISOString());
           const projectionAtFrontier = settled;
@@ -1732,7 +1717,7 @@ export function App({ model }: AppProps) {
           }, {
             loadActiveEvidence: loadActiveSettlementEvidence,
             saveActiveProjection: (projection, authority) => journeyPersistenceCoordinator.run(
-              authority, "pre_frontier", () => saveActiveSettlementProjection(projection, authority),
+              authority, "pre_frontier", () => saveProjectedTurnLifecycle(projection, authority),
             ),
             enqueueOutbox: (projection, authority) => journeyPersistenceCoordinator.run(
               authority, "pre_frontier", () => enqueueExactProjectionOutbox(projection, authority),
@@ -1878,12 +1863,38 @@ export function App({ model }: AppProps) {
     }
   }
 
+  async function saveProjectedTurnLifecycle(
+    projection: JourneyConversation,
+    authority: JourneySettlementAuthority,
+  ): Promise<void> {
+    await saveActiveSettlementProjection(projection, authority);
+    const journal = await loadTurnJournal(authority.journeyId);
+    if (journal.records.some((record) => record.authority.runId === authority.runId)) {
+      await advanceTurnJournal(authority, "terminal_durable", "projected");
+    }
+  }
+
+  async function saveInterruptedTurnLifecycle(
+    projection: JourneyConversation,
+    authority: JourneySettlementAuthority,
+  ): Promise<void> {
+    await saveActiveSettlementProjection(projection, authority);
+    const journal = await loadTurnJournal(authority.journeyId);
+    if (journal.records.some((record) => record.authority.runId === authority.runId)) {
+      await advanceTurnJournal(authority, ["admitted", "running", "terminal_durable"], "interrupted");
+    }
+  }
+
   async function enqueueExactProjectionOutbox(
     projection: JourneyConversation,
     authority: JourneySettlementAuthority,
   ): Promise<MirrorAppendOutboxSummary> {
     const outboxItem = createMirrorAppendOutboxItem(projection, authority);
     await enqueueMirrorAppendItem(outboxItem, authority);
+    const journal = await loadTurnJournal(authority.journeyId);
+    if (journal.records.some((record) => record.authority.runId === authority.runId)) {
+      await advanceTurnJournal(authority, "projected", "outbox_enqueued");
+    }
     const summary: MirrorAppendOutboxSummary = {
       schemaVersion: "1.0.0",
       itemId: outboxItem.itemId,
@@ -1912,6 +1923,10 @@ export function App({ model }: AppProps) {
       const settled = applyMirrorAppendReceipt(latestProjection, authority, receipt, new Date().toISOString());
       await savePostFrontierReceiptProjection(settled, authority, summary);
       await acknowledgeMirrorAppendItem(summary.itemId, summary.conversationId, authority);
+      const journal = await loadTurnJournal(authority.journeyId);
+      if (journal.records.some((record) => record.authority.runId === authority.runId)) {
+        await advanceTurnJournal(authority, "outbox_enqueued", "settled");
+      }
       setMirrorOutboxItems((items) => items.filter((item) => item.itemId !== summary.itemId));
       return settled;
     });
@@ -1923,6 +1938,10 @@ export function App({ model }: AppProps) {
       const recovery = resolvePersistedSettlementRecovery(projected, item);
       if (recovery.status === "blocked") throw new Error(recovery.diagnostic);
       const { authority } = recovery;
+      const journal = await loadTurnJournal(authority.journeyId);
+      if (journal.records.some((record) => record.authority.runId === authority.runId)) {
+        await advanceTurnJournal(authority, ["projected", "outbox_enqueued"], "outbox_enqueued");
+      }
       const inspection = await inspectPiInvocations();
       if (!validatePiInvocationRegistryInspection(inspection)) {
         throw new Error("mirror_outbox_native_lease_inspection_invalid");
@@ -1965,7 +1984,7 @@ export function App({ model }: AppProps) {
       }, {
         loadActiveEvidence: loadActiveSettlementEvidence,
         saveActiveProjection: (candidate, exactAuthority) => journeyPersistenceCoordinator.run(
-          exactAuthority, "pre_frontier", () => saveActiveSettlementProjection(candidate, exactAuthority),
+          exactAuthority, "pre_frontier", () => saveProjectedTurnLifecycle(candidate, exactAuthority),
         ),
         enqueueOutbox: (candidate, exactAuthority) => journeyPersistenceCoordinator.run(
           exactAuthority, "pre_frontier", () => enqueueExactProjectionOutbox(candidate, exactAuthority),
@@ -1979,66 +1998,6 @@ export function App({ model }: AppProps) {
       setConversation(settlement.projection);
       setJourneyMirrorCommitError(ownerJourneyId, undefined);
       checkedMirrorTurnRef.current.add(settlement.outbox.itemId);
-    } catch (error) {
-      setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
-    } finally {
-      setIsRetryingMirrorCommit(false);
-    }
-  }
-
-  async function retryInterruptedSettlement() {
-    if (!exactInterruptedRecovery || !interruptedRecoveryEvidence || isRetryingMirrorCommit
-      || journeyThreadState.kind !== "ready") return;
-    const ownerJourneyId = selectedJourneyRef.current;
-    if (ownerJourneyId !== interruptedRecoveryEvidence.journeyId) return;
-    const persisted = conversationRef.current;
-    const turn = persisted.reconciliation.turns.find((candidate) => (
-      candidate.turnId === interruptedRecoveryEvidence.turnId
-      && candidate.runId === interruptedRecoveryEvidence.runId
-      && candidate.harness.userMessageId === interruptedRecoveryEvidence.harnessUserMessageId
-      && candidate.harness.assistantMessageId === interruptedRecoveryEvidence.harnessAssistantMessageId
-    ));
-    if (!turn
-      || persisted.liveIdentity.generation !== interruptedRecoveryEvidence.generation
-      || persisted.liveIdentity.piSessionId !== interruptedRecoveryEvidence.piSessionId
-      || persisted.liveIdentity.mirrorConversationId !== interruptedRecoveryEvidence.mirrorConversationId) return;
-
-    setIsRetryingMirrorCommit(true);
-    setJourneyMirrorCommitError(ownerJourneyId, undefined);
-    try {
-      let interrupted = interruptDedicatedTurn(
-        persisted,
-        turn.turnId,
-        exactInterruptedRecovery.terminalState === "cancelled" ? "provider_cancelled" : "provider_failed",
-        new Date().toISOString(),
-      );
-      interrupted = replaceJourneyConversationMessages(
-        interrupted,
-        interrupted.messages.filter((message) => (
-          message.id !== interruptedRecoveryEvidence.harnessAssistantMessageId
-          || message.content.trim().length > 0
-        )),
-      );
-      const recoveryCorrelation = createDedicatedTurnAuthority(
-        journeyThreadState.thread,
-        interruptedRecoveryEvidence.runId,
-        interruptedRecoveryEvidence.turnId,
-        interruptedRecoveryEvidence.harnessUserMessageId,
-        interruptedRecoveryEvidence.harnessAssistantMessageId,
-      );
-      const authority = createJourneySettlementAuthority(
-        createRunAuthority(recoveryCorrelation, interrupted.liveIdentity),
-      );
-      await journeyPersistenceCoordinator.run(authority, "interrupted", () => executeInterruptedSettlement({
-        projection: interrupted,
-        authority,
-      }, {
-        loadActiveEvidence: loadActiveSettlementEvidence,
-        saveInterruptedProjection: saveActiveSettlementProjection,
-        cleanupLease: releaseDurablePiInvocationLease,
-      }));
-      conversationRef.current = interrupted;
-      setConversation(interrupted);
     } catch (error) {
       setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
     } finally {
@@ -2446,13 +2405,11 @@ export function App({ model }: AppProps) {
           </div>
         </div>
 
-        <input
-          className="sidebar-search"
-          type="search"
-          value={journeySearch}
-          onChange={(event) => setJourneySearch(event.target.value)}
-          placeholder="Search journeys"
-          aria-label="Search journeys"
+        <JourneySearchControl
+          query={journeySearch}
+          resultCount={visibleSidebarJourneys.length}
+          onQueryChange={(query) => dispatchJourneySearch({ type: "query_changed", query })}
+          onClear={() => dispatchJourneySearch({ type: "clear_requested" })}
         />
 
         <div className="journey-order-control" aria-label="Journey list view">
@@ -2576,7 +2533,7 @@ export function App({ model }: AppProps) {
                 } : undefined}
                 onClick={() => {
                   selectJourney(journey.id, "pointer");
-                  setJourneySearch("");
+                  dispatchJourneySearch({ type: "journey_selected", intent: "pointer" });
                 }}
                 onKeyDown={(event) => {
                   if (!runtimeBusy && journeyListOrder === "tree" && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))) {
@@ -2585,11 +2542,9 @@ export function App({ model }: AppProps) {
                     setJourneyItemMenu({ journeyId: journey.id, x: rect.left + 24, y: rect.top + 24 });
                   } else if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    selectJourney(
-                      journey.id,
-                      event.key === "Enter" ? "keyboard-enter" : "keyboard-space",
-                    );
-                    setJourneySearch("");
+                    const intent = event.key === "Enter" ? "keyboard-enter" : "keyboard-space";
+                    selectJourney(journey.id, intent);
+                    dispatchJourneySearch({ type: "journey_selected", intent });
                   }
                 }}
               >
@@ -2617,17 +2572,10 @@ export function App({ model }: AppProps) {
                 <span className="journey-copy">
                   <strong>{journey.name}</strong>
                   <small>{sidebarDescription(journey)}</small>
+                  {runtimeOwnerPhase ? (
+                    <JourneyRuntimeIndicator journeyName={journey.name} phase={runtimeOwnerPhase} />
+                  ) : null}
                 </span>
-                {runtimeOwnerPhase ? (
-                  <span
-                    className={`journey-runtime-state ${runtimeOwnerPhase}`}
-                    role="status"
-                    aria-label={`${journey.name} is ${runtimeOwnerPhase === "running" ? "working" : "recording the completed turn"}`}
-                  >
-                    <span aria-hidden="true" />
-                    {runtimeOwnerPhase === "running" ? "Working" : "Recording"}
-                  </span>
-                ) : null}
                 <button
                   className={`journey-pin ${journey.pinned ? "pinned" : ""}`}
                   type="button"
@@ -2924,7 +2872,7 @@ export function App({ model }: AppProps) {
           {reconciliationBlocksInvocation && !pendingMirrorRepair && !isStreaming ? (
             <section className="dedicated-turn-notice" role="status">
               <strong>Recording the completed turn</strong>
-              <p>The next send becomes available after the completed response is durably recorded.</p>
+              <p>The durable turn journal, not this projection, decides whether a successor can start.</p>
             </section>
           ) : null}
           {piInvocationOccupancy.status !== "known" ? (
@@ -2933,19 +2881,16 @@ export function App({ model }: AppProps) {
               <p>{piInvocationOccupancy.diagnostic ?? "Operational actions remain blocked until bounded native inspection completes."}</p>
             </section>
           ) : null}
-          {piInvocationAdmission.reason === "global_capacity_reached" && !selectedRuntimeBusy ? (
+          {piInvocationPresentation.reason === "global_capacity_reached" && !selectedRuntimeBusy ? (
             <section className="dedicated-turn-notice" role="status">
               <strong>Global Pi capacity occupied</strong>
-              <p>All available Journey execution slots are occupied. You can keep drafting here and send after one exact lease is released.</p>
+              <p>You can keep drafting. Native admission remains the atomic capacity authority and retains a rejected message for retry.</p>
             </section>
           ) : null}
-          {exactInterruptedRecovery && !isStreaming ? (
+          {durableInterruptedTurn && !isStreaming ? (
             <section className="dedicated-turn-notice" role="alert">
-              <strong>Interrupted turn settlement is retained</strong>
-              <p>The native lease stays occupied until this exact Journey turn is durably marked interrupted.</p>
-              <button type="button" onClick={() => void retryInterruptedSettlement()} disabled={isRetryingMirrorCommit}>
-                {isRetryingMirrorCommit ? "Recovering…" : "Recover interrupted turn"}
-              </button>
+              <strong>Previous turn was interrupted</strong>
+              <p>The durable journal retained the interruption without inventing a response. Your next message can start a new turn.</p>
             </section>
           ) : null}
           {retainedLeaseWithoutRecovery ? (
@@ -3032,7 +2977,7 @@ export function App({ model }: AppProps) {
                     className="icon-button send-button"
                     type="button"
                     onClick={() => void generatePacket("live")}
-                    disabled={!draft.trim() || selectedInvocationAdmissionBlocked || reconciliationBlocksInvocation || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(fileAttachmentError) || fileAttachmentBusy}
+                    disabled={!draft.trim() || selectedInvocationAdmissionBlocked || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(fileAttachmentError) || fileAttachmentBusy}
                     aria-label="Send message"
                     title="Send message"
                   >

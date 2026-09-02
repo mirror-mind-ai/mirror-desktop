@@ -2,7 +2,7 @@
 
 # DS-012.TS-3 — Retire Distributed Lifecycle Authority
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** Technical Story
 
 ---
@@ -47,6 +47,12 @@ Then they cannot recreate authority, route, lease, projection or warnings for th
 - New user-visible features.
 - Capacity two enablement.
 - Unrelated runtime-state or UI refactoring.
+
+## Delivery Documents
+
+- [Implementation plan](plan.md)
+- [Test guide](test-guide.md)
+- [Validation](validation.md)
 
 ## Validation
 

@@ -17,7 +17,7 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).not.toContain("const [agentRunJourneyId");
   });
 
-  it("keeps selection presentation-only while exact native admission controls capacity two", () => {
+  it("keeps selection presentation-only while native reservation and journal control admission", () => {
     const selection = sourceBetween("function selectJourney", "function openJourneyTreeMenu");
     expect(selection).toContain("if (journeyId === selectedJourney)");
     expect(selection).not.toContain("runtimeBusy");
@@ -25,22 +25,30 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("draggable={journeyListOrder === \"tree\" && !runtimeBusy}");
     expect(appSource).toContain("derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney)");
     expect(appSource).toContain("|| invocationAdmissionBlocked || runStartReservationRef.current");
-    expect(appSource).toContain("runStartReservationRef.current || liveInvocationPreflightRef.current || reconciliationBlocksInvocation");
+    expect(appSource).not.toContain("liveInvocationPreflightRef");
+    expect(appSource).not.toContain("|| reconciliationBlocksInvocation ||");
   });
 
   it("restores an authority-bound owner conversation without reacting to in-session busy transitions", () => {
     expect(appSource).toContain("resolveJourneyConversationRestore(");
     expect(appSource).toContain('type: "conversation_snapshot", identity: runtimeIdentity');
-    expect(appSource).toContain("shouldRecoverPersistedPiTranscript({");
+    expect(appSource).toContain("shouldRecoverDurableTurnJournal({");
     expect(appSource).toContain("piInvocationBootstrapComplete");
-    expect(appSource).toContain("[selectedJourney, registryLoaded, preferencesLoaded, piInvocationBootstrapComplete]");
+    expect(appSource).toContain("selectedNativeLease?.terminalState");
     expect(appSource).not.toContain("[selectedJourney, registryLoaded, preferencesLoaded, runtimeBusy]");
   });
 
   it("shows owner-only sidebar, cancellation, and finalization errors", () => {
     expect(appSource).toContain("selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id)");
-    expect(appSource).toContain('journey-runtime-state ${runtimeOwnerPhase}');
+    expect(appSource).toContain("<JourneyRuntimeIndicator journeyName={journey.name} phase={runtimeOwnerPhase} />");
+    const copyStart = appSource.indexOf('<span className="journey-copy">');
+    const indicator = appSource.indexOf("<JourneyRuntimeIndicator", copyStart);
+    const pinAction = appSource.indexOf("className={`journey-pin", copyStart);
+    expect(copyStart).toBeGreaterThan(-1);
+    expect(indicator).toBeGreaterThan(copyStart);
+    expect(indicator).toBeLessThan(pinAction);
     expect(appSource).toContain("const mirrorCommitError = navigationPresentation.mirrorCommitError");
+    expect(appSource).toContain("const durableInterruptedTurn = latestNautilusTurn?.pi.state === \"failed\"");
     expect(appSource).toContain("classifyDedicatedTurnState(conversation, selectedRuntimeBusy)");
     const cancellation = sourceBetween("async function cancelActiveRun", "function requestConversationRestart");
     expect(cancellation).toContain("selectedRuntime.identity");
@@ -76,7 +84,7 @@ describe("Journey runtime integration guardrails", () => {
     expect(preAgentRollback).not.toContain('type: "conversation_snapshot"');
   });
 
-  it("keeps native occupancy authoritative through durable cleanup and exact recovery", () => {
+  it("keeps native occupancy as execution ownership while journal controls lifecycle", () => {
     expect(appSource).toContain("hasBlockingPiInvocationOccupancy(piInvocationOccupancy)");
     expect(appSource).toContain("createJourneySettlementAuthority(runAuthority)");
     expect(appSource).toContain("const settlement = await executeCompletedSettlement({");
@@ -92,12 +100,11 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("onRollbackConfirmed: () => {");
     expect(appSource).toContain('dispatchJourneyRuntime({ type: "cleanup", identity: runtimeIdentity })');
     expect(appSource).toContain("releaseAndReinspectPiInvocationLease(authority");
-    const nativePreflight = sourceBetween("async function generatePacket", "const fileAttachments = pendingFileAttachments");
-    expect(nativePreflight).toContain("resolveCommittedLeaseBeforeInvocation(nativeInspection, baseConversation)");
-    expect(nativePreflight).toContain("await releaseDurablePiInvocationLease(retainedCompletedLease.authority)");
-    expect(nativePreflight).toContain("Message retained in the composer");
-    expect(nativePreflight).toContain("} finally {");
-    expect(nativePreflight).toContain("liveInvocationPreflightRef.current === preflightToken");
+    const generation = sourceBetween("async function generatePacket", "async function startSelectedJourney");
+    expect(generation).toContain("requireExactTurnJournalRecord(journal, settlementAuthority)");
+    expect(generation).toContain("decideTurnJournalTerminal(journalRecord)");
+    expect(generation).not.toContain("resolveCommittedLeaseBeforeInvocation");
+    expect(generation).not.toContain("loadDedicatedPiTranscript(");
     expect(appSource).toContain("Message was not sent");
     expect(appSource).toContain("streamWarnings.at(-1)");
     const durableOutboxRetry = sourceBetween("async function retryMirrorAppendSummary", "async function retryPendingMirrorCommit");
@@ -106,7 +113,7 @@ describe("Journey runtime integration guardrails", () => {
       durableOutboxRetry.indexOf("appendAndAcknowledgeExactProjection"),
     );
     expect(appSource).toContain("runtimeBusy && !exactRetainedSettlementRecovery");
-    expect(appSource).toContain("resolveExactInterruptedRecovery(piInvocationOccupancy");
+    expect(appSource).not.toContain("resolveExactInterruptedRecovery(piInvocationOccupancy");
     expect(appSource).toContain("shouldRehydratePiProcessRoute(selectedNativeLease, selectedRuntimeBusy)");
     expect(appSource).toContain("await reconcilePiInvocationOccupancy()");
     expect(streamSource).toContain('invoke("cancel_pi_invocation", { journeyId, runId })');

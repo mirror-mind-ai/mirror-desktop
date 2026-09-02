@@ -9,13 +9,6 @@ import {
   type GenerationScopedOutboxAuthority,
 } from "../app/journeySettlement";
 import {
-  applyPiInvocationInspection,
-  beginPiInvocationReconciliation,
-  createUnknownPiInvocationOccupancy,
-  resolveExactInterruptedRecovery,
-  type PiInvocationAuthorityInspection,
-} from "../app/piInvocationOccupancy";
-import {
   createInitialJourneyRuntimeState,
   journeyRuntimeReducer,
   type JourneyRunIdentity,
@@ -395,31 +388,5 @@ describe("interrupted and rejected reservation boundaries", () => {
     expect(cleanupCalls).toBe(0);
     expect(runtime.entries["journey-c"]?.warnings).toContain("capacity_reached");
     expect(runtime.entries["journey-c"]?.conversationSnapshot?.reconciliation.turns).toHaveLength(1);
-  });
-
-  it("does not mutate settlement for non-owner or stale interrupted recovery", async () => {
-    const exactAuthority: PiInvocationAuthorityInspection = {
-      schemaVersion: "0.1.0", journeyId: "journey-a", runId: "run-a1", turnId: "turn-a1",
-      threadId: "thread-a", generation: 1, piSessionId: "pi-a", mirrorConversationId: "mirror-a",
-      harnessUserMessageId: "user-a1", harnessAssistantMessageId: "assistant-a1",
-    };
-    const inspection = {
-      schemaVersion: "0.1.0" as const, limit: 1, processCapacityInUse: 0,
-      entries: [{ authority: exactAuthority, leasePhase: "finalizing" as const,
-        processCapacityState: "released" as const, cancellationState: "requested" as const,
-        terminalState: "cancelled" as const }],
-    };
-    const occupied = applyPiInvocationInspection(
-      beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 1), 1, inspection,
-    );
-    let mutations = 0;
-    const attempt = async (owner: string, evidence: PiInvocationAuthorityInspection) => {
-      const lease = resolveExactInterruptedRecovery(occupied, owner, evidence);
-      if (!lease) return;
-      mutations += 2;
-    };
-    await attempt("journey-b", exactAuthority);
-    await attempt("journey-a", { ...exactAuthority, runId: "stale" });
-    expect(mutations).toBe(0);
   });
 });

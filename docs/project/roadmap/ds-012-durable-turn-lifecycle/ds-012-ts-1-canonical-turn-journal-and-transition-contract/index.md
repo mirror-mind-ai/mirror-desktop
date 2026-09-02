@@ -2,7 +2,7 @@
 
 # DS-012.TS-1 — Canonical Turn Journal and Transition Contract
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** Technical Story
 
 ---

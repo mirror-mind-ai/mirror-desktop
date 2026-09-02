@@ -2,7 +2,7 @@
 
 # DS-012.US-3 — Restore Bounded Concurrent Journey Turns
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ---
@@ -47,6 +47,12 @@ Then B's journal, child, projection, outbox and provider lifetime remain unchang
 - Arbitrary environment overrides.
 - Remote or multi-user coordination.
 - New sidebar or navigation features.
+
+## Delivery Documents
+
+- [Implementation plan](plan.md)
+- [Test guide](test-guide.md)
+- [Validation](validation.md)
 
 ## Validation
 

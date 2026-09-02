@@ -224,9 +224,6 @@ export function orderSearchResults(
   if (order === "recent") {
     const rank = new Map<string, number>();
     let index = 0;
-    if (preferences.activeJourneyId) {
-      rank.set(preferences.activeJourneyId, index++);
-    }
     for (const id of preferences.recentJourneyIds) {
       if (!rank.has(id)) {
         rank.set(id, index++);

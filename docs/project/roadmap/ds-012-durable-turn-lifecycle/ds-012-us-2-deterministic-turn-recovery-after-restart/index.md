@@ -2,7 +2,7 @@
 
 # DS-012.US-2 — Deterministic Turn Recovery After Restart
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ---

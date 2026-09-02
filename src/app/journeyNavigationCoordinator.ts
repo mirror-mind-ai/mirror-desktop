@@ -11,6 +11,17 @@ import {
 
 export type JourneyNavigationIntent = "pointer" | "keyboard-enter" | "keyboard-space" | "other";
 
+export type JourneySearchAction =
+  | Readonly<{ type: "query_changed"; query: string }>
+  | Readonly<{ type: "clear_requested" }>
+  | Readonly<{ type: "journey_selected"; intent: JourneyNavigationIntent }>;
+
+export function journeySearchReducer(currentQuery: string, action: JourneySearchAction): string {
+  if (action.type === "query_changed") return action.query;
+  if (action.type === "clear_requested") return "";
+  return currentQuery;
+}
+
 export type JourneyConversationLoadToken = Readonly<{
   journeyId: string;
   sequence: number;
@@ -83,14 +94,14 @@ export function resolveJourneyConversationRestore(
   return { runtimeConversation, allowPersistedRecovery: !runtimeConversation };
 }
 
-export function shouldRecoverPersistedPiTranscript(input: {
+export function shouldRecoverDurableTurnJournal(input: {
   allowPersistedRecovery: boolean;
   nativeInspectionStatus: PiInvocationOccupancyState["status"];
-  ownerHasNativeLease: boolean;
+  ownerHasLiveNativeExecution: boolean;
 }): boolean {
   return input.allowPersistedRecovery
     && input.nativeInspectionStatus === "known"
-    && !input.ownerHasNativeLease;
+    && !input.ownerHasLiveNativeExecution;
 }
 
 export function deriveJourneyNavigationPresentation(input: {

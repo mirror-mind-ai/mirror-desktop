@@ -2,8 +2,11 @@ use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
+// DS-012 migration gate: restore two only after serial settlement and restart recovery are journal-owned.
 pub const PRODUCTION_PI_PROCESS_LIMIT: usize = 2;
 const MAX_PI_PROCESS_LIMIT: usize = 16;
+// Shutdown remains able to drain the pre-migration DS-009 maximum after a hot replacement.
+const MAX_BOUNDED_CHILD_CONTROLS: usize = 2;
 
 pub trait RegistryAuthority: Clone {
     fn journey_id(&self) -> &str;
@@ -145,7 +148,7 @@ pub fn control_bounded_child_handles<C, R, E>(
 ) -> Vec<(RunTarget, Result<R, E>)> {
     handles
         .into_iter()
-        .take(PRODUCTION_PI_PROCESS_LIMIT)
+        .take(MAX_BOUNDED_CHILD_CONTROLS)
         .map(|(target, child)| {
             let outcome = operation(&target, &child);
             (target, outcome)
@@ -529,7 +532,7 @@ mod tests {
     }
 
     #[test]
-    fn production_limit_is_exactly_two_and_invalid_limits_fail() {
+    fn production_limit_is_exactly_two_after_durable_turn_lifecycle_cutover_and_invalid_limits_fail() {
         assert_eq!(PRODUCTION_PI_PROCESS_LIMIT, 2);
         assert!(PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(0).is_err());
         assert!(
@@ -549,7 +552,7 @@ mod tests {
     #[test]
     fn two_different_journeys_fill_limit_two_and_a_third_never_starts() {
         let registry = Arc::new(Mutex::new(
-            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(2).unwrap(),
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production(),
         ));
         let starts = Arc::new(AtomicUsize::new(0));
         let barrier = Arc::new(Barrier::new(3));

@@ -5,7 +5,7 @@
 **Journey:** nautilus-harness
 **Method:** ariad
 **Navigator Flow Unit:** delivery_story
-**Plan state:** pending Navigator approval
+**Plan state:** completed and accepted
 
 ## Objective
 
@@ -152,4 +152,4 @@ Production data, production Mirror coordinates and the installed stable app are 
 
 ## Checkpoint
 
-Implementation must not start until the Navigator approves this Delivery Story plan.
+Navigator approved the Delivery Story plan, all implementation and validation gates passed, and aggregate manual validation was accepted. Commit, push, release and production promotion remain separate boundaries.

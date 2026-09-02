@@ -232,10 +232,27 @@ describe("hierarchical Journey registry", () => {
     ]);
   });
 
-  it("applies Recent or Tree ordering to search results", () => {
+  it("preserves Recent search result positions when selection changes the active Journey", () => {
+    const results = searchJourneyRegistry(fixtureJourneyRegistry, "vida");
+    const recentJourneyIds = ["nautilus-harness", "amplia"];
+    const beforeSelection = orderSearchResults(results, {
+      pinnedJourneyIds: [],
+      activeJourneyId: "nautilus-harness",
+      recentJourneyIds,
+    }, "recent");
+    const afterSelection = orderSearchResults(results, {
+      pinnedJourneyIds: [],
+      activeJourneyId: "amplia",
+      recentJourneyIds,
+    }, "recent");
+
+    expect(afterSelection.map((journey) => journey.id)).toEqual(beforeSelection.map((journey) => journey.id));
+    expect(afterSelection.map((journey) => journey.id).slice(0, 2)).toEqual(recentJourneyIds);
+  });
+
+  it("keeps Tree search results in hierarchy order", () => {
     const results = searchJourneyRegistry(fixtureJourneyRegistry, "vida");
 
-    expect(orderSearchResults(results, { pinnedJourneyIds: [], activeJourneyId: "amplia", recentJourneyIds: [] }, "recent").map((journey) => journey.id)[0]).toBe("amplia");
     expect(orderSearchResults(results, { pinnedJourneyIds: [], recentJourneyIds: [] }, "tree").map((journey) => journey.name)).toEqual([
       "Vida Criativa",
       "Nautilus",
