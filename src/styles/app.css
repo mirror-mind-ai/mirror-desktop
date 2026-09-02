@@ -1314,18 +1314,12 @@ textarea {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0;
   margin-top: 16px;
 }
 
 .journey-altitude-switcher {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  display: inline-grid;
-  gap: 4px;
-  grid-template-columns: repeat(3, minmax(104px, 1fr));
-  padding: 4px;
+  display: inline-flex;
 }
 
 .journey-altitude-option {
@@ -1361,10 +1355,8 @@ textarea {
 }
 
 .operational-workspace-switcher {
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
   display: inline-flex;
-  gap: 2px;
-  padding-left: 10px;
+  gap: 0;
 }
 
 .operational-workspace-option {
