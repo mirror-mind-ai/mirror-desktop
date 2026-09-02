@@ -3292,6 +3292,42 @@ dd {
   margin-bottom: 0;
 }
 
+.settings-tab-list {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  margin-bottom: 14px;
+  overflow-x: auto;
+  padding: 4px;
+}
+
+.settings-tab-list button {
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: #8fa0a5;
+  padding: 8px 12px;
+}
+
+.settings-tab-list button:hover,
+.settings-tab-list button:focus-visible,
+.settings-tab-list button.selected {
+  background: rgba(var(--ui-accent-rgb), 0.1);
+  color: #eefafa;
+  outline: none;
+}
+
+.settings-tab-list button.selected {
+  box-shadow: inset 0 -2px 0 var(--ui-accent);
+}
+
+.settings-tab-panel:focus {
+  outline: none;
+}
+
 .settings-intro {
   color: #9bbbc3;
   font-size: 0.84rem;

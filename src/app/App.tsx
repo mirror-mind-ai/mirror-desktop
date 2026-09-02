@@ -242,6 +242,7 @@ import {
   sidebarToggleLabel,
   toggleJourneySidebar,
 } from "./journeySidebarPresentation";
+import { SettingsTabList, type SettingsTab } from "./SettingsTabList";
 
 type AppProps = {
   model: NautilusViewModel;
@@ -392,6 +393,7 @@ export function App({ model }: AppProps) {
   const [journeyThinkingDraft, setJourneyThinkingDraft] = useState<AgentThinkingLevel | "inherit">("inherit");
   const [journeyAgentProfileOpen, setJourneyAgentProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
   const [runtimeChannel, setRuntimeChannel] = useState<RuntimeChannelDiagnostic>();
   const [runtimeChannelError, setRuntimeChannelError] = useState<string>();
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
@@ -3188,7 +3190,16 @@ export function App({ model }: AppProps) {
               </button>
             </header>
 
-            <section className="settings-section appearance-card" aria-label="Application appearance">
+            <SettingsTabList selected={settingsTab} onSelect={setSettingsTab} />
+
+            {settingsTab === "appearance" ? (
+              <div
+                className="settings-tab-panel"
+                id="settings-panel-appearance"
+                role="tabpanel"
+                aria-labelledby="settings-tab-appearance"
+              >
+                <section className="settings-section appearance-card" aria-label="Application appearance">
               <h3>Appearance</h3>
               <div className="theme-choice-grid" role="radiogroup" aria-label="Application color theme">
                 {applicationThemes.map((theme) => (
@@ -3216,9 +3227,18 @@ export function App({ model }: AppProps) {
               >
                 Restore default
               </button>
-            </section>
+                </section>
+              </div>
+            ) : null}
 
-            <section className="settings-section provider-card" aria-label="Global agent defaults">
+            {settingsTab === "agent" ? (
+              <div
+                className="settings-tab-panel"
+                id="settings-panel-agent"
+                role="tabpanel"
+                aria-labelledby="settings-tab-agent"
+              >
+                <section className="settings-section provider-card" aria-label="Global agent defaults">
               <h3>Global defaults</h3>
               <label className="provider-field">
                 Pi model
@@ -3250,9 +3270,19 @@ export function App({ model }: AppProps) {
                 <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={runtimeBusy || agentSettingsState === "saving"}>Restore Harness defaults</button>
               </div>
               <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>
-            </section>
+                </section>
+                {agentSettingsMessage ? <p className={agentSettingsState === "error" ? "settings-error" : "provider-note"} role={agentSettingsState === "error" ? "alert" : "status"}>{agentSettingsMessage}</p> : null}
+              </div>
+            ) : null}
 
-            <section className="settings-section runtime-channel-card" aria-label="Runtime channel">
+            {settingsTab === "runtime" ? (
+              <div
+                className="settings-tab-panel"
+                id="settings-panel-runtime"
+                role="tabpanel"
+                aria-labelledby="settings-tab-runtime"
+              >
+                <section className="settings-section runtime-channel-card" aria-label="Runtime channel">
               <h3>Runtime channel {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</h3>
               {runtimeChannel ? (
                 <dl className="runtime-channel-diagnostic">
@@ -3280,8 +3310,9 @@ export function App({ model }: AppProps) {
                 <button className="secondary-button" type="button" onClick={resetProviderConfiguration} disabled={runtimeBusy}>Reset session controls</button>
               </div>
               <p className="provider-note">Command, arguments, stdin and test mode are never persisted. Effective model and thinking flags replace conflicting raw arguments.</p>
-            </section>
-            {agentSettingsMessage ? <p className={agentSettingsState === "error" ? "settings-error" : "provider-note"} role={agentSettingsState === "error" ? "alert" : "status"}>{agentSettingsMessage}</p> : null}
+                </section>
+              </div>
+            ) : null}
           </section>
         </div>
       ) : null}
