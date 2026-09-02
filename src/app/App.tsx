@@ -234,6 +234,7 @@ import { inspectRuntimeChannel, type RuntimeChannelDiagnostic } from "./runtimeC
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
 import { JourneySearchControl } from "./JourneySearchControl";
 import { JourneyItemCopy } from "./JourneyItemCopy";
+import { recordJourneyLastWorked, relativeLastWorkedLabel } from "./journeyLastWorked";
 import {
   activateJourneyTree,
   defaultNewJourneyParentId,
@@ -330,6 +331,8 @@ export function App({ model }: AppProps) {
   const [journeySearch, dispatchJourneySearch] = useReducer(journeySearchReducer, "");
   const [journeyListOrder, setJourneyListOrder] = useState<JourneyListOrder>(defaultJourneyPreferenceState.journeyListOrder);
   const [sidebarCompact, setSidebarCompact] = useState(defaultJourneyPreferenceState.sidebarCompact);
+  const [lastWorkedAtByJourneyId, setLastWorkedAtByJourneyId] = useState(defaultJourneyPreferenceState.lastWorkedAtByJourneyId);
+  const [relativeTimeNow, setRelativeTimeNow] = useState(() => Date.now());
   const [collapsedJourneyIds, setCollapsedJourneyIds] = useState<Set<string>>(() => new Set());
   const [pinnedOnly, setPinnedOnly] = useState(false);
   const [journeyTreeMenuOpen, setJourneyTreeMenuOpen] = useState(false);
@@ -832,6 +835,7 @@ export function App({ model }: AppProps) {
       });
       setJourneyListOrder(sanitizedPreferences.journeyListOrder);
       setSidebarCompact(sanitizedPreferences.sidebarCompact);
+      setLastWorkedAtByJourneyId(sanitizedPreferences.lastWorkedAtByJourneyId);
       if (nextActiveJourney) {
         setSelectedJourney(nextActiveJourney);
         setDraft(restoredDrafts[nextActiveJourney] ?? "");
@@ -1136,8 +1140,14 @@ export function App({ model }: AppProps) {
       ...journeyPreferences,
       journeyListOrder,
       sidebarCompact,
+      lastWorkedAtByJourneyId,
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, registryLoaded, preferencesLoaded]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setRelativeTimeNow(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!conversationLoaded || journeyThreadState.kind !== "ready" || runtimeBusy) return;
@@ -1429,6 +1439,7 @@ export function App({ model }: AppProps) {
     const conversationBeforeRun = baseConversation;
     let rawLiveOutput = "";
     let runReachedAgent = false;
+    let workActivityRecorded = false;
     let runTerminal: JourneyRunTerminal | undefined;
     let preAgentFailureMessage = "The local Pi invocation was rejected before the agent started.";
     const diagnostics: string[] = [];
@@ -1454,6 +1465,11 @@ export function App({ model }: AppProps) {
           setRunStartReservation((current) => current === runtimeIdentity ? undefined : current);
         }
         dispatchJourneyRuntime({ type: "stream_event", identity: runtimeIdentity, event });
+        if (mode === "live" && !workActivityRecorded && event.type === "run_status" && event.status === "starting") {
+          workActivityRecorded = true;
+          const admittedAt = new Date().toISOString();
+          setLastWorkedAtByJourneyId((current) => recordJourneyLastWorked(current, ownerJourneyId, admittedAt));
+        }
         if (event.type === "run_status" && event.status === "working") {
           runReachedAgent = true;
         }
@@ -2617,6 +2633,9 @@ export function App({ model }: AppProps) {
                   layout={journeyListOrder === "tree" ? "tree" : "card"}
                   journeyName={journey.name}
                   description={sidebarDescription(journey)}
+                  lastWorkedLabel={!pinnedOnly && journeyListOrder === "recent" && !sidebarCompact
+                    ? relativeLastWorkedLabel(lastWorkedAtByJourneyId[journey.id], relativeTimeNow)
+                    : undefined}
                   runtimePhase={runtimeOwnerPhase}
                 />
                 <button

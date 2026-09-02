@@ -13,11 +13,13 @@ describe("Journey management guardrails", () => {
       recentJourneyIds: ["amplia"],
       journeyListOrder: "tree",
       sidebarCompact: true,
+      lastWorkedAtByJourneyId: { nautilus: "2026-09-02T15:00:00.000Z" },
     });
 
     expect(Object.keys(persisted.preferences).sort()).toEqual([
       "activeJourneyId",
       "journeyListOrder",
+      "lastWorkedAtByJourneyId",
       "pinnedJourneyIds",
       "recentJourneyIds",
       "sidebarCompact",

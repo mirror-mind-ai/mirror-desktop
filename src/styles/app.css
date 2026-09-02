@@ -576,6 +576,7 @@ textarea {
   grid-template-areas:
     "icon name pin"
     "context context context"
+    "worked worked worked"
     "runtime runtime runtime";
   flex: 0 0 auto;
   grid-template-columns: 40px minmax(0, 1fr) 28px;
@@ -614,6 +615,14 @@ textarea {
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.journey-item.card-node .journey-last-worked {
+  color: #718287;
+  font-size: 0.7rem;
+  grid-area: worked;
+  line-height: 1.25;
+  margin-top: 7px;
 }
 
 .journey-item.card-node .journey-runtime-state {

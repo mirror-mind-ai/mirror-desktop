@@ -5,6 +5,7 @@ export type PersistedJourneyPreferences = {
   preferences: JourneyPreferences & {
     journeyListOrder: JourneyListOrder;
     sidebarCompact: boolean;
+    lastWorkedAtByJourneyId: Record<string, string>;
   };
   savedAt: string;
 };
@@ -17,6 +18,7 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   recentJourneyIds: ["nautilus", "livro-lideranca-soberana", "amplia", "mirror-dev", "softwarezen", "ariad"],
   journeyListOrder: "recent",
   sidebarCompact: false,
+  lastWorkedAtByJourneyId: {},
 };
 
 export function createPersistedJourneyPreferences(
@@ -45,7 +47,10 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
   const recentJourneyIds = parseStringArray(preferences.recentJourneyIds);
   const journeyListOrder = parseJourneyListOrder(preferences.journeyListOrder);
   const sidebarCompact = preferences.sidebarCompact === undefined ? false : preferences.sidebarCompact;
-  if (!pinnedJourneyIds || !recentJourneyIds || !journeyListOrder || typeof sidebarCompact !== "boolean") {
+  const lastWorkedAtByJourneyId = preferences.lastWorkedAtByJourneyId === undefined
+    ? {}
+    : parseLastWorkedAtMap(preferences.lastWorkedAtByJourneyId);
+  if (!pinnedJourneyIds || !recentJourneyIds || !journeyListOrder || typeof sidebarCompact !== "boolean" || !lastWorkedAtByJourneyId) {
     return undefined;
   }
 
@@ -65,6 +70,7 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       recentJourneyIds,
       journeyListOrder,
       sidebarCompact,
+      lastWorkedAtByJourneyId,
     },
     savedAt: record.savedAt,
   };
@@ -83,6 +89,9 @@ export function sanitizeJourneyPreferenceState(
     recentJourneyIds: uniqueExistingJourneyIds(preferences.recentJourneyIds, registry),
     journeyListOrder: preferences.journeyListOrder,
     sidebarCompact: preferences.sidebarCompact,
+    lastWorkedAtByJourneyId: Object.fromEntries(
+      Object.entries(preferences.lastWorkedAtByJourneyId).filter(([journeyId]) => Boolean(findJourneyById(registry, journeyId))),
+    ),
   };
 }
 
@@ -95,6 +104,16 @@ export function mergeJourneyPreferenceState(
 
 function parseStringArray(value: unknown): string[] | undefined {
   return Array.isArray(value) && value.every((item) => typeof item === "string") ? value : undefined;
+}
+
+function parseLastWorkedAtMap(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length > 256) return undefined;
+  if (entries.some(([journeyId, timestamp]) => !journeyId.trim() || typeof timestamp !== "string" || !Number.isFinite(Date.parse(timestamp)))) {
+    return undefined;
+  }
+  return Object.fromEntries(entries as Array<[string, string]>);
 }
 
 function parseJourneyListOrder(value: unknown): JourneyListOrder | undefined {

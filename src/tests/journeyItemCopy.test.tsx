@@ -9,6 +9,7 @@ describe("Journey item copy", () => {
         layout="card"
         journeyName="Venda de Livros"
         description="Empreendedora / Software Zen"
+        lastWorkedLabel="2 days ago"
         runtimePhase="running"
       />,
     );
@@ -16,9 +17,12 @@ describe("Journey item copy", () => {
     expect(html).toContain('class="journey-name"');
     expect(html).toContain('class="journey-context"');
     expect(html).not.toContain('class="journey-copy"');
+    expect(html).toContain('class="journey-last-worked"');
+    expect(html).toContain("2 days ago");
     expect(html).toContain("journey-runtime-state running");
     expect(html.indexOf("journey-name")).toBeLessThan(html.indexOf("journey-context"));
-    expect(html.indexOf("journey-context")).toBeLessThan(html.indexOf("journey-runtime-state"));
+    expect(html.indexOf("journey-context")).toBeLessThan(html.indexOf("journey-last-worked"));
+    expect(html.indexOf("journey-last-worked")).toBeLessThan(html.indexOf("journey-runtime-state"));
   });
 
   it("omits the runtime row when the Journey has no exact active owner phase", () => {
