@@ -88,6 +88,10 @@ describe("runtime channel configuration", () => {
     expect(appSource).toContain("runtime-channel-diagnostic");
     expect(appSource).toContain("data-runtime-channel");
     expect(cssSource).toContain(".app-shell.channel-development");
+    expect(cssSource).toContain('[data-application-theme="tide"]');
+    expect(cssSource).toContain('[data-application-theme="violet"]');
+    expect(cssSource).toContain('[data-application-theme="ember"]');
+    expect(cssSource).not.toContain("--ui-accent: var(--ui-accent)");
   });
 
   it("promotes a validated stable bundle only through the explicit macOS installer", () => {

@@ -1,4 +1,5 @@
 import { findJourneyById, type JourneyListOrder, type JourneyPreferences, type JourneyRegistry } from "./journeyRegistry";
+import { parseApplicationTheme, type ApplicationTheme } from "./applicationTheme";
 
 export type PersistedJourneyPreferences = {
   schemaVersion: "0.1.0";
@@ -6,6 +7,7 @@ export type PersistedJourneyPreferences = {
     journeyListOrder: JourneyListOrder;
     sidebarCompact: boolean;
     lastWorkedAtByJourneyId: Record<string, string>;
+    applicationTheme: ApplicationTheme;
   };
   savedAt: string;
 };
@@ -19,6 +21,7 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   journeyListOrder: "recent",
   sidebarCompact: false,
   lastWorkedAtByJourneyId: {},
+  applicationTheme: "channel",
 };
 
 export function createPersistedJourneyPreferences(
@@ -50,7 +53,10 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
   const lastWorkedAtByJourneyId = preferences.lastWorkedAtByJourneyId === undefined
     ? {}
     : parseLastWorkedAtMap(preferences.lastWorkedAtByJourneyId);
-  if (!pinnedJourneyIds || !recentJourneyIds || !journeyListOrder || typeof sidebarCompact !== "boolean" || !lastWorkedAtByJourneyId) {
+  const applicationTheme = preferences.applicationTheme === undefined
+    ? "channel"
+    : parseApplicationTheme(preferences.applicationTheme);
+  if (!pinnedJourneyIds || !recentJourneyIds || !journeyListOrder || typeof sidebarCompact !== "boolean" || !lastWorkedAtByJourneyId || !applicationTheme) {
     return undefined;
   }
 
@@ -71,6 +77,7 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       journeyListOrder,
       sidebarCompact,
       lastWorkedAtByJourneyId,
+      applicationTheme,
     },
     savedAt: record.savedAt,
   };
@@ -92,6 +99,7 @@ export function sanitizeJourneyPreferenceState(
     lastWorkedAtByJourneyId: Object.fromEntries(
       Object.entries(preferences.lastWorkedAtByJourneyId).filter(([journeyId]) => Boolean(findJourneyById(registry, journeyId))),
     ),
+    applicationTheme: preferences.applicationTheme,
   };
 }
 

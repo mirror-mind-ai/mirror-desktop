@@ -14,10 +14,12 @@ describe("Journey management guardrails", () => {
       journeyListOrder: "tree",
       sidebarCompact: true,
       lastWorkedAtByJourneyId: { nautilus: "2026-09-02T15:00:00.000Z" },
+      applicationTheme: "tide",
     });
 
     expect(Object.keys(persisted.preferences).sort()).toEqual([
       "activeJourneyId",
+      "applicationTheme",
       "journeyListOrder",
       "lastWorkedAtByJourneyId",
       "pinnedJourneyIds",
