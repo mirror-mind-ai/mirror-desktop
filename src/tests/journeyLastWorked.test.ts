@@ -6,8 +6,8 @@ const NOW = Date.parse("2026-09-02T15:00:00.000Z");
 
 describe("Journey last-worked presentation", () => {
   it.each([
-    [undefined, "No recorded work"],
-    ["invalid", "No recorded work"],
+    [undefined, undefined],
+    ["invalid", undefined],
     ["2026-09-02T14:59:30.000Z", "just now"],
     ["2026-09-02T14:58:00.000Z", "2 minutes ago"],
     ["2026-09-02T13:00:00.000Z", "2 hours ago"],

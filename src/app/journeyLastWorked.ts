@@ -4,10 +4,10 @@ const DAY_MS = 24 * HOUR_MS;
 const MONTH_MS = 30 * DAY_MS;
 const YEAR_MS = 365 * DAY_MS;
 
-export function relativeLastWorkedLabel(lastWorkedAt: string | undefined, nowMs: number): string {
-  if (!lastWorkedAt) return "No recorded work";
+export function relativeLastWorkedLabel(lastWorkedAt: string | undefined, nowMs: number): string | undefined {
+  if (!lastWorkedAt) return undefined;
   const workedAtMs = Date.parse(lastWorkedAt);
-  if (!Number.isFinite(workedAtMs)) return "No recorded work";
+  if (!Number.isFinite(workedAtMs)) return undefined;
   const elapsedMs = Math.max(0, nowMs - workedAtMs);
   if (elapsedMs < MINUTE_MS) return "just now";
   if (elapsedMs < HOUR_MS) return unitLabel(Math.floor(elapsedMs / MINUTE_MS), "minute");
