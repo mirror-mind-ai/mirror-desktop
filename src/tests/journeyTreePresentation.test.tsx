@@ -13,6 +13,16 @@ describe("Journey tree presentation", () => {
     expect(html).toContain('width="18"');
     expect(html).toContain('height="18"');
     expect(html).not.toContain("artifact-type-icon");
+    expect(html).not.toContain("journey-tree-activity-signal");
+  });
+
+  it("adds a visible owner-phase signal without changing the glyph dimensions", () => {
+    const html = renderToStaticMarkup(<JourneyTreeIcon runtimePhase="running" />);
+
+    expect(html).toContain('data-runtime-phase="running"');
+    expect(html).toContain('class="journey-tree-activity-signal"');
+    expect(html).toContain('width="18"');
+    expect(html).toContain('height="18"');
   });
 
   it("replaces A-Z with an exclusive Pinned-only view", () => {
@@ -31,8 +41,7 @@ describe("Journey tree presentation", () => {
     expect(appSource).toContain('journeyListOrder === "tree" ? "tree-node" : "card-node"');
     expect(appSource).toContain('journey.depth > 0 ? "is-nested" : "is-root"');
     expect(appSource).toContain('runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : ""');
-    expect(appSource).toContain('data-runtime-phase={runtimeOwnerPhase}');
-    expect(appSource).toContain("<JourneyTreeIcon />");
+    expect(appSource).toContain("<JourneyTreeIcon runtimePhase={runtimeOwnerPhase} />");
     expect(appSource).toContain("--journey-depth");
     expect(appSource).toContain("journey-tree-toggle");
     expect(appSource).toContain('collapsed ? "›" : "▾"');

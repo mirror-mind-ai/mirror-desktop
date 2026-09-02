@@ -2565,11 +2565,12 @@ export function App({ model }: AppProps) {
                   ) : <span className="journey-tree-toggle-placeholder" aria-hidden="true" />
                 ) : null}
                 {journeyListOrder === "tree" ? (
-                  <span className="journey-tree-icon" data-runtime-phase={runtimeOwnerPhase}><JourneyTreeIcon /></span>
+                  <span className="journey-tree-icon"><JourneyTreeIcon runtimePhase={runtimeOwnerPhase} /></span>
                 ) : (
                   <span className="journey-icon">{visual.icon}</span>
                 )}
                 <JourneyItemCopy
+                  layout={journeyListOrder === "tree" ? "tree" : "card"}
                   journeyName={journey.name}
                   description={sidebarDescription(journey)}
                   runtimePhase={runtimeOwnerPhase}
