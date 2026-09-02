@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { appendJourneyPosition, createMutationRequest, journeyAdministrationError, replacementJourneyAfterDeletion, suggestJourneySlug } from "../domain/journeyMutation";
 import type { JourneyRegistry } from "../domain/journeyRegistry";
 import appSource from "../app/App.tsx?raw";
+import itemMenuSource from "../app/JourneyItemContextMenu.tsx?raw";
 import storageSource from "../app/journeyMutationStorage.ts?raw";
 import tauriSource from "../../src-tauri/src/main.rs?raw";
 
@@ -94,15 +95,15 @@ describe("Journey administration boundary", () => {
 
   it("offers root and item-scoped creation with keyboard context parity", () => {
     expect(appSource).toContain("Create Journey…");
-    expect(appSource).toContain("openCreateJourney(journeyItemMenu.journeyId)");
-    expect(appSource).toContain('journeyListOrder === "tree" && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))');
+    expect(appSource).toContain("onCreate={openCreateJourney}");
+    expect(appSource).toContain('event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")');
     expect(appSource).toContain('setJourneyAdminParent(parentId)');
     expect(appSource).toContain('draggable={journeyListOrder === "tree" && !runtimeBusy}');
   });
 
   it("offers one prefilled Edit Journey form while keeping identity and hierarchy immutable", () => {
-    expect(appSource).toContain("Edit Journey…");
-    expect(appSource).toContain("openEditJourney(journeyItemMenu.journeyId)");
+    expect(itemMenuSource).toContain("Edit Journey…");
+    expect(appSource).toContain("onEdit={openEditJourney}");
     expect(appSource).toContain('journeyAdminDialog.mode === "edit"');
     expect(appSource).toContain('executeJourneyMutation("update_journey"');
     expect(appSource).toContain("Journey ID and slug remain unchanged");
@@ -119,9 +120,9 @@ describe("Journey administration boundary", () => {
   });
 
   it("offers guarded destructive deletion for leaves and replaces active selection safely", () => {
-    expect(appSource).toContain("Delete Journey…");
+    expect(itemMenuSource).toContain("Delete Journey…");
     expect(appSource).toContain('role={journeyAdminDialog.mode === "delete" ? "alertdialog" : "dialog"}');
-    expect(appSource).toContain('(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0');
+    expect(appSource).toContain('deleteDisabled={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0}');
     expect(appSource).not.toContain('journeyItemMenu.journeyId === selectedJourney ? "The active Journey cannot be deleted."');
     expect(appSource).toContain('executeJourneyMutation("delete_journey"');
     expect(appSource).toContain('replacementJourneyAfterDeletion(journeyRegistry, deletedJourneyId)');

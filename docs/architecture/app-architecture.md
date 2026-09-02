@@ -156,6 +156,15 @@ cascade. When the empty leaf is active, Harness binds publication and selection
 to its parent or the first remaining canonical Journey before accepting the
 replacement registry. Project files and repositories are never deletion targets.
 
+The same exact-target Journey administration menu is available from Recent,
+Pinned and Tree rows through pointer context-menu interaction and keyboard
+Context Menu / Shift+F10. It contains Edit, Create, Move and guarded Delete;
+project-path editing belongs to Edit Journey rather than a duplicate menu action.
+Outside pointer interaction dismisses the menu, while Escape dismisses it and
+restores focus to the invoking row. Menu availability follows the existing
+aggregate runtime administration guard and never changes Journey selection or
+execution authority.
+
 ## Journey-aware chat file navigation
 
 Verified local paths rendered inside conversation messages cross a Journey-aware
