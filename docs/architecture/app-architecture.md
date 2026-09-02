@@ -127,17 +127,21 @@ Minimum test cases for the first implementation story:
 
 ## Canonical Journey administration boundary
 
-Journey creation, hierarchy/order changes, `project_path` assignment and guarded
-empty-leaf deletion cross a single model-free native boundary. React owns explicit Navigator intent and
+Journey creation, canonical mutable metadata edits (name, description and
+`project_path`), hierarchy/order changes, focused `project_path` assignment and
+guarded empty-leaf deletion cross a single model-free native boundary. React owns explicit Navigator intent and
 local interaction state; Tauri invokes the Mirror-owned JSON CLI, validates the
 returned registry and atomically publishes it; Mirror alone owns mutation
 validation, optimistic concurrency, SQLite transaction and idempotency receipt.
 The Harness never mutates Journey SQL and never exposes an optimistic tree as
 canonical.
 
-The `0.2.0` registry adds exact `sourceVersion`, native identity evidence and
-stable sibling position. Every mutation carries that source version and native
-Journey IDs. A stale or malformed result leaves the prior desktop registry
+The `0.2.0` registry adds exact `sourceVersion`, native identity evidence,
+lossless editable description content and stable sibling position. Every mutation
+carries that source version and native Journey IDs. Edit Journey keeps the id and
+slug read-only, leaves hierarchy to the directed move operation and updates the
+canonical heading, Description section, display metadata and optional project
+path in one Mirror transaction. A stale or malformed result leaves the prior desktop registry
 intact. Creation remains identity-only and cannot provision repositories, files, Pi
 sessions, Mirror conversations or dedicated Nautilus threads. The desktop does
 not expose zero-based sibling position during creation: it derives append

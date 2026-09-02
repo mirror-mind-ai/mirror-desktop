@@ -1,6 +1,6 @@
 import type { JourneyRegistry } from "./journeyRegistry";
 
-export type JourneyMutationOperation = "create_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey";
+export type JourneyMutationOperation = "create_journey" | "update_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey";
 export type JourneyMutationRequest = {
   schemaVersion: "mirror.journey-mutation@1.0";
   requestId: string;

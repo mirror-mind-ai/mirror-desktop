@@ -18,6 +18,24 @@ describe("Journey administration boundary", () => {
     expect(() => createMutationRequest({ ...registry, schemaVersion: "0.1.0", sourceVersion: undefined }, "clear_project_path", {})).toThrow(/Reload Journeys/);
   });
 
+  it("builds one exact canonical metadata update without mutable identity fields", () => {
+    expect(createMutationRequest(registry, "update_journey", {
+      journeyId: "one",
+      name: "One renamed",
+      description: "A sufficiently detailed revised Journey description.",
+      projectPath: null,
+    }, "update-request-001")).toMatchObject({
+      operation: "update_journey",
+      expectedSourceVersion: "a".repeat(64),
+      payload: {
+        journeyId: "one",
+        name: "One renamed",
+        description: "A sufficiently detailed revised Journey description.",
+        projectPath: null,
+      },
+    });
+  });
+
   it("builds a delete request from exact registry authority", () => {
     expect(createMutationRequest(registry, "delete_journey", { journeyId: "empty-leaf" }, "delete-request-001")).toMatchObject({
       operation: "delete_journey", expectedSourceVersion: "a".repeat(64), payload: { journeyId: "empty-leaf" },
@@ -80,6 +98,14 @@ describe("Journey administration boundary", () => {
     expect(appSource).toContain('journeyListOrder === "tree" && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))');
     expect(appSource).toContain('setJourneyAdminParent(parentId)');
     expect(appSource).toContain('draggable={journeyListOrder === "tree" && !runtimeBusy}');
+  });
+
+  it("offers one prefilled Edit Journey form while keeping identity and hierarchy immutable", () => {
+    expect(appSource).toContain("Edit Journey…");
+    expect(appSource).toContain("openEditJourney(journeyItemMenu.journeyId)");
+    expect(appSource).toContain('journeyAdminDialog.mode === "edit"');
+    expect(appSource).toContain('executeJourneyMutation("update_journey"');
+    expect(appSource).toContain("Journey ID and slug remain unchanged");
   });
 
   it("offers guarded destructive deletion for leaves and replaces active selection safely", () => {
