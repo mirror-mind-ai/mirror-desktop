@@ -21,6 +21,12 @@ export function isJourneyAltitudeAvailable(altitude: JourneyAltitude): boolean {
   return journeySurfaceAvailability.altitude[altitude];
 }
 
+export function shouldShowJourneyAltitudeSwitcher(
+  availability: Readonly<Record<JourneyAltitude, boolean>> = journeySurfaceAvailability.altitude,
+): boolean {
+  return Object.values(availability).filter(Boolean).length > 1;
+}
+
 export function isOperationalSurfaceAvailable(surface: OperationalSurface): boolean {
   return journeySurfaceAvailability.operational[surface];
 }

@@ -4,6 +4,7 @@ import {
   isOperationalSurfaceAvailable,
   journeySurfaceAvailability,
   normalizeJourneySurfaceSelection,
+  shouldShowJourneyAltitudeSwitcher,
 } from "../app/journeySurfaceAvailability";
 
 
@@ -15,6 +16,12 @@ describe("temporary Journey surface availability", () => {
     });
     expect(isJourneyAltitudeAvailable("operational")).toBe(true);
     expect(isOperationalSurfaceAvailable("artifacts")).toBe(true);
+    expect(shouldShowJourneyAltitudeSwitcher()).toBe(false);
+    expect(shouldShowJourneyAltitudeSwitcher({
+      operational: true,
+      tactical: true,
+      strategic: false,
+    })).toBe(true);
   });
 
   it("normalizes stale hidden selections to functional surfaces", () => {

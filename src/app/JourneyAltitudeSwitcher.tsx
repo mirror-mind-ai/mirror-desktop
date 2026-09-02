@@ -2,7 +2,10 @@ import {
   journeyAltitudeDescriptors,
   type JourneyAltitude,
 } from "./journeyAltitudePreview";
-import { isJourneyAltitudeAvailable } from "./journeySurfaceAvailability";
+import {
+  isJourneyAltitudeAvailable,
+  shouldShowJourneyAltitudeSwitcher,
+} from "./journeySurfaceAvailability";
 
 type JourneyAltitudeSwitcherProps = {
   value: JourneyAltitude;
@@ -17,6 +20,7 @@ const altitudeIcons = {
 } as const satisfies Record<JourneyAltitude, string>;
 
 export function JourneyAltitudeSwitcher({ value, onChange, disabled = false }: JourneyAltitudeSwitcherProps) {
+  if (!shouldShowJourneyAltitudeSwitcher()) return null;
   const selectedValue = isJourneyAltitudeAvailable(value) ? value : "operational";
   return (
     <div className="journey-altitude-switcher" role="tablist" aria-label="Journey altitude">

@@ -192,11 +192,13 @@ are enabled; Tactical, Strategic and Ariad are temporarily disabled until their
 functional readiness is separately validated. Disabled surfaces remain in the
 codebase with their projection loading, empty states and rendering seams intact,
 but their controls are absent from the DOM, keyboard order and accessibility
-tree. Both switchers and App consume the same policy. Stale in-memory Tactical or
-Strategic selection normalizes to Operational, while stale Ariad selection
-normalizes to Conversation; an available Artifacts selection is preserved. Each
-surface returns through one explicit policy change plus tests, not by rebuilding
-removed implementation.
+tree. Both switchers and App consume the same policy. While Operational is the
+only available altitude, the altitude switcher itself is omitted as redundant;
+it returns automatically as soon as Tactical or Strategic is enabled in the
+policy. Stale in-memory Tactical or Strategic selection normalizes to
+Operational, while stale Ariad selection normalizes to Conversation; an
+available Artifacts selection is preserved. Each surface returns through one
+explicit policy change plus tests, not by rebuilding removed implementation.
 
 ## Journey-aware chat file navigation
 
