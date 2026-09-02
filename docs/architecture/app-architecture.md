@@ -163,7 +163,9 @@ project-path editing belongs to Edit Journey rather than a duplicate menu action
 Outside pointer interaction dismisses the menu, while Escape dismisses it and
 restores focus to the invoking row. Menu availability follows the existing
 aggregate runtime administration guard and never changes Journey selection or
-execution authority.
+execution authority. Recent rows retain the persisted recent order and Pinned
+rows retain explicit pin order; changing the selected Journey affects row state
+but never reorders either open view.
 
 Journey appearance is deliberately split from canonical Mirror metadata. A
 bounded channel-local preference overlay keyed by immutable Journey ID stores

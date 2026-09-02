@@ -8,6 +8,7 @@ import {
   flattenJourneyRegistry,
   journeyBreadcrumb,
   markJourneyRecent,
+  orderPinnedJourneys,
   orderSearchResults,
   reconcileReloadedJourneyState,
   searchJourneyRegistry,
@@ -106,8 +107,8 @@ describe("hierarchical Journey registry", () => {
     });
 
     expect(sidebar.map((journey) => [journey.id, journey.reasonVisible])).toEqual([
-      ["nautilus-harness", "active"],
       ["livro-lideranca-soberana", "pinned"],
+      ["nautilus-harness", "active"],
     ]);
   });
 
@@ -148,6 +149,22 @@ describe("hierarchical Journey registry", () => {
       "amplia",
       "livro-lideranca-soberana",
     ]);
+  });
+
+  it("keeps Recent and Pinned row positions stable when selection changes", () => {
+    const preferences = {
+      pinnedJourneyIds: ["livro-lideranca-soberana", "nautilus-harness"],
+      activeJourneyId: "nautilus-harness",
+      recentJourneyIds: ["amplia", "mirror-dev"],
+    };
+    const before = deriveSidebarJourneys(fixtureJourneyRegistry, preferences);
+    const after = deriveSidebarJourneys(fixtureJourneyRegistry, { ...preferences, activeJourneyId: "livro-lideranca-soberana" });
+    expect(after.map((journey) => journey.id)).toEqual(before.map((journey) => journey.id));
+
+    const reversedProjection = [...before].reverse();
+    expect(orderPinnedJourneys(reversedProjection, preferences.pinnedJourneyIds).map((journey) => journey.id)).toEqual(
+      preferences.pinnedJourneyIds,
+    );
   });
 
   it("moves a Journey to the front of bounded recent preferences", () => {

@@ -33,7 +33,7 @@ describe("Journey tree presentation", () => {
     expect(appSource).toContain('aria-pressed={pinnedOnly}');
     expect(appSource).toContain('aria-pressed={!pinnedOnly && journeyListOrder === "recent"}');
     expect(appSource).toContain('aria-pressed={!pinnedOnly && journeyListOrder === "tree"}');
-    expect(appSource).toContain('pinnedOnly ? filterPinnedJourneys(orderedJourneys) : orderedJourneys');
+    expect(appSource).toContain('pinnedOnly ? orderPinnedJourneys(orderedJourneys, journeyPreferences.pinnedJourneyIds) : orderedJourneys');
     expect(appSource).toContain("No pinned Journeys");
   });
 

@@ -153,8 +153,8 @@ export function deriveSidebarJourneys(
 
   const orderedIds = uniqueIds([
     ...preferences.recentJourneyIds,
-    ...(activeJourneyId ? [activeJourneyId] : []),
     ...preferences.pinnedJourneyIds,
+    ...(activeJourneyId ? [activeJourneyId] : []),
     ...flattened.map((journey) => journey.id),
   ]).filter((id) => selected.has(id) && byId.has(id));
 
@@ -193,6 +193,17 @@ export function deriveOrderedSidebarJourneys(
 
 export function filterPinnedJourneys<T extends { pinned: boolean }>(journeys: T[]): T[] {
   return journeys.filter((journey) => journey.pinned);
+}
+
+export function orderPinnedJourneys<T extends { id: string; pinned: boolean }>(
+  journeys: T[],
+  pinnedJourneyIds: string[],
+): T[] {
+  const byId = new Map(journeys.filter((journey) => journey.pinned).map((journey) => [journey.id, journey]));
+  return pinnedJourneyIds.flatMap((journeyId) => {
+    const journey = byId.get(journeyId);
+    return journey ? [journey] : [];
+  });
 }
 
 export function filterCollapsedJourneyTree<T extends FlattenedJourney>(

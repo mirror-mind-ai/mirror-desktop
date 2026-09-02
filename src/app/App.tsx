@@ -183,10 +183,10 @@ import {
 import {
   deriveOrderedSidebarJourneys,
   filterCollapsedJourneyTree,
-  filterPinnedJourneys,
   findJourneyById,
   flattenJourneyRegistry,
   markJourneyRecent,
+  orderPinnedJourneys,
   orderSearchResults,
   reconcileReloadedJourneyState,
   searchJourneyRegistry,
@@ -466,8 +466,8 @@ export function App({ model }: AppProps) {
       : journeyListOrder === "tree"
         ? filterCollapsedJourneyTree(sidebarJourneys, collapsedJourneyIds)
         : sidebarJourneys;
-    return pinnedOnly ? filterPinnedJourneys(orderedJourneys) : orderedJourneys;
-  }, [collapsedJourneyIds, journeyListOrder, journeySearch, pinnedOnly, searchResults, sidebarJourneys]);
+    return pinnedOnly ? orderPinnedJourneys(orderedJourneys, journeyPreferences.pinnedJourneyIds) : orderedJourneys;
+  }, [collapsedJourneyIds, journeyListOrder, journeyPreferences.pinnedJourneyIds, journeySearch, pinnedOnly, searchResults, sidebarJourneys]);
   const selectedJourneyItem = findJourneyById(journeyRegistry, selectedJourney) ??
     sidebarJourneys[0] ?? {
       id: selectedJourney,
