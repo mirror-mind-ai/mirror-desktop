@@ -235,7 +235,12 @@ import { inspectRuntimeChannel, type RuntimeChannelDiagnostic } from "./runtimeC
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
 import { JourneySearchControl } from "./JourneySearchControl";
 import { JourneyItemCopy } from "./JourneyItemCopy";
-import { defaultNewJourneyParentId, sidebarToggleLabel } from "./journeySidebarPresentation";
+import {
+  activateJourneyTree,
+  defaultNewJourneyParentId,
+  sidebarToggleLabel,
+  toggleJourneySidebar,
+} from "./journeySidebarPresentation";
 
 type AppProps = {
   model: NautilusViewModel;
@@ -2262,6 +2267,22 @@ export function App({ model }: AppProps) {
     });
   }
 
+  function toggleSidebarPresentation() {
+    const next = toggleJourneySidebar({ sidebarCompact, journeyListOrder, pinnedOnly });
+    setSidebarCompact(next.sidebarCompact);
+    setJourneyListOrder(next.journeyListOrder);
+    setPinnedOnly(next.pinnedOnly);
+    setJourneyTreeMenuOpen(false);
+  }
+
+  function showJourneyTree() {
+    const next = activateJourneyTree();
+    setSidebarCompact(next.sidebarCompact);
+    setJourneyListOrder(next.journeyListOrder);
+    setPinnedOnly(next.pinnedOnly);
+    setJourneyTreeMenuOpen(false);
+  }
+
   function togglePinnedJourney(journeyId: string) {
     if (runtimeBusy) return;
     setJourneyPreferences((preferences) => ({
@@ -2410,7 +2431,7 @@ export function App({ model }: AppProps) {
           <button
             className="sidebar-toggle-button"
             type="button"
-            onClick={() => setSidebarCompact((compact) => !compact)}
+            onClick={toggleSidebarPresentation}
             aria-label={sidebarToggleLabel(sidebarCompact)}
             aria-expanded={!sidebarCompact}
             title={sidebarToggleLabel(sidebarCompact)}
@@ -2461,11 +2482,7 @@ export function App({ model }: AppProps) {
             ref={journeyTreeButtonRef}
             className={!pinnedOnly && journeyListOrder === "tree" ? "selected" : ""}
             type="button"
-            onClick={() => {
-              setPinnedOnly(false);
-              setJourneyListOrder("tree");
-              setJourneyTreeMenuOpen(false);
-            }}
+            onClick={showJourneyTree}
             onContextMenu={(event) => openJourneyTreeMenu(event.currentTarget, event)}
             onKeyDown={(event) => {
               if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {

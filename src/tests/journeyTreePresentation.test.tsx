@@ -28,7 +28,8 @@ describe("Journey tree presentation", () => {
   it("replaces A-Z with an exclusive Pinned-only view", () => {
     expect(appSource).not.toContain('["name", "A–Z"]');
     expect(appSource).toMatch(/setPinnedOnly\(true\);\s+setJourneyListOrder\("recent"\)/);
-    expect(appSource.match(/setPinnedOnly\(false\)/g)).toHaveLength(2);
+    expect(appSource).toContain("onClick={showJourneyTree}");
+    expect(appSource).toContain("const next = activateJourneyTree()");
     expect(appSource).toContain('aria-pressed={pinnedOnly}');
     expect(appSource).toContain('aria-pressed={!pinnedOnly && journeyListOrder === "recent"}');
     expect(appSource).toContain('aria-pressed={!pinnedOnly && journeyListOrder === "tree"}');
