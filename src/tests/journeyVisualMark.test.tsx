@@ -21,6 +21,14 @@ describe("Journey visual mark", () => {
     expect(html).toContain("journey-visual-activity");
   });
 
+  it("shows transparent custom pixels over a neutral surface instead of a theme tint", () => {
+    const html = renderToStaticMarkup(
+      <JourneyVisualMark journeyId="journey-one" appearance={{ kind: "custom" }} fallbackGlyph="•" />,
+    );
+    expect(html).toContain("background-color:#101719");
+    expect(html).toContain("border-color:rgba(255, 255, 255, 0.16)");
+  });
+
   it("keeps external paths out of the frontend overlay boundary", () => {
     expect(storageSource).toContain('invoke<string | null>("import_journey_custom_image", { journeyId })');
     expect(storageSource).toContain("PNG_DATA_URL");

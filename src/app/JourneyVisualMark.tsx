@@ -64,6 +64,7 @@ export function JourneyVisualMark({
     <span
       className={`journey-visual-mark ${appearance?.kind ?? "default"} ${className}`.trim()}
       data-runtime-phase={runtimePhase}
+      style={appearance?.kind === "custom" ? { backgroundColor: "#101719", borderColor: "rgba(255, 255, 255, 0.16)" } : undefined}
       aria-hidden="true"
     >
       {appearance?.kind === "custom" && customImage
