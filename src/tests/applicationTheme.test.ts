@@ -61,7 +61,7 @@ describe("application themes", () => {
       raisedSurface: "#f0f2f5",
       primaryText: "#1f2937",
       mutedText: "#667085",
-      accentText: "#0f766e",
+      accentText: "#2563eb",
     });
     for (const theme of lightApplicationThemes) {
       expect(contrast(theme.tokens.primaryText, theme.tokens.surface), theme.id).toBeGreaterThanOrEqual(7);
@@ -70,6 +70,7 @@ describe("application themes", () => {
       expect(cssSource).toContain(`[data-application-theme="${theme.id}"]`);
     }
     expect(cssSource).toContain("--light-surface");
+    expect(cssSource).toContain('.app-shell[data-application-theme="daylight"] :where(.accent-teal, .accent-green)');
     expect(cssSource).toContain(".message-copy-ready-block");
     expect(cssSource).toContain(".operational-artifacts-browser");
     expect(cssSource).toContain(".settings-window");

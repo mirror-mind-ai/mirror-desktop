@@ -99,9 +99,9 @@ textarea {
 }
 
 .app-shell[data-application-theme="daylight"] {
-  --ui-accent: #0f766e;
-  --ui-accent-rgb: 15, 118, 110;
-  --shell-radial: rgba(15, 118, 110, 0.035);
+  --ui-accent: #2563eb;
+  --ui-accent-rgb: 37, 99, 235;
+  --shell-radial: rgba(37, 99, 235, 0.035);
   --shell-start: #f7f8fa;
   --shell-middle: #f6f7f9;
   --shell-end: #f4f5f7;
@@ -111,7 +111,7 @@ textarea {
   --light-raised: #f0f2f5;
   --light-text: #1f2937;
   --light-muted: #667085;
-  --light-accent: #0f766e;
+  --light-accent: #2563eb;
   --light-border: #d0d5dd;
   --light-soft-border: #e4e7ec;
   --light-shadow: rgba(31, 41, 55, 0.14);
@@ -4679,6 +4679,11 @@ dd {
 .message-attachment-provenance small { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 
+/* Daylight uses one conventional blue accent instead of inheriting green Journey chrome. */
+.app-shell[data-application-theme="daylight"] :where(.accent-teal, .accent-green) {
+  --accent: #2563eb;
+}
+
 /* Curated light themes share semantic surfaces while preserving palette identity. */
 .app-shell:is(
   [data-application-theme="daylight"],
@@ -5002,7 +5007,8 @@ dd {
   .journey-admin-immutable-note,
   .journey-appearance-fieldset legend,
   .journey-appearance-fieldset > p,
-  .journey-custom-image-control small
+  .journey-custom-image-control small,
+  .journey-appearance-message
 ) {
   color: var(--light-muted);
 }

@@ -20,14 +20,14 @@ export const applicationThemes = [
     id: "daylight",
     label: "Daylight",
     family: "light",
-    colors: ["#0f766e", "#f0f2f5", "#ffffff"],
+    colors: ["#2563eb", "#f0f2f5", "#ffffff"],
     tokens: {
       canvas: "#f6f7f9",
       surface: "#ffffff",
       raisedSurface: "#f0f2f5",
       primaryText: "#1f2937",
       mutedText: "#667085",
-      accentText: "#0f766e",
+      accentText: "#2563eb",
     },
   },
   {
