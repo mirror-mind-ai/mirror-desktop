@@ -222,7 +222,7 @@ import {
   type ComposerDraftMap,
 } from "../domain/composerDrafts";
 import type { JourneyProjectionBundle } from "../domain/journeyProjections";
-import { applicationThemes, type ApplicationTheme } from "../domain/applicationTheme";
+import { applicationThemeGroups, type ApplicationTheme } from "../domain/applicationTheme";
 import {
   journeySystemIcons,
   isJourneySystemIconSelected,
@@ -3373,21 +3373,28 @@ export function App({ model }: AppProps) {
               >
                 <section className="settings-section appearance-card" aria-label="Application appearance">
               <h3>Appearance</h3>
-              <div className="theme-choice-grid" role="radiogroup" aria-label="Application color theme">
-                {applicationThemes.map((theme) => (
-                  <button
-                    className={`theme-choice ${applicationTheme === theme.id ? "selected" : ""}`}
-                    type="button"
-                    role="radio"
-                    aria-checked={applicationTheme === theme.id}
-                    onClick={() => setApplicationTheme(theme.id)}
-                    key={theme.id}
-                  >
-                    <span className="theme-swatches" aria-hidden="true">
-                      {theme.colors.map((color) => <span key={color} style={{ backgroundColor: color }} />)}
-                    </span>
-                    <span>{theme.label}</span>
-                  </button>
+              <div className="theme-family-list" role="radiogroup" aria-label="Application color theme">
+                {applicationThemeGroups.map((group) => (
+                  <section className="theme-family" role="group" aria-label={`${group.label} themes`} key={group.family}>
+                    <h4>{group.label}</h4>
+                    <div className="theme-choice-grid">
+                      {group.themes.map((theme) => (
+                        <button
+                          className={`theme-choice ${applicationTheme === theme.id ? "selected" : ""}`}
+                          type="button"
+                          role="radio"
+                          aria-checked={applicationTheme === theme.id}
+                          onClick={() => setApplicationTheme(theme.id)}
+                          key={theme.id}
+                        >
+                          <span className="theme-swatches" aria-hidden="true">
+                            {theme.colors.map((color) => <span key={color} style={{ backgroundColor: color }} />)}
+                          </span>
+                          <span>{theme.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
               <button

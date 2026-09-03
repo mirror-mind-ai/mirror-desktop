@@ -189,6 +189,20 @@ cleanup without affecting canonical deletion authority. Runtime phase labels,
 semantic accents and exact Journey execution ownership remain independent of
 appearance.
 
+## Curated dark and light application themes
+
+The channel-local Appearance preference selects one immutable ID from a curated
+catalog grouped as Dark or Light; arbitrary colors and automatic system/time
+switching remain outside the contract. Existing dark IDs stay backward-compatible.
+Daylight, Mist and Parchment share one semantic light-surface contract while each
+supplies its own canvas, raised surface, primary/muted text and accent tokens.
+Those tokens cover shell and sidebar, Journey navigation, conversation and
+copy-ready prose, composer controls, Artifacts, menus and Settings/dialogs.
+Catalog tests enforce primary, muted and accent contrast against declared light
+surfaces and preference round-trips for every new ID. Development channel identity,
+runtime semantic colors, reduced motion and the neutral custom-image background
+remain independent of theme choice.
+
 ## Temporary Journey surface availability
 
 One explicit presentation policy controls which already-implemented Journey

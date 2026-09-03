@@ -98,6 +98,63 @@ textarea {
   --sidebar-surface: rgba(13, 18, 21, 0.97);
 }
 
+.app-shell[data-application-theme="daylight"] {
+  --ui-accent: #11665e;
+  --ui-accent-rgb: 17, 102, 94;
+  --shell-radial: rgba(17, 102, 94, 0.1);
+  --shell-start: #fbfdfc;
+  --shell-middle: #f7faf8;
+  --shell-end: #eaf2ef;
+  --sidebar-surface: rgba(246, 249, 248, 0.98);
+  --light-canvas: #f7faf8;
+  --light-surface: #ffffff;
+  --light-raised: #eef5f2;
+  --light-text: #172321;
+  --light-muted: #4b5f5a;
+  --light-accent: #11665e;
+  --light-border: rgba(23, 35, 33, 0.16);
+  --light-soft-border: rgba(23, 35, 33, 0.1);
+  --light-shadow: rgba(23, 35, 33, 0.16);
+}
+
+.app-shell[data-application-theme="mist"] {
+  --ui-accent: #285d91;
+  --ui-accent-rgb: 40, 93, 145;
+  --shell-radial: rgba(40, 93, 145, 0.11);
+  --shell-start: #fbfdff;
+  --shell-middle: #f4f8fc;
+  --shell-end: #e6eef6;
+  --sidebar-surface: rgba(239, 244, 249, 0.98);
+  --light-canvas: #f4f8fc;
+  --light-surface: #ffffff;
+  --light-raised: #edf3f8;
+  --light-text: #182536;
+  --light-muted: #526579;
+  --light-accent: #285d91;
+  --light-border: rgba(24, 37, 54, 0.16);
+  --light-soft-border: rgba(24, 37, 54, 0.1);
+  --light-shadow: rgba(24, 37, 54, 0.16);
+}
+
+.app-shell[data-application-theme="parchment"] {
+  --ui-accent: #6e4d25;
+  --ui-accent-rgb: 110, 77, 37;
+  --shell-radial: rgba(151, 112, 57, 0.11);
+  --shell-start: #fffdf7;
+  --shell-middle: #fbf7ed;
+  --shell-end: #eee4d1;
+  --sidebar-surface: rgba(247, 241, 226, 0.98);
+  --light-canvas: #fbf7ed;
+  --light-surface: #fffdf7;
+  --light-raised: #f4eddc;
+  --light-text: #302a20;
+  --light-muted: #665b4b;
+  --light-accent: #6e4d25;
+  --light-border: rgba(48, 42, 32, 0.18);
+  --light-soft-border: rgba(48, 42, 32, 0.11);
+  --light-shadow: rgba(48, 42, 32, 0.16);
+}
+
 .app-shell.channel-development[data-application-theme="channel"] .journey-sidebar {
   border-right-color: rgba(202, 147, 255, 0.18);
 }
@@ -225,6 +282,19 @@ textarea {
 
 .appearance-card h3 {
   margin: 0 0 11px;
+}
+
+.theme-family-list {
+  display: grid;
+  gap: 14px;
+}
+
+.theme-family h4 {
+  color: #8fa0a5;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  margin: 0 0 7px;
+  text-transform: uppercase;
 }
 
 .theme-choice-grid {
@@ -4607,3 +4677,368 @@ dd {
 .message-attachment-provenance small,
 .message-attachment-provenance p { color: #6f898f; font-size: 0.65rem; margin: 0; }
 .message-attachment-provenance small { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+
+/* Curated light themes share semantic surfaces while preserving palette identity. */
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) {
+  color: var(--light-text);
+  color-scheme: light;
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .journey-sidebar {
+  border-right-color: var(--light-border);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(
+  h1,
+  h2,
+  h3,
+  .brand-block strong,
+  .journey-name,
+  .active-journey-title,
+  .message p,
+  .message-content,
+  .message-content h2,
+  .message-content h3,
+  .journey-documentation-state strong,
+  .journey-documentation-select,
+  .journey-documentation-detail h2,
+  .journey-documentation-content h2,
+  .journey-documentation-body,
+  .journey-documentation-body h2,
+  .journey-documentation-body h3,
+  .settings-header h2,
+  dd
+) {
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(
+  .brand-block small,
+  .journey-context,
+  .journey-last-worked,
+  .journey-subtitle,
+  .conversation-summary,
+  .chat-header p:not(.eyebrow),
+  .operational-workspace-option,
+  .message-copy-action,
+  .turn-finalization-status,
+  .composer-runtime-metadata,
+  .composer-provider-model,
+  .copy-status,
+  .operational-artifacts-section-label,
+  .journey-documentation-state,
+  .operational-artifact-document-viewer,
+  .operational-artifact-detail-preview,
+  .journey-documentation-metadata strong,
+  .settings-intro,
+  .empty-chat-copy,
+  .provider-field,
+  .provider-note,
+  dt,
+  .theme-family h4
+) {
+  color: var(--light-muted);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.eyebrow, .message-role, .journey-documentation-root, .inline-link) {
+  color: var(--light-accent);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.chat-header, .composer, .sidebar-footer) {
+  border-color: var(--light-soft-border);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.journey-order-control, .settings-tab-list) {
+  background: rgba(255, 255, 255, 0.56);
+  border-color: var(--light-soft-border);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.sidebar-search, .provider-field input, .provider-field select, .composer-input-wrap textarea) {
+  background: var(--light-surface);
+  border-color: var(--light-border);
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(textarea::placeholder, input::placeholder) {
+  color: var(--light-muted);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.journey-item.card-node, .message.assistant, .message.user, .settings-section, .message-copy-ready-block, .journey-thread-state) {
+  background: color-mix(in srgb, var(--light-surface) 88%, var(--light-raised));
+  border-color: var(--light-soft-border);
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--light-shadow) 55%, transparent);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .message.user {
+  background: color-mix(in srgb, var(--ui-accent) 10%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 25%, var(--light-border));
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .journey-item.selected {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 13%, var(--light-surface)), var(--light-surface));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--light-border));
+  box-shadow: 0 10px 24px var(--light-shadow), inset 3px 0 0 var(--accent);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.journey-item.tree-node:hover:not(.disabled), .journey-item.tree-node.selected) {
+  background: color-mix(in srgb, var(--accent) 9%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--light-border));
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.operational-workspace-option.selected, .settings-tab-list button.selected, .journey-order-control button.selected) {
+  background: color-mix(in srgb, var(--ui-accent) 11%, var(--light-surface));
+  color: var(--light-accent);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.operational-artifacts-browser, .operational-artifact-document-viewer) {
+  background: linear-gradient(160deg, var(--light-surface), var(--light-raised));
+  border-color: color-mix(in srgb, var(--ui-accent) 20%, var(--light-border));
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.journey-documentation-metadata span, .journey-documentation-body pre, .message-content code, .message-code-block) {
+  background: var(--light-raised);
+  border-color: var(--light-soft-border);
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.journey-documentation-body, .journey-documentation-unavailable) {
+  border-color: var(--light-soft-border);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.journey-menu, .journey-tree-context-menu, .journey-item-context-menu, .artifact-context-menu, .settings-window) {
+  background: var(--light-surface);
+  border-color: var(--light-border);
+  box-shadow: 0 18px 48px var(--light-shadow);
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(
+  .journey-menu button,
+  .journey-tree-context-menu button,
+  .journey-item-context-menu button,
+  .artifact-context-menu button,
+  .settings-tab-list button,
+  .theme-choice
+) {
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.theme-choice, .icon-button, .menu-button, .secondary-button, .settings-button, .sidebar-action-button) {
+  background: rgba(255, 255, 255, 0.58);
+  border-color: var(--light-border);
+  color: var(--light-accent);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(
+  .theme-choice:hover,
+  .theme-choice:focus-visible,
+  .theme-choice.selected,
+  .journey-menu button:not(:disabled):hover,
+  .journey-tree-context-menu button:hover:not(:disabled),
+  .journey-tree-context-menu button:focus-visible,
+  .journey-item-context-menu button:hover:not(:disabled),
+  .journey-item-context-menu button:focus-visible:not(:disabled),
+  .artifact-context-menu button:hover,
+  .artifact-context-menu button:focus-visible
+) {
+  background: color-mix(in srgb, var(--ui-accent) 10%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 45%, var(--light-border));
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(button:not(.secondary-button, .settings-button, .icon-button, .menu-button, .sidebar-action-button, .theme-choice, .journey-documentation-toggle, .journey-documentation-select, .journey-pin, .journey-tree-toggle, .journey-menu button, .journey-tree-context-menu button, .journey-item-context-menu button, .artifact-context-menu button, .settings-tab-list button, .message-copy-action)) {
+  color: #ffffff;
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.message-copy-action, .journey-documentation-open-action button, .composer-provider-model) {
+  border-color: color-mix(in srgb, var(--ui-accent) 32%, var(--light-border));
+  color: var(--light-accent);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.provider-error, .journey-documentation-routing-error, .message-copy-action.is-failed, .journey-thread-error) {
+  color: #9a3030;
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(button:disabled, input:disabled, select:disabled, textarea:disabled) {
+  opacity: 0.52;
+}
+
+.app-shell.channel-development:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .brand-channel-badge {
+  background: #68418a;
+  color: #ffffff;
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.journey-admin-dialog, .journey-admin-dialog input, .journey-admin-dialog select, .journey-admin-dialog textarea) {
+  color-scheme: light;
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.journey-admin-dialog input, .journey-admin-dialog select, .journey-admin-dialog textarea) {
+  background: var(--light-surface);
+  border-color: var(--light-border);
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(
+  .journey-admin-dialog > label,
+  .journey-admin-dialog .settings-grid label,
+  .journey-admin-dialog input[readonly],
+  .journey-admin-immutable-note,
+  .journey-appearance-fieldset legend,
+  .journey-appearance-fieldset > p,
+  .journey-custom-image-control small
+) {
+  color: var(--light-muted);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.journey-system-icon-grid button, .journey-admin-dialog .settings-header > button) {
+  background: var(--light-raised);
+  border-color: var(--light-border);
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.journey-system-icon-grid button.selected, .inline-grammar-card, .dedicated-turn-notice, .conversation-sync-notice) {
+  background: color-mix(in srgb, var(--ui-accent) 9%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 24%, var(--light-border));
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.inline-grammar-card p, .dedicated-turn-notice p, .conversation-sync-notice, .imported-context-disclosure) {
+  color: var(--light-muted);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.inline-grammar-card h2, .inline-grammar-grid span, .message-code-block code, .journey-documentation-body.content-text > pre) {
+  color: var(--light-text);
+}
