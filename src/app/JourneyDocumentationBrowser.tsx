@@ -47,6 +47,8 @@ type JourneyDocumentationSurfaceProps = {
   routingError?: string;
   openError?: string;
   artifactActionError?: string;
+  previewExpanded?: boolean;
+  onPreviewExpandedChange?: (expanded: boolean) => void;
 };
 
 type ArtifactMenuState = {
@@ -77,6 +79,7 @@ export function JourneyDocumentationBrowser({
   const [openError, setOpenError] = useState<string>();
   const [artifactActionError, setArtifactActionError] = useState<string>();
   const [artifactMenu, setArtifactMenu] = useState<ArtifactMenuState>();
+  const [previewExpanded, setPreviewExpanded] = useState(false);
   const treeRequestRef = useRef(0);
   const contentRequestRef = useRef(0);
   const artifactActionRequestRef = useRef(0);
@@ -207,6 +210,8 @@ export function JourneyDocumentationBrowser({
         routingError={routingError}
         openError={openError}
         artifactActionError={artifactActionError}
+        previewExpanded={previewExpanded}
+        onPreviewExpandedChange={setPreviewExpanded}
       />
       {artifactMenu ? (
         <ArtifactContextMenu
@@ -234,6 +239,8 @@ export function JourneyDocumentationSurface({
   routingError,
   openError,
   artifactActionError,
+  previewExpanded = false,
+  onPreviewExpandedChange = () => undefined,
 }: JourneyDocumentationSurfaceProps) {
   return (
     <section
@@ -244,12 +251,23 @@ export function JourneyDocumentationSurface({
     >
       {routingError ? <p className="journey-documentation-routing-error" role="alert">{routingError}</p> : null}
       {artifactActionError ? <p className="journey-documentation-routing-error" role="alert">{artifactActionError}</p> : null}
-      <div className="operational-artifacts-layout">
-        <div className="operational-artifacts-browser">
+      <div className={`operational-artifacts-layout${previewExpanded ? " is-preview-expanded" : ""}`}>
+        <div id="journey-artifact-workspace-tree" className="operational-artifacts-browser">
           <p className="operational-artifacts-section-label">Workspace structure</p>
           {renderTreeState(tree, expandedPaths, selectedNode, onToggle, onSelect, onOpenContextMenu)}
         </div>
         <div className="operational-artifact-document-viewer">
+          <div className="artifact-preview-layout-toolbar">
+            <button
+              type="button"
+              className="artifact-preview-layout-toggle"
+              aria-controls="journey-artifact-workspace-tree"
+              aria-pressed={previewExpanded}
+              onClick={() => onPreviewExpandedChange(!previewExpanded)}
+            >
+              {previewExpanded ? "Show workspace tree" : "Expand preview"}
+            </button>
+          </div>
           {renderViewer(selectedNode, content, onOpen, openError)}
         </div>
       </div>

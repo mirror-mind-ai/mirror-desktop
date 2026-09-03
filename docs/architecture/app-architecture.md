@@ -263,6 +263,15 @@ authority. The async result is owner-scoped so navigation during classification
 cannot redirect another Journey. HTTP(S) links and non-chat activity rendering
 retain their existing behavior.
 
+The Artifacts split view has a presentation-only preview expansion toggle. In its
+expanded state, CSS removes the mounted workspace tree from layout and accessibility
+exposure while the component retains its expanded-path and selected-node state; the
+viewer consumes the reclaimed width and the same control restores the tree. This
+state is local to the Harness surface and cannot change Journey, file, execution, or
+filesystem authority. The toggle exposes `aria-pressed` and `aria-controls`, has
+explicit keyboard focus in dark and light themes, and the ordinary split view stacks
+safely at constrained viewport widths.
+
 ## Artifact reveal boundary
 
 Every visible Artifact file or folder offers the same exact-target context menu

@@ -3167,6 +3167,15 @@ button:disabled {
   min-height: 320px;
 }
 
+/* Artifact preview expansion contract. */
+.operational-artifacts-layout.is-preview-expanded {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.operational-artifacts-layout.is-preview-expanded .operational-artifacts-browser {
+  display: none;
+}
+
 .operational-artifacts-browser,
 .operational-artifact-document-viewer {
   background: linear-gradient(160deg, rgba(113, 224, 208, 0.075), rgba(5, 10, 12, 0.34));
@@ -3175,6 +3184,37 @@ button:disabled {
   min-height: 0;
   overflow: auto;
   padding: 22px;
+}
+
+.artifact-preview-layout-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.artifact-preview-layout-toggle {
+  background: rgba(var(--ui-accent-rgb), 0.1);
+  border: 1px solid rgba(var(--ui-accent-rgb), 0.3);
+  border-radius: 10px;
+  color: #c9f3ed;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+  min-height: 34px;
+  padding: 7px 11px;
+}
+
+.artifact-preview-layout-toggle:hover {
+  background: rgba(var(--ui-accent-rgb), 0.16);
+  border-color: rgba(var(--ui-accent-rgb), 0.5);
+}
+
+.artifact-preview-layout-toggle:focus-visible {
+  outline: 3px solid var(--ui-accent);
+  outline-offset: 2px;
 }
 
 .operational-artifacts-section-label {
@@ -3815,6 +3855,14 @@ dd {
 
   .strategic-journey-workspace {
     padding: 24px;
+  }
+
+  .operational-artifacts-layout:not(.is-preview-expanded) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .operational-artifacts-layout:not(.is-preview-expanded) .operational-artifacts-browser {
+    max-height: 42vh;
   }
 
   .strategic-realization-anchor {
@@ -4943,6 +4991,33 @@ dd {
   [data-application-theme="daylight"],
   [data-application-theme="mist"],
   [data-application-theme="parchment"]
+) .artifact-preview-layout-toggle {
+  background: color-mix(in srgb, var(--ui-accent) 8%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 35%, var(--light-border));
+  color: var(--light-accent);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .artifact-preview-layout-toggle:hover {
+  background: color-mix(in srgb, var(--ui-accent) 14%, var(--light-surface));
+  border-color: var(--light-accent);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .artifact-preview-layout-toggle:focus-visible {
+  outline-color: var(--light-accent);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
 ) :where(.journey-documentation-metadata span, .journey-documentation-body pre, .message-content code, .message-code-block) {
   background: var(--light-raised);
   border-color: var(--light-soft-border);
@@ -5018,7 +5093,7 @@ dd {
   [data-application-theme="daylight"],
   [data-application-theme="mist"],
   [data-application-theme="parchment"]
-) :where(button:not(.secondary-button, .settings-button, .icon-button, .menu-button, .sidebar-action-button, .theme-choice, .journey-documentation-toggle, .journey-documentation-select, .journey-pin, .journey-tree-toggle, .journey-menu button, .journey-tree-context-menu button, .journey-item-context-menu button, .artifact-context-menu button, .settings-tab-list button, .message-copy-action)) {
+) :where(button:not(.secondary-button, .settings-button, .icon-button, .menu-button, .sidebar-action-button, .theme-choice, .journey-documentation-toggle, .journey-documentation-select, .artifact-preview-layout-toggle, .journey-pin, .journey-tree-toggle, .journey-menu button, .journey-tree-context-menu button, .journey-item-context-menu button, .artifact-context-menu button, .settings-tab-list button, .message-copy-action)) {
   color: #ffffff;
 }
 

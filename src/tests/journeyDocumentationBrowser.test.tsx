@@ -1,8 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+// @ts-expect-error Vitest runs in Node; production code has no Node dependency.
+import { readFileSync } from "node:fs";
 import { JourneyDocumentationSurface } from "../app/JourneyDocumentationBrowser";
 import type { DocumentationNode, DocumentationTree } from "../domain/journeyDocumentation";
 import browserSource from "../app/JourneyDocumentationBrowser.tsx?raw";
+
+const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
 const guide: DocumentationNode = {
   relativePath: "guides",
@@ -82,6 +86,44 @@ describe("JourneyDocumentationBrowser", () => {
     expect(html).toContain("Safe documentation.");
     expect(html).not.toContain("href=");
     expect(html).toContain("Open file");
+  });
+
+  it("offers an accessible presentation-only preview expansion toggle", () => {
+    const onPreviewExpandedChange = vi.fn();
+    const collapsed = renderToStaticMarkup(
+      <JourneyDocumentationSurface
+        tree={readyTree}
+        expandedPaths={new Set(["guides"])}
+        selectedNode={guide.children[0]}
+        content={{ status: "idle" }}
+        previewExpanded={false}
+        onPreviewExpandedChange={onPreviewExpandedChange}
+        {...handlers}
+      />,
+    );
+    const expanded = renderToStaticMarkup(
+      <JourneyDocumentationSurface
+        tree={readyTree}
+        expandedPaths={new Set(["guides"])}
+        selectedNode={guide.children[0]}
+        content={{ status: "idle" }}
+        previewExpanded
+        onPreviewExpandedChange={onPreviewExpandedChange}
+        {...handlers}
+      />,
+    );
+
+    expect(collapsed).toContain('aria-pressed="false"');
+    expect(collapsed).toContain('aria-controls="journey-artifact-workspace-tree"');
+    expect(collapsed).toContain("Expand preview");
+    expect(expanded).toContain('class="operational-artifacts-layout is-preview-expanded"');
+    expect(expanded).toContain('aria-pressed="true"');
+    expect(expanded).toContain("Show workspace tree");
+    expect(expanded).toContain('id="journey-artifact-workspace-tree"');
+    expect(expanded).toContain('aria-selected="true"');
+    expect(cssSource).toContain("/* Artifact preview expansion contract. */");
+    expect(cssSource).toContain(".operational-artifacts-layout.is-preview-expanded");
+    expect(cssSource).toContain(".artifact-preview-layout-toggle:focus-visible");
   });
 
   it("shows metadata and an honest reason when preview is unavailable", () => {
