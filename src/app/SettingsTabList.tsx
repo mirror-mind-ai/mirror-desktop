@@ -2,6 +2,7 @@ import type { KeyboardEvent } from "react";
 
 export const settingsTabs = [
   { id: "appearance", label: "Appearance" },
+  { id: "user-profile", label: "User Profile" },
   { id: "agent", label: "Agent" },
   { id: "runtime", label: "Runtime" },
 ] as const;

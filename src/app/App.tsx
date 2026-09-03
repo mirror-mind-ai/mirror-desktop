@@ -3455,6 +3455,16 @@ export function App({ model }: AppProps) {
                 Restore default
               </button>
                 </section>
+              </div>
+            ) : null}
+
+            {settingsTab === "user-profile" ? (
+              <div
+                className="settings-tab-panel"
+                id="settings-panel-user-profile"
+                role="tabpanel"
+                aria-labelledby="settings-tab-user-profile"
+              >
                 <UserAvatarSettings
                   avatar={userAvatar}
                   busy={userAvatarBusy}

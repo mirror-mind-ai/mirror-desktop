@@ -190,7 +190,8 @@ semantic accents and exact Journey execution ownership remain independent of
 appearance.
 
 The user message avatar is a separate, singleton channel-local presentation asset.
-Appearance Settings imports only decoded PNG, JPEG, or WebP sources up to 5 MiB,
+The dedicated User Profile Settings tab imports only decoded PNG, JPEG, or WebP
+sources up to 5 MiB,
 normalizes them through the same 512px center-cover PNG boundary, and atomically
 stores `user-avatar/avatar.png` beneath the active bundle's app-data root. Native
 load revalidates the regular PNG and dimensions; unsafe replacement leaves the
