@@ -85,6 +85,31 @@ describe("application themes", () => {
     expect(cssSource).toContain(".settings-window");
   });
 
+  it("keeps Mist cool-blue and Parchment warm while making Journey ordering readable", () => {
+    const mist = lightApplicationThemes.find(({ id }) => id === "mist")!;
+    const parchment = lightApplicationThemes.find(({ id }) => id === "parchment")!;
+    expect(mist.tokens.accentText).toBe("#285d91");
+    expect(parchment.tokens.accentText).toBe("#6e4d25");
+
+    for (const theme of [mist, parchment]) {
+      const selectedSurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.11);
+      expect(contrast(theme.tokens.mutedText, theme.tokens.surface), `${theme.id} unselected`)
+        .toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.accentText, selectedSurface), `${theme.id} selected`)
+        .toBeGreaterThanOrEqual(4.5);
+    }
+
+    expect(cssSource).toContain("/* Mist and Parchment semantic chroma contract. */");
+    expect(cssSource).toContain('[data-application-theme="mist"] :where(.accent-teal, .accent-green)');
+    expect(cssSource).toContain('[data-application-theme="parchment"] :where(.accent-teal, .accent-green)');
+    expect(cssSource).toContain("/* Light Journey ordering contrast contract. */");
+    expect(cssSource).toContain(".journey-order-control button:not(.selected):hover");
+    expect(cssSource).toContain(".journey-order-control button.selected");
+    expect(cssSource).toContain("inset 0 -3px 0 var(--light-accent)");
+    expect(cssSource).toContain(".journey-order-control button:focus-visible");
+    expect(cssSource).toContain(".composer-active-mode span");
+  });
+
   it("keeps user, agent, persona, and activity badges legible in light themes", () => {
     for (const theme of lightApplicationThemes) {
       expect(contrast("#ffffff", theme.tokens.accentText), theme.id).toBeGreaterThanOrEqual(4.5);

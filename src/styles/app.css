@@ -4908,6 +4908,15 @@ dd {
   --accent: #2563eb;
 }
 
+/* Mist and Parchment semantic chroma contract. */
+.app-shell[data-application-theme="mist"] :where(.accent-teal, .accent-green) {
+  --accent: #285d91;
+}
+
+.app-shell[data-application-theme="parchment"] :where(.accent-teal, .accent-green) {
+  --accent: #6e4d25;
+}
+
 /* Curated light themes share semantic surfaces while preserving palette identity. */
 .app-shell:is(
   [data-application-theme="daylight"],
@@ -5812,4 +5821,85 @@ dd {
   .app-shell[data-application-theme="parchment"]
 ) .message-file-item small {
   color: var(--light-muted);
+}
+
+/* Light Journey ordering contrast contract. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-order-control {
+  background: color-mix(in srgb, var(--light-surface) 72%, var(--light-raised));
+  border-color: var(--light-border);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-order-control button {
+  border: 1px solid transparent;
+  color: var(--light-muted);
+  font-weight: 650;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-order-control button:not(.selected):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ui-accent) 7%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 24%, var(--light-border));
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-order-control button.selected {
+  background: color-mix(in srgb, var(--ui-accent) 11%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 40%, var(--light-border));
+  box-shadow: inset 0 -3px 0 var(--light-accent);
+  color: var(--light-accent);
+  font-weight: 760;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-order-control button:focus-visible {
+  outline: 3px solid var(--light-accent);
+  outline-offset: 2px;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-order-control button:disabled {
+  background: var(--light-raised);
+  border-color: var(--light-soft-border);
+  box-shadow: none;
+  color: var(--light-muted);
+  opacity: 1;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.composer-active-mode, .composer-active-mode span, .composer-context-initialize) {
+  color: var(--light-accent);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-runtime-state {
+  background: color-mix(in srgb, var(--accent) 9%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--light-border));
+  color: var(--light-accent);
 }

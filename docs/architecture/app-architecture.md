@@ -200,7 +200,12 @@ Daylight is deliberately conventional: neutral white/gray surfaces carry the
 hierarchy, with an accessible interface blue reserved for links, focus, selection
 and actions. It does not inherit the green-teal accents used by Nautilus's dark
 channel theme; teal and green Journey chrome are normalized to that Daylight blue.
-Other Journey identity colors and exact runtime authority remain intact.
+Mist applies the same normalization to its cool blue-gray accent, and Parchment to
+its warm brown accent, so neither inherits stray green/teal selection, runtime, or
+mode chrome. Other Journey identity colors and exact runtime authority remain intact.
+Recent, Pinned and Tree controls use explicit primary/muted text, bounded hover and
+disabled states, plus an accent border and inset selected edge rather than inheriting
+the generic light-button foreground.
 Those tokens cover shell and sidebar, Journey navigation, conversation and
 copy-ready prose, composer controls, Artifacts, menus and Settings/dialogs.
 Light-theme speaker avatars use filled accessible surfaces: neutral for the user,
