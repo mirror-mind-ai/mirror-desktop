@@ -6,7 +6,8 @@ mod turn_journal;
 
 use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
 use journey_appearance::{
-    import_journey_custom_image, load_journey_custom_image, remove_journey_custom_image,
+    import_journey_custom_image, import_user_avatar, load_journey_custom_image,
+    load_user_avatar, remove_journey_custom_image, remove_user_avatar,
 };
 use pi_process_registry::{
     control_bounded_child_handles, control_child_handle, join_before_continuation,
@@ -4459,6 +4460,9 @@ fn main() {
             import_journey_custom_image,
             load_journey_custom_image,
             remove_journey_custom_image,
+            import_user_avatar,
+            load_user_avatar,
+            remove_user_avatar,
             load_journey_preferences,
             save_journey_preferences,
             load_composer_drafts,

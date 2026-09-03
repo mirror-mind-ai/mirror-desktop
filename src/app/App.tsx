@@ -258,6 +258,8 @@ import {
   toggleJourneySidebar,
 } from "./journeySidebarPresentation";
 import { SettingsTabList, type SettingsTab } from "./SettingsTabList";
+import { MessageSpeakerAvatar, UserAvatarSettings } from "./UserAvatar";
+import { importUserAvatar, loadUserAvatar, removeUserAvatar } from "./userAvatarStorage";
 
 type AppProps = {
   model: NautilusViewModel;
@@ -356,6 +358,9 @@ export function App({ model }: AppProps) {
   const [journeyAppearanceById, setJourneyAppearanceById] = useState<JourneyAppearanceById>(defaultJourneyPreferenceState.journeyAppearanceById);
   const [journeyAppearanceBusy, setJourneyAppearanceBusy] = useState(false);
   const [journeyAppearanceMessage, setJourneyAppearanceMessage] = useState<string>();
+  const [userAvatar, setUserAvatar] = useState<string>();
+  const [userAvatarBusy, setUserAvatarBusy] = useState(false);
+  const [userAvatarMessage, setUserAvatarMessage] = useState<string>();
   const [relativeTimeNow, setRelativeTimeNow] = useState(() => Date.now());
   const [collapsedJourneyIds, setCollapsedJourneyIds] = useState<Set<string>>(() => new Set());
   const [pinnedOnly, setPinnedOnly] = useState(false);
@@ -781,6 +786,18 @@ export function App({ model }: AppProps) {
         if (cancelled) return;
         setAgentSettingsState("error");
         setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadUserAvatar()
+      .then((avatar) => {
+        if (!cancelled) setUserAvatar(avatar);
+      })
+      .catch((error) => {
+        if (!cancelled) setUserAvatarMessage(error instanceof Error ? error.message : String(error));
       });
     return () => { cancelled = true; };
   }, []);
@@ -2438,6 +2455,37 @@ export function App({ model }: AppProps) {
     }
   }
 
+  async function chooseUserAvatar() {
+    if (userAvatarBusy) return;
+    setUserAvatarBusy(true);
+    setUserAvatarMessage(undefined);
+    try {
+      const avatar = await importUserAvatar();
+      if (!avatar) return;
+      setUserAvatar(avatar);
+      setUserAvatarMessage("User avatar saved in this app channel.");
+    } catch (error) {
+      setUserAvatarMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setUserAvatarBusy(false);
+    }
+  }
+
+  async function clearUserAvatar() {
+    if (userAvatarBusy || !userAvatar) return;
+    setUserAvatarBusy(true);
+    setUserAvatarMessage(undefined);
+    try {
+      await removeUserAvatar();
+      setUserAvatar(undefined);
+      setUserAvatarMessage("Default user avatar restored.");
+    } catch (error) {
+      setUserAvatarMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setUserAvatarBusy(false);
+    }
+  }
+
   function openMoveJourney(journeyId: string) {
     if (runtimeBusy) return;
     const journey = findJourneyById(journeyRegistry, journeyId);
@@ -3009,7 +3057,7 @@ export function App({ model }: AppProps) {
                 {bodyContent || hasRuntimeActivity ? (
                   <article className={`message ${message.role} speaker-${speaker.kind}`}>
                     <div className="message-speaker-row">
-                      <span className="message-avatar" aria-hidden="true">{speaker.avatar}</span>
+                      <MessageSpeakerAvatar speakerKind={speaker.kind} fallback={speaker.avatar} userAvatar={userAvatar} />
                       <span className="message-role">{speaker.label}</span>
                       {bodyContent ? <MessageCopyAction body={bodyContent} /> : null}
                     </div>
@@ -3407,6 +3455,13 @@ export function App({ model }: AppProps) {
                 Restore default
               </button>
                 </section>
+                <UserAvatarSettings
+                  avatar={userAvatar}
+                  busy={userAvatarBusy}
+                  message={userAvatarMessage}
+                  onChoose={() => void chooseUserAvatar()}
+                  onRemove={() => void clearUserAvatar()}
+                />
               </div>
             ) : null}
 

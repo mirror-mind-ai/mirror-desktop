@@ -11,6 +11,8 @@ const MAX_NORMALIZED_BYTES: usize = 2 * 1024 * 1024;
 const MAX_CUSTOM_IMAGES: usize = 32;
 const IMAGE_SIZE: u32 = 512;
 const APPEARANCE_DIRECTORY: &str = "journey-appearance";
+const USER_AVATAR_DIRECTORY: &str = "user-avatar";
+const USER_AVATAR_FILE: &str = "avatar.png";
 
 fn sanitize_journey_id(value: &str) -> Result<&str, String> {
     let bytes = value.as_bytes();
@@ -50,7 +52,7 @@ fn normalized_png(source: &Path) -> Result<Vec<u8>, String> {
         format,
         ImageFormat::Png | ImageFormat::Jpeg | ImageFormat::WebP
     ) {
-        return Err("Only PNG, JPEG, and WebP Journey images are supported.".to_string());
+        return Err("Only PNG, JPEG, and WebP images are supported.".to_string());
     }
     let decoded = image::load_from_memory_with_format(&bytes, format)
         .map_err(|_| "The selected image could not be safely decoded.".to_string())?;
@@ -65,7 +67,7 @@ fn normalized_png(source: &Path) -> Result<Vec<u8>, String> {
         .map_err(|error| format!("Could not normalize the selected image: {error}"))?;
     let output = output.into_inner();
     if output.len() > MAX_NORMALIZED_BYTES {
-        return Err("The normalized Journey image exceeds the local storage limit.".to_string());
+        return Err("The normalized image exceeds the local storage limit.".to_string());
     }
     Ok(output)
 }
@@ -73,12 +75,12 @@ fn normalized_png(source: &Path) -> Result<Vec<u8>, String> {
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let parent = path
         .parent()
-        .ok_or_else(|| "Journey appearance storage has no parent directory.".to_string())?;
+        .ok_or_else(|| "Local image storage has no parent directory.".to_string())?;
     fs::create_dir_all(parent)
-        .map_err(|error| format!("Could not prepare Journey appearance storage: {error}"))?;
+        .map_err(|error| format!("Could not prepare local image storage: {error}"))?;
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|_| "System clock cannot stage Journey appearance.".to_string())?
+        .map_err(|_| "System clock cannot stage a local image.".to_string())?
         .as_nanos();
     let staged = parent.join(format!(
         ".{}.{}.{}.tmp",
@@ -94,18 +96,18 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
             .truncate(true)
             .write(true)
             .open(&staged)
-            .map_err(|error| format!("Could not stage Journey appearance: {error}"))?;
+            .map_err(|error| format!("Could not stage local image: {error}"))?;
         file.write_all(bytes)
-            .map_err(|error| format!("Could not write Journey appearance: {error}"))?;
+            .map_err(|error| format!("Could not write local image: {error}"))?;
         file.sync_all()
-            .map_err(|error| format!("Could not sync Journey appearance: {error}"))?;
+            .map_err(|error| format!("Could not sync local image: {error}"))?;
         fs::rename(&staged, path)
-            .map_err(|error| format!("Could not publish Journey appearance: {error}"))?;
+            .map_err(|error| format!("Could not publish local image: {error}"))?;
         OpenOptions::new()
             .read(true)
             .open(parent)
             .and_then(|directory| directory.sync_all())
-            .map_err(|error| format!("Could not sync Journey appearance directory: {error}"))?;
+            .map_err(|error| format!("Could not sync local image directory: {error}"))?;
         Ok(())
     })();
     if result.is_err() {
@@ -221,6 +223,92 @@ pub fn remove_journey_custom_image(app: AppHandle, journey_id: String) -> Result
     }
 }
 
+fn user_avatar_path(app_data_dir: &Path) -> Result<PathBuf, String> {
+    let directory = app_data_dir.join(USER_AVATAR_DIRECTORY);
+    if fs::symlink_metadata(&directory).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+        return Err("User avatar storage must not be a symbolic link.".to_string());
+    }
+    let path = directory.join(USER_AVATAR_FILE);
+    if fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+        return Err("Stored user avatar must not be a symbolic link.".to_string());
+    }
+    Ok(path)
+}
+
+fn import_user_avatar_at(app_data_dir: &Path, source: &Path) -> Result<String, String> {
+    let source_metadata = fs::symlink_metadata(source)
+        .map_err(|error| format!("Could not inspect the selected avatar: {error}"))?;
+    if source_metadata.file_type().is_symlink() {
+        return Err("Choose an avatar source that is not a symbolic link.".to_string());
+    }
+    let bytes = normalized_png(source)?;
+    let target = user_avatar_path(app_data_dir)?;
+    atomic_write(&target, &bytes)?;
+    Ok(data_url(&bytes))
+}
+
+fn load_user_avatar_at(app_data_dir: &Path) -> Result<Option<String>, String> {
+    let path = user_avatar_path(app_data_dir)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    let metadata = fs::symlink_metadata(&path)
+        .map_err(|error| format!("Could not inspect stored user avatar: {error}"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err("Stored user avatar is not a regular app-controlled file.".to_string());
+    }
+    let bytes = fs::read(&path)
+        .map_err(|error| format!("Could not read stored user avatar: {error}"))?;
+    if bytes.len() > MAX_NORMALIZED_BYTES
+        || image::guess_format(&bytes).ok() != Some(ImageFormat::Png)
+    {
+        return Err("Stored user avatar is invalid.".to_string());
+    }
+    let decoded = image::load_from_memory_with_format(&bytes, ImageFormat::Png)
+        .map_err(|_| "Stored user avatar could not be decoded.".to_string())?;
+    if decoded.dimensions() != (IMAGE_SIZE, IMAGE_SIZE) {
+        return Err("Stored user avatar has invalid dimensions.".to_string());
+    }
+    Ok(Some(data_url(&bytes)))
+}
+
+fn remove_user_avatar_at(app_data_dir: &Path) -> Result<(), String> {
+    let path = user_avatar_path(app_data_dir)?;
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("Could not remove user avatar: {error}")),
+    }
+}
+
+#[tauri::command]
+pub fn import_user_avatar(app: AppHandle) -> Result<Option<String>, String> {
+    let source = rfd::FileDialog::new()
+        .set_title("Choose user avatar")
+        .add_filter("Avatar images", &["png", "jpg", "jpeg", "webp"])
+        .pick_file();
+    let Some(source) = source else {
+        return Ok(None);
+    };
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {error}"))?;
+    import_user_avatar_at(&app_data_dir, &source).map(Some)
+}
+
+#[tauri::command]
+pub fn load_user_avatar(app: AppHandle) -> Result<Option<String>, String> {
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {error}"))?;
+    load_user_avatar_at(&app_data_dir)
+}
+
+#[tauri::command]
+pub fn remove_user_avatar(app: AppHandle) -> Result<(), String> {
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {error}"))?;
+    remove_user_avatar_at(&app_data_dir)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -257,6 +345,65 @@ mod tests {
         assert!(url.starts_with("data:image/png;base64,"));
         assert!(target.starts_with(root.join(APPEARANCE_DIRECTORY)));
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn imports_loads_and_removes_one_channel_local_user_avatar() {
+        let root = temp_dir("user-avatar");
+        let source = root.join("portrait.webp");
+        DynamicImage::ImageRgb8(RgbImage::from_pixel(800, 1200, Rgb([32, 64, 128])))
+            .save_with_format(&source, ImageFormat::WebP)
+            .unwrap();
+
+        let imported = import_user_avatar_at(&root, &source).unwrap();
+        let target = user_avatar_path(&root).unwrap();
+        assert!(imported.starts_with("data:image/png;base64,"));
+        assert_eq!(image::open(&target).unwrap().dimensions(), (512, 512));
+        assert_eq!(load_user_avatar_at(&root).unwrap().as_deref(), Some(imported.as_str()));
+        remove_user_avatar_at(&root).unwrap();
+        assert_eq!(load_user_avatar_at(&root).unwrap(), None);
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn failed_user_avatar_import_preserves_the_previous_valid_image() {
+        let root = temp_dir("user-avatar-preserve");
+        let source = root.join("portrait.png");
+        DynamicImage::ImageRgb8(RgbImage::from_pixel(32, 32, Rgb([10, 20, 30])))
+            .save_with_format(&source, ImageFormat::Png)
+            .unwrap();
+        let previous = import_user_avatar_at(&root, &source).unwrap();
+        let invalid = root.join("invalid.svg");
+        fs::write(&invalid, "<svg><script>unsafe</script></svg>").unwrap();
+
+        assert!(import_user_avatar_at(&root, &invalid).is_err());
+        assert_eq!(load_user_avatar_at(&root).unwrap().as_deref(), Some(previous.as_str()));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_user_avatar_source_and_storage_symlinks() {
+        use std::os::unix::fs::symlink;
+        let root = temp_dir("user-avatar-symlink");
+        let outside = temp_dir("user-avatar-symlink-outside");
+        let source = outside.join("portrait.png");
+        DynamicImage::ImageRgb8(RgbImage::from_pixel(32, 32, Rgb([10, 20, 30])))
+            .save_with_format(&source, ImageFormat::Png)
+            .unwrap();
+        let linked_source = root.join("portrait.png");
+        symlink(&source, &linked_source).unwrap();
+        assert!(import_user_avatar_at(&root, &linked_source).unwrap_err().contains("symbolic link"));
+
+        symlink(&outside, root.join(USER_AVATAR_DIRECTORY)).unwrap();
+        assert!(user_avatar_path(&root).unwrap_err().contains("symbolic link"));
+
+        let _ = fs::remove_file(linked_source);
+        let _ = fs::remove_file(root.join(USER_AVATAR_DIRECTORY));
+        let _ = fs::remove_dir_all(root);
+        let _ = fs::remove_dir_all(outside);
     }
 
     #[test]

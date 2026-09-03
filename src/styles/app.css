@@ -5903,3 +5903,102 @@ dd {
   border-color: color-mix(in srgb, var(--accent) 32%, var(--light-border));
   color: var(--light-accent);
 }
+
+/* Channel-local user avatar contract. */
+.message-avatar.has-custom-user-avatar,
+.user-avatar-preview {
+  background: #f2f4f7;
+  overflow: hidden;
+}
+
+.message-avatar.has-custom-user-avatar {
+  border-color: rgba(var(--ui-accent-rgb), 0.32);
+  padding: 0;
+}
+
+.message-avatar.has-custom-user-avatar img,
+.user-avatar-preview img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.user-avatar-card {
+  display: grid;
+  gap: 12px;
+}
+
+.user-avatar-card h3,
+.user-avatar-card p {
+  margin: 0;
+}
+
+.user-avatar-card > div:first-child p,
+.user-avatar-card > small {
+  color: #8fa3a8;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.user-avatar-control {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.user-avatar-preview {
+  align-items: center;
+  border: 2px solid rgba(var(--ui-accent-rgb), 0.32);
+  border-radius: 999px;
+  color: #344054;
+  display: inline-flex;
+  flex: 0 0 64px;
+  font-size: 1rem;
+  font-weight: 760;
+  height: 64px;
+  justify-content: center;
+  width: 64px;
+}
+
+.user-avatar-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.user-avatar-actions button {
+  min-height: 36px;
+  padding: 8px 12px;
+}
+
+.user-avatar-message {
+  color: #9fcac3;
+  font-size: 0.74rem;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.user-avatar-card > div:first-child p, .user-avatar-card > small) {
+  color: var(--light-muted);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .user-avatar-preview {
+  border-color: color-mix(in srgb, var(--ui-accent) 38%, var(--light-border));
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .user-avatar-message {
+  color: var(--light-accent);
+}

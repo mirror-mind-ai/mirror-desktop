@@ -189,6 +189,18 @@ cleanup without affecting canonical deletion authority. Runtime phase labels,
 semantic accents and exact Journey execution ownership remain independent of
 appearance.
 
+The user message avatar is a separate, singleton channel-local presentation asset.
+Appearance Settings imports only decoded PNG, JPEG, or WebP sources up to 5 MiB,
+normalizes them through the same 512px center-cover PNG boundary, and atomically
+stores `user-avatar/avatar.png` beneath the active bundle's app-data root. Native
+load revalidates the regular PNG and dimensions; unsafe replacement leaves the
+previous valid avatar intact, and removal is idempotent. The frontend accepts only
+a bounded PNG data URL, gives transparent pixels a neutral backing surface, renders
+the photo only for user-authored message cards, and immediately falls back to the
+existing `N` mark when absent or invalid. No original path, Mirror identity,
+conversation content, Journey preference, agent avatar, or execution authority is
+changed; stable and DEV remain isolated by their existing app-data roots.
+
 ## Curated dark and light application themes
 
 The channel-local Appearance preference selects one immutable ID from a curated
