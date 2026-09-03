@@ -165,7 +165,12 @@ restores focus to the invoking row. Menu availability follows the existing
 aggregate runtime administration guard and never changes Journey selection or
 execution authority. Recent rows retain the persisted recent order and Pinned
 rows retain explicit pin order; changing the selected Journey affects row state
-but never reorders either open view.
+but never reorders either open view. Successful exact live native admission is
+the sole event that marks a Journey newly worked, moves that exact Journey to the
+top of bounded persisted Recent order, and asks an already-open Recent viewport
+to follow the movement. Rejected submission does none of these. The viewport
+scroll is presentation-only, respects reduced motion, does not run in Pinned or
+Tree, and never changes keyboard focus, selection, or execution authority.
 
 Journey appearance is deliberately split from canonical Mirror metadata. A
 bounded channel-local preference overlay keyed by immutable Journey ID stores

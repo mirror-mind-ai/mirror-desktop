@@ -19,7 +19,10 @@ describe("Journey last-worked presentation", () => {
 
   it("updates work activity only from an admitted live run", () => {
     expect(appSource).toContain('mode === "live" && !workActivityRecorded && event.type === "run_status" && event.status === "starting"');
+    expect(appSource).toContain("recordAdmittedJourneyActivity(ownerJourneyId, admittedAt)");
     expect(appSource).toContain("recordJourneyLastWorked(current, ownerJourneyId, admittedAt)");
+    expect(appSource).toContain("markJourneyRecent(preferences, ownerJourneyId)");
+    expect(appSource).not.toContain("setFileAttachmentError(undefined);\n    setJourneyPreferences((preferences) => markJourneyRecent(preferences, ownerJourneyId));");
     expect(appSource).toContain('!pinnedOnly && journeyListOrder === "recent" && !sidebarCompact');
   });
 

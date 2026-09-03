@@ -250,6 +250,7 @@ import {
   removeJourneyCustomImage,
 } from "./journeyAppearanceStorage";
 import { recordJourneyLastWorked, relativeLastWorkedLabel } from "./journeyLastWorked";
+import { followRecentJourneyAdmission } from "./recentJourneyAdmissionFollower";
 import {
   activateJourneyTree,
   defaultNewJourneyParentId,
@@ -437,6 +438,8 @@ export function App({ model }: AppProps) {
   const journeyTreeButtonRef = useRef<HTMLButtonElement | null>(null);
   const journeyTreeMenuRef = useRef<HTMLDivElement | null>(null);
   const journeyItemMenuTriggerRef = useRef<HTMLElement | null>(null);
+  const journeyListRef = useRef<HTMLDivElement | null>(null);
+  const journeyListPresentationRef = useRef({ order: journeyListOrder, pinnedOnly });
   const checkedMirrorTurnRef = useRef<Set<string>>(new Set());
   const conversationRef = useRef<JourneyConversation>(conversation);
   const selectedJourneyRef = useRef(selectedJourney);
@@ -447,6 +450,7 @@ export function App({ model }: AppProps) {
   conversationRef.current = conversation;
   selectedJourneyRef.current = selectedJourney;
   journeyRuntimeStateRef.current = journeyRuntimeState;
+  journeyListPresentationRef.current = { order: journeyListOrder, pinnedOnly };
 
   const currentState = useMemo(() => grammarStateFromViewModel(model), [model]);
   const journeyRegistry = loadedJourneyRegistry;
@@ -1336,6 +1340,18 @@ export function App({ model }: AppProps) {
     }
   }
 
+  function recordAdmittedJourneyActivity(ownerJourneyId: string, admittedAt: string) {
+    setLastWorkedAtByJourneyId((current) => recordJourneyLastWorked(current, ownerJourneyId, admittedAt));
+    setJourneyPreferences((preferences) => markJourneyRecent(preferences, ownerJourneyId));
+    window.requestAnimationFrame(() => {
+      followRecentJourneyAdmission(
+        journeyListRef.current,
+        journeyListPresentationRef.current,
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      );
+    });
+  }
+
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
     const content = (retryContent ?? draft).trim();
     const invocationAdmissionBlocked = mode === "live"
@@ -1469,7 +1485,6 @@ export function App({ model }: AppProps) {
     setPendingFileAttachments([]);
     setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
     setFileAttachmentError(undefined);
-    setJourneyPreferences((preferences) => markJourneyRecent(preferences, ownerJourneyId));
 
     const conversationBeforeRun = baseConversation;
     let rawLiveOutput = "";
@@ -1503,7 +1518,7 @@ export function App({ model }: AppProps) {
         if (mode === "live" && !workActivityRecorded && event.type === "run_status" && event.status === "starting") {
           workActivityRecorded = true;
           const admittedAt = new Date().toISOString();
-          setLastWorkedAtByJourneyId((current) => recordJourneyLastWorked(current, ownerJourneyId, admittedAt));
+          recordAdmittedJourneyActivity(ownerJourneyId, admittedAt);
         }
         if (event.type === "run_status" && event.status === "working") {
           runReachedAgent = true;
@@ -2647,7 +2662,7 @@ export function App({ model }: AppProps) {
           </p>
         ) : null}
 
-        <div className={`journey-list ${journeyListOrder === "tree" ? "tree-mode" : "card-mode"}`}>
+        <div ref={journeyListRef} className={`journey-list ${journeyListOrder === "tree" ? "tree-mode" : "card-mode"}`}>
           {visibleSidebarJourneys.length === 0 ? (
             <div className="journey-empty-state">
               {pinnedOnly ? (
