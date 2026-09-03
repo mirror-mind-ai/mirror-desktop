@@ -205,7 +205,13 @@ Those tokens cover shell and sidebar, Journey navigation, conversation and
 copy-ready prose, composer controls, Artifacts, menus and Settings/dialogs.
 Light-theme speaker avatars use filled accessible surfaces: neutral for the user,
 theme accent for the agent and a darker violet for routed personas, each with a
-white glyph that meets text contrast requirements.
+white glyph that meets text contrast requirements. Conversation/Artifacts tabs
+use explicit primary/accent foregrounds, bounded surfaces, a three-pixel selected
+edge and a visible focus outline instead of inheriting the generic light button
+rule. Imported context, Ariad summaries and mode-activation events likewise map
+their labels, badges, chevrons, nested body surfaces and disclosure focus states
+to semantic light tokens; structural borders and the mode event's inset edge
+preserve hierarchy without relying on hue alone.
 Catalog tests enforce primary, muted and accent contrast against declared light
 surfaces and preference round-trips for every new ID. Development channel identity,
 runtime semantic colors, reduced motion and the neutral custom-image background

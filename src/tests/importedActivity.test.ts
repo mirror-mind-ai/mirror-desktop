@@ -1,6 +1,8 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+// @ts-expect-error Vitest runs in Node; production code has no Node dependency.
+import { readFileSync } from "node:fs";
 import {
   activityKindLabel,
   extractAriadSurfaceEventsFromContent,
@@ -19,6 +21,8 @@ import {
 } from "../app/ImportedActivity";
 import type { ImportedConversationActivityEvent } from "../domain/persistedJourneyConversation";
 import appSource from "../app/App.tsx?raw";
+
+const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
 const activity = (input: Partial<ImportedConversationActivityEvent> & { id: string }): ImportedConversationActivityEvent => ({
   kind: "metadata",
@@ -62,6 +66,25 @@ describe("imported activity rendering helpers", () => {
 
     expect(boundary).toBeGreaterThan(0);
     expect(messages).toBeGreaterThan(boundary);
+  });
+
+  it("defines a complete light-theme contrast contract for imported activity", () => {
+    const html = renderToStaticMarkup(createElement(ImportedActivity, {
+      events: [
+        activity({ id: "ariad", kind: "ariad_surface", title: "Ariad surface: BUILDER_RESUME", content: "surface" }),
+        activity({ id: "mode", kind: "mirror_mode", title: "Builder Mode Active", content: "│ ■ BUILDER MODE ACTIVE │" }),
+      ],
+    }));
+
+    expect(html).toContain("activity-ariad_surface");
+    expect(html).toContain("activity-mode");
+    expect(html).toContain("MODE ACTIVATED");
+    expect(html).toContain("Builder Mode");
+    expect(cssSource).toContain("/* Light imported activity contrast contract. */");
+    expect(cssSource).toContain(".activity-event > summary:focus-visible");
+    expect(cssSource).toContain(".imported-context-disclosure > summary:focus-visible");
+    expect(cssSource).toContain(".activity-mode .activity-kind");
+    expect(cssSource).toContain(".activity-mode-icon");
   });
 
   it("labels known activity kinds for compact UI rendering", () => {

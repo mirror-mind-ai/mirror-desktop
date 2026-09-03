@@ -5154,3 +5154,193 @@ dd {
 ) :where(.inline-grammar-card h2, .inline-grammar-grid span, .message-code-block code, .journey-documentation-body.content-text > pre) {
   color: var(--light-text);
 }
+
+/* Light workspace tab contrast contract. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .operational-workspace-option {
+  background: color-mix(in srgb, var(--light-surface) 76%, var(--light-raised));
+  box-shadow: inset 0 0 0 1px var(--light-border);
+  color: var(--light-text);
+  font-weight: 650;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .operational-workspace-option:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ui-accent) 8%, var(--light-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-accent) 48%, var(--light-border));
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .operational-workspace-option.selected {
+  background: color-mix(in srgb, var(--ui-accent) 9%, var(--light-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-accent) 55%, var(--light-border)), inset 0 -3px 0 var(--light-accent);
+  color: var(--light-accent);
+  font-weight: 740;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .operational-workspace-option:focus-visible {
+  outline: 3px solid var(--light-accent);
+  outline-offset: 2px;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .operational-workspace-option:disabled {
+  background: var(--light-raised);
+  color: var(--light-muted);
+  opacity: 1;
+}
+
+/* Light imported activity contrast contract. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .imported-context-disclosure {
+  border-left-color: color-mix(in srgb, var(--ui-accent) 52%, var(--light-border));
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .imported-context-disclosure > summary::before,
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .activity-event summary::before {
+  color: var(--light-accent);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .imported-context-disclosure > summary strong {
+  background: color-mix(in srgb, var(--ui-accent) 8%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 38%, var(--light-border));
+  color: var(--light-accent);
+  font-weight: 700;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .activity-event {
+  background: var(--light-surface);
+  border-color: var(--light-border);
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.activity-event > summary, .imported-context-disclosure > summary) {
+  cursor: pointer;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.activity-event > summary:focus-visible, .imported-context-disclosure > summary:focus-visible) {
+  border-radius: 8px;
+  outline: 3px solid var(--light-accent);
+  outline-offset: 2px;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .activity-kind {
+  background: color-mix(in srgb, var(--ui-accent) 8%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 42%, var(--light-border));
+  color: var(--light-accent);
+  font-weight: 720;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.activity-event summary strong, .activity-mode-icon) {
+  color: var(--light-text);
+  font-weight: 650;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.activity-event summary small, .activity-body p, .activity-provenance) {
+  color: var(--light-muted) !important;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .activity-body {
+  border-top-color: var(--light-soft-border);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.activity-terminal, .activity-payload) {
+  background: var(--light-raised);
+  border-color: var(--light-border);
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.activity-terminal code, .activity-payload code) {
+  background: transparent;
+  border: 0;
+  color: inherit;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .activity-mode {
+  background: color-mix(in srgb, var(--ui-accent) 7%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 42%, var(--light-border));
+  box-shadow: inset 3px 0 0 var(--light-accent);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .activity-mode .activity-kind {
+  background: var(--light-accent);
+  border-color: var(--light-accent);
+  color: #ffffff;
+}

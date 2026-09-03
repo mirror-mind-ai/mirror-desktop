@@ -29,6 +29,15 @@ function contrast(left: string, right: string): number {
   return (bright + 0.05) / (dark + 0.05);
 }
 
+function mixHex(foreground: string, background: string, foregroundWeight: number): string {
+  const channels = [1, 3, 5].map((offset) => {
+    const front = Number.parseInt(foreground.slice(offset, offset + 2), 16);
+    const back = Number.parseInt(background.slice(offset, offset + 2), 16);
+    return Math.round(front * foregroundWeight + back * (1 - foregroundWeight)).toString(16).padStart(2, "0");
+  });
+  return `#${channels.join("")}`;
+}
+
 describe("application themes", () => {
   it("offers only curated named dark and daytime-light palette groups", () => {
     expect(applicationThemes.map(({ id, label, family }) => ({ id, label, family }))).toEqual([
@@ -76,12 +85,32 @@ describe("application themes", () => {
     expect(cssSource).toContain(".settings-window");
   });
 
-  it("keeps user, agent, and persona glyphs legible inside light-theme avatars", () => {
+  it("keeps user, agent, persona, and activity badges legible in light themes", () => {
+    for (const theme of lightApplicationThemes) {
+      expect(contrast("#ffffff", theme.tokens.accentText), theme.id).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrast(theme.tokens.accentText, mixHex(theme.tokens.accentText, theme.tokens.surface, 0.08)),
+        theme.id,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
     expect(contrast("#ffffff", "#344054")).toBeGreaterThanOrEqual(7);
     expect(contrast("#ffffff", "#6941c6")).toBeGreaterThanOrEqual(4.5);
     expect(cssSource).toContain(".message.speaker-user .message-avatar");
     expect(cssSource).toContain(".message.speaker-agent .message-avatar");
     expect(cssSource).toContain(".message.speaker-persona .message-avatar");
+  });
+
+  it("gives light-theme workspace tabs structural and textual contrast", () => {
+    for (const theme of lightApplicationThemes) {
+      const selectedSurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.09);
+      expect(contrast(theme.tokens.accentText, selectedSurface), theme.id).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(cssSource).toContain("/* Light workspace tab contrast contract. */");
+    expect(cssSource).toContain(".operational-workspace-option.selected");
+    expect(cssSource).toContain("inset 0 -3px 0 var(--light-accent)");
+    expect(cssSource).toContain(".operational-workspace-option:focus-visible");
+    expect(cssSource).toContain("outline: 3px solid var(--light-accent)");
+    expect(cssSource).toContain(".operational-workspace-option:disabled");
   });
 
   it("round-trips each light theme through bounded channel-local preferences", () => {
