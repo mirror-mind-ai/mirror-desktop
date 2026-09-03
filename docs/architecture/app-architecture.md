@@ -273,6 +273,20 @@ between paragraphs and draft-specific success/failure announcements. It never
 copies surrounding explanation, mutates conversation/composer state, evaluates
 HTML, or changes the existing whole-message Markdown copy contract.
 
+## Bounded message tables
+
+MessageContent recognizes canonical Markdown tables and the provider-compacted
+single-line equivalent only when a non-empty header, three-or-more-dash delimiter
+cells and consistently sized body rows form a complete bounded table. The parser
+accepts at most 16 columns, 100 rows and 2,048 characters per cell; malformed,
+oversized or ordinary pipe-bearing prose remains inert paragraph text. React owns
+the resulting semantic `table`, header and body markup, applies only declared
+left/center/right alignment, and sends every cell through the existing safe inline
+text/link renderer. A presentation-only wrapper contains wide results with
+horizontal scrolling and supplies complete dark/light surfaces. This path never
+evaluates HTML, mutates composer/conversation state, or changes whole-message copy,
+persistence or turn lifecycle authority.
+
 ## Persistent agent-profile boundary
 
 Harness owns a versioned, non-secret `agent-settings.json` record under Tauri's

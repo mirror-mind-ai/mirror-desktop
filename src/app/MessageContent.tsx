@@ -2,13 +2,27 @@ import type { ReactNode } from "react";
 import { LinkifiedText } from "./LinkifiedText";
 import { MessageCopyAction, type MessageCopyLabels } from "./MessageCopyAction";
 
+type TableAlignment = "left" | "center" | "right";
+
+type TableBlock = {
+  type: "table";
+  headers: string[];
+  alignments: TableAlignment[];
+  rows: string[][];
+};
+
 type MessageBlock =
   | { type: "paragraph"; text: string }
   | { type: "heading"; level: 2 | 3; text: string }
   | { type: "unordered_list"; items: string[] }
   | { type: "ordered_list"; items: string[] }
   | { type: "code"; language?: string; text: string }
-  | { type: "copy_ready_quote"; paragraphs: string[]; copyText: string };
+  | { type: "copy_ready_quote"; paragraphs: string[]; copyText: string }
+  | TableBlock;
+
+const MAX_TABLE_COLUMNS = 16;
+const MAX_TABLE_ROWS = 100;
+const MAX_TABLE_CELL_LENGTH = 2_048;
 
 type InlineToken =
   | { type: "text"; text: string }
@@ -38,6 +52,90 @@ export function MessageContent({
       {blocks.map((block, index) => renderBlock(block, index, basePath, onLocalPathClick))}
     </div>
   );
+}
+
+function parseTableCells(line: string): string[] | undefined {
+  const source = line.trim();
+  if (!source.includes("|")) return undefined;
+
+  const cells: string[] = [];
+  let cell = "";
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === "\\" && source[index + 1] === "|") {
+      cell += "|";
+      index += 1;
+    } else if (character === "|") {
+      cells.push(cell.trim());
+      cell = "";
+    } else {
+      cell += character;
+    }
+  }
+  cells.push(cell.trim());
+
+  if (source.startsWith("|")) cells.shift();
+  if (source.endsWith("|")) cells.pop();
+  if (
+    cells.length < 2
+    || cells.length > MAX_TABLE_COLUMNS
+    || cells.some((value) => value.length > MAX_TABLE_CELL_LENGTH)
+  ) return undefined;
+  return cells;
+}
+
+function parseTableAlignments(cells: string[]): TableAlignment[] | undefined {
+  const alignments: TableAlignment[] = [];
+  for (const cell of cells) {
+    const delimiter = cell.match(/^(:)?-{3,}(:)?$/);
+    if (!delimiter) return undefined;
+    alignments.push(delimiter[1] && delimiter[2] ? "center" : delimiter[2] ? "right" : "left");
+  }
+  return alignments;
+}
+
+function createTableBlock(headerLine: string, delimiterLine: string, rowLines: string[]): TableBlock | undefined {
+  const headers = parseTableCells(headerLine);
+  const delimiters = parseTableCells(delimiterLine);
+  if (!headers || !delimiters || headers.length !== delimiters.length || headers.some((header) => !header)) {
+    return undefined;
+  }
+  const alignments = parseTableAlignments(delimiters);
+  if (!alignments || rowLines.length < 1 || rowLines.length > MAX_TABLE_ROWS) return undefined;
+
+  const rows: string[][] = [];
+  for (const rowLine of rowLines) {
+    const row = parseTableCells(rowLine);
+    if (!row || row.length !== headers.length) return undefined;
+    rows.push(row);
+  }
+  return { type: "table", headers, alignments, rows };
+}
+
+function parseCanonicalTable(lines: string[], start: number): { block: TableBlock; nextIndex: number } | undefined {
+  if (start + 2 >= lines.length) return undefined;
+  const headers = parseTableCells(lines[start]);
+  const delimiters = parseTableCells(lines[start + 1]);
+  if (!headers || !delimiters || headers.length !== delimiters.length || !parseTableAlignments(delimiters)) {
+    return undefined;
+  }
+
+  const rowLines: string[] = [];
+  let nextIndex = start + 2;
+  while (nextIndex < lines.length && lines[nextIndex].trim()) {
+    const row = parseTableCells(lines[nextIndex]);
+    if (!row || row.length !== headers.length) break;
+    rowLines.push(lines[nextIndex]);
+    nextIndex += 1;
+  }
+  const block = createTableBlock(lines[start], lines[start + 1], rowLines);
+  return block ? { block, nextIndex } : undefined;
+}
+
+function parseCompactTable(line: string): TableBlock | undefined {
+  const rowLines = line.split(/\|\s+\|/);
+  if (rowLines.length < 3 || rowLines.length > MAX_TABLE_ROWS + 2) return undefined;
+  return createTableBlock(rowLines[0], rowLines[1], rowLines.slice(2));
 }
 
 export function parseMessageBlocks(content: string): MessageBlock[] {
@@ -84,6 +182,22 @@ export function parseMessageBlocks(content: string): MessageBlock[] {
     if (heading) {
       flushParagraph();
       blocks.push({ type: "heading", level: heading[1].length === 1 ? 2 : 3, text: heading[2].trim() });
+      index += 1;
+      continue;
+    }
+
+    const canonicalTable = parseCanonicalTable(lines, index);
+    if (canonicalTable) {
+      flushParagraph();
+      blocks.push(canonicalTable.block);
+      index = canonicalTable.nextIndex;
+      continue;
+    }
+
+    const compactTable = parseCompactTable(trimmed);
+    if (compactTable) {
+      flushParagraph();
+      blocks.push(compactTable);
       index += 1;
       continue;
     }
@@ -248,6 +362,33 @@ function renderBlock(
             visibleLabel="Copy text"
           />
         </blockquote>
+      );
+    case "table":
+      return (
+        <div className="message-table-scroll" key={index}>
+          <table>
+            <thead>
+              <tr>
+                {block.headers.map((header, columnIndex) => (
+                  <th scope="col" style={{ textAlign: block.alignments[columnIndex] }} key={columnIndex}>
+                    {renderInline(header, basePath, onLocalPathClick)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {row.map((cell, columnIndex) => (
+                    <td style={{ textAlign: block.alignments[columnIndex] }} key={columnIndex}>
+                      {renderInline(cell, basePath, onLocalPathClick)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       );
     case "paragraph":
       return <p key={index}>{renderInline(block.text, basePath, onLocalPathClick)}</p>;

@@ -1,11 +1,15 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+// @ts-expect-error Vitest runs in Node; production code has no Node dependency.
+import { readFileSync } from "node:fs";
 import {
   MessageContent,
   messageInlinePlainText,
   parseInlineTokens,
   parseMessageBlocks,
 } from "../app/MessageContent";
+
+const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
 describe("MessageContent rich rendering parser", () => {
   it("parses generic Markdown-style headings, lists, paragraphs, and code blocks", () => {
@@ -31,6 +35,74 @@ describe("MessageContent rich rendering parser", () => {
       { type: "unordered_list", items: ["one risk", "another risk"] },
       { type: "code", language: "json", text: '{"safe": true}' },
     ]);
+  });
+
+  it("parses canonical Markdown tables with declared column alignment", () => {
+    expect(parseMessageBlocks([
+      "Antes da tabela.",
+      "",
+      "| Episódio | Program ID | Vimeo ID | Título |",
+      "|---|---:|:---:|---|",
+      "| 3 | 6939 | 1174216449 | Versão Full |",
+      "| 4 | 7140 | 1176290947 | Versão Full |",
+      "",
+      "Depois da tabela.",
+    ].join("\n"))).toEqual([
+      { type: "paragraph", text: "Antes da tabela." },
+      {
+        type: "table",
+        headers: ["Episódio", "Program ID", "Vimeo ID", "Título"],
+        alignments: ["left", "right", "center", "left"],
+        rows: [
+          ["3", "6939", "1174216449", "Versão Full"],
+          ["4", "7140", "1176290947", "Versão Full"],
+        ],
+      },
+      { type: "paragraph", text: "Depois da tabela." },
+    ]);
+  });
+
+  it("recovers the reported provider-compacted table without guessing at ordinary pipes", () => {
+    const compact = "Episódio | Program ID | Vimeo ID | Título | |---|---:|---:|---| | 3 | 6939 | 1174216449 | Versão Full | | 4 | 7140 | 1176290947 | Versão Full | | 5 | 7175 | 1178565695 | Versão Full |";
+    expect(parseMessageBlocks(compact)).toEqual([{
+      type: "table",
+      headers: ["Episódio", "Program ID", "Vimeo ID", "Título"],
+      alignments: ["left", "right", "right", "left"],
+      rows: [
+        ["3", "6939", "1174216449", "Versão Full"],
+        ["4", "7140", "1176290947", "Versão Full"],
+        ["5", "7175", "1178565695", "Versão Full"],
+      ],
+    }]);
+
+    expect(parseMessageBlocks("Use alpha | beta in ordinary prose.")).toEqual([
+      { type: "paragraph", text: "Use alpha | beta in ordinary prose." },
+    ]);
+    expect(parseMessageBlocks("A | B\n--|---\n1 | 2")).toEqual([
+      { type: "paragraph", text: "A | B --|--- 1 | 2" },
+    ]);
+  });
+
+  it("bounds table shape and renders safe semantic markup", () => {
+    const oversizedHeader = Array.from({ length: 17 }, (_, index) => `H${index}`).join(" | ");
+    const oversizedDelimiter = Array.from({ length: 17 }, () => "---").join(" | ");
+    expect(parseMessageBlocks(`${oversizedHeader}\n${oversizedDelimiter}\n${oversizedHeader}`)).toEqual([
+      { type: "paragraph", text: `${oversizedHeader} ${oversizedDelimiter} ${oversizedHeader}` },
+    ]);
+
+    const html = renderToStaticMarkup(MessageContent({
+      content: "Name | Value\n---|---:\n<script> | **safe**",
+    }));
+    expect(html).toContain('class="message-table-scroll"');
+    expect(html).toContain("<table>");
+    expect(html).toContain('<th scope="col" style="text-align:left">Name</th>');
+    expect(html).toContain('<th scope="col" style="text-align:right">Value</th>');
+    expect(html).toContain("&lt;script&gt;");
+    expect(html).toContain("<strong>safe</strong>");
+    expect(html).not.toContain("<script>");
+    expect(cssSource).toContain(".message-table-scroll");
+    expect(cssSource).toContain("overflow-x: auto");
+    expect(cssSource).toContain("background: var(--light-surface)");
   });
 
   it("parses the reported Portuguese quoted draft into email-ready paragraphs", () => {
