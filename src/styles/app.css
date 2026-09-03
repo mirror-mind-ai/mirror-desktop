@@ -5375,3 +5375,230 @@ dd {
 ) .composer-runtime-status .runtime-complete-mark {
   color: var(--light-accent);
 }
+
+/* Light runtime operation contrast contract. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .live-runtime-activity.is-settled .runtime-activity-region {
+  opacity: 1;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.runtime-region-label, .runtime-answer > .runtime-region-label) {
+  color: var(--light-muted);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-reasoning-summary {
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-reasoning-summary.status-streaming {
+  color: var(--light-accent);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-operation {
+  background: var(--light-surface);
+  border-color: var(--light-border);
+  border-left-color: var(--light-accent);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-operation summary:focus-visible {
+  outline: 3px solid var(--light-accent);
+  outline-offset: -3px;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-operation-name {
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-operation.kind-skill .runtime-operation-name {
+  color: #6941c6;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(
+  .runtime-operation-status,
+  .runtime-operation.status-completed .runtime-operation-status,
+  .runtime-operation-section small
+) {
+  color: var(--light-muted);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(
+  .runtime-operation.status-running .runtime-operation-status,
+  .runtime-operation.status-preparing .runtime-operation-status
+) {
+  color: var(--light-accent);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-operation.status-failed {
+  background: #fff4f2;
+  border-color: #f4b4ad;
+  border-left-color: #b42318;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-operation.status-failed .runtime-operation-status {
+  color: #b42318;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-operation.status-interrupted .runtime-operation-status {
+  color: #7a4d00;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-operation-body {
+  border-top-color: var(--light-soft-border);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-operation-section pre {
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-compaction {
+  background: var(--light-raised);
+  border-color: var(--light-border);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.runtime-compaction-heading strong, .runtime-compaction-copy p) {
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.runtime-compaction-heading span, .runtime-compaction-copy small) {
+  color: var(--light-muted);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-terminal-status {
+  color: var(--light-muted);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-terminal-status strong {
+  color: var(--light-text);
+}
+
+/* Light historical attachment contrast contract. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .message-file-attachments {
+  border-top-color: var(--light-soft-border);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .message-file-attachments > strong {
+  color: #000000;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .message-file-item {
+  background: var(--light-surface);
+  border-color: var(--light-border);
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .message-file-item:hover {
+  background: color-mix(in srgb, var(--ui-accent) 7%, var(--light-surface));
+  border-color: var(--light-accent);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .message-file-item:focus-visible {
+  outline: 3px solid var(--light-accent);
+  outline-offset: 2px;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .message-file-item small {
+  color: var(--light-muted);
+}

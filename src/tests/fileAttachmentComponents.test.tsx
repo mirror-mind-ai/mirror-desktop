@@ -1,8 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+// @ts-expect-error Vitest runs in Node; production code has no Node dependency.
+import { readFileSync } from "node:fs";
 import { PendingFileAttachments } from "../app/PendingFileAttachments";
 import { MessageFileAttachments } from "../app/MessageFileAttachments";
 import type { FileAttachment } from "../domain/fileAttachments";
+
+const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
 const file: FileAttachment = {
   schemaVersion: "0.2.0",
@@ -31,5 +35,9 @@ describe("file attachment surfaces", () => {
     expect(html).toContain("Open /Users/example/Desktop/photo.png");
     expect(html).toContain("data:image/png;base64,aGVsbG8=");
     expect(html).not.toContain("sha256");
+    expect(cssSource).toContain("/* Light historical attachment contrast contract. */");
+    expect(cssSource).toContain(".message-file-attachments > strong");
+    expect(cssSource).toContain("color: #000000");
+    expect(cssSource).toContain(".message-file-item");
   });
 });

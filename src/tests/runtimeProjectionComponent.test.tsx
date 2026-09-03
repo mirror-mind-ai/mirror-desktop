@@ -1,9 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+// @ts-expect-error Vitest runs in Node; production code has no Node dependency.
+import { readFileSync } from "node:fs";
 import { LiveRuntimeActivity, summarizeOperationArgument } from "../app/LiveRuntimeActivity";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "../app/ComposerRuntimeFooter";
 import type { RuntimeProjectionState } from "../app/runtimeActivityModel";
 import appSource from "../app/App.tsx?raw";
+
+const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
 describe("runtime projection component", () => {
   it("shows one live status and ordered operations without a rotating history", () => {
@@ -118,6 +122,33 @@ describe("runtime projection component", () => {
     expect(preview).toContain("…");
     expect(preview).toMatch(/LiveRuntimeActivity\.tsx$/);
     expect(summarizeOperationArgument({ command: "uv run pytest" })).toBe("uv run pytest");
+  });
+
+  it("defines readable light-theme operation and terminal status surfaces", () => {
+    const projection: RuntimeProjectionState = {
+      status: "completed",
+      operations: [
+        { id: "failed", name: "bash", status: "failed", arguments: { command: "psql" }, output: "error" },
+        { id: "completed", name: "bash", status: "completed", arguments: { command: "tail" }, output: "rows" },
+      ],
+      reasoningSummaries: [{ id: "reasoning", content: "Inspecting potential duplicate rows", status: "completed" }],
+      activityOrder: [
+        { type: "operation", id: "failed" },
+        { type: "reasoning_summary", id: "reasoning" },
+        { type: "operation", id: "completed" },
+      ],
+    };
+    const html = renderToStaticMarkup(<LiveRuntimeActivity projection={projection} />);
+
+    expect(html).toContain("status-failed");
+    expect(html).toContain(">failed</span>");
+    expect(html).toContain("status-completed");
+    expect(html).toContain(">completed</span>");
+    expect(cssSource).toContain("/* Light runtime operation contrast contract. */");
+    expect(cssSource).toContain(".runtime-operation-name");
+    expect(cssSource).toContain(".runtime-operation.status-completed .runtime-operation-status");
+    expect(cssSource).toContain(".runtime-operation.status-failed .runtime-operation-status");
+    expect(cssSource).toContain(".runtime-reasoning-summary");
   });
 
   it("renders reasoning summaries as lightweight text in runtime order, outside operation boxes", () => {

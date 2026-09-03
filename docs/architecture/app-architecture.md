@@ -214,6 +214,12 @@ to semantic light tokens; structural borders and the mode event's inset edge
 preserve hierarchy without relying on hue alone. The composer runtime pill also
 maps both Working and Completed to explicit light surfaces and primary text;
 Completed adds an accent edge and check mark rather than fading the entire label.
+The same rule extends through live and settled operation evidence: operation names,
+completed/failed/interrupted statuses, reasoning summaries, expanded evidence and
+compaction panels use explicit light surfaces and semantic foregrounds, and settled
+history is never dimmed as a whole. Historical attachment cards use primary text
+for filenames, muted paths, bounded surfaces and focus outlines; their section
+label is intentionally black in every curated light theme.
 Catalog tests enforce primary, muted and accent contrast against declared light
 surfaces and preference round-trips for every new ID. Development channel identity,
 runtime semantic colors, reduced motion and the neutral custom-image background
