@@ -70,6 +70,16 @@ describe("MessageContent rich rendering parser", () => {
     ]);
   });
 
+  it("recovers paragraph boundaries from compact inline quote separators", () => {
+    expect(parseMessageBlocks("> Primeiro parágrafo. > > Segundo parágrafo. > > Terceiro parágrafo.")).toEqual([
+      {
+        type: "copy_ready_quote",
+        paragraphs: ["Primeiro parágrafo.", "Segundo parágrafo.", "Terceiro parágrafo."],
+        copyText: "Primeiro parágrafo.\n\nSegundo parágrafo.\n\nTerceiro parágrafo.",
+      },
+    ]);
+  });
+
   it("renders quoted drafts without markers and escapes untrusted HTML", () => {
     const html = renderToStaticMarkup(
       MessageContent({ content: "> Olá **equipe**\n>\n> <script>alert(1)</script>" }),

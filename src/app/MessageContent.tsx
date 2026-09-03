@@ -106,8 +106,15 @@ export function parseMessageBlocks(content: string): MessageBlock[] {
         if (!quote) break;
         rawQuotedLines.push(rawQuotedLine);
         const quotedText = quote[1].trim();
-        if (quotedText) quotedLines.push(quotedText);
-        else flushQuotedParagraph();
+        if (!quotedText) {
+          flushQuotedParagraph();
+        } else {
+          quotedText.split(/\s+>\s*>\s+/).forEach((segment, segmentIndex) => {
+            if (segmentIndex > 0) flushQuotedParagraph();
+            const text = segment.trim();
+            if (text) quotedLines.push(text);
+          });
+        }
         index += 1;
       }
       flushQuotedParagraph();

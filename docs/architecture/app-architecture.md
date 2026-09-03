@@ -240,7 +240,9 @@ Frontend selection and arbitrary absolute paths carry no filesystem authority.
 
 Assistant Markdown blockquotes are treated as explicit copy-ready prose blocks.
 The bounded MessageContent parser removes each leading quote marker, keeps
-quote-only lines as paragraph boundaries, and renders inner text through the same
+quote-only lines as paragraph boundaries, recovers the equivalent compact
+` > > ` separator when a provider emits the whole quote on one line, and renders
+inner text through the same
 safe inline renderer used by ordinary messages. Empty or malformed quote-only
 input remains inert text. The block-level copy action sends only normalized inner
 prose, without supported inline Markdown delimiters, to the existing text-only
