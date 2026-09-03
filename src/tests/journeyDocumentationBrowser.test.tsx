@@ -2,7 +2,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 // @ts-expect-error Vitest runs in Node; production code has no Node dependency.
 import { readFileSync } from "node:fs";
-import { JourneyDocumentationSurface } from "../app/JourneyDocumentationBrowser";
+import {
+  JourneyDocumentationSurface,
+  resolveArtifactNavigationIntent,
+} from "../app/JourneyDocumentationBrowser";
 import type { DocumentationNode, DocumentationTree } from "../domain/journeyDocumentation";
 import browserSource from "../app/JourneyDocumentationBrowser.tsx?raw";
 
@@ -36,6 +39,30 @@ const handlers = {
 };
 
 describe("JourneyDocumentationBrowser", () => {
+  it("expands preview only after an exact linked Artifact file resolves", () => {
+    expect(resolveArtifactNavigationIntent(readyTree.items, {
+      relativePath: "guides/start.md",
+      expandPreview: true,
+    })).toMatchObject({
+      kind: "resolved",
+      ancestorPaths: ["guides"],
+      shouldExpandPreview: true,
+      node: { relativePath: "guides/start.md", kind: "file" },
+    });
+    expect(resolveArtifactNavigationIntent(readyTree.items, {
+      relativePath: "guides/missing.md",
+      expandPreview: true,
+    })).toEqual({ kind: "rejected", shouldExpandPreview: false });
+    expect(resolveArtifactNavigationIntent(readyTree.items, {
+      relativePath: "guides",
+      expandPreview: true,
+    })).toEqual({ kind: "rejected", shouldExpandPreview: false });
+    expect(resolveArtifactNavigationIntent(readyTree.items, {
+      relativePath: "guides/start.md",
+      expandPreview: false,
+    })).toMatchObject({ kind: "resolved", shouldExpandPreview: false });
+  });
+
   it.each([
     ["loading", "Reading Journey workspace"],
     ["empty", "This Journey workspace is empty"],

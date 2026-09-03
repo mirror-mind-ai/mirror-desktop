@@ -29,7 +29,39 @@ type JourneyDocumentationBrowserProps = {
   journeyName: string;
   requestedRelativePath?: string;
   requestId?: number;
+  expandPreviewOnReveal?: boolean;
+  onNavigationRequestSettled?: (requestId: number) => void;
 };
+
+export type ArtifactNavigationIntent = {
+  relativePath: string;
+  expandPreview: boolean;
+};
+
+export type ArtifactNavigationResolution =
+  | {
+      kind: "resolved";
+      node: DocumentationNode;
+      ancestorPaths: string[];
+      shouldExpandPreview: boolean;
+    }
+  | { kind: "rejected"; shouldExpandPreview: false };
+
+export function resolveArtifactNavigationIntent(
+  items: DocumentationNode[],
+  intent: ArtifactNavigationIntent,
+): ArtifactNavigationResolution {
+  const match = findDocumentationNode(items, intent.relativePath);
+  if (!match || match.node.kind !== "file") {
+    return { kind: "rejected", shouldExpandPreview: false };
+  }
+  return {
+    kind: "resolved",
+    node: match.node,
+    ancestorPaths: match.ancestorPaths,
+    shouldExpandPreview: intent.expandPreview,
+  };
+}
 
 type JourneyDocumentationSurfaceProps = {
   tree: DocumentationTreeViewState;
@@ -71,6 +103,8 @@ export function JourneyDocumentationBrowser({
   journeyName,
   requestedRelativePath,
   requestId,
+  expandPreviewOnReveal = false,
+  onNavigationRequestSettled = () => undefined,
 }: JourneyDocumentationBrowserProps) {
   const [tree, setTree] = useState<DocumentationTreeViewState>({ status: "loading" });
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
@@ -154,15 +188,21 @@ export function JourneyDocumentationBrowser({
   }
 
   useEffect(() => {
-    if (!requestedRelativePath || tree.status !== "ready") return;
-    const match = findDocumentationNode(tree.items, requestedRelativePath);
-    if (!match || match.node.kind !== "file") {
+    if (!requestedRelativePath || requestId === undefined || tree.status !== "ready") return;
+    const resolution = resolveArtifactNavigationIntent(tree.items, {
+      relativePath: requestedRelativePath,
+      expandPreview: expandPreviewOnReveal,
+    });
+    if (resolution.kind === "rejected") {
       setRoutingError("The linked Journey document is not visible in the bounded Artifacts workspace.");
+      onNavigationRequestSettled(requestId);
       return;
     }
-    setExpandedPaths((current) => new Set([...current, ...match.ancestorPaths]));
-    selectNode(match.node);
-  }, [requestedRelativePath, requestId, tree]);
+    setExpandedPaths((current) => new Set([...current, ...resolution.ancestorPaths]));
+    if (resolution.shouldExpandPreview) setPreviewExpanded(true);
+    selectNode(resolution.node);
+    onNavigationRequestSettled(requestId);
+  }, [requestedRelativePath, requestId, tree, expandPreviewOnReveal]);
 
   function openArtifactContextMenu(
     node: DocumentationNode,

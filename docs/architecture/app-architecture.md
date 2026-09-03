@@ -265,7 +265,11 @@ Verified local paths rendered inside conversation messages cross a Journey-aware
 native classification boundary before activation. Relative paths are resolved
 against the message owner's registered Journey workspace. Canonically contained,
 non-symlink files route to the Operational **Artifacts** surface, which expands
-and selects the exact relative path and offers an explicit **Open file** action.
+and selects the exact relative path, opens in preview-expanded mode, and offers an
+explicit **Open file** action. The presentation intent is applied only after the
+exact file resolves in the bounded Artifact tree, then its sequence-scoped
+request is consumed; rejected, stale, or missing targets do not change layout, and
+later manual entry preserves the ordinary user-controlled preview state.
 Absolute files outside that canonical root retain immediate opening through the
 existing safe native file boundary. Current-user home-relative references beginning
 with `~/` preserve that compact text in the conversation but expand only inside the

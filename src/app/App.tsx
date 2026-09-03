@@ -343,6 +343,7 @@ export function App({ model }: AppProps) {
     journeyId: string;
     relativePath: string;
     requestId: number;
+    expandPreview: boolean;
   }>();
   const [localReferenceError, setLocalReferenceError] = useState<string>();
   const [journeyPreferences, setJourneyPreferences] = useState<JourneyPreferences>({
@@ -446,6 +447,7 @@ export function App({ model }: AppProps) {
   const journeyListRef = useRef<HTMLDivElement | null>(null);
   const journeyListPresentationRef = useRef({ order: journeyListOrder, pinnedOnly });
   const checkedMirrorTurnRef = useRef<Set<string>>(new Set());
+  const artifactNavigationSequenceRef = useRef(0);
   const conversationRef = useRef<JourneyConversation>(conversation);
   const selectedJourneyRef = useRef(selectedJourney);
   const journeyRuntimeStateRef = useRef(journeyRuntimeState);
@@ -2571,11 +2573,12 @@ export function App({ model }: AppProps) {
       if (disposition.kind === "journey_document") {
         setSelectedAltitude("operational");
         setSelectedOperationalSurface("artifacts");
-        setArtifactNavigationRequest((current) => ({
+        setArtifactNavigationRequest({
           journeyId: ownerJourneyId,
           relativePath: disposition.relativePath,
-          requestId: (current?.requestId ?? 0) + 1,
-        }));
+          requestId: ++artifactNavigationSequenceRef.current,
+          expandPreview: true,
+        });
         return;
       }
       await openExternalChatLocalReference(path, ownerBasePath);
@@ -2952,6 +2955,13 @@ export function App({ model }: AppProps) {
             requestId={artifactNavigationRequest?.journeyId === selectedJourneyItem.id
               ? artifactNavigationRequest.requestId
               : undefined}
+            expandPreviewOnReveal={artifactNavigationRequest?.journeyId === selectedJourneyItem.id
+              ? artifactNavigationRequest.expandPreview
+              : false}
+            onNavigationRequestSettled={(requestId) => setArtifactNavigationRequest((current) =>
+              current?.journeyId === selectedJourneyItem.id && current.requestId === requestId
+                ? undefined
+                : current)}
           />
         ) : null}
         {presentedAltitude === "operational" && presentedOperationalSurface === "ariad" ? (
