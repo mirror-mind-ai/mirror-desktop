@@ -75,6 +75,7 @@ describe("JourneyDocumentationBrowser", () => {
     expect(html).toContain('role="tree"');
     expect(html).toContain('aria-expanded="true"');
     expect(html).toContain('aria-selected="true"');
+    expect(html.match(/aria-haspopup="menu"/g)).toHaveLength(2);
     expect(html).toContain("guides/start.md");
     expect(html).toContain('data-artifact-icon="folder"');
     expect(html).toContain('data-artifact-icon="markdown"');
@@ -112,6 +113,22 @@ describe("JourneyDocumentationBrowser", () => {
     expect(html).toContain("Preview unavailable");
     expect(html).toContain("Unsupported document type");
     expect(html).toContain("2 KB");
+  });
+
+  it("keeps reveal failures local to the Artifacts surface", () => {
+    const html = renderToStaticMarkup(
+      <JourneyDocumentationSurface
+        tree={readyTree}
+        expandedPaths={new Set()}
+        selectedNode={undefined}
+        content={{ status: "idle" }}
+        artifactActionError="Could not reveal the selected Artifact."
+        {...handlers}
+      />,
+    );
+
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Could not reveal the selected Artifact.");
   });
 
   it("contains no mutation, attachment, polling or executable HTML path", () => {

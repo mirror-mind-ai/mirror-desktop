@@ -217,6 +217,19 @@ authority. The async result is owner-scoped so navigation during classification
 cannot redirect another Journey. HTTP(S) links and non-chat activity rendering
 retain their existing behavior.
 
+## Artifact reveal boundary
+
+Every visible Artifact file or folder offers the same exact-target context menu
+through pointer and keyboard access. **Reveal file/folder** sends only the
+registered Journey ID and canonical relative Artifact path to Tauri. Native code
+resolves the current registry-owned Journey root, rejects traversal, omitted
+workspace components, missing targets, symbolic-link components and canonical
+escapes, then dispatches the resolved path as a separate process argument to the
+platform file manager. Finder and File Explorer select the exact item; on Linux,
+folders open directly and files open their containing folder. Reveal never opens
+or edits the Artifact itself, and failures remain local to the Artifacts surface.
+Frontend selection and arbitrary absolute paths carry no filesystem authority.
+
 ## Persistent agent-profile boundary
 
 Harness owns a versioned, non-secret `agent-settings.json` record under Tauri's

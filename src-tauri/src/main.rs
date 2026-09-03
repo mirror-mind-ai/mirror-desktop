@@ -1597,29 +1597,37 @@ struct ChatLocalReferenceDisposition {
     relative_path: Option<String>,
 }
 
-fn resolve_journey_document_file_at(journey_root: &Path, relative_path: &str) -> Result<(PathBuf, String), String> {
+fn resolve_journey_artifact_at(journey_root: &Path, relative_path: &str) -> Result<(PathBuf, String), String> {
     let workspace_root = bounded_documentation_root(journey_root)?;
     let safe_relative = validate_document_relative_path(relative_path)?;
     let mut cursor = workspace_root.clone();
     for component in safe_relative.components() {
         cursor.push(component.as_os_str());
         let metadata = fs::symlink_metadata(&cursor)
-            .map_err(|_| "Could not resolve the linked Journey document.".to_string())?;
+            .map_err(|_| "Could not resolve the selected Journey artifact.".to_string())?;
         if metadata.file_type().is_symlink() {
-            return Err("Symbolic-link documents are outside the Artifacts navigation boundary.".to_string());
+            return Err("Symbolic-link artifacts are outside the Artifacts boundary.".to_string());
         }
     }
     let canonical = cursor.canonicalize()
-        .map_err(|_| "Could not resolve the linked Journey document.".to_string())?;
+        .map_err(|_| "Could not resolve the selected Journey artifact.".to_string())?;
     if !canonical.starts_with(&workspace_root) {
-        return Err("Linked document escaped the registered Journey workspace.".to_string());
+        return Err("Artifact escaped the registered Journey workspace.".to_string());
     }
     let metadata = canonical.metadata()
-        .map_err(|_| "Could not inspect the linked Journey document.".to_string())?;
-    if !metadata.is_file() {
-        return Err("Linked Journey artifact is not a file.".to_string());
+        .map_err(|_| "Could not inspect the selected Journey artifact.".to_string())?;
+    if !metadata.is_file() && !metadata.is_dir() {
+        return Err("Selected Journey artifact is not a file or folder.".to_string());
     }
     Ok((canonical, documentation_relative_path(&workspace_root, &cursor)?))
+}
+
+fn resolve_journey_document_file_at(journey_root: &Path, relative_path: &str) -> Result<(PathBuf, String), String> {
+    let resolved = resolve_journey_artifact_at(journey_root, relative_path)?;
+    if !resolved.0.is_file() {
+        return Err("Linked Journey artifact is not a file.".to_string());
+    }
+    Ok(resolved)
 }
 
 fn classify_chat_local_reference_at(journey_root: &Path, path: &str) -> Result<ChatLocalReferenceDisposition, String> {
@@ -1664,6 +1672,13 @@ fn open_journey_document(app: AppHandle, journey_id: String, relative_path: Stri
     let journey_root = registered_journey_root(&app, &journey_id)?;
     let (path, _) = resolve_journey_document_file_at(&journey_root, &relative_path)?;
     open_path(&path)
+}
+
+#[tauri::command]
+fn reveal_journey_artifact(app: AppHandle, journey_id: String, relative_path: String) -> Result<(), String> {
+    let journey_root = registered_journey_root(&app, &journey_id)?;
+    let (path, _) = resolve_journey_artifact_at(&journey_root, &relative_path)?;
+    reveal_path(&path)
 }
 
 fn validate_external_url(value: &str) -> Result<url::Url, String> {
@@ -4136,6 +4151,52 @@ fn open_url(url: &str) -> Result<(), String> {
         .map_err(|error| format!("Could not open external URL: {}", error))
 }
 
+#[derive(Debug, PartialEq)]
+struct NativeRevealCommand {
+    program: String,
+    args: Vec<String>,
+}
+
+fn native_reveal_command(platform: &str, path: &Path, is_directory: bool) -> Result<NativeRevealCommand, String> {
+    let artifact = path.to_str()
+        .ok_or_else(|| "The selected Artifact path is not supported by the system file manager.".to_string())?;
+    match platform {
+        "macos" => Ok(NativeRevealCommand {
+            program: "open".to_string(),
+            args: vec!["-R".to_string(), artifact.to_string()],
+        }),
+        "windows" => Ok(NativeRevealCommand {
+            program: "explorer.exe".to_string(),
+            args: vec!["/select,".to_string(), artifact.to_string()],
+        }),
+        "linux" => {
+            let target = if is_directory {
+                path
+            } else {
+                path.parent().ok_or_else(|| "The selected Artifact has no containing folder.".to_string())?
+            };
+            let target = target.to_str()
+                .ok_or_else(|| "The selected Artifact folder is not supported by the system file manager.".to_string())?;
+            Ok(NativeRevealCommand {
+                program: "xdg-open".to_string(),
+                args: vec![target.to_string()],
+            })
+        }
+        _ => Err("Revealing Artifacts is unsupported on this platform.".to_string()),
+    }
+}
+
+fn reveal_path(path: &Path) -> Result<(), String> {
+    let metadata = path.metadata()
+        .map_err(|_| "Could not inspect the selected Journey artifact.".to_string())?;
+    let specification = native_reveal_command(std::env::consts::OS, path, metadata.is_dir())?;
+    Command::new(&specification.program)
+        .args(&specification.args)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Could not reveal the selected Artifact: {}", error))
+}
+
 fn open_path(path: &PathBuf) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let mut command = {
@@ -4321,6 +4382,7 @@ fn main() {
             open_local_reference,
             classify_chat_local_reference,
             open_journey_document,
+            reveal_journey_artifact,
             open_external_url,
             start_pi_invocation,
             list_turn_journal,
@@ -4360,8 +4422,9 @@ mod tests {
         extract_pi_mirror_commit_events, find_registered_journey_path,
         list_journey_documentation_at, materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, projection_manifest_coordinates_at,
-        inspect_file_attachments_at, publish_refreshed_journey_registry, read_journey_document_at,
-        remove_provider_session_args, resolve_existing_local_file, retire_legacy_parity_state_at,
+        inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
+        read_journey_document_at, remove_provider_session_args, resolve_existing_local_file,
+        resolve_journey_artifact_at, retire_legacy_parity_state_at,
         classify_chat_local_reference_at,
         unwrap_persisted_thread, validate_acknowledged_projection_authority_at,
         validate_composer_drafts_payload, validate_external_url, validate_journey_registry_payload,
@@ -5077,6 +5140,56 @@ mod tests {
         assert!(read_journey_document_at(&directory, "escape.md").is_err());
         fs::remove_file(outside).unwrap();
         fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn resolves_only_existing_file_or_folder_artifacts_inside_the_journey() {
+        let directory = test_root("reveal-artifact");
+        fs::create_dir_all(directory.join("guides")).unwrap();
+        fs::write(directory.join("guides/start.md"), "# Start").unwrap();
+
+        let (folder, folder_relative) = resolve_journey_artifact_at(&directory, "guides").unwrap();
+        let (file, file_relative) = resolve_journey_artifact_at(&directory, "guides/start.md").unwrap();
+        assert!(folder.is_dir());
+        assert!(file.is_file());
+        assert_eq!(folder_relative, "guides");
+        assert_eq!(file_relative, "guides/start.md");
+        assert!(resolve_journey_artifact_at(&directory, "../outside.md").is_err());
+        assert!(resolve_journey_artifact_at(&directory, "/tmp/outside.md").is_err());
+        assert!(resolve_journey_artifact_at(&directory, "guides/missing.md").is_err());
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symbolic_links_from_artifact_reveal() {
+        use std::os::unix::fs::symlink;
+        let directory = test_root("reveal-symlink");
+        fs::create_dir_all(&directory).unwrap();
+        let outside = directory.parent().unwrap().join("nautilus-reveal-outside.txt");
+        fs::write(&outside, "outside").unwrap();
+        symlink(&outside, directory.join("escape.txt")).unwrap();
+        assert!(resolve_journey_artifact_at(&directory, "escape.txt").is_err());
+        fs::remove_file(outside).unwrap();
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn dispatches_argument_safe_platform_native_reveal_commands() {
+        let file = Path::new("/journeys/selected/guides/start.md");
+        let folder = Path::new("/journeys/selected/guides");
+        let mac = native_reveal_command("macos", file, false).unwrap();
+        assert_eq!(mac.program, "open");
+        assert_eq!(mac.args, vec!["-R", "/journeys/selected/guides/start.md"]);
+        let windows = native_reveal_command("windows", folder, true).unwrap();
+        assert_eq!(windows.program, "explorer.exe");
+        assert_eq!(windows.args, vec!["/select,", "/journeys/selected/guides"]);
+        let linux_file = native_reveal_command("linux", file, false).unwrap();
+        assert_eq!(linux_file.program, "xdg-open");
+        assert_eq!(linux_file.args, vec!["/journeys/selected/guides"]);
+        let linux_folder = native_reveal_command("linux", folder, true).unwrap();
+        assert_eq!(linux_folder.args, vec!["/journeys/selected/guides"]);
+        assert!(native_reveal_command("unsupported", file, false).is_err());
     }
 
     #[test]

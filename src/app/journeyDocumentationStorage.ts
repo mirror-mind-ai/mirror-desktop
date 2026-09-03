@@ -18,3 +18,7 @@ export async function readJourneyDocument(
   const payload = await invoke<unknown>("read_journey_document", { journeyId, relativePath });
   return normalizeDocumentationContent(payload);
 }
+
+export async function revealJourneyArtifact(journeyId: string, relativePath: string): Promise<void> {
+  await invoke("reveal_journey_artifact", { journeyId, relativePath });
+}

@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from "react";
 import {
   findDocumentationNode,
   toggleExpandedDocumentationPath,
@@ -6,9 +14,14 @@ import {
   type DocumentationNode,
   type DocumentationTreeViewState,
 } from "../domain/journeyDocumentation";
-import { listJourneyDocumentation, readJourneyDocument } from "./journeyDocumentationStorage";
+import {
+  listJourneyDocumentation,
+  readJourneyDocument,
+  revealJourneyArtifact,
+} from "./journeyDocumentationStorage";
 import { openJourneyDocument } from "./chatLocalReferenceNavigation";
 import { ArtifactTypeIcon, artifactIconKind } from "./ArtifactTypeIcon";
+import { ArtifactContextMenu } from "./ArtifactContextMenu";
 
 type JourneyDocumentationBrowserProps = {
   journeyId: string;
@@ -25,8 +38,22 @@ type JourneyDocumentationSurfaceProps = {
   onToggle: (path: string) => void;
   onSelect: (node: DocumentationNode) => void;
   onOpen?: (node: DocumentationNode) => void;
+  onOpenContextMenu?: (
+    node: DocumentationNode,
+    x: number,
+    y: number,
+    returnFocusTo: HTMLElement,
+  ) => void;
   routingError?: string;
   openError?: string;
+  artifactActionError?: string;
+};
+
+type ArtifactMenuState = {
+  node: DocumentationNode;
+  x: number;
+  y: number;
+  returnFocusTo: HTMLElement;
 };
 
 const unavailableReasons: Record<string, string> = {
@@ -48,17 +75,23 @@ export function JourneyDocumentationBrowser({
   const [content, setContent] = useState<DocumentationContentViewState>({ status: "idle" });
   const [routingError, setRoutingError] = useState<string>();
   const [openError, setOpenError] = useState<string>();
+  const [artifactActionError, setArtifactActionError] = useState<string>();
+  const [artifactMenu, setArtifactMenu] = useState<ArtifactMenuState>();
   const treeRequestRef = useRef(0);
   const contentRequestRef = useRef(0);
+  const artifactActionRequestRef = useRef(0);
 
   useEffect(() => {
     const request = ++treeRequestRef.current;
     contentRequestRef.current += 1;
+    artifactActionRequestRef.current += 1;
     setExpandedPaths(new Set());
     setSelectedNode(undefined);
     setContent({ status: "idle" });
     setRoutingError(undefined);
     setOpenError(undefined);
+    setArtifactActionError(undefined);
+    setArtifactMenu(undefined);
 
     setTree({ status: "loading" });
     void listJourneyDocumentation(journeyId)
@@ -127,6 +160,29 @@ export function JourneyDocumentationBrowser({
     selectNode(match.node);
   }, [requestedRelativePath, requestId, tree]);
 
+  function openArtifactContextMenu(
+    node: DocumentationNode,
+    x: number,
+    y: number,
+    returnFocusTo: HTMLElement,
+  ) {
+    setArtifactActionError(undefined);
+    setArtifactMenu({ node, x, y, returnFocusTo });
+  }
+
+  async function revealArtifact(node: DocumentationNode) {
+    const request = ++artifactActionRequestRef.current;
+    setArtifactMenu(undefined);
+    setArtifactActionError(undefined);
+    try {
+      await revealJourneyArtifact(journeyId, node.relativePath);
+    } catch (error) {
+      if (artifactActionRequestRef.current === request) {
+        setArtifactActionError(error instanceof Error ? error.message : String(error));
+      }
+    }
+  }
+
   async function openSelectedNode(node: DocumentationNode) {
     if (node.kind !== "file") return;
     setOpenError(undefined);
@@ -138,17 +194,31 @@ export function JourneyDocumentationBrowser({
   }
 
   return (
-    <JourneyDocumentationSurface
-      tree={tree}
-      expandedPaths={expandedPaths}
-      selectedNode={selectedNode}
-      content={content}
-      onToggle={(path) => setExpandedPaths((current) => toggleExpandedDocumentationPath(current, path))}
-      onSelect={selectNode}
-      onOpen={(node) => void openSelectedNode(node)}
-      routingError={routingError}
-      openError={openError}
-    />
+    <>
+      <JourneyDocumentationSurface
+        tree={tree}
+        expandedPaths={expandedPaths}
+        selectedNode={selectedNode}
+        content={content}
+        onToggle={(path) => setExpandedPaths((current) => toggleExpandedDocumentationPath(current, path))}
+        onSelect={selectNode}
+        onOpen={(node) => void openSelectedNode(node)}
+        onOpenContextMenu={openArtifactContextMenu}
+        routingError={routingError}
+        openError={openError}
+        artifactActionError={artifactActionError}
+      />
+      {artifactMenu ? (
+        <ArtifactContextMenu
+          node={artifactMenu.node}
+          x={artifactMenu.x}
+          y={artifactMenu.y}
+          returnFocusTo={artifactMenu.returnFocusTo}
+          onReveal={(node) => void revealArtifact(node)}
+          onDismiss={() => setArtifactMenu(undefined)}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -160,8 +230,10 @@ export function JourneyDocumentationSurface({
   onToggle,
   onSelect,
   onOpen = () => undefined,
+  onOpenContextMenu = () => undefined,
   routingError,
   openError,
+  artifactActionError,
 }: JourneyDocumentationSurfaceProps) {
   return (
     <section
@@ -171,10 +243,11 @@ export function JourneyDocumentationSurface({
       aria-label="Journey workspace browser"
     >
       {routingError ? <p className="journey-documentation-routing-error" role="alert">{routingError}</p> : null}
+      {artifactActionError ? <p className="journey-documentation-routing-error" role="alert">{artifactActionError}</p> : null}
       <div className="operational-artifacts-layout">
         <div className="operational-artifacts-browser">
           <p className="operational-artifacts-section-label">Workspace structure</p>
-          {renderTreeState(tree, expandedPaths, selectedNode, onToggle, onSelect)}
+          {renderTreeState(tree, expandedPaths, selectedNode, onToggle, onSelect, onOpenContextMenu)}
         </div>
         <div className="operational-artifact-document-viewer">
           {renderViewer(selectedNode, content, onOpen, openError)}
@@ -190,6 +263,7 @@ function renderTreeState(
   selectedNode: DocumentationNode | undefined,
   onToggle: (path: string) => void,
   onSelect: (node: DocumentationNode) => void,
+  onOpenContextMenu: JourneyDocumentationSurfaceProps["onOpenContextMenu"],
 ): ReactNode {
   if (tree.status === "loading") return <BrowserState title="Reading Journey workspace" detail="Loading the bounded Journey hierarchy…" />;
   if (tree.status === "error") return <BrowserState title="Workspace unavailable" detail={tree.message} />;
@@ -199,7 +273,7 @@ function renderTreeState(
     <div className="journey-documentation-tree-wrap">
       <div className="journey-documentation-root"><ArtifactTypeIcon kind="folder" open /><strong>{tree.rootLabel}</strong></div>
       <ul className="journey-documentation-tree" role="tree" aria-label="Journey workspace">
-        {tree.items.map((node) => renderTreeNode(node, 0, expandedPaths, selectedNode, onToggle, onSelect))}
+        {tree.items.map((node) => renderTreeNode(node, 0, expandedPaths, selectedNode, onToggle, onSelect, onOpenContextMenu))}
       </ul>
     </div>
   );
@@ -212,9 +286,23 @@ function renderTreeNode(
   selectedNode: DocumentationNode | undefined,
   onToggle: (path: string) => void,
   onSelect: (node: DocumentationNode) => void,
+  onOpenContextMenu: JourneyDocumentationSurfaceProps["onOpenContextMenu"],
 ): ReactNode {
   const expanded = node.kind === "folder" && expandedPaths.has(node.relativePath);
   const selected = selectedNode?.relativePath === node.relativePath;
+
+  function openFromPointer(event: ReactMouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    onOpenContextMenu?.(node, event.clientX, event.clientY, event.currentTarget);
+  }
+
+  function openFromKeyboard(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+    event.preventDefault();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    onOpenContextMenu?.(node, bounds.left + 12, bounds.bottom + 4, event.currentTarget);
+  }
+
   return (
     <li
       key={node.relativePath}
@@ -238,6 +326,9 @@ function renderTreeNode(
           type="button"
           className="journey-documentation-select"
           onClick={() => onSelect(node)}
+          onContextMenu={openFromPointer}
+          onKeyDown={openFromKeyboard}
+          aria-haspopup="menu"
           title={node.relativePath}
         >
           <ArtifactTypeIcon
@@ -249,7 +340,7 @@ function renderTreeNode(
       </div>
       {node.kind === "folder" && expanded && node.children.length > 0 ? (
         <ul role="group">
-          {node.children.map((child) => renderTreeNode(child, depth + 1, expandedPaths, selectedNode, onToggle, onSelect))}
+          {node.children.map((child) => renderTreeNode(child, depth + 1, expandedPaths, selectedNode, onToggle, onSelect, onOpenContextMenu))}
         </ul>
       ) : null}
     </li>
