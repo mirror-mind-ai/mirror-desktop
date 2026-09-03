@@ -196,6 +196,9 @@ catalog grouped as Dark or Light; arbitrary colors and automatic system/time
 switching remain outside the contract. Existing dark IDs stay backward-compatible.
 Daylight, Mist and Parchment share one semantic light-surface contract while each
 supplies its own canvas, raised surface, primary/muted text and accent tokens.
+Daylight is deliberately conventional: neutral white/gray surfaces carry the
+hierarchy, with Nautilus teal reserved for links, focus, selection and actions
+rather than tinting the entire canvas.
 Those tokens cover shell and sidebar, Journey navigation, conversation and
 copy-ready prose, composer controls, Artifacts, menus and Settings/dialogs.
 Catalog tests enforce primary, muted and accent contrast against declared light

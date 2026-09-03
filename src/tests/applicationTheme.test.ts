@@ -55,6 +55,14 @@ describe("application themes", () => {
 
   it("declares accessible light-theme semantic contrast on actual surfaces", () => {
     expect(lightApplicationThemes.map(({ id }) => id)).toEqual(["daylight", "mist", "parchment"]);
+    expect(lightApplicationThemes.find(({ id }) => id === "daylight")?.tokens).toEqual({
+      canvas: "#f6f7f9",
+      surface: "#ffffff",
+      raisedSurface: "#f0f2f5",
+      primaryText: "#1f2937",
+      mutedText: "#667085",
+      accentText: "#0f766e",
+    });
     for (const theme of lightApplicationThemes) {
       expect(contrast(theme.tokens.primaryText, theme.tokens.surface), theme.id).toBeGreaterThanOrEqual(7);
       expect(contrast(theme.tokens.mutedText, theme.tokens.surface), theme.id).toBeGreaterThanOrEqual(4.5);

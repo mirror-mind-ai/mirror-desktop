@@ -99,22 +99,22 @@ textarea {
 }
 
 .app-shell[data-application-theme="daylight"] {
-  --ui-accent: #11665e;
-  --ui-accent-rgb: 17, 102, 94;
-  --shell-radial: rgba(17, 102, 94, 0.1);
-  --shell-start: #fbfdfc;
-  --shell-middle: #f7faf8;
-  --shell-end: #eaf2ef;
-  --sidebar-surface: rgba(246, 249, 248, 0.98);
-  --light-canvas: #f7faf8;
+  --ui-accent: #0f766e;
+  --ui-accent-rgb: 15, 118, 110;
+  --shell-radial: rgba(15, 118, 110, 0.035);
+  --shell-start: #f7f8fa;
+  --shell-middle: #f6f7f9;
+  --shell-end: #f4f5f7;
+  --sidebar-surface: rgba(240, 242, 245, 0.98);
+  --light-canvas: #f6f7f9;
   --light-surface: #ffffff;
-  --light-raised: #eef5f2;
-  --light-text: #172321;
-  --light-muted: #4b5f5a;
-  --light-accent: #11665e;
-  --light-border: rgba(23, 35, 33, 0.16);
-  --light-soft-border: rgba(23, 35, 33, 0.1);
-  --light-shadow: rgba(23, 35, 33, 0.16);
+  --light-raised: #f0f2f5;
+  --light-text: #1f2937;
+  --light-muted: #667085;
+  --light-accent: #0f766e;
+  --light-border: #d0d5dd;
+  --light-soft-border: #e4e7ec;
+  --light-shadow: rgba(31, 41, 55, 0.14);
 }
 
 .app-shell[data-application-theme="mist"] {
