@@ -5,6 +5,18 @@ type ClipboardWriter = (text: string) => Promise<void>;
 type CopyResult = "copied" | "failed";
 type CopyState = "idle" | CopyResult;
 
+export type MessageCopyLabels = {
+  idle: string;
+  copied: string;
+  failed: string;
+};
+
+const defaultCopyLabels: MessageCopyLabels = {
+  idle: "Copy message text",
+  copied: "Message text copied",
+  failed: "Copy message text failed; retry",
+};
+
 export async function copyMessageBody(body: string, writeClipboardText: ClipboardWriter = writeText): Promise<CopyResult> {
   try {
     await writeClipboardText(body);
@@ -18,12 +30,18 @@ interface MessageCopyActionProps {
   body: string;
   writeClipboardText?: ClipboardWriter;
   resetAfterMs?: number;
+  labels?: MessageCopyLabels;
+  className?: string;
+  visibleLabel?: string;
 }
 
 export function MessageCopyAction({
   body,
   writeClipboardText = writeText,
   resetAfterMs = 2_000,
+  labels = defaultCopyLabels,
+  className = "",
+  visibleLabel,
 }: MessageCopyActionProps) {
   const [state, setState] = useState<CopyState>("idle");
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -42,11 +60,7 @@ export function MessageCopyAction({
     }, resetAfterMs);
   };
 
-  const accessibleLabel = state === "copied"
-    ? "Message text copied"
-    : state === "failed"
-      ? "Copy message text failed; retry"
-      : "Copy message text";
+  const accessibleLabel = labels[state];
 
   const icon = state === "copied" ? (
     <path d="m5 12 4 4L19 6" />
@@ -65,7 +79,7 @@ export function MessageCopyAction({
   return (
     <button
       type="button"
-      className={`message-copy-action ${state !== "idle" ? `is-${state}` : ""}`.trim()}
+      className={`message-copy-action ${className} ${state !== "idle" ? `is-${state}` : ""}`.trim()}
       aria-label={accessibleLabel}
       aria-live="polite"
       title={accessibleLabel}
@@ -74,6 +88,7 @@ export function MessageCopyAction({
       <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
         {icon}
       </svg>
+      {visibleLabel ? <span>{visibleLabel}</span> : null}
     </button>
   );
 }

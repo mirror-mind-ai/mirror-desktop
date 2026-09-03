@@ -18,6 +18,15 @@ describe("message copy action", () => {
     expect(writeText).toHaveBeenCalledWith("**Visible** body");
   });
 
+  it("copies an email-ready draft without surrounding explanation or quote markers", async () => {
+    const writeText = vi.fn(async (_text: string) => undefined);
+    const draft = "Bom dia, Cleuzilene! Tudo bem?\n\nMuito obrigado por nos avisar.\n\nObrigado novamente pelo aviso!";
+
+    await expect(copyMessageBody(draft, writeText)).resolves.toBe("copied");
+    expect(writeText).toHaveBeenCalledWith(draft);
+    expect(writeText.mock.calls[0][0]).not.toContain(">");
+  });
+
   it("reports clipboard failures truthfully", async () => {
     const writeText = vi.fn(async () => {
       throw new Error("clipboard denied");
@@ -35,6 +44,24 @@ describe("message copy action", () => {
     expect(html).toContain("<svg");
     expect(html).not.toContain(">Copy<");
     expect(html).not.toContain("Visible body");
+  });
+
+  it("renders draft-specific accessible clipboard feedback labels", () => {
+    const html = renderToStaticMarkup(
+      <MessageCopyAction
+        body="Email body"
+        labels={{
+          idle: "Copy draft text",
+          copied: "Draft text copied",
+          failed: "Copy draft text failed; retry",
+        }}
+        visibleLabel="Copy text"
+      />,
+    );
+
+    expect(html).toContain('aria-label="Copy draft text"');
+    expect(html).toContain('title="Copy draft text"');
+    expect(html).toContain("<span>Copy text</span>");
   });
 
   it("registers only clipboard text writing in the native boundary", () => {

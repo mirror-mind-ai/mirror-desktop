@@ -2600,6 +2600,46 @@ h3 {
   margin-top: 0.35rem;
 }
 
+.message-copy-ready-block {
+  background: rgba(255, 255, 255, 0.035);
+  border-left: 2px solid rgba(var(--ui-accent-rgb), 0.42);
+  border-radius: 0 10px 10px 0;
+  box-sizing: border-box;
+  margin-bottom: 0;
+  margin-left: 0;
+  margin-right: 0;
+  max-width: 100%;
+  min-width: 0;
+  padding: 14px 116px 14px 16px;
+  position: relative;
+}
+
+.message-copy-ready-prose p {
+  margin: 0;
+  white-space: normal;
+}
+
+.message-copy-ready-prose p + p {
+  margin-top: 0.9rem;
+}
+
+.message-copy-ready-action {
+  flex-basis: auto;
+  gap: 6px;
+  margin-left: 0;
+  padding: 0 10px;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: auto;
+}
+
+.message-copy-ready-action span {
+  font-size: 0.68rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
 .inline-link {
   color: #9ceade;
   overflow-wrap: anywhere;

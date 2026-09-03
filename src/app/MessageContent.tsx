@@ -1,18 +1,26 @@
 import type { ReactNode } from "react";
 import { LinkifiedText } from "./LinkifiedText";
+import { MessageCopyAction, type MessageCopyLabels } from "./MessageCopyAction";
 
 type MessageBlock =
   | { type: "paragraph"; text: string }
   | { type: "heading"; level: 2 | 3; text: string }
   | { type: "unordered_list"; items: string[] }
   | { type: "ordered_list"; items: string[] }
-  | { type: "code"; language?: string; text: string };
+  | { type: "code"; language?: string; text: string }
+  | { type: "copy_ready_quote"; paragraphs: string[]; copyText: string };
 
 type InlineToken =
   | { type: "text"; text: string }
   | { type: "strong"; text: string }
   | { type: "emphasis"; text: string }
   | { type: "code"; text: string };
+
+const draftCopyLabels: MessageCopyLabels = {
+  idle: "Copy draft text",
+  copied: "Draft text copied",
+  failed: "Copy draft text failed; retry",
+};
 
 export function MessageContent({
   content,
@@ -80,6 +88,42 @@ export function parseMessageBlocks(content: string): MessageBlock[] {
       continue;
     }
 
+    if (/^>/.test(trimmed)) {
+      flushParagraph();
+      const quotedParagraphs: string[] = [];
+      const quotedLines: string[] = [];
+      const rawQuotedLines: string[] = [];
+
+      function flushQuotedParagraph() {
+        const text = quotedLines.join(" ").trim();
+        if (text) quotedParagraphs.push(text);
+        quotedLines.length = 0;
+      }
+
+      while (index < lines.length) {
+        const rawQuotedLine = lines[index].trim();
+        const quote = rawQuotedLine.match(/^>\s?(.*)$/);
+        if (!quote) break;
+        rawQuotedLines.push(rawQuotedLine);
+        const quotedText = quote[1].trim();
+        if (quotedText) quotedLines.push(quotedText);
+        else flushQuotedParagraph();
+        index += 1;
+      }
+      flushQuotedParagraph();
+
+      if (quotedParagraphs.length > 0) {
+        blocks.push({
+          type: "copy_ready_quote",
+          paragraphs: quotedParagraphs,
+          copyText: quotedParagraphs.map(messageInlinePlainText).join("\n\n"),
+        });
+      } else {
+        paragraph.push(...rawQuotedLines);
+      }
+      continue;
+    }
+
     if (/^[-*]\s+/.test(trimmed)) {
       flushParagraph();
       const items: string[] = [];
@@ -116,6 +160,10 @@ export function parseMessageBlocks(content: string): MessageBlock[] {
 
   flushParagraph();
   return blocks.length > 0 ? blocks : [{ type: "paragraph", text: content }];
+}
+
+export function messageInlinePlainText(text: string): string {
+  return parseInlineTokens(text).map((token) => token.text).join("");
 }
 
 export function parseInlineTokens(text: string): InlineToken[] {
@@ -177,6 +225,22 @@ function renderBlock(
         <pre key={index} className="message-code-block">
           <code><LinkifiedText text={block.text} basePath={basePath} onLocalPathClick={onLocalPathClick} /></code>
         </pre>
+      );
+    case "copy_ready_quote":
+      return (
+        <blockquote key={index} className="message-copy-ready-block">
+          <div className="message-copy-ready-prose">
+            {block.paragraphs.map((paragraph, paragraphIndex) => (
+              <p key={paragraphIndex}>{renderInline(paragraph, basePath, onLocalPathClick)}</p>
+            ))}
+          </div>
+          <MessageCopyAction
+            body={block.copyText}
+            labels={draftCopyLabels}
+            className="message-copy-ready-action"
+            visibleLabel="Copy text"
+          />
+        </blockquote>
       );
     case "paragraph":
       return <p key={index}>{renderInline(block.text, basePath, onLocalPathClick)}</p>;

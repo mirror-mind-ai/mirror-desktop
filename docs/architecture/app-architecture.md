@@ -236,6 +236,19 @@ folders open directly and files open their containing folder. Reveal never opens
 or edits the Artifact itself, and failures remain local to the Artifacts surface.
 Frontend selection and arbitrary absolute paths carry no filesystem authority.
 
+## Copy-ready message prose
+
+Assistant Markdown blockquotes are treated as explicit copy-ready prose blocks.
+The bounded MessageContent parser removes each leading quote marker, keeps
+quote-only lines as paragraph boundaries, and renders inner text through the same
+safe inline renderer used by ordinary messages. Empty or malformed quote-only
+input remains inert text. The block-level copy action sends only normalized inner
+prose, without supported inline Markdown delimiters, to the existing text-only
+clipboard boundary, with exactly one blank line
+between paragraphs and draft-specific success/failure announcements. It never
+copies surrounding explanation, mutates conversation/composer state, evaluates
+HTML, or changes the existing whole-message Markdown copy contract.
+
 ## Persistent agent-profile boundary
 
 Harness owns a versioned, non-secret `agent-settings.json` record under Tauri's
