@@ -249,7 +249,12 @@ against the message owner's registered Journey workspace. Canonically contained,
 non-symlink files route to the Operational **Artifacts** surface, which expands
 and selects the exact relative path and offers an explicit **Open file** action.
 Absolute files outside that canonical root retain immediate opening through the
-existing safe native file boundary.
+existing safe native file boundary. Current-user home-relative references beginning
+with `~/` preserve that compact text in the conversation but expand only inside the
+native boundary. Canonical home-relative files inside the registered Journey route
+to Artifacts; files elsewhere under the current home route to native opening. Bare
+`~`, named-user forms such as `~other/`, environment variables, shell expansion and
+globbing are never interpreted.
 
 Traversal, missing targets, directories, symbolic-link components and canonical
 escapes fail visibly. Classification and OS opening both revalidate native

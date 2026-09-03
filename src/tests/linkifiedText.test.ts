@@ -30,6 +30,22 @@ describe("LinkifiedText", () => {
     ]);
   });
 
+  it("preserves current-user home-relative paths as complete verification candidates", () => {
+    expect(parseLinkifiedText("Created ~/.config/alissonvale-com/youtube/o-reflexo-episodio-1-metadata-diff.md."))
+      .toEqual([
+        { type: "text", text: "Created " },
+        {
+          type: "local_path_candidate",
+          text: "~/.config/alissonvale-com/youtube/o-reflexo-episodio-1-metadata-diff.md",
+        },
+        { type: "text", text: "." },
+      ]);
+    const unsupported = parseLinkifiedText("Bare ~ and ~someone/private.md remain text.");
+    expect(unsupported.every((part) => part.type === "text")).toBe(true);
+    expect(unsupported.map((part) => part.text).join(""))
+      .toBe("Bare ~ and ~someone/private.md remain text.");
+  });
+
   it("routes verified chat paths through the supplied Journey-aware handler", () => {
     const onLocalPathClick = vi.fn();
     const [link] = renderLinkifiedText(

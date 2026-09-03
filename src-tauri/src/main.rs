@@ -1541,16 +1541,65 @@ fn inspect_file_attachments(journey_id: String, paths: Vec<String>) -> Result<Fi
     inspect_file_attachments_at(&journey_id, &paths.into_iter().map(PathBuf::from).collect::<Vec<_>>())
 }
 
-fn resolve_existing_local_file(path: &str, base_path: Option<&str>) -> Result<PathBuf, String> {
-    if path.trim().is_empty()
+fn current_user_home_directory() -> Result<PathBuf, String> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .ok_or_else(|| "Current-user home directory is unavailable.".to_string())
+}
+
+fn resolve_home_relative_file(path: &str, home_directory: &Path) -> Result<PathBuf, String> {
+    let relative = path.strip_prefix("~/")
+        .ok_or_else(|| "Unsupported home-relative reference.".to_string())?;
+    let relative_path = Path::new(relative);
+    if relative.is_empty() || relative_path.components().any(|component| !matches!(component, std::path::Component::Normal(_))) {
+        return Err("Home-relative reference contains unsupported path components.".to_string());
+    }
+
+    let canonical_home = home_directory.canonicalize()
+        .map_err(|error| format!("Could not resolve current-user home directory: {}", error))?;
+    let mut cursor = canonical_home.clone();
+    for component in relative_path.components() {
+        cursor.push(component.as_os_str());
+        let metadata = fs::symlink_metadata(&cursor)
+            .map_err(|error| format!("Could not inspect home-relative reference: {}", error))?;
+        if metadata.file_type().is_symlink() {
+            return Err("Symbolic-link home-relative references are unsupported.".to_string());
+        }
+    }
+    let canonical_path = cursor.canonicalize()
+        .map_err(|error| format!("Could not open home-relative reference: {}", error))?;
+    if !canonical_path.starts_with(&canonical_home) {
+        return Err("Home-relative reference escaped the current-user home directory.".to_string());
+    }
+    let metadata = fs::metadata(&canonical_path)
+        .map_err(|error| format!("Could not inspect home-relative reference: {}", error))?;
+    if !metadata.is_file() {
+        return Err("Local reference is not a file.".to_string());
+    }
+    Ok(canonical_path)
+}
+
+fn resolve_existing_local_file_at(
+    path: &str,
+    base_path: Option<&str>,
+    home_directory: &Path,
+) -> Result<PathBuf, String> {
+    let trimmed_path = path.trim();
+    if trimmed_path.is_empty()
         || path.contains('\0')
-        || path.starts_with("http://")
-        || path.starts_with("https://")
+        || trimmed_path.starts_with("http://")
+        || trimmed_path.starts_with("https://")
+        || (trimmed_path.starts_with('~') && !trimmed_path.starts_with("~/"))
     {
         return Err("Unsupported local reference.".to_string());
     }
+    if trimmed_path.starts_with("~/") {
+        return resolve_home_relative_file(trimmed_path, home_directory);
+    }
 
-    let requested_path = PathBuf::from(path.trim());
+    let requested_path = PathBuf::from(trimmed_path);
     let resolved_path = if requested_path.is_absolute() {
         requested_path
     } else {
@@ -1572,6 +1621,15 @@ fn resolve_existing_local_file(path: &str, base_path: Option<&str>) -> Result<Pa
         return Err("Local reference is not a file.".to_string());
     }
     Ok(canonical_path)
+}
+
+fn resolve_existing_local_file(path: &str, base_path: Option<&str>) -> Result<PathBuf, String> {
+    let home_directory = if path.trim().starts_with("~/") {
+        current_user_home_directory()?
+    } else {
+        PathBuf::new()
+    };
+    resolve_existing_local_file_at(path, base_path, &home_directory)
 }
 
 #[tauri::command]
@@ -1630,14 +1688,41 @@ fn resolve_journey_document_file_at(journey_root: &Path, relative_path: &str) ->
     Ok(resolved)
 }
 
-fn classify_chat_local_reference_at(journey_root: &Path, path: &str) -> Result<ChatLocalReferenceDisposition, String> {
-    if path.trim().is_empty() || path.contains('\0') || path.starts_with("http://") || path.starts_with("https://") {
+fn classify_chat_local_reference_at_with_home(
+    journey_root: &Path,
+    path: &str,
+    home_directory: &Path,
+) -> Result<ChatLocalReferenceDisposition, String> {
+    let trimmed_path = path.trim();
+    if trimmed_path.is_empty()
+        || path.contains('\0')
+        || trimmed_path.starts_with("http://")
+        || trimmed_path.starts_with("https://")
+        || (trimmed_path.starts_with('~') && !trimmed_path.starts_with("~/"))
+    {
         return Err("Unsupported local reference.".to_string());
     }
     let workspace_root = bounded_documentation_root(journey_root)?;
-    let requested = PathBuf::from(path.trim());
+    let requested = PathBuf::from(trimmed_path);
+    if trimmed_path.starts_with("~/") {
+        let canonical = resolve_existing_local_file_at(trimmed_path, None, home_directory)?;
+        if !canonical.starts_with(&workspace_root) {
+            return Ok(ChatLocalReferenceDisposition { kind: "external_file".to_string(), relative_path: None });
+        }
+        let relative = canonical.strip_prefix(&workspace_root)
+            .map_err(|_| "Linked document escaped the registered Journey workspace.".to_string())?
+            .components()
+            .map(|component| component.as_os_str().to_string_lossy().into_owned())
+            .collect::<Vec<_>>()
+            .join("/");
+        let (_, relative_path) = resolve_journey_document_file_at(&workspace_root, &relative)?;
+        return Ok(ChatLocalReferenceDisposition {
+            kind: "journey_document".to_string(),
+            relative_path: Some(relative_path),
+        });
+    }
     if requested.is_absolute() && !requested.starts_with(&workspace_root) {
-        resolve_existing_local_file(path, None)?;
+        resolve_existing_local_file_at(trimmed_path, None, home_directory)?;
         return Ok(ChatLocalReferenceDisposition { kind: "external_file".to_string(), relative_path: None });
     }
     let relative = if requested.is_absolute() {
@@ -1648,13 +1733,22 @@ fn classify_chat_local_reference_at(journey_root: &Path, path: &str) -> Result<C
             .collect::<Vec<_>>()
             .join("/")
     } else {
-        path.trim().replace('\\', "/")
+        trimmed_path.replace('\\', "/")
     };
     let (_, relative_path) = resolve_journey_document_file_at(&workspace_root, &relative)?;
     Ok(ChatLocalReferenceDisposition {
         kind: "journey_document".to_string(),
         relative_path: Some(relative_path),
     })
+}
+
+fn classify_chat_local_reference_at(journey_root: &Path, path: &str) -> Result<ChatLocalReferenceDisposition, String> {
+    let home_directory = if path.trim().starts_with("~/") {
+        current_user_home_directory()?
+    } else {
+        PathBuf::new()
+    };
+    classify_chat_local_reference_at_with_home(journey_root, path, &home_directory)
 }
 
 #[tauri::command]
@@ -4424,8 +4518,8 @@ mod tests {
         project_complete_pi_transcript, projection_manifest_coordinates_at,
         inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
         read_journey_document_at, remove_provider_session_args, resolve_existing_local_file,
-        resolve_journey_artifact_at, retire_legacy_parity_state_at,
-        classify_chat_local_reference_at,
+        resolve_existing_local_file_at, resolve_journey_artifact_at, retire_legacy_parity_state_at,
+        classify_chat_local_reference_at, classify_chat_local_reference_at_with_home,
         unwrap_persisted_thread, validate_acknowledged_projection_authority_at,
         validate_composer_drafts_payload, validate_external_url, validate_journey_registry_payload,
         merge_persisted_mirror_evidence, validate_active_pre_frontier_projection_at,
@@ -5357,6 +5451,71 @@ mod tests {
         assert!(resolve_existing_local_file("docs", Some(root.to_string_lossy().as_ref())).is_err());
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn resolves_only_safe_current_user_home_relative_files() {
+        let home = test_root("home-local-reference");
+        fs::create_dir_all(home.join(".config/example")).unwrap();
+        fs::write(home.join(".config/example/report.md"), "report").unwrap();
+
+        let resolved = resolve_existing_local_file_at(
+            "~/.config/example/report.md",
+            None,
+            &home,
+        ).unwrap();
+        assert_eq!(resolved, home.join(".config/example/report.md").canonicalize().unwrap());
+        assert!(resolve_existing_local_file_at("~", None, &home).is_err());
+        assert!(resolve_existing_local_file_at("~someone/report.md", None, &home).is_err());
+        assert!(resolve_existing_local_file_at("~/../outside.md", None, &home).is_err());
+        assert!(resolve_existing_local_file_at("~/.config/example", None, &home).is_err());
+
+        fs::remove_dir_all(home).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlinks_in_home_relative_file_components() {
+        use std::os::unix::fs::symlink;
+        let home = test_root("home-local-reference-symlink");
+        let outside = test_root("home-local-reference-symlink-outside");
+        fs::create_dir_all(&home).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(outside.join("report.md"), "outside").unwrap();
+        symlink(&outside, home.join("linked")).unwrap();
+
+        let error = resolve_existing_local_file_at("~/linked/report.md", None, &home).unwrap_err();
+        assert!(error.contains("Symbolic-link"));
+
+        fs::remove_dir_all(home).unwrap();
+        fs::remove_dir_all(outside).unwrap();
+    }
+
+    #[test]
+    fn routes_home_relative_files_by_canonical_journey_containment() {
+        let home = test_root("chat-home-reference-routing");
+        let journey = home.join("journey");
+        fs::create_dir_all(journey.join("docs")).unwrap();
+        fs::create_dir_all(home.join(".config/example")).unwrap();
+        fs::write(journey.join("docs/guide.md"), "guide").unwrap();
+        fs::write(home.join(".config/example/report.md"), "report").unwrap();
+
+        let internal = classify_chat_local_reference_at_with_home(
+            &journey,
+            "~/journey/docs/guide.md",
+            &home,
+        ).unwrap();
+        assert_eq!(internal.kind, "journey_document");
+        assert_eq!(internal.relative_path.as_deref(), Some("docs/guide.md"));
+        let external = classify_chat_local_reference_at_with_home(
+            &journey,
+            "~/.config/example/report.md",
+            &home,
+        ).unwrap();
+        assert_eq!(external.kind, "external_file");
+        assert_eq!(external.relative_path, None);
+
+        fs::remove_dir_all(home).unwrap();
     }
 
     #[test]
