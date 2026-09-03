@@ -113,6 +113,12 @@ describe("application themes", () => {
     expect(cssSource).toContain(".operational-workspace-option:disabled");
   });
 
+  it("keeps the completed composer status legible in light themes", () => {
+    expect(cssSource).toContain("/* Light composer status contrast contract. */");
+    expect(cssSource).toContain(".composer-runtime-status.is-completed");
+    expect(cssSource).toContain("box-shadow: inset 3px 0 0 var(--light-accent)");
+  });
+
   it("round-trips each light theme through bounded channel-local preferences", () => {
     for (const theme of lightApplicationThemes) {
       const payload = createPersistedJourneyPreferences({

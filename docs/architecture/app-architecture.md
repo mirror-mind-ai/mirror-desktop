@@ -211,7 +211,9 @@ edge and a visible focus outline instead of inheriting the generic light button
 rule. Imported context, Ariad summaries and mode-activation events likewise map
 their labels, badges, chevrons, nested body surfaces and disclosure focus states
 to semantic light tokens; structural borders and the mode event's inset edge
-preserve hierarchy without relying on hue alone.
+preserve hierarchy without relying on hue alone. The composer runtime pill also
+maps both Working and Completed to explicit light surfaces and primary text;
+Completed adds an accent edge and check mark rather than fading the entire label.
 Catalog tests enforce primary, muted and accent contrast against declared light
 surfaces and preference round-trips for every new ID. Development channel identity,
 runtime semantic colors, reduced motion and the neutral custom-image background

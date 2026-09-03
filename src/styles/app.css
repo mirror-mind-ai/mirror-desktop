@@ -5344,3 +5344,34 @@ dd {
   border-color: var(--light-accent);
   color: #ffffff;
 }
+
+/* Light composer status contrast contract. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .composer-runtime-status {
+  background: color-mix(in srgb, var(--ui-accent) 8%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 42%, var(--light-border));
+  color: var(--light-text);
+  font-weight: 700;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .composer-runtime-status.is-completed {
+  background: var(--light-raised);
+  border-color: var(--light-border);
+  box-shadow: inset 3px 0 0 var(--light-accent);
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .composer-runtime-status .runtime-complete-mark {
+  color: var(--light-accent);
+}
