@@ -272,6 +272,16 @@ filesystem authority. The toggle exposes `aria-pressed` and `aria-controls`, has
 explicit keyboard focus in dark and light themes, and the ordinary split view stacks
 safely at constrained viewport widths.
 
+Markdown Artifact previews consume the same bounded block and inline grammar used
+for safe conversation presentation, but render through an Artifact-owned component
+with no conversation actions or automatic links. Headings, emphasis, lists,
+blockquotes, inline/fenced code, and canonical or provider-compacted tables become
+semantic React elements; raw HTML, scripts, remote assets, and unsupported links
+remain escaped inert text. Tables retain the shared limits of 16 columns, 100 rows,
+and 2,048 characters per cell, expose header and alignment semantics, and scroll
+horizontally inside the viewer. Other preview kinds and the native 1 MiB read bound
+remain unchanged.
+
 ## Artifact reveal boundary
 
 Every visible Artifact file or folder offers the same exact-target context menu

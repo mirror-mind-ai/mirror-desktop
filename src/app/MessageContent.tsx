@@ -11,7 +11,7 @@ type TableBlock = {
   rows: string[][];
 };
 
-type MessageBlock =
+export type MessageBlock =
   | { type: "paragraph"; text: string }
   | { type: "heading"; level: 2 | 3; text: string }
   | { type: "unordered_list"; items: string[] }
@@ -24,7 +24,7 @@ const MAX_TABLE_COLUMNS = 16;
 const MAX_TABLE_ROWS = 100;
 const MAX_TABLE_CELL_LENGTH = 2_048;
 
-type InlineToken =
+export type InlineToken =
   | { type: "text"; text: string }
   | { type: "strong"; text: string }
   | { type: "emphasis"; text: string }

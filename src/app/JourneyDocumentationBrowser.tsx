@@ -22,6 +22,7 @@ import {
 import { openJourneyDocument } from "./chatLocalReferenceNavigation";
 import { ArtifactTypeIcon, artifactIconKind } from "./ArtifactTypeIcon";
 import { ArtifactContextMenu } from "./ArtifactContextMenu";
+import { ArtifactMarkdown } from "./ArtifactMarkdown";
 
 type JourneyDocumentationBrowserProps = {
   journeyId: string;
@@ -419,48 +420,10 @@ function renderViewer(
       {metadata}
       {openAction}
       <div className={`journey-documentation-body content-${content.previewKind}`}>
-        {content.previewKind === "markdown" ? renderSafeMarkdown(content.content) : <pre>{content.content}</pre>}
+        {content.previewKind === "markdown" ? <ArtifactMarkdown content={content.content} /> : <pre>{content.content}</pre>}
       </div>
     </article>
   );
-}
-
-function renderSafeMarkdown(content: string): ReactNode {
-  const lines = content.replace(/\r\n/g, "\n").split("\n");
-  const output: ReactNode[] = [];
-  let inFence = false;
-  let code: string[] = [];
-
-  lines.forEach((line, index) => {
-    if (line.trim().startsWith("```")) {
-      if (inFence) {
-        output.push(<pre key={`code-${index}`}><code>{code.join("\n")}</code></pre>);
-        code = [];
-      }
-      inFence = !inFence;
-      return;
-    }
-    if (inFence) {
-      code.push(line);
-      return;
-    }
-    const heading = line.match(/^(#{1,3})\s+(.+)$/);
-    if (heading) {
-      const text = heading[2];
-      output.push(heading[1].length === 1
-        ? <h2 key={index}>{text}</h2>
-        : <h3 key={index}>{text}</h3>);
-      return;
-    }
-    const item = line.match(/^[-*]\s+(.+)$/);
-    if (item) {
-      output.push(<div className="journey-documentation-list-item" key={index}>• {item[1]}</div>);
-      return;
-    }
-    if (line.trim()) output.push(<p key={index}>{line}</p>);
-  });
-  if (code.length > 0) output.push(<pre key="code-final"><code>{code.join("\n")}</code></pre>);
-  return output;
 }
 
 function ViewerArtifactTitle({ node }: { node: DocumentationNode }) {

@@ -3519,6 +3519,104 @@ button:disabled {
   white-space: pre-wrap;
 }
 
+.artifact-markdown {
+  min-width: 0;
+}
+
+.artifact-markdown > * {
+  margin-bottom: 0;
+}
+
+.artifact-markdown > *:first-child {
+  margin-top: 0;
+}
+
+.artifact-markdown > * + * {
+  margin-top: 0.9rem;
+}
+
+.artifact-markdown ul,
+.artifact-markdown ol {
+  padding-left: 1.4rem;
+}
+
+.artifact-markdown li + li {
+  margin-top: 0.38rem;
+}
+
+.artifact-markdown :not(pre) > code {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 5px;
+  color: #e8f5f7;
+  font-size: 0.88em;
+  padding: 0.12em 0.34em;
+}
+
+.artifact-markdown-blockquote {
+  background: rgba(255, 255, 255, 0.035);
+  border-left: 3px solid rgba(var(--ui-accent-rgb), 0.5);
+  border-radius: 0 10px 10px 0;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 12px 15px;
+}
+
+.artifact-markdown-blockquote p {
+  margin: 0;
+}
+
+.artifact-markdown-blockquote p + p {
+  margin-top: 0.75rem;
+}
+
+.artifact-markdown-table-scroll {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.artifact-markdown-table-scroll table {
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  min-width: 100%;
+  width: max-content;
+}
+
+.artifact-markdown-table-scroll th,
+.artifact-markdown-table-scroll td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  box-sizing: border-box;
+  max-width: 32rem;
+  padding: 9px 12px;
+  white-space: nowrap;
+}
+
+.artifact-markdown-table-scroll th {
+  background: rgba(var(--ui-accent-rgb), 0.13);
+  color: #f2fbfc;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+}
+
+.artifact-markdown-table-scroll td {
+  color: #d8e7eb;
+}
+
+.artifact-markdown-table-scroll th:last-child,
+.artifact-markdown-table-scroll td:last-child {
+  border-right: 0;
+}
+
+.artifact-markdown-table-scroll tbody tr:last-child td {
+  border-bottom: 0;
+}
+
 .journey-documentation-body.content-text > pre {
   background: transparent;
   border: 0;
@@ -5020,6 +5118,44 @@ dd {
   [data-application-theme="parchment"]
 ) :where(.journey-documentation-metadata span, .journey-documentation-body pre, .message-content code, .message-code-block) {
   background: var(--light-raised);
+  border-color: var(--light-soft-border);
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.artifact-markdown :not(pre) > code, .artifact-markdown-blockquote) {
+  background: var(--light-raised);
+  border-color: var(--light-soft-border);
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .artifact-markdown-table-scroll {
+  background: var(--light-surface);
+  border-color: var(--light-border);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .artifact-markdown-table-scroll th {
+  background: color-mix(in srgb, var(--ui-accent) 10%, var(--light-raised));
+  border-color: var(--light-border);
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .artifact-markdown-table-scroll td {
   border-color: var(--light-soft-border);
   color: var(--light-text);
 }
