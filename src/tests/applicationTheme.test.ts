@@ -76,6 +76,14 @@ describe("application themes", () => {
     expect(cssSource).toContain(".settings-window");
   });
 
+  it("keeps user, agent, and persona glyphs legible inside light-theme avatars", () => {
+    expect(contrast("#ffffff", "#344054")).toBeGreaterThanOrEqual(7);
+    expect(contrast("#ffffff", "#6941c6")).toBeGreaterThanOrEqual(4.5);
+    expect(cssSource).toContain(".message.speaker-user .message-avatar");
+    expect(cssSource).toContain(".message.speaker-agent .message-avatar");
+    expect(cssSource).toContain(".message.speaker-persona .message-avatar");
+  });
+
   it("round-trips each light theme through bounded channel-local preferences", () => {
     for (const theme of lightApplicationThemes) {
       const payload = createPersistedJourneyPreferences({

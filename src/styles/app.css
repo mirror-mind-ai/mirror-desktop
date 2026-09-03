@@ -4679,6 +4679,37 @@ dd {
 .message-attachment-provenance small { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 
+/* Light themes use filled, high-contrast speaker avatars instead of pale dark-mode glyphs. */
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .message.speaker-user .message-avatar {
+  background: #344054;
+  border-color: #344054;
+  color: #ffffff;
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .message.speaker-agent .message-avatar {
+  background: var(--light-accent);
+  border-color: var(--light-accent);
+  color: #ffffff;
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .message.speaker-persona .message-avatar {
+  background: #6941c6;
+  border-color: #6941c6;
+  color: #ffffff;
+}
+
 /* Daylight uses one conventional blue accent instead of inheriting green Journey chrome. */
 .app-shell[data-application-theme="daylight"] :where(.accent-teal, .accent-green) {
   --accent: #2563eb;
