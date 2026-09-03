@@ -224,7 +224,8 @@ through pointer and keyboard access. **Reveal file/folder** sends only the
 registered Journey ID and canonical relative Artifact path to Tauri. Native code
 resolves the current registry-owned Journey root, rejects traversal, omitted
 workspace components, missing targets, symbolic-link components and canonical
-escapes, then dispatches the resolved path as a separate process argument to the
+escapes. The menu names the exact operation as **Reveal File...** or **Reveal
+Folder...**, then dispatches the resolved path as a separate process argument to the
 platform file manager. Finder and File Explorer select the exact item; on Linux,
 folders open directly and files open their containing folder. Reveal never opens
 or edits the Artifact itself, and failures remain local to the Artifacts surface.

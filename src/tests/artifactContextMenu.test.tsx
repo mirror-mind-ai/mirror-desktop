@@ -15,10 +15,13 @@ const node: DocumentationNode = {
 };
 
 describe("Artifact context menu", () => {
-  it("offers one exact-target reveal action", () => {
+  it.each([
+    [node, "Reveal File..."],
+    [{ ...node, relativePath: "guides", name: "guides", kind: "folder" as const }, "Reveal Folder..."],
+  ])("offers one exact-target %s reveal action", (target, expectedLabel) => {
     const html = renderToStaticMarkup(
       <ArtifactContextMenu
-        node={node}
+        node={target}
         x={24}
         y={48}
         returnFocusTo={null}
@@ -28,9 +31,10 @@ describe("Artifact context menu", () => {
     );
 
     expect(html).toContain('role="menu"');
-    expect(html).toContain('aria-label="start.md options"');
+    expect(html).toContain(`aria-label="${target.name} options"`);
     expect(html.match(/role="menuitem"/g)).toHaveLength(1);
-    expect(html).toContain("Reveal file/folder");
+    expect(html).toContain(expectedLabel);
+    expect(html).not.toContain("Reveal file/folder");
     expect(menuSource).toContain("onReveal(node)");
   });
 

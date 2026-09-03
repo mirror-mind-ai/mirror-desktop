@@ -63,7 +63,7 @@ export function ArtifactContextMenu({
       style={{ left: x, top: y }}
     >
       <button type="button" role="menuitem" onClick={revealExactNode}>
-        Reveal file/folder
+        {node.kind === "folder" ? "Reveal Folder..." : "Reveal File..."}
       </button>
     </div>
   );
