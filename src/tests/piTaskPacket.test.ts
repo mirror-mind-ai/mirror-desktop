@@ -36,7 +36,7 @@ describe("Pi task packet contract", () => {
     expect(packet.safetyMode).toBe("manual_handoff");
     expect(packet.constraints).toContain("Do not execute commands.");
     expect(packet.constraints).toContain("Do not require Mirror context.");
-    expect(packet.constraints).toContain("Do not invoke Pi automatically from the Harness.");
+    expect(packet.constraints).toContain("Do not invoke Pi automatically from Mirror Desktop.");
     expect(packet.currentState.identity.name).toBe("Nautilus");
   });
 

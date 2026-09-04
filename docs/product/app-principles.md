@@ -1,43 +1,45 @@
-# Nautilus Harness App Principles
+# Mirror Desktop App Principles
 
-**Status:** scoped
-**Roadmap source:** DS-003.US-1
+**Status:** active
+**Roadmap source:** CV-005
 
-## Harness is a body, not a projection
+## Mirror Desktop is a body, not a projection
 
-Nautilus Harness is the dedicated desktop application body of Nautilus. It is not a validation script, not a protocol viewer, and not a Mirror skill with a different skin.
+Mirror Desktop is the first-party human application body of Mirror Mind. It is not a validation script, a protocol viewer or a Mirror skill with a different skin.
 
-The Harness makes Nautilus inhabitable. Method gives meaning, Protocol gives formal portability, Mirror Extension gives reference integration, and Harness gives the user a place to work with the grammar as an application.
+The application makes Journey-bound Pi and Mirror operation inhabitable. Mirror Core owns identity, memory, Journeys, modes and headless contracts. Pi remains the agentic operator. Mirror Desktop owns the local human experience around those capabilities. Nautilus may contribute a method and derived Tactical or Strategic readings without becoming the identity of the application.
 
 ## The app reveals the current chamber
 
-The Harness should grow by vertical semantic chambers. A screen should not expose the whole future ontology before the current chamber can be used clearly.
+Mirror Desktop should grow by vertical semantic chambers. A screen should not expose the whole future ontology before the current chamber can be used clearly.
 
-DS-001 gave the app identity. DS-002 gave it Mission formulation. The first real app slice should show identity and a formulated Mission without pretending to execute work.
+The transferred application body already supports Journey navigation, dedicated conversations, artifacts, runtime state and multiple altitudes. New work should deepen coherent user passages rather than expose implementation relationships as product structure.
 
-## Protocol is source, app is experience
+## Source contracts remain authoritative
 
-The Harness should read Nautilus protocol fixtures or documents as formal source. It may validate, interpret and present them, but it should not create a parallel ontology hidden in UI state.
+Mirror Desktop may validate, interpret and present Mirror and method-owned contracts, but it should not create parallel ontology hidden in UI state.
 
-The app owns experience. The protocol owns portable structure.
+The app owns experience. Mirror Core and explicit method protocols own portable structure.
 
 ## TypeScript owns app and domain logic
 
-Nautilus app logic belongs in TypeScript. Protocol parsing, validation, view models and app state should be implemented in TypeScript.
+Application logic belongs in TypeScript. Protocol parsing, validation, view models and app state should remain in TypeScript.
 
-Tauri may use Rust for the desktop shell, filesystem bridge and native packaging boundary, but Rust should not become the domain layer.
+Tauri may use Rust for the desktop shell, filesystem bridge, process boundary and native packaging, but Rust should not become the product domain layer.
+
+## Product identity and method identity are distinct
+
+Mirror Desktop names the application, its runtime channels, conversations and general capabilities. Nautilus names only the Nautilus method, its synthesis profile and method-owned projections. Historical Nautilus Harness records remain truthful predecessor evidence.
+
+A rename is not a search operation. Persistent identifiers, event names, schemas and receipts change only through explicit compatibility decisions.
 
 ## Desktop compatibility is a product constraint
 
-The Harness must remain compatible with desktop use on Linux, macOS and Windows. Platform-specific features should be treated as optional until the core experience works across all three.
-
-## State starts modestly
-
-The first app body may read local fixtures and keep ephemeral UI state. Persistent operational Nautilus state is out of scope until a later chamber defines what persistence means.
+The architecture should remain compatible with Linux, macOS and Windows. Platform-specific features remain bounded. The private alpha supports macOS source builds without turning that temporary delivery boundary into a permanent architectural assumption.
 
 ## Errors are part of the surface
 
-If a fixture is invalid, the Harness should show the error clearly. A broken protocol document is not only a developer problem. It is part of the app's current relationship with the grammar.
+Failures should be visible, bounded and actionable. A missing runtime, invalid projection or unavailable Journey workspace is part of the user's relationship with the product, not only a developer concern.
 
 ## Desktop validation is proportional
 
@@ -47,6 +49,6 @@ When desktop interaction is necessary, related scenarios should be batched into 
 
 ## Scripts are support, not product
 
-CLI scripts may remain useful for validation, migration and developer checks. They are not sufficient as the Harness body.
+CLI scripts may remain useful for validation, migration and developer checks. They are not sufficient as the Mirror Desktop body.
 
-A script can prove a rule. The Harness must let the user inhabit it.
+A script can prove a rule. Mirror Desktop must let the user inhabit it.

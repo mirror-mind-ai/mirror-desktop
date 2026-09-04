@@ -621,10 +621,11 @@ describe("Pi process stream adapter", () => {
 
     const prompt = createPiInvocationPrompt(packet, "mirror");
 
+    expect(prompt).toContain("[Mirror Desktop Journey authority]");
     expect(prompt).toContain("The selected Journey ID for this turn is exactly: software-zen");
     expect(prompt).toContain("Do not infer the Journey from global, sticky, cwd, recent, or default context.");
     expect(prompt).toContain("User request:\no que vc acha da estrutura das minhas jornadas?");
-    expect(prompt).not.toContain("You are Pi Coding Agent acting as the Nautilus Harness agent.");
+    expect(prompt).not.toContain("You are Pi Coding Agent acting as the Mirror Desktop agent.");
   });
 
   it("serializes selected absolute paths after the Mirror request without ingesting file content", () => {

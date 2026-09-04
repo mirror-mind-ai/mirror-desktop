@@ -49,7 +49,7 @@ impl RuntimeChannel {
 impl RuntimeChannelProfile {
     pub fn active() -> Result<Self, String> {
         let home = env::var_os("HOME").map(PathBuf::from).ok_or_else(|| {
-            "Could not resolve HOME for the Nautilus runtime channel.".to_string()
+            "Could not resolve HOME for the Mirror Desktop runtime channel.".to_string()
         })?;
         let channel = if cfg!(feature = "development-channel") {
             RuntimeChannel::Development
@@ -70,8 +70,8 @@ impl RuntimeChannelProfile {
                 let mirror_home = home.join(".mirror-minds").join("alisson-vale");
                 Self {
                     channel,
-                    product_name: "Nautilus Harness",
-                    bundle_identifier: "com.nautilus.harness",
+                    product_name: "Mirror Desktop",
+                    bundle_identifier: "ai.mirrormind.desktop",
                     mirror_root: home.join("mirror"),
                     db_path: mirror_home.join("memory.db"),
                     mirror_home,
@@ -83,8 +83,8 @@ impl RuntimeChannelProfile {
                 let mirror_home = home.join(".mirror-minds").join("mirror-dev");
                 Self {
                     channel,
-                    product_name: "Nautilus Harness Dev",
-                    bundle_identifier: "com.nautilus.harness.dev",
+                    product_name: "Mirror Desktop Dev",
+                    bundle_identifier: "ai.mirrormind.desktop.dev",
                     mirror_root: home
                         .join(".mirror-journeys")
                         .join("mirror-mind")
@@ -193,7 +193,7 @@ impl RuntimeChannelProfile {
 
     pub fn apply_to_command(&self, command: &mut Command) {
         let runtime_path = env::join_paths(self.runtime_search_directories())
-            .expect("trusted Nautilus runtime paths must be joinable");
+            .expect("trusted Mirror Desktop runtime paths must be joinable");
         command
             .current_dir(&self.mirror_root)
             .env("MIRROR_HOME", &self.mirror_home)
@@ -219,7 +219,7 @@ impl RuntimeChannelProfile {
                 })?;
                 let data = NSData::with_bytes(include_bytes!("../icons/dev/icon.png"));
                 let icon = NSImage::initWithData(NSImage::alloc(), &data).ok_or_else(|| {
-                    "Could not decode the Nautilus development Dock icon.".to_string()
+                    "Could not decode the Mirror Desktop development Dock icon.".to_string()
                 })?;
                 let application = NSApplication::sharedApplication(marker);
                 unsafe { application.setApplicationIconImage(Some(&icon)) };
@@ -304,8 +304,8 @@ mod tests {
         let user = RuntimeChannelProfile::for_home(RuntimeChannel::User, home);
         let development = RuntimeChannelProfile::for_home(RuntimeChannel::Development, home);
 
-        assert_eq!(user.bundle_identifier, "com.nautilus.harness");
-        assert_eq!(development.bundle_identifier, "com.nautilus.harness.dev");
+        assert_eq!(user.bundle_identifier, "ai.mirrormind.desktop");
+        assert_eq!(development.bundle_identifier, "ai.mirrormind.desktop.dev");
         assert_eq!(
             development.mirror_root,
             home.join(".mirror-journeys/mirror-mind/mirror-dev")
@@ -330,20 +330,20 @@ mod tests {
         );
         assert!(profile
             .validate_app_identity(
-                "com.nautilus.harness",
-                Path::new("/tmp/com.nautilus.harness.dev")
+                "ai.mirrormind.desktop",
+                Path::new("/tmp/ai.mirrormind.desktop.dev")
             )
             .is_err());
         assert!(profile
             .validate_app_identity(
-                "com.nautilus.harness.dev",
-                Path::new("/tmp/com.nautilus.harness")
+                "ai.mirrormind.desktop.dev",
+                Path::new("/tmp/ai.mirrormind.desktop")
             )
             .is_err());
         assert!(profile
             .validate_app_identity(
-                "com.nautilus.harness.dev",
-                Path::new("/tmp/com.nautilus.harness.dev")
+                "ai.mirrormind.desktop.dev",
+                Path::new("/tmp/ai.mirrormind.desktop.dev")
             )
             .is_ok());
     }
@@ -354,7 +354,7 @@ mod tests {
             RuntimeChannel::Development,
             Path::new("/Users/example"),
         );
-        let diagnostic = profile.diagnostic(Path::new("/tmp/com.nautilus.harness.dev"));
+        let diagnostic = profile.diagnostic(Path::new("/tmp/ai.mirrormind.desktop.dev"));
         let value = serde_json::to_value(diagnostic).unwrap();
         assert_eq!(value.as_object().unwrap().len(), 9);
         assert_eq!(value["channel"], "development");

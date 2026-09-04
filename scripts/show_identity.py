@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Nautilus Harness identity walking skeleton."""
+"""Nautilus method identity walking skeleton."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def main() -> int:
     args = parser.parse_args()
 
     validation = validate_identity(args.fixture)
-    print("Nautilus Harness identity skeleton")
+    print("Nautilus method identity skeleton")
     print("")
     print(f"fixture: {validation.path}")
     print(f"status: {'compatible' if validation.valid else 'incompatible'}")

@@ -12,8 +12,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 
-const EXPECTED_BUNDLE_ID = "com.nautilus.harness";
-const EXPECTED_PRODUCT_NAME = "Nautilus Harness";
+const EXPECTED_BUNDLE_ID = "ai.mirrormind.desktop";
+const EXPECTED_PRODUCT_NAME = "Mirror Desktop";
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const builtApp = resolve(
   repositoryRoot,
@@ -22,9 +22,9 @@ const builtApp = resolve(
   "release",
   "bundle",
   "macos",
-  "Nautilus Harness.app",
+  "Mirror Desktop.app",
 );
-const installedApp = resolve("/Applications", "Nautilus Harness.app");
+const installedApp = resolve("/Applications", "Mirror Desktop.app");
 
 function fail(message) {
   throw new Error(message);
@@ -56,7 +56,7 @@ function capture(command, args) {
 function assertCleanWorktree() {
   const status = capture("git", ["status", "--porcelain", "--untracked-files=normal"]);
   if (status) {
-    fail("the Harness worktree is not clean; commit or discard changes before promotion");
+    fail("the Mirror Desktop worktree is not clean; commit or discard changes before promotion");
   }
 }
 
@@ -88,7 +88,7 @@ function assertInstalledAppIsClosed() {
     encoding: "utf8",
   });
   if (result.status === 0 && result.stdout.trim()) {
-    fail("close the installed Nautilus Harness app before promoting");
+    fail("close the installed Mirror Desktop app before promoting");
   }
 }
 
@@ -103,8 +103,8 @@ function installStableBundle() {
 
   assertInstalledAppIsClosed();
   const token = `${Date.now()}-${process.pid}`;
-  const stagingApp = resolve(applicationsRoot, `.Nautilus Harness.promoting-${token}.app`);
-  const backupApp = resolve(applicationsRoot, `.Nautilus Harness.backup-${token}.app`);
+  const stagingApp = resolve(applicationsRoot, `.Mirror Desktop.promoting-${token}.app`);
+  const backupApp = resolve(applicationsRoot, `.Mirror Desktop.backup-${token}.app`);
   let previousMoved = false;
 
   try {

@@ -8,7 +8,7 @@ import rustSource from "../../src-tauri/src/main.rs?raw";
 import runtimeChannelSource from "../../src-tauri/src/runtime_channel.rs?raw";
 import appSource from "../app/App.tsx?raw";
 import provisionScript from "../../scripts/provision_mirror_conversation.py?raw";
-import channelLauncher from "../../scripts/nautilus_channel.mjs?raw";
+import channelLauncher from "../../scripts/mirror_desktop_channel.mjs?raw";
 import productionPromotion from "../../scripts/promote_production.mjs?raw";
 
 const scripts = packageJson.scripts as Record<string, string>;
@@ -21,21 +21,26 @@ const developmentIconSource = readFileSync(new URL("../../src-tauri/icons/dev/ic
 
 describe("runtime channel configuration", () => {
   it("keeps stable and development Tauri identities non-colliding", () => {
-    expect(stableConfig.identifier).toBe("com.nautilus.harness");
-    expect(developmentConfig.identifier).toBe("com.nautilus.harness.dev");
-    expect(developmentConfig.productName).toBe("Nautilus Harness Dev");
+    expect(stableConfig.identifier).toBe("ai.mirrormind.desktop");
+    expect(stableConfig.productName).toBe("Mirror Desktop");
+    expect(developmentConfig.identifier).toBe("ai.mirrormind.desktop.dev");
+    expect(developmentConfig.productName).toBe("Mirror Desktop Dev");
     expect(developmentConfig.bundle.icon).toContain("icons/dev/icon.png");
     expect(runtimeChannelSource).toContain("apply_macos_dock_icon");
     expect(runtimeChannelSource).toContain("setApplicationIconImage");
     expect(runtimeChannelSource).toContain('include_bytes!("../icons/dev/icon.png")');
   });
 
-  it("uses one Nautilus artwork with DEV as the only channel icon overlay", () => {
-    expect(stableIconSource).toContain('stop-color="#61358a"');
-    expect(stableIconSource).toContain("M141 350c-53-75-28-183");
+  it("uses the Mirror Desktop mirror artwork with DEV as the only channel overlay", () => {
+    expect(stableIconSource).toContain("Mirror Desktop icon");
+    expect(stableIconSource).toContain('<ellipse cx="256" cy="246" rx="124" ry="156"');
+    expect(stableIconSource).toContain('<circle cx="256" cy="246" r="12"');
+    expect(stableIconSource).not.toContain("Nautilus Harness icon");
     expect(stableIconSource).not.toContain(">DEV<");
-    expect(developmentIconSource).toContain('stop-color="#61358a"');
-    expect(developmentIconSource).toContain("M141 350c-53-75-28-183");
+    expect(developmentIconSource).toContain("Mirror Desktop Dev icon");
+    expect(developmentIconSource).toContain('<ellipse cx="256" cy="246" rx="124" ry="156"');
+    expect(developmentIconSource).toContain('<circle cx="256" cy="246" r="12"');
+    expect(developmentIconSource).not.toContain("Nautilus Harness Dev icon");
     expect(developmentIconSource).toContain(">DEV<");
     expect(appSource).toContain('import appIconUrl from "../../src-tauri/icons/icon.svg"');
     expect(appSource).not.toContain("devAppIconUrl");
@@ -49,17 +54,17 @@ describe("runtime channel configuration", () => {
       scripts["tauri:build:dev"],
       scripts["tauri:build:user"],
     ]) {
-      expect(command).toContain("scripts/nautilus_channel.mjs");
+      expect(command).toContain("scripts/mirror_desktop_channel.mjs");
     }
-    expect(scripts["import:mirror"]).toContain("scripts/nautilus_channel.mjs import-user");
+    expect(scripts["import:mirror"]).toContain("scripts/mirror_desktop_channel.mjs import-user");
     expect(channelLauncher).toContain('"src-tauri/tauri.dev.conf.json"');
     expect(channelLauncher).toContain('"development-channel"');
     expect(channelLauncher).toContain('MIRROR_USER: "mirror-dev"');
-    expect(channelLauncher).toContain('NAUTILUS_APP_IDENTIFIER: "com.nautilus.harness.dev"');
+    expect(channelLauncher).toContain('MIRROR_DESKTOP_APP_IDENTIFIER: "ai.mirrormind.desktop.dev"');
     expect(channelLauncher).toContain('mirrorRoot: resolve(home, ".mirror-journeys", "mirror-mind", "mirror-dev")');
     expect(channelLauncher).toContain('"scripts/export_mirror_bootstrap.py"');
     expect(channelLauncher).toContain('"--mirror-root"');
-    expect(channelLauncher).toContain('"com.nautilus.harness.dev"');
+    expect(channelLauncher).toContain('"ai.mirrormind.desktop.dev"');
   });
 
   it("routes Mirror operations through the closed native profile without production fallback", () => {
@@ -83,6 +88,11 @@ describe("runtime channel configuration", () => {
     expect(appSource).toContain('className="development-badge"');
     expect(appSource).toContain('const DEVELOPMENT_BADGE_LABEL = "DEV LAB";');
     expect(appSource).toContain('const PRODUCT_DESCRIPTOR = "Journey Navigation";');
+    expect(appSource).toContain("<strong>Mirror Desktop ");
+    expect(appSource).not.toContain("<strong>Nautilus ");
+    expect(appSource).not.toContain("Using Harness agent defaults.");
+    expect(appSource).not.toContain("channel-local Nautilus storage");
+    expect(appSource).not.toContain("Dedicated Nautilus conversation");
     expect(appSource).not.toContain('"Development cockpit"');
     expect(appSource).not.toContain('"Journey cockpit"');
     expect(appSource).toContain("runtime-channel-diagnostic");
@@ -100,8 +110,9 @@ describe("runtime channel configuration", () => {
     expect(scripts["promote:production"]).toContain("scripts/promote_production.mjs");
     expect(productionPromotion).toContain('"npm", ["test"]');
     expect(productionPromotion).toContain('"npm", ["run", "tauri:build:user"]');
-    expect(productionPromotion).toContain('EXPECTED_BUNDLE_ID = "com.nautilus.harness"');
-    expect(productionPromotion).toContain('resolve("/Applications", "Nautilus Harness.app")');
+    expect(productionPromotion).toContain('EXPECTED_BUNDLE_ID = "ai.mirrormind.desktop"');
+    expect(productionPromotion).toContain('resolve("/Applications", "Mirror Desktop.app")');
+    expect(productionPromotion).not.toContain('resolve("/Applications", "Nautilus Harness.app")');
     expect(productionPromotion).toContain("CFBundleIdentifier");
     expect(productionPromotion).toContain("assertCleanWorktree");
   });
@@ -111,8 +122,8 @@ describe("runtime channel configuration", () => {
     expect(agentsSource).toContain("docs/development/environment-setup.md");
     expect(setupGuide).toContain("npm run tauri:dev");
     expect(setupGuide).toContain("$HOME/.mirror-journeys/mirror-mind/mirror-dev");
-    expect(setupGuide).toContain("com.nautilus.harness.dev");
+    expect(setupGuide).toContain("ai.mirrormind.desktop.dev");
     expect(setupGuide).toContain("npm run promote:production");
-    expect(setupGuide).toContain("/Applications/Nautilus Harness.app");
+    expect(setupGuide).toContain("/Applications/Mirror Desktop.app");
   });
 });

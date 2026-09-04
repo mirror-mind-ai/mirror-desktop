@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create or recover one model-free Mirror conversation for a Nautilus Pi session."""
+"""Create or recover one model-free Mirror conversation for a Mirror Desktop Pi session."""
 from __future__ import annotations
 
 import argparse

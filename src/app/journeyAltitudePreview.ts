@@ -107,7 +107,7 @@ export const representativeJourneyPreview = {
     previewStatus: "representative",
     mission: {
       id: "integrate-nautilus-method",
-      title: "Integrate the Nautilus method into the Harness",
+      title: "Integrate the Nautilus method into Mirror Desktop",
       purpose: "Let one Journey be inhabited at operational, tactical and strategic altitudes.",
       evidenceIds: ["three-body-parity", "three-altitude-exploration"],
       deliverableIds: ["conversation-parity", "three-altitude-experiment"],
@@ -116,7 +116,7 @@ export const representativeJourneyPreview = {
       {
         id: "three-body-parity",
         label: "Three-body parity accepted",
-        detail: "Harness, Pi and Mirror continuity reached an accepted in-sync checkpoint.",
+        detail: "Mirror Desktop, Pi and Mirror continuity reached an accepted in-sync checkpoint.",
       },
       {
         id: "three-altitude-exploration",
@@ -146,8 +146,8 @@ export const representativeJourneyPreview = {
         relatedMissionId: "integrate-nautilus-method",
         relatedDeliverableIds: ["conversation-parity", "three-altitude-experiment"],
         impactIds: ["safe-continuation", "method-ready-body"],
-        pragmaticValue: "A Journey can continue across Harness, Pi and Mirror without silent loss or duplication.",
-        integrativeValue: "The Harness can now reveal meaning at wider altitudes without abandoning operational truth.",
+        pragmaticValue: "A Journey can continue across Mirror Desktop, Pi and Mirror without silent loss or duplication.",
+        integrativeValue: "Mirror Desktop can now reveal meaning at wider altitudes without abandoning operational truth.",
       },
     ],
     impacts: [

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish Mirror's canonical Journey registry into Harness app data.
+"""Publish Mirror's canonical Journey registry into Mirror Desktop app data.
 
 This adapter owns only channel coordinates and atomic local publication. Mirror's
 ``journey export-registry`` command remains the sole registry exporter.
@@ -33,7 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mirror-root", type=Path, required=True)
     parser.add_argument("--app-identifier", required=True)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--uv-command", default=os.environ.get("NAUTILUS_UV_COMMAND", "uv"))
+    parser.add_argument("--uv-command", default=os.environ.get("MIRROR_DESKTOP_UV_COMMAND", "uv"))
     args = parser.parse_args()
     if args.output is None:
         args.output = default_app_data_dir(args.app_identifier) / "journey-registry.json"

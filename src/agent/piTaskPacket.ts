@@ -112,7 +112,7 @@ export function createMissionExtractionPacket(input: {
       "Do not execute commands.",
       "Do not mutate files.",
       "Do not require Mirror context.",
-      "Do not invoke Pi automatically from the Harness.",
+      "Do not invoke Pi automatically from Mirror Desktop.",
       "Return a structured Mission draft and an assistant message.",
       "Preserve uncertainty with open questions when the Mission is underspecified.",
       ...(input.fileAttachments?.length

@@ -6,18 +6,18 @@
 
 ## Decision
 
-Every Journey owns one Nautilus thread with append-only generations. Exactly one ready generation is active. That generation binds one native Pi session and one native Mirror conversation. Harness state is a local projection of those exact coordinates, never a peer conversation to reconcile by title, text, timestamp, hash or recency.
+Every Journey owns one Mirror Desktop thread with append-only generations. Exactly one ready generation is active. That generation binds one native Pi session and one native Mirror conversation. Mirror Desktop state is a local projection of those exact coordinates, never a peer conversation to reconcile by title, text, timestamp, hash or recency. Existing Nautilus and Harness field names remain versioned compatibility coordinates rather than product identity.
 
 ```text
 Journey
-  dedicated Nautilus thread
+  dedicated Mirror Desktop thread
     active generation
       Pi session
       Mirror conversation
       Harness generation projection
 ```
 
-External Pi and Mirror conversations remain independent. They may cultivate Journey-level semantic memory through Mirror, but they never enter the Nautilus transcript or alter readiness, checkpoints or composer eligibility.
+External Pi and Mirror conversations remain independent. They may cultivate Journey-level semantic memory through Mirror, but they never enter the Mirror Desktop transcript or alter readiness, checkpoints or composer eligibility.
 
 ## Turn authority
 
@@ -38,10 +38,10 @@ Only correlation schema `0.2.0` is accepted. Native IDs establish authority. Nam
 
 ## Commit sequence
 
-1. Persist pending Harness turn coordinates.
+1. Persist pending desktop turn coordinates using the versioned compatibility schema.
 2. Invoke the exact active Pi session.
 3. Accept only a complete native Pi user/assistant pair.
-4. Commit the Harness generation projection idempotently.
+4. Commit the desktop generation projection idempotently.
 5. Record deterministic user/assistant messages in the exact dedicated Mirror conversation.
 6. For a completed response, enable the next invocation after its bounded durable recording finishes.
 
@@ -70,4 +70,4 @@ Restart provisions and verifies the next native pair while the prior generation 
 - No provider call for provision, restart, migration, inspection or recovery.
 - No external transcript import, hydration, merge or reactivation.
 - No private prompts, responses, reasoning, tool output or secrets in authority receipts.
-- Journey semantic context remains Mirror-owned and may evolve outside Nautilus without becoming transcript continuity.
+- Journey semantic context remains Mirror-owned and may evolve outside Mirror Desktop without becoming transcript continuity.

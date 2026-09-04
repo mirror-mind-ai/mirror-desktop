@@ -16,7 +16,7 @@ export type JourneyActivationCoordinates = Pick<JourneyActivationReceipt,
 
 export function dedicatedNativeNames(journeyName: string, generation: number) {
   const readable = journeyName.normalize("NFKC").replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim() || "Journey";
-  const suffix = ` · Nautilus · Generation ${generation}`;
+  const suffix = ` · Mirror Desktop · Generation ${generation}`;
   const bounded = (limit: number) => `${readable.slice(0, Math.max(1, limit - suffix.length)).trim()}${suffix}`;
   return { piSessionName: bounded(80), mirrorConversationName: bounded(100) };
 }

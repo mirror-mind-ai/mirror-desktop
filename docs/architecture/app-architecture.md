@@ -1,13 +1,17 @@
-# Nautilus Harness App Architecture
+# Mirror Desktop App Architecture
 
-**Status:** proposed
-**Roadmap source:** DS-003.TS-1
+**Status:** implemented and evolving
+**Current roadmap source:** CV-005
+
+## Transition note
+
+This living architecture originated in Nautilus Harness and retains predecessor delivery evidence below. Current application-body references mean Mirror Desktop. Nautilus continues to name method-owned domain semantics, projections and historical evidence. Persisted Harness and Nautilus identifiers remain compatibility coordinates until an explicit migration supersedes them.
 
 ## Architecture decision
 
-The first Nautilus Harness app should be built as a Tauri 2 desktop app with a Vite, React and TypeScript frontend.
+Mirror Desktop is a Tauri 2 desktop application with a Vite, React and TypeScript frontend.
 
-The architecture should keep the native shell thin and place Nautilus domain logic in TypeScript.
+The architecture keeps the native shell thin, places application logic in TypeScript and preserves Nautilus domain logic only where the application is consuming the Nautilus method.
 
 ## Initial stack
 

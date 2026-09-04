@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Log a Nautilus Harness exchange into Mirror conversation storage.
+"""Log a Mirror Desktop exchange into Mirror conversation storage.
 
-This is a narrow bridge used by Harness' Mirror-mediated invocation mode. It
-mutates only Mirror conversation/message/runtime-session rows for an explicit
-Harness run.
+This is a narrow bridge used by Mirror Desktop's Mirror-mediated invocation mode.
+It mutates only Mirror conversation/message/runtime-session rows for an explicit
+Mirror Desktop run. The stored ``nautilus_harness`` interface remains a legacy
+compatibility coordinate.
 """
 
 from __future__ import annotations

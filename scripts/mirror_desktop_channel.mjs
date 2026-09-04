@@ -16,7 +16,7 @@ const channels = {
       MIRROR_HOME: resolve(home, ".mirror-minds", "alisson-vale"),
       MIRROR_USER: "alisson-vale",
       DB_PATH: resolve(home, ".mirror-minds", "alisson-vale", "memory.db"),
-      NAUTILUS_APP_IDENTIFIER: "com.nautilus.harness",
+      MIRROR_DESKTOP_APP_IDENTIFIER: "ai.mirrormind.desktop",
     },
   },
   dev: {
@@ -26,7 +26,7 @@ const channels = {
       MIRROR_HOME: resolve(home, ".mirror-minds", "mirror-dev"),
       MIRROR_USER: "mirror-dev",
       DB_PATH: resolve(home, ".mirror-minds", "mirror-dev", "memory.db"),
-      NAUTILUS_APP_IDENTIFIER: "com.nautilus.harness.dev",
+      MIRROR_DESKTOP_APP_IDENTIFIER: "ai.mirrormind.desktop.dev",
     },
   },
   "build-dev": {
@@ -36,7 +36,7 @@ const channels = {
       MIRROR_HOME: resolve(home, ".mirror-minds", "mirror-dev"),
       MIRROR_USER: "mirror-dev",
       DB_PATH: resolve(home, ".mirror-minds", "mirror-dev", "memory.db"),
-      NAUTILUS_APP_IDENTIFIER: "com.nautilus.harness.dev",
+      MIRROR_DESKTOP_APP_IDENTIFIER: "ai.mirrormind.desktop.dev",
     },
   },
   "build-user": {
@@ -46,7 +46,7 @@ const channels = {
       MIRROR_HOME: resolve(home, ".mirror-minds", "alisson-vale"),
       MIRROR_USER: "alisson-vale",
       DB_PATH: resolve(home, ".mirror-minds", "alisson-vale", "memory.db"),
-      NAUTILUS_APP_IDENTIFIER: "com.nautilus.harness",
+      MIRROR_DESKTOP_APP_IDENTIFIER: "ai.mirrormind.desktop",
     },
   },
   "import-user": {
@@ -56,14 +56,14 @@ const channels = {
       MIRROR_HOME: resolve(home, ".mirror-minds", "alisson-vale"),
       MIRROR_USER: "alisson-vale",
       DB_PATH: resolve(home, ".mirror-minds", "alisson-vale", "memory.db"),
-      NAUTILUS_APP_IDENTIFIER: "com.nautilus.harness",
+      MIRROR_DESKTOP_APP_IDENTIFIER: "ai.mirrormind.desktop",
     },
   },
 };
 
 const selected = channels[mode];
 if (!selected) {
-  console.error("Usage: node scripts/nautilus_channel.mjs <user|dev|build-dev|build-user|import-user>");
+  console.error("Usage: node scripts/mirror_desktop_channel.mjs <user|dev|build-dev|build-user|import-user>");
   process.exit(2);
 }
 
@@ -74,7 +74,7 @@ if (mode === "dev" || mode === "import-user") {
     "--mirror-root",
     selected.mirrorRoot,
     "--app-identifier",
-    selected.env.NAUTILUS_APP_IDENTIFIER,
+    selected.env.MIRROR_DESKTOP_APP_IDENTIFIER,
   ], {
     cwd: process.cwd(),
     env: channelEnvironment,

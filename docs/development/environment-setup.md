@@ -1,15 +1,15 @@
-# Nautilus Harness Development Environment
+# Mirror Desktop Development Environment
 
-This is the canonical setup guide for humans and coding agents. It creates a development app that is visibly and structurally separate from the installed daily-use Nautilus app.
+This is the canonical setup guide for humans and coding agents. It creates a development app that is visibly and structurally separate from the installed daily-use Mirror Desktop app.
 
 ## Result
 
 ```text
-Nautilus Harness       com.nautilus.harness       stable Mirror and app data
-Nautilus Harness Dev   com.nautilus.harness.dev   Mirror Dev and isolated app data
+Mirror Desktop       ai.mirrormind.desktop       stable Mirror and app data
+Mirror Desktop Dev   ai.mirrormind.desktop.dev   Mirror Dev and isolated app data
 ```
 
-Nautilus Dev uses the checkout associated with Journey `mirror-dev` and its isolated runtime state:
+Mirror Desktop Dev uses the checkout associated with Journey `mirror-dev` and its isolated runtime state:
 
 ```text
 Mirror code   $HOME/.mirror-journeys/mirror-mind/mirror-dev
@@ -22,9 +22,9 @@ It never falls back to the stable Mirror checkout or database.
 
 ## Source modification boundary
 
-`$HOME/mirror` is the installed production Mirror runtime. Humans and coding agents may inspect it or invoke its published commands while validating the stable Harness, but Harness development must never edit, patch, test source changes in or commit to that checkout.
+`$HOME/mirror` is the installed production Mirror runtime. Humans and coding agents may inspect it or invoke its published commands while validating the stable Mirror Desktop, but Mirror Desktop development must never edit, patch, test source changes in or commit to that checkout.
 
-Any Mirror capability required by Harness must be implemented in `$HOME/.mirror-journeys/mirror-mind/mirror-dev`, pass the Mirror repository gates, enter an official Mirror release and reach `$HOME/mirror` through the runtime updater. A consumer depending on production Mirror has execution authority, not source-modification authority. Emergency production repair requires separate explicit Navigator authorization naming the production checkout.
+Any Mirror capability required by Mirror Desktop must be implemented in `$HOME/.mirror-journeys/mirror-mind/mirror-dev`, pass the Mirror repository gates, enter an official Mirror release and reach `$HOME/mirror` through the runtime updater. A consumer depending on production Mirror has execution authority, not source-modification authority. Emergency production repair requires separate explicit Navigator authorization naming the production checkout.
 
 ## Prerequisites
 
@@ -78,11 +78,11 @@ Verify the database exists:
 test -f "$HOME/.mirror-minds/mirror-dev/memory.db"
 ```
 
-Machine-local launchers such as `~/mirror-dev.sh` are outside the Harness runtime contract. If used independently, they must be configured to the same Journey-associated checkout rather than assumed to match.
+Machine-local launchers such as `~/mirror-dev.sh` are outside the Mirror Desktop runtime contract. If used independently, they must be configured to the same Journey-associated checkout rather than assumed to match.
 
-## 2. Prepare Nautilus Harness
+## 2. Prepare Mirror Desktop
 
-From the Harness repository:
+From the Mirror Desktop repository:
 
 ```bash
 npm install
@@ -92,7 +92,7 @@ npm run build
 
 No `.env` file or manual Mirror export is required for the native development channel. The app's compiled runtime profile applies the allowlisted Mirror Dev coordinates to Pi and Mirror subprocesses.
 
-## 3. Launch Nautilus Dev
+## 3. Launch Mirror Desktop Dev
 
 ```bash
 npm run tauri:dev
@@ -101,7 +101,7 @@ npm run tauri:dev
 This command always pairs:
 
 - `src-tauri/tauri.dev.conf.json`;
-- bundle identifier `com.nautilus.harness.dev`;
+- bundle identifier `ai.mirrormind.desktop.dev`;
 - Cargo feature `development-channel`;
 - the Mirror Dev runtime profile.
 
@@ -109,14 +109,14 @@ Do not use `npm run tauri -- dev` for normal development because it does not dec
 
 ## 4. Verify Isolation
 
-In Finder, Dock or the application switcher, confirm the app is named **Nautilus Harness Dev** and uses the violet icon with a `DEV` badge.
+In Finder, Dock or the application switcher, confirm the app is named **Mirror Desktop Dev** and uses the violet icon with a `DEV` badge.
 
-Inside the app, confirm the sidebar shows `Nautilus DEV`. Open **Settings → Runtime channel** and verify:
+Inside the app, confirm the sidebar shows `Mirror Desktop DEV`. Open **Settings → Runtime channel** and verify:
 
 ```text
 Channel       development
-Bundle        com.nautilus.harness.dev
-App data      .../com.nautilus.harness.dev
+Bundle        ai.mirrormind.desktop.dev
+App data      .../ai.mirrormind.desktop.dev
 Mirror code   $HOME/.mirror-journeys/mirror-mind/mirror-dev
 Mirror home   $HOME/.mirror-minds/mirror-dev
 Mirror user   mirror-dev
@@ -162,16 +162,16 @@ The command:
 
 1. refuses a dirty Git worktree;
 2. runs frontend, Rust and production-build validation;
-3. builds only the stable `com.nautilus.harness` bundle;
+3. builds only the stable `ai.mirrormind.desktop` bundle;
 4. verifies `CFBundleIdentifier` and `CFBundleName` from the native bundle;
 5. refuses to replace a running stable app;
 6. stages and replaces the app with rollback protection at:
 
 ```text
-/Applications/Nautilus Harness.app
+/Applications/Mirror Desktop.app
 ```
 
-It does not invoke `sudo`, alter stable Harness app-data, copy development state, publish a release or push Git commits. Close the installed stable app before promotion. The development app may remain installed and its data remains isolated.
+It does not invoke `sudo`, alter stable Mirror Desktop app-data, copy development state, publish a release or push Git commits. Close the installed stable app before promotion. The development app may remain installed and its data remains isolated.
 
 Inspect the non-mutating destination plan with:
 
@@ -188,7 +188,7 @@ cd src-tauri && cargo test
 cd src-tauri && cargo check
 ```
 
-For final DS-011 validation, open the installed stable app and Nautilus Dev simultaneously. Exercise only a disposable development Journey and prove that stable Harness files and the production Mirror database did not change.
+For final DS-011 validation, open the installed stable app and Mirror Desktop Dev simultaneously. Exercise only a disposable development Journey and prove that stable Mirror Desktop files and the production Mirror database did not change.
 
 ## Troubleshooting
 
@@ -200,7 +200,7 @@ Confirm the checkout exists and is a real directory, not a symlink:
 ls -ld "$HOME/.mirror-journeys/mirror-mind/mirror-dev"
 ```
 
-Nautilus Dev intentionally refuses to fall back to `$HOME/mirror`.
+Mirror Desktop Dev intentionally refuses to fall back to `$HOME/mirror`.
 
 ### Mirror Dev database is unavailable
 
@@ -218,9 +218,9 @@ The authoritative development database is always the `DB_PATH` shown in Settings
 $HOME/.mirror-minds/mirror-dev/memory.db
 ```
 
-A checkout `.env` may declare `MEMORY_ENV=development`, but Harness subprocesses must not use that value to derive `memory_dev.db`. Journey bootstrap, reload and mutation consume the native channel's complete environment projection. Bootstrap delegates to the same canonical Mirror `journey export-registry` command used by reload, requires registry schema `0.2.0`, and atomically publishes only into the selected bundle's app-data root; it does not query SQLite directly. If the tree is unexpectedly empty, compare Settings with bounded file metadata for both names; do not copy or delete either database as a repair.
+A checkout `.env` may declare `MEMORY_ENV=development`, but Mirror Desktop subprocesses must not use that value to derive `memory_dev.db`. Journey bootstrap, reload and mutation consume the native channel's complete environment projection. Bootstrap delegates to the same canonical Mirror `journey export-registry` command used by reload, requires registry schema `0.2.0`, and atomically publishes only into the selected bundle's app-data root; it does not query SQLite directly. If the tree is unexpectedly empty, compare Settings with bounded file metadata for both names; do not copy or delete either database as a repair.
 
-Mirror Dev must also contain the canonical `journey export-registry` and `journey mutate` commands expected by the Harness. Update the checkout without discarding unrelated local work when those capabilities are absent.
+Mirror Dev must also contain the canonical `journey export-registry` and `journey mutate` commands expected by the Mirror Desktop. Update the checkout without discarding unrelated local work when those capabilities are absent.
 
 ### Runtime channel rejects an inherited variable
 
@@ -239,15 +239,15 @@ Stop the previous Vite/Tauri development process. The stable installed app does 
 
 ### An app launched from Finder cannot start Pi or uv
 
-Finder launches macOS apps with a minimal process `PATH`. Nautilus does not inherit or trust that incomplete value: the native runtime resolves only `pi` and `uv` from its bounded executable search path, then supplies that same controlled path to Pi and Mirror subprocesses. Verify the tools are installed in a standard supported location such as `/usr/local/bin` or `/opt/homebrew/bin`; do not solve this by embedding an interactive shell profile in the app.
+Finder launches macOS apps with a minimal process `PATH`. Mirror Desktop does not inherit or trust that incomplete value: the native runtime resolves only `pi` and `uv` from its bounded executable search path, then supplies that same controlled path to Pi and Mirror subprocesses. Verify the tools are installed in a standard supported location such as `/usr/local/bin` or `/opt/homebrew/bin`; do not solve this by embedding an interactive shell profile in the app.
 
 ## Reset Safety
 
 There is no automatic reset command in this guide. Before deleting any development data, verify the path ends in either:
 
 ```text
-com.nautilus.harness.dev
+ai.mirrormind.desktop.dev
 .mirror-minds/mirror-dev
 ```
 
-Never run a recursive deletion against `com.nautilus.harness` or `.mirror-minds/alisson-vale`. A development reset must not touch stable Nautilus or production Mirror state.
+Never run a recursive deletion against `ai.mirrormind.desktop` or `.mirror-minds/alisson-vale`. A development reset must not touch stable Mirror Desktop or production Mirror state.

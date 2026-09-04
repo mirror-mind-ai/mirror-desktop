@@ -6,7 +6,7 @@
 
 ## Authority
 
-Nautilus invokes Pi explicitly through Tauri. Pi owns transcript, branch ancestry, context usage and compaction. Mirror owns Journey identity, semantic context, persona, mode and conversation recording. Harness owns the dedicated thread/generation mapping, local projection and desktop lifecycle.
+Mirror Desktop invokes Pi explicitly through Tauri. Pi owns transcript, branch ancestry, context usage and compaction. Mirror owns Journey identity, semantic context, persona, mode and conversation recording. Mirror Desktop owns the dedicated thread/generation mapping, local projection and desktop lifecycle. Persisted fields and events that still use Nautilus or Harness names remain compatibility coordinates documented by CV-005.DS-001.
 
 Each ready generation contains exact native authority:
 
@@ -17,7 +17,7 @@ mirrorConversationId
 activationReceipt
 ```
 
-One Journey generation owns one Pi session and one Mirror conversation. External conversations associated with the same Journey are independent and are never inspected, imported, hydrated or reconciled into the Nautilus transcript.
+One Journey generation owns one Pi session and one Mirror conversation. External conversations associated with the same Journey are independent and are never inspected, imported, hydrated or reconciled into the Mirror Desktop transcript.
 
 ## Invocation
 
@@ -29,15 +29,15 @@ For a Mirror-mediated turn Tauri:
 4. passes the exact dedicated `--session-id` and recorded session file;
 5. streams structured JSON events as inert desktop projections;
 6. accepts only a complete native Pi user/assistant pair;
-7. settles deterministic Harness and Mirror commits without another provider call.
+7. settles deterministic desktop and Mirror commits without another provider call.
 
 The first real user message is the first provider request. Provisioning and restart create no synthetic conversational entry.
 
 ## Context and compaction
 
-The active Pi session is the only conversational context authority. Provider usage events supply context tokens; the desktop reads the exact active JSONL for cached usage when needed. Nautilus does not replay local chat packets, inspect external Pi sessions, tokenize independently or reproduce Pi compaction.
+The active Pi session is the only conversational context authority. Provider usage events supply context tokens; the desktop reads the exact active JSONL for cached usage when needed. Mirror Desktop does not replay local chat packets, inspect external Pi sessions, tokenize independently or reproduce Pi compaction.
 
-Mirror loads current Journey semantics during the explicit Pi invocation. Semantic updates from other Mirror conversations may influence future context through Mirror, but their transcript messages never enter Nautilus continuity.
+Mirror loads current Journey semantics during the explicit Pi invocation. Semantic updates from other Mirror conversations may influence future context through Mirror, but their transcript messages never enter Mirror Desktop continuity.
 
 ## Dedicated recording
 

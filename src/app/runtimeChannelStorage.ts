@@ -39,8 +39,8 @@ export function parseRuntimeChannelDiagnostic(value: unknown): RuntimeChannelDia
     throw new Error("Runtime channel diagnostic contains an unsupported identity.");
   }
   const expectedIdentifier = diagnostic.channel === "development"
-    ? "com.nautilus.harness.dev"
-    : "com.nautilus.harness";
+    ? "ai.mirrormind.desktop.dev"
+    : "ai.mirrormind.desktop";
   if (diagnostic.bundleIdentifier !== expectedIdentifier) {
     throw new Error("Runtime channel diagnostic diverges from its bundle identity.");
   }

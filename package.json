@@ -1,5 +1,5 @@
 {
-  "name": "nautilus-harness",
+  "name": "mirror-desktop",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,13 +7,13 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "import:mirror": "node scripts/nautilus_channel.mjs import-user",
+    "import:mirror": "node scripts/mirror_desktop_channel.mjs import-user",
     "test": "vitest run",
     "tauri": "tauri",
-    "tauri:dev": "node scripts/nautilus_channel.mjs dev",
-    "tauri:user": "node scripts/nautilus_channel.mjs user",
-    "tauri:build:dev": "node scripts/nautilus_channel.mjs build-dev",
-    "tauri:build:user": "node scripts/nautilus_channel.mjs build-user",
+    "tauri:dev": "node scripts/mirror_desktop_channel.mjs dev",
+    "tauri:user": "node scripts/mirror_desktop_channel.mjs user",
+    "tauri:build:dev": "node scripts/mirror_desktop_channel.mjs build-dev",
+    "tauri:build:user": "node scripts/mirror_desktop_channel.mjs build-user",
     "promote:production": "node scripts/promote_production.mjs"
   },
   "dependencies": {

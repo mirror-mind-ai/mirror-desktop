@@ -9,7 +9,7 @@ describe("Journey-first thread provisioning", () => {
   it("derives deterministic bounded presentation names", () => {
     const first = dedicatedNativeNames("Livro: Liderança Soberana / edição definitiva", 1);
     expect(first).toEqual(dedicatedNativeNames("Livro: Liderança Soberana / edição definitiva", 1));
-    expect(first.piSessionName).toContain("Nautilus");
+    expect(first.piSessionName).toContain("Mirror Desktop");
     expect(first.mirrorConversationName).toContain("Generation 1");
     expect(first.piSessionName.length).toBeLessThanOrEqual(80);
     expect(first.mirrorConversationName.length).toBeLessThanOrEqual(100);

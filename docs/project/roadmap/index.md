@@ -22,7 +22,7 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 | [CV-002](cv-002-mirror-integration/index.md) | Mirror Integration | Harness becomes the desktop projection of the essential Pi/Mirror operational loop and context lifecycle | ✅ Done |
 | [CV-003](cv-003-nautilus-method-integration/index.md) | Nautilus Method Integration | Harness lets the Navigator inhabit one Journey at operational, tactical and strategic altitudes | ✅ Done |
 | [CV-004](cv-004-dedicated-nautilus-journey-thread/index.md) | Dedicated Nautilus Journey Thread | Every Journey owns one Nautilus thread whose active generation is a dedicated, Journey-activated Pi/Mirror pair, independent from conversations in other environments | ✅ Done |
-| [CV-005](cv-005-private-macos-alpha/index.md) | Private macOS Alpha | Authorized collaborators can build Mirror Desktop from private source, bind it to their own configured Mirror installation and operate their Journeys without Nautilus product identity | 🟡 Planned |
+| [CV-005](cv-005-private-macos-alpha/index.md) | Private macOS Alpha | Authorized collaborators can build Mirror Desktop from private source, bind it to their own configured Mirror installation and operate their Journeys without Nautilus product identity | 🟠 In Progress |
 
 ## Delivery Arc — Operable Agent Cockpit
 
@@ -77,7 +77,7 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-005.DS-001](cv-005-private-macos-alpha/ds-001-mirror-desktop-product-boundary/index.md) | Mirror Desktop Product Boundary | External surfaces and new product coordinates express Mirror Desktop while Nautilus method and legacy semantics remain classified and compatible | 🟡 Planned |
+| [CV-005.DS-001](cv-005-private-macos-alpha/ds-001-mirror-desktop-product-boundary/index.md) | Mirror Desktop Product Boundary | External surfaces and new product coordinates express Mirror Desktop while Nautilus method and legacy semantics remain classified and compatible | 🟠 In Progress |
 | [CV-005.DS-002](cv-005-private-macos-alpha/ds-002-portable-user-runtime-binding/index.md) | Portable User Runtime Binding | The source-built app binds to each alpha user's own validated Mirror runtime without compiled personal coordinates | 🟡 Planned |
 | [CV-005.DS-003](cv-005-private-macos-alpha/ds-003-reproducible-private-alpha/index.md) | Reproducible Private Alpha | An authorized macOS collaborator can clone, check, build, use and validate a local Mirror Desktop bundle through one documented route | 🟡 Planned |
 

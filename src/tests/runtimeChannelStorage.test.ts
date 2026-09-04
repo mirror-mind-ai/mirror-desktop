@@ -7,9 +7,9 @@ import { inspectRuntimeChannel, parseRuntimeChannelDiagnostic } from "../app/run
 
 const development = {
   channel: "development",
-  productName: "Nautilus Harness Dev",
-  bundleIdentifier: "com.nautilus.harness.dev",
-  appDataRoot: "/Users/example/Library/Application Support/com.nautilus.harness.dev",
+  productName: "Mirror Desktop Dev",
+  bundleIdentifier: "ai.mirrormind.desktop.dev",
+  appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop.dev",
   mirrorRoot: "/Users/example/Code/mirror-dev",
   mirrorHome: "/Users/example/.mirror-minds/mirror-dev",
   mirrorUser: "mirror-dev",
@@ -28,6 +28,6 @@ describe("runtime channel storage", () => {
 
   it("rejects unknown fields and cross-channel identifiers", () => {
     expect(() => parseRuntimeChannelDiagnostic({ ...development, token: "secret" })).toThrow(/unsupported fields/);
-    expect(() => parseRuntimeChannelDiagnostic({ ...development, bundleIdentifier: "com.nautilus.harness" })).toThrow(/bundle identity/);
+    expect(() => parseRuntimeChannelDiagnostic({ ...development, bundleIdentifier: "ai.mirrormind.desktop" })).toThrow(/bundle identity/);
   });
 });

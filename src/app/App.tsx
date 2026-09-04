@@ -783,7 +783,7 @@ export function App({ model }: AppProps) {
         setAgentSettings(next);
         setProviderInvocationMode(next.globalProfile.invocationMode);
         setAgentSettingsState("ready");
-        setAgentSettingsMessage(stored ? "Agent defaults restored from this device." : "Using Harness agent defaults.");
+        setAgentSettingsMessage(stored ? "Agent defaults restored from this device." : "Using Mirror Desktop agent defaults.");
       })
       .catch((error) => {
         if (cancelled) return;
@@ -2239,7 +2239,7 @@ export function App({ model }: AppProps) {
 
   async function restoreDefaultAgentSettings() {
     const defaults = createDefaultAgentSettings();
-    await persistAgentSettings(defaults, "Harness agent defaults restored.");
+    await persistAgentSettings(defaults, "Mirror Desktop agent defaults restored.");
     setProviderInvocationMode(defaults.globalProfile.invocationMode);
   }
 
@@ -2450,7 +2450,7 @@ export function App({ model }: AppProps) {
       if (!image) return;
       cacheJourneyCustomImage(journeyId, image);
       setJourneyAppearanceById((current) => ({ ...current, [journeyId]: { kind: "custom" } }));
-      setJourneyAppearanceMessage("Custom image imported into channel-local Nautilus storage.");
+      setJourneyAppearanceMessage("Custom image imported into channel-local Mirror Desktop storage.");
     } catch (error) {
       setJourneyAppearanceMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -2617,7 +2617,7 @@ export function App({ model }: AppProps) {
             {developmentChannel ? <span className="brand-channel-badge">DEV</span> : null}
           </span>
           <div className="brand-copy">
-            <strong>Nautilus {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</strong>
+            <strong>Mirror Desktop {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</strong>
             <small>{PRODUCT_DESCRIPTOR}</small>
           </div>
           <button
@@ -3269,7 +3269,7 @@ export function App({ model }: AppProps) {
                 <p className="eyebrow">Fresh context boundary</p>
                 <h2>Restart conversation?</h2>
                 <p className="settings-intro">
-                  Nautilus will create Generation {journeyThreadState.activeGeneration.generation + 1} with a new Pi session and Mirror conversation.
+                  Mirror Desktop will create Generation {journeyThreadState.activeGeneration.generation + 1} with a new Pi session and Mirror conversation.
                   Generation {journeyThreadState.activeGeneration.generation} and its transcript will remain preserved and read-only.
                 </p>
               </div>
@@ -3281,7 +3281,7 @@ export function App({ model }: AppProps) {
             <div className="generation-history" aria-label="Generation history">
               {projectGenerationHistory(journeyThreadState.thread).map((item) => (
                 <div className="generation-history-row" key={item.generation}>
-                  <span><strong>Generation {item.generation}</strong><small>{item.piSessionName ?? "Dedicated Nautilus conversation"}</small></span>
+                  <span><strong>Generation {item.generation}</strong><small>{item.piSessionName ?? "Dedicated Mirror Desktop conversation"}</small></span>
                   <span className={`generation-status ${item.status}`}>{item.status}</span>
                 </div>
               ))}
@@ -3528,7 +3528,7 @@ export function App({ model }: AppProps) {
               </label>
               <div className="provider-actions">
                 <button type="button" onClick={() => void saveGlobalAgentProfile()} disabled={runtimeBusy || agentSettingsState === "saving"}>Save global defaults</button>
-                <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={runtimeBusy || agentSettingsState === "saving"}>Restore Harness defaults</button>
+                <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={runtimeBusy || agentSettingsState === "saving"}>Restore Mirror Desktop defaults</button>
               </div>
               <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>
                 </section>

@@ -1,8 +1,8 @@
 [package]
-name = "nautilus-harness"
+name = "mirror-desktop"
 version = "0.1.0"
-description = "Nautilus Harness desktop app"
-authors = ["Nautilus"]
+description = "Mirror Desktop application"
+authors = ["Mirror Mind"]
 license = "UNLICENSED"
 repository = ""
 edition = "2021"

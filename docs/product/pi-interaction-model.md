@@ -1,9 +1,11 @@
-# Harness To Pi Interaction Model
+# Historical Harness To Pi Interaction Model
 
-**Status:** contract defined
+**Status:** superseded predecessor contract
 **Roadmap source:** DS-005.US-1
 
-## Product decision
+This document preserves the early Nautilus Harness interaction model as historical evidence. The current Mirror Desktop runtime boundary is defined in [Pi/Mirror Local Process Boundary](../architecture/pi-local-process-boundary.md).
+
+## Historical product decision
 
 Nautilus Harness uses Pi Coding Agent as the agentic operator for conversational grammar extraction. Harness does not implement a new agent runtime and does not reduce grammar emergence to manual form entry.
 

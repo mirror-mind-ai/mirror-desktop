@@ -340,14 +340,14 @@ fn validate_thread_runtime_channel_name(thread: &Value, active: &str) -> Result<
     match thread.get("runtimeChannel").and_then(Value::as_str) {
         Some(stored) if stored == active => Ok(()),
         None if active == "user" => Ok(()),
-        _ => Err("Stored Journey thread belongs to another Nautilus runtime channel.".to_string()),
+        _ => Err("Stored Journey thread belongs to another Mirror Desktop runtime channel.".to_string()),
     }
 }
 
 fn dedicated_native_names(journey_name: &str, generation: u64) -> (String, String) {
     let readable = journey_name.split_whitespace().collect::<Vec<_>>().join(" ");
     let readable = if readable.is_empty() { "Journey" } else { readable.as_str() };
-    let suffix = format!(" · Nautilus · Generation {}", generation);
+    let suffix = format!(" · Mirror Desktop · Generation {}", generation);
     let bounded = |limit: usize| {
         let available = limit.saturating_sub(suffix.chars().count()).max(1);
         let prefix = readable.chars().take(available).collect::<String>();
@@ -423,7 +423,7 @@ fn materialize_empty_pi_session(
 
 fn provision_mirror_conversation(session_file: &str, journey_id: &str, title: &str) -> Result<String, String> {
     let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent()
-        .ok_or_else(|| "Could not resolve Harness project root.".to_string())?
+        .ok_or_else(|| "Could not resolve Mirror Desktop project root.".to_string())?
         .join("scripts/provision_mirror_conversation.py");
     let profile = active_runtime_channel()?;
     let mut command = mirror_runtime_command("uv")?;
@@ -961,7 +961,7 @@ fn save_composer_drafts(app: AppHandle, payload: String) -> Result<(), String> {
 fn harness_root() -> Result<PathBuf, String> {
     Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .ok_or_else(|| "Could not resolve Harness root.".to_string())?
+        .ok_or_else(|| "Could not resolve Mirror Desktop root.".to_string())?
         .to_path_buf())
 }
 
@@ -1609,7 +1609,7 @@ fn resolve_existing_local_file_at(
                 .canonicalize()
                 .map_err(|error| format!("Could not resolve local reference base path: {}", error))?,
             None => harness_root()?.canonicalize()
-                .map_err(|error| format!("Could not resolve Harness root: {}", error))?,
+                .map_err(|error| format!("Could not resolve Mirror Desktop root: {}", error))?,
         };
         base_root.join(requested_path)
     };
@@ -4497,12 +4497,12 @@ fn main() {
             retire_legacy_parity_state
         ])
         .build(tauri::generate_context!())
-        .expect("error while building Nautilus Harness")
+        .expect("error while building Mirror Desktop")
         .run(|app_handle, event| match event {
             tauri::RunEvent::Ready => {
                 let profile = app_handle.state::<RuntimeChannelProfile>();
                 if let Err(error) = profile.apply_macos_dock_icon() {
-                    eprintln!("Nautilus runtime channel icon validation failed: {error}");
+                    eprintln!("Mirror Desktop runtime channel icon validation failed: {error}");
                     app_handle.exit(1);
                 }
             }
@@ -4936,7 +4936,7 @@ mod tests {
         let first = dedicated_native_names("Livro   Liderança Soberana", 1);
         let second = dedicated_native_names("Livro   Liderança Soberana", 1);
         assert_eq!(first, second);
-        assert!(first.0.contains("Nautilus"));
+        assert!(first.0.contains("Mirror Desktop"));
         assert!(first.0.chars().count() <= 80);
         assert!(first.1.chars().count() <= 100);
     }
@@ -4985,7 +4985,7 @@ mod tests {
     #[test]
     fn validates_dedicated_pi_sessions_against_the_active_channel_app_data_root() {
         let root = test_root("development-session-root");
-        let pi_sessions = root.join("com.nautilus.harness.dev/pi-sessions");
+        let pi_sessions = root.join("ai.mirrormind.desktop.dev/pi-sessions");
         fs::create_dir_all(&pi_sessions).unwrap();
         let session = pi_sessions.join("native-session.jsonl");
         fs::write(&session, r#"{"type":"session","id":"native-session"}"#).unwrap();
@@ -4994,13 +4994,13 @@ mod tests {
             session.to_str().unwrap(),
             "native-session",
             &root.join("global-pi-sessions"),
-            &root.join("com.nautilus.harness.dev"),
+            &root.join("ai.mirrormind.desktop.dev"),
         ).is_ok());
         assert!(validate_pi_session_file_at(
             session.to_str().unwrap(),
             "native-session",
             &root.join("global-pi-sessions"),
-            &root.join("com.nautilus.harness"),
+            &root.join("ai.mirrormind.desktop"),
         ).is_err());
 
         fs::remove_dir_all(root).unwrap();

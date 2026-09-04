@@ -1,26 +1,64 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">Nautilus Harness Dev icon</title>
-  <desc id="desc">A luminous violet nautilus spiral with a DEV badge on a dark plum rounded square.</desc>
+  <title id="title">Mirror Desktop Dev icon</title>
+  <desc id="desc">An oval violet mirror with two reflected fields, a central point of light and a DEV badge.</desc>
   <defs>
-    <radialGradient id="bg" cx="55%" cy="32%" r="84%">
-      <stop offset="0" stop-color="#61358a"/>
-      <stop offset="0.48" stop-color="#261332"/>
-      <stop offset="1" stop-color="#100817"/>
+    <radialGradient id="background" cx="50%" cy="28%" r="82%">
+      <stop offset="0" stop-color="#3e285b"/>
+      <stop offset="0.56" stop-color="#1d112d"/>
+      <stop offset="1" stop-color="#0c0713"/>
     </radialGradient>
-    <linearGradient id="spiral" x1="116" y1="112" x2="394" y2="402">
-      <stop offset="0" stop-color="#fff0ff"/>
-      <stop offset="0.5" stop-color="#d49af5"/>
-      <stop offset="1" stop-color="#8752bd"/>
+    <linearGradient id="frame" x1="130" y1="100" x2="382" y2="404">
+      <stop offset="0" stop-color="#fff7ff"/>
+      <stop offset="0.24" stop-color="#dcb8f2"/>
+      <stop offset="0.62" stop-color="#8b55b7"/>
+      <stop offset="1" stop-color="#5a327d"/>
     </linearGradient>
-    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="7" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    <linearGradient id="leftGlass" x1="130" y1="120" x2="266" y2="370">
+      <stop offset="0" stop-color="#9a78bd"/>
+      <stop offset="0.55" stop-color="#452c62"/>
+      <stop offset="1" stop-color="#1c122b"/>
+    </linearGradient>
+    <linearGradient id="rightGlass" x1="382" y1="120" x2="246" y2="370">
+      <stop offset="0" stop-color="#f0ddfa"/>
+      <stop offset="0.45" stop-color="#7c579e"/>
+      <stop offset="1" stop-color="#271735"/>
+    </linearGradient>
+    <radialGradient id="innerLight" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fffaff" stop-opacity="0.92"/>
+      <stop offset="0.35" stop-color="#e6c4f6" stop-opacity="0.52"/>
+      <stop offset="1" stop-color="#a66dca" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="glassClip">
+      <ellipse cx="256" cy="246" rx="111" ry="143"/>
+    </clipPath>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <filter id="frameShadow" x="-30%" y="-25%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#050208" flood-opacity="0.62"/>
     </filter>
   </defs>
-  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bg)"/>
-  <path d="M141 350c-53-75-28-183 52-229 74-43 171-17 209 58 35 69 3 153-66 181-62 25-132-10-145-72-11-52 26-101 75-103 42-2 73 36 62 74-9 31-44 47-70 29-20-14-20-46 0-58" fill="none" stroke="#321641" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" opacity=".58"/>
-  <path d="M141 350c-53-75-28-183 52-229 74-43 171-17 209 58 35 69 3 153-66 181-62 25-132-10-145-72-11-52 26-101 75-103 42-2 73 36 62 74-9 31-44 47-70 29-20-14-20-46 0-58" fill="none" stroke="url(#spiral)" stroke-width="31" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
-  <circle cx="258" cy="230" r="13" fill="#fff0ff"/>
+
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#background)"/>
+  <ellipse cx="256" cy="246" rx="137" ry="169" fill="#120a1c" opacity="0.9" filter="url(#frameShadow)"/>
+
+  <g clip-path="url(#glassClip)">
+    <rect x="145" y="103" width="111" height="286" fill="url(#leftGlass)"/>
+    <rect x="256" y="103" width="111" height="286" fill="url(#rightGlass)"/>
+    <path d="M256 104 C221 155 220 204 256 246 C292 288 291 337 256 389" fill="none" stroke="#f4e6fb" stroke-width="3" stroke-opacity="0.3"/>
+    <path d="M173 174 C203 142 226 130 245 125" fill="none" stroke="#fffaff" stroke-width="13" stroke-linecap="round" stroke-opacity="0.42"/>
+    <path d="M339 318 C309 350 286 362 267 367" fill="none" stroke="#d5afea" stroke-width="13" stroke-linecap="round" stroke-opacity="0.26"/>
+    <circle cx="256" cy="246" r="66" fill="url(#innerLight)" filter="url(#softGlow)"/>
+  </g>
+
+  <ellipse cx="256" cy="246" rx="124" ry="156" fill="none" stroke="#3a204d" stroke-width="34" opacity="0.78"/>
+  <ellipse cx="256" cy="246" rx="124" ry="156" fill="none" stroke="url(#frame)" stroke-width="20"/>
+  <ellipse cx="256" cy="246" rx="111" ry="143" fill="none" stroke="#fff8ff" stroke-width="3" stroke-opacity="0.48"/>
+
+  <circle cx="256" cy="246" r="12" fill="#fffaff"/>
+  <path d="M256 218 V274 M228 246 H284" stroke="#fffaff" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+  <path d="M236 226 L276 266 M276 226 L236 266" stroke="#dcb8f2" stroke-width="3" stroke-linecap="round" opacity="0.62"/>
+
   <rect x="302" y="366" width="154" height="72" rx="28" fill="#a45bd3" stroke="#f2d8ff" stroke-width="4"/>
   <text x="379" y="414" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="38" font-weight="800" letter-spacing="4" fill="#fff8ff">DEV</text>
 </svg>
