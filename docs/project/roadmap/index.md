@@ -1,15 +1,18 @@
-# Nautilus Harness Roadmap
+# Mirror Desktop Roadmap
 
 **Status:** active
 **Method:** Ariad
+**Lineage:** transferred from `nautilus-harness`
 
 ## What This Is
 
-This roadmap now governs Nautilus Harness as its own application body.
+This roadmap governs Mirror Desktop as the first-party desktop application body for Mirror Mind.
 
-The parent Nautilus roadmap proved the first semantic bridge: the Harness can talk to Pi, receive live responses, normalize output, project grammar, and render rich assistant messages. This child roadmap first established Harness operability and then made Mirror the causal context substrate. It can now integrate the Nautilus method as an inhabitable product experience.
+The former Nautilus Harness roadmap proved the first semantic bridge: the Tauri app can talk to Pi, receive live responses, normalize output, project grammar, and render rich assistant messages. It then established operability, made Mirror the causal context substrate, integrated Nautilus method projections and stabilized dedicated Journey-bound threads. Mirror Desktop carries this application body forward under the canonical `mirror-mind-ai/mirror-desktop` repository.
 
-The guiding question has expanded: can I operate a real Journey here, change altitude over the same territory, and recognize how activity becomes direction, realization and value?
+The guiding question has shifted: can Mirror Mind offer a durable desktop home where a person operates real Journeys, changes altitude over the same territory, and recognizes how activity becomes direction, realization and value?
+
+The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/nautilus-harness-transfer.md). The founding exploratory handoff is [Mirror Desktop: Core, Installer and Tauri App Migration](../explorations/mirror-desktop-core-installer-and-tauri-app-migration/).
 
 ## Capability Values
 

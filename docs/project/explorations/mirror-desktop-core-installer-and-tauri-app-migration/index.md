@@ -10,6 +10,10 @@ The current Nautilus Harness has revealed that its durable product contribution 
 - Journey: `nautilus-harness`
 - Status: `active`
 
+## Topology Addendum
+
+This exploration originally proposed `mirror/desktop` inside the Mirror core repository. The accepted transfer decision supersedes that repository topology while preserving the product direction. Mirror Desktop now lives in the dedicated private repository `mirror-mind-ai/mirror-desktop`, with lineage recorded in [Nautilus Harness to Mirror Desktop Transfer](../../history/nautilus-harness-transfer.md).
+
 ## Source Evidence
 
 _No source conversations were attached to this handoff._

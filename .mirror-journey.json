@@ -1,19 +1,25 @@
 {
   "schema_version": 1,
-  "journey": "nautilus-harness",
-  "name": "Nautilus Harness",
+  "journey": "mirror-desktop",
+  "name": "Mirror Desktop",
   "status": "active",
-  "parent_journey": "nautilus",
+  "parent_journey": "mirror-mind",
   "hierarchy": [
-    "vida-criativa",
-    "nautilus",
-    "nautilus-harness"
+    "vida-tecnica",
+    "ia-agentica",
+    "mirror-mind",
+    "mirror-desktop"
   ],
-  "journey_home": "/Users/alissonvale/.mirror-journeys/vida-criativa/nautilus/harness",
+  "journey_home": "/Users/alissonvale/.mirror-journeys/vida-tecnica/ia-agentica/mirror-mind-ai/mirror-desktop",
   "workspace_state": "materialized",
-  "materialization_strategy": "child-journey-home-first",
-  "source_project_path": "",
-  "source_project_path_resolved": "",
-  "target_project_path": "/Users/alissonvale/.mirror-journeys/vida-criativa/nautilus/harness",
-  "project_path_update_policy": "materialized"
+  "materialization_strategy": "existing-repository-transfer",
+  "source_project_path": "/Users/alissonvale/.mirror-journeys/vida-criativa/nautilus/harness",
+  "source_project_path_resolved": "/Users/alissonvale/.mirror-journeys/vida-criativa/nautilus/harness",
+  "target_project_path": "/Users/alissonvale/.mirror-journeys/vida-tecnica/ia-agentica/mirror-mind-ai/mirror-desktop",
+  "project_path_update_policy": "materialized",
+  "lineage": {
+    "predecessor_journey": "nautilus-harness",
+    "transfer_document": "docs/project/history/nautilus-harness-transfer.md",
+    "founding_exploration": "docs/project/explorations/mirror-desktop-core-installer-and-tauri-app-migration/"
+  }
 }
