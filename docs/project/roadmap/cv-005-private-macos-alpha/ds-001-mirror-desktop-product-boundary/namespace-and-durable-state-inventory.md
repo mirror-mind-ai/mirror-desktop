@@ -45,7 +45,7 @@
 | new conversation suffix `Nautilus · Generation` | TypeScript and Rust naming | Product identity for new human-readable labels | `Mirror Desktop · Generation`; existing stored labels remain unchanged | Naming tests |
 | `[Nautilus Harness Journey authority]` | Pi prompt authority header | Product identity | `[Mirror Desktop Journey authority]` | Prompt tests |
 | `Nautilus Harness agent` | generic Pi agent prompt | Product identity | `Mirror Desktop agent` | Prompt source tests |
-| spiral icon | stable and development icon assets | Predecessor product artwork | Replace with a reviewable Mirror Desktop mirror candidate; preserve predecessor bytes in Git history | Native visual validation |
+| spiral icon | stable and development icon assets | Predecessor product artwork | Replaced by the Navigator-approved Mirror Desktop mirror artwork; predecessor bytes remain in Git history | Navigator visual acceptance and native bundle validation |
 | `DEV` icon overlay and `DEV LAB` badge | development channel | Product channel identity | Retain channel distinction | Icon and rendered identity tests |
 
 ## Durable Runtime And Conversation Coordinates

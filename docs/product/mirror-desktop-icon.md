@@ -1,10 +1,12 @@
 # Mirror Desktop Icon
 
-**Status:** candidate for Navigator review
+**Status:** approved for Mirror Desktop
 
 ## Design intent
 
 The icon represents a mirror as a field of encounter rather than a literal reflected face. Two violet glass fields meet along a subtle curved axis. A point of light at the center marks recognition, while the oval frame keeps the symbol legible at small macOS icon sizes.
+
+The Navigator accepted this direction as the canonical Mirror Desktop artwork on 2026-09-04.
 
 The stable source is `src-tauri/icons/icon.svg`. The development variant is `src-tauri/icons/dev/icon.svg` and preserves the explicit `DEV` badge. Their PNG counterparts are generated at 512 by 512 pixels for the current Tauri bundle configuration.
 

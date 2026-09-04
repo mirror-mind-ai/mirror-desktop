@@ -84,7 +84,7 @@ Automated implementation checks completed on 2026-09-04:
 
 `cargo fmt -- --check` remains a pre-existing repository-wide formatting gap and proposes broad unrelated changes across legacy Rust code. It was not applied because this Delivery Story must not absorb unrelated formatting churn.
 
-The inherited spiral icon was replaced by a source-controlled Mirror Desktop mirror candidate with stable and `DEV` variants. Both SVG sources render to distinct 512 by 512 PNG bundle assets with alpha. Aggregate validation remains blocked until the Navigator accepts the candidate or requests a revision.
+The inherited spiral icon was replaced by the Navigator-approved, source-controlled Mirror Desktop mirror artwork with stable and `DEV` variants. Both SVG sources render to distinct 512 by 512 PNG bundle assets with alpha. The artwork gate is resolved; aggregate desktop validation remains pending.
 
 ## Validation Evidence
 
