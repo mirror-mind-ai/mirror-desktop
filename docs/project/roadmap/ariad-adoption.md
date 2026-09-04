@@ -1,12 +1,14 @@
 # Ariad Adoption
 
-This project is prepared for Ariad-governed Builder Mode.
+This project uses Ariad-governed Builder Mode.
 
 ## Method
 
 - adopted method: ariad
-- adoption prepares documentation templates only
-- delivery cursor sync is handled by a later Builder story
+- Journey: `mirror-desktop`
+- runtime adoption confirmed on 2026-09-04
+- documentation templates are present
+- delivery cursor sync remains an explicit operation after roadmap authoring
 
 ## Boundaries
 

@@ -22,6 +22,7 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 | [CV-002](cv-002-mirror-integration/index.md) | Mirror Integration | Harness becomes the desktop projection of the essential Pi/Mirror operational loop and context lifecycle | ✅ Done |
 | [CV-003](cv-003-nautilus-method-integration/index.md) | Nautilus Method Integration | Harness lets the Navigator inhabit one Journey at operational, tactical and strategic altitudes | ✅ Done |
 | [CV-004](cv-004-dedicated-nautilus-journey-thread/index.md) | Dedicated Nautilus Journey Thread | Every Journey owns one Nautilus thread whose active generation is a dedicated, Journey-activated Pi/Mirror pair, independent from conversations in other environments | ✅ Done |
+| [CV-005](cv-005-private-macos-alpha/index.md) | Private macOS Alpha | Authorized collaborators can build Mirror Desktop from private source, bind it to their own configured Mirror installation and operate their Journeys without Nautilus product identity | 🟡 Planned |
 
 ## Delivery Arc — Operable Agent Cockpit
 
@@ -72,9 +73,19 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 | [CV-004.DS-004](cv-004-dedicated-nautilus-journey-thread/ds-004-conversation-restart-and-generation-history/index.md) | Conversation Restart and Generation History | Restart creates a fresh activated generation while preserving prior conversation history | ✅ Done |
 | [CV-004.DS-005](cv-004-dedicated-nautilus-journey-thread/ds-005-legacy-parity-removal-and-desktop-review/index.md) | Legacy Parity Removal and Desktop Review | Superseded selection, import and reconciliation paths are removed after full desktop validation | ✅ Done |
 
+## Delivery Arc - Private macOS Alpha
+
+| Code | Delivery Story | Outcome | Status |
+|------|----------------|---------|--------|
+| [CV-005.DS-001](cv-005-private-macos-alpha/ds-001-mirror-desktop-product-boundary/index.md) | Mirror Desktop Product Boundary | External surfaces and new product coordinates express Mirror Desktop while Nautilus method and legacy semantics remain classified and compatible | 🟡 Planned |
+| [CV-005.DS-002](cv-005-private-macos-alpha/ds-002-portable-user-runtime-binding/index.md) | Portable User Runtime Binding | The source-built app binds to each alpha user's own validated Mirror runtime without compiled personal coordinates | 🟡 Planned |
+| [CV-005.DS-003](cv-005-private-macos-alpha/ds-003-reproducible-private-alpha/index.md) | Reproducible Private Alpha | An authorized macOS collaborator can clone, check, build, use and validate a local Mirror Desktop bundle through one documented route | 🟡 Planned |
+
 ## Current Recommendation
 
-`CV-003 — Nautilus Method Integration` is complete: the three altitudes are hydrated from canonical published projections, Tactical and Strategic readings are source-grounded, checkpoint states and correction boundaries are visible, and Operational includes the read-only Ariad Observatory. `CV-004` is also complete: dedicated generations are authoritative and the obsolete parity model has been retired. `DS-007`, `DS-008`, `DS-010` and `DS-011 — Isolated Development and User App Environments` are complete. `CV-002.DS-005 — Explicit Conversation Append Boundary` is complete: Harness appends completed turns to explicit Mirror conversations without runtime-session reconciliation drift, including bounded failure, reopen, idempotency and inactive-generation evidence. Its outbox is bounded and generation-scoped: Pi compaction continues to bound model context, generation restart renews operational continuity, and acknowledged outbox payloads do not become parallel history. `DS-009 — Concurrent Journey Operations` is complete and remains the authority for immutable run identity, Journey isolation, directed control, bounded capacity and sibling-safe settlement. Production incidents exposed distributed lifecycle inference across React, dispatcher, leases and persistence as an unstable foundation for ordinary successor sends. `DS-012 — Durable Turn Lifecycle` is complete and accepted. The revised DEV frontier proved `terminal_durable → restart → projection/outbox`, honest interruption and successor admission; US-3 restored capacity exactly two and proved two independent Journey journals executing and settling concurrently; the Navigator's essential manual validation passed. Desktop E2E remains sparse: the two planned batched milestones plus the separately authorized TS-3 frontier validation are reserved for behavior deterministic checks cannot prove.
+Pull `CV-005.DS-001 - Mirror Desktop Product Boundary`. Begin with its namespace and durable-state inventory before changing code. The inventory must separate external product identity, generic Mirror-owned capabilities, genuine Nautilus method semantics and legacy compatibility coordinates. This establishes the safe boundary for the later per-user runtime binding and source-built alpha validation.
+
+`CV-003` and `CV-004` remain completed predecessor capabilities. Their Nautilus language is historical or method-specific until the CV-005 inventory explicitly classifies it. The private alpha does not reopen those completed outcomes, rewrite their history or treat broad renaming as compatibility work.
 
 ## Boundaries
 
