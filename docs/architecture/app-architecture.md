@@ -243,6 +243,16 @@ surfaces and preference round-trips for every new ID. Development channel identi
 runtime semantic colors, reduced motion and the neutral custom-image background
 remain independent of theme choice.
 
+Composer placeholder copy is a presentation projection over existing lifecycle
+evidence, not a source of turn authority. One pure selector uses a five-message
+matrix with explicit precedence: conversation restoration or reload, completed-turn
+recording, active agent response, first message, then ready successor. It tells the
+Navigator whether a new message can be prepared or sent without exposing journal,
+reconciliation, or native-admission terminology. Detailed errors remain in the
+accessible notices above the textbox. Placeholder selection never changes textarea
+editability, send admission, attachment handling, draft retention, persistence, or
+runtime transitions.
+
 ## Temporary Journey surface availability
 
 One explicit presentation policy controls which already-implemented Journey

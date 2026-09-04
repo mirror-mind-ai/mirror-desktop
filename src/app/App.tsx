@@ -43,6 +43,7 @@ import {
 import { MessageCopyAction } from "./MessageCopyAction";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
+import { composerPlaceholder } from "./composerPlaceholder";
 import { deriveComposerTurnStatus } from "./composerTurnStatus";
 import { cancelExactJourneyRun } from "./journeyCancellation";
 import { captureJourneyRunTerminal, type JourneyRunTerminal } from "./journeyRunTerminal";
@@ -3194,9 +3195,15 @@ export function App({ model }: AppProps) {
                   }
                 }
               }}
-              placeholder={reconciliationBlocksInvocation
-                ? "Draft your next message while the completed turn is recorded."
-                : "Write a message to this journey agent."}
+              placeholder={composerPlaceholder({
+                requiresConversationRestore: isJourneyReloading
+                  || Boolean(pendingMirrorRepair)
+                  || Boolean(retainedLeaseWithoutRecovery)
+                  || legacyMirrorGap,
+                isRecordingTurn: isFinalizingTurn || reconciliationBlocksInvocation,
+                isAgentResponding: isStreaming || agentRun.status === "running",
+                hasUserMessage: messages.some((message) => message.role === "user"),
+              })}
               disabled={isJourneyReloading}
             />
             <div className="composer-input-footer">
