@@ -432,6 +432,7 @@ export function App({ model }: AppProps) {
   const [runtimeMirrorHome, setRuntimeMirrorHome] = useState("");
   const [runtimeMirrorUser, setRuntimeMirrorUser] = useState("");
   const [runtimeBindingState, setRuntimeBindingState] = useState<"idle" | "validating" | "saving">("idle");
+  const [runtimeBindingFeedback, setRuntimeBindingFeedback] = useState<string>();
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
   const [conversationLoaded, setConversationLoaded] = useState(false);
   const [journeyThreadState, setJourneyThreadState] = useState<JourneyThreadDisplayState>({ kind: "loading" });
@@ -2649,14 +2650,22 @@ export function App({ model }: AppProps) {
     : undefined;
 
   async function submitRuntimeBinding(persist: boolean) {
-    if (!runtimeBindingDraft) return;
+    if (!runtimeBindingDraft) {
+      setRuntimeChannelError("Choose Mirror source and home, then enter the Mirror user.");
+      setRuntimeBindingFeedback(undefined);
+      return;
+    }
     setRuntimeBindingState(persist ? "saving" : "validating");
     setRuntimeChannelError(undefined);
+    setRuntimeBindingFeedback(undefined);
     try {
       const diagnostic = persist
         ? await saveRuntimeBinding(runtimeBindingDraft)
         : await validateRuntimeBinding(runtimeBindingDraft);
       setRuntimeChannel(diagnostic);
+      setRuntimeBindingFeedback(persist
+        ? "Binding saved. Mirror and Pi actions are now available for this channel."
+        : "Binding validated. Save it to activate this channel across restarts.");
     } catch (error) {
       setRuntimeChannelError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -3633,9 +3642,11 @@ export function App({ model }: AppProps) {
                 <label className="provider-field">Mirror user<input value={runtimeMirrorUser} onChange={(event) => setRuntimeMirrorUser(event.target.value)} placeholder="user-slug" /></label>
                 <p className="provider-note">Database: {runtimeMirrorHome ? `${runtimeMirrorHome.replace(/\/$/, "")}/memory.db` : "Select Mirror home"}</p>
                 {runtimeChannelError ? <p className="provider-error">{runtimeChannelError}</p> : null}
+                {runtimeBindingFeedback ? <p className="provider-note" role="status">{runtimeBindingFeedback}</p> : null}
+                {!runtimeBindingDraft && !runtimeChannelError ? <p className="provider-note">Choose both directories and enter a user to prepare this channel.</p> : null}
                 <div className="settings-actions">
-                  <button type="button" disabled={!runtimeBindingDraft || runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(false)}>Validate</button>
-                  <button type="button" disabled={!runtimeBindingDraft || runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(true)}>Save binding</button>
+                  <button type="button" disabled={runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(false)}>Validate</button>
+                  <button type="button" disabled={runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(true)}>Save binding</button>
                 </div>
               </div>
             </section>

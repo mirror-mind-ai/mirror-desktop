@@ -105,6 +105,8 @@ describe("runtime channel configuration", () => {
     expect(appSource).not.toContain('"Journey cockpit"');
     expect(appSource).toContain("runtime-channel-diagnostic");
     expect(appSource).toContain("data-runtime-channel");
+    expect(appSource).toContain("Binding saved. Mirror and Pi actions are now available for this channel.");
+    expect(appSource).toContain("Choose Mirror source and home, then enter the Mirror user.");
     expect(cssSource).toContain(".app-shell.channel-development");
     expect(cssSource).toContain('[data-application-theme="tide"]');
     expect(cssSource).toContain('[data-application-theme="violet"]');
