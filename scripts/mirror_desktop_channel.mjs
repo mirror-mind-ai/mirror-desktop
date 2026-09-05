@@ -77,9 +77,9 @@ function loadRuntimeBinding(profile) {
 }
 
 function cleanLaunchEnvironment(extra = {}) {
-  const environment = { ...process.env, ...extra };
+  const environment = { ...process.env };
   for (const name of inheritedMirrorEnvironment) delete environment[name];
-  return environment;
+  return { ...environment, ...extra };
 }
 
 function runBootstrap(profile) {

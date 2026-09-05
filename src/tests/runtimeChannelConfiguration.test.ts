@@ -71,6 +71,7 @@ describe("runtime channel configuration", () => {
     expect(channelLauncher).toContain('mode === "import-user" || mode === "import-dev"');
     expect(channelLauncher).toContain('const inheritedMirrorEnvironment = ["MIRROR_HOME", "MIRROR_USER", "DB_PATH"]');
     expect(channelLauncher).toContain('delete environment[name]');
+    expect(channelLauncher).toContain('return { ...environment, ...extra };');
     expect(channelLauncher).toContain('"Mirror Desktop.app"');
     expect(channelLauncher).toContain('"Mirror Desktop Dev.app"');
   });
