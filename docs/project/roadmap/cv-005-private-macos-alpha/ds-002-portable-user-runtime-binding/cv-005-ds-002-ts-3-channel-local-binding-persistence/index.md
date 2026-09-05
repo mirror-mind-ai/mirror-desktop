@@ -1,40 +1,48 @@
 [< Parent](../index.md)
 
-# CV-005.DS-002.TS-3 — Channel-Local Binding Persistence
+# CV-005.DS-002.TS-3 - Channel-Local Binding Persistence
 
 **Status:** 🟡 Planned
 **Type:** Technical Story
 
----
-
 ## Technical Story
 
-In order to support the delivery capability,
-As an engineering team/system component,
-I want to Channel-Local Binding Persistence,
-So that the expected technical outcome is available.
+In order to preserve runtime trust across restarts without mixing application channels,
+As the Mirror Desktop persistence boundary,
+I want each bundle identity to own one atomic non-secret binding file,
+So that stable and development restore only their own validated configuration.
 
 ## Outcome
 
-Navigator can validate Channel-Local Binding Persistence as an observable behavior.
+Each channel persists, reloads and revalidates `runtime-binding.v1.json` beneath its own app-data root while malformed, symlinked or cross-channel state is retained for diagnosis and never used as authority.
 
 ## Acceptance Behavior
 
 ```text
-Given the system is ready for Channel-Local Binding Persistence
-When the planned technical change is applied
-Then the expected technical outcome is observable
-And unrelated Delivery Story scope remains untouched
+Given a completely validated binding for the active channel
+When Mirror Desktop saves it
+Then a restrictive staged write is synced and atomically renamed inside that channel's app-data root
+When the channel restarts
+Then it reloads and revalidates only that file
+And another channel's binding, malformed bytes, unknown fields or symbolic links never become runtime authority
 ```
 
 ## Scope
 
-- Channel-Local Binding Persistence
+- Channel-local binding path and strict serialization.
+- Restrictive create permissions where supported.
+- Staged write, file sync, atomic rename and parent sync.
+- Restart reload and revalidation.
+- Stable and development isolation.
+- Import and validation launchers consuming persisted binding coordinates.
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- Credential storage or Keychain integration.
+- Binding history, multiple profiles or synchronization.
+- Database copying or migration.
+- Nautilus Harness state import.
 
 ## Validation
 
-Navigator-visible validation route plus automated checks.
+Native persistence tests use temporary app-data roots and prove valid round trips, previous-file preservation on failure, symlink rejection and channel isolation. Desktop E2E restarts both channels with distinct bindings.

@@ -1,39 +1,47 @@
 [< Parent](../index.md)
 
-# CV-005.DS-002.US-1 — Bind My Mirror Installation
+# CV-005.DS-002.US-1 - Bind My Mirror Installation
 
 **Status:** 🟡 Planned
 **Type:** User Story
 
----
-
 ## User Story
 
-As a user,
-I want to Bind My Mirror Installation,
-So that I can receive the value of this story.
+As an authorized private-alpha user,
+I want to inspect and explicitly bind my configured local Mirror installation,
+So that Mirror Desktop uses my runtime rather than a developer profile compiled into the app.
 
 ## Outcome
 
-Navigator can validate Bind My Mirror Installation as an observable behavior.
+A fresh application opens in an unbound state and lets the user review one coherent candidate or select Mirror root and home, enter the Mirror user, validate every derived coordinate and save only a complete binding.
 
 ## Acceptance Behavior
 
 ```text
-Given the user is ready for Bind My Mirror Installation
-When the user performs the planned action
-Then the expected observable behavior is visible
-And unrelated Delivery Story scope remains untouched
+Given Mirror Desktop has no valid binding
+When I open Runtime Settings
+Then the application stays open and explains that Mirror operations are unavailable
+And I can accept one coherent candidate or choose Mirror root and home explicitly
+And I can inspect user, database, Core and tool readiness before save
+When I save a completely valid binding
+Then the owning channel becomes ready without copying Mirror or Nautilus state
 ```
 
 ## Scope
 
-- Bind My Mirror Installation
+- Runtime Settings binding form and resolved preview.
+- Native directory selection for Mirror root and home.
+- Explicit bounded Mirror user entry.
+- Coherent environment or conventional root candidate presentation.
+- Explicit validation and save actions.
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- Filesystem-wide discovery or `.mirror-minds` enumeration.
+- Mirror installation, initialization or identity creation.
+- Credential collection and provider configuration.
+- Multiple active profiles or automatic profile switching.
 
 ## Validation
 
-Navigator-visible validation route plus automated checks.
+Component and integration tests cover unbound, candidate, invalid and saved states. Desktop validation exercises native pickers against the current configured Mirror without modifying it.
