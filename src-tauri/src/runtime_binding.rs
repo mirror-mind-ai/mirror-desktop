@@ -241,31 +241,28 @@ fn read_mirror_version(pyproject: &Path) -> Result<Version, String> {
 }
 
 fn resolve_executable(program: &str, directories: &[PathBuf]) -> Result<PathBuf, String> {
-    directories
-        .iter()
-        .map(|directory| directory.join(program))
-        .find(|candidate| is_executable_file(candidate))
-        .ok_or_else(|| {
-            format!("Could not resolve required {program} from the trusted search path.")
-        })
-}
-
-fn is_executable_file(path: &Path) -> bool {
-    let Ok(metadata) = fs::symlink_metadata(path) else {
-        return false;
-    };
-    if metadata.file_type().is_symlink() || !metadata.is_file() {
-        return false;
+    for candidate in directories.iter().map(|directory| directory.join(program)) {
+        let Ok(metadata) = fs::metadata(&candidate) else {
+            continue;
+        };
+        if !metadata.is_file() {
+            continue;
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if metadata.permissions().mode() & 0o111 == 0 {
+                continue;
+            }
+        }
+        let canonical = candidate
+            .canonicalize()
+            .map_err(|_| format!("Could not canonicalize required {program} executable."))?;
+        return Ok(canonical);
     }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        metadata.permissions().mode() & 0o111 != 0
-    }
-    #[cfg(not(unix))]
-    {
-        true
-    }
+    Err(format!(
+        "Could not resolve required {program} from the trusted search path."
+    ))
 }
 
 #[cfg(test)]
@@ -470,7 +467,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn rejects_symlinked_coordinates_tools_and_binding_file() {
+    fn rejects_symlinked_coordinates_broken_tools_and_binding_file() {
         use std::os::unix::fs::symlink;
         let fixture = Fixture::new("0.31.14");
         let linked_home = fixture.root.parent().unwrap().join("linked-home");
@@ -485,6 +482,17 @@ mod tests {
 
         fs::remove_file(fixture.tools.join("pi")).unwrap();
         symlink(Path::new("/bin/sh"), fixture.tools.join("pi")).unwrap();
+        let validated = fixture
+            .binding
+            .clone()
+            .validate(BindingChannel::User, &[fixture.tools.clone()])
+            .unwrap();
+        assert_eq!(
+            validated.pi_bin,
+            Path::new("/bin/sh").canonicalize().unwrap()
+        );
+        fs::remove_file(fixture.tools.join("pi")).unwrap();
+        symlink(Path::new("missing-pi"), fixture.tools.join("pi")).unwrap();
         assert!(fixture
             .binding
             .clone()

@@ -21,6 +21,8 @@ pub struct RuntimeChannelProfile {
     pub mirror_home: PathBuf,
     pub mirror_user: String,
     pub db_path: PathBuf,
+    pi_bin: PathBuf,
+    uv_bin: PathBuf,
     home: PathBuf,
 }
 
@@ -195,6 +197,8 @@ impl RuntimeChannelProfile {
             mirror_root,
             mirror_home,
             mirror_user: mirror_user.to_string(),
+            pi_bin: PathBuf::from("/trusted/pi"),
+            uv_bin: PathBuf::from("/trusted/uv"),
             home: home.to_path_buf(),
         }
     }
@@ -204,6 +208,8 @@ impl RuntimeChannelProfile {
         home: &Path,
         validated: ValidatedRuntimeBinding,
     ) -> Self {
+        let pi_bin = validated.pi_bin;
+        let uv_bin = validated.uv_bin;
         let binding = validated.binding;
         Self {
             channel,
@@ -213,6 +219,8 @@ impl RuntimeChannelProfile {
             mirror_home: binding.mirror_home,
             mirror_user: binding.mirror_user,
             db_path: binding.db_path,
+            pi_bin,
+            uv_bin,
             home: home.to_path_buf(),
         }
     }
@@ -227,16 +235,11 @@ impl RuntimeChannelProfile {
                 "Runtime channel rejects unsupported program {program}."
             ));
         }
-        let executable = self
-            .runtime_search_directories()
-            .into_iter()
-            .map(|directory| directory.join(program))
-            .find(|candidate| is_executable_file(candidate))
-            .ok_or_else(|| {
-                format!(
-                    "Runtime channel could not resolve the required {program} executable from its trusted search path."
-                )
-            })?;
+        let executable = match program {
+            "pi" => &self.pi_bin,
+            "uv" => &self.uv_bin,
+            _ => unreachable!("program allowlist checked above"),
+        };
         let mut command = Command::new(executable);
         self.apply_to_command(&mut command);
         Ok(command)
@@ -275,24 +278,6 @@ impl RuntimeChannelProfile {
             status: "validated",
             message: None,
         }
-    }
-}
-
-fn is_executable_file(path: &Path) -> bool {
-    let Ok(metadata) = std::fs::symlink_metadata(path) else {
-        return false;
-    };
-    if !metadata.is_file() {
-        return false;
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        metadata.permissions().mode() & 0o111 != 0
-    }
-    #[cfg(not(unix))]
-    {
-        true
     }
 }
 
