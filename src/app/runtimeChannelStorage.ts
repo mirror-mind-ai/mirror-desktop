@@ -22,6 +22,23 @@ export type RuntimeChannelDiagnostic = {
   message?: string;
 };
 
+const BINDING_KEYS = ["schemaVersion", "channel", "mirrorRoot", "mirrorHome", "mirrorUser", "dbPath"] as const;
+
+export function parseRuntimeBinding(value: unknown): RuntimeBinding {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Runtime binding candidate is invalid.");
+  }
+  const binding = value as Record<string, unknown>;
+  if (Object.keys(binding).length !== BINDING_KEYS.length
+    || Object.keys(binding).some((key) => !BINDING_KEYS.includes(key as typeof BINDING_KEYS[number]))
+    || !BINDING_KEYS.every((key) => typeof binding[key] === "string" && binding[key].length > 0)
+    || binding.schemaVersion !== "1.0.0"
+    || !["user", "development"].includes(binding.channel as string)) {
+    throw new Error("Runtime binding candidate contains unsupported fields.");
+  }
+  return binding as RuntimeBinding;
+}
+
 const ALLOWED_KEYS = [
   "channel", "productName", "bundleIdentifier", "appDataRoot", "mirrorRoot",
   "mirrorHome", "mirrorUser", "dbPath", "status", "message",
@@ -65,6 +82,11 @@ export function parseRuntimeChannelDiagnostic(value: unknown): RuntimeChannelDia
 
 export async function inspectRuntimeChannel(): Promise<RuntimeChannelDiagnostic> {
   return parseRuntimeChannelDiagnostic(await invoke<unknown>("inspect_runtime_channel"));
+}
+
+export async function inspectRuntimeBindingCandidate(): Promise<RuntimeBinding | undefined> {
+  const candidate = await invoke<unknown>("inspect_runtime_binding_candidate");
+  return candidate === null ? undefined : parseRuntimeBinding(candidate);
 }
 
 export async function chooseRuntimeDirectory(kind: "mirrorRoot" | "mirrorHome"): Promise<string | undefined> {

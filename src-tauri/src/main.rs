@@ -998,12 +998,7 @@ fn validate_runtime_binding_request(
     let app_data_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
     fs::create_dir_all(&app_data_root)
         .map_err(|error| format!("Could not create application data root: {error}"))?;
-    if app.config().identifier != channel.bundle_identifier()
-        || app_data_root.file_name().and_then(|value| value.to_str())
-            != Some(channel.bundle_identifier())
-    {
-        return Err("Mirror Desktop bundle identity does not match its runtime channel.".to_string());
-    }
+    channel.validate_app_identity(&app.config().identifier, &app_data_root)?;
     let home = env::var_os("HOME").map(PathBuf::from)
         .ok_or_else(|| "Could not resolve HOME for runtime binding.".to_string())?;
     let validated = binding.validate(channel.binding_channel(), &runtime_search_directories(&home))?;
@@ -1011,6 +1006,23 @@ fn validate_runtime_binding_request(
         validated.persist(&app_data_root)?;
     }
     Ok(RuntimeChannelProfile::from_validated(channel, &home, validated).diagnostic(&app_data_root))
+}
+
+#[tauri::command]
+fn inspect_runtime_binding_candidate() -> Result<Option<RuntimeBinding>, String> {
+    let channel = RuntimeChannel::active();
+    if channel != RuntimeChannel::User {
+        return Ok(None);
+    }
+    let home = env::var_os("HOME").map(PathBuf::from)
+        .ok_or_else(|| "Could not resolve HOME for runtime discovery.".to_string())?;
+    RuntimeBinding::environment_candidate(
+        channel.binding_channel(),
+        &home,
+        env::var("MIRROR_HOME").ok().as_deref(),
+        env::var("MIRROR_USER").ok().as_deref(),
+        env::var("DB_PATH").ok().as_deref(),
+    )
 }
 
 #[tauri::command]
@@ -1047,12 +1059,7 @@ fn choose_runtime_directory(kind: String) -> Result<Option<String>, String> {
 fn inspect_runtime_channel(app: AppHandle) -> Result<RuntimeChannelDiagnostic, String> {
     let channel = RuntimeChannel::active();
     let app_data_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
-    if app.config().identifier != channel.bundle_identifier()
-        || app_data_root.file_name().and_then(|value| value.to_str())
-            != Some(channel.bundle_identifier())
-    {
-        return Err("Mirror Desktop bundle identity does not match its runtime channel.".to_string());
-    }
+    channel.validate_app_identity(&app.config().identifier, &app_data_root)?;
     Ok(match active_runtime_channel() {
         Ok(profile) => profile.diagnostic(&app_data_root),
         Err(error) => RuntimeChannelDiagnostic::unavailable(channel, &app_data_root, error),
@@ -4503,15 +4510,9 @@ fn main() {
         .setup(|app| {
             let channel = RuntimeChannel::active();
             let app_data_root = app.path().app_data_dir().map_err(std::io::Error::other)?;
-            if app.config().identifier != channel.bundle_identifier()
-                || app_data_root.file_name().and_then(|value| value.to_str())
-                    != Some(channel.bundle_identifier())
-            {
-                return Err(std::io::Error::other(
-                    "Mirror Desktop bundle identity does not match its runtime channel.",
-                )
-                .into());
-            }
+            channel
+                .validate_app_identity(&app.config().identifier, &app_data_root)
+                .map_err(std::io::Error::other)?;
             Ok(())
         })
         .manage(PiProcessState::default())
@@ -4543,6 +4544,7 @@ fn main() {
             save_agent_settings,
             list_pi_models,
             inspect_runtime_channel,
+            inspect_runtime_binding_candidate,
             validate_runtime_binding,
             save_runtime_binding,
             choose_runtime_directory,

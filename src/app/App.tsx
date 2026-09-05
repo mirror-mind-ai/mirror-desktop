@@ -241,7 +241,8 @@ import {
 } from "../domain/fileAttachments";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
 import {
-  chooseRuntimeDirectory, inspectRuntimeChannel, saveRuntimeBinding, validateRuntimeBinding,
+  chooseRuntimeDirectory, inspectRuntimeBindingCandidate, inspectRuntimeChannel,
+  saveRuntimeBinding, validateRuntimeBinding,
   type RuntimeBinding, type RuntimeChannelDiagnostic,
 } from "./runtimeChannelStorage";
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
@@ -832,6 +833,23 @@ export function App({ model }: AppProps) {
       });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (runtimeChannel?.status !== "unbound" || runtimeMirrorRoot || runtimeMirrorHome || runtimeMirrorUser) return;
+    let cancelled = false;
+    void inspectRuntimeBindingCandidate()
+      .then((candidate) => {
+        if (!cancelled && candidate) {
+          setRuntimeMirrorRoot(candidate.mirrorRoot);
+          setRuntimeMirrorHome(candidate.mirrorHome);
+          setRuntimeMirrorUser(candidate.mirrorUser);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) setRuntimeChannelError(error instanceof Error ? error.message : String(error));
+      });
+    return () => { cancelled = true; };
+  }, [runtimeChannel?.status, runtimeMirrorHome, runtimeMirrorRoot, runtimeMirrorUser]);
 
   useEffect(() => {
     if (!settingsOpen) return;

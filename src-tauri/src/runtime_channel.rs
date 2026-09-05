@@ -81,6 +81,24 @@ impl RuntimeChannel {
         }
     }
 
+    pub fn validate_app_identity(
+        self,
+        identifier: &str,
+        app_data_root: &Path,
+    ) -> Result<(), String> {
+        if identifier != self.bundle_identifier()
+            || app_data_root.file_name().and_then(|value| value.to_str())
+                != Some(self.bundle_identifier())
+        {
+            return Err(format!(
+                "Runtime channel {} requires bundle identifier and app data root {}.",
+                self.as_str(),
+                self.bundle_identifier()
+            ));
+        }
+        Ok(())
+    }
+
     pub fn apply_macos_dock_icon(self) -> Result<(), String> {
         #[cfg(target_os = "macos")]
         if self == Self::Development {
@@ -199,29 +217,6 @@ impl RuntimeChannelProfile {
         }
     }
 
-    pub fn validate_app_identity(
-        &self,
-        identifier: &str,
-        app_data_root: &Path,
-    ) -> Result<(), String> {
-        if identifier != self.bundle_identifier {
-            return Err(format!(
-                "Runtime channel {} requires bundle identifier {}.",
-                self.channel.as_str(),
-                self.bundle_identifier
-            ));
-        }
-        if app_data_root.file_name().and_then(|value| value.to_str())
-            != Some(self.bundle_identifier)
-        {
-            return Err(format!(
-                "Runtime channel {} resolved an unexpected application data root.",
-                self.channel.as_str()
-            ));
-        }
-        Ok(())
-    }
-
     fn runtime_search_directories(&self) -> Vec<PathBuf> {
         runtime_search_directories(&self.home)
     }
@@ -332,23 +327,20 @@ mod tests {
 
     #[test]
     fn rejects_bundle_and_app_data_mismatch() {
-        let profile = RuntimeChannelProfile::for_home(
-            RuntimeChannel::Development,
-            Path::new("/Users/example"),
-        );
-        assert!(profile
+        let channel = RuntimeChannel::Development;
+        assert!(channel
             .validate_app_identity(
                 "ai.mirrormind.desktop",
                 Path::new("/tmp/ai.mirrormind.desktop.dev")
             )
             .is_err());
-        assert!(profile
+        assert!(channel
             .validate_app_identity(
                 "ai.mirrormind.desktop.dev",
                 Path::new("/tmp/ai.mirrormind.desktop")
             )
             .is_err());
-        assert!(profile
+        assert!(channel
             .validate_app_identity(
                 "ai.mirrormind.desktop.dev",
                 Path::new("/tmp/ai.mirrormind.desktop.dev")

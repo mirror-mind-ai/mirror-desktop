@@ -4,8 +4,8 @@ const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
 import {
-  chooseRuntimeDirectory, inspectRuntimeChannel, parseRuntimeChannelDiagnostic,
-  saveRuntimeBinding, validateRuntimeBinding,
+  chooseRuntimeDirectory, inspectRuntimeBindingCandidate, inspectRuntimeChannel,
+  parseRuntimeBinding, parseRuntimeChannelDiagnostic, saveRuntimeBinding, validateRuntimeBinding,
 } from "../app/runtimeChannelStorage";
 
 const development = {
@@ -27,6 +27,21 @@ describe("runtime channel storage", () => {
     invoke.mockResolvedValueOnce(development);
     await expect(inspectRuntimeChannel()).resolves.toEqual(development);
     expect(invoke).toHaveBeenCalledWith("inspect_runtime_channel");
+  });
+
+  it("accepts only an exact environment candidate from native discovery", async () => {
+    const candidate = {
+      schemaVersion: "1.0.0",
+      channel: "user",
+      mirrorRoot: "/Users/example/mirror",
+      mirrorHome: "/Users/example/.mirror-minds/example",
+      mirrorUser: "example",
+      dbPath: "/Users/example/.mirror-minds/example/memory.db",
+    };
+    invoke.mockResolvedValueOnce(candidate);
+    await expect(inspectRuntimeBindingCandidate()).resolves.toEqual(candidate);
+    expect(() => parseRuntimeBinding({ ...candidate, token: "secret" })).toThrow(/unsupported fields/);
+    expect(() => parseRuntimeBinding({ ...candidate, mirrorUser: "" })).toThrow(/unsupported fields/);
   });
 
   it("validates and saves an explicit binding through separate native commands", async () => {
