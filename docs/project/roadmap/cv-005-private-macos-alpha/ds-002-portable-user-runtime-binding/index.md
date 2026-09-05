@@ -2,7 +2,7 @@
 
 # CV-005.DS-002 - Portable User Runtime Binding
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -12,11 +12,11 @@ A source-built Mirror Desktop app can resolve, validate and persist a bounded bi
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-005.DS-002.TS-1 | User Runtime Binding Contract | Technical Story | Mirror root, Mirror home, user identity, database and compatibility range form one validated non-secret binding with clear authority and confinement rules | 🟡 Planned |
-| CV-005.DS-002.US-1 | Bind My Mirror Installation | User Story | An alpha user can accept a trusted discovered installation or explicitly select their configured Mirror location and see the resolved binding before use | 🟡 Planned |
-| CV-005.DS-002.US-2 | Understand Runtime Readiness | User Story | Missing Mirror, Pi, uv, database, identity or version compatibility appears as bounded diagnosis with a corrective route instead of startup failure or silent fallback | 🟡 Planned |
-| CV-005.DS-002.TS-2 | Trusted Runtime Process Environment | Technical Story | Every Pi and Mirror subprocess receives only the validated user's runtime coordinates and trusted executable paths | 🟡 Planned |
-| CV-005.DS-002.TS-3 | Channel-Local Binding Persistence | Technical Story | User and development channels retain independent bindings without credentials, cross-user state or fallback to a developer's production coordinates | 🟡 Planned |
+| CV-005.DS-002.TS-1 | User Runtime Binding Contract | Technical Story | Mirror root, Mirror home, user identity, database and compatibility range form one validated non-secret binding with clear authority and confinement rules | ✅ Done |
+| CV-005.DS-002.US-1 | Bind My Mirror Installation | User Story | An alpha user can accept a trusted discovered installation or explicitly select their configured Mirror location and see the resolved binding before use | ✅ Done |
+| CV-005.DS-002.US-2 | Understand Runtime Readiness | User Story | Missing Mirror, Pi, uv, database, identity or version compatibility appears as bounded diagnosis with a corrective route instead of startup failure or silent fallback | ✅ Done |
+| CV-005.DS-002.TS-2 | Trusted Runtime Process Environment | Technical Story | Every Pi and Mirror subprocess receives only the validated user's runtime coordinates and trusted executable paths | ✅ Done |
+| CV-005.DS-002.TS-3 | Channel-Local Binding Persistence | Technical Story | User and development channels retain independent bindings without credentials, cross-user state or fallback to a developer's production coordinates | ✅ Done |
 
 ## Binding Contract
 

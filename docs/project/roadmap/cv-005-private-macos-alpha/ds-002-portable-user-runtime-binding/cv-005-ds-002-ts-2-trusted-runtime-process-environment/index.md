@@ -2,7 +2,7 @@
 
 # CV-005.DS-002.TS-2 - Trusted Runtime Process Environment
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

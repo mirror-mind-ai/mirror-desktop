@@ -2,7 +2,7 @@
 
 # CV-005.DS-002.TS-1 - User Runtime Binding Contract
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

@@ -19,7 +19,7 @@ This capability creates a deliberately bounded passage. It is not public distrib
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
 | [CV-005.DS-001](ds-001-mirror-desktop-product-boundary/index.md) | Mirror Desktop Product Boundary | External application surfaces and new product coordinates express Mirror Desktop while classified Nautilus method and legacy semantics remain explicit | ✅ Done |
-| [CV-005.DS-002](ds-002-portable-user-runtime-binding/index.md) | Portable User Runtime Binding | A source-built app resolves and validates the current user's own Mirror runtime without compiled personal coordinates | 🟡 Planned |
+| [CV-005.DS-002](ds-002-portable-user-runtime-binding/index.md) | Portable User Runtime Binding | A source-built app resolves and validates the current user's own Mirror runtime without compiled personal coordinates | ✅ Done |
 | [CV-005.DS-003](ds-003-reproducible-private-alpha/index.md) | Reproducible Private Alpha | An authorized macOS collaborator can follow one documented route from private clone to usable local bundle and return bounded validation evidence | 🟡 Planned |
 
 ## Delivery Order

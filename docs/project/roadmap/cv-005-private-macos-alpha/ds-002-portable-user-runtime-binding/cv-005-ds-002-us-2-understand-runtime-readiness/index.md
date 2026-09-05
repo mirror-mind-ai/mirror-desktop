@@ -2,7 +2,7 @@
 
 # CV-005.DS-002.US-2 - Understand Runtime Readiness
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story
