@@ -1,3 +1,4 @@
+use crate::runtime_binding::{load_runtime_binding, BindingChannel, ValidatedRuntimeBinding};
 use serde::Serialize;
 use std::{
     env,
@@ -18,7 +19,7 @@ pub struct RuntimeChannelProfile {
     pub bundle_identifier: &'static str,
     pub mirror_root: PathBuf,
     pub mirror_home: PathBuf,
-    pub mirror_user: &'static str,
+    pub mirror_user: String,
     pub db_path: PathBuf,
     home: PathBuf,
 }
@@ -30,18 +31,109 @@ pub struct RuntimeChannelDiagnostic {
     pub product_name: &'static str,
     pub bundle_identifier: &'static str,
     pub app_data_root: String,
-    pub mirror_root: String,
-    pub mirror_home: String,
-    pub mirror_user: &'static str,
-    pub db_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mirror_root: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mirror_home: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mirror_user: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub db_path: Option<String>,
     pub status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 impl RuntimeChannel {
+    pub fn active() -> Self {
+        if cfg!(feature = "development-channel") {
+            Self::Development
+        } else {
+            Self::User
+        }
+    }
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::User => "user",
             Self::Development => "development",
+        }
+    }
+
+    pub fn product_name(self) -> &'static str {
+        match self {
+            Self::User => "Mirror Desktop",
+            Self::Development => "Mirror Desktop Dev",
+        }
+    }
+
+    pub fn bundle_identifier(self) -> &'static str {
+        match self {
+            Self::User => "ai.mirrormind.desktop",
+            Self::Development => "ai.mirrormind.desktop.dev",
+        }
+    }
+
+    fn binding_channel(self) -> BindingChannel {
+        match self {
+            Self::User => BindingChannel::User,
+            Self::Development => BindingChannel::Development,
+        }
+    }
+
+    pub fn apply_macos_dock_icon(self) -> Result<(), String> {
+        #[cfg(target_os = "macos")]
+        if self == Self::Development {
+            use objc2::{AllocAnyThread, MainThreadMarker};
+            use objc2_app_kit::{NSApplication, NSImage};
+            use objc2_foundation::NSData;
+            let marker = MainThreadMarker::new().ok_or_else(|| {
+                "Development Dock icon must be applied on the main thread.".to_string()
+            })?;
+            let data = NSData::with_bytes(include_bytes!("../icons/dev/icon.png"));
+            let icon = NSImage::initWithData(NSImage::alloc(), &data).ok_or_else(|| {
+                "Could not decode the Mirror Desktop development Dock icon.".to_string()
+            })?;
+            let application = NSApplication::sharedApplication(marker);
+            unsafe { application.setApplicationIconImage(Some(&icon)) };
+        }
+        Ok(())
+    }
+}
+
+fn runtime_search_directories(home: &Path) -> Vec<PathBuf> {
+    vec![
+        home.join(".pi/agent/bin"),
+        home.join(".local/bin"),
+        home.join(".pyenv/shims"),
+        home.join(".pyenv/bin"),
+        PathBuf::from("/usr/local/bin"),
+        PathBuf::from("/opt/homebrew/bin"),
+        PathBuf::from("/usr/bin"),
+        PathBuf::from("/bin"),
+        PathBuf::from("/usr/sbin"),
+        PathBuf::from("/sbin"),
+        home.join(".cargo/bin"),
+    ]
+}
+
+impl RuntimeChannelDiagnostic {
+    pub fn unavailable(channel: RuntimeChannel, app_data_root: &Path, message: String) -> Self {
+        Self {
+            channel: channel.as_str(),
+            product_name: channel.product_name(),
+            bundle_identifier: channel.bundle_identifier(),
+            app_data_root: app_data_root.to_string_lossy().to_string(),
+            mirror_root: None,
+            mirror_home: None,
+            mirror_user: None,
+            db_path: None,
+            status: if message.contains("unbound") {
+                "unbound"
+            } else {
+                "invalid"
+            },
+            message: Some(message),
         }
     }
 }
@@ -51,50 +143,59 @@ impl RuntimeChannelProfile {
         let home = env::var_os("HOME").map(PathBuf::from).ok_or_else(|| {
             "Could not resolve HOME for the Mirror Desktop runtime channel.".to_string()
         })?;
-        let channel = if cfg!(feature = "development-channel") {
-            RuntimeChannel::Development
-        } else {
-            RuntimeChannel::User
-        };
-        let profile = Self::for_home(channel, &home);
-        profile.validate_inherited_environment()?;
-        profile.validate_mirror_coordinates()?;
-        profile.runtime_command("pi")?;
-        profile.runtime_command("uv")?;
-        Ok(profile)
+        let channel = RuntimeChannel::active();
+        let app_data_root = home
+            .join("Library/Application Support")
+            .join(channel.bundle_identifier());
+        let binding = load_runtime_binding(
+            &app_data_root,
+            channel.binding_channel(),
+            &runtime_search_directories(&home),
+        )?.ok_or_else(|| "Mirror Desktop runtime is unbound. Open Runtime Settings to connect a Mirror installation.".to_string())?;
+        Ok(Self::from_validated(channel, &home, binding))
     }
 
+    #[cfg(test)]
     pub fn for_home(channel: RuntimeChannel, home: &Path) -> Self {
-        match channel {
-            RuntimeChannel::User => {
-                let mirror_home = home.join(".mirror-minds").join("alisson-vale");
-                Self {
-                    channel,
-                    product_name: "Mirror Desktop",
-                    bundle_identifier: "ai.mirrormind.desktop",
-                    mirror_root: home.join("mirror"),
-                    db_path: mirror_home.join("memory.db"),
-                    mirror_home,
-                    mirror_user: "alisson-vale",
-                    home: home.to_path_buf(),
-                }
-            }
-            RuntimeChannel::Development => {
-                let mirror_home = home.join(".mirror-minds").join("mirror-dev");
-                Self {
-                    channel,
-                    product_name: "Mirror Desktop Dev",
-                    bundle_identifier: "ai.mirrormind.desktop.dev",
-                    mirror_root: home
-                        .join(".mirror-journeys")
-                        .join("mirror-mind")
-                        .join("mirror-dev"),
-                    db_path: mirror_home.join("memory.db"),
-                    mirror_home,
-                    mirror_user: "mirror-dev",
-                    home: home.to_path_buf(),
-                }
-            }
+        let (mirror_root, mirror_home, mirror_user) = match channel {
+            RuntimeChannel::User => (
+                home.join("mirror"),
+                home.join(".mirror-minds/example"),
+                "example",
+            ),
+            RuntimeChannel::Development => (
+                home.join(".mirror-journeys/mirror-mind/mirror-dev"),
+                home.join(".mirror-minds/mirror-dev"),
+                "mirror-dev",
+            ),
+        };
+        Self {
+            channel,
+            product_name: channel.product_name(),
+            bundle_identifier: channel.bundle_identifier(),
+            db_path: mirror_home.join("memory.db"),
+            mirror_root,
+            mirror_home,
+            mirror_user: mirror_user.to_string(),
+            home: home.to_path_buf(),
+        }
+    }
+
+    fn from_validated(
+        channel: RuntimeChannel,
+        home: &Path,
+        validated: ValidatedRuntimeBinding,
+    ) -> Self {
+        let binding = validated.binding;
+        Self {
+            channel,
+            product_name: channel.product_name(),
+            bundle_identifier: channel.bundle_identifier(),
+            mirror_root: binding.mirror_root,
+            mirror_home: binding.mirror_home,
+            mirror_user: binding.mirror_user,
+            db_path: binding.db_path,
+            home: home.to_path_buf(),
         }
     }
 
@@ -121,53 +222,8 @@ impl RuntimeChannelProfile {
         Ok(())
     }
 
-    pub fn validate_mirror_coordinates(&self) -> Result<(), String> {
-        validate_directory(&self.mirror_root, "Mirror runtime root")?;
-        validate_directory(&self.mirror_home, "Mirror home")?;
-        validate_regular_file(&self.db_path, "Mirror database")?;
-        let canonical_home = self
-            .mirror_home
-            .canonicalize()
-            .map_err(|_| "Could not resolve the configured Mirror home.".to_string())?;
-        let canonical_db = self
-            .db_path
-            .canonicalize()
-            .map_err(|_| "Could not resolve the configured Mirror database.".to_string())?;
-        if !canonical_db.starts_with(&canonical_home) {
-            return Err("Mirror database is outside the configured Mirror home.".to_string());
-        }
-        Ok(())
-    }
-
-    pub fn validate_inherited_environment(&self) -> Result<(), String> {
-        validate_optional_path_env("MIRROR_HOME", &self.mirror_home)?;
-        validate_optional_path_env("DB_PATH", &self.db_path)?;
-        if let Ok(value) = env::var("MIRROR_USER") {
-            if value != self.mirror_user {
-                return Err(format!(
-                    "Runtime channel {} rejects MIRROR_USER={}.",
-                    self.channel.as_str(),
-                    value
-                ));
-            }
-        }
-        Ok(())
-    }
-
     fn runtime_search_directories(&self) -> Vec<PathBuf> {
-        vec![
-            self.home.join(".pi/agent/bin"),
-            self.home.join(".local/bin"),
-            self.home.join(".pyenv/shims"),
-            self.home.join(".pyenv/bin"),
-            PathBuf::from("/usr/local/bin"),
-            PathBuf::from("/opt/homebrew/bin"),
-            PathBuf::from("/usr/bin"),
-            PathBuf::from("/bin"),
-            PathBuf::from("/usr/sbin"),
-            PathBuf::from("/sbin"),
-            self.home.join(".cargo/bin"),
-        ]
+        runtime_search_directories(&self.home)
     }
 
     pub fn runtime_command(&self, program: &str) -> Result<Command, String> {
@@ -197,7 +253,7 @@ impl RuntimeChannelProfile {
         command
             .current_dir(&self.mirror_root)
             .env("MIRROR_HOME", &self.mirror_home)
-            .env("MIRROR_USER", self.mirror_user)
+            .env("MIRROR_USER", &self.mirror_user)
             .env("DB_PATH", &self.db_path)
             .env("PATH", runtime_path);
     }
@@ -206,45 +262,24 @@ impl RuntimeChannelProfile {
         command.env_remove("NAUTILUS_TURN_CORRELATION_V1");
     }
 
-    pub fn apply_macos_dock_icon(&self) -> Result<(), String> {
-        #[cfg(target_os = "macos")]
-        {
-            if self.channel == RuntimeChannel::Development {
-                use objc2::{AllocAnyThread, MainThreadMarker};
-                use objc2_app_kit::{NSApplication, NSImage};
-                use objc2_foundation::NSData;
-
-                let marker = MainThreadMarker::new().ok_or_else(|| {
-                    "Development Dock icon must be applied on the main thread.".to_string()
-                })?;
-                let data = NSData::with_bytes(include_bytes!("../icons/dev/icon.png"));
-                let icon = NSImage::initWithData(NSImage::alloc(), &data).ok_or_else(|| {
-                    "Could not decode the Mirror Desktop development Dock icon.".to_string()
-                })?;
-                let application = NSApplication::sharedApplication(marker);
-                unsafe { application.setApplicationIconImage(Some(&icon)) };
-            }
-        }
-        Ok(())
-    }
-
     pub fn diagnostic(&self, app_data_root: &Path) -> RuntimeChannelDiagnostic {
         RuntimeChannelDiagnostic {
             channel: self.channel.as_str(),
             product_name: self.product_name,
             bundle_identifier: self.bundle_identifier,
             app_data_root: app_data_root.to_string_lossy().to_string(),
-            mirror_root: self.mirror_root.to_string_lossy().to_string(),
-            mirror_home: self.mirror_home.to_string_lossy().to_string(),
-            mirror_user: self.mirror_user,
-            db_path: self.db_path.to_string_lossy().to_string(),
+            mirror_root: Some(self.mirror_root.to_string_lossy().to_string()),
+            mirror_home: Some(self.mirror_home.to_string_lossy().to_string()),
+            mirror_user: Some(self.mirror_user.clone()),
+            db_path: Some(self.db_path.to_string_lossy().to_string()),
             status: "validated",
+            message: None,
         }
     }
 }
 
 fn is_executable_file(path: &Path) -> bool {
-    let Ok(metadata) = std::fs::metadata(path) else {
+    let Ok(metadata) = std::fs::symlink_metadata(path) else {
         return false;
     };
     if !metadata.is_file() {
@@ -259,38 +294,6 @@ fn is_executable_file(path: &Path) -> bool {
     {
         true
     }
-}
-
-fn validate_optional_path_env(name: &str, expected: &Path) -> Result<(), String> {
-    if let Some(value) = env::var_os(name) {
-        if PathBuf::from(&value) != expected {
-            return Err(format!(
-                "Runtime channel rejects {}={} because it does not match {}.",
-                name,
-                PathBuf::from(value).to_string_lossy(),
-                expected.to_string_lossy()
-            ));
-        }
-    }
-    Ok(())
-}
-
-fn validate_directory(path: &Path, label: &str) -> Result<(), String> {
-    let metadata = std::fs::symlink_metadata(path)
-        .map_err(|_| format!("{} is unavailable at {}.", label, path.to_string_lossy()))?;
-    if metadata.file_type().is_symlink() || !metadata.is_dir() {
-        return Err(format!("{} is not a safe directory.", label));
-    }
-    Ok(())
-}
-
-fn validate_regular_file(path: &Path, label: &str) -> Result<(), String> {
-    let metadata = std::fs::symlink_metadata(path)
-        .map_err(|_| format!("{} is unavailable at {}.", label, path.to_string_lossy()))?;
-    if metadata.file_type().is_symlink() || !metadata.is_file() {
-        return Err(format!("{} is not a safe regular file.", label));
-    }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -362,6 +365,18 @@ mod tests {
     }
 
     #[test]
+    fn unavailable_diagnostic_keeps_the_application_channel_visible() {
+        let diagnostic = super::RuntimeChannelDiagnostic::unavailable(
+            RuntimeChannel::User,
+            Path::new("/tmp/ai.mirrormind.desktop"),
+            "Mirror Desktop runtime is unbound.".to_string(),
+        );
+        assert_eq!(diagnostic.status, "unbound");
+        assert_eq!(diagnostic.bundle_identifier, "ai.mirrormind.desktop");
+        assert_eq!(diagnostic.mirror_root, None);
+    }
+
+    #[test]
     fn rejects_programs_outside_the_closed_runtime_toolset() {
         let profile =
             RuntimeChannelProfile::for_home(RuntimeChannel::User, Path::new("/Users/example"));
@@ -419,8 +434,8 @@ mod tests {
         command.env("NAUTILUS_TURN_CORRELATION_V1", "journey-bound-turn");
         profile.detach_journey_turn_authority(&mut command);
 
-        assert!(command.get_envs().any(|(key, value)| {
-            key == "NAUTILUS_TURN_CORRELATION_V1" && value.is_none()
-        }));
+        assert!(command
+            .get_envs()
+            .any(|(key, value)| { key == "NAUTILUS_TURN_CORRELATION_V1" && value.is_none() }));
     }
 }

@@ -26,8 +26,20 @@ describe("runtime channel storage", () => {
     expect(invoke).toHaveBeenCalledWith("inspect_runtime_channel");
   });
 
-  it("rejects unknown fields and cross-channel identifiers", () => {
+  it("accepts a bounded unbound state without runtime coordinates", () => {
+    expect(parseRuntimeChannelDiagnostic({
+      channel: "user",
+      productName: "Mirror Desktop",
+      bundleIdentifier: "ai.mirrormind.desktop",
+      appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop",
+      status: "unbound",
+      message: "Mirror Desktop runtime is unbound.",
+    }).status).toBe("unbound");
+  });
+
+  it("rejects unknown fields, cross-channel identifiers and incomplete validated state", () => {
     expect(() => parseRuntimeChannelDiagnostic({ ...development, token: "secret" })).toThrow(/unsupported fields/);
     expect(() => parseRuntimeChannelDiagnostic({ ...development, bundleIdentifier: "ai.mirrormind.desktop" })).toThrow(/bundle identity/);
+    expect(() => parseRuntimeChannelDiagnostic({ ...development, mirrorHome: undefined })).toThrow(/lacks required coordinates/);
   });
 });

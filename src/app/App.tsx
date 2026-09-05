@@ -3551,11 +3551,14 @@ export function App({ model }: AppProps) {
                   <div><dt>Channel</dt><dd>{runtimeChannel.channel}</dd></div>
                   <div><dt>Bundle</dt><dd>{runtimeChannel.bundleIdentifier}</dd></div>
                   <div><dt>App data</dt><dd>{runtimeChannel.appDataRoot}</dd></div>
-                  <div><dt>Mirror code</dt><dd>{runtimeChannel.mirrorRoot}</dd></div>
-                  <div><dt>Mirror home</dt><dd>{runtimeChannel.mirrorHome}</dd></div>
-                  <div><dt>Mirror user</dt><dd>{runtimeChannel.mirrorUser}</dd></div>
-                  <div><dt>Database</dt><dd>{runtimeChannel.dbPath}</dd></div>
+                  {runtimeChannel.status === "validated" ? <>
+                    <div><dt>Mirror code</dt><dd>{runtimeChannel.mirrorRoot}</dd></div>
+                    <div><dt>Mirror home</dt><dd>{runtimeChannel.mirrorHome}</dd></div>
+                    <div><dt>Mirror user</dt><dd>{runtimeChannel.mirrorUser}</dd></div>
+                    <div><dt>Database</dt><dd>{runtimeChannel.dbPath}</dd></div>
+                  </> : null}
                   <div><dt>Status</dt><dd>{runtimeChannel.status}</dd></div>
+                  {runtimeChannel.message ? <div><dt>Correction</dt><dd>{runtimeChannel.message}</dd></div> : null}
                 </dl>
               ) : <p className="provider-note">{runtimeChannelError ?? "Inspecting the native runtime channel…"}</p>}
             </section>

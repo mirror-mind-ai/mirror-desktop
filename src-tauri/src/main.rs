@@ -17,7 +17,7 @@ use pi_process_registry::{
     RegistryAuthority, RegistryAuthorityInspection, ReleaseOutcome, ReserveError,
     ReserveThenStartError, RunTarget, TargetError, TerminalState, TerminalizeOutcome,
 };
-use runtime_channel::{RuntimeChannelDiagnostic, RuntimeChannelProfile};
+use runtime_channel::{RuntimeChannel, RuntimeChannelDiagnostic, RuntimeChannelProfile};
 use turn_journal::{
     admit_turn, read_turn_journal, transition_turn, TurnJournalAuthority,
     TurnJournalDocument, TurnJournalRecord, TurnPhase, TurnPiExecutionEvidence,
@@ -987,10 +987,18 @@ fn mirror_administrative_command(program: &str) -> Result<Command, String> {
 
 #[tauri::command]
 fn inspect_runtime_channel(app: AppHandle) -> Result<RuntimeChannelDiagnostic, String> {
-    let profile = active_runtime_channel()?;
+    let channel = RuntimeChannel::active();
     let app_data_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
-    profile.validate_app_identity(&app.config().identifier, &app_data_root)?;
-    Ok(profile.diagnostic(&app_data_root))
+    if app.config().identifier != channel.bundle_identifier()
+        || app_data_root.file_name().and_then(|value| value.to_str())
+            != Some(channel.bundle_identifier())
+    {
+        return Err("Mirror Desktop bundle identity does not match its runtime channel.".to_string());
+    }
+    Ok(match active_runtime_channel() {
+        Ok(profile) => profile.diagnostic(&app_data_root),
+        Err(error) => RuntimeChannelDiagnostic::unavailable(channel, &app_data_root, error),
+    })
 }
 
 const DOCUMENT_PREVIEW_MAX_BYTES: u64 = 1024 * 1024;
@@ -4435,12 +4443,17 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
-            let profile = active_runtime_channel().map_err(std::io::Error::other)?;
+            let channel = RuntimeChannel::active();
             let app_data_root = app.path().app_data_dir().map_err(std::io::Error::other)?;
-            profile
-                .validate_app_identity(&app.config().identifier, &app_data_root)
-                .map_err(std::io::Error::other)?;
-            app.manage(profile);
+            if app.config().identifier != channel.bundle_identifier()
+                || app_data_root.file_name().and_then(|value| value.to_str())
+                    != Some(channel.bundle_identifier())
+            {
+                return Err(std::io::Error::other(
+                    "Mirror Desktop bundle identity does not match its runtime channel.",
+                )
+                .into());
+            }
             Ok(())
         })
         .manage(PiProcessState::default())
@@ -4501,8 +4514,7 @@ fn main() {
         .expect("error while building Mirror Desktop")
         .run(|app_handle, event| match event {
             tauri::RunEvent::Ready => {
-                let profile = app_handle.state::<RuntimeChannelProfile>();
-                if let Err(error) = profile.apply_macos_dock_icon() {
+                if let Err(error) = RuntimeChannel::active().apply_macos_dock_icon() {
                     eprintln!("Mirror Desktop runtime channel icon validation failed: {error}");
                     app_handle.exit(1);
                 }

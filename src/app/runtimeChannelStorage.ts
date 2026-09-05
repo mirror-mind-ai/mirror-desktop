@@ -5,24 +5,19 @@ export type RuntimeChannelDiagnostic = {
   productName: string;
   bundleIdentifier: string;
   appDataRoot: string;
-  mirrorRoot: string;
-  mirrorHome: string;
-  mirrorUser: string;
-  dbPath: string;
-  status: "validated";
+  mirrorRoot?: string;
+  mirrorHome?: string;
+  mirrorUser?: string;
+  dbPath?: string;
+  status: "unbound" | "invalid" | "validated";
+  message?: string;
 };
 
 const ALLOWED_KEYS = [
-  "channel",
-  "productName",
-  "bundleIdentifier",
-  "appDataRoot",
-  "mirrorRoot",
-  "mirrorHome",
-  "mirrorUser",
-  "dbPath",
-  "status",
+  "channel", "productName", "bundleIdentifier", "appDataRoot", "mirrorRoot",
+  "mirrorHome", "mirrorUser", "dbPath", "status", "message",
 ] as const;
+const COORDINATE_KEYS = ["mirrorRoot", "mirrorHome", "mirrorUser", "dbPath"] as const;
 
 export function parseRuntimeChannelDiagnostic(value: unknown): RuntimeChannelDiagnostic {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -32,10 +27,13 @@ export function parseRuntimeChannelDiagnostic(value: unknown): RuntimeChannelDia
   if (Object.keys(diagnostic).some((key) => !ALLOWED_KEYS.includes(key as typeof ALLOWED_KEYS[number]))) {
     throw new Error("Runtime channel diagnostic contains unsupported fields.");
   }
-  if (!Object.values(diagnostic).every((field) => typeof field === "string" && field.length > 0)) {
-    throw new Error("Runtime channel diagnostic contains invalid coordinates.");
+  for (const key of ["channel", "productName", "bundleIdentifier", "appDataRoot", "status"] as const) {
+    if (typeof diagnostic[key] !== "string" || diagnostic[key].length === 0) {
+      throw new Error("Runtime channel diagnostic contains invalid identity fields.");
+    }
   }
-  if (!['user', 'development'].includes(diagnostic.channel as string) || diagnostic.status !== "validated") {
+  if (!["user", "development"].includes(diagnostic.channel as string)
+    || !["unbound", "invalid", "validated"].includes(diagnostic.status as string)) {
     throw new Error("Runtime channel diagnostic contains an unsupported identity.");
   }
   const expectedIdentifier = diagnostic.channel === "development"
@@ -43,6 +41,15 @@ export function parseRuntimeChannelDiagnostic(value: unknown): RuntimeChannelDia
     : "ai.mirrormind.desktop";
   if (diagnostic.bundleIdentifier !== expectedIdentifier) {
     throw new Error("Runtime channel diagnostic diverges from its bundle identity.");
+  }
+  const coordinates = COORDINATE_KEYS.map((key) => diagnostic[key]);
+  if (diagnostic.status === "validated") {
+    if (!coordinates.every((field) => typeof field === "string" && field.length > 0)) {
+      throw new Error("Validated runtime channel diagnostic lacks required coordinates.");
+    }
+  } else if (coordinates.some((field) => field !== undefined)
+    || typeof diagnostic.message !== "string" || diagnostic.message.length === 0) {
+    throw new Error("Unavailable runtime channel diagnostic contains invalid details.");
   }
   return diagnostic as RuntimeChannelDiagnostic;
 }

@@ -74,16 +74,15 @@ describe("runtime channel configuration", () => {
     expect(channelLauncher).toContain('"Mirror Desktop Dev.app"');
   });
 
-  it("routes Mirror operations through the closed native profile without production fallback", () => {
-    expect(runtimeChannelSource).toContain('.join(".mirror-journeys")');
-    expect(runtimeChannelSource).toContain('.join("mirror-mind")');
-    expect(runtimeChannelSource).toContain('.join("mirror-dev")');
+  it("routes Mirror operations through a persisted binding without production fallback", () => {
+    expect(runtimeChannelSource).toContain("load_runtime_binding");
+    expect(runtimeChannelSource).toContain('join(channel.bundle_identifier())');
+    expect(runtimeChannelSource).not.toContain("alisson-vale");
     expect(runtimeChannelSource).toContain('.env("MIRROR_HOME"');
     expect(runtimeChannelSource).toContain('.env("MIRROR_USER"');
     expect(runtimeChannelSource).toContain('.env("DB_PATH"');
     expect(runtimeChannelSource).toContain('.env("PATH"');
-    expect(runtimeChannelSource).toContain('runtime_command("pi")');
-    expect(runtimeChannelSource).toContain('runtime_command("uv")');
+    expect(runtimeChannelSource).toContain('matches!(program, "pi" | "uv")');
     expect(rustSource).toContain("mirror_runtime_command");
     expect(rustSource).not.toContain('PathBuf::from("/Users/alissonvale/mirror")');
     expect(rustSource).not.toContain("Ok(mirror_root)\n    } else {\n        harness_root()");
