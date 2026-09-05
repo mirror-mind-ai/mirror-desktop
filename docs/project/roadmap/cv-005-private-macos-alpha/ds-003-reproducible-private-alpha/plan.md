@@ -133,7 +133,7 @@ npm run build
 cd src-tauri && cargo test
 cd src-tauri && cargo check --locked
 uv run python -m pytest scripts/tests
-npm run tauri:build:user -- --locked
+npm run tauri:build:user -- -- --locked
 ```
 
 Focused tests cover missing tools, unsupported platform and architecture, malformed versions, incompatible Core, absent lockfiles, wrong origin, unsafe or missing runtime paths, database escape, redacted JSON, command failure and successful host readiness.

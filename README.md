@@ -4,8 +4,12 @@ Mirror Desktop is the first-party Tauri desktop application for operating Journe
 
 The project continues the application body incubated as Nautilus Harness. The transfer record lives in [docs/project/history/nautilus-harness-transfer.md](docs/project/history/nautilus-harness-transfer.md), and the founding exploration lives in [docs/project/explorations/mirror-desktop-core-installer-and-tauri-app-migration](docs/project/explorations/mirror-desktop-core-installer-and-tauri-app-migration).
 
+## Private macOS alpha
+
+Authorized collaborators should follow the canonical [private macOS alpha guide](docs/alpha/private-macos-alpha.md). It covers preflight, locked source build, personal runtime binding, disposable Journey validation, bounded evidence and non-destructive rollback.
+
 ## Development
 
 Use the canonical [development environment guide](docs/development/environment-setup.md). It explains how to run the isolated development channel against Mirror Dev without touching the installed daily-use app or production Mirror database.
 
-Do not duplicate setup commands in other entry documents; link to the canonical guide instead.
+Do not duplicate setup commands in other entry documents; link to the appropriate canonical guide instead.

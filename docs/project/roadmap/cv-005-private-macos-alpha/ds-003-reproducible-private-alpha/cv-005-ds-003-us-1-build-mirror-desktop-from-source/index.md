@@ -2,7 +2,7 @@
 
 # CV-005.DS-003.US-1 - Build Mirror Desktop From Source
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Progress
 **Type:** User Story
 
 ## User Story

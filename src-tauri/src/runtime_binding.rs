@@ -7,7 +7,25 @@ use std::{
 };
 
 pub const BINDING_FILE_NAME: &str = "runtime-binding.v1.json";
-pub const SUPPORTED_MIRROR_CORE: &str = ">=0.31.14,<0.32.0";
+const RUNTIME_COMPATIBILITY: &str = include_str!("../../config/runtime-compatibility.json");
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RuntimeCompatibility {
+    schema_version: String,
+    mirror_core: String,
+}
+
+pub fn supported_mirror_core() -> Result<String, String> {
+    let compatibility: RuntimeCompatibility =
+        serde_json::from_str(RUNTIME_COMPATIBILITY).map_err(|_| {
+            "Mirror Desktop runtime compatibility configuration is malformed.".to_string()
+        })?;
+    if compatibility.schema_version != "1.0.0" {
+        return Err("Mirror Desktop runtime compatibility schema is unsupported.".to_string());
+    }
+    Ok(compatibility.mirror_core)
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -161,12 +179,13 @@ impl RuntimeBinding {
         let package = mirror_root.join("src/memory");
         canonical_directory(&package, "Mirror Core package")?;
         let version = read_mirror_version(&mirror_root.join("pyproject.toml"))?;
-        let requirement = VersionReq::parse(SUPPORTED_MIRROR_CORE).map_err(|_| {
+        let supported_mirror_core = supported_mirror_core()?;
+        let requirement = VersionReq::parse(&supported_mirror_core).map_err(|_| {
             "Mirror Desktop contains an invalid Core compatibility range.".to_string()
         })?;
         if !requirement.matches(&version) {
             return Err(format!(
-                "Mirror Core {version} is incompatible; Mirror Desktop requires {SUPPORTED_MIRROR_CORE}."
+                "Mirror Core {version} is incompatible; Mirror Desktop requires {supported_mirror_core}."
             ));
         }
 
@@ -268,8 +287,8 @@ fn resolve_executable(program: &str, directories: &[PathBuf]) -> Result<PathBuf,
 #[cfg(test)]
 mod tests {
     use super::{
-        load_runtime_binding, BindingChannel, RuntimeBinding, BINDING_FILE_NAME,
-        SUPPORTED_MIRROR_CORE,
+        load_runtime_binding, supported_mirror_core, BindingChannel, RuntimeBinding,
+        BINDING_FILE_NAME,
     };
     use std::{
         fs,
@@ -385,7 +404,7 @@ mod tests {
             .unwrap();
         assert_eq!(validated.binding.mirror_user, "example-user");
         assert_eq!(validated.mirror_core_version.to_string(), "0.31.14");
-        assert_eq!(SUPPORTED_MIRROR_CORE, ">=0.31.14,<0.32.0");
+        assert_eq!(supported_mirror_core().unwrap(), ">=0.31.14,<0.32.0");
     }
 
     #[test]

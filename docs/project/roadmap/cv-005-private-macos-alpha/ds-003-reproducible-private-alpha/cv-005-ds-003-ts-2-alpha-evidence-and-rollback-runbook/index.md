@@ -2,7 +2,7 @@
 
 # CV-005.DS-003.TS-2 - Alpha Evidence and Rollback Runbook
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Progress
 **Type:** Technical Story
 
 ## Technical Story

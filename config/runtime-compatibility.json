@@ -1,0 +1,4 @@
+{
+  "schemaVersion": "1.0.0",
+  "mirrorCore": ">=0.31.14,<0.32.0"
+}

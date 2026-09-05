@@ -2,7 +2,7 @@
 
 # CV-005.DS-003.US-2 - Operate My First Alpha Journey
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Progress
 **Type:** User Story
 
 ## User Story

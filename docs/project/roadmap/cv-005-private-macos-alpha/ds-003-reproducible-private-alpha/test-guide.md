@@ -26,7 +26,7 @@ npm run build
 cd src-tauri && cargo test
 cd src-tauri && cargo check --locked
 cd .. && uv run python -m pytest scripts/tests
-npm run tauri:build:user -- --locked
+npm run tauri:build:user -- -- --locked
 ```
 
 Automated evidence must prove:

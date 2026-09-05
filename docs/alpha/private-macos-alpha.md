@@ -1,0 +1,157 @@
+# Mirror Desktop Private macOS Alpha
+
+This is the canonical route for an authorized collaborator to build and evaluate Mirror Desktop from private source. The alpha is unsigned, not notarized and not distributed as a binary.
+
+## Starting contract
+
+You need:
+
+- authorized read access to `mirror-mind-ai/mirror-desktop`;
+- an `x86_64` or `arm64` Mac;
+- Git and Xcode Command Line Tools;
+- Node.js 20 or newer with npm;
+- stable Rust and Cargo, `uv` and Pi;
+- your own configured Mirror Core `>=0.31.14,<0.32.0`;
+- your own Mirror home containing `memory.db`;
+- provider authentication already configured outside Mirror Desktop.
+
+Nobody should send you a Mirror database, identity directory, credentials or shell profile.
+
+## 1. Clone the authorized revision
+
+```bash
+git clone https://github.com/mirror-mind-ai/mirror-desktop.git
+cd mirror-desktop
+git remote get-url origin
+git rev-parse HEAD
+```
+
+Use the exact revision named by the alpha coordinator. Do not include credential-bearing remote URLs in evidence.
+
+## 2. Run preflight
+
+Choose your own paths and user slug locally:
+
+```bash
+export MIRROR_ALPHA_ROOT="/absolute/path/to/your/mirror"
+export MIRROR_ALPHA_HOME="/absolute/path/to/your/mirror-home"
+export MIRROR_ALPHA_USER="your-user-slug"
+
+npm run alpha:preflight -- \
+  --mirror-root "$MIRROR_ALPHA_ROOT" \
+  --mirror-home "$MIRROR_ALPHA_HOME" \
+  --mirror-user "$MIRROR_ALPHA_USER"
+```
+
+Preflight must finish with `READY`. It reads file metadata and Mirror Core's declared version; it does not open SQLite or read identity and conversation content.
+
+For bounded evidence, use silent npm mode so npm does not echo private command arguments:
+
+```bash
+npm run --silent alpha:preflight -- --json \
+  --mirror-root "$MIRROR_ALPHA_ROOT" \
+  --mirror-home "$MIRROR_ALPHA_HOME" \
+  --mirror-user "$MIRROR_ALPHA_USER" \
+  > mirror-desktop-alpha-preflight.json
+```
+
+Review the JSON before sharing it. It must contain no absolute home path or Mirror user.
+
+## 3. Install and test locked source
+
+```bash
+npm ci
+npm test
+npm run build
+(
+  cd src-tauri
+  cargo test
+  cargo check --locked
+)
+uv run python -m pytest scripts/tests
+```
+
+Unexpected lockfile changes are a blocker:
+
+```bash
+git status --short
+```
+
+## 4. Build the stable bundle
+
+```bash
+npm run tauri:build:user -- -- --locked
+```
+
+Expected local artifacts:
+
+```text
+src-tauri/target/release/bundle/macos/Mirror Desktop.app
+src-tauri/target/release/bundle/dmg/Mirror Desktop_0.1.0_<architecture>.dmg
+```
+
+Verify identity and architecture:
+
+```bash
+/usr/libexec/PlistBuddy -c 'Print :CFBundleName' \
+  'src-tauri/target/release/bundle/macos/Mirror Desktop.app/Contents/Info.plist'
+/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \
+  'src-tauri/target/release/bundle/macos/Mirror Desktop.app/Contents/Info.plist'
+file 'src-tauri/target/release/bundle/macos/Mirror Desktop.app/Contents/MacOS/mirror-desktop'
+```
+
+Expected name is `Mirror Desktop`; expected identifier is `ai.mirrormind.desktop`; executable architecture must match preflight.
+
+## 5. Open and bind your Mirror
+
+Open the build without copying it into `/Applications`:
+
+```bash
+open -n 'src-tauri/target/release/bundle/macos/Mirror Desktop.app'
+```
+
+If macOS presents an unsigned-app warning, use Finder's contextual **Open** action and confirm this specific app. Do not disable Gatekeeper globally and do not run broad `xattr` or `spctl` exceptions.
+
+In **Settings → Runtime channel**:
+
+1. choose your Mirror source directory;
+2. choose your Mirror home;
+3. enter your Mirror user slug;
+4. inspect the derived `memory.db`;
+5. click **Validate**;
+6. click **Save binding**;
+7. confirm `Status: validated`.
+
+## 6. Import your Journeys
+
+Close the app, then run:
+
+```bash
+npm run import:mirror
+open -n 'src-tauri/target/release/bundle/macos/Mirror Desktop.app'
+```
+
+Confirm your own Journey registry is visible. Do not report Journey names.
+
+## 7. Prove one disposable conversation
+
+Use a disposable Journey that contains no sensitive material:
+
+1. select or create the disposable Journey through the supported Mirror workflow;
+2. start its dedicated conversation;
+3. submit one harmless test intention;
+4. wait until both Pi completion and Mirror recording are visibly complete;
+5. record only the disposable Journey id, completion status and time;
+6. close Mirror Desktop;
+7. reopen the same local bundle;
+8. confirm the same generation and completed turn remain available.
+
+Do not copy prompts, responses, transcript text or Journey names into evidence.
+
+## 8. Return bounded evidence
+
+Copy [evidence-template.md](evidence-template.md), fill only its allowed fields and inspect it before sending. If anything blocks, report the stage, bounded error text and whether prior state remains safe.
+
+## 9. Stop or roll back
+
+Follow [rollback.md](rollback.md). The alpha does not replace Nautilus Harness, and cleanup must not delete Mirror Desktop app data or any Mirror home.
