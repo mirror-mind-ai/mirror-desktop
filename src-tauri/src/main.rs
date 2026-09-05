@@ -1,6 +1,7 @@
 mod agent_settings;
 mod journey_appearance;
 mod pi_process_registry;
+mod runtime_binding;
 mod runtime_channel;
 mod turn_journal;
 

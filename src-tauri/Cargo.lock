@@ -2252,12 +2252,14 @@ dependencies = [
  "objc2-app-kit",
  "objc2-foundation",
  "rfd",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-clipboard-manager",
+ "toml 0.8.2",
  "url",
 ]
 
