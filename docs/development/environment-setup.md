@@ -70,7 +70,7 @@ DB_PATH="$HOME/.mirror-minds/mirror-dev/memory.db" \
 uv run python -m memory init mirror-dev
 ```
 
-Then seed that development home according to the Mirror development repository instructions. Never copy `memory.db`, credentials, conversations or identity state from `$HOME/.mirror-minds/alisson-vale` as a shortcut.
+Then seed that development home according to the Mirror development repository instructions. Never copy `memory.db`, credentials, conversations or identity state from a stable Mirror home as a shortcut.
 
 Verify the database exists:
 
@@ -90,7 +90,7 @@ npm test
 npm run build
 ```
 
-No `.env` file or manual Mirror export is required for the native development channel. The app's compiled runtime profile applies the allowlisted Mirror Dev coordinates to Pi and Mirror subprocesses.
+No `.env` file or compiled personal profile supplies runtime authority. On first launch, use **Settings → Runtime channel** to select the Mirror Dev source and home, enter the Mirror user, validate the complete binding and save it beneath the development app-data root.
 
 ## 3. Launch Mirror Desktop Dev
 
@@ -103,7 +103,7 @@ This command always pairs:
 - `src-tauri/tauri.dev.conf.json`;
 - bundle identifier `ai.mirrormind.desktop.dev`;
 - Cargo feature `development-channel`;
-- the Mirror Dev runtime profile.
+- an independent channel-local `runtime-binding.v1.json` when configured.
 
 Do not use `npm run tauri -- dev` for normal development because it does not declare the development channel.
 
@@ -111,7 +111,7 @@ Do not use `npm run tauri -- dev` for normal development because it does not dec
 
 In Finder, Dock or the application switcher, confirm the app is named **Mirror Desktop Dev** and uses the violet icon with a `DEV` badge.
 
-Inside the app, confirm the sidebar shows `Mirror Desktop DEV`. Open **Settings → Runtime channel** and verify:
+Inside the app, confirm the sidebar shows `Mirror Desktop DEV`. Open **Settings → Runtime channel**. If the status is `unbound`, select the Mirror code and home directories, enter `mirror-dev`, choose **Validate**, then **Save binding**. Verify:
 
 ```text
 Channel       development
@@ -153,7 +153,7 @@ After both bundles exist, launch them together for desktop validation with:
 npm run validate:desktop:launch
 ```
 
-This command refreshes each channel from its own Mirror runtime, removes inherited `MIRROR_HOME`, `MIRROR_USER` and `DB_PATH` values from the native launch environment, and opens both bundles without mixing stable and development coordinates.
+This command reads each channel's validated `runtime-binding.v1.json`, refreshes each registry through those explicit coordinates, removes inherited `MIRROR_HOME`, `MIRROR_USER` and `DB_PATH` values from the native launch environment, and opens both bundles without mixing stable and development coordinates. It fails closed when either binding is absent or malformed.
 
 Building or validation launch does not authorize installing over the daily-use app, publishing, releasing or deploying it.
 
@@ -265,4 +265,4 @@ ai.mirrormind.desktop.dev
 .mirror-minds/mirror-dev
 ```
 
-Never run a recursive deletion against `ai.mirrormind.desktop` or `.mirror-minds/alisson-vale`. A development reset must not touch stable Mirror Desktop or production Mirror state.
+Never run a recursive deletion against `ai.mirrormind.desktop` or any stable Mirror home. A development reset must not touch stable Mirror Desktop or production Mirror state.

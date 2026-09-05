@@ -525,8 +525,10 @@ export function App({ model }: AppProps) {
     || hasBlockingPiInvocationOccupancy(piInvocationOccupancy);
   const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime);
   const piInvocationPresentation = derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney);
+  const runtimeBindingReady = runtimeChannel?.status === "validated";
   const selectedInvocationAdmissionBlocked = Boolean(runStartReservation)
-    || selectedRuntimeBusy;
+    || selectedRuntimeBusy
+    || !runtimeBindingReady;
   const mirrorCommitError = navigationPresentation.mirrorCommitError;
   const messages = navigationPresentation.messages;
   const presentedImportedActivity = navigationPresentation.conversation?.importedActivity?.events;
@@ -3048,7 +3050,7 @@ export function App({ model }: AppProps) {
             starting={startingJourneyId === selectedJourney}
             startingPhase={journeyStartPhase}
             error={journeyStartError}
-            onStart={journeyThreadState.kind === "absent" && !runtimeBusy ? () => void startSelectedJourney() : undefined}
+            onStart={journeyThreadState.kind === "absent" && !runtimeBusy && runtimeBindingReady ? () => void startSelectedJourney() : undefined}
           />
         ) : null}
 
@@ -3151,6 +3153,7 @@ export function App({ model }: AppProps) {
           hidden={!operationalChatSelected || journeyThreadState.kind !== "ready"}
         >
           <ComposerRuntimeStatus status={composerTurnStatus} />
+          {!runtimeBindingReady ? <p className="provider-error" role="status">Connect and validate a Mirror installation in Runtime Settings before starting Mirror or Pi actions.</p> : null}
           {localReferenceError ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>File could not be opened</strong>

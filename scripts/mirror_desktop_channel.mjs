@@ -1,89 +1,99 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import process from "node:process";
 
 const mode = process.argv[2];
 const tauri = resolve("node_modules", ".bin", process.platform === "win32" ? "tauri.cmd" : "tauri");
 const home = homedir();
+const inheritedMirrorEnvironment = ["MIRROR_HOME", "MIRROR_USER", "DB_PATH"];
 
 const channels = {
   user: {
+    channel: "user",
+    identifier: "ai.mirrormind.desktop",
     args: ["dev"],
-    mirrorRoot: resolve(home, "mirror"),
-    env: {
-      MIRROR_HOME: resolve(home, ".mirror-minds", "alisson-vale"),
-      MIRROR_USER: "alisson-vale",
-      DB_PATH: resolve(home, ".mirror-minds", "alisson-vale", "memory.db"),
-      MIRROR_DESKTOP_APP_IDENTIFIER: "ai.mirrormind.desktop",
-    },
+    bundle: "Mirror Desktop.app",
   },
   dev: {
+    channel: "development",
+    identifier: "ai.mirrormind.desktop.dev",
     args: ["dev", "--config", "src-tauri/tauri.dev.conf.json", "--features", "development-channel"],
-    mirrorRoot: resolve(home, ".mirror-journeys", "mirror-mind", "mirror-dev"),
-    env: {
-      MIRROR_HOME: resolve(home, ".mirror-minds", "mirror-dev"),
-      MIRROR_USER: "mirror-dev",
-      DB_PATH: resolve(home, ".mirror-minds", "mirror-dev", "memory.db"),
-      MIRROR_DESKTOP_APP_IDENTIFIER: "ai.mirrormind.desktop.dev",
-    },
+    bundle: "Mirror Desktop Dev.app",
   },
   "build-dev": {
+    channel: "development",
+    identifier: "ai.mirrormind.desktop.dev",
     args: ["build", "--config", "src-tauri/tauri.dev.conf.json", "--features", "development-channel"],
-    mirrorRoot: resolve(home, ".mirror-journeys", "mirror-mind", "mirror-dev"),
-    env: {
-      MIRROR_HOME: resolve(home, ".mirror-minds", "mirror-dev"),
-      MIRROR_USER: "mirror-dev",
-      DB_PATH: resolve(home, ".mirror-minds", "mirror-dev", "memory.db"),
-      MIRROR_DESKTOP_APP_IDENTIFIER: "ai.mirrormind.desktop.dev",
-    },
+    bundle: "Mirror Desktop Dev.app",
   },
   "build-user": {
+    channel: "user",
+    identifier: "ai.mirrormind.desktop",
     args: ["build"],
-    mirrorRoot: resolve(home, "mirror"),
-    env: {
-      MIRROR_HOME: resolve(home, ".mirror-minds", "alisson-vale"),
-      MIRROR_USER: "alisson-vale",
-      DB_PATH: resolve(home, ".mirror-minds", "alisson-vale", "memory.db"),
-      MIRROR_DESKTOP_APP_IDENTIFIER: "ai.mirrormind.desktop",
-    },
+    bundle: "Mirror Desktop.app",
   },
   "import-user": {
+    channel: "user",
+    identifier: "ai.mirrormind.desktop",
     args: [],
-    mirrorRoot: resolve(home, "mirror"),
-    env: {
-      MIRROR_HOME: resolve(home, ".mirror-minds", "alisson-vale"),
-      MIRROR_USER: "alisson-vale",
-      DB_PATH: resolve(home, ".mirror-minds", "alisson-vale", "memory.db"),
-      MIRROR_DESKTOP_APP_IDENTIFIER: "ai.mirrormind.desktop",
-    },
+    bundle: "Mirror Desktop.app",
   },
   "import-dev": {
+    channel: "development",
+    identifier: "ai.mirrormind.desktop.dev",
     args: [],
-    mirrorRoot: resolve(home, ".mirror-journeys", "mirror-mind", "mirror-dev"),
-    env: {
-      MIRROR_HOME: resolve(home, ".mirror-minds", "mirror-dev"),
-      MIRROR_USER: "mirror-dev",
-      DB_PATH: resolve(home, ".mirror-minds", "mirror-dev", "memory.db"),
-      MIRROR_DESKTOP_APP_IDENTIFIER: "ai.mirrormind.desktop.dev",
-    },
+    bundle: "Mirror Desktop Dev.app",
   },
 };
 
-function runBootstrap(selected) {
+function appDataRoot(profile) {
+  if (process.platform !== "darwin") {
+    throw new Error("Portable runtime binding launch currently supports macOS only.");
+  }
+  return resolve(home, "Library", "Application Support", profile.identifier);
+}
+
+function loadRuntimeBinding(profile) {
+  const path = resolve(appDataRoot(profile), "runtime-binding.v1.json");
+  if (!existsSync(path)) throw new Error(`Runtime binding is unavailable at ${path}. Configure it in Mirror Desktop Runtime Settings.`);
+  const metadata = lstatSync(path);
+  if (metadata.isSymbolicLink() || !metadata.isFile() || realpathSync(path) !== path) {
+    throw new Error("Runtime binding is not a safe canonical file.");
+  }
+  const binding = JSON.parse(readFileSync(path, "utf8"));
+  const keys = Object.keys(binding).sort();
+  const expected = ["channel", "dbPath", "mirrorHome", "mirrorRoot", "mirrorUser", "schemaVersion"].sort();
+  if (JSON.stringify(keys) !== JSON.stringify(expected)
+    || binding.schemaVersion !== "1.0.0"
+    || binding.channel !== profile.channel
+    || ![binding.mirrorRoot, binding.mirrorHome, binding.dbPath].every((value) => typeof value === "string" && isAbsolute(value))
+    || typeof binding.mirrorUser !== "string" || !binding.mirrorUser) {
+    throw new Error("Runtime binding does not match the selected desktop channel.");
+  }
+  return binding;
+}
+
+function cleanLaunchEnvironment(extra = {}) {
+  const environment = { ...process.env, ...extra };
+  for (const name of inheritedMirrorEnvironment) delete environment[name];
+  return environment;
+}
+
+function runBootstrap(profile) {
+  const binding = loadRuntimeBinding(profile);
+  const environment = cleanLaunchEnvironment({
+    MIRROR_HOME: binding.mirrorHome,
+    MIRROR_USER: binding.mirrorUser,
+    DB_PATH: binding.dbPath,
+  });
   const bootstrap = spawnSync("python3", [
     "scripts/export_mirror_bootstrap.py",
-    "--mirror-root",
-    selected.mirrorRoot,
-    "--app-identifier",
-    selected.env.MIRROR_DESKTOP_APP_IDENTIFIER,
-  ], {
-    cwd: process.cwd(),
-    env: { ...process.env, ...selected.env },
-    stdio: "inherit",
-  });
+    "--mirror-root", binding.mirrorRoot,
+    "--app-identifier", profile.identifier,
+  ], { cwd: process.cwd(), env: environment, stdio: "inherit" });
   if (bootstrap.error || bootstrap.status !== 0) {
     console.error(bootstrap.error?.message ?? "Could not initialize the canonical Journey registry.");
     process.exit(bootstrap.status ?? 1);
@@ -95,30 +105,19 @@ function launchDesktopValidation() {
     console.error("Source-built desktop validation launch currently supports macOS only.");
     process.exit(2);
   }
-
-  const bundles = [
-    { profile: channels["import-user"], name: "Mirror Desktop.app" },
-    { profile: channels["import-dev"], name: "Mirror Desktop Dev.app" },
-  ];
-  for (const { profile } of bundles) runBootstrap(profile);
-
-  const launchEnvironment = { ...process.env };
-  const inheritedMirrorEnvironment = ["MIRROR_HOME", "MIRROR_USER", "DB_PATH"];
-  for (const name of inheritedMirrorEnvironment) delete launchEnvironment[name];
-
-  for (const { name } of bundles) {
-    const bundle = resolve("src-tauri", "target", "release", "bundle", "macos", name);
+  const profiles = [channels["import-user"], channels["import-dev"]];
+  for (const profile of profiles) runBootstrap(profile);
+  for (const profile of profiles) {
+    const bundle = resolve("src-tauri", "target", "release", "bundle", "macos", profile.bundle);
     if (!existsSync(bundle)) {
       console.error(`Built bundle is unavailable at ${bundle}. Build both channels before validation.`);
       process.exit(1);
     }
     const launch = spawnSync("open", ["-n", bundle], {
-      cwd: process.cwd(),
-      env: launchEnvironment,
-      stdio: "inherit",
+      cwd: process.cwd(), env: cleanLaunchEnvironment(), stdio: "inherit",
     });
     if (launch.error || launch.status !== 0) {
-      console.error(launch.error?.message ?? `Could not launch ${name}.`);
+      console.error(launch.error?.message ?? `Could not launch ${profile.bundle}.`);
       process.exit(launch.status ?? 1);
     }
   }
@@ -128,24 +127,18 @@ if (mode === "validate-desktop") {
   launchDesktopValidation();
   process.exit(0);
 }
-
 const selected = channels[mode];
 if (!selected) {
   console.error("Usage: node scripts/mirror_desktop_channel.mjs <user|dev|build-dev|build-user|import-user|import-dev|validate-desktop>");
   process.exit(2);
 }
-
-const channelEnvironment = { ...process.env, ...selected.env };
-if (mode === "dev" || mode === "import-user" || mode === "import-dev") runBootstrap(selected);
-
-if (mode === "import-user" || mode === "import-dev") process.exit(0);
-
+if (mode === "import-user" || mode === "import-dev") {
+  runBootstrap(selected);
+  process.exit(0);
+}
 const result = spawnSync(tauri, [...selected.args, ...process.argv.slice(3)], {
-  cwd: process.cwd(),
-  env: channelEnvironment,
-  stdio: "inherit",
+  cwd: process.cwd(), env: cleanLaunchEnvironment(), stdio: "inherit",
 });
-
 if (result.error) {
   console.error(result.error.message);
   process.exit(1);

@@ -252,6 +252,11 @@ impl RuntimeChannelProfile {
             .expect("trusted Mirror Desktop runtime paths must be joinable");
         command
             .current_dir(&self.mirror_root)
+            .env_remove("PYTHONPATH")
+            .env_remove("PYTHONHOME")
+            .env_remove("VIRTUAL_ENV")
+            .env_remove("UV_PROJECT_ENVIRONMENT")
+            .env_remove("UV_WORKING_DIR")
             .env("MIRROR_HOME", &self.mirror_home)
             .env("MIRROR_USER", &self.mirror_user)
             .env("DB_PATH", &self.db_path)
@@ -393,11 +398,13 @@ mod tests {
         profile.apply_to_command(&mut command);
         let environment = command
             .get_envs()
-            .map(|(key, value)| {
-                (
-                    key.to_string_lossy().to_string(),
-                    value.unwrap().to_string_lossy().to_string(),
-                )
+            .filter_map(|(key, value)| {
+                value.map(|value| {
+                    (
+                        key.to_string_lossy().to_string(),
+                        value.to_string_lossy().to_string(),
+                    )
+                })
             })
             .collect::<std::collections::HashMap<_, _>>();
         assert_eq!(
@@ -422,6 +429,17 @@ mod tests {
             .get("PATH")
             .is_some_and(|value| value.contains("/usr/local/bin")));
         assert_eq!(environment.len(), 4);
+        for removed in [
+            "PYTHONPATH",
+            "PYTHONHOME",
+            "VIRTUAL_ENV",
+            "UV_PROJECT_ENVIRONMENT",
+            "UV_WORKING_DIR",
+        ] {
+            assert!(command
+                .get_envs()
+                .any(|(key, value)| key == removed && value.is_none()));
+        }
     }
 
     #[test]

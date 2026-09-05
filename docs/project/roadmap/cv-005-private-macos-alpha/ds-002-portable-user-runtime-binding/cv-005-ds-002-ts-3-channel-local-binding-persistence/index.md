@@ -2,7 +2,7 @@
 
 # CV-005.DS-002.TS-3 - Channel-Local Binding Persistence
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Progress
 **Type:** Technical Story
 
 ## Technical Story
