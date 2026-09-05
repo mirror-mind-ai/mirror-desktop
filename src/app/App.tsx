@@ -2603,6 +2603,7 @@ export function App({ model }: AppProps) {
   }
 
   const developmentChannel = runtimeChannel?.channel === "development";
+  const journeyRegistryImportCommand = developmentChannel ? "npm run import:mirror:dev" : "npm run import:mirror";
 
   return (
     <main
@@ -2730,7 +2731,7 @@ export function App({ model }: AppProps) {
               ) : (
                 <>
                   <strong>No Journey registry loaded</strong>
-                  <small>Run npm run import:mirror and restart the desktop app to read the local Journey registry from user disk.</small>
+                  <small>Run <code>{journeyRegistryImportCommand}</code> and restart this channel to read its local Journey registry from user disk.</small>
                 </>
               )}
             </div>

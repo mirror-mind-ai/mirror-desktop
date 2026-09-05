@@ -140,7 +140,22 @@ Stable user bundle:
 npm run tauri:build:user
 ```
 
-Building does not authorize installing over the daily-use app, publishing, releasing or deploying it.
+A source-built bundle starts with channel-local state. Import the canonical Journey registry explicitly when needed:
+
+```bash
+npm run import:mirror
+npm run import:mirror:dev
+```
+
+After both bundles exist, launch them together for desktop validation with:
+
+```bash
+npm run validate:desktop:launch
+```
+
+This command refreshes each channel from its own Mirror runtime, removes inherited `MIRROR_HOME`, `MIRROR_USER` and `DB_PATH` values from the native launch environment, and opens both bundles without mixing stable and development coordinates.
+
+Building or validation launch does not authorize installing over the daily-use app, publishing, releasing or deploying it.
 
 To run the current source tree against the stable channel without installing it:
 
@@ -188,7 +203,7 @@ cd src-tauri && cargo test
 cd src-tauri && cargo check
 ```
 
-For final DS-011 validation, open the installed stable app and Mirror Desktop Dev simultaneously. Exercise only a disposable development Journey and prove that stable Mirror Desktop files and the production Mirror database did not change.
+For aggregate channel validation, build both bundles and use `npm run validate:desktop:launch`. Exercise only a disposable development Journey and prove that stable Mirror Desktop files and the production Mirror database did not change.
 
 ## Troubleshooting
 

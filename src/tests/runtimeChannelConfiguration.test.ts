@@ -57,6 +57,8 @@ describe("runtime channel configuration", () => {
       expect(command).toContain("scripts/mirror_desktop_channel.mjs");
     }
     expect(scripts["import:mirror"]).toContain("scripts/mirror_desktop_channel.mjs import-user");
+    expect(scripts["import:mirror:dev"]).toContain("scripts/mirror_desktop_channel.mjs import-dev");
+    expect(scripts["validate:desktop:launch"]).toContain("scripts/mirror_desktop_channel.mjs validate-desktop");
     expect(channelLauncher).toContain('"src-tauri/tauri.dev.conf.json"');
     expect(channelLauncher).toContain('"development-channel"');
     expect(channelLauncher).toContain('MIRROR_USER: "mirror-dev"');
@@ -65,6 +67,11 @@ describe("runtime channel configuration", () => {
     expect(channelLauncher).toContain('"scripts/export_mirror_bootstrap.py"');
     expect(channelLauncher).toContain('"--mirror-root"');
     expect(channelLauncher).toContain('"ai.mirrormind.desktop.dev"');
+    expect(channelLauncher).toContain('mode === "import-user" || mode === "import-dev"');
+    expect(channelLauncher).toContain('const inheritedMirrorEnvironment = ["MIRROR_HOME", "MIRROR_USER", "DB_PATH"]');
+    expect(channelLauncher).toContain('delete launchEnvironment[name]');
+    expect(channelLauncher).toContain('"Mirror Desktop.app"');
+    expect(channelLauncher).toContain('"Mirror Desktop Dev.app"');
   });
 
   it("routes Mirror operations through the closed native profile without production fallback", () => {
@@ -93,6 +100,7 @@ describe("runtime channel configuration", () => {
     expect(appSource).not.toContain("Using Harness agent defaults.");
     expect(appSource).not.toContain("channel-local Nautilus storage");
     expect(appSource).not.toContain("Dedicated Nautilus conversation");
+    expect(appSource).toContain('developmentChannel ? "npm run import:mirror:dev" : "npm run import:mirror"');
     expect(appSource).not.toContain('"Development cockpit"');
     expect(appSource).not.toContain('"Journey cockpit"');
     expect(appSource).toContain("runtime-channel-diagnostic");

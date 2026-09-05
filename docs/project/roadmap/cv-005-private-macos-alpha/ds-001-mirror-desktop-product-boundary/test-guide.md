@@ -82,6 +82,8 @@ Automated implementation checks completed on 2026-09-04:
 - Native metadata inspection: `Mirror Desktop` resolved to `ai.mirrormind.desktop`; `Mirror Desktop Dev` resolved to `ai.mirrormind.desktop.dev`.
 - `npm run promote:production -- --plan`: resolved source `Mirror Desktop.app` and destination `/Applications/Mirror Desktop.app` without installation.
 
+Validation-discovered debt is paid by the explicit `npm run import:mirror:dev` path, channel-correct empty-state guidance and `npm run validate:desktop:launch`. The validation launcher refreshes each registry through its own Mirror profile and removes inherited stable or development Mirror coordinates before opening both source-built bundles.
+
 `cargo fmt -- --check` remains a pre-existing repository-wide formatting gap and proposes broad unrelated changes across legacy Rust code. It was not applied because this Delivery Story must not absorb unrelated formatting churn.
 
 The inherited spiral icon was replaced by the Navigator-approved, source-controlled Mirror Desktop mirror artwork with stable and `DEV` variants. Both SVG sources render to distinct 512 by 512 PNG bundle assets with alpha. The artwork gate is resolved; aggregate desktop validation remains pending.
