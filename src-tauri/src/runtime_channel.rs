@@ -74,7 +74,7 @@ impl RuntimeChannel {
         }
     }
 
-    fn binding_channel(self) -> BindingChannel {
+    pub(crate) fn binding_channel(self) -> BindingChannel {
         match self {
             Self::User => BindingChannel::User,
             Self::Development => BindingChannel::Development,
@@ -101,7 +101,7 @@ impl RuntimeChannel {
     }
 }
 
-fn runtime_search_directories(home: &Path) -> Vec<PathBuf> {
+pub(crate) fn runtime_search_directories(home: &Path) -> Vec<PathBuf> {
     vec![
         home.join(".pi/agent/bin"),
         home.join(".local/bin"),
@@ -181,7 +181,7 @@ impl RuntimeChannelProfile {
         }
     }
 
-    fn from_validated(
+    pub(crate) fn from_validated(
         channel: RuntimeChannel,
         home: &Path,
         validated: ValidatedRuntimeBinding,

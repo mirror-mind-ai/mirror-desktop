@@ -1,5 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 
+export type RuntimeBinding = {
+  schemaVersion: "1.0.0";
+  channel: "user" | "development";
+  mirrorRoot: string;
+  mirrorHome: string;
+  mirrorUser: string;
+  dbPath: string;
+};
+
 export type RuntimeChannelDiagnostic = {
   channel: "user" | "development";
   productName: string;
@@ -56,4 +65,16 @@ export function parseRuntimeChannelDiagnostic(value: unknown): RuntimeChannelDia
 
 export async function inspectRuntimeChannel(): Promise<RuntimeChannelDiagnostic> {
   return parseRuntimeChannelDiagnostic(await invoke<unknown>("inspect_runtime_channel"));
+}
+
+export async function chooseRuntimeDirectory(kind: "mirrorRoot" | "mirrorHome"): Promise<string | undefined> {
+  return (await invoke<string | null>("choose_runtime_directory", { kind })) ?? undefined;
+}
+
+export async function validateRuntimeBinding(binding: RuntimeBinding): Promise<RuntimeChannelDiagnostic> {
+  return parseRuntimeChannelDiagnostic(await invoke<unknown>("validate_runtime_binding", { binding }));
+}
+
+export async function saveRuntimeBinding(binding: RuntimeBinding): Promise<RuntimeChannelDiagnostic> {
+  return parseRuntimeChannelDiagnostic(await invoke<unknown>("save_runtime_binding", { binding }));
 }

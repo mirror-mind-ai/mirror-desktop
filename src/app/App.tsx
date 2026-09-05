@@ -240,7 +240,10 @@ import {
   type FileAttachmentResponse,
 } from "../domain/fileAttachments";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
-import { inspectRuntimeChannel, type RuntimeChannelDiagnostic } from "./runtimeChannelStorage";
+import {
+  chooseRuntimeDirectory, inspectRuntimeChannel, saveRuntimeBinding, validateRuntimeBinding,
+  type RuntimeBinding, type RuntimeChannelDiagnostic,
+} from "./runtimeChannelStorage";
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
 import { JourneySearchControl } from "./JourneySearchControl";
 import { JourneyItemCopy } from "./JourneyItemCopy";
@@ -424,6 +427,10 @@ export function App({ model }: AppProps) {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
   const [runtimeChannel, setRuntimeChannel] = useState<RuntimeChannelDiagnostic>();
   const [runtimeChannelError, setRuntimeChannelError] = useState<string>();
+  const [runtimeMirrorRoot, setRuntimeMirrorRoot] = useState("");
+  const [runtimeMirrorHome, setRuntimeMirrorHome] = useState("");
+  const [runtimeMirrorUser, setRuntimeMirrorUser] = useState("");
+  const [runtimeBindingState, setRuntimeBindingState] = useState<"idle" | "validating" | "saving">("idle");
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
   const [conversationLoaded, setConversationLoaded] = useState(false);
   const [journeyThreadState, setJourneyThreadState] = useState<JourneyThreadDisplayState>({ kind: "loading" });
@@ -809,7 +816,14 @@ export function App({ model }: AppProps) {
     let cancelled = false;
     void inspectRuntimeChannel()
       .then((diagnostic) => {
-        if (!cancelled) setRuntimeChannel(diagnostic);
+        if (!cancelled) {
+          setRuntimeChannel(diagnostic);
+          if (diagnostic.status === "validated") {
+            setRuntimeMirrorRoot(diagnostic.mirrorRoot ?? "");
+            setRuntimeMirrorHome(diagnostic.mirrorHome ?? "");
+            setRuntimeMirrorUser(diagnostic.mirrorUser ?? "");
+          }
+        }
       })
       .catch((error) => {
         if (!cancelled) setRuntimeChannelError(error instanceof Error ? error.message : String(error));
@@ -2603,6 +2617,33 @@ export function App({ model }: AppProps) {
   }
 
   const developmentChannel = runtimeChannel?.channel === "development";
+  const runtimeBindingDraft: RuntimeBinding | undefined = runtimeChannel && runtimeMirrorRoot && runtimeMirrorHome && runtimeMirrorUser
+    ? {
+        schemaVersion: "1.0.0",
+        channel: runtimeChannel.channel,
+        mirrorRoot: runtimeMirrorRoot,
+        mirrorHome: runtimeMirrorHome,
+        mirrorUser: runtimeMirrorUser,
+        dbPath: `${runtimeMirrorHome.replace(/\/$/, "")}/memory.db`,
+      }
+    : undefined;
+
+  async function submitRuntimeBinding(persist: boolean) {
+    if (!runtimeBindingDraft) return;
+    setRuntimeBindingState(persist ? "saving" : "validating");
+    setRuntimeChannelError(undefined);
+    try {
+      const diagnostic = persist
+        ? await saveRuntimeBinding(runtimeBindingDraft)
+        : await validateRuntimeBinding(runtimeBindingDraft);
+      setRuntimeChannel(diagnostic);
+    } catch (error) {
+      setRuntimeChannelError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRuntimeBindingState("idle");
+    }
+  }
+
   const journeyRegistryImportCommand = developmentChannel ? "npm run import:mirror:dev" : "npm run import:mirror";
 
   return (
@@ -3561,6 +3602,21 @@ export function App({ model }: AppProps) {
                   {runtimeChannel.message ? <div><dt>Correction</dt><dd>{runtimeChannel.message}</dd></div> : null}
                 </dl>
               ) : <p className="provider-note">{runtimeChannelError ?? "Inspecting the native runtime channel…"}</p>}
+              <div className="runtime-binding-form" aria-label="Mirror runtime binding">
+                <label className="provider-field">Mirror source
+                  <span className="journey-path-picker"><input value={runtimeMirrorRoot} onChange={(event) => setRuntimeMirrorRoot(event.target.value)} placeholder="/absolute/path/to/mirror" /><button type="button" onClick={async () => { const path = await chooseRuntimeDirectory("mirrorRoot"); if (path) setRuntimeMirrorRoot(path); }}>Choose…</button></span>
+                </label>
+                <label className="provider-field">Mirror home
+                  <span className="journey-path-picker"><input value={runtimeMirrorHome} onChange={(event) => setRuntimeMirrorHome(event.target.value)} placeholder="/absolute/path/to/mirror-home" /><button type="button" onClick={async () => { const path = await chooseRuntimeDirectory("mirrorHome"); if (path) setRuntimeMirrorHome(path); }}>Choose…</button></span>
+                </label>
+                <label className="provider-field">Mirror user<input value={runtimeMirrorUser} onChange={(event) => setRuntimeMirrorUser(event.target.value)} placeholder="user-slug" /></label>
+                <p className="provider-note">Database: {runtimeMirrorHome ? `${runtimeMirrorHome.replace(/\/$/, "")}/memory.db` : "Select Mirror home"}</p>
+                {runtimeChannelError ? <p className="provider-error">{runtimeChannelError}</p> : null}
+                <div className="settings-actions">
+                  <button type="button" disabled={!runtimeBindingDraft || runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(false)}>Validate</button>
+                  <button type="button" disabled={!runtimeBindingDraft || runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(true)}>Save binding</button>
+                </div>
+              </div>
             </section>
 
             <section className="settings-section provider-card" aria-label="Current session invocation controls">

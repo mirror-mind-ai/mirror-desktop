@@ -17,7 +17,10 @@ use pi_process_registry::{
     RegistryAuthority, RegistryAuthorityInspection, ReleaseOutcome, ReserveError,
     ReserveThenStartError, RunTarget, TargetError, TerminalState, TerminalizeOutcome,
 };
-use runtime_channel::{RuntimeChannel, RuntimeChannelDiagnostic, RuntimeChannelProfile};
+use runtime_binding::RuntimeBinding;
+use runtime_channel::{
+    runtime_search_directories, RuntimeChannel, RuntimeChannelDiagnostic, RuntimeChannelProfile,
+};
 use turn_journal::{
     admit_turn, read_turn_journal, transition_turn, TurnJournalAuthority,
     TurnJournalDocument, TurnJournalRecord, TurnPhase, TurnPiExecutionEvidence,
@@ -31,7 +34,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashSet,
-    fs,
+    env, fs,
     io::{BufRead, BufReader, Cursor, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -983,6 +986,61 @@ fn mirror_administrative_command(program: &str) -> Result<Command, String> {
     let mut command = profile.runtime_command(program)?;
     profile.detach_journey_turn_authority(&mut command);
     Ok(command)
+}
+
+#[tauri::command]
+fn validate_runtime_binding_request(
+    app: &AppHandle,
+    binding: RuntimeBinding,
+    persist: bool,
+) -> Result<RuntimeChannelDiagnostic, String> {
+    let channel = RuntimeChannel::active();
+    let app_data_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    fs::create_dir_all(&app_data_root)
+        .map_err(|error| format!("Could not create application data root: {error}"))?;
+    if app.config().identifier != channel.bundle_identifier()
+        || app_data_root.file_name().and_then(|value| value.to_str())
+            != Some(channel.bundle_identifier())
+    {
+        return Err("Mirror Desktop bundle identity does not match its runtime channel.".to_string());
+    }
+    let home = env::var_os("HOME").map(PathBuf::from)
+        .ok_or_else(|| "Could not resolve HOME for runtime binding.".to_string())?;
+    let validated = binding.validate(channel.binding_channel(), &runtime_search_directories(&home))?;
+    if persist {
+        validated.persist(&app_data_root)?;
+    }
+    Ok(RuntimeChannelProfile::from_validated(channel, &home, validated).diagnostic(&app_data_root))
+}
+
+#[tauri::command]
+fn validate_runtime_binding(app: AppHandle, binding: RuntimeBinding) -> Result<RuntimeChannelDiagnostic, String> {
+    validate_runtime_binding_request(&app, binding, false)
+}
+
+#[tauri::command]
+fn save_runtime_binding(app: AppHandle, binding: RuntimeBinding) -> Result<RuntimeChannelDiagnostic, String> {
+    validate_runtime_binding_request(&app, binding, true)
+}
+
+#[tauri::command]
+fn choose_runtime_directory(kind: String) -> Result<Option<String>, String> {
+    let title = match kind.as_str() {
+        "mirrorRoot" => "Choose Mirror source directory",
+        "mirrorHome" => "Choose Mirror home directory",
+        _ => return Err("Runtime directory kind is unsupported.".to_string()),
+    };
+    let Some(path) = rfd::FileDialog::new().set_title(title).pick_folder() else {
+        return Ok(None);
+    };
+    let metadata = fs::symlink_metadata(&path)
+        .map_err(|error| format!("Could not inspect selected runtime directory: {error}"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err("Selected runtime path is not a safe directory.".to_string());
+    }
+    Ok(Some(path.canonicalize()
+        .map_err(|_| "Could not canonicalize selected runtime directory.".to_string())?
+        .to_string_lossy().to_string()))
 }
 
 #[tauri::command]
@@ -4485,6 +4543,9 @@ fn main() {
             save_agent_settings,
             list_pi_models,
             inspect_runtime_channel,
+            validate_runtime_binding,
+            save_runtime_binding,
+            choose_runtime_directory,
             load_journey_projections,
             list_journey_documentation,
             read_journey_document,

@@ -2,7 +2,7 @@
 
 # CV-005.DS-002.US-1 - Bind My Mirror Installation
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Progress
 **Type:** User Story
 
 ## User Story

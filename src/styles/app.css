@@ -377,6 +377,14 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.runtime-binding-form {
+  border-top: 1px solid rgba(185, 124, 229, 0.18);
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+}
+
 .journey-search-control {
   margin-bottom: 10px;
 }

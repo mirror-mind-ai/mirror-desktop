@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
-import { inspectRuntimeChannel, parseRuntimeChannelDiagnostic } from "../app/runtimeChannelStorage";
+import {
+  chooseRuntimeDirectory, inspectRuntimeChannel, parseRuntimeChannelDiagnostic,
+  saveRuntimeBinding, validateRuntimeBinding,
+} from "../app/runtimeChannelStorage";
 
 const development = {
   channel: "development",
@@ -24,6 +27,24 @@ describe("runtime channel storage", () => {
     invoke.mockResolvedValueOnce(development);
     await expect(inspectRuntimeChannel()).resolves.toEqual(development);
     expect(invoke).toHaveBeenCalledWith("inspect_runtime_channel");
+  });
+
+  it("validates and saves an explicit binding through separate native commands", async () => {
+    const binding = {
+      schemaVersion: "1.0.0" as const,
+      channel: "development" as const,
+      mirrorRoot: development.mirrorRoot,
+      mirrorHome: development.mirrorHome,
+      mirrorUser: development.mirrorUser,
+      dbPath: development.dbPath,
+    };
+    invoke.mockResolvedValueOnce(development).mockResolvedValueOnce(development).mockResolvedValueOnce(binding.mirrorRoot);
+    await expect(validateRuntimeBinding(binding)).resolves.toEqual(development);
+    await expect(saveRuntimeBinding(binding)).resolves.toEqual(development);
+    await expect(chooseRuntimeDirectory("mirrorRoot")).resolves.toBe(binding.mirrorRoot);
+    expect(invoke).toHaveBeenNthCalledWith(1, "validate_runtime_binding", { binding });
+    expect(invoke).toHaveBeenNthCalledWith(2, "save_runtime_binding", { binding });
+    expect(invoke).toHaveBeenNthCalledWith(3, "choose_runtime_directory", { kind: "mirrorRoot" });
   });
 
   it("accepts a bounded unbound state without runtime coordinates", () => {
