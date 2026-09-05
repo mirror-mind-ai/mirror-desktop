@@ -100,6 +100,30 @@ pub fn load_runtime_binding(
 }
 
 impl RuntimeBinding {
+    pub fn environment_candidate(
+        channel: BindingChannel,
+        os_home: &Path,
+        mirror_home: Option<&str>,
+        mirror_user: Option<&str>,
+        db_path: Option<&str>,
+    ) -> Result<Option<Self>, String> {
+        match (mirror_home, mirror_user, db_path) {
+            (None, None, None) => Ok(None),
+            (Some(mirror_home), Some(mirror_user), Some(db_path)) => Ok(Some(Self {
+                schema_version: "1.0.0".to_string(),
+                channel,
+                mirror_root: os_home.join("mirror"),
+                mirror_home: PathBuf::from(mirror_home),
+                mirror_user: mirror_user.to_string(),
+                db_path: PathBuf::from(db_path),
+            })),
+            _ => Err(
+                "Inherited Mirror environment is partial; home, user and database are all required."
+                    .to_string(),
+            ),
+        }
+    }
+
     pub fn from_json(bytes: &[u8]) -> Result<Self, String> {
         serde_json::from_slice(bytes)
             .map_err(|error| format!("Runtime binding is malformed: {error}"))
@@ -317,6 +341,41 @@ mod tests {
         fn drop(&mut self) {
             fs::remove_dir_all(self.root.parent().unwrap()).unwrap();
         }
+    }
+
+    #[test]
+    fn proposes_only_a_complete_environment_candidate_without_inferring_a_user() {
+        assert_eq!(
+            RuntimeBinding::environment_candidate(
+                BindingChannel::User,
+                Path::new("/Users/example"),
+                None,
+                None,
+                None,
+            )
+            .unwrap(),
+            None
+        );
+        assert!(RuntimeBinding::environment_candidate(
+            BindingChannel::User,
+            Path::new("/Users/example"),
+            Some("/Users/example/.mirror-minds/example"),
+            None,
+            Some("/Users/example/.mirror-minds/example/memory.db"),
+        )
+        .unwrap_err()
+        .contains("partial"));
+        let candidate = RuntimeBinding::environment_candidate(
+            BindingChannel::User,
+            Path::new("/Users/example"),
+            Some("/Users/example/.mirror-minds/example"),
+            Some("example"),
+            Some("/Users/example/.mirror-minds/example/memory.db"),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(candidate.mirror_root, Path::new("/Users/example/mirror"));
+        assert_eq!(candidate.mirror_user, "example");
     }
 
     #[test]
