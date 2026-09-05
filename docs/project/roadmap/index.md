@@ -77,13 +77,13 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-005.DS-001](cv-005-private-macos-alpha/ds-001-mirror-desktop-product-boundary/index.md) | Mirror Desktop Product Boundary | External surfaces and new product coordinates express Mirror Desktop while Nautilus method and legacy semantics remain classified and compatible | 🟠 In Progress |
+| [CV-005.DS-001](cv-005-private-macos-alpha/ds-001-mirror-desktop-product-boundary/index.md) | Mirror Desktop Product Boundary | External surfaces and new product coordinates express Mirror Desktop while Nautilus method and legacy semantics remain classified and compatible | ✅ Done |
 | [CV-005.DS-002](cv-005-private-macos-alpha/ds-002-portable-user-runtime-binding/index.md) | Portable User Runtime Binding | The source-built app binds to each alpha user's own validated Mirror runtime without compiled personal coordinates | 🟡 Planned |
 | [CV-005.DS-003](cv-005-private-macos-alpha/ds-003-reproducible-private-alpha/index.md) | Reproducible Private Alpha | An authorized macOS collaborator can clone, check, build, use and validate a local Mirror Desktop bundle through one documented route | 🟡 Planned |
 
 ## Current Recommendation
 
-Pull `CV-005.DS-001 - Mirror Desktop Product Boundary`. Begin with its namespace and durable-state inventory before changing code. The inventory must separate external product identity, generic Mirror-owned capabilities, genuine Nautilus method semantics and legacy compatibility coordinates. This establishes the safe boundary for the later per-user runtime binding and source-built alpha validation.
+Pull `CV-005.DS-002 - Portable User Runtime Binding`. Use the completed product and compatibility boundary from CV-005.DS-001 to replace compiled personal runtime coordinates with an explicit per-user binding without weakening channel isolation or modifying predecessor state.
 
 `CV-003` and `CV-004` remain completed predecessor capabilities. Their Nautilus language is historical or method-specific until the CV-005 inventory explicitly classifies it. The private alpha does not reopen those completed outcomes, rewrite their history or treat broad renaming as compatibility work.
 

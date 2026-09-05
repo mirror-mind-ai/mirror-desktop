@@ -2,7 +2,7 @@
 
 # CV-005.DS-001 - Mirror Desktop Product Boundary
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -12,10 +12,10 @@ The application presents itself externally as Mirror Desktop and uses deliberate
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-005.DS-001.TS-1 | Namespace and Durable-State Inventory | Technical Story | Every inherited Nautilus identifier is classified with an explicit rename, retain or migrate decision before implementation changes begin | 🟠 In Progress |
-| CV-005.DS-001.US-1 | Recognize Mirror Desktop | User Story | Window, navigation, conversation states, settings, diagnostics, icons and user-facing guidance consistently identify the application as Mirror Desktop | 🟠 In Progress |
-| CV-005.DS-001.TS-2 | Parallel Product and Channel Identity | Technical Story | User and development builds use new Mirror Desktop bundle, app-data and channel identities without overwriting the installed Nautilus Harness application or its data | 🟠 In Progress |
-| CV-005.DS-001.TS-3 | Legacy Identity Compatibility Boundary | Technical Story | New state adopts approved Mirror Desktop coordinates while required Nautilus records, projection namespaces and method semantics remain readable and explicitly bounded | 🟠 In Progress |
+| CV-005.DS-001.TS-1 | Namespace and Durable-State Inventory | Technical Story | Every inherited Nautilus identifier is classified with an explicit rename, retain or migrate decision before implementation changes begin | ✅ Done |
+| CV-005.DS-001.US-1 | Recognize Mirror Desktop | User Story | Window, navigation, conversation states, settings, diagnostics, icons and user-facing guidance consistently identify the application as Mirror Desktop | ✅ Done |
+| CV-005.DS-001.TS-2 | Parallel Product and Channel Identity | Technical Story | User and development builds use new Mirror Desktop bundle, app-data and channel identities without overwriting the installed Nautilus Harness application or its data | ✅ Done |
+| CV-005.DS-001.TS-3 | Legacy Identity Compatibility Boundary | Technical Story | New state adopts approved Mirror Desktop coordinates while required Nautilus records, projection namespaces and method semantics remain readable and explicitly bounded | ✅ Done |
 
 ## Inventory Contract
 

@@ -2,7 +2,7 @@
 
 # CV-005.DS-001.TS-3 - Legacy Identity Compatibility Boundary
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

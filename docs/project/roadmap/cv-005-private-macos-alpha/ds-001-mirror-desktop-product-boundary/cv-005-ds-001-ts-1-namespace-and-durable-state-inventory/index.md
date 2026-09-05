@@ -2,7 +2,7 @@
 
 # CV-005.DS-001.TS-1 - Namespace and Durable-State Inventory
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

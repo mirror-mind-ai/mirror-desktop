@@ -2,7 +2,7 @@
 
 # CV-005.DS-001.US-1 - Recognize Mirror Desktop
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story
