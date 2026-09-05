@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
-import { homedir } from "node:os";
-import { isAbsolute, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import process from "node:process";
+import { loadRuntimeBinding } from "./runtime_binding_file.mjs";
 
 const mode = process.argv[2];
 const tauri = resolve("node_modules", ".bin", process.platform === "win32" ? "tauri.cmd" : "tauri");
-const home = homedir();
 const inheritedMirrorEnvironment = ["MIRROR_HOME", "MIRROR_USER", "DB_PATH"];
 
 const channels = {
@@ -48,33 +47,6 @@ const channels = {
     bundle: "Mirror Desktop Dev.app",
   },
 };
-
-function appDataRoot(profile) {
-  if (process.platform !== "darwin") {
-    throw new Error("Portable runtime binding launch currently supports macOS only.");
-  }
-  return resolve(home, "Library", "Application Support", profile.identifier);
-}
-
-function loadRuntimeBinding(profile) {
-  const path = resolve(appDataRoot(profile), "runtime-binding.v1.json");
-  if (!existsSync(path)) throw new Error(`Runtime binding is unavailable at ${path}. Configure it in Mirror Desktop Runtime Settings.`);
-  const metadata = lstatSync(path);
-  if (metadata.isSymbolicLink() || !metadata.isFile() || realpathSync(path) !== path) {
-    throw new Error("Runtime binding is not a safe canonical file.");
-  }
-  const binding = JSON.parse(readFileSync(path, "utf8"));
-  const keys = Object.keys(binding).sort();
-  const expected = ["channel", "dbPath", "mirrorHome", "mirrorRoot", "mirrorUser", "schemaVersion"].sort();
-  if (JSON.stringify(keys) !== JSON.stringify(expected)
-    || binding.schemaVersion !== "1.0.0"
-    || binding.channel !== profile.channel
-    || ![binding.mirrorRoot, binding.mirrorHome, binding.dbPath].every((value) => typeof value === "string" && isAbsolute(value))
-    || typeof binding.mirrorUser !== "string" || !binding.mirrorUser) {
-    throw new Error("Runtime binding does not match the selected desktop channel.");
-  }
-  return binding;
-}
 
 function cleanLaunchEnvironment(extra = {}) {
   const environment = { ...process.env };

@@ -9,6 +9,7 @@ import runtimeChannelSource from "../../src-tauri/src/runtime_channel.rs?raw";
 import appSource from "../app/App.tsx?raw";
 import provisionScript from "../../scripts/provision_mirror_conversation.py?raw";
 import channelLauncher from "../../scripts/mirror_desktop_channel.mjs?raw";
+import bindingFileContract from "../../scripts/runtime_binding_file.mjs?raw";
 import productionPromotion from "../../scripts/promote_production.mjs?raw";
 
 const scripts = packageJson.scripts as Record<string, string>;
@@ -61,8 +62,10 @@ describe("runtime channel configuration", () => {
     expect(scripts["validate:desktop:launch"]).toContain("scripts/mirror_desktop_channel.mjs validate-desktop");
     expect(channelLauncher).toContain('"src-tauri/tauri.dev.conf.json"');
     expect(channelLauncher).toContain('"development-channel"');
-    expect(channelLauncher).toContain('"runtime-binding.v1.json"');
     expect(channelLauncher).toContain("loadRuntimeBinding(profile)");
+    expect(bindingFileContract).toContain('"runtime-binding.v1.json"');
+    expect(bindingFileContract).toContain("requireCanonicalPath(binding.dbPath");
+    expect(bindingFileContract).toContain('basename(binding.dbPath) !== "memory.db"');
     expect(channelLauncher).not.toContain("alisson-vale");
     expect(channelLauncher).not.toContain('MIRROR_USER: "mirror-dev"');
     expect(channelLauncher).toContain('"scripts/export_mirror_bootstrap.py"');
