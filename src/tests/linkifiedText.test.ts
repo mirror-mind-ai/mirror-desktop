@@ -1,3 +1,5 @@
+// @ts-expect-error Vitest runs in Node; production frontend has no Node dependency.
+import { readFileSync } from "node:fs";
 import { isValidElement, type ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { applyVerifiedLocalPaths, parseLinkifiedText, renderLinkifiedText } from "../app/LinkifiedText";
@@ -19,6 +21,24 @@ describe("LinkifiedText", () => {
     expect(parseLinkifiedText("Estado errado/incompleto")) .toEqual([
       { type: "text", text: "Estado errado/incompleto" },
     ]);
+    expect(parseLinkifiedText("Estado errado/incompleto, then /Users/example/note.md")).toEqual([
+      { type: "text", text: "Estado errado/incompleto, then " },
+      { type: "local_path_candidate", text: "/Users/example/note.md" },
+    ]);
+  });
+
+  it("recognizes absolute paths after punctuation without regex lookbehind", () => {
+    expect(parseLinkifiedText("See (/Users/example/note.md).")) .toEqual([
+      { type: "text", text: "See (" },
+      { type: "local_path_candidate", text: "/Users/example/note.md" },
+      { type: "text", text: ")." },
+    ]);
+  });
+
+  it("keeps the frontend source parseable by legacy macOS WebKit", () => {
+    const source = readFileSync(new URL("../app/LinkifiedText.tsx", import.meta.url), "utf8");
+    expect(source).not.toContain("(?<!");
+    expect(source).not.toContain("(?<=");
   });
 
   it("detects supported path shapes as candidates, not links", () => {

@@ -7,8 +7,12 @@ export type LinkifiedTextPart =
   | { type: "local_path_candidate"; text: string }
   | { type: "local_path"; text: string };
 
-const linkPattern = /(https?:\/\/[^\s<>()]+|~[^\s<>()]+|(?<![\w])\/[\w .@~+-][^\s<>()]*|(?:\.\.?\/)?(?:docs|src|scripts|src-tauri|agentic-method|agentic-protocol|mirror-extension|harness|artifacts)\/[^\s<>()]+|(?:[\w.@~+-]+\/)+[\w .@~+-]+\.[A-Za-z0-9]+|[\w.@~+-]+\.(?:md|yml|yaml|html|json|ts|tsx|py|rs|toml|css))/g;
+const linkPattern = /(https?:\/\/[^\s<>()]+|~[^\s<>()]+|\/[\w .@~+-][^\s<>()]*|(?:\.\.?\/)?(?:docs|src|scripts|src-tauri|agentic-method|agentic-protocol|mirror-extension|harness|artifacts)\/[^\s<>()]+|(?:[\w.@~+-]+\/)+[\w .@~+-]+\.[A-Za-z0-9]+|[\w.@~+-]+\.(?:md|yml|yaml|html|json|ts|tsx|py|rs|toml|css))/g;
 const trailingPunctuationPattern = /[.,;:!?\]]+$/;
+
+function startsInsideWord(text: string, index: number): boolean {
+  return index > 0 && /\w/.test(text[index - 1]);
+}
 
 export function parseLinkifiedText(text: string): LinkifiedTextPart[] {
   const parts: LinkifiedTextPart[] = [];
@@ -17,6 +21,8 @@ export function parseLinkifiedText(text: string): LinkifiedTextPart[] {
 
   while ((match = linkPattern.exec(text)) !== null) {
     const rawMatch = match[0];
+    if (rawMatch.startsWith("/") && startsInsideWord(text, match.index)) continue;
+
     const trimmedMatch = rawMatch.replace(trailingPunctuationPattern, "");
     const trailing = rawMatch.slice(trimmedMatch.length);
 
