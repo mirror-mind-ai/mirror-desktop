@@ -115,9 +115,10 @@ Verify identity and architecture:
 /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \
   'src-tauri/target/release/bundle/macos/Mirror Desktop.app/Contents/Info.plist'
 file 'src-tauri/target/release/bundle/macos/Mirror Desktop.app/Contents/MacOS/mirror-desktop'
+test -f 'src-tauri/target/release/bundle/macos/Mirror Desktop.app/Contents/Resources/scripts/provision_mirror_conversation.py'
 ```
 
-Expected name is `Mirror Desktop`; expected identifier is `ai.mirrormind.desktop`; executable architecture must match preflight.
+Expected name is `Mirror Desktop`; expected identifier is `ai.mirrormind.desktop`; executable architecture must match preflight; and the bundled model-free Mirror provisioning resource must be present. The `.app` must not depend on the checkout path of the Mac that compiled it.
 
 ## 5. Open and bind your Mirror
 

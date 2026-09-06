@@ -45,7 +45,7 @@ use std::{
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{path::BaseDirectory, AppHandle, Emitter, Manager, State};
 
 const PI_PROCESS_EVENT: &str = "nautilus-pi-process";
 const JOURNEY_PROVISIONING_EVENT: &str = "nautilus-journey-provisioning";
@@ -394,7 +394,7 @@ fn provision_pi_session(requested_id: &str, session_name: &str, session_dir: &Pa
     drop(child.stdin.take());
     let output = child.wait_with_output().map_err(|error| format!("Could not settle native Pi session provisioning: {}", error))?;
     if !output.status.success() {
-        return Err(format!("Native Pi session provisioning failed: {}", String::from_utf8_lossy(&output.stderr).trim()));
+        return Err("Native Pi session provisioning did not complete.".to_string());
     }
     let (session_id, session_file) = parse_pi_session_state(&output.stdout)?;
     materialize_empty_pi_session(&session_id, &session_file, session_dir, &mirror_root)?;
@@ -425,10 +425,21 @@ fn materialize_empty_pi_session(
     validate_pi_session_header(&path, session_id)
 }
 
-fn provision_mirror_conversation(session_file: &str, journey_id: &str, title: &str) -> Result<String, String> {
-    let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent()
-        .ok_or_else(|| "Could not resolve Mirror Desktop project root.".to_string())?
-        .join("scripts/provision_mirror_conversation.py");
+fn bundled_provisioning_script(app: &AppHandle) -> Result<PathBuf, String> {
+    let script = app.path()
+        .resolve("scripts/provision_mirror_conversation.py", BaseDirectory::Resource)
+        .map_err(|_| "Could not resolve bundled Mirror conversation support.".to_string())?;
+    let metadata = fs::symlink_metadata(&script)
+        .map_err(|_| "Bundled Mirror conversation support is unavailable.".to_string())?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err("Bundled Mirror conversation support is invalid.".to_string());
+    }
+    script.canonicalize()
+        .map_err(|_| "Could not validate bundled Mirror conversation support.".to_string())
+}
+
+fn provision_mirror_conversation(app: &AppHandle, session_file: &str, journey_id: &str, title: &str) -> Result<String, String> {
+    let script = bundled_provisioning_script(app)?;
     let profile = active_runtime_channel()?;
     let mut command = mirror_runtime_command("uv")?;
     let output = command
@@ -438,7 +449,7 @@ fn provision_mirror_conversation(session_file: &str, journey_id: &str, title: &s
         .args(["--mirror-home"]).arg(&profile.mirror_home)
         .output().map_err(|error| format!("Could not provision Mirror conversation: {}", error))?;
     if !output.status.success() {
-        return Err(format!("Mirror conversation provisioning failed: {}", String::from_utf8_lossy(&output.stderr).trim()));
+        return Err("Mirror conversation provisioning did not complete.".to_string());
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
     let last_line = stdout.lines().rev().find(|line| !line.trim().is_empty())
@@ -507,7 +518,7 @@ async fn provision_journey_thread(
     let (pi_session_id, pi_session_file, mirror_conversation_id) = tauri::async_runtime::spawn_blocking(move || {
         let (pi_id, pi_file) = provision_pi_session(&requested_pi_id, &pi_name, &pi_session_dir)?;
         emit_journey_provisioning(&progress_app, &journey_id_for_task, "creating_mirror_conversation");
-        let mirror_id = provision_mirror_conversation(&pi_file, &journey_id_for_task, &mirror_name)?;
+        let mirror_id = provision_mirror_conversation(&progress_app, &pi_file, &journey_id_for_task, &mirror_name)?;
         emit_journey_provisioning(&progress_app, &journey_id_for_task, "activating_journey_context");
         Ok::<_, String>((pi_id, pi_file, mirror_id))
     }).await.map_err(|error| format!("Journey thread provisioning task failed: {}", error))??;
@@ -623,7 +634,7 @@ async fn restart_journey_thread(
     let (pi_session_id, pi_session_file, mirror_conversation_id) = tauri::async_runtime::spawn_blocking(move || {
         let (pi_id, pi_file) = provision_pi_session(&reserved_pi_id, &pi_name, &pi_session_dir)?;
         emit_journey_restart(&progress_app, &task_journey, "creating_mirror_conversation");
-        let mirror_id = provision_mirror_conversation(&pi_file, &task_journey, &mirror_name)?;
+        let mirror_id = provision_mirror_conversation(&progress_app, &pi_file, &task_journey, &mirror_name)?;
         emit_journey_restart(&progress_app, &task_journey, "activating_journey_context");
         Ok::<_, String>((pi_id, pi_file, mirror_id))
     }).await.map_err(|error| format!("Journey restart task failed: {}", error))??;

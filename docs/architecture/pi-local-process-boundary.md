@@ -31,7 +31,7 @@ For a Mirror-mediated turn Tauri:
 6. accepts only a complete native Pi user/assistant pair;
 7. settles deterministic desktop and Mirror commits without another provider call.
 
-The first real user message is the first provider request. Provisioning and restart create no synthetic conversational entry.
+The first real user message is the first provider request. Provisioning and restart create no synthetic conversational entry. Model-free Mirror conversation provisioning runs from a validated Python resource packaged inside the application bundle; it never resolves support code through the checkout path embedded by the build host. Missing, linked or non-file resources fail with bounded diagnostics that omit subprocess stderr and private paths.
 
 ## Context and compaction
 

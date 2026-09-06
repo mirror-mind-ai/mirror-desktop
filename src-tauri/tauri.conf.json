@@ -26,6 +26,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon.png"]
+    "icon": ["icons/icon.png"],
+    "resources": {
+      "../scripts/provision_mirror_conversation.py": "scripts/provision_mirror_conversation.py"
+    }
   }
 }
