@@ -17,7 +17,8 @@ describe("private macOS alpha documentation", () => {
     expect(guide).toContain("macOS 12");
     expect(guide).toContain("python -m unittest discover");
     expect(guide).toContain("pi --list-models");
-    expect(guide).toContain("$HOME/.local/bin");
+    expect(guide).toContain("NVM, FNM, Volta, asdf and mise");
+    expect(guide).toContain("no link setup is required");
     expect(guide).toContain("ai.mirrormind.desktop");
     expect(guide).toContain("evidence-template.md");
     expect(guide).toContain("rollback.md");

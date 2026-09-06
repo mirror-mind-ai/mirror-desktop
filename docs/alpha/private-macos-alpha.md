@@ -57,22 +57,11 @@ npm run --silent alpha:preflight -- --json \
 
 Review the JSON before sharing it. It must contain no absolute home path or Mirror user.
 
-### Make shell-managed tools available to the desktop app
+### Keep local tools discoverable
 
-Mirror Desktop validates canonical executables from a bounded set of user and system locations. If Node, Pi or `uv` exists only inside a shell version manager, create non-overwriting links under `$HOME/.local/bin`:
+Mirror Desktop resolves a paired Pi and Node installation without executing shell startup files. **Validate and continue** searches a bounded set of system and user locations, including Homebrew, `~/.local/bin`, NVM, FNM, Volta, asdf and mise, then canonicalizes the executables before any import. A single valid installation is used automatically; no link setup is required for these supported layouts.
 
-```bash
-mkdir -p "$HOME/.local/bin"
-for tool in node pi uv; do
-  resolved="$(command -v "$tool")" || exit 1
-  target="$HOME/.local/bin/$tool"
-  if [ ! -e "$target" ] && [ ! -L "$target" ]; then
-    ln -s "$resolved" "$target"
-  fi
-done
-```
-
-Do not replace an existing target without inspecting it. Runtime binding canonicalizes these links and rejects broken or unsafe executables.
+If no paired installation is available, or multiple distinct Pi installations remain ambiguous, validation stops before saving the binding or importing Journeys. Resolve the local installation ambiguity through the owning package manager and try again; do not broaden graphical `PATH` or replace executable links blindly.
 
 ### Prepare the Pi-owned provider catalog
 

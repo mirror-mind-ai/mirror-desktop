@@ -1,7 +1,7 @@
 use crate::runtime_binding::{load_runtime_binding, BindingChannel, ValidatedRuntimeBinding};
 use serde::Serialize;
 use std::{
-    env,
+    env, fs,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -22,6 +22,8 @@ pub struct RuntimeChannelProfile {
     pub mirror_user: String,
     pub db_path: PathBuf,
     pi_bin: PathBuf,
+    node_bin: PathBuf,
+    pi_runtime_directory: PathBuf,
     uv_bin: PathBuf,
     home: PathBuf,
 }
@@ -122,9 +124,13 @@ impl RuntimeChannel {
 }
 
 pub(crate) fn runtime_search_directories(home: &Path) -> Vec<PathBuf> {
-    vec![
+    let mut directories = vec![
         home.join(".pi/agent/bin"),
         home.join(".local/bin"),
+        home.join(".volta/bin"),
+        home.join(".asdf/shims"),
+        home.join(".mise/shims"),
+        home.join(".local/share/mise/shims"),
         home.join(".pyenv/shims"),
         home.join(".pyenv/bin"),
         PathBuf::from("/usr/local/bin"),
@@ -134,7 +140,47 @@ pub(crate) fn runtime_search_directories(home: &Path) -> Vec<PathBuf> {
         PathBuf::from("/usr/sbin"),
         PathBuf::from("/sbin"),
         home.join(".cargo/bin"),
-    ]
+    ];
+    for (root, suffix) in [
+        (home.join(".nvm/versions/node"), "bin"),
+        (home.join(".fnm/node-versions"), "installation/bin"),
+        (
+            home.join(".local/share/fnm/node-versions"),
+            "installation/bin",
+        ),
+    ] {
+        directories.extend(discover_versioned_runtime_directories(&root, suffix));
+    }
+    directories
+}
+
+fn discover_versioned_runtime_directories(root: &Path, suffix: &str) -> Vec<PathBuf> {
+    let Ok(entries) = fs::read_dir(root) else {
+        return Vec::new();
+    };
+    let mut versions = entries
+        .take(128)
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let file_type = entry.file_type().ok()?;
+            if !file_type.is_dir() || file_type.is_symlink() {
+                return None;
+            }
+            let name = entry.file_name();
+            let version = semver::Version::parse(name.to_str()?.trim_start_matches('v')).ok()?;
+            let directory = entry.path().join(suffix);
+            let metadata = fs::symlink_metadata(&directory).ok()?;
+            if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                return None;
+            }
+            Some((version, directory))
+        })
+        .collect::<Vec<_>>();
+    versions.sort_by(|(left, _), (right, _)| right.cmp(left));
+    versions
+        .into_iter()
+        .map(|(_, directory)| directory)
+        .collect()
 }
 
 impl RuntimeChannelDiagnostic {
@@ -198,6 +244,8 @@ impl RuntimeChannelProfile {
             mirror_home,
             mirror_user: mirror_user.to_string(),
             pi_bin: PathBuf::from("/trusted/pi"),
+            node_bin: PathBuf::from("/trusted/node"),
+            pi_runtime_directory: PathBuf::from("/trusted"),
             uv_bin: PathBuf::from("/trusted/uv"),
             home: home.to_path_buf(),
         }
@@ -209,6 +257,8 @@ impl RuntimeChannelProfile {
         validated: ValidatedRuntimeBinding,
     ) -> Self {
         let pi_bin = validated.pi_bin;
+        let node_bin = validated.node_bin;
+        let pi_runtime_directory = validated.pi_runtime_directory;
         let uv_bin = validated.uv_bin;
         let binding = validated.binding;
         Self {
@@ -220,13 +270,28 @@ impl RuntimeChannelProfile {
             mirror_user: binding.mirror_user,
             db_path: binding.db_path,
             pi_bin,
+            node_bin,
+            pi_runtime_directory,
             uv_bin,
             home: home.to_path_buf(),
         }
     }
 
     fn runtime_search_directories(&self) -> Vec<PathBuf> {
-        runtime_search_directories(&self.home)
+        let mut directories = vec![
+            self.pi_runtime_directory.clone(),
+            self.node_bin
+                .parent()
+                .unwrap_or(Path::new("/usr/bin"))
+                .to_path_buf(),
+            self.uv_bin
+                .parent()
+                .unwrap_or(Path::new("/usr/bin"))
+                .to_path_buf(),
+        ];
+        directories.extend(runtime_search_directories(&self.home));
+        directories.dedup();
+        directories
     }
 
     pub fn runtime_command(&self, program: &str) -> Result<Command, String> {
@@ -283,8 +348,36 @@ impl RuntimeChannelProfile {
 
 #[cfg(test)]
 mod tests {
-    use super::{RuntimeChannel, RuntimeChannelProfile};
-    use std::{path::Path, process::Command};
+    use super::{runtime_search_directories, RuntimeChannel, RuntimeChannelProfile};
+    use std::{
+        fs,
+        path::Path,
+        process::Command,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    #[test]
+    fn discovers_bounded_version_manager_tool_directories_without_a_shell() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let home = std::env::temp_dir().join(format!(
+            "mirror-runtime-tools-{}-{nonce}",
+            std::process::id()
+        ));
+        let older = home.join(".nvm/versions/node/v20.19.0/bin");
+        let newer = home.join(".nvm/versions/node/v22.14.0/bin");
+        fs::create_dir_all(&older).unwrap();
+        fs::create_dir_all(&newer).unwrap();
+
+        let directories = runtime_search_directories(&home);
+        let newer_index = directories.iter().position(|path| path == &newer).unwrap();
+        let older_index = directories.iter().position(|path| path == &older).unwrap();
+        assert!(newer_index < older_index);
+        assert!(directories.contains(&home.join(".volta/bin")));
+        fs::remove_dir_all(home).unwrap();
+    }
 
     #[test]
     fn derives_non_colliding_user_and_development_profiles() {

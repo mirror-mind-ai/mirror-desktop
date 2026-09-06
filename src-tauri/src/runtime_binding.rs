@@ -52,6 +52,8 @@ pub struct ValidatedRuntimeBinding {
     pub binding: RuntimeBinding,
     pub mirror_core_version: Version,
     pub pi_bin: PathBuf,
+    pub node_bin: PathBuf,
+    pub pi_runtime_directory: PathBuf,
     pub uv_bin: PathBuf,
 }
 
@@ -197,12 +199,15 @@ impl RuntimeBinding {
             ));
         }
 
-        let pi_bin = resolve_executable("pi", trusted_executable_directories)?;
+        let (pi_bin, node_bin, pi_runtime_directory) =
+            resolve_pi_toolchain(trusted_executable_directories)?;
         let uv_bin = resolve_executable("uv", trusted_executable_directories)?;
         Ok(ValidatedRuntimeBinding {
             binding: self,
             mirror_core_version: version,
             pi_bin,
+            node_bin,
+            pi_runtime_directory,
             uv_bin,
         })
     }
@@ -267,29 +272,59 @@ fn read_mirror_version(pyproject: &Path) -> Result<Version, String> {
     Version::parse(version).map_err(|_| "Mirror Core version is malformed.".to_string())
 }
 
+fn executable_at(directory: &Path, program: &str) -> Result<Option<PathBuf>, String> {
+    let candidate = directory.join(program);
+    let Ok(metadata) = fs::metadata(&candidate) else {
+        return Ok(None);
+    };
+    if !metadata.is_file() {
+        return Ok(None);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if metadata.permissions().mode() & 0o111 == 0 {
+            return Ok(None);
+        }
+    }
+    candidate
+        .canonicalize()
+        .map(Some)
+        .map_err(|_| format!("Could not canonicalize required {program} executable."))
+}
+
 fn resolve_executable(program: &str, directories: &[PathBuf]) -> Result<PathBuf, String> {
-    for candidate in directories.iter().map(|directory| directory.join(program)) {
-        let Ok(metadata) = fs::metadata(&candidate) else {
-            continue;
-        };
-        if !metadata.is_file() {
-            continue;
+    for directory in directories {
+        if let Some(executable) = executable_at(directory, program)? {
+            return Ok(executable);
         }
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            if metadata.permissions().mode() & 0o111 == 0 {
-                continue;
-            }
-        }
-        let canonical = candidate
-            .canonicalize()
-            .map_err(|_| format!("Could not canonicalize required {program} executable."))?;
-        return Ok(canonical);
     }
     Err(format!(
         "Could not resolve required {program} from the trusted search path."
     ))
+}
+
+fn resolve_pi_toolchain(directories: &[PathBuf]) -> Result<(PathBuf, PathBuf, PathBuf), String> {
+    let mut candidates = Vec::<(PathBuf, PathBuf, PathBuf)>::new();
+    for directory in directories {
+        let Some(pi_bin) = executable_at(directory, "pi")? else {
+            continue;
+        };
+        let Some(node_bin) = executable_at(directory, "node")? else {
+            continue;
+        };
+        if !candidates
+            .iter()
+            .any(|(pi, node, _)| pi == &pi_bin && node == &node_bin)
+        {
+            candidates.push((pi_bin, node_bin, directory.clone()));
+        }
+    }
+    match candidates.len() {
+        0 => Err("Could not resolve a paired Pi and Node installation from supported local tool locations.".to_string()),
+        1 => Ok(candidates.remove(0)),
+        _ => Err("Multiple Pi installations were found. Keep one active installation in the supported local tool locations.".to_string()),
+    }
 }
 
 #[cfg(test)]
@@ -335,7 +370,7 @@ mod tests {
             let root = root.canonicalize().unwrap();
             let home = home.canonicalize().unwrap();
             let tools = tools.canonicalize().unwrap();
-            for tool in ["pi", "uv"] {
+            for tool in ["node", "pi", "uv"] {
                 let path = tools.join(tool);
                 fs::write(&path, "#!/bin/sh\n").unwrap();
                 #[cfg(unix)]
@@ -412,6 +447,8 @@ mod tests {
             .unwrap();
         assert_eq!(validated.binding.mirror_user, "example-user");
         assert_eq!(validated.mirror_core_version.to_string(), "0.31.14");
+        assert_eq!(validated.pi_runtime_directory, fixture.tools);
+        assert_eq!(validated.node_bin, fixture.tools.join("node"));
         assert_eq!(supported_mirror_core().unwrap(), ">=0.31.14,<0.32.0");
     }
 
@@ -457,6 +494,46 @@ mod tests {
             .validate(BindingChannel::User, &[fixture.tools.clone()])
             .unwrap_err()
             .contains("incompatible"));
+    }
+
+    #[test]
+    fn rejects_unpaired_or_ambiguous_pi_installations() {
+        let fixture = Fixture::new("0.31.14");
+        fs::remove_file(fixture.tools.join("node")).unwrap();
+        assert!(fixture
+            .binding
+            .clone()
+            .validate(BindingChannel::User, &[fixture.tools.clone()])
+            .unwrap_err()
+            .contains("paired Pi and Node"));
+
+        fs::write(fixture.tools.join("node"), "#!/bin/sh\n").unwrap();
+        let second = fixture.root.parent().unwrap().join("second-tools");
+        fs::create_dir(&second).unwrap();
+        for tool in ["node", "pi"] {
+            let path = second.join(tool);
+            fs::write(&path, "#!/bin/sh\n").unwrap();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(path, fs::Permissions::from_mode(0o700)).unwrap();
+            }
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(
+                fixture.tools.join("node"),
+                fs::Permissions::from_mode(0o700),
+            )
+            .unwrap();
+        }
+        assert!(fixture
+            .binding
+            .clone()
+            .validate(BindingChannel::User, &[fixture.tools.clone(), second])
+            .unwrap_err()
+            .contains("Multiple Pi installations"));
     }
 
     #[test]
@@ -541,7 +618,7 @@ mod tests {
             .clone()
             .validate(BindingChannel::User, &[fixture.tools.clone()])
             .unwrap_err()
-            .contains("required pi"));
+            .contains("paired Pi and Node"));
 
         let app_data = fixture.root.parent().unwrap().join("app-data");
         fs::create_dir(&app_data).unwrap();

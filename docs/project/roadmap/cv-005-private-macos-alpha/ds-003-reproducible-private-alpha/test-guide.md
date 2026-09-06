@@ -87,7 +87,7 @@ The collaborator:
 2. checks out the authorized commit and confirms the origin without printing credentials;
 3. follows `docs/alpha/private-macos-alpha.md` without oral corrections;
 4. runs preflight with their own explicit Mirror coordinates;
-5. makes shell-managed Node, Pi and `uv` visible from the documented trusted user location when needed, refreshes the Pi-owned provider catalog, installs JavaScript dependencies with `npm ci` and runs every documented gate;
+5. confirms **Validate and continue** discovers one paired shell-managed Pi and Node installation from the bounded supported locations without link setup, refreshes the Pi-owned provider catalog, installs JavaScript dependencies with `npm ci` and runs every documented gate;
 6. builds the stable bundle for their host architecture without installing it globally;
 7. opens the source-built app and explicitly binds their own Mirror installation;
 8. imports their own registry and operates one disposable Journey through a completed Pi and Mirror turn;
