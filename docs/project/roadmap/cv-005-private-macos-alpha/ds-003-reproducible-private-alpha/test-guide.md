@@ -25,13 +25,13 @@ npm test
 npm run build
 cd src-tauri && cargo test
 cd src-tauri && cargo check --locked
-cd .. && uv run python -m pytest scripts/tests
+cd .. && uv run python -m unittest discover -s scripts/tests -p 'test_*.py'
 npm run tauri:build:user -- -- --locked
 ```
 
 Automated evidence must prove:
 
-- preflight accepts only macOS `x86_64` or `arm64`;
+- preflight accepts only macOS 12 or newer on `x86_64` or `arm64` and rejects Big Sur before dependency installation;
 - source revision and canonical private origin are reported without credentials;
 - dirty worktree state is visible but does not leak changed file content;
 - `package-lock.json` and `src-tauri/Cargo.lock` are present and unchanged;
@@ -87,7 +87,7 @@ The collaborator:
 2. checks out the authorized commit and confirms the origin without printing credentials;
 3. follows `docs/alpha/private-macos-alpha.md` without oral corrections;
 4. runs preflight with their own explicit Mirror coordinates;
-5. installs JavaScript dependencies with `npm ci` and runs every documented gate;
+5. makes shell-managed Node, Pi and `uv` visible from the documented trusted user location when needed, refreshes the Pi-owned provider catalog, installs JavaScript dependencies with `npm ci` and runs every documented gate;
 6. builds the stable bundle for their host architecture without installing it globally;
 7. opens the source-built app and explicitly binds their own Mirror installation;
 8. imports their own registry and operates one disposable Journey through a completed Pi and Mirror turn;

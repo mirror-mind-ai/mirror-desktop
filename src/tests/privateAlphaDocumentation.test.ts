@@ -14,6 +14,10 @@ describe("private macOS alpha documentation", () => {
     expect(guide).toContain("npm run alpha:preflight");
     expect(guide).toContain("npm ci");
     expect(guide).toContain("npm run tauri:build:user -- -- --locked");
+    expect(guide).toContain("macOS 12");
+    expect(guide).toContain("python -m unittest discover");
+    expect(guide).toContain("pi --list-models");
+    expect(guide).toContain("$HOME/.local/bin");
     expect(guide).toContain("ai.mirrormind.desktop");
     expect(guide).toContain("evidence-template.md");
     expect(guide).toContain("rollback.md");

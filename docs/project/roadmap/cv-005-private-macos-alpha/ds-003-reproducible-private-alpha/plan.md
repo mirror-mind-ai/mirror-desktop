@@ -45,7 +45,7 @@ The planned collaborator starts with:
 
 ```text
 private GitHub read access
-macOS on x86_64 or arm64
+macOS 12 or newer on x86_64 or arm64
 Git and Xcode Command Line Tools
 Node.js 20 or newer with npm
 stable Rust and Cargo capable of consuming Cargo.lock
@@ -55,7 +55,7 @@ an existing personal Mirror home with memory.db
 local provider authentication already configured outside Mirror Desktop
 ```
 
-The repository will not promise a universal minimum macOS release until the Tauri build preflight can derive and verify the actual host and bundle deployment metadata. Unsupported architecture, absent tools, incompatible Core or incomplete runtime inputs fail before an expensive build or Journey operation.
+The source-built alpha requires macOS 12 or newer because external validation found that the locked JavaScript toolchain and embedded WebKit/Wry route do not operate correctly on Big Sur. Unsupported macOS, architecture, absent tools, incompatible Core or incomplete runtime inputs fail before dependency installation or an expensive build.
 
 ## Canonical Artifact Set
 
@@ -132,7 +132,7 @@ npm test
 npm run build
 cd src-tauri && cargo test
 cd src-tauri && cargo check --locked
-uv run python -m pytest scripts/tests
+uv run python -m unittest discover -s scripts/tests -p 'test_*.py'
 npm run tauri:build:user -- -- --locked
 ```
 

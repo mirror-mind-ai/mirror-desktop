@@ -25,6 +25,10 @@ function compareVersion(left, right) {
   return 0;
 }
 
+export function supportsMinimumMacOS(version, minimum) {
+  return compareVersion(parseVersion(version), parseVersion(minimum)) >= 0;
+}
+
 export function matchesCompatibility(version, requirement) {
   const parsed = parseVersion(version);
   return requirement.split(",").every((clause) => {
@@ -112,8 +116,14 @@ export function runPreflight(options) {
     canonicalPath(resolve(repositoryRoot, lockfile), "file", `${lockfile} lockfile`);
   }
   const compatibility = JSON.parse(readFileSync(resolve(repositoryRoot, "config/runtime-compatibility.json"), "utf8"));
-  if (compatibility.schemaVersion !== "1.0.0" || typeof compatibility.mirrorCore !== "string") {
+  if (compatibility.schemaVersion !== "1.0.0"
+    || typeof compatibility.mirrorCore !== "string"
+    || typeof compatibility.minimumMacOS !== "string") {
     throw new Error("Runtime compatibility configuration is invalid.");
+  }
+  const macOS = capture("sw_vers", ["-productVersion"]);
+  if (!supportsMinimumMacOS(macOS, compatibility.minimumMacOS)) {
+    throw new Error(`macOS ${compatibility.minimumMacOS} or newer is required by this alpha.`);
   }
   capture("xcode-select", ["-p"]);
   const tools = {
@@ -129,7 +139,7 @@ export function runPreflight(options) {
     sourceRevision: capture("git", ["rev-parse", "HEAD"]),
     worktreeClean: capture("git", ["status", "--porcelain"]) === "",
     repository: "mirror-mind-ai/mirror-desktop",
-    host: { architecture, macOS: capture("sw_vers", ["-productVersion"]) },
+    host: { architecture, macOS, minimumMacOS: compatibility.minimumMacOS },
     tools,
     runtime: { status: "compatible", coreVersion, requirement: compatibility.mirrorCore },
     lockfiles: { npm: "present", cargo: "present" },

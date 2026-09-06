@@ -7,7 +7,7 @@ This is the canonical route for an authorized collaborator to build and evaluate
 You need:
 
 - authorized read access to `mirror-mind-ai/mirror-desktop`;
-- an `x86_64` or `arm64` Mac;
+- an `x86_64` or `arm64` Mac running macOS 12 or newer;
 - Git and Xcode Command Line Tools;
 - Node.js 20 or newer with npm;
 - stable Rust and Cargo, `uv` and Pi;
@@ -57,6 +57,34 @@ npm run --silent alpha:preflight -- --json \
 
 Review the JSON before sharing it. It must contain no absolute home path or Mirror user.
 
+### Make shell-managed tools available to the desktop app
+
+Mirror Desktop validates canonical executables from a bounded set of user and system locations. If Node, Pi or `uv` exists only inside a shell version manager, create non-overwriting links under `$HOME/.local/bin`:
+
+```bash
+mkdir -p "$HOME/.local/bin"
+for tool in node pi uv; do
+  resolved="$(command -v "$tool")" || exit 1
+  target="$HOME/.local/bin/$tool"
+  if [ ! -e "$target" ] && [ ! -L "$target" ]; then
+    ln -s "$resolved" "$target"
+  fi
+done
+```
+
+Do not replace an existing target without inspecting it. Runtime binding canonicalizes these links and rejects broken or unsafe executables.
+
+### Prepare the Pi-owned provider catalog
+
+Authenticate through Pi's own interactive `/login` flow; never paste a provider key into Mirror Desktop or evidence. Then refresh and verify the provider's public model catalog before opening the app. For OpenRouter:
+
+```bash
+pi --list-models openrouter >/dev/null
+PI_OFFLINE=1 pi --list-models openrouter | head -1
+```
+
+The second command should print the public catalog header. Mirror Desktop reads the same Pi-owned offline cache through the validated runtime binding.
+
 ## 3. Install and test locked source
 
 ```bash
@@ -68,7 +96,7 @@ npm run build
   cargo test
   cargo check --locked
 )
-uv run python -m pytest scripts/tests
+uv run python -m unittest discover -s scripts/tests -p 'test_*.py'
 ```
 
 Unexpected lockfile changes are a blocker:

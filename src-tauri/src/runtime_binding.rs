@@ -14,6 +14,8 @@ const RUNTIME_COMPATIBILITY: &str = include_str!("../../config/runtime-compatibi
 struct RuntimeCompatibility {
     schema_version: String,
     mirror_core: String,
+    #[serde(rename = "minimumMacOS")]
+    minimum_macos: String,
 }
 
 pub fn supported_mirror_core() -> Result<String, String> {
@@ -21,7 +23,7 @@ pub fn supported_mirror_core() -> Result<String, String> {
         serde_json::from_str(RUNTIME_COMPATIBILITY).map_err(|_| {
             "Mirror Desktop runtime compatibility configuration is malformed.".to_string()
         })?;
-    if compatibility.schema_version != "1.0.0" {
+    if compatibility.schema_version != "1.0.0" || compatibility.minimum_macos.trim().is_empty() {
         return Err("Mirror Desktop runtime compatibility schema is unsupported.".to_string());
     }
     Ok(compatibility.mirror_core)

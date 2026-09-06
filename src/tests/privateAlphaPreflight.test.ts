@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 // @ts-expect-error The source-built preflight is a Node module outside the frontend graph.
-import { matchesCompatibility, parseArguments, sanitizeOrigin, validateRuntimeCoordinates } from "../../scripts/private_alpha_preflight.mjs";
+import { matchesCompatibility, parseArguments, sanitizeOrigin, supportsMinimumMacOS, validateRuntimeCoordinates } from "../../scripts/private_alpha_preflight.mjs";
 
 const fixtures: string[] = [];
 
@@ -33,6 +33,12 @@ describe("private alpha preflight", () => {
     ])).toEqual({ json: true, mirrorRoot: "/mirror", mirrorHome: "/home", mirrorUser: "example" });
     expect(() => parseArguments(["--token", "secret"])).toThrow(/Unsupported/);
     expect(sanitizeOrigin("https://token@example.com/repository.git")).toBe("https://example.com/repository.git");
+  });
+
+  it("rejects Big Sur before dependency installation and accepts Monterey", () => {
+    expect(supportsMinimumMacOS("11.7.11", "12.0.0")).toBe(false);
+    expect(supportsMinimumMacOS("12.0.0", "12.0.0")).toBe(true);
+    expect(supportsMinimumMacOS("12.7.6", "12.0.0")).toBe(true);
   });
 
   it("uses the bounded Mirror Core compatibility range", () => {
