@@ -147,7 +147,9 @@ When no binding exists, Mirror Desktop opens only **Connect your Mirror**. Compl
 3. enter your Mirror user slug;
 4. click **Validate and continue**.
 
-The app validates and saves the binding, then loads the Journey registry through that exact runtime. Do not run `npm run import:mirror` for normal first launch. No fallback Journey is shown before the import succeeds.
+The app validates and saves the binding, then loads the model catalog through that exact runtime. On **Choose your model**, select one model exposed by Pi and click **Save model and continue**. Mirror Desktop does not collect provider credentials; authentication remains Pi-owned.
+
+The app also loads the Journey registry automatically. It opens the normal Journey interface only after both a model and a real registry are ready. Do not run `npm run import:mirror` for normal first launch. No fallback Journey is shown before the import succeeds.
 
 ## 6. Confirm your Journeys
 

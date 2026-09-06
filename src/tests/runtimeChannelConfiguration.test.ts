@@ -114,9 +114,15 @@ describe("runtime channel configuration", () => {
     expect(appSource).toContain("Mirror source directory");
     expect(appSource).toContain("Mirror home directory");
     expect(appSource).toContain("Validate and continue");
+    expect(appSource).toContain("Choose your model");
+    expect(appSource).toContain("Save model and continue");
+    expect(appSource).toContain("saveOnboardingAgentProfile");
+    expect(appSource).toContain("agentProfileConfigured !== true");
+    expect(appSource).toContain("piModelCatalog.map");
     expect(appSource).toContain("await refreshJourneyRegistry()");
     expect(appSource).toContain("Mirror was connected, but Journeys couldn’t be loaded.");
     expect(appSource).not.toContain("No Journey registry loaded");
+    expect(appSource).not.toContain("runtimeChannelError || runtimeChannel?.message");
     expect(appSource).not.toContain('?? "nautilus-harness"');
     expect(journeyPreferenceSource).not.toContain('activeJourneyId: "nautilus-harness"');
     expect(appSource).toContain("Choose Mirror source and home, then enter the Mirror user.");

@@ -102,7 +102,13 @@ pub fn load_runtime_binding(
     expected_channel: BindingChannel,
     trusted_executable_directories: &[PathBuf],
 ) -> Result<Option<ValidatedRuntimeBinding>, String> {
-    canonical_directory(app_data_root, "Application data root")?;
+    match fs::symlink_metadata(app_data_root) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(format!("Could not inspect application data root: {error}")),
+        Ok(_) => {
+            canonical_directory(app_data_root, "Application data root")?;
+        }
+    }
     let path = app_data_root.join(BINDING_FILE_NAME);
     let metadata = match fs::symlink_metadata(&path) {
         Ok(metadata) => metadata,
@@ -451,6 +457,22 @@ mod tests {
             .validate(BindingChannel::User, &[fixture.tools.clone()])
             .unwrap_err()
             .contains("incompatible"));
+    }
+
+    #[test]
+    fn missing_application_data_is_a_clean_unbound_state() {
+        let fixture = Fixture::new("0.31.14");
+        let missing_app_data = fixture.root.parent().unwrap().join("missing-app-data");
+
+        assert_eq!(
+            load_runtime_binding(
+                &missing_app_data,
+                BindingChannel::User,
+                &[fixture.tools.clone()],
+            )
+            .unwrap(),
+            None,
+        );
     }
 
     #[test]

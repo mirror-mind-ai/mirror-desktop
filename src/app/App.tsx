@@ -422,8 +422,10 @@ export function App({ model }: AppProps) {
   const [agentSettings, setAgentSettings] = useState<AgentSettings>(() => createDefaultAgentSettings());
   const [agentSettingsState, setAgentSettingsState] = useState<"checking" | "ready" | "saving" | "error">("checking");
   const [agentSettingsMessage, setAgentSettingsMessage] = useState<string | undefined>();
+  const [agentProfileConfigured, setAgentProfileConfigured] = useState<boolean>();
   const [piModelCatalog, setPiModelCatalog] = useState<PiModelCatalogEntry[]>([]);
   const [piModelCatalogState, setPiModelCatalogState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [onboardingModelDraft, setOnboardingModelDraft] = useState("");
   const [globalModelDraft, setGlobalModelDraft] = useState(() => modelOptionValue(createDefaultAgentSettings().globalProfile.model));
   const [globalThinkingDraft, setGlobalThinkingDraft] = useState<AgentThinkingLevel>(createDefaultAgentSettings().globalProfile.thinkingLevel);
   const [journeyModelDraft, setJourneyModelDraft] = useState("inherit");
@@ -560,6 +562,10 @@ export function App({ model }: AppProps) {
     [effectiveAgentProfile, providerConfig],
   );
   const providerErrors = useMemo(() => validateProviderConfig(effectiveProviderConfig), [effectiveProviderConfig]);
+  const onboardingModelOptions = useMemo(
+    () => uniqueModelOptions(piModelCatalog.map(({ provider, model }) => ({ provider, model }))),
+    [piModelCatalog],
+  );
   const modelOptions = useMemo(() => uniqueModelOptions([
     ...piModelCatalog.map(({ provider, model }) => ({ provider, model })),
     agentSettings.globalProfile.model,
@@ -811,11 +817,13 @@ export function App({ model }: AppProps) {
         const next = stored ?? createDefaultAgentSettings();
         setAgentSettings(next);
         setProviderInvocationMode(next.globalProfile.invocationMode);
+        setAgentProfileConfigured(Boolean(stored));
         setAgentSettingsState("ready");
-        setAgentSettingsMessage(stored ? "Agent defaults restored from this device." : "Using Mirror Desktop agent defaults.");
+        setAgentSettingsMessage(stored ? "Agent defaults restored from this device." : undefined);
       })
       .catch((error) => {
         if (cancelled) return;
+        setAgentProfileConfigured(false);
         setAgentSettingsState("error");
         setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
       });
@@ -2396,6 +2404,29 @@ export function App({ model }: AppProps) {
     }
   }
 
+  async function saveOnboardingAgentProfile() {
+    const selectedModel = onboardingModelOptions.find(
+      (model) => modelOptionValue(model) === onboardingModelDraft,
+    );
+    if (!selectedModel) {
+      setAgentSettingsMessage("Choose one of the models available through Pi.");
+      return;
+    }
+    const saved = await persistAgentSettings({
+      ...agentSettings,
+      globalProfile: {
+        ...agentSettings.globalProfile,
+        model: selectedModel,
+        thinkingLevel: "pi-default",
+        invocationMode: "mirror",
+      },
+    }, "Model saved on this device.");
+    if (saved) {
+      setProviderInvocationMode("mirror");
+      setAgentProfileConfigured(true);
+    }
+  }
+
   async function saveGlobalAgentProfile() {
     try {
       const model = modelFromOptionValue(globalModelDraft);
@@ -2887,6 +2918,7 @@ export function App({ model }: AppProps) {
     && (runtimeChannel?.status !== "validated" || runtimeOnboardingEditing);
   const runtimeSetupVisible = !runtimeChannel
     || runtimeSetupNeedsConnection
+    || agentProfileConfigured !== true
     || runtimeOnboardingState !== "ready"
     || flattenJourneyRegistry(loadedJourneyRegistry).length === 0;
 
@@ -2897,7 +2929,10 @@ export function App({ model }: AppProps) {
         data-runtime-channel={runtimeChannel?.channel}
         data-application-theme={applicationTheme}
       >
-        <section className="runtime-onboarding-card" aria-label="Connect your Mirror">
+        <section
+          className="runtime-onboarding-card"
+          aria-label={!runtimeChannel ? "Prepare Mirror Desktop" : runtimeSetupNeedsConnection ? "Connect your Mirror" : agentProfileConfigured !== true ? "Choose your model" : "Prepare Mirror Desktop"}
+        >
           <span className="runtime-onboarding-mark" aria-hidden="true"><img src={appIconUrl} alt="" /></span>
           {runtimeSetupNeedsConnection ? (
             <>
@@ -2913,7 +2948,7 @@ export function App({ model }: AppProps) {
                 </label>
                 <label className="provider-field">Mirror user<input value={runtimeMirrorUser} onChange={(event) => setRuntimeMirrorUser(event.target.value)} placeholder="user-slug" /></label>
               </div>
-              {runtimeChannelError || runtimeChannel?.message ? <p className="provider-error" role="alert">{runtimeChannelError ?? runtimeChannel?.message}</p> : null}
+              {runtimeChannelError || (runtimeChannel?.status === "invalid" && runtimeChannel.message) ? <p className="provider-error" role="alert">{runtimeChannelError ?? runtimeChannel?.message}</p> : null}
               <button type="button" disabled={!runtimeBindingDraft || runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(true)}>
                 {runtimeBindingState === "saving" ? "Connecting…" : "Validate and continue"}
               </button>
@@ -2933,6 +2968,43 @@ export function App({ model }: AppProps) {
                 <button type="button" onClick={() => void importJourneysAfterBinding()}>Try again</button>
                 <button className="secondary-button" type="button" onClick={() => setRuntimeOnboardingEditing(true)}>Edit connection</button>
               </div>
+            </>
+          ) : agentProfileConfigured !== true ? (
+            <>
+              <p className="eyebrow">Mirror connected</p>
+              <h1>Choose your model</h1>
+              <p>Select a model from the catalog exposed by your validated Pi installation. Mirror Desktop does not manage provider credentials.</p>
+              {agentSettingsState === "checking" || piModelCatalogState === "idle" || piModelCatalogState === "loading" ? (
+                <p>Loading available models…</p>
+              ) : piModelCatalogState === "error" ? (
+                <>
+                  <p className="provider-error" role="alert">{agentSettingsMessage ?? "The Pi model catalog couldn’t be loaded."}</p>
+                  <button type="button" onClick={() => { setAgentSettingsMessage(undefined); setPiModelCatalogState("idle"); }}>Try again</button>
+                </>
+              ) : onboardingModelOptions.length === 0 ? (
+                <>
+                  <p className="provider-error" role="alert">Pi did not expose any available models.</p>
+                  <button type="button" onClick={() => setPiModelCatalogState("idle")}>Try again</button>
+                </>
+              ) : (
+                <div className="runtime-onboarding-form">
+                  <label className="provider-field">Pi model
+                    <select value={onboardingModelDraft} onChange={(event) => setOnboardingModelDraft(event.target.value)}>
+                      <option value="" disabled>Select a provider and model…</option>
+                      {onboardingModelOptions.map((model) => (
+                        <option key={modelOptionValue(model)} value={modelOptionValue(model)}>{model.provider} / {model.model}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {agentSettingsState === "error" && agentSettingsMessage ? <p className="provider-error" role="alert">{agentSettingsMessage}</p> : null}
+                  <div className="provider-actions">
+                    <button type="button" disabled={!onboardingModelDraft || agentSettingsState === "saving"} onClick={() => void saveOnboardingAgentProfile()}>
+                      {agentSettingsState === "saving" ? "Saving…" : "Save model and continue"}
+                    </button>
+                    <button className="secondary-button" type="button" onClick={() => setRuntimeOnboardingEditing(true)} disabled={agentSettingsState === "saving"}>Edit connection</button>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <>

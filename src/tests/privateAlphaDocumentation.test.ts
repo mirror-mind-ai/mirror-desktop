@@ -25,6 +25,8 @@ describe("private macOS alpha documentation", () => {
     expect(guide).toContain("A previous attempt didn’t finish");
     expect(guide).toContain("Connect your Mirror");
     expect(guide).toContain("Validate and continue");
+    expect(guide).toContain("Choose your model");
+    expect(guide).toContain("Save model and continue");
     expect(guide).toContain("Do not run `npm run import:mirror`");
   });
 

@@ -71,7 +71,7 @@ Expected duration is 15 to 30 minutes on a warm development machine. Notify the 
 4. Verify `CFBundleName`, `CFBundleIdentifier` and executable architecture from the generated app.
 5. Open the bundle directly from `src-tauri/target/release/bundle/macos/Mirror Desktop.app`, not `/Applications`.
 6. Confirm the existing stable binding is `validated` without altering its bytes.
-7. Start without a published registry, complete the app-owned **Connect your Mirror** gate and confirm it automatically imports the current user's registry without showing a fallback Journey or requiring `npm run import:mirror`; record only the expected root count.
+7. Start without channel-local app data, complete **Connect your Mirror**, choose and persist one model from the validated Pi catalog, and confirm the app automatically imports the current user's registry without showing technical first-run diagnostics, a fallback Journey or requiring `npm run import:mirror`; record only the selected model identifier and expected root count.
 8. Use a disposable Journey to complete one Pi and Mirror turn. Record only disposable Journey id, completion status and timestamps.
 9. Close and reopen the bundle. Confirm the same Journey generation and completed turn remain available without recording message content.
 10. Confirm Nautilus Harness remains independently launchable and no predecessor app-data path changed.
