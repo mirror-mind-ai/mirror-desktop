@@ -343,7 +343,7 @@ const initialMessages: ConversationMessage[] = [
 ];
 
 export function App({ model }: AppProps) {
-  const [selectedJourney, setSelectedJourney] = useState(defaultJourneyPreferenceState.activeJourneyId ?? "nautilus-harness");
+  const [selectedJourney, setSelectedJourney] = useState(defaultJourneyPreferenceState.activeJourneyId ?? "");
   const [selectedAltitude, setSelectedAltitude] = useState(defaultJourneyAltitude);
   const [selectedOperationalSurface, setSelectedOperationalSurface] = useState<OperationalSurface>("chat");
   const presentedJourneySurface = normalizeJourneySurfaceSelection(selectedAltitude, selectedOperationalSurface);
@@ -438,6 +438,9 @@ export function App({ model }: AppProps) {
   const [runtimeMirrorUser, setRuntimeMirrorUser] = useState("");
   const [runtimeBindingState, setRuntimeBindingState] = useState<"idle" | "validating" | "saving">("idle");
   const [runtimeBindingFeedback, setRuntimeBindingFeedback] = useState<string>();
+  const [runtimeOnboardingState, setRuntimeOnboardingState] = useState<"idle" | "importing" | "empty" | "error" | "ready">("idle");
+  const [runtimeOnboardingEditing, setRuntimeOnboardingEditing] = useState(false);
+  const [runtimeOnboardingMessage, setRuntimeOnboardingMessage] = useState<string>();
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
   const [conversationLoaded, setConversationLoaded] = useState(false);
   const [journeyThreadState, setJourneyThreadState] = useState<JourneyThreadDisplayState>({ kind: "loading" });
@@ -868,6 +871,15 @@ export function App({ model }: AppProps) {
   }, [runtimeChannel?.status, runtimeMirrorHome, runtimeMirrorRoot, runtimeMirrorUser]);
 
   useEffect(() => {
+    if (runtimeChannel?.status !== "validated" || !registryLoaded) return;
+    if (flattenJourneyRegistry(loadedJourneyRegistry).length > 0) {
+      setRuntimeOnboardingState("ready");
+      return;
+    }
+    if (runtimeOnboardingState === "idle") void importJourneysAfterBinding();
+  }, [loadedJourneyRegistry, registryLoaded, runtimeChannel?.status, runtimeOnboardingState]);
+
+  useEffect(() => {
     if (!settingsOpen) return;
     setGlobalModelDraft(modelOptionValue(agentSettings.globalProfile.model));
     setGlobalThinkingDraft(agentSettings.globalProfile.thinkingLevel);
@@ -882,7 +894,7 @@ export function App({ model }: AppProps) {
   }, [agentSettings, journeyAgentProfileOpen, selectedJourney]);
 
   useEffect(() => {
-    if (piModelCatalogState !== "idle") return;
+    if (!runtimeBindingReady || piModelCatalogState !== "idle") return;
     setPiModelCatalogState("loading");
     void listPiModels()
       .then((catalog) => {
@@ -893,7 +905,7 @@ export function App({ model }: AppProps) {
         setPiModelCatalogState("error");
         setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
       });
-  }, [piModelCatalogState]);
+  }, [piModelCatalogState, runtimeBindingReady]);
 
   useEffect(() => {
     let cancelled = false;
@@ -982,7 +994,7 @@ export function App({ model }: AppProps) {
   }, [selectedJourney, composerDraftsLoaded]);
 
   useEffect(() => {
-    if (!registryLoaded || !preferencesLoaded) {
+    if (!runtimeBindingReady || !selectedJourney || !registryLoaded || !preferencesLoaded) {
       return;
     }
 
@@ -1140,6 +1152,7 @@ export function App({ model }: AppProps) {
     selectedJourney,
     registryLoaded,
     preferencesLoaded,
+    runtimeBindingReady,
     piInvocationBootstrapComplete,
     selectedNativeLease?.leasePhase,
     selectedNativeLease?.terminalState,
@@ -1212,7 +1225,7 @@ export function App({ model }: AppProps) {
   }, [turnRecoveryNotice]);
 
   useEffect(() => {
-    if (!registryLoaded) return;
+    if (!runtimeBindingReady || !selectedJourney || !registryLoaded) return;
     let cancelled = false;
     setJourneyProjections(undefined);
     setProjectionLoadStatus("loading");
@@ -1230,7 +1243,7 @@ export function App({ model }: AppProps) {
     return () => {
       cancelled = true;
     };
-  }, [selectedJourney, registryLoaded]);
+  }, [selectedJourney, registryLoaded, runtimeBindingReady]);
 
   useEffect(() => {
     if (!conversationLoaded || runtimeBusy || effectiveProviderConfig.safeTestMode) {
@@ -2805,6 +2818,44 @@ export function App({ model }: AppProps) {
       }
     : undefined;
 
+  async function importJourneysAfterBinding() {
+    setRuntimeOnboardingState("importing");
+    setRuntimeOnboardingMessage(undefined);
+    try {
+      const refreshedRegistry = await refreshJourneyRegistry();
+      const reconciled = reconcileReloadedJourneyState(refreshedRegistry, {
+        selectedJourneyId: selectedJourney,
+        pinnedJourneyIds: journeyPreferences.pinnedJourneyIds,
+        recentJourneyIds: journeyPreferences.recentJourneyIds,
+        collapsedJourneyIds,
+      });
+      if (!reconciled) {
+        setLoadedJourneyRegistry(refreshedRegistry);
+        setRuntimeOnboardingState("empty");
+        setRuntimeOnboardingMessage("Mirror is connected, but no Journeys were found.");
+        return false;
+      }
+      setLoadedJourneyRegistry(refreshedRegistry);
+      setSelectedJourney(reconciled.selectedJourneyId);
+      setJourneyPreferences((current) => ({
+        ...current,
+        activeJourneyId: reconciled.selectedJourneyId,
+        pinnedJourneyIds: reconciled.pinnedJourneyIds,
+        recentJourneyIds: reconciled.recentJourneyIds,
+      }));
+      setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
+      setRuntimeOnboardingState("ready");
+      setRuntimeOnboardingEditing(false);
+      setRuntimeOnboardingMessage(undefined);
+      setSettingsOpen(false);
+      return true;
+    } catch {
+      setRuntimeOnboardingState("error");
+      setRuntimeOnboardingMessage("Mirror was connected, but Journeys couldn’t be loaded.");
+      return false;
+    }
+  }
+
   async function submitRuntimeBinding(persist: boolean) {
     if (!runtimeBindingDraft) {
       setRuntimeChannelError("Choose Mirror source and home, then enter the Mirror user.");
@@ -2819,9 +2870,12 @@ export function App({ model }: AppProps) {
         ? await saveRuntimeBinding(runtimeBindingDraft)
         : await validateRuntimeBinding(runtimeBindingDraft);
       setRuntimeChannel(diagnostic);
-      setRuntimeBindingFeedback(persist
-        ? "Binding saved. Mirror and Pi actions are now available for this channel."
-        : "Binding validated. Save it to activate this channel across restarts.");
+      if (persist) {
+        setRuntimeBindingFeedback("Mirror connected. Loading your Journeys…");
+        await importJourneysAfterBinding();
+      } else {
+        setRuntimeBindingFeedback("Binding validated. Save it to activate this channel across restarts.");
+      }
     } catch (error) {
       setRuntimeChannelError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -2829,7 +2883,68 @@ export function App({ model }: AppProps) {
     }
   }
 
-  const journeyRegistryImportCommand = developmentChannel ? "npm run import:mirror:dev" : "npm run import:mirror";
+  const runtimeSetupNeedsConnection = Boolean(runtimeChannel)
+    && (runtimeChannel?.status !== "validated" || runtimeOnboardingEditing);
+  const runtimeSetupVisible = !runtimeChannel
+    || runtimeSetupNeedsConnection
+    || runtimeOnboardingState !== "ready"
+    || flattenJourneyRegistry(loadedJourneyRegistry).length === 0;
+
+  if (runtimeSetupVisible) {
+    return (
+      <main
+        className={`runtime-onboarding-shell channel-${runtimeChannel?.channel ?? "checking"}`}
+        data-runtime-channel={runtimeChannel?.channel}
+        data-application-theme={applicationTheme}
+      >
+        <section className="runtime-onboarding-card" aria-label="Connect your Mirror">
+          <span className="runtime-onboarding-mark" aria-hidden="true"><img src={appIconUrl} alt="" /></span>
+          {runtimeSetupNeedsConnection ? (
+            <>
+              <p className="eyebrow">Mirror Desktop {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</p>
+              <h1>Connect your Mirror</h1>
+              <p>Choose the Mirror installation and personal home this app should use. These fields stay on this Mac.</p>
+              <div className="runtime-onboarding-form" aria-label="Required Mirror connection">
+                <label className="provider-field">Mirror source directory
+                  <span className="journey-path-picker"><input value={runtimeMirrorRoot} onChange={(event) => setRuntimeMirrorRoot(event.target.value)} placeholder="/absolute/path/to/mirror" /><button type="button" onClick={async () => { const path = await chooseRuntimeDirectory("mirrorRoot"); if (path) setRuntimeMirrorRoot(path); }}>Choose…</button></span>
+                </label>
+                <label className="provider-field">Mirror home directory
+                  <span className="journey-path-picker"><input value={runtimeMirrorHome} onChange={(event) => setRuntimeMirrorHome(event.target.value)} placeholder="/absolute/path/to/mirror-home" /><button type="button" onClick={async () => { const path = await chooseRuntimeDirectory("mirrorHome"); if (path) setRuntimeMirrorHome(path); }}>Choose…</button></span>
+                </label>
+                <label className="provider-field">Mirror user<input value={runtimeMirrorUser} onChange={(event) => setRuntimeMirrorUser(event.target.value)} placeholder="user-slug" /></label>
+              </div>
+              {runtimeChannelError || runtimeChannel?.message ? <p className="provider-error" role="alert">{runtimeChannelError ?? runtimeChannel?.message}</p> : null}
+              <button type="button" disabled={!runtimeBindingDraft || runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(true)}>
+                {runtimeBindingState === "saving" ? "Connecting…" : "Validate and continue"}
+              </button>
+            </>
+          ) : !runtimeChannel ? (
+            <>
+              <p className="eyebrow">Mirror Desktop</p>
+              <h1>Checking your Mirror connection…</h1>
+              <p>{runtimeChannelError ?? "Preparing secure local setup."}</p>
+            </>
+          ) : runtimeOnboardingState === "error" || runtimeOnboardingState === "empty" ? (
+            <>
+              <p className="eyebrow">Mirror Desktop</p>
+              <h1>{runtimeOnboardingMessage}</h1>
+              <p>{runtimeOnboardingState === "error" ? "Your connection was saved. Try loading your Journeys again or edit the connection." : "Create a Journey in Mirror, then refresh this screen."}</p>
+              <div className="provider-actions">
+                <button type="button" onClick={() => void importJourneysAfterBinding()}>Try again</button>
+                <button className="secondary-button" type="button" onClick={() => setRuntimeOnboardingEditing(true)}>Edit connection</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="eyebrow">Mirror Desktop</p>
+              <h1>Loading your Journeys…</h1>
+              <p>Mirror is reading your Journey registry through the validated local connection.</p>
+            </>
+          )}
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main
@@ -2956,8 +3071,8 @@ export function App({ model }: AppProps) {
                 </>
               ) : (
                 <>
-                  <strong>No Journey registry loaded</strong>
-                  <small>Run <code>{journeyRegistryImportCommand}</code> and restart this channel to read its local Journey registry from user disk.</small>
+                  <strong>No Journeys available</strong>
+                  <small>Reload the Journey tree after adding a Journey in Mirror.</small>
                 </>
               )}
             </div>

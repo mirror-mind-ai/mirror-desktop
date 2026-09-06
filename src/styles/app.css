@@ -21,6 +21,63 @@ textarea {
   font: inherit;
 }
 
+.runtime-onboarding-shell {
+  --ui-accent: #85dfd2;
+  --ui-accent-rgb: 133, 223, 210;
+  box-sizing: border-box;
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 32px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(var(--ui-accent-rgb), 0.15), transparent 30rem),
+    linear-gradient(145deg, #0b0d0e, #101b1f);
+}
+
+.runtime-onboarding-shell.channel-development {
+  --ui-accent: #c18af0;
+  --ui-accent-rgb: 193, 138, 240;
+}
+
+.runtime-onboarding-card {
+  box-sizing: border-box;
+  width: min(620px, 100%);
+  padding: 36px;
+  border: 1px solid rgba(var(--ui-accent-rgb), 0.24);
+  border-radius: 20px;
+  background: rgba(13, 17, 18, 0.94);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+}
+
+.runtime-onboarding-card h1 {
+  margin: 8px 0 10px;
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+}
+
+.runtime-onboarding-card > p:not(.eyebrow, .provider-error) {
+  color: #aebdc2;
+  line-height: 1.6;
+}
+
+.runtime-onboarding-mark {
+  display: block;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 22px;
+}
+
+.runtime-onboarding-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.runtime-onboarding-form {
+  display: grid;
+  gap: 16px;
+  margin: 28px 0 20px;
+}
+
 .app-shell {
   --shell-radial: rgba(77, 192, 177, 0.14);
   --shell-start: #0b0d0e;

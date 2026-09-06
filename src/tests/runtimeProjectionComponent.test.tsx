@@ -107,7 +107,7 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("readJourneyPiContextStats");
     expect(appSource).toContain("providerModel={providerModelLabel(effectiveProviderConfig)}");
     expect(appSource).toContain("onSelectProviderModel={() => openJourneyAgentProfileSelector()}");
-    expect(appSource).toContain('if (piModelCatalogState !== "idle") return;');
+    expect(appSource).toContain('if (!runtimeBindingReady || piModelCatalogState !== "idle") return;');
     expect(appSource).not.toContain('if ((!settingsOpen && !journeyAgentProfileOpen) || piModelCatalogState !== "idle") return;');
   });
 

@@ -18,10 +18,12 @@ The collaborator explicitly binds their own runtime, imports their registry, com
 ## Acceptance Behavior
 
 ```text
-Given my source-built app opens Unbound
-When I select my Mirror root and home, enter my user, validate and save
-Then only my binding becomes process authority
-When I import my registry and complete one disposable Journey turn
+Given my source-built app has no valid runtime binding
+Then only the three-field Connect your Mirror gate is available
+When I select my Mirror root and home, enter my user, and continue
+Then only my validated binding becomes process authority
+And the app automatically imports my registry without a fabricated Journey
+When I complete one disposable Journey turn
 And close and reopen the app
 Then the completed generation and continuity remain available
 And my evidence records statuses and identifiers only, never conversation content
@@ -30,7 +32,7 @@ And my evidence records statuses and identifiers only, never conversation conten
 ## Scope
 
 - First launch and explicit DS-002 binding.
-- Personal registry import.
+- App-owned automatic personal registry import after the required runtime binding gate.
 - One disposable Journey and completed Pi/Mirror turn.
 - Restart and continuity observation.
 - Privacy-safe result evidence.

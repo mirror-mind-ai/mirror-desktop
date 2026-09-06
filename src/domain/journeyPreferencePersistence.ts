@@ -22,8 +22,8 @@ export type JourneyPreferenceState = PersistedJourneyPreferences["preferences"];
 
 export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   pinnedJourneyIds: [],
-  activeJourneyId: "nautilus-harness",
-  recentJourneyIds: ["nautilus", "livro-lideranca-soberana", "amplia", "mirror-dev", "softwarezen", "ariad"],
+  activeJourneyId: undefined,
+  recentJourneyIds: [],
   journeyListOrder: "recent",
   sidebarCompact: false,
   lastWorkedAtByJourneyId: {},

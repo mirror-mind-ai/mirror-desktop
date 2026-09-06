@@ -140,26 +140,18 @@ open -n 'src-tauri/target/release/bundle/macos/Mirror Desktop.app'
 
 If macOS presents an unsigned-app warning, use Finder's contextual **Open** action and confirm this specific app. Do not disable Gatekeeper globally and do not run broad `xattr` or `spctl` exceptions.
 
-In **Settings → Runtime channel**:
+When no binding exists, Mirror Desktop opens only **Connect your Mirror**. Complete the three required fields:
 
 1. choose your Mirror source directory;
-2. choose your Mirror home;
+2. choose your Mirror home directory;
 3. enter your Mirror user slug;
-4. inspect the derived `memory.db`;
-5. click **Validate**;
-6. click **Save binding**;
-7. confirm `Status: validated`.
+4. click **Validate and continue**.
 
-## 6. Import your Journeys
+The app validates and saves the binding, then loads the Journey registry through that exact runtime. Do not run `npm run import:mirror` for normal first launch. No fallback Journey is shown before the import succeeds.
 
-Close the app, then run:
+## 6. Confirm your Journeys
 
-```bash
-npm run import:mirror
-open -n 'src-tauri/target/release/bundle/macos/Mirror Desktop.app'
-```
-
-Confirm your own Journey registry is visible. Do not report Journey names.
+After automatic import, confirm your own Journey registry is visible. Do not report Journey names. If Mirror is connected but no Journeys are found, add one through the supported Mirror workflow and click **Try again**. If import fails, use **Try again** or **Edit connection**; do not replace application state manually.
 
 ## 7. Prove one disposable conversation
 
