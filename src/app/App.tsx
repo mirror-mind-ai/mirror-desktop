@@ -2946,7 +2946,7 @@ export function App({ model }: AppProps) {
                 <label className="provider-field">Mirror home directory
                   <span className="journey-path-picker"><input value={runtimeMirrorHome} onChange={(event) => setRuntimeMirrorHome(event.target.value)} placeholder="/absolute/path/to/mirror-home" /><button type="button" onClick={async () => { const path = await chooseRuntimeDirectory("mirrorHome"); if (path) setRuntimeMirrorHome(path); }}>Choose…</button></span>
                 </label>
-                <label className="provider-field">Mirror user<input value={runtimeMirrorUser} onChange={(event) => setRuntimeMirrorUser(event.target.value)} placeholder="user-slug" /></label>
+                <label className="provider-field">Mirror user<input value={runtimeMirrorUser} onChange={(event) => setRuntimeMirrorUser(event.target.value)} placeholder="user-slug" autoCapitalize="none" autoCorrect="off" spellCheck={false} /></label>
               </div>
               {runtimeChannelError || (runtimeChannel?.status === "invalid" && runtimeChannel.message) ? <p className="provider-error" role="alert">{runtimeChannelError ?? runtimeChannel?.message}</p> : null}
               <button type="button" disabled={!runtimeBindingDraft || runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(true)}>
@@ -4029,7 +4029,7 @@ export function App({ model }: AppProps) {
                 <label className="provider-field">Mirror home
                   <span className="journey-path-picker"><input value={runtimeMirrorHome} onChange={(event) => setRuntimeMirrorHome(event.target.value)} placeholder="/absolute/path/to/mirror-home" /><button type="button" onClick={async () => { const path = await chooseRuntimeDirectory("mirrorHome"); if (path) setRuntimeMirrorHome(path); }}>Choose…</button></span>
                 </label>
-                <label className="provider-field">Mirror user<input value={runtimeMirrorUser} onChange={(event) => setRuntimeMirrorUser(event.target.value)} placeholder="user-slug" /></label>
+                <label className="provider-field">Mirror user<input value={runtimeMirrorUser} onChange={(event) => setRuntimeMirrorUser(event.target.value)} placeholder="user-slug" autoCapitalize="none" autoCorrect="off" spellCheck={false} /></label>
                 <p className="provider-note">Database: {runtimeMirrorHome ? `${runtimeMirrorHome.replace(/\/$/, "")}/memory.db` : "Select Mirror home"}</p>
                 {runtimeChannelError ? <p className="provider-error">{runtimeChannelError}</p> : null}
                 {runtimeBindingFeedback ? <p className="provider-note" role="status">{runtimeBindingFeedback}</p> : null}

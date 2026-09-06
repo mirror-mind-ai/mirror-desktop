@@ -133,6 +133,7 @@ describe("runtime channel configuration", () => {
     expect(appSource).not.toContain('?? "nautilus-harness"');
     expect(journeyPreferenceSource).not.toContain('activeJourneyId: "nautilus-harness"');
     expect(appSource).toContain("Choose Mirror source and home, then enter the Mirror user.");
+    expect(appSource.match(/autoCapitalize="none" autoCorrect="off" spellCheck=\{false\}/g)).toHaveLength(2);
     expect(cssSource).toContain(".runtime-onboarding-shell");
     expect(cssSource).toContain(".runtime-onboarding-card");
     expect(cssSource).toContain(".app-shell.channel-development");
