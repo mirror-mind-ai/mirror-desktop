@@ -22,8 +22,8 @@ use runtime_channel::{
     runtime_search_directories, RuntimeChannel, RuntimeChannelDiagnostic, RuntimeChannelProfile,
 };
 use turn_journal::{
-    admit_turn, read_turn_journal, transition_turn, TurnJournalAuthority,
-    TurnJournalDocument, TurnJournalRecord, TurnPhase, TurnPiExecutionEvidence,
+    admit_turn, can_interrupt_inactive_turn, read_turn_journal, transition_turn,
+    TurnJournalAuthority, TurnJournalDocument, TurnJournalRecord, TurnPhase, TurnPiExecutionEvidence,
     TurnRecoveryDisposition, TurnTerminalEvidence, TurnTerminalOutcome, TurnTransitionRequest,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
@@ -2030,6 +2030,64 @@ fn transition_turn_journal(
     validate_run_authority(&app, &run_authority)?;
     let authority = journal_authority(&run_authority);
     with_turn_journal_lock(&app, &authority, |path| transition_turn(path, &authority, request))
+}
+
+#[tauri::command]
+fn interrupt_inactive_turn_journal(
+    app: AppHandle,
+    state: State<'_, PiProcessState>,
+    authority: TurnJournalAuthority,
+    expected_revision: u64,
+    active_generation: u64,
+) -> Result<TurnJournalRecord, String> {
+    let thread: Value = serde_json::from_str(
+        &fs::read_to_string(journey_thread_path(&app, &authority.journey_id)?)
+            .map_err(|_| "turn_journal_inactive_thread_unavailable".to_string())?,
+    )
+    .map_err(|_| "turn_journal_inactive_thread_invalid".to_string())?;
+    let persisted_active_generation = unwrap_persisted_thread(&thread)
+        .get("activeGeneration")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| "turn_journal_inactive_thread_invalid".to_string())?;
+    if persisted_active_generation != active_generation {
+        return Err("turn_journal_inactive_generation_stale".to_string());
+    }
+    let journey_has_retained_lease = state
+        .registry
+        .lock()
+        .map_err(|_| "turn_journal_inactive_occupancy_unavailable".to_string())?
+        .inspect()
+        .entries
+        .iter()
+        .any(|entry| entry.authority.journey_id == authority.journey_id);
+
+    with_turn_journal_lock(&app, &authority, |path| {
+        let record = read_turn_journal(path)?
+            .records
+            .into_iter()
+            .find(|record| record.authority == authority)
+            .ok_or_else(|| "turn_journal_record_missing".to_string())?;
+        if record.revision != expected_revision {
+            return Err("turn_journal_inactive_revision_stale".to_string());
+        }
+        if !can_interrupt_inactive_turn(&record, active_generation, journey_has_retained_lease) {
+            return Err("turn_journal_inactive_interruption_unsafe".to_string());
+        }
+        transition_turn(
+            path,
+            &authority,
+            TurnTransitionRequest {
+                expected_revision,
+                expected_phase: record.phase,
+                next_phase: TurnPhase::Interrupted,
+                receipt_id: format!("inactive-interrupted-{}", authority.run_id),
+                terminal_outcome: None,
+                terminal_evidence: None,
+                cancellation_intent: None,
+                recovery_disposition: Some(TurnRecoveryDisposition::Interrupted),
+            },
+        )
+    })
 }
 
 fn event_authority(value: &RunAuthority) -> PiProcessEventAuthority {
@@ -4562,6 +4620,7 @@ fn main() {
             start_pi_invocation,
             list_turn_journal,
             transition_turn_journal,
+            interrupt_inactive_turn_journal,
             read_pi_session_context_stats,
             load_dedicated_pi_transcript,
             enqueue_mirror_append_item,

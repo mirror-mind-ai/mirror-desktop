@@ -145,8 +145,12 @@ import {
   advanceTurnJournal,
   decideTurnJournalRecovery,
   decideTurnJournalTerminal,
+  findBlockingTurnJournalRecord,
+  findExactTurnJournalRecord,
+  interruptInactiveTurnJournal,
   loadTurnJournal,
   requireExactTurnJournalRecord,
+  type TurnJournalRecord,
 } from "./turnJournal";
 import { listPiModels, loadAgentSettings, saveAgentSettings, type PiModelCatalogEntry } from "./agentSettingsStorage";
 import { loadJourneyRegistry, refreshJourneyRegistry } from "./journeyRegistryStorage";
@@ -442,6 +446,10 @@ export function App({ model }: AppProps) {
   const [journeyReloadStatus, setJourneyReloadStatus] = useState<string | undefined>();
   const [isJourneyReloading, setIsJourneyReloading] = useState(false);
   const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false);
+  const [blockingTurnJournalRecord, setBlockingTurnJournalRecord] = useState<TurnJournalRecord>();
+  const [turnRecoveryBusy, setTurnRecoveryBusy] = useState(false);
+  const [turnRecoveryError, setTurnRecoveryError] = useState<string>();
+  const [turnRecoveryAttempt, setTurnRecoveryAttempt] = useState(0);
   const [registryLoaded, setRegistryLoaded] = useState(false);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [loadedJourneyRegistry, setLoadedJourneyRegistry] = useState<JourneyRegistry>(emptyJourneyRegistry);
@@ -1125,7 +1133,33 @@ export function App({ model }: AppProps) {
     piInvocationBootstrapComplete,
     selectedNativeLease?.leasePhase,
     selectedNativeLease?.terminalState,
+    turnRecoveryAttempt,
   ]);
+
+  useEffect(() => {
+    if (!conversationLoaded || !piInvocationBootstrapComplete || journeyThreadState.kind !== "ready") return;
+    let cancelled = false;
+    const ownerJourneyId = selectedJourney;
+    const activeGeneration = journeyThreadState.activeGeneration.generation;
+    void loadTurnJournal(ownerJourneyId)
+      .then((journal) => {
+        if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
+        setBlockingTurnJournalRecord(
+          findBlockingTurnJournalRecord(journal, ownerJourneyId, activeGeneration),
+        );
+        setTurnRecoveryError(undefined);
+        setTurnRecoveryBusy(false);
+      })
+      .catch(() => {
+        if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
+        setBlockingTurnJournalRecord(undefined);
+        setTurnRecoveryError("Durable turn recovery could not be inspected.");
+        setTurnRecoveryBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationLoaded, journeyThreadState, piInvocationBootstrapComplete, selectedJourney]);
 
   useEffect(() => {
     if (!registryLoaded) return;
@@ -1410,7 +1444,7 @@ export function App({ model }: AppProps) {
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
     const content = (retryContent ?? draft).trim();
     const invocationAdmissionBlocked = mode === "live"
-      ? selectedInvocationAdmissionBlocked
+      ? selectedInvocationAdmissionBlocked || turnRecoveryBusy || Boolean(blockingTurnJournalRecord)
       : selectedRuntimeBusy;
     if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || invocationAdmissionBlocked || runStartReservationRef.current || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
       return;
@@ -1650,7 +1684,11 @@ export function App({ model }: AppProps) {
         if (event.type === "done" && mode === "live") {
           if (!settlementAuthority) throw new Error("turn_journal_settlement_authority_missing");
           const journal = await loadTurnJournal(settlementAuthority.journeyId);
-          const journalRecord = requireExactTurnJournalRecord(journal, settlementAuthority);
+          const journalRecord = findExactTurnJournalRecord(journal, settlementAuthority);
+          if (!journalRecord) {
+            runTerminal = "failed";
+            continue;
+          }
           const decision = decideTurnJournalTerminal(journalRecord);
           runTerminal = decision === "cancelled" ? "cancelled" : decision === "failed" ? "failed" : undefined;
           if (decision !== "completed" || rawLiveOutput.trim().length === 0) continue;
@@ -2158,7 +2196,7 @@ export function App({ model }: AppProps) {
   }
 
   function requestConversationRestart() {
-    if (runtimeBusy || isJourneyReloading || journeyThreadState.kind !== "ready" || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)) return;
+    if (runtimeBusy || isJourneyReloading || turnRecoveryBusy || journeyThreadState.kind !== "ready" || blockingTurnJournalRecord || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)) return;
     setJourneyMenuOpen(false);
     setRestartConfirmationOpen(true);
     setJourneyReloadStatus(undefined);
@@ -2169,8 +2207,16 @@ export function App({ model }: AppProps) {
     const ownerJourneyId = selectedJourney;
     const previousGeneration = journeyThreadState.activeGeneration.generation;
     setIsJourneyReloading(true);
-    setJourneyReloadStatus("Reserving next generation…");
+    setJourneyReloadStatus("Checking durable turn recovery…");
     try {
+      const journal = await loadTurnJournal(ownerJourneyId);
+      const blockingRecord = findBlockingTurnJournalRecord(journal, ownerJourneyId, previousGeneration);
+      if (blockingRecord) {
+        setBlockingTurnJournalRecord(blockingRecord);
+        setRestartConfirmationOpen(false);
+        throw new Error("Resolve the unfinished durable turn before restarting this conversation.");
+      }
+      setJourneyReloadStatus("Reserving next generation…");
       const thread = await restartNautilusJourneyThread(ownerJourneyId, selectedJourneyItem.name, (phase) => {
         if (selectedJourneyRef.current !== ownerJourneyId) return;
         const labels: Record<string, string> = {
@@ -2208,6 +2254,53 @@ export function App({ model }: AppProps) {
       setJourneyReloadStatus(`Restart failed. The current generation remains active. ${message}`);
     } finally {
       setIsJourneyReloading(false);
+    }
+  }
+
+  function resumeBlockingTurnRecovery() {
+    if (!blockingTurnJournalRecord || selectedRuntimeBusy) return;
+    setTurnRecoveryBusy(true);
+    setTurnRecoveryError(undefined);
+    setConversationLoaded(false);
+    setJourneyReloadStatus("Recovering the unfinished durable turn…");
+    setTurnRecoveryAttempt((attempt) => attempt + 1);
+  }
+
+  async function markBlockingTurnInterrupted() {
+    if (!blockingTurnJournalRecord || journeyThreadState.kind !== "ready" || selectedRuntimeBusy) return;
+    const ownerJourneyId = selectedJourney;
+    const activeGeneration = journeyThreadState.activeGeneration.generation;
+    setTurnRecoveryBusy(true);
+    setTurnRecoveryError(undefined);
+    try {
+      const interruptedRecord = await interruptInactiveTurnJournal(blockingTurnJournalRecord, activeGeneration);
+      if (interruptedRecord.authority.generation === activeGeneration) {
+        const currentConversation = conversationRef.current;
+        const ownsTurn = currentConversation.journeyId === ownerJourneyId
+          && currentConversation.reconciliation.turns.some((turn) => turn.turnId === interruptedRecord.authority.turnId);
+        if (ownsTurn) {
+          const interruptedConversation = interruptDedicatedTurn(
+            currentConversation,
+            interruptedRecord.authority.turnId,
+            "turn_interrupted_by_user_after_native_inactivity",
+            new Date().toISOString(),
+          );
+          await saveDedicatedJourneyConversation(interruptedConversation);
+          conversationRef.current = interruptedConversation;
+          setConversation(interruptedConversation);
+        }
+      }
+      const journal = await loadTurnJournal(ownerJourneyId);
+      if (selectedJourneyRef.current !== ownerJourneyId) return;
+      setBlockingTurnJournalRecord(
+        findBlockingTurnJournalRecord(journal, ownerJourneyId, activeGeneration),
+      );
+      setJourneyReloadStatus("The inactive turn was marked interrupted. A new turn can now start safely.");
+    } catch (error) {
+      if (selectedJourneyRef.current !== ownerJourneyId) return;
+      setTurnRecoveryError(error instanceof Error ? error.message : String(error));
+    } finally {
+      if (selectedJourneyRef.current === ownerJourneyId) setTurnRecoveryBusy(false);
     }
   }
 
@@ -2991,7 +3084,8 @@ export function App({ model }: AppProps) {
                         type="button"
                         role="menuitem"
                         onClick={requestConversationRestart}
-                        disabled={runtimeBusy || isJourneyReloading || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)}
+                        disabled={runtimeBusy || isJourneyReloading || turnRecoveryBusy || Boolean(blockingTurnJournalRecord) || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)}
+                        title={blockingTurnJournalRecord ? "Resolve the unfinished durable turn first." : undefined}
                       >
                         Restart Conversation…
                       </button>
@@ -3197,6 +3291,36 @@ export function App({ model }: AppProps) {
             <section className="dedicated-turn-notice" role="alert">
               <strong>Agent settings require attention</strong>
               <p>{agentSettingsMessage ?? "Agent settings are still being inspected."} Open Settings to restore a valid non-secret profile.</p>
+            </section>
+          ) : null}
+          {blockingTurnJournalRecord && !isStreaming ? (
+            <section className="dedicated-turn-notice" role="alert">
+              <strong>Unfinished turn needs recovery</strong>
+              <p>No successor or conversation restart will be admitted until this durable turn is resolved. If Pi is no longer active, you can preserve the record as interrupted and continue safely.</p>
+              <div className="provider-actions">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={resumeBlockingTurnRecovery}
+                  disabled={turnRecoveryBusy || selectedRuntimeBusy || piInvocationOccupancy.status !== "known"}
+                >
+                  Resume recovery
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => void markBlockingTurnInterrupted()}
+                  disabled={turnRecoveryBusy || selectedRuntimeBusy || piInvocationOccupancy.status !== "known"}
+                >
+                  {turnRecoveryBusy ? "Checking native activity…" : "Mark as interrupted"}
+                </button>
+              </div>
+              {turnRecoveryError ? <p className="provider-error">{turnRecoveryError}</p> : null}
+            </section>
+          ) : turnRecoveryError && !isStreaming ? (
+            <section className="dedicated-turn-notice" role="alert">
+              <strong>Turn recovery needs attention</strong>
+              <p>{turnRecoveryError}</p>
             </section>
           ) : null}
           {reconciliationBlocksInvocation && !pendingMirrorRepair && !isStreaming ? (

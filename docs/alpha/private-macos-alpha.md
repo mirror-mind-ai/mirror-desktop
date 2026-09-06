@@ -148,10 +148,23 @@ Use a disposable Journey that contains no sensitive material:
 
 Do not copy prompts, responses, transcript text or Journey names into evidence.
 
-## 8. Return bounded evidence
+## 8. Recover an unfinished turn
+
+Mirror Desktop blocks a successor and **Restart Conversation** while a durable turn still requires recovery. This prevents a restart from abandoning authority in an older generation.
+
+When **Unfinished turn needs recovery** appears:
+
+1. wait for native-operation inspection to finish;
+2. choose **Resume recovery** first so the app can complete any authorized projection or Mirror recording;
+3. if recovery remains blocked and Pi is no longer active, choose **Mark as interrupted** to preserve an honest interruption and release the Journey;
+4. retry the original intention only after the recovery notice clears.
+
+The backend independently refuses interruption while any Pi lease for that Journey remains retained. Never delete or edit turn-journal files to bypass this check. A rejection before Pi admission is rolled back automatically and must show its original error rather than a journal-authority mismatch.
+
+## 9. Return bounded evidence
 
 Copy [evidence-template.md](evidence-template.md), fill only its allowed fields and inspect it before sending. If anything blocks, report the stage, bounded error text and whether prior state remains safe.
 
-## 9. Stop or roll back
+## 10. Stop or roll back
 
 Follow [rollback.md](rollback.md). The alpha does not replace Nautilus Harness, and cleanup must not delete Mirror Desktop app data or any Mirror home.

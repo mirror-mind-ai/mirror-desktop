@@ -54,6 +54,8 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(appSource).not.toContain("void saveJourneyConversation(conversation)");
     expect(appSource).not.toContain("await saveJourneyConversation(stagedConversation)");
     expect(appSource).toContain("runFailed && !runReachedAgent");
+    expect(appSource).toContain("findExactTurnJournalRecord(journal, settlementAuthority)");
+    expect(appSource).toContain('if (!journalRecord) {\n            runTerminal = "failed";');
     expect(appSource).toContain("setConversation(conversationBeforeRun)");
     expect(appSource).toContain("await saveDedicatedJourneyConversation(conversationBeforeRun)");
     expect(appSource).toContain("interruptDedicatedTurn(");

@@ -51,13 +51,13 @@ const phases: TurnPhase[] = [
   "admitted", "running", "terminal_durable", "projected", "outbox_enqueued", "settled", "interrupted",
 ];
 
-export function requireExactTurnJournalRecord(
+export function findExactTurnJournalRecord(
   document: TurnJournalDocument,
   authority: JourneySettlementAuthority,
-): TurnJournalRecord {
+): TurnJournalRecord | undefined {
   const record = document.records.find((candidate) => candidate.authority.runId === authority.runId);
-  if (!record
-    || record.authority.journeyId !== authority.journeyId
+  if (!record) return undefined;
+  if (record.authority.journeyId !== authority.journeyId
     || record.authority.turnId !== authority.turnId
     || record.authority.threadId !== authority.threadId
     || record.authority.generation !== authority.generation
@@ -70,8 +70,40 @@ export function requireExactTurnJournalRecord(
   return record;
 }
 
+export function requireExactTurnJournalRecord(
+  document: TurnJournalDocument,
+  authority: JourneySettlementAuthority,
+): TurnJournalRecord {
+  const record = findExactTurnJournalRecord(document, authority);
+  if (!record) throw new Error("turn_journal_authority_mismatch");
+  return record;
+}
+
+export function findBlockingTurnJournalRecord(
+  document: TurnJournalDocument,
+  journeyId: string,
+  activeGeneration: number,
+): TurnJournalRecord | undefined {
+  return [...document.records].reverse().find((record) => (
+    record.authority.journeyId === journeyId
+    && record.authority.generation <= activeGeneration
+    && !isTurnJournalSuccessorEligible(record)
+  ));
+}
+
 export async function loadTurnJournal(journeyId: string): Promise<TurnJournalDocument> {
   return invoke<TurnJournalDocument>("list_turn_journal", { journeyId });
+}
+
+export async function interruptInactiveTurnJournal(
+  record: TurnJournalRecord,
+  activeGeneration: number,
+): Promise<TurnJournalRecord> {
+  return invoke<TurnJournalRecord>("interrupt_inactive_turn_journal", {
+    authority: record.authority,
+    expectedRevision: record.revision,
+    activeGeneration,
+  });
 }
 
 export async function advanceTurnJournal(

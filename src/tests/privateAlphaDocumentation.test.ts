@@ -17,6 +17,8 @@ describe("private macOS alpha documentation", () => {
     expect(guide).toContain("ai.mirrormind.desktop");
     expect(guide).toContain("evidence-template.md");
     expect(guide).toContain("rollback.md");
+    expect(guide).toContain("Resume recovery");
+    expect(guide).toContain("Mark as interrupted");
   });
 
   it("keeps evidence bounded and rollback non-destructive", () => {

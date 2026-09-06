@@ -485,6 +485,16 @@ pub fn transition_turn(
     Ok(result)
 }
 
+pub fn can_interrupt_inactive_turn(
+    record: &TurnJournalRecord,
+    active_generation: u64,
+    journey_has_retained_lease: bool,
+) -> bool {
+    !journey_has_retained_lease
+        && record.authority.generation <= active_generation
+        && matches!(record.phase, TurnPhase::Admitted | TurnPhase::Running | TurnPhase::TerminalDurable)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -553,6 +563,17 @@ mod tests {
             cancellation_intent: None,
             recovery_disposition: None,
         }
+    }
+
+    #[test]
+    fn interruption_requires_an_inactive_current_or_prior_generation() {
+        let path = root("inactive-policy");
+        let record = admit_turn(&path, authority("run-a", "journey-a"), None).unwrap();
+        assert!(can_interrupt_inactive_turn(&record, 2, false));
+        assert!(can_interrupt_inactive_turn(&record, 1, false));
+        assert!(!can_interrupt_inactive_turn(&record, 0, false));
+        assert!(!can_interrupt_inactive_turn(&record, 2, true));
+        fs::remove_file(path).unwrap();
     }
 
     #[test]

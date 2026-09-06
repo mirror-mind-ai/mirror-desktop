@@ -3,6 +3,8 @@ import type { JourneySettlementAuthority } from "../domain/journeySettlementAuth
 import {
   decideTurnJournalRecovery,
   decideTurnJournalTerminal,
+  findBlockingTurnJournalRecord,
+  findExactTurnJournalRecord,
   isTurnJournalSuccessorEligible,
   requireExactTurnJournalRecord,
   type TurnJournalDocument,
@@ -78,6 +80,8 @@ function document(item: TurnJournalRecord): TurnJournalDocument {
 describe("durable turn journal authority", () => {
   it("requires every exact authority coordinate instead of selected-Journey identity", () => {
     const exact = record();
+    expect(findExactTurnJournalRecord(document(exact), authority())).toBe(exact);
+    expect(findExactTurnJournalRecord({ ...document(exact), records: [] }, authority())).toBeUndefined();
     expect(requireExactTurnJournalRecord(document(exact), authority())).toBe(exact);
     expect(() => requireExactTurnJournalRecord(document(exact), authority({ runId: "replacement" })))
       .toThrow("turn_journal_authority_mismatch");
@@ -102,6 +106,15 @@ describe("durable turn journal authority", () => {
     expect(decideTurnJournalRecovery(record({ phase: "projected" }))).toBe("resume_outbox");
     expect(decideTurnJournalRecovery(record({ phase: "outbox_enqueued" }))).toBe("complete");
     expect(decideTurnJournalRecovery(record({ phase: "interrupted", terminalOutcome: null, terminalEvidence: null }))).toBe("interrupt");
+  });
+
+  it("surfaces blocking records from the active or a prior generation", () => {
+    const prior = record({ phase: "running", terminalOutcome: null, terminalEvidence: null });
+    expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 2)).toBe(prior);
+    expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 1)).toBe(prior);
+    expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 0)).toBeUndefined();
+    expect(findBlockingTurnJournalRecord(document({ ...prior, phase: "interrupted" }), "journey-a", 2)).toBeUndefined();
+    expect(findBlockingTurnJournalRecord(document(prior), "journey-b", 2)).toBeUndefined();
   });
 
   it("permits a successor only after local outbox durability or honest interruption", () => {
