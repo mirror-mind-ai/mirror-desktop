@@ -1,3 +1,4 @@
+use crate::runtime_channel::RuntimeChannelProfile;
 use serde::Serialize;
 use serde_json::Value;
 use std::{fs, io::Write, path::Path, process::Command};
@@ -38,9 +39,8 @@ pub fn save_agent_settings(app: AppHandle, payload: String) -> Result<(), String
 
 #[tauri::command]
 pub fn list_pi_models() -> Result<Vec<PiModelCatalogEntry>, String> {
-    let output = Command::new("pi")
-        .arg("--list-models")
-        .env("PI_OFFLINE", "1")
+    let profile = RuntimeChannelProfile::active()?;
+    let output = pi_model_catalog_command(&profile)?
         .output()
         .map_err(|error| format!("Could not inspect the local Pi model catalog: {}", error))?;
     if !output.status.success() {
@@ -49,6 +49,13 @@ pub fn list_pi_models() -> Result<Vec<PiModelCatalogEntry>, String> {
     let text = String::from_utf8(output.stdout)
         .map_err(|_| "Pi local model catalog returned invalid text.".to_string())?;
     parse_pi_model_catalog(&text)
+}
+
+fn pi_model_catalog_command(profile: &RuntimeChannelProfile) -> Result<Command, String> {
+    let mut command = profile.runtime_command("pi")?;
+    profile.detach_journey_turn_authority(&mut command);
+    command.arg("--list-models").env("PI_OFFLINE", "1");
+    Ok(command)
 }
 
 fn load_agent_settings_at(app_data_dir: &Path) -> Result<Option<String>, String> {
@@ -235,7 +242,7 @@ fn valid_agent_value(value: &str) -> bool {
         && value.len() <= 160
         && value.chars().all(|character| {
             character.is_ascii_alphanumeric()
-                || matches!(character, '.' | '_' | ':' | '+' | '/' | '-')
+                || matches!(character, '.' | '_' | ':' | '+' | '/' | '-' | '~')
         })
 }
 
@@ -308,8 +315,12 @@ fn parse_yes_no(value: &str) -> Result<bool, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::runtime_channel::RuntimeChannel;
     use serde_json::json;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::{
+        ffi::OsStr,
+        time::{SystemTime, UNIX_EPOCH},
+    };
 
     fn test_root(label: &str) -> std::path::PathBuf {
         std::env::temp_dir().join(format!(
@@ -383,5 +394,46 @@ mod tests {
             }]
         );
         assert!(parse_pi_model_catalog("bad header\n").is_err());
+    }
+
+    #[test]
+    fn uses_the_runtime_binding_pi_for_catalog_inspection() {
+        let profile =
+            RuntimeChannelProfile::for_home(RuntimeChannel::User, &test_root("catalog-command"));
+        let command = pi_model_catalog_command(&profile).unwrap();
+        assert_eq!(command.get_program(), OsStr::new("/trusted/pi"));
+        assert_eq!(
+            command.get_args().collect::<Vec<_>>(),
+            vec![OsStr::new("--list-models")]
+        );
+        assert_eq!(
+            command
+                .get_envs()
+                .find(|(key, _)| *key == OsStr::new("PI_OFFLINE"))
+                .and_then(|(_, value)| value),
+            Some(OsStr::new("1")),
+        );
+    }
+
+    #[test]
+    fn accepts_pi_managed_openrouter_model_aliases() {
+        let catalog = parse_pi_model_catalog(
+            "provider model context max-out thinking images\nopenrouter ~anthropic/claude-sonnet-latest 1M 128K yes yes\n",
+        )
+        .unwrap();
+        assert_eq!(catalog[0].provider, "openrouter");
+        assert_eq!(catalog[0].model, "~anthropic/claude-sonnet-latest");
+
+        let settings = json!({
+            "schemaVersion": "1.0.0",
+            "globalProfile": {
+                "model": {"provider": "openrouter", "model": "~anthropic/claude-sonnet-latest"},
+                "thinkingLevel": "pi-default",
+                "invocationMode": "mirror"
+            },
+            "journeyOverrides": {}
+        })
+        .to_string();
+        assert!(validate_agent_settings_payload(&settings).is_ok());
     }
 }
