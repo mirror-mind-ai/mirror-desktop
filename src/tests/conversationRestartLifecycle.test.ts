@@ -21,6 +21,16 @@ describe("dedicated conversation restart lifecycle", () => {
     expect(command).not.toContain("generatePacket");
   });
 
+  it("automatically closes inactive attempts and keeps implementation jargon out of normal recovery", () => {
+    expect(appSource).toContain('decision !== "auto_interrupt"');
+    expect(appSource).toContain("await interruptInactiveTurnRecord(");
+    expect(appSource).toContain("Preparing your conversation…");
+    expect(appSource).toContain("A previous attempt didn’t finish. You can send your message again.");
+    expect(appSource).not.toContain("Unfinished turn needs recovery");
+    expect(appSource).not.toContain("Resume recovery");
+    expect(appSource).not.toContain("Mark as interrupted");
+  });
+
   it("persists dedicated Harness projections by generation", () => {
     expect(tauriSource).toContain('join(format!("generation-{}.json", generation))');
     expect(tauriSource).toContain("Could not migrate dedicated generation projection");

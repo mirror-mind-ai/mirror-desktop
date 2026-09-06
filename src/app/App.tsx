@@ -143,6 +143,7 @@ import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPrefere
 import { loadComposerDrafts, saveComposerDrafts } from "./composerDraftStorage";
 import {
   advanceTurnJournal,
+  decideTurnJournalOpeningRecovery,
   decideTurnJournalRecovery,
   decideTurnJournalTerminal,
   findBlockingTurnJournalRecord,
@@ -449,6 +450,7 @@ export function App({ model }: AppProps) {
   const [blockingTurnJournalRecord, setBlockingTurnJournalRecord] = useState<TurnJournalRecord>();
   const [turnRecoveryBusy, setTurnRecoveryBusy] = useState(false);
   const [turnRecoveryError, setTurnRecoveryError] = useState<string>();
+  const [turnRecoveryNotice, setTurnRecoveryNotice] = useState<string>();
   const [turnRecoveryAttempt, setTurnRecoveryAttempt] = useState(0);
   const [registryLoaded, setRegistryLoaded] = useState(false);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
@@ -590,6 +592,11 @@ export function App({ model }: AppProps) {
   const selectedNativeLease = piInvocationOccupancy.entries.find((entry) => (
     entry.authority.journeyId === selectedJourney
   ));
+  const blockingOpeningRecovery = blockingTurnJournalRecord
+    ? decideTurnJournalOpeningRecovery(blockingTurnJournalRecord, Boolean(selectedNativeLease))
+    : undefined;
+  const previousResponseCanBeDiscarded = blockingOpeningRecovery === "recover_response"
+    && blockingTurnJournalRecord?.phase === "terminal_durable";
   const retainedLeaseWithoutRecovery = selectedNativeLease
     && !selectedRuntimeBusy
     && !exactRetainedSettlementRecovery;
@@ -962,6 +969,9 @@ export function App({ model }: AppProps) {
   }, [journeyRegistryRefreshState]);
 
   useEffect(() => {
+    setTurnRecoveryAttempt(0);
+    setTurnRecoveryNotice(undefined);
+    setTurnRecoveryError(undefined);
     chatAutoFollowRef.current = nextConversationAutoFollow(
       chatAutoFollowRef.current,
       { type: "journey_changed" },
@@ -1142,24 +1152,64 @@ export function App({ model }: AppProps) {
     const ownerJourneyId = selectedJourney;
     const activeGeneration = journeyThreadState.activeGeneration.generation;
     void loadTurnJournal(ownerJourneyId)
-      .then((journal) => {
+      .then(async (journal) => {
+        if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
+        const blockingRecord = findBlockingTurnJournalRecord(journal, ownerJourneyId, activeGeneration);
+        if (!blockingRecord) {
+          setBlockingTurnJournalRecord(undefined);
+          setTurnRecoveryError(undefined);
+          setTurnRecoveryBusy(false);
+          setTurnRecoveryAttempt(0);
+          return;
+        }
+        const decision = decideTurnJournalOpeningRecovery(blockingRecord, Boolean(selectedNativeLease));
+        if (decision !== "auto_interrupt") {
+          setBlockingTurnJournalRecord(blockingRecord);
+          setTurnRecoveryError(turnRecoveryAttempt > 0 && decision === "recover_response"
+            ? "Mirror still couldn’t restore the previous response. Your data remains preserved."
+            : undefined);
+          setTurnRecoveryBusy(false);
+          return;
+        }
+        setBlockingTurnJournalRecord(blockingRecord);
+        setTurnRecoveryBusy(true);
+        const recoveredJournal = await interruptInactiveTurnRecord(
+          blockingRecord,
+          ownerJourneyId,
+          activeGeneration,
+        );
         if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
         setBlockingTurnJournalRecord(
-          findBlockingTurnJournalRecord(journal, ownerJourneyId, activeGeneration),
+          findBlockingTurnJournalRecord(recoveredJournal, ownerJourneyId, activeGeneration),
         );
+        setTurnRecoveryNotice("A previous attempt didn’t finish. You can send your message again.");
         setTurnRecoveryError(undefined);
+        setTurnRecoveryAttempt(0);
         setTurnRecoveryBusy(false);
       })
       .catch(() => {
         if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
-        setBlockingTurnJournalRecord(undefined);
-        setTurnRecoveryError("Durable turn recovery could not be inspected.");
+        setTurnRecoveryError("Mirror couldn’t prepare the previous attempt automatically. Your data is preserved.");
         setTurnRecoveryBusy(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [conversationLoaded, journeyThreadState, piInvocationBootstrapComplete, selectedJourney]);
+  }, [
+    conversationLoaded,
+    journeyThreadState,
+    piInvocationBootstrapComplete,
+    selectedJourney,
+    selectedNativeLease?.leasePhase,
+    selectedNativeLease?.terminalState,
+    turnRecoveryAttempt,
+  ]);
+
+  useEffect(() => {
+    if (!turnRecoveryNotice) return;
+    const timeout = window.setTimeout(() => setTurnRecoveryNotice(undefined), 6000);
+    return () => window.clearTimeout(timeout);
+  }, [turnRecoveryNotice]);
 
   useEffect(() => {
     if (!registryLoaded) return;
@@ -2214,7 +2264,7 @@ export function App({ model }: AppProps) {
       if (blockingRecord) {
         setBlockingTurnJournalRecord(blockingRecord);
         setRestartConfirmationOpen(false);
-        throw new Error("Resolve the unfinished durable turn before restarting this conversation.");
+        throw new Error("Mirror is still preparing the previous message. Try again when the conversation is ready.");
       }
       setJourneyReloadStatus("Reserving next generation…");
       const thread = await restartNautilusJourneyThread(ownerJourneyId, selectedJourneyItem.name, (phase) => {
@@ -2262,8 +2312,33 @@ export function App({ model }: AppProps) {
     setTurnRecoveryBusy(true);
     setTurnRecoveryError(undefined);
     setConversationLoaded(false);
-    setJourneyReloadStatus("Recovering the unfinished durable turn…");
+    setJourneyReloadStatus("Trying to restore the previous response…");
     setTurnRecoveryAttempt((attempt) => attempt + 1);
+  }
+
+  async function interruptInactiveTurnRecord(
+    record: TurnJournalRecord,
+    ownerJourneyId: string,
+    activeGeneration: number,
+  ) {
+    const interruptedRecord = await interruptInactiveTurnJournal(record, activeGeneration);
+    if (interruptedRecord.authority.generation === activeGeneration) {
+      const currentConversation = conversationRef.current;
+      const ownsTurn = currentConversation.journeyId === ownerJourneyId
+        && currentConversation.reconciliation.turns.some((turn) => turn.turnId === interruptedRecord.authority.turnId);
+      if (ownsTurn) {
+        const interruptedConversation = interruptDedicatedTurn(
+          currentConversation,
+          interruptedRecord.authority.turnId,
+          "turn_interrupted_after_native_inactivity",
+          new Date().toISOString(),
+        );
+        await saveDedicatedJourneyConversation(interruptedConversation);
+        conversationRef.current = interruptedConversation;
+        setConversation(interruptedConversation);
+      }
+    }
+    return loadTurnJournal(ownerJourneyId);
   }
 
   async function markBlockingTurnInterrupted() {
@@ -2273,32 +2348,20 @@ export function App({ model }: AppProps) {
     setTurnRecoveryBusy(true);
     setTurnRecoveryError(undefined);
     try {
-      const interruptedRecord = await interruptInactiveTurnJournal(blockingTurnJournalRecord, activeGeneration);
-      if (interruptedRecord.authority.generation === activeGeneration) {
-        const currentConversation = conversationRef.current;
-        const ownsTurn = currentConversation.journeyId === ownerJourneyId
-          && currentConversation.reconciliation.turns.some((turn) => turn.turnId === interruptedRecord.authority.turnId);
-        if (ownsTurn) {
-          const interruptedConversation = interruptDedicatedTurn(
-            currentConversation,
-            interruptedRecord.authority.turnId,
-            "turn_interrupted_by_user_after_native_inactivity",
-            new Date().toISOString(),
-          );
-          await saveDedicatedJourneyConversation(interruptedConversation);
-          conversationRef.current = interruptedConversation;
-          setConversation(interruptedConversation);
-        }
-      }
-      const journal = await loadTurnJournal(ownerJourneyId);
+      const journal = await interruptInactiveTurnRecord(
+        blockingTurnJournalRecord,
+        ownerJourneyId,
+        activeGeneration,
+      );
       if (selectedJourneyRef.current !== ownerJourneyId) return;
       setBlockingTurnJournalRecord(
         findBlockingTurnJournalRecord(journal, ownerJourneyId, activeGeneration),
       );
-      setJourneyReloadStatus("The inactive turn was marked interrupted. A new turn can now start safely.");
-    } catch (error) {
+      setTurnRecoveryNotice("The previous unfinished attempt was discarded. You can send your message again.");
+      setJourneyReloadStatus(undefined);
+    } catch {
       if (selectedJourneyRef.current !== ownerJourneyId) return;
-      setTurnRecoveryError(error instanceof Error ? error.message : String(error));
+      setTurnRecoveryError("Mirror couldn’t discard the previous attempt safely. Your data is preserved.");
     } finally {
       if (selectedJourneyRef.current === ownerJourneyId) setTurnRecoveryBusy(false);
     }
@@ -3085,7 +3148,7 @@ export function App({ model }: AppProps) {
                         role="menuitem"
                         onClick={requestConversationRestart}
                         disabled={runtimeBusy || isJourneyReloading || turnRecoveryBusy || Boolean(blockingTurnJournalRecord) || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)}
-                        title={blockingTurnJournalRecord ? "Resolve the unfinished durable turn first." : undefined}
+                        title={blockingTurnJournalRecord ? "Wait until the previous message is ready." : undefined}
                       >
                         Restart Conversation…
                       </button>
@@ -3293,33 +3356,49 @@ export function App({ model }: AppProps) {
               <p>{agentSettingsMessage ?? "Agent settings are still being inspected."} Open Settings to restore a valid non-secret profile.</p>
             </section>
           ) : null}
+          {turnRecoveryNotice && !blockingTurnJournalRecord && !isStreaming ? (
+            <section className="dedicated-turn-notice" role="status">
+              <strong>Conversation ready</strong>
+              <p>{turnRecoveryNotice}</p>
+            </section>
+          ) : null}
           {blockingTurnJournalRecord && !isStreaming ? (
             <section className="dedicated-turn-notice" role="alert">
-              <strong>Unfinished turn needs recovery</strong>
-              <p>No successor or conversation restart will be admitted until this durable turn is resolved. If Pi is no longer active, you can preserve the record as interrupted and continue safely.</p>
-              <div className="provider-actions">
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={resumeBlockingTurnRecovery}
-                  disabled={turnRecoveryBusy || selectedRuntimeBusy || piInvocationOccupancy.status !== "known"}
-                >
-                  Resume recovery
-                </button>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => void markBlockingTurnInterrupted()}
-                  disabled={turnRecoveryBusy || selectedRuntimeBusy || piInvocationOccupancy.status !== "known"}
-                >
-                  {turnRecoveryBusy ? "Checking native activity…" : "Mark as interrupted"}
-                </button>
-              </div>
+              {turnRecoveryBusy ? (
+                <><strong>Preparing your conversation…</strong><p>Mirror is safely checking the previous attempt.</p></>
+              ) : blockingOpeningRecovery === "wait_for_agent" ? (
+                <><strong>The agent is still finishing the previous message</strong><p>Your conversation will become available when it finishes.</p></>
+              ) : (
+                <>
+                  <strong>We couldn’t restore the previous response</strong>
+                  <p>Your data is preserved. Try restoring it again before deciding whether to discard that response.</p>
+                  <div className="provider-actions">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={resumeBlockingTurnRecovery}
+                      disabled={selectedRuntimeBusy || piInvocationOccupancy.status !== "known"}
+                    >
+                      Try again
+                    </button>
+                    {previousResponseCanBeDiscarded ? (
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => void markBlockingTurnInterrupted()}
+                        disabled={selectedRuntimeBusy || piInvocationOccupancy.status !== "known"}
+                      >
+                        Discard previous response
+                      </button>
+                    ) : null}
+                  </div>
+                </>
+              )}
               {turnRecoveryError ? <p className="provider-error">{turnRecoveryError}</p> : null}
             </section>
           ) : turnRecoveryError && !isStreaming ? (
             <section className="dedicated-turn-notice" role="alert">
-              <strong>Turn recovery needs attention</strong>
+              <strong>We couldn’t prepare this conversation</strong>
               <p>{turnRecoveryError}</p>
             </section>
           ) : null}

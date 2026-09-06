@@ -148,18 +148,20 @@ Use a disposable Journey that contains no sensitive material:
 
 Do not copy prompts, responses, transcript text or Journey names into evidence.
 
-## 8. Recover an unfinished turn
+## 8. Let Mirror prepare an interrupted conversation
 
-Mirror Desktop blocks a successor and **Restart Conversation** while a durable turn still requires recovery. This prevents a restart from abandoning authority in an older generation.
+Mirror Desktop automatically reconciles earlier attempts before enabling a successor or **Restart Conversation**. Normal recovery does not ask the user to understand journals, generations or interruption states.
 
-When **Unfinished turn needs recovery** appears:
+Expected outcomes are:
 
-1. wait for native-operation inspection to finish;
-2. choose **Resume recovery** first so the app can complete any authorized projection or Mirror recording;
-3. if recovery remains blocked and Pi is no longer active, choose **Mark as interrupted** to preserve an honest interruption and release the Journey;
-4. retry the original intention only after the recovery notice clears.
+- **Preparing your conversation…** while Mirror checks a prior attempt;
+- **A previous attempt didn’t finish. You can send your message again.** after an inactive attempt without a completed response is safely closed;
+- the recovered response appears when Pi completed and durable evidence authorizes projection;
+- **The agent is still finishing the previous message** while a native Pi lease remains active.
 
-The backend independently refuses interruption while any Pi lease for that Journey remains retained. Never delete or edit turn-journal files to bypass this check. A rejection before Pi admission is rolled back automatically and must show its original error rather than a journal-authority mismatch.
+Only an ambiguous completed response requires a user choice. Mirror first offers **Try again**. When the backend proves that Pi is inactive and the durable phase permits it, **Discard previous response** is available with its consequence stated directly. The backend still refuses unsafe interruption.
+
+Never delete or edit turn-journal files to bypass recovery. A rejection before Pi admission is rolled back automatically and must show its original error rather than a journal-authority mismatch.
 
 ## 9. Return bounded evidence
 

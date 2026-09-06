@@ -79,6 +79,18 @@ export function requireExactTurnJournalRecord(
   return record;
 }
 
+export type TurnJournalOpeningRecovery = "auto_interrupt" | "recover_response" | "wait_for_agent";
+
+export function decideTurnJournalOpeningRecovery(
+  record: TurnJournalRecord,
+  journeyHasRetainedLease: boolean,
+): TurnJournalOpeningRecovery {
+  if (journeyHasRetainedLease) return "wait_for_agent";
+  if (record.phase === "admitted" || record.phase === "running") return "auto_interrupt";
+  if (record.phase === "terminal_durable" && record.terminalOutcome !== "completed") return "auto_interrupt";
+  return "recover_response";
+}
+
 export function findBlockingTurnJournalRecord(
   document: TurnJournalDocument,
   journeyId: string,
