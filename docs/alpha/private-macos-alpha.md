@@ -59,9 +59,9 @@ Review the JSON before sharing it. It must contain no absolute home path or Mirr
 
 ### Keep local tools discoverable
 
-Mirror Desktop resolves a paired Pi and Node installation without executing shell startup files. **Validate and continue** searches a bounded set of system and user locations, including Homebrew, `~/.local/bin`, NVM, FNM, Volta, asdf and mise, then canonicalizes the executables before any import. A single valid installation is used automatically; no link setup is required for these supported layouts.
+Mirror Desktop resolves a paired Pi and Node installation without executing shell startup files. **Validate and continue** searches a bounded, deterministic precedence of system and user locations, including Homebrew, `~/.local/bin`, NVM, FNM, Volta, asdf and mise, then canonicalizes the executables before any import. The first complete pair in that trusted precedence is used automatically; version-managed installations are ordered newest first. No link setup is required for these supported layouts.
 
-If no paired installation is available, or multiple distinct Pi installations remain ambiguous, validation stops before saving the binding or importing Journeys. Resolve the local installation ambiguity through the owning package manager and try again; do not broaden graphical `PATH` or replace executable links blindly.
+If no paired installation is available, validation stops before saving the binding or importing Journeys. Repair the local installation through its owning package manager and try again; do not broaden graphical `PATH` or replace executable links blindly.
 
 ### Prepare the Pi-owned provider catalog
 

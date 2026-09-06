@@ -305,7 +305,6 @@ fn resolve_executable(program: &str, directories: &[PathBuf]) -> Result<PathBuf,
 }
 
 fn resolve_pi_toolchain(directories: &[PathBuf]) -> Result<(PathBuf, PathBuf, PathBuf), String> {
-    let mut candidates = Vec::<(PathBuf, PathBuf, PathBuf)>::new();
     for directory in directories {
         let Some(pi_bin) = executable_at(directory, "pi")? else {
             continue;
@@ -313,18 +312,12 @@ fn resolve_pi_toolchain(directories: &[PathBuf]) -> Result<(PathBuf, PathBuf, Pa
         let Some(node_bin) = executable_at(directory, "node")? else {
             continue;
         };
-        if !candidates
-            .iter()
-            .any(|(pi, node, _)| pi == &pi_bin && node == &node_bin)
-        {
-            candidates.push((pi_bin, node_bin, directory.clone()));
-        }
+        return Ok((pi_bin, node_bin, directory.clone()));
     }
-    match candidates.len() {
-        0 => Err("Could not resolve a paired Pi and Node installation from supported local tool locations.".to_string()),
-        1 => Ok(candidates.remove(0)),
-        _ => Err("Multiple Pi installations were found. Keep one active installation in the supported local tool locations.".to_string()),
-    }
+    Err(
+        "Could not resolve a paired Pi and Node installation from supported local tool locations."
+            .to_string(),
+    )
 }
 
 #[cfg(test)]
@@ -497,7 +490,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unpaired_or_ambiguous_pi_installations() {
+    fn rejects_unpaired_pi_and_uses_ordered_precedence_for_multiple_installations() {
         let fixture = Fixture::new("0.31.14");
         fs::remove_file(fixture.tools.join("node")).unwrap();
         assert!(fixture
@@ -528,12 +521,12 @@ mod tests {
             )
             .unwrap();
         }
-        assert!(fixture
+        let validated = fixture
             .binding
             .clone()
             .validate(BindingChannel::User, &[fixture.tools.clone(), second])
-            .unwrap_err()
-            .contains("Multiple Pi installations"));
+            .unwrap();
+        assert_eq!(validated.pi_runtime_directory, fixture.tools);
     }
 
     #[test]
