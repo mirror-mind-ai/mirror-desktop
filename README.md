@@ -6,7 +6,7 @@ The project continues the application body incubated as Nautilus Harness. The tr
 
 ## Private macOS alpha
 
-Authorized collaborators should follow the canonical [private macOS alpha guide](docs/alpha/private-macos-alpha.md). It covers preflight, locked source build, personal runtime binding, disposable Journey validation, bounded evidence and non-destructive rollback.
+Maintainers and authorized testers should follow the canonical [private macOS alpha guide](docs/alpha/private-macos-alpha.md). It separates maintainer preflight, locked build, checksum and private delivery from external runtime binding, disposable Journey validation, bounded evidence and non-destructive rollback.
 
 ## Development
 

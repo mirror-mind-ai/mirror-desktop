@@ -12,6 +12,8 @@ describe("private macOS alpha documentation", () => {
   it("links one canonical route from the repository entry point", () => {
     expect(readme).toContain("docs/alpha/private-macos-alpha.md");
     expect(guide).toContain("npm run alpha:preflight");
+    expect(guide).toContain("It is a build-host gate, not tester onboarding");
+    expect(guide).toContain("The tester does not need repository access");
     expect(guide).toContain("npm ci");
     expect(guide).toContain("npm run tauri:build:user -- -- --locked");
     expect(guide).toContain("Contents/Resources/scripts/provision_mirror_conversation.py");
@@ -21,6 +23,10 @@ describe("private macOS alpha documentation", () => {
     expect(guide).toContain("NVM, FNM, Volta, asdf and mise");
     expect(guide).toContain("No link setup is required");
     expect(guide).toContain("ai.mirrormind.desktop");
+    expect(guide).toContain("shasum -a 256");
+    expect(guide).toContain("Do not upload it to a release, commit it to Git");
+    expect(guide).toContain("A later release capability");
+    expect(guide).toContain("A subsequent capability");
     expect(guide).toContain("evidence-template.md");
     expect(guide).toContain("rollback.md");
     expect(guide).toContain("Preparing your conversation");
@@ -34,6 +40,8 @@ describe("private macOS alpha documentation", () => {
 
   it("keeps evidence bounded and rollback non-destructive", () => {
     expect(evidence).toContain("Do not include credentials");
+    expect(evidence).toContain("Maintainer build receipt");
+    expect(evidence).toContain("Received SHA-256 matches build receipt");
     expect(evidence).toContain("Restart continuity");
     expect(rollback).toContain("Do not delete or reset");
     expect(rollback).toContain("com.nautilus.harness");

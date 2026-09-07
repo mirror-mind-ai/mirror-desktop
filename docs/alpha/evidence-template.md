@@ -1,19 +1,20 @@
 # Mirror Desktop Private Alpha Evidence
 
-Do not include credentials, absolute home paths, environment dumps, Journey names, prompts, responses, identity documents or database contents.
+Do not include credentials, absolute home paths, environment dumps, Mirror user slugs, Journey names, prompts, responses, identity documents or database contents.
 
-## Source and host
+## Maintainer build receipt
 
 ```text
-Authorized revision:
-Host architecture: x86_64 | arm64
-macOS version:
+Authorized source revision:
+Build-host architecture: x86_64 | arm64
+Build-host macOS version:
 Canonical origin confirmed: yes | no
-Preflight: ready | blocked
 Worktree clean before build: yes | no
+Build preflight: ready | blocked
+Mirror Core compatibility check: passed | blocked
 ```
 
-## Gates
+## Maintainer gates
 
 ```text
 npm ci: passed | blocked
@@ -26,24 +27,41 @@ Stable Tauri build: passed | blocked
 Lockfiles unchanged: yes | no
 ```
 
-## Bundle
+## Delivered artifact
 
 ```text
 Bundle name: Mirror Desktop | mismatch
 Bundle identifier: ai.mirrormind.desktop | mismatch
+Executable architecture: x86_64 | arm64
+Bundled provisioning resource: present | missing
+DMG filename:
+SHA-256:
+Delivered through authorized private channel: yes | no
+Published or committed to source history: no | yes
+```
+
+## External test host
+
+```text
+Test-host architecture: x86_64 | arm64
+Test-host macOS version:
 Executable architecture matches host: yes | no
-Opened from local build directory: yes | no
+Received SHA-256 matches build receipt: yes | no
+Opened from dedicated test location: yes | no
+App-specific unsigned opening used if required: yes | no | not required
+Global Gatekeeper policy unchanged: yes | no
 ```
 
 ## Runtime and Journey
 
 ```text
 Binding status: validated | blocked
-Mirror Core version:
+Compatible Mirror Core: passed | blocked
+Pi and Node discovery: passed | blocked
+Model selection: passed | blocked
 Registry import: passed | blocked
-Root count only:
-Disposable Journey id:
-Pi turn completion: passed | blocked
+Disposable Journey turn: passed | blocked
+Pi completion: passed | blocked
 Mirror recording: passed | blocked
 Restart continuity: passed | blocked
 ```
@@ -52,9 +70,10 @@ Restart continuity: passed | blocked
 
 ```text
 No private content included in this report: confirmed | not confirmed
-No maintainer state received: confirmed | not confirmed
+No foreign Mirror state received: confirmed | not confirmed
+Existing Mirror state preserved: yes | no
 Nautilus Harness remained available: yes | no | not installed
-Mirror homes unchanged by cleanup: yes | no
+Delivered artifacts removable without durable-state deletion: yes | no
 Rollback inspection: passed | blocked
 ```
 
@@ -70,10 +89,11 @@ Observed:
 Prior state remains safe: yes | no
 ```
 
-## Collaborator acceptance
+## Acceptance
 
 ```text
-Route completed without unpublished oral steps: yes | no
+Maintainer build receipt complete: yes | no
+External operation route completed: yes | no
 Evidence reviewed for private content: yes | no
 Result: accepted | blocked
 ```

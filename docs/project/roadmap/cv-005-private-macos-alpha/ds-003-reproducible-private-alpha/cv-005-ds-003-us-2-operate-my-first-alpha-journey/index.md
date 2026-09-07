@@ -7,18 +7,19 @@
 
 ## User Story
 
-As an authorized alpha collaborator with my own configured Mirror installation,
-I want to bind and operate one disposable Journey through restart,
-So that I can prove the source-built desktop is usable with my state and preserves continuity.
+As an authorized alpha tester with my own configured Mirror installation,
+I want to verify, bind and operate one privately delivered bundle through restart,
+So that I can prove the desktop is portable, usable with my state and preserves continuity without requiring source access.
 
 ## Outcome
 
-The collaborator explicitly binds their own runtime, imports their registry, completes one Pi and Mirror turn in a disposable Journey, restarts the app and observes the same continuity without sharing private content.
+The tester verifies the delivered checksum and architecture, explicitly binds their own runtime, imports their registry, completes one Pi and Mirror turn in a disposable Journey, restarts the app and observes the same continuity without sharing private content.
 
 ## Acceptance Behavior
 
 ```text
-Given my source-built app has no valid runtime binding
+Given the privately delivered app matches its announced checksum and host architecture
+And it has no valid runtime binding
 Then only the three-field Connect your Mirror gate is available
 When I select my Mirror root and home, enter my user, and continue
 Then only my validated binding becomes process authority
@@ -48,4 +49,4 @@ And my evidence records statuses and identifiers only, never conversation conten
 
 ## Validation
 
-Internal rehearsal confirms the route, but Done requires an authorized external collaborator to repeat it on their own Mac and return the bounded evidence template.
+Internal rehearsal confirms the build route, but Done requires an authorized external tester on supported macOS to verify and operate the delivered artifact on their own Mac and return the bounded evidence template.

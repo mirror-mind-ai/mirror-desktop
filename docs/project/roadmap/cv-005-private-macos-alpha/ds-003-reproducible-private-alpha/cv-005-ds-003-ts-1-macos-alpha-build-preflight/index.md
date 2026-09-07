@@ -8,19 +8,19 @@
 ## Technical Story
 
 In order to fail before an expensive or unsafe private-alpha build,
-As an authorized macOS collaborator,
-I want one bounded preflight for source, host, tools and Mirror readiness,
-So that I know whether this commit can produce and operate Mirror Desktop on my machine.
+As the maintainer producing a private alpha artifact,
+I want one bounded preflight for source, build host, tools and rehearsal readiness,
+So that I know whether this commit can produce a trustworthy Mirror Desktop bundle before private delivery.
 
 ## Outcome
 
-`npm run alpha:preflight` gives actionable human diagnostics and privacy-safe JSON evidence for macOS architecture, revision, origin, lockfiles, build tools and explicit compatible Mirror coordinates.
+`npm run alpha:preflight` gives the maintainer actionable human diagnostics and privacy-safe JSON evidence for build-host architecture, revision, origin, lockfiles, build tools and explicit compatible Mirror rehearsal coordinates. It is not a tester installation or onboarding prerequisite.
 
 ## Acceptance Behavior
 
 ```text
-Given a private clone and explicit Mirror root, home and user
-When preflight probes the host through argument-safe commands
+Given a maintainer checkout and explicit local Mirror root, home and user
+When preflight probes the build host through argument-safe commands
 Then supported macOS architecture, tools, lockfiles and Core compatibility pass visibly
 And missing, partial, unsafe or incompatible prerequisites fail nonzero
 And JSON evidence contains bounded versions and statuses but no absolute user paths, credentials or database content

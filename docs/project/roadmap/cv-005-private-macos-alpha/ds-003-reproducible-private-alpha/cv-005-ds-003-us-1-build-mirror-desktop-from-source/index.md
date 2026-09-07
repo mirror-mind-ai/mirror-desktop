@@ -1,34 +1,35 @@
 [< Parent](../index.md)
 
-# CV-005.DS-003.US-1 - Build Mirror Desktop From Source
+# CV-005.DS-003.US-1 - Produce a Private Alpha Bundle
 
 **Status:** 🟠 In Progress
 **Type:** User Story
 
 ## User Story
 
-As an authorized private-repository collaborator,
-I want one documented locked source-build route,
-So that I can generate a host-native Mirror Desktop bundle without unpublished maintainer knowledge.
+As the Mirror Desktop maintainer,
+I want one documented locked build and artifact-verification route,
+So that I can privately deliver a revision-bound host-native bundle without transferring source-build burden to the tester.
 
 ## Outcome
 
-A collaborator can clone the authorized revision, pass preflight, install locked dependencies, run repository gates and produce an unsigned local `.app` and `.dmg` with verified Mirror Desktop identity and host architecture.
+A maintainer can check out the authorized revision, pass preflight, run locked repository gates, produce an unsigned `.app` and `.dmg`, verify identity and architecture, and bind the delivered artifact to the source revision through SHA-256.
 
 ## Acceptance Behavior
 
 ```text
-Given my Mac passes the alpha preflight
-When I follow the canonical guide from a fresh private clone
+Given the maintainer build host passes alpha preflight
+When the maintainer follows the canonical guide from a clean authorized revision
 Then npm ci and locked repository gates complete
 And the stable Tauri build produces Mirror Desktop.app and its local dmg
-And bundle identifier, product name and executable architecture match the documented contract
+And bundle identifier, product name, resources and executable architecture match the documented contract
+And revision and SHA-256 accompany the privately transmitted artifact
 And no generated artifact is committed, published or installed automatically
 ```
 
 ## Scope
 
-- Canonical private clone and checkout instructions.
+- Canonical maintainer checkout instructions.
 - Locked JavaScript and Cargo dependency route.
 - Stable host-architecture bundle command and metadata verification.
 - Narrow unsigned Gatekeeper explanation.
@@ -43,4 +44,4 @@ And no generated artifact is committed, published or installed automatically
 
 ## Validation
 
-Perform an internal clean-revision rehearsal and an external collaborator build using only committed instructions. Compare returned bundle identity and architecture evidence.
+Perform an internal clean-revision build, verify bundle identity, architecture and resources, compute SHA-256, then compare that receipt with the external tester's received checksum and host architecture.

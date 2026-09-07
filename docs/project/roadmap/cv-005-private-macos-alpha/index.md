@@ -6,13 +6,13 @@
 
 ## Outcome
 
-Authorized collaborators can clone the private `mirror-mind-ai/mirror-desktop` repository on macOS, build a local Mirror Desktop bundle, bind it to their own configured Mirror installation, and use their own Journeys without encountering Nautilus as the product identity.
+A maintainer can produce a revision-bound Mirror Desktop bundle and deliver it privately to authorized macOS testers, who can bind it to their own configured Mirror installation and use their Journeys without source access or Nautilus as the product identity.
 
 ## Why This Matters
 
-The transferred Tauri application already proves the essential desktop operating loop, but it still carries two assumptions from incubation: Nautilus is presented as the application identity, and the stable runtime is compiled around one person's Mirror coordinates. Renaming only the visible shell would create a false alpha because another user could compile the app but could not safely operate it with their own identity and memory.
+The transferred Tauri application already proves the essential desktop operating loop, but it inherited Nautilus product identity and compiled personal runtime assumptions. CV-005 separates product identity from method semantics, makes runtime authority portable and creates a bounded passage from maintainer source to an external working application.
 
-This capability creates a deliberately bounded passage. It is not public distribution and it is not complete new-user onboarding. It gives a small invited cohort a reproducible source-built macOS application while preserving Nautilus where it is genuinely method semantics and preserving legacy coordinates where compatibility still depends on them.
+This capability is not public distribution and is not complete new-user onboarding. The first alpha moment deliberately keeps compilation with the maintainer while external testers receive only an authorized unsigned bundle. That reduces tester setup burden without treating private transmission as a release system.
 
 ## Delivery Stories
 
@@ -20,40 +20,52 @@ This capability creates a deliberately bounded passage. It is not public distrib
 |------|----------------|---------|--------|
 | [CV-005.DS-001](ds-001-mirror-desktop-product-boundary/index.md) | Mirror Desktop Product Boundary | External application surfaces and new product coordinates express Mirror Desktop while classified Nautilus method and legacy semantics remain explicit | ✅ Done |
 | [CV-005.DS-002](ds-002-portable-user-runtime-binding/index.md) | Portable User Runtime Binding | A source-built app resolves and validates the current user's own Mirror runtime without compiled personal coordinates | ✅ Done |
-| [CV-005.DS-003](ds-003-reproducible-private-alpha/index.md) | Reproducible Private Alpha | An authorized macOS collaborator can follow one documented route from private clone to usable local bundle and return bounded validation evidence | 🟡 Planned |
+| [CV-005.DS-003](ds-003-reproducible-private-alpha/index.md) | Reproducible Private Alpha | A maintainer builds and privately delivers a verified bundle that an authorized external tester can connect, operate, restart and remove safely | 🟠 In Progress |
 
 ## Delivery Order
 
-CV-005.DS-001 classifies the inherited namespace before any broad rename and establishes a parallel Mirror Desktop product identity. CV-005.DS-002 removes the personal runtime binding that currently prevents another user from operating the app. CV-005.DS-003 then turns the supported prerequisites and build commands into a repeatable external validation route.
+CV-005.DS-001 classifies the inherited namespace and establishes a parallel Mirror Desktop identity. CV-005.DS-002 removes compiled runtime authority. CV-005.DS-003 turns those boundaries into a maintainer-built private bundle and a bounded external evaluation route.
 
 The order is intentional. Identity without portability is cosmetic. Portability without a classified identity boundary risks corrupting legacy state. Distribution evidence only becomes meaningful after both are true.
 
 ## Alpha Contract
 
 ```text
-authorized GitHub collaborator
-  clones private source
-  installs documented macOS build prerequisites
-  builds Mirror Desktop for the host architecture
-  binds to their own configured Mirror installation
+maintainer
+  checks out an authorized clean revision
+  runs build preflight and repository gates
+  builds and verifies a host-native Mirror Desktop bundle
+  computes its checksum
+  transmits it through an explicitly authorized private channel
+
+authorized tester
+  verifies the checksum and app identity
+  opens the unsigned bundle through the app-specific macOS flow
+  binds their own configured Mirror installation
   opens their own Journey registry
-  starts or resumes a dedicated conversation
-  restarts the app without losing continuity
-  reports validation evidence through the documented route
+  completes one dedicated conversation turn
+  restarts without losing continuity
+  returns privacy-safe validation evidence
 ```
+
+## Distribution Arc
+
+1. **Current — maintainer-built private alpha:** revision-bound bundle, manual private transmission and external operation evidence.
+2. **Next — [CV-006 Versioned macOS Release](../cv-006-versioned-macos-release/index.md):** an immutable Git tag/revision owns a versioned bundle and checksum through a separately designed release process. Generated binaries are not committed to source history by this capability.
+3. **Later — [CV-007 Trusted Self-Update](../cv-007-trusted-self-update/index.md):** the installed application discovers, verifies and applies an authorized compatible release through a separately designed update mechanism.
 
 ## Done Condition
 
-CV-005 is done when at least one authorized collaborator on a clean external macOS user environment can clone the private repository, execute the documented checks, build and open a locally generated Mirror Desktop bundle, bind only to their own validated Mirror runtime and database, see no Nautilus product identity in external application surfaces, operate one disposable Journey through a completed Pi and Mirror turn, restart and recover that Journey continuity, and return the expected validation evidence without receiving private configuration or data from another user.
+CV-005 is done when a maintainer produces and verifies an authorized bundle from clean source, privately delivers it with a checksum, and at least one authorized tester on an external supported macOS environment verifies the artifact, binds only their own Mirror runtime and database, sees no Nautilus product identity in external application surfaces, operates one disposable Journey through a completed Pi and Mirror turn, restarts and recovers continuity, and returns bounded evidence without exposing private configuration or data.
 
 ## Boundaries
 
-- The alpha supports macOS source builds only.
-- The supported artifact is built locally by the authorized collaborator for the host architecture.
-- Public binaries, Apple signing, notarization, auto-update, Windows, Linux and app-store distribution are outside this capability.
-- Complete new-user Mirror installation and onboarding are outside this capability. Alpha users begin with a separately configured compatible Mirror installation.
+- The current alpha supports maintainer-built macOS bundles only.
+- The phase-one artifact remains unsigned, unnotarized, unpublished and bound to its exact source revision.
+- Public or repository-hosted binaries, release automation, self-update, Windows, Linux and app-store distribution are outside this capability.
+- Complete new-user Mirror installation and onboarding are outside this capability. Alpha testers begin with a separately configured compatible Mirror installation.
 - Mirror Desktop must not read SQLite directly or infer identity from unrelated homes.
-- No user receives another person's Mirror home, database, credentials, conversations or identity files.
+- No tester receives another person's Mirror home, database, credentials, conversations or identity files.
 - Nautilus remains valid where it denotes the Nautilus method, method-owned projections or explicit legacy compatibility.
 - Existing Nautilus Harness installation and app data remain available as a rollback path during the alpha.
 

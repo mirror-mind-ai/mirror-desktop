@@ -1,51 +1,62 @@
 # Mirror Desktop Private macOS Alpha
 
-This is the canonical route for an authorized collaborator to build and evaluate Mirror Desktop from private source. The alpha is unsigned, not notarized and not distributed as a binary.
+This is the canonical phase-one route for a maintainer to build Mirror Desktop and deliver the revision-bound bundle privately to an explicitly authorized tester. The alpha is unsigned, not notarized and not publicly or repository distributed.
 
-## Starting contract
+## Roles and starting contract
 
-You need:
+The **maintainer** needs:
 
-- authorized read access to `mirror-mind-ai/mirror-desktop`;
+- authorized source access and a clean checkout of the selected revision;
 - an `x86_64` or `arm64` Mac running macOS 12 or newer;
-- Git and Xcode Command Line Tools;
-- Node.js 20 or newer with npm;
-- stable Rust and Cargo, `uv` and Pi;
-- your own configured Mirror Core `>=0.31.14,<0.32.0`;
-- your own Mirror home containing `memory.db`;
-- provider authentication already configured outside Mirror Desktop.
+- Git, Xcode Command Line Tools, Node.js 20+ with npm, stable Rust and Cargo, `uv` and Pi;
+- a configured Mirror Core `>=0.31.14,<0.32.0` for build-host preflight and rehearsal.
 
-Nobody should send you a Mirror database, identity directory, credentials or shell profile.
+The **authorized tester** needs:
 
-## 1. Clone the authorized revision
+- an `x86_64` or `arm64` Mac running macOS 12 or newer that matches the delivered executable architecture;
+- their own configured compatible Mirror installation and `memory.db`;
+- Pi and Node installed in one of the application's bounded supported locations;
+- provider authentication already configured through Pi;
+- the privately delivered `.dmg`, its exact source revision and SHA-256 checksum.
+
+The tester does not need repository access, Node/Rust build tools or a source clone. Nobody should transmit a Mirror database, identity directory, credentials, conversation, shell profile or private runtime coordinate.
+
+Before opening the app, authenticate providers through Pi's own `/login` flow. Never paste a key into Mirror Desktop. For OpenRouter, refresh and verify Pi's public catalog locally:
 
 ```bash
-git clone https://github.com/mirror-mind-ai/mirror-desktop.git
-cd mirror-desktop
+pi --list-models openrouter >/dev/null
+PI_OFFLINE=1 pi --list-models openrouter | head -1
+```
+
+# Maintainer build and private delivery
+
+## 1. Prepare the authorized revision
+
+From the canonical private checkout:
+
+```bash
 git remote get-url origin
+git checkout <authorized-revision>
+git status --short
 git rev-parse HEAD
 ```
 
-Use the exact revision named by the alpha coordinator. Do not include credential-bearing remote URLs in evidence.
+The origin must be the canonical repository and the worktree must be clean. Do not include a credential-bearing remote URL in evidence.
 
-## 2. Run preflight
+## 2. Run maintainer preflight
 
-Choose your own paths and user slug locally:
+Use only the maintainer's own local Mirror coordinates:
 
 ```bash
-export MIRROR_ALPHA_ROOT="/absolute/path/to/your/mirror"
-export MIRROR_ALPHA_HOME="/absolute/path/to/your/mirror-home"
-export MIRROR_ALPHA_USER="your-user-slug"
-
 npm run alpha:preflight -- \
   --mirror-root "$MIRROR_ALPHA_ROOT" \
   --mirror-home "$MIRROR_ALPHA_HOME" \
   --mirror-user "$MIRROR_ALPHA_USER"
 ```
 
-Preflight must finish with `READY`. It reads file metadata and Mirror Core's declared version; it does not open SQLite or read identity and conversation content.
+Preflight must finish with `READY`. It is a build-host gate, not tester onboarding. It reads bounded file metadata and Mirror Core's declared version; it does not open SQLite or read identity and conversation content.
 
-For bounded evidence, use silent npm mode so npm does not echo private command arguments:
+For bounded evidence, use silent npm mode so npm does not echo private arguments:
 
 ```bash
 npm run --silent alpha:preflight -- --json \
@@ -55,26 +66,9 @@ npm run --silent alpha:preflight -- --json \
   > mirror-desktop-alpha-preflight.json
 ```
 
-Review the JSON before sharing it. It must contain no absolute home path or Mirror user.
+Inspect the JSON locally before retaining it. It must contain no absolute home path or Mirror user.
 
-### Keep local tools discoverable
-
-Mirror Desktop resolves a paired Pi and Node installation without executing shell startup files. **Validate and continue** searches a bounded, deterministic precedence of system and user locations, including Homebrew, `~/.local/bin`, NVM, FNM, Volta, asdf and mise, then canonicalizes the executables before any import. The first complete pair in that trusted precedence is used automatically; version-managed installations are ordered newest first. No link setup is required for these supported layouts.
-
-If no paired installation is available, validation stops before saving the binding or importing Journeys. Repair the local installation through its owning package manager and try again; do not broaden graphical `PATH` or replace executable links blindly.
-
-### Prepare the Pi-owned provider catalog
-
-Authenticate through Pi's own interactive `/login` flow; never paste a provider key into Mirror Desktop or evidence. Then refresh and verify the provider's public model catalog before opening the app. For OpenRouter:
-
-```bash
-pi --list-models openrouter >/dev/null
-PI_OFFLINE=1 pi --list-models openrouter | head -1
-```
-
-The second command should print the public catalog header. Mirror Desktop reads the same Pi-owned offline cache through the validated runtime binding.
-
-## 3. Install and test locked source
+## 3. Test locked source
 
 ```bash
 npm ci
@@ -86,15 +80,12 @@ npm run build
   cargo check --locked
 )
 uv run python -m unittest discover -s scripts/tests -p 'test_*.py'
-```
-
-Unexpected lockfile changes are a blocker:
-
-```bash
 git status --short
 ```
 
-## 4. Build the stable bundle
+Any failed gate or unexpected lockfile change blocks delivery.
+
+## 4. Build and verify the stable bundle
 
 ```bash
 npm run tauri:build:user -- -- --locked
@@ -107,7 +98,7 @@ src-tauri/target/release/bundle/macos/Mirror Desktop.app
 src-tauri/target/release/bundle/dmg/Mirror Desktop_0.1.0_<architecture>.dmg
 ```
 
-Verify identity and architecture:
+Verify identity, architecture and the portable provisioning resource:
 
 ```bash
 /usr/libexec/PlistBuddy -c 'Print :CFBundleName' \
@@ -118,67 +109,76 @@ file 'src-tauri/target/release/bundle/macos/Mirror Desktop.app/Contents/MacOS/mi
 test -f 'src-tauri/target/release/bundle/macos/Mirror Desktop.app/Contents/Resources/scripts/provision_mirror_conversation.py'
 ```
 
-Expected name is `Mirror Desktop`; expected identifier is `ai.mirrormind.desktop`; executable architecture must match preflight; and the bundled model-free Mirror provisioning resource must be present. The `.app` must not depend on the checkout path of the Mac that compiled it.
+Expected name is `Mirror Desktop`; identifier is `ai.mirrormind.desktop`; architecture matches the intended test host. The `.app` must not depend on the checkout that compiled it.
 
-## 5. Open and bind your Mirror
+## 5. Bind the artifact to its revision
 
-Open the build without copying it into `/Applications`:
+Compute SHA-256 for the exact `.dmg` selected for delivery:
 
 ```bash
-open -n 'src-tauri/target/release/bundle/macos/Mirror Desktop.app'
+shasum -a 256 'src-tauri/target/release/bundle/dmg/Mirror Desktop_0.1.0_<architecture>.dmg'
 ```
 
-If macOS presents an unsigned-app warning, use Finder's contextual **Open** action and confirm this specific app. Do not disable Gatekeeper globally and do not run broad `xattr` or `spctl` exceptions.
+Record only the full source revision, architecture, bundle identity, filename and checksum. Inspect the artifact and evidence for private files or paths before transmission.
 
-When no binding exists, Mirror Desktop opens only **Connect your Mirror**. Complete the three required fields:
+## 6. Deliver privately
 
-1. choose your Mirror source directory;
-2. choose your Mirror home directory;
-3. enter your Mirror user slug;
+Transmit the `.dmg`, source revision and expected SHA-256 only through an explicitly authorized private channel. Do not upload it to a release, commit it to Git, publish a download URL or silently replace an existing application. The tester must choose whether and where to copy the app.
+
+# Authorized tester evaluation
+
+## 7. Verify the received artifact
+
+Before opening it, compare:
+
+```bash
+shasum -a 256 '<received-dmg>'
+```
+
+The result must exactly match the maintainer's checksum. Confirm that the announced executable architecture matches the Mac. A mismatch blocks launch.
+
+## 8. Open the unsigned app narrowly
+
+Mount the `.dmg` and copy **Mirror Desktop.app** through Finder into a dedicated local test folder outside `/Applications`. Preserve any existing Mirror Desktop or Nautilus Harness installation.
+
+Because the bundle is unsigned, macOS may block its first opening. Use Finder's contextual **Open** action or the app-specific **Open Anyway** control and confirm this exact app. Do not disable Gatekeeper globally and do not run broad `xattr` or `spctl` exceptions.
+
+## 9. Connect Mirror and choose a model
+
+When no binding exists, Mirror Desktop exposes only **Connect your Mirror**:
+
+1. choose the tester's Mirror source directory;
+2. choose the tester's Mirror home directory;
+3. enter the exact Mirror user slug;
 4. click **Validate and continue**.
 
-The app validates and saves the binding, then loads the model catalog through that exact runtime. On **Choose your model**, select one model exposed by Pi and click **Save model and continue**. Mirror Desktop does not collect provider credentials; authentication remains Pi-owned.
+The application discovers a paired Pi and Node installation from bounded system, Homebrew, `~/.local/bin`, NVM, FNM, Volta, asdf and mise locations without executing shell startup files or creating links. No link setup is required for these supported layouts. It validates and saves only the selected binding, loads Pi's own model catalog, requires **Choose your model**, and imports the real Journey registry automatically. Select an available model and click **Save model and continue**.
 
-The app also loads the Journey registry automatically. It opens the normal Journey interface only after both a model and a real registry are ready. Do not run `npm run import:mirror` for normal first launch. No fallback Journey is shown before the import succeeds.
+Provider authentication remains Pi-owned. Never paste provider credentials into Mirror Desktop or evidence. Do not run `npm run import:mirror` and do not manufacture a fallback Journey.
 
-## 6. Confirm your Journeys
+## 10. Prove one disposable conversation
 
-After automatic import, confirm your own Journey registry is visible. Do not report Journey names. If Mirror is connected but no Journeys are found, add one through the supported Mirror workflow and click **Try again**. If import fails, use **Try again** or **Edit connection**; do not replace application state manually.
+Use a disposable Journey containing no sensitive material:
 
-## 7. Prove one disposable conversation
-
-Use a disposable Journey that contains no sensitive material:
-
-1. select or create the disposable Journey through the supported Mirror workflow;
+1. select or create it through the supported Mirror workflow;
 2. start its dedicated conversation;
 3. submit one harmless test intention;
-4. wait until both Pi completion and Mirror recording are visibly complete;
-5. record only the disposable Journey id, completion status and time;
-6. close Mirror Desktop;
-7. reopen the same local bundle;
-8. confirm the same generation and completed turn remain available.
+4. wait until Pi completion and Mirror recording visibly complete;
+5. record status and time only, not Journey name or content;
+6. quit Mirror Desktop normally;
+7. reopen the same copied `.app`;
+8. confirm binding, model, generation and completed turn continuity.
 
-Do not copy prompts, responses, transcript text or Journey names into evidence.
+Mirror Desktop automatically reconciles recoverable interrupted attempts before enabling a successor. Expected bounded states include **Preparing your conversation…** while durable evidence is inspected and **A previous attempt didn’t finish. You can send your message again.** when an inactive incomplete attempt is safely closed. Never edit or delete turn-journal files to bypass recovery.
 
-## 8. Let Mirror prepare an interrupted conversation
+## 11. Return bounded evidence
 
-Mirror Desktop automatically reconciles earlier attempts before enabling a successor or **Restart Conversation**. Normal recovery does not ask the user to understand journals, generations or interruption states.
+Copy [evidence-template.md](evidence-template.md), fill only allowed fields and inspect it before sending. Report no credential, absolute home path, user slug, Journey name, prompt, response, identity material or database content.
 
-Expected outcomes are:
+## 12. Stop or roll back
 
-- **Preparing your conversation…** while Mirror checks a prior attempt;
-- **A previous attempt didn’t finish. You can send your message again.** after an inactive attempt without a completed response is safely closed;
-- the recovered response appears when Pi completed and durable evidence authorizes projection;
-- **The agent is still finishing the previous message** while a native Pi lease remains active.
+Follow [rollback.md](rollback.md). Removing the delivered `.app` or `.dmg` must not remove Mirror Desktop app data, a Mirror home, `memory.db` or Nautilus Harness.
 
-Only an ambiguous completed response requires a user choice. Mirror first offers **Try again**. When the backend proves that Pi is inactive and the durable phase permits it, **Discard previous response** is available with its consequence stated directly. The backend still refuses unsafe interruption.
+## Future distribution moments
 
-Never delete or edit turn-journal files to bypass recovery. A rejection before Pi admission is rolled back automatically and must show its original error rather than a journal-authority mismatch.
-
-## 9. Return bounded evidence
-
-Copy [evidence-template.md](evidence-template.md), fill only its allowed fields and inspect it before sending. If anything blocks, report the stage, bounded error text and whether prior state remains safe.
-
-## 10. Stop or roll back
-
-Follow [rollback.md](rollback.md). The alpha does not replace Nautilus Harness, and cleanup must not delete Mirror Desktop app data or any Mirror home.
+This guide governs manual maintainer delivery only. A later release capability may attach a versioned bundle and checksum to an immutable Git tag/revision. A subsequent capability may let the application verify and install such a release itself. Neither authority exists in this alpha route.

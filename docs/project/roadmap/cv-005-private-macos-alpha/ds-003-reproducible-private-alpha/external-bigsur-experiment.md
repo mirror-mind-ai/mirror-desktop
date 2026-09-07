@@ -2,7 +2,7 @@
 
 ## Scope
 
-Privacy-safe record of an external-host experiment with a source-built Mirror Desktop bundle. This experiment evaluates bundle portability and runtime behavior below the supported macOS 12 minimum. It does not add Big Sur to the supported private-alpha route and does not replace the required collaborator source-build validation.
+Privacy-safe record of an external-host experiment with a maintainer-built Mirror Desktop bundle. This experiment evaluates private artifact portability and runtime behavior below the supported macOS 12 minimum. It does not add Big Sur to the supported private-alpha route and does not replace the required supported-host external validation.
 
 ## Source and host
 
@@ -70,6 +70,6 @@ Private data included in this report: no
 
 ## Result
 
-The copied x86_64 bundle passed launch, onboarding, provisioning, one complete turn and restart continuity on Big Sur 11.7.11. This is accepted as experimental portability evidence only. Big Sur remains outside the supported alpha route because the locked source-build toolchain is not validated there and the canonical preflight intentionally requires macOS 12 or newer.
+The copied x86_64 bundle passed launch, onboarding, provisioning, one complete turn and restart continuity on Big Sur 11.7.11. This is accepted as experimental portability evidence only. Big Sur remains outside the supported alpha route because neither build-host nor application support is claimed there and the compatibility authority intentionally requires macOS 12 or newer.
 
-CV-005.DS-003 remains open until its supported external source-build route and aggregate review are completed or the Done condition is explicitly revised.
+CV-005.DS-003 remains open until its delivered bundle is validated on a supported external host and aggregate review is completed.

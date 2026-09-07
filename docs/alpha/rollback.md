@@ -1,14 +1,23 @@
 # Private Alpha Rollback
 
-Mirror Desktop alpha is built and opened from the clone. It does not replace Nautilus Harness and does not require installation into `/Applications`.
+Mirror Desktop's phase-one alpha is built by a maintainer and copied by an authorized tester into a dedicated local test folder. It must not replace Nautilus Harness or require installation into `/Applications`.
 
-## Stop the alpha
+## Tester: stop the alpha
 
-Quit **Mirror Desktop** normally. If it does not exit, use Activity Monitor and target only the executable whose path is inside the private-alpha clone.
+Quit **Mirror Desktop** normally. If it does not exit, use Activity Monitor and target only the experimental Mirror Desktop process.
 
-## Remove generated build artifacts
+## Tester: remove delivered artifacts
 
-From the verified Mirror Desktop clone root:
+After verifying that Mirror Desktop is closed, remove only:
+
+- the exact copied **Mirror Desktop.app** in the dedicated test folder;
+- the exact received `.dmg`, if no longer needed.
+
+Use Finder so the selected objects remain visible. Do not generalize cleanup into a recursive command and do not target application support, a Mirror home or a source checkout.
+
+## Maintainer: remove generated build artifacts
+
+From the verified canonical Mirror Desktop checkout root:
 
 ```bash
 pwd
@@ -16,9 +25,7 @@ git remote get-url origin
 rm -rf -- src-tauri/target dist
 ```
 
-This removes generated source-build artifacts only. Do not adapt this command to an absolute application-data or Mirror-home path.
-
-Removing the clone itself is optional. Verify its exact location and clean Git state before doing so.
+This removes ignored build output only. It does not revoke a privately transmitted copy. Removing a checkout is optional and requires separate path and clean-state inspection.
 
 ## Preserve durable state
 
@@ -31,13 +38,13 @@ any .mirror-minds directory
 any memory.db
 ```
 
-The alpha binding and Journey continuity may remain for a later build. They contain no provider credentials, but they are durable application state and are not build artifacts.
+The binding and Journey continuity may remain for a later build. These are durable application and Mirror state, not disposable artifacts.
 
 ## Return to Nautilus Harness
 
-If Nautilus Harness is installed, launch it through Finder or its existing trusted application location. Confirm it still uses `com.nautilus.harness` app data. Do not point it at Mirror Desktop app data and do not migrate either product automatically.
+If Nautilus Harness is installed, launch it through Finder or its existing trusted location. Confirm it still uses `com.nautilus.harness` app data. Do not point it at Mirror Desktop app data and do not migrate either product automatically.
 
-If Nautilus Harness was not previously installed, rollback means stopping Mirror Desktop and preserving Mirror. This runbook does not install a predecessor.
+If Nautilus Harness was not previously installed, rollback means stopping and removing the experimental Mirror Desktop bundle while preserving Mirror. This runbook does not install a predecessor.
 
 ## Report rollback
 
@@ -45,10 +52,11 @@ Return only:
 
 ```text
 alpha process stopped: yes | no
-build artifacts removed or retained: removed | retained
+delivered app and dmg removed or retained: removed | retained
+Mirror Desktop app data preserved: yes | no
 Mirror homes unchanged: yes | no
 Nautilus Harness available: yes | no | not installed
 bounded blocker, if any:
 ```
 
-Never attach app data, database files, credentials or conversation content.
+Never attach app data, database files, credentials, private paths or conversation content.

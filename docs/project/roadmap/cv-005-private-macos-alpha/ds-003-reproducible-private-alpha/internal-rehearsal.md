@@ -2,7 +2,7 @@
 
 ## Scope
 
-Maintainer rehearsal of the committed private macOS alpha route before external collaborator validation.
+Maintainer rehearsal of the committed private macOS alpha build route before external delivered-bundle validation.
 
 ## Source and host
 
@@ -69,4 +69,4 @@ Build artifacts remained ignored: yes
 
 ## Result
 
-Internal rehearsal passed. This does not satisfy the external collaborator Done condition. Push, repository-access changes and transmission of an authorized revision remain separate Navigator-authorized actions.
+Internal rehearsal passed. It proves the maintainer build side but does not satisfy the supported-host external tester Done condition. Private artifact transmission remains a separate Navigator-authorized action; release publication and self-update remain future capabilities.

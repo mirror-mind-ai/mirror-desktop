@@ -22,7 +22,9 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 | [CV-002](cv-002-mirror-integration/index.md) | Mirror Integration | Harness becomes the desktop projection of the essential Pi/Mirror operational loop and context lifecycle | ✅ Done |
 | [CV-003](cv-003-nautilus-method-integration/index.md) | Nautilus Method Integration | Harness lets the Navigator inhabit one Journey at operational, tactical and strategic altitudes | ✅ Done |
 | [CV-004](cv-004-dedicated-nautilus-journey-thread/index.md) | Dedicated Nautilus Journey Thread | Every Journey owns one Nautilus thread whose active generation is a dedicated, Journey-activated Pi/Mirror pair, independent from conversations in other environments | ✅ Done |
-| [CV-005](cv-005-private-macos-alpha/index.md) | Private macOS Alpha | Authorized collaborators can build Mirror Desktop from private source, bind it to their own configured Mirror installation and operate their Journeys without Nautilus product identity | 🟠 In Progress |
+| [CV-005](cv-005-private-macos-alpha/index.md) | Private macOS Alpha | A maintainer can privately deliver a verified revision-bound macOS bundle that authorized testers connect to their own Mirror and operate without Nautilus product identity | 🟠 In Progress |
+| [CV-006](cv-006-versioned-macos-release/index.md) | Versioned macOS Release | A repeatable release process associates a macOS bundle, checksum and provenance with an immutable Git tag and source revision | 🟡 Planned |
+| [CV-007](cv-007-trusted-self-update/index.md) | Trusted Self-Update | Mirror Desktop can verify and apply an authorized compatible release while preserving application and Mirror rollback | 🟡 Planned |
 
 ## Delivery Arc — Operable Agent Cockpit
 
@@ -79,11 +81,11 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 |------|----------------|---------|--------|
 | [CV-005.DS-001](cv-005-private-macos-alpha/ds-001-mirror-desktop-product-boundary/index.md) | Mirror Desktop Product Boundary | External surfaces and new product coordinates express Mirror Desktop while Nautilus method and legacy semantics remain classified and compatible | ✅ Done |
 | [CV-005.DS-002](cv-005-private-macos-alpha/ds-002-portable-user-runtime-binding/index.md) | Portable User Runtime Binding | The source-built app binds to each alpha user's own validated Mirror runtime without compiled personal coordinates | ✅ Done |
-| [CV-005.DS-003](cv-005-private-macos-alpha/ds-003-reproducible-private-alpha/index.md) | Reproducible Private Alpha | An authorized macOS collaborator can clone, check, build, use and validate a local Mirror Desktop bundle through one documented route | 🟡 Planned |
+| [CV-005.DS-003](cv-005-private-macos-alpha/ds-003-reproducible-private-alpha/index.md) | Reproducible Private Alpha | A maintainer builds and privately delivers a verified bundle that an authorized external tester can connect, operate, restart and remove safely | 🟠 In Progress |
 
 ## Current Recommendation
 
-Pull `CV-005.DS-003 - Reproducible Private Alpha`. Use the completed product boundary and portable runtime binding to prove that an authorized macOS collaborator can clone, build, bind and validate a private source-built bundle through one documented route.
+Finish `CV-005.DS-003 - Reproducible Private Alpha`. Consolidate the maintainer build gates and validate one privately delivered revision-bound bundle on an external supported macOS host. Treat versioned Git release artifacts and application self-update as the next two separate distribution capabilities.
 
 `CV-003` and `CV-004` remain completed predecessor capabilities. Their Nautilus language is historical or method-specific until the CV-005 inventory explicitly classifies it. The private alpha does not reopen those completed outcomes, rewrite their history or treat broad renaming as compatibility work.
 
