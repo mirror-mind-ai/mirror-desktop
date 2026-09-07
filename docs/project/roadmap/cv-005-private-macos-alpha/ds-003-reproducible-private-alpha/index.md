@@ -33,6 +33,11 @@ An invited collaborator follows the guide without unpublished oral steps and ret
 - one disposable Journey turn and restart observation;
 - any blocking error through bounded diagnostic text.
 
+## Recorded Evidence
+
+- [Internal alpha rehearsal](internal-rehearsal.md) — supported-host source build and continuity rehearsal.
+- [External Big Sur compatibility experiment](external-bigsur-experiment.md) — copied-bundle portability, complete turn and restart continuity below the supported host minimum; accepted as experimental evidence only.
+
 ## Done Condition
 
 This Delivery Story is done when the repository contains one canonical alpha guide and preflight; all required deterministic checks pass; a local macOS bundle is produced under Mirror Desktop identity; at least one authorized collaborator validates the complete route on an external user environment; their personal Mirror data remains confined; failure and removal instructions preserve existing installations; and the accepted evidence is recorded without credentials, conversation content or private database material.
