@@ -2051,7 +2051,7 @@ export function App({ model }: AppProps) {
       loadDedicatedJourneyConversation(authority.journeyId, authority.generation),
     ]);
     const classified = classifyNautilusJourneyThread(thread, authority.journeyId);
-    const currentTurn = persisted?.reconciliation.turns.at(-1);
+    const currentTurn = lastItem(persisted?.reconciliation.turns ?? []);
     if (classified.kind !== "ready" || !persisted || !currentTurn) {
       throw new Error("settlement_pre_frontier_authority_stale");
     }
@@ -2068,7 +2068,7 @@ export function App({ model }: AppProps) {
     projection: JourneyConversation,
     authority: JourneySettlementAuthority,
   ): boolean {
-    const current = projection.reconciliation.turns.at(-1);
+    const current = lastItem(projection.reconciliation.turns);
     return projection.journeyId === authority.journeyId
       && projection.liveIdentity.generation === authority.generation
       && current?.turnId === authority.turnId
@@ -3534,7 +3534,7 @@ export function App({ model }: AppProps) {
           {!selectedRuntimeBusy && streamWarnings.length > 0 ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Message was not sent</strong>
-              <p>{streamWarnings.at(-1)}</p>
+              <p>{lastItem(streamWarnings)}</p>
             </section>
           ) : null}
           {agentSettingsState !== "ready" && agentSettingsState !== "saving" ? (
@@ -4117,6 +4117,10 @@ export function App({ model }: AppProps) {
       ) : null}
     </main>
   );
+}
+
+function lastItem<T>(items: readonly T[]): T | undefined {
+  return items[items.length - 1];
 }
 
 function modelOptionValue(model: AgentModelSelection): string {

@@ -105,7 +105,8 @@ describe("Journey runtime integration guardrails", () => {
     expect(generation).not.toContain("resolveCommittedLeaseBeforeInvocation");
     expect(generation).not.toContain("loadDedicatedPiTranscript(");
     expect(appSource).toContain("Message was not sent");
-    expect(appSource).toContain("streamWarnings.at(-1)");
+    expect(appSource).toContain("lastItem(streamWarnings)");
+    expect(appSource).not.toContain(".at(");
     const durableOutboxRetry = sourceBetween("async function retryMirrorAppendSummary", "async function retryPendingMirrorCommit");
     expect(durableOutboxRetry).toContain("resolveRetainedLeaseForOutboxRecovery(inspection, authority)");
     expect(durableOutboxRetry.indexOf("releaseDurablePiInvocationLease(authority)")).toBeLessThan(
