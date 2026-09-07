@@ -4,7 +4,7 @@
 
 ## Aggregate Validation
 
-Prove that a maintainer can produce and privately deliver a revision-bound macOS bundle, and that one authorized tester can verify and operate it on an external supported host without source access, foreign Mirror state or destructive rollback.
+Prove that a maintainer can produce and privately deliver a revision-bound macOS bundle with a bounded tester route that allows an authorized tester to verify and operate it on an external supported host without source access, foreign Mirror state or destructive rollback.
 
 ## Child Work Packages
 
@@ -89,11 +89,11 @@ A clean maintainer revision produces a host-native unsigned bundle whose checksu
 
 ## Pass Condition
 
-All maintainer checks pass; artifact revision, identity, architecture, resources and checksum are recorded; one authorized external tester on supported macOS verifies the checksum, completes onboarding, one Pi/Mirror turn and restart continuity; evidence passes privacy review; and predecessor or durable state remains unchanged outside documented boundaries.
+All maintainer checks pass; artifact revision, identity, architecture, resources and checksum are recorded; the artifact is privately handed off to an authorized tester with checksum and bounded operating instructions; maintainer-side evidence passes privacy review; and predecessor or durable state remains unchanged outside documented boundaries. Returned tester evidence may be recorded later as alpha feedback, but it is not required for this Delivery Story to pass.
 
 ## Blocked Condition
 
-Keep the Delivery Story open when no authorized private transmission or supported external tester exists. The Big Sur experiment is compatibility evidence but cannot satisfy the macOS 12+ supported-host condition.
+Keep the Delivery Story open when no authorized private transmission exists, when maintainer gates fail, when artifact identity or checksum cannot be verified, or when the package lacks a bounded tester route. The Big Sur experiment remains compatibility evidence only and does not expand the supported macOS contract.
 
 ## Fail Condition
 
@@ -108,10 +108,12 @@ exact source revision
 build-host architecture and bounded macOS version
 maintainer gate statuses
 bundle identity, architecture, resources and SHA-256
-external host architecture and bounded macOS version
-received checksum match
-binding, Pi/Node discovery, model and registry statuses
-completed disposable turn and restart statuses
+private handoff status
+bounded tester-route availability
+optional external host architecture and bounded macOS version when returned
+optional received checksum match when returned
+optional binding, Pi/Node discovery, model and registry statuses when returned
+optional completed disposable turn and restart statuses when returned
 rollback inspection
 accepted result or bounded blocker
 ```

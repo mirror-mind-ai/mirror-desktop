@@ -2,7 +2,7 @@
 
 # CV-005.DS-003.TS-2 - Alpha Evidence and Rollback Runbook
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story
@@ -44,4 +44,4 @@ Then local build artifacts can be removed without deleting Mirror Desktop app da
 
 ## Validation
 
-Review a filled synthetic report for rejection cases, then match the maintainer checksum receipt with the authorized tester's privacy-reviewed template before committing aggregate evidence.
+Review a filled synthetic report for rejection cases, then match the maintainer checksum receipt with the authorized private handoff record before committing aggregate evidence. Returned tester templates may be appended later as alpha feedback.

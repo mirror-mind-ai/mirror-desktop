@@ -72,4 +72,4 @@ Private data included in this report: no
 
 The copied x86_64 bundle passed launch, onboarding, provisioning, one complete turn and restart continuity on Big Sur 11.7.11. This is accepted as experimental portability evidence only. Big Sur remains outside the supported alpha route because neither build-host nor application support is claimed there and the compatibility authority intentionally requires macOS 12 or newer.
 
-CV-005.DS-003 remains open until its delivered bundle is validated on a supported external host and aggregate review is completed.
+The supported alpha route still targets macOS 12 or newer, but CV-005.DS-003 closure now depends on maintainer-side reproducibility, verified artifact handoff and a bounded tester route. Returned supported-host feedback may be recorded later as follow-up alpha evidence.

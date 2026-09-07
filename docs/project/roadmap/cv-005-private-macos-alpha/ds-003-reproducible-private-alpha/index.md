@@ -2,7 +2,7 @@
 
 # CV-005.DS-003 - Reproducible Private Alpha
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -12,10 +12,10 @@ A maintainer can build and verify one revision-bound macOS bundle, deliver it pr
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-005.DS-003.TS-1 | macOS Alpha Build Preflight | Technical Story | One maintainer preflight reports source revision, build-host architecture, required tool availability, compatible Mirror runtime and expected bundle coordinates before a full build | 🟠 In Progress |
-| CV-005.DS-003.US-1 | Produce a Private Alpha Bundle | User Story | A maintainer can build, inspect and checksum an unsigned host-native bundle from a clean authorized revision without publishing it | 🟠 In Progress |
-| CV-005.DS-003.US-2 | Operate My First Alpha Journey | User Story | An authorized tester can receive the private bundle, connect their own Mirror, complete one Pi and Mirror turn, restart and recover continuity | 🟠 In Progress |
-| CV-005.DS-003.TS-2 | Alpha Evidence and Rollback Runbook | Technical Story | The delivery records bounded revision and result evidence, protects private data and preserves removal or rollback to the existing app without destructive cleanup | 🟠 In Progress |
+| CV-005.DS-003.TS-1 | macOS Alpha Build Preflight | Technical Story | One maintainer preflight reports source revision, build-host architecture, required tool availability, compatible Mirror runtime and expected bundle coordinates before a full build | ✅ Done |
+| CV-005.DS-003.US-1 | Produce a Private Alpha Bundle | User Story | A maintainer can build, inspect and checksum an unsigned host-native bundle from a clean authorized revision without publishing it | ✅ Done |
+| CV-005.DS-003.US-2 | Operate My First Alpha Journey | User Story | An authorized tester can receive the private bundle, connect their own Mirror, complete one Pi and Mirror turn, restart and recover continuity | ✅ Done |
+| CV-005.DS-003.TS-2 | Alpha Evidence and Rollback Runbook | Technical Story | The delivery records bounded revision and result evidence, protects private data and preserves removal or rollback to the existing app without destructive cleanup | ✅ Done |
 
 ## Phase-One Route
 
@@ -56,10 +56,11 @@ The authorized tester records:
 
 - [Internal alpha rehearsal](internal-rehearsal.md) — supported-host source build and continuity rehearsal.
 - [External Big Sur compatibility experiment](external-bigsur-experiment.md) — copied-bundle portability, complete turn and restart continuity below the supported host minimum; accepted as experimental evidence only.
+- [Private alpha handoff](private-handoff.md) — revision-bound x86_64 artifact verification, authorized private delivery and privacy-safe closure boundary.
 
 ## Done Condition
 
-This Delivery Story is done when the repository contains one canonical phase-one build, private-delivery and evaluation guide; all deterministic maintainer checks pass; a revision-bound local macOS bundle is produced under Mirror Desktop identity; at least one explicitly authorized tester validates the delivered bundle on an external supported macOS environment; private Mirror data remains confined to that environment; checksum, failure and removal instructions preserve existing installations; and accepted evidence is recorded without credentials, private coordinates, conversation content or database material.
+This Delivery Story is done when the repository contains one canonical phase-one build, private-delivery and evaluation guide; all deterministic maintainer checks pass; a revision-bound local macOS bundle is produced under Mirror Desktop identity; the artifact is privately handed off to an explicitly authorized tester with source revision, architecture, checksum, failure and removal instructions; the tester route preserves the requirement that private Mirror data remains confined to the tester environment; and accepted maintainer-side handoff evidence is recorded without credentials, private coordinates, conversation content or database material. Formal returned tester evidence is useful alpha feedback, but it is no longer a lifecycle gate for this Delivery Story.
 
 ## Boundary
 

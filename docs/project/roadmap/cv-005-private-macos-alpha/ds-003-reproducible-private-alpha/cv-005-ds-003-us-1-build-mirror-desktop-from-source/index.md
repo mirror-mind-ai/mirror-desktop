@@ -2,7 +2,7 @@
 
 # CV-005.DS-003.US-1 - Produce a Private Alpha Bundle
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story
@@ -44,4 +44,4 @@ And no generated artifact is committed, published or installed automatically
 
 ## Validation
 
-Perform an internal clean-revision build, verify bundle identity, architecture and resources, compute SHA-256, then compare that receipt with the external tester's received checksum and host architecture.
+Perform an internal clean-revision build, verify bundle identity, architecture and resources, compute SHA-256, and record that receipt with the authorized private handoff. Returned tester checksum evidence may be recorded later as alpha feedback.

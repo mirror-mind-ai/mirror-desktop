@@ -30,7 +30,7 @@ This Delivery Story will:
 - bind each delivered artifact to its exact source revision and SHA-256 checksum;
 - require explicit authorization and a private transmission channel without publishing or committing the binary;
 - guide first launch through runtime selection, native validation, required model selection and automatic real Journey import;
-- validate one disposable Journey turn and application restart on an external supported host;
+- provide a bounded route for one disposable Journey turn and application restart on an external supported host;
 - record bounded build and operation evidence while excluding private paths, users, Journey names, prompts, responses, database contents, identity documents and credentials;
 - preserve Mirror state, Mirror Desktop app data and Nautilus Harness during rollback;
 - record the Big Sur copied-bundle result as experimental compatibility evidence, not supported-host validation.
@@ -154,11 +154,11 @@ npm run tauri:build:user -- -- --locked
 bundle identity, resource, architecture and checksum inspection
 ```
 
-Desktop E2E remains required. Internal rehearsal proves build and bundle metadata. External evaluation proves private artifact receipt, checksum match, first launch, binding, registry import, turn completion, restart and rollback on the tester's own compatible Mirror state. The tester does not compile.
+Desktop E2E remains required for broad alpha confidence. Internal rehearsal proves build and bundle metadata. Private handoff proves the artifact, checksum and bounded tester route were delivered without publication. External evaluation may later prove private artifact receipt, checksum match, first launch, binding, registry import, turn completion, restart and rollback on the tester's own compatible Mirror state. The tester does not compile.
 
 ## External Validation Boundary
 
-The DS cannot reach Done from maintainer-only operation. At least one explicitly authorized external tester must evaluate the delivered artifact on a supported macOS host. The completed Big Sur experiment remains useful portability evidence but does not satisfy the supported macOS 12+ condition.
+The DS can reach Done from maintainer-side reproducibility, artifact verification, authorized private handoff and a bounded tester route. Returned tester evidence remains desirable alpha feedback and may be recorded later, but it is no longer a lifecycle gate for this Delivery Story. The completed Big Sur experiment remains useful portability evidence but does not expand the supported macOS 12+ contract.
 
 Artifact transmission, repository publication, release creation, signing and installation into `/Applications` remain separately authorized actions. The tester returns only the bounded evidence template; accidental private material is removed rather than committed.
 

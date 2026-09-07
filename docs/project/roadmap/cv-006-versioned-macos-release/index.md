@@ -2,7 +2,7 @@
 
 # CV-006 - Versioned macOS Release
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -11,6 +11,12 @@ Mirror Desktop produces a versioned macOS bundle whose immutable artifact, check
 ## Why This Matters
 
 CV-005 proves that a maintainer-built bundle can cross the machine boundary and operate safely. The next distribution moment replaces ad hoc private transmission with a durable release identity: version, source revision, artifact, integrity evidence and release notes agree.
+
+## Delivery Stories
+
+| Code | Delivery Story | Outcome | Status |
+|------|----------------|---------|--------|
+| [CV-006.DS-001](ds-001-release-candidate-and-provenance/index.md) | Release Candidate and Provenance | A maintainer can promote one clean authorized source revision into a uniquely versioned macOS release candidate whose tag, bundle artifact, checksum, provenance and release notes agree without publishing an in-app update channel | ✅ Done |
 
 ## Candidate Scope
 

@@ -8,6 +8,10 @@ The project continues the application body incubated as Nautilus Harness. The tr
 
 Maintainers and authorized testers should follow the canonical [private macOS alpha guide](docs/alpha/private-macos-alpha.md). It separates maintainer preflight, locked build, checksum and private delivery from external runtime binding, disposable Journey validation, bounded evidence and non-destructive rollback.
 
+## Versioned macOS release candidates
+
+Maintainers preparing a versioned candidate should follow the [versioned macOS release candidate guide](docs/release/versioned-macos-release.md). It defines version and tag authority, artifact naming, provenance, promotion and rollback while keeping signing, notarization, publication and self-update as separate authorities.
+
 ## Development
 
 Use the canonical [development environment guide](docs/development/environment-setup.md). It explains how to run the isolated development channel against Mirror Dev without touching the installed daily-use app or production Mirror database.

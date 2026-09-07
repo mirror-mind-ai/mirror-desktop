@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "alpha:preflight": "node scripts/private_alpha_preflight.mjs",
+    "release:candidate": "node scripts/release_candidate.mjs",
     "import:mirror": "node scripts/mirror_desktop_channel.mjs import-user",
     "import:mirror:dev": "node scripts/mirror_desktop_channel.mjs import-dev",
     "validate:desktop:launch": "node scripts/mirror_desktop_channel.mjs validate-desktop",

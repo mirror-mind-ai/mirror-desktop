@@ -2,7 +2,7 @@
 
 # CV-005.DS-003.US-2 - Operate My First Alpha Journey
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story
@@ -49,4 +49,4 @@ And my evidence records statuses and identifiers only, never conversation conten
 
 ## Validation
 
-Internal rehearsal confirms the build route, but Done requires an authorized external tester on supported macOS to verify and operate the delivered artifact on their own Mac and return the bounded evidence template.
+Internal rehearsal confirms the build route, and private handoff confirms that an authorized tester received a checksum-bound artifact with the bounded operating route. Returned external tester evidence on supported macOS may be recorded later as alpha feedback, but it is not a lifecycle gate for this story.

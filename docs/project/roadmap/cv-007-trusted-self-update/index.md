@@ -12,6 +12,13 @@ Mirror Desktop can discover an authorized newer release, verify its provenance a
 
 Once CV-006 establishes immutable release identity, the application can stop relying on manual bundle replacement. Self-update must consume that release authority rather than inventing a second version, trust or distribution channel.
 
+## Delivery Stories
+
+| Code | Delivery Story | Outcome | Status |
+|------|----------------|---------|--------|
+| [CV-007.DS-001](ds-001-update-channel-and-compatibility/index.md) | Update Channel and Compatibility | Mirror Desktop can inspect one configured authoritative release channel, identify whether a newer release is available, verify that its metadata is well formed and compatible, and present release notes without downloading or installing the update | 🟡 Planned |
+| [CV-007.DS-002](ds-002-verified-update-installation-and-recovery/index.md) | Verified Update Installation and Recovery | After explicit user consent, Mirror Desktop can download, verify, safely apply and recover or roll back an authorized compatible release without touching Mirror state | 🟡 Planned |
+
 ## Candidate Scope
 
 - Discover releases only from the configured authoritative channel.

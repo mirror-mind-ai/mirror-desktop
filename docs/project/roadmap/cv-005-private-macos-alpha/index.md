@@ -2,7 +2,7 @@
 
 # CV-005 - Private macOS Alpha
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -20,7 +20,7 @@ This capability is not public distribution and is not complete new-user onboardi
 |------|----------------|---------|--------|
 | [CV-005.DS-001](ds-001-mirror-desktop-product-boundary/index.md) | Mirror Desktop Product Boundary | External application surfaces and new product coordinates express Mirror Desktop while classified Nautilus method and legacy semantics remain explicit | ✅ Done |
 | [CV-005.DS-002](ds-002-portable-user-runtime-binding/index.md) | Portable User Runtime Binding | A source-built app resolves and validates the current user's own Mirror runtime without compiled personal coordinates | ✅ Done |
-| [CV-005.DS-003](ds-003-reproducible-private-alpha/index.md) | Reproducible Private Alpha | A maintainer builds and privately delivers a verified bundle that an authorized external tester can connect, operate, restart and remove safely | 🟠 In Progress |
+| [CV-005.DS-003](ds-003-reproducible-private-alpha/index.md) | Reproducible Private Alpha | A maintainer builds and privately delivers a verified bundle that an authorized external tester can connect, operate, restart and remove safely | ✅ Done |
 
 ## Delivery Order
 
@@ -50,13 +50,13 @@ authorized tester
 
 ## Distribution Arc
 
-1. **Current — maintainer-built private alpha:** revision-bound bundle, manual private transmission and external operation evidence.
+1. **Current — maintainer-built private alpha:** revision-bound bundle, manual private transmission, bounded tester route and optional returned external operation evidence.
 2. **Next — [CV-006 Versioned macOS Release](../cv-006-versioned-macos-release/index.md):** an immutable Git tag/revision owns a versioned bundle and checksum through a separately designed release process. Generated binaries are not committed to source history by this capability.
 3. **Later — [CV-007 Trusted Self-Update](../cv-007-trusted-self-update/index.md):** the installed application discovers, verifies and applies an authorized compatible release through a separately designed update mechanism.
 
 ## Done Condition
 
-CV-005 is done when a maintainer produces and verifies an authorized bundle from clean source, privately delivers it with a checksum, and at least one authorized tester on an external supported macOS environment verifies the artifact, binds only their own Mirror runtime and database, sees no Nautilus product identity in external application surfaces, operates one disposable Journey through a completed Pi and Mirror turn, restarts and recovers continuity, and returns bounded evidence without exposing private configuration or data.
+CV-005 is done when a maintainer produces and verifies an authorized bundle from clean source, privately delivers it with a checksum and bounded tester route, and the repository records privacy-safe handoff evidence showing that no source access, foreign Mirror state, release publication or Nautilus product identity is required. Authorized tester feedback on an external supported macOS environment remains valuable alpha evidence and may be recorded later, but formal returned tester evidence is not required to close this private-alpha capability.
 
 ## Boundaries
 

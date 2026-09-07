@@ -2,7 +2,7 @@
 
 # CV-005.DS-003.TS-1 - macOS Alpha Build Preflight
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story
