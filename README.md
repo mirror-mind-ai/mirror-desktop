@@ -20,4 +20,6 @@ The read-only self-update discovery contract lives in [docs/update/trusted-self-
 
 Use the canonical [development environment guide](docs/development/environment-setup.md). It explains how to run the isolated development channel against Mirror Dev without touching the installed daily-use app or production Mirror database.
 
+For a simple collaborator-built Windows executable, use the [Windows manual build guide](docs/windows/manual-build.md). Windows auto-update and signed Windows release publication are not configured yet.
+
 Do not duplicate setup commands in other entry documents; link to the appropriate canonical guide instead.
