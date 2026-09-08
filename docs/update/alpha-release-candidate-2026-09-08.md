@@ -158,6 +158,25 @@ root alpha manifest: 404
 root private-test index: restored
 ```
 
+## Clickable Alpha Bootstrap Rehearsal
+
+Navigator manually validated the private alpha channel from the installed bootstrap app:
+
+```text
+0.2.0-alpha.0 -> 0.2.0-alpha.1
+```
+
+Observed result:
+
+```text
+chip appeared with the expected update state
+update completed without errors
+app relaunched on the private alpha release
+functioning was perfect
+```
+
+This confirms the governed private alpha channel can move an installed alpha app from a previous alpha version to the published signed update artifact.
+
 ## Boundary
 
 The alpha candidate is published to the private alpha endpoint. The following remain unperformed and require separate explicit Navigator authorization:
