@@ -1,3 +1,4 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
 
@@ -10,6 +11,10 @@ export type SelfUpdateProgress = {
   totalBytes?: number;
   message: string;
 };
+
+export async function currentMirrorDesktopVersion(): Promise<string> {
+  return getVersion();
+}
 
 export async function checkForTrustedSelfUpdate(): Promise<SelfUpdateCheckResult> {
   const update = await check({ timeout: 15000 });
