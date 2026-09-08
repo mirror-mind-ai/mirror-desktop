@@ -59,7 +59,7 @@ export function indexEntry({ version, title, digest }) {
 
 export function upsertIndexEntry(indexSource, entry) {
   if (!entry.startsWith("- [v")) throw new Error("Release index entry must be a versioned Markdown list item.");
-  const version = entry.match(/^- \[(v\d+\.\d+\.\d+)/)?.[1];
+  const version = entry.match(/^- \[(v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)/)?.[1];
   if (!version) throw new Error("Release index entry must include a version.");
   const lines = indexSource.split("\n");
   const existing = lines.findIndex((line) => line.startsWith(`- [${version} `));
