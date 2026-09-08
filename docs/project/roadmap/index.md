@@ -24,7 +24,7 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 | [CV-004](cv-004-dedicated-nautilus-journey-thread/index.md) | Dedicated Nautilus Journey Thread | Every Journey owns one Nautilus thread whose active generation is a dedicated, Journey-activated Pi/Mirror pair, independent from conversations in other environments | ✅ Done |
 | [CV-005](cv-005-private-macos-alpha/index.md) | Private macOS Alpha | A maintainer can privately deliver a verified revision-bound macOS bundle that authorized testers connect to their own Mirror and operate without Nautilus product identity | ✅ Done |
 | [CV-006](cv-006-versioned-macos-release/index.md) | Versioned macOS Release | A repeatable release process associates a macOS bundle, checksum and provenance with an immutable Git tag and source revision | ✅ Done |
-| [CV-007](cv-007-trusted-self-update/index.md) | Trusted Self-Update | Mirror Desktop can verify and apply an authorized compatible release while preserving application and Mirror rollback | 🟡 Planned |
+| [CV-007](cv-007-trusted-self-update/index.md) | Trusted Self-Update | Mirror Desktop can verify and apply an authorized compatible release while preserving application and Mirror rollback | 🟠 In Progress |
 
 ## Delivery Arc — Operable Agent Cockpit
 
@@ -99,8 +99,9 @@ Pull `CV-007 - Trusted Self-Update` next. `CV-006.DS-001 - Release Candidate and
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-007.DS-001](cv-007-trusted-self-update/ds-001-update-channel-and-compatibility/index.md) | Update Channel and Compatibility | Mirror Desktop can inspect one configured authoritative release channel, identify whether a newer release is available, verify that its metadata is well formed and compatible, and present release notes without downloading or installing the update | 🟡 Planned |
-| [CV-007.DS-002](cv-007-trusted-self-update/ds-002-verified-update-installation-and-recovery/index.md) | Verified Update Installation and Recovery | After explicit user consent, Mirror Desktop can download, verify, safely apply and recover or roll back an authorized compatible release without touching Mirror state | 🟡 Planned |
+| [CV-007.DS-001](cv-007-trusted-self-update/ds-001-update-channel-and-compatibility/index.md) | Update Channel and Compatibility | Mirror Desktop can inspect one configured authoritative release channel, identify whether a newer release is available, verify that its metadata is well formed and compatible, and present release notes without downloading or installing the update | ✅ Done |
+| [CV-007.DS-002](cv-007-trusted-self-update/ds-002-verified-update-installation-and-recovery/index.md) | Verified Update Installation and Recovery | After explicit user consent, Mirror Desktop can download, verify, safely apply and recover or roll back an authorized compatible release without touching Mirror state | ✅ Done |
+| [CV-007.DS-003](cv-007-trusted-self-update/ds-003-end-to-end-in-app-self-update/index.md) | End-to-End In-App Self-Update | A user running Mirror Desktop is notified when a trusted compatible newer version is available, clicks Update, and the installed app updates with relaunch verification and rollback protection | ✅ Done |
 
 ## Boundaries
 

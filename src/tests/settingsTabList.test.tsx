@@ -8,10 +8,10 @@ import { readFileSync } from "node:fs";
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
 describe("Settings tabs", () => {
-  it("renders four owned, accessible tabs with roving focus", () => {
+  it("renders five owned, accessible tabs with roving focus", () => {
     const html = renderToStaticMarkup(<SettingsTabList selected="appearance" onSelect={() => undefined} />);
     expect(html).toContain('role="tablist"');
-    expect(html.match(/role="tab"/g)).toHaveLength(4);
+    expect(html.match(/role="tab"/g)).toHaveLength(5);
     expect(html).toContain("User Profile");
     expect(html).toContain('aria-controls="settings-panel-appearance"');
     expect(html).toContain('aria-selected="true"');
@@ -19,12 +19,13 @@ describe("Settings tabs", () => {
   });
 
   it("wraps arrow navigation and supports Home and End", () => {
-    expect(nextSettingsTab("appearance", "ArrowLeft")).toBe("runtime");
-    expect(nextSettingsTab("runtime", "ArrowRight")).toBe("appearance");
+    expect(nextSettingsTab("appearance", "ArrowLeft")).toBe("updates");
+    expect(nextSettingsTab("runtime", "ArrowRight")).toBe("updates");
+    expect(nextSettingsTab("updates", "ArrowRight")).toBe("appearance");
     expect(nextSettingsTab("appearance", "ArrowRight")).toBe("user-profile");
     expect(nextSettingsTab("user-profile", "ArrowRight")).toBe("agent");
     expect(nextSettingsTab("runtime", "Home")).toBe("appearance");
-    expect(nextSettingsTab("appearance", "End")).toBe("runtime");
+    expect(nextSettingsTab("appearance", "End")).toBe("updates");
     expect(nextSettingsTab("agent", "Enter")).toBe("agent");
   });
 
@@ -33,10 +34,12 @@ describe("Settings tabs", () => {
     expect(appSource).toContain('settingsTab === "user-profile"');
     expect(appSource).toContain('settingsTab === "agent"');
     expect(appSource).toContain('settingsTab === "runtime"');
+    expect(appSource).toContain('settingsTab === "updates"');
     expect(appSource).toContain('id="settings-panel-appearance"');
     expect(appSource).toContain('id="settings-panel-user-profile"');
     expect(appSource).toContain('id="settings-panel-agent"');
     expect(appSource).toContain('id="settings-panel-runtime"');
+    expect(appSource).toContain('id="settings-panel-updates"');
   });
 
   it("gives light-theme tabs explicit readable default, interactive, and selected colors", () => {

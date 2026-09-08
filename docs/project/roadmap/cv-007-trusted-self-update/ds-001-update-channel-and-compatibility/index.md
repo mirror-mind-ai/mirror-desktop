@@ -2,7 +2,7 @@
 
 # CV-007.DS-001 - Update Channel and Compatibility
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -12,9 +12,9 @@ Mirror Desktop can inspect one configured authoritative release channel, identif
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-007.DS-001.TS-1 | Update Manifest Contract | Technical Story | The app defines a signed or otherwise authenticated update manifest that binds version, tag, artifact URL, checksum, compatibility range, release notes and provenance | 🟡 Planned |
-| CV-007.DS-001.TS-2 | Version and Compatibility Decision | Technical Story | The app compares semantic app versions, architecture and Mirror Core compatibility before offering an update | 🟡 Planned |
-| CV-007.DS-001.US-1 | Inspect Available Update | User Story | A user can check for updates, see the newer version, release notes and compatibility result, and decline without side effects | 🟡 Planned |
+| CV-007.DS-001.TS-1 | Update Manifest Contract | Technical Story | The app defines a signed or otherwise authenticated update manifest that binds version, tag, artifact URL, checksum, compatibility range, release notes and provenance | ✅ Done |
+| CV-007.DS-001.TS-2 | Version and Compatibility Decision | Technical Story | The app compares semantic app versions, architecture and Mirror Core compatibility before offering an update | ✅ Done |
+| CV-007.DS-001.US-1 | Inspect Available Update | User Story | A user can check for updates, see the newer version, release notes and compatibility result, and decline without side effects | ✅ Done |
 
 ## Done Condition
 

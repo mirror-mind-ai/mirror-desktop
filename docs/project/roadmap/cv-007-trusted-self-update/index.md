@@ -2,7 +2,7 @@
 
 # CV-007 - Trusted Self-Update
 
-**Status:** 🟡 Planned
+**Status:** 🟠 In Progress
 
 ## Outcome
 
@@ -16,8 +16,9 @@ Once CV-006 establishes immutable release identity, the application can stop rel
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-007.DS-001](ds-001-update-channel-and-compatibility/index.md) | Update Channel and Compatibility | Mirror Desktop can inspect one configured authoritative release channel, identify whether a newer release is available, verify that its metadata is well formed and compatible, and present release notes without downloading or installing the update | 🟡 Planned |
-| [CV-007.DS-002](ds-002-verified-update-installation-and-recovery/index.md) | Verified Update Installation and Recovery | After explicit user consent, Mirror Desktop can download, verify, safely apply and recover or roll back an authorized compatible release without touching Mirror state | 🟡 Planned |
+| [CV-007.DS-001](ds-001-update-channel-and-compatibility/index.md) | Update Channel and Compatibility | Mirror Desktop can inspect one configured authoritative release channel, identify whether a newer release is available, verify that its metadata is well formed and compatible, and present release notes without downloading or installing the update | ✅ Done |
+| [CV-007.DS-002](ds-002-verified-update-installation-and-recovery/index.md) | Verified Update Installation and Recovery | After explicit user consent, Mirror Desktop can download, verify, safely apply and recover or roll back an authorized compatible release without touching Mirror state | ✅ Done |
+| [CV-007.DS-003](ds-003-end-to-end-in-app-self-update/index.md) | End-to-End In-App Self-Update | A user running Mirror Desktop is notified when a trusted compatible newer version is available, clicks Update, and the installed app updates with relaunch verification and rollback protection | ✅ Done |
 
 ## Candidate Scope
 
@@ -40,4 +41,4 @@ This capability does not install or migrate Mirror Core, provider credentials, i
 
 ## Done Condition
 
-From a supported installed version, Mirror Desktop detects an authorized compatible update, verifies it before mutation, applies it with explicit consent, restarts into the expected version with Journey continuity preserved, and can recover to the previous application when installation or launch verification fails.
+From a supported installed version, Mirror Desktop detects an authorized compatible update, notifies the user, verifies it before mutation, applies it after explicit consent, restarts into the expected version with Journey continuity preserved, and can recover to the previous application when installation or launch verification fails.

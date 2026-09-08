@@ -5,6 +5,7 @@ export const settingsTabs = [
   { id: "user-profile", label: "User Profile" },
   { id: "agent", label: "Agent" },
   { id: "runtime", label: "Runtime" },
+  { id: "updates", label: "Updates" },
 ] as const;
 
 export type SettingsTab = (typeof settingsTabs)[number]["id"];

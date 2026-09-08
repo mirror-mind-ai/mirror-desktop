@@ -7,6 +7,9 @@
     "core:default",
     "core:event:allow-listen",
     "core:event:allow-unlisten",
-    "clipboard-manager:allow-write-text"
+    "clipboard-manager:allow-write-text",
+    "updater:allow-check",
+    "updater:allow-download-and-install",
+    "process:allow-restart"
   ]
 }

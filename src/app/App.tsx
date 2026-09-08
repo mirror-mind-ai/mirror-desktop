@@ -268,6 +268,8 @@ import {
   toggleJourneySidebar,
 } from "./journeySidebarPresentation";
 import { SettingsTabList, type SettingsTab } from "./SettingsTabList";
+import { SelfUpdatePanel } from "./SelfUpdatePanel";
+import { SelfUpdateNotification } from "./SelfUpdateNotification";
 import { MessageSpeakerAvatar, UserAvatarSettings } from "./UserAvatar";
 import { importUserAvatar, loadUserAvatar, removeUserAvatar } from "./userAvatarStorage";
 
@@ -3024,6 +3026,7 @@ export function App({ model }: AppProps) {
       data-runtime-channel={runtimeChannel?.channel}
       data-application-theme={applicationTheme}
     >
+      <SelfUpdateNotification onReview={() => { setSettingsTab("updates"); setSettingsOpen(true); }} />
       <aside className="journey-sidebar" aria-label="Journeys">
         <div className="brand-block">
           <span className="brand-mark-wrap" aria-hidden="true">
@@ -4054,6 +4057,17 @@ export function App({ model }: AppProps) {
               </div>
               <p className="provider-note">Command, arguments, stdin and test mode are never persisted. Effective model and thinking flags replace conflicting raw arguments.</p>
                 </section>
+              </div>
+            ) : null}
+
+            {settingsTab === "updates" ? (
+              <div
+                className="settings-tab-panel"
+                id="settings-panel-updates"
+                role="tabpanel"
+                aria-labelledby="settings-tab-updates"
+              >
+                <SelfUpdatePanel runtimeBusy={runtimeBusy} />
               </div>
             ) : null}
           </section>

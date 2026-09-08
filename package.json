@@ -18,11 +18,14 @@
     "tauri:user": "node scripts/mirror_desktop_channel.mjs user",
     "tauri:build:dev": "node scripts/mirror_desktop_channel.mjs build-dev",
     "tauri:build:user": "node scripts/mirror_desktop_channel.mjs build-user",
-    "promote:production": "node scripts/promote_production.mjs"
+    "promote:production": "node scripts/promote_production.mjs",
+    "self-update:preflight": "node scripts/self_update_preflight.mjs --config src-tauri/tauri.self-update.test.conf.json"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.11.0",
     "@vitejs/plugin-react": "^5.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
