@@ -3026,7 +3026,6 @@ export function App({ model }: AppProps) {
       data-runtime-channel={runtimeChannel?.channel}
       data-application-theme={applicationTheme}
     >
-      <SelfUpdateNotification onReview={() => { setSettingsTab("updates"); setSettingsOpen(true); }} />
       <aside className="journey-sidebar" aria-label="Journeys">
         <div className="brand-block">
           <span className="brand-mark-wrap" aria-hidden="true">
@@ -3306,6 +3305,7 @@ export function App({ model }: AppProps) {
                 </div>
               </div>
               <div className="chat-header-actions">
+                <SelfUpdateNotification runtimeBusy={runtimeBusy} onReview={() => { setSettingsTab("updates"); setSettingsOpen(true); }} />
                 <button
                   className={`menu-button conversation-shortcut ${operationalChatSelected ? "selected" : ""}`}
                   type="button"
