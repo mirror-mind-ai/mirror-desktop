@@ -47,4 +47,19 @@ describe("release candidate provenance", () => {
       },
     });
   });
+
+  it("can point provenance at an alpha release-notes base URL", () => {
+    const receipt = buildProvenance({
+      version: "0.2.0-alpha.1",
+      tag: "v0.2.0-alpha.1",
+      revision: "a".repeat(40),
+      artifact: "Mirror Desktop_0.2.0-alpha.1_x64.dmg",
+      architecture: "x64",
+      sha256: "b".repeat(64),
+      checks: { worktreeClean: true, versionFilesAgree: true },
+      releaseNotesBaseUrl: "https://updates.mirrormind.com.br/mirror-desktop/alpha/releases",
+    });
+
+    expect(receipt.releaseNotes).toBe("https://updates.mirrormind.com.br/mirror-desktop/alpha/releases/v0.2.0-alpha.1.md");
+  });
 });

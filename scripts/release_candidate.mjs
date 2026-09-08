@@ -56,7 +56,7 @@ export function artifactName({ productName = "Mirror Desktop", version, architec
   return `${productName}_${parseSemver(version)}_${architecture}.${extension}`;
 }
 
-export function buildProvenance({ version, revision, tag, artifact, sha256, architecture, checks }) {
+export function buildProvenance({ version, revision, tag, artifact, sha256, architecture, checks, releaseNotesBaseUrl }) {
   parseSemver(version);
   assertReleaseTag(version, tag);
   if (!/^[0-9a-f]{40}$/.test(revision)) throw new Error("Revision must be a full Git SHA.");
@@ -67,7 +67,7 @@ export function buildProvenance({ version, revision, tag, artifact, sha256, arch
     version,
     tag,
     revision,
-    releaseNotes: releaseNotesUrl(tag),
+    releaseNotes: releaseNotesUrl(tag, releaseNotesBaseUrl),
     artifact,
     architecture,
     sha256,
@@ -85,10 +85,10 @@ export function parseArguments(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--json") result.json = true;
-    else if (["--artifact", "--sha256", "--architecture"].includes(arg)) {
+    else if (["--artifact", "--sha256", "--architecture", "--release-notes-base-url"].includes(arg)) {
       const value = argv[index + 1];
       if (!value) throw new Error(`${arg} requires a value.`);
-      result[arg.slice(2)] = value;
+      result[arg.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;
       index += 1;
     } else throw new Error(`Unsupported release candidate argument ${arg}.`);
   }
@@ -106,6 +106,7 @@ export function inspectReleaseCandidate(options = {}) {
   return buildProvenance({
     version, tag, revision, artifact, architecture, sha256,
     checks: { worktreeClean, versionFilesAgree: true },
+    releaseNotesBaseUrl: options.releaseNotesBaseUrl,
   });
 }
 

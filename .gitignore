@@ -8,6 +8,7 @@ src-tauri/gen/
 
 # Local caches and runtime artifacts
 .vite/
+.tmp/
 .mirror/
 coverage/
 __pycache__/
