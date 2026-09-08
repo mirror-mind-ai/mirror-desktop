@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-08
 **Journey:** mirror-desktop
-**Status:** staged locally, not published
+**Status:** published to private alpha endpoint after explicit Navigator authorization
 
 ## Result
 
@@ -12,7 +12,7 @@ Prepared the first governed Mirror Desktop alpha release candidate:
 v0.2.0-alpha.1
 ```
 
-This candidate is staged locally for review. It was not published to the alpha endpoint and no Git tag, GitHub Release, push, notarization, public announcement, app-data mutation, or Mirror-data mutation was performed.
+This candidate was first staged locally for review, then published to the private alpha endpoint after explicit Navigator authorization. No Git tag, GitHub Release, push, notarization, public announcement, app-data mutation, or Mirror-data mutation was performed.
 
 ## Version Authority
 
@@ -127,9 +127,40 @@ node scripts/release_candidate.mjs --json --artifact Mirror Desktop_0.2.0-alpha.
 npm run release:private-update -- --version 0.2.0-alpha.1 --base-url https://updates.mirrormind.com.br/mirror-desktop/alpha ...
 ```
 
+## Private Alpha Publication
+
+Navigator explicitly authorized publishing `v0.2.0-alpha.1` to the private alpha endpoint.
+
+Published paths validated:
+
+```text
+https://updates.mirrormind.com.br/mirror-desktop/alpha/releases/v0.2.0-alpha.1.md
+https://updates.mirrormind.com.br/mirror-desktop/alpha/releases/index.md
+https://updates.mirrormind.com.br/mirror-desktop/alpha/darwin/0.2.0-alpha.0/latest.json
+https://updates.mirrormind.com.br/mirror-desktop/alpha/darwin/0.2.0-alpha.1/latest.json
+https://updates.mirrormind.com.br/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.0/latest.json
+https://updates.mirrormind.com.br/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.1/latest.json
+https://updates.mirrormind.com.br/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.0/latest.json
+https://updates.mirrormind.com.br/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.1/latest.json
+https://updates.mirrormind.com.br/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.1.app.tar.gz
+https://updates.mirrormind.com.br/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.1_x64.dmg
+```
+
+A first publish attempt used the alpha base URL with the default root web directory, which placed alpha files under the private-test root. The root pollution was repaired by removing the accidental alpha root files/manifests and restoring the root private-test release index. The publication script now derives the default web root from the base URL so `/mirror-desktop/alpha` maps to `/var/www/mirror-desktop-updates/mirror-desktop/alpha` unless explicitly overridden.
+
+Post-repair validation confirmed:
+
+```text
+alpha release note: 200
+alpha manifest: 200
+root alpha release note: 404
+root alpha manifest: 404
+root private-test index: restored
+```
+
 ## Boundary
 
-The alpha candidate is local and reviewable. The following remain unperformed and require separate explicit Navigator authorization:
+The alpha candidate is published to the private alpha endpoint. The following remain unperformed and require separate explicit Navigator authorization:
 
 - publish staged files to the alpha endpoint;
 - create Git tag `v0.2.0-alpha.1`;

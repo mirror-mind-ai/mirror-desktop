@@ -10,6 +10,7 @@ import {
   stagePrivateUpdatePublication,
   updaterArtifactName,
   updaterArtifactUrl,
+  webRootForBaseUrl,
 } from "../../scripts/private_update_publish.mjs";
 
 const temporaryRoots = [];
@@ -38,6 +39,11 @@ describe("private update publication", () => {
       url: "https://updates.mirrormind.com.br/mirror-desktop/artifacts/Mirror%20Desktop_0.1.1-test.1.app.tar.gz",
       signature: "abc",
     });
+  });
+
+  it("maps alpha base URLs to matching remote web roots", () => {
+    expect(webRootForBaseUrl("https://updates.mirrormind.com.br/mirror-desktop/alpha")).toBe("/var/www/mirror-desktop-updates/mirror-desktop/alpha");
+    expect(webRootForBaseUrl("https://updates.mirrormind.com.br/mirror-desktop")).toBe("/var/www/mirror-desktop-updates/mirror-desktop");
   });
 
   it("plans manifest copies for all targets and current versions", () => {
@@ -71,6 +77,7 @@ describe("private update publication", () => {
     });
 
     expect(plan).toMatchObject(planPrivateUpdatePublication({ version: "0.1.1-test.1", currentVersions: ["0.1.1-test.0"], targets: ["darwin"] }));
+    expect(plan.webRoot).toBe("/var/www/mirror-desktop-updates/mirror-desktop");
     expect(readFileSync(join(stage, "artifacts", "Mirror Desktop_0.1.1-test.1.app.tar.gz"), "utf8")).toBe("artifact");
     expect(JSON.parse(readFileSync(join(stage, "manifests", "darwin", "0.1.1-test.0", "latest.json"), "utf8"))).toMatchObject({ version: "0.1.1-test.1", signature: "signature" });
     expect(readFileSync(join(stage, "releases", "v0.1.1-test.1.md"), "utf8")).toContain("# v0.1.1-test.1");
