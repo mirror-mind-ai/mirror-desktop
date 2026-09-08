@@ -6116,7 +6116,7 @@ dd {
   padding: 0 11px;
   border: 1px solid color-mix(in srgb, var(--ui-accent) 28%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--ui-surface) 90%, transparent);
+  background: color-mix(in srgb, var(--shell-middle) 92%, #ffffff 8%);
   color: var(--ui-text);
   font-size: 0.78rem;
   font-weight: 650;
@@ -6127,7 +6127,7 @@ dd {
 .self-update-chip:focus-visible,
 .self-update-chip.installing {
   border-color: color-mix(in srgb, var(--ui-accent) 58%, transparent);
-  background: color-mix(in srgb, var(--ui-accent) 12%, var(--ui-surface));
+  background: color-mix(in srgb, var(--ui-accent) 12%, var(--shell-middle));
 }
 
 .self-update-dot {
@@ -6147,8 +6147,8 @@ dd {
   padding: 14px;
   border: 1px solid color-mix(in srgb, var(--ui-accent) 30%, transparent);
   border-radius: 16px;
-  background: var(--ui-surface);
-  box-shadow: 0 18px 45px rgb(0 0 0 / 28%);
+  background: color-mix(in srgb, var(--shell-middle) 96%, #000000 4%);
+  box-shadow: 0 18px 45px rgb(0 0 0 / 38%);
 }
 
 .self-update-popover p {
@@ -6173,4 +6173,18 @@ dd {
 .self-update-available {
   flex-direction: column;
   align-items: flex-start;
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .self-update-popover,
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .self-update-chip {
+  background: var(--light-surface);
+  color: var(--light-text);
 }
