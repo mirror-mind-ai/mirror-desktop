@@ -100,7 +100,7 @@ export function SelfUpdateNotification({
   const chipText = state.status === "installing"
     ? `${versionLabel} • Updating…`
     : showsAvailable
-      ? `${versionLabel} • Update available`
+      ? `${versionLabel} • Update`
       : versionLabel;
 
   return (

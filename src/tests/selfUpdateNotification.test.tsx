@@ -20,7 +20,7 @@ describe("SelfUpdateNotification", () => {
       <SelfUpdateNotification runtimeBusy={false} initialCurrentVersion="0.1.1" checkUpdates={neverCheck} getCurrentVersion={neverVersion} installUpdate={neverInstall} onReview={() => undefined} />,
     );
     expect(html).toContain("Mirror Desktop 0.1.1");
-    expect(html).not.toContain("Update available");
+    expect(html).not.toContain("• Update");
   });
 
   it("composes the current version with the update badge", () => {
@@ -29,7 +29,7 @@ describe("SelfUpdateNotification", () => {
     );
     expect(html).toContain("self-update-chip");
     expect(html).toContain("Mirror Desktop 0.1.0");
-    expect(html).toContain("Update available");
+    expect(html).toContain("• Update");
     expect(html).not.toContain("Atualização disponível");
     expect(html).not.toContain("self-update-banner");
   });
