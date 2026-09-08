@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import process from "node:process";
+import { releaseNotesUrl } from "./release_notes.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -66,6 +67,7 @@ export function buildProvenance({ version, revision, tag, artifact, sha256, arch
     version,
     tag,
     revision,
+    releaseNotes: releaseNotesUrl(tag),
     artifact,
     architecture,
     sha256,
@@ -113,6 +115,7 @@ function human(report) {
     `Version: ${report.version}`,
     `Tag: ${report.tag}`,
     `Revision: ${report.revision}`,
+    `Release notes: ${report.releaseNotes}`,
     `Artifact: ${report.artifact}`,
     `Architecture: ${report.architecture}`,
     `Worktree: ${report.checks.worktreeClean ? "clean" : "dirty"}`,

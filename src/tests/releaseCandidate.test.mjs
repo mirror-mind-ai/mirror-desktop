@@ -39,6 +39,7 @@ describe("release candidate provenance", () => {
       product: "Mirror Desktop",
       version: "0.2.0",
       tag: "v0.2.0",
+      releaseNotes: "https://updates.mirrormind.com.br/mirror-desktop/releases/v0.2.0.md",
       boundaries: {
         binariesCommittedToSource: false,
         selfUpdateAuthority: false,
