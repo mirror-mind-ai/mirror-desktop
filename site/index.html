@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mirror Mind — Local-first memory and identity for agentic AI runtimes</title>
+    <meta
+      name="description"
+      content="Mirror Mind is a local-first memory and identity framework for agentic AI runtimes. It gives agents continuity across identity, journeys, memory, personas, attachments, and runtime-aware skills."
+    />
+    <meta name="application-name" content="Mirror Mind" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://mirrormind.sh" />
+    <meta property="og:title" content="Mirror Mind" />
+    <meta property="og:description" content="Local-first memory and identity for agentic AI runtimes." />
+    <meta property="og:url" content="https://mirrormind.sh" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Mirror Mind home">
+        <span class="mark" aria-hidden="true">◇</span>
+        <span>mirror mind</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#desktop">desktop</a>
+        <a href="#builders">builders</a>
+        <a href="https://github.com/mirror-mind-ai/mirror-desktop">github</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero section-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">local-first continuity for agents</p>
+          <h1>Local-first memory and identity for agentic AI runtimes.</h1>
+          <p class="lede">
+            Mirror Mind gives agents continuity: identity, journeys, memory, personas,
+            attachments, and runtime-aware skills across Pi, Gemini CLI, Codex, and
+            Claude Code.
+          </p>
+          <div class="actions" aria-label="Primary actions">
+            <a class="button primary" href="https://github.com/mirror-mind-ai/mirror-desktop">View on GitHub</a>
+            <a class="button" href="https://updates.mirrormind.com.br/mirror-desktop/alpha/releases/v0.2.0-alpha.1.md">macOS Alpha Notes</a>
+            <a class="button ghost" href="https://github.com/mirror-mind-ai/mirror-desktop/blob/main/docs/windows/manual-build.md">Build on Windows</a>
+          </div>
+          <p class="microcopy">Open source. Local-first. Your memory stays on your machine.</p>
+        </div>
+
+        <aside class="terminal-card" aria-label="Local build commands">
+          <div class="terminal-topbar">
+            <span></span><span></span><span></span>
+          </div>
+          <pre><code>git clone https://github.com/mirror-mind-ai/mirror-desktop.git
+cd mirror-desktop
+npm install
+npm run tauri -- build</code></pre>
+          <p>Build the desktop app locally. Keep the runtime local.</p>
+        </aside>
+      </section>
+
+      <section class="section">
+        <p class="eyebrow">what it is</p>
+        <div class="cards four">
+          <article class="card">
+            <h2>Local-first memory</h2>
+            <p>A SQLite-backed memory layer for identity, conversations, journeys, and runtime state.</p>
+          </article>
+          <article class="card">
+            <h2>Identity continuity</h2>
+            <p>Personas, preferences, attachments, and context survive across sessions and agents.</p>
+          </article>
+          <article class="card">
+            <h2>Runtime-aware skills</h2>
+            <p>Mirror-aware commands and skills across Pi, Gemini CLI, Codex, and Claude Code.</p>
+          </article>
+          <article class="card">
+            <h2>Mirror Desktop</h2>
+            <p>A Tauri desktop app for using Mirror Mind with a local, updateable interface.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="builders" class="section split-panel">
+        <div>
+          <p class="eyebrow">for builders</p>
+          <h2>One memory layer. Many agents.</h2>
+        </div>
+        <div>
+          <p>
+            Mirror Mind is not another chat app. It is a local continuity layer for
+            agentic work: a place where identity, journeys, memory, skills, and
+            attachments remain available across runtimes.
+          </p>
+          <ul class="feature-list">
+            <li>local SQLite memory</li>
+            <li>journey-aware memory</li>
+            <li>persona routing</li>
+            <li>runtime-aware skills</li>
+            <li>attachments and context</li>
+            <li>desktop interface</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="desktop" class="section desktop-panel">
+        <div>
+          <p class="eyebrow">desktop alpha</p>
+          <h2>Mirror Desktop is the first-party desktop app for Mirror Mind.</h2>
+          <p>
+            macOS alpha supports signed self-update through the private alpha channel.
+            Windows users can build manually from source while the Windows release path matures.
+          </p>
+        </div>
+        <div class="link-stack" aria-label="Desktop links">
+          <a href="https://github.com/mirror-mind-ai/mirror-desktop">GitHub repository</a>
+          <a href="https://github.com/mirror-mind-ai/mirror-desktop/tree/main/docs/releases">Release notes</a>
+          <a href="https://github.com/mirror-mind-ai/mirror-desktop/blob/main/docs/windows/manual-build.md">Windows manual build guide</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>mirrormind.sh — English / developers</span>
+      <a href="https://mirrormind.com.br">Português: mirrormind.com.br</a>
+      <span>updates.mirrormind.com.br — updater endpoint</span>
+    </footer>
+  </body>
+</html>

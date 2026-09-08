@@ -16,6 +16,10 @@ Maintainers preparing a versioned candidate should follow the [versioned macOS r
 
 The read-only self-update discovery contract lives in [docs/update/trusted-self-update.md](docs/update/trusted-self-update.md). It defines the update manifest, compatibility decision and no-mutation boundary before any download or installation work.
 
+## Website
+
+The initial English developer-facing landing page for `mirrormind.sh` lives in [site/](site/). It is a static page; deploying it requires a separate explicit publication/DNS instruction.
+
 ## Development
 
 Use the canonical [development environment guide](docs/development/environment-setup.md). It explains how to run the isolated development channel against Mirror Dev without touching the installed daily-use app or production Mirror database.
