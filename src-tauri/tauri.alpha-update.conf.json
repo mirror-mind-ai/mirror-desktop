@@ -1,0 +1,13 @@
+{
+  "bundle": {
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://updates.mirrormind.com.br/mirror-desktop/alpha/{{target}}/{{current_version}}/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZCNzUxN0UxNEI4QjU4NkMKUldSc1dJdEw0UmQxK3o4NlJVeHM4eDdvTVNnTDAyWCtFQ1pCNlNUL1R6ZldHQjlwS1JjRlJ2L08K"
+    }
+  }
+}
