@@ -14,9 +14,12 @@ describe("mirrormind.sh landing page", () => {
     expect(html).toContain("Pi, Gemini CLI, Codex, and Claude Code");
   });
 
-  it("links the public repository, alpha notes, Windows build guide and Portuguese domain", () => {
+  it("links Mirror Core, Mirror Desktop, alpha notes, Windows build guide and Portuguese domain", () => {
+    expect(html).toContain("https://github.com/mirror-mind-ai/mirror");
+    expect(html).toContain("Mirror Core");
     expect(html).toContain("https://github.com/mirror-mind-ai/mirror-desktop");
-    expect(html).toContain("https://updates.mirrormind.com.br/mirror-desktop/alpha/releases/v0.2.0-alpha.1.md");
+    expect(html).toContain("Mirror Desktop");
+    expect(html).toContain("https://github.com/mirror-mind-ai/mirror-desktop/tree/main/docs/releases");
     expect(html).toContain("docs/windows/manual-build.md");
     expect(html).toContain("https://mirrormind.com.br");
   });
