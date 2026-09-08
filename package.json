@@ -20,7 +20,8 @@
     "tauri:build:user": "node scripts/mirror_desktop_channel.mjs build-user",
     "promote:production": "node scripts/promote_production.mjs",
     "self-update:preflight": "node scripts/self_update_preflight.mjs --config src-tauri/tauri.self-update.test.conf.json",
-    "release:notes": "node scripts/release_notes.mjs"
+    "release:notes": "node scripts/release_notes.mjs",
+    "release:private-update": "node scripts/private_update_publish.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",

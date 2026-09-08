@@ -122,6 +122,23 @@ curl -fsSI https://updates.mirrormind.com.br/mirror-desktop/artifacts/Mirror%20D
 curl -fsSI https://updates.mirrormind.com.br/mirror-desktop/artifacts/Mirror%20Desktop_0.1.1-test.1_x64.dmg
 ```
 
+## Automated Private Publication
+
+The private endpoint publication is now repeatable through:
+
+```bash
+npm run release:private-update -- \
+  --version 0.1.1-test.1 \
+  --current-version 0.1.1-test.0 \
+  --current-version 0.1.1-test.1 \
+  --artifact 'src-tauri/target/release/bundle/macos/Mirror Desktop.app.tar.gz' \
+  --signature 'src-tauri/target/release/bundle/macos/Mirror Desktop.app.tar.gz.sig' \
+  --dmg 'src-tauri/target/release/bundle/dmg/Mirror Desktop_0.1.1-test.1_x64.dmg' \
+  --publish
+```
+
+The script stages updater artifacts, release notes, release index, and all configured manifest paths before optionally publishing to the private SSH endpoint. Its reported boundaries remain private endpoint only: no Git tag, GitHub Release, notarization, push, Mirror data mutation, or app data mutation is implied.
+
 ## Clickable Bootstrap Rehearsal
 
 Navigator manually validated the private-test channel from the installed bootstrap app:
