@@ -122,6 +122,24 @@ curl -fsSI https://updates.mirrormind.com.br/mirror-desktop/artifacts/Mirror%20D
 curl -fsSI https://updates.mirrormind.com.br/mirror-desktop/artifacts/Mirror%20Desktop_0.1.1-test.1_x64.dmg
 ```
 
+## Clickable Bootstrap Rehearsal
+
+Navigator manually validated the private-test channel from the installed bootstrap app:
+
+```text
+0.1.1-test.0 -> 0.1.1-test.1
+```
+
+Observed result:
+
+```text
+chip appeared with the expected update state
+update completed without errors
+app relaunched on the private test release
+```
+
+This confirms the private-test channel can move an installed app from a previous app version to the published signed update artifact.
+
 ## Boundary
 
 This release changed application release artifacts only. It did not mutate Mirror homes, `memory.db`, identity, credentials, Journey content, conversations, app data, or Nautilus Harness state.
