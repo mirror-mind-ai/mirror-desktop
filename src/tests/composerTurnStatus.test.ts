@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveComposerTurnStatus } from "../app/composerTurnStatus";
+import { deriveComposerTurnStatus, shouldShowConversationSyncNotice } from "../app/composerTurnStatus";
 
 describe("Composer turn status", () => {
   it("shows Working only while the selected agent is executing", () => {
@@ -55,6 +55,33 @@ describe("Composer turn status", () => {
       reconciliationBlocksInvocation: false,
       mirrorRepairPending: false,
     })).toBeUndefined();
+  });
+
+  it("keeps routine Mirror commit work under Finishing", () => {
+    expect(deriveComposerTurnStatus({
+      agentRunStatus: "completed",
+      runBelongsToSelectedJourney: true,
+      isStreaming: false,
+      isFinalizingTurn: true,
+      reconciliationBlocksInvocation: true,
+      mirrorRepairPending: true,
+    })).toBe("finishing");
+  });
+
+  it("shows Mirror sync recovery only after active finalization ends", () => {
+    expect(shouldShowConversationSyncNotice({
+      mirrorRepairPending: true,
+      legacyMirrorGap: false,
+      isStreaming: false,
+      isFinalizingTurn: true,
+    })).toBe(false);
+
+    expect(shouldShowConversationSyncNotice({
+      mirrorRepairPending: true,
+      legacyMirrorGap: false,
+      isStreaming: false,
+      isFinalizingTurn: false,
+    })).toBe(true);
   });
 
   it("defers to explicit failure and repair surfaces", () => {

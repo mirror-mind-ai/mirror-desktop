@@ -71,7 +71,9 @@ Alpha validation then exposed two additional routine projections in the same com
 
 A second validation pass exposed a final-frame race: `finalization_finished` could remove `Finishing…` one render before the asynchronously refreshed turn journal removed its stale blocking record, allowing the recovery notice to flash too briefly to read. Successful lease release now clears the selected Journey's blocking record before dispatching `finalization_finished`, making the transition atomic from the composer's perspective. This does not clear records belonging to another Journey and does not affect failure recovery.
 
-The remaining messages that can occupy this area are exception or recovery surfaces rather than successful-finalization milestones: runtime binding, local-file, unsent-message, agent-settings, previous-turn recovery, global-capacity, interrupted-turn, retained-lease, Mirror synchronization, and attachment failures. `Conversation ready` can also appear transiently after an actual recovery. These surfaces remain visible because they either require action or communicate a state not represented by `Finishing…`.
+A screenshot from the next validation pass identified the remaining flash precisely: `Mirror conversation commit incomplete` and its `Retry` action, accompanied by the restore-required composer placeholder. `pendingMirrorRepair` is also true during the expected interval after Harness/Pi projection and before Mirror append acknowledgement, so the UI was presenting an ordinary in-flight commit as a failure. Finalization now remains active through append-and-acknowledge, pending Mirror work stays under `Finishing…`, and the sync notice plus restore placeholder appear only after finalization has ended with durable repair still required.
+
+The remaining messages that can occupy this area are exception or recovery surfaces rather than successful-finalization milestones: runtime binding, local-file, unsent-message, agent-settings, previous-turn recovery, global-capacity, interrupted-turn, retained-lease, failed Mirror synchronization, and attachment failures. `Conversation ready` can also appear transiently after an actual recovery. These surfaces remain visible because they either require action or communicate a state not represented by `Finishing…`.
 
 ## Evidence
 
@@ -85,13 +87,13 @@ Refinement traced the current presentation through:
 
 Implementation validation:
 
-- 633 frontend tests passed across 114 files;
-- focused status, component, sidebar, theme, lifecycle, and source-boundary tests passed;
-- a follow-up source-boundary regression test verifies that blocking-journal and native-occupancy notices are gated during canonical finishing, successful release clears the selected Journey's stale blocking record before `finalization_finished`, and recovery and retained-lease content remain present;
-- after the alpha follow-up, all 633 frontend tests across 114 files passed again;
+- all 635 frontend tests passed across 114 files;
+- focused status, settlement, component, sidebar, theme, lifecycle, and source-boundary tests passed;
+- follow-up regression tests verify that blocking-journal and native-occupancy notices are gated during canonical finishing, successful release clears the selected Journey's stale blocking record, Mirror append remains part of finalization, and recovery and retained-lease content remain present;
+- a temporal status test verifies that pending Mirror work remains `Finishing…` while active and defers to the retry surface only after finalization ends;
 - `npm run build` passed;
 - `npm run tauri:build:dev` produced the isolated Dev app and DMG;
-- after the final-frame race correction, the restarted Dev process loaded the newly built executable (`pid=49692`, inode `161441951`);
+- after the sync-notice correction, the restarted Dev process loaded the newly built executable (`pid=54116`, inode `161444823`);
 - `git diff --check` passed.
 
 Navigator validation remains pending in the isolated Dev bundle.

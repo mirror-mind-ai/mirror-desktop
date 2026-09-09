@@ -51,7 +51,7 @@ import {
   type PiContextState,
 } from "./contextUsageState";
 import { composerPlaceholder } from "./composerPlaceholder";
-import { deriveComposerTurnStatus } from "./composerTurnStatus";
+import { deriveComposerTurnStatus, shouldShowConversationSyncNotice } from "./composerTurnStatus";
 import { cancelExactJourneyRun } from "./journeyCancellation";
 import { captureJourneyRunTerminal, type JourneyRunTerminal } from "./journeyRunTerminal";
 import {
@@ -652,6 +652,12 @@ export function App({ model }: AppProps) {
     && (blockingOpeningRecovery !== "wait_for_agent" || composerTurnStatus !== "finishing");
   const showNativeOccupancyNotice = piInvocationOccupancy.status !== "known"
     && composerTurnStatus !== "finishing";
+  const showConversationSyncNotice = shouldShowConversationSyncNotice({
+    mirrorRepairPending: Boolean(pendingMirrorRepair),
+    legacyMirrorGap,
+    isStreaming,
+    isFinalizingTurn,
+  });
   const configuredContextWindow = piModelCatalog.find((entry) =>
     entry.provider === effectiveAgentProfile.model.provider && entry.model === effectiveAgentProfile.model.model,
   )?.contextWindow ?? configuredModelContextWindow(effectiveProviderConfig);
@@ -2007,7 +2013,6 @@ export function App({ model }: AppProps) {
                     setConversation(projectionAtFrontier);
                   }
                 }
-                dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
               },
             appendAndAcknowledge: (projection, summary, authority) => (
               appendAndAcknowledgeExactProjection(projection, authority, summary)
@@ -2035,9 +2040,7 @@ export function App({ model }: AppProps) {
           }
         } finally {
           dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: settled });
-          if (!finalizationReleased) {
-            dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
-          }
+          dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
         }
       }
     }
@@ -3653,10 +3656,10 @@ export function App({ model }: AppProps) {
             </section>
           ) : null}
           {legacyMirrorGap && !isStreaming ? <LegacyMirrorGapNotice /> : null}
-          {pendingMirrorRepair && !legacyMirrorGap && !isStreaming ? (
+          {showConversationSyncNotice ? (
             <ConversationSyncNotice
               retrying={isRetryingMirrorCommit}
-              error={mirrorCommitError ?? pendingMirrorRepair.failureCode}
+              error={mirrorCommitError ?? pendingMirrorRepair?.failureCode}
               onRetry={() => void retryPendingMirrorCommit()}
             />
           ) : null}
@@ -3691,7 +3694,7 @@ export function App({ model }: AppProps) {
               }}
               placeholder={composerPlaceholder({
                 requiresConversationRestore: isJourneyReloading
-                  || Boolean(pendingMirrorRepair)
+                  || showConversationSyncNotice
                   || Boolean(retainedLeaseWithoutRecovery)
                   || legacyMirrorGap,
                 isRecordingTurn: isFinalizingTurn || reconciliationBlocksInvocation,

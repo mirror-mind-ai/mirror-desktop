@@ -11,6 +11,18 @@ type ComposerTurnStatusInput = {
   mirrorRepairPending: boolean;
 };
 
+export function shouldShowConversationSyncNotice(input: {
+  mirrorRepairPending: boolean;
+  legacyMirrorGap: boolean;
+  isStreaming: boolean;
+  isFinalizingTurn: boolean;
+}): boolean {
+  return input.mirrorRepairPending
+    && !input.legacyMirrorGap
+    && !input.isStreaming
+    && !input.isFinalizingTurn;
+}
+
 export function deriveComposerTurnStatus({
   agentRunStatus,
   runBelongsToSelectedJourney,
@@ -19,7 +31,7 @@ export function deriveComposerTurnStatus({
   reconciliationBlocksInvocation,
   mirrorRepairPending,
 }: ComposerTurnStatusInput): ComposerTurnStatus {
-  if (mirrorRepairPending || !runBelongsToSelectedJourney) {
+  if (!runBelongsToSelectedJourney) {
     return undefined;
   }
 
@@ -27,7 +39,15 @@ export function deriveComposerTurnStatus({
     return "working";
   }
 
-  if (isFinalizingTurn || reconciliationBlocksInvocation) {
+  if (isFinalizingTurn) {
+    return "finishing";
+  }
+
+  if (mirrorRepairPending) {
+    return undefined;
+  }
+
+  if (reconciliationBlocksInvocation) {
     return "finishing";
   }
 
