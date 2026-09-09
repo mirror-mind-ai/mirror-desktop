@@ -46,8 +46,7 @@ a { color: inherit; text-decoration: none; }
 .brand,
 nav,
 .actions,
-.site-footer,
-.link-stack {
+.site-footer {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -212,12 +211,17 @@ pre {
 }
 
 .desktop-panel { align-items: center; }
-.link-stack { align-items: stretch; flex-direction: column; }
-.link-stack a {
+.desktop-shot {
+  margin: 0;
+  overflow: hidden;
   border: 1px solid var(--line);
-  padding: 1rem;
-  color: var(--text);
-  text-transform: lowercase;
+  background: #05070a;
+  box-shadow: var(--shadow);
+}
+.desktop-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .site-footer {

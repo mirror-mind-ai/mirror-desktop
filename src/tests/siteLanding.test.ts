@@ -19,8 +19,6 @@ describe("mirrormind.sh landing page", () => {
     expect(html).toContain("Mirror Core");
     expect(html).toContain('href="https://github.com/mirror-mind-ai/mirror-desktop" target="_blank" rel="noreferrer"');
     expect(html).toContain("Mirror Desktop");
-    expect(html).toContain("https://github.com/mirror-mind-ai/mirror-desktop/tree/main/docs/releases");
-    expect(html).toContain("docs/windows/manual-build.md");
     expect(html).toContain("https://mirrormind.com.br");
   });
 
@@ -29,6 +27,12 @@ describe("mirrormind.sh landing page", () => {
     expect(html).not.toContain("Nautilus");
     expect(html).not.toContain("terminal-card");
     expect(html).not.toContain("npm run tauri -- build");
+  });
+
+  it("shows a Mirror Desktop screenshot in the desktop alpha section", () => {
+    expect(html).toContain("./assets/mirror-desktop-screenshot.jpg");
+    expect(html).toContain("Mirror Desktop application screenshot");
+    expect(css).toContain(".desktop-shot");
   });
 
   it("keeps the visual system minimal, dark and mono", () => {
