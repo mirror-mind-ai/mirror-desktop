@@ -52,6 +52,21 @@ This plan is proposed for Navigator approval; CR012 remains `captured` and unass
 - Navigation cannot project one Journey's working or finishing state into another Journey.
 - Screen-reader status text follows the visible `Working` → `Finishing` → silent sequence.
 
+## Implementation
+
+Navigator approved the plan and authorized implementation. Driver is `@alissonvale`; Delivery is `refinement/rs009-cr010-shift-enter-line-breaks`.
+
+Implemented the quiet lifecycle presentation:
+
+- composer status now derives `working`, `finishing`, or no status;
+- active execution remains `Working…`;
+- post-answer persistence and release become `Finishing…`;
+- successful release becomes silent instead of leaving `Completed`;
+- the routine reconciliation notice and separate finalization line were removed;
+- sidebar visible and accessible finalization vocabulary now uses `Finishing`;
+- actionable warning, recovery, retained-lease, and retry surfaces were left intact;
+- obsolete completion/finalization styles were removed.
+
 ## Evidence
 
 Refinement traced the current presentation through:
@@ -62,7 +77,16 @@ Refinement traced the current presentation through:
 - the routine finalization notices in `src/app/App.tsx`;
 - `src/tests/composerTurnStatus.test.ts`, `src/tests/runtimeProjectionComponent.test.tsx`, and `src/tests/journeyRuntimeIndicator.test.tsx`.
 
-No implementation was performed during this refinement step.
+Implementation validation:
+
+- 633 frontend tests passed across 114 files;
+- focused status, component, sidebar, theme, lifecycle, and source-boundary tests passed;
+- `npm run build` passed;
+- `npm run tauri:build:dev` produced the isolated Dev app and DMG;
+- the restarted Dev process loaded the exact inode of the newly built executable;
+- `git diff --check` passed.
+
+Navigator validation remains pending in the isolated Dev bundle.
 
 ## Outcome
 

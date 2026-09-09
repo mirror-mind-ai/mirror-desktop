@@ -34,7 +34,7 @@ describe("runtime projection component", () => {
     expect(html).not.toContain("Runtime history");
   });
 
-  it("keeps Working through release and shows Completed after settlement", () => {
+  it("transitions from Working to Finishing and becomes silent after settlement", () => {
     const activeHtml = renderToStaticMarkup(
       <ComposerRuntimeStatus status="working" />,
     );
@@ -46,8 +46,8 @@ describe("runtime projection component", () => {
         onSelectProviderModel={() => undefined}
       />,
     );
-    const completedStatusHtml = renderToStaticMarkup(
-      <ComposerRuntimeStatus status="completed" />,
+    const finishingStatusHtml = renderToStaticMarkup(
+      <ComposerRuntimeStatus status="finishing" />,
     );
     const idleStatusHtml = renderToStaticMarkup(
       <ComposerRuntimeStatus status={undefined} />,
@@ -96,9 +96,9 @@ describe("runtime projection component", () => {
     expect(completedHtml).toContain('class="composer-runtime-footer"');
     expect(activeHtml).toContain("Working");
     expect(activeHtml).toContain("runtime-live-dot");
-    expect(completedStatusHtml).toContain("Completed");
-    expect(completedStatusHtml).toContain("is-completed");
-    expect(completedStatusHtml).not.toContain("runtime-working-dots");
+    expect(finishingStatusHtml).toContain("Finishing");
+    expect(finishingStatusHtml).toContain("is-finishing");
+    expect(finishingStatusHtml).toContain("runtime-working-dots");
     expect(completedHtml).not.toContain("Working");
     expect(completedHtml).toContain("■");
     expect(completedHtml).toContain("Builder Mode");
@@ -107,7 +107,7 @@ describe("runtime projection component", () => {
     expect(completedHtml).toContain('aria-label="Choose model and thinking for openai-codex/gpt-5.4-mini"');
     expect(completedHtml).toContain('class="composer-provider-model"');
     expect(idleStatusHtml).not.toContain("Working");
-    expect(idleStatusHtml).not.toContain("Completed");
+    expect(idleStatusHtml).not.toContain("Finishing");
     expect(waitingHtml).toContain("Waiting for first context usage…");
     expect(uninitializedHtml).toContain("Pi context not initialized");
     expect(uninitializedHtml).toContain("Initialize Pi context");
@@ -117,6 +117,8 @@ describe("runtime projection component", () => {
     expect(warningHtml).toContain('class="composer-context-warning"');
     expect(errorHtml).toContain('class="composer-context-error"');
     expect(appSource).toContain("<ComposerRuntimeStatus");
+    expect(appSource).not.toContain("Recording the completed turn");
+    expect(appSource).not.toContain("turn-finalization-status");
     expect(appSource).toContain("status={composerTurnStatus}");
     expect(appSource).toContain("if (journeyId === selectedJourney)");
     expect(appSource).toContain("const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime)");

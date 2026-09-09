@@ -24,16 +24,12 @@ export function ComposerRuntimeStatus({ status }: ComposerRuntimeStatusProps) {
     return null;
   }
 
-  const completed = status === "completed";
+  const finishing = status === "finishing";
   return (
-    <div className={`composer-runtime-status${completed ? " is-completed" : ""}`} role="status" aria-live="polite">
-      {completed
-        ? <span className="runtime-complete-mark" aria-hidden="true">✓</span>
-        : <span className="runtime-live-dot" aria-hidden="true" />}
-      <strong>{completed ? "Completed" : "Working"}</strong>
-      {!completed ? (
-        <span className="runtime-working-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>
-      ) : null}
+    <div className={`composer-runtime-status${finishing ? " is-finishing" : ""}`} role="status" aria-live="polite">
+      <span className="runtime-live-dot" aria-hidden="true" />
+      <strong>{finishing ? "Finishing" : "Working"}</strong>
+      <span className="runtime-working-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>
     </div>
   );
 }

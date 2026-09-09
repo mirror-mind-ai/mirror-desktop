@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deriveComposerTurnStatus } from "../app/composerTurnStatus";
 
 describe("Composer turn status", () => {
-  it("keeps Working visible until every successful release gate settles", () => {
+  it("shows Working only while the selected agent is executing", () => {
     expect(deriveComposerTurnStatus({
       agentRunStatus: "completed",
       runBelongsToSelectedJourney: true,
@@ -12,6 +12,9 @@ describe("Composer turn status", () => {
       mirrorRepairPending: false,
     })).toBe("working");
 
+  });
+
+  it("replaces Working with Finishing through routine post-answer release", () => {
     expect(deriveComposerTurnStatus({
       agentRunStatus: "completed",
       runBelongsToSelectedJourney: true,
@@ -19,18 +22,7 @@ describe("Composer turn status", () => {
       isFinalizingTurn: true,
       reconciliationBlocksInvocation: true,
       mirrorRepairPending: false,
-    })).toBe("working");
-  });
-
-  it("shows Completed only when the GUI is actually released", () => {
-    expect(deriveComposerTurnStatus({
-      agentRunStatus: "completed",
-      runBelongsToSelectedJourney: true,
-      isStreaming: false,
-      isFinalizingTurn: false,
-      reconciliationBlocksInvocation: false,
-      mirrorRepairPending: false,
-    })).toBe("completed");
+    })).toBe("finishing");
 
     expect(deriveComposerTurnStatus({
       agentRunStatus: "completed",
@@ -39,7 +31,19 @@ describe("Composer turn status", () => {
       isFinalizingTurn: false,
       reconciliationBlocksInvocation: true,
       mirrorRepairPending: false,
+    })).toBe("finishing");
+  });
+
+  it("becomes silent when the GUI is released", () => {
+    expect(deriveComposerTurnStatus({
+      agentRunStatus: "completed",
+      runBelongsToSelectedJourney: true,
+      isStreaming: false,
+      isFinalizingTurn: false,
+      reconciliationBlocksInvocation: false,
+      mirrorRepairPending: false,
     })).toBeUndefined();
+
   });
 
   it("does not project a completed run into a newly selected Journey", () => {

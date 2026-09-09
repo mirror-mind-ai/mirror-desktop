@@ -14,10 +14,10 @@ export function JourneyRuntimeIndicator({
     <span
       className={`journey-runtime-state ${phase}`}
       role="status"
-      aria-label={`${journeyName} is ${running ? "working" : "recording the completed turn"}`}
+      aria-label={`${journeyName} is ${running ? "working" : "finishing the completed turn"}`}
     >
       <span className="journey-runtime-dot" aria-hidden="true" />
-      {running ? "Working" : "Recording"}
+      {running ? "Working" : "Finishing"}
     </span>
   );
 }

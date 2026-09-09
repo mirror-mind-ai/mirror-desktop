@@ -1,6 +1,6 @@
 import type { AgentRunStatus } from "../agent/agentRun";
 
-export type ComposerTurnStatus = "working" | "completed" | undefined;
+export type ComposerTurnStatus = "working" | "finishing" | undefined;
 
 type ComposerTurnStatusInput = {
   agentRunStatus: AgentRunStatus;
@@ -23,12 +23,12 @@ export function deriveComposerTurnStatus({
     return undefined;
   }
 
-  if (isStreaming || isFinalizingTurn || agentRunStatus === "running") {
+  if (isStreaming || agentRunStatus === "running") {
     return "working";
   }
 
-  if (agentRunStatus === "completed" && !reconciliationBlocksInvocation) {
-    return "completed";
+  if (isFinalizingTurn || reconciliationBlocksInvocation) {
+    return "finishing";
   }
 
   return undefined;

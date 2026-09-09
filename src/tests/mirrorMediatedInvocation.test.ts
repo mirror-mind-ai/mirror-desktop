@@ -29,7 +29,8 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(appSource).toContain("requireExactTurnJournalRecord(journal, settlementAuthority)");
     expect(appSource).toContain("createDedicatedTurnAuthority(");
     expect(appSource).toContain("Live invocation stopped because Journey conversation authority changed");
-    expect(appSource).toContain("Recording the completed turn");
+    expect(appSource).not.toContain("Recording the completed turn");
+    expect(appSource).toContain('status={composerTurnStatus}');
     expect(appSource).not.toContain("active Pi/Mirror pair settles");
     expect(appSource).not.toContain("openMirrorConversationPicker");
   });

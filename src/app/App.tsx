@@ -3189,7 +3189,7 @@ export function App({ model }: AppProps) {
                 style={{ "--journey-depth": journeyListOrder === "tree" ? journey.depth : 0 } as CSSProperties & Record<"--journey-depth", number>}
                 role="button"
                 tabIndex={0}
-                aria-label={`${journey.name}${runtimeOwnerPhase ? `, ${runtimeOwnerPhase === "running" ? "Working" : "Recording"}` : ""}`}
+                aria-label={`${journey.name}${runtimeOwnerPhase ? `, ${runtimeOwnerPhase === "running" ? "Working" : "Finishing"}` : ""}`}
                 aria-haspopup="menu"
                 aria-expanded={journeyItemMenu?.journeyId === journey.id}
                 draggable={journeyListOrder === "tree" && !runtimeBusy}
@@ -3621,12 +3621,6 @@ export function App({ model }: AppProps) {
               <p>{turnRecoveryError}</p>
             </section>
           ) : null}
-          {reconciliationBlocksInvocation && !pendingMirrorRepair && !isStreaming ? (
-            <section className="dedicated-turn-notice" role="status">
-              <strong>Recording the completed turn</strong>
-              <p>The durable turn journal, not this projection, decides whether a successor can start.</p>
-            </section>
-          ) : null}
           {piInvocationOccupancy.status !== "known" ? (
             <section className="dedicated-turn-notice" role="status">
               <strong>Checking native operation occupancy</strong>
@@ -3659,7 +3653,6 @@ export function App({ model }: AppProps) {
               onRetry={() => void retryPendingMirrorCommit()}
             />
           ) : null}
-          {isFinalizingTurn ? <p className="turn-finalization-status" aria-live="polite">Recording the completed turn… You can draft the next message now.</p> : null}
           {fileAttachmentError ? <p className="context-attachment-error" role="alert">{fileAttachmentError}</p> : null}
           <PendingFileAttachments
             attachments={pendingFileAttachments}

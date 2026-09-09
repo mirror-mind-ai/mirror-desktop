@@ -37,7 +37,8 @@ describe("dedicated conversation restart lifecycle", () => {
   });
 
   it("unlocks drafting when provider work ends and uses the explicit append outbox", () => {
-    expect(appSource).toContain("Recording the completed turn… You can draft the next message now.");
+    expect(appSource).not.toContain("Recording the completed turn… You can draft the next message now.");
+    expect(appSource).toContain("isFinalizingTurn");
     expect(appSource).toContain("createMirrorAppendOutboxItem");
     expect(appSource).toContain("appendMirrorOutboxItem");
     expect(appSource).not.toContain("observedAssistantMirrorCommit");

@@ -17,12 +17,12 @@ describe("Journey runtime indicator", () => {
     expect(html).toContain('aria-label="Mirror Development is working"');
   });
 
-  it("keeps finalization distinct as Recording", () => {
+  it("keeps finalization distinct as Finishing", () => {
     const html = renderIndicator("finalizing");
 
     expect(html).toContain("journey-runtime-state finalizing");
-    expect(html).toContain("Recording");
-    expect(html).toContain('aria-label="Mirror Development is recording the completed turn"');
+    expect(html).toContain("Finishing");
+    expect(html).toContain('aria-label="Mirror Development is finishing the completed turn"');
   });
 
   it("renders a dedicated decorative activity dot without changing the status text", () => {

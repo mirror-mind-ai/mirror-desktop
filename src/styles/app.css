@@ -2262,15 +2262,10 @@ h3 {
   padding: 0 12px;
 }
 
-.composer-runtime-status.is-completed {
+.composer-runtime-status.is-finishing {
   background: rgba(var(--ui-accent-rgb), 0.04);
   border-color: rgba(var(--ui-accent-rgb), 0.14);
   color: #91bbb5;
-}
-
-.runtime-complete-mark {
-  color: var(--ui-accent);
-  font-size: 0.78rem;
 }
 
 .runtime-live-dot {
@@ -3118,12 +3113,6 @@ h3 {
 .composer {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding: 18px 34px 28px;
-}
-
-.turn-finalization-status {
-  color: #8eabb2;
-  font-size: 0.76rem;
-  margin: 0 0 8px;
 }
 
 .dedicated-turn-notice {
@@ -5089,7 +5078,6 @@ dd {
   .chat-header p:not(.eyebrow),
   .operational-workspace-option,
   .message-copy-action,
-  .turn-finalization-status,
   .composer-runtime-metadata,
   .composer-provider-model,
   .copy-status,
@@ -5694,20 +5682,13 @@ dd {
   .app-shell[data-application-theme="daylight"],
   .app-shell[data-application-theme="mist"],
   .app-shell[data-application-theme="parchment"]
-) .composer-runtime-status.is-completed {
+) .composer-runtime-status.is-finishing {
   background: var(--light-raised);
   border-color: var(--light-border);
   box-shadow: inset 3px 0 0 var(--light-accent);
   color: var(--light-text);
 }
 
-:is(
-  .app-shell[data-application-theme="daylight"],
-  .app-shell[data-application-theme="mist"],
-  .app-shell[data-application-theme="parchment"]
-) .composer-runtime-status .runtime-complete-mark {
-  color: var(--light-accent);
-}
 
 /* Light runtime operation contrast contract. */
 :is(
