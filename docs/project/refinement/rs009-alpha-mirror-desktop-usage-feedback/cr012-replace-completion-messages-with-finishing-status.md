@@ -96,11 +96,15 @@ Implementation validation:
 - after the sync-notice correction, the restarted Dev process loaded the newly built executable (`pid=54116`, inode `161444823`);
 - `git diff --check` passed.
 
-Navigator validation remains pending in the isolated Dev bundle.
+## Navigator Validation
+
+The Navigator validated the rebuilt isolated Dev bundle after the sync-notice correction. The observed successful lifecycle was accepted: the composer no longer flashes `Mirror conversation commit incomplete` or its restore-required placeholder after `Finishing…`.
+
+Proportionality review found the correction appropriately limited to presentation timing and finalization ownership: durable outbox, retry, startup recovery, retained-lease, and cross-Journey authority behavior remain unchanged. No new technical debt was accepted. The historical `Completed` label inside an assistant message's Runtime Activity is outside the composer-finalization scope of CR012 and remains unchanged.
 
 ## Outcome
 
-No terminal outcome has been recorded.
+CR012 is Navigator-validated. Terminal closure remains a separate explicit decision.
 
 ## Migration Provenance
 

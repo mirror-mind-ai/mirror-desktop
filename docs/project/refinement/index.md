@@ -39,7 +39,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR012](rs009-alpha-mirror-desktop-usage-feedback/cr012-replace-completion-messages-with-finishing-status.md) | RS009 | Replace completion messages with Finishing status | in_progress | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
+| 1 | [CR012](rs009-alpha-mirror-desktop-usage-feedback/cr012-replace-completion-messages-with-finishing-status.md) | RS009 | Replace completion messages with Finishing status | validated | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
 | 2 | [CR003](unassigned/cr003-generate-private-test-release-v0-1-1-test-1.md) | — | Generate private test release v0.1.1-test.1 | captured | — | — |
 | 3 | [CR014](unassigned/cr014-make-mirror-mind-site-repository-private.md) | — | Make Mirror Mind site repository private | captured | — | — |
 | 4 | [CR015](rs009-alpha-mirror-desktop-usage-feedback/cr015-add-artifact-tree-reload-and-investigate-missing-folders.md) | RS009 | Add artifact tree reload and investigate missing folders | captured | — | — |
