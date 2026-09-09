@@ -2000,10 +2000,12 @@ export function App({ model }: AppProps) {
                   identity: runtimeIdentity,
                   conversation: projectionAtFrontier,
                 });
-                if (selectedJourneyRef.current === settlementAuthority.journeyId
-                  && projectionCurrentTurnMatchesAuthority(conversationRef.current, settlementAuthority)) {
-                  conversationRef.current = projectionAtFrontier;
-                  setConversation(projectionAtFrontier);
+                if (selectedJourneyRef.current === settlementAuthority.journeyId) {
+                  setBlockingTurnJournalRecord(undefined);
+                  if (projectionCurrentTurnMatchesAuthority(conversationRef.current, settlementAuthority)) {
+                    conversationRef.current = projectionAtFrontier;
+                    setConversation(projectionAtFrontier);
+                  }
                 }
                 dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
               },

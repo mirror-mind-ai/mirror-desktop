@@ -124,6 +124,9 @@ describe("runtime projection component", () => {
     expect(appSource).toContain('composerTurnStatus !== "finishing"');
     expect(appSource).toContain("We couldn’t restore the previous response");
     expect(appSource).toContain("Native Journey lease retained");
+    expect(appSource).toMatch(
+      /onLeaseReleased: \(\) => \{[\s\S]*?setBlockingTurnJournalRecord\(undefined\);[\s\S]*?type: "finalization_finished"/,
+    );
     expect(appSource).toContain("status={composerTurnStatus}");
     expect(appSource).toContain("if (journeyId === selectedJourney)");
     expect(appSource).toContain("const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime)");
