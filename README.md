@@ -18,7 +18,16 @@ The read-only self-update discovery contract lives in [docs/update/trusted-self-
 
 ## Website
 
-The initial English developer-facing landing page for `mirrormind.sh` lives in [site/](site/). It is a static page; deploying it requires a separate explicit publication/DNS instruction.
+The Mirror Mind public website now lives in its own repository: [mirror-mind-ai/mirrormind-site](https://github.com/mirror-mind-ai/mirrormind-site).
+
+Domain split:
+
+```text
+mirrormind.sh       English / developers
+mirrormind.com.br   Português / Brasil
+```
+
+Mirror Desktop keeps product and release documentation here, but website changes belong in the dedicated site repository.
 
 ## Development
 
