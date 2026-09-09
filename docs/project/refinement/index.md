@@ -39,7 +39,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR019](rs009-alpha-mirror-desktop-usage-feedback/cr019-settle-provider-errors-without-permanent-working-state.md) | RS009 | Settle provider errors without permanent Working state | in_progress | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
+| 1 | [CR019](rs009-alpha-mirror-desktop-usage-feedback/cr019-settle-provider-errors-without-permanent-working-state.md) | RS009 | Settle provider errors without permanent Working state | validated | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
 | 2 | [CR003](unassigned/cr003-generate-private-test-release-v0-1-1-test-1.md) | — | Generate private test release v0.1.1-test.1 | captured | — | — |
 | 3 | [CR011](rs009-alpha-mirror-desktop-usage-feedback/cr011-context-usage-percentage-is-slow-or-missing.md) | RS009 | Context usage percentage is slow or missing | in_progress | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
 | 4 | [CR014](unassigned/cr014-make-mirror-mind-site-repository-private.md) | — | Make Mirror Mind site repository private | captured | — | — |

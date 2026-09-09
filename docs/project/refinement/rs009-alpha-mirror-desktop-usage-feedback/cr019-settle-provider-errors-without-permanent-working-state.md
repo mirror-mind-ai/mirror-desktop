@@ -57,6 +57,16 @@ Automated and recovery evidence:
 - startup recovery advanced the abandoned Sandbox turn from revision 2 `running` to revision 3 `interrupted` without deleting its durable evidence;
 - `git diff --check` passed.
 
+## Validation
+
+Navigator confirmed in the isolated development bundle that the provider-error path worked and no longer remained permanently in `Working…`.
+
+## Proportionality And Debt Review
+
+The change is proportional to the observed failure: one native terminal classification boundary and one focused regression test, with no persistence-schema, provider, updater, or production-channel expansion. It strengthens the existing completed-turn evidence invariant instead of adding a parallel recovery mechanism.
+
+No new technical debt was introduced. Account-specific model eligibility remains a separate configuration concern and is not hidden by this lifecycle correction.
+
 ## Outcome
 
-Navigator validation is pending.
+CR019 is Navigator-validated. Terminal closure as `done` remains a separate explicit Workbench decision.
