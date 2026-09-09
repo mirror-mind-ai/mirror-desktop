@@ -556,16 +556,21 @@ export async function releasePiInvocationLease(
 
 export type PiSessionContextInspection = {
   status: "missing" | "waiting" | "available";
+  reason?: "session_file_missing" | "first_usage_pending" | "post_compaction_usage_pending";
   snapshot?: { tokens: number; providerModel: string };
 };
 
 export async function readJourneyPiContextStats(
   journeyId: string,
   sessionId: string,
+  sessionFile: string,
+  generation: number,
 ): Promise<PiSessionContextInspection> {
   return invoke<PiSessionContextInspection>("read_pi_session_context_stats", {
     journeyId,
     sessionId,
+    sessionFile,
+    generation,
   });
 }
 

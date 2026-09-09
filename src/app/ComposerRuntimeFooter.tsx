@@ -1,11 +1,12 @@
 import type { RuntimeContextUsage } from "./runtimeActivityModel";
+import type { PiContextState } from "./contextUsageState";
 import type { ComposerTurnStatus } from "./composerTurnStatus";
 import { mirrorModeDisplay, type MirrorOperatingMode } from "./mirrorModeState";
 
 type ComposerRuntimeFooterProps = {
   contextUsage?: RuntimeContextUsage;
   activeMode?: MirrorOperatingMode;
-  contextState?: "checking" | "waiting" | "available" | "not_initialized";
+  contextState?: PiContextState;
   providerModel: string;
   canInitializeContext?: boolean;
   initializingContext?: boolean;
@@ -102,19 +103,24 @@ function contextUsageTone(usage?: RuntimeContextUsage): string | undefined {
 
 function formatComposerContext(
   usage: RuntimeContextUsage | undefined,
-  state: "checking" | "waiting" | "available" | "not_initialized",
+  state: PiContextState,
 ): string {
-  if (state === "not_initialized") {
-    return "Pi context not initialized";
-  }
-  if (state === "checking") {
-    return "Checking context stats…";
-  }
+  if (state === "not_initialized") return "Pi context not initialized";
+  if (state === "checking") return "Checking context stats…";
+  if (state === "updating" && usage) return `${formatAvailableContext(usage)} · updating…`;
+  if (state === "unknown_after_compaction") return "Context unknown after compaction";
+  if (state === "session_missing") return "Pi context session unavailable";
+  if (state === "model_mismatch") return "Waiting for usage from selected model…";
+  if (state === "inspection_failed") return "Context stats unavailable";
   if (!usage || (usage.tokens === null && usage.contextWindow === null)) {
-    return "Waiting for context stats…";
+    return "Waiting for first context usage…";
   }
+  return formatAvailableContext(usage);
+}
+
+function formatAvailableContext(usage: RuntimeContextUsage): string {
   if (usage.contextWindow === null) {
-    return `Context ${formatTokenCount(usage.tokens as number)}`;
+    return `Context ${formatTokenCount(usage.tokens as number)} · window unavailable`;
   }
   const contextWindow = formatTokenCount(usage.contextWindow);
   const percent = usage.percent === null ? "—" : `${usage.percent.toFixed(1)}%`;

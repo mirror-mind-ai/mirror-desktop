@@ -43,6 +43,13 @@ import {
 import { MessageCopyAction } from "./MessageCopyAction";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
+import {
+  contextStateForInspection,
+  contextStateForLiveUsage,
+  hasMatchingContextStats,
+  readContextStatsWithBoundedRetry,
+  type PiContextState,
+} from "./contextUsageState";
 import { composerPlaceholder } from "./composerPlaceholder";
 import { deriveComposerTurnStatus } from "./composerTurnStatus";
 import { cancelExactJourneyRun } from "./journeyCancellation";
@@ -411,7 +418,7 @@ export function App({ model }: AppProps) {
   const [runStartReservation, setRunStartReservation] = useState<JourneyRunIdentity | undefined>(undefined);
   const [piInvocationOccupancy, setPiInvocationOccupancy] = useState(createUnknownPiInvocationOccupancy);
   const [piInvocationBootstrapComplete, setPiInvocationBootstrapComplete] = useState(false);
-  const [piContextState, setPiContextState] = useState<"checking" | "waiting" | "available" | "not_initialized">("checking");
+  const [piContextState, setPiContextState] = useState<PiContextState>("checking");
   const [isRetryingMirrorCommit, setIsRetryingMirrorCommit] = useState(false);
   const [mirrorCommitErrors, setMirrorCommitErrors] = useState<Record<string, string | undefined>>({});
   const [mirrorOutboxItems, setMirrorOutboxItems] = useState<MirrorAppendOutboxSummary[]>([]);
@@ -1256,40 +1263,45 @@ export function App({ model }: AppProps) {
   }, [selectedJourney, registryLoaded, runtimeBindingReady]);
 
   useEffect(() => {
-    if (!conversationLoaded || runtimeBusy || effectiveProviderConfig.safeTestMode) {
+    if (!conversationLoaded || isStreaming || effectiveProviderConfig.safeTestMode) {
       return;
     }
     const providerModel = providerModelLabel(effectiveProviderConfig);
-    const cachedStats = conversation.authoritativeContextStats;
-    if (
-      cachedStats
-      && cachedStats.piSessionId === conversation.liveIdentity.piSessionId
-      && cachedStats.generation === conversation.liveIdentity.generation
-      && cachedStats.usage.tokens !== null
-    ) {
-      setPiContextState("available");
+    const identity = conversation.liveIdentity;
+    const hasMatchingCache = hasMatchingContextStats(
+      conversation.authoritativeContextStats,
+      identity,
+      providerModel,
+    );
+    if (hasMatchingCache) {
+      if (piContextState !== "updating") setPiContextState("available");
+    } else if (piContextState !== "unknown_after_compaction") {
+      setPiContextState("checking");
+    }
+    if (!identity.piSessionFile) {
+      if (!hasMatchingCache) setPiContextState("session_missing");
       return;
     }
 
     let cancelled = false;
-    setPiContextState("checking");
-    void readJourneyPiContextStats(
+    void readContextStatsWithBoundedRetry(() => readJourneyPiContextStats(
       conversation.journeyId,
-      conversation.liveIdentity.piSessionId,
-    ).then((inspection) => {
-      if (cancelled) {
-        return;
-      }
+      identity.piSessionId,
+      identity.piSessionFile as string,
+      identity.generation,
+    )).then((inspection) => {
+      if (cancelled) return;
+      const nextState = contextStateForInspection(inspection, providerModel);
       const snapshot = inspection.snapshot;
-      if (inspection.status !== "available" || !snapshot || snapshot.providerModel !== providerModel) {
-        setPiContextState("waiting");
+      if (nextState !== "available" || !snapshot) {
+        if (!hasMatchingCache) setPiContextState(nextState);
         return;
       }
       setPiContextState("available");
       setConversation((currentConversation) => {
         if (
-          currentConversation.liveIdentity.piSessionId !== conversation.liveIdentity.piSessionId
-          || currentConversation.liveIdentity.generation !== conversation.liveIdentity.generation
+          currentConversation.liveIdentity.piSessionId !== identity.piSessionId
+          || currentConversation.liveIdentity.generation !== identity.generation
         ) {
           return currentConversation;
         }
@@ -1305,9 +1317,7 @@ export function App({ model }: AppProps) {
         };
       });
     }).catch(() => {
-      if (!cancelled) {
-        setPiContextState("waiting");
-      }
+      if (!cancelled && !hasMatchingCache) setPiContextState("inspection_failed");
     });
 
     return () => {
@@ -1317,9 +1327,10 @@ export function App({ model }: AppProps) {
     conversation.id,
     conversation.journeyId,
     conversation.liveIdentity.generation,
+    conversation.liveIdentity.piSessionFile,
     conversation.liveIdentity.piSessionId,
     conversationLoaded,
-    runtimeBusy,
+    isStreaming,
     effectiveProviderConfig,
   ]);
 
@@ -1603,6 +1614,13 @@ export function App({ model }: AppProps) {
         : missingRunAuthorityStream();
     const ownerJourneyId = baseConversation.journeyId;
     const ownerGeneration = baseConversation.liveIdentity.generation;
+    if (mode === "live" && selectedJourneyRef.current === ownerJourneyId) {
+      setPiContextState(hasMatchingContextStats(
+        baseConversation.authoritativeContextStats,
+        baseConversation.liveIdentity,
+        providerModelLabel(effectiveProviderConfig),
+      ) ? "updating" : "waiting");
+    }
     runStartReservationRef.current = runtimeIdentity;
     setRunStartReservation(runtimeIdentity);
 
@@ -1686,6 +1704,12 @@ export function App({ model }: AppProps) {
           runReachedAgent = true;
         }
         if (event.type === "context_usage") {
+          if (
+            selectedJourneyRef.current === ownerJourneyId
+            && conversationRef.current.liveIdentity.generation === ownerGeneration
+          ) {
+            setPiContextState(contextStateForLiveUsage(event.usage));
+          }
           updateRunConversation((currentConversation) => {
             const currentStats = currentConversation.authoritativeContextStats;
             const sameAuthority = currentStats

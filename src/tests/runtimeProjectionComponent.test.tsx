@@ -63,6 +63,22 @@ describe("runtime projection component", () => {
         onInitializeContext={() => undefined}
       />,
     );
+    const updatingHtml = renderToStaticMarkup(
+      <ComposerRuntimeFooter
+        contextState="updating"
+        contextUsage={{ tokens: 14880, contextWindow: 272000, percent: 5.47 }}
+        providerModel="openai-codex/gpt-5.4-mini"
+      />,
+    );
+    const compactedHtml = renderToStaticMarkup(
+      <ComposerRuntimeFooter contextState="unknown_after_compaction" providerModel="openai-codex/gpt-5.4-mini" />,
+    );
+    const unknownWindowHtml = renderToStaticMarkup(
+      <ComposerRuntimeFooter
+        contextUsage={{ tokens: 14880, contextWindow: null, percent: null }}
+        providerModel="custom/model"
+      />,
+    );
     const warningHtml = renderToStaticMarkup(
       <ComposerRuntimeFooter
         contextUsage={{ tokens: 300000, contextWindow: 400000, percent: 75 }}
@@ -92,9 +108,12 @@ describe("runtime projection component", () => {
     expect(completedHtml).toContain('class="composer-provider-model"');
     expect(idleStatusHtml).not.toContain("Working");
     expect(idleStatusHtml).not.toContain("Completed");
-    expect(waitingHtml).toContain("Waiting for context stats…");
+    expect(waitingHtml).toContain("Waiting for first context usage…");
     expect(uninitializedHtml).toContain("Pi context not initialized");
     expect(uninitializedHtml).toContain("Initialize Pi context");
+    expect(updatingHtml).toContain("5.5%/272k · updating…");
+    expect(compactedHtml).toContain("Context unknown after compaction");
+    expect(unknownWindowHtml).toContain("Context 14.9k · window unavailable");
     expect(warningHtml).toContain('class="composer-context-warning"');
     expect(errorHtml).toContain('class="composer-context-error"');
     expect(appSource).toContain("<ComposerRuntimeStatus");

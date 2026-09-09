@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     env, fs,
     io::{BufRead, BufReader, Cursor, Write},
     path::{Path, PathBuf},
@@ -173,6 +173,8 @@ struct PiSessionContextSnapshot {
 #[serde(rename_all = "camelCase")]
 struct PiSessionContextInspection {
     status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
     snapshot: Option<PiSessionContextSnapshot>,
 }
 
@@ -2199,20 +2201,40 @@ fn start_pi_invocation(
 
 #[tauri::command]
 async fn read_pi_session_context_stats(
+    app: AppHandle,
     journey_id: String,
     session_id: String,
+    session_file: String,
+    generation: u64,
 ) -> Result<PiSessionContextInspection, String> {
     let safe_journey_id = sanitize_journey_id(&journey_id)?;
     let safe_session_id = sanitize_session_id(&session_id)?;
     if !safe_session_id.starts_with(&format!("nautilus-{}", safe_journey_id)) {
         return Err("Pi session id does not belong to the selected Journey conversation.".to_string());
     }
+    validate_pi_session_file(&app, &session_file, &safe_session_id)?;
+    let stored_thread: Value = serde_json::from_str(
+        &fs::read_to_string(journey_thread_path(&app, &safe_journey_id)?)
+            .map_err(|error| format!("Could not read dedicated thread: {}", error))?,
+    )
+    .map_err(|error| format!("Could not parse dedicated thread: {}", error))?;
+    let thread = unwrap_persisted_thread(&stored_thread);
+    let active = thread.get("activeGeneration").and_then(Value::as_u64);
+    let active_generation = thread.get("generations").and_then(Value::as_array)
+        .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active))
+        .ok_or_else(|| "Dedicated active generation is missing.".to_string())?;
+    if thread.get("journeyId").and_then(Value::as_str) != Some(safe_journey_id.as_str())
+        || active != Some(generation)
+        || active_generation.get("status").and_then(Value::as_str) != Some("ready")
+        || active_generation.get("piSessionId").and_then(Value::as_str) != Some(safe_session_id.as_str())
+        || active_generation.get("piSessionFile").and_then(Value::as_str) != Some(session_file.as_str())
+    {
+        return Err("Context inspection authority does not match the active Journey generation.".to_string());
+    }
 
-    tauri::async_runtime::spawn_blocking(move || {
-        read_latest_pi_session_context_stats(&safe_session_id)
-    })
-    .await
-    .map_err(|error| format!("Could not inspect the local Pi session: {}", error))?
+    tauri::async_runtime::spawn_blocking(move || read_exact_pi_session_context_stats(&session_file))
+        .await
+        .map_err(|error| format!("Could not inspect the local Pi session: {}", error))?
 }
 
 #[tauri::command]
@@ -2352,9 +2374,12 @@ fn validate_pi_session_file_at(
 }
 
 fn validate_pi_session_header(path: &Path, pi_session_id: &str) -> Result<(), String> {
-    let contents = fs::read_to_string(path).map_err(|error| error.to_string())?;
-    let first_line = contents.lines().next().unwrap_or_default();
-    let header: Value = serde_json::from_str(first_line)
+    let file = fs::File::open(path).map_err(|error| error.to_string())?;
+    let mut first_line = String::new();
+    BufReader::new(file)
+        .read_line(&mut first_line)
+        .map_err(|error| error.to_string())?;
+    let header: Value = serde_json::from_str(first_line.trim_end())
         .map_err(|_| "Pi session header is invalid.".to_string())?;
     if header.get("type").and_then(Value::as_str) != Some("session")
         || header.get("id").and_then(Value::as_str) != Some(pi_session_id)
@@ -3622,44 +3647,80 @@ fn extract_pi_mirror_commit_events(content: &str, correlation: &TurnCorrelation)
     }).collect()
 }
 
-fn read_latest_pi_session_context_stats(
-    session_id: &str,
+fn read_exact_pi_session_context_stats(
+    session_file: &str,
 ) -> Result<PiSessionContextInspection, String> {
-    let session_dir = default_pi_session_dir(&mirror_runtime_root()?)?;
-    if !session_dir.exists() {
-        return Ok(PiSessionContextInspection { status: "missing".to_string(), snapshot: None });
-    }
-    let suffix = format!("_{}.jsonl", session_id);
-    let latest = fs::read_dir(&session_dir)
-        .map_err(|error| format!("Could not read Pi session directory: {}", error))?
-        .filter_map(Result::ok)
-        .filter(|entry| entry.file_name().to_string_lossy().ends_with(&suffix))
-        .max_by_key(|entry| {
-            entry.metadata().and_then(|metadata| metadata.modified()).unwrap_or(UNIX_EPOCH)
+    let path = Path::new(session_file);
+    if !path.exists() {
+        return Ok(PiSessionContextInspection {
+            status: "missing".to_string(),
+            reason: Some("session_file_missing".to_string()),
+            snapshot: None,
         });
-    let Some(entry) = latest else {
-        return Ok(PiSessionContextInspection { status: "missing".to_string(), snapshot: None });
-    };
-    let content = fs::read_to_string(entry.path())
+    }
+    let content = fs::read_to_string(path)
         .map_err(|error| format!("Could not read the mapped Pi session: {}", error))?;
-    let snapshot = extract_context_stats_from_pi_session(&content);
+    let entries = active_pi_session_entries(&content);
+    let snapshot = extract_context_stats_from_pi_entries(&entries);
+    let post_compaction_pending = snapshot.is_none()
+        && entries.iter().any(|entry| entry.get("type").and_then(Value::as_str) == Some("compaction"));
     Ok(PiSessionContextInspection {
         status: if snapshot.is_some() { "available" } else { "waiting" }.to_string(),
+        reason: snapshot.is_none().then(|| {
+            if post_compaction_pending {
+                "post_compaction_usage_pending".to_string()
+            } else {
+                "first_usage_pending".to_string()
+            }
+        }),
         snapshot,
     })
 }
 
+fn active_pi_session_entries(content: &str) -> Vec<Value> {
+    let entries: Vec<Value> = content.lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .filter(|entry| entry.get("type").and_then(Value::as_str) != Some("session"))
+        .collect();
+    let Some(leaf_id) = entries.iter().rev()
+        .find_map(|entry| entry.get("id").and_then(Value::as_str))
+        .map(str::to_string)
+    else {
+        return entries;
+    };
+    let by_id: HashMap<&str, &Value> = entries.iter()
+        .filter_map(|entry| entry.get("id").and_then(Value::as_str).map(|id| (id, entry)))
+        .collect();
+    let mut branch = Vec::new();
+    let mut next_id = Some(leaf_id.as_str());
+    let mut visited = HashSet::new();
+    while let Some(id) = next_id {
+        if !visited.insert(id.to_string()) {
+            break;
+        }
+        let Some(entry) = by_id.get(id) else {
+            break;
+        };
+        branch.push((*entry).clone());
+        next_id = entry.get("parentId").and_then(Value::as_str);
+    }
+    branch.reverse();
+    branch
+}
+
+#[cfg(test)]
 fn extract_context_stats_from_pi_session(content: &str) -> Option<PiSessionContextSnapshot> {
+    extract_context_stats_from_pi_entries(&active_pi_session_entries(content))
+}
+
+fn extract_context_stats_from_pi_entries(entries: &[Value]) -> Option<PiSessionContextSnapshot> {
     let mut latest_usage: Option<PiSessionContextSnapshot> = None;
     let mut provider_model = None;
     let mut estimated_without_usage = 0;
     let mut trailing_tokens = 0;
     let mut has_compaction = false;
 
-    for line in content.lines() {
-        let Ok(entry) = serde_json::from_str::<Value>(line) else {
-            continue;
-        };
+    for entry in entries {
         if entry.get("type").and_then(Value::as_str) == Some("compaction") {
             has_compaction = true;
             latest_usage = None;
@@ -4673,7 +4734,7 @@ mod tests {
         list_journey_documentation_at, materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, projection_manifest_coordinates_at,
         inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
-        read_journey_document_at, remove_provider_session_args, resolve_existing_local_file,
+        read_exact_pi_session_context_stats, read_journey_document_at, remove_provider_session_args, resolve_existing_local_file,
         resolve_existing_local_file_at, resolve_journey_artifact_at, retire_legacy_parity_state_at,
         classify_chat_local_reference_at, classify_chat_local_reference_at_with_home,
         unwrap_persisted_thread, validate_acknowledged_projection_authority_at,
@@ -5119,6 +5180,44 @@ mod tests {
                 provider_model: "openai-codex/gpt-5.4-mini".to_string(),
             })
         );
+    }
+
+    #[test]
+    fn restores_context_from_only_the_active_pi_branch() {
+        let session = [
+            r#"{"type":"session","version":3,"id":"nautilus-lab"}"#,
+            r#"{"type":"message","id":"root","parentId":null,"message":{"role":"assistant","provider":"openai-codex","model":"gpt-5.4-mini","stopReason":"stop","usage":{"totalTokens":100}}}"#,
+            r#"{"type":"message","id":"abandoned","parentId":"root","message":{"role":"user","content":[{"type":"text","text":"this abandoned branch must not count"}]}}"#,
+            r#"{"type":"message","id":"active","parentId":"root","message":{"role":"user","content":[{"type":"text","text":"four"}]}}"#,
+        ].join("\n");
+
+        assert_eq!(
+            extract_context_stats_from_pi_session(&session),
+            Some(PiSessionContextSnapshot {
+                tokens: 101,
+                provider_model: "openai-codex/gpt-5.4-mini".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn distinguishes_first_usage_from_post_compaction_unknown_state() {
+        let root = test_root("context-inspection-state");
+        fs::create_dir_all(&root).unwrap();
+        let file = root.join("session.jsonl");
+        fs::write(&file, r#"{"type":"session","id":"nautilus-lab"}"#).unwrap();
+        let first = read_exact_pi_session_context_stats(file.to_str().unwrap()).unwrap();
+        assert_eq!(first.status, "waiting");
+        assert_eq!(first.reason.as_deref(), Some("first_usage_pending"));
+
+        fs::write(&file, [
+            r#"{"type":"session","id":"nautilus-lab"}"#,
+            r#"{"type":"compaction","id":"compact","parentId":null,"summary":"compact"}"#,
+        ].join("\n")).unwrap();
+        let compacted = read_exact_pi_session_context_stats(file.to_str().unwrap()).unwrap();
+        assert_eq!(compacted.status, "waiting");
+        assert_eq!(compacted.reason.as_deref(), Some("post_compaction_usage_pending"));
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

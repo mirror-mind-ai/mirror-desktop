@@ -54,6 +54,22 @@ This plan is proposed for Navigator review; CR011 remains `captured` until an ex
 - Unknown context windows show token usage without inventing a percentage.
 - Every non-available state has a truthful, distinguishable reason and bounded transition behavior.
 
+## Implementation
+
+Navigator approved the plan and authorized execution on 2026-09-10. Driver is `@alissonvale`; Delivery is `refinement/rs009-cr010-shift-enter-line-breaks`.
+
+Implemented behavior:
+
+- centralized complete-key cache acceptance and context-state transitions in `src/app/contextUsageState.ts`;
+- changed live Pi usage to update footer state immediately, including explicit post-compaction unknown state;
+- retained the last confirmed percentage as `updating` during a subsequent live turn;
+- added bounded retry for first-usage JSONL write races, without retrying missing files, compaction unknown state, or failures indefinitely;
+- reconciled after stream completion rather than waiting for global invocation/finalization occupancy to become empty;
+- changed the Tauri boundary to require and validate the active generation's exact `piSessionFile`, session id, Journey id, and generation;
+- removed the global session-directory suffix scan and changed session-header validation to read only the first line;
+- reconstructed context from the active JSONL ancestry branch rather than all physically appended branches;
+- exposed distinct footer language for first usage, post-compaction unknown state, missing session, model mismatch, inspection failure, and unknown context window.
+
 ## Evidence
 
 Code review traced the current path through:
@@ -65,6 +81,17 @@ Code review traced the current path through:
 - the installed Pi runtime: JSON mode emits top-level `message_update.usage`, final `message_end.message.usage`, and Pi's `getContextUsage()` uses latest valid assistant usage plus estimated trailing messages.
 
 No production files, user conversations, or runtime databases were inspected or mutated for this assessment.
+
+Implementation checks:
+
+- 632 frontend tests passed across 114 files;
+- 107 Rust tests passed;
+- `npm run build` passed;
+- `cargo check` passed;
+- `npm run tauri:build:dev` produced the isolated `Mirror Desktop Dev.app` and DMG;
+- `git diff --check` passed.
+
+Navigator validation remains pending in the isolated development bundle. No user-channel application, updater configuration, production data, or release artifact was changed.
 
 ## Outcome
 
