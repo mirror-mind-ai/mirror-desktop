@@ -72,9 +72,30 @@ The `latest.json` download manifest reports:
 
 Navigator later authorized push, Git tag, GitHub Release, and notarization attempt for `0.2.0-alpha.2`.
 
-Git push and tag are authorized release actions for this alpha. GitHub Release may attach the DMG and updater artifacts as alpha release assets.
+Git push, Git tag, and GitHub Release were completed.
 
-Notarization is blocked until a valid Apple Developer ID signing identity and notarytool keychain profile are configured on the maintainer machine.
+```text
+GitHub Release: https://github.com/mirror-mind-ai/mirror-desktop/releases/tag/v0.2.0-alpha.2
+Tag: v0.2.0-alpha.2
+Prerelease: true
+```
+
+Release assets uploaded:
+
+```text
+Mirror.Desktop_0.2.0-alpha.2_x64.dmg
+Mirror.Desktop.app.tar.gz
+Mirror.Desktop.app.tar.gz.sig
+```
+
+Notarization is blocked until a valid Apple Developer ID signing identity and notarytool keychain profile are configured on the maintainer machine. Local inspection reported:
+
+```text
+security find-identity -v -p codesigning: 0 valid identities found
+xcrun notarytool history --keychain-profile MirrorDesktop: No Keychain password item found for profile: MirrorDesktop
+```
+
+GitHub Actions inspection found no workflow runs for the pushed `main` branch in this repository.
 
 ## Boundaries
 
