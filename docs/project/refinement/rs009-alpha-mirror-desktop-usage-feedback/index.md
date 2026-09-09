@@ -26,3 +26,4 @@ status remains owned by the Workbench index.
 - [CR016 — Improve light-theme button label contrast after journey start](cr016-improve-light-theme-button-label-contrast-after-journey-start.md)
 - [CR017 — Keep development bundle independent from updater configuration](cr017-keep-development-bundle-independent-from-updater-configuration.md)
 - [CR018 — Make user-channel source build updater contract explicit](cr018-make-user-channel-source-build-updater-contract-explicit.md)
+- [CR019 — Settle provider errors without permanent Working state](cr019-settle-provider-errors-without-permanent-working-state.md)

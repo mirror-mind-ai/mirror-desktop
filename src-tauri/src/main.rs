@@ -3169,6 +3169,20 @@ fn terminal_pi_execution_evidence(run_authority: &RunAuthority) -> Option<TurnPi
     })
 }
 
+fn classify_pi_process_terminal(
+    was_cancelled: bool,
+    process_succeeded: bool,
+    has_completion_evidence: bool,
+) -> TerminalState {
+    if was_cancelled {
+        TerminalState::Cancelled
+    } else if process_succeeded && has_completion_evidence {
+        TerminalState::Completed
+    } else {
+        TerminalState::ProcessDied
+    }
+}
+
 fn terminalize_pi_process(
     registry: &Arc<Mutex<PiProcessRegistry<RunAuthority, PiChildHandle, ProviderConfig>>>,
     target: &RunTarget,
@@ -3428,13 +3442,22 @@ fn run_pi_process(
                     .ok()
                     .and_then(|registry| registry.cancellation_requested(&target).ok())
                     .unwrap_or(false);
-                if was_cancelled {
-                    break (TerminalState::Cancelled, None);
-                }
-                if status.success() {
-                    break (TerminalState::Completed, None);
-                }
-                break (TerminalState::ProcessDied, Some(format!("Pi command exited with status {}", status)));
+                let completion_evidence = status.success()
+                    .then(|| terminal_pi_execution_evidence(&run_authority))
+                    .flatten();
+                let terminal_state = classify_pi_process_terminal(
+                    was_cancelled,
+                    status.success(),
+                    completion_evidence.is_some(),
+                );
+                let terminal_error = match terminal_state {
+                    TerminalState::ProcessDied if status.success() => Some(
+                        "Pi provider ended without a complete assistant answer.".to_string(),
+                    ),
+                    TerminalState::ProcessDied => Some(format!("Pi command exited with status {}", status)),
+                    _ => None,
+                };
+                break (terminal_state, terminal_error);
             }
             Ok(None) => thread::sleep(Duration::from_millis(50)),
             Err(error) => break (TerminalState::ProcessDied, Some(error)),
@@ -4729,7 +4752,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{
-        compiled_runtime_channel, dedicated_native_names, enqueue_mirror_append_item_at, extract_context_stats_from_pi_session,
+        classify_pi_process_terminal, compiled_runtime_channel, dedicated_native_names, enqueue_mirror_append_item_at, extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
         list_journey_documentation_at, materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, projection_manifest_coordinates_at,
@@ -4745,7 +4768,7 @@ mod tests {
         validate_pi_session_file_at, validate_projection_payload_authority, validate_run_authority_at,
         validate_turn_correlation,
         write_durable_projection_at, JourneyProjectionPersistenceState, PiSessionContextSnapshot,
-        RunAuthority, TurnCorrelation, JOURNEY_REGISTRY_FILE, FILE_ATTACHMENT_MAX_FILES,
+        RunAuthority, TerminalState, TurnCorrelation, JOURNEY_REGISTRY_FILE, FILE_ATTACHMENT_MAX_FILES,
         DOCUMENT_PREVIEW_MAX_BYTES,
     };
     use serde_json::{json, Value};
@@ -5152,6 +5175,22 @@ mod tests {
         assert!(first.0.contains("Mirror Desktop"));
         assert!(first.0.chars().count() <= 80);
         assert!(first.1.chars().count() <= 100);
+    }
+
+    #[test]
+    fn provider_error_with_zero_exit_is_a_terminal_failure_not_a_completed_turn() {
+        assert_eq!(
+            classify_pi_process_terminal(false, true, false),
+            TerminalState::ProcessDied,
+        );
+        assert_eq!(
+            classify_pi_process_terminal(false, true, true),
+            TerminalState::Completed,
+        );
+        assert_eq!(
+            classify_pi_process_terminal(true, true, false),
+            TerminalState::Cancelled,
+        );
     }
 
     #[test]
