@@ -91,11 +91,21 @@ Implementation checks:
 - `npm run tauri:build:dev` produced the isolated `Mirror Desktop Dev.app` and DMG;
 - `git diff --check` passed.
 
-Navigator validation remains pending in the isolated development bundle. No user-channel application, updater configuration, production data, or release artifact was changed.
+No user-channel application, updater configuration, production data, or release artifact was changed.
+
+## Validation
+
+Navigator confirmed in the isolated development bundle that context usage now appears and updates successfully after a supported-model turn. This validation followed restart into the newly built Dev executable and is distinct from the earlier unsupported-model lifecycle failure captured by CR019.
+
+## Proportionality And Debt Review
+
+The implementation is proportional to the observed defects: it retains Pi as the sole context authority, narrows recovery to the exact active session file, and adds a small explicit frontend state machine rather than introducing another tokenizer, provider request, or polling service.
+
+No new technical debt was introduced. Full-file JSONL reconstruction remains linear in active session history, as Pi's current context reconstruction is; future optimization should require measured evidence rather than speculative indexing.
 
 ## Outcome
 
-No terminal outcome has been recorded.
+CR011 is Navigator-validated. Terminal closure as `done` remains a separate explicit Workbench decision.
 
 ## Migration Provenance
 
