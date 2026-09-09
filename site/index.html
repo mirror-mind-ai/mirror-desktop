@@ -25,94 +25,87 @@
         <span>mirror mind</span>
       </a>
       <nav aria-label="Primary navigation">
-        <a href="#desktop">desktop</a>
-        <a href="#builders">builders</a>
-        <a href="https://github.com/mirror-mind-ai/mirror-desktop">github</a>
+        <a href="#what-changes">what changes</a>
+        <a href="#modes">modes</a>
+        <a href="https://github.com/mirror-mind-ai/mirror" target="_blank" rel="noreferrer">core</a>
+        <a href="https://github.com/mirror-mind-ai/mirror-desktop" target="_blank" rel="noreferrer">desktop</a>
       </nav>
     </header>
 
     <main id="top">
-      <section class="hero">
+      <section class="hero section-grid">
         <div class="hero-copy">
           <p class="eyebrow">local-first continuity for agents</p>
-          <h1>Local-first memory and identity for agentic AI runtimes.</h1>
+          <h1>AI agents that remember where you left off.</h1>
           <p class="lede">
-            Mirror Mind gives agents continuity: identity, journeys, memory, personas,
-            attachments, and runtime-aware skills across Pi, Gemini CLI, Codex, and
-            Claude Code.
+            Mirror Mind gives your agents a local memory of who you are,
+            what you are building, and the journeys already in motion.
+          </p>
+          <p class="continuity-line">
+            Your identity, memory, personas, attachments, and skills stay with you,
+            turning separate AI sessions into one continuous working relationship.
           </p>
           <div class="actions" aria-label="Primary actions">
             <a class="button primary" href="https://github.com/mirror-mind-ai/mirror" target="_blank" rel="noreferrer">Mirror Core</a>
             <a class="button" href="https://github.com/mirror-mind-ai/mirror-desktop" target="_blank" rel="noreferrer">Mirror Desktop</a>
           </div>
-          <p class="microcopy">Open source. Local-first. Your memory stays on your machine.</p>
         </div>
-
-      </section>
-
-      <section class="section">
-        <p class="eyebrow">what it is</p>
-        <div class="cards four">
-          <article class="card">
-            <h2>Local-first memory</h2>
-            <p>A SQLite-backed memory layer for identity, conversations, journeys, and runtime state.</p>
-          </article>
-          <article class="card">
-            <h2>Identity continuity</h2>
-            <p>Personas, preferences, attachments, and context survive across sessions and agents.</p>
-          </article>
-          <article class="card">
-            <h2>Runtime-aware skills</h2>
-            <p>Mirror-aware commands and skills across Pi, Gemini CLI, Codex, and Claude Code.</p>
-          </article>
-          <article class="card">
-            <h2>Mirror Desktop</h2>
-            <p>A Tauri desktop app for using Mirror Mind with a local, updateable interface.</p>
-          </article>
-        </div>
-      </section>
-
-      <section id="builders" class="section split-panel">
-        <div>
-          <p class="eyebrow">for builders</p>
-          <h2>One memory layer. Many agents.</h2>
-        </div>
-        <div>
-          <p>
-            Mirror Mind is not another chat app. It is a local continuity layer for
-            agentic work: a place where identity, journeys, memory, skills, and
-            attachments remain available across runtimes.
-          </p>
-          <ul class="feature-list">
-            <li>local SQLite memory</li>
-            <li>journey-aware memory</li>
-            <li>persona routing</li>
-            <li>runtime-aware skills</li>
-            <li>attachments and context</li>
-            <li>desktop interface</li>
-          </ul>
-        </div>
-      </section>
-
-      <section id="desktop" class="section desktop-panel">
-        <div>
-          <p class="eyebrow">desktop alpha</p>
-          <h2>Mirror Desktop is the first-party desktop app for Mirror Mind.</h2>
-          <p>
-            macOS alpha supports signed self-update through the private alpha channel.
-            Windows users can build manually from source while the Windows release path matures.
-          </p>
-        </div>
-        <figure class="desktop-shot">
+        <figure class="desktop-shot hero-shot">
           <img src="./assets/mirror-desktop-screenshot-tide.jpg" alt="Mirror Desktop application screenshot using the Tide theme" width="2438" height="1436" />
         </figure>
+      </section>
+
+      <section id="what-changes" class="section">
+        <p class="eyebrow">what changes</p>
+        <div class="cards four">
+          <article class="card">
+            <h2>Remember the thread.</h2>
+            <p>Your agents can return to the same context instead of rebuilding it from scratch.</p>
+          </article>
+          <article class="card">
+            <h2>Keep the work in motion.</h2>
+            <p>Journeys preserve direction across conversations, tools, and sessions.</p>
+          </article>
+          <article class="card">
+            <h2>Choose the surface.</h2>
+            <p>Use Mirror Core from agent runtimes or Mirror Desktop as a local app.</p>
+          </article>
+          <article class="card">
+            <h2>Keep memory local.</h2>
+            <p>Identity, conversations, attachments, and runtime state remain on your machine.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="modes" class="section">
+        <p class="eyebrow">four ways to cross the terrain</p>
+        <div class="cards four">
+          <article class="card mode-card">
+            <h2>Mirror</h2>
+            <p>Return to yourself before deciding. Use the agent as a reflective surface for sensemaking, positioning, writing, and life direction.</p>
+          </article>
+          <article class="card mode-card">
+            <h2>Explorer</h2>
+            <p>Hold uncertainty without rushing into implementation. Let possibilities thicken before they become commitments.</p>
+          </article>
+          <article class="card mode-card">
+            <h2>Build</h2>
+            <p>When the direction is clear, move into construction. Edit code, shape docs, run validations, and preserve the reasons behind the work.</p>
+          </article>
+          <article class="card mode-card">
+            <h2>Soul</h2>
+            <p>Enter a quieter listening mode for inner life. Not productivity, not advice, but a ritual surface for what is asking to be heard.</p>
+          </article>
+        </div>
       </section>
     </main>
 
     <footer class="site-footer">
-      <span>mirrormind.sh — English / developers</span>
+      <span>mirrormind.sh</span>
+      <span>English / developers</span>
+      <a href="https://github.com/mirror-mind-ai/mirror" target="_blank" rel="noreferrer">Mirror Core</a>
+      <a href="https://github.com/mirror-mind-ai/mirror-desktop" target="_blank" rel="noreferrer">Mirror Desktop</a>
       <a href="https://mirrormind.com.br">Português: mirrormind.com.br</a>
-      <span>updates.mirrormind.com.br — updater endpoint</span>
     </footer>
   </body>
 </html>

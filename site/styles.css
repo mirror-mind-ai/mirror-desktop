@@ -108,6 +108,7 @@ h1 { font-size: clamp(2.5rem, 5vw, 4.5rem); }
 h2 { font-size: clamp(2rem, 4vw, 3.6rem); }
 
 .lede,
+.continuity-line,
 .section p,
 .card p,
 .terminal-card p,
@@ -120,6 +121,13 @@ h2 { font-size: clamp(2rem, 4vw, 3.6rem); }
   max-width: 45rem;
   margin: 1.75rem 0 0;
   font-size: 1rem;
+}
+
+.continuity-line {
+  max-width: 43rem;
+  margin: 1.25rem 0 0;
+  color: var(--text);
+  opacity: 0.86;
 }
 
 .actions {
@@ -217,6 +225,9 @@ pre {
   border: 1px solid var(--line);
   background: #05070a;
   box-shadow: var(--shadow);
+}
+.hero-shot {
+  transform: translateY(0.5rem);
 }
 .desktop-shot img {
   display: block;
