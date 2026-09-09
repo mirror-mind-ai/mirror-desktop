@@ -104,7 +104,7 @@ Proportionality review found the correction appropriately limited to presentatio
 
 ## Outcome
 
-CR012 is Navigator-validated. Terminal closure remains a separate explicit decision.
+CR012 was closed as `done` by explicit Navigator decision after successful isolated Dev validation. No follow-up debt was accepted within this change request.
 
 ## Migration Provenance
 
