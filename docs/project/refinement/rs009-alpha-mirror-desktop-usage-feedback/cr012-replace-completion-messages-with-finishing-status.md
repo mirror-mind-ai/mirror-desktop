@@ -8,20 +8,61 @@ During Mirror Desktop alpha usage, after a turn finishes, several finalization m
 
 ## Expected Behavior
 
-remove those extra completion messages and, while turn-finalization procedures are still processing, only replace the existing 'Working' label with 'Finishing'.
+Routine successful finalization should not add completion notices around the composer. While post-answer persistence and release procedures are still processing, the existing `Working…` status should become `Finishing…`. Once finalization settles, the status should disappear without showing a persistent `Completed` message.
+
+Actionable failures, blocked recovery, and explicit retry controls must remain visible. Routine internal milestones may stay silent; if they later prove necessary for diagnosis, they should live behind one discreet details link rather than appearing as multiple notices.
 
 ## Impact
 
 Captured as `manual` refinement work for `mirror-desktop`. Provenance:
 not separately recorded.
 
-## Plan Or Decision
+## Assessment
 
-No separately structured plan was preserved in the legacy Workbench record.
+The current UI projects the same successful lifecycle through overlapping composer surfaces:
+
+- `ComposerRuntimeStatus` keeps `Working` during both agent execution and finalization, then leaves a persistent `Completed` state;
+- `reconciliationBlocksInvocation` adds a full `Recording the completed turn` notice;
+- `isFinalizingTurn` adds another `Recording the completed turn…` line;
+- the Journey runtime indicator calls the same finalizing phase `Recording`.
+
+These messages represent useful internal lifecycle distinctions, but exposing all of them makes a successful answer feel unfinished and competes with the next composer action. The state should remain explicit in the runtime model while its routine presentation is reduced to one status.
+
+## Proposed Plan
+
+This plan is proposed for Navigator approval; CR012 remains `captured` and unassigned until an explicit execution decision.
+
+1. Change `ComposerTurnStatus` from `working | completed` to `working | finishing`.
+2. Derive `working` only while Pi is actively starting/running/streaming, and derive `finishing` while the selected turn is in post-answer finalization or routine reconciliation release.
+3. Render the same status component in place: `Working…` transitions to `Finishing…`; after release it renders nothing. Do not add a transient or persistent `Completed` badge.
+4. Remove the routine `Recording the completed turn` notice and the separate `turn-finalization-status` line from the composer.
+5. Rename the Journey sidebar's finalizing indicator from `Recording` to `Finishing` so one lifecycle vocabulary is used consistently.
+6. Keep warnings, interrupted-turn notices, retained-lease blocks, Mirror repair controls, settings failures, and other actionable exceptions visible. CR012 must not silence failures.
+7. Prefer silence for successful internal completion milestones in this slice. Do not add a disclosure link unless concrete diagnostics remain that users need to inspect; this avoids replacing several noisy messages with a new permanent control.
+8. Update state, component, integration, accessibility, and source-boundary tests before isolated Dev validation.
+
+## Proposed Acceptance
+
+- During provider execution, exactly one composer status says `Working…`.
+- After the answer is visible but before durable finalization releases, that same status says `Finishing…`.
+- Routine finalization does not render `Recording the completed turn`, its explanatory paragraph, or a second finalization line.
+- After successful release, neither `Completed` nor another completion message remains beside the composer.
+- The Journey sidebar uses `Finishing`, not `Recording`, for the same phase.
+- Actionable failure, recovery, and retry surfaces remain unchanged and visible.
+- Navigation cannot project one Journey's working or finishing state into another Journey.
+- Screen-reader status text follows the visible `Working` → `Finishing` → silent sequence.
 
 ## Evidence
 
-No separate evidence was recorded in the legacy Workbench entry.
+Refinement traced the current presentation through:
+
+- `src/app/composerTurnStatus.ts`;
+- `src/app/ComposerRuntimeFooter.tsx`;
+- `src/app/JourneyRuntimeIndicator.tsx`;
+- the routine finalization notices in `src/app/App.tsx`;
+- `src/tests/composerTurnStatus.test.ts`, `src/tests/runtimeProjectionComponent.test.tsx`, and `src/tests/journeyRuntimeIndicator.test.tsx`.
+
+No implementation was performed during this refinement step.
 
 ## Outcome
 
