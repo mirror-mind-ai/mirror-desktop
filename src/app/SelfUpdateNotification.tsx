@@ -9,6 +9,7 @@ export type SelfUpdateNotificationProps = {
   installUpdate?: typeof installTrustedSelfUpdate;
   initialCurrentVersion?: string;
   initialUpdate?: SelfUpdateCheckResult & { status: "available" };
+  initialOpen?: boolean;
   onReview: () => void;
 };
 
@@ -23,6 +24,14 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+export function displayMirrorDesktopVersion(version: string): string {
+  const trimmed = version.trim();
+  const match = trimmed.match(/^(\d+\.\d+\.\d+)-([a-z]+)\.(\d+)$/i);
+  if (!match) return trimmed;
+  const [, base, channel, number] = match;
+  return `${base}-${channel[0].toLowerCase()}${number}`;
+}
+
 export function SelfUpdateNotification({
   runtimeBusy,
   checkUpdates = checkForTrustedSelfUpdate,
@@ -30,11 +39,12 @@ export function SelfUpdateNotification({
   installUpdate = installTrustedSelfUpdate,
   initialCurrentVersion,
   initialUpdate,
+  initialOpen = false,
   onReview,
 }: SelfUpdateNotificationProps) {
   const [currentVersion, setCurrentVersion] = useState(initialCurrentVersion ?? initialUpdate?.currentVersion ?? "");
   const [state, setState] = useState<UpdateChipState>(initialUpdate ? { status: "available", update: initialUpdate } : { status: "idle" });
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const [dismissedVersion, setDismissedVersion] = useState<string>();
   const popoverRef = useRef<HTMLDivElement>(null);
   const quiescence = updateQuiescence({
@@ -94,14 +104,15 @@ export function SelfUpdateNotification({
   }
 
   const available = state.status === "available" || state.status === "installing" ? state.update : undefined;
-  const versionLabel = currentVersion ? `Mirror Desktop ${currentVersion}` : "Mirror Desktop";
+  const fullVersionLabel = currentVersion ? `Mirror Desktop ${currentVersion}` : "Mirror Desktop";
+  const compactVersionLabel = currentVersion ? displayMirrorDesktopVersion(currentVersion) : "version";
   const updateDismissed = available && dismissedVersion === available.version;
   const showsAvailable = available && !updateDismissed;
-  const chipText = state.status === "installing"
-    ? `${versionLabel} • Updating…`
+  const chipStatus = state.status === "installing"
+    ? "updating…"
     : showsAvailable
-      ? `${versionLabel} • Update`
-      : versionLabel;
+      ? "update"
+      : undefined;
 
   return (
     <div className="self-update-chip-wrap" ref={popoverRef}>
@@ -111,17 +122,18 @@ export function SelfUpdateNotification({
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title={showsAvailable ? `Mirror Desktop ${available.version} is available` : `${versionLabel} is up to date`}
+        title={showsAvailable ? `Mirror Desktop ${available.version} is available` : `${fullVersionLabel} is up to date`}
       >
-        {showsAvailable ? <span className="self-update-dot" aria-hidden="true" /> : null}
-        <span>{chipText}</span>
+        <span>Version: {compactVersionLabel}</span>
+        {chipStatus ? <span className="self-update-chip-status">{chipStatus}</span> : null}
       </button>
       {open ? (
         <div className="self-update-popover" role="dialog" aria-label="Mirror Desktop update">
           {showsAvailable ? (
             <>
-              <strong>Mirror Desktop {available.version} is available.</strong>
-              <p>You are currently running {available.currentVersion}. This update replaces only the application. Your Journeys, conversations, memory, credentials, and local data remain intact.</p>
+              <strong>Mirror Desktop update is available.</strong>
+              <p className="self-update-version-line">Version: {displayMirrorDesktopVersion(available.currentVersion)}</p>
+              <p>Available: {displayMirrorDesktopVersion(available.version)}. This update replaces only the application. Your Journeys, conversations, memory, credentials, and local data remain intact.</p>
               {runtimeBusy ? <p className="settings-error" role="alert">Finish the active runtime operation before updating.</p> : null}
               {state.status === "installing" ? <p className="provider-note" role="status">{state.progress?.message ?? "Installing…"} {state.progress?.totalBytes ? `${Math.round((state.progress.downloadedBytes / state.progress.totalBytes) * 100)}%` : ""}</p> : null}
               {state.status === "error" ? <p className="settings-error" role="alert">{state.message}</p> : null}
@@ -133,7 +145,8 @@ export function SelfUpdateNotification({
             </>
           ) : (
             <>
-              <strong>{versionLabel}</strong>
+              <strong>Mirror Desktop</strong>
+              <p className="self-update-version-line">Version: {compactVersionLabel}</p>
               <p>You are up to date.</p>
               <div className="self-update-popover-actions">
                 <button className="secondary-button" type="button" onClick={() => setOpen(false)}>Close</button>

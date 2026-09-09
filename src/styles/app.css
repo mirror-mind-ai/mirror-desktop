@@ -233,8 +233,10 @@ textarea {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   padding: 16px 12px;
+  position: relative;
+  z-index: 20;
 }
 
 .brand-block {
@@ -246,6 +248,48 @@ textarea {
 
 .brand-copy {
   min-width: 0;
+}
+
+.brand-copy .self-update-chip-wrap {
+  display: block;
+  margin-top: 5px;
+}
+
+.brand-copy .self-update-chip {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #7f8b8f;
+  font-size: 0.72rem;
+  font-weight: 560;
+  letter-spacing: 0.01em;
+}
+
+.brand-copy .self-update-popover {
+  left: 0;
+  right: auto;
+  top: calc(100% + 8px);
+  width: min(252px, calc(100vw - 40px));
+}
+
+.brand-copy .self-update-dot {
+  height: 5px;
+  width: 5px;
+}
+
+.brand-copy .self-update-chip:hover,
+.brand-copy .self-update-chip:focus-visible,
+.brand-copy .self-update-chip.installing {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ui-text);
+}
+
+.self-update-chip-status {
+  color: var(--ui-accent);
+  font-weight: 760;
 }
 
 .sidebar-toggle-button {
@@ -3727,7 +3771,7 @@ dd {
   justify-content: center;
   padding: 24px;
   position: fixed;
-  z-index: 10;
+  z-index: 80;
 }
 
 .settings-window {
@@ -6158,6 +6202,11 @@ dd {
   line-height: 1.45;
 }
 
+.self-update-version-line {
+  color: var(--ui-text) !important;
+  font-weight: 720;
+}
+
 .self-update-popover-actions,
 .self-update-available {
   display: flex;
@@ -6187,4 +6236,13 @@ dd {
 ) .self-update-chip {
   background: var(--light-surface);
   color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .brand-copy .self-update-chip {
+  background: transparent;
+  color: var(--light-muted);
 }

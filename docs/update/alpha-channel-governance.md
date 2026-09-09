@@ -61,13 +61,13 @@ A governed alpha release should follow this order:
 2. create or update `docs/releases/vX.Y.Z-alpha.N.md`;
 3. update `docs/releases/index.md`;
 4. run release-note and release-candidate validation;
-5. build with the alpha updater overlay:
+5. build with the centralized signed alpha build command:
 
 ```bash
-TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.mirror-desktop-updater/alpha/updater.key)" \
-TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" \
-npm run tauri -- build --bundles app,dmg --config src-tauri/tauri.alpha-update.conf.json
+npm run alpha:build
 ```
+
+The command runs the alpha updater preflight, reads the alpha signing key from `~/.mirror-desktop-updater/alpha/updater.key`, builds with `src-tauri/tauri.alpha-update.conf.json`, and verifies that the `.app`, DMG, updater artifact, and updater signature exist. Do not use a generic `npm run tauri -- build --bundles app,dmg` for alpha validation. That build omits the updater overlay and can produce an app that aborts during startup when the updater plugin is registered without the release config.
 
 6. stage the updater artifact, signature, DMG, release notes, index, manifests, and `downloads/macos/latest.*` download aliases;
 7. publish to the alpha prefix only after explicit Navigator authorization;

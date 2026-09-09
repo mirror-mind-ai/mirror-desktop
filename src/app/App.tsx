@@ -3034,6 +3034,7 @@ export function App({ model }: AppProps) {
           </span>
           <div className="brand-copy">
             <strong>Mirror Desktop {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</strong>
+            <SelfUpdateNotification runtimeBusy={runtimeBusy} onReview={() => { setSettingsTab("updates"); setSettingsOpen(true); }} />
             <small>{PRODUCT_DESCRIPTOR}</small>
           </div>
           <button
@@ -3305,7 +3306,6 @@ export function App({ model }: AppProps) {
                 </div>
               </div>
               <div className="chat-header-actions">
-                <SelfUpdateNotification runtimeBusy={runtimeBusy} onReview={() => { setSettingsTab("updates"); setSettingsOpen(true); }} />
                 <button
                   className={`menu-button conversation-shortcut ${operationalChatSelected ? "selected" : ""}`}
                   type="button"

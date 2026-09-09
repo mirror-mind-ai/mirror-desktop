@@ -36,6 +36,8 @@ describe("alpha channel governance", () => {
       "updates.mirrormind.com.br",
       "downloads/macos/latest.dmg",
       "downloads/macos/latest.json",
+      "npm run alpha:build",
+      "Do not use a generic `npm run tauri -- build --bundles app,dmg`",
       "Git tag",
       "GitHub Release",
       "Apple notarization",
