@@ -105,7 +105,7 @@ No new technical debt was introduced. Full-file JSONL reconstruction remains lin
 
 ## Outcome
 
-CR011 is Navigator-validated. Terminal closure as `done` remains a separate explicit Workbench decision.
+After validation and proportionality review, the Navigator explicitly closed CR011 as `done`.
 
 ## Migration Provenance
 
