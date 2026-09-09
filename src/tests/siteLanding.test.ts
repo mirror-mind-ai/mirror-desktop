@@ -30,8 +30,8 @@ describe("mirrormind.sh landing page", () => {
   });
 
   it("shows a Mirror Desktop screenshot in the desktop alpha section", () => {
-    expect(html).toContain("./assets/mirror-desktop-screenshot.jpg");
-    expect(html).toContain("Mirror Desktop application screenshot");
+    expect(html).toContain("./assets/mirror-desktop-screenshot-tide.jpg");
+    expect(html).toContain("Mirror Desktop application screenshot using the Tide theme");
     expect(css).toContain(".desktop-shot");
   });
 
