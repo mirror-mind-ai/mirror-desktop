@@ -34,6 +34,8 @@ describe("alpha channel governance", () => {
       "alpha",
       "updates.mirrormind.sh",
       "updates.mirrormind.com.br",
+      "downloads/macos/latest.dmg",
+      "downloads/macos/latest.json",
       "Git tag",
       "GitHub Release",
       "Apple notarization",

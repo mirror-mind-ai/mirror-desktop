@@ -18,6 +18,17 @@ The committed overlays contain only public keys. Private keys remain outside the
 
 The canonical updater host for new release work is `updates.mirrormind.sh`. The earlier `updates.mirrormind.com.br` host remains an infrastructure-compatible predecessor from private rehearsal, but new alpha builds and release tooling should use the `.sh` host.
 
+## Public Download Contract
+
+The Mirror Mind website must not point at versioned DMG artifact paths. It points at the stable alpha download contract instead:
+
+```text
+https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.dmg
+https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.json
+```
+
+Alpha publication updates this stable download alias together with the updater manifests, release notes, updater artifact, signature, and versioned DMG artifact. The `latest.json` download manifest records the alpha version, stable DMG URL, versioned artifact URL, and release notes URL.
+
 ## Key Custody
 
 Alpha key custody begins with a local maintainer-held updater key:
@@ -58,7 +69,7 @@ TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" \
 npm run tauri -- build --bundles app,dmg --config src-tauri/tauri.alpha-update.conf.json
 ```
 
-6. stage the updater artifact, signature, DMG, release notes, index, and manifests;
+6. stage the updater artifact, signature, DMG, release notes, index, manifests, and `downloads/macos/latest.*` download aliases;
 7. publish to the alpha prefix only after explicit Navigator authorization;
 8. validate endpoint reachability;
 9. validate an installed-app update from the previous alpha;

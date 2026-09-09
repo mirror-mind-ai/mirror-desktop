@@ -38,6 +38,14 @@ export function updaterArtifactUrl(version, baseUrl = defaultBaseUrl) {
   return `${baseUrl.replace(/\/$/, "")}/artifacts/${encodeURIComponent(updaterArtifactName(version))}`;
 }
 
+export function latestMacosDmgUrl(baseUrl = defaultBaseUrl) {
+  return `${baseUrl.replace(/\/$/, "")}/downloads/macos/latest.dmg`;
+}
+
+export function latestMacosDownloadManifestUrl(baseUrl = defaultBaseUrl) {
+  return `${baseUrl.replace(/\/$/, "")}/downloads/macos/latest.json`;
+}
+
 export function manifestFor({ version, signature, baseUrl = defaultBaseUrl, pubDate = new Date().toISOString() }) {
   parseSemver(version);
   if (!signature?.trim()) throw new Error("Updater signature is required.");
@@ -72,6 +80,8 @@ export function planPrivateUpdatePublication({ version, currentVersions, targets
     artifactName: updaterArtifactName(releaseVersion),
     artifactUrl: updaterArtifactUrl(releaseVersion, baseUrl),
     releaseNotesUrl: releaseNotesUrl(`v${releaseVersion}`, `${baseUrl.replace(/\/$/, "")}/releases`),
+    latestMacosDmgUrl: latestMacosDmgUrl(baseUrl),
+    latestMacosDownloadManifestUrl: latestMacosDownloadManifestUrl(baseUrl),
     manifestPaths: manifestPaths({ targets, currentVersions }),
     webRoot: webRoot ?? webRootForBaseUrl(baseUrl),
     boundaries: {
@@ -123,13 +133,25 @@ export function stagePrivateUpdatePublication(options) {
   const artifactsDir = resolve(stageDir, "artifacts");
   const releasesDir = resolve(stageDir, "releases");
   const manifestsDir = resolve(stageDir, "manifests");
+  const downloadsDir = resolve(stageDir, "downloads", "macos");
   mkdirSync(artifactsDir, { recursive: true });
   mkdirSync(releasesDir, { recursive: true });
   mkdirSync(manifestsDir, { recursive: true });
+  mkdirSync(downloadsDir, { recursive: true });
 
   copyFileSync(requireFile(resolve(repositoryRoot, options.artifact), "Updater artifact"), resolve(artifactsDir, plan.artifactName));
   copyFileSync(resolve(repositoryRoot, options.signature), resolve(artifactsDir, `${plan.artifactName}.sig`));
-  if (options.dmg) copyFileSync(requireFile(resolve(repositoryRoot, options.dmg), "DMG artifact"), resolve(artifactsDir, basename(options.dmg)));
+  if (options.dmg) {
+    const dmgArtifactName = basename(options.dmg);
+    copyFileSync(requireFile(resolve(repositoryRoot, options.dmg), "DMG artifact"), resolve(artifactsDir, dmgArtifactName));
+    copyFileSync(requireFile(resolve(repositoryRoot, options.dmg), "DMG artifact"), resolve(downloadsDir, "latest.dmg"));
+    writeFileSync(resolve(downloadsDir, "latest.json"), `${JSON.stringify({
+      version,
+      dmg: plan.latestMacosDmgUrl,
+      artifact: `${plan.baseUrl}/artifacts/${encodeURIComponent(dmgArtifactName)}`,
+      releaseNotes: plan.releaseNotesUrl,
+    }, null, 2)}\n`);
+  }
   copyFileSync(requireFile(resolve(repositoryRoot, options.releaseNote ?? `docs/releases/v${version}.md`), "Release note"), resolve(releasesDir, `v${version}.md`));
   copyFileSync(requireFile(resolve(repositoryRoot, options.releaseIndex ?? "docs/releases/index.md"), "Release index"), resolve(releasesDir, "index.md"));
 
@@ -144,10 +166,14 @@ export function stagePrivateUpdatePublication(options) {
 }
 
 export function publishStagedPrivateUpdate({ stageDir, sshHost = "szen-vps", webRoot = defaultWebRoot, manifestPaths }) {
-  const remoteDirs = ["artifacts", "releases", ...manifestPaths.map((path) => dirname(path))].map((path) => `${webRoot}/${path}`);
+  const downloadsDir = resolve(stageDir, "downloads", "macos");
+  const remoteDirs = ["artifacts", "releases", "downloads/macos", ...manifestPaths.map((path) => dirname(path))].map((path) => `${webRoot}/${path}`);
   run("ssh", [sshHost, `set -e; sudo mkdir -p ${remoteDirs.map(shellQuote).join(" ")}; sudo chown -R $USER:$USER ${shellQuote(webRoot)}`], { stdio: "inherit" });
   run("bash", ["-lc", `scp ${shellQuote(resolve(stageDir, "artifacts"))}/* ${shellQuote(`${sshHost}:${webRoot}/artifacts/`)}`], { stdio: "inherit" });
   run("bash", ["-lc", `scp ${shellQuote(resolve(stageDir, "releases"))}/* ${shellQuote(`${sshHost}:${webRoot}/releases/`)}`], { stdio: "inherit" });
+  if (existsSync(resolve(downloadsDir, "latest.dmg"))) {
+    run("bash", ["-lc", `scp ${shellQuote(downloadsDir)}/* ${shellQuote(`${sshHost}:${webRoot}/downloads/macos/`)}`], { stdio: "inherit" });
+  }
   for (const path of manifestPaths) {
     run("scp", [resolve(stageDir, "manifests", path), `${sshHost}:${webRoot}/${path}`], { stdio: "inherit" });
   }
@@ -161,6 +187,7 @@ function human(plan, published) {
     `Stage: ${plan.stageDir}`,
     `Artifact: ${plan.artifactUrl}`,
     `Release notes: ${plan.releaseNotesUrl}`,
+    `Latest macOS DMG: ${plan.latestMacosDmgUrl}`,
     `Manifest paths: ${plan.manifestPaths.join(", ")}`,
     `Web root: ${plan.webRoot}`,
     "Boundary: private endpoint only; no Git tag, GitHub Release, notarization, push, Mirror data or app data mutation is implied.",

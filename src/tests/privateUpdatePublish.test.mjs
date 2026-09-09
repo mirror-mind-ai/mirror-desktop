@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  latestMacosDmgUrl,
+  latestMacosDownloadManifestUrl,
   manifestFor,
   manifestPaths,
   planPrivateUpdatePublication,
@@ -29,6 +31,8 @@ describe("private update publication", () => {
   it("derives updater artifact names and encoded HTTPS URLs", () => {
     expect(updaterArtifactName("0.1.1-test.1")).toBe("Mirror Desktop_0.1.1-test.1.app.tar.gz");
     expect(updaterArtifactUrl("0.1.1-test.1")).toBe("https://updates.mirrormind.sh/mirror-desktop/artifacts/Mirror%20Desktop_0.1.1-test.1.app.tar.gz");
+    expect(latestMacosDmgUrl()).toBe("https://updates.mirrormind.sh/mirror-desktop/downloads/macos/latest.dmg");
+    expect(latestMacosDownloadManifestUrl("https://updates.mirrormind.sh/mirror-desktop/alpha")).toBe("https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.json");
   });
 
   it("renders Tauri updater manifest fields with release notes", () => {
@@ -79,6 +83,13 @@ describe("private update publication", () => {
     expect(plan).toMatchObject(planPrivateUpdatePublication({ version: "0.1.1-test.1", currentVersions: ["0.1.1-test.0"], targets: ["darwin"] }));
     expect(plan.webRoot).toBe("/var/www/mirror-desktop-updates/mirror-desktop");
     expect(readFileSync(join(stage, "artifacts", "Mirror Desktop_0.1.1-test.1.app.tar.gz"), "utf8")).toBe("artifact");
+    expect(readFileSync(join(stage, "downloads", "macos", "latest.dmg"), "utf8")).toBe("dmg");
+    expect(JSON.parse(readFileSync(join(stage, "downloads", "macos", "latest.json"), "utf8"))).toMatchObject({
+      version: "0.1.1-test.1",
+      dmg: "https://updates.mirrormind.sh/mirror-desktop/downloads/macos/latest.dmg",
+      artifact: "https://updates.mirrormind.sh/mirror-desktop/artifacts/app.dmg",
+      releaseNotes: "https://updates.mirrormind.sh/mirror-desktop/releases/v0.1.1-test.1.md",
+    });
     expect(JSON.parse(readFileSync(join(stage, "manifests", "darwin", "0.1.1-test.0", "latest.json"), "utf8"))).toMatchObject({ version: "0.1.1-test.1", signature: "signature" });
     expect(readFileSync(join(stage, "releases", "v0.1.1-test.1.md"), "utf8")).toContain("# v0.1.1-test.1");
   });
