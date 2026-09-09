@@ -8,7 +8,7 @@ import { parseSemver } from "./release_candidate.mjs";
 import { releaseNotesUrl } from "./release_notes.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const defaultBaseUrl = "https://updates.mirrormind.com.br/mirror-desktop";
+const defaultBaseUrl = "https://updates.mirrormind.sh/mirror-desktop";
 const defaultWebRoot = "/var/www/mirror-desktop-updates/mirror-desktop";
 const defaultTargets = ["darwin", "darwin-x86_64", "darwin-aarch64"];
 

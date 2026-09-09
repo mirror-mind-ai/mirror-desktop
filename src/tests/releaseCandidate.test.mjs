@@ -39,7 +39,7 @@ describe("release candidate provenance", () => {
       product: "Mirror Desktop",
       version: "0.2.0",
       tag: "v0.2.0",
-      releaseNotes: "https://updates.mirrormind.com.br/mirror-desktop/releases/v0.2.0.md",
+      releaseNotes: "https://updates.mirrormind.sh/mirror-desktop/releases/v0.2.0.md",
       boundaries: {
         binariesCommittedToSource: false,
         selfUpdateAuthority: false,
@@ -57,9 +57,9 @@ describe("release candidate provenance", () => {
       architecture: "x64",
       sha256: "b".repeat(64),
       checks: { worktreeClean: true, versionFilesAgree: true },
-      releaseNotesBaseUrl: "https://updates.mirrormind.com.br/mirror-desktop/alpha/releases",
+      releaseNotesBaseUrl: "https://updates.mirrormind.sh/mirror-desktop/alpha/releases",
     });
 
-    expect(receipt.releaseNotes).toBe("https://updates.mirrormind.com.br/mirror-desktop/alpha/releases/v0.2.0-alpha.1.md");
+    expect(receipt.releaseNotes).toBe("https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.2.0-alpha.1.md");
   });
 });

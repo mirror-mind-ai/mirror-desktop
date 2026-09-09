@@ -24,7 +24,7 @@ export function releaseNotePath(version) {
   return `docs/releases/${parseReleaseVersion(version)}.md`;
 }
 
-export function releaseNotesUrl(version, baseUrl = "https://updates.mirrormind.com.br/mirror-desktop/releases") {
+export function releaseNotesUrl(version, baseUrl = "https://updates.mirrormind.sh/mirror-desktop/releases") {
   const base = String(baseUrl).replace(/\/$/, "");
   if (!base.startsWith("https://")) throw new Error("Release notes URL base must use https.");
   return `${base}/${parseReleaseVersion(version)}.md`;

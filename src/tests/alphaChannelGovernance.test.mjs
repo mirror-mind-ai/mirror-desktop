@@ -19,7 +19,7 @@ describe("alpha channel governance", () => {
 
   it("uses the private HTTPS alpha endpoint with target and current-version placeholders", () => {
     const endpoints = alphaOverlay.plugins.updater.endpoints;
-    expect(endpoints).toEqual(["https://updates.mirrormind.com.br/mirror-desktop/alpha/{{target}}/{{current_version}}/latest.json"]);
+    expect(endpoints).toEqual(["https://updates.mirrormind.sh/mirror-desktop/alpha/{{target}}/{{current_version}}/latest.json"]);
   });
 
   it("separates alpha and private-test updater public keys", () => {
@@ -32,6 +32,8 @@ describe("alpha channel governance", () => {
       "never commit the private key",
       "private-test",
       "alpha",
+      "updates.mirrormind.sh",
+      "updates.mirrormind.com.br",
       "Git tag",
       "GitHub Release",
       "Apple notarization",

@@ -28,22 +28,22 @@ afterEach(async () => {
 describe("private update publication", () => {
   it("derives updater artifact names and encoded HTTPS URLs", () => {
     expect(updaterArtifactName("0.1.1-test.1")).toBe("Mirror Desktop_0.1.1-test.1.app.tar.gz");
-    expect(updaterArtifactUrl("0.1.1-test.1")).toBe("https://updates.mirrormind.com.br/mirror-desktop/artifacts/Mirror%20Desktop_0.1.1-test.1.app.tar.gz");
+    expect(updaterArtifactUrl("0.1.1-test.1")).toBe("https://updates.mirrormind.sh/mirror-desktop/artifacts/Mirror%20Desktop_0.1.1-test.1.app.tar.gz");
   });
 
   it("renders Tauri updater manifest fields with release notes", () => {
     expect(manifestFor({ version: "0.1.1-test.1", signature: "abc", pubDate: "2026-09-08T15:05:00Z" })).toEqual({
       version: "0.1.1-test.1",
-      notes: "https://updates.mirrormind.com.br/mirror-desktop/releases/v0.1.1-test.1.md",
+      notes: "https://updates.mirrormind.sh/mirror-desktop/releases/v0.1.1-test.1.md",
       pub_date: "2026-09-08T15:05:00Z",
-      url: "https://updates.mirrormind.com.br/mirror-desktop/artifacts/Mirror%20Desktop_0.1.1-test.1.app.tar.gz",
+      url: "https://updates.mirrormind.sh/mirror-desktop/artifacts/Mirror%20Desktop_0.1.1-test.1.app.tar.gz",
       signature: "abc",
     });
   });
 
   it("maps alpha base URLs to matching remote web roots", () => {
-    expect(webRootForBaseUrl("https://updates.mirrormind.com.br/mirror-desktop/alpha")).toBe("/var/www/mirror-desktop-updates/mirror-desktop/alpha");
-    expect(webRootForBaseUrl("https://updates.mirrormind.com.br/mirror-desktop")).toBe("/var/www/mirror-desktop-updates/mirror-desktop");
+    expect(webRootForBaseUrl("https://updates.mirrormind.sh/mirror-desktop/alpha")).toBe("/var/www/mirror-desktop-updates/mirror-desktop/alpha");
+    expect(webRootForBaseUrl("https://updates.mirrormind.sh/mirror-desktop")).toBe("/var/www/mirror-desktop-updates/mirror-desktop");
   });
 
   it("plans manifest copies for all targets and current versions", () => {

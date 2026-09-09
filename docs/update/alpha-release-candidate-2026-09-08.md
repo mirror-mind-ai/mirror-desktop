@@ -42,7 +42,7 @@ docs/releases/index.md
 Alpha release notes URL reserved for publication:
 
 ```text
-https://updates.mirrormind.com.br/mirror-desktop/alpha/releases/v0.2.0-alpha.1.md
+https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.2.0-alpha.1.md
 ```
 
 ## Build
@@ -78,7 +78,7 @@ Staged locally with:
 ```bash
 npm run release:private-update -- \
   --version 0.2.0-alpha.1 \
-  --base-url https://updates.mirrormind.com.br/mirror-desktop/alpha \
+  --base-url https://updates.mirrormind.sh/mirror-desktop/alpha \
   --current-version 0.2.0-alpha.0 \
   --current-version 0.2.0-alpha.1 \
   --artifact 'src-tauri/target/release/bundle/macos/Mirror Desktop.app.tar.gz' \
@@ -108,8 +108,8 @@ Manifest preview:
 ```json
 {
   "version": "0.2.0-alpha.1",
-  "notes": "https://updates.mirrormind.com.br/mirror-desktop/alpha/releases/v0.2.0-alpha.1.md",
-  "url": "https://updates.mirrormind.com.br/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.1.app.tar.gz",
+  "notes": "https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.2.0-alpha.1.md",
+  "url": "https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.1.app.tar.gz",
   "signatureLength": 416
 }
 ```
@@ -123,8 +123,8 @@ npm run alpha:channel:check
 npm test -- src/tests/releaseNotes.test.mjs src/tests/releaseCandidate.test.mjs src/tests/alphaChannelGovernance.test.mjs src/tests/privateUpdatePublish.test.mjs
 npm run build
 npm run tauri -- build --bundles app,dmg --config src-tauri/tauri.alpha-update.conf.json
-node scripts/release_candidate.mjs --json --artifact Mirror Desktop_0.2.0-alpha.1_x64.dmg --sha256 <dmg-sha256> --architecture x64 --release-notes-base-url https://updates.mirrormind.com.br/mirror-desktop/alpha/releases
-npm run release:private-update -- --version 0.2.0-alpha.1 --base-url https://updates.mirrormind.com.br/mirror-desktop/alpha ...
+node scripts/release_candidate.mjs --json --artifact Mirror Desktop_0.2.0-alpha.1_x64.dmg --sha256 <dmg-sha256> --architecture x64 --release-notes-base-url https://updates.mirrormind.sh/mirror-desktop/alpha/releases
+npm run release:private-update -- --version 0.2.0-alpha.1 --base-url https://updates.mirrormind.sh/mirror-desktop/alpha ...
 ```
 
 ## Private Alpha Publication
@@ -134,16 +134,16 @@ Navigator explicitly authorized publishing `v0.2.0-alpha.1` to the private alpha
 Published paths validated:
 
 ```text
-https://updates.mirrormind.com.br/mirror-desktop/alpha/releases/v0.2.0-alpha.1.md
-https://updates.mirrormind.com.br/mirror-desktop/alpha/releases/index.md
-https://updates.mirrormind.com.br/mirror-desktop/alpha/darwin/0.2.0-alpha.0/latest.json
-https://updates.mirrormind.com.br/mirror-desktop/alpha/darwin/0.2.0-alpha.1/latest.json
-https://updates.mirrormind.com.br/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.0/latest.json
-https://updates.mirrormind.com.br/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.1/latest.json
-https://updates.mirrormind.com.br/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.0/latest.json
-https://updates.mirrormind.com.br/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.1/latest.json
-https://updates.mirrormind.com.br/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.1.app.tar.gz
-https://updates.mirrormind.com.br/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.1_x64.dmg
+https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.2.0-alpha.1.md
+https://updates.mirrormind.sh/mirror-desktop/alpha/releases/index.md
+https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.0/latest.json
+https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.1/latest.json
+https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.0/latest.json
+https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.1/latest.json
+https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.0/latest.json
+https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.1/latest.json
+https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.1.app.tar.gz
+https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.1_x64.dmg
 ```
 
 A first publish attempt used the alpha base URL with the default root web directory, which placed alpha files under the private-test root. The root pollution was repaired by removing the accidental alpha root files/manifests and restoring the root private-test release index. The publication script now derives the default web root from the base URL so `/mirror-desktop/alpha` maps to `/var/www/mirror-desktop-updates/mirror-desktop/alpha` unless explicitly overridden.

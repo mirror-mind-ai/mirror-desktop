@@ -30,7 +30,7 @@ describe("Mirror Desktop release notes", () => {
 
   it("derives versioned local paths and HTTPS update URLs", () => {
     expect(releaseNotePath("v0.2.0")).toBe("docs/releases/v0.2.0.md");
-    expect(releaseNotesUrl("v0.2.0")).toBe("https://updates.mirrormind.com.br/mirror-desktop/releases/v0.2.0.md");
+    expect(releaseNotesUrl("v0.2.0")).toBe("https://updates.mirrormind.sh/mirror-desktop/releases/v0.2.0.md");
     expect(() => releaseNotesUrl("v0.2.0", "http://example.invalid/releases")).toThrow(/https/);
   });
 

@@ -16,6 +16,8 @@ Mirror Desktop now distinguishes two updater channels:
 
 The committed overlays contain only public keys. Private keys remain outside the repository.
 
+The canonical updater host for new release work is `updates.mirrormind.sh`. The earlier `updates.mirrormind.com.br` host remains an infrastructure-compatible predecessor from private rehearsal, but new alpha builds and release tooling should use the `.sh` host.
+
 ## Key Custody
 
 Alpha key custody begins with a local maintainer-held updater key:
