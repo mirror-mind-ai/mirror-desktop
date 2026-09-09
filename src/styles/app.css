@@ -2754,6 +2754,10 @@ h3 {
   margin-top: 0.85rem;
 }
 
+.message-content.preserve-line-breaks p {
+  white-space: pre-wrap;
+}
+
 .message-content h2,
 .message-content h3 {
   color: #f5fbfd;

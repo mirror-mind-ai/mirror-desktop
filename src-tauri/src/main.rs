@@ -4578,10 +4578,12 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            app.handle()
-                .plugin(tauri_plugin_updater::Builder::new().build())
-                .map_err(std::io::Error::other)?;
             let channel = RuntimeChannel::active();
+            if channel.supports_updater() {
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())
+                    .map_err(std::io::Error::other)?;
+            }
             let app_data_root = app.path().app_data_dir().map_err(std::io::Error::other)?;
             channel
                 .validate_app_identity(&app.config().identifier, &app_data_root)

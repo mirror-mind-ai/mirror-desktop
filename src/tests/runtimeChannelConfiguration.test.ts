@@ -81,6 +81,13 @@ describe("runtime channel configuration", () => {
     expect(channelLauncher).toContain('"Mirror Desktop Dev.app"');
   });
 
+  it("initializes the updater only for channels with an updater contract", () => {
+    expect(runtimeChannelSource).toContain("pub fn supports_updater(self) -> bool");
+    expect(runtimeChannelSource).toContain("matches!(self, Self::User)");
+    expect(rustSource).toContain("if channel.supports_updater()");
+    expect(rustSource).toContain("tauri_plugin_updater::Builder::new().build()");
+  });
+
   it("routes Mirror operations through a persisted binding without production fallback", () => {
     expect(runtimeChannelSource).toContain("load_runtime_binding");
     expect(runtimeChannelSource).toContain('join(channel.bundle_identifier())');

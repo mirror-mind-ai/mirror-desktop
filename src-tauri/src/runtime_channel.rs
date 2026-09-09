@@ -78,6 +78,10 @@ impl RuntimeChannel {
         }
     }
 
+    pub fn supports_updater(self) -> bool {
+        matches!(self, Self::User)
+    }
+
     pub(crate) fn binding_channel(self) -> BindingChannel {
         match self {
             Self::User => BindingChannel::User,
@@ -401,6 +405,8 @@ mod tests {
             home.join(".mirror-minds/mirror-dev/memory.db")
         );
         assert_ne!(user.mirror_home, development.mirror_home);
+        assert!(RuntimeChannel::User.supports_updater());
+        assert!(!RuntimeChannel::Development.supports_updater());
     }
 
     #[test]

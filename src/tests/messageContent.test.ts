@@ -9,6 +9,7 @@ import {
   parseMessageBlocks,
 } from "../app/MessageContent";
 
+const appSource = readFileSync(new URL("../app/App.tsx", import.meta.url), "utf8");
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
 describe("MessageContent rich rendering parser", () => {
@@ -35,6 +36,27 @@ describe("MessageContent rich rendering parser", () => {
       { type: "unordered_list", items: ["one risk", "another risk"] },
       { type: "code", language: "json", text: '{"safe": true}' },
     ]);
+  });
+
+  it("preserves user-authored soft line breaks only when explicitly requested", () => {
+    const content = "First line\nSecond line\nThird line";
+
+    expect(parseMessageBlocks(content)).toEqual([
+      { type: "paragraph", text: "First line Second line Third line" },
+    ]);
+    expect(parseMessageBlocks(content, { preserveParagraphLineBreaks: true })).toEqual([
+      { type: "paragraph", text: content },
+    ]);
+
+    const html = renderToStaticMarkup(MessageContent({
+      content,
+      preserveParagraphLineBreaks: true,
+    }));
+    expect(html).toContain('class="message-content preserve-line-breaks"');
+    expect(html).toContain(content);
+    expect(cssSource).toContain(".message-content.preserve-line-breaks p");
+    expect(cssSource).toContain("white-space: pre-wrap");
+    expect(appSource).toContain('preserveParagraphLineBreaks={message.role === "user"}');
   });
 
   it("parses canonical Markdown tables with declared column alignment", () => {

@@ -40,15 +40,17 @@ export function MessageContent({
   content,
   basePath,
   onLocalPathClick,
+  preserveParagraphLineBreaks = false,
 }: {
   content: string;
   basePath?: string;
   onLocalPathClick?: (path: string) => void;
+  preserveParagraphLineBreaks?: boolean;
 }) {
-  const blocks = parseMessageBlocks(content);
+  const blocks = parseMessageBlocks(content, { preserveParagraphLineBreaks });
 
   return (
-    <div className="message-content">
+    <div className={`message-content${preserveParagraphLineBreaks ? " preserve-line-breaks" : ""}`}>
       {blocks.map((block, index) => renderBlock(block, index, basePath, onLocalPathClick))}
     </div>
   );
@@ -138,14 +140,17 @@ function parseCompactTable(line: string): TableBlock | undefined {
   return createTableBlock(rowLines[0], rowLines[1], rowLines.slice(2));
 }
 
-export function parseMessageBlocks(content: string): MessageBlock[] {
+export function parseMessageBlocks(
+  content: string,
+  options: { preserveParagraphLineBreaks?: boolean } = {},
+): MessageBlock[] {
   const lines = content.replace(/\r\n/g, "\n").split("\n");
   const blocks: MessageBlock[] = [];
   let paragraph: string[] = [];
   let index = 0;
 
   function flushParagraph() {
-    const text = paragraph.join(" ").trim();
+    const text = paragraph.join(options.preserveParagraphLineBreaks ? "\n" : " ").trim();
     if (text) {
       blocks.push({ type: "paragraph", text });
     }

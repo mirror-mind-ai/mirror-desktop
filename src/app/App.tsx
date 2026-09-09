@@ -3506,7 +3506,12 @@ export function App({ model }: AppProps) {
                           <MessageContent content={bodyContent} basePath={selectedJourneyBasePath} onLocalPathClick={(path) => void handleChatLocalPath(path)} />
                         </div>
                       ) : (
-                        <MessageContent content={bodyContent} basePath={selectedJourneyBasePath} onLocalPathClick={(path) => void handleChatLocalPath(path)} />
+                        <MessageContent
+                          content={bodyContent}
+                          basePath={selectedJourneyBasePath}
+                          onLocalPathClick={(path) => void handleChatLocalPath(path)}
+                          preserveParagraphLineBreaks={message.role === "user"}
+                        />
                       )
                     ) : null}
                     <MessageFileAttachments attachments={message.attachments} />

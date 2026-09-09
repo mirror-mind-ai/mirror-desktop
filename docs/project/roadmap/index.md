@@ -12,7 +12,7 @@ The former Nautilus Harness roadmap proved the first semantic bridge: the Tauri 
 
 The guiding question has shifted: can Mirror Mind offer a durable desktop home where a person operates real Journeys, changes altitude over the same territory, and recognizes how activity becomes direction, realization and value?
 
-The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/nautilus-harness-transfer.md). The founding exploratory handoff is [Mirror Desktop: Core, Installer and Tauri App Migration](../explorations/mirror-desktop-core-installer-and-tauri-app-migration/).
+The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/nautilus-harness-transfer.md). The founding exploratory handoff is [Mirror Desktop: Core, Installer and Tauri App Migration](../explorations/mirror-desktop-core-installer-and-tauri-app-migration/). Smaller product corrections and usage feedback are governed by the canonical [Refinement Workbench](../refinement/index.md).
 
 ## Capability Values
 
