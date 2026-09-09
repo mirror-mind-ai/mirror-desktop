@@ -39,7 +39,7 @@ export function updaterArtifactUrl(version, baseUrl = defaultBaseUrl) {
 }
 
 export function latestMacosDmgUrl(baseUrl = defaultBaseUrl) {
-  return `${baseUrl.replace(/\/$/, "")}/downloads/macos/latest.dmg`;
+  return `${baseUrl.replace(/\/$/, "")}/downloads/macos/mirror-desktop-latest.dmg`;
 }
 
 export function latestMacosDownloadManifestUrl(baseUrl = defaultBaseUrl) {
@@ -144,7 +144,7 @@ export function stagePrivateUpdatePublication(options) {
   if (options.dmg) {
     const dmgArtifactName = basename(options.dmg);
     copyFileSync(requireFile(resolve(repositoryRoot, options.dmg), "DMG artifact"), resolve(artifactsDir, dmgArtifactName));
-    copyFileSync(requireFile(resolve(repositoryRoot, options.dmg), "DMG artifact"), resolve(downloadsDir, "latest.dmg"));
+    copyFileSync(requireFile(resolve(repositoryRoot, options.dmg), "DMG artifact"), resolve(downloadsDir, "mirror-desktop-latest.dmg"));
     writeFileSync(resolve(downloadsDir, "latest.json"), `${JSON.stringify({
       version,
       dmg: plan.latestMacosDmgUrl,
@@ -171,7 +171,7 @@ export function publishStagedPrivateUpdate({ stageDir, sshHost = "szen-vps", web
   run("ssh", [sshHost, `set -e; sudo mkdir -p ${remoteDirs.map(shellQuote).join(" ")}; sudo chown -R $USER:$USER ${shellQuote(webRoot)}`], { stdio: "inherit" });
   run("bash", ["-lc", `scp ${shellQuote(resolve(stageDir, "artifacts"))}/* ${shellQuote(`${sshHost}:${webRoot}/artifacts/`)}`], { stdio: "inherit" });
   run("bash", ["-lc", `scp ${shellQuote(resolve(stageDir, "releases"))}/* ${shellQuote(`${sshHost}:${webRoot}/releases/`)}`], { stdio: "inherit" });
-  if (existsSync(resolve(downloadsDir, "latest.dmg"))) {
+  if (existsSync(resolve(downloadsDir, "mirror-desktop-latest.dmg"))) {
     run("bash", ["-lc", `scp ${shellQuote(downloadsDir)}/* ${shellQuote(`${sshHost}:${webRoot}/downloads/macos/`)}`], { stdio: "inherit" });
   }
   for (const path of manifestPaths) {

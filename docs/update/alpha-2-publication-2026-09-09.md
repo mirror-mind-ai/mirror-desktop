@@ -53,7 +53,7 @@ https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.1/latest.j
 https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.1/latest.json
 https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.2.app.tar.gz
 https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.2_x64.dmg
-https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.dmg
+https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/mirror-desktop-latest.dmg
 https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.json
 ```
 
@@ -62,7 +62,7 @@ The `latest.json` download manifest reports:
 ```json
 {
   "version": "0.2.0-alpha.2",
-  "dmg": "https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.dmg",
+  "dmg": "https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/mirror-desktop-latest.dmg",
   "artifact": "https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.2_x64.dmg",
   "releaseNotes": "https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.2.0-alpha.2.md"
 }

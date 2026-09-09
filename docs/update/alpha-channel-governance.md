@@ -23,7 +23,7 @@ The canonical updater host for new release work is `updates.mirrormind.sh`. The 
 The Mirror Mind website must not point at versioned DMG artifact paths. It points at the stable alpha download contract instead:
 
 ```text
-https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.dmg
+https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/mirror-desktop-latest.dmg
 https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.json
 ```
 
