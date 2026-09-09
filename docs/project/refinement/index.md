@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS009
-- Change Request: none
+- Change Request: CR011
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
