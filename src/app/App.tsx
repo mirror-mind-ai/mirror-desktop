@@ -647,6 +647,11 @@ export function App({ model }: AppProps) {
     reconciliationBlocksInvocation,
     mirrorRepairPending: Boolean(pendingMirrorRepair),
   });
+  const showBlockingTurnRecoveryNotice = Boolean(blockingTurnJournalRecord)
+    && !isStreaming
+    && (blockingOpeningRecovery !== "wait_for_agent" || composerTurnStatus !== "finishing");
+  const showNativeOccupancyNotice = piInvocationOccupancy.status !== "known"
+    && composerTurnStatus !== "finishing";
   const configuredContextWindow = piModelCatalog.find((entry) =>
     entry.provider === effectiveAgentProfile.model.provider && entry.model === effectiveAgentProfile.model.model,
   )?.contextWindow ?? configuredModelContextWindow(effectiveProviderConfig);
@@ -3581,7 +3586,7 @@ export function App({ model }: AppProps) {
               <p>{turnRecoveryNotice}</p>
             </section>
           ) : null}
-          {blockingTurnJournalRecord && !isStreaming ? (
+          {showBlockingTurnRecoveryNotice ? (
             <section className="dedicated-turn-notice" role="alert">
               {turnRecoveryBusy ? (
                 <><strong>Preparing your conversation…</strong><p>Mirror is safely checking the previous attempt.</p></>
@@ -3621,7 +3626,7 @@ export function App({ model }: AppProps) {
               <p>{turnRecoveryError}</p>
             </section>
           ) : null}
-          {piInvocationOccupancy.status !== "known" ? (
+          {showNativeOccupancyNotice ? (
             <section className="dedicated-turn-notice" role="status">
               <strong>Checking native operation occupancy</strong>
               <p>{piInvocationOccupancy.diagnostic ?? "Operational actions remain blocked until bounded native inspection completes."}</p>

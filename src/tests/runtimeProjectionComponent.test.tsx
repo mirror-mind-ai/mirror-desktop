@@ -119,6 +119,11 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("<ComposerRuntimeStatus");
     expect(appSource).not.toContain("Recording the completed turn");
     expect(appSource).not.toContain("turn-finalization-status");
+    expect(appSource).toContain("showBlockingTurnRecoveryNotice");
+    expect(appSource).toContain("showNativeOccupancyNotice");
+    expect(appSource).toContain('composerTurnStatus !== "finishing"');
+    expect(appSource).toContain("We couldn’t restore the previous response");
+    expect(appSource).toContain("Native Journey lease retained");
     expect(appSource).toContain("status={composerTurnStatus}");
     expect(appSource).toContain("if (journeyId === selectedJourney)");
     expect(appSource).toContain("const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime)");

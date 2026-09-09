@@ -67,6 +67,10 @@ Implemented the quiet lifecycle presentation:
 - actionable warning, recovery, retained-lease, and retry surfaces were left intact;
 - obsolete completion/finalization styles were removed.
 
+Alpha validation then exposed two additional routine projections in the same composer area: `The agent is still finishing the previous message` from the blocking turn journal and `Checking native operation occupancy` from bounded lease inspection. Both now remain hidden while the canonical composer status is already `Finishing…`; they remain available during startup recovery or any state where the canonical finishing status is absent.
+
+The remaining messages that can occupy this area are exception or recovery surfaces rather than successful-finalization milestones: runtime binding, local-file, unsent-message, agent-settings, previous-turn recovery, global-capacity, interrupted-turn, retained-lease, Mirror synchronization, and attachment failures. `Conversation ready` can also appear transiently after an actual recovery. These surfaces remain visible because they either require action or communicate a state not represented by `Finishing…`.
+
 ## Evidence
 
 Refinement traced the current presentation through:
@@ -81,9 +85,11 @@ Implementation validation:
 
 - 633 frontend tests passed across 114 files;
 - focused status, component, sidebar, theme, lifecycle, and source-boundary tests passed;
+- a follow-up source-boundary regression test verifies that blocking-journal and native-occupancy notices are gated during canonical finishing while recovery and retained-lease content remain present;
+- after the alpha follow-up, all 633 frontend tests across 114 files passed again;
 - `npm run build` passed;
 - `npm run tauri:build:dev` produced the isolated Dev app and DMG;
-- the restarted Dev process loaded the exact inode of the newly built executable;
+- the restarted Dev process loaded the newly built executable (`pid=47494`, inode `161440690`);
 - `git diff --check` passed.
 
 Navigator validation remains pending in the isolated Dev bundle.
