@@ -68,6 +68,14 @@ The `latest.json` download manifest reports:
 }
 ```
 
+## Source Promotion
+
+Navigator later authorized push, Git tag, GitHub Release, and notarization attempt for `0.2.0-alpha.2`.
+
+Git push and tag are authorized release actions for this alpha. GitHub Release may attach the DMG and updater artifacts as alpha release assets.
+
+Notarization is blocked until a valid Apple Developer ID signing identity and notarytool keychain profile are configured on the maintainer machine.
+
 ## Boundaries
 
-No Git tag, GitHub Release, Apple notarization submission, stable channel promotion, production/stable updater declaration, Mirror home mutation, `memory.db` mutation, identity mutation, credentials mutation, Journey content mutation, conversations mutation, app data mutation, or Nautilus Harness state mutation was performed.
+No Apple notarization submission, stable channel promotion, production/stable updater declaration, Mirror home mutation, `memory.db` mutation, identity mutation, credentials mutation, Journey content mutation, conversations mutation, app data mutation, or Nautilus Harness state mutation was performed.
