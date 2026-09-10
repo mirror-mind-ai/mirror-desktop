@@ -56,11 +56,17 @@ Implementation checks:
 - an explicit nonexistent signing-key path failed closed with exit code 2 before Tauri launched and directed unsigned validation to `tauri:build:dev`;
 - `git diff --check` passed before commit.
 
-The user application was not launched, installed, published, or promoted. Navigator validation remains pending.
+The user application was not launched, installed, published, or promoted.
+
+## Navigator Validation
+
+The Navigator accepted the technical validation evidence without opening the real user-channel application or touching its app-data boundary.
+
+The proportionality review found the implementation appropriately bounded: it reuses the governed alpha overlay and existing closed launcher, introduces no second updater trust root, and confines private-key injection to the signing child process after clearing inherited signing variables. No follow-up technical debt was accepted.
 
 ## Outcome
 
-Implementation is in progress; terminal outcome requires validation and an explicit Navigator decision.
+CR018 was closed as `done` by explicit Navigator decision after successful trusted-build and fail-closed validation.
 
 ## Authority Boundary
 
