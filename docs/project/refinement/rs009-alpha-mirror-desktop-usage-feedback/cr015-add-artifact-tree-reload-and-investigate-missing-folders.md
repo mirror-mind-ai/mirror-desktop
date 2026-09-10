@@ -104,7 +104,7 @@ Large generated folders are now bounded per expanded directory rather than by an
 
 ## Outcome
 
-CR015 is Navigator-validated. Terminal closure remains a separate explicit decision.
+CR015 was closed as `done` by explicit Navigator decision after successful isolated Dev validation. No follow-up debt was accepted within this change request.
 
 ## Migration Provenance
 

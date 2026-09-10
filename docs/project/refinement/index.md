@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS009
-- Change Request: CR015
+- Change Request: —
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -41,9 +41,9 @@ Open work is ordered intentionally. Terminal history follows open work.
 |------:|----|----|--------|--------|--------|----------|
 | 2 | [CR003](unassigned/cr003-generate-private-test-release-v0-1-1-test-1.md) | — | Generate private test release v0.1.1-test.1 | captured | — | — |
 | 3 | [CR014](unassigned/cr014-make-mirror-mind-site-repository-private.md) | — | Make Mirror Mind site repository private | captured | — | — |
-| 4 | [CR015](rs009-alpha-mirror-desktop-usage-feedback/cr015-add-artifact-tree-reload-and-investigate-missing-folders.md) | RS009 | Add artifact tree reload and investigate missing folders | validated | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
 | 5 | [CR016](rs009-alpha-mirror-desktop-usage-feedback/cr016-improve-light-theme-button-label-contrast-after-journey-start.md) | RS009 | Improve light-theme button label contrast after journey start | captured | — | — |
 | 6 | [CR018](rs009-alpha-mirror-desktop-usage-feedback/cr018-make-user-channel-source-build-updater-contract-explicit.md) | RS009 | Make user-channel source build updater contract explicit | captured | — | — |
+| — | [CR015](rs009-alpha-mirror-desktop-usage-feedback/cr015-add-artifact-tree-reload-and-investigate-missing-folders.md) | RS009 | Add artifact tree reload and investigate missing folders | done | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
 | — | [CR012](rs009-alpha-mirror-desktop-usage-feedback/cr012-replace-completion-messages-with-finishing-status.md) | RS009 | Replace completion messages with Finishing status | done | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
 | — | [CR019](rs009-alpha-mirror-desktop-usage-feedback/cr019-settle-provider-errors-without-permanent-working-state.md) | RS009 | Settle provider errors without permanent Working state | done | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
 | — | [CR011](rs009-alpha-mirror-desktop-usage-feedback/cr011-context-usage-percentage-is-slow-or-missing.md) | RS009 | Context usage percentage is slow or missing | done | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
