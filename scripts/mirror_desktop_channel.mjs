@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import { loadRuntimeBinding } from "./runtime_binding_file.mjs";
@@ -8,12 +8,14 @@ import { loadRuntimeBinding } from "./runtime_binding_file.mjs";
 const mode = process.argv[2];
 const tauri = resolve("node_modules", ".bin", process.platform === "win32" ? "tauri.cmd" : "tauri");
 const inheritedMirrorEnvironment = ["MIRROR_HOME", "MIRROR_USER", "DB_PATH"];
+const inheritedSigningEnvironment = ["TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"];
+const defaultUserSigningKey = resolve(process.env.HOME ?? "", ".mirror-desktop-updater", "alpha", "updater.key");
 
 const channels = {
   user: {
     channel: "user",
     identifier: "ai.mirrormind.desktop",
-    args: ["dev"],
+    args: ["dev", "--config", "src-tauri/tauri.alpha-update.conf.json"],
     bundle: "Mirror Desktop.app",
   },
   dev: {
@@ -31,8 +33,9 @@ const channels = {
   "build-user": {
     channel: "user",
     identifier: "ai.mirrormind.desktop",
-    args: ["build"],
+    args: ["build", "--config", "src-tauri/tauri.alpha-update.conf.json"],
     bundle: "Mirror Desktop.app",
+    requiresUpdaterSigning: true,
   },
   "import-user": {
     channel: "user",
@@ -50,8 +53,20 @@ const channels = {
 
 function cleanLaunchEnvironment(extra = {}) {
   const environment = { ...process.env };
-  for (const name of inheritedMirrorEnvironment) delete environment[name];
+  for (const name of [...inheritedMirrorEnvironment, ...inheritedSigningEnvironment]) delete environment[name];
   return { ...environment, ...extra };
+}
+
+function userBuildEnvironment() {
+  const signingKey = process.env.MIRROR_DESKTOP_UPDATER_SIGNING_KEY || defaultUserSigningKey;
+  if (!existsSync(signingKey)) {
+    console.error(`User-channel build requires the trusted updater signing key at ${signingKey}. Use npm run tauri:build:dev for unsigned local validation.`);
+    process.exit(2);
+  }
+  return cleanLaunchEnvironment({
+    TAURI_SIGNING_PRIVATE_KEY: readFileSync(signingKey, "utf8"),
+    TAURI_SIGNING_PRIVATE_KEY_PASSWORD: "",
+  });
 }
 
 function runBootstrap(profile) {
@@ -109,7 +124,9 @@ if (mode === "import-user" || mode === "import-dev") {
   process.exit(0);
 }
 const result = spawnSync(tauri, [...selected.args, ...process.argv.slice(3)], {
-  cwd: process.cwd(), env: cleanLaunchEnvironment(), stdio: "inherit",
+  cwd: process.cwd(),
+  env: selected.requiresUpdaterSigning ? userBuildEnvironment() : cleanLaunchEnvironment(),
+  stdio: "inherit",
 });
 if (result.error) {
   console.error(result.error.message);

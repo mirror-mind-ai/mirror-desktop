@@ -134,11 +134,13 @@ Development bundle:
 npm run tauri:build:dev
 ```
 
-Stable user bundle:
+Trusted alpha user bundle:
 
 ```bash
 npm run tauri:build:user
 ```
+
+The user-channel build always overlays `src-tauri/tauri.alpha-update.conf.json` and creates signed updater artifacts. It fails closed unless the updater signing key exists at `$HOME/.mirror-desktop-updater/alpha/updater.key` (or the path named by `MIRROR_DESKTOP_UPDATER_SIGNING_KEY`). Use `npm run tauri:build:dev` for unsigned local validation; there is no unsigned user-identity build route.
 
 A source-built bundle starts with channel-local state. Import the canonical Journey registry explicitly when needed:
 
@@ -163,7 +165,7 @@ To run the current source tree against the stable channel without installing it:
 npm run tauri:user
 ```
 
-Use this only for an explicit stable-channel check. Daily development belongs in `tauri:dev`.
+This command overlays the trusted alpha updater endpoint and public key before the user-channel updater plugin starts. Use it only for an explicit user-channel check because it opens the real user identity and app-data boundary. Daily development belongs in `tauri:dev`.
 
 ## 6. Promote an Approved Build to Production
 

@@ -85,7 +85,9 @@ git status --short
 
 Any failed gate or unexpected lockfile change blocks delivery.
 
-## 4. Build and verify the stable bundle
+## 4. Build and verify the trusted user bundle
+
+The command below overlays the governed alpha updater configuration and fails closed unless the updater signing key exists at `$HOME/.mirror-desktop-updater/alpha/updater.key` or `MIRROR_DESKTOP_UPDATER_SIGNING_KEY` names its path. Unsigned validation belongs to `npm run tauri:build:dev`, never to the user bundle identity.
 
 ```bash
 npm run tauri:build:user -- -- --locked

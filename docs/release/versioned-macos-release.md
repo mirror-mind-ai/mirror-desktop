@@ -34,6 +34,8 @@ The inspection is read-only. It does not create a tag, build an artifact, publis
 
 ## Build and verify
 
+The user-channel build is updater-enabled and signed. It overlays `src-tauri/tauri.alpha-update.conf.json` and requires the trusted updater key at `$HOME/.mirror-desktop-updater/alpha/updater.key` or the path named by `MIRROR_DESKTOP_UPDATER_SIGNING_KEY`; it has no unsigned fallback.
+
 Run the ordinary gates from a clean checkout:
 
 ```bash

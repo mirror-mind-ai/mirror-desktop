@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import packageJson from "../../package.json";
 import stableConfig from "../../src-tauri/tauri.conf.json";
 import developmentConfig from "../../src-tauri/tauri.dev.conf.json";
+import alphaUpdaterConfig from "../../src-tauri/tauri.alpha-update.conf.json";
 import rustSource from "../../src-tauri/src/main.rs?raw";
 import runtimeBindingSource from "../../src-tauri/src/runtime_binding.rs?raw";
 import runtimeChannelSource from "../../src-tauri/src/runtime_channel.rs?raw";
@@ -86,6 +87,18 @@ describe("runtime channel configuration", () => {
     expect(runtimeChannelSource).toContain("matches!(self, Self::User)");
     expect(rustSource).toContain("if channel.supports_updater()");
     expect(rustSource).toContain("tauri_plugin_updater::Builder::new().build()");
+  });
+
+  it("makes every generic user-channel route carry the trusted alpha updater contract", () => {
+    expect(alphaUpdaterConfig.bundle.createUpdaterArtifacts).toBe(true);
+    expect(alphaUpdaterConfig.plugins.updater.endpoints).toEqual([
+      "https://updates.mirrormind.sh/mirror-desktop/alpha/{{target}}/{{current_version}}/latest.json",
+    ]);
+    expect(alphaUpdaterConfig.plugins.updater.pubkey).not.toHaveLength(0);
+    expect(channelLauncher.match(/"src-tauri\/tauri\.alpha-update\.conf\.json"/g)).toHaveLength(2);
+    expect(channelLauncher).toContain('const defaultUserSigningKey = resolve(process.env.HOME ?? "", ".mirror-desktop-updater", "alpha", "updater.key")');
+    expect(channelLauncher).toContain('TAURI_SIGNING_PRIVATE_KEY: readFileSync(signingKey, "utf8")');
+    expect(channelLauncher).toContain('User-channel build requires the trusted updater signing key');
   });
 
   it("routes Mirror operations through a persisted binding without production fallback", () => {
