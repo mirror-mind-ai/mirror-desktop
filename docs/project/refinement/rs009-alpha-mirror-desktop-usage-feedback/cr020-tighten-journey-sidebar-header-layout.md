@@ -21,11 +21,33 @@ This is a focused visual hierarchy and alignment refinement for the Journey side
 
 ## Plan Or Decision
 
-Not planned. Likely implementation surfaces are the existing `.brand-block`, `.brand-copy`, `.brand-mark-wrap`, version-chip wrapper, and descriptor rules in `src/styles/app.css`; component markup should change only if CSS cannot express the required semantic grouping and separator cleanly.
+Use the existing semantic markup and make a CSS-only hierarchy correction:
+
+- align the expanded `.brand-block` children to the top;
+- reduce the version wrapper's title gap to one pixel;
+- give the direct descriptor `<small>` a six-pixel upper gap, a subtle accent separator, and five pixels of inset;
+- preserve the existing compact-sidebar rules, update interaction, badges, and light-theme color overrides.
+
+Driver: `@alissonvale`. Delivery: `refinement/rs009-cr010-shift-enter-line-breaks`.
+
+## Implementation
+
+The sidebar brand block now top-aligns the icon, copy, and collapse control. The version remains attached to the title, while `Journey Navigation` is separated by a small accent rule and bounded spacing. No component, updater, navigation, or persistence behavior changed.
 
 ## Evidence
 
-The current implementation aligns `.brand-block` items to the center, gives the version wrapper a top margin, and renders the descriptor as the subsequent `<small>` element in `src/app/App.tsx`. This explains the icon alignment and the weak title/version/descriptor grouping described in alpha feedback.
+The pre-change regression test failed against the centered brand block and missing hierarchy contract. The implementation adds a dedicated source-level contract that verifies title/version/descriptor order, exact expanded-header spacing and separator, top alignment, and preservation of compact-sidebar behavior.
+
+Implementation checks:
+
+- the focused sidebar brand layout suite passed with 2 tests;
+- all 644 frontend tests passed across 117 files;
+- `npm run build` passed, with only the pre-existing Vite chunk-size warning;
+- `npm run tauri:build:dev` rebuilt the isolated Dev app and DMG;
+- the restarted Dev process loaded the rebuilt executable (`pid=80089`, inode `161464321`);
+- `git diff --check` passed before commit.
+
+Navigator visual validation remains pending in the isolated Dev bundle.
 
 ## Outcome
 

@@ -239,8 +239,9 @@ textarea {
   z-index: 20;
 }
 
+/* Journey sidebar brand hierarchy contract. */
 .brand-block {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
   gap: 12px;
   margin: 2px 4px 18px;
@@ -252,7 +253,7 @@ textarea {
 
 .brand-copy .self-update-chip-wrap {
   display: block;
-  margin-top: 5px;
+  margin-top: 1px;
 }
 
 .brand-copy .self-update-chip {
@@ -358,6 +359,12 @@ textarea {
   color: #7f8b8f;
   font-size: 0.8rem;
   margin-top: 2px;
+}
+
+.brand-copy > small {
+  border-top: 1px solid rgba(var(--ui-accent-rgb), 0.2);
+  margin-top: 6px;
+  padding-top: 5px;
 }
 
 .development-badge {
