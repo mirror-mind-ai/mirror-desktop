@@ -94,11 +94,17 @@ Implementation checks:
 - the restarted Dev process loaded the new executable (`pid=66047`, inode `161454024`);
 - `git diff --check` passed.
 
-Navigator validation remains pending in the isolated Dev bundle.
+## Navigator Validation
+
+The Navigator validated the isolated Dev bundle with lazy folder expansion, access through `src-tauri/target/release/bundle/`, and manual workspace reload.
+
+Proportionality review found the implementation appropriately bounded: it replaces unsafe eager traversal rather than special-casing one absolute machine path, retains exact Journey authority and canonical containment, and reuses the existing reveal boundary. Private paths, symlinks, high-volume Cargo intermediates, mutation, polling, and execution remain outside the tree contract. No follow-up technical debt was accepted.
+
+Large generated folders are now bounded per expanded directory rather than by an eager whole-workspace scan. This is intentional and covered by native and frontend tests.
 
 ## Outcome
 
-No terminal outcome has been recorded.
+CR015 is Navigator-validated. Terminal closure remains a separate explicit decision.
 
 ## Migration Provenance
 
