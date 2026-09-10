@@ -26,17 +26,18 @@ Use the existing semantic markup and make a CSS-only hierarchy correction:
 - align the expanded `.brand-block` children to the top;
 - reduce the version wrapper's title gap to one pixel;
 - give the direct descriptor `<small>` a six-pixel upper gap, a subtle accent separator, and five pixels of inset;
-- preserve the existing compact-sidebar rules, update interaction, badges, and light-theme color overrides.
+- remove the redundant visible `DEV LAB` title badge while retaining the icon's `DEV` badge and an assistive-text development-channel label;
+- preserve the existing compact-sidebar rules, update interaction, remaining badges, and light-theme color overrides.
 
 Driver: `@alissonvale`. Delivery: `refinement/rs009-cr010-shift-enter-line-breaks`.
 
 ## Implementation
 
-The sidebar brand block now top-aligns the icon, copy, and collapse control. The version remains attached to the title, while `Journey Navigation` is separated by a small accent rule and bounded spacing. No component, updater, navigation, or persistence behavior changed.
+The sidebar brand block now top-aligns the icon, copy, and collapse control. The version remains attached to the title, while `Journey Navigation` is separated by a small accent rule and bounded spacing. The redundant visible `DEV LAB` badge was removed from this title only; the icon retains its `DEV` badge, and screen readers receive `Development channel` through the existing `sr-only` utility. The development labels used elsewhere remain unchanged. No updater, navigation, or persistence behavior changed.
 
 ## Evidence
 
-The pre-change regression test failed against the centered brand block and missing hierarchy contract. The implementation adds a dedicated source-level contract that verifies title/version/descriptor order, exact expanded-header spacing and separator, top alignment, and preservation of compact-sidebar behavior.
+The pre-change regression tests failed against the centered brand block, missing hierarchy contract, and redundant title badge. The implementation adds a dedicated source-level contract that verifies title/version/descriptor order, exact expanded-header spacing and separator, top alignment, accessible development identity, removal of the title badge, and preservation of compact-sidebar behavior.
 
 Implementation checks:
 
@@ -44,15 +45,15 @@ Implementation checks:
 - all 644 frontend tests passed across 117 files;
 - `npm run build` passed, with only the pre-existing Vite chunk-size warning;
 - `npm run tauri:build:dev` rebuilt the isolated Dev app and DMG;
-- the restarted Dev process loaded the rebuilt executable (`pid=80089`, inode `161464321`);
+- the restarted Dev process loaded the rebuilt executable (`pid=81867`, inode `161465312`);
 - `git diff --check` passed before commit.
 
 Navigator visual validation remains pending in the isolated Dev bundle.
 
 ## Outcome
 
-No terminal outcome has been recorded. CR020 is captured and unassigned.
+Implementation is in progress; terminal outcome requires visual validation and an explicit Navigator decision.
 
 ## Authority Boundary
 
-Capture does not authorize selection, planning, implementation, commit, push, publication, release, endpoint mutation, or production promotion.
+Implementation was explicitly authorized for CR020. Push, publication, release, endpoint mutation, and production promotion remain unauthorized.

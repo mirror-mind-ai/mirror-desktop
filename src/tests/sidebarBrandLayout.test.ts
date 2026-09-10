@@ -10,6 +10,8 @@ describe("Journey sidebar brand header", () => {
     const brand = appSource.slice(appSource.indexOf('<div className="brand-block">'), appSource.indexOf('className="sidebar-toggle-button"'));
     expect(brand.indexOf("<strong>Mirror Desktop")).toBeLessThan(brand.indexOf("<SelfUpdateNotification"));
     expect(brand.indexOf("<SelfUpdateNotification")).toBeLessThan(brand.indexOf("<small>{PRODUCT_DESCRIPTOR}</small>"));
+    expect(brand).not.toContain('className="development-badge"');
+    expect(brand).toContain('<span className="sr-only">Development channel</span>');
     expect(cssSource).toContain("/* Journey sidebar brand hierarchy contract. */");
     expect(cssSource).toContain("align-items: flex-start;");
     expect(cssSource).toContain(".brand-copy .self-update-chip-wrap {\n  display: block;\n  margin-top: 1px;");

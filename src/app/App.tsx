@@ -3067,7 +3067,7 @@ export function App({ model }: AppProps) {
             {developmentChannel ? <span className="brand-channel-badge">DEV</span> : null}
           </span>
           <div className="brand-copy">
-            <strong>Mirror Desktop {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</strong>
+            <strong>Mirror Desktop {developmentChannel ? <span className="sr-only">Development channel</span> : null}</strong>
             <SelfUpdateNotification runtimeBusy={runtimeBusy} onReview={() => { setSettingsTab("updates"); setSettingsOpen(true); }} />
             <small>{PRODUCT_DESCRIPTOR}</small>
           </div>
