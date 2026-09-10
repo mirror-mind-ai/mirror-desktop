@@ -27,3 +27,4 @@ status remains owned by the Workbench index.
 - [CR017 — Keep development bundle independent from updater configuration](cr017-keep-development-bundle-independent-from-updater-configuration.md)
 - [CR018 — Make user-channel source build updater contract explicit](cr018-make-user-channel-source-build-updater-contract-explicit.md)
 - [CR019 — Settle provider errors without permanent Working state](cr019-settle-provider-errors-without-permanent-working-state.md)
+- [CR020 — Tighten Journey sidebar header layout](cr020-tighten-journey-sidebar-header-layout.md)

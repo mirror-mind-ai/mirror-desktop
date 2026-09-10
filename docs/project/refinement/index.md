@@ -41,6 +41,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 |------:|----|----|--------|--------|--------|----------|
 | 2 | [CR003](unassigned/cr003-generate-private-test-release-v0-1-1-test-1.md) | — | Generate private test release v0.1.1-test.1 | captured | — | — |
 | 3 | [CR014](unassigned/cr014-make-mirror-mind-site-repository-private.md) | — | Make Mirror Mind site repository private | captured | — | — |
+| 7 | [CR020](rs009-alpha-mirror-desktop-usage-feedback/cr020-tighten-journey-sidebar-header-layout.md) | RS009 | Tighten Journey sidebar header layout | captured | — | — |
 | — | [CR018](rs009-alpha-mirror-desktop-usage-feedback/cr018-make-user-channel-source-build-updater-contract-explicit.md) | RS009 | Make user-channel source build updater contract explicit | done | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
 | — | [CR016](rs009-alpha-mirror-desktop-usage-feedback/cr016-improve-light-theme-button-label-contrast-after-journey-start.md) | RS009 | Improve light-theme button label contrast after journey start | done | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
 | — | [CR015](rs009-alpha-mirror-desktop-usage-feedback/cr015-add-artifact-tree-reload-and-investigate-missing-folders.md) | RS009 | Add artifact tree reload and investigate missing folders | done | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
