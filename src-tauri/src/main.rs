@@ -1085,7 +1085,7 @@ const FILE_ATTACHMENT_THUMBNAIL_EDGE: u32 = 256;
 const FILE_ATTACHMENT_THUMBNAIL_SOURCE_MAX_BYTES: u64 = 50 * 1024 * 1024;
 const FILE_ATTACHMENT_THUMBNAIL_MAX_PIXELS: u64 = 20_000_000;
 const WORKSPACE_TREE_MAX_DEPTH: usize = 16;
-const WORKSPACE_TREE_MAX_ENTRIES: usize = 10_000;
+const WORKSPACE_DIRECTORY_MAX_ENTRIES: usize = 10_000;
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -1099,6 +1099,7 @@ struct JourneyDocumentationNode {
     #[serde(skip_serializing_if = "Option::is_none")]
     modified_at: Option<u64>,
     children: Vec<JourneyDocumentationNode>,
+    children_loaded: bool,
 }
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
@@ -1140,7 +1141,8 @@ fn omitted_workspace_component(name: &str) -> bool {
         || matches!(
             name,
             "node_modules"
-                | "target"
+                | "deps"
+                | "incremental"
                 | "dist"
                 | "build"
                 | "venv"
@@ -1181,25 +1183,48 @@ fn documentation_relative_path(root: &Path, path: &Path) -> Result<String, Strin
     Ok(value)
 }
 
-fn collect_documentation_nodes(
+fn resolve_documentation_directory(
     root: &Path,
-    directory: &Path,
-    depth: usize,
-    entry_count: &mut usize,
-) -> Result<Vec<JourneyDocumentationNode>, String> {
-    if depth > WORKSPACE_TREE_MAX_DEPTH {
+    relative_path: Option<&str>,
+) -> Result<PathBuf, String> {
+    let Some(relative_path) = relative_path.filter(|path| !path.trim().is_empty()) else {
+        return Ok(root.to_path_buf());
+    };
+    let safe_relative = validate_document_relative_path(relative_path)?;
+    if safe_relative.components().count() > WORKSPACE_TREE_MAX_DEPTH {
         return Err("Journey workspace hierarchy exceeds the bounded depth limit.".to_string());
     }
+    let mut cursor = root.to_path_buf();
+    for component in safe_relative.components() {
+        cursor.push(component.as_os_str());
+        let metadata = fs::symlink_metadata(&cursor)
+            .map_err(|_| "Could not resolve the selected Journey folder.".to_string())?;
+        if metadata.file_type().is_symlink() {
+            return Err("Symbolic-link folders are outside the Artifacts boundary.".to_string());
+        }
+    }
+    let canonical = cursor
+        .canonicalize()
+        .map_err(|_| "Could not resolve the selected Journey folder.".to_string())?;
+    if !canonical.starts_with(root) || !canonical.is_dir() {
+        return Err("Artifact folder is outside the allowed Journey root.".to_string());
+    }
+    Ok(canonical)
+}
+
+fn collect_documentation_children(
+    root: &Path,
+    directory: &Path,
+) -> Result<Vec<JourneyDocumentationNode>, String> {
     let mut nodes = Vec::new();
     let entries = fs::read_dir(directory)
         .map_err(|_| "Could not read the Journey documentation hierarchy.".to_string())?;
-    for entry_result in entries {
+    for (entry_count, entry_result) in entries.enumerate() {
+        if entry_count >= WORKSPACE_DIRECTORY_MAX_ENTRIES {
+            return Err("Journey workspace directory exceeds the bounded entry limit.".to_string());
+        }
         let entry = entry_result
             .map_err(|_| "Could not read a Journey documentation entry.".to_string())?;
-        *entry_count += 1;
-        if *entry_count > WORKSPACE_TREE_MAX_ENTRIES {
-            return Err("Journey workspace hierarchy exceeds the bounded entry limit.".to_string());
-        }
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().into_owned();
         if omitted_workspace_component(&name) {
@@ -1231,11 +1256,8 @@ fn collect_documentation_nodes(
             preview_kind: if is_directory { "unavailable" } else { documentation_preview_kind(&canonical) }.to_string(),
             size_bytes: if is_directory { None } else { Some(metadata.len()) },
             modified_at: documentation_modified_at(&metadata),
-            children: if is_directory {
-                collect_documentation_nodes(root, &canonical, depth + 1, entry_count)?
-            } else {
-                Vec::new()
-            },
+            children: Vec::new(),
+            children_loaded: !is_directory,
         });
     }
     nodes.sort_by(|left, right| {
@@ -1249,11 +1271,14 @@ fn collect_documentation_nodes(
     Ok(nodes)
 }
 
-fn list_journey_documentation_at(journey_root: &Path) -> Result<JourneyDocumentationTree, String> {
+fn list_journey_documentation_at(
+    journey_root: &Path,
+    relative_path: Option<&str>,
+) -> Result<JourneyDocumentationTree, String> {
     let canonical_root = bounded_documentation_root(journey_root)?;
-    let mut entry_count = 0;
-    let items = collect_documentation_nodes(&canonical_root, &canonical_root, 0, &mut entry_count)?;
-    let root_label = canonical_root
+    let directory = resolve_documentation_directory(&canonical_root, relative_path)?;
+    let items = collect_documentation_children(&canonical_root, &directory)?;
+    let root_label = directory
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .filter(|name| !name.is_empty())
@@ -1604,9 +1629,13 @@ async fn load_journey_projections(app: AppHandle, journey_id: String) -> Result<
 }
 
 #[tauri::command]
-fn list_journey_documentation(app: AppHandle, journey_id: String) -> Result<JourneyDocumentationTree, String> {
+fn list_journey_documentation(
+    app: AppHandle,
+    journey_id: String,
+    relative_path: Option<String>,
+) -> Result<JourneyDocumentationTree, String> {
     let journey_root = registered_journey_root(&app, &journey_id)?;
-    list_journey_documentation_at(&journey_root)
+    list_journey_documentation_at(&journey_root, relative_path.as_deref())
 }
 
 #[tauri::command]
@@ -5440,7 +5469,7 @@ mod tests {
         let directory = std::env::temp_dir().join(format!("nautilus-doc-tree-{}-{}", std::process::id(), nonce));
         fs::create_dir_all(&directory).unwrap();
 
-        let empty = list_journey_documentation_at(&directory).unwrap();
+        let empty = list_journey_documentation_at(&directory, None).unwrap();
         assert_eq!(empty.status, "empty");
         fs::create_dir_all(directory.join("guides")).unwrap();
         fs::create_dir_all(directory.join("node_modules/package")).unwrap();
@@ -5450,15 +5479,37 @@ mod tests {
         fs::write(directory.join("Alpha.txt"), "alpha").unwrap();
         fs::write(directory.join("guides/start.md"), "# Start").unwrap();
 
-        let tree = list_journey_documentation_at(&directory).unwrap();
+        let tree = list_journey_documentation_at(&directory, None).unwrap();
         assert_eq!(tree.status, "ready");
         assert_eq!(tree.root_label, directory.file_name().unwrap().to_string_lossy());
         assert_eq!(tree.items.iter().map(|node| node.name.as_str()).collect::<Vec<_>>(), vec!["guides", "Alpha.txt", "z.md"]);
-        assert_eq!(tree.items[0].children[0].relative_path, "guides/start.md");
+        assert!(!tree.items[0].children_loaded);
+        assert!(tree.items[0].children.is_empty());
+        let guides = list_journey_documentation_at(&directory, Some("guides")).unwrap();
+        assert_eq!(guides.items[0].relative_path, "guides/start.md");
+        assert!(guides.items[0].children_loaded);
         assert!(!tree.items.iter().any(|node| node.name == ".env" || node.name == "node_modules"));
         let json = serde_json::to_string(&tree).unwrap();
         assert!(!json.contains(&directory.to_string_lossy().to_string()));
         assert!(!json.contains("SECRET"));
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn exposes_release_bundles_without_recursing_through_cargo_output() {
+        let directory = test_root("lazy-release-bundle");
+        fs::create_dir_all(directory.join("src-tauri/target/release/bundle/macos/Mirror Desktop Dev.app")).unwrap();
+        fs::create_dir_all(directory.join("src-tauri/target/release/deps")).unwrap();
+        fs::write(directory.join("src-tauri/target/release/deps/generated.rlib"), "generated").unwrap();
+
+        let target = list_journey_documentation_at(&directory, Some("src-tauri/target")).unwrap();
+        assert_eq!(target.items.iter().map(|node| node.name.as_str()).collect::<Vec<_>>(), vec!["release"]);
+        let release = list_journey_documentation_at(&directory, Some("src-tauri/target/release")).unwrap();
+        assert_eq!(release.items.iter().map(|node| node.name.as_str()).collect::<Vec<_>>(), vec!["bundle"]);
+        let bundle = list_journey_documentation_at(&directory, Some("src-tauri/target/release/bundle")).unwrap();
+        assert_eq!(bundle.items[0].relative_path, "src-tauri/target/release/bundle/macos");
+        assert!(!bundle.items[0].children_loaded);
+
         fs::remove_dir_all(directory).unwrap();
     }
 
@@ -5471,7 +5522,8 @@ mod tests {
             nested = nested.join(format!("level-{}", index));
         }
         fs::create_dir_all(&nested).unwrap();
-        assert!(list_journey_documentation_at(&directory).is_err());
+        let too_deep = (0..17).map(|index| format!("level-{}", index)).collect::<Vec<_>>().join("/");
+        assert!(list_journey_documentation_at(&directory, Some(&too_deep)).is_err());
         fs::remove_dir_all(directory).unwrap();
     }
 
@@ -5523,7 +5575,7 @@ mod tests {
         symlink(&outside, directory.join("escape.md")).unwrap();
         symlink(&directory, directory.join("loop")).unwrap();
 
-        let tree = list_journey_documentation_at(&directory).unwrap();
+        let tree = list_journey_documentation_at(&directory, None).unwrap();
         assert_eq!(tree.status, "empty");
         assert!(read_journey_document_at(&directory, "escape.md").is_err());
         fs::remove_file(outside).unwrap();

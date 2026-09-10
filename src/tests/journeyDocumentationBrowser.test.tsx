@@ -153,6 +153,27 @@ describe("JourneyDocumentationBrowser", () => {
     expect(cssSource).toContain(".artifact-preview-layout-toggle:focus-visible");
   });
 
+  it("offers reload without replacing the visible tree and reports lazy folder loading", () => {
+    const html = renderToStaticMarkup(
+      <JourneyDocumentationSurface
+        tree={readyTree}
+        expandedPaths={new Set(["guides"])}
+        selectedNode={undefined}
+        content={{ status: "idle" }}
+        treeReloading
+        loadingPaths={new Set(["guides"])}
+        {...handlers}
+      />,
+    );
+
+    expect(html).toContain('aria-label="Reload workspace"');
+    expect(html).toContain("Reloading workspace…");
+    expect(html).toContain("Loading guides…");
+    expect(html).toContain("release bundles remain available");
+    expect(html).toContain("guides/start.md");
+    expect(cssSource).toContain(".artifact-tree-reload:focus-visible");
+  });
+
   it("shows metadata and an honest reason when preview is unavailable", () => {
     const unsupported: DocumentationNode = {
       relativePath: "images/map.png",
@@ -205,7 +226,7 @@ describe("JourneyDocumentationBrowser", () => {
       "dangerouslySetInnerHTML",
       "setInterval",
       "attach",
-      "delete",
+      "deleteJourney",
       "rename",
       "open_local_reference",
       "start_pi_invocation",

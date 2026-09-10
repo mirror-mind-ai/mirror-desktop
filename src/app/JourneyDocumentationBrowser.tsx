@@ -9,6 +9,8 @@ import {
 } from "react";
 import {
   findDocumentationNode,
+  loadedDocumentationPaths,
+  replaceDocumentationNodeChildren,
   toggleExpandedDocumentationPath,
   type DocumentationContentViewState,
   type DocumentationNode,
@@ -80,6 +82,10 @@ type JourneyDocumentationSurfaceProps = {
   routingError?: string;
   openError?: string;
   artifactActionError?: string;
+  treeActionError?: string;
+  treeReloading?: boolean;
+  loadingPaths?: ReadonlySet<string>;
+  onReload?: () => void;
   previewExpanded?: boolean;
   onPreviewExpandedChange?: (expanded: boolean) => void;
 };
@@ -113,34 +119,79 @@ export function JourneyDocumentationBrowser({
   const [routingError, setRoutingError] = useState<string>();
   const [openError, setOpenError] = useState<string>();
   const [artifactActionError, setArtifactActionError] = useState<string>();
+  const [treeActionError, setTreeActionError] = useState<string>();
+  const [treeReloading, setTreeReloading] = useState(false);
+  const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set());
   const [artifactMenu, setArtifactMenu] = useState<ArtifactMenuState>();
   const [previewExpanded, setPreviewExpanded] = useState(false);
   const treeRequestRef = useRef(0);
+  const folderRequestSequenceRef = useRef(0);
+  const folderRequestsRef = useRef<Map<string, number>>(new Map());
   const contentRequestRef = useRef(0);
   const artifactActionRequestRef = useRef(0);
 
-  useEffect(() => {
+  async function loadTree(preserveView: boolean) {
     const request = ++treeRequestRef.current;
+    folderRequestsRef.current.clear();
     contentRequestRef.current += 1;
     artifactActionRequestRef.current += 1;
-    setExpandedPaths(new Set());
-    setSelectedNode(undefined);
-    setContent({ status: "idle" });
-    setRoutingError(undefined);
-    setOpenError(undefined);
-    setArtifactActionError(undefined);
-    setArtifactMenu(undefined);
+    setLoadingPaths(new Set());
+    setTreeActionError(undefined);
+    if (preserveView) {
+      setTreeReloading(true);
+    } else {
+      setExpandedPaths(new Set());
+      setSelectedNode(undefined);
+      setContent({ status: "idle" });
+      setRoutingError(undefined);
+      setOpenError(undefined);
+      setArtifactActionError(undefined);
+      setArtifactMenu(undefined);
+      setTree({ status: "loading" });
+    }
 
-    setTree({ status: "loading" });
-    void listJourneyDocumentation(journeyId)
-      .then((nextTree) => {
-        if (treeRequestRef.current === request) setTree(nextTree);
-      })
-      .catch(() => {
-        if (treeRequestRef.current === request) {
-          setTree({ status: "error", message: `${journeyName}'s bounded workspace read could not be completed.` });
+    try {
+      const root = await listJourneyDocumentation(journeyId);
+      if (treeRequestRef.current !== request) return;
+      let items = root.items;
+      if (preserveView) {
+        const paths = [...expandedPaths].sort((left, right) => left.split("/").length - right.split("/").length);
+        for (const path of paths) {
+          if (treeRequestRef.current !== request) return;
+          const match = findDocumentationNode(items, path);
+          if (!match || match.node.kind !== "folder") continue;
+          const children = await listJourneyDocumentation(journeyId, path);
+          if (treeRequestRef.current !== request) return;
+          items = replaceDocumentationNodeChildren(items, path, children.items);
         }
-      });
+      }
+      const nextTree = { ...root, items };
+      setTree(nextTree);
+      const availablePaths = loadedDocumentationPaths(items);
+      setExpandedPaths((current) => new Set([...current].filter((path) => availablePaths.has(path))));
+      if (preserveView && selectedNode) {
+        const refreshed = findDocumentationNode(items, selectedNode.relativePath)?.node;
+        if (refreshed) selectNode(refreshed);
+        else {
+          setSelectedNode(undefined);
+          setContent({ status: "idle" });
+          setTreeActionError("The previously selected artifact is no longer present.");
+        }
+      }
+    } catch {
+      if (treeRequestRef.current !== request) return;
+      if (preserveView) {
+        setTreeActionError("The Journey workspace could not be reloaded. The last successful tree is still shown.");
+      } else {
+        setTree({ status: "error", message: `${journeyName}'s bounded workspace read could not be completed.` });
+      }
+    } finally {
+      if (treeRequestRef.current === request) setTreeReloading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadTree(false);
   }, [journeyId, journeyName]);
 
   function selectNode(node: DocumentationNode) {
@@ -187,22 +238,80 @@ export function JourneyDocumentationBrowser({
       });
   }
 
-  useEffect(() => {
-    if (!requestedRelativePath || requestId === undefined || tree.status !== "ready") return;
-    const resolution = resolveArtifactNavigationIntent(tree.items, {
-      relativePath: requestedRelativePath,
-      expandPreview: expandPreviewOnReveal,
-    });
-    if (resolution.kind === "rejected") {
-      setRoutingError("The linked Journey document is not visible in the bounded Artifacts workspace.");
-      onNavigationRequestSettled(requestId);
+  async function toggleFolder(node: DocumentationNode) {
+    if (expandedPaths.has(node.relativePath)) {
+      setExpandedPaths((current) => toggleExpandedDocumentationPath(current, node.relativePath));
       return;
     }
-    setExpandedPaths((current) => new Set([...current, ...resolution.ancestorPaths]));
-    if (resolution.shouldExpandPreview) setPreviewExpanded(true);
-    selectNode(resolution.node);
-    onNavigationRequestSettled(requestId);
-  }, [requestedRelativePath, requestId, tree, expandPreviewOnReveal]);
+    setExpandedPaths((current) => new Set(current).add(node.relativePath));
+    if (node.childrenLoaded !== false) return;
+
+    const request = ++folderRequestSequenceRef.current;
+    const treeRequest = treeRequestRef.current;
+    folderRequestsRef.current.set(node.relativePath, request);
+    setLoadingPaths((current) => new Set(current).add(node.relativePath));
+    setTreeActionError(undefined);
+    try {
+      const children = await listJourneyDocumentation(journeyId, node.relativePath);
+      if (treeRequestRef.current !== treeRequest || folderRequestsRef.current.get(node.relativePath) !== request) return;
+      setTree((current) => current.status === "ready"
+        ? { ...current, items: replaceDocumentationNodeChildren(current.items, node.relativePath, children.items) }
+        : current);
+    } catch {
+      if (treeRequestRef.current === treeRequest && folderRequestsRef.current.get(node.relativePath) === request) {
+        setTreeActionError(`Could not load ${node.relativePath}. Already loaded artifacts remain available.`);
+      }
+    } finally {
+      if (folderRequestsRef.current.get(node.relativePath) === request) {
+        folderRequestsRef.current.delete(node.relativePath);
+        setLoadingPaths((current) => {
+          const next = new Set(current);
+          next.delete(node.relativePath);
+          return next;
+        });
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!requestedRelativePath || requestId === undefined || tree.status !== "ready") return;
+    const treeRequest = treeRequestRef.current;
+    let cancelled = false;
+    void (async () => {
+      let items = tree.items;
+      const components = requestedRelativePath.split("/");
+      const ancestorPaths = components.slice(0, -1).map((_, index) => components.slice(0, index + 1).join("/"));
+      try {
+        for (const path of ancestorPaths) {
+          const match = findDocumentationNode(items, path);
+          if (!match || match.node.kind !== "folder") break;
+          if (match.node.childrenLoaded === false) {
+            const children = await listJourneyDocumentation(journeyId, path);
+            if (cancelled || treeRequestRef.current !== treeRequest) return;
+            items = replaceDocumentationNodeChildren(items, path, children.items);
+          }
+        }
+        if (cancelled || treeRequestRef.current !== treeRequest) return;
+        setTree((current) => current.status === "ready" ? { ...current, items } : current);
+        const resolution = resolveArtifactNavigationIntent(items, {
+          relativePath: requestedRelativePath,
+          expandPreview: expandPreviewOnReveal,
+        });
+        if (resolution.kind === "rejected") {
+          setRoutingError("The linked Journey document is not visible in the bounded Artifacts workspace.");
+        } else {
+          setExpandedPaths((current) => new Set([...current, ...resolution.ancestorPaths]));
+          if (resolution.shouldExpandPreview) setPreviewExpanded(true);
+          selectNode(resolution.node);
+        }
+      } catch {
+        if (!cancelled) setRoutingError("The linked Journey document could not be loaded within the bounded Artifacts workspace.");
+      } finally {
+        if (!cancelled) onNavigationRequestSettled(requestId);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [requestedRelativePath, requestId, tree.status, expandPreviewOnReveal]);
 
   function openArtifactContextMenu(
     node: DocumentationNode,
@@ -244,13 +353,21 @@ export function JourneyDocumentationBrowser({
         expandedPaths={expandedPaths}
         selectedNode={selectedNode}
         content={content}
-        onToggle={(path) => setExpandedPaths((current) => toggleExpandedDocumentationPath(current, path))}
+        onToggle={(path) => {
+          if (tree.status !== "ready") return;
+          const node = findDocumentationNode(tree.items, path)?.node;
+          if (node?.kind === "folder") void toggleFolder(node);
+        }}
         onSelect={selectNode}
         onOpen={(node) => void openSelectedNode(node)}
         onOpenContextMenu={openArtifactContextMenu}
         routingError={routingError}
         openError={openError}
         artifactActionError={artifactActionError}
+        treeActionError={treeActionError}
+        treeReloading={treeReloading}
+        loadingPaths={loadingPaths}
+        onReload={() => void loadTree(true)}
         previewExpanded={previewExpanded}
         onPreviewExpandedChange={setPreviewExpanded}
       />
@@ -280,6 +397,10 @@ export function JourneyDocumentationSurface({
   routingError,
   openError,
   artifactActionError,
+  treeActionError,
+  treeReloading = false,
+  loadingPaths = new Set(),
+  onReload = () => undefined,
   previewExpanded = false,
   onPreviewExpandedChange = () => undefined,
 }: JourneyDocumentationSurfaceProps) {
@@ -294,8 +415,23 @@ export function JourneyDocumentationSurface({
       {artifactActionError ? <p className="journey-documentation-routing-error" role="alert">{artifactActionError}</p> : null}
       <div className={`operational-artifacts-layout${previewExpanded ? " is-preview-expanded" : ""}`}>
         <div id="journey-artifact-workspace-tree" className="operational-artifacts-browser">
-          <p className="operational-artifacts-section-label">Workspace structure</p>
-          {renderTreeState(tree, expandedPaths, selectedNode, onToggle, onSelect, onOpenContextMenu)}
+          <div className="operational-artifacts-tree-toolbar">
+            <p className="operational-artifacts-section-label">Workspace structure</p>
+            <button
+              type="button"
+              className="artifact-tree-reload"
+              onClick={onReload}
+              disabled={treeReloading || tree.status === "loading"}
+              aria-label="Reload workspace"
+              title="Reload workspace"
+            >
+              <span aria-hidden="true">↻</span>
+            </button>
+          </div>
+          <p className="operational-artifacts-visibility-note">Private and high-volume generated internals are hidden; release bundles remain available.</p>
+          {treeActionError ? <p className="journey-documentation-routing-error" role="alert">{treeActionError}</p> : null}
+          {treeReloading ? <p className="artifact-tree-reloading" role="status">Reloading workspace…</p> : null}
+          {renderTreeState(tree, expandedPaths, selectedNode, onToggle, onSelect, onOpenContextMenu, loadingPaths)}
         </div>
         <div className="operational-artifact-document-viewer">
           <div className="artifact-preview-layout-toolbar">
@@ -323,6 +459,7 @@ function renderTreeState(
   onToggle: (path: string) => void,
   onSelect: (node: DocumentationNode) => void,
   onOpenContextMenu: JourneyDocumentationSurfaceProps["onOpenContextMenu"],
+  loadingPaths: ReadonlySet<string>,
 ): ReactNode {
   if (tree.status === "loading") return <BrowserState title="Reading Journey workspace" detail="Loading the bounded Journey hierarchy…" />;
   if (tree.status === "error") return <BrowserState title="Workspace unavailable" detail={tree.message} />;
@@ -332,7 +469,7 @@ function renderTreeState(
     <div className="journey-documentation-tree-wrap">
       <div className="journey-documentation-root"><ArtifactTypeIcon kind="folder" open /><strong>{tree.rootLabel}</strong></div>
       <ul className="journey-documentation-tree" role="tree" aria-label="Journey workspace">
-        {tree.items.map((node) => renderTreeNode(node, 0, expandedPaths, selectedNode, onToggle, onSelect, onOpenContextMenu))}
+        {tree.items.map((node) => renderTreeNode(node, 0, expandedPaths, selectedNode, onToggle, onSelect, onOpenContextMenu, loadingPaths))}
       </ul>
     </div>
   );
@@ -346,6 +483,7 @@ function renderTreeNode(
   onToggle: (path: string) => void,
   onSelect: (node: DocumentationNode) => void,
   onOpenContextMenu: JourneyDocumentationSurfaceProps["onOpenContextMenu"],
+  loadingPaths: ReadonlySet<string>,
 ): ReactNode {
   const expanded = node.kind === "folder" && expandedPaths.has(node.relativePath);
   const selected = selectedNode?.relativePath === node.relativePath;
@@ -397,9 +535,12 @@ function renderTreeNode(
           <span>{node.name}</span>
         </button>
       </div>
+      {node.kind === "folder" && expanded && loadingPaths.has(node.relativePath) ? (
+        <p className="artifact-tree-folder-loading" role="status">Loading {node.name}…</p>
+      ) : null}
       {node.kind === "folder" && expanded && node.children.length > 0 ? (
         <ul role="group">
-          {node.children.map((child) => renderTreeNode(child, depth + 1, expandedPaths, selectedNode, onToggle, onSelect, onOpenContextMenu))}
+          {node.children.map((child) => renderTreeNode(child, depth + 1, expandedPaths, selectedNode, onToggle, onSelect, onOpenContextMenu, loadingPaths))}
         </ul>
       ) : null}
     </li>

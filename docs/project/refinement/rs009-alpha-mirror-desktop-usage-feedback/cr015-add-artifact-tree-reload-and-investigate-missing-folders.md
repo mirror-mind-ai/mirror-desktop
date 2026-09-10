@@ -36,7 +36,7 @@ The frontend loads the tree only when `journeyId` or `journeyName` changes. It h
 
 ## Proposed Plan
 
-This plan is proposed for Navigator approval; CR015 remains `captured` and unassigned until an explicit execution decision.
+The Navigator approved this plan and authorized implementation. Driver is `@alissonvale`; Delivery is `refinement/rs009-cr010-shift-enter-line-breaks`.
 
 1. Replace eager whole-workspace recursion with bounded, Journey-scoped directory loading: load the root first and load a folder's direct children when the Navigator expands it. Each request must carry the exact `journeyId` and safe relative folder path, canonicalize beneath the registered workspace root, reject symlinks, and enforce a per-directory entry bound.
 2. Remove `target` from the blanket omission policy while retaining private and high-volume generated exclusions such as dot-prefixed entries, `node_modules`, Cargo `deps`, `incremental`, `.fingerprint`, and build-intermediate directories. Lazy loading must make `src-tauri/target/release/bundle/` reachable without scanning unrelated Cargo output.
@@ -61,6 +61,19 @@ This plan is proposed for Navigator approval; CR015 remains `captured` and unass
 - A bundle folder or file can be revealed in the platform file manager through the existing safe artifact action; Mirror Desktop does not execute or mount it.
 - Hidden private paths, canonical containment, symlink rejection, and bounded traversal remain enforced.
 
+## Implementation
+
+Implemented the approved lazy Artifacts workspace:
+
+- the native boundary now lists one exact Journey directory per request instead of recursively materializing the whole workspace;
+- folder requests accept only bounded relative paths, canonicalize beneath the registered Journey root, reject symlink components, and enforce the depth and per-directory entry limits;
+- `target` is visible while dot-prefixed paths and high-volume generated internals such as `deps`, `incremental`, `build`, `node_modules`, and coverage/cache directories remain hidden;
+- folders carry explicit child-load state and merge children into the existing tree without replacing sibling branches;
+- expanding a folder loads its direct children, and linked Artifact navigation progressively materializes required ancestors;
+- manual reload preserves the visible tree while loading, rebuilds expanded branches, refreshes a surviving selection, and reports a removed selection or reload failure locally;
+- the tree toolbar exposes an accessible `Reload workspace` button, loading feedback, and concise visibility guidance;
+- existing folder/file reveal actions remain the safe boundary for opening bundle locations in the platform file manager.
+
 ## Evidence
 
 Assessment traced the workspace projection through:
@@ -70,6 +83,18 @@ Assessment traced the workspace projection through:
 - `src/app/JourneyDocumentationBrowser.tsx`: mount-only tree loading and stale-request refs;
 - `src/domain/journeyDocumentation.ts`: transport validation, sorting, lookup, and expansion state;
 - `src/tests/journeyDocumentationBrowser.test.tsx` and native `main.rs` tests: current browser and bounded-workspace contracts.
+
+Implementation checks:
+
+- all 639 frontend tests passed across 115 files;
+- all 109 Rust tests passed;
+- focused domain, browser, linked-navigation, native lazy-directory, bundle-reachability, depth, and symlink tests passed;
+- `npm run build` passed;
+- `npm run tauri:build:dev` rebuilt the isolated Dev app and DMG;
+- the restarted Dev process loaded the new executable (`pid=66047`, inode `161454024`);
+- `git diff --check` passed.
+
+Navigator validation remains pending in the isolated Dev bundle.
 
 ## Outcome
 

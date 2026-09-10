@@ -9,6 +9,7 @@ export type DocumentationNode = {
   sizeBytes?: number;
   modifiedAt?: number;
   children: DocumentationNode[];
+  childrenLoaded?: boolean;
 };
 
 export type DocumentationTree = {
@@ -86,9 +87,11 @@ function normalizeNode(value: unknown): DocumentationNode {
     sizeBytes: optionalNonNegativeNumber(value.sizeBytes),
     modifiedAt: optionalNonNegativeNumber(value.modifiedAt),
     children: value.children.map(normalizeNode),
+    childrenLoaded: typeof value.childrenLoaded === "boolean" ? value.childrenLoaded : undefined,
   };
 
-  if (node.kind === "file" && node.children.length > 0) {
+  if ((node.kind === "file" && (node.children.length > 0 || node.childrenLoaded === false))
+    || (node.kind === "folder" && node.childrenLoaded === false && node.children.length > 0)) {
     throw new Error("Journey documentation node is invalid.");
   }
   return node;
@@ -162,6 +165,34 @@ export function findDocumentationNode(
     if (child) return { node: child.node, ancestorPaths: [node.relativePath, ...child.ancestorPaths] };
   }
   return undefined;
+}
+
+export function replaceDocumentationNodeChildren(
+  nodes: DocumentationNode[],
+  parentPath: string,
+  children: DocumentationNode[],
+): DocumentationNode[] {
+  let changed = false;
+  const next = nodes.map((node) => {
+    if (node.relativePath === parentPath) {
+      changed = true;
+      return { ...node, children, childrenLoaded: true };
+    }
+    const nextChildren = replaceDocumentationNodeChildren(node.children, parentPath, children);
+    if (nextChildren === node.children) return node;
+    changed = true;
+    return { ...node, children: nextChildren };
+  });
+  return changed ? next : nodes;
+}
+
+export function loadedDocumentationPaths(nodes: DocumentationNode[]): Set<string> {
+  const paths = new Set<string>();
+  for (const node of nodes) {
+    paths.add(node.relativePath);
+    for (const childPath of loadedDocumentationPaths(node.children)) paths.add(childPath);
+  }
+  return paths;
 }
 
 export function toggleExpandedDocumentationPath(paths: ReadonlySet<string>, path: string): Set<string> {

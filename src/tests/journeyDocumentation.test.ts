@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   normalizeDocumentationContent,
+  loadedDocumentationPaths,
   normalizeDocumentationTree,
+  replaceDocumentationNodeChildren,
   toggleExpandedDocumentationPath,
   type DocumentationNode,
 } from "../domain/journeyDocumentation";
@@ -44,6 +46,14 @@ describe("Journey documentation domain", () => {
     }] })).toThrow("invalid");
 
     expect(() => normalizeDocumentationContent({ status: "ready", relativePath: "../outside.md" })).toThrow("invalid");
+    expect(() => normalizeDocumentationTree({ status: "ready", rootLabel: "docs", items: [{
+      relativePath: "target",
+      name: "target",
+      kind: "folder",
+      previewKind: "unavailable",
+      childrenLoaded: false,
+      children: [{ relativePath: "target/release", name: "release", kind: "folder", previewKind: "unavailable", children: [] }],
+    }] })).toThrow("invalid");
   });
 
   it("toggles expanded folders without mutating the previous set", () => {
@@ -56,10 +66,42 @@ describe("Journey documentation domain", () => {
     expect(opened.has("architecture")).toBe(true);
   });
 
+  it("merges lazily loaded children without replacing sibling branches", () => {
+    const root: DocumentationNode[] = [{
+      relativePath: "src-tauri",
+      name: "src-tauri",
+      kind: "folder",
+      previewKind: "unavailable",
+      children: [],
+      childrenLoaded: false,
+    }, {
+      relativePath: "README.md",
+      name: "README.md",
+      kind: "file",
+      previewKind: "markdown",
+      children: [],
+      childrenLoaded: true,
+    }];
+    const children: DocumentationNode[] = [{
+      relativePath: "src-tauri/target",
+      name: "target",
+      kind: "folder",
+      previewKind: "unavailable",
+      children: [],
+      childrenLoaded: false,
+    }];
+
+    const loaded = replaceDocumentationNodeChildren(root, "src-tauri", children);
+
+    expect(loaded[0]).toMatchObject({ childrenLoaded: true, children });
+    expect(loaded[1]).toBe(root[1]);
+    expect([...loadedDocumentationPaths(loaded)]).toContain("src-tauri/target");
+  });
+
   it("keeps the Tauri adapter isolated from runtime and persistence ownership", () => {
     expect(storageSource).toContain('"list_journey_documentation"');
     expect(storageSource).toContain('"read_journey_document"');
-    expect(storageSource).toContain("{ journeyId }");
+    expect(storageSource).toContain("{ journeyId, relativePath }");
     expect(storageSource).not.toContain("journeyRoot");
     for (const forbidden of ["piProcessStream", "providerConfig", "mirror", "saveJourneyConversation", "setInterval"] ) {
       expect(storageSource).not.toContain(forbidden);

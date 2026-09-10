@@ -6,8 +6,8 @@ import {
   type DocumentationTree,
 } from "../domain/journeyDocumentation";
 
-export async function listJourneyDocumentation(journeyId: string): Promise<DocumentationTree> {
-  const payload = await invoke<unknown>("list_journey_documentation", { journeyId });
+export async function listJourneyDocumentation(journeyId: string, relativePath?: string): Promise<DocumentationTree> {
+  const payload = await invoke<unknown>("list_journey_documentation", { journeyId, relativePath });
   return normalizeDocumentationTree(payload);
 }
 
