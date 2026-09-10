@@ -132,7 +132,8 @@ describe("runtime channel configuration", () => {
   it("renders a textual development identity and bounded runtime diagnostics", () => {
     expect(appSource).toContain('className="development-badge"');
     expect(appSource).toContain('const DEVELOPMENT_BADGE_LABEL = "DEV LAB";');
-    expect(appSource).toContain('const PRODUCT_DESCRIPTOR = "Journey Navigation";');
+    expect(appSource).not.toContain("Journey Navigation");
+    expect(appSource).not.toContain("PRODUCT_DESCRIPTOR");
     expect(appSource).toContain("<strong>Mirror Desktop ");
     expect(appSource).not.toContain("<strong>Nautilus ");
     expect(appSource).not.toContain("Using Harness agent defaults.");

@@ -285,7 +285,6 @@ type AppProps = {
 };
 
 const DEVELOPMENT_BADGE_LABEL = "DEV LAB";
-const PRODUCT_DESCRIPTOR = "Journey Navigation";
 
 const journeyVisuals: Record<string, { icon: string; accent: string }> = {
   "vida-criativa": { icon: "✺", accent: "green" },
@@ -3069,7 +3068,6 @@ export function App({ model }: AppProps) {
           <div className="brand-copy">
             <strong>Mirror Desktop {developmentChannel ? <span className="sr-only">Development channel</span> : null}</strong>
             <SelfUpdateNotification runtimeBusy={runtimeBusy} onReview={() => { setSettingsTab("updates"); setSettingsOpen(true); }} />
-            <small>{PRODUCT_DESCRIPTOR}</small>
           </div>
           <button
             className="sidebar-toggle-button"
