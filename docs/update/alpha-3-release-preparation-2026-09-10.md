@@ -2,7 +2,7 @@
 
 **Journey:** `mirror-desktop`  
 **Candidate:** `v0.2.0-alpha.3`  
-**Status:** locally built with signed updater artifacts; unpublished
+**Status:** alpha endpoint published; source tag and GitHub prerelease pending
 
 ## Scope
 
@@ -53,16 +53,38 @@ Native metadata confirms `Mirror Desktop`, `ai.mirrormind.desktop`, and `0.2.0-a
 
 The updater archive has a non-empty Tauri updater signature. The application bundle has no Apple code signature, matching the known Developer ID/notarization blocker; updater signing does not claim Apple code signing or notarization.
 
+## Alpha Endpoint Publication
+
+The Navigator explicitly authorized release publication. The staged payload was checksum-matched before upload and published only under:
+
+```text
+https://updates.mirrormind.sh/mirror-desktop/alpha
+```
+
+Validated published paths:
+
+```text
+https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.2.0-alpha.3.md
+https://updates.mirrormind.sh/mirror-desktop/alpha/releases/index.md
+https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.2/latest.json
+https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.2/latest.json
+https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.2/latest.json
+https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.3.app.tar.gz
+https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.3_x64.dmg
+https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/mirror-desktop-latest.dmg
+https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.json
+```
+
+All three updater manifests report `0.2.0-alpha.3` with a non-empty signature. The release note and download manifest resolve, and downloaded updater bytes, versioned DMG bytes, and stable DMG alias match the local SHA-256 values above.
+
 ## Explicit Boundary
 
 This preparation did not:
 
 - create a Git tag or GitHub Release;
-- push commits;
-- publish release notes, updater artifacts, DMG files, manifests, or download aliases;
-- mutate updater endpoints;
+- mutate updater endpoint configuration outside the authorized alpha publication payload;
 - install or promote the user-channel app;
 - touch Mirror homes, `memory.db`, identity, credentials, Journey content, conversations, app data, or Nautilus Harness state;
 - claim Apple notarization.
 
-The next phase requires separate Navigator authorization before push, tag creation, GitHub Release creation, updater publication, stable download-alias replacement, or endpoint validation against published bytes.
+The same explicit release-publication authorization permits source push, tag creation, and GitHub prerelease creation after this endpoint evidence is committed. Stable-channel promotion, Apple notarization, installation, and public announcement remain outside scope.
