@@ -17,11 +17,33 @@ not separately recorded.
 
 ## Plan Or Decision
 
-No separately structured plan was preserved in the legacy Workbench record.
+Apply a light-theme-only semantic color contract to the four first-message suggestion buttons on `JourneyArrivalSurface`:
+
+- use the existing light raised/surface tokens for the resting background;
+- use `--light-text` for the resting label and `--light-accent` for hover/focus labels;
+- retain visible border and keyboard focus treatment;
+- leave the dark-theme declarations unchanged.
+
+Driver: `@alissonvale`. Delivery: `refinement/rs009-cr010-shift-enter-line-breaks`.
+
+## Implementation
+
+Added one scoped CSS contract for Daylight, Mist, and Parchment. The correction overrides the dark hard-coded suggestion-label color only inside light application themes and adds explicit hover/focus contrast without changing component behavior or dark-theme styling.
 
 ## Evidence
 
-No separate evidence was recorded in the legacy Workbench entry.
+A regression test calculates WCAG contrast from each curated light theme's semantic tokens for resting and interactive suggestion states, and asserts the dedicated CSS boundary.
+
+Implementation checks:
+
+- the focused application-theme suite passed with 10 tests;
+- all 640 frontend tests passed across 115 files;
+- `npm run build` passed, with only the pre-existing Vite chunk-size warning;
+- `npm run tauri:build:dev` rebuilt the isolated Dev app and DMG;
+- the restarted Dev process loaded the rebuilt executable (`pid=74268`, inode `161458200`);
+- `git diff --check` passed before commit.
+
+Navigator visual validation remains pending in the isolated Dev bundle.
 
 ## Outcome
 

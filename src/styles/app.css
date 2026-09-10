@@ -5532,6 +5532,42 @@ dd {
   color: var(--light-text);
 }
 
+/* Light Journey arrival suggestion contrast contract. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-arrival-suggestions button {
+  background: color-mix(in srgb, var(--light-raised) 72%, var(--light-surface));
+  border: 1px solid var(--light-border);
+  color: var(--light-text);
+  font-weight: 650;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-arrival-suggestions button:hover,
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-arrival-suggestions button:focus-visible {
+  background: color-mix(in srgb, var(--ui-accent) 8%, var(--light-surface));
+  border-color: var(--light-accent);
+  color: var(--light-accent);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-arrival-suggestions button:focus-visible {
+  outline: 3px solid var(--light-accent);
+  outline-offset: 2px;
+}
+
 /* Light workspace tab contrast contract. */
 :is(
   .app-shell[data-application-theme="daylight"],

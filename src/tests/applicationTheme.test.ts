@@ -138,6 +138,20 @@ describe("application themes", () => {
     expect(cssSource).toContain(".operational-workspace-option:disabled");
   });
 
+  it("keeps post-start Journey suggestion labels legible in light themes", () => {
+    for (const theme of lightApplicationThemes) {
+      const idleSurface = mixHex(theme.tokens.raisedSurface, theme.tokens.surface, 0.72);
+      const interactiveSurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.08);
+      expect(contrast(theme.tokens.primaryText, idleSurface), `${theme.id} idle`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.accentText, interactiveSurface), `${theme.id} interactive`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(cssSource).toContain("/* Light Journey arrival suggestion contrast contract. */");
+    expect(cssSource).toContain(") .journey-arrival-suggestions button {");
+    expect(cssSource).toContain("color: var(--light-text);");
+    expect(cssSource).toContain(") .journey-arrival-suggestions button:hover,");
+    expect(cssSource).toContain("color: var(--light-accent);");
+  });
+
   it("keeps the completed composer status legible in light themes", () => {
     expect(cssSource).toContain("/* Light composer status contrast contract. */");
     expect(cssSource).toContain(".composer-runtime-status.is-finishing");
