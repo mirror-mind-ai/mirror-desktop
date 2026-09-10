@@ -12,7 +12,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: RS009
+- Refinement Story: —
 - Change Request: —
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
@@ -30,7 +30,7 @@ executes work.
 | 6 | [RS006](rs006-windows-manual-build-handoff/index.md) | Windows manual build handoff | closed |
 | 7 | [RS007](rs007-repository-publication-and-windows-handoff/index.md) | Repository publication and Windows handoff | closed |
 | 8 | [RS008](rs008-mirrormind-sh-landing-page/index.md) | mirrormind.sh landing page | closed |
-| 9 | [RS009](rs009-alpha-mirror-desktop-usage-feedback/index.md) | Alpha Mirror Desktop Usage Feedback | active |
+| 9 | [RS009](rs009-alpha-mirror-desktop-usage-feedback/index.md) | Alpha Mirror Desktop Usage Feedback | closed |
 | 10 | [RS010](rs010-bilingual-website-repository-extraction/index.md) | Bilingual website repository extraction | active |
 
 ## Change Requests

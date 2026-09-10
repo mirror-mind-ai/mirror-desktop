@@ -8,8 +8,9 @@ Refinement field for Change Requests that emerge from hands-on use of the Mirror
 
 ## Outcome
 
-Outcome is represented by the attached Change Requests and their evidence. Canonical
-status remains owned by the Workbench index.
+RS009 was closed by explicit Navigator decision after all nine attached Change Requests reached `done`. The refinement cycle improved composer fidelity, context usage authority, quiet finalization, provider-error settlement, development and user updater contracts, artifact navigation, light-theme contrast, and sidebar hierarchy.
+
+The resulting unreleased changes are a coherent continuation of the existing `0.2.0` alpha line. The next release candidate is therefore `v0.2.0-alpha.3`, subject to a separate version bump, release-note preparation, clean release gates, signed build, and explicit publication authorization.
 
 ## Boundaries
 
