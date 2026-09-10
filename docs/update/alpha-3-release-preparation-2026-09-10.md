@@ -1,8 +1,8 @@
-# Alpha 3 Release Preparation — 2026-09-10
+# Alpha 3 Release Publication — 2026-09-10
 
 **Journey:** `mirror-desktop`  
 **Candidate:** `v0.2.0-alpha.3`  
-**Status:** alpha endpoint published; source tag and GitHub prerelease pending
+**Status:** published alpha prerelease
 
 ## Scope
 
@@ -18,7 +18,7 @@ The following files agree on `0.2.0-alpha.3`:
 - `src-tauri/Cargo.toml`
 - `src-tauri/Cargo.lock`
 
-Expected immutable tag, if separately authorized later: `v0.2.0-alpha.3`.
+Immutable release tag: `v0.2.0-alpha.3`.
 
 ## Prepared Release Note
 
@@ -75,16 +75,39 @@ https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/mirror-deskto
 https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.json
 ```
 
-All three updater manifests report `0.2.0-alpha.3` with a non-empty signature. The release note and download manifest resolve, and downloaded updater bytes, versioned DMG bytes, and stable DMG alias match the local SHA-256 values above.
+All three updater manifests report `0.2.0-alpha.3` with a non-empty signature. The release note and download manifest resolve, and downloaded updater bytes, versioned DMG bytes, and stable DMG alias match the local SHA-256 values above. The `updates.mirrormind.com.br` compatibility alias also reports `0.2.0-alpha.3`.
+
+## Source and GitHub Publication
+
+The linear release history was fast-forwarded to `origin/main`. Annotated tag `v0.2.0-alpha.3` points to publication-evidence revision:
+
+```text
+900b00c86fe673473cc06389dd27afd1ebc3868a
+```
+
+The signed binaries remain attributable to source revision `c23fc8ce7b096f494a919986eb2b6160390861bf`; intervening commits contain release evidence only.
+
+GitHub prerelease:
+
+```text
+https://github.com/mirror-mind-ai/mirror-desktop/releases/tag/v0.2.0-alpha.3
+```
+
+Published assets and GitHub-reported digests matched the local bytes:
+
+- `Mirror.Desktop_0.2.0-alpha.3_x64.dmg`
+- `Mirror.Desktop.app.tar.gz`
+- `Mirror.Desktop.app.tar.gz.sig`
+
+GitHub Actions inspection after the push returned no workflow runs for `main`.
 
 ## Explicit Boundary
 
 This preparation did not:
 
-- create a Git tag or GitHub Release;
 - mutate updater endpoint configuration outside the authorized alpha publication payload;
 - install or promote the user-channel app;
 - touch Mirror homes, `memory.db`, identity, credentials, Journey content, conversations, app data, or Nautilus Harness state;
 - claim Apple notarization.
 
-The same explicit release-publication authorization permits source push, tag creation, and GitHub prerelease creation after this endpoint evidence is committed. Stable-channel promotion, Apple notarization, installation, and public announcement remain outside scope.
+Stable-channel promotion, Apple notarization, installation, and public announcement remain outside scope. Installed-app self-update from `0.2.0-alpha.2` remains a separate explicit rehearsal rather than an implicit publication side effect.
