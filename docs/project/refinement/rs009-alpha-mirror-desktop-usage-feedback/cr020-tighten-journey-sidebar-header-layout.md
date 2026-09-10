@@ -50,11 +50,15 @@ Implementation checks:
 - the restarted Dev process loaded the rebuilt executable (`pid=83726`, inode `161466641`);
 - `git diff --check` passed before commit.
 
-Navigator visual validation remains pending in the isolated Dev bundle.
+## Navigator Validation
+
+The Navigator visually validated the simplified sidebar header in the isolated Dev bundle, including title/version proximity, top icon alignment, removal of both redundant labels and separator, and the upward control distribution.
+
+The proportionality review found the implementation appropriately narrow: minimal header markup removal, bounded spacing adjustments, preserved accessible development identity, and focused regression coverage. No follow-up technical debt was accepted.
 
 ## Outcome
 
-Implementation is in progress; terminal outcome requires visual validation and an explicit Navigator decision.
+CR020 was closed as `done` by explicit Navigator decision after successful isolated Dev validation.
 
 ## Authority Boundary
 
