@@ -8,7 +8,7 @@ During Mirror Desktop alpha usage, the artifact tree needs an explicit reload bu
 
 ## Expected Behavior
 
-the artifact tree should offer a clear manual refresh action and its folder visibility rules should be understandable, intentional and documented or corrected when valid workspace folders are omitted.
+The artifact tree should offer a clear manual refresh action and its folder visibility rules should be understandable and intentional. Generated release output is valid operational material: the Navigator must be able to reach `src-tauri/target/release/bundle/` and reveal a built app, DMG, or other bundle in the operating-system file manager without restarting Mirror Desktop.
 
 ## Impact
 
@@ -17,7 +17,9 @@ not separately recorded.
 
 ## Assessment
 
-The example `src-tauri/target/` is not missing because of stale frontend state. The native workspace walker intentionally omits every directory named `target`, at any depth. The same exact-name policy omits `node_modules`, `dist`, `build`, `venv`, `__pycache__`, and `coverage`; every dot-prefixed entry is also omitted. This is appropriate for `target`: generated Rust build output can be very large, is not an authored Journey artifact, and could exhaust the bounded traversal before useful files are returned.
+The example `src-tauri/target/` is not missing because of stale frontend state. The native workspace walker intentionally omits every directory named `target`, at any depth. The same exact-name policy omits `node_modules`, `dist`, `build`, `venv`, `__pycache__`, and `coverage`; every dot-prefixed entry is also omitted.
+
+The blanket `target` exclusion protects the current eager recursive walker from a very large Cargo tree, but it conflicts with a validated Navigator need: release bundles are operational artifacts that must be reachable from the Journey. Merely deleting `target` from the omission list is unsafe because the existing walker would recursively enumerate Cargo dependencies, incremental outputs, and build intermediates before returning anything, potentially exceeding the 10,000-entry bound and making the entire tree unavailable. The visibility model therefore needs controlled traversal rather than a binary choice between hiding all of `target` and scanning all of it.
 
 Other restrictions that can prevent a folder or file from appearing are:
 
@@ -36,13 +38,15 @@ The frontend loads the tree only when `journeyId` or `journeyName` changes. It h
 
 This plan is proposed for Navigator approval; CR015 remains `captured` and unassigned until an explicit execution decision.
 
-1. Add a compact `Reload workspace` icon button beside the `Workspace structure` label, with an accessible name, tooltip, visible focus treatment, and a disabled/busy state while its request is active.
-2. Extract the existing tree request into one reusable loader for initial load and manual reload. Continue passing the exact selected `journeyId` to the existing bounded native command; do not add filesystem mutation, polling, or watchers.
-3. Keep the current tree visible while reloading to avoid layout flicker. Use the existing monotonically increasing request authority so an older response cannot overwrite a newer Journey or reload.
-4. On success, preserve expanded folders that still exist. Re-resolve the selected item by relative path; refresh its preview if it still exists, otherwise clear the selection and explain that the item is no longer present.
-5. On reload failure, retain the last successful tree and show a local actionable error beside the reload control. Initial-load failure may continue using the full `Workspace unavailable` state.
-6. Add concise UI help stating that private and generated directories are intentionally hidden. Keep `target` and the existing generated-directory exclusions; do not offer a `Show generated files` toggle in this CR.
-7. Add component tests for reload invocation, busy semantics, stale-response protection, preserved expansion/selection, removed selection, and non-destructive failure. Extend native tests to document every omission and traversal bound explicitly.
+1. Replace eager whole-workspace recursion with bounded, Journey-scoped directory loading: load the root first and load a folder's direct children when the Navigator expands it. Each request must carry the exact `journeyId` and safe relative folder path, canonicalize beneath the registered workspace root, reject symlinks, and enforce a per-directory entry bound.
+2. Remove `target` from the blanket omission policy while retaining private and high-volume generated exclusions such as dot-prefixed entries, `node_modules`, Cargo `deps`, `incremental`, `.fingerprint`, and build-intermediate directories. Lazy loading must make `src-tauri/target/release/bundle/` reachable without scanning unrelated Cargo output.
+3. Preserve the existing folder context menu so `target/release/bundle`, `.app` directories, DMGs, and other generated artifacts can be revealed in Finder or the platform file manager. Do not launch applications, mount images, or execute generated output from Mirror Desktop in this CR.
+4. Add a compact `Reload workspace` icon button beside the `Workspace structure` label, with an accessible name, tooltip, visible focus treatment, and a disabled/busy state while its request is active.
+5. Reuse one request coordinator for initial root load, child expansion, and manual reload. Keep monotonically increasing request authority so stale responses cannot overwrite a newer Journey, folder request, or reload.
+6. Keep the current tree visible while reloading to avoid layout flicker. Reload the root and every currently expanded path, preserving expansion and selection when those paths still exist. Refresh the selected file's preview; if it disappeared, clear the selection and explain why.
+7. On reload or child-load failure, retain already loaded nodes and show a local actionable error at the affected tree scope. Initial root-load failure may continue using the full `Workspace unavailable` state.
+8. Add concise UI help stating which private and high-volume generated directories remain hidden while release bundles are visible. Do not add polling, filesystem watchers, mutation, execution, or a broad `Show all generated files` toggle.
+9. Add domain, storage, component, race, accessibility, and native tests for safe relative folder requests, lazy expansion, bundle reachability, reload busy semantics, stale-response protection, preserved expansion/selection, removed selection, partial failure, symlink rejection, and per-directory bounds.
 
 ## Proposed Acceptance
 
@@ -53,7 +57,9 @@ This plan is proposed for Navigator approval; CR015 remains `captured` and unass
 - Reload failure preserves the last successful tree and exposes a retryable local error.
 - Repeated reload clicks cannot let stale responses overwrite newer state.
 - The UI makes intentional private/generated exclusions understandable.
-- `src-tauri/target/` remains hidden by documented policy, and actionable authored content remains unaffected.
+- `src-tauri/target/` is visible when present, and `src-tauri/target/release/bundle/` can be reached without eagerly traversing unrelated Cargo output.
+- A bundle folder or file can be revealed in the platform file manager through the existing safe artifact action; Mirror Desktop does not execute or mount it.
+- Hidden private paths, canonical containment, symlink rejection, and bounded traversal remain enforced.
 
 ## Evidence
 
