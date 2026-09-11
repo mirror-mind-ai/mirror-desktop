@@ -187,3 +187,52 @@ change storage schemas or native ingestion stops implementation for a new scope 
 - Persisting full historical tool traces is not introduced by CR021. If product validation
   requires action recovery after application restart, capture that as an explicit storage
   change rather than fabricating history in this projection.
+
+## Implementation
+
+Implemented the approved presentation-only semantic composition:
+
+- added a pure `AgentTurnPresentation` projection that separates exact runtime actions,
+  canonical system surfaces, remaining imported activity, and consolidated agent comment;
+- centralized assistant-message, linked imported, and runtime-output surface collection,
+  retaining source provenance and deduplicating exact semantic copies;
+- added `AgentTurn` as the assistant rendering boundary with visibly labelled, accessible
+  regions in fixed `Agent Actions` → `System Surfaces` → `Agent Comments` order;
+- kept unsupported imported activity outside the semantic groups and preserved the
+  existing unlinked imported-context boundary;
+- suppressed centralized Ariad and Mirror mode surfaces from tool output while retaining
+  sanitized non-surface tool output;
+- delegated only assistant messages to the new component; user messages, multiline
+  rendering, attachments, copy action, links, persona identity, and settlement behavior
+  remain intact;
+- added restrained region styling without implementing CR022 disclosure or CR023 copy
+  behavior;
+- introduced no persisted schema, native runtime, updater, Mirror-core, or data migration
+  change.
+
+Implementation commit:
+
+```text
+28b7fbe Compose assistant turns by semantic authorship
+```
+
+## Evidence
+
+- The initial focused TDD run failed because `conversationTurnPresentation` and
+  `AgentTurn` did not exist.
+- 56 focused tests passed across semantic projection, agent-turn rendering, runtime
+  projection, imported activity, conversation presentation, Markdown content, and copy
+  behavior.
+- The complete frontend suite passed: 651 tests across 119 files.
+- `npm run build` passed with only the existing Vite chunk-size warning.
+- `npm run tauri:build:dev` rebuilt the isolated application and DMG successfully.
+- Bundle metadata confirms `Mirror Desktop Dev`, `ai.mirrormind.desktop.dev`, version
+  `0.2.0-alpha.3`.
+- The rebuilt executable is running as process `75560`, inode `161551792`.
+
+## Navigator Validation
+
+Pending in the isolated Dev bundle. Validate four assistant turns for `mirror-desktop`:
+plain comment-only, multi-tool, Mirror-mode, and Ariad-surface. Confirm semantic ordering,
+no duplicated surface, unchanged tool evidence, and continuous settlement through
+`Working…`, `Finishing…`, and quiet idle.
