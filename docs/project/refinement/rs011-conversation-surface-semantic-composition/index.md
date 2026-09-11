@@ -101,7 +101,9 @@ than textual guesses or background color. Inline code remains unchanged.
 - [CR021 — Compose agent turns into semantic groups](cr021-compose-agent-turns-into-semantic-groups.md)
 - [CR022 — Govern action, tool, and turn disclosure](cr022-govern-action-tool-and-turn-disclosure.md)
 - [CR023 — Make highlighted blocks consistently copyable](cr023-make-highlighted-blocks-consistently-copyable.md)
+- [CR024 — Prevent agent output flicker when a turn settles](cr024-prevent-agent-output-flicker-when-turn-settles.md)
 
-All three CRs remain `captured`. Focus, planning, Driver, Delivery, and acceptance require
+All four CRs remain `captured`. Focus, planning, Driver, Delivery, and acceptance require
 explicit Navigator decisions. CR022 depends on the semantic foundation refined by CR021;
-CR023 can be assessed independently.
+CR023 can be assessed independently. CR024 investigates the current live-to-completed
+turn boundary before RS011 changes rely on that transition.
