@@ -103,8 +103,8 @@ than textual guesses or background color. Inline code remains unchanged.
 - [CR023 — Make highlighted blocks consistently copyable](cr023-make-highlighted-blocks-consistently-copyable.md)
 - [CR024 — Prevent agent output flicker when a turn settles](cr024-prevent-agent-output-flicker-when-turn-settles.md)
 
-CR021, CR022, and CR023 remain `captured`; CR024 is `validated`. Focus, planning, Driver,
-Delivery, and acceptance require explicit Navigator decisions. CR022 depends on the
-semantic foundation refined by CR021; CR023 can be assessed independently. CR024 has
+CR021, CR022, and CR023 remain `captured`; CR024 is closed as `done`. CR021 is the current
+explicit focus, but selection does not approve planning or implementation. CR022 depends
+on the semantic foundation refined by CR021; CR023 can be assessed independently. CR024
 stabilized the current live-to-completed turn boundary before RS011 changes rely on that
-transition; terminal closure remains separate under the collaboration protocol.
+transition.

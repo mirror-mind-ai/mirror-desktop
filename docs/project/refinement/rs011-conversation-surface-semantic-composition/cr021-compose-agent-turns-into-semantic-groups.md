@@ -51,8 +51,9 @@ Source exploration:
 - Journey authority is exactly `mirror-desktop`.
 - Canonical refinement status, Driver, and Delivery are owned by the root Workbench
   index.
-- This capture does not select focus, approve a plan, assign a Driver, choose Delivery,
-  authorize implementation, or authorize push, publication, release, or installation.
+- CR021 is selected as the current focus. Selection does not approve a plan, assign a
+  Driver, choose Delivery, authorize implementation, or authorize push, publication,
+  release, or installation.
 - Tool-running expansion, historical-turn compaction, and automatic disclosure behavior
   belong to CR022.
 - Consistent highlighted-block copy behavior belongs to CR023.

@@ -10,8 +10,8 @@ then reappears. This makes successful turn completion look unstable and raises d
 about whether the response was lost, rewritten, or restored from another source.
 
 The phenomenon occurs at the boundary where live runtime output settles into the
-completed conversation representation. Its exact cause is not yet established and must
-not be inferred from the visual symptom alone.
+completed conversation representation. Investigation initially kept the cause open; the
+Navigator's decisive screenshot later identified the exact global loading replacement.
 
 ## Expected Behavior
 
@@ -316,8 +316,8 @@ c928237 Keep ready conversations visible during authority refresh
 - `npm run tauri:build:dev` rebuilt the isolated application and DMG successfully.
 - Bundle metadata confirms `Mirror Desktop Dev`, `ai.mirrormind.desktop.dev`, version
   `0.2.0-alpha.3`.
-- The rebuilt isolated Dev executable is running as process `67421`.
-- Navigator validation remains pending.
+- The rebuilt isolated Dev executable ran as process `67421` for Navigator validation.
+- The Navigator validated a long multi-tool turn without recurrence of the flicker.
 
 ## Navigator Validation
 
@@ -326,7 +326,21 @@ Validated by the Navigator in the rebuilt isolated `Mirror Desktop Dev` bundle o
 the conversation being replaced by `Checking Journey conversation…`; the reported
 flicker did not recur.
 
-The canonical CR024 status is now `validated`. Scroll-away behavior is not a CR024
-acceptance condition because the decisive screenshot disproved viewport movement as the
-reported mechanism. Terminal closure remains separate and requires the protocol's
-proportionality and debt review.
+Scroll-away behavior is not a CR024 acceptance condition because the decisive screenshot
+disproved viewport movement as the reported mechanism.
+
+## Closure Review
+
+**Proportionality.** The final production change is limited to a small pure exact-Journey
+presentation rule and one guard around the existing loading reset. The asynchronous
+restore, classification, persistence, settlement, and recovery paths remain intact. The
+disproven scroll implementation was explicitly reverted rather than retained as unrelated
+scope.
+
+**Debt.** No migration, compatibility layer, timer, duplicate presentation, or stale-data
+fallback was introduced. The source-level integration guard is intentionally paired with
+a unit-tested domain rule; no new technical-debt ledger entry is warranted. Broader
+semantic turn composition remains owned by CR021–CR023 rather than being smuggled into
+this repair.
+
+CR024 is closed as `done` after automated evidence and explicit Navigator acceptance.
