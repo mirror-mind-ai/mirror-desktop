@@ -43,8 +43,41 @@ replaced by other content, and then reappears when the turn completes.
 ## Investigation Findings
 
 Builder inspection on 2026-09-10 found two independently reproducible presentation
-transitions and one additional replacement path that requires runtime evidence before it
-can be ranked as causal.
+transitions and one additional replacement path. A later visible clue from the Navigator
+identified a fourth mechanism that now ranks as the leading explanation.
+
+### Runtime layout contraction and smooth auto-follow
+
+At the end of a Dev turn, the Navigator briefly saw text beginning with `Checking
+Journey…` before the final agent content returned. No matching literal exists in the
+application source. The phrase is consistent with a dynamic reasoning summary rendered
+inside `LiveRuntimeActivity`, which remains above the assistant answer in the same agent
+card.
+
+Completion changes several layout and scroll inputs together:
+
+1. Runtime projection settles and running or preparing tool details switch from open to
+   closed, reducing the activity region height.
+2. The chat auto-follow effect reacts to `messages`, `isStreaming`, and
+   `runtimeProjection` changes.
+3. Once `isStreaming` becomes false, the effect calls `scrollIntoView` with smooth rather
+   than immediate behavior.
+4. During the animated reposition after layout contraction, the viewport can briefly
+   expose an earlier reasoning summary such as `Checking Journey…` before settling back
+   on the final assistant answer.
+
+This mechanism produces the perceived sequence without replacing assistant bytes. It
+also explains why repeatedly forcing Mirror and Ariad surfaces did not reproduce the
+problem and why a long tool-bearing turn did. The hypothesis requires a visual browser
+probe with controlled activity height and scroll geometry, but it is now the leading
+cause.
+
+Relevant source coordinates at investigation time:
+
+- `src/app/App.tsx:1437-1453`
+- `src/app/App.tsx:3525-3548`
+- `src/app/LiveRuntimeActivity.tsx:36-80`
+- `src/app/LiveRuntimeActivity.tsx:127-180`
 
 ### Incremental System Surface extraction
 
@@ -147,12 +180,12 @@ The remaining observation is therefore treated as timing-sensitive or dependent 
 conversation state, with runtime-to-loaded authority handoff and multiple assistant-text
 replacement still unresolved.
 
-The next deterministic simulation should inject a controlled scheduling barrier between
-publishing the final runtime snapshot, releasing finalization, and converging the loaded
-conversation. That simulation belongs in an approved CR024 test plan; it should not be
-implemented as a production delay. If the natural flicker recurs before then, a short
-screen recording and identification of the transient replacement will provide higher
-value than repeatedly forcing additional surfaces.
+The natural flicker subsequently recurred after a longer tool-bearing turn. The visible
+transient began with `Checking Journey…`, identifying Runtime Activity content rather
+than a collapsed System Surface or known stale assistant response. The next deterministic
+simulation should therefore reproduce activity-region contraction and auto-follow scroll
+behavior before injecting a controlled runtime-to-loaded scheduling barrier. Both probes
+belong in an approved CR024 test plan and must not be implemented as production delays.
 
 ## Assessment Questions
 
