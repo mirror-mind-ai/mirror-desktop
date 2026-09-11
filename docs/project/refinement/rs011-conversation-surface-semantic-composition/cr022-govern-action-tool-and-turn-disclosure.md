@@ -103,6 +103,12 @@ closed after restart.
   stale running state after restart.
 - Highlighted-block copy behavior belongs to CR023.
 
+## Implementation Authorization
+
+The Navigator approved the plan, including channel-local retention of terminal action
+evidence, and authorized implementation. Driver is `@alissonvale`; Delivery is
+`refinement/rs011-cr022-action-turn-disclosure`.
+
 ## Proposed Plan
 
 1. Add a pure action-group projection over CR021's exact runtime evidence:
