@@ -114,6 +114,7 @@ Pull `CV-007 - Trusted Self-Update` next. `CV-006.DS-001 - Release Candidate and
 
 ## References
 
+- [Baseline reconciliation plan](baseline-reconciliation-plan.md)
 - [Ariad adoption](ariad-adoption.md)
 - [Technical debt ledger](technical-debt-ledger.md)
 - [App architecture](../../architecture/app-architecture.md)
