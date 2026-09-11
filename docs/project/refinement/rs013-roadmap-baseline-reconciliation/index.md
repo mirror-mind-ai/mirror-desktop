@@ -23,4 +23,4 @@ CV-001 through CV-007 are represented consistently as delivered; stale historica
 
 - [CR026 — Reconcile delivered baseline and open the next product horizon](cr026-reconcile-delivered-baseline-and-open-next-product-horizon.md)
 
-CR026 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs013-cr026-roadmap-baseline-reconciliation`.
+CR026 is `done`. The Navigator validated the reconciled roadmap and Operational Ariad surface, so RS013 is closed.
