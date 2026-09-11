@@ -133,6 +133,27 @@ For each capture, note whether the replacement is a collapsed System Surface, pr
 assistant text, empty space, raw process text, or another message. Preserve approximate
 timing relative to `Working…`, `Finishing…`, and quiet idle.
 
+## Dev Reproduction Result
+
+The Navigator attempted the surface-bearing scenarios in the isolated `Mirror Desktop
+Dev` bundle and could not reproduce the visible flicker, including turns that forced both
+Ariad and Mirror surfaces. The tested bundle was confirmed as `Mirror Desktop Dev`,
+`ai.mirrormind.desktop.dev`, version `0.2.0-alpha.3`, process `60083`.
+
+This result weakens incremental surface extraction as the leading explanation for the
+reported visible behavior. The extraction transition remains deterministic at the domain
+level, but it may arrive atomically enough that React never paints its intermediate state.
+The remaining observation is therefore treated as timing-sensitive or dependent on
+conversation state, with runtime-to-loaded authority handoff and multiple assistant-text
+replacement still unresolved.
+
+The next deterministic simulation should inject a controlled scheduling barrier between
+publishing the final runtime snapshot, releasing finalization, and converging the loaded
+conversation. That simulation belongs in an approved CR024 test plan; it should not be
+implemented as a production delay. If the natural flicker recurs before then, a short
+screen recording and identification of the transient replacement will provide higher
+value than repeatedly forcing additional surfaces.
+
 ## Assessment Questions
 
 - Which state transitions and render branches execute between provider completion,
