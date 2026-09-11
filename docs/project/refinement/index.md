@@ -32,6 +32,7 @@ executes work.
 | 8 | [RS008](rs008-mirrormind-sh-landing-page/index.md) | mirrormind.sh landing page | closed |
 | 9 | [RS009](rs009-alpha-mirror-desktop-usage-feedback/index.md) | Alpha Mirror Desktop Usage Feedback | closed |
 | 10 | [RS010](rs010-bilingual-website-repository-extraction/index.md) | Bilingual website repository extraction | active |
+| 11 | [RS011](rs011-conversation-surface-semantic-composition/index.md) | Conversation surface semantic composition | proposed |
 
 ## Change Requests
 
