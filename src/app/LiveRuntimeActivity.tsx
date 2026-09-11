@@ -16,6 +16,7 @@ type LiveRuntimeActivityProps = {
   basePath?: string;
   suppressedSurfaceContents?: string[];
   showRegionLabel?: boolean;
+  showSuccessfulTerminalStatus?: boolean;
 };
 
 const OPERATION_STATUS_LABEL: Record<RuntimeProjectionState["operations"][number]["status"], string> = {
@@ -39,6 +40,7 @@ export function LiveRuntimeActivity({
   basePath,
   suppressedSurfaceContents = [],
   showRegionLabel = true,
+  showSuccessfulTerminalStatus = true,
 }: LiveRuntimeActivityProps) {
   const active = isRuntimeProjectionActive(projection);
 
@@ -82,7 +84,7 @@ export function LiveRuntimeActivity({
         </section>
       ) : null}
 
-      {!active ? (
+      {!active && (projection.status !== "completed" || showSuccessfulTerminalStatus) ? (
         <div className="runtime-terminal-status" role="status">
           <strong>{RUN_STATUS_LABEL[projection.status]}</strong>
           {projection.terminalMessage ? <span>{projection.terminalMessage}</span> : null}

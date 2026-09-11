@@ -51,6 +51,44 @@ describe("AgentTurn", () => {
     expect(html).toContain('aria-label="Agent Comments"');
   });
 
+  it("keeps completed tool evidence but omits the redundant successful run outcome", () => {
+    const html = render({
+      agentActions: {
+        status: "completed",
+        operations: [{ id: "read-1", name: "read", status: "completed", output: "loaded" }],
+        reasoningSummaries: [],
+        activityOrder: [{ type: "operation", id: "read-1" }],
+      },
+      systemSurfaces: [],
+      remainingActivity: [],
+      agentComment: "Done",
+    });
+
+    expect(html).toContain('<span class="runtime-operation-status">completed</span>');
+    expect(html).not.toContain('<div class="runtime-terminal-status"');
+  });
+
+  it.each([
+    ["failed", "Failed"],
+    ["cancelled", "Cancelled"],
+  ] as const)("retains the meaningful %s terminal outcome", (status, label) => {
+    const html = render({
+      agentActions: {
+        status,
+        operations: [],
+        reasoningSummaries: [],
+        activityOrder: [],
+        terminalMessage: `${label} by runtime`,
+      },
+      systemSurfaces: [],
+      remainingActivity: [],
+      agentComment: "Outcome explained",
+    });
+
+    expect(html).toContain('<div class="runtime-terminal-status"');
+    expect(html).toContain(label);
+  });
+
   it("omits unsupported empty semantic regions", () => {
     const html = render({
       systemSurfaces: [],

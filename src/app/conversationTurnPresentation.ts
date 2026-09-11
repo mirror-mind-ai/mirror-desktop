@@ -1,5 +1,4 @@
 import type { RuntimeProjectionState } from "./runtimeActivityModel";
-import { hasRuntimeProjectionContent } from "./runtimeActivityModel";
 import type { ImportedConversationActivityEvent } from "../domain/persistedJourneyConversation";
 import { stripAnsiControlSequences } from "../agent/terminalText";
 import {
@@ -49,7 +48,7 @@ export function projectAgentTurnPresentation(input: AgentTurnPresentationInput):
     : [];
 
   return {
-    ...(input.runtimeProjection && hasRuntimeProjectionContent(input.runtimeProjection)
+    ...(input.runtimeProjection && hasSemanticAgentActions(input.runtimeProjection)
       ? { agentActions: input.runtimeProjection }
       : {}),
     systemSurfaces: deduplicateSystemSurfaces([
@@ -60,6 +59,13 @@ export function projectAgentTurnPresentation(input: AgentTurnPresentationInput):
     remainingActivity,
     agentComment: stripMessageSpeakerSignature(contentWithoutSystemBlocks),
   };
+}
+
+function hasSemanticAgentActions(projection: RuntimeProjectionState): boolean {
+  return projection.operations.length > 0
+    || projection.reasoningSummaries.some((summary) => Boolean(summary.content))
+    || projection.status === "failed"
+    || projection.status === "cancelled";
 }
 
 export function isSystemSurface(

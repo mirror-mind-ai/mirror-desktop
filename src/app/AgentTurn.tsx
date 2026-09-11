@@ -50,6 +50,7 @@ export function AgentTurn({
                 basePath={basePath}
                 suppressedSurfaceContents={suppressedSurfaceContents}
                 showRegionLabel={false}
+                showSuccessfulTerminalStatus={false}
               />
             </section>
           ) : null}

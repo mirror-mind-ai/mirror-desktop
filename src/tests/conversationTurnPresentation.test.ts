@@ -58,6 +58,33 @@ describe("agent turn semantic projection", () => {
     expect(presentation.remainingActivity.map((item) => item.id)).toEqual(["metadata"]);
   });
 
+  it("does not create Agent Actions from a successful terminal status alone", () => {
+    const presentation = project({
+      runtimeProjection: {
+        status: "completed",
+        operations: [],
+        reasoningSummaries: [],
+        activityOrder: [],
+      },
+    });
+
+    expect(presentation.agentActions).toBeUndefined();
+  });
+
+  it("retains failed and cancelled terminal outcomes as meaningful action evidence", () => {
+    for (const status of ["failed", "cancelled"] as const) {
+      expect(project({
+        runtimeProjection: {
+          status,
+          operations: [],
+          reasoningSummaries: [],
+          activityOrder: [],
+          terminalMessage: `${status} outcome`,
+        },
+      }).agentActions?.status).toBe(status);
+    }
+  });
+
   it("projects persisted evidence without inventing runtime actions", () => {
     const presentation = project({
       content: "Persisted answer",
