@@ -188,6 +188,42 @@ No Mirror DB, Pi session, updater, release, Journey registry, or native Tauri co
 is planned. If exact durable evidence cannot be attached within the existing projection
 settlement authority, implementation stops for a new plan decision.
 
+## Implementation Evidence
+
+Implemented on `refinement/rs011-cr022-action-turn-disclosure` in commit `a2b489f`.
+
+- `agentActionProjection.ts` applies the approved summary-led ownership rule and honest
+  operation fallback labels without reading hidden reasoning.
+- `actionDisclosureState.ts` gives preparing/running activity forced-open authority and
+  returns disclosure to collapsed manual control after settlement. `LiveRuntimeActivity`
+  hosts the action and nested tool disclosure components so both boundaries share the
+  same exact runtime projection.
+- `turnProximity.ts` classifies the active, latest-completed, and historical assistant
+  turns. Historical `AgentTurn` rendering keeps comments primary and uses one native
+  `<details>` control with action and surface counts.
+- Conversation projection schema `0.8.0` additively retains terminal action evidence.
+  Capture occurs before successful or interrupted projection persistence; restore accepts
+  only exact Journey, generation, run, turn, and assistant-message authority. Legacy
+  `0.5.0`–`0.7.0` projections remain readable.
+- Live evidence takes precedence over matching persisted evidence. Persisted active
+  operation and summary states normalize to terminal `failed` or `interrupted` states;
+  ANSI is removed from retained tool output. Manual disclosure state is never persisted.
+- No Mirror DB, Pi session, Mirror memory, native Tauri command, updater, release, or
+  Journey registry mutation was introduced.
+
+Automated evidence on 2026-09-11:
+
+- focused CR022 and semantic-regression suites: 67 tests passed across 10 files;
+- complete frontend suite: 667 tests passed across 123 files;
+- `npm run build`: passed;
+- `npm run tauri:build:dev`: passed, producing `Mirror Desktop Dev`, bundle ID
+  `ai.mirrormind.desktop.dev`, version `0.2.0-alpha.3`;
+- built executable inode: `161556044`.
+
+Navigator validation remains required for multi-action execution, settlement,
+historical compaction, manual disclosure recovery, and restart before this CR can move to
+`validated`.
+
 ## Proposed Acceptance
 
 - Exposed summaries own only subsequent tools up to the next exposed summary; unclaimed
