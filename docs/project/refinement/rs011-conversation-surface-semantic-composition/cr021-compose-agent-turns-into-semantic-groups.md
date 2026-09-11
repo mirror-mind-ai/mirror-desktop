@@ -90,6 +90,11 @@ disclosure rules; those remain CR022.
 - Mirror homes, identity, credentials, Journey content, conversations, app data, and
   Nautilus Harness state remain outside destructive mutation.
 
+## Implementation Authorization
+
+The Navigator approved the plan and authorized implementation. Driver is `@alissonvale`;
+Delivery is `refinement/rs011-cr021-semantic-turn-composition`.
+
 ## Proposed Plan
 
 1. Add a pure `AgentTurnPresentation` projection that accepts the assistant message,
