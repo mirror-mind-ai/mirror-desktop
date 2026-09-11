@@ -220,11 +220,15 @@ belong in an approved CR024 test plan and must not be implemented as production 
 - Conversation records, Mirror homes, identity, credentials, app data, and Nautilus
   Harness state must not be destructively rewritten during investigation.
 
+## Implementation Authorization
+
+The Navigator approved the plan and explicitly authorized implementation. Driver is
+`@alissonvale`; Delivery is `refinement/rs011-cr024-output-settlement-flicker`.
+
 ## Proposed Plan
 
 The Navigator authorized planning after the Dev observation identified Runtime Activity
-text during the flicker. Implementation still requires explicit Driver and Delivery
-decisions before this CR moves to `in_progress`.
+text during the flicker.
 
 1. Extend the conversation auto-follow domain contract to distinguish passive
    content-driven updates from explicit navigation. Preserve the user's decision to stay
