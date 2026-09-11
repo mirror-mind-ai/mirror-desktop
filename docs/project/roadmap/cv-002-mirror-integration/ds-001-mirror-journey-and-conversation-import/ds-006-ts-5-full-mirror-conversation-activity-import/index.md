@@ -2,7 +2,7 @@
 
 # DS-006.TS-5 — Full Mirror Conversation Activity Import
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

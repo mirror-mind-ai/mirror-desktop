@@ -2,7 +2,7 @@
 
 # DS-003 - Agent Provider Configuration
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -18,11 +18,11 @@ This story makes provider configuration visible and local, without expanding int
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| DS-003.US-1 | Visible Agent Provider Settings | User Story | Navigator can see the active Pi command, argument mode and invocation safety mode before running the agent | 🟡 Planned |
-| DS-003.US-2 | Edit Local Provider Configuration | User Story | Navigator can adjust the local command and safe test mode from the app for the current runtime session | 🟡 Planned |
-| DS-003.TS-1 | Provider Configuration State Model | Technical Story | Harness models provider command, args, stdin mode, safe test mode and defaults in TypeScript | 🟡 Planned |
-| DS-003.TS-2 | Tauri Provider Configuration Bridge | Technical Story | Tauri invocation uses explicit frontend provider configuration instead of hidden environment-only defaults | 🟡 Planned |
-| DS-003.TS-3 | Provider Configuration Guardrails | Technical Story | Configuration remains local, visible and bounded without storing secrets, invoking automatically, or granting broad filesystem authority | 🟡 Planned |
+| DS-003.US-1 | Visible Agent Provider Settings | User Story | Navigator can see the active Pi command, argument mode and invocation safety mode before running the agent | ✅ Done |
+| DS-003.US-2 | Edit Local Provider Configuration | User Story | Navigator can adjust the local command and safe test mode from the app for the current runtime session | ✅ Done |
+| DS-003.TS-1 | Provider Configuration State Model | Technical Story | Harness models provider command, args, stdin mode, safe test mode and defaults in TypeScript | ✅ Done |
+| DS-003.TS-2 | Tauri Provider Configuration Bridge | Technical Story | Tauri invocation uses explicit frontend provider configuration instead of hidden environment-only defaults | ✅ Done |
+| DS-003.TS-3 | Provider Configuration Guardrails | Technical Story | Configuration remains local, visible and bounded without storing secrets, invoking automatically, or granting broad filesystem authority | ✅ Done |
 
 ## Done Condition
 

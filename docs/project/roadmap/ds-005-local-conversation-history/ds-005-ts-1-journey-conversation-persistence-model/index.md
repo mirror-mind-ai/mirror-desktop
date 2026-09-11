@@ -2,7 +2,7 @@
 
 # DS-005.TS-1 — Journey Conversation Persistence Model
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

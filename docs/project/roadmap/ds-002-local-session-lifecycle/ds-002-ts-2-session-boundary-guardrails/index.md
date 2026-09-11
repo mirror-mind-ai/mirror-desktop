@@ -2,7 +2,7 @@
 
 # DS-002.TS-2 — Session Boundary Guardrails
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

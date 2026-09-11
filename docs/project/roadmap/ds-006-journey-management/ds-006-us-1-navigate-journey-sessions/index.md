@@ -2,7 +2,7 @@
 
 # DS-006.US-1 — Navigate Journey Sessions
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

@@ -2,7 +2,7 @@
 
 # DS-007.US-3 — Conversation Attachment Provenance
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

@@ -2,7 +2,7 @@
 
 # DS-005.US-1 — Restore Journey Conversation
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

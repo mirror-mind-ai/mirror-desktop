@@ -2,7 +2,7 @@
 
 # DS-004.US-2 — Cancel Running Agent Invocation
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

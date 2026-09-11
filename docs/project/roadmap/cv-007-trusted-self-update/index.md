@@ -2,7 +2,7 @@
 
 # CV-007 - Trusted Self-Update
 
-**Status:** 🟠 In Progress
+**Status:** ✅ Done
 
 ## Outcome
 

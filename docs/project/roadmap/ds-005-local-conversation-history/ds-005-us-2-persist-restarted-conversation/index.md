@@ -2,7 +2,7 @@
 
 # DS-005.US-2 — Persist Restarted Conversation
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

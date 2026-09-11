@@ -2,7 +2,7 @@
 
 # DS-006.TS-1 — Journey Registry Model
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

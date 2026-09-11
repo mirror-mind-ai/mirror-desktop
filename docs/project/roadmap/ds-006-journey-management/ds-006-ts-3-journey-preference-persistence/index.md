@@ -2,7 +2,7 @@
 
 # DS-006.TS-3 — Journey Preference Persistence
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

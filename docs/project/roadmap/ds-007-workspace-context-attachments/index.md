@@ -33,13 +33,13 @@ The original Journey-confined textual snapshot implementation was rejected durin
 
 | Code | Story | Type | Corrected Outcome | Status |
 |------|-------|------|-------------------|--------|
-| [DS-007.TS-1](ds-007-ts-1-bounded-context-attachment-contract/index.md) | Attachment Contract | Technical Story | Strict arbitrary-path file references, exact Journey draft ownership and bounded image thumbnails | 🟡 Planned |
-| [DS-007.US-1](ds-007-us-1-attach-journey-context/index.md) | Attach Files | User Story | Navigator can select any files through a paperclip or drag and drop without invoking Pi | 🟡 Planned |
-| [DS-007.US-2](ds-007-us-2-review-and-remove-pending-context/index.md) | Review and Remove Pending Files | User Story | Pending paths, sizes and image previews are visible and removable before Send | 🟡 Planned |
-| [DS-007.TS-2](ds-007-ts-2-confined-native-file-snapshot-boundary/index.md) | Native File Selection and Thumbnail Boundary | Technical Story | Tauri validates regular files, canonicalizes absolute paths and derives bounded image thumbnails | 🟡 Planned |
-| [DS-007.TS-3](ds-007-ts-3-dedicated-turn-context-projection/index.md) | Dedicated Turn File Projection | Technical Story | Selected paths are projected once into the explicitly sent dedicated Pi turn | 🟡 Planned |
-| [DS-007.US-3](ds-007-us-3-conversation-attachment-provenance/index.md) | Conversation File References | User Story | Historical messages preserve clickable paths and image thumbnails | 🟡 Planned |
-| [DS-007.TS-4](ds-007-ts-4-attachment-limits-and-failure-guardrails/index.md) | Attachment Compatibility and Guardrails | Technical Story | Legacy conversations, staging order, interruption and clearing remain safe | 🟡 Planned |
+| [DS-007.TS-1](ds-007-ts-1-bounded-context-attachment-contract/index.md) | Attachment Contract | Technical Story | Strict arbitrary-path file references, exact Journey draft ownership and bounded image thumbnails | ✅ Done |
+| [DS-007.US-1](ds-007-us-1-attach-journey-context/index.md) | Attach Files | User Story | Navigator can select any files through a paperclip or drag and drop without invoking Pi | ✅ Done |
+| [DS-007.US-2](ds-007-us-2-review-and-remove-pending-context/index.md) | Review and Remove Pending Files | User Story | Pending paths, sizes and image previews are visible and removable before Send | ✅ Done |
+| [DS-007.TS-2](ds-007-ts-2-confined-native-file-snapshot-boundary/index.md) | Native File Selection and Thumbnail Boundary | Technical Story | Tauri validates regular files, canonicalizes absolute paths and derives bounded image thumbnails | ✅ Done |
+| [DS-007.TS-3](ds-007-ts-3-dedicated-turn-context-projection/index.md) | Dedicated Turn File Projection | Technical Story | Selected paths are projected once into the explicitly sent dedicated Pi turn | ✅ Done |
+| [DS-007.US-3](ds-007-us-3-conversation-attachment-provenance/index.md) | Conversation File References | User Story | Historical messages preserve clickable paths and image thumbnails | ✅ Done |
+| [DS-007.TS-4](ds-007-ts-4-attachment-limits-and-failure-guardrails/index.md) | Attachment Compatibility and Guardrails | Technical Story | Legacy conversations, staging order, interruption and clearing remain safe | ✅ Done |
 
 ## Done Condition
 

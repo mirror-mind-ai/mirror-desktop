@@ -2,7 +2,7 @@
 
 # DS-004.TS-1 — Agent Run State Model
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

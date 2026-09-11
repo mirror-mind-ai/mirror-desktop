@@ -23,7 +23,8 @@
     "release:notes": "node scripts/release_notes.mjs",
     "release:private-update": "node scripts/private_update_publish.mjs",
     "alpha:channel:check": "node scripts/self_update_preflight.mjs --config src-tauri/tauri.alpha-update.conf.json",
-    "alpha:build": "node scripts/alpha_build.mjs"
+    "alpha:build": "node scripts/alpha_build.mjs",
+    "roadmap:check": "node scripts/roadmap_consistency.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",

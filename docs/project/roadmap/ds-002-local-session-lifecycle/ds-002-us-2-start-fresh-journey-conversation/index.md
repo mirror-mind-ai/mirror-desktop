@@ -2,7 +2,7 @@
 
 # DS-002.US-2 — Start Fresh Journey Conversation
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

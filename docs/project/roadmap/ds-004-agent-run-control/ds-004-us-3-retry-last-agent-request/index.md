@@ -2,7 +2,7 @@
 
 # DS-004.US-3 — Retry Last Agent Request
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

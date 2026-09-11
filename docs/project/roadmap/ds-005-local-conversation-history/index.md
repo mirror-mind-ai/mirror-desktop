@@ -2,7 +2,7 @@
 
 # DS-005 - Persisted Journey Conversation
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -18,11 +18,11 @@ This is not a history browser and not multiple chat threads. It is continuity fo
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| DS-005.US-1 | Restore Journey Conversation | User Story | Navigator reopens the app and sees the last local conversation for the active Journey restored | 🟡 Planned |
-| DS-005.US-2 | Persist Restarted Conversation | User Story | Restart Conversation clears the persisted conversation for that Journey and starts fresh | 🟡 Planned |
-| DS-005.TS-1 | Journey Conversation Persistence Model | Technical Story | Harness defines the persisted shape for one conversation per Journey with versioned local data | 🟡 Planned |
-| DS-005.TS-2 | Tauri Local Storage Bridge | Technical Story | Harness saves and loads Journey conversation data through a bounded local app-data file | 🟡 Planned |
-| DS-005.TS-3 | Persistence Guardrails | Technical Story | Persistence remains local, explicit and non-secret, with no Mirror sync, Mission execution or file mutation outside app data | 🟡 Planned |
+| DS-005.US-1 | Restore Journey Conversation | User Story | Navigator reopens the app and sees the last local conversation for the active Journey restored | ✅ Done |
+| DS-005.US-2 | Persist Restarted Conversation | User Story | Restart Conversation clears the persisted conversation for that Journey and starts fresh | ✅ Done |
+| DS-005.TS-1 | Journey Conversation Persistence Model | Technical Story | Harness defines the persisted shape for one conversation per Journey with versioned local data | ✅ Done |
+| DS-005.TS-2 | Tauri Local Storage Bridge | Technical Story | Harness saves and loads Journey conversation data through a bounded local app-data file | ✅ Done |
+| DS-005.TS-3 | Persistence Guardrails | Technical Story | Persistence remains local, explicit and non-secret, with no Mirror sync, Mission execution or file mutation outside app data | ✅ Done |
 
 ## Done Condition
 

@@ -2,7 +2,7 @@
 
 # DS-007.TS-2 — Confined Native File Snapshot Boundary
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

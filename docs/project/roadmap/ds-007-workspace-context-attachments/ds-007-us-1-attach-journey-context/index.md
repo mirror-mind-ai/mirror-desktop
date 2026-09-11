@@ -2,7 +2,7 @@
 
 # DS-007.US-1 — Attach Journey Context
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

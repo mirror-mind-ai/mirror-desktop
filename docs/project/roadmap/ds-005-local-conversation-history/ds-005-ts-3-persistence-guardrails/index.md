@@ -2,7 +2,7 @@
 
 # DS-005.TS-3 — Persistence Guardrails
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

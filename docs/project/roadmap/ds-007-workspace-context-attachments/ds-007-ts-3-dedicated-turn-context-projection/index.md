@@ -2,7 +2,7 @@
 
 # DS-007.TS-3 — Dedicated Turn Context Projection
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

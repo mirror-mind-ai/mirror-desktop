@@ -2,7 +2,7 @@
 
 # DS-004.TS-2 — Tauri Process Cancellation Bridge
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

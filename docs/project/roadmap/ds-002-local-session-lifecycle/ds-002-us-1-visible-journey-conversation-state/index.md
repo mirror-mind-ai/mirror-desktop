@@ -2,7 +2,7 @@
 
 # DS-002.US-1 — Visible Journey Conversation State
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

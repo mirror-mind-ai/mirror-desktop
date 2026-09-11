@@ -2,7 +2,7 @@
 
 # DS-003.TS-2 — Tauri Provider Configuration Bridge
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

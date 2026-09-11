@@ -2,7 +2,7 @@
 
 # DS-004.TS-3 — Run Control Guardrails
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

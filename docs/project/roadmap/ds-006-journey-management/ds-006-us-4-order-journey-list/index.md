@@ -2,7 +2,7 @@
 
 # DS-006.US-4 — Order Journey List
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

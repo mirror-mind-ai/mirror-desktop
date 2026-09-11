@@ -2,7 +2,7 @@
 
 # DS-004 - Agent Run Control
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -18,12 +18,12 @@ This story turns agent invocation into a controllable run lifecycle: idle, runni
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| DS-004.US-1 | Visible Agent Run State | User Story | Navigator can see whether the agent is idle, running, completed, failed or cancelled | 🟡 Planned |
-| DS-004.US-2 | Cancel Running Agent Invocation | User Story | Navigator can cancel an in-flight local Pi invocation without restarting the app | 🟡 Planned |
-| DS-004.US-3 | Retry Last Agent Request | User Story | Navigator can retry the last user request after failure or cancellation | 🟡 Planned |
-| DS-004.TS-1 | Agent Run State Model | Technical Story | Harness models run id, status, started/completed timestamps, last request and error/cancel state | 🟡 Planned |
-| DS-004.TS-2 | Tauri Process Cancellation Bridge | Technical Story | Tauri can stop the active local Pi process for the current run only | 🟡 Planned |
-| DS-004.TS-3 | Run Control Guardrails | Technical Story | Harness prevents concurrent live invocations and cancellation never deletes chat, persists state, executes Missions, mutates files or invokes Mirror | 🟡 Planned |
+| DS-004.US-1 | Visible Agent Run State | User Story | Navigator can see whether the agent is idle, running, completed, failed or cancelled | ✅ Done |
+| DS-004.US-2 | Cancel Running Agent Invocation | User Story | Navigator can cancel an in-flight local Pi invocation without restarting the app | ✅ Done |
+| DS-004.US-3 | Retry Last Agent Request | User Story | Navigator can retry the last user request after failure or cancellation | ✅ Done |
+| DS-004.TS-1 | Agent Run State Model | Technical Story | Harness models run id, status, started/completed timestamps, last request and error/cancel state | ✅ Done |
+| DS-004.TS-2 | Tauri Process Cancellation Bridge | Technical Story | Tauri can stop the active local Pi process for the current run only | ✅ Done |
+| DS-004.TS-3 | Run Control Guardrails | Technical Story | Harness prevents concurrent live invocations and cancellation never deletes chat, persists state, executes Missions, mutates files or invokes Mirror | ✅ Done |
 
 ## Done Condition
 

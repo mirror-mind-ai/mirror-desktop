@@ -2,7 +2,7 @@
 
 # DS-006.US-3 — Render Imported Conversations
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

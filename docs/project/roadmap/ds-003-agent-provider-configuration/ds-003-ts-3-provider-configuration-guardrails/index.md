@@ -2,7 +2,7 @@
 
 # DS-003.TS-3 — Provider Configuration Guardrails
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

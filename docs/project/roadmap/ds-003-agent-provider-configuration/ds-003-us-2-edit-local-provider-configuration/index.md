@@ -2,7 +2,7 @@
 
 # DS-003.US-2 — Edit Local Provider Configuration
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

@@ -2,7 +2,7 @@
 
 # DS-006.TS-6 — Materialize Mirror Import as Local Harness State
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

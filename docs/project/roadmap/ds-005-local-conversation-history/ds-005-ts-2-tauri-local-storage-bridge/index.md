@@ -2,7 +2,7 @@
 
 # DS-005.TS-2 — Tauri Local Storage Bridge
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

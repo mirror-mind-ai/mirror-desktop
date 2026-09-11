@@ -2,7 +2,7 @@
 
 # DS-003.TS-1 — Provider Configuration State Model
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

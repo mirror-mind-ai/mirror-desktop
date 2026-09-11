@@ -2,7 +2,7 @@
 
 # DS-007.TS-1 — Bounded Context Attachment Contract
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

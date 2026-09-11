@@ -2,7 +2,7 @@
 
 # DS-003.US-1 — Visible Agent Provider Settings
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

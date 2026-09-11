@@ -2,7 +2,7 @@
 
 # DS-002.TS-1 — Journey Conversation State Model
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

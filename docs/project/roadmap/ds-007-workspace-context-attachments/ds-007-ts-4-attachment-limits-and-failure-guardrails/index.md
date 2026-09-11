@@ -2,7 +2,7 @@
 
 # DS-007.TS-4 — Attachment Limits and Failure Guardrails
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ---

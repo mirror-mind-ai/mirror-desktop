@@ -2,7 +2,7 @@
 
 # DS-006.US-2 — Search Journeys
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

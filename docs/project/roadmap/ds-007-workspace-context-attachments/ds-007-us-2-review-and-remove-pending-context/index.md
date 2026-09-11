@@ -2,7 +2,7 @@
 
 # DS-007.US-2 — Review and Remove Pending Context
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

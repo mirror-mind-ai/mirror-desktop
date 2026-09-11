@@ -2,7 +2,7 @@
 
 # DS-006.US-6 — Journey List Empty and Growth States
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

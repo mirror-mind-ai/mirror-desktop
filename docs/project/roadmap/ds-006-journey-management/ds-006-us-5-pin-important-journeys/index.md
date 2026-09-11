@@ -2,7 +2,7 @@
 
 # DS-006.US-5 — Pin Important Journeys
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---

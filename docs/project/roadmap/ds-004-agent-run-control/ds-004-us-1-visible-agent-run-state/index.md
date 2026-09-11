@@ -2,7 +2,7 @@
 
 # DS-004.US-1 — Visible Agent Run State
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ---
