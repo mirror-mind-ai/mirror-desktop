@@ -55,3 +55,21 @@ No persisted schema or runtime event contract needs to change. Existing terminal
 - Existing completed evidence renders correctly without persistence migration or data rewrite.
 - CR022 automatic disclosure, historical counts, source order, and fallback labels remain intact.
 - Focused tests, full frontend tests, frontend build, isolated Dev build, and Navigator validation pass before closure.
+
+## Outcome
+
+Completed on 2026-09-11.
+
+- A strict presentation-only parser now separates a reasoning record only when every non-empty paragraph is a standalone emphasized title.
+- Split titles retain source order; only the final title owns following tools and inherits streaming activity.
+- Every empty summary reference clears previous ownership, so the next operation receives its honest fallback action.
+- Ordinary and mixed narrative summaries retain their existing single-action projection.
+- Persisted evidence and runtime event schemas were not changed or migrated.
+
+## Validation
+
+- Focused projection, component, persistence, and terminal-evidence suites: 45 tests passed.
+- Complete frontend suite: 676 tests across 123 files passed.
+- TypeScript/Vite production build passed.
+- Isolated Tauri Dev application build passed with bundle ID `ai.mirrormind.desktop.dev` and version `0.2.0-alpha.4`.
+- The Navigator validated the corrected action boundaries in `Mirror Desktop Dev` and authorized closure.

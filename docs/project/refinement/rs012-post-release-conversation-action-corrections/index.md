@@ -25,4 +25,4 @@ Visible Agent Actions preserve every exposed independent title without concatena
 
 - [CR025 — Separate compound and empty action boundaries](cr025-separate-compound-and-empty-action-boundaries.md)
 
-CR025 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs012-cr025-action-boundary-splitting`.
+CR025 is `done`. Navigator validation confirmed the correction in the isolated `Mirror Desktop Dev` application, so RS012 is closed.
