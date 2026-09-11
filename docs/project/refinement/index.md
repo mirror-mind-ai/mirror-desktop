@@ -12,8 +12,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: —
-- Change Request: —
+- Refinement Story: [RS011](rs011-conversation-surface-semantic-composition/index.md)
+- Change Request: [CR024](rs011-conversation-surface-semantic-composition/cr024-prevent-agent-output-flicker-when-turn-settles.md)
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
