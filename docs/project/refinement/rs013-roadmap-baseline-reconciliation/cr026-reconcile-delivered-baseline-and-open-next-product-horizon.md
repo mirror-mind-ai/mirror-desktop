@@ -38,3 +38,23 @@ The roadmap, Workbench and refreshed Operational projection present one evidence
 - A read-only automated check detects future hierarchy/status drift.
 - Refreshed Operational state resolves to exactly `mirror-desktop`, has no stale active delivery and includes current file-first refinement state.
 - Application/release behavior and protected user/Mirror data remain unchanged.
+
+## Implementation Evidence
+
+- [Baseline Reconciliation Receipt](../../roadmap/baseline-reconciliation-receipt.md) accounts for all 44 starting declarations: 14 had direct receipts, 28 were explicitly covered by accepted parent closures, and two were aggregate mismatches.
+- CV-001 now includes DS-012, reports DS-009 done and uses current Mirror Desktop language while preserving its historical capability boundary.
+- CV-007 and all seven root Capability Values now report done; Apple signing, notarization, architecture coverage and stable distribution remain possible future inputs rather than implied completion claims.
+- RS010 is closed. CR003 links its private release and clickable rehearsal receipts. A fresh read-only GitHub query confirmed `mirror-mind-ai/mirrormind-site` is `PRIVATE`, allowing CR014 to close without remote mutation.
+- `scripts/roadmap_consistency.mjs` and five focused tests detect linked status drift, nonterminal delivered-baseline items, missing baseline membership, missing local links and completed-item recommendations without editing files or inferring future CV status.
+- `npm run roadmap:check` reports `Mirror Desktop roadmap: READY`.
+- The complete frontend suite passed with 681 tests across 124 files, and `npm run build` passed. The existing Vite chunk-size advisory remains unchanged and is not caused by this documentation/governance work.
+- The released `build sync-cursor --journey mirror-desktop --method ariad` command reset the completed delivery cursor through its supported boundary and explicitly reported that no story lifecycle work was executed.
+- The released Operational publisher rebuilt exactly `mirror-desktop`: `activeWork` is `null`; CV-001 through CV-007 are `done`; RS010 through RS012 are `closed`; RS013/CR026 remain active only until Navigator validation and closure.
+
+## Proportionality And Debt Review
+
+The implementation changes authored status, provenance, root horizon language, one read-only consistency gate and the supported derived projection state. It does not rewrite historical plans, synthesize a product direction, add a generic roadmap state machine or mutate application/release behavior. No new technical debt was found, and the technical-debt ledger remains unchanged.
+
+## Navigator Validation Route
+
+Review the root roadmap and Operational Ariad surface for `mirror-desktop`. Pass when the baseline shows CV-001 through CV-007 done, no active Delivery item, only RS013/CR026 as the current closing refinement, and no selected CV-008. Fail if any completed package still appears planned/in progress, CV-007 implies Apple signing/notarization, or the next product direction appears preselected.
