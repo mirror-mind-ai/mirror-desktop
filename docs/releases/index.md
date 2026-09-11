@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.4 — Semantic Conversation Surface](v0.2.0-alpha.4.md) — reshapes conversations around semantic agent turns, preserves ready responses through settlement, makes action history recoverable, and adds exact copy controls to fenced Agent Comment blocks.
 - [v0.2.0-alpha.3 — Alpha Feedback and Operational Reliability](v0.2.0-alpha.3.md) — turns hands-on alpha feedback into authoritative context usage, settled failures, quiet finalization, reloadable release artifacts, accessible light themes, and a simpler Journey sidebar.
 - [v0.2.0-alpha.2 — Sidebar Version Label and Alpha Build Contract](v0.2.0-alpha.2.md) — refines the persistent version/update surface, fixes overlay layering, centralizes signed alpha builds, and keeps the public macOS download on the stable latest alias.
 - [v0.2.0-alpha.1 — Governed Alpha Release Candidate](v0.2.0-alpha.1.md) — first governed alpha candidate with separate alpha updater lane, staged signed artifacts, release-note payload, and an explicit no-publication boundary until Navigator authorization.
