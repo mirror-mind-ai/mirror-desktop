@@ -103,8 +103,8 @@ than textual guesses or background color. Inline code remains unchanged.
 - [CR023 — Make highlighted blocks consistently copyable](cr023-make-highlighted-blocks-consistently-copyable.md)
 - [CR024 — Prevent agent output flicker when a turn settles](cr024-prevent-agent-output-flicker-when-turn-settles.md)
 
-CR021, CR022, and CR024 are closed as `done`; CR023 remains `captured` and has not
-been selected, assigned, or planned. CR022 builds on the semantic foundation delivered by
-CR021; CR023 can be assessed independently.
+CR021, CR022, and CR024 are closed as `done`; CR023 is selected and `planned`, but has
+not been assigned a Driver or Delivery. CR022 builds on the semantic foundation delivered
+by CR021; CR023 can be delivered independently through the shared Agent Comments renderer.
 CR024 stabilized the live-to-completed turn boundary before RS011 changes relied on that
 transition.
