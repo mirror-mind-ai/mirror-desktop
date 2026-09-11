@@ -15,6 +15,7 @@ type LiveRuntimeActivityProps = {
   projection: RuntimeProjectionState;
   basePath?: string;
   suppressedSurfaceContents?: string[];
+  showRegionLabel?: boolean;
 };
 
 const OPERATION_STATUS_LABEL: Record<RuntimeProjectionState["operations"][number]["status"], string> = {
@@ -33,14 +34,19 @@ const RUN_STATUS_LABEL: Record<RuntimeProjectionState["status"], string> = {
   failed: "Failed",
 };
 
-export function LiveRuntimeActivity({ projection, basePath, suppressedSurfaceContents = [] }: LiveRuntimeActivityProps) {
+export function LiveRuntimeActivity({
+  projection,
+  basePath,
+  suppressedSurfaceContents = [],
+  showRegionLabel = true,
+}: LiveRuntimeActivityProps) {
   const active = isRuntimeProjectionActive(projection);
 
   return (
     <section className={`live-runtime-activity ${active ? "is-active" : `is-settled status-${projection.status}`}`} aria-label="Pi runtime activity">
       {projection.activityOrder.length > 0 ? (
         <section className="runtime-activity-region" aria-label="Ordered agent activity">
-          <span className="runtime-region-label">Runtime activity</span>
+          {showRegionLabel ? <span className="runtime-region-label">Runtime activity</span> : null}
           <div className="runtime-operation-list">
             {projection.activityOrder.map((entry) => {
               if (entry.type === "reasoning_summary") {
@@ -147,7 +153,7 @@ function RuntimeOperation({
   const outputWithoutSurfaces = sanitizedOutput === undefined
     ? undefined
     : stripMirrorSurfaceBlocks(sanitizedOutput);
-  const modeEvents = outputWithoutSurfaces
+  const allModeEvents = outputWithoutSurfaces
     ? extractMirrorModeEventsFromContent({
         content: outputWithoutSurfaces,
         messageId: `runtime-${operation.id}`,
@@ -157,10 +163,13 @@ function RuntimeOperation({
         source: { system: "mirror" as const, table: "runtime", id: operation.id },
       }))
     : [];
+  const modeEvents = allModeEvents.filter(
+    (event) => !event.content || !suppressedSurfaces.has(normalizeMirrorSurfaceContent(event.content)),
+  );
   const activityEvents = [...modeEvents, ...surfaceEvents];
   const visibleOutput = outputWithoutSurfaces === undefined
     ? undefined
-    : modeEvents.length > 0
+    : allModeEvents.length > 0
       ? stripMirrorModeBlocks(outputWithoutSurfaces).trim()
       : outputWithoutSurfaces;
 

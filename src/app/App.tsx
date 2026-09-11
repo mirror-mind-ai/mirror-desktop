@@ -41,7 +41,8 @@ import {
   openExternalChatLocalReference,
 } from "./chatLocalReferenceNavigation";
 import { MessageCopyAction } from "./MessageCopyAction";
-import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
+import { AgentTurn } from "./AgentTurn";
+import { projectAgentTurnPresentation } from "./conversationTurnPresentation";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
 import {
   contextStateForInspection,
@@ -114,10 +115,7 @@ import {
   extractCertifiedModeTransition,
   type CertifiedModeTransition,
 } from "./mirrorModeState";
-import {
-  hasRuntimeProjectionContent,
-  mergeRuntimeContextUsage,
-} from "./runtimeActivityModel";
+import { mergeRuntimeContextUsage } from "./runtimeActivityModel";
 import {
   createInitialJourneyRuntimeState,
   identityJourneyId,
@@ -3500,8 +3498,31 @@ export function App({ model }: AppProps) {
           ) : null}
           <ImportedActivity events={importedActivity.unlinked} variant="summary" basePath={selectedJourneyBasePath} />
           {messages.map((message) => {
+            const linkedActivity = importedActivity.byMessageId.get(message.id) ?? [];
             const contentWithoutSurfaces = stripMirrorSurfaceBlocks(message.content);
             const renderedContent = stripMirrorModeBlocks(contentWithoutSurfaces);
+            const speaker = inferMessageSpeaker({ ...message, content: renderedContent });
+
+            if (message.role === "assistant") {
+              const presentation = projectAgentTurnPresentation({
+                messageId: message.id,
+                content: message.content,
+                createdAt: message.createdAt,
+                linkedActivity,
+                ...(runtimeProjectionMessageId === message.id ? { runtimeProjection } : {}),
+              });
+              return (
+                <AgentTurn
+                  key={message.id}
+                  message={message}
+                  speaker={speaker}
+                  presentation={presentation}
+                  basePath={selectedJourneyBasePath}
+                  onLocalPathClick={(path) => void handleChatLocalPath(path)}
+                />
+              );
+            }
+
             const renderTimeActivity = [
               ...extractMirrorSurfaceEventsFromContent({
                 content: message.content,
@@ -3514,46 +3535,24 @@ export function App({ model }: AppProps) {
                 createdAt: message.createdAt,
               }),
             ];
-            const messageActivity = mergeImportedActivityEvents(importedActivity.byMessageId.get(message.id) ?? [], renderTimeActivity);
-
-            const speaker = inferMessageSpeaker({ ...message, content: renderedContent });
+            const messageActivity = mergeImportedActivityEvents(linkedActivity, renderTimeActivity);
             const bodyContent = stripMessageSpeakerSignature(renderedContent);
-            const isRuntimeMessage = runtimeProjectionMessageId === message.id;
-            const hasRuntimeActivity = isRuntimeMessage && hasRuntimeProjectionContent(runtimeProjection);
 
             return (
               <div key={message.id} className="message-cluster">
-                {bodyContent || hasRuntimeActivity ? (
+                {bodyContent ? (
                   <article className={`message ${message.role} speaker-${speaker.kind}`}>
                     <div className="message-speaker-row">
                       <MessageSpeakerAvatar speakerKind={speaker.kind} fallback={speaker.avatar} userAvatar={userAvatar} />
                       <span className="message-role">{speaker.label}</span>
-                      {bodyContent ? <MessageCopyAction body={bodyContent} /> : null}
+                      <MessageCopyAction body={bodyContent} />
                     </div>
-                    {hasRuntimeActivity ? (
-                      <LiveRuntimeActivity
-                        projection={runtimeProjection}
-                        basePath={selectedJourneyBasePath}
-                        suppressedSurfaceContents={messageActivity
-                          .filter((event) => event.kind === "ariad_surface" && event.content)
-                          .map((event) => event.content as string)}
-                      />
-                    ) : null}
-                    {bodyContent ? (
-                      isRuntimeMessage ? (
-                        <div className="runtime-answer">
-                          <span className="runtime-region-label">Assistant answer</span>
-                          <MessageContent content={bodyContent} basePath={selectedJourneyBasePath} onLocalPathClick={(path) => void handleChatLocalPath(path)} />
-                        </div>
-                      ) : (
-                        <MessageContent
-                          content={bodyContent}
-                          basePath={selectedJourneyBasePath}
-                          onLocalPathClick={(path) => void handleChatLocalPath(path)}
-                          preserveParagraphLineBreaks={message.role === "user"}
-                        />
-                      )
-                    ) : null}
+                    <MessageContent
+                      content={bodyContent}
+                      basePath={selectedJourneyBasePath}
+                      onLocalPathClick={(path) => void handleChatLocalPath(path)}
+                      preserveParagraphLineBreaks
+                    />
                     <MessageFileAttachments attachments={message.attachments} />
                     <MessageAttachmentProvenance attachments={message.attachments} />
                   </article>

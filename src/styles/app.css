@@ -2333,6 +2333,30 @@ h3 {
   color: #85a1a7;
 }
 
+.agent-turn-region {
+  border-top: 1px solid rgba(var(--ui-accent-rgb), 0.12);
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.agent-turn-region > .runtime-region-label {
+  color: #85a1a7;
+}
+
+.agent-actions .live-runtime-activity {
+  margin-bottom: 0;
+}
+
+.agent-actions .runtime-activity-region {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.system-surfaces .imported-activity-inline {
+  margin-left: 0;
+}
+
 .runtime-working-dots {
   display: inline-flex;
   gap: 1px;

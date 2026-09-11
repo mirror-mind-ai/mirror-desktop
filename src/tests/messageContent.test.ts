@@ -56,7 +56,8 @@ describe("MessageContent rich rendering parser", () => {
     expect(html).toContain(content);
     expect(cssSource).toContain(".message-content.preserve-line-breaks p");
     expect(cssSource).toContain("white-space: pre-wrap");
-    expect(appSource).toContain('preserveParagraphLineBreaks={message.role === "user"}');
+    expect(appSource).toContain('if (message.role === "assistant")');
+    expect(appSource).toContain("preserveParagraphLineBreaks\n");
   });
 
   it("parses canonical Markdown tables with declared column alignment", () => {

@@ -1,0 +1,77 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { AgentTurn } from "../app/AgentTurn";
+import type { AgentTurnPresentation } from "../app/conversationTurnPresentation";
+
+const surface = {
+  id: "surface-1",
+  kind: "ariad_surface",
+  timestamp: "2026-09-11T00:00:00.000Z",
+  title: "Ariad surface: PLAN",
+  source: { system: "mirror" as const, table: "messages", id: "assistant-1" },
+  content: "<<<ARIAD:PLAN>>>\ncanonical\n<<<END:PLAN>>>",
+};
+
+function render(presentation: AgentTurnPresentation) {
+  return renderToStaticMarkup(
+    <AgentTurn
+      message={{ id: "assistant-1", role: "assistant", content: "ignored", createdAt: "2026-09-11T00:00:00.000Z" }}
+      speaker={{ label: "Agent", avatar: "π", kind: "agent" }}
+      presentation={presentation}
+    />,
+  );
+}
+
+describe("AgentTurn", () => {
+  it("renders semantic groups once in fixed composition order", () => {
+    const html = render({
+      agentActions: {
+        status: "working",
+        operations: [{ id: "read-1", name: "read", status: "running", output: surface.content }],
+        reasoningSummaries: [{ id: "reasoning-1", content: "Inspecting", status: "completed" }],
+        activityOrder: [
+          { type: "reasoning_summary", id: "reasoning-1" },
+          { type: "operation", id: "read-1" },
+        ],
+      },
+      systemSurfaces: [surface],
+      remainingActivity: [],
+      agentComment: "Consolidated answer",
+    });
+
+    expect(html.match(/Agent Actions/g)).toHaveLength(2);
+    expect(html.match(/System Surfaces/g)).toHaveLength(2);
+    expect(html.match(/Agent Comments/g)).toHaveLength(2);
+    expect(html.indexOf("Agent Actions")).toBeLessThan(html.indexOf("System Surfaces"));
+    expect(html.indexOf("System Surfaces")).toBeLessThan(html.indexOf("Agent Comments"));
+    expect(html.match(/canonical/g)).toHaveLength(1);
+    expect(html).toContain("Consolidated answer");
+    expect(html).toContain('aria-label="Agent Actions"');
+    expect(html).toContain('aria-label="System Surfaces"');
+    expect(html).toContain('aria-label="Agent Comments"');
+  });
+
+  it("omits unsupported empty semantic regions", () => {
+    const html = render({
+      systemSurfaces: [],
+      remainingActivity: [],
+      agentComment: "Comment only",
+    });
+
+    expect(html).not.toContain("Agent Actions");
+    expect(html).not.toContain("System Surfaces");
+    expect(html).toContain("Agent Comments");
+  });
+
+  it("keeps surface-only assistant turns visible", () => {
+    const html = render({
+      systemSurfaces: [surface],
+      remainingActivity: [],
+      agentComment: "",
+    });
+
+    expect(html).toContain('class="message assistant speaker-agent"');
+    expect(html).toContain("System Surfaces");
+    expect(html).not.toContain("Agent Comments");
+  });
+});

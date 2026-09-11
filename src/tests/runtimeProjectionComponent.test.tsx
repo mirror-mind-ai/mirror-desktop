@@ -6,6 +6,7 @@ import { LiveRuntimeActivity, summarizeOperationArgument } from "../app/LiveRunt
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "../app/ComposerRuntimeFooter";
 import type { RuntimeProjectionState } from "../app/runtimeActivityModel";
 import appSource from "../app/App.tsx?raw";
+import agentTurnSource from "../app/AgentTurn.tsx?raw";
 
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
@@ -348,9 +349,12 @@ describe("runtime projection component", () => {
     expect(html).not.toMatch(/<details[^>]*runtime-compaction/);
   });
 
-  it("gives the final assistant answer a dedicated visual region after runtime activity", () => {
-    expect(appSource).toContain('className="runtime-answer"');
-    expect(appSource.indexOf("<LiveRuntimeActivity")).toBeLessThan(appSource.indexOf('className="runtime-answer"'));
+  it("delegates assistant rendering to semantic regions after runtime activity", () => {
+    expect(appSource).toContain("<AgentTurn");
+    expect(agentTurnSource.indexOf('aria-label="Agent Actions"')).toBeLessThan(
+      agentTurnSource.indexOf('aria-label="Agent Comments"'),
+    );
+    expect(agentTurnSource).not.toContain('className="runtime-answer"');
   });
 
   it("renders interrupted operations as collapsed inert evidence", () => {
