@@ -12,8 +12,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: — (awaiting explicit selection)
-- Change Request: — (awaiting explicit selection)
+- Refinement Story: [RS013](rs013-roadmap-baseline-reconciliation/index.md)
+- Change Request: [CR026](rs013-roadmap-baseline-reconciliation/cr026-reconcile-delivered-baseline-and-open-next-product-horizon.md)
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -34,6 +34,7 @@ executes work.
 | 10 | [RS010](rs010-bilingual-website-repository-extraction/index.md) | Bilingual website repository extraction | active |
 | 11 | [RS011](rs011-conversation-surface-semantic-composition/index.md) | Conversation surface semantic composition | closed |
 | 12 | [RS012](rs012-post-release-conversation-action-corrections/index.md) | Post-release conversation action corrections | closed |
+| 13 | [RS013](rs013-roadmap-baseline-reconciliation/index.md) | Roadmap baseline reconciliation | active |
 
 ## Change Requests
 
@@ -41,6 +42,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
+| 1 | [CR026](rs013-roadmap-baseline-reconciliation/cr026-reconcile-delivered-baseline-and-open-next-product-horizon.md) | RS013 | Reconcile delivered baseline and open the next product horizon | in_progress | @alissonvale | `refinement/rs013-cr026-roadmap-baseline-reconciliation` |
 | 2 | [CR003](unassigned/cr003-generate-private-test-release-v0-1-1-test-1.md) | — | Generate private test release v0.1.1-test.1 | captured | — | — |
 | 3 | [CR014](unassigned/cr014-make-mirror-mind-site-repository-private.md) | — | Make Mirror Mind site repository private | captured | — | — |
 | — | [CR025](rs012-post-release-conversation-action-corrections/cr025-separate-compound-and-empty-action-boundaries.md) | RS012 | Separate compound and empty action boundaries | done | — | — |
