@@ -2,7 +2,7 @@
 
 **Journey:** `mirror-desktop`  
 **Candidate:** `v0.2.0-alpha.4`  
-**Status:** alpha endpoint published; Git and GitHub publication authorized and pending
+**Status:** published alpha prerelease
 
 ## Scope
 
@@ -91,14 +91,33 @@ https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.json
 
 All three updater manifests report `0.2.0-alpha.4`, the alpha release-note URL, updater artifact URL, and a non-empty signature. Downloaded updater bytes, versioned DMG bytes, stable DMG alias, release note, and release index match the local staged payload. The `updates.mirrormind.com.br` compatibility alias also reports `0.2.0-alpha.4`.
 
-## Pending Authorized Publication
+## Source and GitHub Publication
 
-The following already-authorized operations remain to be completed and recorded:
+The linear release history was fast-forwarded and pushed to `origin/main`. Annotated tag
+`v0.2.0-alpha.4` points to the endpoint-publication evidence revision:
 
-- fast-forward the linear source history to `main` and push it;
-- create and push annotated tag `v0.2.0-alpha.4`;
-- create the GitHub prerelease and upload the checksum-matched DMG, updater archive, and signature;
-- verify GitHub asset digests and inspect GitHub Actions after push.
+```text
+e349a3659c957d5f1cbe7b0508455d624914e1d0
+```
+
+The signed binaries remain attributable to candidate source revision
+`7de6c29d46d9ba54d12f80fc44d933769428d414`; the intervening commit contains bounded
+release evidence only.
+
+GitHub prerelease:
+
+```text
+https://github.com/mirror-mind-ai/mirror-desktop/releases/tag/v0.2.0-alpha.4
+```
+
+GitHub reported the expected release as a non-draft prerelease and returned matching
+SHA-256 digests for all three uploaded assets:
+
+- `Mirror.Desktop_0.2.0-alpha.4_x64.dmg`
+- `Mirror.Desktop.app.tar.gz`
+- `Mirror.Desktop.app.tar.gz.sig`
+
+GitHub Actions inspection after the push returned no workflow runs for `main`.
 
 ## Explicit Boundary
 
