@@ -2360,8 +2360,10 @@ h3 {
 }
 
 .runtime-agent-action-body {
+  align-content: start;
   display: grid;
   gap: 8px;
+  grid-auto-rows: max-content;
   padding: 0 8px 8px;
 }
 
@@ -2561,6 +2563,7 @@ h3 {
 }
 
 .runtime-operation {
+  align-self: start;
   background: rgba(7, 18, 22, 0.34);
   border: 1px solid rgba(var(--ui-accent-rgb), 0.14);
   border-left: 3px solid rgba(var(--ui-accent-rgb), 0.48);

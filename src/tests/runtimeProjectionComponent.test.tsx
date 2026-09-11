@@ -188,6 +188,15 @@ describe("runtime projection component", () => {
     expect(cssSource).toContain(".runtime-reasoning-summary");
   });
 
+  it("keeps settled tool rows content-sized when an action is expanded", () => {
+    const actionBodyRule = cssSource.match(/\.runtime-agent-action-body \{[^}]+\}/)?.[0] ?? "";
+    const operationRule = cssSource.match(/\.runtime-operation \{[^}]+\}/)?.[0] ?? "";
+
+    expect(actionBodyRule).toContain("align-content: start");
+    expect(actionBodyRule).toContain("grid-auto-rows: max-content");
+    expect(operationRule).toContain("align-self: start");
+  });
+
   it("uses exposed summaries as action boundaries while preserving source order", () => {
     const projection: RuntimeProjectionState = {
       status: "working",
