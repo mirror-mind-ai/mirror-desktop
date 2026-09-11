@@ -42,7 +42,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 |------:|----|----|--------|--------|--------|----------|
 | 2 | [CR003](unassigned/cr003-generate-private-test-release-v0-1-1-test-1.md) | — | Generate private test release v0.1.1-test.1 | captured | — | — |
 | 3 | [CR014](unassigned/cr014-make-mirror-mind-site-repository-private.md) | — | Make Mirror Mind site repository private | captured | — | — |
-| 6 | [CR023](rs011-conversation-surface-semantic-composition/cr023-make-highlighted-blocks-consistently-copyable.md) | RS011 | Make highlighted blocks consistently copyable | planned | — | — |
+| 6 | [CR023](rs011-conversation-surface-semantic-composition/cr023-make-highlighted-blocks-consistently-copyable.md) | RS011 | Make highlighted blocks consistently copyable | in_progress | @alissonvale | `refinement/rs011-cr023-semantic-code-block-copy` |
 | — | [CR022](rs011-conversation-surface-semantic-composition/cr022-govern-action-tool-and-turn-disclosure.md) | RS011 | Govern action, tool, and turn disclosure | done | @alissonvale | `refinement/rs011-cr022-action-turn-disclosure` |
 | — | [CR021](rs011-conversation-surface-semantic-composition/cr021-compose-agent-turns-into-semantic-groups.md) | RS011 | Compose agent turns into semantic groups | done | @alissonvale | `refinement/rs011-cr021-semantic-turn-composition` |
 | — | [CR024](rs011-conversation-surface-semantic-composition/cr024-prevent-agent-output-flicker-when-turn-settles.md) | RS011 | Prevent agent output flicker when a turn settles | done | @alissonvale | `refinement/rs011-cr024-output-settlement-flicker` |

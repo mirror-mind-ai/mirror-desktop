@@ -103,6 +103,11 @@ storage.
   neighboring text.
 - No clipboard content is persisted or transmitted.
 
+## Implementation Authorization
+
+The Navigator approved the plan and authorized implementation. Driver is `@alissonvale`;
+Delivery is `refinement/rs011-cr023-semantic-code-block-copy`.
+
 ## Proposed Plan
 
 1. Add an explicit `copyCodeBlocks` rendering capability to `MessageContent`, disabled by
