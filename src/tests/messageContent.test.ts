@@ -10,6 +10,9 @@ import {
 } from "../app/MessageContent";
 
 const appSource = readFileSync(new URL("../app/App.tsx", import.meta.url), "utf8");
+const messageContentSource = readFileSync(new URL("../app/MessageContent.tsx", import.meta.url), "utf8");
+const importedActivitySource = readFileSync(new URL("../app/ImportedActivity.tsx", import.meta.url), "utf8");
+const liveRuntimeActivitySource = readFileSync(new URL("../app/LiveRuntimeActivity.tsx", import.meta.url), "utf8");
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
 describe("MessageContent rich rendering parser", () => {
@@ -36,6 +39,55 @@ describe("MessageContent rich rendering parser", () => {
       { type: "unordered_list", items: ["one risk", "another risk"] },
       { type: "code", language: "json", text: '{"safe": true}' },
     ]);
+  });
+
+  it("adds one semantic copy control per fenced Agent Comment block only when enabled", () => {
+    const content = [
+      "Before",
+      "```sh",
+      "printf 'hello'",
+      "```",
+      "```",
+      "plain\nwireframe",
+      "```",
+      "Use `inline` afterward.",
+    ].join("\n");
+    const disabled = renderToStaticMarkup(MessageContent({ content }));
+    const enabled = renderToStaticMarkup(MessageContent({ content, copyCodeBlocks: true }));
+
+    expect(disabled).not.toContain('aria-label="Copy code block"');
+    expect(enabled.match(/aria-label="Copy code block"/g)).toHaveLength(2);
+    expect(enabled.match(/title="Copy code block"/g)).toHaveLength(2);
+    expect(enabled.match(/type="button"/g)).toHaveLength(2);
+    expect(enabled).toContain("printf &#x27;hello&#x27;");
+    expect(enabled).toContain("plain\nwireframe");
+    expect(enabled).toContain("<code>inline</code>");
+    expect(enabled.match(/message-code-block-copy-action/g)).toHaveLength(2);
+    expect(enabled).not.toContain(">sh<");
+    expect(messageContentSource).toContain("body={block.text}");
+    expect(messageContentSource).toContain('copied: "Code block copied"');
+    expect(messageContentSource).toContain('failed: "Copy code block failed; retry"');
+  });
+
+  it("keeps Agent Comment copy controls out of surfaces and tool evidence", () => {
+    expect(importedActivitySource).not.toContain("MessageCopyAction");
+    expect(liveRuntimeActivitySource).not.toContain("MessageCopyAction");
+  });
+
+  it("defines bounded theme-aware code block copy layout", () => {
+    expect(cssSource).toContain(".message-code-block-container");
+    expect(cssSource).toContain(".message-code-block-copy-action");
+    expect(cssSource).toMatch(/\.message-code-block-container \{[^}]*max-width: 100%/s);
+    expect(cssSource).toMatch(/\.message-code-block \{[^}]*overflow: auto/s);
+    expect(cssSource).toContain('.app-shell[data-application-theme="daylight"]');
+    expect(cssSource).toContain(":where(.message-copy-action, .journey-documentation-open-action button, .composer-provider-model)");
+    expect(cssSource).toContain(".message-copy-action:focus-visible");
+  });
+
+  it("keeps an empty fenced Agent Comment block truthful and copyable", () => {
+    const html = renderToStaticMarkup(MessageContent({ content: "```\n```", copyCodeBlocks: true }));
+    expect(html.match(/aria-label="Copy code block"/g)).toHaveLength(1);
+    expect(html).toContain("<code></code>");
   });
 
   it("preserves user-authored soft line breaks only when explicitly requested", () => {

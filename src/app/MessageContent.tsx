@@ -36,22 +36,30 @@ const draftCopyLabels: MessageCopyLabels = {
   failed: "Copy draft text failed; retry",
 };
 
+const codeBlockCopyLabels: MessageCopyLabels = {
+  idle: "Copy code block",
+  copied: "Code block copied",
+  failed: "Copy code block failed; retry",
+};
+
 export function MessageContent({
   content,
   basePath,
   onLocalPathClick,
   preserveParagraphLineBreaks = false,
+  copyCodeBlocks = false,
 }: {
   content: string;
   basePath?: string;
   onLocalPathClick?: (path: string) => void;
   preserveParagraphLineBreaks?: boolean;
+  copyCodeBlocks?: boolean;
 }) {
   const blocks = parseMessageBlocks(content, { preserveParagraphLineBreaks });
 
   return (
     <div className={`message-content${preserveParagraphLineBreaks ? " preserve-line-breaks" : ""}`}>
-      {blocks.map((block, index) => renderBlock(block, index, basePath, onLocalPathClick))}
+      {blocks.map((block, index) => renderBlock(block, index, basePath, onLocalPathClick, copyCodeBlocks))}
     </div>
   );
 }
@@ -324,6 +332,7 @@ function renderBlock(
   index: number,
   basePath?: string,
   onLocalPathClick?: (path: string) => void,
+  copyCodeBlocks = false,
 ) {
   switch (block.type) {
     case "heading": {
@@ -346,12 +355,27 @@ function renderBlock(
           ))}
         </ol>
       );
-    case "code":
+    case "code": {
+      if (!copyCodeBlocks) {
+        return (
+          <pre key={index} className="message-code-block">
+            <code><LinkifiedText text={block.text} basePath={basePath} onLocalPathClick={onLocalPathClick} /></code>
+          </pre>
+        );
+      }
       return (
-        <pre key={index} className="message-code-block">
-          <code><LinkifiedText text={block.text} basePath={basePath} onLocalPathClick={onLocalPathClick} /></code>
-        </pre>
+        <div key={index} className="message-code-block-container">
+          <MessageCopyAction
+            body={block.text}
+            labels={codeBlockCopyLabels}
+            className="message-code-block-copy-action"
+          />
+          <pre className="message-code-block">
+            <code><LinkifiedText text={block.text} basePath={basePath} onLocalPathClick={onLocalPathClick} /></code>
+          </pre>
+        </div>
       );
+    }
     case "copy_ready_quote":
       return (
         <blockquote key={index} className="message-copy-ready-block">

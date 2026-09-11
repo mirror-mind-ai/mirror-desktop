@@ -61,7 +61,12 @@ export function AgentTurn({
   const comments = presentation.agentComment ? (
     <section className="agent-turn-region agent-comments" aria-label="Agent Comments">
       <span className="runtime-region-label">Agent Comments</span>
-      <MessageContent content={presentation.agentComment} basePath={basePath} onLocalPathClick={onLocalPathClick} />
+      <MessageContent
+        content={presentation.agentComment}
+        basePath={basePath}
+        onLocalPathClick={onLocalPathClick}
+        copyCodeBlocks
+      />
     </section>
   ) : null;
 

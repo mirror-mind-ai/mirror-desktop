@@ -2990,6 +2990,26 @@ h3 {
   padding: 0.08rem 0.28rem;
 }
 
+.message-code-block-container {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  position: relative;
+}
+
+.message-code-block-container .message-code-block {
+  margin-top: 0;
+  padding-top: 46px;
+}
+
+.message-code-block-copy-action {
+  margin-left: 0;
+  position: absolute;
+  right: 9px;
+  top: 9px;
+  z-index: 1;
+}
+
 .message-code-block {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);

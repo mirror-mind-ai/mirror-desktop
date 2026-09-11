@@ -52,6 +52,17 @@ describe("AgentTurn", () => {
     expect(html).toContain('aria-label="Agent Comments"');
   });
 
+  it("enables semantic code-block copy controls for Agent Comments", () => {
+    const html = render({
+      systemSurfaces: [],
+      remainingActivity: [],
+      agentComment: "```json\n{\"ready\":true}\n```",
+    });
+
+    expect(html.match(/aria-label="Copy code block"/g)).toHaveLength(1);
+    expect(html).toContain("{&quot;ready&quot;:true}");
+  });
+
   it("keeps completed tool evidence but omits the redundant successful run outcome", () => {
     const html = render({
       agentActions: {
