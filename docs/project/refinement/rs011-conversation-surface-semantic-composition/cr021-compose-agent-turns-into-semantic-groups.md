@@ -243,8 +243,10 @@ cd5094c Keep successful agent settlement quiet
 
 ## Navigator Validation
 
-Pending final revalidation in the isolated Dev bundle. The Navigator's first multi-tool
-inspection confirmed the semantic groups but identified redundant standalone `Completed`
-text before `Agent Comments`; that feedback is now implemented. Repeat the multi-tool turn
-and confirm that successful settlement is silent after `Finishing…`, while completed tools
-remain inspectable and no standalone success outcome interrupts the semantic composition.
+Validated by the Navigator in the rebuilt isolated `Mirror Desktop Dev` bundle on
+2026-09-11. The semantic turn composition and follow-up quiet-success refinement were
+accepted: successful turns end at `Agent Comments` without a redundant standalone
+`Completed` outcome, while completed tool evidence and semantic ordering remain intact.
+
+The canonical CR021 status is now `validated`. Terminal closure remains separate and
+requires the collaboration protocol's proportionality and debt review.
