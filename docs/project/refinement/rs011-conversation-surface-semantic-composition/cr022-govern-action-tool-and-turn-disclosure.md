@@ -213,16 +213,46 @@ Implemented on `refinement/rs011-cr022-action-turn-disclosure` in commit `a2b489
 
 Automated evidence on 2026-09-11:
 
-- focused CR022 and semantic-regression suites: 67 tests passed across 10 files;
-- complete frontend suite: 667 tests passed across 123 files;
+- initial focused CR022 and semantic-regression suites: 67 tests passed across 10 files;
+- the complete frontend suite passed before validation with 667 tests across 123 files;
 - `npm run build`: passed;
 - `npm run tauri:build:dev`: passed, producing `Mirror Desktop Dev`, bundle ID
   `ai.mirrormind.desktop.dev`, version `0.2.0-alpha.3`;
-- built executable inode: `161556044`.
+- validation exposed excessive vertical stretching of completed tool rows inside an
+  expanded action; commit `ccad538` constrained nested grid rows to their content size;
+- spacing-focused validation passed with 32 tests across 3 files and the isolated Dev
+  bundle was rebuilt and relaunched;
+- final complete frontend suite after the correction: 668 tests passed across 123 files;
+- final validated Dev executable inode: `161557403`.
 
-Navigator validation remains required for multi-action execution, settlement,
-historical compaction, manual disclosure recovery, and restart before this CR can move to
-`validated`.
+## Navigator Validation
+
+On 2026-09-11 the Navigator confirmed that every requested Dev scenario passed:
+multi-action and tool disclosure, automatic settlement collapse, manual recovery,
+historical-turn compaction, terminal evidence after restart, quiet success, and
+failure/cancellation inspection. The Navigator also accepted the compact completed-tool
+spacing correction discovered during validation.
+
+## Proportionality and Debt Review
+
+The implementation is proportional to CR022: it adds a presentation projection, explicit
+disclosure authority, turn-proximity classification, and one additive local persistence
+field rather than changing Pi, Mirror, native commands, or Journey authority. Native
+`<details>` controls preserve keyboard and assistive-technology behavior without a custom
+interaction framework. The spacing correction is a local grid-sizing constraint, not a
+new layout subsystem.
+
+No new technical debt is recorded. The `0.8.0` schema remains backward-readable through
+`0.5.0`, stale evidence is rejected independently of conversational content, and manual
+UI state is intentionally ephemeral. CR023 remains the explicit owner of semantic block
+copy behavior; no part of that scope was pulled into this delivery.
+
+## Outcome
+
+CR022 is closed as `done` with Driver `@alissonvale` and Delivery
+`refinement/rs011-cr022-action-turn-disclosure`. No push, merge, publication, release, or
+installation was performed. RS011 remains active because CR023 is still captured. No next
+Change Request is selected by this closure.
 
 ## Proposed Acceptance
 
