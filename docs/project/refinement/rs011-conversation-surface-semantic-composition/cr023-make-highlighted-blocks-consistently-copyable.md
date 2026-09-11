@@ -139,6 +139,34 @@ Delivery is `refinement/rs011-cr023-semantic-code-block-copy`.
    isolated `Mirror Desktop Dev` that mouse and keyboard copy work for live and restored
    Agent Comments and that success/failure feedback does not move or interrupt the turn.
 
+## Implementation Evidence
+
+Implemented on `refinement/rs011-cr023-semantic-code-block-copy` in commit `d08c1a6`.
+
+- `MessageContent` now exposes an explicit `copyCodeBlocks` capability at the existing
+  semantic fenced-code block boundary. It remains disabled by default.
+- `AgentTurn` enables that capability for Agent Comments, covering the same live and
+  restored assistant rendering path without persistence changes.
+- Each enabled fenced block renders one `MessageCopyAction` sibling of its `<pre>` and
+  receives `block.text` as the clipboard body. Code-specific English labels preserve the
+  existing success/failure feedback and native clipboard boundary.
+- Wrapper styling keeps the icon visible above content, preserves horizontal scrolling,
+  focus indication, narrow-width containment, and inherited light-theme contrast.
+- User messages, inline code, System Surfaces, tool evidence, artifacts, and Journey
+  documentation do not opt into the capability.
+
+Automated evidence on 2026-09-11:
+
+- focused MessageContent, MessageCopyAction, AgentTurn, width, theme, and semantic-turn
+  suites: 46 tests passed across 6 files;
+- complete frontend suite: 673 tests passed across 123 files;
+- `npm run build`: passed;
+- `npm run tauri:build:dev`: passed, producing `Mirror Desktop Dev`, bundle ID
+  `ai.mirrormind.desktop.dev`, version `0.2.0-alpha.3`;
+- built Dev executable inode: `161560843`.
+
+Navigator validation remains required before this CR can move to `validated`.
+
 ## Proposed Acceptance
 
 - Every fenced Markdown block in an Agent Comment renders exactly one visible copy button,
