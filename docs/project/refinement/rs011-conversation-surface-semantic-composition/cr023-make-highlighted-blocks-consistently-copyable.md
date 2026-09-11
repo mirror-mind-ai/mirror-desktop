@@ -165,7 +165,34 @@ Automated evidence on 2026-09-11:
   `ai.mirrormind.desktop.dev`, version `0.2.0-alpha.3`;
 - built Dev executable inode: `161560843`.
 
-Navigator validation remains required before this CR can move to `validated`.
+## Navigator Validation
+
+On 2026-09-11 the Navigator confirmed the rendered result and successful clipboard
+behavior for all three Agent Comment examples: a language-declared shell block, an
+unlabelled multiline plain-text block, and a JSON block. The supplied screenshot also
+confirmed that inline code remained undecorated and that each fenced block had exactly one
+unobstructed control. After reopening the exact isolated Dev executable, the Navigator
+confirmed keyboard and restored-turn behavior and accepted the CR.
+
+## Proportionality and Debt Review
+
+The implementation is proportional: one opt-in flag extends the existing semantic
+renderer and one existing clipboard component owns all native interaction and feedback.
+There is no second parser, clipboard adapter, persistence field, runtime branch, or native
+command. Styling is local to the fenced-block wrapper and retains the existing code
+scrolling boundary.
+
+No new technical debt is recorded. The explicit default-off capability prevents accidental
+scope expansion into user messages, System Surfaces, tool evidence, artifacts, or Journey
+documentation. Any future copy behavior for those surfaces requires its own semantic
+refinement rather than reuse by visual resemblance.
+
+## Outcome
+
+CR023 is closed as `done` with Driver `@alissonvale` and Delivery
+`refinement/rs011-cr023-semantic-code-block-copy`. No push, merge, publication, release, or
+installation was performed. All RS011 Change Requests are now done, but RS011 itself
+remains `active` pending explicit Navigator authorization to close the Story.
 
 ## Proposed Acceptance
 
