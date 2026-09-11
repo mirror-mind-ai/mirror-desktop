@@ -15,16 +15,21 @@ export function projectAgentActionGroups(projection: RuntimeProjectionState): Ag
 
   for (const reference of projection.activityOrder) {
     if (reference.type === "reasoning_summary") {
+      currentSummaryGroup = undefined;
       const summary = projection.reasoningSummaries.find((candidate) => candidate.id === reference.id);
-      if (!summary?.content.trim()) continue;
-      currentSummaryGroup = {
-        id: `summary:${summary.id}`,
-        label: formatSummary(summary.content),
-        summaryId: summary.id,
-        operations: [],
-        active: summary.status === "streaming",
-      };
-      groups.push(currentSummaryGroup);
+      if (!summary) continue;
+      const labels = actionLabels(summary.content);
+      labels.forEach((label, index) => {
+        const group: AgentActionGroup = {
+          id: labels.length > 1 ? `summary:${summary.id}:${index}` : `summary:${summary.id}`,
+          label,
+          summaryId: summary.id,
+          operations: [],
+          active: summary.status === "streaming" && index === labels.length - 1,
+        };
+        groups.push(group);
+        currentSummaryGroup = group;
+      });
       continue;
     }
 
@@ -55,8 +60,22 @@ export function operationLabel(operation: Pick<ProjectedRuntimeOperation, "name"
   return preview ? `${operation.name} · ${preview}` : operation.name;
 }
 
+function actionLabels(content: string): string[] {
+  const source = content.trim();
+  if (!source) return [];
+  const paragraphs = source.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+  if (paragraphs.length > 1) {
+    const standaloneTitles = paragraphs.map((paragraph) => {
+      const match = paragraph.match(/^(\*\*|__)([^\n]+)\1$/);
+      return match?.[2].trim();
+    });
+    if (standaloneTitles.every((title): title is string => Boolean(title))) return standaloneTitles;
+  }
+  return [formatSummary(source)];
+}
+
 function formatSummary(content: string): string {
-  return content.trim().split("\n").map((line) => line.replace(/^(\s*)(\*\*|__)(.+)\2(\s*)$/, "$1$3$4")).join("\n");
+  return content.split("\n").map((line) => line.replace(/^(\s*)(\*\*|__)(.+)\2(\s*)$/, "$1$3$4")).join("\n");
 }
 
 function firstArgumentPreview(value: unknown): string | undefined {
