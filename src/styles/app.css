@@ -2322,6 +2322,75 @@ h3 {
   opacity: 0.88;
 }
 
+.runtime-agent-action {
+  border: 1px solid rgba(var(--ui-accent-rgb), 0.11);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.runtime-agent-action > summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  list-style: none;
+  padding: 10px 12px;
+}
+
+.runtime-agent-action > summary::-webkit-details-marker {
+  display: none;
+}
+
+.runtime-agent-action > summary strong {
+  color: #c4d2d5;
+  font-size: 0.82rem;
+  font-weight: 620;
+}
+
+.runtime-agent-action > summary span {
+  color: #668087;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+}
+
+.runtime-agent-action.is-active {
+  border-color: rgba(var(--ui-accent-rgb), 0.28);
+}
+
+.runtime-agent-action-body {
+  display: grid;
+  gap: 8px;
+  padding: 0 8px 8px;
+}
+
+.runtime-agent-action-statement {
+  color: #aabdc1;
+  font-size: 0.86rem;
+  font-style: italic;
+  margin: 4px 8px;
+}
+
+.historical-turn-disclosure {
+  border-top: 1px solid rgba(var(--ui-accent-rgb), 0.1);
+  padding-top: 10px;
+}
+
+.historical-turn-disclosure > summary {
+  color: #78959c;
+  cursor: pointer;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.64rem;
+  list-style-position: inside;
+}
+
+.historical-turn-detail-body {
+  display: grid;
+  gap: 14px;
+  padding-top: 12px;
+}
+
 .runtime-answer {
   border-top: 1px solid rgba(var(--ui-accent-rgb), 0.12);
   display: grid;
@@ -5821,6 +5890,31 @@ dd {
   .app-shell[data-application-theme="mist"],
   .app-shell[data-application-theme="parchment"]
 ) :is(.runtime-region-label, .runtime-answer > .runtime-region-label) {
+  color: var(--light-muted);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .runtime-agent-action {
+  background: var(--light-raised);
+  border-color: var(--light-border);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.runtime-agent-action > summary strong, .runtime-agent-action-statement) {
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.runtime-agent-action > summary span, .historical-turn-disclosure > summary) {
   color: var(--light-muted);
 }
 

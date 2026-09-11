@@ -38,6 +38,39 @@ export type CertifiedMirrorModeState = {
   sourceId: string;
 };
 
+export type TerminalAgentActionProjection = {
+  status: "completed" | "cancelled" | "failed";
+  operations: Array<{
+    id: string;
+    kind?: "tool" | "skill" | "compaction";
+    name: string;
+    status: "completed" | "failed" | "interrupted";
+    arguments?: unknown;
+    output?: string;
+    isError?: boolean;
+  }>;
+  reasoningSummaries: Array<{
+    id: string;
+    content: string;
+    status: "completed" | "interrupted";
+  }>;
+  activityOrder: Array<
+    | { type: "operation"; id: string }
+    | { type: "reasoning_summary"; id: string }
+  >;
+  terminalMessage?: string;
+};
+
+export type TerminalAgentActionEvidence = {
+  schemaVersion: "0.1.0";
+  journeyId: string;
+  generation: number;
+  runId: string;
+  turnId: string;
+  assistantMessageId: string;
+  projection: TerminalAgentActionProjection;
+};
+
 export type JourneyConversation = {
   id: string;
   journeyId: string;
@@ -48,6 +81,7 @@ export type JourneyConversation = {
   authoritativeContextStats?: AuthoritativeContextStats;
   certifiedMirrorMode?: CertifiedMirrorModeState;
   importedActivity?: ImportedConversationActivity;
+  terminalAgentActionEvidence?: Record<string, TerminalAgentActionEvidence>;
 };
 
 export type JourneyConversationSummary = {

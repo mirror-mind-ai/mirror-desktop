@@ -7,6 +7,8 @@ import type {
   CertifiedMirrorModeState,
   JourneyConversation,
   LiveConversationIdentity,
+  TerminalAgentActionEvidence,
+  TerminalAgentActionProjection,
 } from "./journeyConversation";
 
 export type ImportedConversationActivityEvent = {
@@ -37,7 +39,7 @@ export type ImportedConversationActivity = {
 };
 
 export type PersistedJourneyConversation = {
-  schemaVersion: "0.7.0";
+  schemaVersion: "0.8.0";
   conversation: JourneyConversation;
   savedAt: string;
 };
@@ -47,7 +49,7 @@ export function createPersistedJourneyConversation(
   now: Date = new Date(),
 ): PersistedJourneyConversation {
   return {
-    schemaVersion: "0.7.0",
+    schemaVersion: "0.8.0",
     conversation,
     savedAt: now.toISOString(),
   };
@@ -59,7 +61,7 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
   }
 
   const record = value as Record<string, unknown>;
-  if (!["0.5.0", "0.6.0", "0.7.0"].includes(String(record.schemaVersion))) {
+  if (!["0.5.0", "0.6.0", "0.7.0", "0.8.0"].includes(String(record.schemaVersion))) {
     return undefined;
   }
   if (!record.conversation || typeof record.conversation !== "object") {
@@ -102,7 +104,7 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
       const parsedAttachments = attachments?.map((attachment) => {
         const schemaVersion = (attachment as Record<string, unknown> | undefined)?.schemaVersion;
         if (schemaVersion === "0.2.0") {
-          if (record.schemaVersion !== "0.7.0") throw new Error("File references require conversation schema 0.7.0.");
+          if (!["0.7.0", "0.8.0"].includes(String(record.schemaVersion))) throw new Error("File references require conversation schema 0.7.0 or newer.");
           return normalizePersistedFileAttachment(attachment, conversation.journeyId as string);
         }
         return normalizeConversationAttachmentProvenance(attachment, conversation.journeyId as string);
@@ -135,15 +137,24 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
   const reconciliation = parsedReconciliation;
   const authoritativeContextStats = parseAuthoritativeContextStats(conversation.authoritativeContextStats);
   const certifiedMirrorMode = parseCertifiedMirrorModeState(conversation.certifiedMirrorMode);
+  const terminalAgentActionEvidence = record.schemaVersion === "0.8.0"
+    ? parseTerminalAgentActionEvidenceMap(conversation.terminalAgentActionEvidence, {
+        journeyId: conversation.journeyId as string,
+        generation: liveIdentity.generation,
+        messages: parsedMessages,
+        turns: reconciliation.turns,
+      })
+    : undefined;
   const {
     authoritativeContextStats: _unparsedContextStats,
     certifiedMirrorMode: _unparsedMirrorMode,
     reconciliation: _unparsedReconciliation,
+    terminalAgentActionEvidence: _unparsedTerminalActionEvidence,
     ...conversationWithoutRuntimeState
   } = conversation;
 
   return {
-    schemaVersion: "0.7.0",
+    schemaVersion: "0.8.0",
     savedAt: typeof record.savedAt === "string" ? record.savedAt : new Date(0).toISOString(),
     conversation: {
       ...(conversationWithoutRuntimeState as unknown as JourneyConversation),
@@ -152,8 +163,69 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
       reconciliation,
       ...(authoritativeContextStats ? { authoritativeContextStats } : {}),
       ...(certifiedMirrorMode ? { certifiedMirrorMode } : {}),
+      ...(terminalAgentActionEvidence ? { terminalAgentActionEvidence } : {}),
     },
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseTerminalAgentActionEvidenceMap(
+  value: unknown,
+  authority: {
+    journeyId: string;
+    generation: number;
+    messages: Array<{ id: string; role: "user" | "assistant" }>;
+    turns: ConversationReconciliationState["turns"];
+  },
+): Record<string, TerminalAgentActionEvidence> | undefined {
+  if (!isRecord(value)) return undefined;
+  const result: Record<string, TerminalAgentActionEvidence> = {};
+  for (const [messageId, candidate] of Object.entries(value)) {
+    const evidence = parseTerminalAgentActionEvidence(candidate);
+    const turn = evidence && authority.turns.find((item) => (
+      item.turnId === evidence.turnId
+      && item.runId === evidence.runId
+      && item.harness.assistantMessageId === messageId
+    ));
+    if (!evidence || !turn
+      || evidence.assistantMessageId !== messageId
+      || evidence.journeyId !== authority.journeyId
+      || evidence.generation !== authority.generation
+      || !authority.messages.some((message) => message.role === "assistant" && message.id === messageId)) continue;
+    result[messageId] = evidence;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function parseTerminalAgentActionEvidence(value: unknown): TerminalAgentActionEvidence | undefined {
+  if (!isRecord(value) || value.schemaVersion !== "0.1.0"
+    || typeof value.journeyId !== "string" || typeof value.generation !== "number"
+    || typeof value.runId !== "string" || typeof value.turnId !== "string"
+    || typeof value.assistantMessageId !== "string") return undefined;
+  const projection = parseTerminalAgentActionProjection(value.projection);
+  return projection ? { ...(value as Omit<TerminalAgentActionEvidence, "projection">), projection } : undefined;
+}
+
+function parseTerminalAgentActionProjection(value: unknown): TerminalAgentActionProjection | undefined {
+  if (!isRecord(value) || !["completed", "cancelled", "failed"].includes(String(value.status))
+    || !Array.isArray(value.operations) || !Array.isArray(value.reasoningSummaries)
+    || !Array.isArray(value.activityOrder)) return undefined;
+  const operationsValid = value.operations.every((item) => isRecord(item)
+    && typeof item.id === "string" && typeof item.name === "string"
+    && ["completed", "failed", "interrupted"].includes(String(item.status))
+    && (item.output === undefined || typeof item.output === "string"));
+  const summariesValid = value.reasoningSummaries.every((item) => isRecord(item)
+    && typeof item.id === "string" && typeof item.content === "string"
+    && ["completed", "interrupted"].includes(String(item.status)));
+  const orderValid = value.activityOrder.every((item) => isRecord(item)
+    && ["operation", "reasoning_summary"].includes(String(item.type))
+    && typeof item.id === "string");
+  if (!operationsValid || !summariesValid || !orderValid
+    || (value.terminalMessage !== undefined && typeof value.terminalMessage !== "string")) return undefined;
+  return value as unknown as TerminalAgentActionProjection;
 }
 
 function parseCertifiedMirrorModeState(value: unknown): CertifiedMirrorModeState | undefined {

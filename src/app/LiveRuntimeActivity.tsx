@@ -1,7 +1,10 @@
+import { useEffect, useReducer, type SyntheticEvent } from "react";
 import type { ProjectedRuntimeOperation, RuntimeProjectionState } from "./runtimeActivityModel";
 import { isRuntimeProjectionActive } from "./runtimeActivityModel";
 import { stripAnsiControlSequences } from "../agent/terminalText";
 import { LinkifiedText } from "./LinkifiedText";
+import { projectAgentActionGroups, isOperationActive, type AgentActionGroup } from "./agentActionProjection";
+import { reduceActionDisclosure, resolveActionOpen } from "./actionDisclosureState";
 import {
   extractMirrorModeEventsFromContent,
   extractMirrorSurfaceEventsFromContent,
@@ -50,36 +53,14 @@ export function LiveRuntimeActivity({
         <section className="runtime-activity-region" aria-label="Ordered agent activity">
           {showRegionLabel ? <span className="runtime-region-label">Runtime activity</span> : null}
           <div className="runtime-operation-list">
-            {projection.activityOrder.map((entry) => {
-              if (entry.type === "reasoning_summary") {
-                const summary = projection.reasoningSummaries.find((candidate) => candidate.id === entry.id);
-                if (!summary?.content) {
-                  return null;
-                }
-                return (
-                  <p
-                    key={summary.id}
-                    className={`runtime-reasoning-summary status-${summary.status}`}
-                    aria-live={summary.status === "streaming" ? "polite" : undefined}
-                  >
-                    {formatReasoningSummary(summary.content)}
-                  </p>
-                );
-              }
-
-              const operation = projection.operations.find((candidate) => candidate.id === entry.id);
-              if (!operation) {
-                return null;
-              }
-              return operation.kind === "compaction"
-                ? <RuntimeCompaction key={operation.id} operation={operation} basePath={basePath} />
-                : <RuntimeOperation
-                    key={operation.id}
-                    operation={operation}
-                    basePath={basePath}
-                    suppressedSurfaceContents={suppressedSurfaceContents}
-                  />;
-            })}
+            {projectAgentActionGroups(projection).map((action) => (
+              <RuntimeAgentAction
+                key={action.id}
+                action={action}
+                basePath={basePath}
+                suppressedSurfaceContents={suppressedSurfaceContents}
+              />
+            ))}
           </div>
         </section>
       ) : null}
@@ -92,6 +73,71 @@ export function LiveRuntimeActivity({
       ) : null}
     </section>
   );
+}
+
+function RuntimeAgentAction({
+  action,
+  basePath,
+  suppressedSurfaceContents,
+}: {
+  action: AgentActionGroup;
+  basePath?: string;
+  suppressedSurfaceContents: string[];
+}) {
+  const disclosure = useRuntimeDisclosure(action.active);
+  if (action.operations.length === 0) {
+    return (
+      <p className={`runtime-agent-action-statement${action.active ? " is-active" : ""}`}>
+        {action.label}
+      </p>
+    );
+  }
+  return (
+    <details
+      className={`runtime-agent-action${action.active ? " is-active" : " is-settled"}`}
+      open={disclosure.open}
+      onToggle={disclosure.onToggle}
+    >
+      <summary>
+        <strong>{action.label}</strong>
+        <span>{action.active ? "running" : `${action.operations.length} ${action.operations.length === 1 ? "tool" : "tools"}`}</span>
+      </summary>
+      <div className="runtime-agent-action-body">
+        {action.operations.map((operation) => operation.kind === "compaction"
+          ? <RuntimeCompaction key={operation.id} operation={operation} basePath={basePath} />
+          : <RuntimeOperation
+              key={operation.id}
+              operation={operation}
+              basePath={basePath}
+              suppressedSurfaceContents={suppressedSurfaceContents}
+            />)}
+      </div>
+    </details>
+  );
+}
+
+function useRuntimeDisclosure(active: boolean): {
+  open: boolean;
+  onToggle: (event: SyntheticEvent<HTMLDetailsElement>) => void;
+} {
+  const [state, dispatch] = useReducer(reduceActionDisclosure, {
+    manuallyOpen: false,
+    wasActive: active,
+  });
+  useEffect(() => {
+    dispatch({ type: "activity_changed", active });
+  }, [active]);
+  return {
+    open: resolveActionOpen({ manuallyOpen: state.manuallyOpen, active }),
+    onToggle: (event) => {
+      if (event.target !== event.currentTarget) return;
+      if (active) {
+        event.currentTarget.open = true;
+        return;
+      }
+      dispatch({ type: "toggle_requested", open: event.currentTarget.open });
+    },
+  };
 }
 
 function RuntimeCompaction({ operation, basePath }: { operation: ProjectedRuntimeOperation; basePath?: string }) {
@@ -132,7 +178,8 @@ function RuntimeOperation({
   basePath?: string;
   suppressedSurfaceContents: string[];
 }) {
-  const expanded = operation.status === "preparing" || operation.status === "running";
+  const active = isOperationActive(operation);
+  const disclosure = useRuntimeDisclosure(active);
   const argumentTitle = operation.kind === "skill" ? undefined : firstOperationArgument(operation.arguments);
   const argumentPreview = operation.kind === "skill" ? undefined : summarizeOperationArgument(operation.arguments);
   const sanitizedOutput = operation.output === undefined
@@ -177,7 +224,11 @@ function RuntimeOperation({
 
   return (
     <div className="runtime-operation-entry">
-      <details className={`runtime-operation kind-${operation.kind ?? "tool"} status-${operation.status}`} open={expanded}>
+      <details
+        className={`runtime-operation kind-${operation.kind ?? "tool"} status-${operation.status}`}
+        open={disclosure.open}
+        onToggle={disclosure.onToggle}
+      >
         <summary>
           <span
             className="runtime-operation-name"
@@ -206,14 +257,6 @@ function RuntimeOperation({
       {activityEvents.length > 0 ? <ImportedActivity events={activityEvents} basePath={basePath} /> : null}
     </div>
   );
-}
-
-function formatReasoningSummary(value: string): string {
-  return value
-    .trim()
-    .split("\n")
-    .map((line) => line.replace(/^(\s*)(\*\*|__)(.+)\2(\s*)$/, "$1$3$4"))
-    .join("\n");
 }
 
 const OPERATION_ARGUMENT_PREVIEW_LENGTH = 58;

@@ -14,7 +14,7 @@ function conversation() {
 describe("generation-scoped dedicated conversation persistence", () => {
   it("round-trips only the current dedicated shape", () => {
     const persisted = createPersistedJourneyConversation(conversation(), new Date("2026-08-26T11:00:00Z"));
-    expect(persisted.schemaVersion).toBe("0.7.0");
+    expect(persisted.schemaVersion).toBe("0.8.0");
     expect(parsePersistedJourneyConversation(persisted)).toEqual(persisted);
   });
 
@@ -50,7 +50,7 @@ describe("generation-scoped dedicated conversation persistence", () => {
     expect(parsePersistedJourneyConversation(malformed)).toBeUndefined();
   });
 
-  it("persists arbitrary paths and bounded image thumbnails in 0.7.0", () => {
+  it("persists arbitrary paths and bounded image thumbnails in 0.8.0", () => {
     const current = conversation();
     current.messages[0].attachments = [{
       schemaVersion: "0.2.0", attachmentId: "file-1", journeyId: "nautilus-harness",

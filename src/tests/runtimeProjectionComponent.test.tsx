@@ -188,7 +188,7 @@ describe("runtime projection component", () => {
     expect(cssSource).toContain(".runtime-reasoning-summary");
   });
 
-  it("renders reasoning summaries as lightweight text in runtime order, outside operation boxes", () => {
+  it("uses exposed summaries as action boundaries while preserving source order", () => {
     const projection: RuntimeProjectionState = {
       status: "working",
       operations: [{ id: "read-1", name: "read", status: "completed", output: "loaded" }],
@@ -207,7 +207,8 @@ describe("runtime projection component", () => {
 
     expect(html.indexOf("Preparing the Mirror context")).toBeLessThan(html.indexOf("read"));
     expect(html.indexOf("read")).toBeLessThan(html.indexOf("Formulating a concise answer"));
-    expect(html.match(/runtime-reasoning-summary/g)).toHaveLength(2);
+    expect(html).toContain('class="runtime-agent-action is-settled"');
+    expect(html).toContain('class="runtime-agent-action-statement is-active"');
     expect(html).not.toContain("**");
     expect(html).not.toContain("Preparing the Mirror context\n");
     expect(html).not.toContain("Reasoning summary");

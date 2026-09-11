@@ -77,6 +77,10 @@ describe("Journey runtime integration guardrails", () => {
     expect(generation).toContain('type: "finalization_started", identity: runtimeIdentity');
     expect(generation).toContain('type: "finalization_finished", identity: runtimeIdentity');
     expect(generation).toContain("let runConversation = stagedConversation");
+    expect(generation).toContain("let runRuntimeProjection = initialRuntimeProjectionState");
+    expect(generation).toContain("runRuntimeProjection = reduceRuntimeProjection(runRuntimeProjection, event)");
+    expect(generation).toContain("attachTerminalAgentActionEvidence(");
+    expect(generation).toContain("terminalStatus: runWasCancelled ? \"cancelled\" : \"failed\"");
     expect(generation).toContain("for await (const event of provider(packet))");
     expect(generation).toContain("runStartReservationRef.current === runtimeIdentity");
     expect(generation).toContain("selectedJourneyRef.current === ownerJourneyId");
@@ -108,6 +112,9 @@ describe("Journey runtime integration guardrails", () => {
     expect(generation).toContain("decideTurnJournalTerminal(journalRecord)");
     expect(generation).not.toContain("resolveCommittedLeaseBeforeInvocation");
     expect(generation).not.toContain("loadDedicatedPiTranscript(");
+    expect(generation.indexOf("attachTerminalAgentActionEvidence(")).toBeLessThan(
+      generation.indexOf("const projectionAtFrontier = settled"),
+    );
     expect(appSource).toContain("Message was not sent");
     expect(appSource).toContain("lastItem(streamWarnings)");
     expect(appSource).not.toContain(".at(");

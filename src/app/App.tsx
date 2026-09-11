@@ -43,6 +43,12 @@ import {
 import { MessageCopyAction } from "./MessageCopyAction";
 import { AgentTurn } from "./AgentTurn";
 import { projectAgentTurnPresentation } from "./conversationTurnPresentation";
+import { classifyAssistantTurnProximity } from "./turnProximity";
+import {
+  attachTerminalAgentActionEvidence,
+  createTerminalAgentActionEvidence,
+  selectExactTerminalAgentActionEvidence,
+} from "./terminalAgentActionEvidence";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
 import {
   contextStateForInspection,
@@ -115,7 +121,11 @@ import {
   extractCertifiedModeTransition,
   type CertifiedModeTransition,
 } from "./mirrorModeState";
-import { mergeRuntimeContextUsage } from "./runtimeActivityModel";
+import {
+  initialRuntimeProjectionState,
+  mergeRuntimeContextUsage,
+  reduceRuntimeProjection,
+} from "./runtimeActivityModel";
 import {
   createInitialJourneyRuntimeState,
   identityJourneyId,
@@ -555,10 +565,15 @@ export function App({ model }: AppProps) {
     || !runtimeBindingReady;
   const mirrorCommitError = navigationPresentation.mirrorCommitError;
   const messages = navigationPresentation.messages;
-  const presentedImportedActivity = navigationPresentation.conversation?.importedActivity?.events;
+  const presentedConversation = navigationPresentation.conversation ?? conversation;
+  const presentedImportedActivity = presentedConversation.importedActivity?.events;
   const importedActivity = useMemo(
     () => groupImportedActivityByMessage(presentedImportedActivity ?? []),
     [presentedImportedActivity],
+  );
+  const assistantTurnProximity = useMemo(
+    () => classifyAssistantTurnProximity(messages, runtimeProjectionMessageId, selectedRuntimeBusy),
+    [messages, runtimeProjectionMessageId, selectedRuntimeBusy],
   );
   const effectiveAgentProfile = useMemo(
     () => resolveAgentProfile(agentSettings, selectedJourney),
@@ -1691,6 +1706,7 @@ export function App({ model }: AppProps) {
     const diagnostics: string[] = [];
     let streamedAssistantContent = "";
     let runConversation = stagedConversation;
+    let runRuntimeProjection = initialRuntimeProjectionState;
 
     function updateRunConversation(update: (current: JourneyConversation) => JourneyConversation) {
       runConversation = update(runConversation);
@@ -1706,6 +1722,7 @@ export function App({ model }: AppProps) {
 
     try {
       for await (const event of provider(packet)) {
+        runRuntimeProjection = reduceRuntimeProjection(runRuntimeProjection, event);
         if (runStartReservationRef.current === runtimeIdentity) {
           runStartReservationRef.current = undefined;
           setRunStartReservation((current) => current === runtimeIdentity ? undefined : current);
@@ -1926,6 +1943,22 @@ export function App({ model }: AppProps) {
             new Date().toISOString(),
           );
         }
+        if (correlation) {
+          runRuntimeProjection = reduceRuntimeProjection(
+            runRuntimeProjection,
+            runWasCancelled
+              ? { type: "cancelled", message: "Pi invocation cancelled." }
+              : { type: "error", message: "Pi invocation failed." },
+          );
+          interrupted = attachTerminalAgentActionEvidence(
+            interrupted,
+            createTerminalAgentActionEvidence({
+              correlation,
+              projection: runRuntimeProjection,
+              terminalStatus: runWasCancelled ? "cancelled" : "failed",
+            }),
+          );
+        }
         runConversation = interrupted;
         dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: runConversation });
         if (selectedJourneyRef.current === ownerJourneyId && conversationRef.current.liveIdentity.generation === ownerGeneration) {
@@ -1990,6 +2023,11 @@ export function App({ model }: AppProps) {
             committedAt: execution.committedAt,
           });
           settled = commitHarnessTurn(settled, correlation, new Date().toISOString());
+          runRuntimeProjection = reduceRuntimeProjection(runRuntimeProjection, { type: "done" });
+          settled = attachTerminalAgentActionEvidence(
+            settled,
+            createTerminalAgentActionEvidence({ correlation, projection: runRuntimeProjection }),
+          );
           const projectionAtFrontier = settled;
           const settlement = await executeCompletedSettlement({
             projection: projectionAtFrontier,
@@ -3504,12 +3542,15 @@ export function App({ model }: AppProps) {
             const speaker = inferMessageSpeaker({ ...message, content: renderedContent });
 
             if (message.role === "assistant") {
+              const exactRuntimeProjection = runtimeProjectionMessageId === message.id
+                ? runtimeProjection
+                : selectExactTerminalAgentActionEvidence(presentedConversation, message.id)?.projection;
               const presentation = projectAgentTurnPresentation({
                 messageId: message.id,
                 content: message.content,
                 createdAt: message.createdAt,
                 linkedActivity,
-                ...(runtimeProjectionMessageId === message.id ? { runtimeProjection } : {}),
+                ...(exactRuntimeProjection ? { runtimeProjection: exactRuntimeProjection } : {}),
               });
               return (
                 <AgentTurn
@@ -3517,6 +3558,7 @@ export function App({ model }: AppProps) {
                   message={message}
                   speaker={speaker}
                   presentation={presentation}
+                  proximity={assistantTurnProximity.get(message.id)}
                   basePath={selectedJourneyBasePath}
                   onLocalPathClick={(path) => void handleChatLocalPath(path)}
                 />

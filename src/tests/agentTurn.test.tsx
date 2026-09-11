@@ -12,12 +12,13 @@ const surface = {
   content: "<<<ARIAD:PLAN>>>\ncanonical\n<<<END:PLAN>>>",
 };
 
-function render(presentation: AgentTurnPresentation) {
+function render(presentation: AgentTurnPresentation, proximity: "active" | "latest_completed" | "historical" = "latest_completed") {
   return renderToStaticMarkup(
     <AgentTurn
       message={{ id: "assistant-1", role: "assistant", content: "ignored", createdAt: "2026-09-11T00:00:00.000Z" }}
       speaker={{ label: "Agent", avatar: "π", kind: "agent" }}
       presentation={presentation}
+      proximity={proximity}
     />,
   );
 }
@@ -99,6 +100,28 @@ describe("AgentTurn", () => {
     expect(html).not.toContain("Agent Actions");
     expect(html).not.toContain("System Surfaces");
     expect(html).toContain("Agent Comments");
+  });
+
+  it("compacts historical anatomy around comments with truthful recoverable counts", () => {
+    const html = render({
+      agentActions: {
+        status: "completed",
+        operations: [{ id: "read-1", name: "read", status: "completed" }],
+        reasoningSummaries: [{ id: "summary-1", content: "Inspecting", status: "completed" }],
+        activityOrder: [
+          { type: "reasoning_summary", id: "summary-1" },
+          { type: "operation", id: "read-1" },
+        ],
+      },
+      systemSurfaces: [surface],
+      remainingActivity: [],
+      agentComment: "Historical answer",
+    }, "historical");
+
+    expect(html.indexOf("Agent Comments")).toBeLessThan(html.indexOf("Show turn details"));
+    expect(html).toContain("Show turn details · 1 action · 1 surface");
+    expect(html).toContain('class="historical-turn-disclosure"');
+    expect(html).not.toMatch(/<details class="historical-turn-disclosure" open/);
   });
 
   it("keeps surface-only assistant turns visible", () => {
