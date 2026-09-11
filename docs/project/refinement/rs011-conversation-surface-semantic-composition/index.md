@@ -105,7 +105,21 @@ than textual guesses or background color. Inline code remains unchanged.
 
 CR021, CR022, CR023, and CR024 are closed as `done`. CR022 builds on the semantic
 foundation delivered by CR021; CR023 was delivered independently through the shared Agent
-Comments renderer. RS011 remains `active` until the Navigator explicitly authorizes Story
-closure.
+Comments renderer.
+
+## Outcome
+
+The Navigator authorized RS011 closure on 2026-09-11 after accepting all four Change
+Requests. The Story is closed: assistant turns now preserve ready content through
+settlement, compose actions, canonical system surfaces, and comments by semantic
+authorship, retain inspectable terminal action evidence under exact authority, compact
+historical anatomy without data loss, and provide semantic copy controls for fenced Agent
+Comment blocks.
+
+The delivered scope remained inside the conversation presentation and channel-local
+projection boundaries. It did not expose hidden reasoning, mutate Mirror or Pi state,
+change native runtime commands, or broaden copy behavior into System Surfaces and tool
+outputs. No Story-level debt is recorded beyond explicitly separate future refinement.
+No push, merge, publication, or release is authorized by this closure.
 CR024 stabilized the live-to-completed turn boundary before RS011 changes relied on that
 transition.
