@@ -1,5 +1,5 @@
 import {
-  useEffect, useMemo, useReducer, useRef, useState,
+  useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState,
   type CSSProperties,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -69,7 +69,11 @@ import {
   validatePiInvocationRegistryInspection,
   type PiInvocationAuthorityInspection,
 } from "./piInvocationOccupancy";
-import { nextConversationAutoFollow } from "./conversationAutoFollow";
+import {
+  conversationContentUpdateScroll,
+  conversationExplicitScrollBehavior,
+  nextConversationAutoFollow,
+} from "./conversationAutoFollow";
 import {
   createJourneySettlementAuthority,
   executeCompletedSettlement,
@@ -1433,23 +1437,20 @@ export function App({ model }: AppProps) {
     setMirrorOutboxItems([]);
   }, [selectedJourney]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const chatStream = chatStreamRef.current;
-    const chatEnd = chatEndRef.current;
     chatAutoFollowRef.current = nextConversationAutoFollow(
       chatAutoFollowRef.current,
       { type: "content_updated" },
     );
-    if (!chatStream || !chatEnd || !chatAutoFollowRef.current) {
-      return;
-    }
+    if (!chatStream) return;
 
-    const frame = requestAnimationFrame(() => {
-      if (chatAutoFollowRef.current) {
-        chatEnd.scrollIntoView({ block: "end", behavior: isStreaming ? "auto" : "smooth" });
-      }
+    const scrollCommand = conversationContentUpdateScroll(chatAutoFollowRef.current, {
+      scrollTop: chatStream.scrollTop,
+      clientHeight: chatStream.clientHeight,
+      scrollHeight: chatStream.scrollHeight,
     });
-    return () => cancelAnimationFrame(frame);
+    if (scrollCommand) chatStream.scrollTo(scrollCommand);
   }, [messages, isStreaming, runtimeProjection]);
 
   useEffect(() => {
@@ -2868,7 +2869,12 @@ export function App({ model }: AppProps) {
       { type: "explicit_bottom" },
     );
     requestAnimationFrame(() => {
-      chatEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+      chatEndRef.current?.scrollIntoView({
+        block: "end",
+        behavior: conversationExplicitScrollBehavior(
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+        ),
+      });
     });
   }
 

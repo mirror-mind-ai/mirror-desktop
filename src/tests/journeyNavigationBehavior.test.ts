@@ -219,6 +219,7 @@ describe("Journey navigation behavior under serial occupancy", () => {
       loadedConversation: conversationB,
     });
     expect(duringFinalization.messages.filter((message) => message.role === "assistant")).toHaveLength(1);
+    expect(duringFinalization.messages.at(-1)?.content).toBe("settled A response");
     expect(duringFinalization.conversation?.reconciliation.turns).toHaveLength(1);
 
     state = journeyRuntimeReducer(state, { type: "finalization_finished", identity: owner });
@@ -228,6 +229,7 @@ describe("Journey navigation behavior under serial occupancy", () => {
       loadedConversation: settledA,
     });
     expect(afterFinalization.messages.filter((message) => message.role === "assistant")).toHaveLength(1);
+    expect(afterFinalization.messages.at(-1)?.content).toBe("settled A response");
     expect(afterFinalization.conversation?.reconciliation.turns).toHaveLength(1);
   });
 
