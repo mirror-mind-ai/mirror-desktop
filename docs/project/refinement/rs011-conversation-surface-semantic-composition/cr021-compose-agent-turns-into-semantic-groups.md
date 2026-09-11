@@ -207,13 +207,19 @@ Implemented the approved presentation-only semantic composition:
   remain intact;
 - added restrained region styling without implementing CR022 disclosure or CR023 copy
   behavior;
+- incorporated Navigator visual feedback by suppressing the redundant successful
+  `Completed` run outcome before `Agent Comments`; completed tools retain their own
+  evidence status, while `Failed` and `Cancelled` terminal outcomes remain visible;
+- a successful terminal state without reasoning or operations no longer creates an empty
+  `Agent Actions` region solely for status;
 - introduced no persisted schema, native runtime, updater, Mirror-core, or data migration
   change.
 
-Implementation commit:
+Implementation commits:
 
 ```text
 28b7fbe Compose assistant turns by semantic authorship
+cd5094c Keep successful agent settlement quiet
 ```
 
 ## Evidence
@@ -223,16 +229,22 @@ Implementation commit:
 - 56 focused tests passed across semantic projection, agent-turn rendering, runtime
   projection, imported activity, conversation presentation, Markdown content, and copy
   behavior.
-- The complete frontend suite passed: 651 tests across 119 files.
+- The first complete frontend suite passed with 651 tests across 119 files.
+- The quiet-success TDD assertions failed before the terminal-status rule was added; 32
+  focused tests then passed across turn projection, rendering, runtime status, and composer
+  status.
+- The complete frontend suite after the visual refinement passed: 656 tests across 119
+  files.
 - `npm run build` passed with only the existing Vite chunk-size warning.
 - `npm run tauri:build:dev` rebuilt the isolated application and DMG successfully.
 - Bundle metadata confirms `Mirror Desktop Dev`, `ai.mirrormind.desktop.dev`, version
   `0.2.0-alpha.3`.
-- The rebuilt executable is running as process `75560`, inode `161551792`.
+- The latest rebuilt executable is running as process `78491`, inode `161553727`.
 
 ## Navigator Validation
 
-Pending in the isolated Dev bundle. Validate four assistant turns for `mirror-desktop`:
-plain comment-only, multi-tool, Mirror-mode, and Ariad-surface. Confirm semantic ordering,
-no duplicated surface, unchanged tool evidence, and continuous settlement through
-`Working…`, `Finishing…`, and quiet idle.
+Pending final revalidation in the isolated Dev bundle. The Navigator's first multi-tool
+inspection confirmed the semantic groups but identified redundant standalone `Completed`
+text before `Agent Comments`; that feedback is now implemented. Repeat the multi-tool turn
+and confirm that successful settlement is silent after `Finishing…`, while completed tools
+remain inspectable and no standalone success outcome interrupts the semantic composition.
