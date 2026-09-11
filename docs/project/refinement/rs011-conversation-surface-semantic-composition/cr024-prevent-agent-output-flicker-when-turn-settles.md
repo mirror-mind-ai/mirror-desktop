@@ -299,6 +299,12 @@ Implemented the captured-surface repair:
   persistence, recovery, or failure decisions;
 - initial load and explicit Journey selection continue to enter the loading state.
 
+Implementation commit:
+
+```text
+c928237 Keep ready conversations visible during authority refresh
+```
+
 ## Evidence
 
 - The revised focused TDD run failed because the exact-Journey preservation rule and the
