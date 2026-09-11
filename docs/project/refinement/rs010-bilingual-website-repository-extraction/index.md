@@ -8,8 +8,7 @@ Move the Mirror Mind static site out of mirror-desktop into a dedicated bilingua
 
 ## Outcome
 
-Outcome is represented by the attached Change Requests and their evidence. Canonical
-status remains owned by the Workbench index.
+CR013 delivered the dedicated bilingual `mirror-mind-ai/mirrormind-site` repository and recorded its validation evidence. With its only Change Request done, RS010 was reconciled to `closed` on 2026-09-11. Canonical status remains owned by the Workbench index.
 
 ## Boundaries
 

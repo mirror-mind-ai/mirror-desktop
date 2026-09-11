@@ -31,7 +31,7 @@ executes work.
 | 7 | [RS007](rs007-repository-publication-and-windows-handoff/index.md) | Repository publication and Windows handoff | closed |
 | 8 | [RS008](rs008-mirrormind-sh-landing-page/index.md) | mirrormind.sh landing page | closed |
 | 9 | [RS009](rs009-alpha-mirror-desktop-usage-feedback/index.md) | Alpha Mirror Desktop Usage Feedback | closed |
-| 10 | [RS010](rs010-bilingual-website-repository-extraction/index.md) | Bilingual website repository extraction | active |
+| 10 | [RS010](rs010-bilingual-website-repository-extraction/index.md) | Bilingual website repository extraction | closed |
 | 11 | [RS011](rs011-conversation-surface-semantic-composition/index.md) | Conversation surface semantic composition | closed |
 | 12 | [RS012](rs012-post-release-conversation-action-corrections/index.md) | Post-release conversation action corrections | closed |
 | 13 | [RS013](rs013-roadmap-baseline-reconciliation/index.md) | Roadmap baseline reconciliation | active |
@@ -43,8 +43,8 @@ Open work is ordered intentionally. Terminal history follows open work.
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
 | 1 | [CR026](rs013-roadmap-baseline-reconciliation/cr026-reconcile-delivered-baseline-and-open-next-product-horizon.md) | RS013 | Reconcile delivered baseline and open the next product horizon | in_progress | @alissonvale | `refinement/rs013-cr026-roadmap-baseline-reconciliation` |
-| 2 | [CR003](unassigned/cr003-generate-private-test-release-v0-1-1-test-1.md) | — | Generate private test release v0.1.1-test.1 | captured | — | — |
-| 3 | [CR014](unassigned/cr014-make-mirror-mind-site-repository-private.md) | — | Make Mirror Mind site repository private | captured | — | — |
+| — | [CR014](unassigned/cr014-make-mirror-mind-site-repository-private.md) | — | Make Mirror Mind site repository private | done | — | — |
+| — | [CR003](unassigned/cr003-generate-private-test-release-v0-1-1-test-1.md) | — | Generate private test release v0.1.1-test.1 | done | — | — |
 | — | [CR025](rs012-post-release-conversation-action-corrections/cr025-separate-compound-and-empty-action-boundaries.md) | RS012 | Separate compound and empty action boundaries | done | — | — |
 | — | [CR023](rs011-conversation-surface-semantic-composition/cr023-make-highlighted-blocks-consistently-copyable.md) | RS011 | Make highlighted blocks consistently copyable | done | @alissonvale | `refinement/rs011-cr023-semantic-code-block-copy` |
 | — | [CR022](rs011-conversation-surface-semantic-composition/cr022-govern-action-tool-and-turn-disclosure.md) | RS011 | Govern action, tool, and turn disclosure | done | @alissonvale | `refinement/rs011-cr022-action-turn-disclosure` |

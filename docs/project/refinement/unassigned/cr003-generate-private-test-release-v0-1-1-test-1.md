@@ -21,11 +21,12 @@ No separately structured plan was preserved in the legacy Workbench record.
 
 ## Evidence
 
-No separate evidence was recorded in the legacy Workbench entry.
+- [Private Test Release — v0.1.1-test.1](../../../update/private-test-release-2026-09-08.md) records signed artifacts, SHA-256 coordinates, private endpoint publication, automated checks and the Navigator-validated clickable bootstrap rehearsal from `0.1.1-test.0` to `0.1.1-test.1`.
+- [v0.1.1-test.1 release notes](../../../releases/v0.1.1-test.1.md) preserve the release scope and conscious exclusions.
 
 ## Outcome
 
-No terminal outcome has been recorded.
+Reconciled to `done` on 2026-09-11 from existing terminal evidence. The private test release was generated and validated within its original exclusions: no Git tag, GitHub Release, notarization claim, public production release or protected Mirror/app-data mutation.
 
 ## Migration Provenance
 
