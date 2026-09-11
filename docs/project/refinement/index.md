@@ -12,8 +12,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: — (awaiting explicit selection)
-- Change Request: — (awaiting explicit selection)
+- Refinement Story: [RS012](rs012-post-release-conversation-action-corrections/index.md)
+- Change Request: [CR025](rs012-post-release-conversation-action-corrections/cr025-separate-compound-and-empty-action-boundaries.md)
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -33,6 +33,7 @@ executes work.
 | 9 | [RS009](rs009-alpha-mirror-desktop-usage-feedback/index.md) | Alpha Mirror Desktop Usage Feedback | closed |
 | 10 | [RS010](rs010-bilingual-website-repository-extraction/index.md) | Bilingual website repository extraction | active |
 | 11 | [RS011](rs011-conversation-surface-semantic-composition/index.md) | Conversation surface semantic composition | closed |
+| 12 | [RS012](rs012-post-release-conversation-action-corrections/index.md) | Post-release conversation action corrections | active |
 
 ## Change Requests
 
@@ -42,6 +43,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 |------:|----|----|--------|--------|--------|----------|
 | 2 | [CR003](unassigned/cr003-generate-private-test-release-v0-1-1-test-1.md) | — | Generate private test release v0.1.1-test.1 | captured | — | — |
 | 3 | [CR014](unassigned/cr014-make-mirror-mind-site-repository-private.md) | — | Make Mirror Mind site repository private | captured | — | — |
+| 7 | [CR025](rs012-post-release-conversation-action-corrections/cr025-separate-compound-and-empty-action-boundaries.md) | RS012 | Separate compound and empty action boundaries | in_progress | @alissonvale | `refinement/rs012-cr025-action-boundary-splitting` |
 | — | [CR023](rs011-conversation-surface-semantic-composition/cr023-make-highlighted-blocks-consistently-copyable.md) | RS011 | Make highlighted blocks consistently copyable | done | @alissonvale | `refinement/rs011-cr023-semantic-code-block-copy` |
 | — | [CR022](rs011-conversation-surface-semantic-composition/cr022-govern-action-tool-and-turn-disclosure.md) | RS011 | Govern action, tool, and turn disclosure | done | @alissonvale | `refinement/rs011-cr022-action-turn-disclosure` |
 | — | [CR021](rs011-conversation-surface-semantic-composition/cr021-compose-agent-turns-into-semantic-groups.md) | RS011 | Compose agent turns into semantic groups | done | @alissonvale | `refinement/rs011-cr021-semantic-turn-composition` |
