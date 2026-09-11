@@ -248,5 +248,21 @@ Validated by the Navigator in the rebuilt isolated `Mirror Desktop Dev` bundle o
 accepted: successful turns end at `Agent Comments` without a redundant standalone
 `Completed` outcome, while completed tool evidence and semantic ordering remain intact.
 
-The canonical CR021 status is now `validated`. Terminal closure remains separate and
-requires the collaboration protocol's proportionality and debt review.
+## Closure Review
+
+**Proportionality.** The delivery introduced one pure presentation projection and one
+assistant-turn component, then made bounded adaptations to the existing runtime renderer,
+App delegation, and CSS. The semantic behavior was achieved without changing persisted
+conversation schemas, native commands, settlement authority, or Mirror runtime data. The
+follow-up removal of standalone successful `Completed` output was localized to semantic
+action eligibility and one renderer option.
+
+**Debt.** No migration, compatibility layer, timer, duplicated response source, or hidden
+reasoning inference was introduced. Complete historical tool traces remain unavailable
+after restart because they were not previously persisted; CR021 records this honestly
+rather than manufacturing history. CR022 must assess that existing evidence boundary
+before promising recoverable historical actions. No new technical-debt ledger entry is
+warranted by this delivery.
+
+CR021 is closed as `done` after automated evidence, isolated Dev validation, explicit
+Navigator acceptance, and this proportionality and debt review.

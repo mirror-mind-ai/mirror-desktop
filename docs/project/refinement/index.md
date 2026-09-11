@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: [RS011](rs011-conversation-surface-semantic-composition/index.md)
-- Change Request: [CR021](rs011-conversation-surface-semantic-composition/cr021-compose-agent-turns-into-semantic-groups.md)
+- Change Request: [CR022](rs011-conversation-surface-semantic-composition/cr022-govern-action-tool-and-turn-disclosure.md)
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -42,9 +42,9 @@ Open work is ordered intentionally. Terminal history follows open work.
 |------:|----|----|--------|--------|--------|----------|
 | 2 | [CR003](unassigned/cr003-generate-private-test-release-v0-1-1-test-1.md) | — | Generate private test release v0.1.1-test.1 | captured | — | — |
 | 3 | [CR014](unassigned/cr014-make-mirror-mind-site-repository-private.md) | — | Make Mirror Mind site repository private | captured | — | — |
-| 4 | [CR021](rs011-conversation-surface-semantic-composition/cr021-compose-agent-turns-into-semantic-groups.md) | RS011 | Compose agent turns into semantic groups | validated | @alissonvale | `refinement/rs011-cr021-semantic-turn-composition` |
 | 5 | [CR022](rs011-conversation-surface-semantic-composition/cr022-govern-action-tool-and-turn-disclosure.md) | RS011 | Govern action, tool, and turn disclosure | captured | — | — |
 | 6 | [CR023](rs011-conversation-surface-semantic-composition/cr023-make-highlighted-blocks-consistently-copyable.md) | RS011 | Make highlighted blocks consistently copyable | captured | — | — |
+| — | [CR021](rs011-conversation-surface-semantic-composition/cr021-compose-agent-turns-into-semantic-groups.md) | RS011 | Compose agent turns into semantic groups | done | @alissonvale | `refinement/rs011-cr021-semantic-turn-composition` |
 | — | [CR024](rs011-conversation-surface-semantic-composition/cr024-prevent-agent-output-flicker-when-turn-settles.md) | RS011 | Prevent agent output flicker when a turn settles | done | @alissonvale | `refinement/rs011-cr024-output-settlement-flicker` |
 | — | [CR020](rs009-alpha-mirror-desktop-usage-feedback/cr020-tighten-journey-sidebar-header-layout.md) | RS009 | Tighten Journey sidebar header layout | done | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |
 | — | [CR018](rs009-alpha-mirror-desktop-usage-feedback/cr018-make-user-channel-source-build-updater-contract-explicit.md) | RS009 | Make user-channel source build updater contract explicit | done | @alissonvale | `refinement/rs009-cr010-shift-enter-line-breaks` |

@@ -103,8 +103,8 @@ than textual guesses or background color. Inline code remains unchanged.
 - [CR023 — Make highlighted blocks consistently copyable](cr023-make-highlighted-blocks-consistently-copyable.md)
 - [CR024 — Prevent agent output flicker when a turn settles](cr024-prevent-agent-output-flicker-when-turn-settles.md)
 
-CR021 is `validated` with Driver `@alissonvale` and Delivery
-`refinement/rs011-cr021-semantic-turn-composition`; CR022 and CR023 remain `captured`;
-CR024 is closed as `done`. CR022 depends on the semantic foundation refined by CR021;
-CR023 can be assessed independently. CR024 stabilized the current live-to-completed turn
-boundary before RS011 changes rely on that transition.
+CR021 and CR024 are closed as `done`; CR022 and CR023 remain `captured`. CR022 is the
+current explicit focus, but selection does not approve planning or implementation. CR022
+builds on the semantic foundation delivered by CR021; CR023 can be assessed independently.
+CR024 stabilized the live-to-completed turn boundary before RS011 changes relied on that
+transition.

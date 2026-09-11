@@ -56,10 +56,11 @@ Source exploration:
 - Journey authority is exactly `mirror-desktop`.
 - Canonical refinement status, Driver, and Delivery are owned by the root Workbench
   index.
-- This capture does not select focus, approve a plan, assign a Driver, choose Delivery,
-  authorize implementation, or authorize push, publication, release, or installation.
-- CR021 must establish the semantic turn model before this disclosure behavior is treated
-  as implementation-ready.
+- CR022 is selected as the current focus. Selection does not approve a plan, assign a
+  Driver, choose Delivery, authorize implementation, or authorize push, publication,
+  release, or installation.
+- CR021 has established the semantic turn model; CR022 must preserve that delivered
+  authorship and ordering contract.
 - This CR preserves existing provider-error and quiet-finalization settlement contracts.
 - It must not hide a running tool, discard historical actions or surfaces, or restore a
   stale running state after restart.
