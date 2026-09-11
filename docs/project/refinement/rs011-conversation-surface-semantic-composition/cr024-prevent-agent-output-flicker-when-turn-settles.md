@@ -222,13 +222,80 @@ belong in an approved CR024 test plan and must not be implemented as production 
 
 ## Proposed Plan
 
-Not planned. Builder assessment must first reproduce the flicker, trace every settlement
-state transition, identify competing content authorities, and present evidence before an
-implementation plan is approved.
+The Navigator authorized planning after the Dev observation identified Runtime Activity
+text during the flicker. Implementation still requires explicit Driver and Delivery
+decisions before this CR moves to `in_progress`.
+
+1. Extend the conversation auto-follow domain contract to distinguish passive
+   content-driven updates from explicit navigation. Preserve the user's decision to stay
+   away from the bottom. Explicit bottom and Journey navigation actions may request
+   movement; internal stream, runtime projection, and settlement updates must not animate
+   through earlier conversation content.
+2. Add a deterministic UI test harness with controlled scroll geometry. Model a turn with
+   a visible reasoning summary, an expanded long-running tool, and a final assistant
+   answer. Settle the tool so the activity region contracts, transition from streaming to
+   finalizing and quiet idle, and prove that the viewport never paints the earlier
+   reasoning summary in place of the answer while auto-follow is active.
+3. Replace the current post-paint `useEffect` plus `requestAnimationFrame` settlement
+   scroll with bottom anchoring that completes before paint when content-driven layout
+   changes occur. Use immediate positioning for internal updates. Keep smooth scrolling
+   only for explicit user navigation where an animated journey across content is
+   intentional, and respect reduced-motion preference.
+4. Preserve the existing near-bottom tolerance. When the user has scrolled away, runtime
+   updates, tool collapse, finalization, and persistence must not pull the viewport back
+   to the answer. Returning near the bottom or invoking the explicit bottom action
+   restores follow behavior.
+5. Add characterization coverage for the runtime-snapshot to loaded-conversation handoff.
+   A lower-authority or stale loaded snapshot must not become visible between finalization
+   and the authoritative completed projection. Change that authority boundary only if the
+   test can reproduce a content substitution independently from scroll movement.
+6. Add characterization coverage for the `rawLiveOutput` normalization path. Do not
+   remove or redesign it without evidence that non-JSON stdout replaced valid streamed
+   assistant content in an authoritative run.
+7. Preserve System Surface extraction, running-tool auto-expansion, terminal tool
+   settlement, `Working…` to `Finishing…` to quiet idle, context-usage inspection, Mirror
+   append repair, and exact Journey, session, generation, provider, and model authority.
+8. Run focused domain and component tests, the complete frontend suite, and the production
+   frontend build. Rebuild and launch only `Mirror Desktop Dev` with bundle identifier
+   `ai.mirrormind.desktop.dev` for manual validation of plain, long-tool, Ariad-surface,
+   Mirror-mode, failure, cancellation, and user-scrolled-away scenarios.
+
+## Likely Files
+
+- `src/app/conversationAutoFollow.ts`
+- `src/app/App.tsx`
+- `src/app/LiveRuntimeActivity.tsx`, only if a stable layout signal is required
+- `src/tests/conversationAutoFollow.test.ts`
+- a focused conversation-scroll integration or component test under `src/tests/`
+- `src/tests/journeyNavigationBehavior.test.ts`, for authority-handoff characterization
+- `src/tests/runtimeProjectionComponent.test.tsx`, for runtime settlement regression
+- this CR document for implementation evidence and Navigator validation
+
+File scope may narrow after the first failing test. Expansion beyond these paths requires
+recorded justification before implementation continues.
 
 ## Proposed Acceptance
 
-Not yet approved. Acceptance must eventually cover visual continuity across successful,
-failed, cancelled, tool-bearing, System Surface-bearing, delayed-persistence, stale-event,
-and restart-recovery turn settlement, with deterministic tests that fail if authoritative
-agent content disappears or is transiently replaced.
+- With auto-follow active, settling a long-running tool and contracting Runtime Activity
+  keeps the final Agent Comments region continuously visible without exposing an earlier
+  reasoning summary as a transient replacement.
+- Passive message, runtime projection, surface extraction, streaming, finalization, and
+  persistence updates do not trigger smooth travel through prior conversation content.
+- Explicit user navigation to the bottom may remain smooth when reduced motion is not
+  requested.
+- A user who scrolls away from the bottom is not pulled back by streaming, tool collapse,
+  finalization, persistence, or Mirror append settlement.
+- Returning within the existing bottom tolerance or explicitly requesting the bottom
+  restores auto-follow.
+- Plain, long-tool, Ariad-surface, and Mirror-mode turns preserve one continuous final
+  answer through `Working…`, `Finishing…`, and quiet idle.
+- Successful, failed, cancelled, delayed-persistence, stale-event, and restart-recovery
+  settlement do not blank, duplicate, or transiently replace authoritative assistant
+  content.
+- Runtime-to-loaded presentation never exposes a lower-authority snapshot for the exact
+  active turn. If existing code already satisfies this under controlled scheduling, the
+  characterization test is retained without unnecessary production changes.
+- No arbitrary delay, minimum display timer, opacity mask, duplicate response layer, or
+  stale-content fallback is introduced.
+- Focused tests, the complete frontend suite, frontend production build, and isolated Dev
+  bundle validation pass before Navigator acceptance is requested.
