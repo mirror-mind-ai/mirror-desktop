@@ -68,6 +68,14 @@ export function shouldSubmitJourneyDraft(
     && !admissionBlocked;
 }
 
+export function shouldPreserveReadyJourneyConversation(input: Readonly<{
+  selectedJourneyId: string;
+  currentConversationJourneyId: string;
+  threadReady: boolean;
+}>): boolean {
+  return input.threadReady && input.currentConversationJourneyId === input.selectedJourneyId;
+}
+
 export function createJourneyConversationLoadCoordinator(): JourneyConversationLoadCoordinator {
   let sequence = 0;
   let current: JourneyConversationLoadToken | undefined;

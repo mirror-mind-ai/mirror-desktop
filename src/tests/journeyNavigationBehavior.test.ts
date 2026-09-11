@@ -6,6 +6,7 @@ import {
   journeySearchReducer,
   resolveJourneyConversationRestore,
   resolveJourneySelection,
+  shouldPreserveReadyJourneyConversation,
   shouldRecoverDurableTurnJournal,
   shouldSubmitJourneyDraft,
 } from "../app/journeyNavigationCoordinator";
@@ -88,6 +89,24 @@ function inactiveConversation(journeyId: string, content: string): JourneyConver
 }
 
 describe("Journey navigation behavior under serial occupancy", () => {
+  it("preserves an already ready exact Journey conversation during authority refresh", () => {
+    expect(shouldPreserveReadyJourneyConversation({
+      selectedJourneyId: "mirror-desktop",
+      currentConversationJourneyId: "mirror-desktop",
+      threadReady: true,
+    })).toBe(true);
+    expect(shouldPreserveReadyJourneyConversation({
+      selectedJourneyId: "mirror-desktop",
+      currentConversationJourneyId: "other-journey",
+      threadReady: true,
+    })).toBe(false);
+    expect(shouldPreserveReadyJourneyConversation({
+      selectedJourneyId: "mirror-desktop",
+      currentConversationJourneyId: "mirror-desktop",
+      threadReady: false,
+    })).toBe(false);
+  });
+
   it("recovers from the journal only without a live exact native execution", () => {
     expect(shouldRecoverDurableTurnJournal({
       allowPersistedRecovery: true,

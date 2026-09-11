@@ -135,6 +135,7 @@ import {
   journeySearchReducer,
   resolveJourneyConversationRestore,
   resolveJourneySelection,
+  shouldPreserveReadyJourneyConversation,
   shouldRecoverDurableTurnJournal,
   shouldSubmitJourneyDraft,
   type JourneyNavigationIntent,
@@ -1029,8 +1030,15 @@ export function App({ model }: AppProps) {
     const loadRequest = conversationLoadCoordinatorRef.current.begin(selectedJourney);
     const requestIsCurrent = () => !cancelled
       && conversationLoadCoordinatorRef.current.isCurrent(loadRequest, selectedJourneyRef.current);
-    setConversationLoaded(false);
-    setJourneyThreadState({ kind: "loading" });
+    const preserveReadyConversation = shouldPreserveReadyJourneyConversation({
+      selectedJourneyId: selectedJourney,
+      currentConversationJourneyId: conversation.journeyId,
+      threadReady: journeyThreadState.kind === "ready",
+    });
+    if (!preserveReadyConversation) {
+      setConversationLoaded(false);
+      setJourneyThreadState({ kind: "loading" });
+    }
     setPiContextState("checking");
 
     async function restoreConversation() {

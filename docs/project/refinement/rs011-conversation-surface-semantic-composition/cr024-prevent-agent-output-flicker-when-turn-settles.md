@@ -43,41 +43,47 @@ replaced by other content, and then reappears when the turn completes.
 ## Investigation Findings
 
 Builder inspection on 2026-09-10 found two independently reproducible presentation
-transitions and one additional replacement path. A later visible clue from the Navigator
-identified a fourth mechanism that now ranks as the leading explanation.
+transitions and one additional replacement path. The Navigator's captured frame then
+identified the actual replacement surface and displaced the earlier scroll hypothesis.
 
-### Runtime layout contraction and smooth auto-follow
+### Confirmed same-Journey authority reload
 
-At the end of a Dev turn, the Navigator briefly saw text beginning with `Checking
-Journey…` before the final agent content returned. No matching literal exists in the
-application source. The phrase is consistent with a dynamic reasoning summary rendered
-inside `LiveRuntimeActivity`, which remains above the assistant answer in the same agent
-card.
+The captured frame shows the whole conversation replaced by the global `Checking Journey
+conversation…` surface while the composer still reports `Finishing…`. This is not a
+reasoning summary, assistant-content substitution, System Surface extraction, or viewport
+travel. `JourneyThreadState` renders that exact global replacement only when
+`journeyThreadState.kind === "loading"`.
 
-Completion changes several layout and scroll inputs together:
+The authority restore effect begins a new conversation inspection whenever its native
+lease dependencies change. Before loading the dedicated thread, it unconditionally set
+both `conversationLoaded` to false and `journeyThreadState` to `loading`. Native lease
+phase and terminal-state changes occur around settlement, so a same-Journey authority
+refresh could unmount the already ready conversation even though the selected Journey
+and currently presented conversation had not changed. The async restore then classified
+the same thread as ready and mounted the conversation again, producing the captured
+flicker.
 
-1. Runtime projection settles and running or preparing tool details switch from open to
-   closed, reducing the activity region height.
-2. The chat auto-follow effect reacts to `messages`, `isStreaming`, and
-   `runtimeProjection` changes.
-3. Once `isStreaming` becomes false, the effect calls `scrollIntoView` with smooth rather
-   than immediate behavior.
-4. During the animated reposition after layout contraction, the viewport can briefly
-   expose an earlier reasoning summary such as `Checking Journey…` before settling back
-   on the final assistant answer.
-
-This mechanism produces the perceived sequence without replacing assistant bytes. It
-also explains why repeatedly forcing Mirror and Ariad surfaces did not reproduce the
-problem and why a long tool-bearing turn did. The hypothesis requires a visual browser
-probe with controlled activity height and scroll geometry, but it is now the leading
-cause.
+The selection path is not responsible for this frame: selecting the already selected
+Journey exits without resetting state. The captured global surface plus the restore
+effect's unconditional setter establish the competing presentation authority.
 
 Relevant source coordinates at investigation time:
 
-- `src/app/App.tsx:1437-1453`
-- `src/app/App.tsx:3525-3548`
-- `src/app/LiveRuntimeActivity.tsx:36-80`
-- `src/app/LiveRuntimeActivity.tsx:127-180`
+- `src/app/App.tsx:1024-1038`
+- `src/app/App.tsx:1188-1189`
+- `src/app/JourneyThreadState.tsx`
+
+### Disproven primary hypothesis: runtime contraction and smooth auto-follow
+
+Before the decisive frame was available, the transient words `Checking Journey…` were
+mistaken for a possible dynamic Runtime Activity summary exposed by smooth auto-follow
+after tool contraction. An approved repair moved passive scrolling before paint and made
+it immediate. The later screenshot proves that diagnosis was wrong: the entire chat was
+replaced by the dedicated global loading surface while `Finishing…` remained visible.
+
+The viewport repair was therefore reverted rather than retained as an unrelated masking
+change. Existing auto-follow semantics remain outside this CR unless independent evidence
+establishes a separate defect.
 
 ### Incremental System Surface extraction
 
@@ -180,12 +186,12 @@ The remaining observation is therefore treated as timing-sensitive or dependent 
 conversation state, with runtime-to-loaded authority handoff and multiple assistant-text
 replacement still unresolved.
 
-The natural flicker subsequently recurred after a longer tool-bearing turn. The visible
-transient began with `Checking Journey…`, identifying Runtime Activity content rather
-than a collapsed System Surface or known stale assistant response. The next deterministic
-simulation should therefore reproduce activity-region contraction and auto-follow scroll
-behavior before injecting a controlled runtime-to-loaded scheduling barrier. Both probes
-belong in an approved CR024 test plan and must not be implemented as production delays.
+The natural flicker subsequently recurred after a longer tool-bearing turn. A decisive
+Navigator screenshot captured the full `Checking Journey conversation…` global loading
+surface while the composer still showed `Finishing…`. This corrects the earlier reading
+that only Runtime Activity text had become visible. The frame maps directly to the
+`journeyThreadState.kind === "loading"` branch and to the unconditional loading reset in
+the authority restore effect.
 
 ## Assessment Questions
 
@@ -227,52 +233,31 @@ The Navigator approved the plan and explicitly authorized implementation. Driver
 
 ## Proposed Plan
 
-The Navigator authorized planning after the Dev observation identified Runtime Activity
-text during the flicker.
+The Navigator authorized implementation before the decisive screenshot. Evidence changed
+the diagnosis, so execution was narrowed to the confirmed state transition rather than
+continuing the disproven viewport repair.
 
-1. Extend the conversation auto-follow domain contract to distinguish passive
-   content-driven updates from explicit navigation. Preserve the user's decision to stay
-   away from the bottom. Explicit bottom and Journey navigation actions may request
-   movement; internal stream, runtime projection, and settlement updates must not animate
-   through earlier conversation content.
-2. Add a deterministic UI test harness with controlled scroll geometry. Model a turn with
-   a visible reasoning summary, an expanded long-running tool, and a final assistant
-   answer. Settle the tool so the activity region contracts, transition from streaming to
-   finalizing and quiet idle, and prove that the viewport never paints the earlier
-   reasoning summary in place of the answer while auto-follow is active.
-3. Replace the current post-paint `useEffect` plus `requestAnimationFrame` settlement
-   scroll with bottom anchoring that completes before paint when content-driven layout
-   changes occur. Use immediate positioning for internal updates. Keep smooth scrolling
-   only for explicit user navigation where an animated journey across content is
-   intentional, and respect reduced-motion preference.
-4. Preserve the existing near-bottom tolerance. When the user has scrolled away, runtime
-   updates, tool collapse, finalization, and persistence must not pull the viewport back
-   to the answer. Returning near the bottom or invoking the explicit bottom action
-   restores follow behavior.
-5. Add characterization coverage for the runtime-snapshot to loaded-conversation handoff.
-   A lower-authority or stale loaded snapshot must not become visible between finalization
-   and the authoritative completed projection. Change that authority boundary only if the
-   test can reproduce a content substitution independently from scroll movement.
-6. Add characterization coverage for the `rawLiveOutput` normalization path. Do not
-   remove or redesign it without evidence that non-JSON stdout replaced valid streamed
-   assistant content in an authoritative run.
-7. Preserve System Surface extraction, running-tool auto-expansion, terminal tool
-   settlement, `Working…` to `Finishing…` to quiet idle, context-usage inspection, Mirror
-   append repair, and exact Journey, session, generation, provider, and model authority.
-8. Run focused domain and component tests, the complete frontend suite, and the production
-   frontend build. Rebuild and launch only `Mirror Desktop Dev` with bundle identifier
-   `ai.mirrormind.desktop.dev` for manual validation of plain, long-tool, Ariad-surface,
-   Mirror-mode, failure, cancellation, and user-scrolled-away scenarios.
+1. Revert the viewport-specific implementation so CR024 does not retain an unrelated
+   behavioral change.
+2. Characterize when an already ready conversation belongs to the exact currently
+   selected Journey.
+3. During a background authority refresh, preserve that ready presentation instead of
+   resetting it to the global loading branch. Continue to show loading for initial load,
+   Journey changes, and any non-exact conversation.
+4. Allow the completed inspection to replace the retained presentation with its honest
+   classified result, including unavailable or recovery states; do not create a stale
+   fallback or weaken authority checks.
+5. Preserve exact Journey, thread, generation, lease, settlement, and persistence
+   authority, plus the existing `Working…` to `Finishing…` to quiet-idle contract.
+6. Run focused tests, the complete frontend suite, and the production frontend build.
+   Rebuild and launch only `Mirror Desktop Dev` for Navigator validation.
 
 ## Likely Files
 
-- `src/app/conversationAutoFollow.ts`
 - `src/app/App.tsx`
-- `src/app/LiveRuntimeActivity.tsx`, only if a stable layout signal is required
-- `src/tests/conversationAutoFollow.test.ts`
-- a focused conversation-scroll integration or component test under `src/tests/`
-- `src/tests/journeyNavigationBehavior.test.ts`, for authority-handoff characterization
-- `src/tests/runtimeProjectionComponent.test.tsx`, for runtime settlement regression
+- `src/app/journeyNavigationCoordinator.ts`
+- `src/tests/journeyNavigationBehavior.test.ts`
+- `src/tests/journeyRuntimeIntegration.test.ts`
 - this CR document for implementation evidence and Navigator validation
 
 File scope may narrow after the first failing test. Expansion beyond these paths requires
@@ -280,17 +265,12 @@ recorded justification before implementation continues.
 
 ## Proposed Acceptance
 
-- With auto-follow active, settling a long-running tool and contracting Runtime Activity
-  keeps the final Agent Comments region continuously visible without exposing an earlier
-  reasoning summary as a transient replacement.
-- Passive message, runtime projection, surface extraction, streaming, finalization, and
-  persistence updates do not trigger smooth travel through prior conversation content.
-- Explicit user navigation to the bottom may remain smooth when reduced motion is not
-  requested.
-- A user who scrolls away from the bottom is not pulled back by streaming, tool collapse,
-  finalization, persistence, or Mirror append settlement.
-- Returning within the existing bottom tolerance or explicitly requesting the bottom
-  restores auto-follow.
+- A lease or settlement authority refresh for an already ready exact Journey does not
+  replace the mounted conversation with `Checking Journey conversation…`.
+- Initial conversation load, Journey changes, and non-exact conversation state continue
+  to use the honest loading surface.
+- The refresh result may still transition to an honest unavailable or recovery state;
+  ready content is not retained as a stale fallback after classification completes.
 - Plain, long-tool, Ariad-surface, and Mirror-mode turns preserve one continuous final
   answer through `Working…`, `Finishing…`, and quiet idle.
 - Successful, failed, cancelled, delayed-persistence, stale-event, and restart-recovery
@@ -306,49 +286,37 @@ recorded justification before implementation continues.
 
 ## Implementation
 
-Implemented the approved viewport-authority repair:
+Implemented the captured-surface repair:
 
-- passive conversation updates now derive an immediate bottom position from the exact chat
-  viewport geometry when auto-follow remains active;
-- content-driven scrolling moved from post-paint `useEffect` plus
-  `requestAnimationFrame` to `useLayoutEffect`, so tool-box contraction and settlement
-  anchoring complete before the browser paints an intermediate viewport;
-- passive streaming, runtime projection, and finalization updates no longer animate
-  smoothly through earlier Runtime Activity content;
-- scrolling remains suspended when the user has moved outside the existing bottom
-  tolerance;
-- explicit conversation navigation retains smooth movement unless the operating system
-  requests reduced motion;
-- normal runtime-to-loaded settlement now has exact assistant-content assertions before
-  and after finalization;
-- System Surface extraction, runtime activity ordering, tool settlement, and finalization
-  authority were not rewritten.
-
-Implementation commit:
-
-```text
-afd55f4 Keep the final response anchored while runtime activity settles
-```
+- reverted the disproven viewport-authority implementation in
+  `cb3d49f Revert "Keep the final response anchored while runtime activity settles"`;
+- introduced a pure exact-Journey rule for preserving an already ready conversation while
+  its authority is reinspected;
+- gated the restore effect's `conversationLoaded = false` and global
+  `journeyThreadState = loading` reset behind that rule;
+- retained the asynchronous authority reload and its final classified result, so the
+  change prevents only the transient global loading replacement and does not bypass
+  persistence, recovery, or failure decisions;
+- initial load and explicit Journey selection continue to enter the loading state.
 
 ## Evidence
 
-- The initial focused TDD run failed in three expected assertions because passive bottom
-  anchoring, pre-paint layout synchronization, and the new scroll command did not exist.
-- A separate reduced-motion test failed before explicit-navigation behavior was added.
-- 30 focused tests passed across conversation auto-follow, runtime projection,
-  Journey-navigation settlement, and central-header conversation navigation.
-- All 648 frontend tests passed across 117 files.
+- The revised focused TDD run failed because the exact-Journey preservation rule and the
+  loading-reset guard did not exist.
+- 15 focused tests passed across Journey navigation behavior and runtime integration.
+- All 645 frontend tests passed across 117 files after the disproven scroll tests and
+  implementation were removed.
 - `npm run build` passed with only the existing Vite chunk-size warning.
-- `npm run tauri:build:dev` rebuilt the isolated app and DMG successfully.
-- Native bundle metadata confirms `Mirror Desktop Dev`, `ai.mirrormind.desktop.dev`, and
+- `npm run tauri:build:dev` rebuilt the isolated application and DMG successfully.
+- Bundle metadata confirms `Mirror Desktop Dev`, `ai.mirrormind.desktop.dev`, version
   `0.2.0-alpha.3`.
-- The restarted Dev process is `64699` and loaded executable inode `161516300`.
-- `git diff --check` passed before the implementation commit.
+- The rebuilt isolated Dev executable is running as process `67421`.
+- Navigator validation remains pending.
 
 ## Navigator Validation
 
-Pending hands-on validation in the rebuilt isolated Dev bundle. The primary validation is
-a long tool-bearing turn while auto-follow remains at the bottom. Its tool boxes should
-collapse without exposing an earlier reasoning summary such as `Checking Journey…` in
-place of the final answer. A second pass should scroll away before settlement and confirm
-that the viewport is not pulled back automatically.
+Pending hands-on validation in a rebuilt isolated Dev bundle. The primary validation is
+a long tool-bearing turn through `Finishing…`: native lease refreshes must not replace the
+conversation with `Checking Journey conversation…`. Scroll-away behavior is no longer a
+CR024 acceptance condition because the screenshot disproved viewport movement as the
+reported mechanism.

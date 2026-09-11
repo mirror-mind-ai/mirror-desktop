@@ -31,6 +31,10 @@ describe("Journey runtime integration guardrails", () => {
 
   it("restores an authority-bound owner conversation without reacting to in-session busy transitions", () => {
     expect(appSource).toContain("resolveJourneyConversationRestore(");
+    expect(appSource).toContain("shouldPreserveReadyJourneyConversation({");
+    expect(appSource).toMatch(
+      /if \(!preserveReadyConversation\) \{\s*setConversationLoaded\(false\);\s*setJourneyThreadState\(\{ kind: "loading" \}\);\s*\}/,
+    );
     expect(appSource).toContain('type: "conversation_snapshot", identity: runtimeIdentity');
     expect(appSource).toContain("shouldRecoverDurableTurnJournal({");
     expect(appSource).toContain("piInvocationBootstrapComplete");
