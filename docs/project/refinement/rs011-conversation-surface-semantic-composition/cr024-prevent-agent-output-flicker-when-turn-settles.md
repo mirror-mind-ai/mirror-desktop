@@ -321,8 +321,12 @@ c928237 Keep ready conversations visible during authority refresh
 
 ## Navigator Validation
 
-Pending hands-on validation in a rebuilt isolated Dev bundle. The primary validation is
-a long tool-bearing turn through `Finishing…`: native lease refreshes must not replace the
-conversation with `Checking Journey conversation…`. Scroll-away behavior is no longer a
-CR024 acceptance condition because the screenshot disproved viewport movement as the
-reported mechanism.
+Validated by the Navigator in the rebuilt isolated `Mirror Desktop Dev` bundle on
+2026-09-10. A long turn with multiple tool calls completed through `Finishing…` without
+the conversation being replaced by `Checking Journey conversation…`; the reported
+flicker did not recur.
+
+The canonical CR024 status is now `validated`. Scroll-away behavior is not a CR024
+acceptance condition because the decisive screenshot disproved viewport movement as the
+reported mechanism. Terminal closure remains separate and requires the protocol's
+proportionality and debt review.
