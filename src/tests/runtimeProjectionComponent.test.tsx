@@ -353,18 +353,6 @@ describe("runtime projection component", () => {
     expect(appSource.indexOf("<LiveRuntimeActivity")).toBeLessThan(appSource.indexOf('className="runtime-answer"'));
   });
 
-  it("anchors passive conversation updates before paint without smooth settlement travel", () => {
-    expect(appSource).toContain("useLayoutEffect(() => {");
-    expect(appSource).toContain("conversationContentUpdateScroll(");
-    const anchorEffect = appSource.slice(
-      appSource.indexOf("useLayoutEffect(() => {"),
-      appSource.indexOf("}, [messages, isStreaming, runtimeProjection]);") + "}, [messages, isStreaming, runtimeProjection]);".length,
-    );
-    expect(anchorEffect).toContain("chatStream.scrollTo(scrollCommand)");
-    expect(anchorEffect).not.toContain("requestAnimationFrame");
-    expect(anchorEffect).not.toContain('behavior: isStreaming ? "auto" : "smooth"');
-  });
-
   it("renders interrupted operations as collapsed inert evidence", () => {
     const projection: RuntimeProjectionState = {
       status: "cancelled",

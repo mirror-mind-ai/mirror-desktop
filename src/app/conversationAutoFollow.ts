@@ -31,18 +31,3 @@ export function nextConversationAutoFollow(
   }
   return true;
 }
-
-export function conversationContentUpdateScroll(
-  following: boolean,
-  { clientHeight, scrollHeight }: ConversationScrollMetrics,
-): ScrollToOptions | undefined {
-  if (!following) return undefined;
-  return {
-    top: Math.max(0, scrollHeight - clientHeight),
-    behavior: "auto",
-  };
-}
-
-export function conversationExplicitScrollBehavior(reducedMotion: boolean): ScrollBehavior {
-  return reducedMotion ? "auto" : "smooth";
-}

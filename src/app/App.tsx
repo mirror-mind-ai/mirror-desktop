@@ -1,5 +1,5 @@
 import {
-  useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState,
+  useEffect, useMemo, useReducer, useRef, useState,
   type CSSProperties,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -69,11 +69,7 @@ import {
   validatePiInvocationRegistryInspection,
   type PiInvocationAuthorityInspection,
 } from "./piInvocationOccupancy";
-import {
-  conversationContentUpdateScroll,
-  conversationExplicitScrollBehavior,
-  nextConversationAutoFollow,
-} from "./conversationAutoFollow";
+import { nextConversationAutoFollow } from "./conversationAutoFollow";
 import {
   createJourneySettlementAuthority,
   executeCompletedSettlement,
@@ -1437,20 +1433,23 @@ export function App({ model }: AppProps) {
     setMirrorOutboxItems([]);
   }, [selectedJourney]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const chatStream = chatStreamRef.current;
+    const chatEnd = chatEndRef.current;
     chatAutoFollowRef.current = nextConversationAutoFollow(
       chatAutoFollowRef.current,
       { type: "content_updated" },
     );
-    if (!chatStream) return;
+    if (!chatStream || !chatEnd || !chatAutoFollowRef.current) {
+      return;
+    }
 
-    const scrollCommand = conversationContentUpdateScroll(chatAutoFollowRef.current, {
-      scrollTop: chatStream.scrollTop,
-      clientHeight: chatStream.clientHeight,
-      scrollHeight: chatStream.scrollHeight,
+    const frame = requestAnimationFrame(() => {
+      if (chatAutoFollowRef.current) {
+        chatEnd.scrollIntoView({ block: "end", behavior: isStreaming ? "auto" : "smooth" });
+      }
     });
-    if (scrollCommand) chatStream.scrollTo(scrollCommand);
+    return () => cancelAnimationFrame(frame);
   }, [messages, isStreaming, runtimeProjection]);
 
   useEffect(() => {
@@ -2869,12 +2868,7 @@ export function App({ model }: AppProps) {
       { type: "explicit_bottom" },
     );
     requestAnimationFrame(() => {
-      chatEndRef.current?.scrollIntoView({
-        block: "end",
-        behavior: conversationExplicitScrollBehavior(
-          window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-        ),
-      });
+      chatEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
     });
   }
 
