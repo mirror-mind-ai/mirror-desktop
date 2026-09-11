@@ -98,5 +98,10 @@ than textual guesses or background color. Inline code remains unchanged.
 
 ## Change Requests
 
-No Change Request has been captured yet. Decomposition, ordering, Driver, Delivery, and
-acceptance require explicit Navigator decisions.
+- [CR021 — Compose agent turns into semantic groups](cr021-compose-agent-turns-into-semantic-groups.md)
+- [CR022 — Govern action, tool, and turn disclosure](cr022-govern-action-tool-and-turn-disclosure.md)
+- [CR023 — Make highlighted blocks consistently copyable](cr023-make-highlighted-blocks-consistently-copyable.md)
+
+All three CRs remain `captured`. Focus, planning, Driver, Delivery, and acceptance require
+explicit Navigator decisions. CR022 depends on the semantic foundation refined by CR021;
+CR023 can be assessed independently.
