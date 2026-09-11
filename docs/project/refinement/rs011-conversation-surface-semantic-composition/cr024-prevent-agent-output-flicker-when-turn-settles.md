@@ -303,3 +303,52 @@ recorded justification before implementation continues.
   stale-content fallback is introduced.
 - Focused tests, the complete frontend suite, frontend production build, and isolated Dev
   bundle validation pass before Navigator acceptance is requested.
+
+## Implementation
+
+Implemented the approved viewport-authority repair:
+
+- passive conversation updates now derive an immediate bottom position from the exact chat
+  viewport geometry when auto-follow remains active;
+- content-driven scrolling moved from post-paint `useEffect` plus
+  `requestAnimationFrame` to `useLayoutEffect`, so tool-box contraction and settlement
+  anchoring complete before the browser paints an intermediate viewport;
+- passive streaming, runtime projection, and finalization updates no longer animate
+  smoothly through earlier Runtime Activity content;
+- scrolling remains suspended when the user has moved outside the existing bottom
+  tolerance;
+- explicit conversation navigation retains smooth movement unless the operating system
+  requests reduced motion;
+- normal runtime-to-loaded settlement now has exact assistant-content assertions before
+  and after finalization;
+- System Surface extraction, runtime activity ordering, tool settlement, and finalization
+  authority were not rewritten.
+
+Implementation commit:
+
+```text
+afd55f4 Keep the final response anchored while runtime activity settles
+```
+
+## Evidence
+
+- The initial focused TDD run failed in three expected assertions because passive bottom
+  anchoring, pre-paint layout synchronization, and the new scroll command did not exist.
+- A separate reduced-motion test failed before explicit-navigation behavior was added.
+- 30 focused tests passed across conversation auto-follow, runtime projection,
+  Journey-navigation settlement, and central-header conversation navigation.
+- All 648 frontend tests passed across 117 files.
+- `npm run build` passed with only the existing Vite chunk-size warning.
+- `npm run tauri:build:dev` rebuilt the isolated app and DMG successfully.
+- Native bundle metadata confirms `Mirror Desktop Dev`, `ai.mirrormind.desktop.dev`, and
+  `0.2.0-alpha.3`.
+- The restarted Dev process is `64699` and loaded executable inode `161516300`.
+- `git diff --check` passed before the implementation commit.
+
+## Navigator Validation
+
+Pending hands-on validation in the rebuilt isolated Dev bundle. The primary validation is
+a long tool-bearing turn while auto-follow remains at the bottom. Its tool boxes should
+collapse without exposing an earlier reasoning summary such as `Checking Journey…` in
+place of the final answer. A second pass should scroll away before settlement and confirm
+that the viewport is not pulled back automatically.
