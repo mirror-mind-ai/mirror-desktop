@@ -25,6 +25,7 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 | [CV-005](cv-005-private-macos-alpha/index.md) | Private macOS Alpha | A maintainer can privately deliver a verified revision-bound macOS bundle that authorized testers connect to their own Mirror and operate without Nautilus product identity | ✅ Done |
 | [CV-006](cv-006-versioned-macos-release/index.md) | Versioned macOS Release | A repeatable release process associates a macOS bundle, checksum and provenance with an immutable Git tag and source revision | ✅ Done |
 | [CV-007](cv-007-trusted-self-update/index.md) | Trusted Self-Update | Mirror Desktop can verify and apply an authorized compatible release while preserving application and Mirror rollback | ✅ Done |
+| [CV-008](cv-008-conversation-spaces/index.md) | Conversation Spaces | Navigator can steer active work, operate more Journey turns concurrently and converse through Journey, conversation or persona destinations without weakening durable authority | 🟡 Planned |
 
 ## Delivery Arc — Operable Agent Cockpit
 
@@ -85,9 +86,9 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 
 ## Baseline State and Next Horizon
 
-CV-001 through CV-007 form the completed Mirror Desktop baseline. No Capability Value or Delivery Story is active or selected. Completed capabilities remain historical contracts and are not rewritten around a future direction.
+CV-001 through CV-007 form the completed Mirror Desktop baseline. Completed capabilities remain historical contracts and are not rewritten around the new direction.
 
-The next product direction begins in Explorer Mode for exactly `mirror-desktop`. An accepted exploratory handoff must precede CV-008 or any change to the product promise. Apple Developer ID signing and notarization, native architecture coverage, stable distribution and further alpha feedback are possible inputs to that exploration; none is preselected as the next roadmap capability.
+CV-008, Conversation Spaces, is the planned product horizon translated from an accepted `mirror-desktop` exploration. It contains four independent Delivery Stories covering Steering, expanded cross-Journey concurrency, persona conversation spaces and multiple conversations per Journey. No Delivery Story is active or selected, and their code order does not commit implementation priority, release intent, concurrency capacity or storage migration.
 
 ## Delivery Arc - Versioned macOS Release
 
@@ -103,6 +104,17 @@ The next product direction begins in Explorer Mode for exactly `mirror-desktop`.
 | [CV-007.DS-002](cv-007-trusted-self-update/ds-002-verified-update-installation-and-recovery/index.md) | Verified Update Installation and Recovery | After explicit user consent, Mirror Desktop can download, verify, safely apply and recover or roll back an authorized compatible release without touching Mirror state | ✅ Done |
 | [CV-007.DS-003](cv-007-trusted-self-update/ds-003-end-to-end-in-app-self-update/index.md) | End-to-End In-App Self-Update | A user running Mirror Desktop is notified when a trusted compatible newer version is available, clicks Update, and the installed app updates with relaunch verification and rollback protection | ✅ Done |
 
+## Delivery Arc - Conversation Spaces
+
+The codes identify the four accepted product demands and do not establish delivery priority.
+
+| Code | Delivery Story | Outcome | Status |
+|------|----------------|---------|--------|
+| [CV-008.DS-001](cv-008-conversation-spaces/ds-001-steering-during-active-turns/index.md) | Steering During Active Turns | Navigator can submit an additional message to the exact running turn and correct the agent's course without cancelling and silently restarting it | 🟡 Planned |
+| [CV-008.DS-002](cv-008-conversation-spaces/ds-002-expanded-concurrent-journey-turns/index.md) | Expanded Concurrent Journey Turns | Mirror Desktop admits more simultaneous turns across independent Journeys through a bounded observable policy without cross-run leakage | 🟡 Planned |
+| [CV-008.DS-003](cv-008-conversation-spaces/ds-003-persona-conversation-spaces/index.md) | Persona Conversation Spaces | Navigator can address a persona as a first-class sidebar destination backed by a stable Mirror Desktop-managed internal Journey | 🟡 Planned |
+| [CV-008.DS-004](cv-008-conversation-spaces/ds-004-multiple-conversations-per-journey/index.md) | Multiple Conversations per Journey | Navigator can focus one Journey, inspect its recent conversations, resume a specific conversation and create a new one under the same Journey authority | 🟡 Planned |
+
 ## Boundaries
 
 - This roadmap is about Harness as a desktop application body.
@@ -116,6 +128,7 @@ The next product direction begins in Explorer Mode for exactly `mirror-desktop`.
 
 - [Baseline reconciliation plan](baseline-reconciliation-plan.md)
 - [Baseline reconciliation receipt](baseline-reconciliation-receipt.md)
+- [Conversation Spaces exploratory handoff](../explorations/conversation-spaces/index.md)
 - [Ariad adoption](ariad-adoption.md)
 - [Technical debt ledger](technical-debt-ledger.md)
 - [App architecture](../../architecture/app-architecture.md)
