@@ -14,7 +14,7 @@ The completed baseline established one trustworthy dedicated conversational thre
 
 ## Exploration Source
 
-This Capability Value translates the accepted [Conversation Spaces handoff](../../explorations/conversation-spaces/index.md). The handoff defines one CV with four independent Delivery Stories and deliberately leaves implementation sequence, exact concurrency capacity, storage migration and release intent unresolved.
+This Capability Value translates the accepted [Conversation Spaces handoff](../../explorations/conversation-spaces/index.md). The handoff defined the first four independent Delivery Stories. The Navigator subsequently added Voice Prompt Composition as a fifth story. Implementation sequence, exact concurrency capacity, transcription boundary, storage migration and release intent remain unresolved.
 
 ## Delivery Stories
 
@@ -26,6 +26,7 @@ The codes below provide stable identity, not implementation priority.
 | [CV-008.DS-002](ds-002-expanded-concurrent-journey-turns/index.md) | Expanded Concurrent Journey Turns | Mirror Desktop admits more simultaneous turns across independent Journeys through a bounded observable policy without cross-run leakage | 🟡 Planned |
 | [CV-008.DS-003](ds-003-persona-conversation-spaces/index.md) | Persona Conversation Spaces | Navigator can address a persona as a first-class sidebar destination backed by a stable Mirror Desktop-managed internal Journey | 🟡 Planned |
 | [CV-008.DS-004](ds-004-multiple-conversations-per-journey/index.md) | Multiple Conversations per Journey | Navigator can focus one Journey, inspect its recent conversations, resume a specific conversation and create a new one under the same Journey authority | 🟡 Planned |
+| [CV-008.DS-005](ds-005-voice-prompt-composition/index.md) | Voice Prompt Composition | Navigator can record a spoken prompt and place its transcription into the active composer for review and explicit sending | 🟡 Planned |
 
 ## Product Contract
 
@@ -34,7 +35,8 @@ The codes below provide stable identity, not implementation priority.
 - Concurrency remains bounded, observable and Journey-keyed rather than unlimited.
 - Persona destinations make the persona primary in the GUI and keep their managed Journey implementation secondary.
 - Listing a historical conversation never grants it executable authority. Resumption requires an explicit, validated transition.
-- The four Delivery Stories may be refined and delivered independently.
+- Voice capture fills the composer with editable text and never bypasses explicit Send.
+- The five Delivery Stories may be refined and delivered independently.
 
 ## Open Decisions
 
@@ -43,11 +45,12 @@ The codes below provide stable identity, not implementation priority.
 - Managed persona Journey identity, visibility, provisioning, naming, deletion and Mirror memory boundaries.
 - The relationship among Journey, conversation, dedicated thread, generation, Pi session and Mirror conversation.
 - Compatibility and migration for existing single-conversation Journey state.
+- Voice transcription provider, privacy, language, retention and text-merge policy.
 - Delivery sequence and release intent.
 
 ## Done Condition
 
-CV-008 is done when all four Delivery Stories are independently validated and their combined behavior lets the Navigator move among Journey, conversation and persona destinations, steer active work and operate the approved concurrent capacity without weakening exact authority, persistence, cancellation, recovery or compatibility boundaries.
+CV-008 is done when all five Delivery Stories are independently validated and their combined behavior lets the Navigator move among Journey, conversation and persona destinations, steer active work, operate the approved concurrent capacity and compose prompts by voice without weakening explicit send, privacy, authority, persistence, cancellation, recovery or compatibility boundaries.
 
 ## Boundary
 
