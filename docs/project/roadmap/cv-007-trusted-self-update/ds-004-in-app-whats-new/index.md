@@ -22,6 +22,15 @@ CV-007 already carries release-note coordinates and can expose them during updat
 - Represent unavailable, malformed or mismatched release-note content honestly without blocking an otherwise valid update unless the trust contract requires it.
 - Keep acknowledgement state channel-local and separate from Mirror identity, Journeys and conversations.
 
+## Candidate Stories
+
+| Code | Story | Type | Status |
+|------|-------|------|--------|
+| CV-007.DS-004.TS-1 | Authoritative Release Reading Contract | Technical Story | 🟡 Planned |
+| CV-007.DS-004.US-1 | Understand What's New Before Updating | User Story | 🟡 Planned |
+| CV-007.DS-004.US-2 | Revisit Installed Release Changes | User Story | 🟡 Planned |
+| CV-007.DS-004.TS-2 | What's New State and Failure Guardrails | Technical Story | 🟡 Planned |
+
 ## Acceptance Direction
 
 When a trusted compatible update is available, the user can inspect what changed for that exact offered version before choosing whether to update. The content agrees with the updater's release identity and complete release notes. If a post-update presentation is included, it appears only after relaunch verification for the installed version and remains dismissible and recoverable without starting work or changing Mirror state.
