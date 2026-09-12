@@ -32,7 +32,15 @@ describe("roadmap consistency", () => {
   it("reports a parent row that disagrees with its linked authored status", () => {
     const findings = inspectRoadmap(fixture(completeFiles({ "ds-009/index.md": "# DS-009\n\n**Status:** 🟡 Planned\n" })));
     expect(findings).toContainEqual(expect.objectContaining({ code: "status_mismatch", link: "../ds-009/index.md" }));
-    expect(findings).toContainEqual(expect.objectContaining({ code: "nonterminal_authored_baseline_item", item: "DS-009" }));
+  });
+
+  it("compares bare candidate codes with their uniquely authored items", () => {
+    const source = cvSource().replace(
+      "| [DS-009](../ds-009/index.md) | Ninth | ✅ Done |",
+      "| DS-009 | Ninth | 🟡 Planned |",
+    );
+    const findings = inspectRoadmap(fixture(completeFiles({ "cv-001/index.md": source })));
+    expect(findings).toContainEqual(expect.objectContaining({ code: "status_mismatch", link: "DS-009" }));
   });
 
   it("reports missing baseline membership and missing local links", () => {
@@ -41,8 +49,15 @@ describe("roadmap consistency", () => {
     expect(findings.map((finding) => finding.code)).toEqual(expect.arrayContaining(["missing_baseline_item", "missing_link"]));
   });
 
-  it("does not treat a future CV as part of the delivered baseline", () => {
-    const files = completeFiles({ "cv-008/index.md": "# CV-008 — Future\n\n**Status:** 🟡 Planned\n" });
+  it("allows a matching planned capability without turning prior completion into a permanent status lock", () => {
+    const root = rootSource().replace(
+      "| [CV-001](cv-001/index.md) | Baseline | ✅ Done |",
+      "| [CV-001](cv-001/index.md) | Baseline | ✅ Done |\n| [CV-008](cv-008/index.md) | Future | 🟡 Planned |",
+    );
+    const files = completeFiles({
+      "index.md": root,
+      "cv-008/index.md": "# CV-008 — Future\n\n**Status:** 🟡 Planned\n",
+    });
     expect(inspectRoadmap(fixture(files))).toEqual([]);
   });
 

@@ -24,7 +24,7 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 | [CV-004](cv-004-dedicated-nautilus-journey-thread/index.md) | Dedicated Nautilus Journey Thread | Every Journey owns one Nautilus thread whose active generation is a dedicated, Journey-activated Pi/Mirror pair, independent from conversations in other environments | ✅ Done |
 | [CV-005](cv-005-private-macos-alpha/index.md) | Private macOS Alpha | A maintainer can privately deliver a verified revision-bound macOS bundle that authorized testers connect to their own Mirror and operate without Nautilus product identity | ✅ Done |
 | [CV-006](cv-006-versioned-macos-release/index.md) | Versioned macOS Release | A repeatable release process associates a macOS bundle, checksum and provenance with an immutable Git tag and source revision | ✅ Done |
-| [CV-007](cv-007-trusted-self-update/index.md) | Trusted Self-Update | Mirror Desktop can verify and apply an authorized compatible release while preserving application and Mirror rollback | ✅ Done |
+| [CV-007](cv-007-trusted-self-update/index.md) | Trusted Self-Update | Mirror Desktop can verify and apply an authorized compatible release while preserving application and Mirror rollback and explain what is new in the offered release | 🟠 In Progress |
 | [CV-008](cv-008-conversation-spaces/index.md) | Conversation Spaces | Navigator can steer active work, operate more Journey turns concurrently, converse through Journey, conversation or persona destinations and compose prompts by voice without weakening durable authority | 🟡 Planned |
 
 ## Delivery Arc — Operable Agent Cockpit
@@ -86,9 +86,9 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 
 ## Baseline State and Next Horizon
 
-CV-001 through CV-007 form the completed Mirror Desktop baseline. Completed capabilities remain historical contracts and are not rewritten around the new direction.
+CV-001 through CV-007 formed the completed Mirror Desktop baseline. CV-007 has since been reopened for one incremental Delivery Story, In-App What's New, without invalidating the trusted self-update evidence completed through DS-003. CV-001 through CV-006 remain completed historical contracts.
 
-CV-008, Conversation Spaces, is the planned product horizon translated from an accepted `mirror-desktop` exploration and a subsequent explicit Navigator addition. It contains five independent Delivery Stories covering Steering, expanded cross-Journey concurrency, persona conversation spaces, multiple conversations per Journey and voice prompt composition. No Delivery Story is active or selected, and their code order does not commit implementation priority, release intent, concurrency capacity, transcription provider or storage migration.
+CV-008, Conversation Spaces, is the planned product horizon translated from an accepted `mirror-desktop` exploration and a subsequent explicit Navigator addition. It contains five independent Delivery Stories covering Steering, expanded cross-Journey concurrency, persona conversation spaces, multiple conversations per Journey and voice prompt composition. No Delivery Story is active or selected in either CV-007 or CV-008, and code order does not commit implementation priority, release intent, concurrency capacity, transcription provider or storage migration.
 
 ## Delivery Arc - Versioned macOS Release
 
@@ -103,6 +103,7 @@ CV-008, Conversation Spaces, is the planned product horizon translated from an a
 | [CV-007.DS-001](cv-007-trusted-self-update/ds-001-update-channel-and-compatibility/index.md) | Update Channel and Compatibility | Mirror Desktop can inspect one configured authoritative release channel, identify whether a newer release is available, verify that its metadata is well formed and compatible, and present release notes without downloading or installing the update | ✅ Done |
 | [CV-007.DS-002](cv-007-trusted-self-update/ds-002-verified-update-installation-and-recovery/index.md) | Verified Update Installation and Recovery | After explicit user consent, Mirror Desktop can download, verify, safely apply and recover or roll back an authorized compatible release without touching Mirror state | ✅ Done |
 | [CV-007.DS-003](cv-007-trusted-self-update/ds-003-end-to-end-in-app-self-update/index.md) | End-to-End In-App Self-Update | A user running Mirror Desktop is notified when a trusted compatible newer version is available, clicks Update, and the installed app updates with relaunch verification and rollback protection | ✅ Done |
+| [CV-007.DS-004](cv-007-trusted-self-update/ds-004-in-app-whats-new/index.md) | In-App What's New | The user can understand the meaningful changes in the exact offered release within the self-update experience and revisit its authoritative release notes | 🟡 Planned |
 
 ## Delivery Arc - Conversation Spaces
 

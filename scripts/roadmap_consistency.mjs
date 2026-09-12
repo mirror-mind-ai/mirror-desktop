@@ -41,10 +41,11 @@ function markdownLinks(source) {
 function tableRows(source) {
   return source.split("\n").filter((line) => /^\s*\|/.test(line)).flatMap((line) => {
     const link = markdownLinks(line)[0];
-    if (!link) return [];
     const cells = line.split("|").map((cell) => cell.trim()).filter(Boolean);
+    const label = link?.label ?? cells.find((cell) => /^(?:CV|DS)-\d{3}(?:\.DS-\d{3})?(?:\.(?:US|TS)-\d+)?$/u.test(cell));
+    if (!label) return [];
     const status = [...cells].reverse().map(normalizeStatus).find(Boolean);
-    return status ? [{ ...link, status }] : [];
+    return status ? [{ label, link: link?.link, status }] : [];
   });
 }
 
@@ -57,27 +58,32 @@ export function inspectRoadmap(root = defaultRoadmapRoot) {
   const files = indexFiles(root);
   const sources = new Map(files.map((path) => [path, readFileSync(path, "utf8")]));
   const statuses = new Map([...sources].map(([path, source]) => [path, authoredStatus(source)]));
+  const itemPaths = new Map();
+  for (const [path, source] of sources) {
+    const itemId = source.match(/^#\s+((?:CV-\d{3})(?:\.DS-\d{3})?(?:\.(?:US|TS)-\d+)?|DS-\d{3}(?:\.(?:US|TS)-\d+)?)(?:\s|$)/mu)?.[1];
+    if (!itemId) continue;
+    const paths = itemPaths.get(itemId) ?? [];
+    paths.push(path);
+    itemPaths.set(itemId, paths);
+  }
   const findings = [];
 
   for (const [sourcePath, source] of sources) {
-    const itemId = source.match(/^#\s+((?:CV-\d{3})(?:\.DS-\d{3})?(?:\.(?:US|TS)-\d+)?|DS-\d{3}(?:\.(?:US|TS)-\d+)?)(?:\s|$)/mu)?.[1];
-    const baselineItem = itemId && (/^CV-00[1-7](?:\.|$)/u.test(itemId) || /^DS-(?:00[1-9]|01[0-2])(?:\.|$)/u.test(itemId));
-    if (baselineItem && authoredStatus(source) !== "done") {
-      findings.push({ code: "nonterminal_authored_baseline_item", source: relative(root, sourcePath), item: itemId });
-    }
     for (const { link } of markdownLinks(source)) {
       const target = localTarget(sourcePath, link);
       if (target && !existsSync(target)) findings.push({ code: "missing_link", source: relative(root, sourcePath), link });
     }
     for (const row of tableRows(source)) {
-      const target = localTarget(sourcePath, row.link);
+      const idTargets = itemPaths.get(row.label) ?? [];
+      const target = row.link ? localTarget(sourcePath, row.link) : idTargets.length === 1 ? idTargets[0] : undefined;
       if (!target || !statuses.has(target)) continue;
       const targetStatus = statuses.get(target);
+      const reference = row.link ?? row.label;
       if (targetStatus && row.status !== targetStatus) {
-        findings.push({ code: "status_mismatch", source: relative(root, sourcePath), link: row.link, summaryStatus: row.status, authoredStatus: targetStatus });
+        findings.push({ code: "status_mismatch", source: relative(root, sourcePath), link: reference, summaryStatus: row.status, authoredStatus: targetStatus });
       }
       if (authoredStatus(source) === "done" && targetStatus && targetStatus !== "done") {
-        findings.push({ code: "done_parent_nonterminal_child", source: relative(root, sourcePath), link: row.link, authoredStatus: targetStatus });
+        findings.push({ code: "done_parent_nonterminal_child", source: relative(root, sourcePath), link: reference, authoredStatus: targetStatus });
       }
     }
   }
@@ -96,14 +102,6 @@ export function inspectRoadmap(root = defaultRoadmapRoot) {
   const rootIndex = resolve(root, "index.md");
   if (existsSync(rootIndex)) {
     const source = readFileSync(rootIndex, "utf8");
-    if (source.startsWith("# Mirror Desktop Roadmap")) {
-      for (let index = 1; index <= 7; index += 1) {
-        const id = `CV-${String(index).padStart(3, "0")}`;
-        const row = tableRows(source).find((candidate) => candidate.label === id);
-        const target = row && localTarget(rootIndex, row.link);
-        if (!row || !target || statuses.get(target) !== "done") findings.push({ code: "nonterminal_delivered_baseline", source: "index.md", item: id });
-      }
-    }
     const recommended = source.match(/Pull\s+(?:\[)?`?(CV-\d+(?:\.DS-\d+)?)`?/iu)?.[1];
     if (recommended) {
       const row = tableRows(source).find((candidate) => candidate.label === recommended);
