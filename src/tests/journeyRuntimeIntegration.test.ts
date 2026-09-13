@@ -111,7 +111,12 @@ describe("Journey runtime integration guardrails", () => {
     expect(generation).toContain("requireExactTurnJournalRecord(journal, settlementAuthority)");
     expect(generation).toContain("decideTurnJournalTerminal(journalRecord)");
     expect(generation).not.toContain("resolveCommittedLeaseBeforeInvocation");
-    expect(generation).not.toContain("loadDedicatedPiTranscript(");
+    expect(generation).toContain("loadDedicatedPiTranscript(");
+    expect(generation).toContain("applyNextAcceptedSteering(");
+    expect(generation).toContain("settleUnconsumedSteering(");
+    expect(generation.indexOf("loadDedicatedPiTranscript(")).toBeGreaterThan(
+      generation.indexOf("for await (const event of provider(packet))"),
+    );
     expect(generation.indexOf("attachTerminalAgentActionEvidence(")).toBeLessThan(
       generation.indexOf("const projectionAtFrontier = settled"),
     );

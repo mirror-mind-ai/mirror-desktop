@@ -6656,3 +6656,52 @@ dd {
   color: var(--light-muted);
   opacity: 0.72;
 }
+
+.steering-messages {
+  display: grid;
+  gap: 8px;
+  margin: 2px 0 10px auto;
+  width: min(72%, 720px);
+}
+
+.steering-message {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  padding: 10px 12px;
+}
+
+.steering-message header {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.steering-message header strong,
+.steering-message header span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+.steering-message p {
+  color: var(--text);
+  margin: 5px 0 0;
+  white-space: pre-wrap;
+}
+
+.steering-message.is-applied {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.steering-message.is-rejected,
+.steering-message.is-terminally_unconsumed {
+  border-color: color-mix(in srgb, var(--danger, #b84d55) 60%, var(--border));
+}
+
+@media (max-width: 760px) {
+  .steering-messages {
+    width: 100%;
+  }
+}

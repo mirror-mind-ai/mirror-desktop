@@ -443,7 +443,18 @@ describe("Pi process stream adapter", () => {
     ]);
   });
 
-  it("settles visibly at agent_end without waiting for wrapper post-processing", () => {
+  it("waits for agent_settled in RPC mode because Steering may continue after agent_end", () => {
+    expect(mapPiProcessEventToStreamEvents(
+      { kind: "stdout", content: `${JSON.stringify({ type: "agent_end" })}\n` },
+      { rpcMode: true },
+    )).toEqual([]);
+    expect(mapPiProcessEventToStreamEvents(
+      { kind: "stdout", content: `${JSON.stringify({ type: "agent_settled" })}\n` },
+      { rpcMode: true },
+    )).toEqual([{ type: "run_status", status: "completed" }]);
+  });
+
+  it("settles one-shot JSON mode visibly at agent_end without waiting for wrapper post-processing", () => {
     const lines = [JSON.stringify({ type: "agent_start" }), JSON.stringify({ type: "agent_end" })].join("\n");
     expect(mapPiProcessEventToStreamEvents({ kind: "stdout", content: `${lines}\n` })).toEqual([
       { type: "run_status", status: "working" },

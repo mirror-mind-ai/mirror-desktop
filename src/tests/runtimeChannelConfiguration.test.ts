@@ -121,7 +121,7 @@ describe("runtime channel configuration", () => {
     expect(rustSource).not.toContain("Ok(mirror_root)\n    } else {\n        harness_root()");
     expect(JSON.stringify(stableConfig.bundle)).toContain("scripts/provision_mirror_conversation.py");
     expect(rustSource).toContain("BaseDirectory::Resource");
-    expect(rustSource).toContain('resolve("scripts/provision_mirror_conversation.py"');
+    expect(rustSource).toMatch(/resolve\(\s*"scripts\/provision_mirror_conversation\.py"/);
     expect(rustSource).toContain('"Mirror conversation provisioning did not complete."');
     expect(rustSource).not.toContain('format!("Mirror conversation provisioning failed: {}"');
     expect(rustSource).not.toContain('env!("CARGO_MANIFEST_DIR")).parent()\n        .ok_or_else(|| "Could not resolve Mirror Desktop project root."');

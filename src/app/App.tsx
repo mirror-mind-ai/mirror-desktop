@@ -1,5 +1,5 @@
 import {
-  useEffect, useMemo, useReducer, useRef, useState,
+  Fragment, useEffect, useMemo, useReducer, useRef, useState,
   type CSSProperties,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -12,6 +12,7 @@ import {
   livePiAgentStream,
   readJourneyPiContextStats,
   releasePiInvocationLease,
+  steerLivePiInvocation,
 } from "../agent/piProcessStream";
 import { normalizePiResponse } from "../agent/piResponseNormalizer";
 import { startAgentRun } from "../agent/agentRun";
@@ -42,6 +43,7 @@ import {
 } from "./chatLocalReferenceNavigation";
 import { MessageCopyAction } from "./MessageCopyAction";
 import { AgentTurn } from "./AgentTurn";
+import { SteeringMessages } from "./SteeringMessages";
 import { projectAgentTurnPresentation } from "./conversationTurnPresentation";
 import { classifyAssistantTurnProximity } from "./turnProximity";
 import {
@@ -223,7 +225,13 @@ import {
   type JourneyRegistry,
   type SidebarJourneyItem,
 } from "../domain/journeyRegistry";
-import type { JourneyConversation } from "../domain/journeyConversation";
+import type { JourneyConversation, SteeringEvidence } from "../domain/journeyConversation";
+import {
+  appendPendingSteering,
+  applyNextAcceptedSteering,
+  settleUnconsumedSteering,
+  transitionSteering,
+} from "../domain/steeringState";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { createRunAuthority, samePiProcessEventAuthority } from "../domain/runAuthority";
 import { classifyDedicatedTurnState, dedicatedTurnBlocksNewInvocation, interruptDedicatedTurn } from "../domain/dedicatedTurnCommit";
@@ -524,6 +532,7 @@ export function App({ model }: AppProps) {
   const conversationLoadCoordinatorRef = useRef(createJourneyConversationLoadCoordinator());
   const runStartReservationRef = useRef<JourneyRunIdentity | undefined>(undefined);
   const piInvocationInspectionSequenceRef = useRef(0);
+  const steeringEvidenceByRunRef = useRef<Record<string, SteeringEvidence[]>>({});
   conversationRef.current = conversation;
   selectedJourneyRef.current = selectedJourney;
   journeyRuntimeStateRef.current = journeyRuntimeState;
@@ -617,6 +626,11 @@ export function App({ model }: AppProps) {
     () => projectAgentProfile(providerConfig, effectiveAgentProfile),
     [effectiveAgentProfile, providerConfig],
   );
+  const selectedCanSteer = isStreaming
+    && !isFinalizingTurn
+    && selectedRuntime.identity?.kind === "live"
+    && effectiveProviderConfig.invocationMode === "mirror"
+    && !effectiveProviderConfig.safeTestMode;
   const providerErrors = useMemo(() => validateProviderConfig(effectiveProviderConfig), [effectiveProviderConfig]);
   const onboardingModelOptions = useMemo(
     () => uniqueModelOptions(piModelCatalog.map(({ provider, model }) => ({ provider, model }))),
@@ -1773,6 +1787,16 @@ export function App({ model }: AppProps) {
 
     function updateRunConversation(update: (current: JourneyConversation) => JourneyConversation) {
       runConversation = update(runConversation);
+      const liveSteering = steeringEvidenceByRunRef.current[run.id ?? ""];
+      if (liveSteering) {
+        runConversation = {
+          ...runConversation,
+          steeringEvidence: [
+            ...(runConversation.steeringEvidence ?? []).filter((item) => item.runId !== run.id),
+            ...liveSteering,
+          ],
+        };
+      }
       dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: runConversation });
       if (
         selectedJourneyRef.current === ownerJourneyId
@@ -1884,6 +1908,49 @@ export function App({ model }: AppProps) {
           }
           const decision = decideTurnJournalTerminal(journalRecord);
           runTerminal = decision === "cancelled" ? "cancelled" : decision === "failed" ? "failed" : undefined;
+          if (runAuthority && runConversation.steeringEvidence?.some((item) => (
+            item.runId === runAuthority.runId && (item.status === "pending" || item.status === "accepted")
+          ))) {
+            try {
+              const transcript = await loadDedicatedPiTranscript(
+                runAuthority.journeyId,
+                runAuthority.piSessionId,
+                runAuthority.piSessionFile,
+              );
+              let reconciled = runConversation;
+              const usedEntries = new Set(
+                (reconciled.steeringEvidence ?? []).flatMap((item) => item.piUserEntryId ? [item.piUserEntryId] : []),
+              );
+              for (const evidence of [...(reconciled.steeringEvidence ?? [])].sort((left, right) => left.sequence - right.sequence)) {
+                if (evidence.runId !== runAuthority.runId || !["pending", "accepted"].includes(evidence.status)) continue;
+                const applied = transcript.find((turn) => (
+                  turn.userText === evidence.text
+                  && turn.committedAt >= evidence.createdAt
+                  && !usedEntries.has(turn.userEntryId)
+                ));
+                if (!applied) continue;
+                reconciled = applyNextAcceptedSteering(
+                  reconciled,
+                  runAuthority,
+                  evidence.text,
+                  applied.userEntryId,
+                  new Date(applied.committedAt),
+                );
+                usedEntries.add(applied.userEntryId);
+              }
+              reconciled = settleUnconsumedSteering(
+                reconciled,
+                runAuthority,
+                decision === "cancelled" ? "cancelled" : decision === "failed" ? "provider_failed" : "settled_without_application",
+              );
+              steeringEvidenceByRunRef.current[runAuthority.runId] = reconciled.steeringEvidence?.filter(
+                (item) => item.runId === runAuthority.runId,
+              ) ?? [];
+              updateRunConversation(() => reconciled);
+            } catch (error) {
+              diagnostics.push(`Could not reconcile Steering evidence: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          }
           if (decision !== "completed" || rawLiveOutput.trim().length === 0) continue;
           const normalized = normalizePiResponse(rawLiveOutput, diagnostics);
           updateRunConversation((currentConversation) =>
@@ -2383,6 +2450,72 @@ export function App({ model }: AppProps) {
       setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
     } finally {
       setIsRetryingMirrorCommit(false);
+    }
+  }
+
+  function publishSteeringConversation(next: JourneyConversation, identity: JourneyRunIdentity) {
+    if (identity.kind !== "live") return;
+    steeringEvidenceByRunRef.current[identity.authority.runId] = next.steeringEvidence?.filter(
+      (item) => item.runId === identity.authority.runId,
+    ) ?? [];
+    dispatchJourneyRuntime({ type: "conversation_snapshot", identity, conversation: next });
+    if (selectedJourneyRef.current === identity.authority.journeyId) {
+      conversationRef.current = next;
+      setConversation(next);
+    }
+  }
+
+  async function submitActiveSteering() {
+    const identity = selectedRuntime.identity;
+    const text = draft.trim();
+    if (!selectedCanSteer || identity?.kind !== "live" || !text) return;
+    if (pendingFileAttachments.length > 0) {
+      setFileAttachmentError("File attachments cannot be added to a Steering message yet.");
+      return;
+    }
+    let staged: JourneyConversation;
+    let requestId: string;
+    try {
+      const result = appendPendingSteering(conversationRef.current, identity.authority, text);
+      staged = result.conversation;
+      requestId = result.evidence.requestId;
+      publishSteeringConversation(staged, identity);
+      await saveDedicatedJourneyConversation(staged);
+      setJourneyComposerDraft(identity.authority.journeyId, "");
+    } catch (error) {
+      dispatchJourneyRuntime({
+        type: "append_warning",
+        journeyId: identity.authority.journeyId,
+        identity,
+        message: `Steering was not staged: ${error instanceof Error ? error.message : String(error)}`,
+      });
+      return;
+    }
+
+    try {
+      const evidence = staged.steeringEvidence?.find((item) => item.requestId === requestId);
+      if (!evidence) throw new Error("steering_request_missing");
+      const admission = await steerLivePiInvocation({
+        requestId,
+        sequence: evidence.sequence,
+        text: evidence.text,
+        runAuthority: identity.authority,
+      });
+      const next = admission.status === "accepted"
+        ? transitionSteering(staged, identity.authority, requestId, "accepted")
+        : staged;
+      publishSteeringConversation(next, identity);
+      await saveDedicatedJourneyConversation(next);
+    } catch (error) {
+      const rejected = transitionSteering(staged, identity.authority, requestId, "rejected");
+      publishSteeringConversation(rejected, identity);
+      await saveDedicatedJourneyConversation(rejected).catch(() => undefined);
+      dispatchJourneyRuntime({
+        type: "append_warning",
+        journeyId: identity.authority.journeyId,
+        identity,
+        message: `Steering was rejected: ${error instanceof Error ? error.message : String(error)}`,
+      });
     }
   }
 
@@ -3621,16 +3754,21 @@ export function App({ model }: AppProps) {
                 linkedActivity,
                 ...(exactRuntimeProjection ? { runtimeProjection: exactRuntimeProjection } : {}),
               });
+              const steering = (presentedConversation.steeringEvidence ?? [])
+                .filter((item) => item.assistantMessageId === message.id)
+                .sort((left, right) => left.sequence - right.sequence);
               return (
-                <AgentTurn
-                  key={message.id}
-                  message={message}
-                  speaker={speaker}
-                  presentation={presentation}
-                  proximity={assistantTurnProximity.get(message.id)}
-                  basePath={selectedJourneyBasePath}
-                  onLocalPathClick={(path) => void handleChatLocalPath(path)}
-                />
+                <Fragment key={message.id}>
+                  <SteeringMessages evidence={steering} />
+                  <AgentTurn
+                    message={message}
+                    speaker={speaker}
+                    presentation={presentation}
+                    proximity={assistantTurnProximity.get(message.id)}
+                    basePath={selectedJourneyBasePath}
+                    onLocalPathClick={(path) => void handleChatLocalPath(path)}
+                  />
+                </Fragment>
               );
             }
 
@@ -3803,20 +3941,24 @@ export function App({ model }: AppProps) {
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
-                  if (shouldSubmitJourneyDraft(event, navigationPresentation, selectedInvocationAdmissionBlocked)) {
+                  if (selectedCanSteer && draft.trim()) {
+                    void submitActiveSteering();
+                  } else if (shouldSubmitJourneyDraft(event, navigationPresentation, selectedInvocationAdmissionBlocked)) {
                     void generatePacket("live");
                   }
                 }
               }}
-              placeholder={composerPlaceholder({
-                requiresConversationRestore: isJourneyReloading
-                  || showConversationSyncNotice
-                  || Boolean(retainedLeaseWithoutRecovery)
-                  || legacyMirrorGap,
-                isRecordingTurn: isFinalizingTurn || reconciliationBlocksInvocation,
-                isAgentResponding: isStreaming || agentRun.status === "running",
-                hasUserMessage: messages.some((message) => message.role === "user"),
-              })}
+              placeholder={selectedCanSteer
+                ? "Send a correction to the active turn"
+                : composerPlaceholder({
+                    requiresConversationRestore: isJourneyReloading
+                      || showConversationSyncNotice
+                      || Boolean(retainedLeaseWithoutRecovery)
+                      || legacyMirrorGap,
+                    isRecordingTurn: isFinalizingTurn || reconciliationBlocksInvocation,
+                    isAgentResponding: isStreaming || agentRun.status === "running",
+                    hasUserMessage: messages.some((message) => message.role === "user"),
+                  })}
               disabled={isJourneyReloading}
             />
             <div className="composer-input-footer">
@@ -3840,15 +3982,29 @@ export function App({ model }: AppProps) {
                   📎
                 </button>
                 {navigationPresentation.cancelVisible ? (
-                  <button
-                    className="icon-button"
-                    type="button"
-                    onClick={() => void cancelActiveRun()}
-                    aria-label="Cancel run"
-                    title="Cancel run"
-                  >
-                    ✕
-                  </button>
+                  <>
+                    <button
+                      className="icon-button"
+                      type="button"
+                      onClick={() => void cancelActiveRun()}
+                      aria-label="Cancel run"
+                      title="Cancel run"
+                    >
+                      ✕
+                    </button>
+                    {selectedCanSteer ? (
+                      <button
+                        className="icon-button send-button"
+                        type="button"
+                        onClick={() => void submitActiveSteering()}
+                        disabled={!draft.trim() || providerErrors.length > 0 || agentSettingsState !== "ready"}
+                        aria-label="Steer active turn"
+                        title="Steer active turn"
+                      >
+                        ↗
+                      </button>
+                    ) : null}
+                  </>
                 ) : (
                   <button
                     className="icon-button send-button"

@@ -1,6 +1,7 @@
 mod agent_settings;
 mod journey_appearance;
 mod pi_process_registry;
+mod pi_rpc;
 mod runtime_binding;
 mod runtime_channel;
 mod turn_journal;
@@ -17,6 +18,10 @@ use pi_process_registry::{
     CancelOutcome, ChildControlError, PiInvocationRegistryInspection, PiProcessRegistry,
     RegistryAuthority, RegistryAuthorityInspection, ReleaseOutcome, ReserveError,
     ReserveThenStartError, RunTarget, TargetError, TerminalState, TerminalizeOutcome,
+};
+use pi_rpc::{
+    observe_line as observe_pi_rpc_line, one_at_a_time_line, prompt_line, steer_line,
+    RpcCommandResponse, RpcObservation,
 };
 use runtime_binding::RuntimeBinding;
 use runtime_channel::{
@@ -39,10 +44,10 @@ use std::{
     env, fs,
     io::{BufRead, BufReader, Cursor, Write},
     path::{Path, PathBuf},
-    process::{Child, Command, Stdio},
+    process::{Child, ChildStdin, Command, Stdio},
     sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc, Mutex,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+        Arc, Condvar, Mutex,
     },
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -64,7 +69,17 @@ const COMPOSER_DRAFT_MAX_CHARS: usize = 51_200;
 const COMPOSER_DRAFT_MAX_JOURNEYS: usize = 256;
 const TURN_JOURNAL_DIRECTORY: &str = "turn-journal";
 
-type PiChildHandle = Arc<Mutex<Child>>;
+type PiRpcResponses = Arc<(Mutex<HashMap<String, RpcCommandResponse>>, Condvar)>;
+
+struct PiChildProcess {
+    child: Child,
+    stdin: Option<ChildStdin>,
+    rpc: bool,
+    settled: Arc<AtomicBool>,
+    responses: PiRpcResponses,
+}
+
+type PiChildHandle = Arc<Mutex<PiChildProcess>>;
 
 struct PiProcessState {
     registry: Arc<Mutex<PiProcessRegistry<RunAuthority, PiChildHandle, ProviderConfig>>>,
@@ -2441,6 +2456,96 @@ fn target_error_message(error: TargetError) -> String {
     }
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SteeringRequest {
+    schema_version: String,
+    request_id: String,
+    sequence: u8,
+    text: String,
+    run_authority: RunAuthority,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SteeringAdmission {
+    request_id: String,
+    sequence: u8,
+    status: String,
+}
+
+fn exact_steering_authority_matches(inspection: &RegistryAuthorityInspection, authority: &RunAuthority) -> bool {
+    inspection.journey_id == authority.journey_id
+        && inspection.run_id == authority.run_id
+        && inspection.turn_id == authority.turn_id
+        && inspection.thread_id == authority.thread_id
+        && inspection.generation == authority.generation
+        && inspection.pi_session_id == authority.pi_session_id
+        && inspection.mirror_conversation_id == authority.mirror_conversation_id
+        && inspection.harness_user_message_id == authority.harness_user_message_id
+        && inspection.harness_assistant_message_id == authority.harness_assistant_message_id
+}
+
+#[tauri::command]
+fn steer_pi_invocation(
+    app: AppHandle,
+    state: State<'_, PiProcessState>,
+    request: SteeringRequest,
+) -> Result<SteeringAdmission, String> {
+    if request.schema_version != "0.1.0" || request.sequence == 0 || request.sequence > 8 {
+        return Err("Steering request contract is invalid.".to_string());
+    }
+    validate_run_authority(&app, &request.run_authority)?;
+    let line = steer_line(&request.request_id, &request.text)?;
+    let target = RunTarget::new(&request.run_authority.journey_id, &request.run_authority.run_id);
+    let child_handle = {
+        let registry = state.registry.lock()
+            .map_err(|_| "Could not access the Pi process registry.".to_string())?;
+        let inspection = registry.inspect().entries.into_iter()
+            .find(|entry| entry.authority.journey_id == target.journey_id)
+            .ok_or_else(|| "The targeted Pi invocation does not exist.".to_string())?;
+        if !exact_steering_authority_matches(&inspection.authority, &request.run_authority) {
+            return Err("Steering authority does not match the exact active turn.".to_string());
+        }
+        registry.child_handle(&target).map_err(target_error_message)?
+    };
+    let responses = control_child_handle(&child_handle, |process| {
+        if !process.rpc || process.settled.load(Ordering::Acquire) {
+            return Err("The targeted Pi invocation is not accepting Steering.".to_string());
+        }
+        let stdin = process.stdin.as_mut()
+            .ok_or_else(|| "Pi RPC stdin is unavailable.".to_string())?;
+        stdin.write_all(line.as_bytes()).map_err(|error| error.to_string())?;
+        stdin.flush().map_err(|error| error.to_string())?;
+        Ok(process.responses.clone())
+    }).map_err(|error| match error {
+        ChildControlError::Unavailable => "Could not access the targeted Pi process.".to_string(),
+        ChildControlError::Operation(error) => error,
+    })?;
+
+    let (lock, available) = &*responses;
+    let recorded = lock.lock().map_err(|_| "Could not inspect Pi RPC responses.".to_string())?;
+    let (mut recorded, _) = available.wait_timeout_while(
+        recorded,
+        Duration::from_secs(2),
+        |items| !items.contains_key(&request.request_id),
+    ).map_err(|_| "Could not wait for Pi Steering acceptance.".to_string())?;
+    let response = recorded.remove(&request.request_id);
+    match response {
+        Some(response) if response.command == "steer" && response.success => Ok(SteeringAdmission {
+            request_id: request.request_id,
+            sequence: request.sequence,
+            status: "accepted".to_string(),
+        }),
+        Some(response) => Err(response.error.unwrap_or_else(|| "Pi rejected the Steering message.".to_string())),
+        None => Ok(SteeringAdmission {
+            request_id: request.request_id,
+            sequence: request.sequence,
+            status: "pending".to_string(),
+        }),
+    }
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PiInvocationLeaseRelease {
@@ -2487,7 +2592,7 @@ fn cancel_pi_invocation(
         (outcome, child_handle)
     };
     if let Some(child_handle) = child_handle {
-        control_child_handle(&child_handle, |child| child.kill())
+        control_child_handle(&child_handle, |process| process.child.kill())
             .map_err(|error| match error {
                 ChildControlError::Unavailable => "Could not access the targeted Pi child process.".to_string(),
                 ChildControlError::Operation(error) => format!("Could not cancel local Pi invocation: {}", error),
@@ -2532,7 +2637,7 @@ fn shutdown_pi_invocations(state: &PiProcessState) {
         .map(|registry| registry.running_child_handles())
         .unwrap_or_default();
     let _ = control_bounded_child_handles(child_handles, |_target, child_handle| {
-        control_child_handle(child_handle, |child| child.kill())
+        control_child_handle(child_handle, |process| process.child.kill())
     });
 }
 
@@ -3277,7 +3382,7 @@ fn run_pi_process(
     };
     args = remove_provider_session_args(args);
     if mirror_mediated {
-        args = mirror_json_event_args(args);
+        args = mirror_rpc_args(args);
     }
     if !config.safe_test_mode {
         args.push("--session".to_string());
@@ -3288,17 +3393,19 @@ fn run_pi_process(
         args.push("--approve".to_string());
         args.push("--no-extensions".to_string());
         match mirror_runtime_skill_paths() {
-            Ok(paths) => for path in paths {
+            Ok(paths) => {
+                for path in paths {
                 args.push("--skill".to_string());
                 args.push(path.to_string_lossy().into_owned());
-            },
+                }
+            }
             Err(error) => {
                 fail_pi_process_before_completion(&app, &registry, &target, &authority, error);
                 return;
             }
         }
     }
-    let use_stdin = config.safe_test_mode || config.use_stdin;
+    let use_stdin = mirror_mediated || config.safe_test_mode || config.use_stdin;
 
     if !use_stdin {
         args.push(prompt.clone());
@@ -3346,7 +3453,10 @@ fn run_pi_process(
             }
             Err(error) => {
                 fail_pi_process_before_completion(
-                    &app, &registry, &target, &authority,
+                    &app,
+                    &registry,
+                    &target,
+                    &authority,
                     format!("Could not serialize turn correlation: {}", error),
                 );
                 return;
@@ -3367,15 +3477,19 @@ fn run_pi_process(
         Ok(child) => child,
         Err(error) => {
             fail_pi_process_before_completion(
-                &app, &registry, &target, &authority,
+                &app,
+                &registry,
+                &target,
+                &authority,
                 format!("Could not start local Pi command '{}': {}", command, error),
             );
             return;
         }
     };
 
-    if use_stdin {
-        if let Some(mut stdin) = child.stdin.take() {
+    let mut child_stdin = child.stdin.take();
+    if use_stdin && !mirror_mediated {
+        if let Some(mut stdin) = child_stdin.take() {
             if let Err(error) = stdin.write_all(prompt.as_bytes()) {
                 emit(
                     &app,
@@ -3387,13 +3501,30 @@ fn run_pi_process(
         }
     }
 
+    let rpc_settled = Arc::new(AtomicBool::new(false));
+    let rpc_responses: PiRpcResponses = Arc::new((Mutex::new(HashMap::new()), Condvar::new()));
     let stdout_handle = child.stdout.take().map(|stdout| {
         let app = app.clone();
         let authority = authority.clone();
+        let settled = rpc_settled.clone();
+        let responses = rpc_responses.clone();
         thread::spawn(move || {
             for line in BufReader::new(stdout).lines() {
                 match line {
                     Ok(line) => {
+                        if mirror_mediated {
+                            match observe_pi_rpc_line(&line) {
+                                RpcObservation::Settled => settled.store(true, Ordering::Release),
+                                RpcObservation::Response(response) => {
+                                    let (lock, available) = &*responses;
+                                    if let Ok(mut recorded) = lock.lock() {
+                                        recorded.insert(response.id.clone(), response);
+                                        available.notify_all();
+                                    }
+                                }
+                                RpcObservation::Other => {}
+                            }
+                        }
                         let content = format!("{}\n", line);
                         emit(&app, &authority, PiProcessEventKind::Stdout, content);
                     }
@@ -3426,13 +3557,22 @@ fn run_pi_process(
         })
     });
 
-    let child_handle = Arc::new(Mutex::new(child));
+    let child_handle = Arc::new(Mutex::new(PiChildProcess {
+        child,
+        stdin: if mirror_mediated { child_stdin } else { None },
+        rpc: mirror_mediated,
+        settled: rpc_settled,
+        responses: rpc_responses,
+    }));
     let attach_outcome = match registry.lock() {
         Ok(mut registry) => registry.attach_child(&target, child_handle.clone()),
         Err(_) => {
-            let _ = control_child_handle(&child_handle, |child| child.kill());
+            let _ = control_child_handle(&child_handle, |process| process.child.kill());
             fail_pi_process_before_completion(
-                &app, &registry, &target, &authority,
+                &app,
+                &registry,
+                &target,
+                &authority,
                 "Could not track local Pi process.".to_string(),
             );
             return;
@@ -3441,39 +3581,103 @@ fn run_pi_process(
     let attach_outcome = match attach_outcome {
         Ok(outcome) => outcome,
         Err(error) => {
-            let _ = control_child_handle(&child_handle, |child| child.kill());
+            let _ = control_child_handle(&child_handle, |process| process.child.kill());
             fail_pi_process_before_completion(
-                &app, &registry, &target, &authority,
+                &app,
+                &registry,
+                &target,
+                &authority,
                 target_error_message(error),
             );
             return;
         }
     };
     if attach_outcome == AttachOutcome::CancelImmediately {
-        let kill_result = control_child_handle(&child_handle, |child| child.kill())
+        let kill_result = control_child_handle(&child_handle, |process| process.child.kill())
             .map_err(|error| match error {
-                ChildControlError::Unavailable => "Could not access the targeted Pi child process.".to_string(),
-                ChildControlError::Operation(error) => format!("Could not cancel local Pi invocation: {}", error),
+                ChildControlError::Unavailable => {
+                    "Could not access the targeted Pi child process.".to_string()
+                }
+                ChildControlError::Operation(error) => {
+                    format!("Could not cancel local Pi invocation: {}", error)
+                }
             });
         if let Err(error) = kill_result {
             emit(&app, &authority, PiProcessEventKind::Error, error);
         }
     }
 
-    let (terminal_state, terminal_error) = loop {
-        let wait_result = control_child_handle(&child_handle, |child| child.try_wait())
+    if mirror_mediated && attach_outcome == AttachOutcome::Attached {
+        let initial_commands = one_at_a_time_line(&run_authority.run_id).and_then(|mode| {
+            prompt_line(&format!("prompt-{}", run_authority.run_id), &prompt)
+                .map(|prompt| format!("{}{}", mode, prompt))
+        });
+        let write_result = initial_commands.and_then(|commands| {
+            control_child_handle(&child_handle, |process| {
+                let stdin = process
+                    .stdin
+                    .as_mut()
+                    .ok_or_else(|| "Pi RPC stdin is unavailable.".to_string())?;
+                stdin
+                    .write_all(commands.as_bytes())
+                    .map_err(|error| error.to_string())?;
+                stdin.flush().map_err(|error| error.to_string())
+            })
             .map_err(|error| match error {
-                ChildControlError::Unavailable => "Could not access the targeted Pi child process.".to_string(),
-                ChildControlError::Operation(error) => format!("Could not wait for Pi command: {}", error),
+                ChildControlError::Unavailable => {
+                    "Could not access the Pi RPC process.".to_string()
+                }
+                ChildControlError::Operation(error) => error,
+            })
+        });
+        if let Err(error) = write_result {
+            emit(
+                &app,
+                &authority,
+                PiProcessEventKind::Error,
+                format!("Could not start Pi RPC prompt: {}", error),
+            );
+            let _ = control_child_handle(&child_handle, |process| {
+                process.stdin.take();
+                Ok::<(), String>(())
+            });
+        }
+    }
+
+    let mut rpc_stdin_closed = false;
+    let (terminal_state, terminal_error) = loop {
+        if mirror_mediated && !rpc_stdin_closed {
+            let settled = control_child_handle(&child_handle, |process| {
+                Ok::<bool, String>(process.settled.load(Ordering::Acquire))
+            })
+            .unwrap_or(false);
+            if settled {
+                let _ = control_child_handle(&child_handle, |process| {
+                    process.stdin.take();
+                    Ok::<(), String>(())
+                });
+                rpc_stdin_closed = true;
+            }
+        }
+        let wait_result = control_child_handle(&child_handle, |process| process.child.try_wait())
+            .map_err(|error| match error {
+                ChildControlError::Unavailable => {
+                    "Could not access the targeted Pi child process.".to_string()
+                }
+                ChildControlError::Operation(error) => {
+                    format!("Could not wait for Pi command: {}", error)
+                }
             });
 
         match wait_result {
             Ok(Some(status)) => {
-                let was_cancelled = registry.lock()
+                let was_cancelled = registry
+                    .lock()
                     .ok()
                     .and_then(|registry| registry.cancellation_requested(&target).ok())
                     .unwrap_or(false);
-                let completion_evidence = status.success()
+                let completion_evidence = status
+                    .success()
                     .then(|| terminal_pi_execution_evidence(&run_authority))
                     .flatten();
                 let terminal_state = classify_pi_process_terminal(
@@ -3482,10 +3686,12 @@ fn run_pi_process(
                     completion_evidence.is_some(),
                 );
                 let terminal_error = match terminal_state {
-                    TerminalState::ProcessDied if status.success() => Some(
-                        "Pi provider ended without a complete assistant answer.".to_string(),
-                    ),
-                    TerminalState::ProcessDied => Some(format!("Pi command exited with status {}", status)),
+                    TerminalState::ProcessDied if status.success() => {
+                        Some("Pi provider ended without a complete assistant answer.".to_string())
+                    }
+                    TerminalState::ProcessDied => {
+                        Some(format!("Pi command exited with status {}", status))
+                    }
                     _ => None,
                 };
                 break (terminal_state, terminal_error);
@@ -3504,10 +3710,15 @@ fn run_pi_process(
     let output_handles = [stdout_handle, stderr_handle].into_iter().flatten();
     join_before_continuation(
         output_handles,
-        |handle| { let _ = handle.join(); },
+        |handle| {
+            let _ = handle.join();
+        },
         || {
             if first_terminal && mirror_mediated {
-                match read_latest_pi_mirror_commit_events(&run_authority.pi_session_id, &run_authority.correlation) {
+                match read_latest_pi_mirror_commit_events(
+                    &run_authority.pi_session_id,
+                    &run_authority.correlation,
+                ) {
                     Ok(events) => {
                         for event in events {
                             emit(&app, &authority, PiProcessEventKind::Stdout, event);
@@ -3538,7 +3749,10 @@ fn run_pi_process(
                         &app,
                         &authority,
                         PiProcessEventKind::Error,
-                        format!("Terminal turn evidence was not durable; native lease retained: {}", error),
+                        format!(
+                            "Terminal turn evidence was not durable; native lease retained: {}",
+                            error
+                        ),
                     ),
                 }
             }
@@ -3567,7 +3781,7 @@ fn remove_provider_session_args(args: Vec<String>) -> Vec<String> {
     sanitized
 }
 
-fn mirror_json_event_args(args: Vec<String>) -> Vec<String> {
+fn mirror_rpc_args(args: Vec<String>) -> Vec<String> {
     let mut next_args = Vec::new();
     let mut index = 0;
     let mut has_mode = false;
@@ -3582,7 +3796,7 @@ fn mirror_json_event_args(args: Vec<String>) -> Vec<String> {
             has_mode = true;
             next_args.push(arg.clone());
             if index + 1 < args.len() {
-                next_args.push("json".to_string());
+                next_args.push("rpc".to_string());
                 index += 2;
                 continue;
             }
@@ -3593,7 +3807,7 @@ fn mirror_json_event_args(args: Vec<String>) -> Vec<String> {
 
     if !has_mode {
         next_args.push("--mode".to_string());
-        next_args.push("json".to_string());
+        next_args.push("rpc".to_string());
     }
 
     next_args
@@ -4761,6 +4975,7 @@ fn main() {
             list_mirror_append_outbox,
             append_mirror_outbox_item,
             acknowledge_mirror_append_item,
+            steer_pi_invocation,
             cancel_pi_invocation,
             release_pi_invocation_lease,
             inspect_pi_invocations,
@@ -4785,7 +5000,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_pi_process_terminal, compiled_runtime_channel, dedicated_native_names, enqueue_mirror_append_item_at, extract_context_stats_from_pi_session,
+        classify_pi_process_terminal, compiled_runtime_channel, dedicated_native_names, enqueue_mirror_append_item_at, exact_steering_authority_matches, extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
         list_journey_documentation_at, materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, projection_manifest_coordinates_at,
@@ -4795,13 +5010,13 @@ mod tests {
         classify_chat_local_reference_at, classify_chat_local_reference_at_with_home,
         unwrap_persisted_thread, validate_acknowledged_projection_authority_at,
         validate_composer_drafts_payload, validate_external_url, validate_journey_registry_payload,
-        merge_persisted_mirror_evidence, validate_active_pre_frontier_projection_at,
+        merge_persisted_mirror_evidence, mirror_rpc_args, validate_active_pre_frontier_projection_at,
         validate_current_projection_turn_authority, validate_mirror_append_item,
         validate_outbox_item_run_authority_at,
         validate_pi_session_file_at, validate_projection_payload_authority, validate_run_authority_at,
         validate_turn_correlation,
         write_durable_projection_at, JourneyProjectionPersistenceState, PiSessionContextSnapshot,
-        RunAuthority, TerminalState, TurnCorrelation, JOURNEY_REGISTRY_FILE, FILE_ATTACHMENT_MAX_FILES,
+        RegistryAuthorityInspection, RunAuthority, TerminalState, TurnCorrelation, JOURNEY_REGISTRY_FILE, FILE_ATTACHMENT_MAX_FILES,
         DOCUMENT_PREVIEW_MAX_BYTES,
     };
     use serde_json::{json, Value};
@@ -4854,6 +5069,33 @@ mod tests {
             harness_user_message_id: "user-one".to_string(),
             harness_assistant_message_id: "assistant-one".to_string(),
         }
+    }
+
+    #[test]
+    fn steering_requires_every_active_run_authority_coordinate() {
+        let root = test_root("steering-authority");
+        let authority = test_run_authority(&root);
+        let inspection = RegistryAuthorityInspection {
+            schema_version: "0.1.0".to_string(),
+            journey_id: authority.journey_id.clone(),
+            run_id: authority.run_id.clone(),
+            turn_id: authority.turn_id.clone(),
+            thread_id: authority.thread_id.clone(),
+            generation: authority.generation,
+            pi_session_id: authority.pi_session_id.clone(),
+            mirror_conversation_id: authority.mirror_conversation_id.clone(),
+            harness_user_message_id: authority.harness_user_message_id.clone(),
+            harness_assistant_message_id: authority.harness_assistant_message_id.clone(),
+        };
+        assert!(exact_steering_authority_matches(&inspection, &authority));
+        assert!(!exact_steering_authority_matches(
+            &RegistryAuthorityInspection { run_id: "replacement".to_string(), ..inspection.clone() },
+            &authority,
+        ));
+        assert!(!exact_steering_authority_matches(
+            &RegistryAuthorityInspection { journey_id: "other".to_string(), ..inspection },
+            &authority,
+        ));
     }
 
     fn persist_run_authority_fixture(root: &Path, authority: &RunAuthority, live_receipt: &str) {
@@ -5400,7 +5642,7 @@ mod tests {
 
     #[test]
     fn provider_args_cannot_replace_authoritative_run_session() {
-        let args = remove_provider_session_args(vec![
+        let args = mirror_rpc_args(remove_provider_session_args(vec![
             "--provider".to_string(),
             "openai".to_string(),
             "--session".to_string(),
@@ -5408,9 +5650,9 @@ mod tests {
             "--session-id=wrong".to_string(),
             "--mode".to_string(),
             "json".to_string(),
-        ]);
+        ]));
 
-        assert_eq!(args, vec!["--provider", "openai", "--mode", "json"]);
+        assert_eq!(args, vec!["--provider", "openai", "--mode", "rpc"]);
     }
 
     #[test]

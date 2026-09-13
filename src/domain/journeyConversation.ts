@@ -71,6 +71,25 @@ export type TerminalAgentActionEvidence = {
   projection: TerminalAgentActionProjection;
 };
 
+export type SteeringStatus = "pending" | "accepted" | "applied" | "rejected" | "terminally_unconsumed";
+
+export type SteeringEvidence = {
+  schemaVersion: "0.1.0";
+  requestId: string;
+  sequence: number;
+  journeyId: string;
+  generation: number;
+  runId: string;
+  turnId: string;
+  assistantMessageId: string;
+  text: string;
+  status: SteeringStatus;
+  createdAt: string;
+  updatedAt: string;
+  piUserEntryId?: string;
+  terminalReason?: "cancelled" | "provider_failed" | "process_died" | "settled_without_application" | "restart_without_process";
+};
+
 export type JourneyConversation = {
   id: string;
   journeyId: string;
@@ -82,6 +101,7 @@ export type JourneyConversation = {
   certifiedMirrorMode?: CertifiedMirrorModeState;
   importedActivity?: ImportedConversationActivity;
   terminalAgentActionEvidence?: Record<string, TerminalAgentActionEvidence>;
+  steeringEvidence?: SteeringEvidence[];
 };
 
 export type JourneyConversationSummary = {
