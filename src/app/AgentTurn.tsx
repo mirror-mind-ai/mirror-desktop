@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type { ConversationMessage } from "../agent/piTaskPacket";
 import type { MessageSpeaker } from "./conversationPresentation";
 import type { AgentTurnPresentation } from "./conversationTurnPresentation";
@@ -33,12 +34,15 @@ export function AgentTurn({
     || presentation.systemSurfaces.length > 0
     || presentation.agentComment,
   );
+  const [historicalDetailOpen, setHistoricalDetailOpen] = useState(false);
   const suppressedSurfaceContents = presentation.systemSurfaces
     .map((surface) => surface.content)
     .filter((content): content is string => Boolean(content));
-  const actionCount = presentation.agentActions
-    ? projectAgentActionGroups(presentation.agentActions).length
-    : 0;
+  const actionGroups = useMemo(
+    () => presentation.agentActions ? projectAgentActionGroups(presentation.agentActions) : [],
+    [presentation.agentActions],
+  );
+  const actionCount = actionGroups.length;
   const hasHistoricalDetail = actionCount > 0 || presentation.systemSurfaces.length > 0;
   const actions = presentation.agentActions ? (
     <section className="agent-turn-region agent-actions" aria-label="Agent Actions">
@@ -49,6 +53,7 @@ export function AgentTurn({
         suppressedSurfaceContents={suppressedSurfaceContents}
         showRegionLabel={false}
         showSuccessfulTerminalStatus={false}
+        actionGroups={actionGroups}
       />
     </section>
   ) : null;
@@ -83,12 +88,17 @@ export function AgentTurn({
             <>
               {comments}
               {hasHistoricalDetail ? (
-                <details className="historical-turn-disclosure">
+                <details
+                  className="historical-turn-disclosure"
+                  onToggle={(event) => setHistoricalDetailOpen(event.currentTarget.open)}
+                >
                   <summary>{historicalDetailLabel(actionCount, presentation.systemSurfaces.length)}</summary>
-                  <div className="historical-turn-detail-body">
-                    {actions}
-                    {surfaces}
-                  </div>
+                  {historicalDetailOpen ? (
+                    <div className="historical-turn-detail-body">
+                      {actions}
+                      {surfaces}
+                    </div>
+                  ) : null}
                 </details>
               ) : null}
             </>

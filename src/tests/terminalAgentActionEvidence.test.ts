@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createTerminalAgentActionEvidence, selectExactTerminalAgentActionEvidence } from "../app/terminalAgentActionEvidence";
+import { createTerminalAgentActionEvidence, indexExactTerminalAgentActionEvidence, selectExactTerminalAgentActionEvidence } from "../app/terminalAgentActionEvidence";
 import { createDedicatedJourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { stageCorrelatedTurn } from "../domain/threeBodyTurnCommit";
@@ -70,6 +70,18 @@ describe("terminal agent action evidence", () => {
     const parsed = parsePersistedJourneyConversation(stale);
     expect(parsed?.conversation.messages).toHaveLength(2);
     expect(parsed?.conversation.terminalAgentActionEvidence).toBeUndefined();
+  });
+
+  it("indexes exact evidence once under conversation and turn authority", () => {
+    const { conversation: current, correlation } = conversation();
+    const evidence = createTerminalAgentActionEvidence({
+      correlation,
+      projection: { status: "completed", operations: [], reasoningSummaries: [], activityOrder: [] },
+    });
+    const withEvidence = { ...current, terminalAgentActionEvidence: { "assistant-1": evidence } };
+
+    expect(indexExactTerminalAgentActionEvidence(withEvidence).get("assistant-1")).toEqual(evidence);
+    expect(indexExactTerminalAgentActionEvidence({ ...withEvidence, journeyId: "other" }).size).toBe(0);
   });
 
   it("selects evidence only under exact conversation and turn authority", () => {

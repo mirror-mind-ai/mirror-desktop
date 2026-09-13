@@ -59,6 +59,22 @@ export function attachTerminalAgentActionEvidence(
   };
 }
 
+export function indexExactTerminalAgentActionEvidence(
+  conversation: JourneyConversation,
+): ReadonlyMap<string, TerminalAgentActionEvidence> {
+  const result = new Map<string, TerminalAgentActionEvidence>();
+  const turnByAssistantMessageId = new Map(
+    conversation.reconciliation.turns.map((turn) => [turn.harness.assistantMessageId, turn]),
+  );
+  for (const [assistantMessageId, evidence] of Object.entries(conversation.terminalAgentActionEvidence ?? {})) {
+    const turn = turnByAssistantMessageId.get(assistantMessageId);
+    if (evidenceMatchesConversation(conversation, evidence, assistantMessageId, turn)) {
+      result.set(assistantMessageId, evidence);
+    }
+  }
+  return result;
+}
+
 export function selectExactTerminalAgentActionEvidence(
   conversation: JourneyConversation,
   assistantMessageId: string,
@@ -73,13 +89,14 @@ function evidenceMatchesConversation(
   conversation: JourneyConversation,
   evidence: TerminalAgentActionEvidence,
   assistantMessageId: string,
+  indexedTurn?: JourneyConversation["reconciliation"]["turns"][number],
 ): boolean {
-  const turn = conversation.reconciliation.turns.find((candidate) => (
-    candidate.turnId === evidence.turnId
-    && candidate.runId === evidence.runId
-    && candidate.harness.assistantMessageId === assistantMessageId
+  const turn = indexedTurn ?? conversation.reconciliation.turns.find((candidate) => (
+    candidate.harness.assistantMessageId === assistantMessageId
   ));
-  return Boolean(turn)
+  return Boolean(turn
+      && turn.turnId === evidence.turnId
+      && turn.runId === evidence.runId)
     && evidence.schemaVersion === "0.1.0"
     && evidence.assistantMessageId === assistantMessageId
     && evidence.journeyId === conversation.journeyId

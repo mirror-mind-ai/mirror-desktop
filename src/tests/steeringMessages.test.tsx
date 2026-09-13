@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SteeringMessages } from "../app/SteeringMessages";
 import type { SteeringEvidence } from "../domain/journeyConversation";
-import appSource from "../app/App.tsx?raw";
+import transcriptSource from "../app/ConversationTranscript.tsx?raw";
+import transcriptModelSource from "../app/conversationTranscriptModel.ts?raw";
 
 function evidence(status: SteeringEvidence["status"], sequence: number): SteeringEvidence {
   return {
@@ -37,17 +38,17 @@ describe("Steering message presentation", () => {
   });
 
   it("attaches corrections to the originating user cluster before the Agent box", () => {
-    const userBranch = appSource.slice(
-      appSource.indexOf("const owningTurn = presentedConversation.reconciliation.turns.find"),
-      appSource.indexOf("<div ref={chatEndRef}"),
+    const userBranch = transcriptSource.slice(
+      transcriptSource.indexOf("const renderTimeActivity"),
+      transcriptSource.indexOf("export const ConversationTranscript"),
     );
-    expect(userBranch).toContain("turn.harness.userMessageId === message.id");
+    expect(transcriptModelSource).toContain("turnByUserMessageId.set(turn.harness.userMessageId, turn)");
     expect(userBranch.indexOf("<SteeringMessages evidence={steering} />")).toBeLessThan(
       userBranch.indexOf("<ImportedActivity events={messageActivity}"),
     );
-    const assistantBranch = appSource.slice(
-      appSource.indexOf('if (message.role === "assistant")'),
-      appSource.indexOf("const renderTimeActivity"),
+    const assistantBranch = transcriptSource.slice(
+      transcriptSource.indexOf('if (message.role === "assistant")'),
+      transcriptSource.indexOf("const renderTimeActivity"),
     );
     expect(assistantBranch).not.toContain("SteeringMessages");
   });

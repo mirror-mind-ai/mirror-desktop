@@ -20,6 +20,7 @@ type LiveRuntimeActivityProps = {
   suppressedSurfaceContents?: string[];
   showRegionLabel?: boolean;
   showSuccessfulTerminalStatus?: boolean;
+  actionGroups?: AgentActionGroup[];
 };
 
 const OPERATION_STATUS_LABEL: Record<RuntimeProjectionState["operations"][number]["status"], string> = {
@@ -44,8 +45,10 @@ export function LiveRuntimeActivity({
   suppressedSurfaceContents = [],
   showRegionLabel = true,
   showSuccessfulTerminalStatus = true,
+  actionGroups,
 }: LiveRuntimeActivityProps) {
   const active = isRuntimeProjectionActive(projection);
+  const projectedActionGroups = actionGroups ?? projectAgentActionGroups(projection);
 
   return (
     <section className={`live-runtime-activity ${active ? "is-active" : `is-settled status-${projection.status}`}`} aria-label="Pi runtime activity">
@@ -53,7 +56,7 @@ export function LiveRuntimeActivity({
         <section className="runtime-activity-region" aria-label="Ordered agent activity">
           {showRegionLabel ? <span className="runtime-region-label">Runtime activity</span> : null}
           <div className="runtime-operation-list">
-            {projectAgentActionGroups(projection).map((action) => (
+            {projectedActionGroups.map((action) => (
               <RuntimeAgentAction
                 key={action.id}
                 action={action}

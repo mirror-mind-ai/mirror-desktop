@@ -109,6 +109,19 @@ The deterministic no-rerender assertions are the primary CI contract. Timing acc
 - Delivery: `refinement/rs016-cr029-long-conversation-responsiveness`
 - Navigator confirmed both coordinates and authorized implementation on 2026-09-13.
 
+## Implementation Evidence
+
+- `ConversationTranscript` now owns the complete message map behind `React.memo`; `App` passes stable transcript inputs and a `useCallback`-stabilized Journey-local path handler, so draft-only state updates do not enter the transcript.
+- Each conversation row is independently memoized. Stable empty activity and Steering arrays prevent unchanged rows from losing memoization during active runtime updates.
+- `buildConversationTranscriptIndex` constructs conversation-revision-scoped user-turn, Steering and exact terminal-evidence maps. `indexExactTerminalAgentActionEvidence` validates the same Journey, generation, run, turn and assistant-message coordinates while removing repeated turn scans.
+- `AgentTurn` preserves historical comments and truthful action/surface counts but mounts historical `LiveRuntimeActivity` and system surfaces only while the disclosure is open. Precomputed action groups are reused instead of projected twice.
+- A generated fixture supplies 500 turns, 1,000 messages, eight Steering records and at least 10 MB of exact terminal projection data without copying production content.
+- The complete frontend suite passes with 715 tests across 131 files. `npm run build`, `cargo check --locked`, `npm run roadmap:check` and `git diff --check` pass; the existing Vite chunk-size advisory is unchanged.
+- `npm run tauri:build:dev` produced the isolated `Mirror Desktop Dev.app` and development DMG under bundle ID `ai.mirrormind.desktop.dev` for Navigator validation; no user-channel artifact was built or installed.
+- A supporting server-render probe over the unmodified 718-message production projection reduced initial static markup from 5,518,018 to 1,854,469 characters (66.4%) because collapsed historical operation bodies are no longer materialized. This probe did not mutate the projection and is not a substitute for browser input-to-paint validation.
+
+Measured browser p95 acceptance and Navigator interaction validation in isolated `Mirror Desktop Dev` remain pending. The CR therefore remains `in_progress`.
+
 ## Evidence
 
 Navigator report during continued use of Mirror Desktop:
@@ -148,4 +161,4 @@ Code evidence:
 
 ## Outcome
 
-Diagnosis and implementation planning are complete. CR029 is `in_progress` under the confirmed Driver and Delivery coordinates. Implementation and validation evidence remain pending.
+Implementation and automated validation are complete under the confirmed Driver and Delivery coordinates. CR029 remains `in_progress` pending measured browser profiling and explicit Navigator validation in isolated `Mirror Desktop Dev`.

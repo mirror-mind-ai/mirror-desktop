@@ -117,7 +117,7 @@ describe("AgentTurn", () => {
     const html = render({
       agentActions: {
         status: "completed",
-        operations: [{ id: "read-1", name: "read", status: "completed" }],
+        operations: [{ id: "read-1", name: "read", status: "completed", output: "expensive historical output" }],
         reasoningSummaries: [{ id: "summary-1", content: "Inspecting", status: "completed" }],
         activityOrder: [
           { type: "reasoning_summary", id: "summary-1" },
@@ -133,6 +133,8 @@ describe("AgentTurn", () => {
     expect(html).toContain("Show turn details · 1 action · 1 surface");
     expect(html).toContain('class="historical-turn-disclosure"');
     expect(html).not.toMatch(/<details class="historical-turn-disclosure" open/);
+    expect(html).not.toContain("expensive historical output");
+    expect(html).not.toContain("runtime-operation-entry");
   });
 
   it("keeps surface-only assistant turns visible", () => {

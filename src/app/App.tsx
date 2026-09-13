@@ -1,5 +1,5 @@
 import {
-  useEffect, useMemo, useReducer, useRef, useState,
+  useCallback, useEffect, useMemo, useReducer, useRef, useState,
   type CSSProperties,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -27,29 +27,16 @@ import {
   validateProviderConfig,
   type AgentInvocationMode,
 } from "../agent/providerConfig";
-import {
-  extractMirrorModeEventsFromContent,
-  extractMirrorSurfaceEventsFromContent,
-  groupImportedActivityByMessage,
-  ImportedActivity,
-  mergeImportedActivityEvents,
-  stripMirrorModeBlocks,
-  stripMirrorSurfaceBlocks,
-} from "./ImportedActivity";
-import { MessageContent } from "./MessageContent";
+import { groupImportedActivityByMessage } from "./ImportedActivity";
+import { ConversationTranscript } from "./ConversationTranscript";
 import {
   classifyChatLocalReference,
   openExternalChatLocalReference,
 } from "./chatLocalReferenceNavigation";
-import { MessageCopyAction } from "./MessageCopyAction";
-import { AgentTurn } from "./AgentTurn";
-import { SteeringMessages } from "./SteeringMessages";
-import { projectAgentTurnPresentation } from "./conversationTurnPresentation";
 import { classifyAssistantTurnProximity } from "./turnProximity";
 import {
   attachTerminalAgentActionEvidence,
   createTerminalAgentActionEvidence,
-  selectExactTerminalAgentActionEvidence,
 } from "./terminalAgentActionEvidence";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
 import {
@@ -99,8 +86,6 @@ import {
 } from "./journeySettlementRecovery";
 import { ConversationSyncNotice, LegacyMirrorGapNotice } from "./ConversationSyncNotice";
 import { PendingFileAttachments } from "./PendingFileAttachments";
-import { MessageFileAttachments } from "./MessageFileAttachments";
-import { MessageAttachmentProvenance } from "./MessageAttachmentProvenance";
 import { chooseFileAttachments, inspectDroppedFileAttachments } from "./fileAttachmentStorage";
 import { listenForFileAttachments } from "./fileAttachmentDrop";
 import { JourneyAltitudeSwitcher } from "./JourneyAltitudeSwitcher";
@@ -143,7 +128,7 @@ import {
   selectJourneyRuntimeOwnerPhase,
   type JourneyRunIdentity,
 } from "./journeyRuntimeState";
-import { inferMessageSpeaker, stripMessageSpeakerSignature, withCertifiedPersona } from "./conversationPresentation";
+import { withCertifiedPersona } from "./conversationPresentation";
 import {
   createJourneyConversationLoadCoordinator,
   deriveJourneyNavigationPresentation,
@@ -302,7 +287,7 @@ import { SelfUpdateNotification } from "./SelfUpdateNotification";
 import { currentMirrorDesktopVersion, type SelfUpdateCheckResult } from "./selfUpdateStorage";
 import { loadResolvedWhatsNewState, saveWhatsNewState } from "./whatsNewStorage";
 import { acknowledgeWhatsNew, resolveWhatsNewState, type ResolvedWhatsNewState } from "../domain/whatsNewState";
-import { MessageSpeakerAvatar, UserAvatarSettings } from "./UserAvatar";
+import { UserAvatarSettings } from "./UserAvatar";
 import { importUserAvatar, loadUserAvatar, removeUserAvatar } from "./userAvatarStorage";
 
 type AppProps = {
@@ -3096,7 +3081,7 @@ export function App({ model }: AppProps) {
     }
   }
 
-  async function handleChatLocalPath(path: string) {
+  const handleChatLocalPath = useCallback(async (path: string) => {
     const ownerJourneyId = selectedJourneyRef.current;
     const ownerBasePath = findJourneyById(journeyRegistry, ownerJourneyId)?.projectPath;
     setLocalReferenceError(undefined);
@@ -3120,7 +3105,7 @@ export function App({ model }: AppProps) {
         setLocalReferenceError(error instanceof Error ? error.message : String(error));
       }
     }
-  }
+  }, [journeyRegistry]);
 
   function showConversation() {
     setSelectedAltitude("operational");
@@ -3758,84 +3743,17 @@ export function App({ model }: AppProps) {
               onChoose={(text) => setJourneyComposerDraft(selectedJourney, text)}
             />
           ) : null}
-          <ImportedActivity events={importedActivity.unlinked} variant="summary" basePath={selectedJourneyBasePath} />
-          {messages.map((message) => {
-            const linkedActivity = importedActivity.byMessageId.get(message.id) ?? [];
-            const contentWithoutSurfaces = stripMirrorSurfaceBlocks(message.content);
-            const renderedContent = stripMirrorModeBlocks(contentWithoutSurfaces);
-            const speaker = inferMessageSpeaker({ ...message, content: renderedContent });
-
-            if (message.role === "assistant") {
-              const exactRuntimeProjection = runtimeProjectionMessageId === message.id
-                ? runtimeProjection
-                : selectExactTerminalAgentActionEvidence(presentedConversation, message.id)?.projection;
-              const presentation = projectAgentTurnPresentation({
-                messageId: message.id,
-                content: message.content,
-                createdAt: message.createdAt,
-                linkedActivity,
-                ...(exactRuntimeProjection ? { runtimeProjection: exactRuntimeProjection } : {}),
-              });
-              return (
-                <AgentTurn
-                  key={message.id}
-                  message={message}
-                  speaker={speaker}
-                  presentation={presentation}
-                  proximity={assistantTurnProximity.get(message.id)}
-                  basePath={selectedJourneyBasePath}
-                  onLocalPathClick={(path) => void handleChatLocalPath(path)}
-                />
-              );
-            }
-
-            const renderTimeActivity = [
-              ...extractMirrorSurfaceEventsFromContent({
-                content: message.content,
-                messageId: message.id,
-                createdAt: message.createdAt,
-              }),
-              ...extractMirrorModeEventsFromContent({
-                content: contentWithoutSurfaces,
-                messageId: message.id,
-                createdAt: message.createdAt,
-              }),
-            ];
-            const messageActivity = mergeImportedActivityEvents(linkedActivity, renderTimeActivity);
-            const bodyContent = stripMessageSpeakerSignature(renderedContent);
-            const owningTurn = presentedConversation.reconciliation.turns.find(
-              (turn) => turn.harness.userMessageId === message.id,
-            );
-            const steering = owningTurn
-              ? (presentedConversation.steeringEvidence ?? [])
-                  .filter((item) => item.assistantMessageId === owningTurn.harness.assistantMessageId)
-                  .sort((left, right) => left.sequence - right.sequence)
-              : [];
-
-            return (
-              <div key={message.id} className="message-cluster">
-                {bodyContent ? (
-                  <article className={`message ${message.role} speaker-${speaker.kind}`}>
-                    <div className="message-speaker-row">
-                      <MessageSpeakerAvatar speakerKind={speaker.kind} fallback={speaker.avatar} userAvatar={userAvatar} />
-                      <span className="message-role">{speaker.label}</span>
-                      <MessageCopyAction body={bodyContent} />
-                    </div>
-                    <MessageContent
-                      content={bodyContent}
-                      basePath={selectedJourneyBasePath}
-                      onLocalPathClick={(path) => void handleChatLocalPath(path)}
-                      preserveParagraphLineBreaks
-                    />
-                    <MessageFileAttachments attachments={message.attachments} />
-                    <MessageAttachmentProvenance attachments={message.attachments} />
-                  </article>
-                ) : null}
-                <SteeringMessages evidence={steering} />
-                <ImportedActivity events={messageActivity} basePath={selectedJourneyBasePath} />
-              </div>
-            );
-          })}
+          <ConversationTranscript
+            messages={messages}
+            conversation={presentedConversation}
+            importedActivity={importedActivity}
+            assistantTurnProximity={assistantTurnProximity}
+            runtimeProjection={runtimeProjection}
+            runtimeProjectionMessageId={runtimeProjectionMessageId}
+            basePath={selectedJourneyBasePath}
+            userAvatar={userAvatar}
+            onLocalPathClick={handleChatLocalPath}
+          />
 
           <div ref={chatEndRef} className="chat-scroll-anchor" aria-hidden="true" />
         </section>

@@ -20,7 +20,7 @@ import {
   stripAriadSurfaceBlocks,
 } from "../app/ImportedActivity";
 import type { ImportedConversationActivityEvent } from "../domain/persistedJourneyConversation";
-import appSource from "../app/App.tsx?raw";
+import transcriptSource from "../app/ConversationTranscript.tsx?raw";
 
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
@@ -61,8 +61,8 @@ describe("imported activity rendering helpers", () => {
   });
 
   it("places old unlinked imported context at the historical boundary before chat messages", () => {
-    const boundary = appSource.indexOf('<ImportedActivity events={importedActivity.unlinked} variant="summary"');
-    const messages = appSource.indexOf("{messages.map((message) => {");
+    const boundary = transcriptSource.indexOf('<ImportedActivity events={importedActivity.unlinked} variant="summary"');
+    const messages = transcriptSource.indexOf("{messages.map((message) => {");
 
     expect(boundary).toBeGreaterThan(0);
     expect(messages).toBeGreaterThan(boundary);
