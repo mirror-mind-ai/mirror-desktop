@@ -2,17 +2,11 @@
 
 ## Status
 
-pending_navigator_validation
+passed
 
 ## Summary
 
-Exact release readings now flow from canonical notes into updater manifests, pre-update review, bounded channel-local post-relaunch recognition and acknowledgement. Navigator feedback replaced compact `what's new` text with an accessible visual unread indicator, retained release-note access in the chip after Got it and made the update-available indicator persist after Later. Focused tests, roadmap consistency and the frontend build pass; Mirror Desktop Dev remains the validation surface.
-
-## Navigator Feedback Applied
-
-- The compact version chip uses `✦` with the accessible label `Unread release notes` instead of textual `what's new` status.
-- Got it removes only unread emphasis. The acknowledged chip popover and Settings still expose the current release notes.
-- Later closes an available-update popover without suppressing the persistent amber update indicator.
+Navigator validated the recognized and unread installed-release states in isolated Mirror Desktop Dev: non-textual accessible unread sparkle, persistent Later reminder, Got it removing only emphasis, and release notes remaining discoverable from the acknowledged version chip and Settings.
 
 ## Child Work Packages
 
@@ -23,4 +17,4 @@ Exact release readings now flow from canonical notes into updater manifests, pre
 
 ## Boundary
 
-Do not proceed to DS-level Debt Review until Navigator validation is accepted.
+No push or release action is authorized by this checkpoint.
