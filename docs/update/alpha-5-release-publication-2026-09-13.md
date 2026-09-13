@@ -2,7 +2,7 @@
 
 **Journey:** `mirror-desktop`  
 **Candidate:** `v0.2.0-alpha.5`  
-**Status:** signed candidate staged; publication authorized
+**Status:** alpha endpoint published and verified; source/GitHub publication in progress
 
 ## Scope
 
@@ -76,17 +76,32 @@ Architecture: x86_64
 
 The updater signature is non-empty. `codesign --verify --deep --strict` reports that the application bundle is not Apple-signed in architecture `x86_64`, matching the known Developer ID and notarization boundary. Updater signing does not claim Apple signing or notarization.
 
-## Staged Alpha Payload
+## Alpha Endpoint Publication
 
-The checksum-matched endpoint payload is staged locally under:
+The checksum-matched payload was published only under:
 
 ```text
-.tmp/alpha-5-publication
+https://updates.mirrormind.sh/mirror-desktop/alpha
 ```
 
-It contains the updater archive and signature, versioned DMG, stable macOS DMG alias, download manifest, canonical release note and index, and updater manifests for `darwin`, `darwin-x86_64`, and `darwin-aarch64` clients currently on `0.2.0-alpha.4`.
+Validated paths:
 
-Every staged updater manifest reports `0.2.0-alpha.5`, the canonical alpha release-note and artifact URLs, a non-empty signature, and the exact validated `release_reading` envelope derived from `docs/releases/v0.2.0-alpha.5.md`.
+```text
+https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.2.0-alpha.5.md
+https://updates.mirrormind.sh/mirror-desktop/alpha/releases/index.md
+https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.4/latest.json
+https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.4/latest.json
+https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.4/latest.json
+https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.5.app.tar.gz
+https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.5.app.tar.gz.sig
+https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.5_x64.dmg
+https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/mirror-desktop-latest.dmg
+https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.json
+```
+
+All three updater manifests report `0.2.0-alpha.5`, publication timestamp `2026-09-13T16:00:10.606Z`, the canonical alpha release-note and updater artifact URLs, a non-empty signature, and the exact validated `release_reading` envelope derived from `docs/releases/v0.2.0-alpha.5.md`.
+
+Downloaded updater bytes, signature, versioned DMG, stable DMG alias, release note, and release index match the local staged payload. The `updates.mirrormind.com.br` compatibility alias also reports `0.2.0-alpha.5` with canonical `.sh` payload coordinates.
 
 ## Explicit Boundary
 
