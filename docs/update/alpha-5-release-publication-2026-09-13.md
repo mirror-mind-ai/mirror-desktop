@@ -2,7 +2,7 @@
 
 **Journey:** `mirror-desktop`  
 **Candidate:** `v0.2.0-alpha.5`  
-**Status:** alpha endpoint published and verified; source/GitHub publication in progress
+**Status:** published alpha prerelease
 
 ## Scope
 
@@ -102,6 +102,30 @@ https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.json
 All three updater manifests report `0.2.0-alpha.5`, publication timestamp `2026-09-13T16:00:10.606Z`, the canonical alpha release-note and updater artifact URLs, a non-empty signature, and the exact validated `release_reading` envelope derived from `docs/releases/v0.2.0-alpha.5.md`.
 
 Downloaded updater bytes, signature, versioned DMG, stable DMG alias, release note, and release index match the local staged payload. The `updates.mirrormind.com.br` compatibility alias also reports `0.2.0-alpha.5` with canonical `.sh` payload coordinates.
+
+## Source And GitHub Publication
+
+The complete source history and candidate evidence were pushed to `origin/main`. Annotated tag `v0.2.0-alpha.5` points to the endpoint-publication evidence revision:
+
+```text
+a5b1ea6ce4f176cd24a691bef124959a46918cb5
+```
+
+The signed binaries remain attributable to candidate source revision `b275b1730c1aeab5121f174d0ffc11649249622f`; the intervening commits contain bounded release evidence only.
+
+GitHub prerelease:
+
+```text
+https://github.com/mirror-mind-ai/mirror-desktop/releases/tag/v0.2.0-alpha.5
+```
+
+GitHub reports the release as a non-draft prerelease published at `2026-09-13T16:02:15Z`. Downloaded copies of all three uploaded assets match the local candidate SHA-256 digests:
+
+- `Mirror.Desktop_0.2.0-alpha.5_x64.dmg`
+- `Mirror.Desktop.app.tar.gz`
+- `Mirror.Desktop.app.tar.gz.sig`
+
+GitHub Actions inspection after both source pushes returned no workflow runs for `main`.
 
 ## Explicit Boundary
 
