@@ -2,7 +2,7 @@
 
 # CR029 — Restore responsiveness for long conversations
 
-**Status:** in_progress
+**Status:** done
 
 ## Problem
 
@@ -120,7 +120,7 @@ The deterministic no-rerender assertions are the primary CI contract. Timing acc
 - `npm run tauri:build:dev` produced the isolated `Mirror Desktop Dev.app` and development DMG under bundle ID `ai.mirrormind.desktop.dev` for Navigator validation; no user-channel artifact was built or installed.
 - A supporting server-render probe over the unmodified 718-message production projection reduced initial static markup from 5,518,018 to 1,854,469 characters (66.4%) because collapsed historical operation bodies are no longer materialized. This probe did not mutate the projection and is not a substitute for browser input-to-paint validation.
 
-Measured browser p95 acceptance and Navigator interaction validation in isolated `Mirror Desktop Dev` remain pending. The CR therefore remains `in_progress`.
+The Navigator subsequently accepted the complete interaction-validation checklist in isolated `Mirror Desktop Dev`. No separately instrumented browser percentile capture was supplied; deterministic render isolation, the synthetic scale fixture, automated gates and the accepted interaction result form the closure evidence.
 
 ## Evidence
 
@@ -159,6 +159,16 @@ Code evidence:
 - `src/app/MessageContent.tsx`: message blocks are reparsed on each component render;
 - `src/app/journeyConversationStorage.ts` and `src/domain/persistedJourneyConversation.ts`: full-generation transfer, JSON parse and authority validation on restoration.
 
+## Navigator Validation
+
+Accepted on 2026-09-13 in isolated `Mirror Desktop Dev`. The Navigator confirmed composer responsiveness, Journey-away-and-return navigation, lazy historical detail disclosure, active streaming and Steering behavior, and restart continuity, then explicitly authorized closure.
+
+## Proportionality And Debt Review
+
+The correction isolates and memoizes the existing transcript rather than introducing pagination, virtualization, a persistence migration or a second context authority. It adds one pure indexing module, one bounded presentation component and one synthetic fixture while deleting the inline full-history map from `App`. Historical details retain complete durable evidence and materialize only through explicit disclosure. No persistence schema, Pi compaction behavior, Mirror record or Journey/run authority changed.
+
+The remaining app-wide concerns—segmented persistence, incremental historical loading, retrieval of exact pre-compaction material and multiple conversation lifecycle—are explicit planned questions in CV-008.DS-004 rather than hidden debt created by CR029. Instrumented cross-machine browser percentile capture was not retained as automated evidence; deterministic no-rerender contracts remain the stable CI guard, and future performance work should add browser telemetry only through a separately governed need. No relevant pay-now debt remains.
+
 ## Outcome
 
-Implementation and automated validation are complete under the confirmed Driver and Delivery coordinates. CR029 remains `in_progress` pending measured browser profiling and explicit Navigator validation in isolated `Mirror Desktop Dev`.
+Completed on 2026-09-13. Long conversation history no longer participates in composer-only renders, unchanged rows remain memoized during active turns, exact evidence lookup is indexed and collapsed historical operation bodies are absent until requested. Automated gates and isolated Navigator validation passed without changing persisted history, compaction or authority semantics.

@@ -12,8 +12,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: RS016 — Ongoing Product Improvements and Adjustments
-- Change Request: CR029 — Restore responsiveness for long conversations
+- Refinement Story: — (awaiting explicit selection)
+- Change Request: — (awaiting explicit selection)
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -45,7 +45,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR029](rs016-ongoing-product-improvements-and-adjustments/cr029-restore-responsiveness-for-long-conversations.md) | RS016 | Restore responsiveness for long conversations | in_progress | @alissonvale | `refinement/rs016-cr029-long-conversation-responsiveness` |
+| — | [CR029](rs016-ongoing-product-improvements-and-adjustments/cr029-restore-responsiveness-for-long-conversations.md) | RS016 | Restore responsiveness for long conversations | done | @alissonvale | `refinement/rs016-cr029-long-conversation-responsiveness` |
 | — | [CR028](rs015-light-theme-interaction-contrast/cr028-restore-search-and-pending-file-contrast-in-light-themes.md) | RS015 | Restore search and pending-file contrast in light themes | done | @alissonvale | `refinement/rs015-cr028-light-theme-interaction-contrast` |
 | — | [CR027](rs014-transient-composer-notices/cr027-auto-dismiss-transient-composer-notices.md) | RS014 | Auto-dismiss transient composer notices | done | @alissonvale | `refinement/rs014-cr027-transient-composer-notices` |
 | — | [CR026](rs013-roadmap-baseline-reconciliation/cr026-reconcile-delivered-baseline-and-open-next-product-horizon.md) | RS013 | Reconcile delivered baseline and open the next product horizon | done | @alissonvale | `refinement/rs013-cr026-roadmap-baseline-reconciliation` |

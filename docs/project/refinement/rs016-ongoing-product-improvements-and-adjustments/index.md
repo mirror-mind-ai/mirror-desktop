@@ -30,4 +30,4 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
 
-CR029 is `in_progress` under `@alissonvale` on `refinement/rs016-cr029-long-conversation-responsiveness`. Its bounded delivery isolates transcript rendering, indexes immutable presentation and lazily materializes historical action detail.
+CR029 is `done`. Its accepted bounded delivery isolates transcript rendering, indexes immutable presentation and lazily materializes historical action detail without changing persistence, compaction or authority semantics.
