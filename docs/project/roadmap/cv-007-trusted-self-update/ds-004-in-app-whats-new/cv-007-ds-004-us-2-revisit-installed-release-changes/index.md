@@ -2,7 +2,7 @@
 
 # CV-007.DS-004.US-2 - Revisit Installed Release Changes
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story

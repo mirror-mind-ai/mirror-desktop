@@ -2,7 +2,7 @@
 
 # CV-007.DS-004.US-1 - Understand What's New Before Updating
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story

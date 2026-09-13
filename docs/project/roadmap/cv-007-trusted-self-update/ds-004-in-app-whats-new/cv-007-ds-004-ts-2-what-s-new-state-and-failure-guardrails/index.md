@@ -2,7 +2,7 @@
 
 # CV-007.DS-004.TS-2 - What's New State and Failure Guardrails
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Outcome

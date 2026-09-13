@@ -2,7 +2,7 @@
 
 # CV-007.DS-004 - In-App What's New
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -26,10 +26,10 @@ CV-007 already carries release-note coordinates and can expose them during updat
 
 | Code | Story | Type | Status |
 |------|-------|------|--------|
-| CV-007.DS-004.TS-1 | Authoritative Release Reading Contract | Technical Story | 🟡 Planned |
-| CV-007.DS-004.US-1 | Understand What's New Before Updating | User Story | 🟡 Planned |
-| CV-007.DS-004.US-2 | Revisit Installed Release Changes | User Story | 🟡 Planned |
-| CV-007.DS-004.TS-2 | What's New State and Failure Guardrails | Technical Story | 🟡 Planned |
+| CV-007.DS-004.TS-1 | Authoritative Release Reading Contract | Technical Story | ✅ Done |
+| CV-007.DS-004.US-1 | Understand What's New Before Updating | User Story | ✅ Done |
+| CV-007.DS-004.US-2 | Revisit Installed Release Changes | User Story | ✅ Done |
+| CV-007.DS-004.TS-2 | What's New State and Failure Guardrails | Technical Story | ✅ Done |
 
 ## Acceptance Direction
 
