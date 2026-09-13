@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -28,6 +29,38 @@ export function releaseNotesUrl(version, baseUrl = "https://updates.mirrormind.s
   const base = String(baseUrl).replace(/\/$/, "");
   if (!base.startsWith("https://")) throw new Error("Release notes URL base must use https.");
   return `${base}/${parseReleaseVersion(version)}.md`;
+}
+
+export function releaseReadingFromSource({ version, source, baseUrl }) {
+  const canonicalVersion = parseReleaseVersion(`v${String(version).replace(/^v/, "")}`).slice(1);
+  const validation = validateReleaseNoteSource(source);
+  if (validation.status !== "ready") throw new Error(validation.findings.join(" "));
+  if (Buffer.byteLength(source, "utf8") > 50_000) throw new Error("Release note body exceeds 50000 bytes.");
+  const digestMatch = source.match(/^---\ndigest: >\n([\s\S]+?)\n---\n/);
+  const digest = digestMatch?.[1].split("\n").map((line) => line.trim()).filter(Boolean).join(" ") ?? "";
+  const titleMatch = source.match(/^# (v[^\s]+)\s+(?:—|-)\s+(.+)$/m);
+  if (!titleMatch || titleMatch[1] !== `v${canonicalVersion}`) {
+    throw new Error(`Release note version does not match ${canonicalVersion}.`);
+  }
+  const highlightsSection = source.match(/\n## Highlights\n\n([\s\S]*?)(?=\n## )/);
+  const highlights = (highlightsSection?.[1].match(/^- .+$/gm) ?? []).map((line) => line.slice(2).trim());
+  if (highlights.length === 0 || highlights.length > 8 || highlights.some((item) => item.length > 400)) {
+    throw new Error("Release note must contain between 1 and 8 bounded highlights.");
+  }
+  if (!digest || digest.length > 1_000) throw new Error("Release note digest must contain at most 1000 characters.");
+  const title = titleMatch[2].trim();
+  if (title.length > 160) throw new Error("Release note title must contain at most 160 characters.");
+  return {
+    schema_version: "1.0.0",
+    product: "Mirror Desktop",
+    version: canonicalVersion,
+    title,
+    digest,
+    highlights,
+    body: source,
+    body_sha256: createHash("sha256").update(source, "utf8").digest("hex"),
+    release_notes_url: releaseNotesUrl(`v${canonicalVersion}`, baseUrl),
+  };
 }
 
 export function validateReleaseNoteSource(source) {

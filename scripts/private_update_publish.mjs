@@ -5,7 +5,7 @@ import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import process from "node:process";
 import { parseSemver } from "./release_candidate.mjs";
-import { releaseNotesUrl } from "./release_notes.mjs";
+import { releaseNotesUrl, releaseReadingFromSource } from "./release_notes.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const defaultBaseUrl = "https://updates.mirrormind.sh/mirror-desktop";
@@ -46,7 +46,7 @@ export function latestMacosDownloadManifestUrl(baseUrl = defaultBaseUrl) {
   return `${baseUrl.replace(/\/$/, "")}/downloads/macos/latest.json`;
 }
 
-export function manifestFor({ version, signature, baseUrl = defaultBaseUrl, pubDate = new Date().toISOString() }) {
+export function manifestFor({ version, signature, baseUrl = defaultBaseUrl, pubDate = new Date().toISOString(), releaseReading }) {
   parseSemver(version);
   if (!signature?.trim()) throw new Error("Updater signature is required.");
   return {
@@ -55,6 +55,7 @@ export function manifestFor({ version, signature, baseUrl = defaultBaseUrl, pubD
     pub_date: pubDate,
     url: updaterArtifactUrl(version, baseUrl),
     signature: signature.trim(),
+    ...(releaseReading ? { release_reading: releaseReading } : {}),
   };
 }
 
@@ -127,8 +128,16 @@ export function stagePrivateUpdatePublication(options) {
   const version = parseSemver(options.version);
   const stageDir = resolve(repositoryRoot, options.stageDir ?? `.tmp/private-update-publication/v${version}`);
   const signature = readFileSync(requireFile(resolve(repositoryRoot, options.signature), "Updater signature"), "utf8");
-  const manifest = manifestFor({ version, signature, baseUrl: options.baseUrl, pubDate: options.pubDate });
-  const plan = planPrivateUpdatePublication({ version, currentVersions: options.currentVersions, targets: options.targets, baseUrl: options.baseUrl, webRoot: options.webRoot });
+  const releaseNotePath = requireFile(resolve(repositoryRoot, options.releaseNote ?? `docs/releases/v${version}.md`), "Release note");
+  const releaseNoteSource = readFileSync(releaseNotePath, "utf8");
+  const baseUrl = options.baseUrl ?? defaultBaseUrl;
+  const releaseReading = releaseReadingFromSource({
+    version,
+    source: releaseNoteSource,
+    baseUrl: `${baseUrl.replace(/\/$/, "")}/releases`,
+  });
+  const manifest = manifestFor({ version, signature, baseUrl, pubDate: options.pubDate, releaseReading });
+  const plan = planPrivateUpdatePublication({ version, currentVersions: options.currentVersions, targets: options.targets, baseUrl, webRoot: options.webRoot });
 
   const artifactsDir = resolve(stageDir, "artifacts");
   const releasesDir = resolve(stageDir, "releases");
@@ -152,7 +161,7 @@ export function stagePrivateUpdatePublication(options) {
       releaseNotes: plan.releaseNotesUrl,
     }, null, 2)}\n`);
   }
-  copyFileSync(requireFile(resolve(repositoryRoot, options.releaseNote ?? `docs/releases/v${version}.md`), "Release note"), resolve(releasesDir, `v${version}.md`));
+  copyFileSync(releaseNotePath, resolve(releasesDir, `v${version}.md`));
   copyFileSync(requireFile(resolve(repositoryRoot, options.releaseIndex ?? "docs/releases/index.md"), "Release index"), resolve(releasesDir, "index.md"));
 
   const manifestSource = `${JSON.stringify(manifest, null, 2)}\n`;

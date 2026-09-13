@@ -1,10 +1,11 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
+import { verifyReleaseReading, type ReleaseReading } from "../domain/releaseReading";
 
 export type SelfUpdateCheckResult =
   | { status: "current" }
-  | { status: "available"; update: Update; version: string; currentVersion: string; notes?: string; date?: string };
+  | { status: "available"; update: Update; version: string; currentVersion: string; notes?: string; date?: string; releaseReading?: ReleaseReading };
 
 export type SelfUpdateProgress = {
   downloadedBytes: number;
@@ -19,6 +20,7 @@ export async function currentMirrorDesktopVersion(): Promise<string> {
 export async function checkForTrustedSelfUpdate(): Promise<SelfUpdateCheckResult> {
   const update = await check({ timeout: 15000 });
   if (!update) return { status: "current" };
+  const releaseReading = await verifyReleaseReading(update.rawJson?.release_reading, update.version);
   return {
     status: "available",
     update,
@@ -26,6 +28,7 @@ export async function checkForTrustedSelfUpdate(): Promise<SelfUpdateCheckResult
     currentVersion: update.currentVersion,
     notes: update.body,
     date: update.date,
+    releaseReading,
   };
 }
 

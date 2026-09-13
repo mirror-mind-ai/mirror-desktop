@@ -90,7 +90,16 @@ describe("private update publication", () => {
       artifact: "https://updates.mirrormind.sh/mirror-desktop/artifacts/app.dmg",
       releaseNotes: "https://updates.mirrormind.sh/mirror-desktop/releases/v0.1.1-test.1.md",
     });
-    expect(JSON.parse(readFileSync(join(stage, "manifests", "darwin", "0.1.1-test.0", "latest.json"), "utf8"))).toMatchObject({ version: "0.1.1-test.1", signature: "signature" });
+    expect(JSON.parse(readFileSync(join(stage, "manifests", "darwin", "0.1.1-test.0", "latest.json"), "utf8"))).toMatchObject({
+      version: "0.1.1-test.1",
+      signature: "signature",
+      release_reading: {
+        schema_version: "1.0.0",
+        product: "Mirror Desktop",
+        version: "0.1.1-test.1",
+        release_notes_url: "https://updates.mirrormind.sh/mirror-desktop/releases/v0.1.1-test.1.md",
+      },
+    });
     expect(readFileSync(join(stage, "releases", "v0.1.1-test.1.md"), "utf8")).toContain("# v0.1.1-test.1");
   });
 });

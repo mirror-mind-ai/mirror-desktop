@@ -4,6 +4,7 @@ import {
   parseReleaseVersion,
   releaseNotePath,
   releaseNotesUrl,
+  releaseReadingFromSource,
   renderReleaseNote,
   upsertIndexEntry,
   validateReleaseNoteSource,
@@ -32,6 +33,23 @@ describe("Mirror Desktop release notes", () => {
     expect(releaseNotePath("v0.2.0")).toBe("docs/releases/v0.2.0.md");
     expect(releaseNotesUrl("v0.2.0")).toBe("https://updates.mirrormind.sh/mirror-desktop/releases/v0.2.0.md");
     expect(() => releaseNotesUrl("v0.2.0", "http://example.invalid/releases")).toThrow(/https/);
+  });
+
+  it("derives a bounded authoritative reading from the canonical source", () => {
+    const reading = releaseReadingFromSource({ version: "0.2.0", source: validNote });
+
+    expect(reading).toMatchObject({
+      schema_version: "1.0.0",
+      product: "Mirror Desktop",
+      version: "0.2.0",
+      title: "Trusted Release Notes",
+      digest: "v0.2.0 adds release notes for Mirror Desktop.",
+      highlights: ["Adds versioned notes."],
+      release_notes_url: "https://updates.mirrormind.sh/mirror-desktop/releases/v0.2.0.md",
+      body: validNote,
+    });
+    expect(reading.body_sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(() => releaseReadingFromSource({ version: "0.2.1", source: validNote })).toThrow(/does not match/);
   });
 
   it("validates the Mirror Core style release-note structure", () => {
