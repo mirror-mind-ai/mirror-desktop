@@ -12,8 +12,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: — (awaiting explicit selection)
-- Change Request: — (awaiting explicit selection)
+- Refinement Story: RS016 — Ongoing Product Improvements and Adjustments
+- Change Request: CR029 — Restore responsiveness for long conversations
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
