@@ -289,8 +289,21 @@ textarea {
 }
 
 .self-update-chip-status {
+  display: inline-grid;
+  place-items: center;
+  min-width: 12px;
   color: var(--ui-accent);
+  font-size: 0.82rem;
   font-weight: 760;
+  line-height: 1;
+}
+
+.self-update-chip-status.update-available {
+  color: #d69e2e;
+}
+
+.self-update-chip-status.whats-new {
+  text-shadow: 0 0 8px color-mix(in srgb, var(--ui-accent) 48%, transparent);
 }
 
 .sidebar-toggle-button {

@@ -52,7 +52,6 @@ export function SelfUpdateNotification({
   const [currentVersion, setCurrentVersion] = useState(initialCurrentVersion ?? initialUpdate?.currentVersion ?? "");
   const [state, setState] = useState<UpdateChipState>(initialUpdate ? { status: "available", update: initialUpdate } : { status: "idle" });
   const [open, setOpen] = useState(initialOpen);
-  const [dismissedVersion, setDismissedVersion] = useState<string>();
   const popoverRef = useRef<HTMLDivElement>(null);
   const quiescence = updateQuiescence({
     activePiRuns: runtimeBusy ? 1 : 0,
@@ -113,15 +112,15 @@ export function SelfUpdateNotification({
   const available = state.status === "available" || state.status === "installing" ? state.update : undefined;
   const fullVersionLabel = currentVersion ? `Mirror Desktop ${currentVersion}` : "Mirror Desktop";
   const compactVersionLabel = currentVersion ? displayMirrorDesktopVersion(currentVersion) : "version";
-  const updateDismissed = available && dismissedVersion === available.version;
-  const showsAvailable = available && !updateDismissed;
-  const showsWhatsNew = !showsAvailable && Boolean(installedReleaseReading && installedReminder);
-  const chipStatus = state.status === "installing"
-    ? "updating…"
+  const showsAvailable = available;
+  const showsInstalledReading = !showsAvailable && Boolean(installedReleaseReading);
+  const showsWhatsNew = showsInstalledReading && installedReminder;
+  const chipSignal = state.status === "installing"
+    ? { className: "installing", label: "Update installing", glyph: "…" }
     : showsAvailable
-      ? "update"
+      ? { className: "update-available", label: "Update available", glyph: "↑" }
       : showsWhatsNew
-        ? "what's new"
+        ? { className: "whats-new", label: "Unread release notes", glyph: "✦" }
         : undefined;
 
   return (
@@ -135,7 +134,7 @@ export function SelfUpdateNotification({
         title={showsAvailable ? `Mirror Desktop ${available.version} is available` : showsWhatsNew ? `What's New in ${fullVersionLabel}` : `${fullVersionLabel} is up to date`}
       >
         <span>Version: {compactVersionLabel}</span>
-        {chipStatus ? <span className="self-update-chip-status">{chipStatus}</span> : null}
+        {chipSignal ? <span className={`self-update-chip-status ${chipSignal.className}`} aria-label={chipSignal.label} title={chipSignal.label}>{chipSignal.glyph}</span> : null}
       </button>
       {open ? (
         <div className="self-update-popover" role="dialog" aria-label="Mirror Desktop update">
@@ -155,23 +154,23 @@ export function SelfUpdateNotification({
               {state.status === "installing" ? <p className="provider-note" role="status">{state.progress?.message ?? "Installing…"} {state.progress?.totalBytes ? `${Math.round((state.progress.downloadedBytes / state.progress.totalBytes) * 100)}%` : ""}</p> : null}
               {state.status === "error" ? <p className="settings-error" role="alert">{state.message}</p> : null}
               <div className="self-update-popover-actions">
-                <button className="secondary-button" type="button" onClick={() => { setDismissedVersion(available.version); setOpen(false); }}>Later</button>
+                <button className="secondary-button" type="button" onClick={() => setOpen(false)}>Later</button>
                 <button className="secondary-button" type="button" onClick={() => { onReview(available); setOpen(false); }}>Details</button>
                 <button type="button" onClick={() => void updateNow()} disabled={state.status === "installing" || runtimeBusy}>Update</button>
               </div>
             </>
-          ) : showsWhatsNew && installedReleaseReading ? (
+          ) : showsInstalledReading && installedReleaseReading ? (
             <>
-              <strong>What's New in Mirror Desktop {displayMirrorDesktopVersion(installedReleaseReading.version)}</strong>
+              <strong>{showsWhatsNew ? `What's New in Mirror Desktop ${displayMirrorDesktopVersion(installedReleaseReading.version)}` : `Mirror Desktop ${displayMirrorDesktopVersion(installedReleaseReading.version)}`}</strong>
               <div className="self-update-reading-summary">
                 <strong>{installedReleaseReading.title}</strong>
                 <p>{installedReleaseReading.digest}</p>
                 <ul>{installedReleaseReading.highlights.slice(0, 3).map((highlight) => <li key={highlight}>{highlight}</li>)}</ul>
               </div>
               <div className="self-update-popover-actions">
-                <button className="secondary-button" type="button" onClick={() => setOpen(false)}>Later</button>
-                <button className="secondary-button" type="button" onClick={() => { onReview(); setOpen(false); }}>Details</button>
-                <button type="button" onClick={() => { onAcknowledge?.(); setOpen(false); }}>Got it</button>
+                <button className="secondary-button" type="button" onClick={() => setOpen(false)}>{showsWhatsNew ? "Later" : "Close"}</button>
+                <button className="secondary-button" type="button" onClick={() => { onReview(); setOpen(false); }}>{showsWhatsNew ? "Details" : "Release notes"}</button>
+                {showsWhatsNew ? <button type="button" onClick={() => { onAcknowledge?.(); setOpen(false); }}>Got it</button> : null}
               </div>
             </>
           ) : (

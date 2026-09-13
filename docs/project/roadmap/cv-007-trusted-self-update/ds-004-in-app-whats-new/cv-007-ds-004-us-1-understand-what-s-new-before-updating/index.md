@@ -31,6 +31,7 @@ And no download or installation begins until I explicitly choose Update
 - Complete release-note reading in Updates settings.
 - Honest fallback for missing or invalid reading metadata.
 - Accessible English-only labels and keyboard operation.
+- Persistent visual update-available indication after Later closes the popover.
 
 ## Out Of Scope
 

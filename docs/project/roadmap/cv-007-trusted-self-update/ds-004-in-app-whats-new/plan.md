@@ -40,8 +40,9 @@ Deliver an authoritative in-app What's New experience across update decision and
 
 - Persist a channel-local pending release-reading receipt immediately before installation, containing only bounded public release metadata and no Mirror or Journey coordinates.
 - After startup, compare the running app version with the pending target version. Only an exact match may expose the installed release as What's New.
-- Reuse the persistent version chip for a non-blocking `what's new` status. Its popover offers Later, Details and Got it rather than forcing a modal.
-- Keep the current installed release reading available from Settings after acknowledgement. Acknowledgement suppresses the chip emphasis for that exact version only.
+- Reuse the persistent version chip with a non-textual, accessible sparkle for unread release notes rather than adding `what's new` copy to the compact chip. Its popover offers Later, Details and Got it rather than forcing a modal.
+- Keep the current installed release reading available from both the acknowledged chip popover and Settings. Acknowledgement suppresses only the sparkle emphasis for that exact version and never removes release-note access.
+- Keep a distinct accessible update-available indicator visible while the app is outdated. Later closes the popover but cannot dismiss that indicator.
 - Clear or classify stale, malformed and failed-install pending receipts without claiming successful installation.
 
 ### State, integration and documentation
@@ -89,10 +90,10 @@ And the existing trusted update path remains available
 ```text
 Given a valid pending receipt was stored before installing version X
 When Mirror Desktop starts and its running version is exactly X
-Then the version chip offers a non-blocking what's new state
+Then the version chip offers a non-blocking accessible sparkle without adding status text to the compact label
 And the user can inspect the same authoritative release reading
 And Later preserves the reminder while Got it acknowledges only version X
-And Settings can still reopen the installed release information
+And both the acknowledged chip popover and Settings can still reopen the installed release information
 ```
 
 ### Failed or mismatched installation

@@ -57,7 +57,9 @@ describe("SelfUpdateNotification", () => {
         onAcknowledge={() => undefined}
       />,
     );
-    expect(html).toContain("what&#x27;s new");
+    expect(html).toContain("self-update-chip-status whats-new");
+    expect(html).toContain("aria-label=\"Unread release notes\"");
+    expect(html).not.toContain(">what&#x27;s new</span>");
     expect(html).toContain("What&#x27;s New in Mirror Desktop 0.1.1");
     expect(html).toContain("Later");
     expect(html).toContain("Details");
@@ -65,14 +67,36 @@ describe("SelfUpdateNotification", () => {
     expect(html).not.toContain("Update</button>");
   });
 
-  it("composes the current version with the update badge", () => {
+  it("keeps acknowledged release notes discoverable without unread emphasis", () => {
+    const html = renderToStaticMarkup(
+      <SelfUpdateNotification
+        runtimeBusy={false}
+        initialCurrentVersion="0.1.1"
+        installedReleaseReading={update.releaseReading}
+        installedReminder={false}
+        initialOpen
+        checkUpdates={neverCheck}
+        getCurrentVersion={neverVersion}
+        installUpdate={neverInstall}
+        onReview={() => undefined}
+      />,
+    );
+    expect(html).toContain("A clearer update");
+    expect(html).toContain("Release notes");
+    expect(html).not.toContain("Unread release notes");
+    expect(html).not.toContain("Got it");
+  });
+
+  it("composes the current version with a persistent visual update indicator", () => {
     const html = renderToStaticMarkup(
       <SelfUpdateNotification runtimeBusy={false} initialUpdate={update} initialOpen={true} checkUpdates={neverCheck} getCurrentVersion={neverVersion} installUpdate={neverInstall} onReview={() => undefined} />,
     );
     expect(html).toContain("self-update-chip");
     expect(html).toContain("0.1.0");
     expect(html).toContain("self-update-chip-status");
-    expect(html).toContain(">update</span>");
+    expect(html).toContain("self-update-chip-status update-available");
+    expect(html).toContain("aria-label=\"Update available\"");
+    expect(html).not.toContain(">update</span>");
     expect(html).toContain("Version: 0.1.0");
     expect(html).toContain("Available: 0.1.1.");
     expect(html).toContain("A clearer update");
