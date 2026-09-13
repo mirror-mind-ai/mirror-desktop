@@ -1,39 +1,41 @@
 [< Parent](../index.md)
 
-# CV-007.DS-004.US-1 — Understand What's New Before Updating
+# CV-007.DS-004.US-1 - Understand What's New Before Updating
 
 **Status:** 🟡 Planned
 **Type:** User Story
 
----
-
 ## User Story
 
-As a user,
-I want to Understand What's New Before Updating,
-So that I can receive the value of this story.
+As a Mirror Desktop user reviewing an available update,
+I want to understand its meaningful changes inside the update experience,
+So that I can decide whether to install it without losing release identity or consent context.
 
 ## Outcome
 
-Navigator can validate Understand What's New Before Updating as an observable behavior.
+The header update popover presents concise authoritative release highlights, while Details opens the complete embedded release note and canonical source coordinate in Updates settings before any download begins.
 
 ## Acceptance Behavior
 
 ```text
-Given the user is ready for Understand What's New Before Updating
-When the user performs the planned action
-Then the expected observable behavior is visible
-And unrelated Delivery Story scope remains untouched
+Given a trusted update with a valid reading is available
+When I open its version chip and choose Details
+Then I see concise highlights followed by the complete notes for the same offered version
+And current and offered versions remain distinct
+And no download or installation begins until I explicitly choose Update
 ```
 
 ## Scope
 
-- Understand What's New Before Updating
+- Concise title, digest and bounded highlights in the update popover.
+- Complete release-note reading in Updates settings.
+- Honest fallback for missing or invalid reading metadata.
+- Accessible English-only labels and keyboard operation.
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- Post-relaunch recognition, release content generation, external navigation and updater installation changes.
 
 ## Validation
 
-Navigator-visible validation route plus automated checks.
+Component and integration tests plus Navigator review in isolated Mirror Desktop Dev.

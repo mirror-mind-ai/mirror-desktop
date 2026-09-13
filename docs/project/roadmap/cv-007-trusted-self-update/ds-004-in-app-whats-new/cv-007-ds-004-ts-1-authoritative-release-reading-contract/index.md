@@ -1,40 +1,36 @@
 [< Parent](../index.md)
 
-# CV-007.DS-004.TS-1 — Authoritative Release Reading Contract
+# CV-007.DS-004.TS-1 - Authoritative Release Reading Contract
 
 **Status:** 🟡 Planned
 **Type:** Technical Story
 
----
-
-## Technical Story
-
-In order to support the delivery capability,
-As an engineering team/system component,
-I want to Authoritative Release Reading Contract,
-So that the expected technical outcome is available.
-
 ## Outcome
 
-Navigator can validate Authoritative Release Reading Contract as an observable behavior.
+Release staging derives one bounded versioned reading from the canonical release-note source and carries it as additive updater metadata that Mirror Desktop can validate against the exact offered release.
+
+## Scope
+
+- Define the `ReleaseReading` envelope and parser.
+- Extract title, digest, highlights, complete Markdown body, canonical URL and body SHA-256 deterministically from `docs/releases/vX.Y.Z.md`.
+- Include the envelope in every staged updater manifest without removing existing Tauri fields.
+- Validate product, version, URLs, hashes and field bounds in the application.
+- Preserve compatibility with historical manifests lacking the envelope.
 
 ## Acceptance Behavior
 
 ```text
-Given the system is ready for Authoritative Release Reading Contract
-When the planned technical change is applied
-Then the expected technical outcome is observable
-And unrelated Delivery Story scope remains untouched
+Given a canonical versioned release note
+When release staging creates updater manifests
+Then every manifest carries a bounded ReleaseReading for that same version
+And application parsing accepts only internally consistent content
+And existing Tauri updater clients remain compatible
 ```
-
-## Scope
-
-- Authoritative Release Reading Contract
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- LLM summarization, remote fetching, release publication, updater signing changes and UI composition.
 
 ## Validation
 
-Navigator-visible validation route plus automated checks.
+Focused release tooling and domain parser tests, staged-manifest inspection, full release-tooling regression and aggregate Delivery Story validation.
