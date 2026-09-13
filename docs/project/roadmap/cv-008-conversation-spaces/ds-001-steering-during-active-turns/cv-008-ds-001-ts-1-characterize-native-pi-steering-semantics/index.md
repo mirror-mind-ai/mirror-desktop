@@ -1,40 +1,45 @@
 [< Parent](../index.md)
 
-# CV-008.DS-001-TS-1 — Characterize Native Pi Steering Semantics
+# CV-008.DS-001-TS-1 - Characterize Native Pi Steering Semantics
 
 **Status:** 🟡 Planned
 **Type:** Technical Story
 
----
-
 ## Technical Story
 
-In order to support the delivery capability,
-As an engineering team/system component,
-I want to Characterize Native Pi Steering Semantics,
-So that the expected technical outcome is available.
+In order to build Steering without invented lifecycle semantics,
+as the native process boundary,
+I want an executable characterization of Pi's RPC Steering contract,
+so that later child stories can rely on observed acceptance, queue, application and settlement boundaries.
 
 ## Outcome
 
-Navigator can validate Characterize Native Pi Steering Semantics as an observable behavior.
+The supported Pi runtime has a repeatable contract covering `prompt`, `steer`, response correlation, `queue_update`, one-at-a-time delivery, message events, `agent_end`, `agent_settled`, rejection and process closure.
 
 ## Acceptance Behavior
 
 ```text
-Given the system is ready for Characterize Native Pi Steering Semantics
-When the planned technical change is applied
-Then the expected technical outcome is observable
-And unrelated Delivery Story scope remains untouched
+Given the supported Pi runtime is available
+When the Steering contract probe and focused tests run
+Then they distinguish accepted, queued, applied and settled evidence
+And document any behavior that Pi does not prove
+And production behavior remains unchanged
 ```
 
 ## Scope
 
-- Characterize Native Pi Steering Semantics
+- LF-delimited JSONL framing and correlated command responses.
+- Steering delivery after current assistant tool calls and before the next model call.
+- FIFO and duplicate-text behavior under `one-at-a-time` mode.
+- Queue, message, agent and settlement event semantics.
+- Rejection and process-close behavior.
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- Production transport changes.
+- Mirror Desktop composer or conversation UI.
+- Persistence design beyond evidence requirements discovered by the probe.
 
 ## Validation
 
-Navigator-visible validation route plus automated checks.
+Focused parser and contract tests plus a bounded probe against the installed Pi runtime. Record exact Pi version and observations in the Delivery Story evidence.
