@@ -2,7 +2,7 @@
 
 # CR028 — Restore search and pending-file contrast in light themes
 
-**Status:** validated
+**Status:** done
 
 ## Problem
 
@@ -83,6 +83,10 @@ Reproduce both supplied screenshots in isolated `Mirror Desktop Dev`. Validate s
 
 - No broad visual redesign, new theme, typography change or attachment/search behavior change.
 - No release, push, publication or protected data mutation.
+
+## Outcome
+
+Completed on 2026-09-13. Journey search, sidebar collapse and pending attachment interactions now use measurable semantic contrast across Daylight, Mist and Parchment. The Navigator accepted both corrected screenshot scenarios and authorized terminal closure.
 
 ## Provenance
 
