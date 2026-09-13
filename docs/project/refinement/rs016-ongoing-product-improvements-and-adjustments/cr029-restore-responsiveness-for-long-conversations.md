@@ -2,7 +2,7 @@
 
 # CR029 — Restore responsiveness for long conversations
 
-**Status:** planned
+**Status:** in_progress
 
 ## Problem
 
@@ -103,6 +103,12 @@ The deterministic no-rerender assertions are the primary CI contract. Timing acc
 - No use of production conversation contents in committed fixtures, screenshots or logs.
 - No Driver, Delivery, implementation, push, merge, publication or release is selected by planning this CR.
 
+## Driver And Delivery
+
+- Driver: `@alissonvale`
+- Delivery: `refinement/rs016-cr029-long-conversation-responsiveness`
+- Navigator confirmed both coordinates and authorized implementation on 2026-09-13.
+
 ## Evidence
 
 Navigator report during continued use of Mirror Desktop:
@@ -142,4 +148,4 @@ Code evidence:
 
 ## Outcome
 
-Diagnosis and implementation planning are complete. CR029 is `planned` and focused, with explicit scope, tests, thresholds, validation and exclusions. Driver and Delivery remain unselected, so implementation is not authorized.
+Diagnosis and implementation planning are complete. CR029 is `in_progress` under the confirmed Driver and Delivery coordinates. Implementation and validation evidence remain pending.
