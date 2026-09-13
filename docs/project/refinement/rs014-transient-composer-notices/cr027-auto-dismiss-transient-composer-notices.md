@@ -61,6 +61,17 @@ Persistent conditions:
 - Persistent condition notices remain tied to their actual state and do not receive time-based dismissal.
 - Alert and status semantics remain accessible, and no hidden operational state is cleared with the visual notice.
 
+## Implementation Evidence
+
+- `src/app/transientComposerNotice.ts` defines one 8,000 ms duration, cancellable scheduling, stale-value protection and exact Journey/run/warning presentation keys.
+- `src/app/App.tsx` now expires local-reference errors, attachment errors, terminal warning presentation and successful recovery information independently.
+- Replacement effects cancel their prior timers, and functional state updates prevent an older callback from clearing newer text.
+- Journey changes clear transient local presentation state. Runtime warning arrays remain unchanged; only the exact rendered terminal warning key is suppressed after expiry.
+- Persistent runtime binding, Agent Settings, blocked recovery, occupancy, capacity, durable interruption, retained lease and Mirror synchronization notices remain condition-driven.
+- Four focused fake-timer and identity tests pass alongside 37 related runtime/navigation/restart tests.
+- The complete frontend suite passes with 700 tests across 128 files. `npm run build` and `npm run roadmap:check` pass; the existing Vite chunk-size advisory is unchanged.
+- Isolated `Mirror Desktop Dev`, bundle ID `ai.mirrormind.desktop.dev`, is running for Navigator validation.
+
 ## Validation Route
 
 Use fake timers for deterministic lifecycle tests. Verify each transient producer, repeated warnings, Journey switching, unmount cleanup and unchanged persistent-condition rendering. Preserve existing composer and Journey navigation tests, run the complete frontend suite and validate the screenshot scenario in isolated `Mirror Desktop Dev`.
