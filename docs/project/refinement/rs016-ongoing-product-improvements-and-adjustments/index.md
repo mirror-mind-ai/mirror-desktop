@@ -28,4 +28,6 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
-None captured yet.
+- [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
+
+CR029 is `captured`. It records the observed composer and conversation-switching slowdown without selecting a cause or implementation strategy.
