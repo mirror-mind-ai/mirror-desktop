@@ -2,7 +2,7 @@
 
 # CV-008.DS-001 - Steering During Active Turns
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -25,10 +25,10 @@ Long agent operations expose new information and sometimes begin from an imperfe
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-008.DS-001-TS-1 | Characterize Native Pi Steering Semantics | Technical Story | An executable contract proves Pi steering acceptance, queue events, delivery boundaries, ordering, settlement and failure behavior against the supported runtime. | 🟡 Planned |
-| CV-008.DS-001-TS-2 | Admit Steering Under Exact Active-Turn Authority | Technical Story | Mirror Desktop can send correlated steering commands only to the exact live Journey, conversation, generation, run and turn process, rejecting stale or cross-authority attempts. | 🟡 Planned |
-| CV-008.DS-001-US-1 | Correct a Running Turn from the Composer | User Story | While a turn is running, the Navigator can submit an additional text message, see that it was queued, and receive a response shaped by it without cancellation or a second assistant turn. | 🟡 Planned |
-| CV-008.DS-001-TS-3 | Preserve Steering Order and Terminal Truth | Technical Story | Accepted steering messages retain deterministic order and honest durable outcomes across consumption, cancellation, provider failure, settlement and application restart. | 🟡 Planned |
+| CV-008.DS-001-TS-1 | Characterize Native Pi Steering Semantics | Technical Story | An executable contract proves Pi steering acceptance, queue events, delivery boundaries, ordering, settlement and failure behavior against the supported runtime. | ✅ Done |
+| CV-008.DS-001-TS-2 | Admit Steering Under Exact Active-Turn Authority | Technical Story | Mirror Desktop can send correlated steering commands only to the exact live Journey, conversation, generation, run and turn process, rejecting stale or cross-authority attempts. | ✅ Done |
+| CV-008.DS-001-US-1 | Correct a Running Turn from the Composer | User Story | While a turn is running, the Navigator can submit an additional text message, see that it was queued, and receive a response shaped by it without cancellation or a second assistant turn. | ✅ Done |
+| CV-008.DS-001-TS-3 | Preserve Steering Order and Terminal Truth | Technical Story | Accepted steering messages retain deterministic order and honest durable outcomes across consumption, cancellation, provider failure, settlement and application restart. | ✅ Done |
 
 ## Acceptance Direction
 

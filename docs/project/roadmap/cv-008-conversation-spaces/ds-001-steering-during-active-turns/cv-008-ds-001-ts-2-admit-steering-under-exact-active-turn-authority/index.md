@@ -2,7 +2,7 @@
 
 # CV-008.DS-001-TS-2 - Admit Steering Under Exact Active-Turn Authority
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

@@ -2,11 +2,11 @@
 
 ## Status
 
-review:pay_now
+review:no_action
 
 ## Summary
 
-Pay now before closure: authoritative Pi evidence shows the first Steering user entry was applied before a second queued correction, but complete-turn projection overwrote that pending user entry because only the second continuation reached stop, causing a false terminally_unconsumed label. Also refine presentation into a compact user addendum visually attached after the originating user box and before the single Agent box.
+The pay-now findings were resolved in 2384065 before closure: Steering application now reads every authoritative Pi user entry including intermediate tool-use continuations, repairs prior false terminally-unconsumed evidence on restart, and presents corrections as compact addenda attached to the originating user cluster. Navigator validated the corrected behavior. No relevant debt remains for this DS.
 
 ## Child Work Packages
 

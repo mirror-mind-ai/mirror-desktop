@@ -2,7 +2,7 @@
 
 # CV-008.DS-001-TS-1 - Characterize Native Pi Steering Semantics
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story
