@@ -9,6 +9,7 @@ import type {
   LiveConversationIdentity,
   TerminalAgentActionEvidence,
   TerminalAgentActionProjection,
+  SteeringEvidence,
 } from "./journeyConversation";
 
 export type ImportedConversationActivityEvent = {
@@ -39,7 +40,7 @@ export type ImportedConversationActivity = {
 };
 
 export type PersistedJourneyConversation = {
-  schemaVersion: "0.8.0";
+  schemaVersion: "0.9.0";
   conversation: JourneyConversation;
   savedAt: string;
 };
@@ -49,7 +50,7 @@ export function createPersistedJourneyConversation(
   now: Date = new Date(),
 ): PersistedJourneyConversation {
   return {
-    schemaVersion: "0.8.0",
+    schemaVersion: "0.9.0",
     conversation,
     savedAt: now.toISOString(),
   };
@@ -61,7 +62,7 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
   }
 
   const record = value as Record<string, unknown>;
-  if (!["0.5.0", "0.6.0", "0.7.0", "0.8.0"].includes(String(record.schemaVersion))) {
+  if (!["0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0"].includes(String(record.schemaVersion))) {
     return undefined;
   }
   if (!record.conversation || typeof record.conversation !== "object") {
@@ -104,7 +105,7 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
       const parsedAttachments = attachments?.map((attachment) => {
         const schemaVersion = (attachment as Record<string, unknown> | undefined)?.schemaVersion;
         if (schemaVersion === "0.2.0") {
-          if (!["0.7.0", "0.8.0"].includes(String(record.schemaVersion))) throw new Error("File references require conversation schema 0.7.0 or newer.");
+          if (!["0.7.0", "0.8.0", "0.9.0"].includes(String(record.schemaVersion))) throw new Error("File references require conversation schema 0.7.0 or newer.");
           return normalizePersistedFileAttachment(attachment, conversation.journeyId as string);
         }
         return normalizeConversationAttachmentProvenance(attachment, conversation.journeyId as string);
@@ -137,8 +138,16 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
   const reconciliation = parsedReconciliation;
   const authoritativeContextStats = parseAuthoritativeContextStats(conversation.authoritativeContextStats);
   const certifiedMirrorMode = parseCertifiedMirrorModeState(conversation.certifiedMirrorMode);
-  const terminalAgentActionEvidence = record.schemaVersion === "0.8.0"
+  const terminalAgentActionEvidence = ["0.8.0", "0.9.0"].includes(String(record.schemaVersion))
     ? parseTerminalAgentActionEvidenceMap(conversation.terminalAgentActionEvidence, {
+        journeyId: conversation.journeyId as string,
+        generation: liveIdentity.generation,
+        messages: parsedMessages,
+        turns: reconciliation.turns,
+      })
+    : undefined;
+  const steeringEvidence = record.schemaVersion === "0.9.0"
+    ? parseSteeringEvidence(conversation.steeringEvidence, {
         journeyId: conversation.journeyId as string,
         generation: liveIdentity.generation,
         messages: parsedMessages,
@@ -150,11 +159,12 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
     certifiedMirrorMode: _unparsedMirrorMode,
     reconciliation: _unparsedReconciliation,
     terminalAgentActionEvidence: _unparsedTerminalActionEvidence,
+    steeringEvidence: _unparsedSteeringEvidence,
     ...conversationWithoutRuntimeState
   } = conversation;
 
   return {
-    schemaVersion: "0.8.0",
+    schemaVersion: "0.9.0",
     savedAt: typeof record.savedAt === "string" ? record.savedAt : new Date(0).toISOString(),
     conversation: {
       ...(conversationWithoutRuntimeState as unknown as JourneyConversation),
@@ -164,6 +174,7 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
       ...(authoritativeContextStats ? { authoritativeContextStats } : {}),
       ...(certifiedMirrorMode ? { certifiedMirrorMode } : {}),
       ...(terminalAgentActionEvidence ? { terminalAgentActionEvidence } : {}),
+      ...(steeringEvidence ? { steeringEvidence } : {}),
     },
   };
 }
@@ -226,6 +237,46 @@ function parseTerminalAgentActionProjection(value: unknown): TerminalAgentAction
   if (!operationsValid || !summariesValid || !orderValid
     || (value.terminalMessage !== undefined && typeof value.terminalMessage !== "string")) return undefined;
   return value as unknown as TerminalAgentActionProjection;
+}
+
+function parseSteeringEvidence(
+  value: unknown,
+  authority: {
+    journeyId: string;
+    generation: number;
+    messages: Array<{ id: string; role: "user" | "assistant" }>;
+    turns: ConversationReconciliationState["turns"];
+  },
+): SteeringEvidence[] | undefined {
+  if (!Array.isArray(value) || value.length > 256) return undefined;
+  const statuses = new Set(["pending", "accepted", "applied", "rejected", "terminally_unconsumed"]);
+  const reasons = new Set(["cancelled", "provider_failed", "process_died", "settled_without_application", "restart_without_process"]);
+  const parsed = value.filter((candidate): candidate is SteeringEvidence => {
+    if (!isRecord(candidate) || candidate.schemaVersion !== "0.1.0"
+      || typeof candidate.requestId !== "string" || candidate.requestId.length > 256
+      || typeof candidate.sequence !== "number" || !Number.isInteger(candidate.sequence) || candidate.sequence < 1 || candidate.sequence > 8
+      || candidate.journeyId !== authority.journeyId || candidate.generation !== authority.generation
+      || typeof candidate.runId !== "string" || typeof candidate.turnId !== "string"
+      || typeof candidate.assistantMessageId !== "string" || typeof candidate.text !== "string"
+      || candidate.text.length < 1 || candidate.text.length > 16_384
+      || !statuses.has(String(candidate.status))
+      || typeof candidate.createdAt !== "string" || typeof candidate.updatedAt !== "string"
+      || (candidate.piUserEntryId !== undefined && typeof candidate.piUserEntryId !== "string")
+      || (candidate.terminalReason !== undefined && !reasons.has(String(candidate.terminalReason)))) return false;
+    const turn = authority.turns.find((item) => item.turnId === candidate.turnId && item.runId === candidate.runId);
+    return turn?.harness.assistantMessageId === candidate.assistantMessageId
+      && authority.messages.some((message) => message.role === "assistant" && message.id === candidate.assistantMessageId);
+  });
+  const identities = new Set<string>();
+  const sequences = new Set<string>();
+  const unique = parsed.filter((item) => {
+    const sequence = `${item.runId}:${item.sequence}`;
+    if (identities.has(item.requestId) || sequences.has(sequence)) return false;
+    identities.add(item.requestId);
+    sequences.add(sequence);
+    return true;
+  });
+  return unique.length ? unique.sort((left, right) => left.sequence - right.sequence) : undefined;
 }
 
 function parseCertifiedMirrorModeState(value: unknown): CertifiedMirrorModeState | undefined {

@@ -2,7 +2,7 @@
 
 # CV-008.DS-001-TS-3 - Preserve Steering Order and Terminal Truth
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

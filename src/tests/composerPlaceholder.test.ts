@@ -39,7 +39,8 @@ describe("composer placeholder", () => {
   });
 
   it("is wired from existing evidence without changing composer authority", () => {
-    expect(appSource).toContain("placeholder={composerPlaceholder({");
+    expect(appSource).toContain(": composerPlaceholder({");
+    expect(appSource).toContain('placeholder={selectedCanSteer');
     expect(appSource).toContain("requiresConversationRestore:");
     expect(appSource).toContain("isRecordingTurn:");
     expect(appSource).toContain("isAgentResponding:");

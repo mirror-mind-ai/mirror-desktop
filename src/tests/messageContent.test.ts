@@ -9,7 +9,7 @@ import {
   parseMessageBlocks,
 } from "../app/MessageContent";
 
-const appSource = readFileSync(new URL("../app/App.tsx", import.meta.url), "utf8");
+const transcriptSource = readFileSync(new URL("../app/ConversationTranscript.tsx", import.meta.url), "utf8");
 const messageContentSource = readFileSync(new URL("../app/MessageContent.tsx", import.meta.url), "utf8");
 const importedActivitySource = readFileSync(new URL("../app/ImportedActivity.tsx", import.meta.url), "utf8");
 const liveRuntimeActivitySource = readFileSync(new URL("../app/LiveRuntimeActivity.tsx", import.meta.url), "utf8");
@@ -108,8 +108,8 @@ describe("MessageContent rich rendering parser", () => {
     expect(html).toContain(content);
     expect(cssSource).toContain(".message-content.preserve-line-breaks p");
     expect(cssSource).toContain("white-space: pre-wrap");
-    expect(appSource).toContain('if (message.role === "assistant")');
-    expect(appSource).toContain("preserveParagraphLineBreaks\n");
+    expect(transcriptSource).toContain('if (message.role === "assistant")');
+    expect(transcriptSource).toContain("preserveParagraphLineBreaks\n");
   });
 
   it("parses canonical Markdown tables with declared column alignment", () => {

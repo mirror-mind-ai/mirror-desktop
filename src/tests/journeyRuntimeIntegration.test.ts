@@ -40,6 +40,9 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("piInvocationBootstrapComplete");
     expect(appSource).toContain("selectedNativeLease?.terminalState");
     expect(appSource).not.toContain("[selectedJourney, registryLoaded, preferencesLoaded, runtimeBusy]");
+    expect(appSource).toContain("const repairableSteering = restoredConversation.steeringEvidence?.some");
+    expect(appSource).toContain("repairedConversation = reconcileSteeringUserEntries");
+    expect(appSource).toContain("await saveDedicatedJourneyConversation(restoredConversation)");
   });
 
   it("shows owner-only sidebar, cancellation, and finalization errors", () => {
@@ -111,7 +114,12 @@ describe("Journey runtime integration guardrails", () => {
     expect(generation).toContain("requireExactTurnJournalRecord(journal, settlementAuthority)");
     expect(generation).toContain("decideTurnJournalTerminal(journalRecord)");
     expect(generation).not.toContain("resolveCommittedLeaseBeforeInvocation");
-    expect(generation).not.toContain("loadDedicatedPiTranscript(");
+    expect(generation).toContain("loadDedicatedPiUserEntries(");
+    expect(generation).toContain("reconcileSteeringUserEntries(");
+    expect(generation).toContain("settleUnconsumedSteering(");
+    expect(generation.indexOf("loadDedicatedPiUserEntries(")).toBeGreaterThan(
+      generation.indexOf("for await (const event of provider(packet))"),
+    );
     expect(generation.indexOf("attachTerminalAgentActionEvidence(")).toBeLessThan(
       generation.indexOf("const projectionAtFrontier = settled"),
     );

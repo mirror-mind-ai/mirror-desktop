@@ -14,7 +14,7 @@ function conversation() {
 describe("generation-scoped dedicated conversation persistence", () => {
   it("round-trips only the current dedicated shape", () => {
     const persisted = createPersistedJourneyConversation(conversation(), new Date("2026-08-26T11:00:00Z"));
-    expect(persisted.schemaVersion).toBe("0.8.0");
+    expect(persisted.schemaVersion).toBe("0.9.0");
     expect(parsePersistedJourneyConversation(persisted)).toEqual(persisted);
   });
 

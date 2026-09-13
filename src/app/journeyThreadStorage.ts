@@ -46,6 +46,20 @@ export async function loadDedicatedPiTranscript(
   return invoke<DedicatedPiTranscriptTurn[]>("load_dedicated_pi_transcript", { journeyId, sessionId, sessionFile });
 }
 
+export type DedicatedPiUserEntry = {
+  userEntryId: string;
+  userText: string;
+  recordedAt: string;
+};
+
+export async function loadDedicatedPiUserEntries(
+  journeyId: string,
+  sessionId: string,
+  sessionFile: string,
+): Promise<DedicatedPiUserEntry[]> {
+  return invoke<DedicatedPiUserEntry[]>("load_dedicated_pi_user_entries", { journeyId, sessionId, sessionFile });
+}
+
 type JourneyProvisioningEvent = { journeyId: string; phase: string };
 
 export async function provisionNautilusJourneyThread(

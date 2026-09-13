@@ -6656,3 +6656,59 @@ dd {
   color: var(--light-muted);
   opacity: 0.72;
 }
+
+.steering-messages {
+  display: grid;
+  gap: 7px;
+  margin: -2px 18px 4px auto;
+  width: min(72%, 720px);
+}
+
+.steering-message {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-radius: 0 9px 9px 0;
+  padding: 8px 10px 8px 13px;
+}
+
+.steering-message header {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.steering-message header strong,
+.steering-message header span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+}
+
+.steering-message header strong span {
+  color: var(--accent);
+  display: inline-block;
+  margin-right: 3px;
+}
+
+.steering-message p {
+  color: var(--text);
+  font-size: 0.92rem;
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+}
+
+.steering-message.is-applied {
+  border-left-color: color-mix(in srgb, var(--accent) 68%, var(--border));
+}
+
+.steering-message.is-rejected,
+.steering-message.is-terminally_unconsumed {
+  border-left-color: color-mix(in srgb, var(--danger, #b84d55) 68%, var(--border));
+}
+
+@media (max-width: 760px) {
+  .steering-messages {
+    width: 100%;
+  }
+}

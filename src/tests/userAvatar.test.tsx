@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { MessageSpeakerAvatar, UserAvatarSettings } from "../app/UserAvatar";
 import { validateUserAvatarDataUrl } from "../app/userAvatarStorage";
 import appSource from "../app/App.tsx?raw";
+import transcriptSource from "../app/ConversationTranscript.tsx?raw";
 
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 const avatar = "data:image/png;base64,aGVsbG8=";
@@ -38,7 +39,7 @@ describe("channel-local user avatar", () => {
     expect(user).toContain(avatar);
     expect(agent).not.toContain("<img");
     expect(agent).toContain(">N</span>");
-    expect(appSource).toContain("<MessageSpeakerAvatar");
+    expect(transcriptSource).toContain("<MessageSpeakerAvatar");
     expect(appSource).toContain("<UserAvatarSettings");
     expect(cssSource).toContain("/* Channel-local user avatar contract. */");
     expect(cssSource).toContain("object-fit: cover");

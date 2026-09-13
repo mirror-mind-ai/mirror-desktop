@@ -7,6 +7,7 @@ import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "../app/ComposerRun
 import type { RuntimeProjectionState } from "../app/runtimeActivityModel";
 import appSource from "../app/App.tsx?raw";
 import agentTurnSource from "../app/AgentTurn.tsx?raw";
+import transcriptSource from "../app/ConversationTranscript.tsx?raw";
 
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
@@ -134,7 +135,7 @@ describe("runtime projection component", () => {
       appSource.indexOf("appendAndAcknowledge:", appSource.indexOf("onLeaseReleased: () => {")),
     );
     expect(leaseReleaseCallback).not.toContain('type: "finalization_finished"');
-    expect(appSource).toContain("requiresConversationRestore: isJourneyReloading\n                  || showConversationSyncNotice");
+    expect(appSource).toMatch(/requiresConversationRestore: isJourneyReloading\s*\|\| showConversationSyncNotice/);
     expect(appSource).toContain("status={composerTurnStatus}");
     expect(appSource).toContain("if (journeyId === selectedJourney)");
     expect(appSource).toContain("const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime)");
@@ -360,7 +361,7 @@ describe("runtime projection component", () => {
   });
 
   it("delegates assistant rendering to semantic regions after runtime activity", () => {
-    expect(appSource).toContain("<AgentTurn");
+    expect(transcriptSource).toContain("<AgentTurn");
     expect(agentTurnSource.indexOf('aria-label="Agent Actions"')).toBeLessThan(
       agentTurnSource.indexOf('aria-label="Agent Comments"'),
     );

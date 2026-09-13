@@ -257,6 +257,25 @@ accessible notices above the textbox. Placeholder selection never changes textar
 editability, send admission, attachment handling, draft retention, persistence, or
 runtime transitions.
 
+## Long-conversation render boundary
+
+The Composer remains top-level controlled state, but the complete transcript is a
+separate memoized presentation boundary. Draft-only updates retain stable transcript
+inputs and a stable Journey-local path callback, so typing cannot repeat historical
+surface extraction, semantic turn projection, Markdown parsing or action grouping.
+Runtime changes may re-enter the transcript, but memoized message rows retain exact
+message, activity, evidence, Steering and proximity inputs so only changed rows
+reproject. Conversation-revision indexes map user messages to turns and assistant
+messages to exact terminal and Steering evidence without per-message linear scans;
+indexing changes lookup cost, never authority validation.
+
+Historical turns render Agent Comments and truthful action/surface counts immediately.
+Their collapsed action and system-surface bodies are not mounted until the native
+`details` disclosure opens and are released when it closes. Full operation output and
+all durable evidence remain unchanged in the generation projection. This is a bounded
+render correction, not transcript truncation, persistence segmentation, pagination,
+virtualization, context compaction or a new execution authority.
+
 ## Temporary Journey surface availability
 
 One explicit presentation policy controls which already-implemented Journey

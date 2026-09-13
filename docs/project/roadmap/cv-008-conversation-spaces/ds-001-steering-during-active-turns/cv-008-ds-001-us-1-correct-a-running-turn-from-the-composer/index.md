@@ -2,7 +2,7 @@
 
 # CV-008.DS-001-US-1 - Correct a Running Turn from the Composer
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story

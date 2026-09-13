@@ -114,6 +114,7 @@ export type PiProcessMappingState = {
 
 type PiProcessMappingOptions = {
   projectReasoningSummaries?: boolean;
+  rpcMode?: boolean;
   mappingState?: PiProcessMappingState;
   contextWindow?: number;
   expectedAuthority?: RunAuthority;
@@ -271,7 +272,9 @@ function mapPiJsonEventToStreamEvents(event: PiJsonEvent, options: PiProcessMapp
     case "compaction_end":
       return mapCompactionEnd(event, options.mappingState);
     case "agent_end":
-      return [{ type: "run_status", status: "completed" }];
+      return options.rpcMode ? [] : [{ type: "run_status", status: "completed" }];
+    case "agent_settled":
+      return options.rpcMode ? [{ type: "run_status", status: "completed" }] : [];
     case "mirror_context":
       return mapMirrorContextEvent(event, options.mappingState);
     case "mirror_commit":
@@ -539,6 +542,29 @@ function extractToolOutput(result: PiJsonEvent["result"]): string | undefined {
   return text === undefined ? undefined : stripAnsiControlSequences(text);
 }
 
+export type SteeringAdmission = {
+  requestId: string;
+  sequence: number;
+  status: "pending" | "accepted";
+};
+
+export async function steerLivePiInvocation(input: {
+  requestId: string;
+  sequence: number;
+  text: string;
+  runAuthority: RunAuthority;
+}): Promise<SteeringAdmission> {
+  return invoke<SteeringAdmission>("steer_pi_invocation", {
+    request: {
+      schemaVersion: "0.1.0",
+      requestId: input.requestId,
+      sequence: input.sequence,
+      text: input.text,
+      runAuthority: input.runAuthority,
+    },
+  });
+}
+
 export async function cancelLivePiInvocation(journeyId: string, runId: string): Promise<void> {
   await invoke("cancel_pi_invocation", { journeyId, runId });
 }
@@ -606,6 +632,7 @@ export async function* livePiAgentStream(
     route = await dependencies.dispatcher.register(runAuthority, (event) => {
       for (const streamEvent of mapPiProcessEventToStreamEvents(event, {
         projectReasoningSummaries: supportsDisplayableReasoningSummaries(providerConfig),
+        rpcMode: providerConfig.invocationMode === "mirror" && !providerConfig.safeTestMode,
         mappingState,
         contextWindow: configuredModelContextWindow(providerConfig),
         expectedAuthority: runAuthority,
