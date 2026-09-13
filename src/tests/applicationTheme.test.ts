@@ -152,6 +152,27 @@ describe("application themes", () => {
     expect(cssSource).toContain("color: var(--light-accent);");
   });
 
+  it("keeps Journey search, sidebar collapse, and pending-file interactions legible in light themes", () => {
+    for (const theme of lightApplicationThemes) {
+      const searchSummarySurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.08);
+      const pendingFileSurface = mixHex(theme.tokens.raisedSurface, theme.tokens.surface, 0.72);
+      expect(contrast(theme.tokens.primaryText, theme.tokens.surface), `${theme.id} active search`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.primaryText, searchSummarySurface), `${theme.id} search summary`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.accentText, searchSummarySurface), `${theme.id} search clear`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.accentText, theme.tokens.raisedSurface), `${theme.id} collapse control`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.primaryText, pendingFileSurface), `${theme.id} attachment title`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.mutedText, pendingFileSurface), `${theme.id} attachment metadata`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.accentText, pendingFileSurface), `${theme.id} attachment action`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(cssSource).toContain("/* Light search and pending-file interaction contrast contract. */");
+    expect(cssSource).toContain(") .journey-search-control.is-active .sidebar-search {");
+    expect(cssSource).toContain(") .journey-search-summary button {");
+    expect(cssSource).toContain(") .sidebar-toggle-button {");
+    expect(cssSource).toContain(") .pending-files {");
+    expect(cssSource).toContain(") :is(.pending-files > header button, .remove-file-button) {");
+    expect(cssSource).toContain(") .file-path-button {");
+  });
+
   it("keeps the completed composer status legible in light themes", () => {
     expect(cssSource).toContain("/* Light composer status contrast contract. */");
     expect(cssSource).toContain(".composer-runtime-status.is-finishing");
