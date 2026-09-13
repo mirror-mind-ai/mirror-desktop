@@ -22,4 +22,4 @@ A user does not need to restart Mirror Desktop to clear a stale file, attachment
 
 - [CR027 — Auto-dismiss transient composer notices](cr027-auto-dismiss-transient-composer-notices.md)
 
-CR027 is `planned` and selected for refinement. RS014 is active. Driver and Delivery remain unset pending explicit Navigator authority.
+CR027 is `done`. The Navigator accepted the isolated Dev reproduction and authorized terminal closure, so RS014 is closed and Refinement Current Focus is cleared.
