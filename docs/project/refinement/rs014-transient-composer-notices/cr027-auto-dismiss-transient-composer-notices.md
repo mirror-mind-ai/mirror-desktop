@@ -2,7 +2,7 @@
 
 # CR027 — Auto-dismiss transient composer notices
 
-**Status:** planned
+**Status:** in_progress
 
 ## Problem
 
@@ -69,7 +69,9 @@ Pass when the screenshot notice disappears after eight seconds without restart a
 
 ## Driver And Delivery Decision
 
-Planning does not assign implementation authority. Driver and Delivery remain unset until the Navigator explicitly authorizes them and moves CR027 to `in_progress`.
+- Driver: `@alissonvale`
+- Delivery: `refinement/rs014-cr027-transient-composer-notices`
+- Navigator confirmed both coordinates and authorized implementation on 2026-09-13.
 
 ## Boundaries
 
