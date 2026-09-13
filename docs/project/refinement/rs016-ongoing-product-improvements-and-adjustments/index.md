@@ -30,4 +30,4 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
 
-CR029 is `captured` and selected for refinement. Its diagnosis identifies repeated full-history rendering and eager historical action materialization as the primary scaling boundary; planning, assignment and implementation remain pending.
+CR029 is `planned` and selected for refinement. Its bounded plan isolates transcript rendering, indexes immutable presentation and lazily materializes historical action detail; Driver, Delivery and implementation authorization remain pending.

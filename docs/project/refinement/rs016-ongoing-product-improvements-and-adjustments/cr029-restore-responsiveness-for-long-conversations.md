@@ -2,18 +2,20 @@
 
 # CR029 — Restore responsiveness for long conversations
 
+**Status:** planned
+
 ## Problem
 
 As the conversation associated with the `mirror-desktop` Journey has grown, typing in the composer has become noticeably slow. Switching away from that Journey and returning to its long conversation has also become slow.
 
-The observed symptoms indicate that conversation length may be causing excessive work during input updates, conversation rendering, restoration or navigation. The exact cause is not yet established. Other side effects of long conversations have not yet been characterized.
+Diagnosis confirmed that conversation length causes excessive frontend work during draft updates and Journey restoration. The complete transcript is eagerly reprojected when top-level composer state changes, and visually collapsed historical action bodies are still constructed and mounted. Full-generation persistence transfer and validation add restoration cost but are not the primary bottleneck.
 
 ## Expected Behavior
 
 - Composer typing remains responsive even when the selected Journey has a long conversation history.
 - Switching back to a Journey with a long conversation completes within a usable and predictable interval.
-- Investigation identifies which rendering, projection, persistence, reconciliation or derived-state paths scale with conversation size.
-- Other user-visible or operational effects of long conversations are characterized before choosing an implementation adjustment.
+- Rendering, projection, persistence, reconciliation and derived-state work scale only where the corresponding conversation data changes.
+- Long-conversation rendering remains bounded without hiding or deleting durable history.
 - Any optimization preserves complete conversation history, semantic turn composition, Steering evidence, exact Journey authority and restart behavior.
 
 ## Impact
@@ -33,14 +35,73 @@ Secondary scaling costs exist in per-message linear searches for owning reconcil
 
 The current evidence rules out conversation projection persistence, auto-follow scrolling and Steering recovery as the primary keystroke cause: the conversation object and `messages` dependency do not change while typing, and the affected production generation has no Steering evidence. These paths still require regression coverage because navigation and future active turns exercise them.
 
-Implementation planning remains pending. Candidate adjustment boundaries, in recommended order, are:
+## Implementation Plan
 
-- isolate composer-local updates from the historical conversation render boundary;
-- precompute indexed turn/evidence lookup and memoize immutable per-message semantic presentation;
-- avoid constructing collapsed historical action bodies until disclosed, and evaluate bounded conversation windowing only if isolation and laziness do not meet an agreed responsiveness budget;
-- debounce or coalesce durable draft writes without weakening draft recovery.
+The immediate correction is intentionally narrower than the app-wide continuity and storage architecture now recorded in [CV-008.DS-004](../../roadmap/cv-008-conversation-spaces/ds-004-multiple-conversations-per-journey/index.md). Execute it test-first in four slices:
 
-Any selected plan must use representative long-conversation fixtures and define input-to-paint and Journey-return thresholds before the CR moves to `planned`. It must not truncate persisted history, discard terminal or Steering evidence, weaken exact Journey authority, or alter restart semantics.
+1. **Establish representative performance contracts.** Add a deterministic synthetic fixture with at least 1,000 alternating messages, a 10 MB generation projection, semantic surfaces, terminal-action evidence and Steering evidence. Add render/projection counters that prove which immutable regions execute; use browser timings only for explicit performance validation, not as flaky pass/fail unit assertions.
+2. **Isolate transcript rendering from draft updates.** Extract the inline conversation map from `App` into a memoized transcript boundary with stable inputs and callbacks. Split immutable historical rows from the active assistant turn so composer changes perform no historical message projection, while runtime updates continue to refresh the exact active turn.
+3. **Index and memoize immutable presentation.** Build conversation-revision-scoped maps for linked activity, user-message-to-turn ownership, exact terminal evidence and Steering evidence. Memoize per-message semantic presentation and remove repeated linear searches and duplicate action-group projection without weakening evidence validation.
+4. **Materialize historical detail on demand.** Historical comments and truthful action/surface counts remain visible, but collapsed action bodies and operation outputs are absent from the mounted tree until disclosure. Opening a disclosure renders the complete exact detail; closing it may release that heavy subtree while durable evidence remains unchanged.
+
+After each slice, rerun the long-conversation fixture. If the agreed targets are still missed, stop and return evidence for a plan amendment. Bounded transcript windowing, segmented persistence and historical retrieval belong to CV-008.DS-004 or a separately governed follow-up; they are not silently introduced by CR029. Draft persistence remains unchanged in this CR unless post-isolation profiling proves it independently blocks the input target.
+
+## Expected Files
+
+- `src/app/App.tsx`
+- `src/app/AgentTurn.tsx`
+- `src/app/LiveRuntimeActivity.tsx`
+- `src/app/terminalAgentActionEvidence.ts`
+- `src/app/ConversationTranscript.tsx` or an equivalently bounded new transcript component
+- `src/app/conversationTranscriptModel.ts` or an equivalently bounded pure projection/index module
+- `src/tests/conversationTranscript.test.tsx` or equivalent focused coverage
+- `src/tests/agentTurn.test.tsx`
+- `src/tests/terminalAgentActionEvidence.test.ts`
+- A synthetic long-conversation fixture/helper under `src/tests/` that contains no production conversation content
+- This CR and the file-first Refinement Workbench status/evidence
+
+Existing files outside this list may change only when a failing focused regression proves they participate in the diagnosed path; record that reason before widening scope.
+
+## Acceptance
+
+### Deterministic behavior
+
+- Updating composer text does not execute the historical transcript component, semantic projection, Markdown parsing, surface extraction or action grouping.
+- A runtime projection update refreshes the exact active assistant turn without reprojection of unchanged historical rows.
+- Turn, activity, terminal-evidence and Steering lookup is indexed for the rendered conversation rather than searched once per message.
+- A collapsed historical turn contains its comment and truthful detail counts but no operation argument/output subtree; opening it renders the complete authoritative actions and surfaces.
+- Duplicate text, empty actions, persona signatures, Ariad surfaces, attachment provenance and Steering addenda retain their current semantic placement and content.
+- Journey switching, auto-follow, local-reference navigation, message copy, restart recovery and active-turn settlement retain existing behavior.
+- Persisted conversation schema and bytes, Pi JSONL, Mirror conversation records, Journey/thread/generation identity and exact run authority are unchanged.
+
+### Measured responsiveness
+
+Use an isolated `Mirror Desktop Dev` build (`ai.mirrormind.desktop.dev`) on recorded hardware, warm the target conversation once, then record at least 20 samples:
+
+- composer input-to-paint p95 is at most 50 ms for both the diagnosed production-scale shape and the synthetic 1,000-message/10 MB fixture;
+- return from another Journey to an already existing long conversation makes the recent transcript and enabled composer usable at p95 no greater than 750 ms;
+- opening a historical detail disclosure begins presenting its content at p95 no greater than 100 ms;
+- no sample produces a long-task regression attributable to processing unchanged historical rows during typing.
+
+The deterministic no-rerender assertions are the primary CI contract. Timing acceptance is Navigator validation evidence tied to the recorded development build and machine, not a universal hardware guarantee.
+
+## Validation Route
+
+1. Write focused failing tests for draft-only render isolation, active-turn updates, indexed evidence/Steering selection and lazy historical disclosure before changing behavior.
+2. Run the focused transcript, AgentTurn, terminal evidence, Steering, conversation presentation, auto-follow and restart suites.
+3. Run the complete frontend suite, `npm run build`, `npm run roadmap:check` and `git diff --check`.
+4. Build and launch only isolated `Mirror Desktop Dev`; never use or mutate the production conversation as a test fixture.
+5. Validate typing, Journey-away-and-return, historical disclosure, active streaming, Steering presentation, local links and restart against both the synthetic fixture and the existing development channel state.
+6. Record raw sample counts, p50/p95, build revision, fixture dimensions and machine description in this CR before requesting Navigator acceptance.
+
+## Boundaries
+
+- No persisted-history truncation, evidence deletion, automatic conversation split or silent generation restart.
+- No reimplementation of Pi context calculation or automatic compaction; Pi remains the sole active-context authority.
+- No persistence schema migration, segmented storage, transcript search system, pagination contract or general virtualization framework in CR029.
+- No weakening of Journey, thread, conversation, generation, session, run, turn or message authority checks for performance.
+- No use of production conversation contents in committed fixtures, screenshots or logs.
+- No Driver, Delivery, implementation, push, merge, publication or release is selected by planning this CR.
 
 ## Evidence
 
@@ -81,4 +142,4 @@ Code evidence:
 
 ## Outcome
 
-Diagnosis complete. CR029 remains `captured` and focused, with no Driver or Delivery selected and no implementation authorized. Planning must convert the diagnosed boundaries into measurable acceptance thresholds, tests, affected files and explicit exclusions.
+Diagnosis and implementation planning are complete. CR029 is `planned` and focused, with explicit scope, tests, thresholds, validation and exclusions. Driver and Delivery remain unselected, so implementation is not authorized.
