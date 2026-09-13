@@ -2,11 +2,11 @@
 
 ## Status
 
-pending_navigator_validation
+passed
 
 ## Summary
 
-Implementation complete at 585d7e2 with documentation receipt 41039c4. Full frontend 709/709 and Rust 115/115 suites, production frontend build, cargo check, roadmap consistency and diff checks passed. Pi 0.85.1 real RPC probe accepted two correlated one-at-a-time Steering commands, persisted both user entries FIFO, continued within one process and ended at agent_settled. Isolated Mirror Desktop Dev ai.mirrormind.desktop.dev launched successfully; manual one- and two-correction composer acceptance remains pending because shell UI automation lacks macOS Accessibility permission.
+Navigator completed the isolated Mirror Desktop Dev active-turn scenario and confirmed Steering worked. The correction remained part of the same running turn and completed successfully. Navigator noted that the Steering message position feels slightly unusual, while recognizing its current logical placement; this is UX feedback, not a validation failure.
 
 ## Child Work Packages
 
@@ -17,4 +17,4 @@ Implementation complete at 585d7e2 with documentation receipt 41039c4. Full fron
 
 ## Boundary
 
-Do not proceed to DS-level Debt Review until Navigator validation is accepted.
+No push or release action is authorized by this checkpoint.
