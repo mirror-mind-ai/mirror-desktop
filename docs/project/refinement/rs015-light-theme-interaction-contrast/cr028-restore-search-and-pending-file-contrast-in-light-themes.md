@@ -49,6 +49,16 @@ Daylight, Mist and Parchment use their semantic primary, muted and accent foregr
 - Focus-visible treatment remains distinguishable without color alone.
 - Dark theme rendering and all interaction behavior remain unchanged.
 
+## Implementation Evidence
+
+- `src/styles/app.css` now ends with one explicit light search and pending-file interaction contrast contract, giving it deterministic precedence over dark-palette base selectors and the broad light button rule.
+- Active search text uses `--light-text`; the tinted result summary uses primary text and `--light-accent` actions; the collapse control uses accent foreground on the raised surface.
+- Pending-file panels use a bounded raised/surface mix with primary title text, muted path/size text and accent actions. Hover and keyboard focus retain explicit structural outlines.
+- No component markup, interaction handler or dark-theme selector changed.
+- Automated contrast calculations cover all three light themes and seven screenshot-relevant foreground/surface pairs at a 4.5:1 minimum.
+- The focused theme, Journey search and attachment suites pass with 24 tests. The complete frontend suite passes with 701 tests across 128 files; `npm run build` and `npm run roadmap:check` pass. The existing Vite chunk-size advisory is unchanged.
+- Isolated `Mirror Desktop Dev`, bundle ID `ai.mirrormind.desktop.dev`, is running with the updated stylesheet for Navigator validation.
+
 ## Validation Route
 
 Reproduce both supplied screenshots in isolated `Mirror Desktop Dev`. Validate search active and result-summary states plus one attached-file panel in Daylight, Mist and Parchment. Automated tests must prove semantic token contrast, required selectors and preservation of existing theme contracts.
