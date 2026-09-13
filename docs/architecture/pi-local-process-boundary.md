@@ -25,13 +25,24 @@ For a Mirror-mediated turn Tauri:
 
 1. validates the selected Journey's ready active generation;
 2. validates correlation schema `0.2.0` and exact native coordinates;
-3. runs Pi from the Mirror runtime root;
+3. runs Pi from the Mirror runtime root in RPC mode;
 4. passes the exact dedicated `--session-id` and recorded session file;
-5. streams structured JSON events as inert desktop projections;
-6. accepts only a complete native Pi user/assistant pair;
-7. settles deterministic desktop and Mirror commits without another provider call.
+5. sends the initial prompt as correlated LF-delimited JSONL and keeps stdin writable until `agent_settled`;
+6. streams structured RPC events as inert desktop projections;
+7. accepts only complete native Pi user/assistant evidence;
+8. settles deterministic desktop and Mirror commits without another provider call.
 
 The first real user message is the first provider request. Provisioning and restart create no synthetic conversational entry. Model-free Mirror conversation provisioning runs from a validated Python resource packaged inside the application bundle; it never resolves support code through the checkout path embedded by the build host. Missing, linked or non-file resources fail with bounded diagnostics that omit subprocess stderr and private paths.
+
+## Active-turn Steering
+
+A running Mirror-mediated turn owns one Pi RPC process and one writable stdin channel. The desktop sets Pi Steering to `one-at-a-time` and may write bounded text-only `steer` commands to that same process. Steering never starts a sibling process, consumes another invocation slot, cancels the turn or replays its prompt.
+
+Admission validates the complete persisted `RunAuthority` against the active generation and the registered child: Journey, thread, Mirror conversation, generation, Pi session, run, turn and Harness message IDs must all agree. The registry lock is released before taking the child lock or writing stdin, so one Steering request cannot hold global process ownership while waiting for its correlated RPC response. Stale, replaced, settled, cross-Journey and non-RPC targets fail before bytes are written.
+
+A correlated successful RPC response proves only `accepted`. Pi user-message/session-entry evidence proves `applied`. Requests are persisted with stable request identity and sequence in `pending`, `accepted`, `applied`, `rejected` or `terminally_unconsumed` state. At terminal reconciliation, duplicate text is matched one entry at a time in FIFO order; queue disappearance and final prose are never treated as proof. Cancellation, failure, settlement or restart without matching application evidence terminalizes remaining requests honestly rather than resuming or inferring consumption.
+
+`agent_end` remains an intermediate RPC event because Pi may consume another queued correction afterward. `agent_settled` closes normal Steering admission; Tauri then closes stdin, waits for process exit and continues the existing durable turn settlement.
 
 ## Context and compaction
 
