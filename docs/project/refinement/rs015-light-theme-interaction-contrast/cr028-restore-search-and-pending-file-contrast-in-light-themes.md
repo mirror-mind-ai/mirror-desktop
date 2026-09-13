@@ -2,7 +2,7 @@
 
 # CR028 — Restore search and pending-file contrast in light themes
 
-**Status:** planned
+**Status:** done
 
 ## Problem
 
@@ -27,6 +27,12 @@ Daylight, Mist and Parchment use their semantic primary, muted and accent foregr
 5. Preserve component markup, accessible labels, Journey search behavior, attachment opening/removal and all dark-theme selectors.
 6. Run focused theme, Journey search and attachment tests, the complete frontend suite, `npm run build`, `npm run roadmap:check`, and Navigator validation in Daylight, Mist and Parchment using the supplied scenarios.
 
+## Driver And Delivery
+
+- Driver: `@alissonvale`
+- Delivery: `refinement/rs015-cr028-light-theme-interaction-contrast`
+- Navigator authorized planning and implementation on 2026-09-13.
+
 ## Expected Files
 
 - `src/styles/app.css`
@@ -43,6 +49,32 @@ Daylight, Mist and Parchment use their semantic primary, muted and accent foregr
 - Focus-visible treatment remains distinguishable without color alone.
 - Dark theme rendering and all interaction behavior remain unchanged.
 
+## Implementation Evidence
+
+- `src/styles/app.css` now ends with one explicit light search and pending-file interaction contrast contract, giving it deterministic precedence over dark-palette base selectors and the broad light button rule.
+- Active search text uses `--light-text`; the tinted result summary uses primary text and `--light-accent` actions; the collapse control uses accent foreground on the raised surface.
+- Pending-file panels use a bounded raised/surface mix with primary title text, muted path/size text and accent actions. Hover and keyboard focus retain explicit structural outlines.
+- No component markup, interaction handler or dark-theme selector changed.
+- Automated contrast calculations cover all three light themes and seven screenshot-relevant foreground/surface pairs at a 4.5:1 minimum.
+- The focused theme, Journey search and attachment suites pass with 24 tests. The complete frontend suite passes with 701 tests across 128 files; `npm run build` and `npm run roadmap:check` pass. The existing Vite chunk-size advisory is unchanged.
+- Isolated `Mirror Desktop Dev`, bundle ID `ai.mirrormind.desktop.dev`, is running with the updated stylesheet for Navigator validation.
+
+## Implementation Evidence
+
+- One explicit light interaction contract now overrides the higher-specificity dark-palette search and attachment selectors after the shared light-theme rules.
+- Active search text, result summary, Clear action, sidebar collapse control, pending attachment title/path/metadata and file actions use semantic light tokens.
+- Automated contrast calculations cover actual declared search, summary, raised and pending-file surfaces across Daylight, Mist and Parchment at a minimum 4.5:1 enabled-text ratio.
+- Focus-visible states use structural outlines in addition to color; dark-theme rules and component behavior are unchanged.
+- The complete frontend suite passes with 701 tests across 128 files. `npm run build` and `npm run roadmap:check` pass; the existing Vite chunk-size advisory is unchanged.
+
+## Navigator Validation
+
+Accepted on 2026-09-13 in isolated `Mirror Desktop Dev`. The Navigator reviewed the supplied Journey search and pending attachment scenarios after correction and accepted the light-theme contrast result.
+
+## Proportionality And Debt Review
+
+The correction is confined to semantic light-theme CSS overrides and one focused contrast test. It does not alter markup, behavior, theme inventory or dark palettes. No relevant new debt was identified.
+
 ## Validation Route
 
 Reproduce both supplied screenshots in isolated `Mirror Desktop Dev`. Validate search active and result-summary states plus one attached-file panel in Daylight, Mist and Parchment. Automated tests must prove semantic token contrast, required selectors and preservation of existing theme contracts.
@@ -51,6 +83,10 @@ Reproduce both supplied screenshots in isolated `Mirror Desktop Dev`. Validate s
 
 - No broad visual redesign, new theme, typography change or attachment/search behavior change.
 - No release, push, publication or protected data mutation.
+
+## Outcome
+
+Completed on 2026-09-13. Journey search, sidebar collapse and pending attachment interactions now use measurable semantic contrast across Daylight, Mist and Parchment. The Navigator accepted both corrected screenshot scenarios and authorized terminal closure.
 
 ## Provenance
 
