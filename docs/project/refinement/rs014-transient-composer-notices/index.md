@@ -22,4 +22,4 @@ A user does not need to restart Mirror Desktop to clear a stale file, attachment
 
 - [CR027 — Auto-dismiss transient composer notices](cr027-auto-dismiss-transient-composer-notices.md)
 
-CR027 is `in_progress` and selected for refinement. RS014 is active. The Navigator assigned `@alissonvale` on `refinement/rs014-cr027-transient-composer-notices`.
+CR027 is `validated`. The Navigator accepted the isolated Dev reproduction, and RS014 remains active pending explicit terminal closure.

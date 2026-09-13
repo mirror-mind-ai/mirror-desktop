@@ -2,7 +2,7 @@
 
 # CR027 — Auto-dismiss transient composer notices
 
-**Status:** in_progress
+**Status:** validated
 
 ## Problem
 
@@ -83,6 +83,14 @@ Pass when the screenshot notice disappears after eight seconds without restart a
 - Driver: `@alissonvale`
 - Delivery: `refinement/rs014-cr027-transient-composer-notices`
 - Navigator confirmed both coordinates and authorized implementation on 2026-09-13.
+
+## Navigator Validation
+
+Accepted on 2026-09-13 in isolated `Mirror Desktop Dev`. The Navigator produced the original outside-Journey reference failure through `../mirrormind-site/README.md`, observed `File could not be opened`, and confirmed that the notice disappeared automatically after the bounded interval without restarting the app.
+
+## Proportionality And Debt Review
+
+The change adds one small timer primitive and local presentation effects rather than a global toast framework. Semantic runtime warnings and persistent condition authority remain unchanged. Replacement, cancellation, repeated warning and cross-Journey behavior are bounded explicitly. No relevant new debt was identified; release packaging and publication remain separate decisions.
 
 ## Boundaries
 
