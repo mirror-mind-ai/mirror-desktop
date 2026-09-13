@@ -12,8 +12,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: — (awaiting explicit selection)
-- Change Request: — (awaiting explicit selection)
+- Refinement Story: RS015 — Light Theme Interaction Contrast
+- Change Request: CR028 — Restore search and pending-file contrast in light themes
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -36,6 +36,7 @@ executes work.
 | 12 | [RS012](rs012-post-release-conversation-action-corrections/index.md) | Post-release conversation action corrections | closed |
 | 13 | [RS013](rs013-roadmap-baseline-reconciliation/index.md) | Roadmap baseline reconciliation | closed |
 | 14 | [RS014](rs014-transient-composer-notices/index.md) | Transient Composer Notices | closed |
+| 15 | [RS015](rs015-light-theme-interaction-contrast/index.md) | Light Theme Interaction Contrast | active |
 
 ## Change Requests
 
@@ -43,6 +44,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
+| 1 | [CR028](rs015-light-theme-interaction-contrast/cr028-restore-search-and-pending-file-contrast-in-light-themes.md) | RS015 | Restore search and pending-file contrast in light themes | planned | — | — |
 | — | [CR027](rs014-transient-composer-notices/cr027-auto-dismiss-transient-composer-notices.md) | RS014 | Auto-dismiss transient composer notices | done | @alissonvale | `refinement/rs014-cr027-transient-composer-notices` |
 | — | [CR026](rs013-roadmap-baseline-reconciliation/cr026-reconcile-delivered-baseline-and-open-next-product-horizon.md) | RS013 | Reconcile delivered baseline and open the next product horizon | done | @alissonvale | `refinement/rs013-cr026-roadmap-baseline-reconciliation` |
 | — | [CR014](unassigned/cr014-make-mirror-mind-site-repository-private.md) | — | Make Mirror Mind site repository private | done | — | — |
