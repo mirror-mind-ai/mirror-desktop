@@ -10,7 +10,7 @@ export type SelfUpdateNotificationProps = {
   initialCurrentVersion?: string;
   initialUpdate?: SelfUpdateCheckResult & { status: "available" };
   initialOpen?: boolean;
-  onReview: () => void;
+  onReview: (update?: SelfUpdateCheckResult & { status: "available" }) => void;
 };
 
 type UpdateChipState =
@@ -134,12 +134,19 @@ export function SelfUpdateNotification({
               <strong>Mirror Desktop update is available.</strong>
               <p className="self-update-version-line">Version: {displayMirrorDesktopVersion(available.currentVersion)}</p>
               <p>Available: {displayMirrorDesktopVersion(available.version)}. This update replaces only the application. Your Journeys, conversations, memory, credentials, and local data remain intact.</p>
+              {available.releaseReading ? (
+                <div className="self-update-reading-summary">
+                  <strong>{available.releaseReading.title}</strong>
+                  <p>{available.releaseReading.digest}</p>
+                  <ul>{available.releaseReading.highlights.slice(0, 3).map((highlight) => <li key={highlight}>{highlight}</li>)}</ul>
+                </div>
+              ) : <p>What's New details are unavailable for this release.</p>}
               {runtimeBusy ? <p className="settings-error" role="alert">Finish the active runtime operation before updating.</p> : null}
               {state.status === "installing" ? <p className="provider-note" role="status">{state.progress?.message ?? "Installing…"} {state.progress?.totalBytes ? `${Math.round((state.progress.downloadedBytes / state.progress.totalBytes) * 100)}%` : ""}</p> : null}
               {state.status === "error" ? <p className="settings-error" role="alert">{state.message}</p> : null}
               <div className="self-update-popover-actions">
                 <button className="secondary-button" type="button" onClick={() => { setDismissedVersion(available.version); setOpen(false); }}>Later</button>
-                <button className="secondary-button" type="button" onClick={() => { onReview(); setOpen(false); }}>Details</button>
+                <button className="secondary-button" type="button" onClick={() => { onReview(available); setOpen(false); }}>Details</button>
                 <button type="button" onClick={() => void updateNow()} disabled={state.status === "installing" || runtimeBusy}>Update</button>
               </div>
             </>

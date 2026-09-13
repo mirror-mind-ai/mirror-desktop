@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { requireUpdateConsent, updateQuiescence } from "../domain/updateInstallation";
 import { checkForTrustedSelfUpdate, installTrustedSelfUpdate, type SelfUpdateCheckResult, type SelfUpdateProgress } from "./selfUpdateStorage";
+import { MessageContent } from "./MessageContent";
 
 export type SelfUpdatePanelProps = {
   runtimeBusy: boolean;
   checkUpdates?: () => Promise<SelfUpdateCheckResult>;
   installUpdate?: typeof installTrustedSelfUpdate;
+  reviewedUpdate?: SelfUpdateCheckResult & { status: "available" };
 };
 
 type UpdateState =
@@ -24,8 +26,13 @@ export function SelfUpdatePanel({
   runtimeBusy,
   checkUpdates = checkForTrustedSelfUpdate,
   installUpdate = installTrustedSelfUpdate,
+  reviewedUpdate,
 }: SelfUpdatePanelProps) {
-  const [state, setState] = useState<UpdateState>({ status: "idle" });
+  const [state, setState] = useState<UpdateState>(reviewedUpdate ? { status: "available", update: reviewedUpdate } : { status: "idle" });
+
+  useEffect(() => {
+    if (reviewedUpdate) setState({ status: "available", update: reviewedUpdate });
+  }, [reviewedUpdate]);
   const busy = state.status === "checking" || state.status === "installing";
   const quiescence = updateQuiescence({
     activePiRuns: runtimeBusy ? 1 : 0,
@@ -93,7 +100,20 @@ export function SelfUpdatePanel({
       {runtimeBusy ? <p className="settings-error" role="alert">Finish the active runtime operation before updating.</p> : null}
       {state.status === "checking" ? <p className="provider-note" role="status">Checking trusted update channel…</p> : null}
       {state.status === "current" ? <p className="provider-note" role="status">Mirror Desktop is up to date.</p> : null}
-      {state.status === "available" ? <div className="self-update-available" role="status"><strong>Version {state.update.version} is available.</strong>{state.update.notes ? <p>{state.update.notes}</p> : null}{state.update.date ? <p className="provider-note">Published {state.update.date}</p> : null}</div> : null}
+      {state.status === "available" ? (
+        <div className="self-update-available" role="status">
+          <strong>Version {state.update.version} is available.</strong>
+          {state.update.releaseReading ? (
+            <article className="self-update-release-reading" aria-label={`What's New in Mirror Desktop ${state.update.version}`}>
+              <h4>{state.update.releaseReading.title}</h4>
+              <p>{state.update.releaseReading.digest}</p>
+              <MessageContent content={state.update.releaseReading.body} />
+              <p className="provider-note">Canonical release notes: <code>{state.update.releaseReading.releaseNotesUrl}</code></p>
+            </article>
+          ) : <p className="provider-note">What's New details are unavailable for this release.</p>}
+          {state.update.date ? <p className="provider-note">Published {state.update.date}</p> : null}
+        </div>
+      ) : null}
       {state.status === "installing" ? <p className="provider-note" role="status">{state.progress?.message ?? "Installing update…"} {state.progress?.totalBytes ? `${Math.round((state.progress.downloadedBytes / state.progress.totalBytes) * 100)}%` : ""}</p> : null}
       {state.status === "error" ? <p className="settings-error" role="alert">{state.message}</p> : null}
     </section>

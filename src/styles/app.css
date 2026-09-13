@@ -6426,6 +6426,38 @@ dd {
   font-weight: 720;
 }
 
+.self-update-reading-summary {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--ui-accent) 18%, transparent);
+}
+
+.self-update-reading-summary ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--ui-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.self-update-release-reading {
+  width: 100%;
+  max-height: min(560px, 58vh);
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 18%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--shell-middle) 88%, transparent);
+}
+
+.self-update-release-reading h4 {
+  margin: 0 0 8px;
+}
+
+.self-update-release-reading code {
+  overflow-wrap: anywhere;
+}
+
 .self-update-popover-actions,
 .self-update-available {
   display: flex;

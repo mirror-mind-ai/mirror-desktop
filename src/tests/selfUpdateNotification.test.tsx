@@ -8,6 +8,17 @@ const update: SelfUpdateCheckResult & { status: "available" } = {
   version: "0.1.1",
   currentVersion: "0.1.0",
   update: {} as never,
+  releaseReading: {
+    schemaVersion: "1.0.0",
+    product: "Mirror Desktop",
+    version: "0.1.1",
+    title: "A clearer update",
+    digest: "Explains the release before installation.",
+    highlights: ["Shows exact release highlights.", "Keeps full notes in Settings."],
+    body: "# v0.1.1 - A clearer update",
+    bodySha256: "0".repeat(64),
+    releaseNotesUrl: "https://updates.mirrormind.sh/mirror-desktop/releases/v0.1.1.md",
+  },
 };
 
 const neverCheck = () => new Promise<SelfUpdateCheckResult>(() => undefined);
@@ -41,6 +52,8 @@ describe("SelfUpdateNotification", () => {
     expect(html).toContain(">update</span>");
     expect(html).toContain("Version: 0.1.0");
     expect(html).toContain("Available: 0.1.1.");
+    expect(html).toContain("A clearer update");
+    expect(html).toContain("Shows exact release highlights.");
     expect(html).not.toContain("Atualização disponível");
     expect(html).not.toContain("self-update-banner");
   });
