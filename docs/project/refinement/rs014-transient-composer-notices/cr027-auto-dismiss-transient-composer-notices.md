@@ -2,7 +2,7 @@
 
 # CR027 — Auto-dismiss transient composer notices
 
-**Status:** validated
+**Status:** done
 
 ## Problem
 
@@ -97,6 +97,10 @@ The change adds one small timer primitive and local presentation effects rather 
 - Visual dismissal does not cancel, retry, acknowledge or mutate an underlying operation.
 - No generic global toast system, notification history or settings preference is implied.
 - No release, push, publication or protected Mirror/Journey/app-data mutation is authorized.
+
+## Outcome
+
+Completed on 2026-09-13. Transient composer-end feedback now expires after eight seconds, replacement and Journey boundaries are safe, runtime warning evidence remains intact, and persistent actionable conditions remain visible. The Navigator reproduced and accepted the original file-open scenario in isolated Mirror Desktop Dev.
 
 ## Provenance
 
