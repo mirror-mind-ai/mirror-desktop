@@ -60,8 +60,12 @@ async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+export async function releaseReadingIsAuthentic(reading: ReleaseReading): Promise<boolean> {
+  return await sha256(reading.body) === reading.bodySha256;
+}
+
 export async function verifyReleaseReading(input: unknown, offeredVersion: string): Promise<ReleaseReading | undefined> {
   const reading = parseReleaseReading(input, offeredVersion);
   if (!reading) return undefined;
-  return await sha256(reading.body) === reading.bodySha256 ? reading : undefined;
+  return await releaseReadingIsAuthentic(reading) ? reading : undefined;
 }

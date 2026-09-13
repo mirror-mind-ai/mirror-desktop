@@ -42,6 +42,29 @@ describe("SelfUpdateNotification", () => {
     expect(html).not.toContain("• update");
   });
 
+  it("offers a non-blocking What's New reminder after exact-version relaunch", () => {
+    const html = renderToStaticMarkup(
+      <SelfUpdateNotification
+        runtimeBusy={false}
+        initialCurrentVersion="0.1.1"
+        installedReleaseReading={update.releaseReading}
+        installedReminder
+        initialOpen
+        checkUpdates={neverCheck}
+        getCurrentVersion={neverVersion}
+        installUpdate={neverInstall}
+        onReview={() => undefined}
+        onAcknowledge={() => undefined}
+      />,
+    );
+    expect(html).toContain("what&#x27;s new");
+    expect(html).toContain("What&#x27;s New in Mirror Desktop 0.1.1");
+    expect(html).toContain("Later");
+    expect(html).toContain("Details");
+    expect(html).toContain("Got it");
+    expect(html).not.toContain("Update</button>");
+  });
+
   it("composes the current version with the update badge", () => {
     const html = renderToStaticMarkup(
       <SelfUpdateNotification runtimeBusy={false} initialUpdate={update} initialOpen={true} checkUpdates={neverCheck} getCurrentVersion={neverVersion} installUpdate={neverInstall} onReview={() => undefined} />,

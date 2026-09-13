@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { requireUpdateConsent, updateQuiescence } from "../domain/updateInstallation";
+import type { ReleaseReading } from "../domain/releaseReading";
 import { checkForTrustedSelfUpdate, installTrustedSelfUpdate, type SelfUpdateCheckResult, type SelfUpdateProgress } from "./selfUpdateStorage";
 import { MessageContent } from "./MessageContent";
 
@@ -8,6 +9,7 @@ export type SelfUpdatePanelProps = {
   checkUpdates?: () => Promise<SelfUpdateCheckResult>;
   installUpdate?: typeof installTrustedSelfUpdate;
   reviewedUpdate?: SelfUpdateCheckResult & { status: "available" };
+  installedReleaseReading?: ReleaseReading;
 };
 
 type UpdateState =
@@ -27,6 +29,7 @@ export function SelfUpdatePanel({
   checkUpdates = checkForTrustedSelfUpdate,
   installUpdate = installTrustedSelfUpdate,
   reviewedUpdate,
+  installedReleaseReading,
 }: SelfUpdatePanelProps) {
   const [state, setState] = useState<UpdateState>(reviewedUpdate ? { status: "available", update: reviewedUpdate } : { status: "idle" });
 
@@ -83,7 +86,7 @@ export function SelfUpdatePanel({
     const available = state.update;
     setState({ status: "installing", update: available, progress: { downloadedBytes: 0, message: "Preparing verified update…" } });
     try {
-      await installUpdate(available.update, (progress) => setState({ status: "installing", update: available, progress }));
+      await installUpdate(available.update, (progress) => setState({ status: "installing", update: available, progress }), available.releaseReading);
     } catch (error) {
       setState({ status: "error", message: errorMessage(error) });
     }
@@ -98,6 +101,15 @@ export function SelfUpdatePanel({
         {state.status === "available" ? <button type="button" onClick={() => void updateNow()} disabled={busy || quiescence.status !== "safe"}>Update</button> : null}
       </div>
       {runtimeBusy ? <p className="settings-error" role="alert">Finish the active runtime operation before updating.</p> : null}
+      {installedReleaseReading && state.status !== "available" && state.status !== "installing" ? (
+        <article className="self-update-release-reading" aria-label={`What's New in installed Mirror Desktop ${installedReleaseReading.version}`}>
+          <h4>What's New in installed version {installedReleaseReading.version}</h4>
+          <strong>{installedReleaseReading.title}</strong>
+          <p>{installedReleaseReading.digest}</p>
+          <MessageContent content={installedReleaseReading.body} />
+          <p className="provider-note">Canonical release notes: <code>{installedReleaseReading.releaseNotesUrl}</code></p>
+        </article>
+      ) : null}
       {state.status === "checking" ? <p className="provider-note" role="status">Checking trusted update channel…</p> : null}
       {state.status === "current" ? <p className="provider-note" role="status">Mirror Desktop is up to date.</p> : null}
       {state.status === "available" ? (

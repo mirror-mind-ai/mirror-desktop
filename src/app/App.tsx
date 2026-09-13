@@ -286,7 +286,9 @@ import {
 import { SettingsTabList, type SettingsTab } from "./SettingsTabList";
 import { SelfUpdatePanel } from "./SelfUpdatePanel";
 import { SelfUpdateNotification } from "./SelfUpdateNotification";
-import type { SelfUpdateCheckResult } from "./selfUpdateStorage";
+import { currentMirrorDesktopVersion, type SelfUpdateCheckResult } from "./selfUpdateStorage";
+import { loadResolvedWhatsNewState, saveWhatsNewState } from "./whatsNewStorage";
+import { acknowledgeWhatsNew, resolveWhatsNewState, type ResolvedWhatsNewState } from "../domain/whatsNewState";
 import { MessageSpeakerAvatar, UserAvatarSettings } from "./UserAvatar";
 import { importUserAvatar, loadUserAvatar, removeUserAvatar } from "./userAvatarStorage";
 
@@ -452,6 +454,24 @@ export function App({ model }: AppProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
   const [reviewedUpdate, setReviewedUpdate] = useState<SelfUpdateCheckResult & { status: "available" }>();
+  const [whatsNewState, setWhatsNewState] = useState<ResolvedWhatsNewState>();
+
+  useEffect(() => {
+    let cancelled = false;
+    void currentMirrorDesktopVersion()
+      .then((version) => loadResolvedWhatsNewState(version))
+      .then((state) => { if (!cancelled) setWhatsNewState(state); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  async function acknowledgeInstalledRelease() {
+    const installed = whatsNewState?.installed;
+    if (!installed) return;
+    const acknowledged = acknowledgeWhatsNew(whatsNewState, installed.version);
+    await saveWhatsNewState(acknowledged);
+    setWhatsNewState(resolveWhatsNewState(acknowledged, installed.version));
+  }
   const [runtimeChannel, setRuntimeChannel] = useState<RuntimeChannelDiagnostic>();
   const [runtimeChannelError, setRuntimeChannelError] = useState<string>();
   const [runtimeMirrorRoot, setRuntimeMirrorRoot] = useState("");
@@ -3113,7 +3133,13 @@ export function App({ model }: AppProps) {
           </span>
           <div className="brand-copy">
             <strong>Mirror Desktop {developmentChannel ? <span className="sr-only">Development channel</span> : null}</strong>
-            <SelfUpdateNotification runtimeBusy={runtimeBusy} onReview={(update) => { setReviewedUpdate(update); setSettingsTab("updates"); setSettingsOpen(true); }} />
+            <SelfUpdateNotification
+              runtimeBusy={runtimeBusy}
+              installedReleaseReading={whatsNewState?.installed}
+              installedReminder={whatsNewState?.reminder}
+              onAcknowledge={() => void acknowledgeInstalledRelease()}
+              onReview={(update) => { setReviewedUpdate(update); setSettingsTab("updates"); setSettingsOpen(true); }}
+            />
           </div>
           <button
             className="sidebar-toggle-button"
@@ -4148,7 +4174,7 @@ export function App({ model }: AppProps) {
                 role="tabpanel"
                 aria-labelledby="settings-tab-updates"
               >
-                <SelfUpdatePanel runtimeBusy={runtimeBusy} reviewedUpdate={reviewedUpdate} />
+                <SelfUpdatePanel runtimeBusy={runtimeBusy} reviewedUpdate={reviewedUpdate} installedReleaseReading={whatsNewState?.installed} />
               </div>
             ) : null}
           </section>

@@ -2,6 +2,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
 import { verifyReleaseReading, type ReleaseReading } from "../domain/releaseReading";
+import { preparePendingRelease } from "./whatsNewStorage";
 
 export type SelfUpdateCheckResult =
   | { status: "current" }
@@ -35,7 +36,9 @@ export async function checkForTrustedSelfUpdate(): Promise<SelfUpdateCheckResult
 export async function installTrustedSelfUpdate(
   update: Update,
   onProgress: (progress: SelfUpdateProgress) => void,
+  releaseReading?: ReleaseReading,
 ): Promise<void> {
+  await preparePendingRelease(releaseReading);
   let downloadedBytes = 0;
   let totalBytes: number | undefined;
   await update.downloadAndInstall((event: DownloadEvent) => {

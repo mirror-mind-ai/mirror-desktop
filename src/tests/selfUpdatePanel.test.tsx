@@ -35,6 +35,15 @@ describe("SelfUpdatePanel", () => {
     expect(html).toContain("Journey content");
   });
 
+  it("keeps the installed release reading available after acknowledgement", () => {
+    const html = renderToStaticMarkup(
+      <SelfUpdatePanel runtimeBusy={false} installedReleaseReading={reviewedUpdate.releaseReading} checkUpdates={neverCheck} installUpdate={neverInstall} />,
+    );
+    expect(html).toContain("What&#x27;s New in installed version 0.2.0-alpha.5");
+    expect(html).toContain("Release clarity");
+    expect(html).toContain("Validate relaunch.");
+  });
+
   it("renders the complete authoritative reading selected from the update chip", () => {
     const html = renderToStaticMarkup(
       <SelfUpdatePanel runtimeBusy={false} reviewedUpdate={reviewedUpdate} checkUpdates={neverCheck} installUpdate={neverInstall} />,

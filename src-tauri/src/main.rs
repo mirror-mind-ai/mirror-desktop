@@ -4,6 +4,7 @@ mod pi_process_registry;
 mod runtime_binding;
 mod runtime_channel;
 mod turn_journal;
+mod whats_new_state;
 
 use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
 use journey_appearance::{
@@ -21,6 +22,7 @@ use runtime_binding::RuntimeBinding;
 use runtime_channel::{
     runtime_search_directories, RuntimeChannel, RuntimeChannelDiagnostic, RuntimeChannelProfile,
 };
+use whats_new_state::{load_whats_new_state, save_whats_new_state};
 use turn_journal::{
     admit_turn, can_interrupt_inactive_turn, read_turn_journal, transition_turn,
     TurnJournalAuthority, TurnJournalDocument, TurnJournalRecord, TurnPhase, TurnPiExecutionEvidence,
@@ -4730,6 +4732,8 @@ fn main() {
             save_composer_drafts,
             load_agent_settings,
             save_agent_settings,
+            load_whats_new_state,
+            save_whats_new_state,
             list_pi_models,
             inspect_runtime_channel,
             inspect_runtime_binding_candidate,
