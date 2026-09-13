@@ -51,6 +51,11 @@ import {
 } from "./terminalAgentActionEvidence";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
 import {
+  clearScheduledNotice,
+  scheduleTransientComposerNotice,
+  terminalStreamWarningNoticeKey,
+} from "./transientComposerNotice";
+import {
   contextStateForInspection,
   contextStateForLiveUsage,
   hasMatchingContextStats,
@@ -376,6 +381,7 @@ export function App({ model }: AppProps) {
     expandPreview: boolean;
   }>();
   const [localReferenceError, setLocalReferenceError] = useState<string>();
+  const [dismissedStreamWarningKey, setDismissedStreamWarningKey] = useState<string>();
   const [journeyPreferences, setJourneyPreferences] = useState<JourneyPreferences>({
     pinnedJourneyIds: defaultJourneyPreferenceState.pinnedJourneyIds,
     activeJourneyId: defaultJourneyPreferenceState.activeJourneyId,
@@ -580,6 +586,12 @@ export function App({ model }: AppProps) {
     || navigationPresentation.runtimeBusy
     || hasBlockingPiInvocationOccupancy(piInvocationOccupancy);
   const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime);
+  const terminalStreamWarningKey = selectedRuntimeBusy
+    ? undefined
+    : terminalStreamWarningNoticeKey(selectedJourney, agentRun.id, streamWarnings);
+  const showTransientStreamWarning = Boolean(
+    terminalStreamWarningKey && terminalStreamWarningKey !== dismissedStreamWarningKey,
+  );
   const piInvocationPresentation = derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney);
   const runtimeBindingReady = runtimeChannel?.status === "validated";
   const selectedInvocationAdmissionBlocked = Boolean(runStartReservation)
@@ -1057,6 +1069,12 @@ export function App({ model }: AppProps) {
   }, [selectedJourney, composerDraftsLoaded]);
 
   useEffect(() => {
+    setLocalReferenceError(undefined);
+    setFileAttachmentError(undefined);
+    setDismissedStreamWarningKey(undefined);
+  }, [selectedJourney]);
+
+  useEffect(() => {
     if (!runtimeBindingReady || !selectedJourney || !registryLoaded || !preferencesLoaded) {
       return;
     }
@@ -1289,10 +1307,33 @@ export function App({ model }: AppProps) {
   ]);
 
   useEffect(() => {
+    if (!localReferenceError) return;
+    const scheduled = localReferenceError;
+    return scheduleTransientComposerNotice(() => {
+      setLocalReferenceError((current) => clearScheduledNotice(current, scheduled));
+    });
+  }, [localReferenceError]);
+
+  useEffect(() => {
+    if (!fileAttachmentError) return;
+    const scheduled = fileAttachmentError;
+    return scheduleTransientComposerNotice(() => {
+      setFileAttachmentError((current) => clearScheduledNotice(current, scheduled));
+    });
+  }, [fileAttachmentError]);
+
+  useEffect(() => {
     if (!turnRecoveryNotice) return;
-    const timeout = window.setTimeout(() => setTurnRecoveryNotice(undefined), 6000);
-    return () => window.clearTimeout(timeout);
+    const scheduled = turnRecoveryNotice;
+    return scheduleTransientComposerNotice(() => {
+      setTurnRecoveryNotice((current) => clearScheduledNotice(current, scheduled));
+    });
   }, [turnRecoveryNotice]);
+
+  useEffect(() => {
+    if (!terminalStreamWarningKey || terminalStreamWarningKey === dismissedStreamWarningKey) return;
+    return scheduleTransientComposerNotice(() => setDismissedStreamWarningKey(terminalStreamWarningKey));
+  }, [dismissedStreamWarningKey, terminalStreamWarningKey]);
 
   useEffect(() => {
     if (!runtimeBindingReady || !selectedJourney || !registryLoaded) return;
@@ -3648,7 +3689,7 @@ export function App({ model }: AppProps) {
               <p>{localReferenceError}</p>
             </section>
           ) : null}
-          {!selectedRuntimeBusy && streamWarnings.length > 0 ? (
+          {showTransientStreamWarning ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Message was not sent</strong>
               <p>{lastItem(streamWarnings)}</p>
