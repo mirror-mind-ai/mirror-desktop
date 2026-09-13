@@ -44,7 +44,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR028](rs015-light-theme-interaction-contrast/cr028-restore-search-and-pending-file-contrast-in-light-themes.md) | RS015 | Restore search and pending-file contrast in light themes | planned | — | — |
+| 1 | [CR028](rs015-light-theme-interaction-contrast/cr028-restore-search-and-pending-file-contrast-in-light-themes.md) | RS015 | Restore search and pending-file contrast in light themes | in_progress | @alissonvale | `refinement/rs015-cr028-light-theme-interaction-contrast` |
 | — | [CR027](rs014-transient-composer-notices/cr027-auto-dismiss-transient-composer-notices.md) | RS014 | Auto-dismiss transient composer notices | done | @alissonvale | `refinement/rs014-cr027-transient-composer-notices` |
 | — | [CR026](rs013-roadmap-baseline-reconciliation/cr026-reconcile-delivered-baseline-and-open-next-product-horizon.md) | RS013 | Reconcile delivered baseline and open the next product horizon | done | @alissonvale | `refinement/rs013-cr026-roadmap-baseline-reconciliation` |
 | — | [CR014](unassigned/cr014-make-mirror-mind-site-repository-private.md) | — | Make Mirror Mind site repository private | done | — | — |

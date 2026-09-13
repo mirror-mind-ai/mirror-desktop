@@ -2,7 +2,7 @@
 
 # CR028 — Restore search and pending-file contrast in light themes
 
-**Status:** planned
+**Status:** in_progress
 
 ## Problem
 
@@ -26,6 +26,12 @@ Daylight, Mist and Parchment use their semantic primary, muted and accent foregr
 4. Cover normal, hover and focus-visible states. Disabled actions remain visibly disabled but do not replace enabled-state contrast authority.
 5. Preserve component markup, accessible labels, Journey search behavior, attachment opening/removal and all dark-theme selectors.
 6. Run focused theme, Journey search and attachment tests, the complete frontend suite, `npm run build`, `npm run roadmap:check`, and Navigator validation in Daylight, Mist and Parchment using the supplied scenarios.
+
+## Driver And Delivery
+
+- Driver: `@alissonvale`
+- Delivery: `refinement/rs015-cr028-light-theme-interaction-contrast`
+- Navigator authorized planning and implementation on 2026-09-13.
 
 ## Expected Files
 
