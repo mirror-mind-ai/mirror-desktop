@@ -86,7 +86,9 @@ Nautilus Harness state
 
 Mirror Desktop registers Tauri's signed updater and process plugins. On startup, the app performs a bounded update check; if the trusted channel reports a newer signed update, the user sees an in-app notification with **Review update** and **Later** actions. The notification does not download or mutate anything.
 
-The Settings → Updates panel lets the user manually check the channel, review the update boundary, see release notes when supplied by the channel, and click **Update**. The update action is blocked while runtime work is active. Once consent is given, the native updater downloads and installs the signed artifact, reports progress, and relaunches the app on macOS/Linux so the replacement application is used.
+The Settings → Updates panel lets the user manually check the channel, review the update boundary, see release notes when supplied by the channel, and click **Update**. Release staging derives additive `release_reading` manifest metadata from the exact canonical `docs/releases/vX.Y.Z.md` source. The bounded envelope carries product, version, title, digest, highlights, complete Markdown body, canonical HTTPS URL and body SHA-256. The app displays it only when its product, offered version, URL shape, bounds and body digest agree. Historical manifests without this metadata remain installable, but the app says that What's New details are unavailable instead of generating or borrowing content.
+
+The update action is blocked while runtime work is active. Immediately before installation, Mirror Desktop stores the validated public reading as a pending receipt in channel-local `whats-new-state.v1.json`. Once consent is given, the native updater downloads and installs the signed artifact, reports progress, and relaunches the app on macOS/Linux so the replacement application is used. Startup promotes the pending reading only when the running version exactly matches its target. A non-blocking version-chip reminder offers **Later**, **Details** and **Got it**; Settings retains the installed reading after exact-version acknowledgement. Mismatched, malformed or stale state cannot claim installation success.
 
 ## Installation boundary
 
@@ -126,4 +128,4 @@ darwin-x86_64
 darwin-aarch64
 ```
 
-Each target entry must provide a download URL and signature for the updater artifact. A complete rehearsal installs an older signed build, serves a manifest for a newer compatible version, clicks **Review update**, clicks **Update**, observes download/install progress, confirms relaunch into the newer version, and verifies that Mirror homes, `memory.db`, runtime binding, Journeys, conversations, app data and Nautilus Harness state remain unchanged.
+Each target entry must provide a download URL and signature for the updater artifact. A complete rehearsal installs an older signed build, serves a manifest for a newer compatible version, clicks **Review update**, clicks **Update**, observes download/install progress, confirms relaunch into the newer version, and verifies that Mirror homes, `memory.db`, runtime binding, Journeys, conversations, unrelated app data and Nautilus Harness state remain unchanged. The only expected application-state change is the bounded channel-local `whats-new-state.v1.json` receipt.

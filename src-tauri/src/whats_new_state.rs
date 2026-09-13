@@ -60,6 +60,7 @@ fn validate_reading(value: &Value) -> Result<(), String> {
         return Err("whats_new_state_invalid".to_string());
     }
     let version = string(object, "version", 100)?;
+    semver::Version::parse(version).map_err(|_| "whats_new_state_invalid".to_string())?;
     string(object, "title", 160)?;
     string(object, "digest", 1_000)?;
     let body = string(object, "body", 50_000)?;
@@ -69,7 +70,8 @@ fn validate_reading(value: &Value) -> Result<(), String> {
         return Err("whats_new_state_invalid".to_string());
     }
     let url = string(object, "releaseNotesUrl", 2_048)?;
-    if !url.starts_with("https://") || !url.ends_with(&format!("/releases/v{}.md", version)) {
+    let parsed_url = url::Url::parse(url).map_err(|_| "whats_new_state_invalid".to_string())?;
+    if parsed_url.scheme() != "https" || !parsed_url.path().ends_with(&format!("/releases/v{}.md", version)) {
         return Err("whats_new_state_invalid".to_string());
     }
     let highlights = object.get("highlights").and_then(Value::as_array).ok_or_else(|| "whats_new_state_invalid".to_string())?;

@@ -19,7 +19,13 @@ export async function loadWhatsNewState(): Promise<WhatsNewState> {
 }
 
 export async function saveWhatsNewState(state: WhatsNewState): Promise<void> {
-  await invoke("save_whats_new_state", { payload: JSON.stringify(state) });
+  const payload: WhatsNewState = {
+    schemaVersion: "1.0.0",
+    pending: state.pending,
+    installed: state.installed,
+    acknowledgedVersion: state.acknowledgedVersion,
+  };
+  await invoke("save_whats_new_state", { payload: JSON.stringify(payload) });
 }
 
 export async function preparePendingRelease(reading?: ReleaseReading): Promise<void> {

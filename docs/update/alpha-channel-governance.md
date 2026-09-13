@@ -69,7 +69,7 @@ npm run alpha:build
 
 The command runs the alpha updater preflight, reads the alpha signing key from `~/.mirror-desktop-updater/alpha/updater.key`, builds with `src-tauri/tauri.alpha-update.conf.json`, and verifies that the `.app`, DMG, updater artifact, and updater signature exist. Do not use a generic `npm run tauri -- build --bundles app,dmg` for alpha validation. That build omits the updater overlay and can produce an app that aborts during startup when the updater plugin is registered without the release config.
 
-6. stage the updater artifact, signature, DMG, release notes, index, manifests, and `downloads/macos/latest.*` download aliases;
+6. stage the updater artifact, signature, DMG, release notes, index, manifests, and `downloads/macos/latest.*` download aliases; staging derives each manifest's additive `release_reading` metadata from the exact versioned release-note file and fails on version, structure or bounds mismatch;
 7. publish to the alpha prefix only after explicit Navigator authorization;
 8. validate endpoint reachability;
 9. validate an installed-app update from the previous alpha;
@@ -114,8 +114,10 @@ Updater artifacts may replace application bytes only. They must not target or mu
 - credentials;
 - Journey content;
 - conversations;
-- app data;
+- unrelated app data;
 - Nautilus Harness state.
+
+Mirror Desktop may write only the bounded channel-local `whats-new-state.v1.json` pending and acknowledgement receipt required to recognize the exact installed release. This exception is application-owned explanatory state, not updater authority, and must not alter any other app-data file.
 
 ## Validation
 
