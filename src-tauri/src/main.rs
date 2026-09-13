@@ -302,6 +302,14 @@ struct DedicatedPiTranscriptTurn {
     committed_at: String,
 }
 
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct DedicatedPiUserEntry {
+    user_entry_id: String,
+    user_text: String,
+    recorded_at: String,
+}
+
 #[derive(Clone, Debug)]
 struct PiBranchEntry {
     id: String,
@@ -2309,7 +2317,33 @@ fn load_dedicated_pi_transcript(
     project_complete_pi_transcript(&fs::read_to_string(session_file).map_err(|error| error.to_string())?)
 }
 
-fn project_complete_pi_transcript(content: &str) -> Result<Vec<DedicatedPiTranscriptTurn>, String> {
+#[tauri::command]
+fn load_dedicated_pi_user_entries(
+    app: AppHandle,
+    journey_id: String,
+    session_id: String,
+    session_file: String,
+) -> Result<Vec<DedicatedPiUserEntry>, String> {
+    validate_pi_session_file(&app, &session_file, &session_id)?;
+    let stored_thread: Value = serde_json::from_str(&fs::read_to_string(journey_thread_path(&app, &journey_id)?)
+        .map_err(|error| format!("Could not read dedicated thread: {}", error))?)
+        .map_err(|error| format!("Could not parse dedicated thread: {}", error))?;
+    let thread = unwrap_persisted_thread(&stored_thread);
+    let active = thread.get("activeGeneration").and_then(Value::as_u64);
+    let generation = thread.get("generations").and_then(Value::as_array)
+        .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active))
+        .ok_or_else(|| "Dedicated active generation is missing.".to_string())?;
+    if thread.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
+        || generation.get("status").and_then(Value::as_str) != Some("ready")
+        || generation.get("piSessionId").and_then(Value::as_str) != Some(session_id.as_str())
+        || generation.get("piSessionFile").and_then(Value::as_str) != Some(session_file.as_str())
+    {
+        return Err("Dedicated user-entry authority mismatch.".to_string());
+    }
+    project_pi_user_entries(&fs::read_to_string(session_file).map_err(|error| error.to_string())?)
+}
+
+fn project_active_pi_branch(content: &str) -> Result<Vec<PiBranchEntry>, String> {
     let mut entries = Vec::new();
     for line in content.lines() {
         let value: Value = serde_json::from_str(line).map_err(|_| "Dedicated Pi session JSONL is invalid.".to_string())?;
@@ -2337,6 +2371,22 @@ fn project_complete_pi_transcript(content: &str) -> Result<Vec<DedicatedPiTransc
         cursor = entry.parent_id.as_deref().and_then(|parent| by_id.get(parent)).map(|index| &entries[*index]);
     }
     branch.reverse();
+    Ok(branch)
+}
+
+fn project_pi_user_entries(content: &str) -> Result<Vec<DedicatedPiUserEntry>, String> {
+    Ok(project_active_pi_branch(content)?.into_iter()
+        .filter(|entry| entry.role.as_deref() == Some("user") && !entry.text.trim().is_empty())
+        .map(|entry| DedicatedPiUserEntry {
+            user_entry_id: entry.id,
+            user_text: project_dedicated_user_text(&entry.text),
+            recorded_at: entry.timestamp,
+        })
+        .collect())
+}
+
+fn project_complete_pi_transcript(content: &str) -> Result<Vec<DedicatedPiTranscriptTurn>, String> {
+    let branch = project_active_pi_branch(content)?;
     let mut turns = Vec::new();
     let mut pending_user: Option<&PiBranchEntry> = None;
     let mut assistant_texts = Vec::new();
@@ -4971,6 +5021,7 @@ fn main() {
             interrupt_inactive_turn_journal,
             read_pi_session_context_stats,
             load_dedicated_pi_transcript,
+            load_dedicated_pi_user_entries,
             enqueue_mirror_append_item,
             list_mirror_append_outbox,
             append_mirror_outbox_item,
@@ -5003,7 +5054,7 @@ mod tests {
         classify_pi_process_terminal, compiled_runtime_channel, dedicated_native_names, enqueue_mirror_append_item_at, exact_steering_authority_matches, extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
         list_journey_documentation_at, materialize_empty_pi_session, parse_pi_session_state,
-        project_complete_pi_transcript, projection_manifest_coordinates_at,
+        project_complete_pi_transcript, project_pi_user_entries, projection_manifest_coordinates_at,
         inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
         read_exact_pi_session_context_stats, read_journey_document_at, remove_provider_session_args, resolve_existing_local_file,
         resolve_existing_local_file_at, resolve_journey_artifact_at, retire_legacy_parity_state_at,
@@ -5592,6 +5643,25 @@ mod tests {
         assert_eq!(turns[0].user_text, "Olá");
         assert_eq!(turns[0].assistant_text, "Resposta");
         assert_eq!(turns[0].entry_count, 2);
+    }
+
+    #[test]
+    fn projects_every_steering_user_entry_even_when_an_intermediate_continuation_does_not_stop() {
+        let session = [
+            r#"{"type":"session","id":"session-1"}"#,
+            r#"{"type":"message","id":"initial","parentId":null,"timestamp":"2026-09-14T10:00:00Z","message":{"role":"user","content":[{"type":"text","text":"Initial"}]}}"#,
+            r#"{"type":"message","id":"tool-use","parentId":"initial","timestamp":"2026-09-14T10:00:01Z","message":{"role":"assistant","content":[],"stopReason":"toolUse"}}"#,
+            r#"{"type":"message","id":"steer-1","parentId":"tool-use","timestamp":"2026-09-14T10:00:02Z","message":{"role":"user","content":[{"type":"text","text":"First correction"}]}}"#,
+            r#"{"type":"message","id":"tool-use-2","parentId":"steer-1","timestamp":"2026-09-14T10:00:03Z","message":{"role":"assistant","content":[],"stopReason":"toolUse"}}"#,
+            r#"{"type":"message","id":"steer-2","parentId":"tool-use-2","timestamp":"2026-09-14T10:00:04Z","message":{"role":"user","content":[{"type":"text","text":"Second correction"}]}}"#,
+            r#"{"type":"message","id":"answer","parentId":"steer-2","timestamp":"2026-09-14T10:00:05Z","message":{"role":"assistant","content":[{"type":"text","text":"Done"}],"stopReason":"stop"}}"#,
+        ].join("\n");
+
+        let entries = project_pi_user_entries(&session).unwrap();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[1].user_entry_id, "steer-1");
+        assert_eq!(entries[1].user_text, "First correction");
+        assert_eq!(entries[2].user_entry_id, "steer-2");
     }
 
     #[test]

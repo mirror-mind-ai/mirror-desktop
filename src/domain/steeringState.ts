@@ -9,7 +9,7 @@ const transitions: Record<SteeringStatus, SteeringStatus[]> = {
   accepted: ["applied", "rejected", "terminally_unconsumed"],
   applied: [],
   rejected: [],
-  terminally_unconsumed: [],
+  terminally_unconsumed: ["applied"],
 };
 
 export function steeringAuthorityMatches(conversation: JourneyConversation, authority: RunAuthority): boolean {
@@ -76,6 +76,7 @@ export function transitionSteering(
       status,
       updatedAt: now.toISOString(),
       ...(details.piUserEntryId ? { piUserEntryId: details.piUserEntryId } : {}),
+      ...(status === "applied" ? { terminalReason: undefined } : {}),
       ...(details.terminalReason ? { terminalReason: details.terminalReason } : {}),
     };
   });
@@ -91,11 +92,46 @@ export function applyNextAcceptedSteering(
   now: Date = new Date(),
 ): JourneyConversation {
   const next = [...(conversation.steeringEvidence ?? [])]
-    .filter((item) => item.runId === authority.runId && (item.status === "pending" || item.status === "accepted") && item.text === text)
+    .filter((item) => item.runId === authority.runId && ["pending", "accepted", "terminally_unconsumed"].includes(item.status) && item.text === text)
     .sort((left, right) => left.sequence - right.sequence)[0];
   return next
     ? transitionSteering(conversation, authority, next.requestId, "applied", now, { piUserEntryId })
     : conversation;
+}
+
+export type SteeringUserEntryEvidence = {
+  userEntryId: string;
+  userText: string;
+  recordedAt: string;
+};
+
+export function reconcileSteeringUserEntries(
+  conversation: JourneyConversation,
+  authority: RunAuthority,
+  entries: SteeringUserEntryEvidence[],
+): JourneyConversation {
+  let reconciled = conversation;
+  const usedEntries = new Set(
+    (reconciled.steeringEvidence ?? []).flatMap((item) => item.piUserEntryId ? [item.piUserEntryId] : []),
+  );
+  for (const evidence of [...(reconciled.steeringEvidence ?? [])].sort((left, right) => left.sequence - right.sequence)) {
+    if (evidence.runId !== authority.runId || !["pending", "accepted", "terminally_unconsumed"].includes(evidence.status)) continue;
+    const applied = entries.find((entry) => (
+      entry.userText === evidence.text
+      && entry.recordedAt >= evidence.createdAt
+      && !usedEntries.has(entry.userEntryId)
+    ));
+    if (!applied) continue;
+    reconciled = applyNextAcceptedSteering(
+      reconciled,
+      authority,
+      evidence.text,
+      applied.userEntryId,
+      new Date(applied.recordedAt),
+    );
+    usedEntries.add(applied.userEntryId);
+  }
+  return reconciled;
 }
 
 export function settleUnconsumedSteering(

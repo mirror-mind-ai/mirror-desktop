@@ -1,5 +1,5 @@
 import {
-  Fragment, useEffect, useMemo, useReducer, useRef, useState,
+  useEffect, useMemo, useReducer, useRef, useState,
   type CSSProperties,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -113,7 +113,7 @@ import { JourneyProjectionNotice } from "./JourneyProjectionNotice";
 import { JourneyProjectionLoadingState } from "./JourneyProjectionLoadingState";
 import { JourneyThreadState, type JourneyThreadDisplayState } from "./JourneyThreadState";
 import { JourneyArrivalSurface } from "./JourneyArrivalSurface";
-import { loadDedicatedPiTranscript, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
+import { loadDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import { projectGenerationHistory } from "../domain/journeyThreadRestart";
 import {
@@ -228,7 +228,7 @@ import {
 import type { JourneyConversation, SteeringEvidence } from "../domain/journeyConversation";
 import {
   appendPendingSteering,
-  applyNextAcceptedSteering,
+  reconcileSteeringUserEntries,
   settleUnconsumedSteering,
   transitionSteering,
 } from "../domain/steeringState";
@@ -1227,6 +1227,48 @@ export function App({ model }: AppProps) {
             }]));
           }
         }
+        const repairableSteering = restoredConversation.steeringEvidence?.some((item) => (
+          item.status === "pending" || item.status === "accepted" || item.status === "terminally_unconsumed"
+        ));
+        const steeringSessionFile = restoredConversation.liveIdentity.piSessionFile;
+        const steeringMirrorConversationId = restoredConversation.liveIdentity.mirrorConversationId;
+        const steeringActivationReceipt = restoredConversation.liveIdentity.activationReceiptActivatedAt;
+        if (classified.kind === "ready"
+          && repairableSteering
+          && steeringSessionFile
+          && steeringMirrorConversationId
+          && steeringActivationReceipt) {
+          const userEntries = await loadDedicatedPiUserEntries(
+            selectedJourney,
+            classified.activeGeneration.piSessionId,
+            steeringSessionFile,
+          );
+          let repairedConversation = restoredConversation;
+          for (const turn of restoredConversation.reconciliation.turns) {
+            if (!turn.runId || !turn.harness.userMessageId || !turn.harness.assistantMessageId) continue;
+            if (!restoredConversation.steeringEvidence?.some((item) => item.runId === turn.runId)) continue;
+            const correlation: TurnCorrelation = {
+              schemaVersion: "0.2.0",
+              journeyId: selectedJourney,
+              threadId: restoredConversation.id,
+              harnessConversationId: restoredConversation.id,
+              piSessionId: restoredConversation.liveIdentity.piSessionId,
+              generation: restoredConversation.liveIdentity.generation,
+              activationReceiptActivatedAt: steeringActivationReceipt,
+              turnId: turn.turnId,
+              runId: turn.runId,
+              harnessUserMessageId: turn.harness.userMessageId,
+              harnessAssistantMessageId: turn.harness.assistantMessageId,
+              mirrorConversationId: steeringMirrorConversationId,
+            };
+            const authority = createRunAuthority(correlation, restoredConversation.liveIdentity, classified.activeGeneration);
+            repairedConversation = reconcileSteeringUserEntries(repairedConversation, authority, userEntries);
+          }
+          if (repairedConversation !== restoredConversation) {
+            restoredConversation = repairedConversation;
+            await saveDedicatedJourneyConversation(restoredConversation);
+          }
+        }
         if (!requestIsCurrent()) return;
         conversationRef.current = restoredConversation;
         setConversation(restoredConversation);
@@ -1912,32 +1954,12 @@ export function App({ model }: AppProps) {
             item.runId === runAuthority.runId && (item.status === "pending" || item.status === "accepted")
           ))) {
             try {
-              const transcript = await loadDedicatedPiTranscript(
+              const userEntries = await loadDedicatedPiUserEntries(
                 runAuthority.journeyId,
                 runAuthority.piSessionId,
                 runAuthority.piSessionFile,
               );
-              let reconciled = runConversation;
-              const usedEntries = new Set(
-                (reconciled.steeringEvidence ?? []).flatMap((item) => item.piUserEntryId ? [item.piUserEntryId] : []),
-              );
-              for (const evidence of [...(reconciled.steeringEvidence ?? [])].sort((left, right) => left.sequence - right.sequence)) {
-                if (evidence.runId !== runAuthority.runId || !["pending", "accepted"].includes(evidence.status)) continue;
-                const applied = transcript.find((turn) => (
-                  turn.userText === evidence.text
-                  && turn.committedAt >= evidence.createdAt
-                  && !usedEntries.has(turn.userEntryId)
-                ));
-                if (!applied) continue;
-                reconciled = applyNextAcceptedSteering(
-                  reconciled,
-                  runAuthority,
-                  evidence.text,
-                  applied.userEntryId,
-                  new Date(applied.committedAt),
-                );
-                usedEntries.add(applied.userEntryId);
-              }
+              let reconciled = reconcileSteeringUserEntries(runConversation, runAuthority, userEntries);
               reconciled = settleUnconsumedSteering(
                 reconciled,
                 runAuthority,
@@ -3754,21 +3776,16 @@ export function App({ model }: AppProps) {
                 linkedActivity,
                 ...(exactRuntimeProjection ? { runtimeProjection: exactRuntimeProjection } : {}),
               });
-              const steering = (presentedConversation.steeringEvidence ?? [])
-                .filter((item) => item.assistantMessageId === message.id)
-                .sort((left, right) => left.sequence - right.sequence);
               return (
-                <Fragment key={message.id}>
-                  <SteeringMessages evidence={steering} />
-                  <AgentTurn
-                    message={message}
-                    speaker={speaker}
-                    presentation={presentation}
-                    proximity={assistantTurnProximity.get(message.id)}
-                    basePath={selectedJourneyBasePath}
-                    onLocalPathClick={(path) => void handleChatLocalPath(path)}
-                  />
-                </Fragment>
+                <AgentTurn
+                  key={message.id}
+                  message={message}
+                  speaker={speaker}
+                  presentation={presentation}
+                  proximity={assistantTurnProximity.get(message.id)}
+                  basePath={selectedJourneyBasePath}
+                  onLocalPathClick={(path) => void handleChatLocalPath(path)}
+                />
               );
             }
 
@@ -3786,6 +3803,14 @@ export function App({ model }: AppProps) {
             ];
             const messageActivity = mergeImportedActivityEvents(linkedActivity, renderTimeActivity);
             const bodyContent = stripMessageSpeakerSignature(renderedContent);
+            const owningTurn = presentedConversation.reconciliation.turns.find(
+              (turn) => turn.harness.userMessageId === message.id,
+            );
+            const steering = owningTurn
+              ? (presentedConversation.steeringEvidence ?? [])
+                  .filter((item) => item.assistantMessageId === owningTurn.harness.assistantMessageId)
+                  .sort((left, right) => left.sequence - right.sequence)
+              : [];
 
             return (
               <div key={message.id} className="message-cluster">
@@ -3806,6 +3831,7 @@ export function App({ model }: AppProps) {
                     <MessageAttachmentProvenance attachments={message.attachments} />
                   </article>
                 ) : null}
+                <SteeringMessages evidence={steering} />
                 <ImportedActivity events={messageActivity} basePath={selectedJourneyBasePath} />
               </div>
             );

@@ -6659,16 +6659,16 @@ dd {
 
 .steering-messages {
   display: grid;
-  gap: 8px;
-  margin: 2px 0 10px auto;
+  gap: 7px;
+  margin: -2px 18px 4px auto;
   width: min(72%, 720px);
 }
 
 .steering-message {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
-  padding: 10px 12px;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-radius: 0 9px 9px 0;
+  padding: 8px 10px 8px 13px;
 }
 
 .steering-message header {
@@ -6681,23 +6681,30 @@ dd {
 .steering-message header strong,
 .steering-message header span {
   color: var(--text-muted);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   letter-spacing: 0.02em;
+}
+
+.steering-message header strong span {
+  color: var(--accent);
+  display: inline-block;
+  margin-right: 3px;
 }
 
 .steering-message p {
   color: var(--text);
-  margin: 5px 0 0;
+  font-size: 0.92rem;
+  margin: 4px 0 0;
   white-space: pre-wrap;
 }
 
 .steering-message.is-applied {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-left-color: color-mix(in srgb, var(--accent) 68%, var(--border));
 }
 
 .steering-message.is-rejected,
 .steering-message.is-terminally_unconsumed {
-  border-color: color-mix(in srgb, var(--danger, #b84d55) 60%, var(--border));
+  border-left-color: color-mix(in srgb, var(--danger, #b84d55) 68%, var(--border));
 }
 
 @media (max-width: 760px) {

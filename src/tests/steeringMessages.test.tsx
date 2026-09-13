@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SteeringMessages } from "../app/SteeringMessages";
 import type { SteeringEvidence } from "../domain/journeyConversation";
+import appSource from "../app/App.tsx?raw";
 
 function evidence(status: SteeringEvidence["status"], sequence: number): SteeringEvidence {
   return {
@@ -27,10 +28,28 @@ describe("Steering message presentation", () => {
       evidence("applied", 2),
     ]} />);
 
-    expect(html).toContain('aria-label="Steering messages"');
+    expect(html).toContain('aria-label="Corrections sent during response"');
+    expect(html).toContain('class="steering-messages user-addenda"');
+    expect(html).toContain("Correction during response");
     expect(html).toContain("Correction queued");
     expect(html).toContain("Correction applied");
     expect(html.indexOf("Use the safer route")).toBeLessThan(html.indexOf("Keep the explanation short"));
+  });
+
+  it("attaches corrections to the originating user cluster before the Agent box", () => {
+    const userBranch = appSource.slice(
+      appSource.indexOf("const owningTurn = presentedConversation.reconciliation.turns.find"),
+      appSource.indexOf("<div ref={chatEndRef}"),
+    );
+    expect(userBranch).toContain("turn.harness.userMessageId === message.id");
+    expect(userBranch.indexOf("<SteeringMessages evidence={steering} />")).toBeLessThan(
+      userBranch.indexOf("<ImportedActivity events={messageActivity}"),
+    );
+    const assistantBranch = appSource.slice(
+      appSource.indexOf('if (message.role === "assistant")'),
+      appSource.indexOf("const renderTimeActivity"),
+    );
+    expect(assistantBranch).not.toContain("SteeringMessages");
   });
 
   it("does not overclaim a terminally unconsumed correction", () => {

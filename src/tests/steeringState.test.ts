@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendPendingSteering,
   applyNextAcceptedSteering,
+  reconcileSteeringUserEntries,
   settleUnconsumedSteering,
   transitionSteering,
 } from "../domain/steeringState";
@@ -60,6 +61,25 @@ describe("active turn Steering evidence", () => {
     expect(current.steeringEvidence?.map((item) => [item.sequence, item.status, item.piUserEntryId])).toEqual([
       [1, "applied", "pi-user-2"],
       [2, "accepted", undefined],
+    ]);
+  });
+
+  it("applies every authoritative Steering user entry even when only the last continuation completes", () => {
+    const { conversation, authority } = fixture();
+    const first = appendPendingSteering(conversation, authority, "First correction", new Date("2026-09-14T10:00:00Z"));
+    const second = appendPendingSteering(first.conversation, authority, "Second correction", new Date("2026-09-14T10:00:01Z"));
+    let current = transitionSteering(second.conversation, authority, first.evidence.requestId, "accepted");
+    current = transitionSteering(current, authority, second.evidence.requestId, "accepted");
+
+    current = settleUnconsumedSteering(current, authority, "settled_without_application");
+    current = reconcileSteeringUserEntries(current, authority, [
+      { userEntryId: "pi-user-1", userText: "First correction", recordedAt: "2026-09-14T10:00:02Z" },
+      { userEntryId: "pi-user-2", userText: "Second correction", recordedAt: "2026-09-14T10:00:03Z" },
+    ]);
+
+    expect(current.steeringEvidence?.map((item) => [item.status, item.piUserEntryId, item.terminalReason])).toEqual([
+      ["applied", "pi-user-1", undefined],
+      ["applied", "pi-user-2", undefined],
     ]);
   });
 
