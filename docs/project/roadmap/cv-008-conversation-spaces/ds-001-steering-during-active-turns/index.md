@@ -21,6 +21,15 @@ Long agent operations expose new information and sometimes begin from an imperfe
 - Persist enough evidence for restart and settlement to remain honest.
 - Keep composer and runtime feedback usable while the original turn continues.
 
+## Candidate Stories
+
+| Code | Story | Type | Outcome | Status |
+|------|-------|------|---------|--------|
+| CV-008.DS-001-TS-1 | Characterize Native Pi Steering Semantics | Technical Story | An executable contract proves Pi steering acceptance, queue events, delivery boundaries, ordering, settlement and failure behavior against the supported runtime. | 🟡 Planned |
+| CV-008.DS-001-TS-2 | Admit Steering Under Exact Active-Turn Authority | Technical Story | Mirror Desktop can send correlated steering commands only to the exact live Journey, conversation, generation, run and turn process, rejecting stale or cross-authority attempts. | 🟡 Planned |
+| CV-008.DS-001-US-1 | Correct a Running Turn from the Composer | User Story | While a turn is running, the Navigator can submit an additional text message, see that it was queued, and receive a response shaped by it without cancellation or a second assistant turn. | 🟡 Planned |
+| CV-008.DS-001-TS-3 | Preserve Steering Order and Terminal Truth | Technical Story | Accepted steering messages retain deterministic order and honest durable outcomes across consumption, cancellation, provider failure, settlement and application restart. | 🟡 Planned |
+
 ## Acceptance Direction
 
 A Navigator starts a long-running turn, submits a corrective message while it is active, observes explicit acceptance and receives a final answer shaped by the steering message. Wrong-run, stale-turn, settled-turn and unsupported-provider attempts fail closed without cancelling, duplicating or retargeting work.
