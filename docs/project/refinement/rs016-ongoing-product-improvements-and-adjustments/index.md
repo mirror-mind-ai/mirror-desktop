@@ -30,4 +30,4 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
 
-CR029 is `captured`. It records the observed composer and conversation-switching slowdown without selecting a cause or implementation strategy.
+CR029 is `captured` and selected for refinement. Its diagnosis identifies repeated full-history rendering and eager historical action materialization as the primary scaling boundary; planning, assignment and implementation remain pending.
