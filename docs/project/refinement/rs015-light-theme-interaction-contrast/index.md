@@ -21,4 +21,4 @@ Journey search, sidebar navigation controls and pending attachment actions remai
 
 - [CR028 — Restore search and pending-file contrast in light themes](cr028-restore-search-and-pending-file-contrast-in-light-themes.md)
 
-CR028 is `in_progress` under `@alissonvale` on `refinement/rs015-cr028-light-theme-interaction-contrast`. RS015 is active.
+CR028 is `validated`. The Navigator accepted the corrected light-theme search and pending-file surfaces, and RS015 remains active pending explicit terminal closure.

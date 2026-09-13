@@ -2,7 +2,7 @@
 
 # CR028 — Restore search and pending-file contrast in light themes
 
-**Status:** in_progress
+**Status:** validated
 
 ## Problem
 
@@ -58,6 +58,22 @@ Daylight, Mist and Parchment use their semantic primary, muted and accent foregr
 - Automated contrast calculations cover all three light themes and seven screenshot-relevant foreground/surface pairs at a 4.5:1 minimum.
 - The focused theme, Journey search and attachment suites pass with 24 tests. The complete frontend suite passes with 701 tests across 128 files; `npm run build` and `npm run roadmap:check` pass. The existing Vite chunk-size advisory is unchanged.
 - Isolated `Mirror Desktop Dev`, bundle ID `ai.mirrormind.desktop.dev`, is running with the updated stylesheet for Navigator validation.
+
+## Implementation Evidence
+
+- One explicit light interaction contract now overrides the higher-specificity dark-palette search and attachment selectors after the shared light-theme rules.
+- Active search text, result summary, Clear action, sidebar collapse control, pending attachment title/path/metadata and file actions use semantic light tokens.
+- Automated contrast calculations cover actual declared search, summary, raised and pending-file surfaces across Daylight, Mist and Parchment at a minimum 4.5:1 enabled-text ratio.
+- Focus-visible states use structural outlines in addition to color; dark-theme rules and component behavior are unchanged.
+- The complete frontend suite passes with 701 tests across 128 files. `npm run build` and `npm run roadmap:check` pass; the existing Vite chunk-size advisory is unchanged.
+
+## Navigator Validation
+
+Accepted on 2026-09-13 in isolated `Mirror Desktop Dev`. The Navigator reviewed the supplied Journey search and pending attachment scenarios after correction and accepted the light-theme contrast result.
+
+## Proportionality And Debt Review
+
+The correction is confined to semantic light-theme CSS overrides and one focused contrast test. It does not alter markup, behavior, theme inventory or dark palettes. No relevant new debt was identified.
 
 ## Validation Route
 
