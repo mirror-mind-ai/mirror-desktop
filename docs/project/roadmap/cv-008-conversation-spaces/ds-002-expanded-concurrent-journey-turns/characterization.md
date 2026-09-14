@@ -2,8 +2,8 @@
 
 # Concurrent Load Characterization — CV-008.DS-002
 
-**Journey:** `mirror-desktop`  
-**Capacity under evaluation:** 4  
+**Journey:** `mirror-desktop`
+**Capacity under evaluation:** 4
 **Evidence state:** deterministic implementation evidence passed; natural isolated development validation required
 
 ## Environment
