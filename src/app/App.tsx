@@ -39,7 +39,6 @@ import {
   createTerminalAgentActionEvidence,
 } from "./terminalAgentActionEvidence";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
-import { ConcurrentTurnCapacityNotice } from "./ConcurrentTurnCapacityNotice";
 import {
   clearScheduledNotice,
   scheduleTransientComposerNotice,
@@ -61,7 +60,6 @@ import {
   beginPiInvocationReconciliation,
   createUnknownPiInvocationOccupancy,
   derivePiInvocationAdmission,
-  derivePiInvocationCapacityPresentation,
   failPiInvocationReconciliation,
   hasBlockingPiInvocationOccupancy,
   piInvocationAuthorityFromRunAuthority,
@@ -589,7 +587,6 @@ export function App({ model }: AppProps) {
     terminalStreamWarningKey && terminalStreamWarningKey !== dismissedStreamWarningKey,
   );
   const piInvocationPresentation = derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney);
-  const piInvocationCapacity = derivePiInvocationCapacityPresentation(piInvocationOccupancy);
   const runtimeBindingReady = runtimeChannel?.status === "validated";
   const selectedInvocationAdmissionBlocked = Boolean(runStartReservation)
     || selectedRuntimeBusy
@@ -3837,9 +3834,6 @@ export function App({ model }: AppProps) {
               <strong>Checking native operation occupancy</strong>
               <p>{piInvocationOccupancy.diagnostic ?? "Operational actions remain blocked until bounded native inspection completes."}</p>
             </section>
-          ) : null}
-          {piInvocationCapacity ? (
-            <ConcurrentTurnCapacityNotice presentation={piInvocationCapacity} />
           ) : null}
           {piInvocationPresentation.reason === "global_capacity_reached" && !selectedRuntimeBusy ? (
             <section className="dedicated-turn-notice" role="status">

@@ -4,7 +4,6 @@ import {
   beginPiInvocationReconciliation,
   createUnknownPiInvocationOccupancy,
   derivePiInvocationAdmission,
-  derivePiInvocationCapacityPresentation,
   hasBlockingPiInvocationOccupancy,
   retainExpectedPiInvocationLease,
   resolveExactSettlementRecovery,
@@ -178,50 +177,6 @@ describe("native Pi invocation occupancy", () => {
     expect(validatePiInvocationRegistryInspection(inspection({ limit: 3 }))).toBe(false);
     expect(validatePiInvocationRegistryInspection(inspection({ limit: 5 }))).toBe(false);
     expect(validatePiInvocationRegistryInspection(inspection({ limit: 4, processCapacityInUse: 5 }))).toBe(false);
-  });
-
-  it("presents admitted leases as bounded aggregate capacity without exposing owner content", () => {
-    expect(derivePiInvocationCapacityPresentation(createUnknownPiInvocationOccupancy())).toBeNull();
-    const free = applyPiInvocationInspection(
-      beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 1),
-      1,
-      inspection({ limit: 4, entries: [] }),
-    );
-    expect(derivePiInvocationCapacityPresentation(free)).toBeNull();
-
-    const one = applyPiInvocationInspection(
-      beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 2),
-      2,
-      inspection({ limit: 4 }),
-    );
-    expect(derivePiInvocationCapacityPresentation(one)).toEqual({
-      used: 1,
-      limit: 4,
-      available: 3,
-      full: false,
-      label: "Concurrent turns: 1 / 4",
-    });
-
-    const authorities = ["a", "b", "c", "d"].map((journeyId, index) => ({
-      ...authority,
-      journeyId: `journey-${journeyId}`,
-      runId: `run-${index}`,
-      turnId: `turn-${index}`,
-      threadId: `thread-${journeyId}`,
-      piSessionId: `pi-${journeyId}`,
-      mirrorConversationId: `mirror-${journeyId}`,
-      harnessUserMessageId: `user-${index}`,
-      harnessAssistantMessageId: `assistant-${index}`,
-    }));
-    const full = authorities.reduce(retainExpectedPiInvocationLease, free);
-    expect(derivePiInvocationCapacityPresentation(full)).toEqual({
-      used: 4,
-      limit: 4,
-      available: 0,
-      full: true,
-      label: "Concurrent turns: 4 / 4",
-    });
-    expect(JSON.stringify(derivePiInvocationCapacityPresentation(full))).not.toContain("journey-");
   });
 
   it("rejects invalid enums, lifecycle combinations, authority fields, duplicates, and unbounded values", () => {

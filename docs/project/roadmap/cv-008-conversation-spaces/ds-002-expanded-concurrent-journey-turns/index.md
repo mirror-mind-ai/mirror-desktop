@@ -16,7 +16,7 @@ The baseline proved Journey-keyed concurrency and isolation at a deliberately sm
 
 - Measure frontend, native process, Pi, Mirror and host-resource behavior under increasing concurrent load.
 - Choose an explicit supported capacity or bounded configurable policy from evidence.
-- Make occupancy, queueing and refusal reasons visible without exposing unrelated Journey content.
+- Keep each Journey's active state visible and make full-capacity refusal explicit without adding a global process counter or exposing unrelated Journey content.
 - Preserve fair admission so one Journey or repeated sender cannot starve others.
 - Retain exact targeted cancellation and independent terminal adoption.
 - Exercise app restart and partial provider failure while sibling Journeys continue safely.
@@ -27,7 +27,7 @@ The baseline proved Journey-keyed concurrency and isolation at a deliberately sm
 |------|-------|------|---------|--------|
 | CV-008.DS-002-TS-1 | Characterize Expanded Concurrent Load | Technical Story | Reproducible evidence measures frontend, Pi processes, Mirror, persistence and host resources under increasing concurrent load and establishes the safe envelope for expansion. | 🟡 Planned |
 | CV-008.DS-002-TS-2 | Establish Bounded Admission and Fairness Policy | Technical Story | One explicit policy governs capacity, reserved, running and finalizing leases, overflow, fair admission and Steering impact without allowing unlimited concurrency. | 🟡 Planned |
-| CV-008.DS-002-US-1 | Operate More Independent Journey Turns | User Story | Navigator can start the approved number of turns in distinct Journeys, navigate among them and understand occupancy, availability and recoverable refusal. | 🟡 Planned |
+| CV-008.DS-002-US-1 | Operate More Independent Journey Turns | User Story | Navigator can start the approved number of turns in distinct Journeys, navigate among their owner-specific states and receive a recoverable refusal only when the bound is reached. | 🟡 Planned |
 | CV-008.DS-002-TS-3 | Preserve Authority Under Expanded Concurrency | Technical Story | Events, Steering, cancellation, provider failure, settlement, persistence and restart recovery remain bound to the exact Journey and run under expanded capacity. | 🟡 Planned |
 
 ## Acceptance Direction

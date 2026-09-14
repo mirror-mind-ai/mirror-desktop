@@ -30,7 +30,7 @@ Expand bounded concurrent execution across independent Journeys from measured ev
 - Fairness means one lease per Journey, no hidden priority, no bypass of the atomic native reservation boundary and equal eligibility after a slot becomes free. This story does not claim scheduled FIFO fairness because it introduces no waiting queue.
 - Steering uses the writable stdin of its existing exact Pi process. It consumes no additional slot, but its effect on occupancy duration and settlement must be included in characterization.
 - Production capacity is not user-configurable and has no environment override. Tests may inject only bounded rollback and candidate capacities.
-- Occupancy presentation exposes aggregate used/limit state and the selected Journey's admission result. It must not expose another Journey's prompt, response, provider configuration, paths or conversation content.
+- Ordinary occupancy remains implicit in existing owner-specific Journey states. There is no global process counter. Presentation becomes explicit only when inspection is uncertain or a send reaches the full-capacity refusal condition, and it must not expose another Journey's prompt, response, provider configuration, paths or conversation content.
 - Existing `RunAuthority`, process-event authority, turn journal, generation projection and Mirror outbox contracts remain authoritative. No persistence schema change is planned.
 
 ## Scope
@@ -57,10 +57,10 @@ Expand bounded concurrent execution across independent Journeys from measured ev
 ### CV-008.DS-002-US-1 — Operate More Independent Journey Turns
 
 - Let the Navigator start up to four independently admitted turns in distinct Journeys and continue navigating and editing drafts while they run.
-- Present aggregate occupancy as concise English-only interaction text, including used and available capacity without revealing sibling content.
+- Preserve existing owner-specific sidebar runtime state without adding a global process or turn counter.
 - Keep full-capacity refusal visible and actionable until capacity changes or the Navigator retries; retain the unsent draft.
-- Preserve existing per-Journey sidebar runtime state and exact selected-Journey cancellation.
-- Avoid notifications or status noise when occupancy is zero and no admission condition requires attention.
+- Preserve exact selected-Journey cancellation.
+- Avoid notifications or status noise during ordinary partial occupancy or when occupancy is zero.
 
 ### CV-008.DS-002-TS-3 — Preserve Authority Under Expanded Concurrency
 
@@ -90,7 +90,7 @@ Expand bounded concurrent execution across independent Journeys from measured ev
 Given Mirror Desktop has four ready Journeys and no admitted runs
 When the Navigator starts one turn in each Journey
 Then all four turns are admitted through exact native authority
-And aggregate occupancy reports four of four
+And each owning Journey shows its existing active state without a global process counter
 And navigation and draft editing remain available
 And every event, Steering message, cancellation, terminal outcome and persisted result remains attached to its owning Journey and run
 
@@ -123,7 +123,7 @@ E2E validation is required because the Delivery Story changes real process capac
 Automated validation must include:
 
 - Rust registry tests for capacity four, fifth-admission refusal, duplicate-Journey refusal, simultaneous reservation races, first-terminal behavior, finalizing occupancy, exact cancellation, stale targets and four-child bounded shutdown.
-- TypeScript tests for inspection limits, occupancy counts, admission reasons, aggregate presentation, draft-preserving overflow and unchanged sibling runtime state.
+- TypeScript tests for inspection limits, internal occupancy counts, admission reasons, absence of an ordinary process counter, draft-preserving overflow and unchanged sibling runtime state.
 - Integration tests for four exact authorities with interleaved events, Steering, cancellation, provider failure, settlement failure and restart recovery.
 - Existing complete frontend and Rust suites, frontend production build, `cargo check --locked`, roadmap consistency and whitespace checks.
 
@@ -139,7 +139,6 @@ Likely implementation and evidence surfaces include:
 - `src-tauri/src/main.rs`
 - `src/app/piInvocationOccupancy.ts`
 - `src/app/App.tsx`
-- a focused aggregate occupancy presentation component or model if extraction improves testability
 - `src/tests/piInvocationOccupancy.test.ts`
 - `src/tests/journeyRuntimeIntegration.test.ts`
 - focused frontend concurrency, settlement, Steering and restart tests
@@ -166,7 +165,7 @@ The exact file set may narrow during implementation. Expanding into unrelated pr
 
 ## Rollback
 
-A one-line private production-capacity change back to two remains the operational rollback. Correlated commands, four-capable bounded data structures, exact authority, occupancy presentation and tests remain intact. Rollback must not require persistence migration or deletion of Journey state.
+A one-line private production-capacity change back to two remains the operational rollback. Correlated commands, four-capable bounded data structures, exact authority, actionable refusal presentation and tests remain intact. Rollback must not require persistence migration or deletion of Journey state.
 
 ---
 

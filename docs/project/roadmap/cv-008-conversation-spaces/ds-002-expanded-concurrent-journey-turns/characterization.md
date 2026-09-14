@@ -53,14 +53,14 @@ These memory figures are build/test-process observations and are not interpreted
 The focused frontend suite exercised four admitted authorities, bounded inspection and owner-keyed interleaving:
 
 ```text
-49 tests passed across 3 files
+48 tests passed across 3 files after the Navigator-directed process-counter removal
 Vitest duration: 2.26 s
 measured command elapsed: 3.58 s
 maximum resident set size: 210,718,720 bytes
 peak memory footprint: 22,306,816 bytes
 ```
 
-The four-way state case interleaved a normal completion, owner-specific warning, targeted cancellation and sibling message delta. Each outcome remained confined to its Journey entry. Occupancy projection accepted only governed limits 1, 2 and 4, rejected 0, 3, 5 and inconsistent evidence, exposed only aggregate used/limit values and returned no presentation while free.
+The four-way state case interleaved a normal completion, owner-specific warning, targeted cancellation and sibling message delta. Each outcome remained confined to its Journey entry. Occupancy inspection accepted only governed limits 1, 2 and 4 and rejected 0, 3, 5 and inconsistent evidence. The internal count authorizes admission but is intentionally not projected as a global process counter; presentation remains silent until capacity refusal affects an explicit send.
 
 ## Pi Process Baseline
 
@@ -81,7 +81,7 @@ The deterministic evidence supports carrying capacity four into the isolated dev
 
 - the registry remains bounded and atomic;
 - shutdown control covers every production-admitted child;
-- frontend inspection and aggregate presentation remain bounded;
+- frontend inspection remains bounded while ordinary process counts stay out of the product surface;
 - four owner-keyed runtime entries tolerate interleaved outcomes;
 - four ephemeral Pi RPC processes run concurrently on the target host.
 

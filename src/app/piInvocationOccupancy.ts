@@ -47,14 +47,6 @@ export type PiInvocationAdmission =
   | { allowed: true; reason: null }
   | { allowed: false; reason: "inspection_unknown" | "same_journey_occupied" | "global_capacity_reached" };
 
-export interface PiInvocationCapacityPresentation {
-  used: number;
-  limit: 1 | 2 | 4;
-  available: number;
-  full: boolean;
-  label: string;
-}
-
 export type SettlementRecoveryEvidence = PiInvocationAuthorityInspection;
 
 export function piInvocationAuthorityFromRunAuthority(
@@ -277,23 +269,6 @@ export function retainExpectedPiInvocationLease(
     ...state,
     entries,
     processCapacityInUse: entries.filter((entry) => entry.processCapacityState !== "released").length,
-  };
-}
-
-export function derivePiInvocationCapacityPresentation(
-  state: PiInvocationOccupancyState,
-): PiInvocationCapacityPresentation | null {
-  if (state.status !== "known" || state.limit === null || state.entries.length === 0) {
-    return null;
-  }
-  const used = state.entries.length;
-  const available = Math.max(0, state.limit - used);
-  return {
-    used,
-    limit: state.limit,
-    available,
-    full: available === 0,
-    label: `Concurrent turns: ${used} / ${state.limit}`,
   };
 }
 
