@@ -2,7 +2,7 @@
 
 **Journey:** `mirror-desktop`
 **Candidate:** `v0.2.0-alpha.7`
-**Status:** alpha endpoint published; Git tag and GitHub prerelease pending
+**Status:** published alpha prerelease
 
 ## Scope And Authorization
 
@@ -86,7 +86,27 @@ The downloaded release note, release index, updater archive, signature, versione
 
 ## Git And GitHub Publication
 
-The complete source and preparation history was fast-forwarded to local `main` and pushed to `origin/main` through revision `2b8e1bcf54ba7b2972b8d43274acb1680abf9b61`. The immutable annotated tag and GitHub prerelease will be created from the endpoint-evidence revision containing this document, then recorded in a final receipt commit.
+The complete source history, release authority, and endpoint evidence were pushed to `origin/main`. Annotated tag `v0.2.0-alpha.7` resolves to endpoint-evidence revision:
+
+```text
+9b2cd8402d011022f33fb09418656bcca01d7590
+```
+
+The updater-signed binaries remain attributable to candidate source revision `1d442cb042f279cf3f5db302ae80ba2c03be3103`; intervening commits contain bounded preparation and publication evidence only.
+
+GitHub prerelease:
+
+```text
+https://github.com/mirror-mind-ai/mirror-desktop/releases/tag/v0.2.0-alpha.7
+```
+
+GitHub reports a non-draft prerelease published at `2026-09-14T13:20:31Z`. Downloaded copies of all three assets match the local candidate SHA-256 digests and byte counts:
+
+- `Mirror.Desktop_0.2.0-alpha.7_x64.dmg`
+- `Mirror.Desktop.app.tar.gz`
+- `Mirror.Desktop.app.tar.gz.sig`
+
+The tag is annotated but not GPG-signed. Artifact trust remains the separate updater-signature contract.
 
 ## Explicit Boundary
 
