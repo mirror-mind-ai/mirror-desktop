@@ -37,7 +37,7 @@ export interface PiInvocationLeaseRelease {
 export interface PiInvocationOccupancyState {
   status: "unknown" | "reconciling" | "known";
   requestId: number | null;
-  limit: 1 | 2 | null;
+  limit: 1 | 2 | 4 | null;
   processCapacityInUse: number | null;
   entries: PiInvocationLeaseInspection[];
   diagnostic: string | null;
@@ -46,6 +46,14 @@ export interface PiInvocationOccupancyState {
 export type PiInvocationAdmission =
   | { allowed: true; reason: null }
   | { allowed: false; reason: "inspection_unknown" | "same_journey_occupied" | "global_capacity_reached" };
+
+export interface PiInvocationCapacityPresentation {
+  used: number;
+  limit: 1 | 2 | 4;
+  available: number;
+  full: boolean;
+  label: string;
+}
 
 export type SettlementRecoveryEvidence = PiInvocationAuthorityInspection;
 
@@ -166,7 +174,7 @@ export function validatePiInvocationRegistryInspection(
 ): value is PiInvocationRegistryInspection {
   if (!isRecord(value) || !hasExactKeys(value, INSPECTION_KEYS)) return false;
   if (value.schemaVersion !== "0.1.0"
-    || (value.limit !== 1 && value.limit !== 2)
+    || (value.limit !== 1 && value.limit !== 2 && value.limit !== 4)
     || !Number.isSafeInteger(value.processCapacityInUse)
     || Number(value.processCapacityInUse) < 0
     || Number(value.processCapacityInUse) > Number(value.limit)
@@ -226,7 +234,7 @@ export function applyPiInvocationInspection(
   return {
     status: "known",
     requestId: null,
-    limit: inspection.limit as 1 | 2,
+    limit: inspection.limit as 1 | 2 | 4,
     processCapacityInUse: inspection.processCapacityInUse,
     entries: [...inspection.entries].sort((left, right) => left.authority.journeyId.localeCompare(right.authority.journeyId)),
     diagnostic: null,
@@ -269,6 +277,23 @@ export function retainExpectedPiInvocationLease(
     ...state,
     entries,
     processCapacityInUse: entries.filter((entry) => entry.processCapacityState !== "released").length,
+  };
+}
+
+export function derivePiInvocationCapacityPresentation(
+  state: PiInvocationOccupancyState,
+): PiInvocationCapacityPresentation | null {
+  if (state.status !== "known" || state.limit === null || state.entries.length === 0) {
+    return null;
+  }
+  const used = state.entries.length;
+  const available = Math.max(0, state.limit - used);
+  return {
+    used,
+    limit: state.limit,
+    available,
+    full: available === 0,
+    label: `Concurrent turns: ${used} / ${state.limit}`,
   };
 }
 

@@ -5,36 +5,43 @@
 **Status:** 🟡 Planned
 **Type:** Technical Story
 
----
-
 ## Technical Story
 
-In order to support the delivery capability,
-As an engineering team/system component,
-I want to Characterize Expanded Concurrent Load,
-So that the expected technical outcome is available.
+In order to expand concurrent Journey execution without guessing at host or orchestration behavior,
+as the Mirror Desktop runtime,
+I want reproducible capacity-four evidence,
+so that the supported bound is chosen from observable process and authority behavior.
 
 ## Outcome
 
-Navigator can validate Characterize Expanded Concurrent Load as an observable behavior.
+Private-data-free native, frontend and ephemeral Pi probes establish that four exact local process boundaries and four Journey-keyed runtime owners remain bounded on the target development host. Natural Mirror-mediated interaction remains an explicit Navigator Validation gate.
 
 ## Acceptance Behavior
 
 ```text
-Given the system is ready for Characterize Expanded Concurrent Load
-When the planned technical change is applied
-Then the expected technical outcome is observable
-And unrelated Delivery Story scope remains untouched
+Given bounded synthetic authorities and session-free Pi probes
+When four concurrent owners execute and a fifth competes for admission
+Then at most four are admitted
+And all evidence remains owner-keyed and private-data-free
+And measurements and limitations are recorded without claiming unperformed E2E validation
 ```
 
 ## Scope
 
-- Characterize Expanded Concurrent Load
+- Registry reservation, terminalization, cleanup and shutdown at capacity four.
+- Five-way atomic admission race with exactly four winners.
+- Four-way frontend state interleaving.
+- Four extension-free, session-free, offline Pi RPC process starts.
+- Sanitized host and test-process measurements.
+- Explicit separation between deterministic characterization and natural development validation.
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- Provider throughput promises.
+- Production conversation or app-data inspection.
+- Claiming Navigator acceptance before the isolated interaction route.
+- Capacity above four.
 
-## Validation
+## Evidence
 
-Navigator-visible validation route plus automated checks.
+See [Concurrent Load Characterization](../characterization.md). Focused evidence passed with 24 Rust registry tests, 49 frontend tests and four successful ephemeral Pi RPC responses. The packaged `Mirror Desktop Dev` route remains required before aggregate Validation.

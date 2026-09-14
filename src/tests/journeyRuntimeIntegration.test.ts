@@ -63,6 +63,12 @@ describe("Journey runtime integration guardrails", () => {
     expect(cancellationSource).toContain("dependencies.cancelInvocation(journeyId, runId)");
   });
 
+  it("presents bounded aggregate occupancy without weakening native admission", () => {
+    expect(appSource).toContain("derivePiInvocationCapacityPresentation(piInvocationOccupancy)");
+    expect(appSource).toContain("<ConcurrentTurnCapacityNotice presentation={piInvocationCapacity} />");
+    expect(appSource).toContain("Native admission remains the atomic capacity authority");
+  });
+
   it("allows admitted selected-Journey submission while keeping aggregate mutations blocked", () => {
     expect(appSource).toContain('const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading"');
     expect(appSource).toContain("disabled={isJourneyReloading}");

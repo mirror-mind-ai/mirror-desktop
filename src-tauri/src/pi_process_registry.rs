@@ -2,11 +2,11 @@ use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
-// DS-012 migration gate: restore two only after serial settlement and restart recovery are journal-owned.
-pub const PRODUCTION_PI_PROCESS_LIMIT: usize = 2;
+// CV-008.DS-002: four is the deliberately bounded supported concurrency horizon.
+pub const PRODUCTION_PI_PROCESS_LIMIT: usize = 4;
 const MAX_PI_PROCESS_LIMIT: usize = 16;
-// Shutdown remains able to drain the pre-migration DS-009 maximum after a hot replacement.
-const MAX_BOUNDED_CHILD_CONTROLS: usize = 2;
+// Shutdown drains every child admitted by the production registry, without an independent bound.
+const MAX_BOUNDED_CHILD_CONTROLS: usize = PRODUCTION_PI_PROCESS_LIMIT;
 
 pub trait RegistryAuthority: Clone {
     fn journey_id(&self) -> &str;
@@ -532,8 +532,8 @@ mod tests {
     }
 
     #[test]
-    fn production_limit_is_exactly_two_after_durable_turn_lifecycle_cutover_and_invalid_limits_fail() {
-        assert_eq!(PRODUCTION_PI_PROCESS_LIMIT, 2);
+    fn production_limit_is_exactly_four_after_expanded_concurrency_and_invalid_limits_fail() {
+        assert_eq!(PRODUCTION_PI_PROCESS_LIMIT, 4);
         assert!(PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(0).is_err());
         assert!(
             PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(
@@ -545,18 +545,18 @@ mod tests {
             PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production()
                 .inspect()
                 .limit,
-            2
+            4
         );
     }
 
     #[test]
-    fn two_different_journeys_fill_limit_two_and_a_third_never_starts() {
+    fn four_different_journeys_fill_production_capacity_and_a_fifth_never_starts() {
         let registry = Arc::new(Mutex::new(
             PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production(),
         ));
         let starts = Arc::new(AtomicUsize::new(0));
-        let barrier = Arc::new(Barrier::new(3));
-        let handles = [("a", "a1"), ("b", "b1")]
+        let barrier = Arc::new(Barrier::new(5));
+        let handles = [("a", "a1"), ("b", "b1"), ("c", "c1"), ("d", "d1")]
             .into_iter()
             .map(|(journey, run)| {
                 let registry = registry.clone();
@@ -582,8 +582,13 @@ mod tests {
             .map(|handle| handle.join().unwrap().unwrap())
             .collect::<Vec<_>>();
         admitted.sort_by(|left, right| left.journey_id.cmp(&right.journey_id));
-        assert_eq!(admitted, vec![RunTarget::new("a", "a1"), RunTarget::new("b", "b1")]);
-        assert_eq!(starts.load(Ordering::SeqCst), 2);
+        assert_eq!(admitted, vec![
+            RunTarget::new("a", "a1"),
+            RunTarget::new("b", "b1"),
+            RunTarget::new("c", "c1"),
+            RunTarget::new("d", "d1"),
+        ]);
+        assert_eq!(starts.load(Ordering::SeqCst), 4);
         {
             let mut registry = registry.lock().unwrap();
             for target in &admitted {
@@ -599,27 +604,62 @@ mod tests {
                 .all(|entry| entry.process_capacity_state == ProcessCapacityState::Running));
         }
 
-        let third = reserve_then_start(
+        let fifth = reserve_then_start(
             &registry,
-            authority("c", "c1"),
-            FakeProvider { secret: "c".into() },
+            authority("e", "e1"),
+            FakeProvider { secret: "e".into() },
             |_| {
                 starts.fetch_add(1, Ordering::SeqCst);
                 Ok::<(), ()>(())
             },
         );
         assert!(matches!(
-            third,
+            fifth,
             Err(ReserveThenStartError::Reservation(ReserveError::CapacityReached))
         ));
-        assert_eq!(starts.load(Ordering::SeqCst), 2);
+        assert_eq!(starts.load(Ordering::SeqCst), 4);
         let inspection = registry.lock().unwrap().inspect();
-        assert_eq!(inspection.limit, 2);
-        assert_eq!(inspection.process_capacity_in_use, 2);
+        assert_eq!(inspection.limit, 4);
+        assert_eq!(inspection.process_capacity_in_use, 4);
         assert_eq!(
             inspection.entries.iter().map(|entry| entry.authority.journey_id.as_str()).collect::<Vec<_>>(),
-            vec!["a", "b"],
+            vec!["a", "b", "c", "d"],
         );
+    }
+
+    #[test]
+    fn five_concurrent_reservations_have_exactly_four_winners_at_production_limit() {
+        let registry = Arc::new(Mutex::new(
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production(),
+        ));
+        let barrier = Arc::new(Barrier::new(6));
+        let handles = [("a", "a1"), ("b", "b1"), ("c", "c1"), ("d", "d1"), ("e", "e1")]
+            .into_iter()
+            .map(|(journey, run)| {
+                let registry = registry.clone();
+                let barrier = barrier.clone();
+                thread::spawn(move || {
+                    barrier.wait();
+                    registry.lock().unwrap().reserve(
+                        authority(journey, run),
+                        FakeProvider { secret: journey.into() },
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        barrier.wait();
+        let results = handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 4);
+        assert_eq!(
+            results.iter().filter(|result| matches!(result, Err(ReserveError::CapacityReached))).count(),
+            1,
+        );
+        let inspection = registry.lock().unwrap().inspect();
+        assert_eq!(inspection.entries.len(), 4);
+        assert_eq!(inspection.process_capacity_in_use, 4);
     }
 
     #[test]
@@ -1283,10 +1323,13 @@ mod tests {
     }
 
     #[test]
-    fn bounded_child_control_attempts_both_exact_handles_after_one_failure() {
+    fn bounded_child_control_attempts_all_four_exact_handles_after_one_failure() {
         let handles = vec![
             (RunTarget::new("a", "a1"), FakeChild::default()),
             (RunTarget::new("b", "b1"), FakeChild::default()),
+            (RunTarget::new("c", "c1"), FakeChild::default()),
+            (RunTarget::new("d", "d1"), FakeChild::default()),
+            (RunTarget::new("e", "e1"), FakeChild::default()),
         ];
         let attempts = Arc::new(Mutex::new(Vec::new()));
         let recorded = attempts.clone();
@@ -1299,38 +1342,46 @@ mod tests {
         assert_eq!(*attempts.lock().unwrap(), vec![
             RunTarget::new("a", "a1"),
             RunTarget::new("b", "b1"),
+            RunTarget::new("c", "c1"),
+            RunTarget::new("d", "d1"),
         ]);
-        assert_eq!(outcomes.len(), 2);
+        assert_eq!(outcomes.len(), 4);
         assert_eq!(outcomes[0], (RunTarget::new("a", "a1"), Err("a_failed")));
         assert_eq!(outcomes[1], (RunTarget::new("b", "b1"), Ok(())));
+        assert_eq!(outcomes[2], (RunTarget::new("c", "c1"), Ok(())));
+        assert_eq!(outcomes[3], (RunTarget::new("d", "d1"), Ok(())));
     }
 
     #[test]
-    fn shutdown_snapshot_contains_only_two_sorted_running_child_handles() {
+    fn shutdown_snapshot_contains_four_sorted_running_child_handles() {
         let mut registry =
-            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(2).unwrap();
-        let b1 = registry.reserve(
-            authority("b", "b1"),
-            FakeProvider { secret: "b".into() },
-        ).unwrap();
-        let a1 = registry.reserve(
-            authority("a", "a1"),
-            FakeProvider { secret: "a".into() },
-        ).unwrap();
-        registry.attach_child(&b1, FakeChild::default()).unwrap();
-        registry.attach_child(&a1, FakeChild::default()).unwrap();
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(4).unwrap();
+        let targets = [("b", "b1"), ("a", "a1"), ("d", "d1"), ("c", "c1")]
+            .into_iter()
+            .map(|(journey, run)| {
+                let target = registry.reserve(
+                    authority(journey, run),
+                    FakeProvider { secret: journey.into() },
+                ).unwrap();
+                registry.attach_child(&target, FakeChild::default()).unwrap();
+                target
+            })
+            .collect::<Vec<_>>();
 
         let handles = registry.running_child_handles();
         assert_eq!(
             handles.iter().map(|(target, _)| target.journey_id.as_str()).collect::<Vec<_>>(),
-            vec!["a", "b"],
+            vec!["a", "b", "c", "d"],
         );
-        assert_eq!(handles.len(), 2);
+        assert_eq!(handles.len(), 4);
 
-        registry.terminalize(&a1, TerminalState::Completed);
+        registry.terminalize(&targets[1], TerminalState::Completed);
         let handles = registry.running_child_handles();
-        assert_eq!(handles.len(), 1);
-        assert_eq!(handles[0].0, b1);
+        assert_eq!(handles.len(), 3);
+        assert_eq!(
+            handles.iter().map(|(target, _)| target.journey_id.as_str()).collect::<Vec<_>>(),
+            vec!["b", "c", "d"],
+        );
     }
 
     #[test]

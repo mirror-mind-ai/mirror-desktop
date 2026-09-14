@@ -168,6 +168,47 @@ describe("Journey-keyed frontend runtime state", () => {
     });
   });
 
+  it("routes interleaved events to four active Journey owners without sibling mutation", () => {
+    const owners = ["a", "b", "c", "d"].map((suffix) => identity(`journey-${suffix}`, `run-${suffix}1`));
+    let state = createInitialJourneyRuntimeState();
+    for (const owner of owners) state = register(state, owner);
+
+    state = journeyRuntimeReducer(state, {
+      type: "stream_event",
+      identity: owners[3],
+      event: { type: "message_delta", content: "D only" },
+    });
+    state = journeyRuntimeReducer(state, {
+      type: "cancel_requested",
+      identity: owners[2],
+      message: "C cancelled",
+    });
+    state = journeyRuntimeReducer(state, {
+      type: "stream_event",
+      identity: owners[1],
+      event: { type: "warning", message: "B only" },
+    });
+    state = journeyRuntimeReducer(state, {
+      type: "stream_event",
+      identity: owners[0],
+      event: { type: "done" },
+    });
+
+    expect(Object.keys(state.entries).sort()).toEqual([
+      "journey-a",
+      "journey-b",
+      "journey-c",
+      "journey-d",
+    ]);
+    expect(state.entries["journey-a"]?.agentRun.status).toBe("completed");
+    expect(state.entries["journey-b"]?.warnings).toEqual(["B only"]);
+    expect(state.entries["journey-c"]?.agentRun.status).toBe("cancelled");
+    expect(state.entries["journey-d"]?.streamedAssistantContent).toBe("D only");
+    expect(state.entries["journey-a"]?.warnings).toEqual([]);
+    expect(state.entries["journey-b"]?.streamedAssistantContent).toBe("");
+    expect(state.entries["journey-d"]?.warnings).toEqual([]);
+  });
+
   it("routes interleaved events to two active Journey owners", () => {
     const first = identity("journey-a", "run-a1");
     const second = identity("journey-b", "run-b1");

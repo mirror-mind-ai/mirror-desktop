@@ -164,6 +164,22 @@ Any of the following fails the Delivery Story:
 - frontend acceptance of malformed or excessive occupancy evidence;
 - user-channel or production Mirror/app-data mutation.
 
+## Implementation Evidence
+
+```text
+Focused frontend concurrency, settlement and Steering tests: 114 passed
+Focused native process-registry tests: 24 passed
+Complete frontend suite: 720 passed across 132 files
+Complete Rust suite: 117 passed
+Frontend production build: passed
+cargo check --locked: passed
+Roadmap consistency: passed
+Whitespace check: passed
+Mirror Desktop Dev release-mode bundle: passed
+```
+
+The build retains the existing Vite chunk-size advisory. `cargo fmt --check` is not a repository gate and reports unrelated pre-existing formatting drift outside this Delivery Story; modified Rust behavior compiles and passes focused plus complete native suites.
+
 ## Validation Evidence
 
-Record sanitized characterization results, automated command output summaries, development bundle identity and Navigator acceptance in the Delivery Story validation artifact. Do not commit production conversation content, credentials, private paths, screenshots or raw logs.
+Record sanitized characterization results, automated command output summaries, development bundle identity and Navigator acceptance in the Delivery Story validation artifact. Natural Navigator validation is still required. Do not commit production conversation content, credentials, private paths, screenshots or raw logs.

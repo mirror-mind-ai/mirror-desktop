@@ -5,35 +5,46 @@
 **Status:** 🟡 Planned
 **Type:** User Story
 
----
-
 ## User Story
 
-As a user,
-I want to Operate More Independent Journey Turns,
-So that I can receive the value of this story.
+As the Navigator,
+I want to operate up to four independent Journey turns and understand aggregate occupancy,
+so that I can keep more work in motion without losing drafts or wondering why another send was refused.
 
 ## Outcome
 
-Navigator can validate Operate More Independent Journey Turns as an observable behavior.
+While admitted Journey leases exist, the composer presents bounded `Concurrent turns: used / limit` status and available capacity without exposing sibling content. Full capacity remains an explicit persistent condition, while the fifth Journey's draft stays editable for deliberate retry.
 
 ## Acceptance Behavior
 
 ```text
-Given the user is ready for Operate More Independent Journey Turns
-When the user performs the planned action
-Then the expected observable behavior is visible
-And unrelated Delivery Story scope remains untouched
+Given one to four independent Journey turns are admitted
+When the Navigator moves among Journeys
+Then aggregate occupancy and available slots remain visible
+And each Journey keeps its own sidebar and conversation state
+
+Given four slots are occupied
+When the Navigator attempts a fifth Journey turn
+Then the app explains that capacity is occupied
+And preserves the unsent draft
+And creates no hidden queue or automatic retry
 ```
 
 ## Scope
 
-- Operate More Independent Journey Turns
+- English-only aggregate occupancy presentation while occupancy is nonzero.
+- Used, limit and available-slot text derived from bounded native inspection.
+- Existing full-capacity notice and deliberate retry behavior.
+- Existing Journey navigation, draft editing and owner-specific sidebar state.
+- Component coverage for partial and full capacity presentation.
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- Showing sibling prompts, responses, providers, paths or conversation content.
+- Notifications while occupancy is zero.
+- Prompt queue controls or automatic send.
+- New concurrency within one Journey.
 
-## Validation
+## Evidence
 
-Navigator-visible validation route plus automated checks.
+Pure projection and component tests cover free, partial and full occupancy, accessibility status semantics and absence of owner identity in the presentation. Source integration checks keep native admission as the atomic authority. Natural four-Journey interaction remains the aggregate Navigator Validation route.
