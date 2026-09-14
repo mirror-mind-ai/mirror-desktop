@@ -57,8 +57,8 @@ Component and integration checks cover:
 
 - no global process counter during partial or full occupancy;
 - no unnecessary occupancy noise while free or below the bound;
-- explicit English-only full-capacity notice after an affected send;
-- fifth-Journey draft remains editable and available for retry;
+- explicit English-only full-capacity notice before submission when refusal is known;
+- fifth-Journey draft remains editable while Send is disabled and available for retry after capacity frees;
 - selection and navigation do not change admission authority;
 - per-Journey sidebar state remains owner-specific;
 - selected exact cancellation remains available while siblings continue;
@@ -134,16 +134,16 @@ Use four disposable development Journeys with distinguishable bounded prompts.
 
 1. Start one sufficiently observable turn in each Journey and navigate among them while output continues.
 2. Confirm all four sidebar rows reflect only their own runs, drafts remain responsive and no global process counter appears.
-3. In a fifth development Journey, attempt Send. Confirm explicit capacity refusal, no placeholder or run is created and the draft remains ready for deliberate retry.
+3. In a fifth development Journey, enter a draft. Confirm explicit capacity refusal, Send is disabled, no placeholder or run is created and the draft remains editable for deliberate retry.
 4. Steer one of the original runs. Confirm the correction is accepted/applied under its exact authority and does not admit another process or create counter UI.
 5. Navigate away from another running Journey and cancel it. Confirm only that exact run is interrupted.
 6. Allow remaining runs to settle, including any controlled development-only failure used by the validation route. Confirm outcomes and conversation history remain owner-correct.
 7. Relaunch the development app after a bounded unfinished-state scenario. Confirm independent journal recovery, honest interruption where no child survives and no prompt replay.
-8. After exact cleanup, confirm the preserved fifth-Journey draft can be sent deliberately and no stale capacity refusal remains.
+8. After exact cleanup, confirm Send becomes enabled, the preserved fifth-Journey draft can be sent deliberately and no stale capacity refusal remains.
 
 ## Expected Observation
 
-The desktop remains navigable and draft-editable with four concurrent Journey turns. Each Journey communicates its own state without a global process counter; the fifth turn is refused without loss, Steering consumes no additional slot, cancellation and failures affect only their exact owners, and settlement/restart recovery preserve terminal truth.
+The desktop remains navigable and draft-editable with four concurrent Journey turns. Each Journey communicates its own state without a global process counter; the fifth Journey remains draft-editable but cannot Send until capacity frees, Steering consumes no additional slot, cancellation and failures affect only their exact owners, and settlement/restart recovery preserve terminal truth.
 
 ## Pass Condition
 

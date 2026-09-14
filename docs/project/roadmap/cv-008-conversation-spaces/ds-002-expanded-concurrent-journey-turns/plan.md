@@ -26,11 +26,11 @@ Expand bounded concurrent execution across independent Journeys from measured ev
 - Growth above four requires a future demonstrated product need and separately governed work with new resource and authority evidence; this Delivery Story creates no automatic scaling path.
 - One Journey may still own at most one reserved, running or finalizing lease. This Delivery Story does not introduce concurrent turns inside one Journey or conversation.
 - An admitted slot remains occupied through `finalizing` until durable projection, outbox enqueue, exact cleanup and fresh native reinspection complete. Child-process exit alone does not free admission.
-- Overflow uses immediate explicit refusal. The app retains the draft for deliberate retry but does not queue prompts, start them later, or retry automatically.
+- Overflow uses immediate explicit refusal. When full capacity is already known, Send is disabled before submission; native reservation still refuses atomic races. The app retains the editable draft for deliberate retry but does not queue prompts, start them later, or retry automatically.
 - Fairness means one lease per Journey, no hidden priority, no bypass of the atomic native reservation boundary and equal eligibility after a slot becomes free. This story does not claim scheduled FIFO fairness because it introduces no waiting queue.
 - Steering uses the writable stdin of its existing exact Pi process. It consumes no additional slot, but its effect on occupancy duration and settlement must be included in characterization.
 - Production capacity is not user-configurable and has no environment override. Tests may inject only bounded rollback and candidate capacities.
-- Ordinary occupancy remains implicit in existing owner-specific Journey states. There is no global process counter. Presentation becomes explicit only when inspection is uncertain or a send reaches the full-capacity refusal condition, and it must not expose another Journey's prompt, response, provider configuration, paths or conversation content.
+- Ordinary occupancy remains implicit in existing owner-specific Journey states. There is no global process counter. Presentation becomes explicit only when inspection is uncertain or the selected Journey is denied admission at full capacity, and it must not expose another Journey's prompt, response, provider configuration, paths or conversation content.
 - Existing `RunAuthority`, process-event authority, turn journal, generation projection and Mirror outbox contracts remain authoritative. No persistence schema change is planned.
 
 ## Scope
@@ -58,7 +58,7 @@ Expand bounded concurrent execution across independent Journeys from measured ev
 
 - Let the Navigator start up to four independently admitted turns in distinct Journeys and continue navigating and editing drafts while they run.
 - Preserve existing owner-specific sidebar runtime state without adding a global process or turn counter.
-- Keep full-capacity refusal visible and actionable until capacity changes or the Navigator retries; retain the unsent draft.
+- Keep full-capacity refusal visible, keep Send disabled until capacity changes, and retain the editable unsent draft for deliberate retry.
 - Preserve exact selected-Journey cancellation.
 - Avoid notifications or status noise during ordinary partial occupancy or when occupancy is zero.
 
@@ -95,10 +95,10 @@ And navigation and draft editing remain available
 And every event, Steering message, cancellation, terminal outcome and persisted result remains attached to its owning Journey and run
 
 Given all four admitted slots are occupied
-When the Navigator attempts a turn in a fifth Journey
-Then admission is refused explicitly
-And the draft remains available for deliberate retry
-And no process, message, turn, generation or queued request is created for the rejected attempt
+When the Navigator drafts a turn in a fifth Journey while capacity is full
+Then admission is refused explicitly and Send is disabled
+And the draft remains editable and available for deliberate retry after capacity frees
+And no process, message, turn, generation or queued request is created
 
 Given one concurrent run is Steered, one is cancelled, one fails and one completes
 When their terminal and settlement work interleave
@@ -127,7 +127,7 @@ Automated validation must include:
 - Integration tests for four exact authorities with interleaved events, Steering, cancellation, provider failure, settlement failure and restart recovery.
 - Existing complete frontend and Rust suites, frontend production build, `cargo check --locked`, roadmap consistency and whitespace checks.
 
-Navigator validation runs only in isolated `Mirror Desktop Dev` with bundle identifier `ai.mirrormind.desktop.dev` and non-production Mirror/app-data roots. The route uses four disposable development Journeys, starts four observable turns, Steers one, navigates among them, confirms a fifth send is refused with its draft preserved, cancels one exact run, observes independent settlement and relaunches to verify durable recovery. The pass condition is responsive navigation and drafting, exact four-slot occupancy, honest owner-specific outcomes, no cross-Journey leakage and clean admission after settlement. Any mixed transcript, retargeted cancellation, lost draft, hidden overflow, stale working state, deadlock, replay or protected-data mutation fails validation.
+Navigator validation runs only in isolated `Mirror Desktop Dev` with bundle identifier `ai.mirrormind.desktop.dev` and non-production Mirror/app-data roots. The route uses four disposable development Journeys, starts four observable turns, Steers one, navigates among them, confirms a fifth Journey keeps drafting while Send is disabled, cancels one exact run, confirms Send becomes available after capacity frees, observes independent settlement and relaunches to verify durable recovery. The pass condition is responsive navigation and drafting, exact four-slot occupancy, honest owner-specific outcomes, no cross-Journey leakage and clean admission after settlement. Any mixed transcript, retargeted cancellation, lost draft, hidden overflow, stale working state, deadlock, replay or protected-data mutation fails validation.
 
 The characterization artifact records hardware/runtime versions, measurements and sanitized observations. It must not retain production conversation content or private filesystem coordinates.
 

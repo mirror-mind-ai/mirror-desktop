@@ -63,11 +63,12 @@ describe("Journey runtime integration guardrails", () => {
     expect(cancellationSource).toContain("dependencies.cancelInvocation(journeyId, runId)");
   });
 
-  it("keeps ordinary occupancy silent until capacity refusal becomes actionable", () => {
+  it("keeps ordinary occupancy silent and disables Send when capacity refusal is known", () => {
     expect(appSource).not.toContain("derivePiInvocationCapacityPresentation");
     expect(appSource).not.toContain("ConcurrentTurnCapacityNotice");
     expect(appSource).not.toContain("Concurrent turns:");
     expect(appSource).toContain("Global Pi capacity occupied");
+    expect(appSource).toContain("|| !piInvocationPresentation.allowed");
     expect(appSource).toContain("Native admission remains the atomic capacity authority");
   });
 

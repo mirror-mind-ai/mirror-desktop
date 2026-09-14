@@ -60,7 +60,7 @@ maximum resident set size: 210,718,720 bytes
 peak memory footprint: 22,306,816 bytes
 ```
 
-The four-way state case interleaved a normal completion, owner-specific warning, targeted cancellation and sibling message delta. Each outcome remained confined to its Journey entry. Occupancy inspection accepted only governed limits 1, 2 and 4 and rejected 0, 3, 5 and inconsistent evidence. The internal count authorizes admission but is intentionally not projected as a global process counter; presentation remains silent until capacity refusal affects an explicit send.
+The four-way state case interleaved a normal completion, owner-specific warning, targeted cancellation and sibling message delta. Each outcome remained confined to its Journey entry. Occupancy inspection accepted only governed limits 1, 2 and 4 and rejected 0, 3, 5 and inconsistent evidence. The internal count authorizes admission but is intentionally not projected as a global process counter; presentation remains silent until full capacity affects the selected Journey, where Send is disabled before submission while drafting remains available.
 
 ## Pi Process Baseline
 

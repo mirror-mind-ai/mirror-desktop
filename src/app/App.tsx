@@ -590,7 +590,8 @@ export function App({ model }: AppProps) {
   const runtimeBindingReady = runtimeChannel?.status === "validated";
   const selectedInvocationAdmissionBlocked = Boolean(runStartReservation)
     || selectedRuntimeBusy
-    || !runtimeBindingReady;
+    || !runtimeBindingReady
+    || !piInvocationPresentation.allowed;
   const mirrorCommitError = navigationPresentation.mirrorCommitError;
   const messages = navigationPresentation.messages;
   const presentedConversation = navigationPresentation.conversation ?? conversation;
@@ -3838,7 +3839,7 @@ export function App({ model }: AppProps) {
           {piInvocationPresentation.reason === "global_capacity_reached" && !selectedRuntimeBusy ? (
             <section className="dedicated-turn-notice" role="status">
               <strong>Global Pi capacity occupied</strong>
-              <p>You can keep drafting. Native admission remains the atomic capacity authority and retains a rejected message for retry.</p>
+              <p>You can keep drafting, but Send remains unavailable until a Journey slot is free. Native admission remains the atomic capacity authority.</p>
             </section>
           ) : null}
           {durableInterruptedTurn && !isStreaming ? (
