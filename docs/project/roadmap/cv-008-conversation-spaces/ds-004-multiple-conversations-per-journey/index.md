@@ -62,7 +62,7 @@ State requires an icon, accessible label and text semantics; color alone is insu
 
 | Code | Story | Type | Status |
 |------|-------|------|--------|
-| CV-008.DS-004-TS-1 | Characterize Mirror Conversation and Compaction Authority | Technical Story | 🟡 Planned |
+| CV-008.DS-004-TS-1 | Characterize Mirror Conversation and Compaction Authority | Technical Story | 🟢 Done |
 | CV-008.DS-004-TS-2 | Establish Conversation, Segment and Import Authority | Technical Story | 🟡 Planned |
 | CV-008.DS-004-US-1 | Browse a Unified Catalog in a Resizable Journey Sidebar | User Story | 🟡 Planned |
 | CV-008.DS-004-US-2 | Create, Resume and Reset Desktop Conversations | User Story | 🟡 Planned |

@@ -63,6 +63,14 @@ describe("Journey runtime integration guardrails", () => {
     expect(cancellationSource).toContain("dependencies.cancelInvocation(journeyId, runId)");
   });
 
+  it("presents generation replacement as Reset agent context rather than restarting the Conversation", () => {
+    expect(appSource).toContain("Reset agent context…");
+    expect(appSource).toContain("Reset agent context?");
+    expect(appSource).toContain("Resetting context…");
+    expect(appSource).not.toContain("Restart Conversation…");
+    expect(appSource).not.toContain("Restart conversation?");
+  });
+
   it("keeps ordinary occupancy silent and disables Send when capacity refusal is known", () => {
     expect(appSource).not.toContain("derivePiInvocationCapacityPresentation");
     expect(appSource).not.toContain("ConcurrentTurnCapacityNotice");

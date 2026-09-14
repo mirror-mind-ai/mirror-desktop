@@ -3626,7 +3626,7 @@ export function App({ model }: AppProps) {
                         disabled={runtimeBusy || isJourneyReloading || turnRecoveryBusy || Boolean(blockingTurnJournalRecord) || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)}
                         title={blockingTurnJournalRecord ? "Wait until the previous message is ready." : undefined}
                       >
-                        Restart Conversation…
+                        Reset agent context…
                       </button>
                     </div>
                   ) : null}
@@ -3975,16 +3975,16 @@ export function App({ model }: AppProps) {
             className="settings-window restart-conversation-dialog"
             role="alertdialog"
             aria-modal="true"
-            aria-label="Confirm conversation restart"
+            aria-label="Confirm agent context reset"
             onClick={(event) => event.stopPropagation()}
           >
             <header className="settings-header">
               <div>
                 <p className="eyebrow">Fresh context boundary</p>
-                <h2>Restart conversation?</h2>
+                <h2>Reset agent context?</h2>
                 <p className="settings-intro">
-                  Mirror Desktop will create Generation {journeyThreadState.activeGeneration.generation + 1} with a new Pi session and Mirror conversation.
-                  Generation {journeyThreadState.activeGeneration.generation} and its transcript will remain preserved and read-only.
+                  Mirror Desktop will keep this conversation and create Generation {journeyThreadState.activeGeneration.generation + 1} with a fresh Pi working context and Mirror conversation.
+                  Generation {journeyThreadState.activeGeneration.generation} and its transcript will remain preserved and read-only, but its messages will not be copied verbatim into the new Pi context.
                 </p>
               </div>
             </header>
@@ -4003,7 +4003,7 @@ export function App({ model }: AppProps) {
             {journeyReloadStatus ? <p className="journey-reload-status" aria-live="polite">{journeyReloadStatus}</p> : null}
             <div className="provider-actions">
               <button type="button" onClick={() => void confirmConversationRestart()} disabled={isJourneyReloading}>
-                {isJourneyReloading ? "Restarting…" : "Restart conversation"}
+                {isJourneyReloading ? "Resetting context…" : "Reset agent context"}
               </button>
               <button className="secondary-button" type="button" onClick={() => setRestartConfirmationOpen(false)} disabled={isJourneyReloading}>
                 Cancel

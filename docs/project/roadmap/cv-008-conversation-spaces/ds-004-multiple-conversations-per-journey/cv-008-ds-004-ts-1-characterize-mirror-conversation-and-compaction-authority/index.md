@@ -2,7 +2,7 @@
 
 # CV-008.DS-004-TS-1 — Characterize Mirror Conversation and Compaction Authority
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** Technical Story
 
 ## Technical Story
@@ -44,4 +44,4 @@ And missing supported runtime capability blocks dependent work instead of causin
 
 ## Validation
 
-Use disposable development Mirror state and extension-free offline Pi sessions where possible. Verify bounded output, remove private paths and content, run private-data inspection, and require the evidence before TS-2 or US-3 selects an authority or handoff route.
+Completed in [the structural characterization](../characterization.md). The released Mirror summary path is Journey-filtered and bounded, but lacks an opaque source revision and bounded message preview. Real Pi session inspection recorded compaction shape and reference resolution without retaining content, identifiers or paths. Import-dependent work is explicitly blocked pending a separately governed and officially released Mirror capability; no direct SQLite or production-checkout workaround is allowed.
