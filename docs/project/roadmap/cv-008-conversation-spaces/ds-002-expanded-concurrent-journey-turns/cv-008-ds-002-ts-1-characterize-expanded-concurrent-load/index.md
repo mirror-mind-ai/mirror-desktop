@@ -2,7 +2,7 @@
 
 # CV-008.DS-002-TS-1 — Characterize Expanded Concurrent Load
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

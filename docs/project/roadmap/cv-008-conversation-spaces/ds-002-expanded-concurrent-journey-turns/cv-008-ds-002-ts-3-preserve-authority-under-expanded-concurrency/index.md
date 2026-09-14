@@ -2,7 +2,7 @@
 
 # CV-008.DS-002-TS-3 — Preserve Authority Under Expanded Concurrency
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story

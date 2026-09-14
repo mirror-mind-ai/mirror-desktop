@@ -2,7 +2,7 @@
 
 # CV-008.DS-002 - Expanded Concurrent Journey Turns
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -25,10 +25,10 @@ The baseline proved Journey-keyed concurrency and isolation at a deliberately sm
 
 | Code | Story | Type | Outcome | Status |
 |------|-------|------|---------|--------|
-| CV-008.DS-002-TS-1 | Characterize Expanded Concurrent Load | Technical Story | Reproducible evidence measures frontend, Pi processes, Mirror, persistence and host resources under increasing concurrent load and establishes the safe envelope for expansion. | 🟡 Planned |
-| CV-008.DS-002-TS-2 | Establish Bounded Admission and Fairness Policy | Technical Story | One explicit policy governs capacity, reserved, running and finalizing leases, overflow, fair admission and Steering impact without allowing unlimited concurrency. | 🟡 Planned |
-| CV-008.DS-002-US-1 | Operate More Independent Journey Turns | User Story | Navigator can start the approved number of turns in distinct Journeys, navigate among their owner-specific states and receive a recoverable refusal only when the bound is reached. | 🟡 Planned |
-| CV-008.DS-002-TS-3 | Preserve Authority Under Expanded Concurrency | Technical Story | Events, Steering, cancellation, provider failure, settlement, persistence and restart recovery remain bound to the exact Journey and run under expanded capacity. | 🟡 Planned |
+| CV-008.DS-002-TS-1 | Characterize Expanded Concurrent Load | Technical Story | Reproducible evidence measures frontend, Pi processes, Mirror, persistence and host resources under increasing concurrent load and establishes the safe envelope for expansion. | ✅ Done |
+| CV-008.DS-002-TS-2 | Establish Bounded Admission and Fairness Policy | Technical Story | One explicit policy governs capacity, reserved, running and finalizing leases, overflow, fair admission and Steering impact without allowing unlimited concurrency. | ✅ Done |
+| CV-008.DS-002-US-1 | Operate More Independent Journey Turns | User Story | Navigator can start the approved number of turns in distinct Journeys, navigate among their owner-specific states and receive a recoverable refusal only when the bound is reached. | ✅ Done |
+| CV-008.DS-002-TS-3 | Preserve Authority Under Expanded Concurrency | Technical Story | Events, Steering, cancellation, provider failure, settlement, persistence and restart recovery remain bound to the exact Journey and run under expanded capacity. | ✅ Done |
 
 ## Acceptance Direction
 

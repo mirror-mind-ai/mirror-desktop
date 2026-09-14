@@ -2,7 +2,7 @@
 
 # CV-008.DS-002-US-1 — Operate More Independent Journey Turns
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** User Story
 
 ## User Story

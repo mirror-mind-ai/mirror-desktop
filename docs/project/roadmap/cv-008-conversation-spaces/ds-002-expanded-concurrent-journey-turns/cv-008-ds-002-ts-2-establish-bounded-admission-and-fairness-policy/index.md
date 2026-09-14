@@ -2,7 +2,7 @@
 
 # CV-008.DS-002-TS-2 — Establish Bounded Admission and Fairness Policy
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 **Type:** Technical Story
 
 ## Technical Story
