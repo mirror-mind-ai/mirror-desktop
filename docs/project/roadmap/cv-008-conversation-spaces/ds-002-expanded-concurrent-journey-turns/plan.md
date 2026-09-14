@@ -21,8 +21,9 @@ Expand bounded concurrent execution across independent Journeys from measured ev
 
 ## Planning Decisions
 
-- The candidate production capacity is exactly four admitted Journey leases, doubling the current capacity of two while remaining deliberately bounded.
-- Capacity four must pass deterministic and isolated development evidence before the production constant changes. If it does not pass, implementation stops for a scope decision rather than silently selecting another limit.
+- The intended supported production capacity is exactly four admitted Journey leases, doubling the current capacity of two while remaining deliberately bounded. Four is the product's ideal capacity for this horizon, not an intermediate step toward a larger predetermined number.
+- Capacity four remains a candidate until it passes deterministic and isolated development evidence. If it does not pass, implementation stops for a scope decision rather than silently selecting another limit.
+- Growth above four requires a future demonstrated product need and separately governed work with new resource and authority evidence; this Delivery Story creates no automatic scaling path.
 - One Journey may still own at most one reserved, running or finalizing lease. This Delivery Story does not introduce concurrent turns inside one Journey or conversation.
 - An admitted slot remains occupied through `finalizing` until durable projection, outbox enqueue, exact cleanup and fresh native reinspection complete. Child-process exit alone does not free admission.
 - Overflow uses immediate explicit refusal. The app retains the draft for deliberate retry but does not queue prompts, start them later, or retry automatically.
@@ -72,7 +73,7 @@ Expand bounded concurrent execution across independent Journeys from measured ev
 
 ## Non-Goals
 
-- Unlimited, provider-determined or dynamically resource-scaled concurrency.
+- Unlimited, provider-determined or dynamically resource-scaled concurrency, or any planned capacity growth above four.
 - A user-facing capacity setting or environment override.
 - A prompt queue, automatic retry, queue editing, prioritization or background send.
 - More than one active or finalizing turn in the same Journey or conversation.
