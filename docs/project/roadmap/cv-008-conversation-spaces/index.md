@@ -14,18 +14,18 @@ The completed baseline established one trustworthy dedicated conversational thre
 
 ## Exploration Source
 
-This Capability Value translates the accepted [Conversation Spaces handoff](../../explorations/conversation-spaces/index.md). The handoff defined the first four independent Delivery Stories. The Navigator subsequently added Voice Prompt Composition as a fifth story. Implementation sequence, exact concurrency capacity, transcription boundary, storage migration and release intent remain unresolved.
+This Capability Value translates the accepted [Conversation Spaces handoff](../../explorations/conversation-spaces/index.md). The handoff defined the first four independent Delivery Stories. The Navigator subsequently added Voice Prompt Composition as a fifth story. Steering and bounded capacity four are delivered. The Navigator approved Multiple Conversations per Journey before Persona Conversation Spaces so conversation identity, unified Mirror history, working-copy import and compaction-aligned segmentation can establish the shared destination substrate first. Transcription boundary and future release intent remain unresolved.
 
 ## Delivery Stories
 
-The codes below provide stable identity, not implementation priority.
+The codes below provide stable identity, not implementation priority. Current approved delivery order after DS-002 is DS-004, then DS-003, then DS-005.
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
 | [CV-008.DS-001](ds-001-steering-during-active-turns/index.md) | Steering During Active Turns | Navigator can submit an additional message to the exact running turn and correct the agent's course without cancelling and silently restarting it | ✅ Done |
 | [CV-008.DS-002](ds-002-expanded-concurrent-journey-turns/index.md) | Expanded Concurrent Journey Turns | Mirror Desktop admits more simultaneous turns across independent Journeys through a bounded observable policy without cross-run leakage | ✅ Done |
+| [CV-008.DS-004](ds-004-multiple-conversations-per-journey/index.md) | Multiple Conversations per Journey | Navigator can browse a unified Journey conversation catalog, create or resume exact Desktop conversations, continue Mirror history through an explicit working copy and keep long history bounded through compaction-aligned technical segments | 🟡 Planned |
 | [CV-008.DS-003](ds-003-persona-conversation-spaces/index.md) | Persona Conversation Spaces | Navigator can address a persona as a first-class sidebar destination backed by a stable Mirror Desktop-managed internal Journey | 🟡 Planned |
-| [CV-008.DS-004](ds-004-multiple-conversations-per-journey/index.md) | Multiple Conversations per Journey | Navigator can focus one Journey, inspect its recent conversations, resume a specific conversation and create a new one under the same Journey authority | 🟡 Planned |
 | [CV-008.DS-005](ds-005-voice-prompt-composition/index.md) | Voice Prompt Composition | Navigator can record a spoken prompt and place its transcription into the active composer for review and explicit sending | 🟡 Planned |
 
 ## Product Contract
@@ -42,9 +42,10 @@ The codes below provide stable identity, not implementation priority.
 
 - Steering ordering, acknowledgement, persistence and restart recovery semantics.
 - The measured concurrency target, resource budget, admission policy and fairness behavior.
-- Managed persona Journey identity, visibility, provisioning, naming, deletion and Mirror memory boundaries.
-- The relationship among Journey, conversation, dedicated thread, generation, Pi session and Mirror conversation.
-- Compatibility and migration for existing single-conversation Journey state.
+- The relationship among Journey, conversation, dedicated thread, generation, segment, Pi session and Mirror conversation.
+- Unified listing of Desktop-ready and Mirror-available conversations, working-copy import authority and source-divergence behavior.
+- Compatibility and migration for existing single-conversation Journey state, bounded historical loading and compaction-aligned technical segmentation.
+- Managed persona Journey identity, visibility, provisioning, naming, deletion and Mirror memory boundaries after the conversation substrate is delivered.
 - Voice transcription provider, privacy, language, retention and text-merge policy.
 - Delivery sequence and release intent.
 

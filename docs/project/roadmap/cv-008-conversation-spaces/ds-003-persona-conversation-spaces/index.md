@@ -12,6 +12,10 @@ The Navigator can choose a persona such as Strategist from the sidebar and conve
 
 Personas are currently lenses selected inside broader Journey context. Some conversations begin with the specialist relationship itself. The product should let the user address that relationship directly without forcing them to understand or manually maintain the internal Journey used as its authority substrate.
 
+## Delivery Sequence
+
+The Navigator approved delivery after [CV-008.DS-004 — Multiple Conversations per Journey](../ds-004-multiple-conversations-per-journey/index.md). DS-004 first establishes conversation identity, exact resumption, unified Mirror history, working-copy import and bounded segment loading. This story can then make a persona an alternate first-class route into that shared conversation substrate instead of encoding a temporary one-conversation-per-persona assumption.
+
 ## Candidate Scope
 
 - Present eligible personas as visually distinct sidebar destinations.
@@ -30,7 +34,7 @@ The Navigator selects Strategist, sees a persona-first conversation surface and 
 - Which personas are eligible and how are display names, icons and ordering sourced?
 - Are managed persona Journeys visible anywhere outside the persona surface for diagnosis or portability?
 - Who owns their creation, naming, status, path, archival and deletion?
-- How does persona identity interact with Journey context, attachments, memories and future multiple conversations?
+- How does persona identity interact with Journey context, attachments, memories and the delivered multiple-conversation substrate?
 
 ## Boundary
 

@@ -6,60 +6,155 @@
 
 ## Outcome
 
-The Navigator can expand one Journey into a focused sidebar state, inspect its recent conversations, resume a specific conversation and create a new one while every session remains inside the same Journey authority.
+The Navigator expands one Journey into a unified conversation catalog, creates and resumes exact Desktop-managed conversations, and can bring a Mirror-available conversation into the app as an explicitly independent working copy. Long conversations remain complete while authoritative Pi compaction checkpoints divide their history into bounded technical segments without silently creating a new user-facing conversation.
 
 ## Why This Matters
 
-One durable conversation preserves continuity but eventually mixes distinct lines of work. A Journey is larger than one transcript. The user needs separate conversational sessions without losing the shared territory, and must be able to move among them without confusing history with active execution authority.
+For the Navigator there is one Mirror. The distinction between a conversation already governed by Mirror Desktop and one created through another Mirror surface is an internal availability boundary, not a second product. Expanding a Journey should therefore reveal its conversations together while honestly distinguishing what can continue immediately from what must first be prepared for this app.
 
-Continued use has also shown that treating one conversation as an eagerly loaded, indefinitely growing UI and persistence object does not scale. [CR029 — Restore responsiveness for long conversations](../../../refinement/rs016-ongoing-product-improvements-and-adjustments/cr029-restore-responsiveness-for-long-conversations.md) diagnosed repeated full-history rendering and eager historical action materialization at 718 messages and a 5.09 MB generation projection. Multiple conversations must therefore fit an app-wide continuity model rather than merely adding another list over the existing unbounded loading behavior.
+One durable conversation also eventually mixes distinct lines of work. The Navigator needs explicit new conversations under the same Journey territory, while existing single-conversation state must remain compatible and no listed history may become executable merely through selection.
+
+Continued use showed that one eagerly loaded, indefinitely growing projection does not scale. [CR029 — Restore responsiveness for long conversations](../../../refinement/rs016-ongoing-product-improvements-and-adjustments/cr029-restore-responsiveness-for-long-conversations.md) corrected the immediate render boundary without truncation, pagination, persistence migration, automatic splitting or reimplementation of Pi compaction. This Delivery Story carries the broader architecture: complete durable history, a bounded catalog and working set, compaction-aligned technical segments, and explicit semantic conversation boundaries.
+
+## Product Model
+
+```text
+Journey
+  └── Conversation
+        └── Segment
+              └── exact turns and evidence
+```
+
+- **Journey** owns the durable semantic territory and remains the global execution-lease key.
+- **Conversation** owns one specific continuity and one dedicated thread with its generation sequence.
+- **Generation** owns one exact Pi session and Mirror conversation under the existing restart contract.
+- **Segment** is a technical history and loading boundary inside one conversation; it does not create a new thread, generation, Pi session or user-facing conversation.
+- **Compaction checkpoint** may close one technical segment and begin another while Pi remains the sole authority for active context and compaction.
+
+The catalog may contain multiple availability states without presenting multiple products:
+
+```text
+ready                 exact Desktop conversation authority is available
+available_in_mirror   bounded source history is visible but not executable
+importing             one idempotent working-copy transition is in progress
+needs_attention       source or destination evidence cannot be validated
+```
+
+State requires an icon, accessible label and text semantics; color alone is insufficient.
+
+## Settled Product Direction
+
+- The ordinary interface presents one Mirror and one Journey conversation catalog. It does not label conversations as belonging to competing products.
+- Desktop-ready conversations may be resumed only after exact conversation, thread, generation, Pi session, Mirror conversation, channel and persisted-state validation.
+- Mirror-available conversations remain inert until an explicit `Continue in this app` action is confirmed.
+- Continue creates an independent working copy. The source remains unchanged in Mirror history, and future messages do not synchronize automatically.
+- After successful import, the working copy replaces its source in the ordinary catalog. The preserved source remains available through a secondary imported-originals or diagnostic surface.
+- Source activity after import is detected from an exact revision or equivalent evidence and is never merged silently.
+- Conversation creation and working-copy import are explicit lifecycle actions. Neither compaction, size, elapsed time nor degraded performance silently creates a conversation.
+- One Journey owns at most one reserved, running or finalizing execution lease even when it contains multiple conversations. Other conversations in that Journey remain inspectable and draft-editable but cannot Send while its lease is occupied.
+- Authoritative Pi compaction may create an automatic technical segment checkpoint inside the same conversation. It never causes an automatic restart or user-facing conversation split.
+- Starting a new conversation from a checkpoint is an explicit handoff. It creates a new thread and session only after the Navigator reviews the continuity boundary.
+- Listing, selection, import, segmentation and lifecycle provisioning do not invoke a model merely to generate titles, summaries or greetings.
+
+## Candidate Stories
+
+| Code | Story | Type | Status |
+|------|-------|------|--------|
+| CV-008.DS-004-TS-1 | Characterize Mirror Conversation and Compaction Authority | Technical Story | 🟡 Planned |
+| CV-008.DS-004-TS-2 | Establish Conversation, Segment and Import Authority | Technical Story | 🟡 Planned |
+| CV-008.DS-004-US-1 | Browse a Unified Journey Conversation Catalog | User Story | 🟡 Planned |
+| CV-008.DS-004-US-2 | Create and Resume Desktop Conversations | User Story | 🟡 Planned |
+| CV-008.DS-004-US-3 | Continue Mirror History Through a Working Copy | User Story | 🟡 Planned |
+| CV-008.DS-004-TS-3 | Segment Long Conversations at Compaction Checkpoints | Technical Story | 🟡 Planned |
+| CV-008.DS-004-TS-4 | Preserve Migration, Recovery and Bounded Loading | Technical Story | 🟡 Planned |
 
 ## Candidate Scope
 
-- Add an explicit expand action that focuses one Journey and temporarily hides other Journey items.
-- Show bounded recent conversations with title, recency, state and clear active selection.
-- Let the Navigator return to the Journey's principal context, resume an eligible conversation or create a new conversation explicitly.
-- Define stable conversation identity beneath exact Journey authority.
-- Reconcile conversation identity with dedicated thread, generation, Pi session, Mirror conversation, turn journal and persisted projection contracts.
-- Preserve existing single-conversation Journey data through an explicit compatibility or migration path.
-- Define separately the complete durable transcript, the bounded UI working set, the active Pi model context and the Journey semantics loaded through Mirror.
-- Ensure listing or resuming conversations does not require eagerly parsing, projecting or mounting every historical message and terminal-action body.
-- Decide whether conversation projections require segmentation, checkpoints, indexed metadata or incremental tail loading while preserving exact evidence and restart recovery.
-- Treat explicit creation of a new conversation as an intentional context boundary, not as an automatic response to size, compaction or degraded performance.
+### CV-008.DS-004-TS-1 — Characterize Mirror Conversation and Compaction Authority
 
-## Long-Running Conversation and Compaction Contract
+- Inspect the canonical Mirror conversation catalog, Journey association, message, attachment, mode and persona evidence available to the Desktop.
+- Determine which conversations retain exact adoptable Pi session authority and which support only read-only listing or working-copy handoff.
+- Characterize authoritative Pi compaction entries, retained tails, branch behavior and safe segment boundaries without reproducing compaction.
+- Use sanitized fixtures and bounded evidence; never commit production conversation content.
 
-An indefinitely continuing conversation is viable as a product experience only when continuity is not confused with unbounded active materialization:
+### CV-008.DS-004-TS-2 — Establish Conversation, Segment and Import Authority
 
-```text
-complete durable history     retained and recoverable
-visible conversation window  bounded and incrementally materialized
-active Pi context             bounded by the model and Pi compaction
-Journey semantics             loaded through Mirror without replaying other transcripts
-```
+- Define stable conversation identity beneath exact Journey authority and decide its relationship to the existing dedicated thread.
+- Define bounded catalog metadata, origin, availability, source revision, import receipt and segment-checkpoint schemas.
+- Keep listing and selection inert; executable authority requires a validated transition.
+- Make provisioning, import, retry and rollback idempotent across partial failure and restart.
 
-Pi remains the sole authority for model context and automatic compaction. Compaction summarizes older context lossily, keeps a recent tail and appends a compaction entry to the Pi session; it does not delete the complete JSONL history, shrink the Mirror Desktop projection, reduce the rendered transcript or create a new desktop conversation. Mirror Desktop must not reproduce Pi compaction or infer that visually available historical text is still present verbatim in the model's active context.
+### CV-008.DS-004-US-1 — Browse a Unified Journey Conversation Catalog
 
-The desktop may retain complete conversation history while loading only the metadata, recent tail and explicitly requested historical regions needed for the current surface. Older messages, Steering evidence, terminal actions and system surfaces remain durable and addressable even when absent from the mounted DOM. If exact older material must influence a future model turn after compaction, its retrieval and reintroduction require an explicit governed product contract rather than an assumption that the model remembers it.
+- Add an explicit Journey expansion mode that temporarily focuses one Journey and shows bounded recent conversations.
+- Present Desktop-ready and Mirror-available entries with distinct accessible availability states rather than separate-product language.
+- Preserve title, recency, state and active selection without loading every transcript.
+- Provide a secondary path to preserved imported originals without duplicating them in the ordinary list.
+
+### CV-008.DS-004-US-2 — Create and Resume Desktop Conversations
+
+- Create a conversation explicitly without a model call, synthetic greeting or mutation of existing conversations.
+- Resume only exact eligible authority and fail closed for inconsistent, stale, cross-channel or historical-only entries.
+- Preserve independent drafts, selection and generation history by conversation.
+- Keep the Journey-level one-lease rule while allowing navigation and drafting elsewhere.
+
+### CV-008.DS-004-US-3 — Continue Mirror History Through a Working Copy
+
+- Show a bounded read-only preview before import.
+- Explain that a preserved original remains in Mirror history and future changes do not synchronize.
+- Create one working copy from one exact source revision, preserve provenance and establish new Desktop authority without claiming literal session resumption when evidence is incomplete.
+- Detect later source activity and offer explicit review or another handoff rather than automatic merge.
+
+### CV-008.DS-004-TS-3 — Segment Long Conversations at Compaction Checkpoints
+
+- Record authoritative compaction-aligned checkpoints with exact turn ranges, source evidence and retained-tail semantics.
+- Close and open technical segments inside the same conversation without moving, deleting or duplicating messages.
+- Load the current working segment first and materialize earlier segments only on explicit navigation.
+- Permit a later explicit new-conversation handoff from a checkpoint without automatically restarting or invoking a model.
+
+### CV-008.DS-004-TS-4 — Preserve Migration, Recovery and Bounded Loading
+
+- Adopt each existing single-conversation Journey as its first ordinary Desktop conversation without copying transcripts or replacing IDs.
+- Recover interrupted conversation creation, working-copy import, indexing and segment publication without replaying prompts or children.
+- Keep catalog opening proportional to bounded metadata and selected working set rather than total retained history.
+- Preserve exact messages, Steering, terminal evidence, attachments, Mirror receipts, restart semantics and source history.
 
 ## Acceptance Direction
 
-Expanding a Journey presents only that Journey and its bounded conversation list. Selecting an eligible conversation resumes the exact associated authority; creating a new conversation leaves prior sessions intact. Collapsing returns to ordinary Journey navigation. Restart preserves identities and selection without making inert or inconsistent history executable.
+Expanding a Journey presents only that Journey and a bounded unified conversation list. Desktop-ready conversations are visibly available for exact resumption. Mirror-available conversations are visibly inert and can become independent working copies only after a disclosure and explicit confirmation. A successful import leaves the source untouched, avoids duplicate ordinary entries, survives restart idempotently and never claims synchronization or stronger Pi continuity than its evidence proves.
 
-A long conversation remains complete and navigable without requiring its full transcript or collapsed action outputs to be mounted before the recent conversation surface becomes usable. Automatic Pi compaction preserves model operability without changing desktop conversation identity, silently removing visible history or being treated as a performance mechanism for the UI. Acceptance fixtures must include histories materially larger than the CR029 production case and verify that navigation cost scales with the loaded working set rather than total retained history.
+Creating a new conversation preserves prior sessions and produces no model call. Selecting a conversation never retargets an active sibling run. If one conversation in a Journey owns a live or finalizing lease, other conversations remain readable and draft-editable but cannot submit until exact cleanup and fresh inspection free that Journey.
 
-## Open Questions
+A materially long conversation remains complete and navigable while catalog and initial conversation cost scale with bounded metadata and the loaded working set. An authoritative Pi compaction checkpoint begins a new technical segment in the same conversation without changing its identity, restarting Pi or hiding durable history. Creating a new semantic conversation from that checkpoint remains an explicit Navigator action.
 
-- Is today's main conversation a permanent principal space, the first list item or a compatibility alias?
-- Does each conversation own a dedicated thread with generations, or does the existing thread become a container of conversations?
-- Can multiple conversations in one Journey run concurrently, or does this story initially permit only one active run per Journey?
-- How are titles, ordering, retention, archival and deletion governed?
-- What durable segmentation and index own conversation-list metadata without creating a second execution authority?
-- What recent-tail or historical-window unit can preserve variable-height rendering, auto-follow, disclosure, selection, copy and local-reference navigation?
-- How is the distinction between complete visible history and compacted model context communicated without exposing implementation noise?
-- When exact pre-compaction material is needed again, is it quoted, attached, retrieved or handed into a new conversation, and which authority records that transition?
-- Which responsibilities belong to CR029's immediate render correction, this Delivery Story's multi-conversation architecture and a later storage migration?
+## Open Decisions Requiring Characterization
+
+- Which Mirror APIs and durable fields can list Journey conversations without reading full message bodies?
+- Can any non-Desktop Mirror conversation be adopted with exact Pi authority, or must every continuation use a working-copy handoff?
+- What bounded source revision proves import idempotency and later divergence?
+- Should `conversationId` be an explicit new identity or a stable projection of the dedicated `threadId`?
+- Where should import receipts and catalog metadata live so another compatible Desktop installation can preserve the same source/destination relationship?
+- Which message, compaction and retained-tail boundaries can define a segment without splitting tool or Steering evidence?
+- What bounded handoff gives a new Pi session honest useful context when literal session adoption is unavailable?
+- Which attachments remain valid references, which require explicit copying and how are unavailable sources represented?
+- What deterministic initial title and explicit rename policy avoid hidden model invocation?
+- What archival, retention and deletion behavior preserves source and destination history?
+
+## Long-Running Conversation And Context Contract
+
+```text
+complete durable history     retained and recoverable
+conversation catalog         bounded metadata only
+visible working set          current segment and requested historical regions
+active Pi context             bounded solely by Pi and its compaction
+Journey semantics             loaded through Mirror without transcript replay
+explicit handoff              governed reintroduction into a new conversation
+```
+
+Pi remains the sole authority for model context and automatic compaction. A Desktop segment may use a compaction event as an indexing checkpoint but does not summarize independently, alter the session or imply that visible older text remains verbatim in active model context. Reintroducing historical material requires an explicit quote, attachment, retrieval or new-conversation handoff with provenance.
 
 ## Boundary
 
-This story does not flatten conversations into separate Journeys, silently reactivate old generations, delete existing history, expose conversations from another Journey, or assume same-Journey concurrent execution. It does not use Pi compaction as transcript deletion, silently create a conversation when a size threshold is crossed, promise physically unlimited storage or weaken complete-history and evidence durability. Child stories and migration decisions follow explicit refinement after this Delivery Story is pulled.
+This story does not flatten conversations into Journeys, silently reactivate history, delete or mutate imported sources, synchronize source and working copy, merge later divergence, allow same-Journey concurrent turns, auto-title through hidden model calls, or create a conversation when compaction or a size threshold occurs. It does not reproduce Pi compaction, truncate complete history, promise unlimited storage, expose another Journey's conversations, or weaken exact authority to improve continuity.
+
+The source-preserving unified catalog and compaction-aligned segmentation are approved product directions. Exact schemas, Mirror integration APIs, handoff representation, attachment policy and storage migration remain subject to candidate-story refinement and Navigator validation after this Delivery Story is pulled.
