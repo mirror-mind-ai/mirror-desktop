@@ -5,35 +5,50 @@
 **Status:** 🟡 Planned
 **Type:** User Story
 
----
-
 ## User Story
 
-As a user,
-I want to Continue Mirror History Through a Working Copy,
-So that I can receive the value of this story.
+As the Navigator,
+I want to continue a Mirror-available conversation through an explicitly independent working copy,
+so that Mirror feels continuous in the Desktop without source loss, hidden synchronization or false session-resumption claims.
 
 ## Outcome
 
-Navigator can validate Continue Mirror History Through a Working Copy as an observable behavior.
+An inert Mirror-available entry offers a bounded preview and `Continue in this app`. Confirmation explains that the source remains preserved and future changes do not synchronize. One idempotent working copy receives complete supported history, provenance and only the context authority TS-1 proves safe; the ordinary catalog suppresses the source after success.
 
 ## Acceptance Behavior
 
 ```text
-Given the user is ready for Continue Mirror History Through a Working Copy
-When the user performs the planned action
-Then the expected observable behavior is visible
-And unrelated Delivery Story scope remains untouched
+Given a Mirror-available conversation belongs to the selected Journey
+When the Navigator previews it
+Then bounded source history is readable but cannot execute
+
+When the Navigator confirms Continue in this app
+Then one independent working copy is created from one exact source revision
+And the source remains byte-for-byte unchanged and secondarily accessible
+And the ordinary catalog shows no source/destination duplicate
+And context disclosure never claims literal Pi resumption without complete evidence
+
+Given the source later changes
+When authoritative revision evidence is refreshed
+Then the working copy remains unchanged
+And newer source activity is disclosed without merge or automatic reimport
 ```
 
 ## Scope
 
-- Continue Mirror History Through a Working Copy
+- Journey-filtered source discovery and bounded preview.
+- Preserved-source/no-sync confirmation.
+- Phased idempotent working-copy import with exact provenance.
+- Supported message and attachment evidence, explicit unavailable evidence and bounded context handoff.
+- Ordinary duplicate suppression, imported-original access and divergence notice.
 
 ## Out Of Scope
 
-- Sibling Delivery Story scope.
+- Source mutation, deletion, synchronization or merge.
+- Automatic import or duplicate working copies.
+- Hidden model calls for title or summary.
+- Literal-session continuity where Pi/Desktop authority is incomplete.
 
 ## Validation
 
-Navigator-visible validation route plus automated checks.
+Use disposable source records for every supported role, attachment and revision case. Verify source hashes before and after, duplicate clicks, every failure phase, restart recovery, unsupported evidence retention, later divergence and no model/process invocation during import.
