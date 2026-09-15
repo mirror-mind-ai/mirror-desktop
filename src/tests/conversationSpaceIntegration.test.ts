@@ -9,6 +9,8 @@ describe("Journey conversation-space integration", () => {
     expect(appSource).toContain("conversationsExpanded ? (");
     expect(appSource).not.toContain("Browse conversations");
     expect(appSource).toContain('type: "collapse"');
+    expect(appSource).toContain('conversationCatalogStatus === "loading" ? "conversation-catalog-loading"');
+    expect(appSource).toContain('aria-busy={conversationsExpanded && conversationCatalogStatus === "loading"}');
   });
 
   it("renders Mirror history as a no-composer action surface", () => {

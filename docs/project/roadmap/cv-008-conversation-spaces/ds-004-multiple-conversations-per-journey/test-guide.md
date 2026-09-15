@@ -89,7 +89,7 @@ Inject failure around destination creation and handoff-draft publication. Verify
 Verify:
 
 - ordinary mode lists all Journeys and clicking one opens its existing root workspace;
-- a downward-arrow action inserts associated Conversations immediately beneath the owning Journey;
+- a downward-arrow action immediately exposes accessible loading feedback and a progress cursor before inserting associated Conversations beneath the owning Journey;
 - Journeys above remain fixed while later Journeys move downward in the same list;
 - the Journey card returns to the root workspace;
 - collapse removes only the inline catalog and restores the visible root workspace;

@@ -6763,6 +6763,11 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   outline: none;
 }
 
+.app-shell.conversation-catalog-loading .journey-sidebar,
+.app-shell.conversation-catalog-loading .journey-sidebar * {
+  cursor: progress !important;
+}
+
 .journey-item.tree-node .journey-conversation-toggle {
   align-self: center;
   grid-area: auto;

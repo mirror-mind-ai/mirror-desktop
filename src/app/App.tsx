@@ -3638,7 +3638,7 @@ export function App({ model }: AppProps) {
 
   return (
     <main
-      className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
+      className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${conversationFocus.kind === "focused_journey" && conversationCatalogStatus === "loading" ? "conversation-catalog-loading" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
       data-runtime-channel={runtimeChannel?.channel}
       data-application-theme={applicationTheme}
       style={{
@@ -3898,6 +3898,7 @@ export function App({ model }: AppProps) {
                   }}
                   aria-label={`${conversationsExpanded ? "Collapse" : "Expand"} conversations for ${journey.name}`}
                   aria-expanded={conversationsExpanded}
+                  aria-busy={conversationsExpanded && conversationCatalogStatus === "loading"}
                   title={`${conversationsExpanded ? "Collapse" : "Expand"} conversations`}
                 >
                   <span aria-hidden="true">{conversationsExpanded ? "⌃" : "⌄"}</span>
