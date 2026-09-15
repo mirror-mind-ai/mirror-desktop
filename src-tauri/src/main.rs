@@ -465,6 +465,80 @@ fn bundled_provisioning_script(app: &AppHandle) -> Result<PathBuf, String> {
         .map_err(|_| "Could not validate bundled Mirror conversation support.".to_string())
 }
 
+fn bundled_conversation_catalog_script(app: &AppHandle) -> Result<PathBuf, String> {
+    let script = app.path()
+        .resolve("scripts/mirror_conversation_catalog.py", BaseDirectory::Resource)
+        .map_err(|_| "Could not resolve bundled Mirror conversation catalog support.".to_string())?;
+    let metadata = fs::symlink_metadata(&script)
+        .map_err(|_| "Bundled Mirror conversation catalog support is unavailable.".to_string())?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err("Bundled Mirror conversation catalog support is invalid.".to_string());
+    }
+    script.canonicalize()
+        .map_err(|_| "Could not validate bundled Mirror conversation catalog support.".to_string())
+}
+
+fn run_mirror_conversation_catalog(
+    app: &AppHandle,
+    operation: &str,
+    journey_id: &str,
+    additional_args: &[&str],
+) -> Result<Value, String> {
+    sanitize_journey_id(journey_id)?;
+    let script = bundled_conversation_catalog_script(app)?;
+    let profile = active_runtime_channel()?;
+    let mut command = mirror_runtime_command("uv")?;
+    let output = command.args(["run", "python"]).arg(script)
+        .arg(operation)
+        .args(["--journey-id", journey_id, "--mirror-root"])
+        .arg(&profile.mirror_root)
+        .arg("--mirror-home").arg(&profile.mirror_home)
+        .args(additional_args)
+        .output().map_err(|error| format!("Could not run Mirror conversation catalog support: {}", error))?;
+    if output.stdout.len() > 256 * 1024 {
+        return Err("Mirror conversation catalog response exceeded its bounded size.".to_string());
+    }
+    let stdout = String::from_utf8(output.stdout)
+        .map_err(|_| "Mirror conversation catalog response was not UTF-8.".to_string())?;
+    let line = stdout.lines().rev().find(|line| !line.trim().is_empty())
+        .ok_or_else(|| "Mirror conversation catalog returned no response.".to_string())?;
+    let value: Value = serde_json::from_str(line)
+        .map_err(|_| "Mirror conversation catalog returned invalid JSON.".to_string())?;
+    if !output.status.success() || value.get("status").and_then(Value::as_str) != Some("ok")
+        || value.get("journeyId").and_then(Value::as_str) != Some(journey_id) {
+        return Err("Mirror conversation catalog operation was rejected.".to_string());
+    }
+    Ok(value)
+}
+
+#[tauri::command]
+fn load_mirror_conversation_catalog(app: AppHandle, journey_id: String, limit: u16) -> Result<Value, String> {
+    if !(1..=100).contains(&limit) {
+        return Err("Mirror conversation catalog limit is invalid.".to_string());
+    }
+    let limit_value = limit.to_string();
+    run_mirror_conversation_catalog(&app, "catalog", &journey_id, &["--limit", &limit_value])
+}
+
+#[tauri::command]
+fn rename_mirror_conversation(
+    app: AppHandle,
+    journey_id: String,
+    conversation_id: String,
+    title: String,
+) -> Result<Value, String> {
+    sanitize_session_id(&conversation_id)?;
+    if title.trim().is_empty() || title.chars().count() > 160 {
+        return Err("Mirror conversation title is invalid.".to_string());
+    }
+    run_mirror_conversation_catalog(
+        &app,
+        "rename",
+        &journey_id,
+        &["--conversation-id", &conversation_id, "--title", &title],
+    )
+}
+
 fn provision_mirror_conversation(app: &AppHandle, session_file: &str, journey_id: &str, title: &str) -> Result<String, String> {
     let script = bundled_provisioning_script(app)?;
     let profile = active_runtime_channel()?;
@@ -4980,6 +5054,8 @@ fn main() {
             load_journey_thread,
             provision_journey_thread,
             restart_journey_thread,
+            load_mirror_conversation_catalog,
+            rename_mirror_conversation,
             load_journey_registry,
             refresh_journey_registry,
             mutate_journey_registry,
