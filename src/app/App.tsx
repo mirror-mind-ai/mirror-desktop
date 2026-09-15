@@ -497,6 +497,8 @@ export function App({ model }: AppProps) {
   const [focusedJourneyRootThreadId, setFocusedJourneyRootThreadId] = useState<string>();
   const [conversationActionBusy, setConversationActionBusy] = useState(false);
   const [conversationActionMessage, setConversationActionMessage] = useState<string>();
+  const [conversationDeleteTarget, setConversationDeleteTarget] = useState<Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>>();
+  const [conversationDeleteError, setConversationDeleteError] = useState<string>();
   const [focusedSidebarWidth, setFocusedSidebarWidth] = useState(DEFAULT_FOCUSED_SIDEBAR_WIDTH);
   const [runtimeChannel, setRuntimeChannel] = useState<RuntimeChannelDiagnostic>();
 
@@ -3077,13 +3079,17 @@ export function App({ model }: AppProps) {
     }
   }
 
-  async function deleteSelectedDesktopConversation(entry: Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>) {
-    if (runtimeBusy || conversationActionBusy) return;
-    const confirmed = window.confirm(
-      `Delete “${entry.title}”?\n\nThis permanently removes this Desktop Conversation, its local history and its generated Mirror Core records. This cannot be undone.`,
-    );
-    if (!confirmed) return;
+  function requestDesktopConversationDeletion(entry: Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>) {
+    if (selectedRuntimeBusy || runStartReservation || conversationActionBusy) return;
+    setConversationDeleteError(undefined);
+    setConversationDeleteTarget(entry);
+  }
+
+  async function confirmDesktopConversationDeletion() {
+    const entry = conversationDeleteTarget;
+    if (!entry || selectedRuntimeBusy || runStartReservation || conversationActionBusy) return;
     setConversationActionBusy(true);
+    setConversationDeleteError(undefined);
     setConversationActionMessage("Deleting Desktop Conversation…");
     try {
       await deleteDesktopConversation({ journeyId: selectedJourney, conversationId: entry.conversationId });
@@ -3095,8 +3101,11 @@ export function App({ model }: AppProps) {
       });
       dispatchConversationFocus({ type: "select_root", journeyId: selectedJourney });
       setConversationActionMessage("Desktop Conversation deleted.");
+      setConversationDeleteTarget(undefined);
     } catch (error) {
-      setConversationActionMessage(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      setConversationDeleteError(message);
+      setConversationActionMessage(message);
     } finally {
       setConversationActionBusy(false);
     }
@@ -3945,7 +3954,7 @@ export function App({ model }: AppProps) {
                   entries={conversationCatalog}
                   status={conversationCatalogStatus === "idle" ? "loading" : conversationCatalogStatus}
                   error={conversationCatalogError}
-                  busy={conversationActionBusy || runtimeBusy}
+                  busy={conversationActionBusy || selectedRuntimeBusy || Boolean(runStartReservation)}
                   actionMessage={conversationActionMessage}
                   onCreateConversation={() => void createBlankDesktopConversation()}
                   onSelectEntry={(entry) => dispatchConversationFocus({
@@ -3956,7 +3965,7 @@ export function App({ model }: AppProps) {
                   onContinueMirror={(entry) => void createConversationFromMirrorHistory(entry)}
                   onOpenMirrorTerminal={(entry) => void openSelectedMirrorHistoryInTerminal(entry)}
                   onRenameMirror={(entry) => void renameSelectedMirrorHistory(entry)}
-                  onDeleteDesktop={(entry) => void deleteSelectedDesktopConversation(entry)}
+                  onDeleteDesktop={requestDesktopConversationDeletion}
                 />
               ) : null}
               </Fragment>
@@ -4469,6 +4478,33 @@ export function App({ model }: AppProps) {
               </button>
             </div>
           </section>
+        </div>
+      ) : null}
+
+      {conversationDeleteTarget ? (
+        <div className="settings-backdrop" role="presentation">
+          <form
+            className="settings-window journey-admin-dialog danger-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Delete Desktop Conversation"
+            onSubmit={(event) => { event.preventDefault(); void confirmDesktopConversationDeletion(); }}
+          >
+            <div className="settings-header">
+              <div><p className="eyebrow">Conversation safety</p><h2>Delete Conversation</h2></div>
+              <button type="button" onClick={() => setConversationDeleteTarget(undefined)} disabled={conversationActionBusy}>×</button>
+            </div>
+            <div className="journey-admin-summary">
+              Permanently delete “{conversationDeleteTarget.title}”? Its local history, drafts, sessions, Segments and generated Mirror Core records will be removed. This cannot be undone.
+            </div>
+            {conversationDeleteError ? <p className="settings-error" role="alert">{conversationDeleteError}</p> : null}
+            <div className="settings-actions">
+              <button type="button" onClick={() => setConversationDeleteTarget(undefined)} disabled={conversationActionBusy}>Cancel</button>
+              <button className="danger-button" type="submit" disabled={conversationActionBusy || selectedRuntimeBusy || Boolean(runStartReservation)}>
+                {conversationActionBusy ? "Deleting…" : "Delete Conversation"}
+              </button>
+            </div>
+          </form>
         </div>
       ) : null}
 

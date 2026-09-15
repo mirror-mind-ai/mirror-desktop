@@ -22,6 +22,13 @@ describe("Journey conversation-space integration", () => {
     expect(appSource).toContain("renameMirrorConversation");
   });
 
+  it("confirms Desktop child deletion in an application-owned alert dialog", () => {
+    expect(appSource).toContain('aria-label="Delete Desktop Conversation"');
+    expect(appSource).toContain("confirmDesktopConversationDeletion");
+    expect(appSource).toContain("requestDesktopConversationDeletion");
+    expect(appSource).not.toContain("window.confirm(");
+  });
+
   it("loads child thread authority into the existing transcript and composer lifecycle", () => {
     expect(appSource).toContain("desktopConversationThread(selectedJourney, childEntry)");
     expect(appSource).toContain("classified.thread.threadId");
