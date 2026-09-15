@@ -60,6 +60,22 @@ describe("technical conversation Segments", () => {
     })).toThrow("structurally invalid");
   });
 
+  it("rejects duplicate IDs and checkpoints that escape their exact source branch", () => {
+    expect(() => deriveConversationSegmentManifest({
+      ...authority,
+      entries: [{ id: "duplicate", type: "message" }, { id: "duplicate", parentId: "duplicate", type: "message" }],
+    })).toThrow("duplicate");
+    expect(() => deriveConversationSegmentManifest({
+      ...authority,
+      entries: [
+        { id: "user-1", type: "message" },
+        { id: "assistant-1", parentId: "user-1", type: "message" },
+        { id: "compact-1", parentId: "assistant-1", type: "compaction", firstKeptEntryId: "future" },
+        { id: "future", parentId: "compact-1", type: "message" },
+      ],
+    })).toThrow("structurally invalid");
+  });
+
   it("remains metadata-only for generated long history", () => {
     const entries = Array.from({ length: 20_000 }, (_, index) => ({
       id: `entry-${index}`, type: "message", ...(index ? { parentId: `entry-${index - 1}` } : {}),

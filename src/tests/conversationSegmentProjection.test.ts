@@ -61,6 +61,12 @@ describe("bounded Conversation Segment projections", () => {
     expect(combineConversationSegmentProjections(projections).terminalAgentActionEvidence?.["assistant-1"]).toBeDefined();
   });
 
+  it("rejects duplicate IDs instead of silently merging divergent Segment state", () => {
+    const projections = partitionConversationBySegments(fixture(), manifest);
+    projections[1]!.conversation.messages.push(projections[0]!.conversation.messages[0]!);
+    expect(() => combineConversationSegmentProjections(projections)).toThrow("duplicate message authority");
+  });
+
   it("rejects cross-Journey authority", () => {
     expect(() => partitionConversationBySegments(fixture(), { ...manifest, journeyId: "other-journey" }))
       .toThrow("authority mismatch");

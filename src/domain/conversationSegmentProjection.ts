@@ -66,10 +66,24 @@ export function combineConversationSegmentProjections(
     || conversation.liveIdentity.piSessionId !== current.liveIdentity.piSessionId)) {
     throw new Error("Conversation Segment projection authority mismatch.");
   }
-  const messages = uniqueBy(projections.flatMap((projection) => projection.conversation.messages), (message) => message.id);
-  const turns = uniqueBy(projections.flatMap((projection) => projection.conversation.reconciliation.turns), (turn) => turn.turnId);
-  const evidence = Object.assign({}, ...projections.map((projection) => projection.conversation.terminalAgentActionEvidence ?? {}));
-  const steering = uniqueBy(projections.flatMap((projection) => projection.conversation.steeringEvidence ?? []), (item) => item.requestId);
+  const messages = requireUniqueBy(
+    projections.flatMap((projection) => projection.conversation.messages),
+    (message) => message.id,
+    "message",
+  );
+  const turns = requireUniqueBy(
+    projections.flatMap((projection) => projection.conversation.reconciliation.turns),
+    (turn) => turn.turnId,
+    "turn",
+  );
+  const evidenceEntries = projections.flatMap((projection) =>
+    Object.entries(projection.conversation.terminalAgentActionEvidence ?? {}));
+  const evidence = Object.fromEntries(requireUniqueBy(evidenceEntries, ([messageId]) => messageId, "terminal evidence"));
+  const steering = requireUniqueBy(
+    projections.flatMap((projection) => projection.conversation.steeringEvidence ?? []),
+    (item) => item.requestId,
+    "Steering evidence",
+  );
   return {
     ...current,
     messages,
@@ -79,12 +93,14 @@ export function combineConversationSegmentProjections(
   };
 }
 
-function uniqueBy<T>(items: readonly T[], key: (item: T) => string): T[] {
+function requireUniqueBy<T>(items: readonly T[], key: (item: T) => string, kind: string): T[] {
   const seen = new Set<string>();
-  return items.filter((item) => {
+  for (const item of items) {
     const value = key(item);
-    if (seen.has(value)) return false;
+    if (seen.has(value)) {
+      throw new Error(`Conversation Segment projection has duplicate ${kind} authority.`);
+    }
     seen.add(value);
-    return true;
-  });
+  }
+  return [...items];
 }
