@@ -103,7 +103,10 @@ import { FocusedConversationSidebar } from "./FocusedConversationSidebar";
 import { FocusedSidebarResizeHandle } from "./FocusedSidebarResizeHandle";
 import { loadFocusedSidebarWidth, saveFocusedSidebarWidth } from "./focusedSidebarWidthStorage";
 import { MirrorHistoryActionSurface } from "./MirrorHistoryActionSurface";
-import { createDesktopConversation, loadDesktopConversationCatalog, restartDesktopConversation } from "./conversationSpaceStorage";
+import {
+  createDesktopConversation, loadDesktopConversationCatalog,
+  reconcileDesktopConversationCatalogEntry, restartDesktopConversation,
+} from "./conversationSpaceStorage";
 import { loadMirrorConversationCatalog, openMirrorConversationInTerminal, renameMirrorConversation } from "./mirrorConversationCatalog";
 import { refreshConversationSegments } from "./conversationSegmentStorage";
 import { loadDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
@@ -2430,6 +2433,18 @@ export function App({ model }: AppProps) {
     authority: JourneySettlementAuthority,
   ): Promise<void> {
     await saveActiveSettlementProjection(projection, authority);
+    if (authority.threadId !== authority.journeyId) {
+      const updatedEntry = await reconcileDesktopConversationCatalogEntry({
+        journeyId: authority.journeyId,
+        threadId: authority.threadId,
+        generation: authority.generation,
+        updatedAt: projection.messages.at(-1)?.createdAt ?? new Date().toISOString(),
+        messageCount: projection.messages.length,
+      });
+      setConversationCatalog((current) => current.map((entry) => (
+        entry.kind === "desktop_conversation" && entry.threadId === authority.threadId ? updatedEntry : entry
+      )));
+    }
     const settledCompaction = Object.values(projection.terminalAgentActionEvidence ?? {}).some((evidence) => (
       evidence.runId === authority.runId
       && evidence.projection.operations.some((operation) => operation.kind === "compaction" && operation.status === "completed")

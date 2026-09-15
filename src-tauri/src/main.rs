@@ -668,6 +668,12 @@ async fn create_desktop_conversation(
     if pi_session_id != requested_pi_id {
         return Err("Desktop Conversation Pi authority diverged from its reservation.".to_string());
     }
+    // Provisioning is model-free and may overlap a settling sibling Conversation. Re-read the
+    // bounded catalog immediately before publication so settlement metadata cannot be lost.
+    catalog = load_desktop_conversation_catalog_at(&catalog_path, &journey_id)?;
+    if catalog.get("entries").and_then(Value::as_array).map_or(true, |entries| entries.len() >= 100) {
+        return Err("Desktop Conversation catalog became full during provisioning.".to_string());
+    }
     let created_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     let runtime_channel = active_runtime_channel()?.channel.as_str();
     let activation_receipt = json!({
@@ -799,6 +805,43 @@ async fn restart_desktop_conversation(
     let staged_nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
     write_durable_projection_at(&catalog_path, &payload, staged_nonce)
         .map_err(|_| "Could not durably publish Desktop Conversation reset authority.".to_string())?;
+    Ok(updated)
+}
+
+#[tauri::command]
+fn reconcile_desktop_conversation_catalog_entry(
+    app: AppHandle,
+    persistence: State<'_, JourneyProjectionPersistenceState>,
+    journey_id: String,
+    thread_id: String,
+    generation: u64,
+    updated_at: String,
+    message_count: u64,
+) -> Result<Value, String> {
+    sanitize_journey_id(&journey_id)?;
+    sanitize_session_id(&thread_id)?;
+    if message_count > 1_000_000 || DateTime::parse_from_rfc3339(&updated_at).is_err() {
+        return Err("Desktop Conversation catalog metadata is invalid.".to_string());
+    }
+    let catalog_path = desktop_conversation_catalog_path(&app, &journey_id)?;
+    let mut catalog = load_desktop_conversation_catalog_at(&catalog_path, &journey_id)?;
+    let entry = catalog.get_mut("entries").and_then(Value::as_array_mut)
+        .and_then(|entries| entries.iter_mut().find(|entry| {
+            entry.get("threadId").and_then(Value::as_str) == Some(thread_id.as_str())
+                && entry.get("journeyId").and_then(Value::as_str) == Some(journey_id.as_str())
+        })).ok_or_else(|| "Desktop Conversation catalog authority is unavailable.".to_string())?;
+    if entry.pointer("/authority/activeGeneration").and_then(Value::as_u64) != Some(generation)
+        || entry.get("availability").and_then(Value::as_str) != Some("ready")
+    {
+        return Err("Desktop Conversation catalog generation authority mismatch.".to_string());
+    }
+    entry["updatedAt"] = Value::String(updated_at);
+    entry["messageCount"] = json!(message_count);
+    let updated = entry.clone();
+    let payload = serde_json::to_vec_pretty(&catalog).map_err(|error| error.to_string())?;
+    let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+    write_durable_projection_at(&catalog_path, &payload, nonce)
+        .map_err(|_| "Could not durably reconcile Desktop Conversation catalog metadata.".to_string())?;
     Ok(updated)
 }
 
@@ -2763,6 +2806,10 @@ fn project_conversation_segment_manifest(
     pi_session_id: &str,
     turns: &[(String, String, String)],
 ) -> Result<Value, String> {
+    for line in content.lines() {
+        serde_json::from_str::<Value>(line)
+            .map_err(|_| "Pi Segment source JSONL is invalid.".to_string())?;
+    }
     let entries = active_pi_session_entries(content);
     if entries.len() > 1_000_000 {
         return Err("Pi Segment source exceeds its entry bound.".to_string());
@@ -5645,6 +5692,7 @@ fn main() {
             load_desktop_conversation_catalog,
             create_desktop_conversation,
             restart_desktop_conversation,
+            reconcile_desktop_conversation_catalog_entry,
             load_mirror_conversation_catalog,
             open_mirror_conversation_in_terminal,
             rename_mirror_conversation,

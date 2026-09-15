@@ -27,6 +27,23 @@ export async function restartDesktopConversation(input: {
   return entry;
 }
 
+export async function reconcileDesktopConversationCatalogEntry(input: {
+  journeyId: string;
+  threadId: string;
+  generation: number;
+  updatedAt: string;
+  messageCount: number;
+}): Promise<Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>> {
+  const payload = await invoke<unknown>("reconcile_desktop_conversation_catalog_entry", input);
+  const parsed = parseNativeCatalog({ schemaVersion: "1.0.0", journeyId: input.journeyId, entries: [payload] }, input.journeyId);
+  const entry = parsed?.[0];
+  if (!entry || entry.kind !== "desktop_conversation" || entry.threadId !== input.threadId
+    || entry.authority.activeGeneration !== input.generation) {
+    throw new Error("Desktop Conversation catalog reconciliation authority is invalid.");
+  }
+  return entry;
+}
+
 export async function createDesktopConversation(input: {
   journeyId: string;
   journeyName: string;
