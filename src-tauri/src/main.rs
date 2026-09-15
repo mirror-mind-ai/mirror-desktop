@@ -5186,6 +5186,91 @@ fn save_dedicated_journey_conversation(
     write_durable_projection_at(&path, &payload, nonce)
 }
 
+fn load_or_migrate_root_projection_at(
+    canonical: &Path,
+    legacy: &Path,
+    journey_id: &str,
+    root_thread_id: &str,
+    generation: u64,
+    nonce: u64,
+) -> Result<Option<String>, String> {
+    fn read_projection(path: &Path) -> Result<String, String> {
+        let metadata = fs::symlink_metadata(path)
+            .map_err(|_| "dedicated_projection_unavailable".to_string())?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 128 * 1024 * 1024 {
+            return Err("dedicated_projection_invalid".to_string());
+        }
+        fs::read_to_string(path).map_err(|_| "dedicated_projection_unavailable".to_string())
+    }
+    fn validate_projection(
+        payload: &str, journey_id: &str, root_thread_id: &str, generation: u64,
+    ) -> Result<(), String> {
+        let value: Value = serde_json::from_str(payload)
+            .map_err(|_| "dedicated_projection_invalid".to_string())?;
+        let conversation = value.get("conversation")
+            .ok_or_else(|| "dedicated_projection_invalid".to_string())?;
+        let live = conversation.get("liveIdentity")
+            .ok_or_else(|| "dedicated_projection_invalid".to_string())?;
+        if conversation.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+            || live.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+            || live.get("harnessConversationId").and_then(Value::as_str) != Some(root_thread_id)
+            || live.get("generation").and_then(Value::as_u64) != Some(generation)
+        {
+            return Err("dedicated_projection_authority_mismatch".to_string());
+        }
+        Ok(())
+    }
+    fn publish_receipt(
+        canonical: &Path, payload: &str, journey_id: &str, root_thread_id: &str,
+        generation: u64, nonce: u64,
+    ) -> Result<(), String> {
+        let receipt_path = canonical.with_extension("migration-receipt.json");
+        let digest = format!("{:x}", Sha256::digest(payload.as_bytes()));
+        let receipt = json!({
+            "schemaVersion": "1.0.0", "kind": "root_projection_compatibility",
+            "journeyId": journey_id, "threadId": root_thread_id, "generation": generation,
+            "sourceRetained": true, "payloadSha256": digest,
+        });
+        write_durable_projection_at(
+            &receipt_path,
+            &serde_json::to_vec_pretty(&receipt).map_err(|_| "dedicated_projection_invalid".to_string())?,
+            nonce,
+        )
+    }
+
+    for candidate in [canonical, legacy] {
+        if let Ok(metadata) = fs::symlink_metadata(candidate) {
+            if metadata.file_type().is_symlink() {
+                return Err("dedicated_projection_invalid".to_string());
+            }
+        }
+    }
+    if canonical.exists() {
+        let payload = read_projection(canonical)?;
+        validate_projection(&payload, journey_id, root_thread_id, generation)?;
+        if legacy.exists() {
+            let legacy_payload = read_projection(legacy)?;
+            if legacy_payload == payload && !canonical.with_extension("migration-receipt.json").exists() {
+                publish_receipt(canonical, &payload, journey_id, root_thread_id, generation, nonce)?;
+            }
+        }
+        return Ok(Some(payload));
+    }
+    if !legacy.exists() { return Ok(None); }
+    let payload = read_projection(legacy)?;
+    validate_projection(&payload, journey_id, root_thread_id, generation)?;
+    if let Some(parent) = canonical.parent() {
+        fs::create_dir_all(parent).map_err(|_| "dedicated_projection_unavailable".to_string())?;
+    }
+    write_durable_projection_at(canonical, payload.as_bytes(), nonce)?;
+    let copied = read_projection(canonical)?;
+    if copied != payload {
+        return Err("dedicated_projection_migration_verification_failed".to_string());
+    }
+    publish_receipt(canonical, &payload, journey_id, root_thread_id, generation, nonce.wrapping_add(1))?;
+    Ok(Some(payload))
+}
+
 #[tauri::command]
 fn load_dedicated_journey_conversation(
     app: AppHandle,
@@ -5197,18 +5282,29 @@ fn load_dedicated_journey_conversation(
         Some(thread_id) => conversation_projection_path(&app, &journey_id, thread_id, generation)?,
         None => dedicated_journey_conversation_path(&app, &journey_id, generation)?,
     };
-    if path.exists() { return fs::read_to_string(path).map(Some).map_err(|error| error.to_string()); }
-    if thread_id.is_some() { return Ok(None); }
+    if thread_id.is_some() {
+        if !path.exists() { return Ok(None); }
+        let metadata = fs::symlink_metadata(&path).map_err(|_| "dedicated_projection_unavailable".to_string())?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 128 * 1024 * 1024 {
+            return Err("dedicated_projection_invalid".to_string());
+        }
+        return fs::read_to_string(path).map(Some).map_err(|_| "dedicated_projection_unavailable".to_string());
+    }
+    let stored_root: Value = serde_json::from_str(
+        &fs::read_to_string(journey_thread_path(&app, &journey_id)?)
+            .map_err(|_| "dedicated_projection_authority_missing".to_string())?,
+    ).map_err(|_| "dedicated_projection_authority_missing".to_string())?;
+    let root_thread = unwrap_persisted_thread(&stored_root);
+    if root_thread.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str()) {
+        return Err("dedicated_projection_authority_mismatch".to_string());
+    }
+    let root_thread_id = root_thread.get("threadId").and_then(Value::as_str)
+        .ok_or_else(|| "dedicated_projection_authority_missing".to_string())?;
     let legacy = legacy_dedicated_journey_conversation_path(&app, &journey_id)?;
-    if !legacy.exists() { return Ok(None); }
-    let payload = fs::read_to_string(&legacy).map_err(|error| error.to_string())?;
-    let value: Value = serde_json::from_str(&payload).map_err(|error| error.to_string())?;
-    let matches = value.get("conversation").and_then(|item| item.get("liveIdentity"))
-        .and_then(|live| live.get("generation")).and_then(Value::as_u64) == Some(generation);
-    if !matches { return Ok(None); }
-    if let Some(parent) = path.parent() { fs::create_dir_all(parent).map_err(|error| error.to_string())?; }
-    fs::rename(&legacy, &path).map_err(|error| format!("Could not migrate dedicated generation projection: {}", error))?;
-    Ok(Some(payload))
+    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos() as u64;
+    load_or_migrate_root_projection_at(
+        &path, &legacy, &journey_id, root_thread_id, generation, nonce,
+    )
 }
 
 fn journey_thread_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
@@ -5779,7 +5875,8 @@ mod tests {
         project_pi_user_entries, projection_manifest_coordinates_at,
         inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
         read_exact_pi_session_context_stats, read_journey_document_at, remove_provider_session_args, resolve_existing_local_file,
-        resolve_existing_local_file_at, resolve_journey_artifact_at, retire_legacy_parity_state_at,
+        load_or_migrate_root_projection_at, resolve_existing_local_file_at,
+        resolve_journey_artifact_at, retire_legacy_parity_state_at,
         classify_chat_local_reference_at, classify_chat_local_reference_at_with_home,
         unwrap_persisted_thread, validate_acknowledged_projection_authority_at,
         validate_composer_drafts_payload, validate_external_url, validate_journey_registry_payload,
@@ -5881,6 +5978,61 @@ mod tests {
         assert_eq!(manifest.pointer("/segments/1/status").and_then(Value::as_str), Some("current"));
         assert_eq!(manifest.pointer("/segments/0/firstTurnId").and_then(Value::as_str), Some("turn-one"));
         assert!(!manifest.to_string().contains("private"));
+    }
+
+    #[test]
+    fn root_projection_migration_copies_verifies_and_retains_legacy_authority() {
+        let root = test_root("root-projection-migration");
+        let canonical = root.join("dedicated-journey-conversations/journey-one/generation-1.json");
+        let legacy = root.join("dedicated-journey-conversations/journey-one.json");
+        fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        let payload = json!({
+            "schemaVersion": "0.9.0",
+            "conversation": {
+                "journeyId": "journey-one",
+                "liveIdentity": {"journeyId": "journey-one", "harnessConversationId": "root-thread-one", "generation": 1}
+            }
+        }).to_string();
+        fs::write(&legacy, &payload).unwrap();
+
+        let migrated = load_or_migrate_root_projection_at(
+            &canonical, &legacy, "journey-one", "root-thread-one", 1, 7,
+        ).unwrap().unwrap();
+        assert_eq!(migrated, payload);
+        assert_eq!(fs::read_to_string(&canonical).unwrap(), payload);
+        assert_eq!(fs::read_to_string(&legacy).unwrap(), payload);
+        let receipt = canonical.with_extension("migration-receipt.json");
+        let receipt_value: Value = serde_json::from_slice(&fs::read(receipt).unwrap()).unwrap();
+        assert_eq!(receipt_value.get("sourceRetained").and_then(Value::as_bool), Some(true));
+
+        let repeated = load_or_migrate_root_projection_at(
+            &canonical, &legacy, "journey-one", "root-thread-one", 1, 8,
+        ).unwrap().unwrap();
+        assert_eq!(repeated, payload);
+        assert_eq!(fs::read_to_string(&legacy).unwrap(), payload);
+    }
+
+    #[test]
+    fn root_projection_migration_rejects_cross_journey_and_symbolic_legacy_state() {
+        let root = test_root("root-projection-migration-invalid");
+        let canonical = root.join("canonical.json");
+        let legacy = root.join("legacy.json");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(&legacy, json!({
+            "conversation": {"journeyId": "other-journey", "liveIdentity": {
+                "journeyId": "other-journey", "harnessConversationId": "root-thread-one", "generation": 1
+            }}
+        }).to_string()).unwrap();
+        assert!(load_or_migrate_root_projection_at(
+            &canonical, &legacy, "journey-one", "root-thread-one", 1, 1,
+        ).is_err());
+        fs::remove_file(&legacy).unwrap();
+        #[cfg(unix)] {
+            std::os::unix::fs::symlink(root.join("outside.json"), &legacy).unwrap();
+            assert!(load_or_migrate_root_projection_at(
+                &canonical, &legacy, "journey-one", "root-thread-one", 1, 2,
+            ).is_err());
+        }
     }
 
     fn test_correlation() -> TurnCorrelation {
