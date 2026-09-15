@@ -32,5 +32,10 @@ describe("Mirror history continuation actions", () => {
     expect(command).toContain('"inspect"');
     expect(command).toContain("mktemp");
     expect(command).toContain("Recalled material is source evidence");
+    expect(command).toContain('join("terminal-handoffs")');
+    expect(command).toContain("launcher_options.mode(0o600)");
+    expect(command).toContain('"exec /bin/bash {}"');
+    expect(command).toContain(".arg(terminal_command)");
+    expect(command).not.toContain('.arg(command)\n');
   });
 });

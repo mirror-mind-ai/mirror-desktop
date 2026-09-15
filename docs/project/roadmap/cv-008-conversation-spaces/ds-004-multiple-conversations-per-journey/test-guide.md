@@ -198,7 +198,7 @@ For a generic Mirror source, verify:
 - exact source ID and Journey are revalidated;
 - Terminal opens in the exact validated Journey project path;
 - the selected runtime channel and Mirror home are preserved;
-- arguments are passed without shell interpolation;
+- arguments are passed without untrusted shell interpolation through a private short-lived launcher, rather than pasting the full command into Terminal;
 - credentials, message content and private paths are not logged;
 - the UI says a new Pi context will be used;
 - no literal session-resumption claim appears;
