@@ -591,12 +591,14 @@ export async function readJourneyPiContextStats(
   sessionId: string,
   sessionFile: string,
   generation: number,
+  threadId: string,
 ): Promise<PiSessionContextInspection> {
   return invoke<PiSessionContextInspection>("read_pi_session_context_stats", {
     journeyId,
     sessionId,
     sessionFile,
     generation,
+    threadId,
   });
 }
 

@@ -1274,6 +1274,8 @@ export function App({ model }: AppProps) {
           } else if (!latestNautilusTurn) {
             const turns = await loadDedicatedPiTranscript(
               selectedJourney,
+              classified.thread.threadId,
+              classified.activeGeneration.generation,
               classified.activeGeneration.piSessionId,
               classified.activeGeneration.piSessionFile,
             ).catch(() => []);
@@ -1303,6 +1305,8 @@ export function App({ model }: AppProps) {
           && steeringActivationReceipt) {
           const userEntries = await loadDedicatedPiUserEntries(
             selectedJourney,
+            classified.thread.threadId,
+            classified.activeGeneration.generation,
             classified.activeGeneration.piSessionId,
             steeringSessionFile,
           );
@@ -1504,6 +1508,7 @@ export function App({ model }: AppProps) {
       identity.piSessionId,
       identity.piSessionFile as string,
       identity.generation,
+      identity.harnessConversationId,
     )).then((inspection) => {
       if (cancelled) return;
       const nextState = contextStateForInspection(inspection, providerModel);
@@ -2026,6 +2031,8 @@ export function App({ model }: AppProps) {
             try {
               const userEntries = await loadDedicatedPiUserEntries(
                 runAuthority.journeyId,
+                runAuthority.threadId,
+                runAuthority.generation,
                 runAuthority.piSessionId,
                 runAuthority.piSessionFile,
               );

@@ -2675,6 +2675,38 @@ fn start_pi_invocation(
     }
 }
 
+fn validate_conversation_session_authority(
+    app: &AppHandle,
+    journey_id: &str,
+    thread_id: &str,
+    generation: u64,
+    session_id: &str,
+    session_file: &str,
+) -> Result<(), String> {
+    sanitize_journey_id(journey_id)?;
+    sanitize_session_id(thread_id)?;
+    sanitize_session_id(session_id)?;
+    validate_pi_session_file(app, session_file, session_id)?;
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
+    let thread = load_conversation_thread_authority_at(&app_data_dir, journey_id, thread_id)?;
+    validate_thread_runtime_channel(&thread)?;
+    let active = thread.get("activeGeneration").and_then(Value::as_u64);
+    let active_generation = thread.get("generations").and_then(Value::as_array)
+        .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active))
+        .ok_or_else(|| "Dedicated active generation is missing.".to_string())?;
+    if thread.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+        || thread.get("threadId").and_then(Value::as_str) != Some(thread_id)
+        || active != Some(generation)
+        || active_generation.get("status").and_then(Value::as_str) != Some("ready")
+        || active_generation.get("piSessionId").and_then(Value::as_str) != Some(session_id)
+        || active_generation.get("piSessionFile").and_then(Value::as_str) != Some(session_file)
+    {
+        return Err("Pi session inspection authority does not match the active Conversation generation.".to_string());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 async fn read_pi_session_context_stats(
     app: AppHandle,
@@ -2682,31 +2714,11 @@ async fn read_pi_session_context_stats(
     session_id: String,
     session_file: String,
     generation: u64,
+    thread_id: String,
 ) -> Result<PiSessionContextInspection, String> {
-    let safe_journey_id = sanitize_journey_id(&journey_id)?;
-    let safe_session_id = sanitize_session_id(&session_id)?;
-    if !safe_session_id.starts_with(&format!("nautilus-{}", safe_journey_id)) {
-        return Err("Pi session id does not belong to the selected Journey conversation.".to_string());
-    }
-    validate_pi_session_file(&app, &session_file, &safe_session_id)?;
-    let stored_thread: Value = serde_json::from_str(
-        &fs::read_to_string(journey_thread_path(&app, &safe_journey_id)?)
-            .map_err(|error| format!("Could not read dedicated thread: {}", error))?,
-    )
-    .map_err(|error| format!("Could not parse dedicated thread: {}", error))?;
-    let thread = unwrap_persisted_thread(&stored_thread);
-    let active = thread.get("activeGeneration").and_then(Value::as_u64);
-    let active_generation = thread.get("generations").and_then(Value::as_array)
-        .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active))
-        .ok_or_else(|| "Dedicated active generation is missing.".to_string())?;
-    if thread.get("journeyId").and_then(Value::as_str) != Some(safe_journey_id.as_str())
-        || active != Some(generation)
-        || active_generation.get("status").and_then(Value::as_str) != Some("ready")
-        || active_generation.get("piSessionId").and_then(Value::as_str) != Some(safe_session_id.as_str())
-        || active_generation.get("piSessionFile").and_then(Value::as_str) != Some(session_file.as_str())
-    {
-        return Err("Context inspection authority does not match the active Journey generation.".to_string());
-    }
+    validate_conversation_session_authority(
+        &app, &journey_id, &thread_id, generation, &session_id, &session_file,
+    )?;
 
     tauri::async_runtime::spawn_blocking(move || read_exact_pi_session_context_stats(&session_file))
         .await
@@ -2717,25 +2729,14 @@ async fn read_pi_session_context_stats(
 fn load_dedicated_pi_transcript(
     app: AppHandle,
     journey_id: String,
+    thread_id: String,
+    generation: u64,
     session_id: String,
     session_file: String,
 ) -> Result<Vec<DedicatedPiTranscriptTurn>, String> {
-    validate_pi_session_file(&app, &session_file, &session_id)?;
-    let stored_thread: Value = serde_json::from_str(&fs::read_to_string(journey_thread_path(&app, &journey_id)?)
-        .map_err(|error| format!("Could not read dedicated thread: {}", error))?)
-        .map_err(|error| format!("Could not parse dedicated thread: {}", error))?;
-    let thread = unwrap_persisted_thread(&stored_thread);
-    let active = thread.get("activeGeneration").and_then(Value::as_u64);
-    let generation = thread.get("generations").and_then(Value::as_array)
-        .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active))
-        .ok_or_else(|| "Dedicated active generation is missing.".to_string())?;
-    if thread.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
-        || generation.get("status").and_then(Value::as_str) != Some("ready")
-        || generation.get("piSessionId").and_then(Value::as_str) != Some(session_id.as_str())
-        || generation.get("piSessionFile").and_then(Value::as_str) != Some(session_file.as_str())
-    {
-        return Err("Dedicated transcript authority mismatch.".to_string());
-    }
+    validate_conversation_session_authority(
+        &app, &journey_id, &thread_id, generation, &session_id, &session_file,
+    )?;
     project_complete_pi_transcript(&fs::read_to_string(session_file).map_err(|error| error.to_string())?)
 }
 
@@ -2743,25 +2744,14 @@ fn load_dedicated_pi_transcript(
 fn load_dedicated_pi_user_entries(
     app: AppHandle,
     journey_id: String,
+    thread_id: String,
+    generation: u64,
     session_id: String,
     session_file: String,
 ) -> Result<Vec<DedicatedPiUserEntry>, String> {
-    validate_pi_session_file(&app, &session_file, &session_id)?;
-    let stored_thread: Value = serde_json::from_str(&fs::read_to_string(journey_thread_path(&app, &journey_id)?)
-        .map_err(|error| format!("Could not read dedicated thread: {}", error))?)
-        .map_err(|error| format!("Could not parse dedicated thread: {}", error))?;
-    let thread = unwrap_persisted_thread(&stored_thread);
-    let active = thread.get("activeGeneration").and_then(Value::as_u64);
-    let generation = thread.get("generations").and_then(Value::as_array)
-        .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active))
-        .ok_or_else(|| "Dedicated active generation is missing.".to_string())?;
-    if thread.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
-        || generation.get("status").and_then(Value::as_str) != Some("ready")
-        || generation.get("piSessionId").and_then(Value::as_str) != Some(session_id.as_str())
-        || generation.get("piSessionFile").and_then(Value::as_str) != Some(session_file.as_str())
-    {
-        return Err("Dedicated user-entry authority mismatch.".to_string());
-    }
+    validate_conversation_session_authority(
+        &app, &journey_id, &thread_id, generation, &session_id, &session_file,
+    )?;
     project_pi_user_entries(&fs::read_to_string(session_file).map_err(|error| error.to_string())?)
 }
 

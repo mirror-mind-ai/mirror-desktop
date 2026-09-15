@@ -40,10 +40,14 @@ export type DedicatedPiTranscriptTurn = {
 
 export async function loadDedicatedPiTranscript(
   journeyId: string,
+  threadId: string,
+  generation: number,
   sessionId: string,
   sessionFile: string,
 ): Promise<DedicatedPiTranscriptTurn[]> {
-  return invoke<DedicatedPiTranscriptTurn[]>("load_dedicated_pi_transcript", { journeyId, sessionId, sessionFile });
+  return invoke<DedicatedPiTranscriptTurn[]>("load_dedicated_pi_transcript", {
+    journeyId, threadId, generation, sessionId, sessionFile,
+  });
 }
 
 export type DedicatedPiUserEntry = {
@@ -54,10 +58,14 @@ export type DedicatedPiUserEntry = {
 
 export async function loadDedicatedPiUserEntries(
   journeyId: string,
+  threadId: string,
+  generation: number,
   sessionId: string,
   sessionFile: string,
 ): Promise<DedicatedPiUserEntry[]> {
-  return invoke<DedicatedPiUserEntry[]>("load_dedicated_pi_user_entries", { journeyId, sessionId, sessionFile });
+  return invoke<DedicatedPiUserEntry[]>("load_dedicated_pi_user_entries", {
+    journeyId, threadId, generation, sessionId, sessionFile,
+  });
 }
 
 type JourneyProvisioningEvent = { journeyId: string; phase: string };
