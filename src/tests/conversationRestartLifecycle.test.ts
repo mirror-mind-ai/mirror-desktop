@@ -3,10 +3,11 @@ import appSource from "../app/App.tsx?raw";
 import storageSource from "../app/journeyThreadStorage.ts?raw";
 import tauriSource from "../../src-tauri/src/main.rs?raw";
 
-describe("dedicated conversation restart lifecycle", () => {
+describe("dedicated conversation context reset lifecycle", () => {
   it("requires explicit confirmation and explains preservation", () => {
-    expect(appSource).toContain("Restart Conversation…");
-    expect(appSource).toContain('aria-label="Confirm conversation restart"');
+    expect(appSource).toContain("Reset agent context…");
+    expect(appSource).toContain('aria-label="Confirm agent context reset"');
+    expect(appSource).toContain("messages will not be copied verbatim into the new Pi context");
     expect(appSource).toContain("No model will be called and no synthetic greeting will be created.");
     expect(appSource).toContain("The current generation remains active unless the replacement is fully verified.");
   });
