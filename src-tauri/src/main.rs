@@ -565,6 +565,7 @@ fn load_desktop_conversation_catalog(app: AppHandle, journey_id: String) -> Resu
 async fn create_desktop_conversation(
     app: AppHandle,
     state: State<'_, JourneyProvisioningState>,
+    persistence: State<'_, JourneyProjectionPersistenceState>,
     journey_id: String,
     journey_name: String,
     title: String,
@@ -640,11 +641,10 @@ async fn create_desktop_conversation(
     if let Some(parent) = catalog_path.parent() {
         fs::create_dir_all(parent).map_err(|error| format!("Could not create Desktop Conversation catalog directory: {}", error))?;
     }
-    let staged = catalog_path.with_extension("json.provisioning.tmp");
-    fs::write(&staged, serde_json::to_vec_pretty(&catalog).map_err(|error| error.to_string())?)
-        .map_err(|error| format!("Could not stage Desktop Conversation authority: {}", error))?;
-    fs::rename(&staged, &catalog_path)
-        .map_err(|error| format!("Could not publish Desktop Conversation authority: {}", error))?;
+    let payload = serde_json::to_vec_pretty(&catalog).map_err(|error| error.to_string())?;
+    let staged_nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+    write_durable_projection_at(&catalog_path, &payload, staged_nonce)
+        .map_err(|_| "Could not durably publish Desktop Conversation authority.".to_string())?;
     Ok(entry)
 }
 
