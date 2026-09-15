@@ -2438,7 +2438,7 @@ export function App({ model }: AppProps) {
         journeyId: authority.journeyId,
         threadId: authority.threadId,
         generation: authority.generation,
-        updatedAt: projection.messages.at(-1)?.createdAt ?? new Date().toISOString(),
+        updatedAt: lastItem(projection.messages)?.createdAt ?? new Date().toISOString(),
         messageCount: projection.messages.length,
       });
       setConversationCatalog((current) => current.map((entry) => (
