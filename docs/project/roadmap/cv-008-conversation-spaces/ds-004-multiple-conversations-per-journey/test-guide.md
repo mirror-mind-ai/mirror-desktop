@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Validate the seven child packages as one Delivery Story in isolated `Mirror Desktop Dev`. Passing requires one coherent authority model across bounded catalog discovery, exact Desktop Conversation lifecycle, actionable Mirror history, agent handoff, compaction-aligned Segments, migration, recovery, long-history loading, context reset and sidebar resizing.
+Validate the seven child packages as one Delivery Story in isolated `Mirror Desktop Dev`. Passing requires the existing Journey-level workspace to remain the default uncataloged root while explicit focus reveals additional Conversations under one coherent authority model spanning bounded discovery, exact child lifecycle, actionable Mirror history, agent handoff, compaction-aligned Segments, migration, recovery, long-history loading, context reset and sidebar resizing.
 
 ## Package Coverage
 
@@ -48,7 +48,7 @@ No validation may reintroduce direct SQLite, internal Web Console routes or a Mi
 
 Test strict versioned parsing for:
 
-- exact Journey and full Conversation IDs;
+- exact Journey, explicit root-or-child surface kind and full child Conversation IDs;
 - `ready`, `available_in_mirror`, `preparing_handoff` and `needs_attention` states;
 - Desktop thread and generation authority;
 - metadata-only Mirror source references;
@@ -56,7 +56,7 @@ Test strict versioned parsing for:
 - unknown fields, duplicate IDs, oversized values and cross-Journey entries;
 - channel mismatch, traversal and symlink rejection.
 
-Selection of `available_in_mirror` must never produce executable authority.
+The existing root workspace must never appear as a catalog row. Selection of `available_in_mirror` must never produce executable authority or an ordinary composer.
 
 ### Handoff provenance
 
@@ -84,17 +84,31 @@ Inject failure around destination creation and handoff-draft publication. Verify
 
 ## US-1 — Catalog, Rename and Sidebar Tests
 
+### Ordinary and focused navigation
+
+Verify:
+
+- ordinary mode lists all Journeys and clicking one opens its existing root workspace;
+- a separate expand action hides sibling Journeys and reveals the focused header plus associated children;
+- the focused header returns to the root workspace;
+- collapse restores all Journeys and the visible root workspace;
+- collapse never retargets immutable ownership of an active child run;
+- root and child scroll, draft and selection state remain independent.
+
 ### Bounded catalog
 
 Create many generated Desktop and Mirror records across multiple Journeys. Verify:
 
-- only exact `mirror-desktop` entries appear;
+- the root Journey workspace is excluded from catalog entries;
+- only exact `mirror-desktop` child entries appear;
 - catalog count and payload are bounded;
 - transcript bodies are not requested during catalog opening;
 - ready and Mirror-available entries use one product language while retaining honest authority labels;
 - sorting is deterministic;
 - malformed or cross-Journey records fail closed;
-- ordinary selection of Mirror history never enables Send.
+- ready child selection opens the established transcript/composer when turns exist;
+- empty child selection opens a dedicated first-turn surface with no synthetic message;
+- Mirror history selection opens a dedicated action surface with no composer, Send or Resume claim.
 
 ### Rename in Mirror
 
@@ -126,11 +140,12 @@ Characterize supported window geometry before fixing constants. Verify:
 
 ## US-2 — Desktop Conversation Lifecycle Tests
 
-### Migration
+### Root preservation
 
 Start from schema `0.9.0` single-thread fixtures. Verify:
 
-- the existing thread becomes the first ordinary Conversation;
+- the existing thread remains the Journey-level root workspace and is not inserted into the child catalog;
+- ordinary Journey clicking preserves the current transcript/composer behavior;
 - thread ID, generations, active Pi session, Mirror conversation and activation receipt remain exact;
 - transcripts are not copied or rewritten;
 - no provider, model, process, greeting or prompt runs;
@@ -140,7 +155,7 @@ Start from schema `0.9.0` single-thread fixtures. Verify:
 
 Verify model-free creation produces:
 
-- a distinct Conversation and thread;
+- a distinct child Conversation and thread without changing the root;
 - one ready generation with exact Pi and Mirror coordinates;
 - no synthetic message or hidden title call;
 - unchanged sibling Conversations;
@@ -150,10 +165,10 @@ Verify model-free creation produces:
 
 Verify:
 
-- draft keys include exact Journey plus Conversation;
+- draft keys distinguish the exact Journey root from Journey-plus-child Conversation;
 - selection never retargets active callbacks after awaits;
 - stale events cannot mutate a newly selected Conversation;
-- browsing and drafting remain possible while a sibling runs;
+- browsing and drafting remain possible while the root or a child sibling runs;
 - Send remains disabled while the Journey has a reserved, running or finalizing lease;
 - no queue, placeholder turn, automatic retry or process is created.
 
@@ -184,6 +199,16 @@ For a generic Mirror source, verify:
 - launcher refusal or unavailable Terminal produces a bounded recoverable error.
 
 For Desktop-ready entries with exact Pi session authority, verify any exact-session Terminal action is separately labeled and never inferred for generic sources.
+
+### Mirror-history action surface
+
+Verify selection opens a non-executable screen rather than the standard transcript/composer. The proposed hierarchy is:
+
+1. `Create Desktop conversation from this history`;
+2. `Open in Terminal with recalled context`;
+3. `Rename in Mirror`.
+
+Implementation evidence may refine labels or hierarchy, but the screen must not expose Send, Reset or Resume for the source.
 
 ### Handoff disclosure and destination
 
@@ -261,32 +286,36 @@ Generate multiple Conversations including at least one history above 1,000 messa
 ## Aggregate Desktop Route
 
 1. Launch `Mirror Desktop Dev` and verify bundle/channel identity.
-2. Open migrated `mirror-desktop` and verify one unchanged first Conversation.
-3. Create two new Desktop Conversations without model activity.
-4. Preserve different drafts while switching among them.
-5. Run one turn and verify sibling Send remains blocked but browsing/drafting works.
-6. Focus the Journey and resize by pointer and keyboard; relaunch and verify clamped persistence.
-7. Add a disposable Mirror history entry for exactly `mirror-desktop` and verify metadata-only catalog presence.
-8. Rename it manually and verify canonical title change without provider invocation or message mutation.
-9. Open it in Terminal and verify recalled-context—not exact-resume—language and safe launch coordinates.
-10. Choose agent handoff, inspect and edit the unsent prompt, then explicitly Send.
-11. Verify destination authority predates the agent turn, recall stays within the declared request and the response states omissions.
-12. Verify source and Journey briefing remain unchanged.
-13. Trigger authoritative Pi compaction and verify same-Conversation Segment publication.
-14. Reset agent context and verify prior generation preservation.
-15. Interrupt local lifecycle phases and verify exact restart recovery.
-16. Relaunch normally and verify Conversations, Segments, provenance, drafts, selection and owner-specific terminal state.
+2. Click `mirror-desktop` in ordinary mode and verify its existing root workspace remains unchanged and absent from the child catalog.
+3. Expand `mirror-desktop`, verify sibling Journeys disappear, use the focused header to return to root, then collapse and verify the full list returns.
+4. Create two new child Desktop Conversations without model activity.
+5. Verify an empty child start surface, then complete a first turn and verify the established transcript/composer.
+6. Preserve different root and child drafts while switching among them.
+7. Run one root or child turn and verify all same-Journey sibling Send actions remain blocked while browsing/drafting works.
+8. Focus the Journey and resize by pointer and keyboard; relaunch and verify clamped persistence.
+9. Add a disposable Mirror history entry for exactly `mirror-desktop`, select it and verify its metadata-only no-composer action surface.
+10. Rename it manually and verify canonical title change without provider invocation or message mutation.
+11. Open it in Terminal and verify recalled-context—not exact-resume—language and safe launch coordinates.
+12. Choose agent handoff, inspect and edit the unsent prompt, then explicitly Send.
+13. Verify destination authority predates the agent turn, recall stays within the declared request and the response states omissions.
+14. Verify source and Journey briefing remain unchanged.
+15. Trigger authoritative Pi compaction and verify same-Conversation Segment publication.
+16. Reset agent context and verify prior generation preservation.
+17. Interrupt local lifecycle phases and verify exact restart recovery.
+18. Relaunch normally and verify root workspace, children, Segments, provenance, drafts, selection and owner-specific terminal state.
 
 ## Aggregate Pass Condition
 
-The Navigator can manage multiple exact Desktop Conversations, browse useful Mirror history, rename it canonically, open it in Terminal with honest recalled context and continue it through an explicit agent-prepared destination without using Journey briefing as a transfer mechanism. Long Desktop history remains complete and bounded through technical Segments; sidebar geometry remains accessible; context reset remains honest; no cross-owner mutation, hidden model call, automatic prompt send, Mirror core dependency, direct database access or authority inflation occurs.
+The Navigator retains the existing click-a-Journey root conversation, can explicitly expand one Journey while hiding siblings, and can manage additional exact Desktop Conversations without presenting the root as a common child. Mirror history opens a no-composer action surface for canonical rename, honest Terminal recall and an explicit agent-prepared destination without using Journey briefing as transfer storage. Long Desktop history remains complete and bounded through technical Segments; sidebar geometry remains accessible; context reset remains honest; no cross-owner mutation, hidden model call, automatic prompt send, Mirror core dependency, direct database access or authority inflation occurs.
 
 ## Failure Conditions
 
 Fail validation for any:
 
+- root Journey workspace inserted into the child catalog or ordinary click behavior changed;
+- expansion that leaves sibling Journeys visible, collapse that fails to restore them, or collapse that retargets a child owner;
 - cross-Journey catalog entry, rename, recall or handoff;
-- generic source presented as exact-resumable;
+- generic source presented with an ordinary composer or as exact-resumable;
 - transcript body loaded during catalog opening;
 - hidden provider title generation;
 - generated handoff prompt sent automatically;

@@ -68,7 +68,7 @@ CR029 bounds DOM disclosure and memoized transcript projection, but does not bou
 
 ## Implementation gates
 
-1. Proceed with model-free Desktop Conversation identity, migration, bounded catalog metadata, resizable focused sidebar and reset-label semantics using generated fixtures.
+1. Preserve the existing Journey-level workspace outside the associated-Conversation catalog, then proceed with model-free child Conversation identity, bounded metadata, reversible focused navigation, sidebar resizing and reset-label semantics using generated fixtures.
 2. Keep generic Mirror history non-executable; require full source ID and exact Journey validation for every action.
 3. Use only released summary, exact lookup, manual title and recall capabilities through packaged Mirror resources.
 4. Do not implement working-copy import, external transcript rendering, source revision receipts, divergence detection, direct SQLite access or Web Console coupling.

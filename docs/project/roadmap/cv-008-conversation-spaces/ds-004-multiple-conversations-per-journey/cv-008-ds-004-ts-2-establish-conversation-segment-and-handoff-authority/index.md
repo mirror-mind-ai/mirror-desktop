@@ -14,7 +14,7 @@ so that authority, history and interpreted continuity remain distinct under crea
 
 ## Outcome
 
-Desktop can parse, validate and atomically persist one bounded catalog per Journey, stable Conversation-to-thread authority, immutable Segment manifests and bounded handoff provenance. A generic Mirror source remains non-executable; only a fully validated model-free Desktop lifecycle can publish destination authority.
+Desktop can preserve the existing Journey workspace outside one bounded associated-Conversation catalog, validate stable child Conversation-to-thread authority, and atomically persist Segment manifests and bounded handoff provenance. A generic Mirror source remains non-executable; only a fully validated model-free Desktop lifecycle can publish child destination authority.
 
 ## Acceptance Behavior
 
@@ -24,13 +24,14 @@ When Desktop parses, publishes, retries or recovers them
 Then exact Journey plus full Conversation identity is required throughout
 And recalled source evidence cannot mint or retarget executable authority
 And partial creation or handoff-draft state never appears ready
-And existing first-thread authority migrates without transcript copying or ID replacement
+And existing root-thread authority remains outside the child catalog without transcript copying or ID replacement
 ```
 
 ## Scope
 
-- Versioned catalog and Desktop Conversation manifests.
-- Stable thread-owned Conversation identity and generation sequence.
+- Versioned root-workspace selection, child catalog and Desktop Conversation manifests.
+- Explicit `journey_workspace`, `desktop_conversation` and `mirror_history` surface kinds.
+- Stable child thread-owned Conversation identity and generation sequence.
 - Mirror history source reference with full ID, exact Journey and availability.
 - Bounded handoff provenance: source kind, source ID, Journey, requested-at and requested recall limit.
 - Segment manifest and compaction-checkpoint contracts.
@@ -46,7 +47,7 @@ And existing first-thread authority migrates without transcript copying or ID re
 
 ## Implementation Notes
 
-Preserve migrated `threadId` as the first Conversation identity. Catalog and provenance are indexes, not execution authority. A handoff origin never substitutes for thread, generation, Pi session, Mirror conversation or activation receipt. Use unique staging, fsync, rename and parent sync for local publication.
+Preserve the existing `threadId` as Journey-root authority and never publish it as a child catalog row. Catalog and provenance are indexes, not execution authority. A handoff origin never substitutes for thread, generation, Pi session, Mirror conversation or activation receipt. Use unique staging, fsync, rename and parent sync for local publication.
 
 ## Validation
 

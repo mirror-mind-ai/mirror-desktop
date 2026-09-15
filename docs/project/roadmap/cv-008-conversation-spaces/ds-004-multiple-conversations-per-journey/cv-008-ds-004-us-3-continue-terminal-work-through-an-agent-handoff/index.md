@@ -13,12 +13,15 @@ so that I can continue in Desktop without writing transient transfer state into 
 
 ## Outcome
 
-A Mirror history entry offers `Open in Terminal with recalled context` and `Create conversation from agent handoff`. Handoff creates a distinct Desktop destination model-free, records bounded provenance and pre-fills an editable first-turn prompt. Only explicit Send invokes the destination agent, which recalls a disclosed recent range, states omissions and establishes interpreted context while preserving source messages and Journey briefing files.
+Selecting a Mirror history entry opens a dedicated non-executable action surface without the standard composer. It offers `Create Desktop conversation from this history` as the proposed primary action, `Open in Terminal with recalled context` as secondary and `Rename in Mirror` as an administrative action. Handoff creates a distinct Desktop destination model-free, records bounded provenance and pre-fills an editable first-turn prompt there. Only explicit Send invokes the destination agent, which recalls a disclosed recent range, states omissions and establishes interpreted context while preserving source messages and Journey briefing files.
 
 ## Acceptance Behavior
 
 ```text
 Given a generic Mirror conversation belongs exactly to mirror-desktop
+When the Navigator selects it in the focused catalog
+Then a non-executable action surface opens without a composer or Resume claim
+
 When the Navigator opens it in Terminal with recalled context
 Then a new Pi context opens through validated runtime and project coordinates
 And no exact-session-resumption claim is made
@@ -43,6 +46,8 @@ And no process, queue or automatic retry is created
 
 ## Scope
 
+- Dedicated no-composer action surface for selected Mirror history.
+- Proposed primary handoff, secondary Terminal and administrative rename action hierarchy, refined through implementation evidence if necessary.
 - Argument-safe native Terminal launch in the exact Journey project path and runtime channel.
 - Generic recalled-context semantics distinct from exact Desktop session opening.
 - Explicit disclosure and configurable bounded recall depth.

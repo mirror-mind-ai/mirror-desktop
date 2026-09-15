@@ -9,12 +9,12 @@
 
 In order to keep complete long-running Conversations usable without conflating token pressure with user intent,
 as Mirror Desktop,
-I want authoritative Pi compaction checkpoints to bound technical history Segments inside the same Conversation,
+I want authoritative Pi compaction checkpoints to bound technical history Segments inside the same Journey-root or child Conversation,
 so that normal loading scales with the working set while Pi remains the sole context and compaction authority.
 
 ## Outcome
 
-After exact settlement proves a compaction entry, the Desktop idempotently closes one technical Segment and opens the next without changing Conversation, thread, generation, Pi session or Mirror conversation. Complete history remains exact and earlier Segments materialize only on request.
+After exact settlement proves a compaction entry, the Desktop idempotently closes one technical Segment and opens the next without changing root/child presentation identity, thread, generation, Pi session or Mirror conversation. Complete history remains exact and earlier Segments materialize only on request.
 
 ## Acceptance Behavior
 

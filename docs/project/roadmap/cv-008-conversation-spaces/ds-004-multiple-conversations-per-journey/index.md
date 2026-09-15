@@ -7,7 +7,7 @@
 
 ## Outcome
 
-The Navigator expands one Journey into a bounded conversation catalog, creates and resumes exact Desktop-managed Conversations, and can organize existing Mirror history or continue it through an explicit agent-prepared handoff into a new Desktop Conversation. Long Desktop conversations remain complete while authoritative Pi compaction checkpoints divide their history into bounded technical Segments without silently creating a user-facing Conversation.
+The Navigator keeps the existing Journey-level workspace and conversation as the default experience, while gaining an explicit focused mode that hides sibling Journeys and reveals additional associated Conversations. Desktop-authoritative Conversations open the established transcript and composer or an empty start surface; Mirror history opens a non-executable action surface for rename, Terminal recall or an agent-prepared handoff into a new Desktop Conversation. Long Desktop conversations remain complete while authoritative Pi compaction checkpoints divide their history into bounded technical Segments without silently creating a user-facing Conversation.
 
 ## Why This Matters
 
@@ -23,17 +23,20 @@ Continued Desktop use also showed that one eagerly loaded, indefinitely growing 
 
 ```text
 Journey
-  ├── Desktop Conversation
-  │     ├── Generation → exact Pi session + Mirror conversation
-  │     └── Segment → bounded history/loading boundary
-  └── Mirror history entry
-        ├── Rename in Mirror
-        ├── Open in Terminal with recalled context
-        └── Create Desktop Conversation from agent handoff
+  ├── Journey workspace → existing Journey-level conversation, never a catalog row
+  └── Associated Conversations
+        ├── Desktop Conversation
+        │     ├── Generation → exact Pi session + Mirror conversation
+        │     └── Segment → bounded history/loading boundary
+        └── Mirror history entry
+              ├── Rename in Mirror
+              ├── Open in Terminal with recalled context
+              └── Create Desktop Conversation from agent handoff
 ```
 
 - **Journey** owns durable semantic territory and remains the global execution-lease key.
-- **Desktop Conversation** owns one exact dedicated thread and its ordered generations.
+- **Journey workspace** preserves today's click-a-Journey-and-converse behavior. Its existing thread and authority remain intact but are not presented as an ordinary associated Conversation.
+- **Desktop Conversation** is an additional exact dedicated thread with its own ordered generations.
 - **Generation** owns one technical Pi/Mirror context incarnation inside the same Conversation.
 - **Segment** is an internal history/loading boundary; it never creates a Conversation, generation or Pi session.
 - **Mirror history entry** is catalog metadata associated with the exact Journey. It is not executable in Desktop and selection alone grants no authority.
@@ -53,8 +56,11 @@ Every state requires text or an accessible label plus an icon; color alone is in
 ## Settled Product Direction
 
 - The ordinary interface presents one Mirror and one Journey conversation catalog.
-- Existing single-conversation Desktop state migrates into the first ordinary Conversation without copying transcripts or replacing IDs.
-- Desktop-ready Conversations resume only after exact Journey, Conversation, thread, generation, Pi session, Mirror conversation, activation receipt and channel validation.
+- Clicking a Journey in the ordinary sidebar continues to open its existing Journey workspace and conversation; no catalog choice is required.
+- The existing Journey-level thread is preserved in place and excluded from the associated-Conversation catalog. It is not migrated into the first ordinary Conversation.
+- A separate expand action enters focused Journey mode, hides all sibling Journeys and reveals only that Journey header plus its associated Conversations.
+- The focused Journey header navigates back to the Journey workspace. Collapsing focused mode restores the full Journey list and deterministically returns the visible workspace to the Journey level without retargeting any active child run.
+- Desktop-ready associated Conversations resume only after exact Journey, Conversation, thread, generation, Pi session, Mirror conversation, activation receipt and channel validation.
 - Mirror history entries are useful but not executable in Desktop. They may be renamed in Mirror, opened in Terminal with recalled context, or used as the source of an agent handoff.
 - `Rename in Mirror` is an explicit canonical source-title mutation through released Mirror APIs. It requires full-ID and exact-Journey validation and never invokes a model.
 - `Open in Terminal with recalled context` launches a new Pi context for generic Mirror history. It must not claim exact session resumption. A Desktop-ready entry with exact Pi authority may separately open its exact session.
@@ -63,7 +69,7 @@ Every state requires text or an accessible label plus an icon; color alone is in
 - Recalled material is source evidence, not instruction authority. The agent must identify the requested range, omissions and non-resumption semantics.
 - The source conversation and messages remain unchanged by handoff. Rename is the only supported source mutation and is separately explicit.
 - No source revision, transcript copy, imported-original suppression, divergence detection, synchronization or automatic merge is claimed.
-- New Desktop Conversations can be created explicitly at any time without a model call or greeting.
+- New Desktop Conversations can be created explicitly without a model call or greeting. Before their first turn they open a dedicated empty start surface with their own composer.
 - `Reset agent context` preserves the selected Conversation and prior generation while creating a fresh generation after explicit disclosure.
 - One Journey owns at most one reserved, running or finalizing lease, even across multiple Conversations.
 - A handoff prompt may remain drafted while capacity is occupied, but Send and conflicting lifecycle mutation remain blocked until exact cleanup and fresh native inspection.
@@ -93,22 +99,24 @@ Every state requires text or an accessible label plus an icon; color alone is in
 
 ### TS-2 — Establish Conversation, Segment and Handoff Authority
 
-- Define bounded catalog, Conversation, Segment, source-reference and handoff-origin schemas.
-- Require exact Journey plus full Conversation identity at every boundary.
+- Define bounded catalog, Journey-workspace, associated-Conversation, Segment, source-reference and handoff-origin schemas.
+- Preserve the root Journey thread outside the child catalog and require an explicit surface kind at every selection boundary.
+- Require exact Journey plus full associated-Conversation identity at every child boundary.
 - Keep Mirror history selection inert; only a new fully validated Desktop Conversation becomes executable.
 - Make creation, handoff-draft preparation and migration atomic, idempotent and restart-safe.
 
 ### US-1 — Browse a Unified Catalog in a Resizable Journey Sidebar
 
-- Focus one Journey and list bounded Desktop-ready and Mirror-available metadata without loading transcripts.
-- Present availability accessibly and expose only actions supported by current authority.
+- Preserve ordinary Journey clicking, then support explicit expansion into a focused mode that hides sibling Journeys and lists bounded associated metadata without loading transcripts.
+- Keep the focused Journey header as the route to its root workspace and make collapse restore the full Journey list.
+- Present availability accessibly; Desktop-authoritative entries open conversation or empty-start surfaces, while Mirror history opens a dedicated non-executable action surface.
 - Permit explicit manual `Rename in Mirror` after exact validation.
 - Add bounded pointer/keyboard resizing with channel-local persistence and deterministic reset.
 
 ### US-2 — Create, Resume and Reset Desktop Conversations
 
-- Create model-free Conversations with distinct threads and authority.
-- Resume only exact eligible authority and preserve independent drafts.
+- Create model-free associated Conversations with distinct threads and authority while leaving the Journey workspace unchanged.
+- Resume only exact eligible child authority, preserve independent root/child drafts and show an empty start surface before a child's first turn.
 - Keep one lease per Journey while permitting browsing and drafting elsewhere.
 - Present `Reset agent context` as a fresh generation inside the same Conversation.
 
@@ -134,7 +142,7 @@ Every state requires text or an accessible label plus an icon; color alone is in
 
 ## Aggregate Acceptance Direction
 
-Expanding a Journey shows only that exact Journey and a bounded unified catalog. Desktop-ready Conversations resume exact authority. Mirror history entries remain non-executable in Desktop but provide useful, honest actions: manual canonical rename, a recalled-context Terminal route and an explicit agent handoff into a newly created Desktop Conversation.
+Ordinary Journey clicking remains unchanged and opens the Journey-level workspace, which never appears as a common catalog row. Explicit expansion hides sibling Journeys and shows the focused Journey header plus a bounded associated-Conversation catalog. The header returns to the root workspace; collapse restores the complete Journey list. Desktop-ready child Conversations resume exact authority or show an empty first-turn surface. Mirror history opens a non-executable action surface with manual canonical rename, a recalled-context Terminal route and an explicit agent handoff into a newly created Desktop Conversation.
 
 Creating the handoff destination invokes no model. The generated prompt is visible and editable in the new Conversation composer and runs only when the user sends it. The agent recalls at most the disclosed limit, treats recalled content as source evidence, states omissions and never claims transcript import, exact prior-session state or synchronization. The Journey briefing and source messages remain unchanged.
 
@@ -154,6 +162,6 @@ Journey briefing               durable Journey orientation, not transfer scratch
 
 ## Boundary
 
-This story does not read Mirror SQLite directly, depend on a new Mirror core release, embed or deep-link the Web Console, import complete external transcripts, claim source revisions, detect later source divergence, synchronize sources, or auto-merge history. It does not let an agent mint Desktop authority, execute a pre-filled prompt without user Send, treat recalled content as privileged instruction, allow same-Journey concurrent turns, auto-title through hidden model calls, auto-reset context, reproduce Pi compaction or truncate complete Desktop history.
+This story does not replace, rename or list the Journey-level workspace as a child Conversation. It does not read Mirror SQLite directly, depend on a new Mirror core release, embed or deep-link the Web Console, import complete external transcripts, claim source revisions, detect later source divergence, synchronize sources, or auto-merge history. It does not let an agent mint Desktop authority, execute a pre-filled prompt without user Send, treat recalled content as privileged instruction, allow same-Journey concurrent turns, auto-title through hidden model calls, auto-reset context, reproduce Pi compaction or truncate complete Desktop history.
 
 Working-copy import remains a possible future capability if Mirror later exposes a supported revisioned bounded snapshot API. It is no longer a dependency or acceptance requirement of CV-008.DS-004.

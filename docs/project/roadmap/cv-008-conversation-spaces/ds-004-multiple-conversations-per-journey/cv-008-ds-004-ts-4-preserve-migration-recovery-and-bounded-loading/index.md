@@ -14,14 +14,15 @@ so that existing authority survives and interrupted work never replays a prompt 
 
 ## Outcome
 
-Each supported existing Journey becomes one cataloged Conversation with unchanged thread, generation, Pi session, Mirror conversation, messages and receipts. Copy-verify-publish migration keeps legacy state authoritative until segmented state is complete. Interrupted creation, handoff-draft preparation, Segment publication and migration recover model-free from exact durable phases.
+Each existing Journey-level conversation remains the uncataloged root workspace with unchanged thread, generation, Pi session, Mirror conversation, messages and receipts. Only additional child Conversations enter the catalog. Copy-verify-publish migration keeps root and legacy history authoritative until bounded Segment state is complete. Interrupted child creation, handoff-draft preparation, Segment publication and migration recover model-free from exact durable phases.
 
 ## Acceptance Behavior
 
 ```text
-Given existing single-conversation state
+Given existing single-conversation Journey state
 When the multiple-Conversation schema is adopted
-Then the existing thread becomes the first ordinary Conversation without transcript copying, ID replacement, process creation or model invocation
+Then the existing thread remains the Journey root workspace and stays outside the child catalog
+And no transcript copy, ID replacement, process creation or model invocation occurs
 
 Given creation, handoff-draft preparation, Segment publication or migration stops at any phase
 When Desktop restarts
@@ -36,7 +37,7 @@ And complete history remains recoverable on demand
 
 ## Scope
 
-- Legacy first-Conversation adoption and reversible compatibility receipts.
+- Legacy root-workspace preservation, explicit root/child presentation identity and reversible compatibility receipts.
 - Recovery matrix for create, handoff draft, Segment and migration phases.
 - Bounded catalog and current-Segment-first parsing.
 - Exact preservation of messages, Steering, terminal evidence, attachments and Mirror receipts.

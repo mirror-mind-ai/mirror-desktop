@@ -11,7 +11,7 @@ Multiple Conversations per Journey
 
 ## Objective
 
-Deliver a bounded Journey conversation substrate without requiring a Mirror core update: create and exactly resume multiple Desktop Conversations, expose actionable Mirror history through manual canonical rename, recalled-context Terminal launch and explicit agent handoff, segment long Desktop history at authoritative Pi compaction checkpoints, present `Reset agent context` honestly, preserve one execution lease per Journey, and support a bounded accessible resizable sidebar.
+Preserve the existing click-a-Journey-and-converse workspace as the default root experience while adding an explicit focused mode for associated Conversations, without requiring a Mirror core update. Create and exactly resume additional Desktop Conversations, expose non-authoritative Mirror history through a dedicated action surface, support manual canonical rename, recalled-context Terminal launch and explicit agent handoff, segment long Desktop history at authoritative Pi compaction checkpoints, present `Reset agent context` honestly, preserve one execution lease per Journey, and support a bounded accessible resizable sidebar.
 
 ## Child Work Packages
 
@@ -25,12 +25,13 @@ Deliver a bounded Journey conversation substrate without requiring a Mirror core
 
 ## Scope
 
-### Shared Conversation substrate
+### Journey root and associated-Conversation substrate
 
-- Introduce a bounded Journey catalog containing exact Desktop-ready Conversations and metadata-only Mirror history entries.
-- Make one stable Desktop Conversation own one dedicated thread and ordered generations; retain Journey as the native execution-lease key.
-- Add Conversation identity to storage, selection, drafts, provisioning, reset, events, settlement and recovery boundaries that currently assume one implicit thread per Journey.
-- Keep catalog selection inert until exact Journey, Conversation, thread, generation, Pi session, Mirror conversation, activation receipt and channel evidence validates.
+- Preserve the existing Journey-level workspace, thread, transcript, composer and click behavior as the root surface. It must not appear as an ordinary associated-Conversation row.
+- Introduce a bounded associated-Conversation catalog containing exact Desktop-ready child Conversations and metadata-only Mirror history entries.
+- Make each additional Desktop Conversation own one dedicated thread and ordered generations; retain Journey as the native execution-lease key shared with the root workspace.
+- Add explicit `journey_workspace`, `desktop_conversation` and `mirror_history` surface kinds to selection, drafts, provisioning, reset, events, settlement and recovery boundaries.
+- Keep Mirror-history selection inert and validate exact Journey, Conversation, thread, generation, Pi session, Mirror conversation, activation receipt and channel evidence before a Desktop child can execute.
 
 ### Current released Mirror integration
 
@@ -60,9 +61,11 @@ Deliver a bounded Journey conversation substrate without requiring a Mirror core
 
 ### Explicit Desktop Conversation lifecycle
 
-- Create a new Desktop Conversation without provider invocation, synthetic greeting or mutation of existing Conversations.
+- Keep the root Journey workspace lifecycle unchanged and outside child creation/migration.
+- Create a new associated Desktop Conversation without provider invocation, synthetic greeting or mutation of the root or existing children.
 - Resume only exact eligible authority and fail closed for stale, cross-channel, cross-Journey or inconsistent state.
-- Preserve separate drafts and selection per Conversation.
+- Preserve separate drafts and selection for the root workspace and every child Conversation.
+- Open a child with no first turn on a dedicated start surface with its own composer; do not synthesize transcript content.
 - Replace user-facing restart language with `Reset agent context`; preserve prior generations while atomically activating a fresh generation after disclosure.
 - Preserve the existing one-lease-per-Journey rule across all Conversations.
 
@@ -73,11 +76,14 @@ Deliver a bounded Journey conversation substrate without requiring a Mirror core
 - Keep complete Desktop messages, Steering, actions, surfaces, attachments and receipts recoverable.
 - Load catalog metadata and the current Segment before explicitly requested historical regions.
 
-### Resizable focused Journey sidebar
+### Reversible focused Journey sidebar
 
-- Add a focused Journey state with a bounded Conversation catalog and accessible horizontal resize separator.
+- Preserve the ordinary all-Journeys list and existing Journey-click navigation.
+- Add a separate expand action that focuses exactly one Journey, hides all siblings and shows its header plus bounded associated-Conversation catalog.
+- Keep the focused Journey header as the route to the root workspace. Collapsing restores the all-Journeys list and visible root workspace while any child run retains immutable background ownership.
+- Desktop-authoritative child selection opens the established transcript/composer or the empty first-turn surface. Mirror-history selection opens a dedicated non-executable action surface with no composer.
 - Support pointer drag, keyboard increments, min/default/max clamping, window-resize reclamping and deterministic reset.
-- Persist only a validated channel-local width preference and protect conversation/composer usability.
+- Persist only a validated channel-local width preference and protect Journey, catalog, conversation and composer usability.
 
 ## Delivery Sequence and Gates
 
@@ -90,27 +96,30 @@ Deliver a bounded Journey conversation substrate without requiring a Mirror core
 
 ### Phase 2 — TS-2 authority and storage contracts
 
-1. Define versioned bounded schemas for catalog entries, Conversation identity, Segment manifests, source references and handoff provenance.
-2. Preserve existing `threadId` as the migrated first Conversation identity unless destructive conflict evidence appears.
-3. Validate full IDs, exact Journey, channel, payload size, count, path, schema, duplicate and symlink boundaries natively.
+1. Define versioned bounded schemas for root-workspace selection, catalog entries, child Conversation identity, Segment manifests, source references and handoff provenance.
+2. Preserve the existing root `threadId` and authority in place; explicitly exclude it from the child catalog and child migration.
+3. Validate surface kind, full child/source IDs, exact Journey, channel, payload size, count, path, schema, duplicate and symlink boundaries natively.
 4. Define model-free creation plus handoff-draft preparation as an idempotent lifecycle; partial state never becomes executable.
 5. Ensure only Desktop—not an agent, prompt or recalled source—can mint Conversation authority.
 
 ### Phase 3 — US-1 catalog, rename and sidebar
 
-1. Add focused Journey expansion/collapse without changing active-run owner state.
-2. Load bounded metadata independently from transcript bodies.
-3. Present ready, available in Mirror, preparing handoff and needs-attention states accessibly.
-4. Add explicit `Rename in Mirror` with confirmation, full-ID/Journey revalidation and model-free update.
-5. Add bounded accessible sidebar resizing and channel-local preference persistence.
+1. Preserve ordinary Journey selection and root-workspace rendering.
+2. Add explicit expand/collapse: expansion hides sibling Journeys; the focused header returns to root; collapse restores the full list and root surface without changing active-run owner state.
+3. Load bounded child metadata independently from transcript bodies.
+4. Present ready, available in Mirror, preparing handoff and needs-attention states accessibly.
+5. Route ready children to transcript/composer or empty-start surfaces and Mirror history to a non-executable action surface.
+6. Add explicit `Rename in Mirror` with confirmation, full-ID/Journey revalidation and model-free update.
+7. Add bounded accessible sidebar resizing and channel-local preference persistence.
 
 ### Phase 4 — US-2 exact Desktop Conversations
 
-1. Provision a distinct thread, generation, Pi session, Mirror conversation and activation receipt through model-free native operations.
-2. Capture immutable Conversation authority in every callback before awaits.
-3. Keep Journey-keyed native reservation and the global four-Journey horizon.
-4. Persist drafts by Journey plus Conversation; navigation remains available while sibling Send and conflicting lifecycle operations are blocked.
-5. Complete `Reset agent context` semantics and generation replacement tests.
+1. Leave the root Journey thread unchanged and provision child thread, generation, Pi session, Mirror conversation and activation receipt through model-free native operations.
+2. Capture immutable root-or-child surface authority in every callback before awaits.
+3. Keep Journey-keyed native reservation and the global four-Journey horizon across root and children.
+4. Persist drafts by Journey plus surface identity; navigation remains available while root/child sibling Send and conflicting lifecycle operations are blocked.
+5. Show a dedicated empty start surface until a child receives its first turn.
+6. Complete `Reset agent context` semantics and generation replacement tests for the selected authoritative surface.
 
 ### Phase 5 — US-3 Terminal recall and agent handoff
 
@@ -126,8 +135,8 @@ Deliver a bounded Journey conversation substrate without requiring a Mirror core
 
 1. Detect compaction evidence only under exact session, generation and settled-turn authority.
 2. Publish immutable historical Segment files and a small manifest without duplicating messages or splitting owning evidence.
-3. Adopt existing single-conversation state without copying transcript bytes, replacing IDs or changing active sessions.
-4. Move to physically bounded loading only through copy-verify-publish migration while preserving reversible compatibility evidence.
+3. Preserve existing single-conversation state as the Journey root workspace without catalog insertion, transcript copying, ID replacement or active-session change.
+4. Move root and child histories to physically bounded loading only through copy-verify-publish migration while preserving reversible compatibility evidence and presentation identity.
 5. Recover incomplete creation, handoff-draft preparation, Segment publication and migration without replaying prompts or spawning children.
 6. Prove catalog and initial Conversation work depend on bounded metadata and loaded Segments rather than total retained history.
 
@@ -150,16 +159,33 @@ Deliver a bounded Journey conversation substrate without requiring a Mirror core
 ## Aggregate Acceptance Behavior
 
 ```text
-Given an existing Journey with one Desktop conversation
-When the upgraded app opens
-Then that conversation appears once with unchanged thread, generation, Pi session, Mirror conversation and transcript authority
-And no provider, process, prompt or duplicate transcript is created
+Given an existing Journey-level workspace
+When the upgraded app opens and the Navigator clicks its Journey
+Then the existing transcript, composer, thread, generation, Pi session and Mirror authority remain the default root experience
+And the root workspace does not appear as an ordinary associated-Conversation row
+And no provider, process, prompt, migration copy or duplicate transcript is created
+
+Given the ordinary sidebar lists multiple Journeys
+When the Navigator expands mirror-desktop
+Then sibling Journeys are hidden and the focused header plus bounded associated-Conversation catalog appear
+And clicking the header returns to the root workspace
+And collapsing restores the full Journey list and visible root workspace
+And immutable ownership of any active child run remains unchanged
 
 Given multiple Desktop-ready and Mirror history entries belong exactly to mirror-desktop
-When the Navigator opens the focused sidebar
-Then one bounded catalog distinguishes their authority accessibly
-And catalog opening does not read every transcript body
+When the Navigator uses the focused catalog
+Then authority is distinguished accessibly without reading every transcript body
 And sidebar resizing remains bounded, keyboard operable and persistent
+
+Given a Desktop-authoritative child Conversation is selected
+When it already has turns or remains empty
+Then it opens the established transcript and composer or a dedicated first-turn start surface respectively
+And it never becomes confused with the Journey root workspace
+
+Given a Mirror history entry is selected
+When it has no Desktop authority
+Then a non-executable action surface opens without a composer
+And only honest rename, Terminal recall and agent-handoff actions are offered
 
 Given a Mirror history entry
 When the Navigator manually renames it
@@ -202,7 +228,7 @@ Then prior generation history remains preserved
 And a fresh exact generation becomes active in the same Conversation
 And no prior message is claimed to remain verbatim in new Pi context
 
-Given creation, handoff preparation, segmentation or migration is interrupted
+Given child creation, handoff preparation, segmentation or bounded-history migration is interrupted
 When the app restarts
 Then recovery resumes or rolls back only exact durable state
 And no prompt, process, authority or lifecycle operation is replayed
@@ -214,19 +240,21 @@ Aggregate E2E validation runs only in `Mirror Desktop Dev` (`ai.mirrormind.deskt
 
 The Navigator route will:
 
-1. verify non-destructive migration of the existing Conversation;
-2. create and switch among multiple independent Desktop Conversations and drafts;
-3. prove one same-Journey lease across sibling Conversations;
-4. resize by pointer and keyboard and verify relaunch persistence;
-5. list disposable Mirror history through current released runtime capabilities;
-6. manually rename a source and verify exact Journey isolation and no model call;
-7. open a generic source in Terminal with recalled-context semantics;
-8. create a handoff destination, inspect the unsent prompt, edit it and explicitly send;
-9. verify bounded recall request, source provenance, omission disclosure and unchanged briefing/source messages;
-10. drive authoritative Pi compaction and verify same-Conversation Segment publication;
-11. exercise histories above 1,000 messages and 10 MiB generated terminal evidence;
-12. reset agent context and verify prior generation preservation;
-13. interrupt every durable local mutation and verify idempotent restart recovery.
+1. verify the existing root Journey workspace remains unchanged and absent from the child catalog;
+2. exercise ordinary Journey clicking, explicit focus expansion, header-to-root navigation and deterministic collapse;
+3. create and switch among multiple independent child Desktop Conversations and root/child drafts;
+4. verify an empty child shows a first-turn start surface and a ready child shows the established transcript/composer;
+5. prove one same-Journey lease across the root and all child Conversations;
+6. resize by pointer and keyboard and verify relaunch persistence;
+7. select disposable Mirror history and verify its no-composer action surface through current released runtime capabilities;
+8. manually rename a source and verify exact Journey isolation and no model call;
+9. open a generic source in Terminal with recalled-context semantics;
+10. create a handoff destination, inspect the unsent prompt, edit it and explicitly send;
+11. verify bounded recall request, source provenance, omission disclosure and unchanged briefing/source messages;
+12. drive authoritative Pi compaction and verify same-Conversation Segment publication;
+13. exercise histories above 1,000 messages and 10 MiB generated terminal evidence;
+14. reset agent context and verify prior generation preservation;
+15. interrupt every durable local mutation and verify idempotent restart recovery.
 
 Automated gates include focused schema, catalog, exact Journey, title, launcher, prompt, provenance, authority, event-routing, draft, occupancy, accessibility, migration, Segment and persistence tests; full frontend and Rust suites; production build; `cargo check --locked`; roadmap consistency; whitespace checks; scale characterization; private-data inspection; and development-bundle identity validation.
 
@@ -237,7 +265,8 @@ Automated gates include focused schema, catalog, exact Journey, title, launcher,
 - Use the validated released Mirror runtime through packaged resources. Never read Mirror SQLite directly, consume internal Web Console routes or patch an installed Mirror checkout.
 - Require the exact Journey `mirror-desktop` and full source Conversation ID for every Mirror history action.
 - Treat Mirror summaries, title mutation and recall as distinct capabilities; no metadata listing grants execution authority.
-- Keep one immutable authority object per active operation and validate exact Journey plus Conversation at native, persisted, event and callback boundaries.
+- Keep one immutable authority object per active operation and validate exact Journey plus explicit root-or-child surface identity at native, persisted, event and callback boundaries.
+- Never project the root Journey workspace into the associated-Conversation catalog or silently migrate its presentation identity.
 - Only Desktop native lifecycle code can publish executable Conversation authority. Agents may recall and interpret evidence but cannot mint, retarget or activate authority.
 - Preserve one Journey-keyed reserved/running/finalizing lease and global capacity four. No queue or automatic retry.
 - Generated handoff prompts are editable drafts. Creation does not send them or invoke a model.
