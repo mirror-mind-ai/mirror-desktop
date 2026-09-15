@@ -50,11 +50,16 @@ use std::{
         Arc, Condvar, Mutex,
     },
     thread,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tauri::{path::BaseDirectory, AppHandle, Emitter, Manager, State};
 
 const PI_PROCESS_EVENT: &str = "nautilus-pi-process";
+const RPC_SETTLEMENT_EXIT_GRACE: Duration = Duration::from_secs(5);
+
+fn rpc_settlement_exit_grace_expired(settled: bool, elapsed: Duration) -> bool {
+    settled && elapsed >= RPC_SETTLEMENT_EXIT_GRACE
+}
 const JOURNEY_PROVISIONING_EVENT: &str = "nautilus-journey-provisioning";
 const JOURNEY_RESTART_EVENT: &str = "nautilus-journey-restart";
 const JOURNEY_REGISTRY_FILE: &str = "journey-registry.json";
@@ -4694,6 +4699,19 @@ fn classify_pi_process_terminal(
     }
 }
 
+fn classify_rpc_process_terminal(
+    rpc_settled: bool,
+    was_cancelled: bool,
+    process_succeeded: bool,
+    has_completion_evidence: bool,
+) -> TerminalState {
+    if rpc_settled && !was_cancelled && has_completion_evidence {
+        TerminalState::Completed
+    } else {
+        classify_pi_process_terminal(was_cancelled, process_succeeded, has_completion_evidence)
+    }
+}
+
 fn terminalize_pi_process(
     registry: &Arc<Mutex<PiProcessRegistry<RunAuthority, PiChildHandle, ProviderConfig>>>,
     target: &RunTarget,
@@ -5020,18 +5038,44 @@ fn run_pi_process(
     }
 
     let mut rpc_stdin_closed = false;
+    let mut rpc_settled_at: Option<Instant> = None;
+    let mut rpc_terminal_durable = false;
+    let mut rpc_exit_forced = false;
     let (terminal_state, terminal_error) = loop {
-        if mirror_mediated && !rpc_stdin_closed {
+        if mirror_mediated {
             let settled = control_child_handle(&child_handle, |process| {
                 Ok::<bool, String>(process.settled.load(Ordering::Acquire))
             })
             .unwrap_or(false);
-            if settled {
+            if settled && rpc_settled_at.is_none() {
+                rpc_settled_at = Some(Instant::now());
+            }
+            if settled && !rpc_stdin_closed {
                 let _ = control_child_handle(&child_handle, |process| {
                     process.stdin.take();
                     Ok::<(), String>(())
                 });
                 rpc_stdin_closed = true;
+            }
+            if settled && !rpc_terminal_durable {
+                let cancellation_requested = registry.lock().ok()
+                    .and_then(|registry| registry.cancellation_requested(&target).ok())
+                    .unwrap_or(false);
+                if !cancellation_requested {
+                    if let Some(pi_execution) = terminal_pi_execution_evidence(&run_authority) {
+                        let mut evidence = empty_terminal_evidence();
+                        evidence.pi_execution = Some(pi_execution);
+                        rpc_terminal_durable = adopt_terminal_journal(
+                            &app, &authority, TerminalState::Completed, evidence,
+                        ).is_ok();
+                    }
+                }
+            }
+            if !rpc_exit_forced && rpc_settled_at.is_some_and(|at| {
+                rpc_settlement_exit_grace_expired(settled, at.elapsed())
+            }) {
+                let _ = control_child_handle(&child_handle, |process| process.child.kill());
+                rpc_exit_forced = true;
             }
         }
         let wait_result = control_child_handle(&child_handle, |process| process.child.try_wait())
@@ -5055,7 +5099,11 @@ fn run_pi_process(
                     .success()
                     .then(|| terminal_pi_execution_evidence(&run_authority))
                     .flatten();
-                let terminal_state = classify_pi_process_terminal(
+                let rpc_was_settled = mirror_mediated && control_child_handle(&child_handle, |process| {
+                    Ok::<bool, String>(process.settled.load(Ordering::Acquire))
+                }).unwrap_or(false);
+                let terminal_state = classify_rpc_process_terminal(
+                    rpc_was_settled,
                     was_cancelled,
                     status.success(),
                     completion_evidence.is_some(),
@@ -6568,7 +6616,9 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_pi_process_terminal, compiled_runtime_channel, conversation_projection_path_at,
+        classify_pi_process_terminal, classify_rpc_process_terminal, compiled_runtime_channel,
+        conversation_projection_path_at,
+        rpc_settlement_exit_grace_expired,
         dedicated_native_names, enqueue_mirror_append_item_at, exact_steering_authority_matches, extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
         list_journey_documentation_at, load_conversation_thread_authority_at,
@@ -6597,7 +6647,7 @@ mod tests {
     use std::{
         fs,
         path::Path,
-        time::{SystemTime, UNIX_EPOCH},
+        time::{Duration, SystemTime, UNIX_EPOCH},
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -6938,6 +6988,13 @@ mod tests {
     }
 
     #[test]
+    fn bounds_process_exit_after_authoritative_rpc_settlement() {
+        assert!(!rpc_settlement_exit_grace_expired(false, Duration::from_secs(30)));
+        assert!(!rpc_settlement_exit_grace_expired(true, Duration::from_millis(4_999)));
+        assert!(rpc_settlement_exit_grace_expired(true, Duration::from_secs(5)));
+    }
+
+    #[test]
     fn accepts_only_bounded_two_message_mirror_append_items() {
         let item = json!({
             "schemaVersion":"1.0.0", "itemId":"turn-one", "journeyId":"journey-one",
@@ -7233,6 +7290,18 @@ mod tests {
         assert_eq!(
             classify_pi_process_terminal(true, true, false),
             TerminalState::Cancelled,
+        );
+        assert_eq!(
+            classify_rpc_process_terminal(true, false, false, true),
+            TerminalState::Completed,
+        );
+        assert_eq!(
+            classify_rpc_process_terminal(true, true, false, true),
+            TerminalState::Cancelled,
+        );
+        assert_eq!(
+            classify_rpc_process_terminal(true, false, false, false),
+            TerminalState::ProcessDied,
         );
     }
 

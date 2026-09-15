@@ -209,6 +209,21 @@ describe("Journey-keyed frontend runtime state", () => {
     expect(state.entries["journey-d"]?.warnings).toEqual([]);
   });
 
+  it("enters finalizing immediately when Pi reports terminal agent settlement", () => {
+    const owner = identity("journey-a", "run-a1");
+    let state = register(createInitialJourneyRuntimeState(), owner);
+    state = journeyRuntimeReducer(state, {
+      type: "stream_event",
+      identity: owner,
+      event: { type: "run_status", status: "completed" },
+    });
+
+    expect(state.entries["journey-a"]?.agentRun.status).toBe("completed");
+    expect(state.entries["journey-a"]?.isStreaming).toBe(false);
+    expect(state.entries["journey-a"]?.isFinalizingTurn).toBe(true);
+    expect(selectJourneyRuntimeOwnerPhase(state, "journey-a")).toBe("finalizing");
+  });
+
   it("routes interleaved events to two active Journey owners", () => {
     const first = identity("journey-a", "run-a1");
     const second = identity("journey-b", "run-b1");

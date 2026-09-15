@@ -675,6 +675,7 @@ export function App({ model }: AppProps) {
     [effectiveAgentProfile, providerConfig],
   );
   const selectedCanSteer = isStreaming
+    && agentRun.status === "running"
     && !isFinalizingTurn
     && selectedRuntime.identity?.kind === "live"
     && (selectedConversationEntry?.kind !== "desktop_conversation"

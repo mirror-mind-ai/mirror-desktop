@@ -286,7 +286,9 @@ function reduceEntryFromStreamEvent(entry: JourneyRuntimeEntry, event: AgentStre
     agentRun: reduceAgentRunFromStreamEvent(entry.agentRun, event),
     runtimeProjection: reduceRuntimeProjection(entry.runtimeProjection, event),
   };
-  if (event.type === "message_delta") {
+  if (event.type === "run_status" && event.status === "completed") {
+    next = { ...next, isStreaming: false, isFinalizingTurn: true };
+  } else if (event.type === "message_delta") {
     next = { ...next, streamedAssistantContent: `${entry.streamedAssistantContent}${event.content}` };
   } else if (event.type === "diagnostic") {
     next = { ...next, diagnostics: [...entry.diagnostics, event.message] };

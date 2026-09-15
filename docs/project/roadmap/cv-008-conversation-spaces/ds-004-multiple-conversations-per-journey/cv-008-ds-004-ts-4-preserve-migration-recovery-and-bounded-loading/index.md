@@ -58,6 +58,7 @@ And complete history remains recoverable on demand
 - `3b061db` extends the same durable, idempotent phase recovery to `Reset agent context` while retaining the prior generation until exact replacement publication.
 - `f377a4a` rejects duplicate Segment entry, message, turn and evidence authority rather than silently merging divergent history.
 - Handoff preparation remains an editable channel-local draft after model-free destination creation; the recovery path contains no prompt send or model invocation.
+- An alpha.7 incident exposed a bounded-settlement gap: Pi emitted the final answer and authoritative `agent_settled`, but its RPC process did not exit, leaving the UI falsely in `Working` and the completed turn non-durable across relaunch. The corrected boundary immediately presents `Finishing`, disables Steering, durably records exact completed evidence before process exit, and force-closes only the settled child after a five-second grace period while preserving finalizing capacity.
 
 ## Validation
 
