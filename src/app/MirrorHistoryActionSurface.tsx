@@ -30,7 +30,6 @@ export function MirrorHistoryActionSurface(props: Props) {
       <p className="eyebrow">Mirror Core Conversation</p>
       <div className="mirror-history-title-row">
         <h2>{props.entry.title}</h2>
-        <span className="mirror-history-badge">Created with Mirror Core via Terminal</span>
       </div>
       <p className="mirror-history-summary">
         This conversation belongs to {props.journeyId}. Click “Continue in new Desktop Conversation” to continue. Keep in mind that won’t be the same conversation, but a new one with the same resumed context.
@@ -43,7 +42,7 @@ export function MirrorHistoryActionSurface(props: Props) {
         <button type="button" onClick={props.onCreateHandoff} disabled={props.busy}>Continue in new Desktop Conversation</button>
         <button className="secondary-button" type="button" onClick={props.onOpenTerminal} disabled={props.busy}>Continue with recalled context in Terminal</button>
       </div>
-      <p className="provider-note">The source remains in Mirror. No transcript import, exact session resume or synchronization is performed.</p>
+      <p className="provider-note">Created with Mirror Core via Terminal. The source remains there.</p>
       {props.message ? <p className="provider-note" role="status">{props.message}</p> : null}
     </div>
   </section>;
