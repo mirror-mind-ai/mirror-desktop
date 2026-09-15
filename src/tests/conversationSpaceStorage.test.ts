@@ -107,5 +107,11 @@ describe("native Desktop conversation lifecycle", () => {
     expect(tauriSource).toContain("recover_pending_desktop_conversation_creation");
     expect(creation.indexOf("write_desktop_conversation_creation(&operation_path, &operation"))
       .toBeLessThan(creation.indexOf("tauri::async_runtime::spawn_blocking"));
+    const reset = tauriSource.slice(
+      tauriSource.indexOf("async fn restart_desktop_conversation"),
+      tauriSource.indexOf("fn reconcile_desktop_conversation_catalog_entry"),
+    );
+    expect(reset.indexOf("write_desktop_conversation_reset(&operation_path, &operation"))
+      .toBeLessThan(reset.indexOf("tauri::async_runtime::spawn_blocking"));
   });
 });
