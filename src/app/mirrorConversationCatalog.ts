@@ -23,6 +23,20 @@ export async function loadMirrorConversationCatalog(input: {
   return parsed.entries.filter((entry) => entry.kind !== "mirror_history" || !managed.has(entry.conversationId));
 }
 
+export async function openMirrorConversationInTerminal(input: {
+  journeyId: string;
+  conversationId: string;
+  messageLimit: number;
+}): Promise<void> {
+  const payload = await invoke<unknown>("open_mirror_conversation_in_terminal", input);
+  const record = payload as Record<string, unknown> | undefined;
+  if (record?.schemaVersion !== "1.0.0" || record.status !== "opened"
+    || record.journeyId !== input.journeyId || record.conversationId !== input.conversationId
+    || record.messageLimit !== input.messageLimit) {
+    throw new Error("Terminal recall Journey authority is invalid.");
+  }
+}
+
 export async function renameMirrorConversation(input: {
   journeyId: string;
   conversationId: string;

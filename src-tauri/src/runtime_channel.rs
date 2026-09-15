@@ -298,6 +298,19 @@ impl RuntimeChannelProfile {
         directories
     }
 
+    pub fn pi_bin(&self) -> &Path {
+        &self.pi_bin
+    }
+
+    pub fn uv_bin(&self) -> &Path {
+        &self.uv_bin
+    }
+
+    pub fn runtime_path(&self) -> Result<std::ffi::OsString, String> {
+        env::join_paths(self.runtime_search_directories())
+            .map_err(|_| "Trusted Mirror Desktop runtime paths are not joinable.".to_string())
+    }
+
     pub fn runtime_command(&self, program: &str) -> Result<Command, String> {
         if !matches!(program, "pi" | "uv") {
             return Err(format!(
