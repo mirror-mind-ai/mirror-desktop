@@ -385,6 +385,12 @@ const initialMessages: ConversationMessage[] = [
   },
 ];
 
+function waitForCatalogLoadingFeedbackPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
+  });
+}
+
 export function App({ model }: AppProps) {
   const [selectedJourney, setSelectedJourney] = useState(defaultJourneyPreferenceState.activeJourneyId ?? "");
   const [selectedAltitude, setSelectedAltitude] = useState(defaultJourneyAltitude);
@@ -2979,6 +2985,7 @@ export function App({ model }: AppProps) {
     setConversationCatalogStatus("loading");
     setConversationCatalogError(undefined);
     setConversationActionMessage(undefined);
+    await waitForCatalogLoadingFeedbackPaint();
     try {
       const rootThread = ownerJourneyId === selectedJourney && journeyThreadState.kind === "ready"
         ? journeyThreadState.thread
