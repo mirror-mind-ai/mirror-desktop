@@ -500,13 +500,12 @@ export function App({ model }: AppProps) {
   }, [runtimeChannel?.channel]);
 
   useEffect(() => {
-    if (conversationFocus.kind !== "focused_journey") return;
     const resize = () => setFocusedSidebarWidth((current) => saveFocusedSidebarWidth(
       runtimeChannel?.channel ?? "checking", current, window.innerWidth,
     ));
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
-  }, [conversationFocus.kind, runtimeChannel?.channel]);
+  }, [runtimeChannel?.channel]);
 
   useEffect(() => {
     let cancelled = false;
@@ -3642,7 +3641,10 @@ export function App({ model }: AppProps) {
       className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
       data-runtime-channel={runtimeChannel?.channel}
       data-application-theme={applicationTheme}
-      style={{ "--focused-sidebar-width": `${focusedSidebarWidth}px` } as CSSProperties}
+      style={{
+        "--focused-sidebar-width": `${focusedSidebarWidth}px`,
+        gridTemplateColumns: `${sidebarCompact ? 72 : focusedSidebarWidth}px minmax(560px, 1fr)`,
+      } as CSSProperties}
     >
       <aside className="journey-sidebar" aria-label="Journeys">
         <div className="brand-block">

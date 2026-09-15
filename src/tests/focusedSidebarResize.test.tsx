@@ -30,7 +30,8 @@ describe("focused conversation sidebar resizing", () => {
   it("remains available without expanding a Journey", () => {
     expect(appSource).toContain("{!sidebarCompact ? (");
     expect(appSource).not.toContain('conversationFocus.kind === "focused_journey" ? (\n          <FocusedSidebarResizeHandle');
-    expect(appSource).toContain('style={{ "--focused-sidebar-width": `${focusedSidebarWidth}px` }');
+    expect(appSource).toContain('gridTemplateColumns: `${sidebarCompact ? 72 : focusedSidebarWidth}px minmax(560px, 1fr)`');
+    expect(appSource).not.toContain('if (conversationFocus.kind !== "focused_journey") return;');
   });
 
   it("persists a clamped width per runtime channel", () => {
