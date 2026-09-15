@@ -34,7 +34,7 @@ use turn_journal::{
     TurnRecoveryDisposition, TurnTerminalEvidence, TurnTerminalOutcome, TurnTransitionRequest,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
-use chrono::{SecondsFormat, Utc};
+use chrono::{DateTime, SecondsFormat, Utc};
 use image::{ImageFormat, ImageReader};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -539,11 +539,27 @@ fn load_desktop_conversation_catalog_at(path: &Path, journey_id: &str) -> Result
     for entry in value.get("entries").and_then(Value::as_array).into_iter().flatten() {
         let conversation_id = entry.get("conversationId").and_then(Value::as_str).unwrap_or_default();
         let thread_id = entry.get("threadId").and_then(Value::as_str).unwrap_or_default();
+        let authority = entry.get("authority").unwrap_or(&Value::Null);
+        let receipt = authority.get("activationReceipt").unwrap_or(&Value::Null);
         if entry.get("kind").and_then(Value::as_str) != Some("desktop_conversation")
             || entry.get("journeyId").and_then(Value::as_str) != Some(journey_id)
             || entry.get("availability").and_then(Value::as_str) != Some("ready")
-            || entry.get("generation").and_then(Value::as_u64).unwrap_or_default() == 0
-            || entry.get("piSessionFile").and_then(Value::as_str).map_or(true, str::is_empty)
+            || authority.get("generation").and_then(Value::as_u64).unwrap_or_default() == 0
+            || authority.get("piSessionFile").and_then(Value::as_str).map_or(true, str::is_empty)
+            || receipt.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+            || receipt.get("threadId").and_then(Value::as_str) != Some(thread_id)
+            || receipt.get("mirrorConversationId").and_then(Value::as_str) != Some(conversation_id)
+            || receipt.get("generation") != authority.get("generation")
+            || receipt.get("piSessionId") != authority.get("piSessionId")
+            || receipt.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
+            || receipt.get("mode").and_then(Value::as_str) != Some("mirror")
+            || receipt.get("commandAuthority").and_then(Value::as_str) != Some("installed")
+            || receipt.get("runtimeChannel") != authority.get("runtimeChannel")
+            || !matches!(authority.get("runtimeChannel").and_then(Value::as_str), Some("user" | "development"))
+            || receipt.get("activatedAt").and_then(Value::as_str)
+                .and_then(|value| DateTime::parse_from_rfc3339(value).ok()).is_none()
+            || authority.get("piSessionId").and_then(Value::as_str)
+                .is_none_or(|value| sanitize_session_id(value).is_err())
             || sanitize_session_id(conversation_id).is_err()
             || sanitize_session_id(thread_id).is_err()
             || !conversation_ids.insert(conversation_id)
@@ -625,13 +641,22 @@ async fn create_desktop_conversation(
     }
     let created_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     let runtime_channel = active_runtime_channel()?.channel.as_str();
+    let activation_receipt = json!({
+        "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
+        "generation": 1, "piSessionId": pi_session_id,
+        "mirrorConversationId": mirror_conversation_id, "mode": "mirror",
+        "commandAuthority": "installed", "runtimeChannel": runtime_channel,
+        "activatedAt": created_at,
+    });
     let entry = json!({
         "schemaVersion": "1.0.0", "journeyId": journey_id,
         "kind": "desktop_conversation", "conversationId": mirror_conversation_id,
         "threadId": thread_id, "title": title, "updatedAt": created_at,
-        "messageCount": 0, "availability": "ready", "generation": 1,
-        "piSessionId": pi_session_id, "piSessionFile": pi_session_file,
-        "runtimeChannel": runtime_channel,
+        "messageCount": 0, "availability": "ready",
+        "authority": {
+            "generation": 1, "piSessionId": pi_session_id, "piSessionFile": pi_session_file,
+            "runtimeChannel": runtime_channel, "activationReceipt": activation_receipt,
+        },
         "sourceConversationId": source_conversation_id,
         "sourceMessageLimit": source_message_limit,
     });
@@ -1221,7 +1246,7 @@ fn validate_composer_drafts_payload(payload: &str) -> Result<Value, String> {
         .filter(|drafts| drafts.len() <= COMPOSER_DRAFT_MAX_JOURNEYS)
         .ok_or_else(|| "Composer draft storage has invalid entries.".to_string())?;
     for (journey_id, text) in drafts {
-        if journey_id.len() > 128
+        if journey_id.len() > 640
             || sanitize_journey_id(journey_id).is_err()
             || text.as_str().is_none_or(|text| {
                 text.is_empty() || text.chars().count() > COMPOSER_DRAFT_MAX_CHARS
@@ -3198,12 +3223,13 @@ fn validate_outbox_generation_authority(app: &AppHandle, item: &Value) -> Result
         .get("journeyId")
         .and_then(Value::as_str)
         .ok_or_else(|| "mirror_append_item_invalid".to_string())?;
-    let stored: Value = serde_json::from_str(
-        &fs::read_to_string(journey_thread_path(app, journey_id)?)
-            .map_err(|_| "mirror_append_authority_missing".to_string())?,
-    )
-    .map_err(|_| "mirror_append_authority_invalid".to_string())?;
-    let thread = unwrap_persisted_thread(&stored);
+    let thread_id = item.get("threadId").and_then(Value::as_str)
+        .ok_or_else(|| "mirror_append_item_invalid".to_string())?;
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|_| "mirror_append_authority_missing".to_string())?;
+    let stored = load_conversation_thread_authority_at(&app_data_dir, journey_id, thread_id)
+        .map_err(|_| "mirror_append_authority_missing".to_string())?;
+    let thread = &stored;
     validate_thread_runtime_channel(thread)?;
     let generation = item.get("generation").and_then(Value::as_u64);
     let authority = thread
@@ -3225,9 +3251,11 @@ fn validate_outbox_generation_authority(app: &AppHandle, item: &Value) -> Result
     {
         return Err("mirror_append_thread_authority_mismatch".to_string());
     }
-    let projection_path = dedicated_journey_conversation_path(
+    let projection_path = conversation_projection_path(
         app,
         journey_id,
+        item.get("threadId").and_then(Value::as_str)
+            .ok_or_else(|| "mirror_append_authority_invalid".to_string())?,
         generation.ok_or_else(|| "mirror_append_authority_invalid".to_string())?,
     )?;
     let projection: Value = serde_json::from_str(
@@ -3281,7 +3309,12 @@ fn validate_outbox_acknowledgement(app: &AppHandle, item: &Value) -> Result<(), 
     let generation = item.get("generation").and_then(Value::as_u64)
         .ok_or_else(|| "mirror_append_item_invalid".to_string())?;
     let projection: Value = serde_json::from_str(
-        &fs::read_to_string(dedicated_journey_conversation_path(app, journey_id, generation)?)
+        &fs::read_to_string(conversation_projection_path(
+            app, journey_id,
+            item.get("threadId").and_then(Value::as_str)
+                .ok_or_else(|| "mirror_append_item_invalid".to_string())?,
+            generation,
+        )?)
             .map_err(|_| "mirror_append_authority_missing".to_string())?,
     ).map_err(|_| "mirror_append_authority_invalid".to_string())?;
     let turn = projection.pointer("/conversation/reconciliation/turns").and_then(Value::as_array)
@@ -3438,8 +3471,8 @@ fn validate_outbox_item_run_authority_at(
         return Err("mirror_append_item_authority_mismatch".to_string());
     }
     let projection: Value = serde_json::from_str(
-        &fs::read_to_string(dedicated_journey_conversation_path_at(
-            app_data_dir, &authority.journey_id, authority.generation,
+        &fs::read_to_string(conversation_projection_path_at(
+            app_data_dir, &authority.journey_id, &authority.thread_id, authority.generation,
         )?).map_err(|_| "mirror_append_authority_missing".to_string())?,
     ).map_err(|_| "mirror_append_authority_invalid".to_string())?;
     validate_projection_payload_authority(&projection, authority)
@@ -3468,8 +3501,8 @@ fn validate_acknowledged_projection_authority_at(
     }
     validate_turn_correlation(&authority.correlation)?;
     let projection: Value = serde_json::from_str(
-        &fs::read_to_string(dedicated_journey_conversation_path_at(
-            app_data_dir, &authority.journey_id, authority.generation,
+        &fs::read_to_string(conversation_projection_path_at(
+            app_data_dir, &authority.journey_id, &authority.thread_id, authority.generation,
         )?).map_err(|_| "mirror_append_acknowledgement_missing".to_string())?,
     ).map_err(|_| "mirror_append_acknowledgement_missing".to_string())?;
     validate_projection_payload_authority(&projection, authority)?;
@@ -4478,12 +4511,20 @@ fn legacy_dedicated_journey_conversation_path(app: &AppHandle, journey_id: &str)
 }
 
 fn dedicated_journey_conversation_path(app: &AppHandle, journey_id: &str, generation: u64) -> Result<PathBuf, String> {
-    if generation == 0 { return Err("Dedicated conversation generation must be positive.".to_string()); }
-    let safe_journey_id = sanitize_journey_id(journey_id)?;
     let app_data_dir = app.path().app_data_dir()
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
-    Ok(app_data_dir.join("dedicated-journey-conversations").join(safe_journey_id)
-        .join(format!("generation-{}.json", generation)))
+    dedicated_journey_conversation_path_at(&app_data_dir, journey_id, generation)
+}
+
+fn conversation_projection_path(
+    app: &AppHandle,
+    journey_id: &str,
+    thread_id: &str,
+    generation: u64,
+) -> Result<PathBuf, String> {
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
+    conversation_projection_path_at(&app_data_dir, journey_id, thread_id, generation)
 }
 
 fn validate_projection_payload_authority(parsed: &Value, authority: &RunAuthority) -> Result<(), String> {
@@ -4739,11 +4780,13 @@ fn save_dedicated_journey_conversation(
     outbox_item_id: Option<String>,
     outbox_conversation_id: Option<String>,
 ) -> Result<(), String> {
-    let path = dedicated_journey_conversation_path(&app, &journey_id, generation)?;
     let mut parsed: Value = serde_json::from_str(&payload)
         .map_err(|_| "dedicated_projection_invalid".to_string())?;
     let live = parsed.get("conversation").and_then(|value| value.get("liveIdentity"))
         .ok_or_else(|| "dedicated_projection_authority_missing".to_string())?;
+    let thread_id = live.get("harnessConversationId").and_then(Value::as_str)
+        .ok_or_else(|| "dedicated_projection_authority_missing".to_string())?;
+    let path = conversation_projection_path(&app, &journey_id, thread_id, generation)?;
     if live.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
         || live.get("generation").and_then(Value::as_u64) != Some(generation)
         || live.get("activationReceiptActivatedAt").and_then(Value::as_str).is_none()
@@ -4820,9 +4863,18 @@ fn save_dedicated_journey_conversation(
 }
 
 #[tauri::command]
-fn load_dedicated_journey_conversation(app: AppHandle, journey_id: String, generation: u64) -> Result<Option<String>, String> {
-    let path = dedicated_journey_conversation_path(&app, &journey_id, generation)?;
+fn load_dedicated_journey_conversation(
+    app: AppHandle,
+    journey_id: String,
+    generation: u64,
+    thread_id: Option<String>,
+) -> Result<Option<String>, String> {
+    let path = match thread_id.as_deref() {
+        Some(thread_id) => conversation_projection_path(&app, &journey_id, thread_id, generation)?,
+        None => dedicated_journey_conversation_path(&app, &journey_id, generation)?,
+    };
     if path.exists() { return fs::read_to_string(path).map(Some).map_err(|error| error.to_string()); }
+    if thread_id.is_some() { return Ok(None); }
     let legacy = legacy_dedicated_journey_conversation_path(&app, &journey_id)?;
     if !legacy.exists() { return Ok(None); }
     let payload = fs::read_to_string(&legacy).map_err(|error| error.to_string())?;
@@ -4902,18 +4954,84 @@ fn dedicated_journey_conversation_path_at(app_data_dir: &Path, journey_id: &str,
         .join(format!("generation-{}.json", generation)))
 }
 
+fn conversation_projection_path_at(
+    app_data_dir: &Path,
+    journey_id: &str,
+    thread_id: &str,
+    generation: u64,
+) -> Result<PathBuf, String> {
+    sanitize_session_id(thread_id)?;
+    let root_path = journey_thread_path_at(app_data_dir, journey_id)?;
+    if let Ok(payload) = fs::read_to_string(root_path) {
+        if let Ok(value) = serde_json::from_str::<Value>(&payload) {
+            if unwrap_persisted_thread(&value).get("threadId").and_then(Value::as_str) == Some(thread_id) {
+                return dedicated_journey_conversation_path_at(app_data_dir, journey_id, generation);
+            }
+        }
+    }
+    if generation == 0 { return Err("Dedicated conversation generation must be positive.".to_string()); }
+    Ok(app_data_dir.join("dedicated-journey-conversations").join(sanitize_journey_id(journey_id)?)
+        .join("threads").join(thread_id).join(format!("generation-{}.json", generation)))
+}
+
 fn journey_thread_path_at(app_data_dir: &Path, journey_id: &str) -> Result<PathBuf, String> {
     Ok(app_data_dir.join("journey-threads").join(format!("{}.json", sanitize_journey_id(journey_id)?)))
+}
+
+fn load_conversation_thread_authority_at(
+    app_data_dir: &Path,
+    journey_id: &str,
+    thread_id: &str,
+) -> Result<Value, String> {
+    sanitize_journey_id(journey_id)?;
+    sanitize_session_id(thread_id)?;
+    if let Ok(payload) = fs::read_to_string(journey_thread_path_at(app_data_dir, journey_id)?) {
+        if let Ok(value) = serde_json::from_str::<Value>(&payload) {
+            let thread = unwrap_persisted_thread(&value);
+            if thread.get("journeyId").and_then(Value::as_str) == Some(journey_id)
+                && thread.get("threadId").and_then(Value::as_str) == Some(thread_id)
+            {
+                return Ok(thread.clone());
+            }
+        }
+    }
+    let catalog_path = app_data_dir.join("conversation-spaces")
+        .join(sanitize_journey_id(journey_id)?).join("catalog.json");
+    let catalog = load_desktop_conversation_catalog_at(&catalog_path, journey_id)?;
+    let entry = catalog.get("entries").and_then(Value::as_array)
+        .and_then(|entries| entries.iter().find(|entry| {
+            entry.get("threadId").and_then(Value::as_str) == Some(thread_id)
+                && entry.get("journeyId").and_then(Value::as_str) == Some(journey_id)
+        })).ok_or_else(|| "Dedicated child thread authority is missing.".to_string())?;
+    let authority = entry.get("authority")
+        .ok_or_else(|| "Dedicated child thread authority is incomplete.".to_string())?;
+    let generation = authority.get("generation").and_then(Value::as_u64)
+        .ok_or_else(|| "Dedicated child generation is missing.".to_string())?;
+    Ok(json!({
+        "schemaVersion": "1.0.0", "threadId": thread_id, "journeyId": journey_id,
+        "runtimeChannel": authority["runtimeChannel"],
+        "createdAt": authority["activationReceipt"]["activatedAt"],
+        "activeGeneration": generation,
+        "generations": [{
+            "generation": generation, "status": "ready",
+            "piSessionId": authority["piSessionId"], "piSessionFile": authority["piSessionFile"],
+            "mirrorConversationId": entry["conversationId"],
+            "createdAt": authority["activationReceipt"]["activatedAt"],
+            "activatedAt": authority["activationReceipt"]["activatedAt"],
+            "activationReceipt": authority["activationReceipt"],
+        }]
+    }))
 }
 
 fn validate_persisted_turn_authority_at(app_data_dir: &Path, global_pi_sessions_dir: &Path, authority: &RunAuthority, runtime_channel: &str) -> Result<(), String> {
     let value = &authority.correlation;
     {
-        let stored_thread: Value = serde_json::from_str(
-            &fs::read_to_string(journey_thread_path_at(app_data_dir, &value.journey_id)?)
-                .map_err(|error| format!("Could not read dedicated thread authority: {}", error))?,
-        ).map_err(|error| format!("Could not parse dedicated thread authority: {}", error))?;
-        let thread = unwrap_persisted_thread(&stored_thread);
+        let stored_thread = load_conversation_thread_authority_at(
+            app_data_dir,
+            &value.journey_id,
+            value.thread_id.as_deref().ok_or_else(|| "Run authority has no thread.".to_string())?,
+        )?;
+        let thread = &stored_thread;
         validate_thread_runtime_channel_name(thread, runtime_channel)?;
         let active_generation = thread.get("activeGeneration").and_then(Value::as_u64);
         let generation = thread.get("generations").and_then(Value::as_array)
@@ -4936,7 +5054,11 @@ fn validate_persisted_turn_authority_at(app_data_dir: &Path, global_pi_sessions_
         validate_pi_session_file_at(&authority.pi_session_file, &value.pi_session_id, global_pi_sessions_dir, app_data_dir)?;
     }
     let payload: Value = serde_json::from_str(
-        &fs::read_to_string(dedicated_journey_conversation_path_at(app_data_dir, &value.journey_id, value.generation)?)
+        &fs::read_to_string(conversation_projection_path_at(
+            app_data_dir, &value.journey_id,
+            value.thread_id.as_deref().ok_or_else(|| "Run authority has no thread.".to_string())?,
+            value.generation,
+        )?)
             .map_err(|error| format!("Could not read staged turn authority: {}", error))?,
     ).map_err(|error| format!("Could not parse staged turn authority: {}", error))?;
     let conversation = payload.get("conversation").and_then(Value::as_object)
@@ -5324,9 +5446,11 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_pi_process_terminal, compiled_runtime_channel, dedicated_native_names, enqueue_mirror_append_item_at, exact_steering_authority_matches, extract_context_stats_from_pi_session,
+        classify_pi_process_terminal, compiled_runtime_channel, conversation_projection_path_at,
+        dedicated_native_names, enqueue_mirror_append_item_at, exact_steering_authority_matches, extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
-        list_journey_documentation_at, load_desktop_conversation_catalog_at,
+        list_journey_documentation_at, load_conversation_thread_authority_at,
+        load_desktop_conversation_catalog_at,
         materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, project_pi_user_entries, projection_manifest_coordinates_at,
         inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
@@ -5377,6 +5501,37 @@ mod tests {
             "entries": (0..101).map(|index| json!({ "id": index })).collect::<Vec<_>>()
         })).unwrap()).unwrap();
         assert!(load_desktop_conversation_catalog_at(&path, "journey-one").is_err());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn resolves_child_thread_authority_and_projection_separately_from_the_journey_root() {
+        let root = test_root("child-thread-authority");
+        let catalog_path = root.join("conversation-spaces").join("journey-one").join("catalog.json");
+        fs::create_dir_all(catalog_path.parent().unwrap()).unwrap();
+        fs::write(&catalog_path, serde_json::to_vec(&json!({
+            "schemaVersion": "1.0.0", "journeyId": "journey-one", "entries": [{
+                "schemaVersion": "1.0.0", "journeyId": "journey-one",
+                "kind": "desktop_conversation", "conversationId": "mirror-child-one",
+                "threadId": "desktop-thread-one", "title": "Child", "updatedAt": "2026-09-15T10:00:00Z",
+                "messageCount": 0, "availability": "ready",
+                "authority": {
+                    "generation": 1, "piSessionId": "pi-child-one",
+                    "piSessionFile": "/app/pi-child-one.jsonl", "runtimeChannel": "development",
+                    "activationReceipt": {
+                        "schemaVersion": "1.0.0", "journeyId": "journey-one", "threadId": "desktop-thread-one",
+                        "generation": 1, "piSessionId": "pi-child-one", "mirrorConversationId": "mirror-child-one",
+                        "mode": "mirror", "commandAuthority": "installed", "runtimeChannel": "development",
+                        "activatedAt": "2026-09-15T10:00:00Z"
+                    }
+                }, "sourceConversationId": null, "sourceMessageLimit": null
+            }]
+        })).unwrap()).unwrap();
+        let thread = load_conversation_thread_authority_at(&root, "journey-one", "desktop-thread-one").unwrap();
+        assert_eq!(thread.get("threadId").and_then(Value::as_str), Some("desktop-thread-one"));
+        let projection = conversation_projection_path_at(&root, "journey-one", "desktop-thread-one", 1).unwrap();
+        assert!(projection.ends_with("threads/desktop-thread-one/generation-1.json"));
+        assert!(load_conversation_thread_authority_at(&root, "another-journey", "desktop-thread-one").is_err());
         let _ = fs::remove_dir_all(root);
     }
 

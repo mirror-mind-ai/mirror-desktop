@@ -18,6 +18,14 @@ describe("conversation space surfaces", () => {
         updatedAt: "2026-09-15T10:00:00.000Z",
         messageCount: 0,
         availability: "ready",
+        authority: {
+          generation: 1, piSessionId: "pi-session-child-1", piSessionFile: "/app/pi-session-child-1.jsonl", runtimeChannel: "development",
+          activationReceipt: {
+            schemaVersion: "1.0.0", journeyId: "mirror-desktop", threadId: "desktop-thread-1", generation: 1,
+            piSessionId: "pi-session-child-1", mirrorConversationId: "desktop-conversation-1", mode: "mirror",
+            commandAuthority: "installed", runtimeChannel: "development", activatedAt: "2026-09-15T10:00:00.000Z",
+          },
+        },
       }, {
         kind: "mirror_history",
         conversationId: "mirror-conversation-1",

@@ -180,6 +180,8 @@ import {
 import {
   availableConversationActions,
   createAgentHandoffPrompt,
+  conversationDraftKey,
+  desktopConversationThread,
   reduceConversationFocus,
   type ConversationCatalogEntry,
   type ConversationFocusState,
@@ -476,9 +478,9 @@ export function App({ model }: AppProps) {
   const [conversationCatalog, setConversationCatalog] = useState<ConversationCatalogEntry[]>([]);
   const [conversationCatalogStatus, setConversationCatalogStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [conversationCatalogError, setConversationCatalogError] = useState<string>();
+  const [focusedJourneyRootThreadId, setFocusedJourneyRootThreadId] = useState<string>();
   const [conversationActionBusy, setConversationActionBusy] = useState(false);
   const [conversationActionMessage, setConversationActionMessage] = useState<string>();
-  const [handoffDraftByConversationId, setHandoffDraftByConversationId] = useState<Record<string, string>>({});
   const [focusedSidebarWidth, setFocusedSidebarWidth] = useState(DEFAULT_FOCUSED_SIDEBAR_WIDTH);
   const [runtimeChannel, setRuntimeChannel] = useState<RuntimeChannelDiagnostic>();
 
@@ -608,6 +610,9 @@ export function App({ model }: AppProps) {
     runtimeState: journeyRuntimeState,
     selectedJourneyId: selectedJourney,
     loadedConversation: conversation,
+    selectedThreadId: selectedConversationEntry?.kind === "desktop_conversation"
+      ? selectedConversationEntry.threadId
+      : conversationFocus.kind === "focused_journey" ? focusedJourneyRootThreadId : undefined,
     mirrorCommitErrors,
   });
   const selectedRuntime = navigationPresentation.selectedRuntime;
@@ -662,6 +667,8 @@ export function App({ model }: AppProps) {
   const selectedCanSteer = isStreaming
     && !isFinalizingTurn
     && selectedRuntime.identity?.kind === "live"
+    && (selectedConversationEntry?.kind !== "desktop_conversation"
+      || selectedRuntime.identity.authority.threadId === selectedConversationEntry.threadId)
     && effectiveProviderConfig.invocationMode === "mirror"
     && !effectiveProviderConfig.safeTestMode;
   const providerErrors = useMemo(() => validateProviderConfig(effectiveProviderConfig), [effectiveProviderConfig]);
@@ -1116,6 +1123,19 @@ export function App({ model }: AppProps) {
   }, [selectedJourney, composerDraftsLoaded]);
 
   useEffect(() => {
+    if (!composerDraftsLoaded) return;
+    const conversationId = selectedConversationSpace.kind === "desktop_conversation"
+      ? selectedConversationSpace.conversationId
+      : undefined;
+    setDraft(composerDrafts[conversationDraftKey(selectedJourney, conversationId)] ?? "");
+  }, [
+    selectedJourney,
+    selectedConversationSpace.kind,
+    selectedConversationSpace.kind === "journey_workspace" ? undefined : selectedConversationSpace.conversationId,
+    composerDraftsLoaded,
+  ]);
+
+  useEffect(() => {
     setLocalReferenceError(undefined);
     setFileAttachmentError(undefined);
     setDismissedStreamWarningKey(undefined);
@@ -1144,7 +1164,12 @@ export function App({ model }: AppProps) {
     async function restoreConversation() {
       let threadAuthorityLoaded = false;
       try {
-        const dedicatedThread = await loadNautilusJourneyThread(selectedJourney);
+        const childEntry = selectedConversationEntry?.kind === "desktop_conversation"
+          ? selectedConversationEntry
+          : undefined;
+        const dedicatedThread = childEntry
+          ? desktopConversationThread(selectedJourney, childEntry)
+          : await loadNautilusJourneyThread(selectedJourney);
         threadAuthorityLoaded = true;
         if (!requestIsCurrent()) return;
         const classified = classifyNautilusJourneyThread(dedicatedThread, selectedJourney);
@@ -1153,10 +1178,15 @@ export function App({ model }: AppProps) {
               journeyRuntimeStateRef.current,
               selectedJourney,
               classified.activeGeneration.generation,
+              classified.thread.threadId,
             )
           : { runtimeConversation: undefined, allowPersistedRecovery: true };
         const persistedConversation = classified.kind === "ready" && restoreDecision.allowPersistedRecovery
-          ? await loadDedicatedJourneyConversation(selectedJourney, classified.activeGeneration.generation)
+          ? await loadDedicatedJourneyConversation(
+              selectedJourney,
+              classified.activeGeneration.generation,
+              childEntry?.threadId,
+            )
           : undefined;
         if (!requestIsCurrent()) return;
         let restoredConversation = restoreDecision.runtimeConversation ?? (classified.kind === "ready"
@@ -1327,6 +1357,8 @@ export function App({ model }: AppProps) {
     };
   }, [
     selectedJourney,
+    selectedConversationSpace.kind,
+    selectedConversationSpace.kind === "journey_workspace" ? undefined : selectedConversationSpace.conversationId,
     registryLoaded,
     preferencesLoaded,
     runtimeBindingReady,
@@ -1344,7 +1376,7 @@ export function App({ model }: AppProps) {
     void loadTurnJournal(ownerJourneyId)
       .then(async (journal) => {
         if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
-        const blockingRecord = findBlockingTurnJournalRecord(journal, ownerJourneyId, activeGeneration);
+        const blockingRecord = findBlockingTurnJournalRecord(journal, ownerJourneyId, activeGeneration, journeyThreadState.thread.threadId);
         if (!blockingRecord) {
           setBlockingTurnJournalRecord(undefined);
           setTurnRecoveryError(undefined);
@@ -1370,7 +1402,7 @@ export function App({ model }: AppProps) {
         );
         if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
         setBlockingTurnJournalRecord(
-          findBlockingTurnJournalRecord(recoveredJournal, ownerJourneyId, activeGeneration),
+          findBlockingTurnJournalRecord(recoveredJournal, ownerJourneyId, activeGeneration, journeyThreadState.thread.threadId),
         );
         setTurnRecoveryNotice("A previous attempt didn’t finish. You can send your message again.");
         setTurnRecoveryError(undefined);
@@ -1676,10 +1708,14 @@ export function App({ model }: AppProps) {
 
   function setJourneyComposerDraft(journeyId: string, text: string) {
     const boundedText = text.slice(0, COMPOSER_DRAFT_MAX_CHARS);
-    if (selectedJourneyRef.current === journeyId) {
-      setDraft(boundedText);
-    }
-    setComposerDrafts((current) => updateComposerDraft(current, journeyId, boundedText));
+    const childEntry = selectedConversationEntry?.kind === "desktop_conversation"
+      ? selectedConversationEntry
+      : undefined;
+    const draftKey = conversationDraftKey(journeyId, childEntry?.conversationId);
+    const selectedAuthorityStillMatches = selectedJourneyRef.current === journeyId
+      && (!childEntry || conversationRef.current.id === childEntry.threadId);
+    if (selectedAuthorityStillMatches) setDraft(boundedText);
+    setComposerDrafts((current) => updateComposerDraft(current, draftKey, boundedText));
   }
 
   async function attachDroppedFiles(paths: string[]) {
@@ -1875,6 +1911,7 @@ export function App({ model }: AppProps) {
       dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: runConversation });
       if (
         selectedJourneyRef.current === ownerJourneyId
+        && conversationRef.current.id === baseConversation.id
         && conversationRef.current.liveIdentity.generation === ownerGeneration
       ) {
         conversationRef.current = runConversation;
@@ -2058,7 +2095,9 @@ export function App({ model }: AppProps) {
       }
       if (runFailed && !runReachedAgent) {
         runConversation = conversationBeforeRun;
-        if (selectedJourneyRef.current === ownerJourneyId && conversationRef.current.liveIdentity.generation === ownerGeneration) {
+        if (selectedJourneyRef.current === ownerJourneyId
+          && conversationRef.current.id === baseConversation.id
+          && conversationRef.current.liveIdentity.generation === ownerGeneration) {
           conversationRef.current = conversationBeforeRun;
           setConversation(conversationBeforeRun);
         }
@@ -2146,7 +2185,9 @@ export function App({ model }: AppProps) {
         }
         runConversation = interrupted;
         dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: runConversation });
-        if (selectedJourneyRef.current === ownerJourneyId && conversationRef.current.liveIdentity.generation === ownerGeneration) {
+        if (selectedJourneyRef.current === ownerJourneyId
+          && conversationRef.current.id === baseConversation.id
+          && conversationRef.current.liveIdentity.generation === ownerGeneration) {
           conversationRef.current = interrupted;
           setConversation(interrupted);
         }
@@ -2309,10 +2350,19 @@ export function App({ model }: AppProps) {
     setMirrorCommitErrors((current) => ({ ...current, [journeyId]: error }));
   }
 
+  async function loadConversationThreadAuthority(journeyId: string, threadId: string) {
+    const root = await loadNautilusJourneyThread(journeyId);
+    if (root?.threadId === threadId) return root;
+    const child = (await loadDesktopConversationCatalog(journeyId))
+      .find((entry) => entry.kind === "desktop_conversation" && entry.threadId === threadId);
+    if (!child || child.kind !== "desktop_conversation") return undefined;
+    return desktopConversationThread(journeyId, child);
+  }
+
   async function loadActiveSettlementEvidence(authority: JourneySettlementAuthority) {
     const [thread, persisted] = await Promise.all([
-      loadNautilusJourneyThread(authority.journeyId),
-      loadDedicatedJourneyConversation(authority.journeyId, authority.generation),
+      loadConversationThreadAuthority(authority.journeyId, authority.threadId),
+      loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId),
     ]);
     const classified = classifyNautilusJourneyThread(thread, authority.journeyId);
     const currentTurn = lastItem(persisted?.reconciliation.turns ?? []);
@@ -2334,6 +2384,7 @@ export function App({ model }: AppProps) {
   ): boolean {
     const current = lastItem(projection.reconciliation.turns);
     return projection.journeyId === authority.journeyId
+      && projection.id === authority.threadId
       && projection.liveIdentity.generation === authority.generation
       && current?.turnId === authority.turnId
       && current.runId === authority.runId
@@ -2344,7 +2395,7 @@ export function App({ model }: AppProps) {
   async function persistedCurrentTurnMatchesAuthority(
     authority: JourneySettlementAuthority,
   ): Promise<boolean> {
-    const persisted = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation);
+    const persisted = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId);
     return Boolean(persisted && projectionCurrentTurnMatchesAuthority(persisted, authority));
   }
 
@@ -2420,7 +2471,7 @@ export function App({ model }: AppProps) {
     validateExactOutboxSummary(summary, projection, authority);
     const receipt = await appendMirrorOutboxItem(summary.itemId, authority);
     return journeyPersistenceCoordinator.run(authority, "post_frontier", async () => {
-      const latestProjection = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation);
+      const latestProjection = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId);
       if (!latestProjection) throw new Error("mirror_append_projection_missing");
       validateExactOutboxSummary(summary, latestProjection, authority);
       const settled = applyMirrorAppendReceipt(latestProjection, authority, receipt, new Date().toISOString());
@@ -2437,7 +2488,7 @@ export function App({ model }: AppProps) {
 
   async function retryMirrorAppendSummary(item: MirrorAppendOutboxSummary) {
     try {
-      const projected = await loadDedicatedJourneyConversation(item.journeyId, item.generation);
+      const projected = await loadDedicatedJourneyConversation(item.journeyId, item.generation, item.threadId);
       const recovery = resolvePersistedSettlementRecovery(projected, item);
       if (recovery.status === "blocked") throw new Error(recovery.diagnostic);
       const { authority } = recovery;
@@ -2514,7 +2565,8 @@ export function App({ model }: AppProps) {
       (item) => item.runId === identity.authority.runId,
     ) ?? [];
     dispatchJourneyRuntime({ type: "conversation_snapshot", identity, conversation: next });
-    if (selectedJourneyRef.current === identity.authority.journeyId) {
+    if (selectedJourneyRef.current === identity.authority.journeyId
+      && conversationRef.current.id === identity.authority.threadId) {
       conversationRef.current = next;
       setConversation(next);
     }
@@ -2611,7 +2663,7 @@ export function App({ model }: AppProps) {
     setJourneyReloadStatus("Checking durable turn recovery…");
     try {
       const journal = await loadTurnJournal(ownerJourneyId);
-      const blockingRecord = findBlockingTurnJournalRecord(journal, ownerJourneyId, previousGeneration);
+      const blockingRecord = findBlockingTurnJournalRecord(journal, ownerJourneyId, previousGeneration, journeyThreadState.thread.threadId);
       if (blockingRecord) {
         setBlockingTurnJournalRecord(blockingRecord);
         setRestartConfirmationOpen(false);
@@ -2706,7 +2758,7 @@ export function App({ model }: AppProps) {
       );
       if (selectedJourneyRef.current !== ownerJourneyId) return;
       setBlockingTurnJournalRecord(
-        findBlockingTurnJournalRecord(journal, ownerJourneyId, activeGeneration),
+        findBlockingTurnJournalRecord(journal, ownerJourneyId, activeGeneration, journeyThreadState.thread.threadId),
       );
       setTurnRecoveryNotice("The previous unfinished attempt was discarded. You can send your message again.");
       setJourneyReloadStatus(undefined);
@@ -2835,6 +2887,7 @@ export function App({ model }: AppProps) {
     if (!selectedJourney || journeyThreadState.kind !== "ready") return;
     const ownerJourneyId = selectedJourney;
     dispatchConversationFocus({ type: "expand", journeyId: ownerJourneyId });
+    setFocusedJourneyRootThreadId(journeyThreadState.thread.threadId);
     setConversationCatalogStatus("loading");
     setConversationCatalogError(undefined);
     setConversationActionMessage(undefined);
@@ -2870,7 +2923,6 @@ export function App({ model }: AppProps) {
         journeyName: selectedJourneyItem.name,
       });
       setConversationCatalog((current) => [created, ...current]);
-      setHandoffDraftByConversationId((current) => ({ ...current, [created.conversationId]: "" }));
       dispatchConversationFocus({ type: "select_desktop", journeyId: selectedJourney, conversationId: created.conversationId });
       setConversationActionMessage(undefined);
     } catch (error) {
@@ -2897,7 +2949,9 @@ export function App({ model }: AppProps) {
         messageLimit: 30,
       });
       setConversationCatalog((current) => [created, ...current]);
-      setHandoffDraftByConversationId((current) => ({ ...current, [created.conversationId]: prompt }));
+      setComposerDrafts((current) => updateComposerDraft(
+        current, conversationDraftKey(selectedJourney, created.conversationId), prompt,
+      ));
       dispatchConversationFocus({ type: "select_desktop", journeyId: selectedJourney, conversationId: created.conversationId });
       setConversationActionMessage(undefined);
     } catch (error) {
@@ -2946,6 +3000,7 @@ export function App({ model }: AppProps) {
     if (conversationFocus.kind === "focused_journey") {
       dispatchConversationFocus({ type: "collapse", journeyId: conversationFocus.journeyId });
       setConversationCatalog([]);
+      setFocusedJourneyRootThreadId(undefined);
       setConversationCatalogStatus("idle");
     }
 
@@ -3814,7 +3869,7 @@ export function App({ model }: AppProps) {
                     className="menu-button"
                     type="button"
                     onClick={() => setJourneyMenuOpen((open) => !open)}
-                    disabled={journeyThreadState.kind !== "ready"}
+                    disabled={journeyThreadState.kind !== "ready" || selectedConversationSpace.kind !== "journey_workspace"}
                     aria-label="Journey conversation menu"
                     aria-expanded={journeyMenuOpen}
                     title="Journey menu"
@@ -3918,24 +3973,7 @@ export function App({ model }: AppProps) {
             onRename={() => void renameSelectedMirrorHistory(selectedConversationEntry)}
           />
         ) : null}
-        {operationalChatSelected && selectedConversationEntry?.kind === "desktop_conversation" ? (
-          <section className="desktop-conversation-start-surface">
-            <EmptyDesktopConversation title={selectedConversationEntry.title} />
-            <label className="desktop-conversation-draft">First-turn prompt
-              <textarea
-                aria-label="Desktop conversation first-turn prompt"
-                value={handoffDraftByConversationId[selectedConversationEntry.conversationId] ?? ""}
-                maxLength={COMPOSER_DRAFT_MAX_CHARS}
-                onChange={(event) => setHandoffDraftByConversationId((current) => ({
-                  ...current, [selectedConversationEntry.conversationId]: event.target.value,
-                }))}
-              />
-            </label>
-            <p className="provider-note">This prompt is editable and remains unsent until you explicitly send it.</p>
-          </section>
-        ) : null}
-
-        {operationalChatSelected && selectedConversationSpace.kind === "journey_workspace" && journeyThreadState.kind !== "ready" ? (
+        {operationalChatSelected && selectedConversationSpace.kind !== "mirror_history" && journeyThreadState.kind !== "ready" ? (
           <JourneyThreadState
             journeyName={selectedJourneyItem.name}
             state={journeyThreadState}
@@ -3951,7 +3989,7 @@ export function App({ model }: AppProps) {
           className="chat-stream"
           role="tabpanel"
           aria-label="Conversation"
-          hidden={!operationalChatSelected || selectedConversationSpace.kind !== "journey_workspace" || journeyThreadState.kind !== "ready"}
+          hidden={!operationalChatSelected || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
           ref={chatStreamRef}
           onScroll={(event) => {
             const container = event.currentTarget;
@@ -3969,7 +4007,10 @@ export function App({ model }: AppProps) {
           }}
         >
           {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}
-          {messages.length === 0 && journeyThreadState.kind === "ready" ? (
+          {messages.length === 0 && journeyThreadState.kind === "ready" && selectedConversationEntry?.kind === "desktop_conversation" ? (
+            <EmptyDesktopConversation title={selectedConversationEntry.title} />
+          ) : null}
+          {messages.length === 0 && journeyThreadState.kind === "ready" && selectedConversationSpace.kind === "journey_workspace" ? (
             <JourneyArrivalSurface
               journeyName={selectedJourneyItem.name}
               stage={selectedJourneyItem.stage}
@@ -3994,7 +4035,7 @@ export function App({ model }: AppProps) {
         <section
           className="composer"
           aria-label="Message composer"
-          hidden={!operationalChatSelected || selectedConversationSpace.kind !== "journey_workspace" || journeyThreadState.kind !== "ready"}
+          hidden={!operationalChatSelected || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
         >
           <ComposerRuntimeStatus status={composerTurnStatus} />
           {!runtimeBindingReady ? <p className="provider-error" role="status">Connect and validate a Mirror installation in Runtime Settings before starting Mirror or Pi actions.</p> : null}

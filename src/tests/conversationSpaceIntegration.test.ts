@@ -12,14 +12,21 @@ describe("Journey conversation-space integration", () => {
 
   it("renders Mirror history as a no-composer action surface", () => {
     expect(appSource).toContain("<MirrorHistoryActionSurface");
-    expect(appSource).toContain("selectedConversationSpace.kind !== \"journey_workspace\"");
+    expect(appSource).toContain("selectedConversationSpace.kind === \"mirror_history\"");
     expect(appSource).toContain("openMirrorConversationInTerminal");
     expect(appSource).toContain("renameMirrorConversation");
+  });
+
+  it("loads child thread authority into the existing transcript and composer lifecycle", () => {
+    expect(appSource).toContain("desktopConversationThread(selectedJourney, childEntry)");
+    expect(appSource).toContain("childEntry?.threadId");
+    expect(appSource).toContain('selectedConversationSpace.kind === "mirror_history"');
+    expect(appSource).toContain("conversationRef.current.id === baseConversation.id");
   });
 
   it("creates handoff authority before publishing an editable unsent prompt", () => {
     expect(appSource).toContain("await createDesktopConversation(");
     expect(appSource).toContain("createAgentHandoffPrompt");
-    expect(appSource).toContain("handoffDraftByConversationId");
+    expect(appSource).toContain("conversationDraftKey");
   });
 });

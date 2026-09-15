@@ -51,8 +51,14 @@ export async function savePostFrontierReceiptProjection(
   await saveProjection(conversation, { mode: "generation_scoped_post_frontier", authority, outbox });
 }
 
-export async function loadDedicatedJourneyConversation(journeyId: string, generation: number): Promise<JourneyConversation | undefined> {
-  const payload = await invoke<string | null>("load_dedicated_journey_conversation", { journeyId, generation });
+export async function loadDedicatedJourneyConversation(
+  journeyId: string,
+  generation: number,
+  threadId?: string,
+): Promise<JourneyConversation | undefined> {
+  const payload = await invoke<string | null>("load_dedicated_journey_conversation", {
+    journeyId, generation, ...(threadId ? { threadId } : {}),
+  });
   if (!payload) return undefined;
   try {
     return parsePersistedJourneyConversation(JSON.parse(payload))?.conversation;

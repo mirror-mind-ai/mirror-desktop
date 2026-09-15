@@ -4,6 +4,7 @@ const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
 import { createDesktopConversation, loadDesktopConversationCatalog } from "../app/conversationSpaceStorage";
+import { loadDedicatedJourneyConversation } from "../app/journeyConversationStorage";
 import tauriSource from "../../src-tauri/src/main.rs?raw";
 
 describe("native Desktop conversation lifecycle", () => {
@@ -31,6 +32,14 @@ describe("native Desktop conversation lifecycle", () => {
       updatedAt: "2026-09-14T00:00:00.000Z",
       messageCount: 0,
       availability: "ready",
+      authority: {
+        generation: 1, piSessionId: "pi-session-1234567890", piSessionFile: "/app/pi-session-1234567890.jsonl", runtimeChannel: "development",
+        activationReceipt: {
+          schemaVersion: "1.0.0", journeyId: "mirror-desktop", threadId: "desktop-thread-1234567890", generation: 1,
+          piSessionId: "pi-session-1234567890", mirrorConversationId: "conversation-1234567890", mode: "mirror",
+          commandAuthority: "installed", runtimeChannel: "development", activatedAt: "2026-09-14T00:00:00.000Z",
+        },
+      },
     });
     await expect(createDesktopConversation({
       journeyId: "mirror-desktop",
@@ -39,6 +48,14 @@ describe("native Desktop conversation lifecycle", () => {
       sourceMessageLimit: 30,
     })).resolves.toMatchObject({ kind: "desktop_conversation", conversationId: "conversation-1234567890" });
     expect(invoke).toHaveBeenCalledWith("create_desktop_conversation", expect.objectContaining({ journeyId: "mirror-desktop" }));
+  });
+
+  it("loads child projections by exact thread without changing the Journey", async () => {
+    invoke.mockResolvedValue(null);
+    await expect(loadDedicatedJourneyConversation("mirror-desktop", 1, "desktop-thread-1234567890")).resolves.toBeUndefined();
+    expect(invoke).toHaveBeenCalledWith("load_dedicated_journey_conversation", {
+      journeyId: "mirror-desktop", generation: 1, threadId: "desktop-thread-1234567890",
+    });
   });
 
   it("keeps authority creation and publication inside native lifecycle code", () => {

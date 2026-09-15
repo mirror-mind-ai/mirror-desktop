@@ -7,9 +7,32 @@ import {
   clampFocusedSidebarWidth,
   createAgentHandoffPrompt,
   createJourneyWorkspaceSelection,
+  conversationDraftKey,
+  desktopConversationThread,
   parseConversationCatalog,
   reduceConversationFocus,
 } from "../domain/conversationSpaces";
+
+function desktopAuthority(threadId = "thread-child-1", conversationId = "conversation-child-1") {
+  return {
+    generation: 1,
+    piSessionId: "pi-session-child-1",
+    piSessionFile: "/private/app-data/pi-session-child-1.jsonl",
+    runtimeChannel: "development" as const,
+    activationReceipt: {
+      schemaVersion: "1.0.0" as const,
+      journeyId: "mirror-desktop",
+      threadId,
+      generation: 1,
+      piSessionId: "pi-session-child-1",
+      mirrorConversationId: conversationId,
+      mode: "mirror" as const,
+      commandAuthority: "installed" as const,
+      runtimeChannel: "development" as const,
+      activatedAt: "2026-09-15T10:00:00.000Z",
+    },
+  };
+}
 
 describe("conversation spaces", () => {
   it("keeps the Journey workspace as an uncataloged root selection", () => {
@@ -32,6 +55,7 @@ describe("conversation spaces", () => {
           updatedAt: "2026-09-15T10:00:00.000Z",
           messageCount: 0,
           availability: "ready",
+          authority: desktopAuthority(),
         },
         {
           kind: "mirror_history",
@@ -56,11 +80,29 @@ describe("conversation spaces", () => {
       updatedAt: "2026-09-15T10:00:00.000Z",
       messageCount: 0,
       availability: "ready",
+      authority: desktopAuthority(),
     };
     expect(parseConversationCatalog({ schemaVersion: "1.0.0", journeyId: "other", entries: [] }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })).toBeUndefined();
     expect(parseConversationCatalog({ schemaVersion: "1.0.0", journeyId: "mirror-desktop", entries: [entry, entry] }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })).toBeUndefined();
     expect(parseConversationCatalog({ schemaVersion: "1.0.0", journeyId: "mirror-desktop", entries: [{ ...entry, threadId: "thread-root" }] }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })).toBeUndefined();
-    expect(parseConversationCatalog({ schemaVersion: "1.0.0", journeyId: "mirror-desktop", entries: Array.from({ length: 101 }, (_, index) => ({ ...entry, conversationId: `child-${index}`, threadId: `thread-${index}` })) }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })).toBeUndefined();
+    expect(parseConversationCatalog({ schemaVersion: "1.0.0", journeyId: "mirror-desktop", entries: Array.from({ length: 101 }, (_, index) => ({ ...entry, conversationId: `child-${index}`, threadId: `thread-${index}`, authority: desktopAuthority(`thread-${index}`, `child-${index}`) })) }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })).toBeUndefined();
+  });
+
+  it("assigns child drafts a stable key distinct from the Journey root", () => {
+    expect(conversationDraftKey("mirror-desktop")).toBe("mirror-desktop");
+    expect(conversationDraftKey("mirror-desktop", "conversation-child-1")).toMatch(/^mirror-desktop__conversation_[a-f0-9]+$/);
+    expect(conversationDraftKey("mirror-desktop", "conversation-child-1")).not.toBe(conversationDraftKey("mirror-desktop", "conversation-child-2"));
+  });
+
+  it("projects complete child authority into an executable dedicated thread", () => {
+    const authority = desktopAuthority();
+    const thread = desktopConversationThread("mirror-desktop", {
+      kind: "desktop_conversation", conversationId: "conversation-child-1", threadId: "thread-child-1",
+      title: "Child work", updatedAt: "2026-09-15T10:00:00.000Z", messageCount: 0,
+      availability: "ready", authority,
+    });
+    expect(thread.threadId).toBe("thread-child-1");
+    expect(thread.generations[0].activationReceipt).toEqual(authority.activationReceipt);
   });
 
   it("focuses one Journey and returns to its root when collapsed", () => {

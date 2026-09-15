@@ -97,8 +97,10 @@ export function resolveJourneyConversationRestore(
   state: JourneyRuntimeState,
   journeyId: string,
   generation: number,
+  threadId?: string,
 ): { runtimeConversation?: JourneyConversation; allowPersistedRecovery: boolean } {
-  const runtimeConversation = selectJourneyRuntimeConversation(state, journeyId, generation);
+  const selected = selectJourneyRuntimeConversation(state, journeyId, generation);
+  const runtimeConversation = !threadId || selected?.id === threadId ? selected : undefined;
   return { runtimeConversation, allowPersistedRecovery: !runtimeConversation };
 }
 
@@ -116,13 +118,17 @@ export function deriveJourneyNavigationPresentation(input: {
   runtimeState: JourneyRuntimeState;
   selectedJourneyId: string;
   loadedConversation?: JourneyConversation;
+  selectedThreadId?: string;
   mirrorCommitErrors?: Record<string, string | undefined>;
 }): JourneyNavigationPresentation {
   const selectedRuntime = selectJourneyRuntime(input.runtimeState, input.selectedJourneyId);
   const generation = selectedRuntime.conversationSnapshot?.liveIdentity.generation;
-  const runtimeConversation = generation === undefined
+  const selectedRuntimeConversation = generation === undefined
     ? undefined
     : selectJourneyRuntimeConversation(input.runtimeState, input.selectedJourneyId, generation);
+  const runtimeConversation = !input.selectedThreadId || selectedRuntimeConversation?.id === input.selectedThreadId
+    ? selectedRuntimeConversation
+    : undefined;
   const loadedConversation = input.loadedConversation?.journeyId === input.selectedJourneyId
     ? input.loadedConversation
     : undefined;

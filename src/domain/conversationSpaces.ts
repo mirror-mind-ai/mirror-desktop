@@ -1,3 +1,5 @@
+import type { NautilusJourneyThread } from "./nautilusJourneyThread";
+
 export const MAX_CONVERSATION_CATALOG_ENTRIES = 100;
 export const MIN_FOCUSED_SIDEBAR_WIDTH = 240;
 export const DEFAULT_FOCUSED_SIDEBAR_WIDTH = 292;
@@ -5,6 +7,25 @@ export const MAX_FOCUSED_SIDEBAR_WIDTH = 420;
 export const MIN_CONVERSATION_SURFACE_WIDTH = 560;
 export const MIN_HANDOFF_MESSAGE_LIMIT = 10;
 export const MAX_HANDOFF_MESSAGE_LIMIT = 100;
+
+export type DesktopConversationAuthority = {
+  generation: number;
+  piSessionId: string;
+  piSessionFile: string;
+  runtimeChannel: "user" | "development";
+  activationReceipt: {
+    schemaVersion: "1.0.0";
+    journeyId: string;
+    threadId: string;
+    generation: number;
+    piSessionId: string;
+    mirrorConversationId: string;
+    mode: "mirror";
+    commandAuthority: "installed";
+    runtimeChannel: "user" | "development";
+    activatedAt: string;
+  };
+};
 
 export type JourneyWorkspaceSelection = {
   kind: "journey_workspace";
@@ -37,6 +58,7 @@ export type ConversationCatalogEntry =
       updatedAt: string;
       messageCount: number;
       availability: "ready" | "preparing_handoff" | "needs_attention";
+      authority: DesktopConversationAuthority;
     }
   | {
       kind: "mirror_history";
@@ -71,6 +93,14 @@ export type ConversationSpaceAction =
   | "open_terminal_recall"
   | "rename_in_mirror";
 
+export function conversationDraftKey(journeyId: string, conversationId?: string): string {
+  assertJourneyId(journeyId);
+  if (!conversationId) return journeyId;
+  assertIdentifier(conversationId);
+  const encoded = Array.from(conversationId, (character) => character.codePointAt(0)!.toString(16).padStart(2, "0")).join("");
+  return `${journeyId}__conversation_${encoded}`;
+}
+
 export function createJourneyWorkspaceSelection(journeyId: string): JourneyWorkspaceSelection {
   assertJourneyId(journeyId);
   return { kind: "journey_workspace", journeyId };
@@ -102,7 +132,8 @@ export function parseConversationCatalog(
         if (seenThreads.has(threadId)) throw new Error("duplicate or root thread");
         seenThreads.add(threadId);
         if (!["ready", "preparing_handoff", "needs_attention"].includes(String(candidate.availability))) throw new Error("invalid availability");
-        return { kind: "desktop_conversation", conversationId, threadId, title, updatedAt, messageCount, availability: candidate.availability as "ready" | "preparing_handoff" | "needs_attention" };
+        const parsedAuthority = parseDesktopAuthority(candidate.authority, authority.journeyId, threadId, conversationId);
+        return { kind: "desktop_conversation", conversationId, threadId, title, updatedAt, messageCount, availability: candidate.availability as "ready" | "preparing_handoff" | "needs_attention", authority: parsedAuthority };
       }
       if (candidate.kind === "mirror_history") {
         if (!["available_in_mirror", "needs_attention"].includes(String(candidate.availability))) throw new Error("invalid availability");
@@ -148,6 +179,33 @@ export function reduceConversationFocus(
   }
 }
 
+export function desktopConversationThread(
+  journeyId: string,
+  entry: Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>,
+): NautilusJourneyThread {
+  if (entry.authority.activationReceipt.journeyId !== journeyId) throw new Error("Desktop Conversation Journey authority is invalid.");
+  const createdAt = entry.authority.activationReceipt.activatedAt;
+  return {
+    schemaVersion: "1.0.0",
+    threadId: entry.threadId,
+    journeyId,
+    runtimeChannel: entry.authority.runtimeChannel,
+    createdAt,
+    activeGeneration: entry.authority.generation,
+    generations: [{
+      generation: entry.authority.generation,
+      status: "ready",
+      piSessionId: entry.authority.piSessionId,
+      piSessionFile: entry.authority.piSessionFile,
+      mirrorConversationId: entry.conversationId,
+      mirrorConversationName: entry.title,
+      activationReceipt: entry.authority.activationReceipt,
+      createdAt,
+      activatedAt: createdAt,
+    }],
+  };
+}
+
 export function availableConversationActions(entry: Pick<ConversationCatalogEntry, "kind" | "availability">): ConversationSpaceAction[] {
   if (entry.kind === "desktop_conversation" && entry.availability === "ready") return ["open"];
   if (entry.kind === "mirror_history" && entry.availability === "available_in_mirror") {
@@ -186,6 +244,32 @@ function assertJourneyId(value: string): void {
 
 function assertIdentifier(value: string): void {
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{10,255}$/.test(value)) throw new Error("Conversation coordinate is invalid.");
+}
+
+function parseDesktopAuthority(
+  value: unknown,
+  journeyId: string,
+  threadId: string,
+  mirrorConversationId: string,
+): DesktopConversationAuthority {
+  if (!isRecord(value) || !Number.isInteger(value.generation) || Number(value.generation) < 1
+    || !["user", "development"].includes(String(value.runtimeChannel))) throw new Error("invalid authority");
+  const piSessionId = String(value.piSessionId ?? "");
+  const piSessionFile = boundedString(value.piSessionFile, 4096);
+  assertIdentifier(piSessionId);
+  const receipt = value.activationReceipt;
+  if (!isRecord(receipt) || receipt.schemaVersion !== "1.0.0" || receipt.journeyId !== journeyId
+    || receipt.threadId !== threadId || receipt.generation !== value.generation
+    || receipt.piSessionId !== piSessionId || receipt.mirrorConversationId !== mirrorConversationId
+    || receipt.mode !== "mirror" || receipt.commandAuthority !== "installed"
+    || receipt.runtimeChannel !== value.runtimeChannel || Number.isNaN(Date.parse(String(receipt.activatedAt)))) {
+    throw new Error("invalid activation receipt");
+  }
+  return {
+    generation: Number(value.generation), piSessionId, piSessionFile,
+    runtimeChannel: value.runtimeChannel as "user" | "development",
+    activationReceipt: receipt as DesktopConversationAuthority["activationReceipt"],
+  };
 }
 
 function boundedString(value: unknown, max: number): string {

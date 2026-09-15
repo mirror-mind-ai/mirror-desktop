@@ -95,9 +95,11 @@ export function findBlockingTurnJournalRecord(
   document: TurnJournalDocument,
   journeyId: string,
   activeGeneration: number,
+  threadId?: string,
 ): TurnJournalRecord | undefined {
   return [...document.records].reverse().find((record) => (
     record.authority.journeyId === journeyId
+    && (!threadId || record.authority.threadId === threadId)
     && record.authority.generation <= activeGeneration
     && !isTurnJournalSuccessorEligible(record)
   ));
