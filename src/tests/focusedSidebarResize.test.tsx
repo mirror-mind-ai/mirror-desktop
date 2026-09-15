@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FocusedSidebarResizeHandle } from "../app/FocusedSidebarResizeHandle";
 import { loadFocusedSidebarWidth, saveFocusedSidebarWidth } from "../app/focusedSidebarWidthStorage";
 import appSource from "../app/App.tsx?raw";
+import handleSource from "../app/FocusedSidebarResizeHandle.tsx?raw";
 
 describe("focused conversation sidebar resizing", () => {
   beforeEach(() => {
@@ -21,6 +22,9 @@ describe("focused conversation sidebar resizing", () => {
     expect(html).toContain('aria-label="Resize Journey sidebar"');
     expect(html).toContain('aria-valuenow="292"');
     expect(html).toContain('tabindex="0"');
+    expect(handleSource).toContain("setPointerCapture(event.pointerId)");
+    expect(handleSource).toContain("onPointerMove={continueResize}");
+    expect(handleSource).toContain("onPointerCancel={stopResize}");
   });
 
   it("remains available without expanding a Journey", () => {

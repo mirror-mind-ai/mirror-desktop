@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import {
   clampFocusedSidebarWidth,
@@ -6,19 +7,34 @@ import {
 } from "../domain/conversationSpaces";
 
 type Props = { width: number; viewportWidth: number; onChange: (width: number) => void };
+type DragOrigin = { pointerId: number; x: number; width: number };
 
 export function FocusedSidebarResizeHandle({ width, viewportWidth, onChange }: Props) {
+  const dragOrigin = useRef<DragOrigin | null>(null);
+
+  useEffect(() => () => document.body.classList.remove("is-resizing-sidebar"), []);
+
   function startResize(event: PointerEvent<HTMLDivElement>) {
     event.preventDefault();
-    const originX = event.clientX;
-    const originWidth = width;
-    const move = (next: globalThis.PointerEvent) => onChange(clampFocusedSidebarWidth(originWidth + next.clientX - originX, window.innerWidth));
-    const stop = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", stop);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", stop, { once: true });
+    dragOrigin.current = { pointerId: event.pointerId, x: event.clientX, width };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    document.body.classList.add("is-resizing-sidebar");
+  }
+
+  function continueResize(event: PointerEvent<HTMLDivElement>) {
+    const origin = dragOrigin.current;
+    if (!origin || origin.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    onChange(clampFocusedSidebarWidth(origin.width + event.clientX - origin.x, window.innerWidth));
+  }
+
+  function stopResize(event: PointerEvent<HTMLDivElement>) {
+    if (dragOrigin.current?.pointerId !== event.pointerId) return;
+    dragOrigin.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    document.body.classList.remove("is-resizing-sidebar");
   }
 
   function resizeFromKeyboard(event: KeyboardEvent<HTMLDivElement>) {
@@ -42,6 +58,13 @@ export function FocusedSidebarResizeHandle({ width, viewportWidth, onChange }: P
     aria-valuenow={width}
     tabIndex={0}
     onPointerDown={startResize}
+    onPointerMove={continueResize}
+    onPointerUp={stopResize}
+    onPointerCancel={stopResize}
+    onLostPointerCapture={() => {
+      dragOrigin.current = null;
+      document.body.classList.remove("is-resizing-sidebar");
+    }}
     onKeyDown={resizeFromKeyboard}
   />;
 }

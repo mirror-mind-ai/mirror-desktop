@@ -6718,8 +6718,14 @@ dd {
   inset: 0 -5px 0 auto;
   width: 10px;
   cursor: col-resize;
+  touch-action: none;
+  user-select: none;
   z-index: 4;
 }
+
+body.is-resizing-sidebar,
+body.is-resizing-sidebar * { cursor: col-resize !important; user-select: none !important; }
+body.is-resizing-sidebar .app-shell { transition: none; }
 
 .focused-sidebar-resize-handle::after {
   content: "";
