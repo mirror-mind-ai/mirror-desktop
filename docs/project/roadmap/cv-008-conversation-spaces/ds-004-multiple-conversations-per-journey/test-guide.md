@@ -89,9 +89,10 @@ Inject failure around destination creation and handoff-draft publication. Verify
 Verify:
 
 - ordinary mode lists all Journeys and clicking one opens its existing root workspace;
-- a separate expand action hides sibling Journeys and reveals the focused header plus associated children;
-- the focused header returns to the root workspace;
-- collapse restores all Journeys and the visible root workspace;
+- a downward-arrow action inserts associated Conversations immediately beneath the owning Journey;
+- Journeys above remain fixed while later Journeys move downward in the same list;
+- the Journey card returns to the root workspace;
+- collapse removes only the inline catalog and restores the visible root workspace;
 - collapse never retargets immutable ownership of an active child run;
 - root and child scroll, draft and selection state remain independent.
 
@@ -287,7 +288,7 @@ Generate multiple Conversations including at least one history above 1,000 messa
 
 1. Launch `Mirror Desktop Dev` and verify bundle/channel identity.
 2. Click `mirror-desktop` in ordinary mode and verify its existing root workspace remains unchanged and absent from the child catalog.
-3. Expand `mirror-desktop`, verify sibling Journeys disappear, use the focused header to return to root, then collapse and verify the full list returns.
+3. Expand `mirror-desktop`, verify Journeys above remain fixed and later Journeys move downward, use the Journey card to return to root, then collapse and verify only the inline catalog disappears.
 4. Create two new child Desktop Conversations without model activity.
 5. Verify an empty child start surface, then complete a first turn and verify the established transcript/composer.
 6. Preserve different root and child drafts while switching among them.
@@ -306,14 +307,14 @@ Generate multiple Conversations including at least one history above 1,000 messa
 
 ## Aggregate Pass Condition
 
-The Navigator retains the existing click-a-Journey root conversation, can explicitly expand one Journey while hiding siblings, and can manage additional exact Desktop Conversations without presenting the root as a common child. Mirror history opens a no-composer action surface for canonical rename, honest Terminal recall and an explicit agent-prepared destination without using Journey briefing as transfer storage. Long Desktop history remains complete and bounded through technical Segments; sidebar geometry remains accessible; context reset remains honest; no cross-owner mutation, hidden model call, automatic prompt send, Mirror core dependency, direct database access or authority inflation occurs.
+The Navigator retains the existing click-a-Journey root conversation, can explicitly expand associated Conversations inline without hiding sibling Journeys, and can manage additional exact Desktop Conversations without presenting the root as a common child. Mirror history opens a no-composer action surface for canonical rename, honest Terminal recall and an explicit agent-prepared destination without using Journey briefing as transfer storage. Long Desktop history remains complete and bounded through technical Segments; sidebar geometry remains accessible; context reset remains honest; no cross-owner mutation, hidden model call, automatic prompt send, Mirror core dependency, direct database access or authority inflation occurs.
 
 ## Failure Conditions
 
 Fail validation for any:
 
 - root Journey workspace inserted into the child catalog or ordinary click behavior changed;
-- expansion that leaves sibling Journeys visible, collapse that fails to restore them, or collapse that retargets a child owner;
+- expansion that hides sibling Journeys, appears away from its owning Journey, or fails to push later Journeys downward; collapse that removes unrelated Journeys or retargets a child owner;
 - cross-Journey catalog entry, rename, recall or handoff;
 - generic source presented with an ordinary composer or as exact-resumable;
 - transcript body loaded during catalog opening;

@@ -38,14 +38,13 @@ describe("conversation space surfaces", () => {
         availability: "available_in_mirror",
       }]}
       status="ready"
-      onCollapse={vi.fn()}
       onCreateConversation={vi.fn()}
-      onSelectRoot={vi.fn()}
       onSelectEntry={vi.fn()}
     />);
-    expect(html).toContain("Back to all Journeys");
-    expect(html).toContain("Journey workspace");
+    expect(html).toContain("Conversations");
     expect(html).toContain("New conversation");
+    expect(html).not.toContain("Back to all Journeys");
+    expect(html).not.toContain("Journey workspace");
     expect(html).toContain("Desktop child");
     expect(html).toContain("Available in Mirror");
   });

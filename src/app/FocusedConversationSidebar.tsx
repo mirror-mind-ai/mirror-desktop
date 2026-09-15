@@ -3,35 +3,22 @@ import type { ConversationCatalogEntry, ConversationSpaceSelection } from "../do
 type Props = {
   journeyId: string;
   journeyName: string;
+  accent?: string;
   selected: ConversationSpaceSelection;
   entries: ConversationCatalogEntry[];
   status: "loading" | "ready" | "error";
   error?: string;
-  onCollapse: () => void;
   onCreateConversation: () => void;
-  onSelectRoot: () => void;
   onSelectEntry: (entry: ConversationCatalogEntry) => void;
 };
 
 export function FocusedConversationSidebar(props: Props) {
-  return <section className="focused-conversation-sidebar" aria-label={`${props.journeyName} conversations`}>
-    <button className="focused-journey-collapse" type="button" onClick={props.onCollapse}>
-      <span aria-hidden="true">‹</span> Back to all Journeys
-    </button>
-    <button
-      className={`focused-journey-root${props.selected.kind === "journey_workspace" ? " selected" : ""}`}
-      type="button"
-      onClick={props.onSelectRoot}
-      aria-current={props.selected.kind === "journey_workspace" ? "page" : undefined}
-    >
-      <strong>{props.journeyName}</strong>
-      <small>Journey workspace</small>
-    </button>
+  return <section className={`focused-conversation-sidebar${props.accent ? ` accent-${props.accent}` : ""}`} aria-label={`${props.journeyName} conversations`}>
     <div className="focused-conversation-heading">
-      <span>Conversations</span><small>{props.entries.length}</small>
+      <strong>Conversations</strong><small aria-label={`${props.entries.length} conversations`}>{props.entries.length}</small>
     </div>
     <button className="focused-conversation-create" type="button" onClick={props.onCreateConversation}>
-      <span aria-hidden="true">＋</span> New conversation
+      <span aria-hidden="true">＋</span><span>New conversation</span>
     </button>
     {props.status === "loading" ? <p className="focused-conversation-status" role="status">Loading conversations…</p> : null}
     {props.status === "error" ? <p className="focused-conversation-status error" role="alert">{props.error ?? "Conversations are unavailable."}</p> : null}

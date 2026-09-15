@@ -7,7 +7,7 @@
 
 ## Outcome
 
-The Navigator keeps the existing Journey-level workspace and conversation as the default experience, while gaining an explicit focused mode that hides sibling Journeys and reveals additional associated Conversations. Desktop-authoritative Conversations open the established transcript and composer or an empty start surface; Mirror history opens a non-executable action surface for rename, Terminal recall or an agent-prepared handoff into a new Desktop Conversation. Long Desktop conversations remain complete while authoritative Pi compaction checkpoints divide their history into bounded technical Segments without silently creating a user-facing Conversation.
+The Navigator keeps the existing Journey-level workspace and conversation as the default experience, while gaining an inline expansion that reveals associated Conversations directly beneath their owning Journey and pushes later Journeys downward without hiding earlier or later siblings. Desktop-authoritative Conversations open the established transcript and composer or an empty start surface; Mirror history opens a non-executable action surface for rename, Terminal recall or an agent-prepared handoff into a new Desktop Conversation. Long Desktop conversations remain complete while authoritative Pi compaction checkpoints divide their history into bounded technical Segments without silently creating a user-facing Conversation.
 
 ## Why This Matters
 
@@ -58,8 +58,8 @@ Every state requires text or an accessible label plus an icon; color alone is in
 - The ordinary interface presents one Mirror and one Journey conversation catalog.
 - Clicking a Journey in the ordinary sidebar continues to open its existing Journey workspace and conversation; no catalog choice is required.
 - The existing Journey-level thread is preserved in place and excluded from the associated-Conversation catalog. It is not migrated into the first ordinary Conversation.
-- A separate expand action enters focused Journey mode, hides all sibling Journeys and reveals only that Journey header plus its associated Conversations.
-- The focused Journey header navigates back to the Journey workspace. Collapsing focused mode restores the full Journey list and deterministically returns the visible workspace to the Journey level without retargeting any active child run.
+- A downward-arrow action on each Journey expands its associated Conversations inline directly beneath the owning Journey; Journeys above remain fixed and Journeys below move downward in the same scrollable list.
+- Clicking the Journey card navigates to its root workspace. Collapsing the inline list returns the visible workspace to the Journey level without hiding siblings or retargeting any active child run.
 - Desktop-ready associated Conversations resume only after exact Journey, Conversation, thread, generation, Pi session, Mirror conversation, activation receipt and channel validation.
 - Mirror history entries are useful but not executable in Desktop. They may be renamed in Mirror, opened in Terminal with recalled context, or used as the source of an agent handoff.
 - `Rename in Mirror` is an explicit canonical source-title mutation through released Mirror APIs. It requires full-ID and exact-Journey validation and never invokes a model.
@@ -74,7 +74,7 @@ Every state requires text or an accessible label plus an icon; color alone is in
 - One Journey owns at most one reserved, running or finalizing lease, even across multiple Conversations.
 - A handoff prompt may remain drafted while capacity is occupied, but Send and conflicting lifecycle mutation remain blocked until exact cleanup and fresh native inspection.
 - Pi compaction may create a technical Segment checkpoint inside one Desktop Conversation. It never creates a Conversation or resets context automatically.
-- The focused Journey sidebar is pointer- and keyboard-resizable within safe persisted channel-local bounds.
+- The sidebar remains pointer- and keyboard-resizable while an inline Conversation list is open, within safe persisted channel-local bounds.
 
 ## Child Work Packages
 
@@ -107,8 +107,8 @@ Every state requires text or an accessible label plus an icon; color alone is in
 
 ### US-1 — Browse a Unified Catalog in a Resizable Journey Sidebar
 
-- Preserve ordinary Journey clicking, then support explicit expansion into a focused mode that hides sibling Journeys and lists bounded associated metadata without loading transcripts.
-- Keep the focused Journey header as the route to its root workspace and make collapse restore the full Journey list.
+- Preserve ordinary Journey clicking, then support explicit downward inline expansion that keeps sibling Journeys visible and lists bounded associated metadata without loading transcripts.
+- Keep the Journey card as the route to its root workspace and make collapse remove only its inline Conversation list.
 - Present availability accessibly; Desktop-authoritative entries open conversation or empty-start surfaces, while Mirror history opens a dedicated non-executable action surface.
 - Permit explicit manual `Rename in Mirror` after exact validation.
 - Add bounded pointer/keyboard resizing with channel-local persistence and deterministic reset.
@@ -142,7 +142,7 @@ Every state requires text or an accessible label plus an icon; color alone is in
 
 ## Aggregate Acceptance Direction
 
-Ordinary Journey clicking remains unchanged and opens the Journey-level workspace, which never appears as a common catalog row. Explicit expansion hides sibling Journeys and shows the focused Journey header plus a bounded associated-Conversation catalog. The header returns to the root workspace; collapse restores the complete Journey list. Desktop-ready child Conversations resume exact authority or show an empty first-turn surface. Mirror history opens a non-executable action surface with manual canonical rename, a recalled-context Terminal route and an explicit agent handoff into a newly created Desktop Conversation.
+Ordinary Journey clicking remains unchanged and opens the Journey-level workspace, which never appears as a common catalog row. Explicit downward expansion inserts a bounded associated-Conversation catalog immediately below that Journey while preserving sibling Journeys in place. The Journey card returns to the root workspace; collapse removes only the inline catalog. Desktop-ready child Conversations resume exact authority or show an empty first-turn surface. Mirror history opens a non-executable action surface with manual canonical rename, a recalled-context Terminal route and an explicit agent handoff into a newly created Desktop Conversation.
 
 Creating the handoff destination invokes no model. The generated prompt is visible and editable in the new Conversation composer and runs only when the user sends it. The agent recalls at most the disclosed limit, treats recalled content as source evidence, states omissions and never claims transcript import, exact prior-session state or synchronization. The Journey briefing and source messages remain unchanged.
 

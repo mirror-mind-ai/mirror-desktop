@@ -11,7 +11,7 @@ Multiple Conversations per Journey
 
 ## Objective
 
-Preserve the existing click-a-Journey-and-converse workspace as the default root experience while adding an explicit focused mode for associated Conversations, without requiring a Mirror core update. Create and exactly resume additional Desktop Conversations, expose non-authoritative Mirror history through a dedicated action surface, support manual canonical rename, recalled-context Terminal launch and explicit agent handoff, segment long Desktop history at authoritative Pi compaction checkpoints, present `Reset agent context` honestly, preserve one execution lease per Journey, and support a bounded accessible resizable sidebar.
+Preserve the existing click-a-Journey-and-converse workspace as the default root experience while adding an explicit inline expansion for associated Conversations, without requiring a Mirror core update. Create and exactly resume additional Desktop Conversations, expose non-authoritative Mirror history through a dedicated action surface, support manual canonical rename, recalled-context Terminal launch and explicit agent handoff, segment long Desktop history at authoritative Pi compaction checkpoints, present `Reset agent context` honestly, preserve one execution lease per Journey, and support a bounded accessible resizable sidebar.
 
 ## Child Work Packages
 
@@ -76,11 +76,11 @@ Preserve the existing click-a-Journey-and-converse workspace as the default root
 - Keep complete Desktop messages, Steering, actions, surfaces, attachments and receipts recoverable.
 - Load catalog metadata and the current Segment before explicitly requested historical regions.
 
-### Reversible focused Journey sidebar
+### Reversible inline Journey expansion
 
 - Preserve the ordinary all-Journeys list and existing Journey-click navigation.
-- Add a separate expand action that focuses exactly one Journey, hides all siblings and shows its header plus bounded associated-Conversation catalog.
-- Keep the focused Journey header as the route to the root workspace. Collapsing restores the all-Journeys list and visible root workspace while any child run retains immutable background ownership.
+- Add a downward-arrow action on each Journey that inserts its bounded associated-Conversation catalog immediately below it, leaves Journeys above in place and pushes later Journeys downward.
+- Keep the Journey card as the route to the root workspace. Collapsing removes only the inline catalog and returns the visible workspace to root while any child run retains immutable background ownership.
 - Desktop-authoritative child selection opens the established transcript/composer or the empty first-turn surface. Mirror-history selection opens a dedicated non-executable action surface with no composer.
 - Support pointer drag, keyboard increments, min/default/max clamping, window-resize reclamping and deterministic reset.
 - Persist only a validated channel-local width preference and protect Journey, catalog, conversation and composer usability.
@@ -105,7 +105,7 @@ Preserve the existing click-a-Journey-and-converse workspace as the default root
 ### Phase 3 — US-1 catalog, rename and sidebar
 
 1. Preserve ordinary Journey selection and root-workspace rendering.
-2. Add explicit expand/collapse: expansion hides sibling Journeys; the focused header returns to root; collapse restores the full list and root surface without changing active-run owner state.
+2. Add explicit expand/collapse: a downward arrow inserts Conversations beneath the Journey without hiding siblings; the Journey card returns to root; collapse removes only the inline list without changing active-run owner state.
 3. Load bounded child metadata independently from transcript bodies.
 4. Present ready, available in Mirror, preparing handoff and needs-attention states accessibly.
 5. Route ready children to transcript/composer or empty-start surfaces and Mirror history to a non-executable action surface.
@@ -167,9 +167,9 @@ And no provider, process, prompt, migration copy or duplicate transcript is crea
 
 Given the ordinary sidebar lists multiple Journeys
 When the Navigator expands mirror-desktop
-Then sibling Journeys are hidden and the focused header plus bounded associated-Conversation catalog appear
-And clicking the header returns to the root workspace
-And collapsing restores the full Journey list and visible root workspace
+Then Journeys above remain fixed and later Journeys move downward beneath its bounded associated-Conversation catalog
+And clicking the Journey card returns to the root workspace
+And collapsing removes only the inline catalog and returns to the root workspace
 And immutable ownership of any active child run remains unchanged
 
 Given multiple Desktop-ready and Mirror history entries belong exactly to mirror-desktop

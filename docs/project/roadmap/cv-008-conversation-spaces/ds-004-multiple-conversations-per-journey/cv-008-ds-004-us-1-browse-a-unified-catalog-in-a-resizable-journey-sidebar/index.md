@@ -8,12 +8,12 @@
 ## User Story
 
 As the Navigator,
-I want ordinary Journey clicking to remain unchanged while an explicit expansion focuses one Journey and reveals its associated Conversations,
+I want ordinary Journey clicking to remain unchanged while a downward arrow reveals associated Conversations inline beneath their Journey,
 so that I can return to the Journey workspace or choose exact child continuity and honest cross-interface actions without loading unrelated transcripts.
 
 ## Outcome
 
-The ordinary sidebar still lists all Journeys and clicking one opens its existing root workspace. Expanding one Journey hides siblings and shows a focused header plus bounded Desktop-ready and Mirror-available children; the root workspace is never a child row. Ready children open transcript/composer or an empty first-turn surface. Mirror history opens a no-composer action surface. Collapse restores the full Journey list and root workspace. The focused sidebar resizes by pointer and keyboard within persisted channel-local bounds.
+The ordinary sidebar still lists all Journeys and clicking one opens its existing root workspace. Expanding one Journey inserts bounded Desktop-ready and Mirror-available children directly below it; Journeys above remain fixed and later Journeys move downward in the same scrollable list. The root workspace is never a child row. Ready children open transcript/composer or an empty first-turn surface. Mirror history opens a no-composer action surface. Collapse removes only the inline catalog and returns to the root workspace. The sidebar resizes by pointer and keyboard within persisted channel-local bounds.
 
 ## Acceptance Behavior
 
@@ -25,9 +25,9 @@ And it is not represented as a child Conversation
 
 Given one Journey contains ready and Mirror-available children
 When the Navigator explicitly expands that Journey
-Then sibling Journeys are hidden and only its header plus exact-Journey bounded metadata appear
-And the header returns to the root workspace
-And collapse restores all Journeys and the root workspace
+Then exact-Journey bounded metadata appears immediately beneath it without hiding siblings
+And its Journey card returns to the root workspace
+And collapse removes only the inline catalog and returns to the root workspace
 And no active child owner is retargeted
 
 Given a ready child is selected
@@ -45,7 +45,7 @@ Then full ID and exact Journey are revalidated
 And the canonical title changes manually without a model call
 And the UI discloses that other Mirror surfaces see the change
 
-Given the Navigator resizes the focused sidebar
+Given the Navigator resizes the sidebar while Conversations are expanded
 When pointer, keyboard, reset, relaunch or window resize changes geometry
 Then width remains clamped and channel-local
 And sidebar controls, conversation and composer remain usable without horizontal leakage
@@ -54,7 +54,7 @@ And sidebar controls, conversation and composer remain usable without horizontal
 ## Scope
 
 - Unchanged ordinary Journey list, click behavior and root workspace.
-- Explicit focus expansion, focused header-to-root navigation and deterministic collapse.
+- Explicit downward inline expansion, Journey-card-to-root navigation and deterministic collapse.
 - Root workspace exclusion from the child catalog.
 - Ready child transcript/empty-start routing and Mirror-history action-surface routing.
 - Ready, available in Mirror, preparing handoff and needs-attention semantics.

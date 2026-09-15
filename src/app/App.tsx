@@ -1,5 +1,5 @@
 import {
-  useCallback, useEffect, useMemo, useReducer, useRef, useState,
+  Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState,
   type CSSProperties,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -2970,25 +2970,32 @@ export function App({ model }: AppProps) {
     setProviderSafeTestMode(defaultPiProviderConfig.safeTestMode);
   }
 
-  async function expandSelectedJourneyConversations() {
-    if (!selectedJourney || journeyThreadState.kind !== "ready") return;
-    const ownerJourneyId = selectedJourney;
+  async function expandJourneyConversations(ownerJourneyId: string) {
+    if (!ownerJourneyId) return;
+    if (ownerJourneyId !== selectedJourney) {
+      selectJourney(ownerJourneyId, "pointer");
+      dispatchJourneySearch({ type: "journey_selected", intent: "pointer" });
+    }
     dispatchConversationFocus({ type: "expand", journeyId: ownerJourneyId });
-    setFocusedJourneyRootThreadId(journeyThreadState.thread.threadId);
     setConversationCatalogStatus("loading");
     setConversationCatalogError(undefined);
     setConversationActionMessage(undefined);
     try {
+      const rootThread = ownerJourneyId === selectedJourney && journeyThreadState.kind === "ready"
+        ? journeyThreadState.thread
+        : await loadNautilusJourneyThread(ownerJourneyId);
+      if (!rootThread) throw new Error("Start this Journey before creating additional conversations.");
+      setFocusedJourneyRootThreadId(rootThread.threadId);
       const desktopEntries = await loadDesktopConversationCatalog(ownerJourneyId);
       const managedMirrorConversationIds = [
-        ...journeyThreadState.thread.generations.map((generation) => generation.mirrorConversationId),
+        ...rootThread.generations.map((generation) => generation.mirrorConversationId),
         ...desktopEntries.flatMap((entry) => entry.kind === "desktop_conversation"
           ? entry.authority.generations.map((generation) => generation.mirrorConversationId)
           : []),
       ];
       const mirrorEntries = await loadMirrorConversationCatalog({
         journeyId: ownerJourneyId,
-        rootThreadId: journeyThreadState.thread.threadId,
+        rootThreadId: rootThread.threadId,
         managedMirrorConversationIds,
         limit: 50,
       });
@@ -3109,6 +3116,7 @@ export function App({ model }: AppProps) {
     setJourneyThreadState({ kind: "loading" });
     setPiContextState("checking");
     setJourneyReloadStatus(undefined);
+    selectedJourneyRef.current = journeyId;
     setSelectedJourney(journeyId);
     setDraft(composerDrafts[journeyId] ?? "");
     setJourneyPreferences((preferences) => ({
@@ -3631,7 +3639,7 @@ export function App({ model }: AppProps) {
 
   return (
     <main
-      className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${conversationFocus.kind === "focused_journey" ? "conversation-focused" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
+      className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${conversationFocus.kind === "focused_journey" ? "conversation-expanded" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
       data-runtime-channel={runtimeChannel?.channel}
       data-application-theme={applicationTheme}
       style={{ "--focused-sidebar-width": `${focusedSidebarWidth}px` } as CSSProperties}
@@ -3663,28 +3671,6 @@ export function App({ model }: AppProps) {
             <span aria-hidden="true">{sidebarCompact ? "›" : "‹"}</span>
           </button>
         </div>
-
-        {conversationFocus.kind === "focused_journey" ? (
-          <FocusedConversationSidebar
-            journeyId={selectedJourney}
-            journeyName={selectedJourneyItem.name}
-            selected={selectedConversationSpace}
-            entries={conversationCatalog}
-            status={conversationCatalogStatus === "idle" ? "loading" : conversationCatalogStatus}
-            error={conversationCatalogError}
-            onCollapse={() => {
-              dispatchConversationFocus({ type: "collapse", journeyId: selectedJourney });
-              setConversationActionMessage(undefined);
-            }}
-            onCreateConversation={() => void createBlankDesktopConversation()}
-            onSelectRoot={() => dispatchConversationFocus({ type: "select_root", journeyId: selectedJourney })}
-            onSelectEntry={(entry) => dispatchConversationFocus({
-              type: entry.kind === "desktop_conversation" ? "select_desktop" : "select_mirror",
-              journeyId: selectedJourney,
-              conversationId: entry.conversationId,
-            })}
-          />
-        ) : null}
 
         <JourneySearchControl
           query={journeySearch}
@@ -3795,9 +3781,11 @@ export function App({ model }: AppProps) {
             const hasChildren = (journey.children?.length ?? 0) > 0;
             const collapsed = collapsedJourneyIds.has(journey.id);
             const runtimeOwnerPhase = selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id);
+            const conversationsExpanded = conversationFocus.kind === "focused_journey"
+              && conversationFocus.journeyId === journey.id;
             return (
+              <Fragment key={journey.id}>
               <div
-                key={journey.id}
                 className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${journey.id === selectedJourney ? "selected" : ""} ${runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : ""}`}
                 style={{ "--journey-depth": journeyListOrder === "tree" ? journey.depth : 0 } as CSSProperties & Record<"--journey-depth", number>}
                 role="button"
@@ -3822,6 +3810,9 @@ export function App({ model }: AppProps) {
                   openJourneyItemMenu(journey.id, event.currentTarget, event.clientX, event.clientY);
                 } : undefined}
                 onClick={() => {
+                  if (conversationsExpanded) {
+                    dispatchConversationFocus({ type: "select_root", journeyId: journey.id });
+                  }
                   selectJourney(journey.id, "pointer");
                   dispatchJourneySearch({ type: "journey_selected", intent: "pointer" });
                 }}
@@ -3833,6 +3824,9 @@ export function App({ model }: AppProps) {
                   } else if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
                     const intent = event.key === "Enter" ? "keyboard-enter" : "keyboard-space";
+                    if (conversationsExpanded) {
+                      dispatchConversationFocus({ type: "select_root", journeyId: journey.id });
+                    }
                     selectJourney(journey.id, intent);
                     dispatchJourneySearch({ type: "journey_selected", intent });
                   }
@@ -3888,7 +3882,43 @@ export function App({ model }: AppProps) {
                 >
                   {journey.pinned ? "●" : "○"}
                 </button>
+                <button
+                  className="journey-conversation-toggle"
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (conversationsExpanded) {
+                      dispatchConversationFocus({ type: "collapse", journeyId: journey.id });
+                      setConversationActionMessage(undefined);
+                    } else {
+                      void expandJourneyConversations(journey.id);
+                    }
+                  }}
+                  aria-label={`${conversationsExpanded ? "Collapse" : "Expand"} conversations for ${journey.name}`}
+                  aria-expanded={conversationsExpanded}
+                  title={`${conversationsExpanded ? "Collapse" : "Expand"} conversations`}
+                >
+                  <span aria-hidden="true">{conversationsExpanded ? "⌃" : "⌄"}</span>
+                </button>
               </div>
+              {conversationsExpanded ? (
+                <FocusedConversationSidebar
+                  journeyId={journey.id}
+                  journeyName={journey.name}
+                  accent={visual.accent}
+                  selected={selectedConversationSpace}
+                  entries={conversationCatalog}
+                  status={conversationCatalogStatus === "idle" ? "loading" : conversationCatalogStatus}
+                  error={conversationCatalogError}
+                  onCreateConversation={() => void createBlankDesktopConversation()}
+                  onSelectEntry={(entry) => dispatchConversationFocus({
+                    type: entry.kind === "desktop_conversation" ? "select_desktop" : "select_mirror",
+                    journeyId: journey.id,
+                    conversationId: entry.conversationId,
+                  })}
+                />
+              ) : null}
+              </Fragment>
             );
           })}
         </div>
@@ -3952,17 +3982,6 @@ export function App({ model }: AppProps) {
                 </div>
               </div>
               <div className="chat-header-actions">
-                <button
-                  className={`menu-button conversation-browser-shortcut ${conversationFocus.kind === "focused_journey" ? "selected" : ""}`}
-                  type="button"
-                  onClick={() => void expandSelectedJourneyConversations()}
-                  disabled={journeyThreadState.kind !== "ready"}
-                  aria-label="Browse conversations"
-                  aria-expanded={conversationFocus.kind === "focused_journey"}
-                  title="Browse conversations"
-                >
-                  <span aria-hidden="true">☷</span>
-                </button>
                 <button
                   className={`menu-button conversation-shortcut ${operationalChatSelected ? "selected" : ""}`}
                   type="button"

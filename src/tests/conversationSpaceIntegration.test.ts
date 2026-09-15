@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import appSource from "../app/App.tsx?raw";
 
 describe("Journey conversation-space integration", () => {
-  it("keeps the root workspace selected until explicit expansion", () => {
-    expect(appSource).toContain("expandSelectedJourneyConversations");
-    expect(appSource).toContain("Browse conversations");
+  it("expands conversations inline beneath their Journey without replacing the Journey list", () => {
+    expect(appSource).toContain("expandJourneyConversations");
+    expect(appSource).toContain("journey-conversation-toggle");
     expect(appSource).toContain("<FocusedConversationSidebar");
-    expect(appSource).toContain('type: "select_root"');
+    expect(appSource).toContain("conversationsExpanded ? (");
+    expect(appSource).not.toContain("Browse conversations");
     expect(appSource).toContain('type: "collapse"');
   });
 
