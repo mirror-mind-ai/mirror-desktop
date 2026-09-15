@@ -49,6 +49,16 @@ And complete history remains recoverable on demand
 - Unlimited retention guarantees or general transcript virtualization.
 - Replaying prompts, agents or children as recovery.
 
+## Implementation Evidence
+
+- `5e7ba4e` preserves legacy root authority through copy-verify-publish migration and a source-retaining compatibility receipt.
+- `7362312` publishes verified closed/current Segment projections and loads the current working Segment before explicit earlier-history recovery.
+- `e0ae723` durably reserves child identity before provisioning, resumes reserved or provisioned phases without duplicate Pi/Mirror authority, and settles only after catalog publication.
+- `2d0eed6` serializes exact per-Journey catalog publication and rejects stale reset/catalog races.
+- `3b061db` extends the same durable, idempotent phase recovery to `Reset agent context` while retaining the prior generation until exact replacement publication.
+- `f377a4a` rejects duplicate Segment entry, message, turn and evidence authority rather than silently merging divergent history.
+- Handoff preparation remains an editable channel-local draft after model-free destination creation; the recovery path contains no prompt send or model invocation.
+
 ## Validation
 
-Exercise every supported schema, corruption/symlink case and injected failure frontier. Use generated histories above 1,000 messages and 10 MiB terminal projection evidence to prove bounded structural work and exact on-demand recovery. Verify handoff drafts never auto-send after restart and inspect source control for protected data before aggregate validation.
+Automated implementation validation covers every supported schema, generated histories above 1,000 messages, a 10 MiB terminal projection body, cross-Journey authority, malformed checkpoints, duplicate IDs, symlinked catalog storage, stale generations, exact recovery phases and on-demand complete-history reconstruction. Aggregate isolated Navigator validation and protected-data inspection remain Delivery Story validation work.

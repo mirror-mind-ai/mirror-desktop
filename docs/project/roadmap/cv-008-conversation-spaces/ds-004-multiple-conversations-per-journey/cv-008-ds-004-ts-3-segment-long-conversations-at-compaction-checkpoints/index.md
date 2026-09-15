@@ -46,6 +46,13 @@ And closing it releases the heavy presentation subtree
 - Treating visible history as active model context.
 - Moving or deleting history before verified reversible migration.
 
+## Implementation Evidence
+
+- `60989aa` indexes exact Pi compaction IDs, parent/retained-tail coordinates, source ranges and turn ranges in metadata-only generation-scoped manifests.
+- `7362312` publishes SHA-256 verified immutable closed-Segment projections plus one replaceable current projection and loads earlier verified Segments only on explicit request.
+- `f377a4a` rejects duplicate checkpoint and projection authority rather than silently deduplicating divergent history.
+- Generated coverage keeps a 10 MiB historical terminal action body outside the initial current-Segment working set while preserving complete reconstruction.
+
 ## Validation
 
-Use disposable Pi sessions with one and multiple compactions, adversarial streamed labels and overlap cases. Prove structural bounded work with generated histories larger than CR029, plus exact recovery after interrupted Segment publication.
+Automated coverage uses disposable generated sessions with zero, one and malformed compactions, retained-tail overlap, cross-Journey authority, duplicate IDs and histories larger than CR029. Aggregate isolated Navigator validation remains pending at Delivery Story level.
