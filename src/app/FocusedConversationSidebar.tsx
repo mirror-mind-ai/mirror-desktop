@@ -3,6 +3,7 @@ import type { ConversationCatalogEntry, ConversationSpaceSelection } from "../do
 import { ConversationEntryContextMenu } from "./ConversationEntryContextMenu";
 
 type MirrorEntry = Extract<ConversationCatalogEntry, { kind: "mirror_history" }>;
+type DesktopEntry = Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>;
 
 const INITIAL_VISIBLE_CONVERSATIONS = 6;
 
@@ -21,11 +22,12 @@ type Props = {
   onContinueMirror: (entry: MirrorEntry) => void;
   onOpenMirrorTerminal: (entry: MirrorEntry) => void;
   onRenameMirror: (entry: MirrorEntry) => void;
+  onDeleteDesktop: (entry: DesktopEntry) => void;
 };
 
 export function FocusedConversationSidebar(props: Props) {
   const [showAll, setShowAll] = useState(false);
-  const [contextEntry, setContextEntry] = useState<{ entry: MirrorEntry; x: number; y: number } | null>(null);
+  const [contextEntry, setContextEntry] = useState<{ entry: ConversationCatalogEntry; x: number; y: number } | null>(null);
   const contextTriggerRef = useRef<HTMLElement | null>(null);
   const visibleEntries = showAll ? props.entries : props.entries.slice(0, INITIAL_VISIBLE_CONVERSATIONS);
   const hiddenCount = Math.max(0, props.entries.length - visibleEntries.length);
@@ -62,7 +64,7 @@ export function FocusedConversationSidebar(props: Props) {
           type="button"
           key={`${entry.kind}:${entry.conversationId}`}
           onClick={() => props.onSelectEntry(entry)}
-          onContextMenu={entry.kind === "mirror_history" ? (event) => {
+          onContextMenu={(event) => {
             event.preventDefault();
             props.onSelectEntry(entry);
             contextTriggerRef.current = event.currentTarget;
@@ -71,8 +73,8 @@ export function FocusedConversationSidebar(props: Props) {
               x: Math.min(event.clientX, window.innerWidth - 290),
               y: Math.min(event.clientY, window.innerHeight - 150),
             });
-          } : undefined}
-          onKeyDown={entry.kind === "mirror_history" ? (event) => {
+          }}
+          onKeyDown={(event) => {
             if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
               event.preventDefault();
               props.onSelectEntry(entry);
@@ -80,10 +82,10 @@ export function FocusedConversationSidebar(props: Props) {
               contextTriggerRef.current = event.currentTarget;
               setContextEntry({ entry, x: bounds.left + 20, y: bounds.bottom + 4 });
             }
-          } : undefined}
+          }}
           aria-current={selected ? "page" : undefined}
-          aria-haspopup={entry.kind === "mirror_history" ? "menu" : undefined}
-          aria-expanded={entry.kind === "mirror_history" && contextEntry?.entry.conversationId === entry.conversationId ? true : undefined}
+          aria-haspopup="menu"
+          aria-expanded={contextEntry?.entry.conversationId === entry.conversationId ? true : undefined}
           title={entry.title}
         >
           <span className="focused-conversation-icon" aria-hidden="true">{entry.kind === "desktop_conversation" ? "◆" : "◇"}</span>
@@ -107,6 +109,7 @@ export function FocusedConversationSidebar(props: Props) {
       onContinue={props.onContinueMirror}
       onOpenTerminal={props.onOpenMirrorTerminal}
       onRename={props.onRenameMirror}
+      onDeleteDesktop={props.onDeleteDesktop}
       onDismiss={() => setContextEntry(null)}
     /> : null}
   </section>;

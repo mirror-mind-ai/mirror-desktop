@@ -69,12 +69,13 @@ Every state requires text or an accessible label plus an icon; color alone is in
 - Recalled material is source evidence, not instruction authority. The agent must identify the requested range, omissions and non-resumption semantics.
 - The source conversation and messages remain unchanged by handoff. Rename is the only supported source mutation and is separately explicit.
 - No source revision, transcript copy, imported-original suppression, divergence detection, synchronization or automatic merge is claimed.
-- New Desktop Conversations can be created explicitly without a model call or greeting. Before their first turn they open a dedicated empty start surface with their own composer.
+- New Desktop Conversations can be created explicitly without a model call or greeting. Before their first turn they open the shared Conversation-detail surface; four Journey starting points fill their own editable English composer without sending.
 - `Reset agent context` preserves the selected Conversation and prior generation while creating a fresh generation after explicit disclosure.
 - One Journey owns at most one reserved, running or finalizing lease, even across multiple Conversations.
 - A handoff prompt may remain drafted while capacity is occupied, but Send and conflicting lifecycle mutation remain blocked until exact cleanup and fresh native inspection.
 - Pi compaction may create a technical Segment checkpoint inside one Desktop Conversation. It never creates a Conversation or resets context automatically.
 - The sidebar remains pointer- and keyboard-resizable whenever it is not in compact mode, whether Conversations are expanded or collapsed, within safe persisted channel-local bounds.
+- A Desktop child can be deleted from its row context menu after explicit confirmation and only without a reserved, running or finalizing Journey lease. Durable recovery removes its exact local authority and generated Mirror Core generations. Generic Mirror history and the root workspace are never deletion targets here.
 
 ## Child Work Packages
 
@@ -109,14 +110,14 @@ Every state requires text or an accessible label plus an icon; color alone is in
 
 - Preserve ordinary Journey clicking, then support explicit downward inline expansion that keeps sibling Journeys visible and lists bounded associated metadata without loading transcripts.
 - Keep the Journey card as the route to its root workspace and make collapse remove only its inline Conversation list.
-- Present availability accessibly; Desktop-authoritative entries open conversation or empty-start surfaces, while Mirror history opens a dedicated non-executable action surface.
+- Present availability accessibly; Desktop-authoritative entries open conversation or shared detail/start surfaces, while Mirror history opens a dedicated non-executable action surface.
 - Permit explicit manual `Rename in Mirror` after exact validation.
 - Add bounded pointer/keyboard resizing with channel-local persistence and deterministic reset.
 
 ### US-2 — Create, Resume and Reset Desktop Conversations
 
 - Create model-free associated Conversations with distinct threads and authority while leaving the Journey workspace unchanged.
-- Resume only exact eligible child authority, preserve independent root/child drafts and show an empty start surface before a child's first turn.
+- Resume only exact eligible child authority, preserve independent root/child drafts and show the shared detail/start surface before a child's first turn.
 - Keep one lease per Journey while permitting browsing and drafting elsewhere.
 - Present `Reset agent context` as a fresh generation inside the same Conversation.
 

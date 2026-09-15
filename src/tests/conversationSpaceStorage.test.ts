@@ -4,7 +4,7 @@ const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
 import {
-  createDesktopConversation, loadDesktopConversationCatalog, reconcileDesktopConversationCatalogEntry,
+  createDesktopConversation, deleteDesktopConversation, loadDesktopConversationCatalog, reconcileDesktopConversationCatalogEntry,
 } from "../app/conversationSpaceStorage";
 import { loadDedicatedJourneyConversation } from "../app/journeyConversationStorage";
 import tauriSource from "../../src-tauri/src/main.rs?raw";
@@ -53,6 +53,15 @@ describe("native Desktop conversation lifecycle", () => {
       sourceMessageLimit: 30,
     })).resolves.toMatchObject({ kind: "desktop_conversation", conversationId: "conversation-1234567890" });
     expect(invoke).toHaveBeenCalledWith("create_desktop_conversation", expect.objectContaining({ journeyId: "mirror-desktop" }));
+  });
+
+  it("deletes a Desktop child only through exact native Journey authority", async () => {
+    invoke.mockResolvedValue(undefined);
+    const input = { journeyId: "mirror-desktop", conversationId: "conversation-1234567890" };
+    await expect(deleteDesktopConversation(input)).resolves.toBeUndefined();
+    expect(invoke).toHaveBeenCalledWith("delete_desktop_conversation", input);
+    expect(tauriSource).toContain("recover_pending_desktop_conversation_deletion");
+    expect(tauriSource).toContain('"kind":"desktop_conversation_deletion"');
   });
 
   it("reconciles settlement metadata only through exact child generation authority", async () => {

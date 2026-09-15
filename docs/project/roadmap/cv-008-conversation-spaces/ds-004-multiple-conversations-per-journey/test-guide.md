@@ -108,7 +108,7 @@ Create many generated Desktop and Mirror records across multiple Journeys. Verif
 - sorting is deterministic;
 - malformed or cross-Journey records fail closed;
 - ready child selection opens the established transcript/composer when turns exist;
-- empty child selection opens a dedicated first-turn surface with no synthetic message;
+- empty child selection opens the shared Conversation-detail start surface with no synthetic message;
 - Mirror history selection opens a dedicated action surface with no composer, Send or Resume claim.
 
 ### Rename in Mirror
@@ -159,8 +159,13 @@ Verify model-free creation produces:
 - a distinct child Conversation and thread without changing the root;
 - one ready generation with exact Pi and Mirror coordinates;
 - no synthetic message or hidden title call;
+- four English starting points fill an editable composer draft without sending;
 - unchanged sibling Conversations;
 - atomic publication and exact restart recovery.
+
+### Delete Desktop Conversation
+
+Verify the row context menu offers `Delete Conversation…` only for Desktop children. Confirmation must name the target and disclose permanent local and generated Mirror Core deletion. Deletion is blocked while the Journey has a reserved, running or finalizing lease. Successful deletion removes exact catalog, draft, Pi session, projection, Segment and generated Mirror generation authority through a recoverable native operation. It never targets the root workspace, a sibling or generic Mirror history.
 
 ### Selection and drafts
 

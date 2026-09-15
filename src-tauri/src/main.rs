@@ -1000,6 +1000,182 @@ fn recover_pending_desktop_conversation_reset(
     Ok(Some(updated))
 }
 
+fn desktop_conversation_deletion_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
+    let catalog = desktop_conversation_catalog_path(app, journey_id)?;
+    Ok(catalog.parent().ok_or_else(|| "Desktop Conversation catalog has no parent.".to_string())?
+        .join("pending-deletion.json"))
+}
+
+fn validate_desktop_conversation_deletion(value: &Value, journey_id: &str) -> Result<(), String> {
+    if value.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
+        || value.get("kind").and_then(Value::as_str) != Some("desktop_conversation_deletion")
+        || value.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+        || !matches!(value.get("phase").and_then(Value::as_str), Some("reserved" | "mirror_deleted"))
+        || value.get("entry").and_then(|entry| entry.get("kind")).and_then(Value::as_str) != Some("desktop_conversation")
+    {
+        return Err("Pending Desktop Conversation deletion authority is invalid.".to_string());
+    }
+    let entry = value.get("entry").unwrap();
+    if entry.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+        || ["conversationId", "threadId"].iter().any(|key| {
+            entry.get(key).and_then(Value::as_str).is_none_or(|item| sanitize_session_id(item).is_err())
+        })
+        || !matches!(entry.pointer("/authority/runtimeChannel").and_then(Value::as_str), Some("user" | "development"))
+    {
+        return Err("Pending Desktop Conversation deletion target authority is invalid.".to_string());
+    }
+    let generations = entry.pointer("/authority/generations").and_then(Value::as_array)
+        .ok_or_else(|| "Pending Desktop Conversation deletion generations are invalid.".to_string())?;
+    let unique_pi_ids = generations.iter().filter_map(|item| item.get("piSessionId").and_then(Value::as_str)).collect::<HashSet<_>>();
+    let unique_mirror_ids = generations.iter().filter_map(|item| item.get("mirrorConversationId").and_then(Value::as_str)).collect::<HashSet<_>>();
+    if generations.is_empty() || generations.len() > 100
+        || unique_pi_ids.len() != generations.len() || unique_mirror_ids.len() != generations.len()
+        || generations.iter().enumerate().any(|(index, generation)| {
+            generation.get("generation").and_then(Value::as_u64) != Some((index + 1) as u64)
+                || generation.get("piSessionId").and_then(Value::as_str).is_none_or(|item| sanitize_session_id(item).is_err())
+                || generation.get("mirrorConversationId").and_then(Value::as_str).is_none_or(|item| sanitize_session_id(item).is_err())
+                || generation.get("piSessionFile").and_then(Value::as_str).is_none_or(str::is_empty)
+        }) {
+        return Err("Pending Desktop Conversation deletion generations are invalid.".to_string());
+    }
+    Ok(())
+}
+
+fn write_desktop_conversation_deletion(
+    path: &Path,
+    value: &Value,
+    journey_id: &str,
+    persistence: &JourneyProjectionPersistenceState,
+) -> Result<(), String> {
+    validate_desktop_conversation_deletion(value, journey_id)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|_| "Could not create Desktop Conversation deletion storage.".to_string())?;
+    }
+    let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+    write_durable_projection_at(
+        path,
+        &serde_json::to_vec_pretty(value).map_err(|_| "Could not serialize Desktop Conversation deletion.".to_string())?,
+        nonce,
+    ).map_err(|_| "Could not durably publish Desktop Conversation deletion.".to_string())
+}
+
+fn read_desktop_conversation_deletion(path: &Path, journey_id: &str) -> Result<Option<Value>, String> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err("Could not inspect pending Desktop Conversation deletion.".to_string()),
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 256 * 1024 {
+        return Err("Pending Desktop Conversation deletion storage is invalid.".to_string());
+    }
+    let value: Value = serde_json::from_slice(&fs::read(path)
+        .map_err(|_| "Could not read pending Desktop Conversation deletion.".to_string())?)
+        .map_err(|_| "Pending Desktop Conversation deletion is malformed.".to_string())?;
+    validate_desktop_conversation_deletion(&value, journey_id)?;
+    Ok(Some(value))
+}
+
+fn remove_desktop_conversation_files(app: &AppHandle, journey_id: &str, entry: &Value) -> Result<(), String> {
+    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let thread_id = entry.get("threadId").and_then(Value::as_str)
+        .ok_or_else(|| "Desktop Conversation deletion thread authority is invalid.".to_string())?;
+    sanitize_session_id(thread_id)?;
+    let pi_root = app_data_dir.join("pi-sessions");
+    for generation in entry.pointer("/authority/generations").and_then(Value::as_array).into_iter().flatten() {
+        let session_file = PathBuf::from(generation.get("piSessionFile").and_then(Value::as_str).unwrap_or_default());
+        if session_file.parent() != Some(pi_root.as_path()) {
+            return Err("Desktop Conversation deletion Pi path escaped app storage.".to_string());
+        }
+        match fs::symlink_metadata(&session_file) {
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+                return Err("Desktop Conversation deletion Pi storage is invalid.".to_string());
+            }
+            Ok(_) => fs::remove_file(&session_file)
+                .map_err(|_| "Could not remove Desktop Conversation Pi storage.".to_string())?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => return Err("Could not inspect Desktop Conversation Pi storage.".to_string()),
+        }
+    }
+    for directory in [
+        app_data_dir.join("conversation-segments").join(journey_id).join(thread_id),
+        app_data_dir.join("dedicated-journey-conversations").join(journey_id).join("threads").join(thread_id),
+    ] {
+        match fs::symlink_metadata(&directory) {
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+                return Err("Desktop Conversation deletion projection storage is invalid.".to_string());
+            }
+            Ok(_) => fs::remove_dir_all(&directory)
+                .map_err(|_| "Could not remove Desktop Conversation projection storage.".to_string())?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => return Err("Could not inspect Desktop Conversation projection storage.".to_string()),
+        }
+    }
+    Ok(())
+}
+
+fn recover_pending_desktop_conversation_deletion(
+    app: &AppHandle,
+    persistence: &JourneyProjectionPersistenceState,
+    journey_id: &str,
+) -> Result<Option<String>, String> {
+    let operation_path = desktop_conversation_deletion_path(app, journey_id)?;
+    let Some(mut operation) = read_desktop_conversation_deletion(&operation_path, journey_id)? else { return Ok(None); };
+    let entry = operation.get("entry").cloned().ok_or_else(|| "Pending Desktop Conversation deletion has no entry.".to_string())?;
+    let conversation_id = entry.get("conversationId").and_then(Value::as_str)
+        .ok_or_else(|| "Pending Desktop Conversation deletion has no Conversation ID.".to_string())?;
+    sanitize_session_id(conversation_id)?;
+    let mirror_ids = entry.pointer("/authority/generations").and_then(Value::as_array)
+        .ok_or_else(|| "Pending Desktop Conversation deletion has no generation authority.".to_string())?
+        .iter().map(|generation| generation.get("mirrorConversationId").and_then(Value::as_str)
+            .ok_or_else(|| "Pending Desktop Conversation deletion has invalid Mirror authority.".to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    if mirror_ids.is_empty() || mirror_ids.len() > 100 { return Err("Pending Desktop Conversation deletion generation count is invalid.".to_string()); }
+    if operation.get("phase").and_then(Value::as_str) == Some("reserved") {
+        let catalog = load_desktop_conversation_catalog_at(&desktop_conversation_catalog_path(app, journey_id)?, journey_id)?;
+        let candidate = catalog.get("entries").and_then(Value::as_array).and_then(|entries| entries.iter().find(|candidate| {
+            candidate.get("conversationId").and_then(Value::as_str) == Some(conversation_id)
+        })).ok_or_else(|| "Reserved Desktop Conversation deletion target is unavailable.".to_string())?;
+        if candidate.get("threadId") != entry.get("threadId") || candidate.get("authority") != entry.get("authority") {
+            return Err("Reserved Desktop Conversation deletion authority diverged from its catalog.".to_string());
+        }
+        let mirror_ids_json = serde_json::to_string(&mirror_ids)
+            .map_err(|_| "Could not serialize Desktop Conversation deletion authority.".to_string())?;
+        let response = run_mirror_conversation_catalog(app, "delete", journey_id, &["--conversation-ids-json", &mirror_ids_json])?;
+        let deleted = response.get("deletedConversationIds").and_then(Value::as_array)
+            .into_iter().flatten().filter_map(Value::as_str).collect::<HashSet<_>>();
+        let missing = response.get("alreadyMissingConversationIds").and_then(Value::as_array)
+            .into_iter().flatten().filter_map(Value::as_str).collect::<HashSet<_>>();
+        if mirror_ids.iter().any(|id| !deleted.contains(id) && !missing.contains(id)) {
+            return Err("Mirror did not settle exact Desktop Conversation deletion authority.".to_string());
+        }
+        operation["phase"] = json!("mirror_deleted");
+        write_desktop_conversation_deletion(&operation_path, &operation, journey_id, persistence)?;
+    }
+    let stripe = persistence.stripe(journey_id, 0);
+    let _catalog_guard = persistence.stripes[stripe].lock()
+        .map_err(|_| "Desktop Conversation catalog mutation is unavailable.".to_string())?;
+    let catalog_path = desktop_conversation_catalog_path(app, journey_id)?;
+    let mut catalog = load_desktop_conversation_catalog_at(&catalog_path, journey_id)?;
+    let entries = catalog.get_mut("entries").and_then(Value::as_array_mut)
+        .ok_or_else(|| "Desktop Conversation catalog entries are invalid.".to_string())?;
+    if let Some(index) = entries.iter().position(|candidate| candidate.get("conversationId").and_then(Value::as_str) == Some(conversation_id)) {
+        let candidate = &entries[index];
+        if candidate.get("threadId") != entry.get("threadId") || candidate.get("authority") != entry.get("authority") {
+            return Err("Desktop Conversation deletion target became stale.".to_string());
+        }
+        entries.remove(index);
+        let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+        write_durable_projection_at(
+            &catalog_path,
+            &serde_json::to_vec_pretty(&catalog).map_err(|_| "Could not serialize Desktop Conversation catalog deletion.".to_string())?,
+            nonce,
+        ).map_err(|_| "Could not durably publish Desktop Conversation deletion.".to_string())?;
+    }
+    remove_desktop_conversation_files(app, journey_id, &entry)?;
+    fs::remove_file(operation_path).map_err(|_| "Could not settle Desktop Conversation deletion.".to_string())?;
+    Ok(Some(conversation_id.to_string()))
+}
+
 #[tauri::command]
 fn load_desktop_conversation_catalog(
     app: AppHandle,
@@ -1015,8 +1191,55 @@ fn load_desktop_conversation_catalog(
         let _lease = JourneyProvisioningLease { active: state.active.clone(), journey_id: journey_id.clone() };
         recover_pending_desktop_conversation_creation(&app, &persistence, &journey_id)?;
         recover_pending_desktop_conversation_reset(&app, &persistence, &journey_id)?;
+        recover_pending_desktop_conversation_deletion(&app, &persistence, &journey_id)?;
     }
     load_desktop_conversation_catalog_at(&desktop_conversation_catalog_path(&app, &journey_id)?, &journey_id)
+}
+
+#[tauri::command]
+fn delete_desktop_conversation(
+    app: AppHandle,
+    lifecycle: State<'_, JourneyProvisioningState>,
+    process: State<'_, PiProcessState>,
+    persistence: State<'_, JourneyProjectionPersistenceState>,
+    journey_id: String,
+    conversation_id: String,
+) -> Result<(), String> {
+    sanitize_journey_id(&journey_id)?;
+    sanitize_session_id(&conversation_id)?;
+    if process.registry.lock().map_err(|_| "Pi process registry is unavailable.".to_string())?
+        .inspect().entries.iter().any(|entry| entry.authority.journey_id == journey_id)
+    {
+        return Err("A Conversation cannot be deleted while its Journey is working or finishing.".to_string());
+    }
+    {
+        let mut active = lifecycle.active.lock()
+            .map_err(|_| "Could not inspect active Journey lifecycle operation.".to_string())?;
+        if !active.insert(journey_id.clone()) {
+            return Err("This Journey already has an active lifecycle operation.".to_string());
+        }
+    }
+    let _lease = JourneyProvisioningLease { active: lifecycle.active.clone(), journey_id: journey_id.clone() };
+    if recover_pending_desktop_conversation_deletion(&app, &persistence, &journey_id)?.as_deref() == Some(conversation_id.as_str()) {
+        return Ok(());
+    }
+    let catalog = load_desktop_conversation_catalog_at(&desktop_conversation_catalog_path(&app, &journey_id)?, &journey_id)?;
+    let entry = catalog.get("entries").and_then(Value::as_array).and_then(|entries| entries.iter().find(|entry| {
+        entry.get("conversationId").and_then(Value::as_str) == Some(&conversation_id)
+            && entry.get("journeyId").and_then(Value::as_str) == Some(&journey_id)
+            && entry.get("kind").and_then(Value::as_str) == Some("desktop_conversation")
+    })).cloned().ok_or_else(|| "Desktop Conversation deletion target is unavailable.".to_string())?;
+    let operation = json!({
+        "schemaVersion":"1.0.0", "kind":"desktop_conversation_deletion", "phase":"reserved",
+        "journeyId":journey_id, "entry":entry,
+    });
+    let operation_path = desktop_conversation_deletion_path(&app, &journey_id)?;
+    write_desktop_conversation_deletion(&operation_path, &operation, &journey_id, &persistence)?;
+    let settled = recover_pending_desktop_conversation_deletion(&app, &persistence, &journey_id)?;
+    if settled.as_deref() != Some(conversation_id.as_str()) {
+        return Err("Desktop Conversation deletion did not settle exact authority.".to_string());
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -6536,6 +6759,7 @@ fn main() {
             restart_journey_thread,
             load_desktop_conversation_catalog,
             create_desktop_conversation,
+            delete_desktop_conversation,
             restart_desktop_conversation,
             reconcile_desktop_conversation_catalog_entry,
             load_mirror_conversation_catalog,
@@ -6638,7 +6862,8 @@ mod tests {
         merge_persisted_mirror_evidence, mirror_rpc_args, validate_active_pre_frontier_projection_at,
         validate_current_projection_turn_authority, validate_mirror_append_item,
         validate_outbox_item_run_authority_at,
-        validate_pi_session_file_at, validate_projection_payload_authority, validate_run_authority_at,
+        validate_desktop_conversation_deletion, validate_pi_session_file_at,
+        validate_projection_payload_authority, validate_run_authority_at,
         validate_turn_correlation,
         write_durable_projection_at, JourneyProjectionPersistenceState, PiSessionContextSnapshot,
         RegistryAuthorityInspection, RunAuthority, TerminalState, TurnCorrelation, JOURNEY_REGISTRY_FILE, FILE_ATTACHMENT_MAX_FILES,
@@ -6701,6 +6926,30 @@ mod tests {
         assert_eq!(entry.pointer("/authority/activeGeneration").and_then(Value::as_u64), Some(1));
         assert_eq!(entry.pointer("/authority/generations/0/piSessionId").and_then(Value::as_str), Some("desktop-session-one"));
         assert!(desktop_conversation_entry_from_creation(&provisioned, "other-journey").is_err());
+    }
+
+    #[test]
+    fn validates_only_exact_phased_desktop_conversation_deletions() {
+        let operation = json!({
+            "schemaVersion":"1.0.0", "kind":"desktop_conversation_deletion", "phase":"reserved",
+            "journeyId":"journey-one", "entry":{
+                "kind":"desktop_conversation", "journeyId":"journey-one",
+                "conversationId":"desktop-conversation-one", "threadId":"desktop-thread-one",
+                "authority":{"runtimeChannel":"development", "generations":[{
+                    "generation":1, "piSessionId":"desktop-session-one",
+                    "piSessionFile":"/app/pi-sessions/desktop-session-one.jsonl",
+                    "mirrorConversationId":"mirror-conversation-one"
+                }]}
+            }
+        });
+        assert!(validate_desktop_conversation_deletion(&operation, "journey-one").is_ok());
+        assert!(validate_desktop_conversation_deletion(&operation, "other-journey").is_err());
+        let mut malformed = operation.clone();
+        malformed["phase"] = json!("completed");
+        assert!(validate_desktop_conversation_deletion(&malformed, "journey-one").is_err());
+        malformed = operation;
+        malformed["entry"]["kind"] = json!("mirror_history");
+        assert!(validate_desktop_conversation_deletion(&malformed, "journey-one").is_err());
     }
 
     #[test]

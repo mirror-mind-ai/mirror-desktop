@@ -45,6 +45,7 @@ describe("conversation space surfaces", () => {
       onContinueMirror={vi.fn()}
       onOpenMirrorTerminal={vi.fn()}
       onRenameMirror={vi.fn()}
+      onDeleteDesktop={vi.fn()}
     />);
     expect(html).toContain("Conversations");
     expect(html).toContain("Creating dedicated Desktop authority…");
@@ -75,6 +76,7 @@ describe("conversation space surfaces", () => {
       onContinueMirror={vi.fn()}
       onOpenMirrorTerminal={vi.fn()}
       onRenameMirror={vi.fn()}
+      onDeleteDesktop={vi.fn()}
     />);
     expect(html).toContain("History 6");
     expect(html).not.toContain("History 7");
@@ -125,6 +127,7 @@ describe("conversation space surfaces", () => {
       onContinue={vi.fn()}
       onOpenTerminal={vi.fn()}
       onRename={vi.fn()}
+      onDeleteDesktop={vi.fn()}
       onDismiss={vi.fn()}
     />);
     expect(html.match(/role="menuitem"/g)).toHaveLength(3);
@@ -133,9 +136,43 @@ describe("conversation space surfaces", () => {
     expect(html).toContain("Rename in Mirror");
   });
 
-  it("renders an empty authoritative child without a synthetic greeting", () => {
-    const html = renderToStaticMarkup(<EmptyDesktopConversation title="New conversation" />);
-    expect(html).toContain("This conversation has not started yet");
+  it("offers destructive deletion only for a Desktop child", () => {
+    const html = renderToStaticMarkup(<ConversationEntryContextMenu
+      entry={{
+        kind: "desktop_conversation", conversationId: "desktop-conversation-1", threadId: "desktop-thread-1",
+        title: "Disposable child", updatedAt: "2026-09-15T09:00:00.000Z", messageCount: 0, availability: "ready",
+        authority: {
+          activeGeneration: 1, runtimeChannel: "development", generations: [{
+            generation: 1, status: "ready", piSessionId: "pi-session-child-1", piSessionFile: "/app/pi-session-child-1.jsonl",
+            mirrorConversationId: "399badc9", createdAt: "2026-09-15T09:00:00.000Z", activatedAt: "2026-09-15T09:00:00.000Z",
+            activationReceipt: {
+              schemaVersion: "1.0.0", journeyId: "mirror-desktop", threadId: "desktop-thread-1", generation: 1,
+              piSessionId: "pi-session-child-1", mirrorConversationId: "399badc9", mode: "mirror",
+              commandAuthority: "installed", runtimeChannel: "development", activatedAt: "2026-09-15T09:00:00.000Z",
+            },
+          }],
+        },
+      }}
+      x={20} y={30} returnFocusTo={null}
+      onContinue={vi.fn()} onOpenTerminal={vi.fn()} onRename={vi.fn()} onDeleteDesktop={vi.fn()} onDismiss={vi.fn()}
+    />);
+    expect(html.match(/role="menuitem"/g)).toHaveLength(1);
+    expect(html).toContain("Delete Conversation…");
+    expect(html).not.toContain("Rename in Mirror");
+  });
+
+  it("renders an empty authoritative child through the shared detail surface", () => {
+    const html = renderToStaticMarkup(<EmptyDesktopConversation
+      title="New conversation"
+      journeyName="Mirror Desktop"
+      createdAt="2026-09-15T09:00:00.000Z"
+      onChoose={vi.fn()}
+    />);
+    expect(html).toContain("Desktop Conversation");
+    expect(html).toContain("Conversation ready · Journey context is active");
+    expect(html).toContain("Understand where we are");
+    expect(html).toContain("Think out loud");
+    expect(html).toContain("Nothing is sent until you decide");
     expect(html).not.toContain("How can I help you?");
   });
 });

@@ -4,11 +4,11 @@ type Props = {
   onChoose: (message: string) => void;
 };
 
-const suggestions = [
-  { label: "Understand where we are", message: "Onde estamos nesta Journey?" },
-  { label: "Explore the current tension", message: "Qual tensão merece mais atenção agora?" },
-  { label: "Recognize what wants continuity", message: "O que já foi realizado e o que está pedindo continuidade?" },
-  { label: "Think out loud", message: "Quero pensar em voz alta sobre esta Journey." },
+export const journeyConversationStarters = [
+  { label: "Understand where we are", message: "Summarize the current state of this Journey and identify the most important next step." },
+  { label: "Explore the current tension", message: "Help me explore the main tension in this Journey before deciding what to do." },
+  { label: "Recognize what wants continuity", message: "Review what has already been accomplished and what now needs continuity." },
+  { label: "Think out loud", message: "I want to think out loud about this Journey. Help me clarify the thread without rushing to a conclusion." },
 ];
 
 export function JourneyArrivalSurface({ journeyName, stage, onChoose }: Props) {
@@ -19,7 +19,7 @@ export function JourneyArrivalSurface({ journeyName, stage, onChoose }: Props) {
       <h2>Where would you like to begin?</h2>
       <p className="journey-arrival-copy">Choose a starting point or write your own message below. Nothing is sent until you decide.</p>
       <div className="journey-arrival-suggestions" aria-label="First message suggestions">
-        {suggestions.map((suggestion) => (
+        {journeyConversationStarters.map((suggestion) => (
           <button key={suggestion.label} type="button" onClick={() => onChoose(suggestion.message)}>
             {suggestion.label}
           </button>

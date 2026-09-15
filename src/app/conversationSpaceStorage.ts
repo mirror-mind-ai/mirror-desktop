@@ -10,6 +10,13 @@ export async function loadDesktopConversationCatalog(journeyId: string): Promise
   return parsed;
 }
 
+export async function deleteDesktopConversation(input: {
+  journeyId: string;
+  conversationId: string;
+}): Promise<void> {
+  await invoke<void>("delete_desktop_conversation", input);
+}
+
 export async function restartDesktopConversation(input: {
   journeyId: string;
   conversationId: string;

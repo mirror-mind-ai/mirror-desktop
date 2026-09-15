@@ -13,7 +13,7 @@ so that the root experience remains familiar, separate lines of work stay indepe
 
 ## Outcome
 
-The Journey root thread remains unchanged and outside the child catalog. `New conversation` provisions one model-free child thread and ready generation without changing the root or prior children. An empty child opens a dedicated first-turn surface with its own composer. Resume validates complete child authority. `Reset agent context` preserves the selected root-or-child continuity and prior generation while activating a fresh generation only after explicit fresh-context disclosure and complete provisioning.
+The Journey root thread remains unchanged and outside the child catalog. `New conversation` provisions one model-free child thread and ready generation without changing the root or prior children. An empty child opens the shared Conversation-detail start surface with four English starting points that only fill its own composer. Resume validates complete child authority. `Reset agent context` preserves the selected root-or-child continuity and prior generation while activating a fresh generation only after explicit fresh-context disclosure and complete provisioning.
 
 ## Acceptance Behavior
 
@@ -50,7 +50,8 @@ And events, Steering, cancellation and settlement remain owned by A
 - Root Journey workspace preservation outside the child catalog.
 - Model-free child Conversation creation and atomic ready publication.
 - Exact root-or-child selection and child resumption.
-- Dedicated empty child start surface.
+- Shared Conversation-detail start surface for an empty child.
+- Confirmed, recoverable Desktop-child deletion from its row context menu.
 - Per-root/Conversation draft and selected-state persistence.
 - `Reset agent context` naming, disclosure and generation replacement.
 - Existing Journey-level one-lease and global four-Journey admission contracts.

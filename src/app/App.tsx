@@ -104,7 +104,7 @@ import { FocusedSidebarResizeHandle } from "./FocusedSidebarResizeHandle";
 import { loadFocusedSidebarWidth, saveFocusedSidebarWidth } from "./focusedSidebarWidthStorage";
 import { MirrorHistoryActionSurface } from "./MirrorHistoryActionSurface";
 import {
-  createDesktopConversation, loadDesktopConversationCatalog,
+  createDesktopConversation, deleteDesktopConversation, loadDesktopConversationCatalog,
   reconcileDesktopConversationCatalogEntry, restartDesktopConversation,
 } from "./conversationSpaceStorage";
 import { loadMirrorConversationCatalog, openMirrorConversationInTerminal, renameMirrorConversation } from "./mirrorConversationCatalog";
@@ -3077,6 +3077,31 @@ export function App({ model }: AppProps) {
     }
   }
 
+  async function deleteSelectedDesktopConversation(entry: Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>) {
+    if (runtimeBusy || conversationActionBusy) return;
+    const confirmed = window.confirm(
+      `Delete “${entry.title}”?\n\nThis permanently removes this Desktop Conversation, its local history and its generated Mirror Core records. This cannot be undone.`,
+    );
+    if (!confirmed) return;
+    setConversationActionBusy(true);
+    setConversationActionMessage("Deleting Desktop Conversation…");
+    try {
+      await deleteDesktopConversation({ journeyId: selectedJourney, conversationId: entry.conversationId });
+      setConversationCatalog((current) => current.filter((candidate) => candidate.conversationId !== entry.conversationId));
+      setComposerDrafts((current) => {
+        const next = { ...current };
+        delete next[conversationDraftKey(selectedJourney, entry.conversationId)];
+        return next;
+      });
+      dispatchConversationFocus({ type: "select_root", journeyId: selectedJourney });
+      setConversationActionMessage("Desktop Conversation deleted.");
+    } catch (error) {
+      setConversationActionMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setConversationActionBusy(false);
+    }
+  }
+
   async function renameSelectedMirrorHistory(entry: Extract<ConversationCatalogEntry, { kind: "mirror_history" }>) {
     if (!availableConversationActions(entry).includes("rename_in_mirror")) return;
     const requested = window.prompt("Rename this conversation in Mirror", entry.title);
@@ -3920,7 +3945,7 @@ export function App({ model }: AppProps) {
                   entries={conversationCatalog}
                   status={conversationCatalogStatus === "idle" ? "loading" : conversationCatalogStatus}
                   error={conversationCatalogError}
-                  busy={conversationActionBusy}
+                  busy={conversationActionBusy || runtimeBusy}
                   actionMessage={conversationActionMessage}
                   onCreateConversation={() => void createBlankDesktopConversation()}
                   onSelectEntry={(entry) => dispatchConversationFocus({
@@ -3931,6 +3956,7 @@ export function App({ model }: AppProps) {
                   onContinueMirror={(entry) => void createConversationFromMirrorHistory(entry)}
                   onOpenMirrorTerminal={(entry) => void openSelectedMirrorHistoryInTerminal(entry)}
                   onRenameMirror={(entry) => void renameSelectedMirrorHistory(entry)}
+                  onDeleteDesktop={(entry) => void deleteSelectedDesktopConversation(entry)}
                 />
               ) : null}
               </Fragment>
@@ -4152,7 +4178,12 @@ export function App({ model }: AppProps) {
         >
           {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}
           {messages.length === 0 && journeyThreadState.kind === "ready" && selectedConversationEntry?.kind === "desktop_conversation" ? (
-            <EmptyDesktopConversation title={selectedConversationEntry.title} />
+            <EmptyDesktopConversation
+              title={selectedConversationEntry.title}
+              journeyName={selectedJourneyItem.name}
+              createdAt={selectedConversationEntry.authority.generations[0].createdAt}
+              onChoose={(text) => setJourneyComposerDraft(selectedJourney, text)}
+            />
           ) : null}
           {messages.length === 0 && journeyThreadState.kind === "ready" && selectedConversationSpace.kind === "journey_workspace" ? (
             <JourneyArrivalSurface

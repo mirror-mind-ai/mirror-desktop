@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { JourneyArrivalSurface } from "../app/JourneyArrivalSurface";
+import { JourneyArrivalSurface, journeyConversationStarters } from "../app/JourneyArrivalSurface";
 
  describe("Journey arrival surface", () => {
   it("offers a model-free situated threshold outside the transcript", () => {
@@ -23,6 +23,9 @@ import { JourneyArrivalSurface } from "../app/JourneyArrivalSurface";
     const element = JourneyArrivalSurface({ journeyName: "Journey", onChoose });
     const buttons = Array.isArray(element.props.children) ? element.props.children : [];
     expect(JSON.stringify(buttons)).toContain("Explore the current tension");
+    expect(journeyConversationStarters).toHaveLength(4);
+    expect(journeyConversationStarters[0].message).toContain("current state of this Journey");
+    expect(journeyConversationStarters.some((suggestion) => /Onde|Qual tensão|Quero pensar/.test(suggestion.message))).toBe(false);
     expect(onChoose).not.toHaveBeenCalled();
   });
 });

@@ -16,10 +16,11 @@ IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,255}$")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("catalog", "inspect", "rename"))
+    parser.add_argument("operation", choices=("catalog", "inspect", "rename", "delete"))
     parser.add_argument("--journey-id", required=True)
     parser.add_argument("--conversation-id")
     parser.add_argument("--title")
+    parser.add_argument("--conversation-ids-json")
     parser.add_argument("--limit", type=int, default=30)
     parser.add_argument("--mirror-root", type=Path, required=True)
     parser.add_argument("--mirror-home", type=Path, required=True)
@@ -104,7 +105,7 @@ def main() -> None:
                 "journeyId": args.journey_id,
                 "conversationId": conversation.id,
             }
-        else:
+        elif args.operation == "rename":
             conversation = exact_conversation(mem, args)
             if not isinstance(args.title, str):
                 fail(args.operation, args.journey_id, "invalid_title")
@@ -121,6 +122,39 @@ def main() -> None:
                 "journeyId": args.journey_id,
                 "conversationId": updated.id,
                 "title": updated.title,
+            }
+        else:
+            try:
+                requested_ids = json.loads(args.conversation_ids_json or "")
+            except (TypeError, json.JSONDecodeError):
+                fail(args.operation, args.journey_id, "invalid_conversation_ids")
+            if (
+                not isinstance(requested_ids, list)
+                or not 1 <= len(requested_ids) <= MAX_CATALOG_LIMIT
+                or len(requested_ids) != len(set(requested_ids))
+                or any(not isinstance(item, str) or not IDENTIFIER_RE.fullmatch(item) for item in requested_ids)
+            ):
+                fail(args.operation, args.journey_id, "invalid_conversation_ids")
+            existing_ids = []
+            missing_ids = []
+            for conversation_id in requested_ids:
+                conversation = mem.conversations.find_by_id_prefix(conversation_id)
+                if conversation is None:
+                    missing_ids.append(conversation_id)
+                elif conversation.id != conversation_id or conversation.journey != args.journey_id:
+                    fail(args.operation, args.journey_id, "conversation_unavailable")
+                else:
+                    existing_ids.append(conversation.id)
+            deleted_ids = mem.conversations.delete_conversations(existing_ids) if existing_ids else []
+            if set(deleted_ids) != set(existing_ids):
+                fail(args.operation, args.journey_id, "persistence_failure")
+            result = {
+                "schemaVersion": "1.0.0",
+                "operation": "delete",
+                "status": "ok",
+                "journeyId": args.journey_id,
+                "deletedConversationIds": deleted_ids,
+                "alreadyMissingConversationIds": missing_ids,
             }
     print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
 

@@ -2,9 +2,10 @@ import { useEffect, useRef } from "react";
 import type { ConversationCatalogEntry } from "../domain/conversationSpaces";
 
 type MirrorEntry = Extract<ConversationCatalogEntry, { kind: "mirror_history" }>;
+type DesktopEntry = Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>;
 
 type Props = {
-  entry: MirrorEntry;
+  entry: ConversationCatalogEntry;
   x: number;
   y: number;
   busy?: boolean;
@@ -12,6 +13,7 @@ type Props = {
   onContinue: (entry: MirrorEntry) => void;
   onOpenTerminal: (entry: MirrorEntry) => void;
   onRename: (entry: MirrorEntry) => void;
+  onDeleteDesktop: (entry: DesktopEntry) => void;
   onDismiss: () => void;
 };
 
@@ -44,9 +46,16 @@ export function ConversationEntryContextMenu(props: Props) {
     };
   }, []);
 
-  function invoke(action: (entry: MirrorEntry) => void) {
+  function invokeMirror(action: (entry: MirrorEntry) => void) {
+    if (props.entry.kind !== "mirror_history") return;
     props.onDismiss();
     action(props.entry);
+  }
+
+  function deleteDesktop() {
+    if (props.entry.kind !== "desktop_conversation") return;
+    props.onDismiss();
+    props.onDeleteDesktop(props.entry);
   }
 
   return <div
@@ -56,8 +65,10 @@ export function ConversationEntryContextMenu(props: Props) {
     aria-label={`${props.entry.title} options`}
     style={{ left: props.x, top: props.y }}
   >
-    <button type="button" role="menuitem" disabled={props.busy} onClick={() => invoke(props.onContinue)}>Continue in new Desktop Conversation</button>
-    <button type="button" role="menuitem" disabled={props.busy} onClick={() => invoke(props.onOpenTerminal)}>Continue with recalled context in Terminal</button>
-    <button type="button" role="menuitem" disabled={props.busy} onClick={() => invoke(props.onRename)}>Rename in Mirror…</button>
+    {props.entry.kind === "mirror_history" ? <>
+      <button type="button" role="menuitem" disabled={props.busy} onClick={() => invokeMirror(props.onContinue)}>Continue in new Desktop Conversation</button>
+      <button type="button" role="menuitem" disabled={props.busy} onClick={() => invokeMirror(props.onOpenTerminal)}>Continue with recalled context in Terminal</button>
+      <button type="button" role="menuitem" disabled={props.busy} onClick={() => invokeMirror(props.onRename)}>Rename in Mirror…</button>
+    </> : <button className="danger-menu-item" type="button" role="menuitem" disabled={props.busy} onClick={deleteDesktop}>Delete Conversation…</button>}
   </div>;
 }

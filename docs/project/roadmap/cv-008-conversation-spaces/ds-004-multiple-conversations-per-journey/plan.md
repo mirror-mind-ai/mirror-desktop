@@ -30,12 +30,13 @@ Preserve the existing click-a-Journey-and-converse workspace as the default root
 - Preserve the existing Journey-level workspace, thread, transcript, composer and click behavior as the root surface. It must not appear as an ordinary associated-Conversation row.
 - Introduce a bounded associated-Conversation catalog containing exact Desktop-ready child Conversations and metadata-only Mirror history entries.
 - Make each additional Desktop Conversation own one dedicated thread and ordered generations; retain Journey as the native execution-lease key shared with the root workspace.
+- Delete an explicitly confirmed Desktop child through recoverable native authority, including its generated Mirror Core generations, while never targeting the root or generic Mirror history.
 - Add explicit `journey_workspace`, `desktop_conversation` and `mirror_history` surface kinds to selection, drafts, provisioning, reset, events, settlement and recovery boundaries.
 - Keep Mirror-history selection inert and validate exact Journey, Conversation, thread, generation, Pi session, Mirror conversation, activation receipt and channel evidence before a Desktop child can execute.
 
 ### Current released Mirror integration
 
-- Use only supported released runtime capabilities: Journey-filtered recent summaries, exact full-ID lookup, manual title update and recall.
+- Use only supported released runtime capabilities: Journey-filtered recent summaries, exact full-ID lookup, manual title update, recall and exact selected-conversation deletion.
 - Invoke Mirror through packaged helper processes and `MemoryClient`; never open SQLite from frontend or native Desktop code.
 - Require exact `journey == mirror-desktop` validation before returning metadata, renaming or preparing any source action.
 - Treat generic Mirror history as non-executable in Desktop because it lacks complete Desktop thread and Pi authority.
@@ -108,7 +109,7 @@ Preserve the existing click-a-Journey-and-converse workspace as the default root
 2. Add explicit expand/collapse: a downward arrow inserts Conversations beneath the Journey without hiding siblings; the Journey card returns to root; collapse removes only the inline list without changing active-run owner state.
 3. Load bounded child metadata independently from transcript bodies.
 4. Present ready, available in Mirror, preparing handoff and needs-attention states accessibly.
-5. Route ready children to transcript/composer or empty-start surfaces and Mirror history to a non-executable action surface.
+5. Route ready children to transcript/composer or a shared Conversation-detail start surface with four editable unsent English prompts, and Mirror history to a non-executable action surface.
 6. Add explicit `Rename in Mirror` with confirmation, full-ID/Journey revalidation and model-free update.
 7. Add bounded accessible sidebar resizing and channel-local preference persistence.
 
