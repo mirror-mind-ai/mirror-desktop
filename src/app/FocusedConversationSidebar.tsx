@@ -8,6 +8,7 @@ type Props = {
   status: "loading" | "ready" | "error";
   error?: string;
   onCollapse: () => void;
+  onCreateConversation: () => void;
   onSelectRoot: () => void;
   onSelectEntry: (entry: ConversationCatalogEntry) => void;
 };
@@ -29,6 +30,9 @@ export function FocusedConversationSidebar(props: Props) {
     <div className="focused-conversation-heading">
       <span>Conversations</span><small>{props.entries.length}</small>
     </div>
+    <button className="focused-conversation-create" type="button" onClick={props.onCreateConversation}>
+      <span aria-hidden="true">＋</span> New conversation
+    </button>
     {props.status === "loading" ? <p className="focused-conversation-status" role="status">Loading conversations…</p> : null}
     {props.status === "error" ? <p className="focused-conversation-status error" role="alert">{props.error ?? "Conversations are unavailable."}</p> : null}
     {props.status === "ready" && props.entries.length === 0 ? <p className="focused-conversation-status">No additional conversations yet.</p> : null}

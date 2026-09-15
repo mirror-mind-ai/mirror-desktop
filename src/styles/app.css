@@ -6712,3 +6712,91 @@ dd {
     width: 100%;
   }
 }
+
+.app-shell.conversation-focused {
+  grid-template-columns: var(--focused-sidebar-width, 292px) minmax(560px, 1fr);
+}
+
+.conversation-focused .journey-sidebar > :not(.brand-block):not(.focused-conversation-sidebar):not(.focused-sidebar-resize-handle) {
+  display: none;
+}
+
+.focused-sidebar-resize-handle {
+  position: absolute;
+  inset: 0 -5px 0 auto;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 4;
+}
+
+.focused-sidebar-resize-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0 4px;
+  background: color-mix(in srgb, var(--accent) 38%, transparent);
+  opacity: 0;
+}
+
+.focused-sidebar-resize-handle:hover::after,
+.focused-sidebar-resize-handle:focus-visible::after { opacity: 1; }
+.focused-sidebar-resize-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+
+.focused-conversation-sidebar {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.focused-journey-collapse,
+.focused-journey-root,
+.focused-conversation-entry {
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.focused-journey-collapse { padding: 8px; color: var(--text-muted); }
+.focused-journey-root,
+.focused-conversation-entry { padding: 10px; }
+.focused-journey-root.selected,
+.focused-conversation-entry.selected { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.focused-journey-root small,
+.focused-conversation-entry small { display: block; margin-top: 3px; color: var(--text-muted); }
+.focused-conversation-heading { display: flex; justify-content: space-between; padding: 12px 10px 4px; color: var(--text-muted); }
+.focused-conversation-create {
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--text);
+  padding: 9px 10px;
+  text-align: left;
+}
+.focused-conversation-list { min-height: 0; overflow-y: auto; }
+.focused-conversation-entry { display: grid; width: 100%; grid-template-columns: 22px minmax(0, 1fr); gap: 7px; }
+.focused-conversation-entry strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.focused-conversation-status { padding: 8px 10px; color: var(--text-muted); }
+.focused-conversation-status.error { color: var(--danger, #b94444); }
+
+.mirror-history-action-surface,
+.desktop-conversation-start-surface {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  place-items: center;
+  overflow: auto;
+  padding: 32px;
+}
+
+.mirror-history-action-card,
+.desktop-conversation-start-surface > * { width: min(680px, 100%); }
+.mirror-history-action-card dl { display: grid; gap: 8px; }
+.mirror-history-action-card dl div { display: flex; justify-content: space-between; gap: 20px; }
+.mirror-history-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.desktop-conversation-start-surface { align-content: center; }
+.desktop-conversation-draft { display: grid; gap: 7px; margin-top: 20px; }
+.desktop-conversation-draft textarea { min-height: 180px; resize: vertical; }

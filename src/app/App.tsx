@@ -98,6 +98,13 @@ import { JourneyProjectionNotice } from "./JourneyProjectionNotice";
 import { JourneyProjectionLoadingState } from "./JourneyProjectionLoadingState";
 import { JourneyThreadState, type JourneyThreadDisplayState } from "./JourneyThreadState";
 import { JourneyArrivalSurface } from "./JourneyArrivalSurface";
+import { EmptyDesktopConversation } from "./EmptyDesktopConversation";
+import { FocusedConversationSidebar } from "./FocusedConversationSidebar";
+import { FocusedSidebarResizeHandle } from "./FocusedSidebarResizeHandle";
+import { loadFocusedSidebarWidth, saveFocusedSidebarWidth } from "./focusedSidebarWidthStorage";
+import { MirrorHistoryActionSurface } from "./MirrorHistoryActionSurface";
+import { createDesktopConversation, loadDesktopConversationCatalog } from "./conversationSpaceStorage";
+import { loadMirrorConversationCatalog, openMirrorConversationInTerminal, renameMirrorConversation } from "./mirrorConversationCatalog";
 import { loadDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import { projectGenerationHistory } from "../domain/journeyThreadRestart";
@@ -170,6 +177,14 @@ import {
   grammarStateFromViewModel,
   type ConversationMessage,
 } from "../agent/piTaskPacket";
+import {
+  availableConversationActions,
+  createAgentHandoffPrompt,
+  reduceConversationFocus,
+  type ConversationCatalogEntry,
+  type ConversationFocusState,
+  DEFAULT_FOCUSED_SIDEBAR_WIDTH,
+} from "../domain/conversationSpaces";
 import {
   createJourneyConversation,
   createDedicatedJourneyConversation,
@@ -454,6 +469,32 @@ export function App({ model }: AppProps) {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
   const [reviewedUpdate, setReviewedUpdate] = useState<SelfUpdateCheckResult & { status: "available" }>();
   const [whatsNewState, setWhatsNewState] = useState<ResolvedWhatsNewState>();
+  const [conversationFocus, dispatchConversationFocus] = useReducer(
+    reduceConversationFocus,
+    { kind: "all_journeys" } as ConversationFocusState,
+  );
+  const [conversationCatalog, setConversationCatalog] = useState<ConversationCatalogEntry[]>([]);
+  const [conversationCatalogStatus, setConversationCatalogStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [conversationCatalogError, setConversationCatalogError] = useState<string>();
+  const [conversationActionBusy, setConversationActionBusy] = useState(false);
+  const [conversationActionMessage, setConversationActionMessage] = useState<string>();
+  const [handoffDraftByConversationId, setHandoffDraftByConversationId] = useState<Record<string, string>>({});
+  const [focusedSidebarWidth, setFocusedSidebarWidth] = useState(DEFAULT_FOCUSED_SIDEBAR_WIDTH);
+  const [runtimeChannel, setRuntimeChannel] = useState<RuntimeChannelDiagnostic>();
+
+  useEffect(() => {
+    if (!runtimeChannel?.channel) return;
+    setFocusedSidebarWidth(loadFocusedSidebarWidth(runtimeChannel.channel, window.innerWidth));
+  }, [runtimeChannel?.channel]);
+
+  useEffect(() => {
+    if (conversationFocus.kind !== "focused_journey") return;
+    const resize = () => setFocusedSidebarWidth((current) => saveFocusedSidebarWidth(
+      runtimeChannel?.channel ?? "checking", current, window.innerWidth,
+    ));
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [conversationFocus.kind, runtimeChannel?.channel]);
 
   useEffect(() => {
     let cancelled = false;
@@ -471,7 +512,6 @@ export function App({ model }: AppProps) {
     await saveWhatsNewState(acknowledged);
     setWhatsNewState(resolveWhatsNewState(acknowledged, installed.version));
   }
-  const [runtimeChannel, setRuntimeChannel] = useState<RuntimeChannelDiagnostic>();
   const [runtimeChannelError, setRuntimeChannelError] = useState<string>();
   const [runtimeMirrorRoot, setRuntimeMirrorRoot] = useState("");
   const [runtimeMirrorHome, setRuntimeMirrorHome] = useState("");
@@ -557,6 +597,13 @@ export function App({ model }: AppProps) {
   const selectedJourneyVisual = journeyVisual(selectedJourneyItem.id);
   const selectedJourneyAppearance = journeyAppearanceById[selectedJourneyItem.id];
   const selectedJourneyBasePath = selectedJourneyItem.projectPath;
+  const selectedConversationSpace = conversationFocus.kind === "focused_journey" && conversationFocus.journeyId === selectedJourney
+    ? conversationFocus.selection
+    : { kind: "journey_workspace" as const, journeyId: selectedJourney };
+  const selectedConversationEntry = selectedConversationSpace.kind === "journey_workspace"
+    ? undefined
+    : conversationCatalog.find((entry) => entry.kind === selectedConversationSpace.kind
+      && entry.conversationId === selectedConversationSpace.conversationId);
   const navigationPresentation = deriveJourneyNavigationPresentation({
     runtimeState: journeyRuntimeState,
     selectedJourneyId: selectedJourney,
@@ -2784,9 +2831,123 @@ export function App({ model }: AppProps) {
     setProviderSafeTestMode(defaultPiProviderConfig.safeTestMode);
   }
 
+  async function expandSelectedJourneyConversations() {
+    if (!selectedJourney || journeyThreadState.kind !== "ready") return;
+    const ownerJourneyId = selectedJourney;
+    dispatchConversationFocus({ type: "expand", journeyId: ownerJourneyId });
+    setConversationCatalogStatus("loading");
+    setConversationCatalogError(undefined);
+    setConversationActionMessage(undefined);
+    try {
+      const desktopEntries = await loadDesktopConversationCatalog(ownerJourneyId);
+      const managedMirrorConversationIds = [
+        ...journeyThreadState.thread.generations.map((generation) => generation.mirrorConversationId),
+        ...desktopEntries.map((entry) => entry.conversationId),
+      ];
+      const mirrorEntries = await loadMirrorConversationCatalog({
+        journeyId: ownerJourneyId,
+        rootThreadId: journeyThreadState.thread.threadId,
+        managedMirrorConversationIds,
+        limit: 50,
+      });
+      if (selectedJourneyRef.current !== ownerJourneyId) return;
+      setConversationCatalog([...desktopEntries, ...mirrorEntries]
+        .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)));
+      setConversationCatalogStatus("ready");
+    } catch (error) {
+      if (selectedJourneyRef.current !== ownerJourneyId) return;
+      setConversationCatalogStatus("error");
+      setConversationCatalogError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function createBlankDesktopConversation() {
+    setConversationActionBusy(true);
+    setConversationActionMessage("Creating dedicated Desktop authority…");
+    try {
+      const created = await createDesktopConversation({
+        journeyId: selectedJourney,
+        journeyName: selectedJourneyItem.name,
+      });
+      setConversationCatalog((current) => [created, ...current]);
+      setHandoffDraftByConversationId((current) => ({ ...current, [created.conversationId]: "" }));
+      dispatchConversationFocus({ type: "select_desktop", journeyId: selectedJourney, conversationId: created.conversationId });
+      setConversationActionMessage(undefined);
+    } catch (error) {
+      setConversationActionMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setConversationActionBusy(false);
+    }
+  }
+
+  async function createConversationFromMirrorHistory(entry: Extract<ConversationCatalogEntry, { kind: "mirror_history" }>) {
+    if (!availableConversationActions(entry).includes("create_agent_handoff")) return;
+    setConversationActionBusy(true);
+    setConversationActionMessage("Creating dedicated Desktop authority…");
+    try {
+      const created = await createDesktopConversation({
+        journeyId: selectedJourney,
+        journeyName: selectedJourneyItem.name,
+        sourceConversationId: entry.conversationId,
+        sourceMessageLimit: 30,
+      });
+      const prompt = createAgentHandoffPrompt({
+        journeyId: selectedJourney,
+        sourceConversationId: entry.conversationId,
+        messageLimit: 30,
+      });
+      setConversationCatalog((current) => [created, ...current]);
+      setHandoffDraftByConversationId((current) => ({ ...current, [created.conversationId]: prompt }));
+      dispatchConversationFocus({ type: "select_desktop", journeyId: selectedJourney, conversationId: created.conversationId });
+      setConversationActionMessage(undefined);
+    } catch (error) {
+      setConversationActionMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setConversationActionBusy(false);
+    }
+  }
+
+  async function openSelectedMirrorHistoryInTerminal(entry: Extract<ConversationCatalogEntry, { kind: "mirror_history" }>) {
+    if (!availableConversationActions(entry).includes("open_terminal_recall")) return;
+    setConversationActionBusy(true);
+    setConversationActionMessage("Opening bounded recalled context in Terminal…");
+    try {
+      await openMirrorConversationInTerminal({ journeyId: selectedJourney, conversationId: entry.conversationId, messageLimit: 30 });
+      setConversationActionMessage("Terminal opened with a bounded recalled-context handoff.");
+    } catch (error) {
+      setConversationActionMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setConversationActionBusy(false);
+    }
+  }
+
+  async function renameSelectedMirrorHistory(entry: Extract<ConversationCatalogEntry, { kind: "mirror_history" }>) {
+    if (!availableConversationActions(entry).includes("rename_in_mirror")) return;
+    const requested = window.prompt("Rename this conversation in Mirror", entry.title);
+    if (requested === null || !requested.trim() || requested.trim() === entry.title) return;
+    setConversationActionBusy(true);
+    setConversationActionMessage("Renaming in Mirror…");
+    try {
+      const renamed = await renameMirrorConversation({ journeyId: selectedJourney, conversationId: entry.conversationId, title: requested });
+      setConversationCatalog((current) => current.map((candidate) => candidate.conversationId === entry.conversationId
+        ? { ...candidate, title: renamed.title }
+        : candidate));
+      setConversationActionMessage("Canonical Mirror title updated.");
+    } catch (error) {
+      setConversationActionMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setConversationActionBusy(false);
+    }
+  }
+
   function selectJourney(journeyId: string, intent: JourneyNavigationIntent = "pointer") {
     journeyId = resolveJourneySelection(selectedJourney, journeyId, intent);
     if (journeyId === selectedJourney) return;
+    if (conversationFocus.kind === "focused_journey") {
+      dispatchConversationFocus({ type: "collapse", journeyId: conversationFocus.journeyId });
+      setConversationCatalog([]);
+      setConversationCatalogStatus("idle");
+    }
 
     const runtimeEntry = selectJourneyRuntime(journeyRuntimeState, journeyId);
     const runtimeSnapshot = runtimeEntry.conversationSnapshot
@@ -3303,9 +3464,10 @@ export function App({ model }: AppProps) {
 
   return (
     <main
-      className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
+      className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${conversationFocus.kind === "focused_journey" ? "conversation-focused" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
       data-runtime-channel={runtimeChannel?.channel}
       data-application-theme={applicationTheme}
+      style={{ "--focused-sidebar-width": `${focusedSidebarWidth}px` } as CSSProperties}
     >
       <aside className="journey-sidebar" aria-label="Journeys">
         <div className="brand-block">
@@ -3334,6 +3496,28 @@ export function App({ model }: AppProps) {
             <span aria-hidden="true">{sidebarCompact ? "›" : "‹"}</span>
           </button>
         </div>
+
+        {conversationFocus.kind === "focused_journey" ? (
+          <FocusedConversationSidebar
+            journeyId={selectedJourney}
+            journeyName={selectedJourneyItem.name}
+            selected={selectedConversationSpace}
+            entries={conversationCatalog}
+            status={conversationCatalogStatus === "idle" ? "loading" : conversationCatalogStatus}
+            error={conversationCatalogError}
+            onCollapse={() => {
+              dispatchConversationFocus({ type: "collapse", journeyId: selectedJourney });
+              setConversationActionMessage(undefined);
+            }}
+            onCreateConversation={() => void createBlankDesktopConversation()}
+            onSelectRoot={() => dispatchConversationFocus({ type: "select_root", journeyId: selectedJourney })}
+            onSelectEntry={(entry) => dispatchConversationFocus({
+              type: entry.kind === "desktop_conversation" ? "select_desktop" : "select_mirror",
+              journeyId: selectedJourney,
+              conversationId: entry.conversationId,
+            })}
+          />
+        ) : null}
 
         <JourneySearchControl
           query={journeySearch}
@@ -3541,6 +3725,15 @@ export function App({ model }: AppProps) {
             );
           })}
         </div>
+        {conversationFocus.kind === "focused_journey" ? (
+          <FocusedSidebarResizeHandle
+            width={focusedSidebarWidth}
+            viewportWidth={window.innerWidth}
+            onChange={(width) => setFocusedSidebarWidth(saveFocusedSidebarWidth(
+              runtimeChannel?.channel ?? "checking", width, window.innerWidth,
+            ))}
+          />
+        ) : null}
         {journeyItemMenu ? (
           <JourneyItemContextMenu
             journeyId={journeyItemMenu.journeyId}
@@ -3592,6 +3785,17 @@ export function App({ model }: AppProps) {
                 </div>
               </div>
               <div className="chat-header-actions">
+                <button
+                  className={`menu-button conversation-browser-shortcut ${conversationFocus.kind === "focused_journey" ? "selected" : ""}`}
+                  type="button"
+                  onClick={() => void expandSelectedJourneyConversations()}
+                  disabled={journeyThreadState.kind !== "ready"}
+                  aria-label="Browse conversations"
+                  aria-expanded={conversationFocus.kind === "focused_journey"}
+                  title="Browse conversations"
+                >
+                  <span aria-hidden="true">☷</span>
+                </button>
                 <button
                   className={`menu-button conversation-shortcut ${operationalChatSelected ? "selected" : ""}`}
                   type="button"
@@ -3703,7 +3907,35 @@ export function App({ model }: AppProps) {
           )
         ) : null}
 
-        {operationalChatSelected && journeyThreadState.kind !== "ready" ? (
+        {operationalChatSelected && selectedConversationEntry?.kind === "mirror_history" ? (
+          <MirrorHistoryActionSurface
+            journeyId={selectedJourney}
+            entry={selectedConversationEntry}
+            busy={conversationActionBusy}
+            message={conversationActionMessage}
+            onCreateHandoff={() => void createConversationFromMirrorHistory(selectedConversationEntry)}
+            onOpenTerminal={() => void openSelectedMirrorHistoryInTerminal(selectedConversationEntry)}
+            onRename={() => void renameSelectedMirrorHistory(selectedConversationEntry)}
+          />
+        ) : null}
+        {operationalChatSelected && selectedConversationEntry?.kind === "desktop_conversation" ? (
+          <section className="desktop-conversation-start-surface">
+            <EmptyDesktopConversation title={selectedConversationEntry.title} />
+            <label className="desktop-conversation-draft">First-turn prompt
+              <textarea
+                aria-label="Desktop conversation first-turn prompt"
+                value={handoffDraftByConversationId[selectedConversationEntry.conversationId] ?? ""}
+                maxLength={COMPOSER_DRAFT_MAX_CHARS}
+                onChange={(event) => setHandoffDraftByConversationId((current) => ({
+                  ...current, [selectedConversationEntry.conversationId]: event.target.value,
+                }))}
+              />
+            </label>
+            <p className="provider-note">This prompt is editable and remains unsent until you explicitly send it.</p>
+          </section>
+        ) : null}
+
+        {operationalChatSelected && selectedConversationSpace.kind === "journey_workspace" && journeyThreadState.kind !== "ready" ? (
           <JourneyThreadState
             journeyName={selectedJourneyItem.name}
             state={journeyThreadState}
@@ -3719,7 +3951,7 @@ export function App({ model }: AppProps) {
           className="chat-stream"
           role="tabpanel"
           aria-label="Conversation"
-          hidden={!operationalChatSelected || journeyThreadState.kind !== "ready"}
+          hidden={!operationalChatSelected || selectedConversationSpace.kind !== "journey_workspace" || journeyThreadState.kind !== "ready"}
           ref={chatStreamRef}
           onScroll={(event) => {
             const container = event.currentTarget;
@@ -3762,7 +3994,7 @@ export function App({ model }: AppProps) {
         <section
           className="composer"
           aria-label="Message composer"
-          hidden={!operationalChatSelected || journeyThreadState.kind !== "ready"}
+          hidden={!operationalChatSelected || selectedConversationSpace.kind !== "journey_workspace" || journeyThreadState.kind !== "ready"}
         >
           <ComposerRuntimeStatus status={composerTurnStatus} />
           {!runtimeBindingReady ? <p className="provider-error" role="status">Connect and validate a Mirror installation in Runtime Settings before starting Mirror or Pi actions.</p> : null}

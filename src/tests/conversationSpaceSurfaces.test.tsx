@@ -28,11 +28,13 @@ describe("conversation space surfaces", () => {
       }]}
       status="ready"
       onCollapse={vi.fn()}
+      onCreateConversation={vi.fn()}
       onSelectRoot={vi.fn()}
       onSelectEntry={vi.fn()}
     />);
     expect(html).toContain("Back to all Journeys");
     expect(html).toContain("Journey workspace");
+    expect(html).toContain("New conversation");
     expect(html).toContain("Desktop child");
     expect(html).toContain("Available in Mirror");
   });
