@@ -3921,6 +3921,7 @@ export function App({ model }: AppProps) {
                   status={conversationCatalogStatus === "idle" ? "loading" : conversationCatalogStatus}
                   error={conversationCatalogError}
                   busy={conversationActionBusy}
+                  actionMessage={conversationActionMessage}
                   onCreateConversation={() => void createBlankDesktopConversation()}
                   onSelectEntry={(entry) => dispatchConversationFocus({
                     type: entry.kind === "desktop_conversation" ? "select_desktop" : "select_mirror",

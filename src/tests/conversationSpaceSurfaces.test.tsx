@@ -39,6 +39,7 @@ describe("conversation space surfaces", () => {
         availability: "available_in_mirror",
       }]}
       status="ready"
+      actionMessage="Creating dedicated Desktop authority…"
       onCreateConversation={vi.fn()}
       onSelectEntry={vi.fn()}
       onContinueMirror={vi.fn()}
@@ -46,6 +47,7 @@ describe("conversation space surfaces", () => {
       onRenameMirror={vi.fn()}
     />);
     expect(html).toContain("Conversations");
+    expect(html).toContain("Creating dedicated Desktop authority…");
     expect(html).toContain("New conversation");
     expect(html).not.toContain("Back to all Journeys");
     expect(html).not.toContain("Journey workspace");

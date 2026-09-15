@@ -229,7 +229,7 @@ export function createAgentHandoffPrompt(input: {
   messageLimit: number;
 }): string {
   assertJourneyId(input.journeyId);
-  assertIdentifier(input.sourceConversationId);
+  assertMirrorIdentifier(input.sourceConversationId);
   if (!Number.isInteger(input.messageLimit)
     || input.messageLimit < MIN_HANDOFF_MESSAGE_LIMIT
     || input.messageLimit > MAX_HANDOFF_MESSAGE_LIMIT) throw new Error("Handoff message limit is invalid.");
@@ -276,7 +276,7 @@ function parseDesktopAuthority(
     const piSessionFile = boundedString(candidate.piSessionFile, 4096);
     const generationMirrorId = String(candidate.mirrorConversationId ?? "");
     assertIdentifier(piSessionId);
-    assertIdentifier(generationMirrorId);
+    assertMirrorIdentifier(generationMirrorId);
     const createdAt = isoTimestamp(candidate.createdAt);
     const activatedAt = isoTimestamp(candidate.activatedAt);
     const closedAt = candidate.closedAt === undefined ? undefined : isoTimestamp(candidate.closedAt);

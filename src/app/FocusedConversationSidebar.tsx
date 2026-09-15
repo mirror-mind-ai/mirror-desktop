@@ -15,6 +15,7 @@ type Props = {
   status: "loading" | "ready" | "error";
   error?: string;
   busy?: boolean;
+  actionMessage?: string;
   onCreateConversation: () => void;
   onSelectEntry: (entry: ConversationCatalogEntry) => void;
   onContinueMirror: (entry: MirrorEntry) => void;
@@ -39,15 +40,17 @@ export function FocusedConversationSidebar(props: Props) {
         className="focused-conversation-create"
         type="button"
         onClick={props.onCreateConversation}
+        disabled={props.busy}
         aria-label={`Create new conversation in ${props.journeyName}`}
         title="New conversation"
       >
-        <span aria-hidden="true">＋</span><span>New</span>
+        <span aria-hidden="true">{props.busy ? "◌" : "＋"}</span><span>{props.busy ? "Working…" : "New"}</span>
       </button>
     </div>
     {props.status === "loading" ? <p className="focused-conversation-status" role="status">Loading conversations…</p> : null}
     {props.status === "error" ? <p className="focused-conversation-status error" role="alert">{props.error ?? "Conversations are unavailable."}</p> : null}
     {props.status === "ready" && props.entries.length === 0 ? <p className="focused-conversation-status">No additional conversations yet.</p> : null}
+    {props.actionMessage ? <p className="focused-conversation-status" role="status">{props.actionMessage}</p> : null}
     <div className="focused-conversation-list">
       {visibleEntries.map((entry) => {
         const selected = props.selected.kind === entry.kind && props.selected.conversationId === entry.conversationId;
