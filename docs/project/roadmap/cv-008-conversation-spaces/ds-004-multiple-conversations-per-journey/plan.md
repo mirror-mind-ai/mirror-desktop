@@ -3,7 +3,7 @@
 **Journey:** mirror-desktop
 **Method:** ariad
 **Navigator Flow Unit:** delivery_story
-**Revision:** Replaces the approved working-copy route; Navigator re-approval required
+**Revision:** Navigator-approved replacement for the prior working-copy route
 
 ## Delivery Story
 

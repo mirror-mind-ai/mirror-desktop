@@ -3,7 +3,7 @@
 # CV-008.DS-004 - Multiple Conversations per Journey
 
 **Status:** 🟡 Planned
-**Plan revision:** Navigator re-approval required before further implementation
+**Plan revision:** Approved aggregate no-core-update route under Delivery Story flow
 
 ## Outcome
 
