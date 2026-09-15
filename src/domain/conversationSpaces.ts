@@ -8,11 +8,15 @@ export const MIN_CONVERSATION_SURFACE_WIDTH = 560;
 export const MIN_HANDOFF_MESSAGE_LIMIT = 10;
 export const MAX_HANDOFF_MESSAGE_LIMIT = 100;
 
-export type DesktopConversationAuthority = {
+export type DesktopConversationGeneration = {
   generation: number;
+  status: "ready" | "inactive";
   piSessionId: string;
   piSessionFile: string;
-  runtimeChannel: "user" | "development";
+  mirrorConversationId: string;
+  createdAt: string;
+  activatedAt: string;
+  closedAt?: string;
   activationReceipt: {
     schemaVersion: "1.0.0";
     journeyId: string;
@@ -25,6 +29,12 @@ export type DesktopConversationAuthority = {
     runtimeChannel: "user" | "development";
     activatedAt: string;
   };
+};
+
+export type DesktopConversationAuthority = {
+  activeGeneration: number;
+  runtimeChannel: "user" | "development";
+  generations: DesktopConversationGeneration[];
 };
 
 export type JourneyWorkspaceSelection = {
@@ -132,7 +142,7 @@ export function parseConversationCatalog(
         if (seenThreads.has(threadId)) throw new Error("duplicate or root thread");
         seenThreads.add(threadId);
         if (!["ready", "preparing_handoff", "needs_attention"].includes(String(candidate.availability))) throw new Error("invalid availability");
-        const parsedAuthority = parseDesktopAuthority(candidate.authority, authority.journeyId, threadId, conversationId);
+        const parsedAuthority = parseDesktopAuthority(candidate.authority, authority.journeyId, threadId);
         return { kind: "desktop_conversation", conversationId, threadId, title, updatedAt, messageCount, availability: candidate.availability as "ready" | "preparing_handoff" | "needs_attention", authority: parsedAuthority };
       }
       if (candidate.kind === "mirror_history") {
@@ -183,26 +193,23 @@ export function desktopConversationThread(
   journeyId: string,
   entry: Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>,
 ): NautilusJourneyThread {
-  if (entry.authority.activationReceipt.journeyId !== journeyId) throw new Error("Desktop Conversation Journey authority is invalid.");
-  const createdAt = entry.authority.activationReceipt.activatedAt;
+  if (entry.authority.generations.some((generation) => generation.activationReceipt.journeyId !== journeyId)) {
+    throw new Error("Desktop Conversation Journey authority is invalid.");
+  }
+  const active = entry.authority.generations.find((generation) => generation.generation === entry.authority.activeGeneration);
+  if (!active || active.status !== "ready") throw new Error("Desktop Conversation active generation is invalid.");
+  const createdAt = entry.authority.generations[0].createdAt;
   return {
     schemaVersion: "1.0.0",
     threadId: entry.threadId,
     journeyId,
     runtimeChannel: entry.authority.runtimeChannel,
     createdAt,
-    activeGeneration: entry.authority.generation,
-    generations: [{
-      generation: entry.authority.generation,
-      status: "ready",
-      piSessionId: entry.authority.piSessionId,
-      piSessionFile: entry.authority.piSessionFile,
-      mirrorConversationId: entry.conversationId,
+    activeGeneration: entry.authority.activeGeneration,
+    generations: entry.authority.generations.map((generation) => ({
+      ...generation,
       mirrorConversationName: entry.title,
-      activationReceipt: entry.authority.activationReceipt,
-      createdAt,
-      activatedAt: createdAt,
-    }],
+    })),
   };
 }
 
@@ -250,25 +257,47 @@ function parseDesktopAuthority(
   value: unknown,
   journeyId: string,
   threadId: string,
-  mirrorConversationId: string,
 ): DesktopConversationAuthority {
-  if (!isRecord(value) || !Number.isInteger(value.generation) || Number(value.generation) < 1
-    || !["user", "development"].includes(String(value.runtimeChannel))) throw new Error("invalid authority");
-  const piSessionId = String(value.piSessionId ?? "");
-  const piSessionFile = boundedString(value.piSessionFile, 4096);
-  assertIdentifier(piSessionId);
-  const receipt = value.activationReceipt;
-  if (!isRecord(receipt) || receipt.schemaVersion !== "1.0.0" || receipt.journeyId !== journeyId
-    || receipt.threadId !== threadId || receipt.generation !== value.generation
-    || receipt.piSessionId !== piSessionId || receipt.mirrorConversationId !== mirrorConversationId
-    || receipt.mode !== "mirror" || receipt.commandAuthority !== "installed"
-    || receipt.runtimeChannel !== value.runtimeChannel || Number.isNaN(Date.parse(String(receipt.activatedAt)))) {
-    throw new Error("invalid activation receipt");
+  if (!isRecord(value) || !Number.isInteger(value.activeGeneration) || Number(value.activeGeneration) < 1
+    || !["user", "development"].includes(String(value.runtimeChannel))
+    || !Array.isArray(value.generations) || value.generations.length < 1 || value.generations.length > 100) {
+    throw new Error("invalid authority");
+  }
+  const generations = value.generations.map((candidate, index) => {
+    if (!isRecord(candidate) || candidate.generation !== index + 1
+      || !["ready", "inactive"].includes(String(candidate.status))) throw new Error("invalid generation");
+    const piSessionId = String(candidate.piSessionId ?? "");
+    const piSessionFile = boundedString(candidate.piSessionFile, 4096);
+    const generationMirrorId = String(candidate.mirrorConversationId ?? "");
+    assertIdentifier(piSessionId);
+    assertIdentifier(generationMirrorId);
+    const createdAt = isoTimestamp(candidate.createdAt);
+    const activatedAt = isoTimestamp(candidate.activatedAt);
+    const closedAt = candidate.closedAt === undefined ? undefined : isoTimestamp(candidate.closedAt);
+    const receipt = candidate.activationReceipt;
+    if (!isRecord(receipt) || receipt.schemaVersion !== "1.0.0" || receipt.journeyId !== journeyId
+      || receipt.threadId !== threadId || receipt.generation !== candidate.generation
+      || receipt.piSessionId !== piSessionId || receipt.mirrorConversationId !== generationMirrorId
+      || receipt.mode !== "mirror" || receipt.commandAuthority !== "installed"
+      || receipt.runtimeChannel !== value.runtimeChannel || receipt.activatedAt !== activatedAt) {
+      throw new Error("invalid activation receipt");
+    }
+    return {
+      generation: index + 1, status: candidate.status as "ready" | "inactive", piSessionId,
+      piSessionFile, mirrorConversationId: generationMirrorId, createdAt, activatedAt,
+      ...(closedAt ? { closedAt } : {}),
+      activationReceipt: receipt as DesktopConversationGeneration["activationReceipt"],
+    };
+  });
+  const active = generations.find((generation) => generation.generation === value.activeGeneration);
+  if (!active || active.status !== "ready" || generations.filter((generation) => generation.status === "ready").length !== 1
+    || generations.some((generation) => generation.generation < Number(value.activeGeneration) && generation.status !== "inactive")) {
+    throw new Error("invalid active generation");
   }
   return {
-    generation: Number(value.generation), piSessionId, piSessionFile,
+    activeGeneration: Number(value.activeGeneration),
     runtimeChannel: value.runtimeChannel as "user" | "development",
-    activationReceipt: receipt as DesktopConversationAuthority["activationReceipt"],
+    generations,
   };
 }
 

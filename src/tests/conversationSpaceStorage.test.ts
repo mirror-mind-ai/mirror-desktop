@@ -33,12 +33,15 @@ describe("native Desktop conversation lifecycle", () => {
       messageCount: 0,
       availability: "ready",
       authority: {
-        generation: 1, piSessionId: "pi-session-1234567890", piSessionFile: "/app/pi-session-1234567890.jsonl", runtimeChannel: "development",
-        activationReceipt: {
-          schemaVersion: "1.0.0", journeyId: "mirror-desktop", threadId: "desktop-thread-1234567890", generation: 1,
-          piSessionId: "pi-session-1234567890", mirrorConversationId: "conversation-1234567890", mode: "mirror",
-          commandAuthority: "installed", runtimeChannel: "development", activatedAt: "2026-09-14T00:00:00.000Z",
-        },
+        activeGeneration: 1, runtimeChannel: "development", generations: [{
+          generation: 1, status: "ready", piSessionId: "pi-session-1234567890", piSessionFile: "/app/pi-session-1234567890.jsonl",
+          mirrorConversationId: "mirror-generation-1234567890", createdAt: "2026-09-14T00:00:00.000Z", activatedAt: "2026-09-14T00:00:00.000Z",
+          activationReceipt: {
+            schemaVersion: "1.0.0", journeyId: "mirror-desktop", threadId: "desktop-thread-1234567890", generation: 1,
+            piSessionId: "pi-session-1234567890", mirrorConversationId: "mirror-generation-1234567890", mode: "mirror",
+            commandAuthority: "installed", runtimeChannel: "development", activatedAt: "2026-09-14T00:00:00.000Z",
+          },
+        }],
       },
     });
     await expect(createDesktopConversation({
@@ -60,6 +63,7 @@ describe("native Desktop conversation lifecycle", () => {
 
   it("keeps authority creation and publication inside native lifecycle code", () => {
     expect(tauriSource).toContain("async fn create_desktop_conversation");
+    expect(tauriSource).toContain("async fn restart_desktop_conversation");
     expect(tauriSource).toContain("desktop_conversation_catalog_path");
     expect(tauriSource).toContain("provision_pi_session");
     expect(tauriSource).toContain("provision_mirror_conversation");

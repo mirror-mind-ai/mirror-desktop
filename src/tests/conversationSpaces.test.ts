@@ -13,24 +13,31 @@ import {
   reduceConversationFocus,
 } from "../domain/conversationSpaces";
 
-function desktopAuthority(threadId = "thread-child-1", conversationId = "conversation-child-1") {
+function desktopAuthority(threadId = "thread-child-1") {
   return {
-    generation: 1,
-    piSessionId: "pi-session-child-1",
-    piSessionFile: "/private/app-data/pi-session-child-1.jsonl",
+    activeGeneration: 1,
     runtimeChannel: "development" as const,
-    activationReceipt: {
-      schemaVersion: "1.0.0" as const,
-      journeyId: "mirror-desktop",
-      threadId,
+    generations: [{
       generation: 1,
+      status: "ready" as const,
       piSessionId: "pi-session-child-1",
-      mirrorConversationId: conversationId,
-      mode: "mirror" as const,
-      commandAuthority: "installed" as const,
-      runtimeChannel: "development" as const,
+      piSessionFile: "/private/app-data/pi-session-child-1.jsonl",
+      mirrorConversationId: "mirror-generation-child-1",
+      createdAt: "2026-09-15T10:00:00.000Z",
       activatedAt: "2026-09-15T10:00:00.000Z",
-    },
+      activationReceipt: {
+        schemaVersion: "1.0.0" as const,
+        journeyId: "mirror-desktop",
+        threadId,
+        generation: 1,
+        piSessionId: "pi-session-child-1",
+        mirrorConversationId: "mirror-generation-child-1",
+        mode: "mirror" as const,
+        commandAuthority: "installed" as const,
+        runtimeChannel: "development" as const,
+        activatedAt: "2026-09-15T10:00:00.000Z",
+      },
+    }],
   };
 }
 
@@ -85,7 +92,7 @@ describe("conversation spaces", () => {
     expect(parseConversationCatalog({ schemaVersion: "1.0.0", journeyId: "other", entries: [] }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })).toBeUndefined();
     expect(parseConversationCatalog({ schemaVersion: "1.0.0", journeyId: "mirror-desktop", entries: [entry, entry] }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })).toBeUndefined();
     expect(parseConversationCatalog({ schemaVersion: "1.0.0", journeyId: "mirror-desktop", entries: [{ ...entry, threadId: "thread-root" }] }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })).toBeUndefined();
-    expect(parseConversationCatalog({ schemaVersion: "1.0.0", journeyId: "mirror-desktop", entries: Array.from({ length: 101 }, (_, index) => ({ ...entry, conversationId: `child-${index}`, threadId: `thread-${index}`, authority: desktopAuthority(`thread-${index}`, `child-${index}`) })) }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })).toBeUndefined();
+    expect(parseConversationCatalog({ schemaVersion: "1.0.0", journeyId: "mirror-desktop", entries: Array.from({ length: 101 }, (_, index) => ({ ...entry, conversationId: `child-${index}`, threadId: `thread-${index}`, authority: desktopAuthority(`thread-${index}`) })) }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })).toBeUndefined();
   });
 
   it("assigns child drafts a stable key distinct from the Journey root", () => {
@@ -102,7 +109,37 @@ describe("conversation spaces", () => {
       availability: "ready", authority,
     });
     expect(thread.threadId).toBe("thread-child-1");
-    expect(thread.generations[0].activationReceipt).toEqual(authority.activationReceipt);
+    expect(thread.generations[0].activationReceipt).toEqual(authority.generations[0].activationReceipt);
+  });
+
+  it("preserves inactive child generations while activating an exact replacement", () => {
+    const first = desktopAuthority().generations[0];
+    const second = {
+      ...first,
+      generation: 2,
+      piSessionId: "pi-session-child-2",
+      mirrorConversationId: "mirror-generation-child-2",
+      createdAt: "2026-09-16T10:00:00.000Z",
+      activatedAt: "2026-09-16T10:00:00.000Z",
+      activationReceipt: {
+        ...first.activationReceipt,
+        generation: 2,
+        piSessionId: "pi-session-child-2",
+        mirrorConversationId: "mirror-generation-child-2",
+        activatedAt: "2026-09-16T10:00:00.000Z",
+      },
+    };
+    const catalog = parseConversationCatalog({
+      schemaVersion: "1.0.0", journeyId: "mirror-desktop", entries: [{
+        kind: "desktop_conversation", conversationId: "conversation-child-1", threadId: "thread-child-1",
+        title: "Child", updatedAt: second.activatedAt, messageCount: 0, availability: "ready",
+        authority: {
+          activeGeneration: 2, runtimeChannel: "development",
+          generations: [{ ...first, status: "inactive", closedAt: second.activatedAt }, second],
+        },
+      }],
+    }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" });
+    expect(catalog?.entries[0].kind === "desktop_conversation" && catalog.entries[0].authority.generations).toHaveLength(2);
   });
 
   it("focuses one Journey and returns to its root when collapsed", () => {

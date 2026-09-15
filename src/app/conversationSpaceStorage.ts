@@ -10,6 +10,23 @@ export async function loadDesktopConversationCatalog(journeyId: string): Promise
   return parsed;
 }
 
+export async function restartDesktopConversation(input: {
+  journeyId: string;
+  conversationId: string;
+}): Promise<Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>> {
+  const payload = await invoke<unknown>("restart_desktop_conversation", input);
+  const parsed = parseNativeCatalog({
+    schemaVersion: "1.0.0",
+    journeyId: (payload as Record<string, unknown> | undefined)?.journeyId,
+    entries: [payload],
+  }, input.journeyId);
+  const entry = parsed?.[0];
+  if (!entry || entry.kind !== "desktop_conversation" || entry.conversationId !== input.conversationId) {
+    throw new Error("Reset Desktop Conversation Journey authority is invalid.");
+  }
+  return entry;
+}
+
 export async function createDesktopConversation(input: {
   journeyId: string;
   journeyName: string;

@@ -22,6 +22,7 @@ describe("Journey conversation-space integration", () => {
     expect(appSource).toContain("childEntry?.threadId");
     expect(appSource).toContain('selectedConversationSpace.kind === "mirror_history"');
     expect(appSource).toContain("conversationRef.current.id === baseConversation.id");
+    expect(appSource).toContain("await restartDesktopConversation(");
   });
 
   it("creates handoff authority before publishing an editable unsent prompt", () => {

@@ -540,32 +540,60 @@ fn load_desktop_conversation_catalog_at(path: &Path, journey_id: &str) -> Result
         let conversation_id = entry.get("conversationId").and_then(Value::as_str).unwrap_or_default();
         let thread_id = entry.get("threadId").and_then(Value::as_str).unwrap_or_default();
         let authority = entry.get("authority").unwrap_or(&Value::Null);
-        let receipt = authority.get("activationReceipt").unwrap_or(&Value::Null);
+        let active_generation = authority.get("activeGeneration").and_then(Value::as_u64).unwrap_or_default();
+        let generations = authority.get("generations").and_then(Value::as_array);
+        let source_pair_valid = matches!(
+            (entry.get("sourceConversationId").and_then(Value::as_str), entry.get("sourceMessageLimit").and_then(Value::as_u64)),
+            (None, None) | (Some(_), Some(10..=100))
+        );
         if entry.get("kind").and_then(Value::as_str) != Some("desktop_conversation")
             || entry.get("journeyId").and_then(Value::as_str) != Some(journey_id)
             || entry.get("availability").and_then(Value::as_str) != Some("ready")
-            || authority.get("generation").and_then(Value::as_u64).unwrap_or_default() == 0
-            || authority.get("piSessionFile").and_then(Value::as_str).map_or(true, str::is_empty)
-            || receipt.get("journeyId").and_then(Value::as_str) != Some(journey_id)
-            || receipt.get("threadId").and_then(Value::as_str) != Some(thread_id)
-            || receipt.get("mirrorConversationId").and_then(Value::as_str) != Some(conversation_id)
-            || receipt.get("generation") != authority.get("generation")
-            || receipt.get("piSessionId") != authority.get("piSessionId")
-            || receipt.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
-            || receipt.get("mode").and_then(Value::as_str) != Some("mirror")
-            || receipt.get("commandAuthority").and_then(Value::as_str) != Some("installed")
-            || receipt.get("runtimeChannel") != authority.get("runtimeChannel")
+            || active_generation == 0
+            || generations.is_none_or(|items| items.is_empty() || items.len() > 100)
             || !matches!(authority.get("runtimeChannel").and_then(Value::as_str), Some("user" | "development"))
-            || receipt.get("activatedAt").and_then(Value::as_str)
-                .and_then(|value| DateTime::parse_from_rfc3339(value).ok()).is_none()
-            || authority.get("piSessionId").and_then(Value::as_str)
-                .is_none_or(|value| sanitize_session_id(value).is_err())
+            || !source_pair_valid
             || sanitize_session_id(conversation_id).is_err()
             || sanitize_session_id(thread_id).is_err()
             || !conversation_ids.insert(conversation_id)
             || !thread_ids.insert(thread_id)
         {
             return Err("Desktop Conversation catalog contains incomplete authority.".to_string());
+        }
+        let mut ready_count = 0;
+        for (index, generation) in generations.into_iter().flatten().enumerate() {
+            let number = generation.get("generation").and_then(Value::as_u64).unwrap_or_default();
+            let status = generation.get("status").and_then(Value::as_str).unwrap_or_default();
+            let receipt = generation.get("activationReceipt").unwrap_or(&Value::Null);
+            if status == "ready" { ready_count += 1; }
+            if number != (index + 1) as u64
+                || !matches!(status, "ready" | "inactive")
+                || (number == active_generation) != (status == "ready")
+                || generation.get("piSessionFile").and_then(Value::as_str).map_or(true, str::is_empty)
+                || generation.get("piSessionId").and_then(Value::as_str)
+                    .is_none_or(|value| sanitize_session_id(value).is_err())
+                || generation.get("mirrorConversationId").and_then(Value::as_str)
+                    .is_none_or(|value| sanitize_session_id(value).is_err())
+                || receipt.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+                || receipt.get("threadId").and_then(Value::as_str) != Some(thread_id)
+                || receipt.get("mirrorConversationId") != generation.get("mirrorConversationId")
+                || receipt.get("generation") != generation.get("generation")
+                || receipt.get("piSessionId") != generation.get("piSessionId")
+                || receipt.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
+                || receipt.get("mode").and_then(Value::as_str) != Some("mirror")
+                || receipt.get("commandAuthority").and_then(Value::as_str) != Some("installed")
+                || receipt.get("runtimeChannel") != authority.get("runtimeChannel")
+                || receipt.get("activatedAt") != generation.get("activatedAt")
+                || receipt.get("activatedAt").and_then(Value::as_str)
+                    .and_then(|value| DateTime::parse_from_rfc3339(value).ok()).is_none()
+                || (status == "inactive" && generation.get("closedAt").and_then(Value::as_str)
+                    .and_then(|value| DateTime::parse_from_rfc3339(value).ok()).is_none())
+            {
+                return Err("Desktop Conversation generation authority is invalid.".to_string());
+            }
+        }
+        if ready_count != 1 {
+            return Err("Desktop Conversation active generation authority is invalid.".to_string());
         }
     }
     Ok(value)
@@ -622,6 +650,7 @@ async fn create_desktop_conversation(
     }
     let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
     let bounded_journey = journey_id.chars().take(64).collect::<String>();
+    let conversation_id = format!("desktop-conversation-{}-{:x}", bounded_journey, nonce);
     let requested_pi_id = format!("desktop-{}-{:x}", bounded_journey, nonce);
     let thread_id = format!("desktop-thread-{}-{:x}", bounded_journey, nonce);
     let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
@@ -650,12 +679,17 @@ async fn create_desktop_conversation(
     });
     let entry = json!({
         "schemaVersion": "1.0.0", "journeyId": journey_id,
-        "kind": "desktop_conversation", "conversationId": mirror_conversation_id,
+        "kind": "desktop_conversation", "conversationId": conversation_id,
         "threadId": thread_id, "title": title, "updatedAt": created_at,
         "messageCount": 0, "availability": "ready",
         "authority": {
-            "generation": 1, "piSessionId": pi_session_id, "piSessionFile": pi_session_file,
-            "runtimeChannel": runtime_channel, "activationReceipt": activation_receipt,
+            "activeGeneration": 1, "runtimeChannel": runtime_channel,
+            "generations": [{
+                "generation": 1, "status": "ready", "piSessionId": pi_session_id,
+                "piSessionFile": pi_session_file, "mirrorConversationId": mirror_conversation_id,
+                "createdAt": created_at, "activatedAt": created_at,
+                "activationReceipt": activation_receipt,
+            }],
         },
         "sourceConversationId": source_conversation_id,
         "sourceMessageLimit": source_message_limit,
@@ -671,6 +705,101 @@ async fn create_desktop_conversation(
     write_durable_projection_at(&catalog_path, &payload, staged_nonce)
         .map_err(|_| "Could not durably publish Desktop Conversation authority.".to_string())?;
     Ok(entry)
+}
+
+#[tauri::command]
+async fn restart_desktop_conversation(
+    app: AppHandle,
+    state: State<'_, JourneyProvisioningState>,
+    persistence: State<'_, JourneyProjectionPersistenceState>,
+    journey_id: String,
+    conversation_id: String,
+) -> Result<Value, String> {
+    sanitize_journey_id(&journey_id)?;
+    sanitize_session_id(&conversation_id)?;
+    {
+        let mut active = state.active.lock()
+            .map_err(|_| "Could not inspect active Journey lifecycle operation.".to_string())?;
+        if !active.insert(journey_id.clone()) {
+            return Err("This Journey already has an active lifecycle operation.".to_string());
+        }
+    }
+    let _lease = JourneyProvisioningLease { active: state.active.clone(), journey_id: journey_id.clone() };
+    let catalog_path = desktop_conversation_catalog_path(&app, &journey_id)?;
+    let mut catalog = load_desktop_conversation_catalog_at(&catalog_path, &journey_id)?;
+    let entry = catalog.get_mut("entries").and_then(Value::as_array_mut)
+        .and_then(|entries| entries.iter_mut().find(|entry| {
+            entry.get("conversationId").and_then(Value::as_str) == Some(conversation_id.as_str())
+                && entry.get("journeyId").and_then(Value::as_str) == Some(journey_id.as_str())
+        })).ok_or_else(|| "Desktop Conversation authority is unavailable.".to_string())?;
+    let title = entry.get("title").and_then(Value::as_str)
+        .ok_or_else(|| "Desktop Conversation title is unavailable.".to_string())?.to_string();
+    let thread_id = entry.get("threadId").and_then(Value::as_str)
+        .ok_or_else(|| "Desktop Conversation thread is unavailable.".to_string())?.to_string();
+    let authority = entry.get_mut("authority")
+        .ok_or_else(|| "Desktop Conversation generation authority is unavailable.".to_string())?;
+    let runtime_channel = active_runtime_channel()?.channel.as_str();
+    if authority.get("runtimeChannel").and_then(Value::as_str) != Some(runtime_channel) {
+        return Err("Desktop Conversation belongs to another runtime channel.".to_string());
+    }
+    let prior_generation = authority.get("activeGeneration").and_then(Value::as_u64)
+        .ok_or_else(|| "Desktop Conversation active generation is unavailable.".to_string())?;
+    let generations = authority.get("generations").and_then(Value::as_array)
+        .ok_or_else(|| "Desktop Conversation generation history is unavailable.".to_string())?;
+    if generations.len() >= 100
+        || generations.iter().find(|item| item.get("generation").and_then(Value::as_u64) == Some(prior_generation))
+            .and_then(|item| item.get("status")).and_then(Value::as_str) != Some("ready")
+    {
+        return Err("Desktop Conversation cannot reserve another generation.".to_string());
+    }
+    let next_generation = prior_generation + 1;
+    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let bounded_journey = journey_id.chars().take(52).collect::<String>();
+    let requested_pi_id = format!("desktop-{}-g{}-{:x}", bounded_journey, next_generation, nonce);
+    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let pi_session_dir = app_data_dir.join("pi-sessions");
+    let pi_name = format!("{} · Mirror Desktop · Generation {}", title.chars().take(48).collect::<String>(), next_generation);
+    let mirror_name = format!("{} · Generation {}", title.chars().take(72).collect::<String>(), next_generation);
+    let task_app = app.clone();
+    let task_journey = journey_id.clone();
+    let task_pi_id = requested_pi_id.clone();
+    let (pi_session_id, pi_session_file, mirror_conversation_id) = tauri::async_runtime::spawn_blocking(move || {
+        let (pi_id, pi_file) = provision_pi_session(&task_pi_id, &pi_name, &pi_session_dir)?;
+        let mirror_id = provision_mirror_conversation(&task_app, &pi_file, &task_journey, &mirror_name)?;
+        Ok::<_, String>((pi_id, pi_file, mirror_id))
+    }).await.map_err(|error| format!("Desktop Conversation reset task failed: {}", error))??;
+    if pi_session_id != requested_pi_id {
+        return Err("Desktop Conversation reset Pi authority diverged from its reservation.".to_string());
+    }
+    let activated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let activation_receipt = json!({
+        "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
+        "generation": next_generation, "piSessionId": pi_session_id,
+        "mirrorConversationId": mirror_conversation_id, "mode": "mirror",
+        "commandAuthority": "installed", "runtimeChannel": runtime_channel,
+        "activatedAt": activated_at,
+    });
+    let generations = authority.get_mut("generations").and_then(Value::as_array_mut)
+        .ok_or_else(|| "Desktop Conversation generation history is unavailable.".to_string())?;
+    let prior = generations.iter_mut().find(|item| item.get("generation").and_then(Value::as_u64) == Some(prior_generation))
+        .ok_or_else(|| "Desktop Conversation prior generation is unavailable.".to_string())?;
+    prior["status"] = Value::String("inactive".to_string());
+    prior["closedAt"] = Value::String(activated_at.clone());
+    generations.push(json!({
+        "generation": next_generation, "status": "ready", "piSessionId": pi_session_id,
+        "piSessionFile": pi_session_file, "mirrorConversationId": mirror_conversation_id,
+        "createdAt": activated_at, "activatedAt": activated_at,
+        "activationReceipt": activation_receipt,
+    }));
+    authority["activeGeneration"] = json!(next_generation);
+    entry["updatedAt"] = Value::String(activated_at);
+    entry["messageCount"] = json!(0);
+    let updated = entry.clone();
+    let payload = serde_json::to_vec_pretty(&catalog).map_err(|error| error.to_string())?;
+    let staged_nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+    write_durable_projection_at(&catalog_path, &payload, staged_nonce)
+        .map_err(|_| "Could not durably publish Desktop Conversation reset authority.".to_string())?;
+    Ok(updated)
 }
 
 #[tauri::command]
@@ -5005,21 +5134,16 @@ fn load_conversation_thread_authority_at(
         })).ok_or_else(|| "Dedicated child thread authority is missing.".to_string())?;
     let authority = entry.get("authority")
         .ok_or_else(|| "Dedicated child thread authority is incomplete.".to_string())?;
-    let generation = authority.get("generation").and_then(Value::as_u64)
+    let generation = authority.get("activeGeneration").and_then(Value::as_u64)
         .ok_or_else(|| "Dedicated child generation is missing.".to_string())?;
+    let generations = authority.get("generations").and_then(Value::as_array)
+        .ok_or_else(|| "Dedicated child generation history is missing.".to_string())?;
     Ok(json!({
         "schemaVersion": "1.0.0", "threadId": thread_id, "journeyId": journey_id,
         "runtimeChannel": authority["runtimeChannel"],
-        "createdAt": authority["activationReceipt"]["activatedAt"],
+        "createdAt": generations.first().and_then(|item| item.get("createdAt")),
         "activeGeneration": generation,
-        "generations": [{
-            "generation": generation, "status": "ready",
-            "piSessionId": authority["piSessionId"], "piSessionFile": authority["piSessionFile"],
-            "mirrorConversationId": entry["conversationId"],
-            "createdAt": authority["activationReceipt"]["activatedAt"],
-            "activatedAt": authority["activationReceipt"]["activatedAt"],
-            "activationReceipt": authority["activationReceipt"],
-        }]
+        "generations": generations,
     }))
 }
 
@@ -5372,6 +5496,7 @@ fn main() {
             restart_journey_thread,
             load_desktop_conversation_catalog,
             create_desktop_conversation,
+            restart_desktop_conversation,
             load_mirror_conversation_catalog,
             open_mirror_conversation_in_terminal,
             rename_mirror_conversation,
@@ -5512,18 +5637,21 @@ mod tests {
         fs::write(&catalog_path, serde_json::to_vec(&json!({
             "schemaVersion": "1.0.0", "journeyId": "journey-one", "entries": [{
                 "schemaVersion": "1.0.0", "journeyId": "journey-one",
-                "kind": "desktop_conversation", "conversationId": "mirror-child-one",
+                "kind": "desktop_conversation", "conversationId": "desktop-conversation-one",
                 "threadId": "desktop-thread-one", "title": "Child", "updatedAt": "2026-09-15T10:00:00Z",
                 "messageCount": 0, "availability": "ready",
                 "authority": {
-                    "generation": 1, "piSessionId": "pi-child-one",
-                    "piSessionFile": "/app/pi-child-one.jsonl", "runtimeChannel": "development",
-                    "activationReceipt": {
-                        "schemaVersion": "1.0.0", "journeyId": "journey-one", "threadId": "desktop-thread-one",
-                        "generation": 1, "piSessionId": "pi-child-one", "mirrorConversationId": "mirror-child-one",
-                        "mode": "mirror", "commandAuthority": "installed", "runtimeChannel": "development",
-                        "activatedAt": "2026-09-15T10:00:00Z"
-                    }
+                    "activeGeneration": 1, "runtimeChannel": "development", "generations": [{
+                        "generation": 1, "status": "ready", "piSessionId": "pi-child-one",
+                        "piSessionFile": "/app/pi-child-one.jsonl", "mirrorConversationId": "mirror-child-one",
+                        "createdAt": "2026-09-15T10:00:00Z", "activatedAt": "2026-09-15T10:00:00Z",
+                        "activationReceipt": {
+                            "schemaVersion": "1.0.0", "journeyId": "journey-one", "threadId": "desktop-thread-one",
+                            "generation": 1, "piSessionId": "pi-child-one", "mirrorConversationId": "mirror-child-one",
+                            "mode": "mirror", "commandAuthority": "installed", "runtimeChannel": "development",
+                            "activatedAt": "2026-09-15T10:00:00Z"
+                        }
+                    }]
                 }, "sourceConversationId": null, "sourceMessageLimit": null
             }]
         })).unwrap()).unwrap();

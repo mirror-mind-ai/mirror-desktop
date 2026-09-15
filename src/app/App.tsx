@@ -103,7 +103,7 @@ import { FocusedConversationSidebar } from "./FocusedConversationSidebar";
 import { FocusedSidebarResizeHandle } from "./FocusedSidebarResizeHandle";
 import { loadFocusedSidebarWidth, saveFocusedSidebarWidth } from "./focusedSidebarWidthStorage";
 import { MirrorHistoryActionSurface } from "./MirrorHistoryActionSurface";
-import { createDesktopConversation, loadDesktopConversationCatalog } from "./conversationSpaceStorage";
+import { createDesktopConversation, loadDesktopConversationCatalog, restartDesktopConversation } from "./conversationSpaceStorage";
 import { loadMirrorConversationCatalog, openMirrorConversationInTerminal, renameMirrorConversation } from "./mirrorConversationCatalog";
 import { loadDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
@@ -2670,18 +2670,27 @@ export function App({ model }: AppProps) {
         throw new Error("Mirror is still preparing the previous message. Try again when the conversation is ready.");
       }
       setJourneyReloadStatus("Reserving next generation…");
-      const thread = await restartNautilusJourneyThread(ownerJourneyId, selectedJourneyItem.name, (phase) => {
-        if (selectedJourneyRef.current !== ownerJourneyId) return;
-        const labels: Record<string, string> = {
-          reserving_generation: "Reserving next generation…",
-          creating_pi_session: "Creating native Pi session…",
-          creating_mirror_conversation: "Creating Mirror conversation…",
-          activating_journey_context: "Activating Journey context…",
-          verifying_replacement: "Verifying replacement authority…",
-          switching_generation: "Switching active generation…",
-        };
-        setJourneyReloadStatus(labels[phase] ?? "Restarting conversation…");
-      });
+      const childEntry = selectedConversationEntry?.kind === "desktop_conversation"
+        ? selectedConversationEntry
+        : undefined;
+      const thread = childEntry
+        ? await restartDesktopConversation({ journeyId: ownerJourneyId, conversationId: childEntry.conversationId })
+            .then((updated) => {
+              setConversationCatalog((current) => current.map((entry) => entry.conversationId === updated.conversationId ? updated : entry));
+              return desktopConversationThread(ownerJourneyId, updated);
+            })
+        : await restartNautilusJourneyThread(ownerJourneyId, selectedJourneyItem.name, (phase) => {
+            if (selectedJourneyRef.current !== ownerJourneyId) return;
+            const labels: Record<string, string> = {
+              reserving_generation: "Reserving next generation…",
+              creating_pi_session: "Creating native Pi session…",
+              creating_mirror_conversation: "Creating Mirror conversation…",
+              activating_journey_context: "Activating Journey context…",
+              verifying_replacement: "Verifying replacement authority…",
+              switching_generation: "Switching active generation…",
+            };
+            setJourneyReloadStatus(labels[phase] ?? "Resetting agent context…");
+          });
       if (selectedJourneyRef.current !== ownerJourneyId) return;
       const classified = classifyNautilusJourneyThread(thread, ownerJourneyId);
       if (classified.kind !== "ready" || classified.activeGeneration.generation !== previousGeneration + 1) {
@@ -2895,7 +2904,9 @@ export function App({ model }: AppProps) {
       const desktopEntries = await loadDesktopConversationCatalog(ownerJourneyId);
       const managedMirrorConversationIds = [
         ...journeyThreadState.thread.generations.map((generation) => generation.mirrorConversationId),
-        ...desktopEntries.map((entry) => entry.conversationId),
+        ...desktopEntries.flatMap((entry) => entry.kind === "desktop_conversation"
+          ? entry.authority.generations.map((generation) => generation.mirrorConversationId)
+          : []),
       ];
       const mirrorEntries = await loadMirrorConversationCatalog({
         journeyId: ownerJourneyId,
@@ -3869,7 +3880,7 @@ export function App({ model }: AppProps) {
                     className="menu-button"
                     type="button"
                     onClick={() => setJourneyMenuOpen((open) => !open)}
-                    disabled={journeyThreadState.kind !== "ready" || selectedConversationSpace.kind !== "journey_workspace"}
+                    disabled={journeyThreadState.kind !== "ready" || selectedConversationSpace.kind === "mirror_history"}
                     aria-label="Journey conversation menu"
                     aria-expanded={journeyMenuOpen}
                     title="Journey menu"
