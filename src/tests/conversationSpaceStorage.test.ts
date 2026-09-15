@@ -93,11 +93,19 @@ describe("native Desktop conversation lifecycle", () => {
   });
 
   it("keeps authority creation and publication inside native lifecycle code", () => {
+    const creation = tauriSource.slice(
+      tauriSource.indexOf("async fn create_desktop_conversation"),
+      tauriSource.indexOf("async fn restart_desktop_conversation"),
+    );
     expect(tauriSource).toContain("async fn create_desktop_conversation");
     expect(tauriSource).toContain("async fn restart_desktop_conversation");
     expect(tauriSource).toContain("desktop_conversation_catalog_path");
     expect(tauriSource).toContain("provision_pi_session");
     expect(tauriSource).toContain("provision_mirror_conversation");
     expect(tauriSource).toContain('"sourceMessageLimit"');
+    expect(tauriSource).toContain('"kind": "desktop_conversation_creation", "phase": "reserved"');
+    expect(tauriSource).toContain("recover_pending_desktop_conversation_creation");
+    expect(creation.indexOf("write_desktop_conversation_creation(&operation_path, &operation"))
+      .toBeLessThan(creation.indexOf("tauri::async_runtime::spawn_blocking"));
   });
 });

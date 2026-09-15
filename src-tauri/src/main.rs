@@ -519,8 +519,15 @@ fn desktop_conversation_catalog_path(app: &AppHandle, journey_id: &str) -> Resul
 }
 
 fn load_desktop_conversation_catalog_at(path: &Path, journey_id: &str) -> Result<Value, String> {
-    if !path.exists() {
-        return Ok(json!({ "schemaVersion": "1.0.0", "journeyId": journey_id, "entries": [] }));
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(json!({ "schemaVersion": "1.0.0", "journeyId": journey_id, "entries": [] }));
+        }
+        Err(error) => return Err(format!("Could not inspect Desktop Conversation catalog: {}", error)),
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err("Desktop Conversation catalog storage is invalid.".to_string());
     }
     let payload = fs::read(path).map_err(|error| format!("Could not read Desktop Conversation catalog: {}", error))?;
     if payload.len() > 1024 * 1024 {
@@ -542,10 +549,14 @@ fn load_desktop_conversation_catalog_at(path: &Path, journey_id: &str) -> Result
         let authority = entry.get("authority").unwrap_or(&Value::Null);
         let active_generation = authority.get("activeGeneration").and_then(Value::as_u64).unwrap_or_default();
         let generations = authority.get("generations").and_then(Value::as_array);
-        let source_pair_valid = matches!(
-            (entry.get("sourceConversationId").and_then(Value::as_str), entry.get("sourceMessageLimit").and_then(Value::as_u64)),
-            (None, None) | (Some(_), Some(10..=100))
-        );
+        let source_pair_valid = match (
+            entry.get("sourceConversationId").and_then(Value::as_str),
+            entry.get("sourceMessageLimit").and_then(Value::as_u64),
+        ) {
+            (None, None) => true,
+            (Some(source), Some(10..=100)) => sanitize_session_id(source).is_ok(),
+            _ => false,
+        };
         if entry.get("kind").and_then(Value::as_str) != Some("desktop_conversation")
             || entry.get("journeyId").and_then(Value::as_str) != Some(journey_id)
             || entry.get("availability").and_then(Value::as_str) != Some("ready")
@@ -599,9 +610,215 @@ fn load_desktop_conversation_catalog_at(path: &Path, journey_id: &str) -> Result
     Ok(value)
 }
 
+fn desktop_conversation_creation_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
+    let catalog = desktop_conversation_catalog_path(app, journey_id)?;
+    Ok(catalog.parent().ok_or_else(|| "Desktop Conversation catalog has no parent.".to_string())?
+        .join("pending-creation.json"))
+}
+
+fn validate_desktop_conversation_creation(value: &Value, journey_id: &str) -> Result<(), String> {
+    let source_valid = matches!(
+        (value.get("sourceConversationId").and_then(Value::as_str), value.get("sourceMessageLimit").and_then(Value::as_u64)),
+        (None, None) | (Some(_), Some(10..=100))
+    );
+    let phase = value.get("phase").and_then(Value::as_str);
+    let provisioned = phase == Some("provisioned");
+    if value.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
+        || value.get("kind").and_then(Value::as_str) != Some("desktop_conversation_creation")
+        || value.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+        || !matches!(phase, Some("reserved" | "provisioned"))
+        || !source_valid
+        || value.get("title").and_then(Value::as_str).is_none_or(|item| item.is_empty() || item.chars().count() > 160)
+        || value.get("journeyName").and_then(Value::as_str).is_none_or(|item| item.is_empty() || item.chars().count() > 160)
+        || value.get("createdAt").and_then(Value::as_str).and_then(|item| DateTime::parse_from_rfc3339(item).ok()).is_none()
+        || value.get("runtimeChannel").and_then(Value::as_str).is_none_or(|item| !matches!(item, "user" | "development"))
+        || ["conversationId", "threadId", "requestedPiSessionId"].iter().any(|key| {
+            value.get(key).and_then(Value::as_str).is_none_or(|item| sanitize_session_id(item).is_err())
+        })
+        || ["piSessionName", "mirrorName"].iter().any(|key| {
+            value.get(key).and_then(Value::as_str).is_none_or(|item| item.is_empty() || item.chars().count() > 160)
+        })
+        || (provisioned && ["piSessionId", "mirrorConversationId"].iter().any(|key| {
+            value.get(key).and_then(Value::as_str).is_none_or(|item| sanitize_session_id(item).is_err())
+        }))
+        || (provisioned && value.get("piSessionFile").and_then(Value::as_str).is_none_or(str::is_empty))
+    {
+        return Err("Pending Desktop Conversation creation authority is invalid.".to_string());
+    }
+    if let Some(source) = value.get("sourceConversationId").and_then(Value::as_str) {
+        sanitize_session_id(source)?;
+    }
+    Ok(())
+}
+
+fn validate_provisioned_desktop_conversation_creation(
+    app: &AppHandle, value: &Value, journey_id: &str,
+) -> Result<(), String> {
+    validate_desktop_conversation_creation(value, journey_id)?;
+    if value.get("phase").and_then(Value::as_str) != Some("provisioned")
+        || value.get("piSessionId") != value.get("requestedPiSessionId")
+    {
+        return Err("Pending Desktop Conversation creation is not provisioned.".to_string());
+    }
+    let session_id = value.get("piSessionId").and_then(Value::as_str).unwrap();
+    let session_file = value.get("piSessionFile").and_then(Value::as_str).unwrap();
+    validate_pi_session_file(app, session_file, session_id)?;
+    let mirror_id = value.get("mirrorConversationId").and_then(Value::as_str).unwrap();
+    run_mirror_conversation_catalog(
+        app, "inspect", journey_id, &["--conversation-id", mirror_id],
+    )?;
+    Ok(())
+}
+
+fn desktop_conversation_entry_from_creation(value: &Value, journey_id: &str) -> Result<Value, String> {
+    validate_desktop_conversation_creation(value, journey_id)?;
+    if value.get("phase").and_then(Value::as_str) != Some("provisioned")
+        || value.get("piSessionId") != value.get("requestedPiSessionId")
+    {
+        return Err("Pending Desktop Conversation creation is not provisioned.".to_string());
+    }
+    let created_at = value.get("createdAt").cloned().unwrap_or(Value::Null);
+    let activation_receipt = json!({
+        "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": value["threadId"],
+        "generation": 1, "piSessionId": value["piSessionId"],
+        "mirrorConversationId": value["mirrorConversationId"], "mode": "mirror",
+        "commandAuthority": "installed", "runtimeChannel": value["runtimeChannel"],
+        "activatedAt": created_at,
+    });
+    Ok(json!({
+        "schemaVersion": "1.0.0", "journeyId": journey_id,
+        "kind": "desktop_conversation", "conversationId": value["conversationId"],
+        "threadId": value["threadId"], "title": value["title"], "updatedAt": created_at,
+        "messageCount": 0, "availability": "ready",
+        "authority": {
+            "activeGeneration": 1, "runtimeChannel": value["runtimeChannel"],
+            "generations": [{
+                "generation": 1, "status": "ready", "piSessionId": value["piSessionId"],
+                "piSessionFile": value["piSessionFile"], "mirrorConversationId": value["mirrorConversationId"],
+                "createdAt": created_at, "activatedAt": created_at,
+                "activationReceipt": activation_receipt,
+            }],
+        },
+        "sourceConversationId": value.get("sourceConversationId").cloned().unwrap_or(Value::Null),
+        "sourceMessageLimit": value.get("sourceMessageLimit").cloned().unwrap_or(Value::Null),
+    }))
+}
+
+fn read_desktop_conversation_creation(path: &Path, journey_id: &str) -> Result<Option<Value>, String> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err("Could not inspect pending Desktop Conversation creation.".to_string()),
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 64 * 1024 {
+        return Err("Pending Desktop Conversation creation storage is invalid.".to_string());
+    }
+    let value: Value = serde_json::from_slice(&fs::read(path)
+        .map_err(|_| "Could not read pending Desktop Conversation creation.".to_string())?)
+        .map_err(|_| "Pending Desktop Conversation creation is malformed.".to_string())?;
+    validate_desktop_conversation_creation(&value, journey_id)?;
+    Ok(Some(value))
+}
+
+fn write_desktop_conversation_creation(
+    path: &Path, value: &Value, journey_id: &str,
+    persistence: &JourneyProjectionPersistenceState,
+) -> Result<(), String> {
+    validate_desktop_conversation_creation(value, journey_id)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|_| "Could not create Desktop Conversation creation storage.".to_string())?;
+    }
+    let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+    write_durable_projection_at(
+        path,
+        &serde_json::to_vec_pretty(value).map_err(|_| "Could not serialize Desktop Conversation creation.".to_string())?,
+        nonce,
+    ).map_err(|_| "Could not durably publish Desktop Conversation creation phase.".to_string())
+}
+
+fn recover_pending_desktop_conversation_creation(
+    app: &AppHandle,
+    persistence: &JourneyProjectionPersistenceState,
+    journey_id: &str,
+) -> Result<Option<Value>, String> {
+    let operation_path = desktop_conversation_creation_path(app, journey_id)?;
+    let Some(mut operation) = read_desktop_conversation_creation(&operation_path, journey_id)? else {
+        return Ok(None);
+    };
+    if operation.get("runtimeChannel").and_then(Value::as_str) != Some(active_runtime_channel()?.channel.as_str()) {
+        return Err("Pending Desktop Conversation creation belongs to another runtime channel.".to_string());
+    }
+    let catalog_path = desktop_conversation_catalog_path(app, journey_id)?;
+    let mut catalog = load_desktop_conversation_catalog_at(&catalog_path, journey_id)?;
+    if let Some(existing) = catalog.get("entries").and_then(Value::as_array).and_then(|entries| entries.iter().find(|entry| {
+        entry.get("conversationId") == operation.get("conversationId")
+            && entry.get("threadId") == operation.get("threadId")
+    })) {
+        let expected = desktop_conversation_entry_from_creation(&operation, journey_id)?;
+        if existing != &expected {
+            return Err("Completed Desktop Conversation creation conflicts with its durable operation.".to_string());
+        }
+        let recovered = existing.clone();
+        fs::remove_file(&operation_path)
+            .map_err(|_| "Could not settle completed Desktop Conversation creation.".to_string())?;
+        return Ok(Some(recovered));
+    }
+    if operation.get("phase").and_then(Value::as_str) == Some("reserved") {
+        let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+        let requested = operation.get("requestedPiSessionId").and_then(Value::as_str).unwrap().to_string();
+        let pi_name = operation.get("piSessionName").and_then(Value::as_str).unwrap().to_string();
+        let mirror_name = operation.get("mirrorName").and_then(Value::as_str).unwrap().to_string();
+        let (pi_session_id, pi_session_file) = provision_pi_session(&requested, &pi_name, &app_data_dir.join("pi-sessions"))?;
+        if pi_session_id != requested {
+            return Err("Recovered Desktop Conversation Pi authority diverged from its reservation.".to_string());
+        }
+        let mirror_conversation_id = provision_mirror_conversation(app, &pi_session_file, journey_id, &mirror_name)?;
+        operation["phase"] = Value::String("provisioned".to_string());
+        operation["piSessionId"] = Value::String(pi_session_id);
+        operation["piSessionFile"] = Value::String(pi_session_file);
+        operation["mirrorConversationId"] = Value::String(mirror_conversation_id);
+        write_desktop_conversation_creation(&operation_path, &operation, journey_id, persistence)?;
+    }
+    validate_provisioned_desktop_conversation_creation(app, &operation, journey_id)?;
+    let entry = desktop_conversation_entry_from_creation(&operation, journey_id)?;
+    catalog = load_desktop_conversation_catalog_at(&catalog_path, journey_id)?;
+    let entries = catalog.get_mut("entries").and_then(Value::as_array_mut)
+        .ok_or_else(|| "Desktop Conversation catalog entries are invalid.".to_string())?;
+    if entries.len() >= 100 {
+        return Err("Desktop Conversation catalog is full during recovery.".to_string());
+    }
+    if entries.iter().any(|candidate| candidate.get("conversationId") == entry.get("conversationId")
+        || candidate.get("threadId") == entry.get("threadId"))
+    {
+        return Err("Desktop Conversation recovery authority conflicts with its catalog.".to_string());
+    }
+    entries.insert(0, entry.clone());
+    let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+    write_durable_projection_at(
+        &catalog_path,
+        &serde_json::to_vec_pretty(&catalog).map_err(|_| "Could not serialize recovered Desktop Conversation catalog.".to_string())?,
+        nonce,
+    ).map_err(|_| "Could not durably publish recovered Desktop Conversation authority.".to_string())?;
+    fs::remove_file(operation_path)
+        .map_err(|_| "Could not settle recovered Desktop Conversation creation.".to_string())?;
+    Ok(Some(entry))
+}
+
 #[tauri::command]
-fn load_desktop_conversation_catalog(app: AppHandle, journey_id: String) -> Result<Value, String> {
+fn load_desktop_conversation_catalog(
+    app: AppHandle,
+    state: State<'_, JourneyProvisioningState>,
+    persistence: State<'_, JourneyProjectionPersistenceState>,
+    journey_id: String,
+) -> Result<Value, String> {
     sanitize_journey_id(&journey_id)?;
+    let recover = state.active.lock()
+        .map_err(|_| "Could not inspect active Journey lifecycle operation.".to_string())?
+        .insert(journey_id.clone());
+    if recover {
+        let _lease = JourneyProvisioningLease { active: state.active.clone(), journey_id: journey_id.clone() };
+        recover_pending_desktop_conversation_creation(&app, &persistence, &journey_id)?;
+    }
     load_desktop_conversation_catalog_at(&desktop_conversation_catalog_path(&app, &journey_id)?, &journey_id)
 }
 
@@ -643,8 +860,11 @@ async fn create_desktop_conversation(
         }
     }
     let _lease = JourneyProvisioningLease { active: state.active.clone(), journey_id: journey_id.clone() };
+    if let Some(recovered) = recover_pending_desktop_conversation_creation(&app, &persistence, &journey_id)? {
+        return Ok(recovered);
+    }
     let catalog_path = desktop_conversation_catalog_path(&app, &journey_id)?;
-    let mut catalog = load_desktop_conversation_catalog_at(&catalog_path, &journey_id)?;
+    let catalog = load_desktop_conversation_catalog_at(&catalog_path, &journey_id)?;
     if catalog.get("entries").and_then(Value::as_array).map_or(true, |entries| entries.len() >= 100) {
         return Err("Desktop Conversation catalog is full.".to_string());
     }
@@ -657,59 +877,51 @@ async fn create_desktop_conversation(
     let pi_session_dir = app_data_dir.join("pi-sessions");
     let pi_name = format!("{} · {} · Mirror Desktop", journey_name.chars().take(36).collect::<String>(), title.chars().take(36).collect::<String>());
     let mirror_name = title.clone();
+    let created_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let runtime_channel = active_runtime_channel()?.channel.as_str().to_string();
+    let operation_path = desktop_conversation_creation_path(&app, &journey_id)?;
+    let mut operation = json!({
+        "schemaVersion": "1.0.0", "kind": "desktop_conversation_creation", "phase": "reserved",
+        "journeyId": journey_id, "journeyName": journey_name, "conversationId": conversation_id,
+        "threadId": thread_id, "title": title, "requestedPiSessionId": requested_pi_id,
+        "piSessionName": pi_name, "mirrorName": mirror_name, "runtimeChannel": runtime_channel,
+        "createdAt": created_at, "sourceConversationId": source_conversation_id,
+        "sourceMessageLimit": source_message_limit,
+    });
+    write_desktop_conversation_creation(&operation_path, &operation, &journey_id, &persistence)?;
     let task_app = app.clone();
     let task_journey = journey_id.clone();
     let task_pi_id = requested_pi_id.clone();
+    let task_pi_name = pi_name.clone();
+    let task_mirror_name = mirror_name.clone();
     let (pi_session_id, pi_session_file, mirror_conversation_id) = tauri::async_runtime::spawn_blocking(move || {
-        let (pi_id, pi_file) = provision_pi_session(&task_pi_id, &pi_name, &pi_session_dir)?;
-        let mirror_id = provision_mirror_conversation(&task_app, &pi_file, &task_journey, &mirror_name)?;
+        let (pi_id, pi_file) = provision_pi_session(&task_pi_id, &task_pi_name, &pi_session_dir)?;
+        let mirror_id = provision_mirror_conversation(&task_app, &pi_file, &task_journey, &task_mirror_name)?;
         Ok::<_, String>((pi_id, pi_file, mirror_id))
     }).await.map_err(|error| format!("Desktop Conversation provisioning task failed: {}", error))??;
     if pi_session_id != requested_pi_id {
         return Err("Desktop Conversation Pi authority diverged from its reservation.".to_string());
     }
-    // Provisioning is model-free and may overlap a settling sibling Conversation. Re-read the
-    // bounded catalog immediately before publication so settlement metadata cannot be lost.
-    catalog = load_desktop_conversation_catalog_at(&catalog_path, &journey_id)?;
-    if catalog.get("entries").and_then(Value::as_array).map_or(true, |entries| entries.len() >= 100) {
+    operation["phase"] = Value::String("provisioned".to_string());
+    operation["piSessionId"] = Value::String(pi_session_id);
+    operation["piSessionFile"] = Value::String(pi_session_file);
+    operation["mirrorConversationId"] = Value::String(mirror_conversation_id);
+    write_desktop_conversation_creation(&operation_path, &operation, &journey_id, &persistence)?;
+    validate_provisioned_desktop_conversation_creation(&app, &operation, &journey_id)?;
+    let entry = desktop_conversation_entry_from_creation(&operation, &journey_id)?;
+    let mut catalog = load_desktop_conversation_catalog_at(&catalog_path, &journey_id)?;
+    let entries = catalog.get_mut("entries").and_then(Value::as_array_mut)
+        .ok_or_else(|| "Desktop Conversation catalog entries are invalid.".to_string())?;
+    if entries.len() >= 100 {
         return Err("Desktop Conversation catalog became full during provisioning.".to_string());
     }
-    let created_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-    let runtime_channel = active_runtime_channel()?.channel.as_str();
-    let activation_receipt = json!({
-        "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
-        "generation": 1, "piSessionId": pi_session_id,
-        "mirrorConversationId": mirror_conversation_id, "mode": "mirror",
-        "commandAuthority": "installed", "runtimeChannel": runtime_channel,
-        "activatedAt": created_at,
-    });
-    let entry = json!({
-        "schemaVersion": "1.0.0", "journeyId": journey_id,
-        "kind": "desktop_conversation", "conversationId": conversation_id,
-        "threadId": thread_id, "title": title, "updatedAt": created_at,
-        "messageCount": 0, "availability": "ready",
-        "authority": {
-            "activeGeneration": 1, "runtimeChannel": runtime_channel,
-            "generations": [{
-                "generation": 1, "status": "ready", "piSessionId": pi_session_id,
-                "piSessionFile": pi_session_file, "mirrorConversationId": mirror_conversation_id,
-                "createdAt": created_at, "activatedAt": created_at,
-                "activationReceipt": activation_receipt,
-            }],
-        },
-        "sourceConversationId": source_conversation_id,
-        "sourceMessageLimit": source_message_limit,
-    });
-    catalog.get_mut("entries").and_then(Value::as_array_mut)
-        .ok_or_else(|| "Desktop Conversation catalog entries are invalid.".to_string())?
-        .insert(0, entry.clone());
-    if let Some(parent) = catalog_path.parent() {
-        fs::create_dir_all(parent).map_err(|error| format!("Could not create Desktop Conversation catalog directory: {}", error))?;
-    }
+    entries.insert(0, entry.clone());
     let payload = serde_json::to_vec_pretty(&catalog).map_err(|error| error.to_string())?;
     let staged_nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
     write_durable_projection_at(&catalog_path, &payload, staged_nonce)
         .map_err(|_| "Could not durably publish Desktop Conversation authority.".to_string())?;
+    fs::remove_file(operation_path)
+        .map_err(|_| "Could not settle Desktop Conversation creation.".to_string())?;
     Ok(entry)
 }
 
@@ -6155,7 +6367,7 @@ mod tests {
         dedicated_native_names, enqueue_mirror_append_item_at, exact_steering_authority_matches, extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
         list_journey_documentation_at, load_conversation_thread_authority_at,
-        load_desktop_conversation_catalog_at,
+        desktop_conversation_entry_from_creation, load_desktop_conversation_catalog_at,
         materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, project_conversation_segment_manifest,
         project_pi_user_entries, projection_manifest_coordinates_at,
@@ -6209,6 +6421,43 @@ mod tests {
         })).unwrap()).unwrap();
         assert!(load_desktop_conversation_catalog_at(&path, "journey-one").is_err());
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn materializes_only_exact_provisioned_child_creation_authority() {
+        let reserved = json!({
+            "schemaVersion":"1.0.0", "kind":"desktop_conversation_creation", "phase":"reserved",
+            "journeyId":"journey-one", "journeyName":"Journey One", "conversationId":"desktop-conversation-one",
+            "threadId":"desktop-thread-one", "title":"Focused work", "requestedPiSessionId":"desktop-session-one",
+            "piSessionName":"Journey One · Focused work · Mirror Desktop", "mirrorName":"Focused work",
+            "runtimeChannel":"development", "createdAt":"2026-09-15T10:00:00.000Z",
+            "sourceConversationId":null, "sourceMessageLimit":null
+        });
+        assert!(desktop_conversation_entry_from_creation(&reserved, "journey-one").is_err());
+        let mut provisioned = reserved;
+        provisioned["phase"] = json!("provisioned");
+        provisioned["piSessionId"] = json!("desktop-session-one");
+        provisioned["piSessionFile"] = json!("/app/pi-sessions/desktop-session-one.jsonl");
+        provisioned["mirrorConversationId"] = json!("mirror-conversation-one");
+        let entry = desktop_conversation_entry_from_creation(&provisioned, "journey-one").unwrap();
+        assert_eq!(entry.get("availability").and_then(Value::as_str), Some("ready"));
+        assert_eq!(entry.pointer("/authority/activeGeneration").and_then(Value::as_u64), Some(1));
+        assert_eq!(entry.pointer("/authority/generations/0/piSessionId").and_then(Value::as_str), Some("desktop-session-one"));
+        assert!(desktop_conversation_entry_from_creation(&provisioned, "other-journey").is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symbolic_desktop_conversation_catalog_storage() {
+        use std::os::unix::fs::symlink;
+        let root = test_root("desktop-conversation-catalog-symlink");
+        fs::create_dir_all(&root).unwrap();
+        let outside = root.join("outside.json");
+        let catalog = root.join("catalog.json");
+        fs::write(&outside, json!({"schemaVersion":"1.0.0","journeyId":"journey-one","entries":[]}).to_string()).unwrap();
+        symlink(&outside, &catalog).unwrap();
+        assert!(load_desktop_conversation_catalog_at(&catalog, "journey-one").is_err());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
