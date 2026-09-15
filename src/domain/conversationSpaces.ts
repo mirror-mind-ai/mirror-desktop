@@ -130,7 +130,8 @@ export function parseConversationCatalog(
     const entries: ConversationCatalogEntry[] = value.entries.map((candidate) => {
       if (!isRecord(candidate)) throw new Error("invalid entry");
       const conversationId = String(candidate.conversationId ?? "");
-      assertIdentifier(conversationId);
+      if (candidate.kind === "mirror_history") assertMirrorIdentifier(conversationId);
+      else assertIdentifier(conversationId);
       if (seenConversations.has(conversationId)) throw new Error("duplicate conversation");
       seenConversations.add(conversationId);
       const title = boundedString(candidate.title, 160);
@@ -177,7 +178,8 @@ export function reduceConversationFocus(
     return { ...state, selection: createJourneyWorkspaceSelection(state.journeyId) };
   }
   try {
-    assertIdentifier(action.conversationId);
+    if (action.type === "select_mirror") assertMirrorIdentifier(action.conversationId);
+    else assertIdentifier(action.conversationId);
     return {
       ...state,
       selection: action.type === "select_desktop"
@@ -251,6 +253,10 @@ function assertJourneyId(value: string): void {
 
 function assertIdentifier(value: string): void {
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{10,255}$/.test(value)) throw new Error("Conversation coordinate is invalid.");
+}
+
+function assertMirrorIdentifier(value: string): void {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{7,255}$/.test(value)) throw new Error("Mirror conversation coordinate is invalid.");
 }
 
 function parseDesktopAuthority(

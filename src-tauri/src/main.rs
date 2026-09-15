@@ -493,7 +493,8 @@ fn run_mirror_conversation_catalog(
     let script = bundled_conversation_catalog_script(app)?;
     let profile = active_runtime_channel()?;
     let mut command = mirror_runtime_command("uv")?;
-    let output = command.args(["run", "python"]).arg(script)
+    let output = command.current_dir(&profile.mirror_root)
+        .args(["run", "python"]).arg(script)
         .arg(operation)
         .args(["--journey-id", journey_id, "--mirror-root"])
         .arg(&profile.mirror_root)

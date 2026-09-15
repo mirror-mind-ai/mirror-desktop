@@ -11,7 +11,7 @@ from pathlib import Path
 MAX_CATALOG_LIMIT = 100
 MAX_TITLE_CHARS = 160
 JOURNEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,126}[a-z0-9]$")
-IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{10,255}$")
+IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,255}$")
 
 
 def parse_args() -> argparse.Namespace:
@@ -67,15 +67,27 @@ def main() -> None:
                 limit=args.limit,
                 journey=args.journey_id,
             )
-            entries = [{
-                "kind": "mirror_history",
-                "conversationId": item.id,
-                "title": item.title or "Untitled conversation",
-                "updatedAt": item.started_at,
-                "messageCount": item.message_count,
-                "availability": "available_in_mirror",
-                **({"persona": item.persona} if item.persona else {}),
-            } for item in summaries]
+            entries = []
+            resolved_ids: set[str] = set()
+            for item in summaries:
+                conversation = mem.conversations.find_by_id_prefix(item.id)
+                if (
+                    conversation is None
+                    or conversation.journey != args.journey_id
+                    or not IDENTIFIER_RE.fullmatch(conversation.id)
+                    or conversation.id in resolved_ids
+                ):
+                    fail(args.operation, args.journey_id, "catalog_identity_unavailable")
+                resolved_ids.add(conversation.id)
+                entries.append({
+                    "kind": "mirror_history",
+                    "conversationId": conversation.id,
+                    "title": item.title or "Untitled conversation",
+                    "updatedAt": item.started_at,
+                    "messageCount": item.message_count,
+                    "availability": "available_in_mirror",
+                    **({"persona": item.persona} if item.persona else {}),
+                })
             result = {
                 "schemaVersion": "1.0.0",
                 "operation": "catalog",

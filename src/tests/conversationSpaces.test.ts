@@ -78,6 +78,25 @@ describe("conversation spaces", () => {
     expect(catalog?.entries[1].kind).toBe("mirror_history");
   });
 
+  it("accepts canonical eight-character Mirror IDs without weakening Desktop authority IDs", () => {
+    const mirrorEntry = {
+      kind: "mirror_history", conversationId: "399badc9", title: "Terminal work",
+      updatedAt: "2026-09-15T09:00:00.000Z", messageCount: 12, availability: "available_in_mirror",
+    };
+    expect(parseConversationCatalog({
+      schemaVersion: "1.0.0", journeyId: "mirror-desktop", entries: [mirrorEntry],
+    }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })?.entries[0]).toMatchObject(mirrorEntry);
+    expect(parseConversationCatalog({
+      schemaVersion: "1.0.0", journeyId: "mirror-desktop", entries: [{ ...mirrorEntry, conversationId: "short7" }],
+    }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })).toBeUndefined();
+    expect(parseConversationCatalog({
+      schemaVersion: "1.0.0", journeyId: "mirror-desktop", entries: [{
+        ...mirrorEntry, kind: "desktop_conversation", threadId: "thread-child-1",
+        authority: desktopAuthority(), availability: "ready",
+      }],
+    }, { journeyId: "mirror-desktop", rootThreadId: "thread-root" })).toBeUndefined();
+  });
+
   it("rejects cross-Journey, duplicate, root-thread and oversized catalogs", () => {
     const entry = {
       kind: "desktop_conversation",
