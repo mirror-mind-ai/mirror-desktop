@@ -7,9 +7,9 @@ Data policy: structural inspection only; no titles, message bodies, source paths
 
 ## Result
 
-TS-1 found a supported bounded route for Journey-filtered conversation summaries, but not the complete contract required for working-copy import and source-divergence detection. Import-dependent work is blocked pending a separately governed Mirror runtime capability. Desktop must not compensate with direct SQLite reads or an unbounded message scan.
+TS-1 found a supported bounded route for Journey-filtered conversation summaries, but not the complete contract required for revisioned working-copy import and source-divergence detection. Desktop must not compensate with direct SQLite reads or an unbounded transcript reader.
 
-Independent Desktop conversation, migration, sidebar and context-reset work may proceed. `Continue in this app`, import receipts and divergence claims may not become executable until the dependency is officially released and selected by the Desktop runtime channel.
+After characterization, the Navigator selected a no-core-update route for this Delivery Story. Current released capabilities support a useful metadata catalog, exact lookup, explicit manual title mutation and agent-invoked recall. CV-008.DS-004 therefore replaces working-copy import with `Rename in Mirror`, `Open in Terminal with recalled context` and an explicit first-turn agent handoff into a new model-free Desktop Conversation. Revisioned import remains a possible future capability, not a blocker for this DS.
 
 ## Mirror conversation surface
 
@@ -68,8 +68,9 @@ CR029 bounds DOM disclosure and memoized transcript projection, but does not bou
 
 ## Implementation gates
 
-1. Proceed with model-free Desktop Conversation identity, migration, catalog metadata, resizable focused sidebar and reset-label semantics using generated fixtures.
-2. Keep selection inert until exact authority validation succeeds.
-3. Do not implement executable working-copy import, source preview, source revision receipts or divergence detection against the current released Mirror API.
-4. Govern and release the missing Mirror capability separately; then characterize its exact versioned response before unblocking US-3.
-5. Build Pi segment indexing as a bounded native JSONL structural scan; Pi remains the sole compaction and model-context authority.
+1. Proceed with model-free Desktop Conversation identity, migration, bounded catalog metadata, resizable focused sidebar and reset-label semantics using generated fixtures.
+2. Keep generic Mirror history non-executable; require full source ID and exact Journey validation for every action.
+3. Use only released summary, exact lookup, manual title and recall capabilities through packaged Mirror resources.
+4. Do not implement working-copy import, external transcript rendering, source revision receipts, divergence detection, direct SQLite access or Web Console coupling.
+5. Create agent-handoff destinations through Desktop authority before any prompt; pre-fill without sending and keep recalled material untrusted.
+6. Build Pi Segment indexing as a bounded native JSONL structural scan; Pi remains sole compaction and model-context authority.

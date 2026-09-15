@@ -1,320 +1,318 @@
-[< Story](index.md)
+# Test Guide — CV-008.DS-004 Multiple Conversations per Journey
 
-# Test Guide — CV-008.DS-004
+## Purpose
 
-## Aggregate Validation
+Validate the seven child packages as one Delivery Story in isolated `Mirror Desktop Dev`. Passing requires one coherent authority model across bounded catalog discovery, exact Desktop Conversation lifecycle, actionable Mirror history, agent handoff, compaction-aligned Segments, migration, recovery, long-history loading, context reset and sidebar resizing.
 
-Validate the seven child packages as one Delivery Story in an isolated `Mirror Desktop Dev` environment. Passing requires one coherent user experience and one exact authority model across catalog discovery, Desktop Conversation lifecycle, Mirror working-copy import, compaction-aligned segmentation, bounded loading, context reset, migration, recovery and sidebar resizing.
-
-## Child Work Packages
+## Package Coverage
 
 - CV-008.DS-004-TS-1 — Characterize Mirror Conversation and Compaction Authority
-- CV-008.DS-004-TS-2 — Establish Conversation, Segment and Import Authority
+- CV-008.DS-004-TS-2 — Establish Conversation, Segment and Handoff Authority
 - CV-008.DS-004-US-1 — Browse a Unified Catalog in a Resizable Journey Sidebar
 - CV-008.DS-004-US-2 — Create, Resume and Reset Desktop Conversations
-- CV-008.DS-004-US-3 — Continue Mirror History Through a Working Copy
+- CV-008.DS-004-US-3 — Continue Terminal Work Through an Agent Handoff
 - CV-008.DS-004-TS-3 — Segment Long Conversations at Compaction Checkpoints
 - CV-008.DS-004-TS-4 — Preserve Migration, Recovery and Bounded Loading
 
-## Test Data And Isolation
+## Environment and Data Isolation
 
 Use only:
 
-- bundle `Mirror Desktop Dev`;
-- identifier `ai.mirrormind.desktop.dev`;
-- development Mirror/app-data roots;
-- disposable Journeys and Mirror conversations created for this validation;
-- generated text, attachments and Pi sessions containing no production content;
-- private-data-free scale fixtures larger than the CR029 case of 718 messages and a 5.09 MB projection.
-
-Never commit production messages, titles, summaries, paths, screenshots, session files, database rows or imported working-copy payloads. No test may write the stable user channel, a production Mirror home or an installed production Mirror source checkout.
-
-## TS-1 — Characterization Gates
-
-Record sanitized evidence for:
-
-- bounded Mirror conversation listing filtered by exact Journey;
-- metadata fields available without reading all message bodies;
-- source roles, mode, persona, attachments, timestamps and stable revision evidence;
-- presence or absence of adoptable Pi session authority for non-Desktop conversations;
-- Pi compaction entry structure, branch ancestry, summary evidence, retained-tail overlap and stable entry IDs;
-- current catalog-free projection parse/load cost at the CR029 scale and at a materially larger scale.
-
-Pass only when the evidence supports an explicit classification:
-
 ```text
-exact_adoptable | working_copy_only | read_only
+Application: Mirror Desktop Dev
+Bundle ID: ai.mirrormind.desktop.dev
+Journey: mirror-desktop (disposable validation fixture)
+Mirror home: disposable development home
+Pi sessions: generated or disposable
+Fixtures: generated private-data-free content
 ```
 
-If the released Mirror runtime lacks a bounded supported API, record the missing contract and stop dependent implementation. Direct SQLite access, human-output scraping or a production-checkout patch is a failure.
+Never commit production titles, summaries, messages, paths, screenshots, session files, recalled output or database rows. No test may write a stable/user Mirror home or installed production checkout. Tests must verify the selected runtime channel before mutation.
 
-## TS-2 — Authority And Schema Tests
+## Required Characterization
 
-### Catalog
+Retain [characterization.md](characterization.md) as historical evidence:
 
-Test:
+- released Journey-filtered summaries are bounded by result count;
+- exact lookup, manual title mutation and recall already exist;
+- generic Mirror history lacks complete Desktop/Pi resumption authority;
+- revisioned transcript import is unavailable and out of scope;
+- real Pi compaction entries provide stable checkpoint references;
+- current Desktop parsing remains broader than the CR029 DOM boundary.
 
-- exact Journey and Conversation identity;
-- deterministic bounded ordering and pagination/cursor behavior;
-- unique entry IDs and source/destination mappings;
-- allowed origins and availability states;
-- bounded title, timestamps, counts and source revision;
-- rejection of unknown fields, malformed dates, over-limit entries, duplicate identities and cross-Journey records.
+No validation may reintroduce direct SQLite, internal Web Console routes or a Mirror core dependency.
 
-### Conversation and generation
+## TS-2 — Authority and Schema Tests
 
-Test:
+### Catalog and Conversation schemas
 
-- one stable Conversation owns one thread and ordered generations;
-- existing thread IDs remain stable through migration;
-- reset adds one generation without changing Conversation identity;
-- no Pi session or Mirror conversation is reused across incompatible generations;
-- listing or selection alone cannot construct `RunAuthority`.
+Test strict versioned parsing for:
 
-### Import receipt
+- exact Journey and full Conversation IDs;
+- `ready`, `available_in_mirror`, `preparing_handoff` and `needs_attention` states;
+- Desktop thread and generation authority;
+- metadata-only Mirror source references;
+- bounded source title, start time, persona and message count;
+- unknown fields, duplicate IDs, oversized values and cross-Journey entries;
+- channel mismatch, traversal and symlink rejection.
 
-Exercise every durable phase:
+Selection of `available_in_mirror` must never produce executable authority.
+
+### Handoff provenance
+
+Validate only:
 
 ```text
-discovered
-source_snapshotted
-destination_reserved
-history_copied
-context_prepared
-ready_published
-source_suppressed
-failed_recoverable
+kind = mirror_agent_handoff
+sourceConversationId = full exact ID
+sourceJourneyId = mirror-desktop
+requestedAt = timestamp
+requestedMessageLimit = bounded integer
 ```
 
-Test exact idempotency, conflict rejection, source revision mismatch, duplicate click, process restart, staged-file corruption and rollback. Only complete `ready_published` evidence may make the destination executable.
+The schema must not call this data a source revision, snapshot or import receipt. Recalled or agent-authored payloads cannot supply thread, generation, Pi session, Mirror conversation or activation authority.
 
-### Segment manifest
+### Atomic publication
 
-Test exact Conversation, generation, source entry range, turn range, compaction evidence, retained-tail relationship, immutable historical files and one writable current segment. Reject overlap, gaps where complete history is claimed, split user/assistant authority, split tool evidence, duplicate checkpoints and cross-generation mutation.
+Inject failure around destination creation and handoff-draft publication. Verify:
 
-## US-1 — Unified Catalog And Sidebar Tests
+- incomplete state never appears `ready`;
+- retry converges without duplicate Conversations;
+- restart never sends a draft;
+- only Desktop native code publishes executable authority;
+- source records remain untouched.
 
-Test that:
+## US-1 — Catalog, Rename and Sidebar Tests
 
-- expanding one Journey focuses it and collapsing restores ordinary Journey navigation;
-- ready and Mirror-available conversations appear in one list without separate-product language;
-- ready, available, importing and needs-attention states have icons plus accessible names or text;
-- color is not the sole distinction;
-- imported sources disappear only from the ordinary list after exact successful receipt publication;
-- imported originals remain reachable through the secondary surface;
-- catalog load does not request every transcript body;
-- active run state remains attached to its exact Conversation while navigating.
+### Bounded catalog
 
-For resizing, test:
+Create many generated Desktop and Mirror records across multiple Journeys. Verify:
 
-- pointer drag in both directions;
-- keyboard increment/decrement and boundary keys supported by the chosen separator contract;
-- exposed separator role, orientation, current value and limits;
-- minimum/default/maximum clamping;
-- malformed or out-of-range persisted preference rejection;
-- channel-local persistence and relaunch restoration;
-- reclamping after window shrink;
-- deterministic reset to default;
-- usable Journey controls, conversation reading width and composer at every accepted width;
-- no horizontal content leakage or inaccessible resize handle in supported themes.
+- only exact `mirror-desktop` entries appear;
+- catalog count and payload are bounded;
+- transcript bodies are not requested during catalog opening;
+- ready and Mirror-available entries use one product language while retaining honest authority labels;
+- sorting is deterministic;
+- malformed or cross-Journey records fail closed;
+- ordinary selection of Mirror history never enables Send.
 
-Fix exact width constants only after measuring the current minimum supported window. Automated layout assertions must lock the accepted values.
-
-## US-2 — Create, Resume And Reset Tests
-
-### New Conversation
-
-Verify that explicit creation:
-
-- invokes no provider;
-- creates no greeting or message;
-- reserves a unique thread and generation through exact native authority;
-- creates distinct Pi and Mirror conversation identities;
-- publishes one catalog entry only after complete validation;
-- preserves every prior Conversation and draft;
-- converges idempotently after duplicate confirmation or restart.
-
-### Resume
-
-Verify exact resumption and rejection of:
-
-- wrong Journey or Conversation;
-- stale selected Conversation;
-- mismatched thread or generation;
-- missing or wrong Pi session file;
-- wrong Mirror conversation;
-- activation-receipt mismatch;
-- runtime-channel mismatch;
-- historical-only or incomplete import entries.
-
-Switch Conversation selection during an active turn and prove every event, Steering request, cancellation, settlement write and recovery action remains with the captured owner.
-
-### One Journey lease
-
-With Conversation A running:
-
-- Conversation B remains inspectable and draft-editable;
-- Send and conflicting lifecycle mutations in B remain disabled;
-- Steering in A reuses A's process and no additional slot;
-- other Journeys remain eligible within the global four-lease bound;
-- after exact A cleanup and fresh inspection, B may Send deliberately.
-
-### Reset agent context
-
-Verify the UI uses `Reset agent context`, not `Restart conversation`, and presents the fresh-context warning. Confirmation must:
-
-- preserve the same Conversation and prior generation;
-- create one new Pi session, Mirror conversation and activation receipt;
-- invoke no provider and replay no prompt or child;
-- keep prior history read-only and recoverable;
-- avoid claiming that prior messages remain verbatim in active Pi context;
-- leave the prior generation active if replacement provisioning fails.
-
-## US-3 — Working-Copy Import Tests
-
-Use a disposable Mirror source with known bounded messages, metadata and attachment cases.
+### Rename in Mirror
 
 Verify:
 
-- source metadata appears without executable authority;
-- preview remains bounded and read-only;
-- the confirmation explains preserved source, independent copy and no synchronization;
-- cancellation writes nothing;
-- confirmation snapshots one exact source revision;
-- bounded chunks reconstruct all supported source history in order;
-- source IDs and unsupported evidence remain provenance rather than fabricated Desktop turns;
-- working-copy authority is new and cannot collide with source or existing Desktop Conversations;
-- source bytes and Mirror records remain unchanged;
-- successful publication shows only the working copy in the ordinary catalog;
-- imported originals exposes the source;
-- duplicate import converges to the same destination;
-- later source activity creates a divergence notice and no automatic merge;
-- unavailable attachments remain explicit and are never silently followed, copied or dropped.
+- the action says `Rename in Mirror`;
+- disclosure states that other Mirror surfaces see the canonical title;
+- full source ID and exact Journey are revalidated immediately before mutation;
+- only `MemoryClient.conversations.update_title` through the validated packaged helper is used;
+- manual rename invokes no model, Pi process or hidden title suggestion;
+- source messages, summary, tags and Journey remain unchanged;
+- stale selection, duplicate submit and helper failure settle visibly without optimistic false success;
+- cross-Journey IDs reveal no source metadata.
 
-Context tests must distinguish exact adoption from handoff. When exact Pi authority is absent, verify the app creates no literal-resume claim and uses only the approved bounded source-authored summary/compaction evidence and recent tail. No hidden model call may generate import context or title.
+### Accessible resizing
 
-## TS-3 — Compaction Segment Tests
+Characterize supported window geometry before fixing constants. Verify:
 
-Drive disposable Pi RPC sessions with deterministic compaction evidence. Verify:
+- pointer drag and keyboard separator operation;
+- Arrow increments and larger modified increments;
+- accessible role, orientation, min/max/current values and instructions;
+- exact min/default/max clamping;
+- window-resize reclamping;
+- channel-local persistence after relaunch;
+- deterministic reset;
+- reduced-motion behavior;
+- usable Journey controls, catalog, transcript and composer at every admitted width;
+- no horizontal content leakage.
 
-- streamed text labels cannot create checkpoints;
-- only exact authoritative session evidence after settlement may publish a checkpoint;
-- one compaction creates one idempotent Segment boundary;
-- retained tail is represented without duplicate visible messages;
-- user/assistant pairs, Steering, tool operations and terminal evidence are never split incoherently;
-- Conversation, thread, generation, Pi session and Mirror conversation remain unchanged;
-- current context statistics continue to follow Pi evidence;
-- a second compaction creates the next ordered Segment;
-- old Segments remain durable and load only on request;
-- no Conversation, generation, title or provider call is created automatically.
+## US-2 — Desktop Conversation Lifecycle Tests
 
-An explicit `Start new conversation from checkpoint` experiment, if included in the accepted implementation slice, must create a distinct thread and disclosed handoff. It must remain absent rather than partially implied if the handoff contract is not supported by TS-1 evidence.
+### Migration
 
-## TS-4 — Migration, Recovery And Scale Tests
+Start from schema `0.9.0` single-thread fixtures. Verify:
 
-### Existing state migration
+- the existing thread becomes the first ordinary Conversation;
+- thread ID, generations, active Pi session, Mirror conversation and activation receipt remain exact;
+- transcripts are not copied or rewritten;
+- no provider, model, process, greeting or prompt runs;
+- repeated migration is idempotent.
 
-Test supported historical schemas and the current `0.9.0` projection. Verify:
+### New Conversation
 
-- one existing Journey becomes one catalog entry;
-- existing thread, generations, Pi sessions, Mirror conversations, messages and receipts retain exact IDs;
-- migration copies no transcript and invokes no model;
-- repeated migration is byte-stable and creates no duplicate;
-- corrupt or symlinked state fails closed without replacement;
-- legacy projection remains authoritative until a complete segmented manifest verifies.
+Verify model-free creation produces:
 
-### Failure matrix
+- a distinct Conversation and thread;
+- one ready generation with exact Pi and Mirror coordinates;
+- no synthetic message or hidden title call;
+- unchanged sibling Conversations;
+- atomic publication and exact restart recovery.
 
-Inject failure before and after each durable operation in Conversation creation, import, segment publication and migration. After relaunch prove that recovery:
+### Selection and drafts
 
-- resumes or rolls back only exact matching authority;
-- never starts Pi, replays a prompt or invokes a provider;
-- never mutates the source;
-- never publishes partial state as ready;
-- never removes a sibling Conversation;
-- never changes the selected active Conversation from stale evidence.
+Verify:
 
-### Scale
+- draft keys include exact Journey plus Conversation;
+- selection never retargets active callbacks after awaits;
+- stale events cannot mutate a newly selected Conversation;
+- browsing and drafting remain possible while a sibling runs;
+- Send remains disabled while the Journey has a reserved, running or finalizing lease;
+- no queue, placeholder turn, automatic retry or process is created.
 
-Generate multiple Conversations including at least one transcript materially larger than 1,000 messages and 10 MB terminal projection evidence. Capture deterministic counters or render probes showing:
+### Reset agent context
 
-- focused catalog work is bounded by loaded metadata entries;
-- initial selected-Conversation work is bounded by current segment and configured tail;
-- unopened historical Segments do not parse, project or mount heavy bodies;
-- navigation and composer typing do not re-enter complete-history work;
-- complete history remains recoverable and exact when requested;
-- repeated open/close releases historical heavy subtrees.
+Verify:
 
-A timing number alone is insufficient. Validation requires structural evidence that work scales with the loaded set rather than total retained history.
+- no `Restart conversation` wording remains;
+- disclosure says prior history remains but is not verbatim in fresh Pi context;
+- reset preserves Conversation identity and prior generation;
+- one fresh generation activates only after full model-free validation;
+- failed replacement retains the current generation;
+- reset is blocked under occupied Journey authority.
 
-## Aggregate Navigator Validation
+## US-3 — Terminal Recall and Agent Handoff Tests
 
-Run only in isolated `Mirror Desktop Dev`:
+### Open in Terminal with recalled context
 
-1. Start with a disposable Journey carrying one pre-DS-004 Conversation and verify migration without duplication.
-2. Expand the Journey, inspect the unified catalog and resize the sidebar by pointer and keyboard.
-3. Relaunch and verify selected Conversation plus clamped sidebar width.
-4. Create two new Desktop Conversations without generated greetings.
-5. Send a turn in Conversation A, navigate to B, edit B's draft and verify B cannot Send while A owns the Journey lease.
-6. Steer or cancel A, settle it exactly, then deliberately Send B's preserved draft.
-7. Create a disposable non-Desktop Mirror conversation in the same Journey and verify its Mirror-available state.
-8. Preview and import it after accepting the working-copy disclosure; verify source preservation and ordinary duplicate suppression.
-9. Add controlled later activity to the source and verify a divergence notice without merge.
-10. Produce an authoritative compaction in a disposable long Conversation and verify a new technical Segment without Conversation or generation change.
-11. Navigate into older Segments and confirm exact history while unopened history remains unmaterialized.
-12. Choose `Reset agent context`, confirm the warning and verify a fresh generation with prior history preserved and no provider call.
-13. Relaunch during controlled partial operations and verify exact model-free recovery with no prompt, child or import replay.
-14. Relaunch normally and verify every Conversation, Segment, receipt, draft, selection and owner-specific terminal state remains exact.
+For a generic Mirror source, verify:
 
-## Pass Condition
+- exact source ID and Journey are revalidated;
+- Terminal opens in the exact validated Journey project path;
+- the selected runtime channel and Mirror home are preserved;
+- arguments are passed without shell interpolation;
+- credentials, message content and private paths are not logged;
+- the UI says a new Pi context will be used;
+- no literal session-resumption claim appears;
+- launcher refusal or unavailable Terminal produces a bounded recoverable error.
 
-The Navigator experiences one Mirror conversation catalog per Journey, can create and exactly resume independent Desktop Conversations, can continue Mirror history through an honest source-preserving working copy, can navigate compaction-aligned long history with bounded normal work, can resize the focused sidebar accessibly, and understands `Reset agent context` as a fresh technical context inside the same Conversation. No cross-owner mutation, source loss, hidden synchronization, automatic split, provider lifecycle call, unbounded eager loading or authority inflation occurs.
+For Desktop-ready entries with exact Pi session authority, verify any exact-session Terminal action is separately labeled and never inferred for generic sources.
 
-## Fail Conditions
+### Handoff disclosure and destination
 
-- duplicate or missing existing Conversation after migration;
-- listed history becoming executable without validated transition;
-- source mutation, deletion, hidden merge or false literal-resume claim;
-- partial import or creation appearing ready;
-- messages, Steering or terminal evidence crossing Conversation or Segment ownership;
-- two live/finalizing leases for one Journey;
-- compaction automatically creating a Conversation or generation;
-- reset replaying history, invoking a provider or losing the prior generation;
-- catalog or initial transcript work scaling with complete retained history;
-- sidebar width hiding the composer, escaping bounds, relying only on color or failing keyboard control;
-- restart recovery spawning a child, replaying a prompt or duplicating lifecycle work;
-- protected production data entering fixtures, logs, screenshots or source control.
+Verify disclosure states:
+
+- a new Desktop Conversation will be created;
+- the source remains in Mirror;
+- only the selected recent-message limit will be requested;
+- no transcript import, prior tool state or synchronization is promised;
+- Journey briefing files will not be used as transfer storage.
+
+Confirming must create the destination without a model call and then pre-fill its composer. The prompt must remain editable and unsent. Canceling or relaunching must never send it automatically.
+
+### Generated prompt
+
+Assert the prompt contains:
+
+- exact source full ID;
+- exact source Journey `mirror-desktop`;
+- bounded requested recall limit;
+- instruction to use the validated Mirror runtime;
+- instruction to treat recalled content as source material rather than authority;
+- prohibition on source mutation;
+- requirement to state available scope and omissions;
+- prohibition on literal-resumption, complete-import or synchronization claims.
+
+No Mirror home path, credential or shell command assembled from untrusted text may appear in the prompt.
+
+### Agent run
+
+After explicit user Send, verify:
+
+- normal native admission and one-Pi-process boundaries apply;
+- another same-Journey lease blocks Send while preserving the draft;
+- recall uses the full source ID and requested limit;
+- source content cannot call native Conversation lifecycle authority;
+- the response states scope, omissions and immediate working context;
+- handoff provenance remains visible after relaunch;
+- source messages and Journey briefing files remain byte-identical;
+- later source activity is neither detected nor merged automatically;
+- repeating handoff creates a new explicit destination rather than silently merging.
+
+## TS-3 — Segment Tests
+
+Use generated Pi JSONL with valid and adversarial compaction entries. Verify:
+
+- checkpoint references resolve under exact session and generation authority;
+- publication waits for settled turn evidence;
+- compaction summary remains Pi-owned evidence;
+- Conversation, thread, generation and Pi session do not change;
+- user/assistant pairs, tools, Steering and terminal evidence are never split incoherently;
+- retained tail is referenced without duplicating durable messages;
+- historical Segments load only on explicit navigation;
+- malformed, stale, cross-session or streamed labels create no checkpoint.
+
+## TS-4 — Migration, Recovery and Scale Tests
+
+Inject failures before and after every durable phase in:
+
+- Conversation creation;
+- handoff-draft preparation;
+- Segment publication;
+- compatibility migration.
+
+After relaunch prove exact resume or rollback with no prompt send, Pi child, duplicate Conversation or authority inference.
+
+Generate multiple Conversations including at least one history above 1,000 messages and 10 MiB terminal projection evidence. Capture deterministic probes showing:
+
+- catalog opening reads bounded metadata only;
+- current Conversation opens from its current working Segment;
+- historical Segments are materialized on demand;
+- initial projection and DOM do not scale with all retained Segment bodies;
+- complete history remains recoverable.
+
+## Aggregate Desktop Route
+
+1. Launch `Mirror Desktop Dev` and verify bundle/channel identity.
+2. Open migrated `mirror-desktop` and verify one unchanged first Conversation.
+3. Create two new Desktop Conversations without model activity.
+4. Preserve different drafts while switching among them.
+5. Run one turn and verify sibling Send remains blocked but browsing/drafting works.
+6. Focus the Journey and resize by pointer and keyboard; relaunch and verify clamped persistence.
+7. Add a disposable Mirror history entry for exactly `mirror-desktop` and verify metadata-only catalog presence.
+8. Rename it manually and verify canonical title change without provider invocation or message mutation.
+9. Open it in Terminal and verify recalled-context—not exact-resume—language and safe launch coordinates.
+10. Choose agent handoff, inspect and edit the unsent prompt, then explicitly Send.
+11. Verify destination authority predates the agent turn, recall stays within the declared request and the response states omissions.
+12. Verify source and Journey briefing remain unchanged.
+13. Trigger authoritative Pi compaction and verify same-Conversation Segment publication.
+14. Reset agent context and verify prior generation preservation.
+15. Interrupt local lifecycle phases and verify exact restart recovery.
+16. Relaunch normally and verify Conversations, Segments, provenance, drafts, selection and owner-specific terminal state.
+
+## Aggregate Pass Condition
+
+The Navigator can manage multiple exact Desktop Conversations, browse useful Mirror history, rename it canonically, open it in Terminal with honest recalled context and continue it through an explicit agent-prepared destination without using Journey briefing as a transfer mechanism. Long Desktop history remains complete and bounded through technical Segments; sidebar geometry remains accessible; context reset remains honest; no cross-owner mutation, hidden model call, automatic prompt send, Mirror core dependency, direct database access or authority inflation occurs.
+
+## Failure Conditions
+
+Fail validation for any:
+
+- cross-Journey catalog entry, rename, recall or handoff;
+- generic source presented as exact-resumable;
+- transcript body loaded during catalog opening;
+- hidden provider title generation;
+- generated handoff prompt sent automatically;
+- agent or recalled content minting Desktop authority;
+- source message or Journey briefing mutation during handoff;
+- shell interpolation, credential exposure or unsafe Terminal launch;
+- same-Journey concurrent turn or queued retry;
+- partial creation or Segment appearing ready;
+- missing complete-history recovery;
+- unbounded sidebar geometry or inaccessible state semantics;
+- direct SQLite, Web Console API or unreleased Mirror dependency.
 
 ## Automated Gates
 
-Before aggregate Navigator Validation:
-
 ```text
-focused frontend domain/storage/presentation tests
-focused Rust native authority, path, import and migration tests
-complete frontend test suite
-complete Rust test suite
-frontend production build
+focused frontend domain/component tests
+focused Rust authority, launcher, path, migration and Segment tests
+complete frontend suite
+complete Rust suite
+npm run build
 cargo check --locked
-roadmap consistency
-private-data and fixture inspection
+npm run roadmap:check
+roadmap test suite
 git diff --check
-Mirror Desktop Dev build and bundle-identity check
+private-data and generated-fixture inspection
+Mirror Desktop Dev bundle identity verification
 ```
 
-Run `cargo fmt --check` diagnostically and separate pre-existing unrelated drift from changed-file formatting. Do not weaken or redefine established repository gates to obtain a pass.
-
-## Validation Evidence
-
-Record:
-
-- sanitized TS-1 characterization;
-- red/green test evidence by child package;
-- exact schema and migration versions;
-- generated scale-fixture shape and structural work counters;
-- isolated app identity and development roots;
-- Navigator observations for every aggregate route step;
-- known warnings and explicit exclusions;
-- confirmation that no production conversations, Mirror data or app-data artifacts entered source control.
-
-Implementation and validation remain blocked until the aggregate DS Plan is reviewed and approved by the Navigator.
+`cargo fmt --check` remains diagnostic if unrelated pre-existing drift persists; established repository gates must not be weakened.

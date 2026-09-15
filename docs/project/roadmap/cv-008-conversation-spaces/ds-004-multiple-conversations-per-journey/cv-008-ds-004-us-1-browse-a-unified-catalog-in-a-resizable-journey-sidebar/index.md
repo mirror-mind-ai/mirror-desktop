@@ -8,43 +8,49 @@
 ## User Story
 
 As the Navigator,
-I want to expand one Journey into a bounded unified conversation catalog and resize that focused sidebar,
-so that all Mirror continuities are discoverable without exposing internal product boundaries or sacrificing the conversation workspace.
+I want to focus one Journey, browse its Desktop Conversations and useful Mirror history, and resize that space accessibly,
+so that I can choose exact continuity or an honest cross-interface action without loading unrelated transcripts.
 
 ## Outcome
 
-A focused Journey sidebar lists Desktop-ready and Mirror-available conversations together with accessible availability, recency and state. Imported originals remain available secondarily without ordinary duplication. The sidebar resizes by pointer and keyboard within persisted channel-local bounds.
+A focused Journey sidebar lists bounded Desktop-ready and Mirror-available metadata together. Ready entries resume exact Desktop authority; Mirror history exposes only `Rename in Mirror`, `Open in Terminal with recalled context` and `Create conversation from agent handoff`. The sidebar resizes by pointer and keyboard within persisted channel-local bounds.
 
 ## Acceptance Behavior
 
 ```text
-Given one Journey contains ready, Mirror-available, importing and needs-attention entries
-When the Navigator expands it
-Then a bounded catalog presents each state with icon and accessible text without separate-product language
-And transcript bodies are not loaded merely to list entries
+Given one Journey contains ready and Mirror-available entries
+When the Navigator focuses that Journey
+Then only exact-Journey bounded metadata appears
+And every entry communicates authority through icon plus text or accessible label
+And no transcript body or model is loaded merely for catalog presentation
 
-Given the focused sidebar is visible
-When the Navigator resizes it by pointer or keyboard
-Then width remains within accepted limits and survives relaunch
-And window shrink reclamps it safely
-And sidebar controls, conversation reading width and composer remain usable
+Given a Mirror history entry
+When the Navigator chooses Rename in Mirror
+Then full ID and exact Journey are revalidated
+And the canonical title changes manually without a model call
+And the UI discloses that other Mirror surfaces see the change
+
+Given the Navigator resizes the focused sidebar
+When pointer, keyboard, reset, relaunch or window resize changes geometry
+Then width remains clamped and channel-local
+And sidebar controls, conversation and composer remain usable without horizontal leakage
 ```
 
 ## Scope
 
-- Journey focus/collapse navigation and bounded catalog presentation.
-- Ready, available in Mirror, importing and needs-attention semantics.
-- Secondary imported-originals access.
-- Active Conversation and owner-specific run indication.
-- Accessible resize separator, keyboard control, clamping, reset and channel-local preference.
+- Focused Journey expansion and bounded metadata catalog.
+- Ready, available in Mirror, preparing handoff and needs-attention semantics.
+- Explicit source actions supported by the released runtime.
+- Model-free manual canonical rename.
+- Pointer and keyboard separator, accessible value, clamping, reset and persistence.
 
-## Out Of Scope
+## Out of Scope
 
-- Color-only state, unbounded geometry or cross-device width synchronization.
-- Transcript import or execution authority from list selection alone.
-- Cross-Journey catalog entries.
-- Persona destinations.
+- External transcript rendering in Desktop.
+- Working-copy import, source suppression or divergence detection.
+- Execution authority from list selection.
+- Web Console embedding or deep links.
 
 ## Validation
 
-Component, integration, accessibility and layout tests cover bounded loading, state labels, pointer and keyboard resizing, persisted preference corruption, supported themes and window sizes. Navigator validation uses an isolated development bundle and confirms no transcript-body request on ordinary catalog opening.
+Use generated entries and exact Journey mismatch fixtures. Verify catalog work remains metadata-only, rename never invokes a provider, source messages stay unchanged, availability does not depend on color and all admitted sidebar widths protect the composer and reading surface.

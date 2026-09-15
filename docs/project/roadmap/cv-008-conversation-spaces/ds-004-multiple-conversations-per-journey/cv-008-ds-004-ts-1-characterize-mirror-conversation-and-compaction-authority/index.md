@@ -10,7 +10,7 @@
 In order to avoid false continuity and a Desktop reimplementation of Pi compaction,
 as the conversation substrate,
 I want sanitized evidence for the released Mirror conversation catalog and real Pi compaction boundaries,
-so that later schemas distinguish exact adoption, working-copy handoff and read-only history from authoritative facts.
+so that later schemas distinguish exact Desktop authority, actionable Mirror history and agent handoff from authoritative facts.
 
 ## Outcome
 
@@ -44,4 +44,4 @@ And missing supported runtime capability blocks dependent work instead of causin
 
 ## Validation
 
-Completed in [the structural characterization](../characterization.md). The released Mirror summary path is Journey-filtered and bounded, but lacks an opaque source revision and bounded message preview. Real Pi session inspection recorded compaction shape and reference resolution without retaining content, identifiers or paths. Import-dependent work is explicitly blocked pending a separately governed and officially released Mirror capability; no direct SQLite or production-checkout workaround is allowed.
+Completed in [the structural characterization](../characterization.md). The released Mirror summary path is Journey-filtered and bounded, and existing exact lookup, manual title mutation and recall support the selected no-core-update route. It still lacks an opaque source revision and bounded message snapshot, so working-copy import remains outside this DS. Real Pi session inspection recorded compaction shape and reference resolution without retaining content, identifiers or paths; no direct SQLite or production-checkout workaround is allowed.
