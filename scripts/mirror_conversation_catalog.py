@@ -16,7 +16,7 @@ IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{10,255}$")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("catalog", "rename"))
+    parser.add_argument("operation", choices=("catalog", "inspect", "rename"))
     parser.add_argument("--journey-id", required=True)
     parser.add_argument("--conversation-id")
     parser.add_argument("--title")
@@ -82,6 +82,15 @@ def main() -> None:
                 "status": "ok",
                 "journeyId": args.journey_id,
                 "entries": entries,
+            }
+        elif args.operation == "inspect":
+            conversation = exact_conversation(mem, args)
+            result = {
+                "schemaVersion": "1.0.0",
+                "operation": "inspect",
+                "status": "ok",
+                "journeyId": args.journey_id,
+                "conversationId": conversation.id,
             }
         else:
             conversation = exact_conversation(mem, args)

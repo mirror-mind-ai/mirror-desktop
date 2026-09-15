@@ -511,6 +511,143 @@ fn run_mirror_conversation_catalog(
     Ok(value)
 }
 
+fn desktop_conversation_catalog_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
+    let safe_journey_id = sanitize_journey_id(journey_id)?;
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
+    Ok(app_data_dir.join("conversation-spaces").join(safe_journey_id).join("catalog.json"))
+}
+
+fn load_desktop_conversation_catalog_at(path: &Path, journey_id: &str) -> Result<Value, String> {
+    if !path.exists() {
+        return Ok(json!({ "schemaVersion": "1.0.0", "journeyId": journey_id, "entries": [] }));
+    }
+    let payload = fs::read(path).map_err(|error| format!("Could not read Desktop Conversation catalog: {}", error))?;
+    if payload.len() > 1024 * 1024 {
+        return Err("Desktop Conversation catalog exceeded its bounded size.".to_string());
+    }
+    let value: Value = serde_json::from_slice(&payload)
+        .map_err(|_| "Desktop Conversation catalog is invalid.".to_string())?;
+    if value.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
+        || value.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+        || value.get("entries").and_then(Value::as_array).map_or(true, |entries| entries.len() > 100)
+    {
+        return Err("Desktop Conversation catalog Journey authority is invalid.".to_string());
+    }
+    let mut conversation_ids = HashSet::new();
+    let mut thread_ids = HashSet::new();
+    for entry in value.get("entries").and_then(Value::as_array).into_iter().flatten() {
+        let conversation_id = entry.get("conversationId").and_then(Value::as_str).unwrap_or_default();
+        let thread_id = entry.get("threadId").and_then(Value::as_str).unwrap_or_default();
+        if entry.get("kind").and_then(Value::as_str) != Some("desktop_conversation")
+            || entry.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+            || entry.get("availability").and_then(Value::as_str) != Some("ready")
+            || entry.get("generation").and_then(Value::as_u64).unwrap_or_default() == 0
+            || entry.get("piSessionFile").and_then(Value::as_str).map_or(true, str::is_empty)
+            || sanitize_session_id(conversation_id).is_err()
+            || sanitize_session_id(thread_id).is_err()
+            || !conversation_ids.insert(conversation_id)
+            || !thread_ids.insert(thread_id)
+        {
+            return Err("Desktop Conversation catalog contains incomplete authority.".to_string());
+        }
+    }
+    Ok(value)
+}
+
+#[tauri::command]
+fn load_desktop_conversation_catalog(app: AppHandle, journey_id: String) -> Result<Value, String> {
+    sanitize_journey_id(&journey_id)?;
+    load_desktop_conversation_catalog_at(&desktop_conversation_catalog_path(&app, &journey_id)?, &journey_id)
+}
+
+#[tauri::command]
+async fn create_desktop_conversation(
+    app: AppHandle,
+    state: State<'_, JourneyProvisioningState>,
+    journey_id: String,
+    journey_name: String,
+    title: String,
+    source_conversation_id: Option<String>,
+    source_message_limit: Option<u16>,
+) -> Result<Value, String> {
+    sanitize_journey_id(&journey_id)?;
+    let title = title.split_whitespace().collect::<Vec<_>>().join(" ");
+    let journey_name = journey_name.split_whitespace().collect::<Vec<_>>().join(" ");
+    if title.is_empty() || title.chars().count() > 160 {
+        return Err("Desktop Conversation title is invalid.".to_string());
+    }
+    if journey_name.is_empty() || journey_name.chars().count() > 160 {
+        return Err("Desktop Conversation Journey name is invalid.".to_string());
+    }
+    match (&source_conversation_id, source_message_limit) {
+        (None, None) => {}
+        (Some(source_id), Some(limit)) if (10..=100).contains(&limit) => {
+            sanitize_session_id(source_id)?;
+            run_mirror_conversation_catalog(
+                &app, "inspect", &journey_id, &["--conversation-id", source_id],
+            )?;
+        }
+        _ => return Err("Desktop Conversation handoff provenance is invalid.".to_string()),
+    }
+    {
+        let mut active = state.active.lock()
+            .map_err(|_| "Could not inspect active Journey lifecycle operation.".to_string())?;
+        if !active.insert(journey_id.clone()) {
+            return Err("This Journey already has an active lifecycle operation.".to_string());
+        }
+    }
+    let _lease = JourneyProvisioningLease { active: state.active.clone(), journey_id: journey_id.clone() };
+    let catalog_path = desktop_conversation_catalog_path(&app, &journey_id)?;
+    let mut catalog = load_desktop_conversation_catalog_at(&catalog_path, &journey_id)?;
+    if catalog.get("entries").and_then(Value::as_array).map_or(true, |entries| entries.len() >= 100) {
+        return Err("Desktop Conversation catalog is full.".to_string());
+    }
+    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let bounded_journey = journey_id.chars().take(64).collect::<String>();
+    let requested_pi_id = format!("desktop-{}-{:x}", bounded_journey, nonce);
+    let thread_id = format!("desktop-thread-{}-{:x}", bounded_journey, nonce);
+    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let pi_session_dir = app_data_dir.join("pi-sessions");
+    let pi_name = format!("{} · {} · Mirror Desktop", journey_name.chars().take(36).collect::<String>(), title.chars().take(36).collect::<String>());
+    let mirror_name = title.clone();
+    let task_app = app.clone();
+    let task_journey = journey_id.clone();
+    let task_pi_id = requested_pi_id.clone();
+    let (pi_session_id, pi_session_file, mirror_conversation_id) = tauri::async_runtime::spawn_blocking(move || {
+        let (pi_id, pi_file) = provision_pi_session(&task_pi_id, &pi_name, &pi_session_dir)?;
+        let mirror_id = provision_mirror_conversation(&task_app, &pi_file, &task_journey, &mirror_name)?;
+        Ok::<_, String>((pi_id, pi_file, mirror_id))
+    }).await.map_err(|error| format!("Desktop Conversation provisioning task failed: {}", error))??;
+    if pi_session_id != requested_pi_id {
+        return Err("Desktop Conversation Pi authority diverged from its reservation.".to_string());
+    }
+    let created_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let runtime_channel = active_runtime_channel()?.channel.as_str();
+    let entry = json!({
+        "schemaVersion": "1.0.0", "journeyId": journey_id,
+        "kind": "desktop_conversation", "conversationId": mirror_conversation_id,
+        "threadId": thread_id, "title": title, "updatedAt": created_at,
+        "messageCount": 0, "availability": "ready", "generation": 1,
+        "piSessionId": pi_session_id, "piSessionFile": pi_session_file,
+        "runtimeChannel": runtime_channel,
+        "sourceConversationId": source_conversation_id,
+        "sourceMessageLimit": source_message_limit,
+    });
+    catalog.get_mut("entries").and_then(Value::as_array_mut)
+        .ok_or_else(|| "Desktop Conversation catalog entries are invalid.".to_string())?
+        .insert(0, entry.clone());
+    if let Some(parent) = catalog_path.parent() {
+        fs::create_dir_all(parent).map_err(|error| format!("Could not create Desktop Conversation catalog directory: {}", error))?;
+    }
+    let staged = catalog_path.with_extension("json.provisioning.tmp");
+    fs::write(&staged, serde_json::to_vec_pretty(&catalog).map_err(|error| error.to_string())?)
+        .map_err(|error| format!("Could not stage Desktop Conversation authority: {}", error))?;
+    fs::rename(&staged, &catalog_path)
+        .map_err(|error| format!("Could not publish Desktop Conversation authority: {}", error))?;
+    Ok(entry)
+}
+
 #[tauri::command]
 fn load_mirror_conversation_catalog(app: AppHandle, journey_id: String, limit: u16) -> Result<Value, String> {
     if !(1..=100).contains(&limit) {
@@ -5054,6 +5191,8 @@ fn main() {
             load_journey_thread,
             provision_journey_thread,
             restart_journey_thread,
+            load_desktop_conversation_catalog,
+            create_desktop_conversation,
             load_mirror_conversation_catalog,
             rename_mirror_conversation,
             load_journey_registry,
@@ -5129,7 +5268,8 @@ mod tests {
     use super::{
         classify_pi_process_terminal, compiled_runtime_channel, dedicated_native_names, enqueue_mirror_append_item_at, exact_steering_authority_matches, extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
-        list_journey_documentation_at, materialize_empty_pi_session, parse_pi_session_state,
+        list_journey_documentation_at, load_desktop_conversation_catalog_at,
+        materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, project_pi_user_entries, projection_manifest_coordinates_at,
         inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
         read_exact_pi_session_context_stats, read_journey_document_at, remove_provider_session_args, resolve_existing_local_file,
@@ -5159,6 +5299,27 @@ mod tests {
             label,
             SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(),
         ))
+    }
+
+    #[test]
+    fn loads_only_bounded_desktop_conversation_catalog_authority() {
+        let root = test_root("desktop-conversation-catalog");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("catalog.json");
+        assert_eq!(
+            load_desktop_conversation_catalog_at(&path, "journey-one").unwrap(),
+            json!({ "schemaVersion": "1.0.0", "journeyId": "journey-one", "entries": [] }),
+        );
+        fs::write(&path, serde_json::to_vec(&json!({
+            "schemaVersion": "1.0.0", "journeyId": "another-journey", "entries": []
+        })).unwrap()).unwrap();
+        assert!(load_desktop_conversation_catalog_at(&path, "journey-one").is_err());
+        fs::write(&path, serde_json::to_vec(&json!({
+            "schemaVersion": "1.0.0", "journeyId": "journey-one",
+            "entries": (0..101).map(|index| json!({ "id": index })).collect::<Vec<_>>()
+        })).unwrap()).unwrap();
+        assert!(load_desktop_conversation_catalog_at(&path, "journey-one").is_err());
+        let _ = fs::remove_dir_all(root);
     }
 
     fn test_correlation() -> TurnCorrelation {
