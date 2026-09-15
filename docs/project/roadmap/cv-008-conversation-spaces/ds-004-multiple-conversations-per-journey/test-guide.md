@@ -213,7 +213,7 @@ Verify selection opens a non-executable screen rather than the standard transcri
 1. `Continue in new Desktop Conversation`;
 2. `Continue with recalled context in Terminal`.
 
-The Conversation row context menu must expose both actions plus `Rename in Mirror`. Rename must not be duplicated on the detail surface. The screen must keep its content edges aligned with the header, omit low-value persona metadata, avoid horizontally centered compression, and never expose Send, Reset or Resume for the source.
+The Conversation row context menu must expose both actions plus `Rename in Mirror`. Rename must open an application-owned dialog, update the canonical Mirror title only after explicit submission, and remain recoverable when validation fails. It must not be duplicated on the detail surface. The screen must keep its content edges aligned with the header, omit low-value persona metadata, avoid horizontally centered compression, and never expose Send, Reset or Resume for the source.
 
 ### Handoff disclosure and destination
 

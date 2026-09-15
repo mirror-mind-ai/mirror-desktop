@@ -22,6 +22,13 @@ describe("Journey conversation-space integration", () => {
     expect(appSource).toContain("renameMirrorConversation");
   });
 
+  it("renames Mirror history through an application-owned dialog", () => {
+    expect(appSource).toContain('aria-label="Rename Mirror Conversation"');
+    expect(appSource).toContain("requestMirrorConversationRename");
+    expect(appSource).toContain("confirmMirrorConversationRename");
+    expect(appSource).not.toContain("window.prompt(");
+  });
+
   it("confirms Desktop child deletion in an application-owned alert dialog", () => {
     expect(appSource).toContain('aria-label="Delete Desktop Conversation"');
     expect(appSource).toContain("confirmDesktopConversationDeletion");

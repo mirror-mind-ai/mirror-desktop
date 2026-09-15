@@ -497,6 +497,12 @@ export function App({ model }: AppProps) {
   const [focusedJourneyRootThreadId, setFocusedJourneyRootThreadId] = useState<string>();
   const [conversationActionBusy, setConversationActionBusy] = useState(false);
   const [conversationActionMessage, setConversationActionMessage] = useState<string>();
+  const [mirrorRenameTarget, setMirrorRenameTarget] = useState<{
+    journeyId: string;
+    entry: Extract<ConversationCatalogEntry, { kind: "mirror_history" }>;
+  }>();
+  const [mirrorRenameDraft, setMirrorRenameDraft] = useState("");
+  const [mirrorRenameError, setMirrorRenameError] = useState<string>();
   const [conversationDeleteTarget, setConversationDeleteTarget] = useState<Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>>();
   const [conversationDeleteError, setConversationDeleteError] = useState<string>();
   const [focusedSidebarWidth, setFocusedSidebarWidth] = useState(DEFAULT_FOCUSED_SIDEBAR_WIDTH);
@@ -3111,20 +3117,37 @@ export function App({ model }: AppProps) {
     }
   }
 
-  async function renameSelectedMirrorHistory(entry: Extract<ConversationCatalogEntry, { kind: "mirror_history" }>) {
+  function requestMirrorConversationRename(entry: Extract<ConversationCatalogEntry, { kind: "mirror_history" }>) {
     if (!availableConversationActions(entry).includes("rename_in_mirror")) return;
-    const requested = window.prompt("Rename this conversation in Mirror", entry.title);
-    if (requested === null || !requested.trim() || requested.trim() === entry.title) return;
+    setMirrorRenameTarget({ journeyId: selectedJourney, entry });
+    setMirrorRenameDraft(entry.title);
+    setMirrorRenameError(undefined);
+  }
+
+  async function confirmMirrorConversationRename() {
+    const target = mirrorRenameTarget;
+    const title = mirrorRenameDraft.trim();
+    if (!target || !title || title === target.entry.title || conversationActionBusy) return;
     setConversationActionBusy(true);
+    setMirrorRenameError(undefined);
     setConversationActionMessage("Renaming in Mirror…");
     try {
-      const renamed = await renameMirrorConversation({ journeyId: selectedJourney, conversationId: entry.conversationId, title: requested });
-      setConversationCatalog((current) => current.map((candidate) => candidate.conversationId === entry.conversationId
-        ? { ...candidate, title: renamed.title }
-        : candidate));
+      const renamed = await renameMirrorConversation({
+        journeyId: target.journeyId,
+        conversationId: target.entry.conversationId,
+        title,
+      });
+      if (selectedJourney === target.journeyId) {
+        setConversationCatalog((current) => current.map((candidate) => candidate.conversationId === target.entry.conversationId
+          ? { ...candidate, title: renamed.title }
+          : candidate));
+      }
       setConversationActionMessage("Canonical Mirror title updated.");
+      setMirrorRenameTarget(undefined);
     } catch (error) {
-      setConversationActionMessage(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      setMirrorRenameError(message);
+      setConversationActionMessage(message);
     } finally {
       setConversationActionBusy(false);
     }
@@ -3964,7 +3987,7 @@ export function App({ model }: AppProps) {
                   })}
                   onContinueMirror={(entry) => void createConversationFromMirrorHistory(entry)}
                   onOpenMirrorTerminal={(entry) => void openSelectedMirrorHistoryInTerminal(entry)}
-                  onRenameMirror={(entry) => void renameSelectedMirrorHistory(entry)}
+                  onRenameMirror={requestMirrorConversationRename}
                   onDeleteDesktop={requestDesktopConversationDeletion}
                 />
               ) : null}
@@ -4478,6 +4501,41 @@ export function App({ model }: AppProps) {
               </button>
             </div>
           </section>
+        </div>
+      ) : null}
+
+      {mirrorRenameTarget ? (
+        <div className="settings-backdrop" role="presentation">
+          <form
+            className="settings-window journey-admin-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Rename Mirror Conversation"
+            onSubmit={(event) => { event.preventDefault(); void confirmMirrorConversationRename(); }}
+          >
+            <div className="settings-header">
+              <div><p className="eyebrow">Mirror Core Conversation</p><h2>Rename in Mirror</h2></div>
+              <button type="button" onClick={() => setMirrorRenameTarget(undefined)} disabled={conversationActionBusy}>×</button>
+            </div>
+            <label>
+              Conversation title
+              <input
+                autoFocus
+                value={mirrorRenameDraft}
+                onChange={(event) => setMirrorRenameDraft(event.target.value)}
+                required
+                maxLength={160}
+              />
+            </label>
+            <p className="journey-admin-summary">This updates the canonical title in Mirror Core. The conversation identity and content remain unchanged.</p>
+            {mirrorRenameError ? <p className="settings-error" role="alert">{mirrorRenameError}</p> : null}
+            <div className="settings-actions">
+              <button type="button" onClick={() => setMirrorRenameTarget(undefined)} disabled={conversationActionBusy}>Cancel</button>
+              <button type="submit" disabled={conversationActionBusy || !mirrorRenameDraft.trim() || mirrorRenameDraft.trim() === mirrorRenameTarget.entry.title}>
+                {conversationActionBusy ? "Renaming…" : "Rename in Mirror"}
+              </button>
+            </div>
+          </form>
         </div>
       ) : null}
 
