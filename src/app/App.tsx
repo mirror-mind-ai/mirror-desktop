@@ -105,6 +105,7 @@ import { loadFocusedSidebarWidth, saveFocusedSidebarWidth } from "./focusedSideb
 import { MirrorHistoryActionSurface } from "./MirrorHistoryActionSurface";
 import { createDesktopConversation, loadDesktopConversationCatalog, restartDesktopConversation } from "./conversationSpaceStorage";
 import { loadMirrorConversationCatalog, openMirrorConversationInTerminal, renameMirrorConversation } from "./mirrorConversationCatalog";
+import { refreshConversationSegments } from "./conversationSegmentStorage";
 import { loadDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import { projectGenerationHistory } from "../domain/journeyThreadRestart";
@@ -2429,6 +2430,19 @@ export function App({ model }: AppProps) {
     authority: JourneySettlementAuthority,
   ): Promise<void> {
     await saveActiveSettlementProjection(projection, authority);
+    const settledCompaction = Object.values(projection.terminalAgentActionEvidence ?? {}).some((evidence) => (
+      evidence.runId === authority.runId
+      && evidence.projection.operations.some((operation) => operation.kind === "compaction" && operation.status === "completed")
+    ));
+    if (settledCompaction && projection.liveIdentity.piSessionFile) {
+      await refreshConversationSegments({
+        journeyId: authority.journeyId,
+        threadId: authority.threadId,
+        generation: authority.generation,
+        sessionId: authority.piSessionId,
+        sessionFile: projection.liveIdentity.piSessionFile,
+      });
+    }
     const journal = await loadTurnJournal(authority.journeyId);
     if (journal.records.some((record) => record.authority.runId === authority.runId)) {
       await advanceTurnJournal(authority, "terminal_durable", "projected");

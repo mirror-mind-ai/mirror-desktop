@@ -2755,6 +2755,164 @@ fn load_dedicated_pi_user_entries(
     project_pi_user_entries(&fs::read_to_string(session_file).map_err(|error| error.to_string())?)
 }
 
+fn project_conversation_segment_manifest(
+    content: &str,
+    journey_id: &str,
+    thread_id: &str,
+    generation: u64,
+    pi_session_id: &str,
+    turns: &[(String, String, String)],
+) -> Result<Value, String> {
+    let entries = active_pi_session_entries(content);
+    if entries.len() > 1_000_000 {
+        return Err("Pi Segment source exceeds its entry bound.".to_string());
+    }
+    let positions: HashMap<&str, usize> = entries.iter().enumerate()
+        .filter_map(|(index, entry)| entry.get("id").and_then(Value::as_str).map(|id| (id, index)))
+        .collect();
+    if positions.len() != entries.len() {
+        return Err("Pi Segment source contains missing or duplicate entry ids.".to_string());
+    }
+    let mut segments = Vec::new();
+    let mut source_from = entries.first().and_then(|entry| entry.get("id")).and_then(Value::as_str);
+    for (index, entry) in entries.iter().enumerate() {
+        if entry.get("type").and_then(Value::as_str) != Some("compaction") { continue; }
+        if segments.len() >= 255 {
+            return Err("Pi Segment checkpoint count exceeds its bound.".to_string());
+        }
+        let compaction_id = entry.get("id").and_then(Value::as_str)
+            .ok_or_else(|| "Pi compaction has no exact id.".to_string())?;
+        let through = entry.get("parentId").and_then(Value::as_str)
+            .ok_or_else(|| "Pi compaction has no exact parent.".to_string())?;
+        let retained = entry.get("firstKeptEntryId").and_then(Value::as_str)
+            .ok_or_else(|| "Pi compaction has no retained-tail authority.".to_string())?;
+        let through_position = positions.get(through).copied()
+            .ok_or_else(|| "Pi compaction parent does not resolve.".to_string())?;
+        let retained_position = positions.get(retained).copied()
+            .ok_or_else(|| "Pi compaction retained tail does not resolve.".to_string())?;
+        if through_position >= index || retained_position > through_position
+            || entries[retained_position].get("type").and_then(Value::as_str) != Some("message")
+        {
+            return Err("Pi compaction checkpoint is structurally invalid.".to_string());
+        }
+        let number = segments.len() + 1;
+        segments.push(json!({
+            "segment": number, "segmentId": format!("segment-{}", number), "status": "closed",
+            "sourceFromEntryId": source_from, "sourceThroughEntryId": through,
+            "retainedTailFromEntryId": retained, "compactionEntryId": compaction_id,
+        }));
+        source_from = Some(retained);
+    }
+    let number = segments.len() + 1;
+    segments.push(json!({
+        "segment": number, "segmentId": format!("segment-{}", number), "status": "current",
+        "sourceFromEntryId": source_from,
+        "sourceThroughEntryId": entries.last().and_then(|entry| entry.get("id")).and_then(Value::as_str),
+    }));
+    for segment in &mut segments {
+        let from = segment.get("sourceFromEntryId").and_then(Value::as_str).and_then(|id| positions.get(id)).copied();
+        let through = segment.get("sourceThroughEntryId").and_then(Value::as_str).and_then(|id| positions.get(id)).copied();
+        let included = turns.iter().filter(|(_, user, assistant)| {
+            let user_position = positions.get(user.as_str()).copied();
+            let assistant_position = positions.get(assistant.as_str()).copied();
+            matches!((from, through, user_position), (Some(from), Some(through), Some(position)) if position >= from && position <= through)
+                || matches!((from, through, assistant_position), (Some(from), Some(through), Some(position)) if position >= from && position <= through)
+        }).collect::<Vec<_>>();
+        if let (Some(first), Some(last)) = (included.first(), included.last()) {
+            segment["firstTurnId"] = Value::String(first.0.clone());
+            segment["lastTurnId"] = Value::String(last.0.clone());
+        }
+    }
+    Ok(json!({
+        "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
+        "generation": generation, "piSessionId": pi_session_id,
+        "sourceEntryCount": entries.len(), "segments": segments,
+    }))
+}
+
+fn conversation_segment_manifest_path(
+    app: &AppHandle,
+    journey_id: &str,
+    thread_id: &str,
+    generation: u64,
+) -> Result<PathBuf, String> {
+    sanitize_journey_id(journey_id)?;
+    sanitize_session_id(thread_id)?;
+    if generation == 0 { return Err("Conversation Segment generation must be positive.".to_string()); }
+    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    Ok(app_data_dir.join("conversation-segments").join(journey_id).join(thread_id)
+        .join(format!("generation-{}.json", generation)))
+}
+
+#[tauri::command]
+fn refresh_conversation_segments(
+    app: AppHandle,
+    persistence: State<'_, JourneyProjectionPersistenceState>,
+    journey_id: String,
+    thread_id: String,
+    generation: u64,
+    session_id: String,
+    session_file: String,
+) -> Result<Value, String> {
+    validate_conversation_session_authority(
+        &app, &journey_id, &thread_id, generation, &session_id, &session_file,
+    )?;
+    let metadata = fs::metadata(&session_file)
+        .map_err(|_| "Could not inspect Pi Segment source.".to_string())?;
+    if metadata.len() > 256 * 1024 * 1024 {
+        return Err("Pi Segment source exceeds its byte bound.".to_string());
+    }
+    let content = fs::read_to_string(&session_file)
+        .map_err(|_| "Could not read Pi Segment source.".to_string())?;
+    let projection_path = conversation_projection_path(&app, &journey_id, &thread_id, generation)?;
+    let projection: Value = serde_json::from_slice(
+        &fs::read(&projection_path).map_err(|_| "Conversation Segment turn projection is unavailable.".to_string())?,
+    ).map_err(|_| "Conversation Segment turn projection is invalid.".to_string())?;
+    let turns = projection.pointer("/conversation/reconciliation/turns").and_then(Value::as_array)
+        .into_iter().flatten().filter_map(|turn| {
+            Some((
+                turn.get("turnId")?.as_str()?.to_string(),
+                turn.pointer("/pi/userEntryId")?.as_str()?.to_string(),
+                turn.pointer("/pi/assistantEntryId")?.as_str()?.to_string(),
+            ))
+        }).collect::<Vec<_>>();
+    let manifest = project_conversation_segment_manifest(
+        &content, &journey_id, &thread_id, generation, &session_id, &turns,
+    )?;
+    let path = conversation_segment_manifest_path(&app, &journey_id, &thread_id, generation)?;
+    let payload = serde_json::to_vec_pretty(&manifest).map_err(|_| "Could not serialize Conversation Segments.".to_string())?;
+    let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+    write_durable_projection_at(&path, &payload, nonce)
+        .map_err(|_| "Could not durably publish Conversation Segments.".to_string())?;
+    Ok(manifest)
+}
+
+#[tauri::command]
+fn load_conversation_segments(
+    app: AppHandle,
+    journey_id: String,
+    thread_id: String,
+    generation: u64,
+    session_id: String,
+) -> Result<Option<Value>, String> {
+    let path = conversation_segment_manifest_path(&app, &journey_id, &thread_id, generation)?;
+    if !path.exists() { return Ok(None); }
+    let metadata = fs::symlink_metadata(&path).map_err(|_| "Could not inspect Conversation Segments.".to_string())?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 1024 * 1024 {
+        return Err("Conversation Segment manifest is invalid.".to_string());
+    }
+    let value: Value = serde_json::from_slice(&fs::read(path).map_err(|_| "Could not read Conversation Segments.".to_string())?)
+        .map_err(|_| "Conversation Segment manifest is malformed.".to_string())?;
+    if value.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
+        || value.get("threadId").and_then(Value::as_str) != Some(thread_id.as_str())
+        || value.get("generation").and_then(Value::as_u64) != Some(generation)
+        || value.get("piSessionId").and_then(Value::as_str) != Some(session_id.as_str())
+    {
+        return Err("Conversation Segment manifest authority mismatch.".to_string());
+    }
+    Ok(Some(value))
+}
+
 fn project_active_pi_branch(content: &str) -> Result<Vec<PiBranchEntry>, String> {
     let mut entries = Vec::new();
     for line in content.lines() {
@@ -5532,6 +5690,8 @@ fn main() {
             read_pi_session_context_stats,
             load_dedicated_pi_transcript,
             load_dedicated_pi_user_entries,
+            refresh_conversation_segments,
+            load_conversation_segments,
             enqueue_mirror_append_item,
             list_mirror_append_outbox,
             append_mirror_outbox_item,
@@ -5567,7 +5727,8 @@ mod tests {
         list_journey_documentation_at, load_conversation_thread_authority_at,
         load_desktop_conversation_catalog_at,
         materialize_empty_pi_session, parse_pi_session_state,
-        project_complete_pi_transcript, project_pi_user_entries, projection_manifest_coordinates_at,
+        project_complete_pi_transcript, project_conversation_segment_manifest,
+        project_pi_user_entries, projection_manifest_coordinates_at,
         inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
         read_exact_pi_session_context_stats, read_journey_document_at, remove_provider_session_args, resolve_existing_local_file,
         resolve_existing_local_file_at, resolve_journey_artifact_at, retire_legacy_parity_state_at,
@@ -5651,6 +5812,27 @@ mod tests {
         assert!(projection.ends_with("threads/desktop-thread-one/generation-1.json"));
         assert!(load_conversation_thread_authority_at(&root, "another-journey", "desktop-thread-one").is_err());
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn projects_exact_compaction_boundaries_without_copying_message_content() {
+        let content = [
+            r#"{"type":"session","version":3,"id":"session-one"}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"message":{"role":"user","content":"private"}}"#,
+            r#"{"type":"message","id":"assistant-1","parentId":"user-1","message":{"role":"assistant","content":[{"type":"text","text":"private"}]}}"#,
+            r#"{"type":"message","id":"user-2","parentId":"assistant-1","message":{"role":"user","content":"private"}}"#,
+            r#"{"type":"compaction","id":"compact-1","parentId":"user-2","firstKeptEntryId":"assistant-1","summary":"private"}"#,
+            r#"{"type":"message","id":"assistant-2","parentId":"compact-1","message":{"role":"assistant","content":[]}}"#,
+        ].join("\n");
+        let manifest = project_conversation_segment_manifest(
+            &content, "journey-one", "thread-one", 1, "session-one",
+            &[("turn-one".to_string(), "user-1".to_string(), "assistant-1".to_string())],
+        ).unwrap();
+        assert_eq!(manifest.pointer("/segments/0/compactionEntryId").and_then(Value::as_str), Some("compact-1"));
+        assert_eq!(manifest.pointer("/segments/1/sourceFromEntryId").and_then(Value::as_str), Some("assistant-1"));
+        assert_eq!(manifest.pointer("/segments/1/status").and_then(Value::as_str), Some("current"));
+        assert_eq!(manifest.pointer("/segments/0/firstTurnId").and_then(Value::as_str), Some("turn-one"));
+        assert!(!manifest.to_string().contains("private"));
     }
 
     fn test_correlation() -> TurnCorrelation {
