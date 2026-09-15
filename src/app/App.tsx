@@ -108,7 +108,11 @@ import {
   reconcileDesktopConversationCatalogEntry, restartDesktopConversation,
 } from "./conversationSpaceStorage";
 import { loadMirrorConversationCatalog, openMirrorConversationInTerminal, renameMirrorConversation } from "./mirrorConversationCatalog";
-import { refreshConversationSegments } from "./conversationSegmentStorage";
+import {
+  loadCompleteConversationSegmentHistory, loadConversationSegments,
+  publishConversationSegmentProjections, refreshConversationSegments,
+} from "./conversationSegmentStorage";
+import { partitionConversationBySegments } from "../domain/conversationSegmentProjection";
 import { loadDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import { projectGenerationHistory } from "../domain/journeyThreadRestart";
@@ -482,6 +486,8 @@ export function App({ model }: AppProps) {
   const [conversationCatalog, setConversationCatalog] = useState<ConversationCatalogEntry[]>([]);
   const [conversationCatalogStatus, setConversationCatalogStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [conversationCatalogError, setConversationCatalogError] = useState<string>();
+  const [historicalSegmentCount, setHistoricalSegmentCount] = useState(0);
+  const [historicalSegmentState, setHistoricalSegmentState] = useState<"idle" | "loading" | "error">("idle");
   const [focusedJourneyRootThreadId, setFocusedJourneyRootThreadId] = useState<string>();
   const [conversationActionBusy, setConversationActionBusy] = useState(false);
   const [conversationActionMessage, setConversationActionMessage] = useState<string>();
@@ -1151,6 +1157,8 @@ export function App({ model }: AppProps) {
     }
 
     let cancelled = false;
+    setHistoricalSegmentCount(0);
+    setHistoricalSegmentState("idle");
     const loadRequest = conversationLoadCoordinatorRef.current.begin(selectedJourney);
     const requestIsCurrent = () => !cancelled
       && conversationLoadCoordinatorRef.current.isCurrent(loadRequest, selectedJourneyRef.current);
@@ -1189,10 +1197,23 @@ export function App({ model }: AppProps) {
           ? await loadDedicatedJourneyConversation(
               selectedJourney,
               classified.activeGeneration.generation,
-              childEntry?.threadId,
+              classified.thread.threadId,
+              classified.activeGeneration.piSessionFile ? {
+                sessionId: classified.activeGeneration.piSessionId,
+                sessionFile: classified.activeGeneration.piSessionFile,
+              } : undefined,
             )
           : undefined;
+        const segmentManifest = classified.kind === "ready" && classified.activeGeneration.piSessionFile
+          ? await loadConversationSegments({
+              journeyId: selectedJourney,
+              threadId: classified.thread.threadId,
+              generation: classified.activeGeneration.generation,
+              sessionId: classified.activeGeneration.piSessionId,
+            }).catch(() => undefined)
+          : undefined;
         if (!requestIsCurrent()) return;
+        setHistoricalSegmentCount(Math.max(0, (segmentManifest?.segments.length ?? 1) - 1));
         let restoredConversation = restoreDecision.runtimeConversation ?? (classified.kind === "ready"
           ? restoreDedicatedJourneyConversation(classified.thread, persistedConversation)
           : createJourneyConversation({ journeyId: selectedJourney, initialMessages }));
@@ -2373,7 +2394,9 @@ export function App({ model }: AppProps) {
   async function loadActiveSettlementEvidence(authority: JourneySettlementAuthority) {
     const [thread, persisted] = await Promise.all([
       loadConversationThreadAuthority(authority.journeyId, authority.threadId),
-      loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId),
+      loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId, {
+        sessionId: authority.piSessionId, sessionFile: authority.piSessionFile,
+      }),
     ]);
     const classified = classifyNautilusJourneyThread(thread, authority.journeyId);
     const currentTurn = lastItem(persisted?.reconciliation.turns ?? []);
@@ -2406,7 +2429,9 @@ export function App({ model }: AppProps) {
   async function persistedCurrentTurnMatchesAuthority(
     authority: JourneySettlementAuthority,
   ): Promise<boolean> {
-    const persisted = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId);
+    const persisted = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId, {
+      sessionId: authority.piSessionId, sessionFile: authority.piSessionFile,
+    });
     return Boolean(persisted && projectionCurrentTurnMatchesAuthority(persisted, authority));
   }
 
@@ -2433,30 +2458,44 @@ export function App({ model }: AppProps) {
     authority: JourneySettlementAuthority,
   ): Promise<void> {
     await saveActiveSettlementProjection(projection, authority);
-    if (authority.threadId !== authority.journeyId) {
-      const updatedEntry = await reconcileDesktopConversationCatalogEntry({
-        journeyId: authority.journeyId,
-        threadId: authority.threadId,
-        generation: authority.generation,
-        updatedAt: lastItem(projection.messages)?.createdAt ?? new Date().toISOString(),
-        messageCount: projection.messages.length,
-      });
-      setConversationCatalog((current) => current.map((entry) => (
-        entry.kind === "desktop_conversation" && entry.threadId === authority.threadId ? updatedEntry : entry
-      )));
-    }
+    let catalogMessageCount = projection.messages.length;
     const settledCompaction = Object.values(projection.terminalAgentActionEvidence ?? {}).some((evidence) => (
       evidence.runId === authority.runId
       && evidence.projection.operations.some((operation) => operation.kind === "compaction" && operation.status === "completed")
     ));
-    if (settledCompaction && projection.liveIdentity.piSessionFile) {
-      await refreshConversationSegments({
+    if (projection.liveIdentity.piSessionFile) {
+      const segmentAuthority = {
         journeyId: authority.journeyId,
         threadId: authority.threadId,
         generation: authority.generation,
         sessionId: authority.piSessionId,
         sessionFile: projection.liveIdentity.piSessionFile,
+      };
+      const manifest = settledCompaction
+        ? await refreshConversationSegments(segmentAuthority)
+        : await loadConversationSegments(segmentAuthority);
+      if (manifest) {
+        const availableProjections = partitionConversationBySegments(projection, manifest);
+        const projectionsToPublish = settledCompaction
+          ? availableProjections
+          : availableProjections.slice(-1);
+        catalogMessageCount = await publishConversationSegmentProjections(
+          segmentAuthority,
+          projectionsToPublish,
+        );
+      }
+    }
+    if (authority.threadId.startsWith("desktop-thread-")) {
+      const updatedEntry = await reconcileDesktopConversationCatalogEntry({
+        journeyId: authority.journeyId,
+        threadId: authority.threadId,
+        generation: authority.generation,
+        updatedAt: lastItem(projection.messages)?.createdAt ?? new Date().toISOString(),
+        messageCount: catalogMessageCount,
       });
+      setConversationCatalog((current) => current.map((entry) => (
+        entry.kind === "desktop_conversation" && entry.threadId === authority.threadId ? updatedEntry : entry
+      )));
     }
     const journal = await loadTurnJournal(authority.journeyId);
     if (journal.records.some((record) => record.authority.runId === authority.runId)) {
@@ -2507,7 +2546,9 @@ export function App({ model }: AppProps) {
     validateExactOutboxSummary(summary, projection, authority);
     const receipt = await appendMirrorOutboxItem(summary.itemId, authority);
     return journeyPersistenceCoordinator.run(authority, "post_frontier", async () => {
-      const latestProjection = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId);
+      const latestProjection = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId, {
+        sessionId: authority.piSessionId, sessionFile: authority.piSessionFile,
+      });
       if (!latestProjection) throw new Error("mirror_append_projection_missing");
       validateExactOutboxSummary(summary, latestProjection, authority);
       const settled = applyMirrorAppendReceipt(latestProjection, authority, receipt, new Date().toISOString());
@@ -3564,6 +3605,29 @@ export function App({ model }: AppProps) {
     );
   }
 
+  async function loadCompleteSegmentHistory() {
+    if (journeyThreadState.kind !== "ready" || !journeyThreadState.activeGeneration.piSessionFile) return;
+    const authority = {
+      journeyId: selectedJourney,
+      threadId: journeyThreadState.thread.threadId,
+      generation: journeyThreadState.activeGeneration.generation,
+      sessionId: journeyThreadState.activeGeneration.piSessionId,
+      sessionFile: journeyThreadState.activeGeneration.piSessionFile,
+    };
+    const selectedConversationId = conversation.id;
+    setHistoricalSegmentState("loading");
+    try {
+      const complete = await loadCompleteConversationSegmentHistory(authority);
+      if (selectedJourneyRef.current !== authority.journeyId || conversationRef.current.id !== selectedConversationId
+        || complete.id !== selectedConversationId) return;
+      setConversation(complete);
+      setHistoricalSegmentCount(0);
+      setHistoricalSegmentState("idle");
+    } catch {
+      setHistoricalSegmentState("error");
+    }
+  }
+
   return (
     <main
       className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${conversationFocus.kind === "focused_journey" ? "conversation-focused" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
@@ -4063,6 +4127,17 @@ export function App({ model }: AppProps) {
               stage={selectedJourneyItem.stage}
               onChoose={(text) => setJourneyComposerDraft(selectedJourney, text)}
             />
+          ) : null}
+          {historicalSegmentCount > 0 || historicalSegmentState === "error" ? (
+            <div className="historical-segment-control" role={historicalSegmentState === "error" ? "alert" : "status"}>
+              <button type="button" className="secondary-button" onClick={() => void loadCompleteSegmentHistory()}
+                disabled={historicalSegmentState === "loading" || runtimeBusy}>
+                {historicalSegmentState === "loading" ? "Loading earlier segments…" : "Load earlier segments"}
+              </button>
+              <span>{historicalSegmentState === "error"
+                ? "Earlier history could not be verified. The current Segment remains available."
+                : `${historicalSegmentCount} earlier ${historicalSegmentCount === 1 ? "Segment" : "Segments"} available.`}</span>
+            </div>
           ) : null}
           <ConversationTranscript
             messages={messages}

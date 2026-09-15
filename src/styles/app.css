@@ -6768,6 +6768,18 @@ dd {
 .focused-journey-root small,
 .focused-conversation-entry small { display: block; margin-top: 3px; color: var(--text-muted); }
 .focused-conversation-heading { display: flex; justify-content: space-between; padding: 12px 10px 4px; color: var(--text-muted); }
+.historical-segment-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 16px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.historical-segment-control .secondary-button { flex: 0 0 auto; }
+
 .focused-conversation-create {
   border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
   border-radius: 9px;

@@ -2960,6 +2960,289 @@ fn load_conversation_segments(
     Ok(Some(value))
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConversationSegmentProjectionPayload {
+    segment_id: String,
+    status: String,
+    payload: String,
+}
+
+fn conversation_segment_projection_dir(
+    app: &AppHandle, journey_id: &str, thread_id: &str, generation: u64,
+) -> Result<PathBuf, String> {
+    Ok(conversation_segment_manifest_path(app, journey_id, thread_id, generation)?
+        .with_extension("segments"))
+}
+
+#[tauri::command]
+fn publish_conversation_segment_projections(
+    app: AppHandle,
+    persistence: State<'_, JourneyProjectionPersistenceState>,
+    journey_id: String,
+    thread_id: String,
+    generation: u64,
+    session_id: String,
+    session_file: String,
+    projections: Vec<ConversationSegmentProjectionPayload>,
+) -> Result<u64, String> {
+    validate_conversation_session_authority(
+        &app, &journey_id, &thread_id, generation, &session_id, &session_file,
+    )?;
+    if projections.is_empty() || projections.len() > 256
+        || projections.iter().map(|projection| projection.payload.len()).sum::<usize>() > 256 * 1024 * 1024
+    {
+        return Err("Conversation Segment projection bundle exceeds its bound.".to_string());
+    }
+    let manifest_path = conversation_segment_manifest_path(&app, &journey_id, &thread_id, generation)?;
+    let manifest_bytes = fs::read(&manifest_path)
+        .map_err(|_| "Conversation Segment manifest is unavailable.".to_string())?;
+    if manifest_bytes.len() > 1024 * 1024 {
+        return Err("Conversation Segment manifest exceeds its bound.".to_string());
+    }
+    let manifest: Value = serde_json::from_slice(&manifest_bytes)
+        .map_err(|_| "Conversation Segment manifest is malformed.".to_string())?;
+    let manifest_segments = manifest.get("segments").and_then(Value::as_array)
+        .ok_or_else(|| "Conversation Segment manifest is malformed.".to_string())?;
+    let projection_dir = conversation_segment_projection_dir(&app, &journey_id, &thread_id, generation)?;
+    fs::create_dir_all(&projection_dir)
+        .map_err(|_| "Could not create Conversation Segment projection directory.".to_string())?;
+    let prior_receipt = fs::read(projection_dir.join("complete.json")).ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
+    let mut hashes = prior_receipt.as_ref().and_then(|value| value.get("projectionHashes")).and_then(Value::as_array)
+        .cloned().unwrap_or_default();
+    let mut supplied_closed_message_count = 0_u64;
+    let mut supplied_current_message_count = None;
+    let mut current_payload: Option<&str> = None;
+    let mut current_last_turn_id: Option<String> = None;
+    for projection in &projections {
+        let manifest_segment = manifest_segments.iter().find(|segment| {
+            segment.get("segmentId").and_then(Value::as_str) == Some(projection.segment_id.as_str())
+        }).ok_or_else(|| "Conversation Segment projection is not declared by its manifest.".to_string())?;
+        if manifest_segment.get("status").and_then(Value::as_str) != Some(projection.status.as_str())
+            || !matches!(projection.status.as_str(), "closed" | "current")
+            || projection.payload.len() > 128 * 1024 * 1024
+        {
+            return Err("Conversation Segment projection metadata is invalid.".to_string());
+        }
+        let value: Value = serde_json::from_str(&projection.payload)
+            .map_err(|_| "Conversation Segment projection is malformed.".to_string())?;
+        let conversation = value.get("conversation")
+            .ok_or_else(|| "Conversation Segment projection has no Conversation.".to_string())?;
+        let live = conversation.get("liveIdentity")
+            .ok_or_else(|| "Conversation Segment projection has no authority.".to_string())?;
+        let message_count = conversation.get("messages").and_then(Value::as_array)
+            .ok_or_else(|| "Conversation Segment projection messages are invalid.".to_string())?.len() as u64;
+        if projection.status == "closed" {
+            supplied_closed_message_count = supplied_closed_message_count.saturating_add(message_count);
+        } else if supplied_current_message_count.replace(message_count).is_some() {
+            return Err("Conversation Segment projection bundle has duplicate current state.".to_string());
+        } else {
+            current_payload = Some(projection.payload.as_str());
+            current_last_turn_id = conversation.pointer("/reconciliation/turns").and_then(Value::as_array)
+                .and_then(|turns| turns.last()).and_then(|turn| turn.get("turnId")).and_then(Value::as_str)
+                .map(str::to_string);
+        }
+        if conversation.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
+            || conversation.get("id").and_then(Value::as_str) != Some(thread_id.as_str())
+            || live.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
+            || live.get("harnessConversationId").and_then(Value::as_str) != Some(thread_id.as_str())
+            || live.get("generation").and_then(Value::as_u64) != Some(generation)
+            || live.get("piSessionId").and_then(Value::as_str) != Some(session_id.as_str())
+        {
+            return Err("Conversation Segment projection authority mismatch.".to_string());
+        }
+        let path = projection_dir.join(format!("{}.json", projection.segment_id));
+        let was_prior_current = prior_receipt.as_ref().and_then(|value| value.get("currentSegmentId")).and_then(Value::as_str)
+            == Some(projection.segment_id.as_str());
+        if projection.status == "closed" && path.exists() && !was_prior_current {
+            if fs::read(&path).map_err(|_| "Could not verify immutable Conversation Segment.".to_string())?
+                != projection.payload.as_bytes()
+            {
+                return Err("Immutable Conversation Segment projection diverged.".to_string());
+            }
+        } else {
+            let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+            write_durable_projection_at(&path, projection.payload.as_bytes(), nonce)
+                .map_err(|_| "Could not durably publish Conversation Segment projection.".to_string())?;
+        }
+        hashes.retain(|item| item.get("segmentId").and_then(Value::as_str) != Some(projection.segment_id.as_str()));
+        hashes.push(json!({
+            "segmentId": projection.segment_id,
+            "sha256": format!("{:x}", Sha256::digest(projection.payload.as_bytes())),
+        }));
+    }
+    let all_present = manifest_segments.iter().all(|segment| segment.get("segmentId").and_then(Value::as_str)
+        .is_some_and(|id| projection_dir.join(format!("{}.json", id)).is_file()));
+    let current_message_count = supplied_current_message_count
+        .ok_or_else(|| "Conversation Segment projection bundle has no current state.".to_string())?;
+    let prior_historical_count = prior_receipt.as_ref()
+        .and_then(|value| value.get("historicalMessageCount").and_then(Value::as_u64));
+    let includes_all_segments = projections.len() == manifest_segments.len();
+    let historical_message_count = if includes_all_segments {
+        supplied_closed_message_count
+    } else {
+        prior_historical_count.ok_or_else(|| "Conversation Segment completion receipt is unavailable.".to_string())?
+            .saturating_add(supplied_closed_message_count)
+    };
+    let total_message_count = historical_message_count.saturating_add(current_message_count);
+    if all_present {
+        let receipt = json!({
+            "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
+            "generation": generation, "piSessionId": session_id,
+            "manifestSha256": format!("{:x}", Sha256::digest(&manifest_bytes)),
+            "historicalMessageCount": historical_message_count,
+            "totalMessageCount": total_message_count,
+            "currentSegmentId": manifest_segments.last().and_then(|segment| segment.get("segmentId")),
+            "currentLastTurnId": current_last_turn_id,
+            "projectionHashes": hashes,
+        });
+        let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+        write_durable_projection_at(
+            &projection_dir.join("complete.json"),
+            &serde_json::to_vec_pretty(&receipt).map_err(|_| "Could not serialize Conversation Segment receipt.".to_string())?,
+            nonce,
+        ).map_err(|_| "Could not durably publish Conversation Segment receipt.".to_string())?;
+        let current_payload = current_payload
+            .ok_or_else(|| "Conversation Segment current projection is unavailable.".to_string())?;
+        let active_projection_path = conversation_projection_path(
+            &app, &journey_id, &thread_id, generation,
+        )?;
+        let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+        write_durable_projection_at(&active_projection_path, current_payload.as_bytes(), nonce)
+            .map_err(|_| "Could not activate bounded current Conversation Segment.".to_string())?;
+    }
+    Ok(total_message_count)
+}
+
+#[tauri::command]
+fn load_current_conversation_segment_projection(
+    app: AppHandle,
+    journey_id: String,
+    thread_id: String,
+    generation: u64,
+    session_id: String,
+    session_file: String,
+) -> Result<Option<String>, String> {
+    validate_conversation_session_authority(
+        &app, &journey_id, &thread_id, generation, &session_id, &session_file,
+    )?;
+    let manifest_path = conversation_segment_manifest_path(&app, &journey_id, &thread_id, generation)?;
+    let projection_dir = conversation_segment_projection_dir(&app, &journey_id, &thread_id, generation)?;
+    let receipt_path = projection_dir.join("complete.json");
+    if !receipt_path.is_file() || !manifest_path.is_file() { return Ok(None); }
+    let manifest_bytes = fs::read(&manifest_path)
+        .map_err(|_| "Could not read Conversation Segment manifest.".to_string())?;
+    let receipt: Value = serde_json::from_slice(&fs::read(&receipt_path)
+        .map_err(|_| "Could not read Conversation Segment receipt.".to_string())?)
+        .map_err(|_| "Conversation Segment receipt is malformed.".to_string())?;
+    if receipt.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
+        || receipt.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
+        || receipt.get("threadId").and_then(Value::as_str) != Some(thread_id.as_str())
+        || receipt.get("generation").and_then(Value::as_u64) != Some(generation)
+        || receipt.get("piSessionId").and_then(Value::as_str) != Some(session_id.as_str())
+        || receipt.get("manifestSha256").and_then(Value::as_str)
+            != Some(format!("{:x}", Sha256::digest(&manifest_bytes)).as_str())
+    {
+        return Err("Conversation Segment receipt authority mismatch.".to_string());
+    }
+    let active_projection_path = conversation_projection_path(
+        &app, &journey_id, &thread_id, generation,
+    )?;
+    if active_projection_path.is_file() {
+        let active: Value = serde_json::from_slice(&fs::read(&active_projection_path)
+            .map_err(|_| "Could not inspect active Conversation projection.".to_string())?)
+            .map_err(|_| "Active Conversation projection is malformed.".to_string())?;
+        let active_last_turn = active.pointer("/conversation/reconciliation/turns").and_then(Value::as_array)
+            .and_then(|turns| turns.last()).and_then(|turn| turn.get("turnId")).and_then(Value::as_str);
+        let receipt_last_turn = receipt.get("currentLastTurnId").and_then(Value::as_str);
+        if active_last_turn != receipt_last_turn { return Ok(None); }
+    }
+    let manifest: Value = serde_json::from_slice(&manifest_bytes)
+        .map_err(|_| "Conversation Segment manifest is malformed.".to_string())?;
+    let current_id = manifest.get("segments").and_then(Value::as_array)
+        .and_then(|segments| segments.last()).and_then(|segment| segment.get("segmentId")).and_then(Value::as_str)
+        .ok_or_else(|| "Current Conversation Segment is unavailable.".to_string())?;
+    let path = projection_dir.join(format!("{}.json", current_id));
+    let metadata = fs::symlink_metadata(&path)
+        .map_err(|_| "Current Conversation Segment projection is unavailable.".to_string())?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 128 * 1024 * 1024 {
+        return Err("Current Conversation Segment projection is invalid.".to_string());
+    }
+    let payload = fs::read_to_string(path)
+        .map_err(|_| "Could not read current Conversation Segment projection.".to_string())?;
+    let expected_hash = receipt.get("projectionHashes").and_then(Value::as_array)
+        .and_then(|hashes| hashes.iter().find(|item| item.get("segmentId").and_then(Value::as_str) == Some(current_id)))
+        .and_then(|item| item.get("sha256")).and_then(Value::as_str)
+        .ok_or_else(|| "Current Conversation Segment receipt is incomplete.".to_string())?;
+    if expected_hash != format!("{:x}", Sha256::digest(payload.as_bytes())) {
+        return Err("Current Conversation Segment projection failed verification.".to_string());
+    }
+    Ok(Some(payload))
+}
+
+#[tauri::command]
+fn load_conversation_segment_projections(
+    app: AppHandle,
+    journey_id: String,
+    thread_id: String,
+    generation: u64,
+    session_id: String,
+    session_file: String,
+) -> Result<Vec<Value>, String> {
+    validate_conversation_session_authority(
+        &app, &journey_id, &thread_id, generation, &session_id, &session_file,
+    )?;
+    let manifest_path = conversation_segment_manifest_path(&app, &journey_id, &thread_id, generation)?;
+    let projection_dir = conversation_segment_projection_dir(&app, &journey_id, &thread_id, generation)?;
+    let manifest_bytes = fs::read(&manifest_path)
+        .map_err(|_| "Conversation Segment manifest is unavailable.".to_string())?;
+    let manifest: Value = serde_json::from_slice(&manifest_bytes)
+        .map_err(|_| "Conversation Segment manifest is malformed.".to_string())?;
+    let receipt: Value = serde_json::from_slice(&fs::read(projection_dir.join("complete.json"))
+        .map_err(|_| "Conversation Segment receipt is unavailable.".to_string())?)
+        .map_err(|_| "Conversation Segment receipt is malformed.".to_string())?;
+    if receipt.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
+        || receipt.get("manifestSha256").and_then(Value::as_str)
+            != Some(format!("{:x}", Sha256::digest(&manifest_bytes)).as_str())
+        || receipt.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
+        || receipt.get("threadId").and_then(Value::as_str) != Some(thread_id.as_str())
+        || receipt.get("generation").and_then(Value::as_u64) != Some(generation)
+        || receipt.get("piSessionId").and_then(Value::as_str) != Some(session_id.as_str())
+    {
+        return Err("Conversation Segment receipt authority mismatch.".to_string());
+    }
+    let hashes = receipt.get("projectionHashes").and_then(Value::as_array)
+        .ok_or_else(|| "Conversation Segment receipt is incomplete.".to_string())?;
+    let segments = manifest.get("segments").and_then(Value::as_array)
+        .ok_or_else(|| "Conversation Segment manifest is incomplete.".to_string())?;
+    let mut total_bytes = 0_usize;
+    let mut result = Vec::with_capacity(segments.len());
+    for segment in segments {
+        let segment_id = segment.get("segmentId").and_then(Value::as_str)
+            .ok_or_else(|| "Conversation Segment id is unavailable.".to_string())?;
+        let status = segment.get("status").and_then(Value::as_str)
+            .ok_or_else(|| "Conversation Segment status is unavailable.".to_string())?;
+        let path = projection_dir.join(format!("{}.json", segment_id));
+        let metadata = fs::symlink_metadata(&path)
+            .map_err(|_| "Conversation Segment projection is unavailable.".to_string())?;
+        total_bytes = total_bytes.saturating_add(metadata.len() as usize);
+        if metadata.file_type().is_symlink() || !metadata.is_file() || total_bytes > 256 * 1024 * 1024 {
+            return Err("Conversation Segment history exceeds its recovery bound.".to_string());
+        }
+        let payload = fs::read_to_string(path)
+            .map_err(|_| "Could not read Conversation Segment projection.".to_string())?;
+        let expected = hashes.iter().find(|item| item.get("segmentId").and_then(Value::as_str) == Some(segment_id))
+            .and_then(|item| item.get("sha256")).and_then(Value::as_str)
+            .ok_or_else(|| "Conversation Segment projection receipt is missing.".to_string())?;
+        if expected != format!("{:x}", Sha256::digest(payload.as_bytes())) {
+            return Err("Conversation Segment projection failed verification.".to_string());
+        }
+        result.push(json!({ "segmentId": segment_id, "status": status, "payload": payload }));
+    }
+    Ok(result)
+}
+
 fn project_active_pi_branch(content: &str) -> Result<Vec<PiBranchEntry>, String> {
     let mut entries = Vec::new();
     for line in content.lines() {
@@ -5836,6 +6119,9 @@ fn main() {
             load_dedicated_pi_user_entries,
             refresh_conversation_segments,
             load_conversation_segments,
+            publish_conversation_segment_projections,
+            load_current_conversation_segment_projection,
+            load_conversation_segment_projections,
             enqueue_mirror_append_item,
             list_mirror_append_outbox,
             append_mirror_outbox_item,

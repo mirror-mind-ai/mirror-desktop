@@ -34,7 +34,8 @@ describe("dedicated conversation context reset lifecycle", () => {
 
   it("persists dedicated Harness projections by generation", () => {
     expect(tauriSource).toContain('join(format!("generation-{}.json", generation))');
-    expect(tauriSource).toContain("Could not migrate dedicated generation projection");
+    expect(tauriSource).toContain("load_or_migrate_root_projection_at");
+    expect(tauriSource).toContain('"sourceRetained": true');
   });
 
   it("unlocks drafting when provider work ends and uses the explicit append outbox", () => {
