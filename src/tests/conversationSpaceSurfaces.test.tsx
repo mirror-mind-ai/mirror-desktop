@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { FocusedConversationSidebar } from "../app/FocusedConversationSidebar";
 import { MirrorHistoryActionSurface } from "../app/MirrorHistoryActionSurface";
+import { ConversationEntryContextMenu } from "../app/ConversationEntryContextMenu";
 import { EmptyDesktopConversation } from "../app/EmptyDesktopConversation";
 
 describe("conversation space surfaces", () => {
@@ -40,6 +41,9 @@ describe("conversation space surfaces", () => {
       status="ready"
       onCreateConversation={vi.fn()}
       onSelectEntry={vi.fn()}
+      onContinueMirror={vi.fn()}
+      onOpenMirrorTerminal={vi.fn()}
+      onRenameMirror={vi.fn()}
     />);
     expect(html).toContain("Conversations");
     expect(html).toContain("New conversation");
@@ -66,6 +70,9 @@ describe("conversation space surfaces", () => {
       status="ready"
       onCreateConversation={vi.fn()}
       onSelectEntry={vi.fn()}
+      onContinueMirror={vi.fn()}
+      onOpenMirrorTerminal={vi.fn()}
+      onRenameMirror={vi.fn()}
     />);
     expect(html).toContain("History 6");
     expect(html).not.toContain("History 7");
@@ -87,15 +94,39 @@ describe("conversation space surfaces", () => {
       }}
       onCreateHandoff={vi.fn()}
       onOpenTerminal={vi.fn()}
-      onRename={vi.fn()}
     />);
-    expect(html).toContain("Available in Mirror");
-    expect(html).toContain("Continue in new Desktop conversation");
-    expect(html).toContain("Open recalled context in Terminal");
-    expect(html).toContain("Rename in Mirror");
+    expect(html).toContain("Mirror Core Conversation");
+    expect(html).toContain("Created with Mirror Core via Terminal");
+    expect(html).toContain("Continue in new Desktop Conversation");
+    expect(html).toContain("Continue with recalled context in Terminal");
+    expect(html).not.toContain("Rename in Mirror");
     expect(html).not.toContain("Persona");
     expect(html).not.toContain("engineer");
     expect(html).not.toContain("textarea");
+  });
+
+  it("offers all Mirror actions from the conversation context menu", () => {
+    const html = renderToStaticMarkup(<ConversationEntryContextMenu
+      entry={{
+        kind: "mirror_history",
+        conversationId: "mirror-conversation-1",
+        title: "Terminal history",
+        updatedAt: "2026-09-15T09:00:00.000Z",
+        messageCount: 12,
+        availability: "available_in_mirror",
+      }}
+      x={20}
+      y={30}
+      returnFocusTo={null}
+      onContinue={vi.fn()}
+      onOpenTerminal={vi.fn()}
+      onRename={vi.fn()}
+      onDismiss={vi.fn()}
+    />);
+    expect(html.match(/role="menuitem"/g)).toHaveLength(3);
+    expect(html).toContain("Continue in new Desktop Conversation");
+    expect(html).toContain("Continue with recalled context in Terminal");
+    expect(html).toContain("Rename in Mirror");
   });
 
   it("renders an empty authoritative child without a synthetic greeting", () => {

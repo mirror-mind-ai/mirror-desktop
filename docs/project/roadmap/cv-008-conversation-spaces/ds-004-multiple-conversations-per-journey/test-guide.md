@@ -205,11 +205,10 @@ For Desktop-ready entries with exact Pi session authority, verify any exact-sess
 
 Verify selection opens a non-executable screen rather than the standard transcript/composer. The proposed hierarchy is:
 
-1. `Continue in new Desktop conversation`;
-2. `Open recalled context in Terminal`;
-3. compact `Rename` with accessible label `Rename in Mirror`.
+1. `Continue in new Desktop Conversation`;
+2. `Continue with recalled context in Terminal`.
 
-The screen must keep this hierarchy, omit low-value persona metadata, avoid horizontally centered compression, and never expose Send, Reset or Resume for the source.
+The Conversation row context menu must expose both actions plus `Rename in Mirror`. Rename must not be duplicated on the detail surface. The screen must keep its content edges aligned with the header, omit low-value persona metadata, avoid horizontally centered compression, and never expose Send, Reset or Resume for the source.
 
 ### Handoff disclosure and destination
 

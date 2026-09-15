@@ -3910,12 +3910,16 @@ export function App({ model }: AppProps) {
                   entries={conversationCatalog}
                   status={conversationCatalogStatus === "idle" ? "loading" : conversationCatalogStatus}
                   error={conversationCatalogError}
+                  busy={conversationActionBusy}
                   onCreateConversation={() => void createBlankDesktopConversation()}
                   onSelectEntry={(entry) => dispatchConversationFocus({
                     type: entry.kind === "desktop_conversation" ? "select_desktop" : "select_mirror",
                     journeyId: journey.id,
                     conversationId: entry.conversationId,
                   })}
+                  onContinueMirror={(entry) => void createConversationFromMirrorHistory(entry)}
+                  onOpenMirrorTerminal={(entry) => void openSelectedMirrorHistoryInTerminal(entry)}
+                  onRenameMirror={(entry) => void renameSelectedMirrorHistory(entry)}
                 />
               ) : null}
               </Fragment>
@@ -4101,7 +4105,6 @@ export function App({ model }: AppProps) {
             message={conversationActionMessage}
             onCreateHandoff={() => void createConversationFromMirrorHistory(selectedConversationEntry)}
             onOpenTerminal={() => void openSelectedMirrorHistoryInTerminal(selectedConversationEntry)}
-            onRename={() => void renameSelectedMirrorHistory(selectedConversationEntry)}
           />
         ) : null}
         {operationalChatSelected && selectedConversationSpace.kind !== "mirror_history" && journeyThreadState.kind !== "ready" ? (

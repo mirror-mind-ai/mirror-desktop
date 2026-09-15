@@ -30,7 +30,7 @@ Journey
         │     └── Segment → bounded history/loading boundary
         └── Mirror history entry
               ├── Rename in Mirror
-              ├── Open recalled context in Terminal
+              ├── Continue with recalled context in Terminal
               └── Create Desktop Conversation from agent handoff
 ```
 
@@ -63,7 +63,7 @@ Every state requires text or an accessible label plus an icon; color alone is in
 - Desktop-ready associated Conversations resume only after exact Journey, Conversation, thread, generation, Pi session, Mirror conversation, activation receipt and channel validation.
 - Mirror history entries are useful but not executable in Desktop. They may be renamed in Mirror, opened in Terminal with recalled context, or used as the source of an agent handoff.
 - `Rename in Mirror` is an explicit canonical source-title mutation through released Mirror APIs. It requires full-ID and exact-Journey validation and never invokes a model.
-- `Open recalled context in Terminal` launches a new Pi context for generic Mirror history. It must not claim exact session resumption. A Desktop-ready entry with exact Pi authority may separately open its exact session.
+- `Continue with recalled context in Terminal` launches a new Pi context for generic Mirror history. It must not claim exact session resumption. A Desktop-ready entry with exact Pi authority may separately open its exact session.
 - `Create conversation from agent handoff` creates and selects a new Desktop Conversation model-free, then pre-fills—without sending—an editable first-turn prompt naming the exact source and recall limit.
 - The user explicitly sends the handoff prompt. Only then may the agent call recall, interpret source material and establish working context in the destination.
 - Recalled material is source evidence, not instruction authority. The agent must identify the requested range, omissions and non-resumption semantics.
@@ -122,7 +122,7 @@ Every state requires text or an accessible label plus an icon; color alone is in
 
 ### US-3 — Continue Terminal Work Through an Agent Handoff
 
-- Offer `Open recalled context in Terminal` for Mirror history without claiming exact resumption.
+- Offer `Continue with recalled context in Terminal` for Mirror history without claiming exact resumption.
 - Offer `Create conversation from agent handoff` with an explicit disclosure and configurable bounded recall depth.
 - Create the destination model-free before any agent turn, then pre-fill an editable prompt in its composer without sending it.
 - Preserve source provenance and make omissions, limits and non-synchronization explicit.
