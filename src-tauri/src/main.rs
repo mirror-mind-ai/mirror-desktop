@@ -781,6 +781,9 @@ fn recover_pending_desktop_conversation_creation(
     }
     validate_provisioned_desktop_conversation_creation(app, &operation, journey_id)?;
     let entry = desktop_conversation_entry_from_creation(&operation, journey_id)?;
+    let stripe = persistence.stripe(journey_id, 0);
+    let _catalog_guard = persistence.stripes[stripe].lock()
+        .map_err(|_| "Desktop Conversation catalog mutation is unavailable.".to_string())?;
     catalog = load_desktop_conversation_catalog_at(&catalog_path, journey_id)?;
     let entries = catalog.get_mut("entries").and_then(Value::as_array_mut)
         .ok_or_else(|| "Desktop Conversation catalog entries are invalid.".to_string())?;
@@ -909,6 +912,9 @@ async fn create_desktop_conversation(
     write_desktop_conversation_creation(&operation_path, &operation, &journey_id, &persistence)?;
     validate_provisioned_desktop_conversation_creation(&app, &operation, &journey_id)?;
     let entry = desktop_conversation_entry_from_creation(&operation, &journey_id)?;
+    let stripe = persistence.stripe(&journey_id, 0);
+    let _catalog_guard = persistence.stripes[stripe].lock()
+        .map_err(|_| "Desktop Conversation catalog mutation is unavailable.".to_string())?;
     let mut catalog = load_desktop_conversation_catalog_at(&catalog_path, &journey_id)?;
     let entries = catalog.get_mut("entries").and_then(Value::as_array_mut)
         .ok_or_else(|| "Desktop Conversation catalog entries are invalid.".to_string())?;
@@ -989,6 +995,25 @@ async fn restart_desktop_conversation(
     if pi_session_id != requested_pi_id {
         return Err("Desktop Conversation reset Pi authority diverged from its reservation.".to_string());
     }
+    let stripe = persistence.stripe(&journey_id, 0);
+    let _catalog_guard = persistence.stripes[stripe].lock()
+        .map_err(|_| "Desktop Conversation catalog mutation is unavailable.".to_string())?;
+    let mut catalog = load_desktop_conversation_catalog_at(&catalog_path, &journey_id)?;
+    let entry = catalog.get_mut("entries").and_then(Value::as_array_mut)
+        .and_then(|entries| entries.iter_mut().find(|entry| {
+            entry.get("conversationId").and_then(Value::as_str) == Some(conversation_id.as_str())
+                && entry.get("journeyId").and_then(Value::as_str) == Some(journey_id.as_str())
+        })).ok_or_else(|| "Desktop Conversation authority changed during reset.".to_string())?;
+    let authority = entry.get_mut("authority")
+        .ok_or_else(|| "Desktop Conversation generation authority changed during reset.".to_string())?;
+    if authority.get("runtimeChannel").and_then(Value::as_str) != Some(runtime_channel)
+        || authority.get("activeGeneration").and_then(Value::as_u64) != Some(prior_generation)
+        || authority.get("generations").and_then(Value::as_array)
+            .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == Some(prior_generation)))
+            .and_then(|item| item.get("status")).and_then(Value::as_str) != Some("ready")
+    {
+        return Err("Desktop Conversation reset reservation became stale.".to_string());
+    }
     let activated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     let activation_receipt = json!({
         "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
@@ -1036,6 +1061,9 @@ fn reconcile_desktop_conversation_catalog_entry(
         return Err("Desktop Conversation catalog metadata is invalid.".to_string());
     }
     let catalog_path = desktop_conversation_catalog_path(&app, &journey_id)?;
+    let stripe = persistence.stripe(&journey_id, 0);
+    let _catalog_guard = persistence.stripes[stripe].lock()
+        .map_err(|_| "Desktop Conversation catalog mutation is unavailable.".to_string())?;
     let mut catalog = load_desktop_conversation_catalog_at(&catalog_path, &journey_id)?;
     let entry = catalog.get_mut("entries").and_then(Value::as_array_mut)
         .and_then(|entries| entries.iter_mut().find(|entry| {
