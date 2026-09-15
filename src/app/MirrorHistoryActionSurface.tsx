@@ -3,7 +3,6 @@ import type { ConversationCatalogEntry } from "../domain/conversationSpaces";
 type MirrorEntry = Extract<ConversationCatalogEntry, { kind: "mirror_history" }>;
 
 type Props = {
-  journeyId: string;
   entry: MirrorEntry;
   busy?: boolean;
   message?: string;
@@ -32,7 +31,7 @@ export function MirrorHistoryActionSurface(props: Props) {
         <h2>{props.entry.title}</h2>
       </div>
       <p className="mirror-history-summary">
-        This conversation belongs to {props.journeyId}. Click “Continue in new Desktop Conversation” to continue. Keep in mind that won’t be the same conversation, but a new one with the same resumed context.
+        This conversation belongs to Mirror Core via Terminal. Click “Continue in new Desktop Conversation” to continue here. Keep in mind that won’t be the same conversation, but a new one with the same resumed context.
       </p>
       <div className="mirror-history-metadata" aria-label="Conversation metadata">
         <span><MessageCountIcon /><span><strong>{props.entry.messageCount}</strong> messages</span></span>

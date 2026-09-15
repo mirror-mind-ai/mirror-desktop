@@ -4099,7 +4099,6 @@ export function App({ model }: AppProps) {
 
         {operationalChatSelected && selectedConversationEntry?.kind === "mirror_history" ? (
           <MirrorHistoryActionSurface
-            journeyId={selectedJourney}
             entry={selectedConversationEntry}
             busy={conversationActionBusy}
             message={conversationActionMessage}

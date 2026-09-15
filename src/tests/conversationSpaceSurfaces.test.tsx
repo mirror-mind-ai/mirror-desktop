@@ -82,7 +82,6 @@ describe("conversation space surfaces", () => {
 
   it("renders Mirror history as a no-composer action surface", () => {
     const html = renderToStaticMarkup(<MirrorHistoryActionSurface
-      journeyId="mirror-desktop"
       entry={{
         kind: "mirror_history",
         conversationId: "mirror-conversation-1",
@@ -96,6 +95,8 @@ describe("conversation space surfaces", () => {
       onOpenTerminal={vi.fn()}
     />);
     expect(html).toContain("Mirror Core Conversation");
+    expect(html).toContain("This conversation belongs to Mirror Core via Terminal");
+    expect(html).toContain("to continue here");
     expect(html.match(/Created with Mirror Core via Terminal/g)).toHaveLength(1);
     expect(html).toContain("Created with Mirror Core via Terminal. The source remains there.");
     expect(html).toContain("Continue in new Desktop Conversation");
