@@ -128,7 +128,7 @@ Verify:
 
 Characterize supported window geometry before fixing constants. Verify:
 
-- pointer drag and keyboard separator operation;
+- pointer drag and keyboard separator operation while Conversations are expanded or collapsed;
 - Arrow increments and larger modified increments;
 - accessible role, orientation, min/max/current values and instructions;
 - exact min/default/max clamping;

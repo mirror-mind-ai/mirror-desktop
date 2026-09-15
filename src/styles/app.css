@@ -85,7 +85,7 @@ textarea {
   --shell-end: #101b1f;
   --sidebar-surface: rgba(13, 16, 17, 0.96);
   display: grid;
-  grid-template-columns: 292px minmax(560px, 1fr);
+  grid-template-columns: var(--focused-sidebar-width, 292px) minmax(560px, 1fr);
   height: 100vh;
   transition: grid-template-columns 180ms ease;
   min-height: 100vh;
@@ -6711,10 +6711,6 @@ dd {
   .steering-messages {
     width: 100%;
   }
-}
-
-.app-shell.conversation-expanded {
-  grid-template-columns: var(--focused-sidebar-width, 292px) minmax(560px, 1fr);
 }
 
 .focused-sidebar-resize-handle {

@@ -74,7 +74,7 @@ Every state requires text or an accessible label plus an icon; color alone is in
 - One Journey owns at most one reserved, running or finalizing lease, even across multiple Conversations.
 - A handoff prompt may remain drafted while capacity is occupied, but Send and conflicting lifecycle mutation remain blocked until exact cleanup and fresh native inspection.
 - Pi compaction may create a technical Segment checkpoint inside one Desktop Conversation. It never creates a Conversation or resets context automatically.
-- The sidebar remains pointer- and keyboard-resizable while an inline Conversation list is open, within safe persisted channel-local bounds.
+- The sidebar remains pointer- and keyboard-resizable whenever it is not in compact mode, whether Conversations are expanded or collapsed, within safe persisted channel-local bounds.
 
 ## Child Work Packages
 

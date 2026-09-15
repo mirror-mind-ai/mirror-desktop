@@ -3639,7 +3639,7 @@ export function App({ model }: AppProps) {
 
   return (
     <main
-      className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${conversationFocus.kind === "focused_journey" ? "conversation-expanded" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
+      className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
       data-runtime-channel={runtimeChannel?.channel}
       data-application-theme={applicationTheme}
       style={{ "--focused-sidebar-width": `${focusedSidebarWidth}px` } as CSSProperties}
@@ -3926,7 +3926,7 @@ export function App({ model }: AppProps) {
             );
           })}
         </div>
-        {conversationFocus.kind === "focused_journey" ? (
+        {!sidebarCompact ? (
           <FocusedSidebarResizeHandle
             width={focusedSidebarWidth}
             viewportWidth={window.innerWidth}

@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FocusedSidebarResizeHandle } from "../app/FocusedSidebarResizeHandle";
 import { loadFocusedSidebarWidth, saveFocusedSidebarWidth } from "../app/focusedSidebarWidthStorage";
+import appSource from "../app/App.tsx?raw";
 
 describe("focused conversation sidebar resizing", () => {
   beforeEach(() => {
@@ -17,9 +18,15 @@ describe("focused conversation sidebar resizing", () => {
   it("exposes a keyboard-operable separator without relying on color", () => {
     const html = renderToStaticMarkup(<FocusedSidebarResizeHandle width={292} viewportWidth={1200} onChange={() => undefined} />);
     expect(html).toContain('role="separator"');
-    expect(html).toContain('aria-label="Resize conversation sidebar"');
+    expect(html).toContain('aria-label="Resize Journey sidebar"');
     expect(html).toContain('aria-valuenow="292"');
     expect(html).toContain('tabindex="0"');
+  });
+
+  it("remains available without expanding a Journey", () => {
+    expect(appSource).toContain("{!sidebarCompact ? (");
+    expect(appSource).not.toContain('conversationFocus.kind === "focused_journey" ? (\n          <FocusedSidebarResizeHandle');
+    expect(appSource).toContain('style={{ "--focused-sidebar-width": `${focusedSidebarWidth}px` }');
   });
 
   it("persists a clamped width per runtime channel", () => {

@@ -35,7 +35,7 @@ export function FocusedSidebarResizeHandle({ width, viewportWidth, onChange }: P
   return <div
     className="focused-sidebar-resize-handle"
     role="separator"
-    aria-label="Resize conversation sidebar"
+    aria-label="Resize Journey sidebar"
     aria-orientation="vertical"
     aria-valuemin={MIN_FOCUSED_SIDEBAR_WIDTH}
     aria-valuemax={clampFocusedSidebarWidth(MAX_FOCUSED_SIDEBAR_WIDTH, viewportWidth)}

@@ -45,7 +45,7 @@ Then full ID and exact Journey are revalidated
 And the canonical title changes manually without a model call
 And the UI discloses that other Mirror surfaces see the change
 
-Given the Navigator resizes the sidebar while Conversations are expanded
+Given the Navigator resizes the non-compact sidebar while Conversations are expanded or collapsed
 When pointer, keyboard, reset, relaunch or window resize changes geometry
 Then width remains clamped and channel-local
 And sidebar controls, conversation and composer remain usable without horizontal leakage
