@@ -13,7 +13,7 @@ so that I can continue in Desktop without writing transient transfer state into 
 
 ## Outcome
 
-Selecting a Mirror history entry opens a dedicated non-executable action surface without the standard composer. It offers `Create Desktop conversation from this history` as the proposed primary action, `Open in Terminal with recalled context` as secondary and `Rename in Mirror` as an administrative action. Handoff creates a distinct Desktop destination model-free, records bounded provenance and pre-fills an editable first-turn prompt there. Only explicit Send invokes the destination agent, which recalls a disclosed recent range, states omissions and establishes interpreted context while preserving source messages and Journey briefing files.
+Selecting a Mirror history entry opens a dedicated non-executable action surface without the standard composer. It offers `Continue in new Desktop conversation` as the primary action, `Open recalled context in Terminal` as secondary and the compact `Rename` action with an accessible `Rename in Mirror` label. Handoff creates a distinct Desktop destination model-free, records bounded provenance and pre-fills an editable first-turn prompt there. Only explicit Send invokes the destination agent, which recalls a disclosed recent range, states omissions and establishes interpreted context while preserving source messages and Journey briefing files.
 
 ## Acceptance Behavior
 

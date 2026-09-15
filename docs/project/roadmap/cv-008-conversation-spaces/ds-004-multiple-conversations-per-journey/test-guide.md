@@ -205,11 +205,11 @@ For Desktop-ready entries with exact Pi session authority, verify any exact-sess
 
 Verify selection opens a non-executable screen rather than the standard transcript/composer. The proposed hierarchy is:
 
-1. `Create Desktop conversation from this history`;
-2. `Open in Terminal with recalled context`;
-3. `Rename in Mirror`.
+1. `Continue in new Desktop conversation`;
+2. `Open recalled context in Terminal`;
+3. compact `Rename` with accessible label `Rename in Mirror`.
 
-Implementation evidence may refine labels or hierarchy, but the screen must not expose Send, Reset or Resume for the source.
+The screen must keep this hierarchy, omit low-value persona metadata, avoid horizontally centered compression, and never expose Send, Reset or Resume for the source.
 
 ### Handoff disclosure and destination
 

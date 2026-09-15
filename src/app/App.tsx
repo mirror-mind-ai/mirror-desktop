@@ -3786,7 +3786,7 @@ export function App({ model }: AppProps) {
             return (
               <Fragment key={journey.id}>
               <div
-                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${journey.id === selectedJourney ? "selected" : ""} ${runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : ""}`}
+                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${journey.id === selectedJourney ? "selected" : ""} ${conversationsExpanded ? "conversations-expanded" : ""} ${runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : ""}`}
                 style={{ "--journey-depth": journeyListOrder === "tree" ? journey.depth : 0 } as CSSProperties & Record<"--journey-depth", number>}
                 role="button"
                 tabIndex={0}

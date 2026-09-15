@@ -46,7 +46,31 @@ describe("conversation space surfaces", () => {
     expect(html).not.toContain("Back to all Journeys");
     expect(html).not.toContain("Journey workspace");
     expect(html).toContain("Desktop child");
-    expect(html).toContain("Available in Mirror");
+    expect(html).toContain("Mirror · 12 messages");
+  });
+
+  it("keeps long inline catalogs initially bounded", () => {
+    const entries = Array.from({ length: 8 }, (_, index) => ({
+      kind: "mirror_history" as const,
+      conversationId: `mirror-conversation-${index + 1}`,
+      title: `History ${index + 1}`,
+      updatedAt: "2026-09-15T09:00:00.000Z",
+      messageCount: index + 1,
+      availability: "available_in_mirror" as const,
+    }));
+    const html = renderToStaticMarkup(<FocusedConversationSidebar
+      journeyId="mirror-desktop"
+      journeyName="Mirror Desktop"
+      selected={{ kind: "journey_workspace", journeyId: "mirror-desktop" }}
+      entries={entries}
+      status="ready"
+      onCreateConversation={vi.fn()}
+      onSelectEntry={vi.fn()}
+    />);
+    expect(html).toContain("History 6");
+    expect(html).not.toContain("History 7");
+    expect(html).toContain("Show 2 more");
+    expect(html).toContain("Create new conversation in Mirror Desktop");
   });
 
   it("renders Mirror history as a no-composer action surface", () => {
@@ -59,15 +83,18 @@ describe("conversation space surfaces", () => {
         updatedAt: "2026-09-15T09:00:00.000Z",
         messageCount: 12,
         availability: "available_in_mirror",
+        persona: "engineer",
       }}
       onCreateHandoff={vi.fn()}
       onOpenTerminal={vi.fn()}
       onRename={vi.fn()}
     />);
     expect(html).toContain("Available in Mirror");
-    expect(html).toContain("Create Desktop conversation from this history");
-    expect(html).toContain("Open in Terminal with recalled context");
+    expect(html).toContain("Continue in new Desktop conversation");
+    expect(html).toContain("Open recalled context in Terminal");
     expect(html).toContain("Rename in Mirror");
+    expect(html).not.toContain("Persona");
+    expect(html).not.toContain("engineer");
     expect(html).not.toContain("textarea");
   });
 

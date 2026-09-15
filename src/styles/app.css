@@ -6767,29 +6767,45 @@ dd {
   margin-left: auto;
 }
 
+.journey-item.card-node.conversations-expanded {
+  border-bottom-left-radius: 9px;
+  border-bottom-right-radius: 9px;
+  margin-bottom: 0;
+}
+
 .focused-conversation-sidebar {
-  border-left: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 5%, rgba(255, 255, 255, 0.025));
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-radius: 0 0 16px 16px;
+  border-top: 0;
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
   gap: 4px;
-  margin: -3px 8px 7px 20px;
-  padding: 5px 0 7px 14px;
+  margin: -9px 0 7px;
+  padding: 10px 10px 12px 18px;
+}
+
+.journey-list.tree-mode .focused-conversation-sidebar {
+  background: transparent;
+  border-bottom: 0;
+  border-right: 0;
+  border-radius: 0;
+  margin: 0 4px 4px 20px;
+  padding: 5px 4px 7px 12px;
 }
 
 .focused-conversation-heading {
-  align-items: baseline;
+  align-items: center;
   color: var(--text-muted);
   display: flex;
-  font-size: 0.72rem;
   justify-content: space-between;
-  letter-spacing: 0.08em;
-  padding: 5px 8px 3px;
-  text-transform: uppercase;
+  padding: 3px 4px 6px;
 }
 
-.focused-conversation-heading strong { font-size: inherit; font-weight: 650; }
-.focused-conversation-heading small { font-size: 0.68rem; letter-spacing: 0; }
+.focused-conversation-heading-copy { align-items: baseline; display: inline-flex; gap: 6px; }
+.focused-conversation-heading strong { font-size: 0.72rem; font-weight: 620; letter-spacing: 0.055em; text-transform: uppercase; }
+.focused-conversation-heading small { font-size: 0.68rem; }
 
 .focused-conversation-entry {
   border: 0;
@@ -6826,31 +6842,29 @@ dd {
 
 .focused-conversation-create {
   align-items: center;
-  align-self: start;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: color-mix(in srgb, var(--accent) 78%, var(--text));
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--text);
   display: inline-flex;
-  font-size: 0.76rem;
-  font-weight: 590;
-  gap: 5px;
-  padding: 7px 8px;
-  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 610;
+  gap: 3px;
+  padding: 5px 8px;
 }
 .focused-conversation-create:hover,
 .focused-conversation-create:focus-visible {
-  background: color-mix(in srgb, var(--accent) 11%, transparent);
-  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
   outline: none;
 }
 .focused-conversation-list { display: grid; gap: 2px; min-height: 0; }
 .focused-conversation-entry { display: grid; width: 100%; grid-template-columns: 16px minmax(0, 1fr); gap: 7px; }
-.focused-conversation-entry strong {
+.focused-conversation-title {
   display: block;
   font-size: 0.78rem;
-  font-weight: 590;
-  line-height: 1.25;
+  font-weight: 445;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6858,8 +6872,29 @@ dd {
 .focused-conversation-icon { color: color-mix(in srgb, var(--accent) 68%, var(--text-muted)); font-size: 0.66rem; padding-top: 2px; }
 .focused-conversation-status { font-size: 0.72rem; line-height: 1.4; margin: 0; padding: 7px 8px; color: var(--text-muted); }
 .focused-conversation-status.error { color: color-mix(in srgb, #b88a55 65%, var(--text-muted)); }
+.focused-conversation-more {
+  align-self: start;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  margin: 3px 0 0 20px;
+  padding: 5px 7px;
+}
+.focused-conversation-more:hover,
+.focused-conversation-more:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--text); outline: none; }
 
-.mirror-history-action-surface,
+.mirror-history-action-surface {
+  align-items: start;
+  display: grid;
+  flex: 1;
+  justify-items: start;
+  min-height: 0;
+  overflow: auto;
+  padding: clamp(36px, 8vh, 96px) clamp(32px, 7vw, 108px);
+}
+
 .desktop-conversation-start-surface {
   display: grid;
   min-height: 0;
@@ -6869,11 +6904,22 @@ dd {
   padding: 32px;
 }
 
-.mirror-history-action-card,
+.mirror-history-action-card { width: min(880px, 100%); }
 .desktop-conversation-start-surface > * { width: min(680px, 100%); }
-.mirror-history-action-card dl { display: grid; gap: 8px; }
-.mirror-history-action-card dl div { display: flex; justify-content: space-between; gap: 20px; }
-.mirror-history-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.mirror-history-title-row { align-items: center; display: flex; flex-wrap: wrap; gap: 10px 14px; }
+.mirror-history-title-row h2 { margin: 0; }
+.mirror-history-badge {
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--accent) 72%, var(--text));
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 4px 8px;
+}
+.mirror-history-summary { color: var(--text-muted); line-height: 1.55; margin: 14px 0 0; max-width: 720px; }
+.mirror-history-metadata { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-top: 20px; color: var(--text-muted); font-size: 0.82rem; }
+.mirror-history-metadata strong { color: var(--text); font-weight: 620; }
+.mirror-history-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
 .desktop-conversation-start-surface { align-content: center; }
 .desktop-conversation-draft { display: grid; gap: 7px; margin-top: 20px; }
 .desktop-conversation-draft textarea { min-height: 180px; resize: vertical; }

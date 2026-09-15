@@ -45,7 +45,7 @@ Preserve the existing click-a-Journey-and-converse workspace as the default root
 
 - Show bounded title, date, persona and message-count metadata without reading transcript bodies for catalog opening.
 - Support `Rename in Mirror` as an explicit manual mutation using full ID and exact Journey validation. It invokes no model and discloses that other Mirror surfaces will see the title.
-- Support `Open in Terminal with recalled context` as a new Pi context for generic Mirror history, never literal session resumption.
+- Support `Open recalled context in Terminal` as a new Pi context for generic Mirror history, never literal session resumption.
 - For Desktop-ready Conversations with exact Pi coordinates, keep exact-session Terminal opening semantically distinct from generic recalled context.
 
 ### Agent handoff into a new Desktop Conversation
@@ -194,7 +194,7 @@ And released Mirror title mutation updates the canonical title without a model c
 And source messages remain unchanged
 
 Given a generic Mirror history entry
-When the Navigator chooses Open in Terminal with recalled context
+When the Navigator chooses Open recalled context in Terminal
 Then a new Pi context opens through the validated runtime and Journey project path
 And the interface does not claim exact session resumption or Desktop execution authority
 
