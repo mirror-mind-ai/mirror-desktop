@@ -1473,6 +1473,34 @@ textarea {
   align-items: center;
   display: flex;
   gap: 13px;
+  min-width: 0;
+}
+
+.active-journey-heading { min-width: 0; }
+.active-conversation-context {
+  align-items: baseline;
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  max-width: min(58vw, 720px);
+  min-width: 0;
+}
+.active-conversation-context span {
+  color: var(--accent);
+  flex: 0 0 auto;
+  font-size: 0.61rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.active-conversation-context strong {
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 540;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .active-journey-icon {

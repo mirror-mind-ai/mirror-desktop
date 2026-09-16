@@ -4120,9 +4120,15 @@ export function App({ model }: AppProps) {
             <div className="journey-title-row">
               <div className="active-journey-title">
                 <JourneyVisualMark journeyId={selectedJourneyItem.id} appearance={selectedJourneyAppearance} fallbackGlyph={selectedJourneyVisual.icon} className="active-journey-icon" />
-                <div>
+                <div className="active-journey-heading">
                   <p className="eyebrow">Active journey</p>
                   <h1>{selectedJourneyItem.name}</h1>
+                  {operationalChatSelected && messages.length > 0 && selectedConversationEntry?.kind === "desktop_conversation" ? (
+                    <div className="active-conversation-context" aria-label={`Active Desktop Conversation: ${selectedConversationEntry.title}`}>
+                      <span>Desktop Conversation</span>
+                      <strong title={selectedConversationEntry.title}>{selectedConversationEntry.title}</strong>
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <div className="chat-header-actions">
