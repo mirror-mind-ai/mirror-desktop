@@ -61,14 +61,60 @@ describe("bounded Conversation Segment projections", () => {
     expect(combineConversationSegmentProjections(projections).terminalAgentActionEvidence?.["assistant-1"]).toBeDefined();
   });
 
+  it("keeps a generated history above 1,000 messages complete while opening only the current Segment", () => {
+    const base = fixture();
+    const turns = Array.from({ length: 1_200 }, (_, index) => {
+      const number = index + 1;
+      return {
+        turnId: `turn-${number}`, runId: `run-${number}`, origin: "nautilus" as const,
+        startedAt: "2026-09-15T00:00:00.000Z",
+        harness: { state: "committed" as const, userMessageId: `user-${number}`, assistantMessageId: `assistant-${number}` },
+        pi: { state: "committed" as const, userEntryId: `pi-user-${number}`, assistantEntryId: `pi-assistant-${number}` },
+        mirror: { state: "committed" as const },
+      };
+    });
+    const conversation: JourneyConversation = {
+      ...base,
+      messages: turns.flatMap((_, index) => {
+        const number = index + 1;
+        return [
+          { id: `user-${number}`, role: "user" as const, content: `u${number}`, createdAt: "2026-09-15T00:00:00.000Z" },
+          { id: `assistant-${number}`, role: "assistant" as const, content: `a${number}`, createdAt: "2026-09-15T00:00:01.000Z" },
+        ];
+      }),
+      reconciliation: { ...base.reconciliation, turns },
+    };
+    const longManifest: ConversationSegmentManifest = {
+      ...manifest,
+      sourceEntryCount: 2_401,
+      segments: [
+        { segment: 1, segmentId: "segment-1", status: "closed", firstTurnId: "turn-1", lastTurnId: "turn-1000",
+          sourceFromEntryId: "pi-user-1", sourceThroughEntryId: "pi-assistant-1000", retainedTailFromEntryId: "pi-user-1001", compactionEntryId: "compact-1" },
+        { segment: 2, segmentId: "segment-2", status: "current", firstTurnId: "turn-1001", lastTurnId: "turn-1200",
+          sourceFromEntryId: "pi-user-1001", sourceThroughEntryId: "pi-assistant-1200" },
+      ],
+    };
+    const projections = partitionConversationBySegments(conversation, longManifest);
+    expect(projections[0]!.conversation.messages).toHaveLength(2_000);
+    expect(projections[1]!.conversation.messages).toHaveLength(400);
+    const recovered = combineConversationSegmentProjections(projections);
+    expect(recovered.messages).toHaveLength(2_400);
+    expect(recovered.messages[0]?.id).toBe("user-1");
+    expect(recovered.messages.at(-1)?.id).toBe("assistant-1200");
+  });
+
   it("rejects duplicate IDs instead of silently merging divergent Segment state", () => {
     const projections = partitionConversationBySegments(fixture(), manifest);
     projections[1]!.conversation.messages.push(projections[0]!.conversation.messages[0]!);
     expect(() => combineConversationSegmentProjections(projections)).toThrow("duplicate message authority");
   });
 
-  it("rejects cross-Journey authority", () => {
+  it("rejects cross-Journey, stale-generation, and cross-session authority", () => {
     expect(() => partitionConversationBySegments(fixture(), { ...manifest, journeyId: "other-journey" }))
+      .toThrow("authority mismatch");
+    expect(() => partitionConversationBySegments(fixture(), { ...manifest, generation: 2 }))
+      .toThrow("authority mismatch");
+    expect(() => partitionConversationBySegments(fixture(), { ...manifest, piSessionId: "other-session" }))
       .toThrow("authority mismatch");
   });
 });
