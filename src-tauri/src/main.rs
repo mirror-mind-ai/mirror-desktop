@@ -6303,6 +6303,35 @@ fn load_or_migrate_root_projection_at(
         )
     }
 
+    fn validate_receipt(
+        receipt_path: &Path,
+        payload: &str,
+        journey_id: &str,
+        root_thread_id: &str,
+        generation: u64,
+    ) -> Result<(), String> {
+        let metadata = fs::symlink_metadata(receipt_path)
+            .map_err(|_| "dedicated_projection_invalid".to_string())?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 64 * 1024 {
+            return Err("dedicated_projection_invalid".to_string());
+        }
+        let receipt: Value = serde_json::from_slice(
+            &fs::read(receipt_path).map_err(|_| "dedicated_projection_invalid".to_string())?,
+        ).map_err(|_| "dedicated_projection_invalid".to_string())?;
+        let digest = format!("{:x}", Sha256::digest(payload.as_bytes()));
+        if receipt.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0")
+            || receipt.get("kind").and_then(Value::as_str) != Some("root_projection_compatibility")
+            || receipt.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+            || receipt.get("threadId").and_then(Value::as_str) != Some(root_thread_id)
+            || receipt.get("generation").and_then(Value::as_u64) != Some(generation)
+            || receipt.get("sourceRetained").and_then(Value::as_bool) != Some(true)
+            || receipt.get("payloadSha256").and_then(Value::as_str) != Some(digest.as_str())
+        {
+            return Err("dedicated_projection_invalid".to_string());
+        }
+        Ok(())
+    }
+
     for candidate in [canonical, legacy] {
         if let Ok(metadata) = fs::symlink_metadata(candidate) {
             if metadata.file_type().is_symlink() {
@@ -6313,11 +6342,26 @@ fn load_or_migrate_root_projection_at(
     if canonical.exists() {
         let payload = read_projection(canonical)?;
         validate_projection(&payload, journey_id, root_thread_id, generation)?;
-        if legacy.exists() {
-            let legacy_payload = read_projection(legacy)?;
-            if legacy_payload == payload && !canonical.with_extension("migration-receipt.json").exists() {
+        let receipt_path = canonical.with_extension("migration-receipt.json");
+        match (legacy.exists(), receipt_path.exists()) {
+            (true, false) => {
+                let legacy_payload = read_projection(legacy)?;
+                validate_projection(&legacy_payload, journey_id, root_thread_id, generation)?;
+                if legacy_payload != payload {
+                    return Err("dedicated_projection_migration_verification_failed".to_string());
+                }
                 publish_receipt(canonical, &payload, journey_id, root_thread_id, generation, nonce)?;
             }
+            (true, true) => {
+                let legacy_payload = read_projection(legacy)?;
+                validate_projection(&legacy_payload, journey_id, root_thread_id, generation)?;
+                if legacy_payload != payload {
+                    return Err("dedicated_projection_migration_verification_failed".to_string());
+                }
+                validate_receipt(&receipt_path, &payload, journey_id, root_thread_id, generation)?;
+            }
+            (false, true) => return Err("dedicated_projection_migration_verification_failed".to_string()),
+            (false, false) => {}
         }
         return Ok(Some(payload));
     }
@@ -7327,6 +7371,43 @@ mod tests {
         ).unwrap().unwrap();
         assert_eq!(repeated, payload);
         assert_eq!(fs::read_to_string(&legacy).unwrap(), payload);
+    }
+
+    #[test]
+    fn root_projection_migration_recovers_missing_receipt_and_rejects_divergence() {
+        let root = test_root("root-projection-migration-interruption");
+        let canonical = root.join("generation-1.json");
+        let legacy = root.join("legacy.json");
+        fs::create_dir_all(&root).unwrap();
+        let payload = json!({
+            "schemaVersion":"0.9.0", "conversation":{
+                "journeyId":"mirror-desktop", "liveIdentity":{
+                    "journeyId":"mirror-desktop", "harnessConversationId":"root-thread-one", "generation":1
+                }
+            }
+        }).to_string();
+        fs::write(&canonical, &payload).unwrap();
+        fs::write(&legacy, &payload).unwrap();
+        load_or_migrate_root_projection_at(
+            &canonical, &legacy, "mirror-desktop", "root-thread-one", 1, 1,
+        ).unwrap();
+        let receipt = canonical.with_extension("migration-receipt.json");
+        assert!(receipt.is_file());
+
+        fs::remove_file(&receipt).unwrap();
+        let mut divergent: Value = serde_json::from_str(&payload).unwrap();
+        divergent["conversation"]["messages"] = json!([{"id":"unexpected"}]);
+        fs::write(&canonical, divergent.to_string()).unwrap();
+        assert!(load_or_migrate_root_projection_at(
+            &canonical, &legacy, "mirror-desktop", "root-thread-one", 1, 2,
+        ).is_err());
+
+        fs::write(&canonical, &payload).unwrap();
+        fs::write(&receipt, b"{}").unwrap();
+        assert!(load_or_migrate_root_projection_at(
+            &canonical, &legacy, "mirror-desktop", "root-thread-one", 1, 3,
+        ).is_err());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
