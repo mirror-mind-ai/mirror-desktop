@@ -86,9 +86,27 @@ The downloaded release note, release index, updater archive, signature, versione
 
 ## Git And GitHub Publication
 
-The completed source and endpoint evidence are intended for `origin/main` under annotated tag `v0.2.0-alpha.8`. The updater-signed binaries remain attributable to candidate source revision `ab672354d96d61b851b91297184be62cdac3d514`; subsequent commits contain bounded release preparation and publication evidence only.
+The completed source and endpoint evidence were pushed to `origin/main`. Annotated tag `v0.2.0-alpha.8` resolves to endpoint-evidence revision:
 
-The GitHub release must remain a non-draft prerelease and attach the exact DMG, updater archive, and updater signature whose hashes are recorded above. The tag is annotated but not GPG-signed. Artifact trust remains the separate updater-signature contract.
+```text
+5d4516ec4395769704e19a6968c26233d070b268
+```
+
+The updater-signed binaries remain attributable to candidate source revision `ab672354d96d61b851b91297184be62cdac3d514`; intervening commits contain bounded release preparation and publication evidence only.
+
+GitHub prerelease:
+
+```text
+https://github.com/mirror-mind-ai/mirror-desktop/releases/tag/v0.2.0-alpha.8
+```
+
+GitHub reports a non-draft prerelease published at `2026-09-16T14:01:07Z`. Downloaded copies of all three assets match the local candidate SHA-256 digests and byte counts:
+
+- `Mirror.Desktop_0.2.0-alpha.8_x64.dmg`
+- `Mirror.Desktop.app.tar.gz`
+- `Mirror.Desktop.app.tar.gz.sig`
+
+The tag is annotated but not GPG-signed. Artifact trust remains the separate updater-signature contract. This repository currently reports no GitHub Actions workflows for the pushed `main` revision or tag, so there was no remote workflow run to await; the governed local gates above remain the release evidence.
 
 ## Explicit Boundary
 
