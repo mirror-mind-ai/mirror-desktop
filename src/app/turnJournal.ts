@@ -185,7 +185,10 @@ export function decideTurnJournalRecovery(record: TurnJournalRecord): TurnJourna
 }
 
 export function isTurnJournalSuccessorEligible(record: TurnJournalRecord): boolean {
-  return ["outbox_enqueued", "settled", "interrupted"].includes(record.phase);
+  if (["outbox_enqueued", "settled", "interrupted"].includes(record.phase)) return true;
+  return record.phase === "projected"
+    && record.terminalOutcome === "completed"
+    && Boolean(record.terminalEvidence?.piExecution);
 }
 
 export function isTurnJournalPhase(value: string): value is TurnPhase {

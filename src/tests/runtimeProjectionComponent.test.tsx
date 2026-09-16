@@ -137,6 +137,11 @@ describe("runtime projection component", () => {
     expect(leaseReleaseCallback).not.toContain('type: "finalization_finished"');
     expect(appSource).toContain("mirrorSynchronizationPending: showConversationSyncNotice");
     expect(appSource).toContain("const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;");
+    expect(appSource).toContain("const durableBaseConversation = await loadDedicatedJourneyConversation(");
+    expect(appSource).toContain("baseConversation = durableBaseConversation;");
+    expect(appSource).toContain("complete durable conversation projection could not be loaded");
+    expect(appSource).toContain("resumeProjectedMirrorSynchronization(projectedSyncRecord)");
+    expect(appSource).toContain("projectionAlreadyDurable: true");
     expect(appSource).not.toContain("requiresConversationRestore:");
     expect(appSource).toContain("status={composerTurnStatus}");
     expect(appSource).toContain("if (journeyId === selectedJourney)");

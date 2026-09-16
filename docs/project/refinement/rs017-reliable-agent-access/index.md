@@ -29,9 +29,9 @@ Journey authority remains exact for run correlation, cancellation, persistence a
 
 ## Change Requests
 
-- [CR033 — Separate Local Turn Completion from Mirror Synchronization](cr033-separate-local-completion-from-mirror-synchronization.md), `captured`, selected with Driver `@alissonvale` and Delivery `refinement/rs017-cr033-local-completion`
+- [CR033 — Separate Local Turn Completion from Mirror Synchronization](cr033-separate-local-completion-from-mirror-synchronization.md), `in_progress`, selected with Driver `@alissonvale` and Delivery `refinement/rs017-cr033-local-completion`
 - [CR034 — Replace Generic Retry with Explicit Recovery Routes](cr034-replace-generic-retry-with-explicit-recovery-routes.md), `captured`
 - [CR035 — Make Journey Authority Proportional to the Operation](cr035-make-journey-authority-proportional.md), `captured`
 - [CR032 — Establish the Conversation Availability Contract](cr032-establish-conversation-availability-contract.md), `done`
 
-CR032 established and validated the centralized availability contract. CR033 is selected and assigned, but its proposed Plan still requires explicit Navigator approval before implementation. CR034 and CR035 preserve the agreed sequence without authorizing planning or implementation.
+CR032 established and validated the centralized availability contract. CR033 is selected, approved and in progress. CR034 and CR035 preserve the agreed sequence without authorizing planning or implementation.

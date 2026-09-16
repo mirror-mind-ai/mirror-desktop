@@ -39,6 +39,7 @@ describe("composer placeholder", () => {
     expect(composerPlaceholder({
       ...ready,
       availabilityCondition: "sync_pending",
+      isRecordingTurn: true,
     })).toBe("What would you like to do next?");
   });
 

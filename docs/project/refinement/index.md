@@ -46,7 +46,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR033](rs017-reliable-agent-access/cr033-separate-local-completion-from-mirror-synchronization.md) | RS017 | Separate Local Turn Completion from Mirror Synchronization | captured | @alissonvale | `refinement/rs017-cr033-local-completion` |
+| 1 | [CR033](rs017-reliable-agent-access/cr033-separate-local-completion-from-mirror-synchronization.md) | RS017 | Separate Local Turn Completion from Mirror Synchronization | in_progress | @alissonvale | `refinement/rs017-cr033-local-completion` |
 | 2 | [CR034](rs017-reliable-agent-access/cr034-replace-generic-retry-with-explicit-recovery-routes.md) | RS017 | Replace Generic Retry with Explicit Recovery Routes | captured | — | — |
 | 3 | [CR035](rs017-reliable-agent-access/cr035-make-journey-authority-proportional.md) | RS017 | Make Journey Authority Proportional to the Operation | captured | — | — |
 | 4 | [CR030](rs016-ongoing-product-improvements-and-adjustments/cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md) | RS016 | Restore Journey expansion arrow contrast in light themes | in_progress | @alissonvale | `refinement/rs016-cr030-journey-expansion-arrow-contrast` |

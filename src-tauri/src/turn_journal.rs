@@ -270,6 +270,19 @@ fn write_turn_journal(path: &Path, document: &mut TurnJournalDocument) -> Result
     Ok(())
 }
 
+fn is_successor_eligible(record: &TurnJournalRecord) -> bool {
+    matches!(
+        record.phase,
+        TurnPhase::OutboxEnqueued | TurnPhase::Settled | TurnPhase::Interrupted
+    ) || (record.phase == TurnPhase::Projected
+        && record.terminal_outcome == Some(TurnTerminalOutcome::Completed)
+        && record
+            .terminal_evidence
+            .as_ref()
+            .and_then(|evidence| evidence.pi_execution.as_ref())
+            .is_some())
+}
+
 pub fn admit_turn(
     path: &Path,
     authority: TurnJournalAuthority,
@@ -290,10 +303,7 @@ pub fn admit_turn(
     }
     if document.records.iter().any(|record| {
         record.authority.journey_id == authority.journey_id
-            && !matches!(
-                record.phase,
-                TurnPhase::OutboxEnqueued | TurnPhase::Settled | TurnPhase::Interrupted
-            )
+            && !is_successor_eligible(record)
     }) {
         return Err("turn_journal_journey_occupied".to_string());
     }
@@ -704,6 +714,64 @@ mod tests {
             "turn_journal_receipt_conflict"
         );
         assert_eq!(read_turn_journal(&path).unwrap().records[0], running);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn completed_projected_turn_allows_a_successor_before_mirror_synchronization() {
+        let root = root("projected-successor");
+        let path = root.join("turn-journal.json");
+        let auth = authority("run-1", "journey-a");
+        let admitted = admit_turn(&path, auth.clone(), None).unwrap();
+        let running = transition_turn(
+            &path,
+            &auth,
+            transition(admitted.revision, TurnPhase::Admitted, TurnPhase::Running, "running"),
+        ).unwrap();
+        let terminal = transition_turn(
+            &path,
+            &auth,
+            transition(running.revision, TurnPhase::Running, TurnPhase::TerminalDurable, "terminal"),
+        ).unwrap();
+        transition_turn(
+            &path,
+            &auth,
+            transition(terminal.revision, TurnPhase::TerminalDurable, TurnPhase::Projected, "projected"),
+        ).unwrap();
+
+        assert!(admit_turn(&path, authority("run-2", "journey-a"), None).is_ok());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn failed_projected_turn_remains_ineligible_for_a_successor() {
+        let root = root("failed-projected-successor");
+        let path = root.join("turn-journal.json");
+        let auth = authority("run-1", "journey-a");
+        let admitted = admit_turn(&path, auth.clone(), None).unwrap();
+        let running = transition_turn(
+            &path,
+            &auth,
+            transition(admitted.revision, TurnPhase::Admitted, TurnPhase::Running, "running"),
+        ).unwrap();
+        let mut failed = transition(
+            running.revision,
+            TurnPhase::Running,
+            TurnPhase::TerminalDurable,
+            "failed",
+        );
+        failed.terminal_outcome = Some(TurnTerminalOutcome::ProcessDied);
+        let terminal = transition_turn(&path, &auth, failed).unwrap();
+        transition_turn(
+            &path,
+            &auth,
+            transition(terminal.revision, TurnPhase::TerminalDurable, TurnPhase::Projected, "projected"),
+        ).unwrap();
+
+        assert_eq!(
+            admit_turn(&path, authority("run-2", "journey-a"), None).unwrap_err(),
+            "turn_journal_journey_occupied",
+        );
         fs::remove_dir_all(root).unwrap();
     }
 

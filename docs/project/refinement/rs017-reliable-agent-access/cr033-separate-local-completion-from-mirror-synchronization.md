@@ -2,7 +2,7 @@
 
 # CR033 — Separate Local Turn Completion from Mirror Synchronization
 
-**Status:** captured
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs017-cr033-local-completion`
 
@@ -84,7 +84,7 @@ The exact list may narrow during TDD. Expansion into schema migration, new backg
 
 ### Authority Boundary
 
-The Navigator assigned Driver `@alissonvale` and Delivery `refinement/rs017-cr033-local-completion`. This document records the proposed Plan. Implementation begins only after explicit Navigator approval of this Plan.
+The Navigator approved this Plan, Driver `@alissonvale`, Delivery `refinement/rs017-cr033-local-completion` and local implementation. Commit authority covers this approved local delivery. Push, merge, publication and release remain separate decisions.
 
 ## Evidence
 
@@ -92,4 +92,18 @@ The alpha 8 incident and CR031 experiment exposed `projected`, `outbox_enqueued`
 
 ## Outcome
 
-Plan awaiting Navigator approval.
+Implementation is complete and awaiting Navigator validation.
+
+The local-completion frontier now releases the exact native Journey lease immediately after the completed turn and complete Conversation projection are durably established. Mirror enqueue, append, receipt projection and acknowledgement remain exact, durable synchronization work, but failures after local completion no longer remove Send access. On restart, an eligible `projected` record is non-blocking and its Mirror synchronization is resumed model-free from the complete durable projection.
+
+Native admission independently verifies the completed terminal evidence against the exact persisted Conversation, including Journey, thread, generation, session, Mirror identity, run, turn, committed harness/Pi states and exact user/assistant messages. The next provider packet reloads the complete durable Conversation rather than extending the displayed Segment.
+
+Validation evidence:
+
+- frontend: 143 test files and 792 tests passed;
+- production web build passed, with only the pre-existing Vite chunk-size warning;
+- Rust: 135 tests passed, 1 explicitly ignored private-fixture test;
+- `cargo check` passed;
+- focused local-completion, settlement, composer, availability and source-contract tests passed.
+
+Navigator validation in Mirror Desktop Dev remains required before this CR can move to `validated` or `done`. No production app-data mutation, push, merge, publication or release was performed.

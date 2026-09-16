@@ -80,6 +80,7 @@ export type CompletedSettlementInput<
   authority: JourneySettlementAuthority;
   cleanupLeaseAuthority?: JourneySettlementAuthority;
   existingOutbox?: TOutbox;
+  projectionAlreadyDurable?: boolean;
 };
 
 export type CompletedSettlementDependencies<
@@ -105,23 +106,8 @@ export async function executeCompletedSettlement<
   input: CompletedSettlementInput<TProjection, TOutbox>,
   dependencies: CompletedSettlementDependencies<TProjection, TOutbox>,
 ): Promise<{ projection: TProjection; outbox: TOutbox }> {
-  let outbox = input.existingOutbox;
-  if (outbox === undefined) {
-    validatePreFrontierSettlement(
-      input.authority,
-      input.projection,
-      await dependencies.loadActiveEvidence(input.authority),
-    );
-    await dependencies.saveActiveProjection(input.projection, input.authority);
-    validatePreFrontierSettlement(
-      input.authority,
-      input.projection,
-      await dependencies.loadActiveEvidence(input.authority),
-    );
-    outbox = await dependencies.enqueueOutbox(input.projection, input.authority);
-  }
-  validatePostFrontierSettlement(input.authority, input.projection, outbox);
-  if (input.cleanupLeaseAuthority) {
+  const cleanupLocalLease = async (): Promise<void> => {
+    if (!input.cleanupLeaseAuthority) return;
     if (!dependencies.cleanupLease) {
       throw new Error("exact_settlement_cleanup_dependency_missing");
     }
@@ -131,6 +117,29 @@ export async function executeCompletedSettlement<
     }
     await dependencies.cleanupLease(input.cleanupLeaseAuthority);
     await dependencies.onLeaseReleased?.();
+  };
+
+  let outbox = input.existingOutbox;
+  if (outbox === undefined) {
+    if (!input.projectionAlreadyDurable) {
+      validatePreFrontierSettlement(
+        input.authority,
+        input.projection,
+        await dependencies.loadActiveEvidence(input.authority),
+      );
+      await dependencies.saveActiveProjection(input.projection, input.authority);
+      validatePreFrontierSettlement(
+        input.authority,
+        input.projection,
+        await dependencies.loadActiveEvidence(input.authority),
+      );
+    }
+    await cleanupLocalLease();
+    outbox = await dependencies.enqueueOutbox(input.projection, input.authority);
+    validatePostFrontierSettlement(input.authority, input.projection, outbox);
+  } else {
+    validatePostFrontierSettlement(input.authority, input.projection, outbox);
+    await cleanupLocalLease();
   }
   const projection = await dependencies.appendAndAcknowledge(input.projection, outbox, input.authority);
   return { projection, outbox };

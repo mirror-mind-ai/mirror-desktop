@@ -175,6 +175,7 @@ import {
   decideTurnJournalTerminal,
   findBlockingTurnJournalRecord,
   findExactTurnJournalRecord,
+  isTurnJournalSuccessorEligible,
   interruptInactiveTurnJournal,
   loadTurnJournal,
   requireExactTurnJournalRecord,
@@ -762,10 +763,9 @@ export function App({ model }: AppProps) {
     && latestNautilusTurn.pi.failureCode?.startsWith("turn_journal_")
     ? latestNautilusTurn
     : undefined;
-  const mirrorAppendNeedsEnqueue = pendingMirrorDisposition === "enqueue_required";
-  const reconciliationBlocksInvocation = mirrorAppendNeedsEnqueue || (dedicatedThreadReady
+  const reconciliationBlocksInvocation = dedicatedThreadReady
     ? dedicatedTurnBlocksNewInvocation(dedicatedTurnState)
-    : conversation.reconciliation.classification !== "in_sync");
+    : conversation.reconciliation.classification !== "in_sync";
   const composerTurnStatus = deriveComposerTurnStatus({
     agentRunStatus: agentRun.status,
     runBelongsToSelectedJourney: selectedRuntime.identity
@@ -1440,6 +1440,21 @@ export function App({ model }: AppProps) {
           setTurnRecoveryError(undefined);
           setTurnRecoveryBusy(false);
           setTurnRecoveryAttempt(0);
+          const projectedSyncRecord = [...journal.records].reverse().find((record) => (
+            record.authority.journeyId === ownerJourneyId
+            && record.authority.threadId === journeyThreadState.thread.threadId
+            && record.authority.generation === activeGeneration
+            && record.phase === "projected"
+            && isTurnJournalSuccessorEligible(record)
+          ));
+          if (projectedSyncRecord && !checkedMirrorTurnRef.current.has(projectedSyncRecord.authority.turnId)) {
+            checkedMirrorTurnRef.current.add(projectedSyncRecord.authority.turnId);
+            void resumeProjectedMirrorSynchronization(projectedSyncRecord).catch((error) => {
+              if (!cancelled && selectedJourneyRef.current === ownerJourneyId) {
+                setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
+              }
+            });
+          }
           return;
         }
         const decision = decideTurnJournalOpeningRecovery(blockingRecord, Boolean(selectedNativeLease));
@@ -1825,6 +1840,23 @@ export function App({ model }: AppProps) {
         });
         return;
       }
+      const durableBaseConversation = await loadDedicatedJourneyConversation(
+        selectedJourney,
+        journeyThreadState.activeGeneration.generation,
+        journeyThreadState.thread.threadId,
+      );
+      if (!durableBaseConversation
+        || durableBaseConversation.id !== baseConversation.id
+        || durableBaseConversation.journeyId !== selectedJourney
+        || durableBaseConversation.liveIdentity.generation !== baseConversation.liveIdentity.generation) {
+        dispatchJourneyRuntime({
+          type: "append_warning",
+          journeyId: selectedJourney,
+          message: "Live invocation stopped because the complete durable conversation projection could not be loaded.",
+        });
+        return;
+      }
+      baseConversation = durableBaseConversation;
     }
 
     const fileAttachments = pendingFileAttachments;
@@ -2527,7 +2559,8 @@ export function App({ model }: AppProps) {
       )));
     }
     const journal = await loadTurnJournal(authority.journeyId);
-    if (journal.records.some((record) => record.authority.runId === authority.runId)) {
+    const journalRecord = journal.records.find((record) => record.authority.runId === authority.runId);
+    if (journalRecord?.phase === "terminal_durable") {
       await advanceTurnJournal(authority, "terminal_durable", "projected");
     }
   }
@@ -2550,7 +2583,8 @@ export function App({ model }: AppProps) {
     const outboxItem = createMirrorAppendOutboxItem(projection, authority);
     await enqueueMirrorAppendItem(outboxItem, authority);
     const journal = await loadTurnJournal(authority.journeyId);
-    if (journal.records.some((record) => record.authority.runId === authority.runId)) {
+    const journalRecord = journal.records.find((record) => record.authority.runId === authority.runId);
+    if (journalRecord?.phase === "projected") {
       await advanceTurnJournal(authority, "projected", "outbox_enqueued");
     }
     const summary: MirrorAppendOutboxSummary = {
@@ -2622,6 +2656,47 @@ export function App({ model }: AppProps) {
     }
   }
 
+  async function resumeProjectedMirrorSynchronization(record: TurnJournalRecord): Promise<void> {
+    const projection = await loadDedicatedJourneyConversation(
+      record.authority.journeyId,
+      record.authority.generation,
+      record.authority.threadId,
+    );
+    if (!projection) throw new Error("mirror_append_complete_durable_projection_missing");
+    const correlation = {
+      schemaVersion: "0.2.0" as const,
+      journeyId: record.authority.journeyId,
+      threadId: record.authority.threadId,
+      harnessConversationId: record.authority.threadId,
+      piSessionId: record.authority.piSessionId,
+      mirrorConversationId: record.authority.mirrorConversationId,
+      generation: record.authority.generation,
+      activationReceiptActivatedAt: projection.liveIdentity.activationReceiptActivatedAt ?? "",
+      turnId: record.authority.turnId,
+      runId: record.authority.runId,
+      harnessUserMessageId: record.authority.harnessUserMessageId,
+      harnessAssistantMessageId: record.authority.harnessAssistantMessageId,
+    };
+    const authority = createJourneySettlementAuthority(
+      createRunAuthority(correlation, projection.liveIdentity),
+    );
+    await executeCompletedSettlement({
+      projection,
+      authority,
+      projectionAlreadyDurable: true,
+    }, {
+      loadActiveEvidence: loadActiveSettlementEvidence,
+      saveActiveProjection: saveProjectedTurnLifecycle,
+      enqueueOutbox: (candidate, exactAuthority) => journeyPersistenceCoordinator.run(
+        exactAuthority, "pre_frontier", () => enqueueExactProjectionOutbox(candidate, exactAuthority),
+      ),
+      appendAndAcknowledge: (candidate, summary, exactAuthority) => (
+        appendAndAcknowledgeExactProjection(candidate, exactAuthority, summary)
+      ),
+    });
+    setJourneyMirrorCommitError(record.authority.journeyId, undefined);
+  }
+
   async function retryPendingMirrorCommit() {
     if (!pendingMirrorRepair || (runtimeBusy && !exactRetainedSettlementRecovery) || isRetryingMirrorCommit) return;
     const ownerJourneyId = conversationRef.current.journeyId;
@@ -2629,9 +2704,21 @@ export function App({ model }: AppProps) {
     setIsRetryingMirrorCommit(true);
     setJourneyMirrorCommitError(ownerJourneyId, undefined);
     try {
-      const projection = conversationRef.current;
+      const displayedProjection = conversationRef.current;
+      const projection = await loadDedicatedJourneyConversation(
+        ownerJourneyId,
+        displayedProjection.liveIdentity.generation,
+        displayedProjection.id,
+      );
+      if (!projection) {
+        throw new Error("mirror_append_complete_durable_projection_missing");
+      }
       const authority = createJourneySettlementAuthority(
         createRunAuthority(pendingMirrorRepair.correlation, projection.liveIdentity),
+      );
+      const journalRecord = requireExactTurnJournalRecord(
+        await loadTurnJournal(authority.journeyId),
+        authority,
       );
       if (pendingMirrorOutboxItem) {
         validateExactOutboxSummary(pendingMirrorOutboxItem, projection, authority);
@@ -2641,6 +2728,7 @@ export function App({ model }: AppProps) {
         authority,
         cleanupLeaseAuthority: exactRetainedSettlementRecovery ? authority : undefined,
         existingOutbox: pendingMirrorOutboxItem,
+        projectionAlreadyDurable: journalRecord.phase === "projected" || journalRecord.phase === "outbox_enqueued",
       }, {
         loadActiveEvidence: loadActiveSettlementEvidence,
         saveActiveProjection: (candidate, exactAuthority) => journeyPersistenceCoordinator.run(

@@ -3257,7 +3257,20 @@ fn with_turn_journal_lock<T>(
 
 fn admit_turn_journal(app: &AppHandle, run_authority: &RunAuthority) -> Result<TurnJournalRecord, String> {
     let authority = journal_authority(run_authority);
-    with_turn_journal_lock(app, &authority, |path| admit_turn(path, authority.clone(), None))
+    with_turn_journal_lock(app, &authority, |path| {
+        let journal = read_turn_journal(path)?;
+        for record in journal.records.iter().filter(|record| {
+            record.authority.journey_id == authority.journey_id
+                && record.phase == TurnPhase::Projected
+                && record.terminal_outcome == Some(TurnTerminalOutcome::Completed)
+                && record.terminal_evidence.as_ref()
+                    .and_then(|evidence| evidence.pi_execution.as_ref())
+                    .is_some()
+        }) {
+            validate_locally_completed_projection_at(app, record)?;
+        }
+        admit_turn(path, authority.clone(), None)
+    })
 }
 
 fn event_journal_authority(authority: &PiProcessEventAuthority) -> TurnJournalAuthority {
@@ -6129,6 +6142,81 @@ fn conversation_projection_path(
     conversation_projection_path_at(&app_data_dir, journey_id, thread_id, generation)
 }
 
+fn validate_locally_completed_projection(
+    parsed: &Value,
+    authority: &TurnJournalAuthority,
+    expected_assistant_text: &str,
+) -> Result<(), String> {
+    let invalid = || "turn_journal_projected_projection_invalid".to_string();
+    let conversation = parsed.get("conversation").ok_or_else(invalid)?;
+    let live = conversation.get("liveIdentity").ok_or_else(invalid)?;
+    if conversation.get("journeyId").and_then(Value::as_str) != Some(authority.journey_id.as_str())
+        || conversation.get("id").and_then(Value::as_str) != Some(authority.thread_id.as_str())
+        || live.get("journeyId").and_then(Value::as_str) != Some(authority.journey_id.as_str())
+        || live.get("harnessConversationId").and_then(Value::as_str) != Some(authority.thread_id.as_str())
+        || live.get("generation").and_then(Value::as_u64) != Some(authority.generation)
+        || live.get("piSessionId").and_then(Value::as_str) != Some(authority.pi_session_id.as_str())
+        || live.get("mirrorConversationId").and_then(Value::as_str) != Some(authority.mirror_conversation_id.as_str())
+    {
+        return Err(invalid());
+    }
+    let turn = conversation.pointer("/reconciliation/turns")
+        .and_then(Value::as_array)
+        .and_then(|turns| turns.iter().find(|turn| {
+            turn.get("turnId").and_then(Value::as_str) == Some(authority.turn_id.as_str())
+        }))
+        .ok_or_else(invalid)?;
+    if turn.get("runId").and_then(Value::as_str) != Some(authority.run_id.as_str())
+        || turn.pointer("/harness/state").and_then(Value::as_str) != Some("committed")
+        || turn.pointer("/harness/userMessageId").and_then(Value::as_str)
+            != Some(authority.harness_user_message_id.as_str())
+        || turn.pointer("/harness/assistantMessageId").and_then(Value::as_str)
+            != Some(authority.harness_assistant_message_id.as_str())
+        || turn.pointer("/pi/state").and_then(Value::as_str) != Some("committed")
+    {
+        return Err(invalid());
+    }
+    let messages = conversation.get("messages").and_then(Value::as_array).ok_or_else(invalid)?;
+    let exact_message = |id: &str, role: &str, expected_content: Option<&str>| messages.iter().any(|message| {
+        message.get("id").and_then(Value::as_str) == Some(id)
+            && message.get("role").and_then(Value::as_str) == Some(role)
+            && message.get("content").and_then(Value::as_str).is_some_and(|content| {
+                expected_content.map_or(!content.is_empty(), |expected| content == expected)
+            })
+    });
+    if !exact_message(&authority.harness_user_message_id, "user", None)
+        || !exact_message(
+            &authority.harness_assistant_message_id,
+            "assistant",
+            Some(expected_assistant_text),
+        )
+    {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+fn validate_locally_completed_projection_at(
+    app: &AppHandle,
+    record: &TurnJournalRecord,
+) -> Result<(), String> {
+    let path = conversation_projection_path(
+        app,
+        &record.authority.journey_id,
+        &record.authority.thread_id,
+        record.authority.generation,
+    )?;
+    let parsed: Value = serde_json::from_str(
+        &fs::read_to_string(path)
+            .map_err(|_| "turn_journal_projected_projection_missing".to_string())?,
+    ).map_err(|_| "turn_journal_projected_projection_invalid".to_string())?;
+    let assistant_text = record.terminal_evidence.as_ref()
+        .and_then(|evidence| evidence.pi_execution.as_ref())
+        .map(|execution| execution.assistant_text.as_str())
+        .ok_or_else(|| "turn_journal_projected_projection_invalid".to_string())?;
+    validate_locally_completed_projection(&parsed, &record.authority, assistant_text)
+}
+
 fn validate_projection_payload_authority(parsed: &Value, authority: &RunAuthority) -> Result<(), String> {
     let conversation = parsed.get("conversation")
         .ok_or_else(|| "dedicated_projection_authority_mismatch".to_string())?;
@@ -7216,7 +7304,8 @@ mod tests {
         classify_chat_local_reference_at, classify_chat_local_reference_at_with_home,
         unwrap_persisted_thread, validate_acknowledged_projection_authority_at,
         validate_composer_drafts_payload, validate_external_url, validate_journey_registry_payload,
-        merge_persisted_mirror_evidence, mirror_rpc_args, validate_active_pre_frontier_projection_at,
+        journal_authority, merge_persisted_mirror_evidence, mirror_rpc_args,
+        validate_active_pre_frontier_projection_at, validate_locally_completed_projection,
         validate_current_projection_turn_authority, validate_mirror_append_item,
         validate_outbox_item_run_authority_at,
         validate_desktop_conversation_deletion, validate_pi_session_file_at,
@@ -7888,6 +7977,53 @@ mod tests {
             "dedicated_projection_authority_mismatch",
         );
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn locally_completed_projection_requires_exact_turn_and_message_authority() {
+        let authority = journal_authority(&test_run_authority(&test_root("local-completion-authority")));
+        let projection = json!({
+            "conversation": {
+                "id": "thread-one",
+                "journeyId": "journey-one",
+                "liveIdentity": {
+                    "journeyId": "journey-one",
+                    "harnessConversationId": "thread-one",
+                    "piSessionId": "session-one",
+                    "generation": 1,
+                    "mirrorConversationId": "mirror-one"
+                },
+                "messages": [
+                    {"id": "user-one", "role": "user", "content": "question"},
+                    {"id": "assistant-one", "role": "assistant", "content": "answer"}
+                ],
+                "reconciliation": {"turns": [{
+                    "turnId": "turn-one",
+                    "runId": "run-one",
+                    "harness": {"state": "committed", "userMessageId": "user-one", "assistantMessageId": "assistant-one"},
+                    "pi": {"state": "committed"},
+                    "mirror": {"state": "pending"}
+                }]}
+            }
+        });
+
+        assert!(validate_locally_completed_projection(&projection, &authority, "answer").is_ok());
+        let mut missing_assistant = projection.clone();
+        missing_assistant["conversation"]["messages"].as_array_mut().unwrap().pop();
+        assert_eq!(
+            validate_locally_completed_projection(&missing_assistant, &authority, "answer").unwrap_err(),
+            "turn_journal_projected_projection_invalid",
+        );
+        assert_eq!(
+            validate_locally_completed_projection(&projection, &authority, "different answer").unwrap_err(),
+            "turn_journal_projected_projection_invalid",
+        );
+        let mut wrong_turn = projection;
+        wrong_turn["conversation"]["reconciliation"]["turns"][0]["runId"] = json!("replacement");
+        assert_eq!(
+            validate_locally_completed_projection(&wrong_turn, &authority, "answer").unwrap_err(),
+            "turn_journal_projected_projection_invalid",
+        );
     }
 
     #[test]

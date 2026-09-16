@@ -34,6 +34,11 @@ export function composerPlaceholder({
   if (availabilityCondition === "journey_lease_occupied") {
     return "Another Conversation in this Journey is active. You can keep drafting here.";
   }
+  if (availabilityCondition === "sync_pending") {
+    return hasUserMessage
+      ? "What would you like to do next?"
+      : "What would you like to work on?";
+  }
   if (isRecordingTurn) {
     return "Prepare your next message. You can send it after this turn is recorded.";
   }

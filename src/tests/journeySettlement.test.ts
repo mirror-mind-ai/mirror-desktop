@@ -107,7 +107,7 @@ function completedDependencies(
 }
 
 describe("phase-specific completed settlement boundary", () => {
-  it("orders active validation, durable save, revalidation, enqueue, cleanup, then append/ack", async () => {
+  it("releases local availability after the durable projection, before Mirror enqueue and append", async () => {
     const { projection, authority, outbox, active } = fixture();
     const order: string[] = [];
     await executeCompletedSettlement({
@@ -116,11 +116,11 @@ describe("phase-specific completed settlement boundary", () => {
       cleanupLeaseAuthority: authority,
     }, completedDependencies(order, active, outbox));
     expect(order).toEqual([
-      "validate_active", "save_active", "validate_active", "enqueue", "cleanup", "append_ack",
+      "validate_active", "save_active", "validate_active", "cleanup", "enqueue", "append_ack",
     ]);
   });
 
-  it("retains the lease when active projection save or enqueue fails", async () => {
+  it("retains the lease when active projection save fails but releases it when Mirror enqueue fails", async () => {
     const { projection, authority, outbox, active } = fixture();
     const saveOrder: string[] = [];
     await expect(executeCompletedSettlement({ projection, authority, cleanupLeaseAuthority: authority },
@@ -130,7 +130,7 @@ describe("phase-specific completed settlement boundary", () => {
     const enqueueOrder: string[] = [];
     await expect(executeCompletedSettlement({ projection, authority, cleanupLeaseAuthority: authority },
       completedDependencies(enqueueOrder, active, outbox, { enqueue: true }))).rejects.toThrow("enqueue_failed");
-    expect(enqueueOrder).toEqual(["validate_active", "save_active", "validate_active", "enqueue"]);
+    expect(enqueueOrder).toEqual(["validate_active", "save_active", "validate_active", "cleanup", "enqueue"]);
   });
 
   it("stops after save when rollover is observed before enqueue", async () => {
@@ -146,6 +146,14 @@ describe("phase-specific completed settlement boundary", () => {
     await expect(executeCompletedSettlement({ projection, authority, cleanupLeaseAuthority: authority }, dependencies))
       .rejects.toThrow("settlement_pre_frontier_authority_stale");
     expect(order).toEqual(["validate_active", "save_active", "validate_active"]);
+  });
+
+  it("enqueues an already-durable local projection without requiring active-run evidence", async () => {
+    const { projection, authority, outbox, active } = fixture();
+    const order: string[] = [];
+    await executeCompletedSettlement({ projection, authority, projectionAlreadyDurable: true },
+      completedDependencies(order, active, outbox));
+    expect(order).toEqual(["enqueue", "append_ack"]);
   });
 
   it("resumes an exact inactive-generation outbox without active validation or lease cleanup", async () => {
@@ -174,7 +182,7 @@ describe("phase-specific completed settlement boundary", () => {
     await appendStarted.promise;
     expect(children).toBe(1);
     expect(order).toEqual([
-      "validate_active", "save_active", "validate_active", "enqueue", "cleanup", "start-a2", "append_pending",
+      "validate_active", "save_active", "validate_active", "cleanup", "start-a2", "enqueue", "append_pending",
     ]);
     finishAppend.resolve();
     await settlement;
@@ -212,10 +220,10 @@ describe("phase-specific completed settlement boundary", () => {
     await expect(aSettlement).rejects.toThrow("append_a_failed");
     expect(bSettlement.projection.journeyId).toBe("journey-b");
     expect(aOrder).toEqual([
-      "validate_active", "save_active", "validate_active", "enqueue", "cleanup", "append_a_pending",
+      "validate_active", "save_active", "validate_active", "cleanup", "enqueue", "append_a_pending",
     ]);
     expect(bOrder).toEqual([
-      "validate_active", "save_active", "validate_active", "enqueue", "cleanup", "append_ack",
+      "validate_active", "save_active", "validate_active", "cleanup", "enqueue", "append_ack",
     ]);
   });
 
