@@ -186,9 +186,18 @@ export function decideTurnJournalRecovery(record: TurnJournalRecord): TurnJourna
 
 export function isTurnJournalSuccessorEligible(record: TurnJournalRecord): boolean {
   if (["outbox_enqueued", "settled", "interrupted"].includes(record.phase)) return true;
-  return record.phase === "projected"
-    && record.terminalOutcome === "completed"
-    && Boolean(record.terminalEvidence?.piExecution);
+  const execution = record.terminalEvidence?.piExecution;
+  if (record.phase !== "projected" || record.terminalOutcome !== "completed" || !execution) return false;
+  const createdAt = Date.parse(record.createdAt);
+  const startedAt = Date.parse(execution.startedAt);
+  const committedAt = Date.parse(execution.committedAt);
+  return Number.isFinite(createdAt)
+    && Number.isFinite(startedAt)
+    && Number.isFinite(committedAt)
+    && startedAt >= createdAt
+    && committedAt >= startedAt
+    && execution.assistantText.length > 0
+    && !execution.assistantTextTruncated;
 }
 
 export function isTurnJournalPhase(value: string): value is TurnPhase {

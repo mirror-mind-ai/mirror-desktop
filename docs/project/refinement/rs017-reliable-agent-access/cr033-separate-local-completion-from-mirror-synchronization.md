@@ -98,11 +98,13 @@ The local-completion frontier now releases the exact native Journey lease immedi
 
 Native admission independently verifies the completed terminal evidence against the exact persisted Conversation, including Journey, thread, generation, session, Mirror identity, run, turn, committed harness/Pi states and exact user/assistant messages. The next provider packet reloads the complete durable Conversation rather than extending the displayed Segment.
 
+The first Navigator validation pass exposed an unsupported-model provider error whose unchanged Pi leaf was being mistaken for fresh completion evidence. The outbox fault fixture was restored without retrying that invalid turn. Terminalization now captures the pre-invocation Pi leaf and refuses completion unless the durable Pi transcript advances beyond it; successor eligibility also rejects stale, empty, truncated or chronologically invalid completion evidence. This preserves the fail-closed side of the local-completion contract.
+
 Validation evidence:
 
 - frontend: 143 test files and 792 tests passed;
 - production web build passed, with only the pre-existing Vite chunk-size warning;
-- Rust: 135 tests passed, 1 explicitly ignored private-fixture test;
+- Rust: 136 tests passed, 1 explicitly ignored private-fixture test;
 - `cargo check` passed;
 - focused local-completion, settlement, composer, availability and source-contract tests passed.
 

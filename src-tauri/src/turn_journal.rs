@@ -270,17 +270,33 @@ fn write_turn_journal(path: &Path, document: &mut TurnJournalDocument) -> Result
     Ok(())
 }
 
+fn has_current_completion_evidence(record: &TurnJournalRecord) -> bool {
+    let Some(execution) = record
+        .terminal_evidence
+        .as_ref()
+        .and_then(|evidence| evidence.pi_execution.as_ref())
+    else {
+        return false;
+    };
+    let parsed = (
+        chrono::DateTime::parse_from_rfc3339(&record.created_at),
+        chrono::DateTime::parse_from_rfc3339(&execution.started_at),
+        chrono::DateTime::parse_from_rfc3339(&execution.committed_at),
+    );
+    matches!(parsed, (Ok(created), Ok(started), Ok(committed))
+        if started >= created
+            && committed >= started
+            && !execution.assistant_text.is_empty()
+            && !execution.assistant_text_truncated)
+}
+
 fn is_successor_eligible(record: &TurnJournalRecord) -> bool {
     matches!(
         record.phase,
         TurnPhase::OutboxEnqueued | TurnPhase::Settled | TurnPhase::Interrupted
     ) || (record.phase == TurnPhase::Projected
         && record.terminal_outcome == Some(TurnTerminalOutcome::Completed)
-        && record
-            .terminal_evidence
-            .as_ref()
-            .and_then(|evidence| evidence.pi_execution.as_ref())
-            .is_some())
+        && has_current_completion_evidence(record))
 }
 
 pub fn admit_turn(
@@ -461,6 +477,15 @@ pub fn transition_turn(
     if record.revision != request.expected_revision || record.phase != request.expected_phase {
         return Err("turn_journal_transition_stale".to_string());
     }
+    if request.next_phase == TurnPhase::TerminalDurable
+        && request.terminal_outcome == Some(TurnTerminalOutcome::Completed)
+    {
+        let mut candidate = record.clone();
+        candidate.terminal_evidence = request.terminal_evidence.clone();
+        if !has_current_completion_evidence(&candidate) {
+            return Err("turn_journal_transition_invalid".to_string());
+        }
+    }
     record.phase = request.next_phase;
     if let Some(outcome) = request.terminal_outcome {
         if record.terminal_outcome.is_some() && record.terminal_outcome != Some(outcome) {
@@ -563,8 +588,8 @@ mod tests {
                         entry_count: 2,
                         assistant_text: "answer".to_string(),
                         assistant_text_truncated: false,
-                        started_at: "2026-09-01T20:00:00.000Z".to_string(),
-                        committed_at: "2026-09-01T20:00:01.000Z".to_string(),
+                        started_at: "2099-09-01T20:00:00.000Z".to_string(),
+                        committed_at: "2099-09-01T20:00:01.000Z".to_string(),
                     }),
                 })
             } else {

@@ -5212,9 +5212,15 @@ fn bounded_utf8(value: &str, max_bytes: usize) -> String {
     value[..boundary].to_string()
 }
 
-fn terminal_pi_execution_evidence(run_authority: &RunAuthority) -> Option<TurnPiExecutionEvidence> {
+fn terminal_pi_execution_evidence(
+    run_authority: &RunAuthority,
+    baseline_leaf_entry_id: Option<&str>,
+) -> Option<TurnPiExecutionEvidence> {
     let content = fs::read_to_string(&run_authority.pi_session_file).ok()?;
     let turn = project_complete_pi_transcript(&content).ok()?.pop()?;
+    if baseline_leaf_entry_id == Some(turn.assistant_entry_id.as_str()) {
+        return None;
+    }
     let output_truncated = turn.assistant_text.len() > 65_536;
     Some(TurnPiExecutionEvidence {
         user_entry_id: turn.user_entry_id,
@@ -5305,6 +5311,8 @@ fn run_pi_process(
         );
         return;
     }
+    let baseline_leaf_entry_id = terminal_pi_execution_evidence(&run_authority, None)
+        .map(|evidence| evidence.leaf_entry_id);
     let mirror_mediated = config.invocation_mode == "mirror" && !config.safe_test_mode;
     let command = if config.safe_test_mode {
         "cat".to_string()
@@ -5605,7 +5613,10 @@ fn run_pi_process(
                     .and_then(|registry| registry.cancellation_requested(&target).ok())
                     .unwrap_or(false);
                 if !cancellation_requested {
-                    if let Some(pi_execution) = terminal_pi_execution_evidence(&run_authority) {
+                    if let Some(pi_execution) = terminal_pi_execution_evidence(
+                        &run_authority,
+                        baseline_leaf_entry_id.as_deref(),
+                    ) {
                         let mut evidence = empty_terminal_evidence();
                         evidence.pi_execution = Some(pi_execution);
                         rpc_terminal_durable = adopt_terminal_journal(
@@ -5640,7 +5651,10 @@ fn run_pi_process(
                     .unwrap_or(false);
                 let completion_evidence = status
                     .success()
-                    .then(|| terminal_pi_execution_evidence(&run_authority))
+                    .then(|| terminal_pi_execution_evidence(
+                        &run_authority,
+                        baseline_leaf_entry_id.as_deref(),
+                    ))
                     .flatten();
                 let rpc_was_settled = mirror_mediated && control_child_handle(&child_handle, |process| {
                     Ok::<bool, String>(process.settled.load(Ordering::Acquire))
@@ -5702,7 +5716,10 @@ fn run_pi_process(
             if first_terminal {
                 let mut evidence = empty_terminal_evidence();
                 if terminal_state == TerminalState::Completed {
-                    evidence.pi_execution = terminal_pi_execution_evidence(&run_authority);
+                    evidence.pi_execution = terminal_pi_execution_evidence(
+                        &run_authority,
+                        baseline_leaf_entry_id.as_deref(),
+                    );
                 }
                 match adopt_terminal_journal(&app, &authority, terminal_state, evidence) {
                     Ok(()) => emit(
@@ -7309,7 +7326,7 @@ mod tests {
         validate_current_projection_turn_authority, validate_mirror_append_item,
         validate_outbox_item_run_authority_at,
         validate_desktop_conversation_deletion, validate_pi_session_file_at,
-        validate_projection_payload_authority, validate_run_authority_at,
+        terminal_pi_execution_evidence, validate_projection_payload_authority, validate_run_authority_at,
         validate_turn_correlation,
         write_durable_projection_at, JourneyProjectionPersistenceState, PiSessionContextSnapshot,
         RegistryAuthorityInspection, RunAuthority, TerminalState, TurnCorrelation, JOURNEY_REGISTRY_FILE, FILE_ATTACHMENT_MAX_FILES,
@@ -8228,6 +8245,24 @@ mod tests {
         assert!(first.0.contains("Mirror Desktop"));
         assert!(first.0.chars().count() <= 80);
         assert!(first.1.chars().count() <= 100);
+    }
+
+    #[test]
+    fn terminal_evidence_must_advance_beyond_the_pre_invocation_pi_leaf() {
+        let root = test_root("terminal-evidence-baseline");
+        let authority = test_run_authority(&root);
+        let session_path = PathBuf::from(&authority.pi_session_file);
+        fs::create_dir_all(session_path.parent().unwrap()).unwrap();
+        fs::write(&session_path, [
+            json!({"type":"session","id":"session-one","timestamp":"2026-09-01T10:00:00.000Z"}).to_string(),
+            json!({"type":"message","id":"pi-user","parentId":null,"timestamp":"2026-09-01T10:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"question"}]}}).to_string(),
+            json!({"type":"message","id":"pi-assistant","parentId":"pi-user","timestamp":"2026-09-01T10:00:02.000Z","message":{"role":"assistant","content":[{"type":"text","text":"answer"}],"stopReason":"stop"}}).to_string(),
+        ].join("\n")).unwrap();
+
+        let evidence = terminal_pi_execution_evidence(&authority, None).unwrap();
+        assert_eq!(evidence.leaf_entry_id, "pi-assistant");
+        assert!(terminal_pi_execution_evidence(&authority, Some("pi-assistant")).is_none());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

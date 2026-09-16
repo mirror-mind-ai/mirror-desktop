@@ -134,6 +134,13 @@ describe("durable turn journal authority", () => {
     expect(isTurnJournalSuccessorEligible(record({ phase: "projected" }))).toBe(true);
     expect(isTurnJournalSuccessorEligible(record({ phase: "projected", terminalOutcome: "cancelled" }))).toBe(false);
     expect(isTurnJournalSuccessorEligible(record({ phase: "projected", terminalEvidence: null }))).toBe(false);
+    expect(isTurnJournalSuccessorEligible(record({
+      phase: "projected",
+      terminalEvidence: {
+        ...record().terminalEvidence!,
+        piExecution: { ...record().terminalEvidence!.piExecution!, startedAt: "2026-08-01T19:59:59.000Z" },
+      },
+    }))).toBe(false);
     expect(isTurnJournalSuccessorEligible(record({ phase: "outbox_enqueued" }))).toBe(true);
     expect(isTurnJournalSuccessorEligible(record({ phase: "settled" }))).toBe(true);
     expect(isTurnJournalSuccessorEligible(record({ phase: "interrupted", terminalOutcome: null, terminalEvidence: null }))).toBe(true);
