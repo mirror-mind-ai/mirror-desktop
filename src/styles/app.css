@@ -1442,10 +1442,6 @@ textarea {
   min-width: 0;
 }
 
-.chat-shell.has-conversation-detail {
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-}
-
 .chat-header {
   align-items: flex-start;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -6897,24 +6893,29 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 .focused-conversation-more:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--text); outline: none; }
 
 .conversation-detail-header {
-  align-items: end;
-  background: color-mix(in srgb, var(--panel) 82%, transparent);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  flex: 0 0 auto;
-  gap: 24px;
-  justify-content: space-between;
-  padding: 16px 34px;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  text-align: center;
 }
-.conversation-detail-header h2 { font-size: 1.05rem; line-height: 1.25; margin: 3px 0 0; }
+.conversation-detail-header h2 { font-size: 1.05rem; line-height: 1.25; margin: 0; }
 .conversation-detail-header .eyebrow { margin: 0; }
-.conversation-detail-metadata { align-items: end; color: var(--text-muted); display: flex; flex-direction: column; font-size: 0.74rem; gap: 3px; text-align: right; }
+.conversation-detail-metadata {
+  align-items: center;
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.74rem;
+  gap: 5px 14px;
+  justify-content: center;
+  text-align: center;
+}
 
 .mirror-history-action-surface {
-  align-items: start;
+  align-items: center;
   display: grid;
   flex: 1;
-  justify-items: start;
+  justify-items: center;
   min-height: 0;
   overflow: auto;
   padding: clamp(32px, 6vh, 72px) 34px;
@@ -6929,18 +6930,20 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   padding: 32px;
 }
 
-.mirror-history-action-card { width: 100%; }
+.mirror-history-action-card { text-align: center; width: min(760px, 100%); }
 .desktop-conversation-start-surface > * { width: min(680px, 100%); }
+.mirror-history-action-card .conversation-detail-header { margin: 28px 0 18px; }
 .mirror-history-title-row { align-items: center; display: flex; flex-wrap: wrap; gap: 10px 14px; }
 .mirror-history-title-row h2 { font-size: 1.1625rem; line-height: 1.2; margin: 0; }
-.mirror-history-summary { color: var(--text-muted); line-height: 1.55; margin: 14px 0 0; max-width: none; }
+.mirror-history-summary { color: var(--text-muted); line-height: 1.55; margin: 0 auto; max-width: 42rem; }
 .mirror-history-metadata { align-items: center; display: flex; justify-content: space-between; gap: 10px 24px; margin-top: 20px; color: var(--text-muted); font-size: 0.82rem; width: 100%; }
 .mirror-history-metadata > span { align-items: center; display: inline-flex; gap: 7px; }
 .mirror-history-metadata svg { fill: none; height: 16px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; width: 16px; }
 .mirror-history-metadata strong { color: var(--text); font-weight: 620; }
-.mirror-history-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.mirror-history-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 24px; }
 .conversation-start-actions { margin-top: 28px; max-width: 880px; }
-.empty-desktop-conversation .journey-arrival-status { margin-bottom: 22px; }
+.empty-desktop-conversation .journey-arrival-status { justify-content: center; }
+.empty-desktop-conversation .conversation-start-actions { margin-top: 24px; }
 .desktop-conversation-start-surface { align-content: center; }
 .desktop-conversation-draft { display: grid; gap: 7px; margin-top: 20px; }
 .desktop-conversation-draft textarea { min-height: 180px; resize: vertical; }

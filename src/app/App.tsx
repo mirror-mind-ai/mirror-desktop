@@ -4110,7 +4110,7 @@ export function App({ model }: AppProps) {
         </div>
       </aside>
 
-      <section className={`chat-shell${operationalChatSelected && selectedConversationEntry ? " has-conversation-detail" : ""}`} aria-label={`${selectedJourneyItem.name} agent chat`}>
+      <section className="chat-shell" aria-label={`${selectedJourneyItem.name} agent chat`}>
         <header className={`chat-header accent-${selectedJourneyVisual.accent}`}>
           <div className="realization-header-copy">
             <div className="journey-title-row">
@@ -4233,10 +4233,6 @@ export function App({ model }: AppProps) {
           )
         ) : null}
 
-        {operationalChatSelected && selectedConversationEntry ? (
-          <ConversationDetailHeader entry={selectedConversationEntry} />
-        ) : null}
-
         {operationalChatSelected && selectedConversationEntry?.kind === "mirror_history" ? (
           <MirrorHistoryActionSurface
             entry={selectedConversationEntry}
@@ -4280,9 +4276,12 @@ export function App({ model }: AppProps) {
           }}
         >
           {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}
+          {messages.length > 0 && selectedConversationEntry?.kind === "desktop_conversation" ? (
+            <ConversationDetailHeader entry={selectedConversationEntry} />
+          ) : null}
           {messages.length === 0 && journeyThreadState.kind === "ready" && selectedConversationEntry?.kind === "desktop_conversation" ? (
             <EmptyDesktopConversation
-              title={selectedConversationEntry.title}
+              entry={selectedConversationEntry}
               journeyName={selectedJourneyItem.name}
               onChoose={(text) => setJourneyComposerDraft(selectedJourney, text)}
             />

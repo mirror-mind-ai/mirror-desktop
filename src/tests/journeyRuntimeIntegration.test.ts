@@ -80,8 +80,11 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("Native admission remains the atomic capacity authority");
   });
 
-  it("marks Conversation detail layouts so identity does not share the workspace row", () => {
-    expect(appSource).toContain('className={`chat-shell${operationalChatSelected && selectedConversationEntry ? " has-conversation-detail" : ""}`}');
+  it("keeps Conversation identity inside the content surface instead of adding a competing shell row", () => {
+    expect(appSource).toContain('<section className="chat-shell"');
+    expect(appSource).not.toContain("has-conversation-detail");
+    expect(appSource).toContain('messages.length > 0 && selectedConversationEntry?.kind === "desktop_conversation"');
+    expect(appSource).toContain("<ConversationDetailHeader entry={selectedConversationEntry} />");
   });
 
   it("allows admitted selected-Journey submission while keeping aggregate mutations blocked", () => {

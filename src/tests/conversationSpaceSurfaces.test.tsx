@@ -100,6 +100,9 @@ describe("conversation space surfaces", () => {
       onOpenTerminal={vi.fn()}
     />);
     expect(html).toContain("Mirror history · Source actions only");
+    expect(html).toContain("Mirror Core Conversation");
+    expect(html).toContain("Terminal history");
+    expect(html).toContain("12 messages");
     expect(html).toContain("This conversation belongs to Mirror Core via Terminal");
     expect(html).toContain("to continue here");
     expect(html.match(/Created with Mirror Core via Terminal/g)).toHaveLength(1);
@@ -165,11 +168,28 @@ describe("conversation space surfaces", () => {
 
   it("renders an empty authoritative child through the shared detail surface", () => {
     const html = renderToStaticMarkup(<EmptyDesktopConversation
-      title="New conversation"
+      entry={{
+        kind: "desktop_conversation", conversationId: "desktop-conversation-1", threadId: "desktop-thread-1",
+        title: "New conversation", updatedAt: "2026-09-15T09:00:00.000Z", messageCount: 0, availability: "ready",
+        authority: {
+          activeGeneration: 1, runtimeChannel: "development", generations: [{
+            generation: 1, status: "ready", piSessionId: "pi-session-child-1", piSessionFile: "/app/pi-session-child-1.jsonl",
+            mirrorConversationId: "399badc9", createdAt: "2026-09-15T09:00:00.000Z", activatedAt: "2026-09-15T09:00:00.000Z",
+            activationReceipt: {
+              schemaVersion: "1.0.0", journeyId: "mirror-desktop", threadId: "desktop-thread-1", generation: 1,
+              piSessionId: "pi-session-child-1", mirrorConversationId: "399badc9", mode: "mirror",
+              commandAuthority: "installed", runtimeChannel: "development", activatedAt: "2026-09-15T09:00:00.000Z",
+            },
+          }],
+        },
+      }}
       journeyName="Mirror Desktop"
       onChoose={vi.fn()}
     />);
     expect(html).toContain("Conversation ready · Journey context is active");
+    expect(html).toContain("Desktop Conversation");
+    expect(html).toContain("New conversation");
+    expect(html).toContain("0 messages");
     expect(html).toContain("Understand where we are");
     expect(html).toContain("Think out loud");
     expect(html).toContain("Nothing is sent until you decide");

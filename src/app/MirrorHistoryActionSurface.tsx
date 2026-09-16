@@ -1,4 +1,5 @@
 import type { ConversationCatalogEntry } from "../domain/conversationSpaces";
+import { ConversationDetailHeader } from "./ConversationDetailHeader";
 
 type MirrorEntry = Extract<ConversationCatalogEntry, { kind: "mirror_history" }>;
 
@@ -14,6 +15,7 @@ export function MirrorHistoryActionSurface(props: Props) {
   return <section className="mirror-history-action-surface" aria-label={`${props.entry.title} actions`}>
     <div className="mirror-history-action-card">
       <div className="journey-arrival-status"><span aria-hidden="true" /> Mirror history · Source actions only</div>
+      <ConversationDetailHeader entry={props.entry} />
       <p className="mirror-history-summary">
         This conversation belongs to Mirror Core via Terminal. Click “Continue in new Desktop Conversation” to continue here. Keep in mind that won’t be the same conversation, but a new one with the same resumed context.
       </p>
