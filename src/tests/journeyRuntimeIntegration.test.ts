@@ -76,7 +76,8 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).not.toContain("ConcurrentTurnCapacityNotice");
     expect(appSource).not.toContain("Concurrent turns:");
     expect(appSource).toContain("Global Pi capacity occupied");
-    expect(appSource).toContain("|| !piInvocationPresentation.allowed");
+    expect(appSource).toContain('nativeAdmission: piInvocationPresentation.allowed ? "allowed" : piInvocationPresentation.reason');
+    expect(appSource).toContain("const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;");
     expect(appSource).toContain("Native admission remains the atomic capacity authority");
   });
 

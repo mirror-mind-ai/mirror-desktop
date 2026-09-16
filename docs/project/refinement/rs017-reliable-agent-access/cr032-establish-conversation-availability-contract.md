@@ -67,8 +67,20 @@ The Navigator approved this plan, Driver `@alissonvale`, Delivery `refinement/rs
 
 ## Evidence
 
-Implementation evidence pending.
+Implemented locally:
+
+- `src/domain/conversationAvailability.ts` defines one pure availability decision, canonical conditions, allowed actions and recovery actions.
+- The contract keeps drafting available in every state and distinguishes runtime binding, Conversation authority, local admission durability, live execution, native inspection, Journey lease occupancy, global capacity and recoverable Mirror synchronization.
+- Recoverable Mirror synchronization resolves to `sync_pending` with Send still allowed by policy.
+- `src/app/App.tsx` now derives `selectedInvocationAdmissionBlocked` from `conversationAvailability.canSend` rather than rebuilding runtime and occupancy booleans at the Send boundary.
+- `src/app/composerPlaceholder.ts` explains the exact blocking boundary and does not replace ordinary ready copy for synchronization debt.
+- `src/tests/conversationAvailability.test.ts` covers ten policy cases.
+- Focused availability, composer and runtime integration checks passed: 42 tests.
+- Complete frontend suite passed: 143 files and 791 tests.
+- `npm run build` passed. Vite emitted only the existing chunk-size warning.
+
+CR032 intentionally leaves projected journal records blocked until CR033 establishes the new local-completion frontier. It changes the authority for deciding availability without prematurely changing journal safety.
 
 ## Outcome
 
-In progress.
+Implemented locally. Navigator validation pending.

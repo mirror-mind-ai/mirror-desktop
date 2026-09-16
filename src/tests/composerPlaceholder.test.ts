@@ -3,7 +3,7 @@ import { composerPlaceholder } from "../app/composerPlaceholder";
 import appSource from "../app/App.tsx?raw";
 
 const ready = {
-  requiresConversationRestore: false,
+  availabilityCondition: "ready" as const,
   isRecordingTurn: false,
   isAgentResponding: false,
   hasUserMessage: true,
@@ -24,13 +24,31 @@ describe("composer placeholder", () => {
       .toBe("Prepare your next message. You can send it after this turn is recorded.");
   });
 
-  it("gives restoration and recording precedence over less restrictive states", () => {
+  it("names the authority or local durability boundary instead of generic restoration", () => {
     expect(composerPlaceholder({
       ...ready,
-      requiresConversationRestore: true,
+      availabilityCondition: "conversation_authority_unavailable",
+    })).toBe("This conversation authority must be inspected before another message can be sent.");
+    expect(composerPlaceholder({
+      ...ready,
+      availabilityCondition: "local_admission_unavailable",
+    })).toBe("The previous local turn must be made safe before another message can be sent.");
+  });
+
+  it("keeps synchronization debt from replacing ordinary ready copy", () => {
+    expect(composerPlaceholder({
+      ...ready,
+      availabilityCondition: "sync_pending",
+    })).toBe("What would you like to do next?");
+  });
+
+  it("gives bounded recovery inspection precedence over recording", () => {
+    expect(composerPlaceholder({
+      ...ready,
+      availabilityCondition: "recovery_inspection",
       isRecordingTurn: true,
       isAgentResponding: true,
-    })).toBe("This conversation must be restored before another message can be sent.");
+    })).toBe("Mirror Desktop is checking whether a new turn can be persisted safely.");
     expect(composerPlaceholder({
       ...ready,
       isRecordingTurn: true,
@@ -38,13 +56,12 @@ describe("composer placeholder", () => {
     })).toBe("Prepare your next message. You can send it after this turn is recorded.");
   });
 
-  it("is wired from existing evidence without changing composer authority", () => {
+  it("is wired through the centralized availability decision", () => {
+    expect(appSource).toContain("const conversationAvailability = decideConversationAvailability({");
+    expect(appSource).toContain("const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;");
     expect(appSource).toContain(": composerPlaceholder({");
     expect(appSource).toContain('placeholder={selectedCanSteer');
-    expect(appSource).toContain("requiresConversationRestore:");
-    expect(appSource).toContain("isRecordingTurn:");
-    expect(appSource).toContain("isAgentResponding:");
-    expect(appSource).toContain("hasUserMessage:");
+    expect(appSource).toContain("availabilityCondition: conversationAvailability.condition");
     expect(appSource).toContain("disabled={isJourneyReloading}");
     expect(appSource).toContain("shouldSubmitJourneyDraft(event, navigationPresentation, selectedInvocationAdmissionBlocked)");
   });

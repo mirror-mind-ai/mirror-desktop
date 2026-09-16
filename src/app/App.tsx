@@ -116,6 +116,7 @@ import {
   publishConversationSegmentProjections, refreshConversationSegments,
 } from "./conversationSegmentStorage";
 import { partitionConversationBySegments } from "../domain/conversationSegmentProjection";
+import { decideConversationAvailability } from "../domain/conversationAvailability";
 import { loadDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import { projectGenerationHistory } from "../domain/journeyThreadRestart";
@@ -670,10 +671,6 @@ export function App({ model }: AppProps) {
   );
   const piInvocationPresentation = derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney);
   const runtimeBindingReady = runtimeChannel?.status === "validated";
-  const selectedInvocationAdmissionBlocked = Boolean(runStartReservation)
-    || selectedRuntimeBusy
-    || !runtimeBindingReady
-    || !piInvocationPresentation.allowed;
   const mirrorCommitError = navigationPresentation.mirrorCommitError;
   const messages = navigationPresentation.messages;
   const presentedConversation = navigationPresentation.conversation ?? conversation;
@@ -790,6 +787,16 @@ export function App({ model }: AppProps) {
     isStreaming,
     isFinalizingTurn,
   });
+  const conversationAvailability = decideConversationAvailability({
+    runtimeBindingReady,
+    conversationAuthorityReady: journeyThreadState.kind === "ready",
+    localAdmissionReady: !blockingTurnJournalRecord,
+    sameConversationExecutionActive: Boolean(runStartReservation) || selectedRuntimeBusy,
+    nativeAdmission: piInvocationPresentation.allowed ? "allowed" : piInvocationPresentation.reason,
+    recoveryInspectionActive: turnRecoveryBusy || isJourneyReloading,
+    mirrorSynchronizationPending: showConversationSyncNotice,
+  });
+  const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;
   const configuredContextWindow = piModelCatalog.find((entry) =>
     entry.provider === effectiveAgentProfile.model.provider && entry.model === effectiveAgentProfile.model.model,
   )?.contextWindow ?? configuredModelContextWindow(effectiveProviderConfig);
@@ -4480,10 +4487,7 @@ export function App({ model }: AppProps) {
               placeholder={selectedCanSteer
                 ? "Send a correction to the active turn"
                 : composerPlaceholder({
-                    requiresConversationRestore: isJourneyReloading
-                      || showConversationSyncNotice
-                      || Boolean(retainedLeaseWithoutRecovery)
-                      || legacyMirrorGap,
+                    availabilityCondition: conversationAvailability.condition,
                     isRecordingTurn: isFinalizingTurn || reconciliationBlocksInvocation,
                     isAgentResponding: isStreaming || agentRun.status === "running",
                     hasUserMessage: messages.some((message) => message.role === "user"),

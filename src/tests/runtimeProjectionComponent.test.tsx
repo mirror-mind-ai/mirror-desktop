@@ -135,7 +135,9 @@ describe("runtime projection component", () => {
       appSource.indexOf("appendAndAcknowledge:", appSource.indexOf("onLeaseReleased: () => {")),
     );
     expect(leaseReleaseCallback).not.toContain('type: "finalization_finished"');
-    expect(appSource).toMatch(/requiresConversationRestore: isJourneyReloading\s*\|\| showConversationSyncNotice/);
+    expect(appSource).toContain("mirrorSynchronizationPending: showConversationSyncNotice");
+    expect(appSource).toContain("const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;");
+    expect(appSource).not.toContain("requiresConversationRestore:");
     expect(appSource).toContain("status={composerTurnStatus}");
     expect(appSource).toContain("if (journeyId === selectedJourney)");
     expect(appSource).toContain("const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime)");
