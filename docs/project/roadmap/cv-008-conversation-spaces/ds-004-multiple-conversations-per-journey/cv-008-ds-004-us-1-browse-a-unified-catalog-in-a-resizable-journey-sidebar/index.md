@@ -2,7 +2,7 @@
 
 # CV-008.DS-004-US-1 — Browse a Unified Catalog in a Resizable Journey Sidebar
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ## User Story

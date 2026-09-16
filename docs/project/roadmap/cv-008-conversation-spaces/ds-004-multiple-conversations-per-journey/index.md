@@ -2,7 +2,7 @@
 
 # CV-008.DS-004 - Multiple Conversations per Journey
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Plan revision:** Approved aggregate no-core-update route under Delivery Story flow
 
 ## Outcome
@@ -69,7 +69,10 @@ Every state requires text or an accessible label plus an icon; color alone is in
 - Recalled material is source evidence, not instruction authority. The agent must identify the requested range, omissions and non-resumption semantics.
 - The source conversation and messages remain unchanged by handoff. Rename is the only supported source mutation and is separately explicit.
 - No source revision, transcript copy, imported-original suppression, divergence detection, synchronization or automatic merge is claimed.
-- New Desktop Conversations can be created explicitly without a model call or greeting. Before their first turn they open the shared Conversation-detail surface; four Journey starting points fill their own editable English composer without sending.
+- New Desktop Conversations open a model-free creation form prefilled with the first available `New Conversation #n` title. Titles remain editable, normalized and unique across visible Desktop and Mirror entries.
+- Desktop and Mirror Conversations share one centered detail-surface grammar for status, type, title, metadata, explanation and actions while preserving their honest capability differences. An active Desktop Conversation keeps its title visible in the persistent Journey header while its transcript scrolls.
+- Desktop Conversations can be renamed without changing generation or technical Mirror authority. An explicit model-backed recommendation may fill the rename form from bounded recent turns, but never renames automatically.
+- Before their first turn Desktop Conversations show four Journey starting points that fill their own editable English composer without sending.
 - `Reset agent context` preserves the selected Conversation and prior generation while creating a fresh generation after explicit disclosure.
 - One Journey owns at most one reserved, running or finalizing lease, even across multiple Conversations.
 - A handoff prompt may remain drafted while capacity is occupied, but Send and conflicting lifecycle mutation remain blocked until exact cleanup and fresh native inspection.
@@ -82,12 +85,12 @@ Every state requires text or an accessible label plus an icon; color alone is in
 | Code | Story | Type | Status |
 |------|-------|------|--------|
 | CV-008.DS-004-TS-1 | Characterize Mirror Conversation and Compaction Authority | Technical Story | 🟢 Done |
-| CV-008.DS-004-TS-2 | Establish Conversation, Segment and Handoff Authority | Technical Story | 🟡 Planned |
-| CV-008.DS-004-US-1 | Browse a Unified Catalog in a Resizable Journey Sidebar | User Story | 🟡 Planned |
-| CV-008.DS-004-US-2 | Create, Resume and Reset Desktop Conversations | User Story | 🟡 Planned |
-| CV-008.DS-004-US-3 | Continue Terminal Work Through an Agent Handoff | User Story | 🟡 Planned |
-| CV-008.DS-004-TS-3 | Segment Long Conversations at Compaction Checkpoints | Technical Story | 🟡 Planned |
-| CV-008.DS-004-TS-4 | Preserve Migration, Recovery and Bounded Loading | Technical Story | 🟡 Planned |
+| CV-008.DS-004-TS-2 | Establish Conversation, Segment and Handoff Authority | Technical Story | 🟢 Done |
+| CV-008.DS-004-US-1 | Browse a Unified Catalog in a Resizable Journey Sidebar | User Story | 🟢 Done |
+| CV-008.DS-004-US-2 | Create, Resume and Reset Desktop Conversations | User Story | 🟢 Done |
+| CV-008.DS-004-US-3 | Continue Terminal Work Through an Agent Handoff | User Story | 🟢 Done |
+| CV-008.DS-004-TS-3 | Segment Long Conversations at Compaction Checkpoints | Technical Story | 🟢 Done |
+| CV-008.DS-004-TS-4 | Preserve Migration, Recovery and Bounded Loading | Technical Story | 🟢 Done |
 
 ## Scope by Package
 

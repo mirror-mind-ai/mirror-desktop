@@ -6,7 +6,7 @@ review:no_action
 
 ## Summary
 
-No story-specific debt remains. The review paid the identified stale Terminal launcher cleanup, added strict migration receipt and projection divergence validation, prevented unjournaled child Pi transcript import, and covered real compaction plus interrupted publication. Existing journey_appearance formatting drift, development-tool audit findings, signing/notarization and architecture constraints predate or sit outside this Delivery Story.
+Repeated DS-level debt review found no unresolved debt that should block CV-008.DS-004 closure. The expanded naming, persistent identity, unified Conversation surfaces, Segment metadata, attachment isolation, lifecycle recovery, bounded loading, handoff, reset, and deletion behavior are covered by automated and Navigator validation. Existing signing, notarization, architecture, audit, and unrelated formatting limitations remain outside this Delivery Story.
 
 ## Child Work Packages
 

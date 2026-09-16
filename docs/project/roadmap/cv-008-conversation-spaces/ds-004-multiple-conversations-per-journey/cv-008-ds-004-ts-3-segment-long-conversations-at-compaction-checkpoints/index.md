@@ -2,7 +2,7 @@
 
 # CV-008.DS-004-TS-3 — Segment Long Conversations at Compaction Checkpoints
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** Technical Story
 
 ## Technical Story

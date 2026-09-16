@@ -2,7 +2,7 @@
 
 # CV-008.DS-004-US-2 — Create, Resume and Reset Desktop Conversations
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ## User Story

@@ -2,7 +2,7 @@
 
 # CV-008.DS-004-TS-2 — Establish Conversation, Segment and Handoff Authority
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** Technical Story
 
 ## Technical Story

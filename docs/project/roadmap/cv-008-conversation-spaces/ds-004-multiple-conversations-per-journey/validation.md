@@ -14,7 +14,9 @@ The Navigator confirmed the complete interactive route:
 
 - ordinary Journey selection preserved the existing uncataloged root workspace;
 - inline expansion exposed associated Conversations without hiding sibling Journeys;
-- model-free child creation produced an empty start surface and editable unsent starting prompts;
+- model-free child creation opened an application-owned form with the first available `New Conversation #n` title, while normalized duplicate titles were rejected across visible Desktop and Mirror entries;
+- Desktop Conversations could be renamed without changing generation authority, and an explicit bounded model recommendation filled the rename form without automatic mutation;
+- Desktop and Mirror Conversations shared one detail-surface grammar, while active Desktop titles remained persistently visible as transcripts scrolled;
 - root and child drafts remained isolated;
 - one Journey lease prevented sibling execution while preserving navigation and drafting;
 - completed execution settled through `Working`, `Finishing` and idle and remained after relaunch;
@@ -24,7 +26,8 @@ The Navigator confirmed the complete interactive route:
 - Terminal recall used a bounded new context through a private short-lived launcher;
 - agent handoff created destination authority before publishing an editable unsent prompt, ran only after explicit Send, and disclosed scope, omissions and non-resumption semantics;
 - confirmed and cancelled deletion behaved distinctly, and confirmed deletion persisted after relaunch;
-- pointer and keyboard sidebar resizing remained bounded and persisted.
+- pointer and keyboard sidebar resizing remained bounded and persisted;
+- a running turn in another Journey did not disable attachments in the idle authoritative `mirror-desktop` Conversation.
 
 ## Adversarial Lifecycle Recovery
 
@@ -63,8 +66,8 @@ Additional adversarial coverage proved:
 Final aggregate results after the last behavioral correction:
 
 ```text
-Frontend:              773 passed across 141 files
-Rust:                  131 passed, 1 explicitly generated real-Pi fixture ignored by default
+Frontend:              779 passed across 142 files
+Rust:                  133 passed, 1 explicitly generated real-Pi fixture ignored by default
 Real Pi Segment probe: passed separately against exact generated mirror-desktop authority
 TypeScript:            passed
 Production web build:  passed

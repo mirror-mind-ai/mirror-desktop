@@ -2,7 +2,7 @@
 
 # CV-008.DS-004-TS-4 — Preserve Migration, Recovery and Bounded Loading
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** Technical Story
 
 ## Technical Story

@@ -2,7 +2,7 @@
 
 # CV-008.DS-004-US-3 — Continue Terminal Work Through an Agent Handoff
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ## User Story
