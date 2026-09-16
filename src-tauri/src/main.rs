@@ -1523,6 +1523,31 @@ fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
+const TERMINAL_HANDOFF_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
+const TERMINAL_HANDOFF_CLEANUP_BOUND: usize = 256;
+
+fn cleanup_stale_terminal_handoffs(directory: &Path, now: SystemTime) {
+    let Ok(now_nanos) = now.duration_since(UNIX_EPOCH).map(|value| value.as_nanos()) else {
+        return;
+    };
+    let Ok(entries) = fs::read_dir(directory) else { return; };
+    for entry in entries.take(TERMINAL_HANDOFF_CLEANUP_BOUND).flatten() {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue; };
+        let Some(encoded) = name.strip_prefix("mirror-recall-").and_then(|value| value.strip_suffix(".sh")) else {
+            continue;
+        };
+        let Ok(created_nanos) = u128::from_str_radix(encoded, 16) else { continue; };
+        let stale = now_nanos.saturating_sub(created_nanos) >= TERMINAL_HANDOFF_MAX_AGE.as_nanos();
+        let regular_file = fs::symlink_metadata(entry.path())
+            .map(|metadata| metadata.is_file() && !metadata.file_type().is_symlink())
+            .unwrap_or(false);
+        if stale && regular_file {
+            let _ = fs::remove_file(entry.path());
+        }
+    }
+}
+
 #[tauri::command]
 fn open_mirror_conversation_in_terminal(
     app: AppHandle,
@@ -1552,7 +1577,9 @@ fn open_mirror_conversation_in_terminal(
         .join("terminal-handoffs");
     fs::create_dir_all(&launcher_dir)
         .map_err(|_| "Could not create Terminal handoff storage.".to_string())?;
-    let launcher_nonce = SystemTime::now()
+    let launcher_now = SystemTime::now();
+    cleanup_stale_terminal_handoffs(&launcher_dir, launcher_now);
+    let launcher_nonce = launcher_now
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
@@ -6888,7 +6915,8 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_pi_process_terminal, classify_rpc_process_terminal, compiled_runtime_channel,
+        classify_pi_process_terminal, classify_rpc_process_terminal, cleanup_stale_terminal_handoffs,
+        compiled_runtime_channel,
         conversation_projection_path_at,
         rpc_settlement_exit_grace_expired,
         dedicated_native_names, enqueue_mirror_append_item_at, exact_steering_authority_matches, extract_context_stats_from_pi_session,
@@ -6931,6 +6959,36 @@ mod tests {
             label,
             SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(),
         ))
+    }
+
+    #[test]
+    fn removes_only_stale_regular_terminal_handoff_launchers() {
+        let root = test_root("terminal-handoff-cleanup");
+        fs::create_dir_all(&root).unwrap();
+        let now = UNIX_EPOCH + Duration::from_secs(48 * 60 * 60);
+        let fresh_nonce = now.duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let stale = root.join("mirror-recall-1.sh");
+        let fresh = root.join(format!("mirror-recall-{fresh_nonce:x}.sh"));
+        let unrelated = root.join("keep.txt");
+        fs::write(&stale, "stale").unwrap();
+        fs::write(&fresh, "fresh").unwrap();
+        fs::write(&unrelated, "keep").unwrap();
+        #[cfg(unix)]
+        let symbolic = {
+            use std::os::unix::fs::symlink;
+            let path = root.join("mirror-recall-2.sh");
+            symlink(&unrelated, &path).unwrap();
+            path
+        };
+
+        cleanup_stale_terminal_handoffs(&root, now);
+
+        assert!(!stale.exists());
+        assert!(fresh.exists());
+        assert!(unrelated.exists());
+        #[cfg(unix)]
+        assert!(fs::symlink_metadata(symbolic).is_ok());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
