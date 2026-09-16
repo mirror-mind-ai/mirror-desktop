@@ -80,6 +80,10 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("Native admission remains the atomic capacity authority");
   });
 
+  it("marks Conversation detail layouts so identity does not share the workspace row", () => {
+    expect(appSource).toContain('className={`chat-shell${operationalChatSelected && selectedConversationEntry ? " has-conversation-detail" : ""}`}');
+  });
+
   it("allows admitted selected-Journey submission while keeping aggregate mutations blocked", () => {
     expect(appSource).toContain('const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading"');
     expect(appSource).toContain("disabled={isJourneyReloading}");

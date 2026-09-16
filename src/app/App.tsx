@@ -4110,7 +4110,7 @@ export function App({ model }: AppProps) {
         </div>
       </aside>
 
-      <section className="chat-shell" aria-label={`${selectedJourneyItem.name} agent chat`}>
+      <section className={`chat-shell${operationalChatSelected && selectedConversationEntry ? " has-conversation-detail" : ""}`} aria-label={`${selectedJourneyItem.name} agent chat`}>
         <header className={`chat-header accent-${selectedJourneyVisual.accent}`}>
           <div className="realization-header-copy">
             <div className="journey-title-row">

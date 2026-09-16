@@ -1442,6 +1442,10 @@ textarea {
   min-width: 0;
 }
 
+.chat-shell.has-conversation-detail {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
 .chat-header {
   align-items: flex-start;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
