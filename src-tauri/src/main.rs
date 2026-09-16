@@ -7014,7 +7014,7 @@ mod tests {
     use serde_json::{json, Value};
     use std::{
         fs,
-        path::Path,
+        path::{Path, PathBuf},
         time::{Duration, SystemTime, UNIX_EPOCH},
     };
 
@@ -7328,8 +7328,10 @@ mod tests {
         assert_eq!(segments.len(), 2);
         assert_eq!(segments[0].get("status").and_then(Value::as_str), Some("closed"));
         assert_eq!(segments[1].get("status").and_then(Value::as_str), Some("current"));
+        let external_path = std::env::var("MIRROR_DESKTOP_REAL_COMPACTION_MANIFEST").ok();
         let root = test_root("real-pi-compaction-publication");
-        let path = root.join("generation-1.json");
+        let path = external_path.as_deref().map(PathBuf::from)
+            .unwrap_or_else(|| root.join("generation-1.json"));
         let persistence = JourneyProjectionPersistenceState::default();
         publish_conversation_segment_manifest_at(&path, &manifest, &persistence).unwrap();
         assert_eq!(
@@ -7338,7 +7340,9 @@ mod tests {
             ).unwrap(),
             Some(manifest),
         );
-        fs::remove_dir_all(root).unwrap();
+        if external_path.is_none() {
+            fs::remove_dir_all(root).unwrap();
+        }
     }
 
     #[test]
