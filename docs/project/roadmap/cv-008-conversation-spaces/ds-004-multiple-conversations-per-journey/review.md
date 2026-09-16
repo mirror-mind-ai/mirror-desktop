@@ -2,11 +2,11 @@
 
 ## Status
 
-review:pay_now
+review:no_action
 
 ## Summary
 
-Remove stale private Terminal recall launchers on later invocations so an interrupted handoff cannot leave app-controlled command files indefinitely.
+No story-specific debt remains. The review paid the identified stale Terminal launcher cleanup, added strict migration receipt and projection divergence validation, prevented unjournaled child Pi transcript import, and covered real compaction plus interrupted publication. Existing journey_appearance formatting drift, development-tool audit findings, signing/notarization and architecture constraints predate or sit outside this Delivery Story.
 
 ## Child Work Packages
 
