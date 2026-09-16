@@ -3611,6 +3611,18 @@ fn conversation_segment_manifest_path(
         .join(format!("generation-{}.json", generation)))
 }
 
+fn publish_conversation_segment_manifest_at(
+    path: &Path,
+    manifest: &Value,
+    persistence: &JourneyProjectionPersistenceState,
+) -> Result<(), String> {
+    let payload = serde_json::to_vec_pretty(manifest)
+        .map_err(|_| "Could not serialize Conversation Segments.".to_string())?;
+    let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+    write_durable_projection_at(path, &payload, nonce)
+        .map_err(|_| "Could not durably publish Conversation Segments.".to_string())
+}
+
 #[tauri::command]
 fn refresh_conversation_segments(
     app: AppHandle,
@@ -3647,11 +3659,32 @@ fn refresh_conversation_segments(
         &content, &journey_id, &thread_id, generation, &session_id, &turns,
     )?;
     let path = conversation_segment_manifest_path(&app, &journey_id, &thread_id, generation)?;
-    let payload = serde_json::to_vec_pretty(&manifest).map_err(|_| "Could not serialize Conversation Segments.".to_string())?;
-    let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
-    write_durable_projection_at(&path, &payload, nonce)
-        .map_err(|_| "Could not durably publish Conversation Segments.".to_string())?;
+    publish_conversation_segment_manifest_at(&path, &manifest, &persistence)?;
     Ok(manifest)
+}
+
+fn load_conversation_segments_at(
+    path: &Path,
+    journey_id: &str,
+    thread_id: &str,
+    generation: u64,
+    session_id: &str,
+) -> Result<Option<Value>, String> {
+    if !path.exists() { return Ok(None); }
+    let metadata = fs::symlink_metadata(path).map_err(|_| "Could not inspect Conversation Segments.".to_string())?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 1024 * 1024 {
+        return Err("Conversation Segment manifest is invalid.".to_string());
+    }
+    let value: Value = serde_json::from_slice(&fs::read(path).map_err(|_| "Could not read Conversation Segments.".to_string())?)
+        .map_err(|_| "Conversation Segment manifest is malformed.".to_string())?;
+    if value.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+        || value.get("threadId").and_then(Value::as_str) != Some(thread_id)
+        || value.get("generation").and_then(Value::as_u64) != Some(generation)
+        || value.get("piSessionId").and_then(Value::as_str) != Some(session_id)
+    {
+        return Err("Conversation Segment manifest authority mismatch.".to_string());
+    }
+    Ok(Some(value))
 }
 
 #[tauri::command]
@@ -3663,21 +3696,7 @@ fn load_conversation_segments(
     session_id: String,
 ) -> Result<Option<Value>, String> {
     let path = conversation_segment_manifest_path(&app, &journey_id, &thread_id, generation)?;
-    if !path.exists() { return Ok(None); }
-    let metadata = fs::symlink_metadata(&path).map_err(|_| "Could not inspect Conversation Segments.".to_string())?;
-    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 1024 * 1024 {
-        return Err("Conversation Segment manifest is invalid.".to_string());
-    }
-    let value: Value = serde_json::from_slice(&fs::read(path).map_err(|_| "Could not read Conversation Segments.".to_string())?)
-        .map_err(|_| "Conversation Segment manifest is malformed.".to_string())?;
-    if value.get("journeyId").and_then(Value::as_str) != Some(journey_id.as_str())
-        || value.get("threadId").and_then(Value::as_str) != Some(thread_id.as_str())
-        || value.get("generation").and_then(Value::as_u64) != Some(generation)
-        || value.get("piSessionId").and_then(Value::as_str) != Some(session_id.as_str())
-    {
-        return Err("Conversation Segment manifest authority mismatch.".to_string());
-    }
-    Ok(Some(value))
+    load_conversation_segments_at(&path, &journey_id, &thread_id, generation, &session_id)
 }
 
 #[derive(Debug, Deserialize)]
@@ -6921,11 +6940,13 @@ mod tests {
         rpc_settlement_exit_grace_expired,
         dedicated_native_names, enqueue_mirror_append_item_at, exact_steering_authority_matches, extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
-        list_journey_documentation_at, load_conversation_thread_authority_at,
+        list_journey_documentation_at, load_conversation_segments_at,
+        load_conversation_thread_authority_at,
         apply_desktop_conversation_reset, desktop_conversation_entry_from_creation,
         load_desktop_conversation_catalog_at,
         materialize_empty_pi_session, parse_pi_session_state,
         project_complete_pi_transcript, project_conversation_segment_manifest,
+        publish_conversation_segment_manifest_at,
         project_pi_user_entries, projection_manifest_coordinates_at,
         inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
         read_desktop_conversation_creation, read_desktop_conversation_deletion,
@@ -7206,6 +7227,74 @@ mod tests {
         assert_eq!(manifest.pointer("/segments/1/status").and_then(Value::as_str), Some("current"));
         assert_eq!(manifest.pointer("/segments/0/firstTurnId").and_then(Value::as_str), Some("turn-one"));
         assert!(!manifest.to_string().contains("private"));
+    }
+
+    #[test]
+    fn segment_manifest_publication_and_loading_fail_closed_on_corruption() {
+        let root = test_root("segment-manifest-publication");
+        let path = root.join("generation-1.json");
+        let persistence = JourneyProjectionPersistenceState::default();
+        let manifest = json!({
+            "schemaVersion":"1.0.0", "journeyId":"mirror-desktop", "threadId":"desktop-thread-one",
+            "generation":1, "piSessionId":"desktop-session-one", "sourceEntryCount":2,
+            "segments":[{"segment":1,"segmentId":"segment-1","status":"current",
+                "sourceFromEntryId":"user-1","sourceThroughEntryId":"assistant-1"}]
+        });
+        publish_conversation_segment_manifest_at(&path, &manifest, &persistence).unwrap();
+        assert_eq!(
+            load_conversation_segments_at(
+                &path, "mirror-desktop", "desktop-thread-one", 1, "desktop-session-one",
+            ).unwrap(),
+            Some(manifest.clone()),
+        );
+        assert!(load_conversation_segments_at(
+            &path, "other-journey", "desktop-thread-one", 1, "desktop-session-one",
+        ).is_err());
+        assert!(load_conversation_segments_at(
+            &path, "mirror-desktop", "desktop-thread-one", 2, "desktop-session-one",
+        ).is_err());
+        assert!(load_conversation_segments_at(
+            &path, "mirror-desktop", "desktop-thread-one", 1, "other-session",
+        ).is_err());
+        fs::write(&path, b"not-json").unwrap();
+        assert!(load_conversation_segments_at(
+            &path, "mirror-desktop", "desktop-thread-one", 1, "desktop-session-one",
+        ).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[ignore = "requires an explicitly generated private-data-free real Pi compaction fixture"]
+    fn publishes_a_real_exact_mirror_desktop_pi_compaction_fixture() {
+        let authority_path = std::env::var("MIRROR_DESKTOP_REAL_COMPACTION_AUTHORITY")
+            .expect("set exact generated compaction authority path");
+        let authority: Value = serde_json::from_slice(&fs::read(authority_path).unwrap()).unwrap();
+        assert_eq!(authority.get("journeyId").and_then(Value::as_str), Some("mirror-desktop"));
+        let thread_id = authority.get("threadId").and_then(Value::as_str).unwrap();
+        let generation = authority.get("generation").and_then(Value::as_u64).unwrap();
+        let session_id = authority.get("piSessionId").and_then(Value::as_str).unwrap();
+        let session_file = authority.get("sessionFile").and_then(Value::as_str).unwrap();
+        let content = fs::read_to_string(session_file).unwrap();
+        let header: Value = serde_json::from_str(content.lines().next().unwrap()).unwrap();
+        assert_eq!(header.get("id").and_then(Value::as_str), Some(session_id));
+        let manifest = project_conversation_segment_manifest(
+            &content, "mirror-desktop", thread_id, generation, session_id, &[],
+        ).unwrap();
+        let segments = manifest.get("segments").and_then(Value::as_array).unwrap();
+        assert_eq!(segments.len(), 2);
+        assert_eq!(segments[0].get("status").and_then(Value::as_str), Some("closed"));
+        assert_eq!(segments[1].get("status").and_then(Value::as_str), Some("current"));
+        let root = test_root("real-pi-compaction-publication");
+        let path = root.join("generation-1.json");
+        let persistence = JourneyProjectionPersistenceState::default();
+        publish_conversation_segment_manifest_at(&path, &manifest, &persistence).unwrap();
+        assert_eq!(
+            load_conversation_segments_at(
+                &path, "mirror-desktop", thread_id, generation, session_id,
+            ).unwrap(),
+            Some(manifest),
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
