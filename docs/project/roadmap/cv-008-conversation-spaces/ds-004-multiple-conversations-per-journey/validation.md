@@ -67,7 +67,7 @@ Final aggregate results after the last behavioral correction:
 
 ```text
 Frontend:              779 passed across 142 files
-Rust:                  133 passed, 1 explicitly generated real-Pi fixture ignored by default
+Rust:                  132 passed, 1 explicitly generated real-Pi fixture ignored by default
 Real Pi Segment probe: passed separately against exact generated mirror-desktop authority
 TypeScript:            passed
 Production web build:  passed
