@@ -1743,7 +1743,7 @@ export function App({ model }: AppProps) {
   }
 
   async function chooseFiles() {
-    if (fileAttachmentBusy || runtimeBusy || isJourneyReloading) return;
+    if (fileAttachmentBusy || selectedRuntimeBusy || isJourneyReloading) return;
     const ownerJourneyId = selectedJourneyRef.current;
     setFileAttachmentBusy(true);
     setFileAttachmentError(undefined);
@@ -1769,7 +1769,7 @@ export function App({ model }: AppProps) {
   }
 
   async function attachDroppedFiles(paths: string[]) {
-    if (journeyThreadState.kind !== "ready" || runtimeBusy || isJourneyReloading) return;
+    if (journeyThreadState.kind !== "ready" || selectedRuntimeBusy || isJourneyReloading) return;
     const ownerJourneyId = selectedJourneyRef.current;
     setFileAttachmentBusy(true);
     setFileAttachmentError(undefined);
@@ -4426,7 +4426,7 @@ export function App({ model }: AppProps) {
           {fileAttachmentError ? <p className="context-attachment-error" role="alert">{fileAttachmentError}</p> : null}
           <PendingFileAttachments
             attachments={pendingFileAttachments}
-            disabled={runtimeBusy || fileAttachmentBusy}
+            disabled={selectedRuntimeBusy || fileAttachmentBusy}
             onRemove={(attachmentId) => {
               setPendingFileAttachments((current) => removeFileAttachment(current, attachmentId));
               setFileAttachmentError(undefined);
@@ -4481,7 +4481,7 @@ export function App({ model }: AppProps) {
                   className="icon-button context-attachment-button"
                   type="button"
                   onClick={() => void chooseFiles()}
-                  disabled={runtimeBusy || isJourneyReloading || fileAttachmentBusy}
+                  disabled={selectedRuntimeBusy || isJourneyReloading || fileAttachmentBusy}
                   aria-label="Anexar arquivos"
                   title="Anexar arquivos"
                 >

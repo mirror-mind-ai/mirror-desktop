@@ -84,7 +84,10 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain('const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading"');
     expect(appSource).toContain("disabled={isJourneyReloading}");
     expect(appSource).toContain("disabled={!draft.trim() || selectedInvocationAdmissionBlocked");
-    expect(appSource).toContain("disabled={runtimeBusy || isJourneyReloading || fileAttachmentBusy}");
+    expect(appSource).toContain("disabled={selectedRuntimeBusy || isJourneyReloading || fileAttachmentBusy}");
+    expect(appSource).toContain("if (fileAttachmentBusy || selectedRuntimeBusy || isJourneyReloading) return");
+    expect(appSource).toContain('journeyThreadState.kind !== "ready" || selectedRuntimeBusy || isJourneyReloading');
+    expect(appSource).toContain("disabled={selectedRuntimeBusy || fileAttachmentBusy}");
     expect(appSource).toContain("disabled={runtimeBusy}");
     expect(appSource).toContain('journeyThreadState.kind === "absent" && !runtimeBusy');
     expect(appSource).toContain('if (runtimeBusy || journeyThreadState.kind !== "absent" || startingJourneyId) return');
