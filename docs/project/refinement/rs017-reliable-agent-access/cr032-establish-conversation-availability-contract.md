@@ -2,7 +2,7 @@
 
 # CR032 — Establish the Conversation Availability Contract
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs017-cr032-conversation-availability-contract`
 
@@ -81,6 +81,16 @@ Implemented locally:
 
 CR032 intentionally leaves projected journal records blocked until CR033 establishes the new local-completion frontier. It changes the authority for deciding availability without prematurely changing journal safety.
 
+## Navigator Validation
+
+Accepted by the Navigator after review of the centralized conditions, action-specific policy, integration boundary and complete automated evidence.
+
+## Debt Review
+
+**Decision:** no_action
+
+The contract is deliberately small, pure and independent from journal transition mechanics. Its explicit condition vocabulary is required by the next three CRs rather than speculative abstraction. No proportional debt action is required before closure.
+
 ## Outcome
 
-Implemented locally. Navigator validation pending.
+Done. CR033 is the recommended next movement.
