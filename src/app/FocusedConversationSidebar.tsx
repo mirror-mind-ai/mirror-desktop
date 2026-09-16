@@ -21,7 +21,7 @@ type Props = {
   onSelectEntry: (entry: ConversationCatalogEntry) => void;
   onContinueMirror: (entry: MirrorEntry) => void;
   onOpenMirrorTerminal: (entry: MirrorEntry) => void;
-  onRenameMirror: (entry: MirrorEntry) => void;
+  onRenameConversation: (entry: ConversationCatalogEntry) => void;
   onDeleteDesktop: (entry: DesktopEntry) => void;
 };
 
@@ -108,7 +108,7 @@ export function FocusedConversationSidebar(props: Props) {
       returnFocusTo={contextTriggerRef.current}
       onContinue={props.onContinueMirror}
       onOpenTerminal={props.onOpenMirrorTerminal}
-      onRename={props.onRenameMirror}
+      onRename={props.onRenameConversation}
       onDeleteDesktop={props.onDeleteDesktop}
       onDismiss={() => setContextEntry(null)}
     /> : null}

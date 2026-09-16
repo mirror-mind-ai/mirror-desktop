@@ -12,7 +12,7 @@ type Props = {
   returnFocusTo: HTMLElement | null;
   onContinue: (entry: MirrorEntry) => void;
   onOpenTerminal: (entry: MirrorEntry) => void;
-  onRename: (entry: MirrorEntry) => void;
+  onRename: (entry: ConversationCatalogEntry) => void;
   onDeleteDesktop: (entry: DesktopEntry) => void;
   onDismiss: () => void;
 };
@@ -52,6 +52,11 @@ export function ConversationEntryContextMenu(props: Props) {
     action(props.entry);
   }
 
+  function renameConversation() {
+    props.onDismiss();
+    props.onRename(props.entry);
+  }
+
   function deleteDesktop() {
     if (props.entry.kind !== "desktop_conversation") return;
     props.onDismiss();
@@ -68,7 +73,10 @@ export function ConversationEntryContextMenu(props: Props) {
     {props.entry.kind === "mirror_history" ? <>
       <button type="button" role="menuitem" disabled={props.busy} onClick={() => invokeMirror(props.onContinue)}>Continue in new Desktop Conversation</button>
       <button type="button" role="menuitem" disabled={props.busy} onClick={() => invokeMirror(props.onOpenTerminal)}>Continue with recalled context in Terminal</button>
-      <button type="button" role="menuitem" disabled={props.busy} onClick={() => invokeMirror(props.onRename)}>Rename in Mirror…</button>
-    </> : <button className="danger-menu-item" type="button" role="menuitem" disabled={props.busy} onClick={deleteDesktop}>Delete Conversation…</button>}
+      <button type="button" role="menuitem" disabled={props.busy} onClick={renameConversation}>Rename in Mirror…</button>
+    </> : <>
+      <button type="button" role="menuitem" disabled={props.busy} onClick={renameConversation}>Rename Conversation…</button>
+      <button className="danger-menu-item" type="button" role="menuitem" disabled={props.busy} onClick={deleteDesktop}>Delete Conversation…</button>
+    </>}
   </div>;
 }

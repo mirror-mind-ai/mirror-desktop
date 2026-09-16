@@ -4,6 +4,7 @@ import { FocusedConversationSidebar } from "../app/FocusedConversationSidebar";
 import { MirrorHistoryActionSurface } from "../app/MirrorHistoryActionSurface";
 import { ConversationEntryContextMenu } from "../app/ConversationEntryContextMenu";
 import { EmptyDesktopConversation } from "../app/EmptyDesktopConversation";
+import { ConversationDetailHeader } from "../app/ConversationDetailHeader";
 
 describe("conversation space surfaces", () => {
   it("renders the focused Journey root separately from child Conversations", () => {
@@ -44,7 +45,7 @@ describe("conversation space surfaces", () => {
       onSelectEntry={vi.fn()}
       onContinueMirror={vi.fn()}
       onOpenMirrorTerminal={vi.fn()}
-      onRenameMirror={vi.fn()}
+      onRenameConversation={vi.fn()}
       onDeleteDesktop={vi.fn()}
     />);
     expect(html).toContain("Conversations");
@@ -75,7 +76,7 @@ describe("conversation space surfaces", () => {
       onSelectEntry={vi.fn()}
       onContinueMirror={vi.fn()}
       onOpenMirrorTerminal={vi.fn()}
-      onRenameMirror={vi.fn()}
+      onRenameConversation={vi.fn()}
       onDeleteDesktop={vi.fn()}
     />);
     expect(html).toContain("History 6");
@@ -98,7 +99,7 @@ describe("conversation space surfaces", () => {
       onCreateHandoff={vi.fn()}
       onOpenTerminal={vi.fn()}
     />);
-    expect(html).toContain("Mirror Core Conversation");
+    expect(html).toContain("Mirror history · Source actions only");
     expect(html).toContain("This conversation belongs to Mirror Core via Terminal");
     expect(html).toContain("to continue here");
     expect(html.match(/Created with Mirror Core via Terminal/g)).toHaveLength(1);
@@ -156,7 +157,8 @@ describe("conversation space surfaces", () => {
       x={20} y={30} returnFocusTo={null}
       onContinue={vi.fn()} onOpenTerminal={vi.fn()} onRename={vi.fn()} onDeleteDesktop={vi.fn()} onDismiss={vi.fn()}
     />);
-    expect(html.match(/role="menuitem"/g)).toHaveLength(1);
+    expect(html.match(/role="menuitem"/g)).toHaveLength(2);
+    expect(html).toContain("Rename Conversation…");
     expect(html).toContain("Delete Conversation…");
     expect(html).not.toContain("Rename in Mirror");
   });
@@ -165,14 +167,40 @@ describe("conversation space surfaces", () => {
     const html = renderToStaticMarkup(<EmptyDesktopConversation
       title="New conversation"
       journeyName="Mirror Desktop"
-      createdAt="2026-09-15T09:00:00.000Z"
       onChoose={vi.fn()}
     />);
-    expect(html).toContain("Desktop Conversation");
     expect(html).toContain("Conversation ready · Journey context is active");
     expect(html).toContain("Understand where we are");
     expect(html).toContain("Think out loud");
     expect(html).toContain("Nothing is sent until you decide");
     expect(html).not.toContain("How can I help you?");
+  });
+
+  it("uses one detail header for Desktop and Mirror Conversation surfaces", () => {
+    const desktop = renderToStaticMarkup(<ConversationDetailHeader entry={{
+      kind: "desktop_conversation", conversationId: "desktop-conversation-1", threadId: "desktop-thread-1",
+      title: "Planning the next release", updatedAt: "2026-09-15T09:00:00.000Z", messageCount: 4, availability: "ready",
+      authority: {
+        activeGeneration: 1, runtimeChannel: "development", generations: [{
+          generation: 1, status: "ready", piSessionId: "pi-session-child-1", piSessionFile: "/app/pi-session-child-1.jsonl",
+          mirrorConversationId: "399badc9", createdAt: "2026-09-15T09:00:00.000Z", activatedAt: "2026-09-15T09:00:00.000Z",
+          activationReceipt: {
+            schemaVersion: "1.0.0", journeyId: "mirror-desktop", threadId: "desktop-thread-1", generation: 1,
+            piSessionId: "pi-session-child-1", mirrorConversationId: "399badc9", mode: "mirror",
+            commandAuthority: "installed", runtimeChannel: "development", activatedAt: "2026-09-15T09:00:00.000Z",
+          },
+        }],
+      },
+    }} />);
+    const mirror = renderToStaticMarkup(<ConversationDetailHeader entry={{
+      kind: "mirror_history", conversationId: "mirror-conversation-1", title: "Terminal history",
+      updatedAt: "2026-09-15T09:00:00.000Z", messageCount: 12, availability: "available_in_mirror",
+    }} />);
+    expect(desktop).toContain("Planning the next release");
+    expect(desktop).toContain("Desktop Conversation");
+    expect(mirror).toContain("Terminal history");
+    expect(mirror).toContain("Mirror Core Conversation");
+    expect(desktop).toContain("conversation-detail-header");
+    expect(mirror).toContain("conversation-detail-header");
   });
 });
