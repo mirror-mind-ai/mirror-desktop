@@ -1310,7 +1310,7 @@ export function App({ model }: AppProps) {
                 message: "Pending turn retained because no durable lifecycle journal authority exists for recovery.",
               });
             }
-          } else if (!latestNautilusTurn) {
+          } else if (!latestNautilusTurn && !childEntry) {
             const turns = await loadDedicatedPiTranscript(
               selectedJourney,
               classified.thread.threadId,
