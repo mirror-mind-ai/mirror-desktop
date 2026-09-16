@@ -84,7 +84,8 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain('<section className="chat-shell"');
     expect(appSource).not.toContain("has-conversation-detail");
     expect(appSource).toContain('messages.length > 0 && selectedConversationEntry?.kind === "desktop_conversation"');
-    expect(appSource).toContain("<ConversationDetailHeader entry={selectedConversationEntry} />");
+    expect(appSource).toContain("<ConversationDetailHeader");
+    expect(appSource).toContain("entry={selectedConversationEntry}");
   });
 
   it("allows admitted selected-Journey submission while keeping aggregate mutations blocked", () => {

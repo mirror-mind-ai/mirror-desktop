@@ -6940,10 +6940,30 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 .mirror-history-metadata > span { align-items: center; display: inline-flex; gap: 7px; }
 .mirror-history-metadata svg { fill: none; height: 16px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; width: 16px; }
 .mirror-history-metadata strong { color: var(--text); font-weight: 620; }
-.mirror-history-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 24px; }
+.mirror-history-actions {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 24px;
+  width: 100%;
+}
+.mirror-history-actions button { width: 100%; }
 .conversation-start-actions { margin-top: 28px; max-width: 880px; }
+.conversation-history-action {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  margin-top: 28px;
+  text-align: center;
+}
+.conversation-history-action strong { color: var(--text); font-size: 0.8rem; }
+.conversation-history-action span { color: var(--text-muted); }
 .empty-desktop-conversation .journey-arrival-status { justify-content: center; }
 .empty-desktop-conversation .conversation-start-actions { margin-top: 24px; }
 .desktop-conversation-start-surface { align-content: center; }
 .desktop-conversation-draft { display: grid; gap: 7px; margin-top: 20px; }
 .desktop-conversation-draft textarea { min-height: 180px; resize: vertical; }
+
+@media (max-width: 720px) {
+  .mirror-history-actions { grid-template-columns: 1fr; }
+}

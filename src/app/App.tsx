@@ -496,6 +496,7 @@ export function App({ model }: AppProps) {
   const [conversationCatalogStatus, setConversationCatalogStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [conversationCatalogError, setConversationCatalogError] = useState<string>();
   const [historicalSegmentCount, setHistoricalSegmentCount] = useState(0);
+  const [loadedHistoricalSegmentCount, setLoadedHistoricalSegmentCount] = useState(0);
   const [historicalSegmentState, setHistoricalSegmentState] = useState<"idle" | "loading" | "error">("idle");
   const [focusedJourneyRootThreadId, setFocusedJourneyRootThreadId] = useState<string>();
   const [conversationActionBusy, setConversationActionBusy] = useState(false);
@@ -1178,6 +1179,7 @@ export function App({ model }: AppProps) {
 
     let cancelled = false;
     setHistoricalSegmentCount(0);
+    setLoadedHistoricalSegmentCount(0);
     setHistoricalSegmentState("idle");
     const loadRequest = conversationLoadCoordinatorRef.current.begin(selectedJourney);
     const requestIsCurrent = () => !cancelled
@@ -3754,12 +3756,14 @@ export function App({ model }: AppProps) {
       sessionFile: journeyThreadState.activeGeneration.piSessionFile,
     };
     const selectedConversationId = conversation.id;
+    const segmentCountBeingLoaded = historicalSegmentCount;
     setHistoricalSegmentState("loading");
     try {
       const complete = await loadCompleteConversationSegmentHistory(authority);
       if (selectedJourneyRef.current !== authority.journeyId || conversationRef.current.id !== selectedConversationId
         || complete.id !== selectedConversationId) return;
       setConversation(complete);
+      setLoadedHistoricalSegmentCount(segmentCountBeingLoaded);
       setHistoricalSegmentCount(0);
       setHistoricalSegmentState("idle");
     } catch {
@@ -4277,12 +4281,23 @@ export function App({ model }: AppProps) {
         >
           {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}
           {messages.length > 0 && selectedConversationEntry?.kind === "desktop_conversation" ? (
-            <ConversationDetailHeader entry={selectedConversationEntry} />
+            <ConversationDetailHeader
+              entry={selectedConversationEntry}
+              messageCount={messages.length}
+              historicalSegmentCount={historicalSegmentCount}
+              loadedHistoricalSegmentCount={loadedHistoricalSegmentCount}
+            />
           ) : null}
           {messages.length === 0 && journeyThreadState.kind === "ready" && selectedConversationEntry?.kind === "desktop_conversation" ? (
             <EmptyDesktopConversation
               entry={selectedConversationEntry}
               journeyName={selectedJourneyItem.name}
+              historicalSegments={{
+                count: historicalSegmentCount,
+                state: historicalSegmentState,
+                disabled: runtimeBusy,
+                onLoad: () => void loadCompleteSegmentHistory(),
+              }}
               onChoose={(text) => setJourneyComposerDraft(selectedJourney, text)}
             />
           ) : null}
@@ -4293,15 +4308,18 @@ export function App({ model }: AppProps) {
               onChoose={(text) => setJourneyComposerDraft(selectedJourney, text)}
             />
           ) : null}
-          {historicalSegmentCount > 0 || historicalSegmentState === "error" ? (
-            <div className="historical-segment-control" role={historicalSegmentState === "error" ? "alert" : "status"}>
-              <button type="button" className="secondary-button" onClick={() => void loadCompleteSegmentHistory()}
-                disabled={historicalSegmentState === "loading" || runtimeBusy}>
-                {historicalSegmentState === "loading" ? "Loading earlier segments…" : "Load earlier segments"}
-              </button>
+          {messages.length > 0 && (historicalSegmentCount > 0 || historicalSegmentState === "error") ? (
+            <div className="historical-segment-control conversation-history-action" role={historicalSegmentState === "error" ? "alert" : "status"}>
+              <strong>Earlier history</strong>
               <span>{historicalSegmentState === "error"
                 ? "Earlier history could not be verified. The current Segment remains available."
                 : `${historicalSegmentCount} earlier ${historicalSegmentCount === 1 ? "Segment" : "Segments"} available.`}</span>
+              <button type="button" className="secondary-button" onClick={() => void loadCompleteSegmentHistory()}
+                disabled={historicalSegmentState === "loading" || runtimeBusy}>
+                {historicalSegmentState === "loading"
+                  ? "Loading earlier Segments…"
+                  : `Load ${historicalSegmentCount} earlier ${historicalSegmentCount === 1 ? "Segment" : "Segments"}`}
+              </button>
             </div>
           ) : null}
           <ConversationTranscript

@@ -184,12 +184,16 @@ describe("conversation space surfaces", () => {
         },
       }}
       journeyName="Mirror Desktop"
+      historicalSegments={{ count: 1, state: "idle", disabled: false, onLoad: vi.fn() }}
       onChoose={vi.fn()}
     />);
     expect(html).toContain("Conversation ready · Journey context is active");
     expect(html).toContain("Desktop Conversation");
     expect(html).toContain("New conversation");
-    expect(html).toContain("0 messages");
+    expect(html).toContain("Current Segment empty");
+    expect(html).toContain("1 earlier Segment");
+    expect(html).toContain("Earlier history");
+    expect(html).toContain("Load 1 earlier Segment");
     expect(html).toContain("Understand where we are");
     expect(html).toContain("Think out loud");
     expect(html).toContain("Nothing is sent until you decide");
@@ -222,5 +226,16 @@ describe("conversation space surfaces", () => {
     expect(mirror).toContain("Mirror Core Conversation");
     expect(desktop).toContain("conversation-detail-header");
     expect(mirror).toContain("conversation-detail-header");
+
+    const loaded = renderToStaticMarkup(<ConversationDetailHeader
+      entry={{
+        kind: "mirror_history", conversationId: "mirror-conversation-2", title: "Loaded history",
+        updatedAt: "2026-09-15T09:00:00.000Z", messageCount: 2, availability: "available_in_mirror",
+      }}
+      messageCount={128}
+      loadedHistoricalSegmentCount={2}
+    />);
+    expect(loaded).toContain("128 messages loaded");
+    expect(loaded).toContain("3 Segments");
   });
 });

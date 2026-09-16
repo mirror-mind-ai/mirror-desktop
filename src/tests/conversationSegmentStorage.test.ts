@@ -64,7 +64,8 @@ describe("Conversation Segment persistence", () => {
     expect(tauriSource).toContain("write_durable_projection_at(&path, &payload, nonce)");
     expect(tauriSource).toContain("firstKeptEntryId");
     expect(tauriSource).toContain("load_conversation_segment_projections");
-    expect(appSource).toContain("Load earlier segments");
+    expect(appSource).toContain("Earlier history");
+    expect(appSource).toContain("segmentCountBeingLoaded");
     expect(appSource).toContain("loadCompleteConversationSegmentHistory");
   });
 });
