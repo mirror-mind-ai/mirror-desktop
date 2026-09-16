@@ -6900,7 +6900,9 @@ mod tests {
         project_complete_pi_transcript, project_conversation_segment_manifest,
         project_pi_user_entries, projection_manifest_coordinates_at,
         inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
-        read_exact_pi_session_context_stats, read_journey_document_at, remove_provider_session_args, resolve_existing_local_file,
+        read_desktop_conversation_creation, read_desktop_conversation_deletion,
+        read_desktop_conversation_reset, read_exact_pi_session_context_stats, read_journey_document_at,
+        remove_provider_session_args, resolve_existing_local_file,
         load_or_migrate_root_projection_at, resolve_existing_local_file_at,
         resolve_journey_artifact_at, retire_legacy_parity_state_at,
         classify_chat_local_reference_at, classify_chat_local_reference_at_with_home,
@@ -6997,6 +6999,60 @@ mod tests {
         malformed = operation;
         malformed["entry"]["kind"] = json!("mirror_history");
         assert!(validate_desktop_conversation_deletion(&malformed, "journey-one").is_err());
+    }
+
+    #[test]
+    fn pending_conversation_lifecycle_files_fail_closed_outside_exact_journey_authority() {
+        let root = test_root("pending-conversation-lifecycle");
+        fs::create_dir_all(&root).unwrap();
+        let creation_path = root.join("pending-creation.json");
+        let reset_path = root.join("pending-reset.json");
+        let deletion_path = root.join("pending-deletion.json");
+        let creation = json!({
+            "schemaVersion":"1.0.0", "kind":"desktop_conversation_creation", "phase":"reserved",
+            "journeyId":"mirror-desktop", "journeyName":"Mirror Desktop", "conversationId":"desktop-conversation-one",
+            "threadId":"desktop-thread-one", "title":"Recovery fixture", "requestedPiSessionId":"desktop-session-one",
+            "piSessionName":"Mirror Desktop recovery fixture", "mirrorName":"Recovery fixture",
+            "runtimeChannel":"development", "createdAt":"2026-09-15T10:00:00.000Z",
+            "sourceConversationId":null, "sourceMessageLimit":null
+        });
+        let reset = json!({
+            "schemaVersion":"1.0.0", "kind":"desktop_conversation_reset", "phase":"reserved",
+            "journeyId":"mirror-desktop", "conversationId":"desktop-conversation-one", "threadId":"desktop-thread-one",
+            "priorGeneration":1, "nextGeneration":2, "requestedPiSessionId":"desktop-session-two",
+            "piSessionName":"Mirror Desktop recovery generation", "mirrorName":"Recovery generation",
+            "runtimeChannel":"development", "activatedAt":"2026-09-15T10:00:00.000Z"
+        });
+        let deletion = json!({
+            "schemaVersion":"1.0.0", "kind":"desktop_conversation_deletion", "phase":"reserved",
+            "journeyId":"mirror-desktop", "entry":{
+                "kind":"desktop_conversation", "journeyId":"mirror-desktop",
+                "conversationId":"desktop-conversation-one", "threadId":"desktop-thread-one",
+                "authority":{"runtimeChannel":"development", "generations":[{
+                    "generation":1, "piSessionId":"desktop-session-one",
+                    "piSessionFile":"/app/pi-sessions/desktop-session-one.jsonl",
+                    "mirrorConversationId":"mirror-conversation-one"
+                }]}
+            }
+        });
+        fs::write(&creation_path, serde_json::to_vec(&creation).unwrap()).unwrap();
+        fs::write(&reset_path, serde_json::to_vec(&reset).unwrap()).unwrap();
+        fs::write(&deletion_path, serde_json::to_vec(&deletion).unwrap()).unwrap();
+
+        assert!(read_desktop_conversation_creation(&creation_path, "mirror-desktop").unwrap().is_some());
+        assert!(read_desktop_conversation_reset(&reset_path, "mirror-desktop").unwrap().is_some());
+        assert!(read_desktop_conversation_deletion(&deletion_path, "mirror-desktop").unwrap().is_some());
+        assert!(read_desktop_conversation_creation(&creation_path, "other-journey").is_err());
+        assert!(read_desktop_conversation_reset(&reset_path, "other-journey").is_err());
+        assert!(read_desktop_conversation_deletion(&deletion_path, "other-journey").is_err());
+
+        fs::write(&creation_path, b"not-json").unwrap();
+        fs::write(&reset_path, b"not-json").unwrap();
+        fs::write(&deletion_path, b"not-json").unwrap();
+        assert!(read_desktop_conversation_creation(&creation_path, "mirror-desktop").is_err());
+        assert!(read_desktop_conversation_reset(&reset_path, "mirror-desktop").is_err());
+        assert!(read_desktop_conversation_deletion(&deletion_path, "mirror-desktop").is_err());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
