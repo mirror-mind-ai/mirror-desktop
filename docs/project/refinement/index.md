@@ -45,7 +45,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR030](rs016-ongoing-product-improvements-and-adjustments/cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md) | RS016 | Restore Journey expansion arrow contrast in light themes | in_progress | @alissonvale | `refinement/rs016-cr030-journey-expansion-arrow-contrast` |
+| — | [CR030](rs016-ongoing-product-improvements-and-adjustments/cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md) | RS016 | Restore Journey expansion arrow contrast in light themes | done | @alissonvale | `refinement/rs016-cr030-journey-expansion-arrow-contrast` |
 | — | [CR029](rs016-ongoing-product-improvements-and-adjustments/cr029-restore-responsiveness-for-long-conversations.md) | RS016 | Restore responsiveness for long conversations | done | @alissonvale | `refinement/rs016-cr029-long-conversation-responsiveness` |
 | — | [CR028](rs015-light-theme-interaction-contrast/cr028-restore-search-and-pending-file-contrast-in-light-themes.md) | RS015 | Restore search and pending-file contrast in light themes | done | @alissonvale | `refinement/rs015-cr028-light-theme-interaction-contrast` |
 | — | [CR027](rs014-transient-composer-notices/cr027-auto-dismiss-transient-composer-notices.md) | RS014 | Auto-dismiss transient composer notices | done | @alissonvale | `refinement/rs014-cr027-transient-composer-notices` |

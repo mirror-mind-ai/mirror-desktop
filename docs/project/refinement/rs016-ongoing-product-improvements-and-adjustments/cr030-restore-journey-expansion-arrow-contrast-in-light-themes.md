@@ -2,7 +2,7 @@
 
 # CR030 — Restore Journey Expansion Arrow Contrast in Light Themes
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr030-journey-expansion-arrow-contrast`
 
@@ -67,7 +67,23 @@ Implementation evidence:
 - `src/tests/applicationTheme.test.ts` covers the expansion-toggle and focused Conversation-list light-theme contrast contracts across Daylight, Mist and Parchment, including the generic-button exclusion.
 - `npm test -- --run src/tests/applicationTheme.test.ts`: passed, 13 tests.
 - `npm run build`: passed. Vite emitted the existing chunk-size warning only.
+- `npm run tauri:build:dev`: passed and produced the isolated `Mirror Desktop Dev.app`, bundle identifier `ai.mirrormind.desktop.dev`.
+- The prior development process was stopped and the rebuilt packaged application was launched from this Delivery branch.
+
+## Navigator Validation
+
+Accepted by the Navigator in isolated **Mirror Desktop Dev** on 2026-09-16 after the requested light-theme inspection of the Journey expansion control and expanded Conversation list.
+
+## Proportionality Review
+
+The correction remains entirely in the existing light-theme CSS contract and its existing theme regression suite. The expanded scope responds directly to Navigator screenshots showing that fixing only the arrow left the revealed Conversation controls unreadable. No component, accessibility label, interaction state, persistence behavior or theme palette was redesigned. Higher-specificity selectors are bounded to the concrete focused-Conversation controls that must override the pre-existing generic light-theme button rule.
+
+## Debt Review
+
+**Decision:** no_action
+
+The implementation adds no parallel styling system, theme token, runtime branch or behavioral workaround. It reuses the established semantic light-theme tokens and removes the affected focused-Conversation controls from the generic white-label rule before applying explicit state contracts. The localized specificity is required by the existing cascade and is covered by source-contract and contrast tests. Broader theme-rule restructuring would exceed the observed defect without removing a new debt introduced here.
 
 ## Outcome
 
-Implemented locally. Navigator validation pending.
+Done. The Journey expansion control and the Conversation list it reveals remain legible and structurally distinguishable across supported light themes and interaction states. Automated contrast/build checks and isolated Navigator DEV validation passed. No push, merge, publication or release was performed.
