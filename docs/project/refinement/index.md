@@ -38,7 +38,7 @@ executes work.
 | 14 | [RS014](rs014-transient-composer-notices/index.md) | Transient Composer Notices | closed |
 | 15 | [RS015](rs015-light-theme-interaction-contrast/index.md) | Light Theme Interaction Contrast | closed |
 | 16 | [RS016](rs016-ongoing-product-improvements-and-adjustments/index.md) | Ongoing Product Improvements and Adjustments | active |
-| 17 | [RS017](rs017-reliable-agent-access/index.md) | Reliable Agent Access | active |
+| 17 | [RS017](rs017-reliable-agent-access/index.md) | Reliable Agent Access | closed |
 
 ## Change Requests
 
