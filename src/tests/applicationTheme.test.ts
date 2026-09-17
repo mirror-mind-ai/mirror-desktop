@@ -173,6 +173,48 @@ describe("application themes", () => {
     expect(cssSource).toContain(") .file-path-button {");
   });
 
+  it("keeps the Journey Conversation expansion arrow visible in light themes", () => {
+    for (const theme of lightApplicationThemes) {
+      const interactiveSurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.08);
+      expect(contrast(theme.tokens.accentText, theme.tokens.raisedSurface), `${theme.id} idle expansion arrow`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.accentText, interactiveSurface), `${theme.id} active expansion arrow`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(cssSource).toContain("/* Light Journey Conversation expansion contrast contract. */");
+    expect(cssSource).toContain(") .journey-conversation-toggle {");
+    expect(cssSource).toContain("background: var(--light-raised);");
+    expect(cssSource).toContain("color: var(--light-accent);");
+    expect(cssSource).toContain(") .journey-conversation-toggle[aria-expanded=\"true\"] {");
+    expect(cssSource).toContain("box-shadow: inset 0 -2px 0 var(--light-accent);");
+    expect(cssSource).toContain(") .journey-conversation-toggle:is(:hover, :focus-visible) {");
+    expect(cssSource).toContain("outline: 2px solid var(--light-accent);");
+    expect(cssSource).toContain(") .journey-conversation-toggle:disabled {");
+    expect(cssSource).toContain("border-style: dashed;");
+  });
+
+  it("keeps expanded focused Conversation lists legible in light themes", () => {
+    for (const theme of lightApplicationThemes) {
+      const listSurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.06);
+      const selectedSurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.09);
+      const createSurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.09);
+      const createHoverSurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.08);
+      expect(contrast(theme.tokens.primaryText, listSurface), `${theme.id} conversation list title`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.mutedText, listSurface), `${theme.id} conversation list metadata`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.primaryText, selectedSurface), `${theme.id} selected conversation title`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.accentText, createSurface), `${theme.id} new conversation action`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.accentText, createHoverSurface), `${theme.id} new conversation hover`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(cssSource).toContain(".focused-conversation-entry, .focused-conversation-create, .focused-conversation-more" );
+    expect(cssSource).toContain("/* Light focused Conversation list contrast contract. */");
+    expect(cssSource).toContain(") .focused-conversation-sidebar {");
+    expect(cssSource).toContain("color: var(--light-text);");
+    expect(cssSource).toContain(") .focused-conversation-entry small,");
+    expect(cssSource).toContain(") .focused-conversation-entry.selected {");
+    expect(cssSource).toContain("box-shadow: inset 3px 0 0 var(--light-accent);");
+    expect(cssSource).toContain(") button.focused-conversation-create {");
+    expect(cssSource).toContain(") .focused-conversation-create span {");
+    expect(cssSource).toContain(") button.focused-conversation-create:is(:hover, :focus-visible) {");
+  });
+
   it("keeps the completed composer status legible in light themes", () => {
     expect(cssSource).toContain("/* Light composer status contrast contract. */");
     expect(cssSource).toContain(".composer-runtime-status.is-finishing");

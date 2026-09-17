@@ -5553,7 +5553,7 @@ dd {
   [data-application-theme="daylight"],
   [data-application-theme="mist"],
   [data-application-theme="parchment"]
-) :where(button:not(.secondary-button, .settings-button, .icon-button, .menu-button, .sidebar-action-button, .theme-choice, .journey-documentation-toggle, .journey-documentation-select, .artifact-preview-layout-toggle, .journey-pin, .journey-tree-toggle, .journey-menu button, .journey-tree-context-menu button, .journey-item-context-menu button, .artifact-context-menu button, .settings-tab-list button, .message-copy-action)) {
+) :where(button:not(.secondary-button, .settings-button, .icon-button, .menu-button, .sidebar-action-button, .theme-choice, .journey-documentation-toggle, .journey-documentation-select, .artifact-preview-layout-toggle, .journey-pin, .journey-tree-toggle, .journey-menu button, .journey-tree-context-menu button, .journey-item-context-menu button, .artifact-context-menu button, .settings-tab-list button, .message-copy-action, .focused-conversation-entry, .focused-conversation-create, .focused-conversation-more)) {
   color: #ffffff;
 }
 
@@ -6791,6 +6791,53 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   outline: none;
 }
 
+/* Light Journey Conversation expansion contrast contract. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-conversation-toggle {
+  background: var(--light-raised);
+  border: 1px solid var(--light-border);
+  box-sizing: border-box;
+  color: var(--light-accent);
+  font-weight: 800;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-conversation-toggle[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--light-accent) 8%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--light-accent) 42%, var(--light-border));
+  box-shadow: inset 0 -2px 0 var(--light-accent);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-conversation-toggle:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--light-accent) 8%, var(--light-surface));
+  border-color: var(--light-accent);
+  color: var(--light-accent);
+  outline: 2px solid var(--light-accent);
+  outline-offset: 2px;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-conversation-toggle:disabled {
+  background: var(--light-raised);
+  border-color: var(--light-border);
+  border-style: dashed;
+  color: var(--light-accent);
+  cursor: not-allowed;
+}
+
 .app-shell.conversation-catalog-loading .journey-sidebar,
 .app-shell.conversation-catalog-loading .journey-sidebar * {
   cursor: progress !important;
@@ -6813,6 +6860,7 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
   border-radius: 0 0 16px 16px;
   border-top: 0;
+  color: var(--text);
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
@@ -6919,6 +6967,117 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 }
 .focused-conversation-more:hover,
 .focused-conversation-more:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--text); outline: none; }
+
+/* Light focused Conversation list contrast contract. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .focused-conversation-sidebar {
+  background: color-mix(in srgb, var(--light-accent) 6%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--light-accent) 28%, var(--light-border));
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .focused-conversation-heading {
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) button.focused-conversation-entry,
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .focused-conversation-title {
+  color: var(--light-text) !important;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .focused-conversation-entry small,
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .focused-conversation-status {
+  color: var(--light-muted);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .focused-conversation-entry.selected {
+  background: color-mix(in srgb, var(--light-accent) 9%, var(--light-surface));
+  box-shadow: inset 3px 0 0 var(--light-accent);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .focused-conversation-icon {
+  color: var(--light-accent) !important;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) button.focused-conversation-create {
+  background: color-mix(in srgb, var(--light-accent) 9%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--light-accent) 36%, var(--light-border));
+  color: var(--light-accent) !important;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .focused-conversation-create span {
+  color: var(--light-accent) !important;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) button.focused-conversation-create:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--light-accent) 8%, var(--light-surface));
+  border-color: var(--light-accent);
+  color: var(--light-accent) !important;
+  outline: 2px solid var(--light-accent);
+  outline-offset: 2px;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) button.focused-conversation-more {
+  color: var(--light-accent) !important;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) button.focused-conversation-more:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--light-accent) 9%, var(--light-surface));
+  color: var(--light-accent) !important;
+  outline: 2px solid var(--light-accent);
+  outline-offset: 2px;
+}
 
 .conversation-detail-header {
   display: grid;
