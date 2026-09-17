@@ -3308,6 +3308,27 @@ h3 {
   padding: 4px 10px;
 }
 
+.conversation-recovery-routes {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.conversation-recovery-route {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.conversation-recovery-route .secondary-button {
+  flex: 0 0 auto;
+  min-height: 30px;
+}
+
+.conversation-recovery-route span {
+  color: #8eabb2;
+}
+
 .composer-input-wrap {
   position: relative;
 }

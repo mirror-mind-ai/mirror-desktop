@@ -79,18 +79,6 @@ export function requireExactTurnJournalRecord(
   return record;
 }
 
-export type TurnJournalOpeningRecovery = "auto_interrupt" | "recover_response" | "wait_for_agent";
-
-export function decideTurnJournalOpeningRecovery(
-  record: TurnJournalRecord,
-  journeyHasRetainedLease: boolean,
-): TurnJournalOpeningRecovery {
-  if (journeyHasRetainedLease) return "wait_for_agent";
-  if (record.phase === "admitted" || record.phase === "running") return "auto_interrupt";
-  if (record.phase === "terminal_durable" && record.terminalOutcome !== "completed") return "auto_interrupt";
-  return "recover_response";
-}
-
 export function findBlockingTurnJournalRecord(
   document: TurnJournalDocument,
   journeyId: string,
@@ -184,8 +172,24 @@ export function decideTurnJournalRecovery(record: TurnJournalRecord): TurnJourna
     : terminal === "cancelled" ? "project_cancelled" : "project_failed";
 }
 
+export function hasFreshCompleteTurnJournalEvidence(record: TurnJournalRecord): boolean {
+  const execution = record.terminalEvidence?.piExecution;
+  if (record.terminalOutcome !== "completed" || !execution) return false;
+  const createdAt = Date.parse(record.createdAt);
+  const startedAt = Date.parse(execution.startedAt);
+  const committedAt = Date.parse(execution.committedAt);
+  return Number.isFinite(createdAt)
+    && Number.isFinite(startedAt)
+    && Number.isFinite(committedAt)
+    && startedAt >= createdAt
+    && committedAt >= startedAt
+    && execution.assistantText.length > 0
+    && !execution.assistantTextTruncated;
+}
+
 export function isTurnJournalSuccessorEligible(record: TurnJournalRecord): boolean {
-  return ["outbox_enqueued", "settled", "interrupted"].includes(record.phase);
+  if (["outbox_enqueued", "settled", "interrupted"].includes(record.phase)) return true;
+  return record.phase === "projected" && hasFreshCompleteTurnJournalEvidence(record);
 }
 
 export function isTurnJournalPhase(value: string): value is TurnPhase {

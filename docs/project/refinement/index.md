@@ -38,6 +38,7 @@ executes work.
 | 14 | [RS014](rs014-transient-composer-notices/index.md) | Transient Composer Notices | closed |
 | 15 | [RS015](rs015-light-theme-interaction-contrast/index.md) | Light Theme Interaction Contrast | closed |
 | 16 | [RS016](rs016-ongoing-product-improvements-and-adjustments/index.md) | Ongoing Product Improvements and Adjustments | active |
+| 17 | [RS017](rs017-reliable-agent-access/index.md) | Reliable Agent Access | closed |
 
 ## Change Requests
 
@@ -46,6 +47,11 @@ Open work is ordered intentionally. Terminal history follows open work.
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
 | — | [CR030](rs016-ongoing-product-improvements-and-adjustments/cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md) | RS016 | Restore Journey expansion arrow contrast in light themes | done | @alissonvale | `refinement/rs016-cr030-journey-expansion-arrow-contrast` |
+| — | [CR035](rs017-reliable-agent-access/cr035-make-journey-authority-proportional.md) | RS017 | Make Journey Authority Proportional to the Operation | done | @alissonvale | `refinement/rs017-cr035-proportional-journey-authority` |
+| — | [CR034](rs017-reliable-agent-access/cr034-replace-generic-retry-with-explicit-recovery-routes.md) | RS017 | Replace Generic Retry with Explicit Recovery Routes | done | @alissonvale | `refinement/rs017-cr034-explicit-recovery-routes` |
+| — | [CR033](rs017-reliable-agent-access/cr033-separate-local-completion-from-mirror-synchronization.md) | RS017 | Separate Local Turn Completion from Mirror Synchronization | done | @alissonvale | `refinement/rs017-cr033-local-completion` |
+| — | [CR032](rs017-reliable-agent-access/cr032-establish-conversation-availability-contract.md) | RS017 | Establish the Conversation Availability Contract | done | @alissonvale | `refinement/rs017-cr032-conversation-availability-contract` |
+| — | [CR031](rs016-ongoing-product-improvements-and-adjustments/cr031-recover-from-unrestorable-previous-response.md) | RS016 | Recover from unrestorable previous response | promoted | @alissonvale | `refinement/rs016-cr031-unrestorable-response-recovery` |
 | — | [CR029](rs016-ongoing-product-improvements-and-adjustments/cr029-restore-responsiveness-for-long-conversations.md) | RS016 | Restore responsiveness for long conversations | done | @alissonvale | `refinement/rs016-cr029-long-conversation-responsiveness` |
 | — | [CR028](rs015-light-theme-interaction-contrast/cr028-restore-search-and-pending-file-contrast-in-light-themes.md) | RS015 | Restore search and pending-file contrast in light themes | done | @alissonvale | `refinement/rs015-cr028-light-theme-interaction-contrast` |
 | — | [CR027](rs014-transient-composer-notices/cr027-auto-dismiss-transient-composer-notices.md) | RS014 | Auto-dismiss transient composer notices | done | @alissonvale | `refinement/rs014-cr027-transient-composer-notices` |

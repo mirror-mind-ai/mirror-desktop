@@ -29,8 +29,8 @@ use runtime_channel::{
 };
 use whats_new_state::{load_whats_new_state, save_whats_new_state};
 use turn_journal::{
-    admit_turn, can_interrupt_inactive_turn, read_turn_journal, transition_turn,
-    TurnJournalAuthority, TurnJournalDocument, TurnJournalRecord, TurnPhase, TurnPiExecutionEvidence,
+    admit_turn, interrupt_inactive_turn, read_turn_journal, transition_turn, TurnJournalAuthority,
+    TurnJournalDocument, TurnJournalRecord, TurnPhase, TurnPiExecutionEvidence,
     TurnRecoveryDisposition, TurnTerminalEvidence, TurnTerminalOutcome, TurnTransitionRequest,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
@@ -3257,7 +3257,20 @@ fn with_turn_journal_lock<T>(
 
 fn admit_turn_journal(app: &AppHandle, run_authority: &RunAuthority) -> Result<TurnJournalRecord, String> {
     let authority = journal_authority(run_authority);
-    with_turn_journal_lock(app, &authority, |path| admit_turn(path, authority.clone(), None))
+    with_turn_journal_lock(app, &authority, |path| {
+        let journal = read_turn_journal(path)?;
+        for record in journal.records.iter().filter(|record| {
+            record.authority.journey_id == authority.journey_id
+                && record.phase == TurnPhase::Projected
+                && record.terminal_outcome == Some(TurnTerminalOutcome::Completed)
+                && record.terminal_evidence.as_ref()
+                    .and_then(|evidence| evidence.pi_execution.as_ref())
+                    .is_some()
+        }) {
+            validate_locally_completed_projection_at(app, record)?;
+        }
+        admit_turn(path, authority.clone(), None)
+    })
 }
 
 fn event_journal_authority(authority: &PiProcessEventAuthority) -> TurnJournalAuthority {
@@ -3422,10 +3435,7 @@ fn interrupt_inactive_turn_journal(
         if record.revision != expected_revision {
             return Err("turn_journal_inactive_revision_stale".to_string());
         }
-        if !can_interrupt_inactive_turn(&record, active_generation, journey_has_retained_lease) {
-            return Err("turn_journal_inactive_interruption_unsafe".to_string());
-        }
-        transition_turn(
+        interrupt_inactive_turn(
             path,
             &authority,
             TurnTransitionRequest {
@@ -3438,6 +3448,8 @@ fn interrupt_inactive_turn_journal(
                 cancellation_intent: None,
                 recovery_disposition: Some(TurnRecoveryDisposition::Interrupted),
             },
+            active_generation,
+            journey_has_retained_lease,
         )
     })
 }
@@ -5199,9 +5211,15 @@ fn bounded_utf8(value: &str, max_bytes: usize) -> String {
     value[..boundary].to_string()
 }
 
-fn terminal_pi_execution_evidence(run_authority: &RunAuthority) -> Option<TurnPiExecutionEvidence> {
+fn terminal_pi_execution_evidence(
+    run_authority: &RunAuthority,
+    baseline_leaf_entry_id: Option<&str>,
+) -> Option<TurnPiExecutionEvidence> {
     let content = fs::read_to_string(&run_authority.pi_session_file).ok()?;
     let turn = project_complete_pi_transcript(&content).ok()?.pop()?;
+    if baseline_leaf_entry_id == Some(turn.assistant_entry_id.as_str()) {
+        return None;
+    }
     let output_truncated = turn.assistant_text.len() > 65_536;
     Some(TurnPiExecutionEvidence {
         user_entry_id: turn.user_entry_id,
@@ -5292,6 +5310,8 @@ fn run_pi_process(
         );
         return;
     }
+    let baseline_leaf_entry_id = terminal_pi_execution_evidence(&run_authority, None)
+        .map(|evidence| evidence.leaf_entry_id);
     let mirror_mediated = config.invocation_mode == "mirror" && !config.safe_test_mode;
     let command = if config.safe_test_mode {
         "cat".to_string()
@@ -5592,7 +5612,10 @@ fn run_pi_process(
                     .and_then(|registry| registry.cancellation_requested(&target).ok())
                     .unwrap_or(false);
                 if !cancellation_requested {
-                    if let Some(pi_execution) = terminal_pi_execution_evidence(&run_authority) {
+                    if let Some(pi_execution) = terminal_pi_execution_evidence(
+                        &run_authority,
+                        baseline_leaf_entry_id.as_deref(),
+                    ) {
                         let mut evidence = empty_terminal_evidence();
                         evidence.pi_execution = Some(pi_execution);
                         rpc_terminal_durable = adopt_terminal_journal(
@@ -5627,7 +5650,10 @@ fn run_pi_process(
                     .unwrap_or(false);
                 let completion_evidence = status
                     .success()
-                    .then(|| terminal_pi_execution_evidence(&run_authority))
+                    .then(|| terminal_pi_execution_evidence(
+                        &run_authority,
+                        baseline_leaf_entry_id.as_deref(),
+                    ))
                     .flatten();
                 let rpc_was_settled = mirror_mediated && control_child_handle(&child_handle, |process| {
                     Ok::<bool, String>(process.settled.load(Ordering::Acquire))
@@ -5689,7 +5715,10 @@ fn run_pi_process(
             if first_terminal {
                 let mut evidence = empty_terminal_evidence();
                 if terminal_state == TerminalState::Completed {
-                    evidence.pi_execution = terminal_pi_execution_evidence(&run_authority);
+                    evidence.pi_execution = terminal_pi_execution_evidence(
+                        &run_authority,
+                        baseline_leaf_entry_id.as_deref(),
+                    );
                 }
                 match adopt_terminal_journal(&app, &authority, terminal_state, evidence) {
                     Ok(()) => emit(
@@ -6127,6 +6156,81 @@ fn conversation_projection_path(
     let app_data_dir = app.path().app_data_dir()
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     conversation_projection_path_at(&app_data_dir, journey_id, thread_id, generation)
+}
+
+fn validate_locally_completed_projection(
+    parsed: &Value,
+    authority: &TurnJournalAuthority,
+    expected_assistant_text: &str,
+) -> Result<(), String> {
+    let invalid = || "turn_journal_projected_projection_invalid".to_string();
+    let conversation = parsed.get("conversation").ok_or_else(invalid)?;
+    let live = conversation.get("liveIdentity").ok_or_else(invalid)?;
+    if conversation.get("journeyId").and_then(Value::as_str) != Some(authority.journey_id.as_str())
+        || conversation.get("id").and_then(Value::as_str) != Some(authority.thread_id.as_str())
+        || live.get("journeyId").and_then(Value::as_str) != Some(authority.journey_id.as_str())
+        || live.get("harnessConversationId").and_then(Value::as_str) != Some(authority.thread_id.as_str())
+        || live.get("generation").and_then(Value::as_u64) != Some(authority.generation)
+        || live.get("piSessionId").and_then(Value::as_str) != Some(authority.pi_session_id.as_str())
+        || live.get("mirrorConversationId").and_then(Value::as_str) != Some(authority.mirror_conversation_id.as_str())
+    {
+        return Err(invalid());
+    }
+    let turn = conversation.pointer("/reconciliation/turns")
+        .and_then(Value::as_array)
+        .and_then(|turns| turns.iter().find(|turn| {
+            turn.get("turnId").and_then(Value::as_str) == Some(authority.turn_id.as_str())
+        }))
+        .ok_or_else(invalid)?;
+    if turn.get("runId").and_then(Value::as_str) != Some(authority.run_id.as_str())
+        || turn.pointer("/harness/state").and_then(Value::as_str) != Some("committed")
+        || turn.pointer("/harness/userMessageId").and_then(Value::as_str)
+            != Some(authority.harness_user_message_id.as_str())
+        || turn.pointer("/harness/assistantMessageId").and_then(Value::as_str)
+            != Some(authority.harness_assistant_message_id.as_str())
+        || turn.pointer("/pi/state").and_then(Value::as_str) != Some("committed")
+    {
+        return Err(invalid());
+    }
+    let messages = conversation.get("messages").and_then(Value::as_array).ok_or_else(invalid)?;
+    let exact_message = |id: &str, role: &str, expected_content: Option<&str>| messages.iter().any(|message| {
+        message.get("id").and_then(Value::as_str) == Some(id)
+            && message.get("role").and_then(Value::as_str) == Some(role)
+            && message.get("content").and_then(Value::as_str).is_some_and(|content| {
+                expected_content.map_or(!content.is_empty(), |expected| content == expected)
+            })
+    });
+    if !exact_message(&authority.harness_user_message_id, "user", None)
+        || !exact_message(
+            &authority.harness_assistant_message_id,
+            "assistant",
+            Some(expected_assistant_text),
+        )
+    {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+fn validate_locally_completed_projection_at(
+    app: &AppHandle,
+    record: &TurnJournalRecord,
+) -> Result<(), String> {
+    let path = conversation_projection_path(
+        app,
+        &record.authority.journey_id,
+        &record.authority.thread_id,
+        record.authority.generation,
+    )?;
+    let parsed: Value = serde_json::from_str(
+        &fs::read_to_string(path)
+            .map_err(|_| "turn_journal_projected_projection_missing".to_string())?,
+    ).map_err(|_| "turn_journal_projected_projection_invalid".to_string())?;
+    let assistant_text = record.terminal_evidence.as_ref()
+        .and_then(|evidence| evidence.pi_execution.as_ref())
+        .map(|execution| execution.assistant_text.as_str())
+        .ok_or_else(|| "turn_journal_projected_projection_invalid".to_string())?;
+    validate_locally_completed_projection(&parsed, &record.authority, assistant_text)
 }
 
 fn validate_projection_payload_authority(parsed: &Value, authority: &RunAuthority) -> Result<(), String> {
@@ -7216,11 +7320,12 @@ mod tests {
         classify_chat_local_reference_at, classify_chat_local_reference_at_with_home,
         unwrap_persisted_thread, validate_acknowledged_projection_authority_at,
         validate_composer_drafts_payload, validate_external_url, validate_journey_registry_payload,
-        merge_persisted_mirror_evidence, mirror_rpc_args, validate_active_pre_frontier_projection_at,
+        journal_authority, merge_persisted_mirror_evidence, mirror_rpc_args,
+        validate_active_pre_frontier_projection_at, validate_locally_completed_projection,
         validate_current_projection_turn_authority, validate_mirror_append_item,
         validate_outbox_item_run_authority_at,
         validate_desktop_conversation_deletion, validate_pi_session_file_at,
-        validate_projection_payload_authority, validate_run_authority_at,
+        terminal_pi_execution_evidence, validate_projection_payload_authority, validate_run_authority_at,
         validate_turn_correlation,
         write_durable_projection_at, JourneyProjectionPersistenceState, PiSessionContextSnapshot,
         RegistryAuthorityInspection, RunAuthority, TerminalState, TurnCorrelation, JOURNEY_REGISTRY_FILE, FILE_ATTACHMENT_MAX_FILES,
@@ -7891,6 +7996,53 @@ mod tests {
     }
 
     #[test]
+    fn locally_completed_projection_requires_exact_turn_and_message_authority() {
+        let authority = journal_authority(&test_run_authority(&test_root("local-completion-authority")));
+        let projection = json!({
+            "conversation": {
+                "id": "thread-one",
+                "journeyId": "journey-one",
+                "liveIdentity": {
+                    "journeyId": "journey-one",
+                    "harnessConversationId": "thread-one",
+                    "piSessionId": "session-one",
+                    "generation": 1,
+                    "mirrorConversationId": "mirror-one"
+                },
+                "messages": [
+                    {"id": "user-one", "role": "user", "content": "question"},
+                    {"id": "assistant-one", "role": "assistant", "content": "answer"}
+                ],
+                "reconciliation": {"turns": [{
+                    "turnId": "turn-one",
+                    "runId": "run-one",
+                    "harness": {"state": "committed", "userMessageId": "user-one", "assistantMessageId": "assistant-one"},
+                    "pi": {"state": "committed"},
+                    "mirror": {"state": "pending"}
+                }]}
+            }
+        });
+
+        assert!(validate_locally_completed_projection(&projection, &authority, "answer").is_ok());
+        let mut missing_assistant = projection.clone();
+        missing_assistant["conversation"]["messages"].as_array_mut().unwrap().pop();
+        assert_eq!(
+            validate_locally_completed_projection(&missing_assistant, &authority, "answer").unwrap_err(),
+            "turn_journal_projected_projection_invalid",
+        );
+        assert_eq!(
+            validate_locally_completed_projection(&projection, &authority, "different answer").unwrap_err(),
+            "turn_journal_projected_projection_invalid",
+        );
+        let mut wrong_turn = projection;
+        wrong_turn["conversation"]["reconciliation"]["turns"][0]["runId"] = json!("replacement");
+        assert_eq!(
+            validate_locally_completed_projection(&wrong_turn, &authority, "answer").unwrap_err(),
+            "turn_journal_projected_projection_invalid",
+        );
+    }
+
+    #[test]
     fn pre_frontier_requires_the_authorized_turn_to_remain_current() {
         let root = test_root("pre-frontier-current-turn");
         let authority = test_run_authority(&root);
@@ -8092,6 +8244,24 @@ mod tests {
         assert!(first.0.contains("Mirror Desktop"));
         assert!(first.0.chars().count() <= 80);
         assert!(first.1.chars().count() <= 100);
+    }
+
+    #[test]
+    fn terminal_evidence_must_advance_beyond_the_pre_invocation_pi_leaf() {
+        let root = test_root("terminal-evidence-baseline");
+        let authority = test_run_authority(&root);
+        let session_path = PathBuf::from(&authority.pi_session_file);
+        fs::create_dir_all(session_path.parent().unwrap()).unwrap();
+        fs::write(&session_path, [
+            json!({"type":"session","id":"session-one","timestamp":"2026-09-01T10:00:00.000Z"}).to_string(),
+            json!({"type":"message","id":"pi-user","parentId":null,"timestamp":"2026-09-01T10:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"question"}]}}).to_string(),
+            json!({"type":"message","id":"pi-assistant","parentId":"pi-user","timestamp":"2026-09-01T10:00:02.000Z","message":{"role":"assistant","content":[{"type":"text","text":"answer"}],"stopReason":"stop"}}).to_string(),
+        ].join("\n")).unwrap();
+
+        let evidence = terminal_pi_execution_evidence(&authority, None).unwrap();
+        assert_eq!(evidence.leaf_entry_id, "pi-assistant");
+        assert!(terminal_pi_execution_evidence(&authority, Some("pi-assistant")).is_none());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

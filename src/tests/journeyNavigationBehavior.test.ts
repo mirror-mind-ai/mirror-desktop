@@ -7,7 +7,6 @@ import {
   resolveJourneyConversationRestore,
   resolveJourneySelection,
   shouldPreserveReadyJourneyConversation,
-  shouldRecoverDurableTurnJournal,
   shouldSubmitJourneyDraft,
 } from "../app/journeyNavigationCoordinator";
 import {
@@ -104,29 +103,6 @@ describe("Journey navigation behavior under serial occupancy", () => {
       selectedJourneyId: "mirror-desktop",
       currentConversationJourneyId: "mirror-desktop",
       threadReady: false,
-    })).toBe(false);
-  });
-
-  it("recovers from the journal only without a live exact native execution", () => {
-    expect(shouldRecoverDurableTurnJournal({
-      allowPersistedRecovery: true,
-      nativeInspectionStatus: "known",
-      ownerHasLiveNativeExecution: false,
-    })).toBe(true);
-    expect(shouldRecoverDurableTurnJournal({
-      allowPersistedRecovery: true,
-      nativeInspectionStatus: "known",
-      ownerHasLiveNativeExecution: true,
-    })).toBe(false);
-    expect(shouldRecoverDurableTurnJournal({
-      allowPersistedRecovery: false,
-      nativeInspectionStatus: "known",
-      ownerHasLiveNativeExecution: false,
-    })).toBe(false);
-    expect(shouldRecoverDurableTurnJournal({
-      allowPersistedRecovery: true,
-      nativeInspectionStatus: "reconciling",
-      ownerHasLiveNativeExecution: false,
     })).toBe(false);
   });
 

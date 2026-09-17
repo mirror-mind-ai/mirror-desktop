@@ -22,14 +22,13 @@ describe("dedicated conversation context reset lifecycle", () => {
     expect(command).not.toContain("generatePacket");
   });
 
-  it("automatically closes inactive attempts and keeps implementation jargon out of normal recovery", () => {
-    expect(appSource).toContain('decision !== "auto_interrupt"');
+  it("closes inactive attempts only through an explicit model-free recovery route", () => {
+    expect(appSource).not.toContain("automaticTurnRecoveryAuthorized");
+    expect(appSource).toContain('route === "preserve_attempt_and_continue"');
+    expect(appSource).toContain("await markBlockingTurnInterrupted()");
     expect(appSource).toContain("await interruptInactiveTurnRecord(");
-    expect(appSource).toContain("Preparing your conversation…");
-    expect(appSource).toContain("A previous attempt didn’t finish. You can send your message again.");
-    expect(appSource).not.toContain("Unfinished turn needs recovery");
-    expect(appSource).not.toContain("Resume recovery");
-    expect(appSource).not.toContain("Mark as interrupted");
+    expect(appSource).toContain("The durable attempt was preserved. You can continue without the unverified response.");
+    expect(appSource).not.toContain("Discard previous response");
   });
 
   it("persists dedicated Harness projections by generation", () => {

@@ -124,8 +124,12 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("showBlockingTurnRecoveryNotice");
     expect(appSource).toContain("showNativeOccupancyNotice");
     expect(appSource).toContain("showConversationSyncNotice");
+    expect(appSource).toContain("const showConversationRecoveryNotice = recoveryRoutes.length > 0");
+    expect(appSource).toContain("|| showConversationSyncNotice");
+    expect(appSource).toContain("{showConversationRecoveryNotice ? (");
     expect(appSource).toContain('composerTurnStatus !== "finishing"');
-    expect(appSource).toContain("We couldn’t restore the previous response");
+    expect(appSource).toContain("Resolve the preserved attempt");
+    expect(appSource).toContain("No recovery action will run the agent again.");
     expect(appSource).toContain("Native Journey lease retained");
     expect(appSource).toMatch(
       /onLeaseReleased: \(\) => \{[\s\S]*?setBlockingTurnJournalRecord\(undefined\);/,
@@ -135,7 +139,14 @@ describe("runtime projection component", () => {
       appSource.indexOf("appendAndAcknowledge:", appSource.indexOf("onLeaseReleased: () => {")),
     );
     expect(leaseReleaseCallback).not.toContain('type: "finalization_finished"');
-    expect(appSource).toMatch(/requiresConversationRestore: isJourneyReloading\s*\|\| showConversationSyncNotice/);
+    expect(appSource).toContain("mirrorSynchronizationPending: showConversationSyncNotice");
+    expect(appSource).toContain("const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;");
+    expect(appSource).toContain("const durableBaseConversation = await loadDedicatedJourneyConversation(");
+    expect(appSource).toContain("baseConversation = durableBaseConversation;");
+    expect(appSource).toContain("complete durable conversation projection could not be loaded");
+    expect(appSource).toContain("resumeProjectedMirrorSynchronization(projectedSyncRecord)");
+    expect(appSource).toContain("projectionAlreadyDurable: true");
+    expect(appSource).not.toContain("requiresConversationRestore:");
     expect(appSource).toContain("status={composerTurnStatus}");
     expect(appSource).toContain("if (journeyId === selectedJourney)");
     expect(appSource).toContain("const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime)");

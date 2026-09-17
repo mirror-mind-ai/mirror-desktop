@@ -3,7 +3,6 @@ import type { JourneySettlementAuthority } from "../domain/journeySettlementAuth
 import {
   decideTurnJournalRecovery,
   decideTurnJournalTerminal,
-  decideTurnJournalOpeningRecovery,
   findBlockingTurnJournalRecord,
   findExactTurnJournalRecord,
   isTurnJournalSuccessorEligible,
@@ -109,26 +108,30 @@ describe("durable turn journal authority", () => {
     expect(decideTurnJournalRecovery(record({ phase: "interrupted", terminalOutcome: null, terminalEvidence: null }))).toBe("interrupt");
   });
 
-  it("automates only recoveries with one safe outcome", () => {
-    expect(decideTurnJournalOpeningRecovery(record({ phase: "admitted", terminalOutcome: null, terminalEvidence: null }), false)).toBe("auto_interrupt");
-    expect(decideTurnJournalOpeningRecovery(record({ terminalOutcome: "process_died" }), false)).toBe("auto_interrupt");
-    expect(decideTurnJournalOpeningRecovery(record(), false)).toBe("recover_response");
-    expect(decideTurnJournalOpeningRecovery(record({ phase: "projected" }), false)).toBe("recover_response");
-    expect(decideTurnJournalOpeningRecovery(record({ phase: "running", terminalOutcome: null, terminalEvidence: null }), true)).toBe("wait_for_agent");
-  });
-
   it("surfaces blocking records from the active or a prior generation", () => {
     const prior = record({ phase: "running", terminalOutcome: null, terminalEvidence: null });
     expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 2)).toBe(prior);
     expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 1)).toBe(prior);
     expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 0)).toBeUndefined();
     expect(findBlockingTurnJournalRecord(document({ ...prior, phase: "interrupted" }), "journey-a", 2)).toBeUndefined();
+    expect(findBlockingTurnJournalRecord(document(record({ phase: "projected" })), "journey-a", 2)).toBeUndefined();
+    expect(findBlockingTurnJournalRecord(document(record({ phase: "projected", terminalOutcome: "cancelled" })), "journey-a", 2))
+      .toMatchObject({ phase: "projected", terminalOutcome: "cancelled" });
     expect(findBlockingTurnJournalRecord(document(prior), "journey-b", 2)).toBeUndefined();
   });
 
-  it("permits a successor only after local outbox durability or honest interruption", () => {
+  it("permits a successor after exact local completion without waiting for Mirror synchronization", () => {
     expect(isTurnJournalSuccessorEligible(record({ phase: "terminal_durable" }))).toBe(false);
-    expect(isTurnJournalSuccessorEligible(record({ phase: "projected" }))).toBe(false);
+    expect(isTurnJournalSuccessorEligible(record({ phase: "projected" }))).toBe(true);
+    expect(isTurnJournalSuccessorEligible(record({ phase: "projected", terminalOutcome: "cancelled" }))).toBe(false);
+    expect(isTurnJournalSuccessorEligible(record({ phase: "projected", terminalEvidence: null }))).toBe(false);
+    expect(isTurnJournalSuccessorEligible(record({
+      phase: "projected",
+      terminalEvidence: {
+        ...record().terminalEvidence!,
+        piExecution: { ...record().terminalEvidence!.piExecution!, startedAt: "2026-08-01T19:59:59.000Z" },
+      },
+    }))).toBe(false);
     expect(isTurnJournalSuccessorEligible(record({ phase: "outbox_enqueued" }))).toBe(true);
     expect(isTurnJournalSuccessorEligible(record({ phase: "settled" }))).toBe(true);
     expect(isTurnJournalSuccessorEligible(record({ phase: "interrupted", terminalOutcome: null, terminalEvidence: null }))).toBe(true);
