@@ -2,7 +2,7 @@
 
 # CR034 — Replace Generic Retry with Explicit Recovery Routes
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs017-cr034-explicit-recovery-routes`
 
@@ -83,7 +83,7 @@ Expected implementation surface:
 - `src/app/ConversationSyncNotice.tsx` or a narrowly renamed recovery surface;
 - focused recovery-policy, component and integration tests.
 
-No Rust or schema change is expected. If exact recovery cannot be expressed through existing native journal transitions and outbox commands, implementation must stop for a separate scope decision rather than adding an unplanned authority path.
+The initial plan expected no Rust or schema change. Implementation stopped when the preserved alpha evidence proved that an ineligible `projected` record had no authorized escape: native interruption accepted only `admitted`, `running` and `terminal_durable`. The Navigator then explicitly authorized a bounded Rust expansion. The native journal may now transition an exact, inactive, successor-ineligible `projected` record to `interrupted`, while preserving its terminal outcome and evidence. An eligible completed projection remains non-interruptible. No schema changed.
 
 ### Acceptance
 
@@ -124,6 +124,28 @@ The Navigator approved this Plan, assigned Driver `@alissonvale`, assigned Deliv
 
 In the reported alpha 8 incident, **Try again** repeatedly failed, reset was unavailable and a separate rescue Journey was required to regain agent access.
 
+Implementation evidence currently includes:
+
+- pure route classification for exact Mirror repair, legacy gaps, preserved completed responses, incomplete attempts and native waiting states;
+- exact route-to-handler mapping with no provider invocation;
+- Navigator DEV validation proving the stale `projected` attempt can be preserved and interrupted; that validation also exposed and fixed a successor provider-failure path that durably interrupted the turn but left the in-memory runtime on **Finishing…**;
+- normal successful successor turns proving that transient automatic Mirror delivery must remain silent during **Finishing…**; the explicit repair route now appears only when synchronization debt survives finalization;
+- native tests proving that only inactive successor-ineligible `projected` records can be interrupted and that terminal evidence remains unchanged;
+- 144 frontend test files and 797 tests passing;
+- 137 native tests passing, with one explicitly ignored private-fixture test;
+- successful production web build, `cargo check`, roadmap consistency and diff checks;
+- Navigator acceptance in Mirror Desktop Dev after stale-projection recovery, provider-failure settlement, repeated successor turns and silent normal Mirror synchronization.
+
+## Proportionality Review
+
+The implementation adds one pure route classifier and one operation-specific recovery surface downstream of the existing availability contract. Each route delegates to an exact existing operation. The only native expansion is the minimum journal authority required by the preserved alpha evidence: an exact inactive `projected` record may become `interrupted` only when it is successor-ineligible and no Journey lease remains. Eligible completion, stale authority, replacement, retained lease and cross-generation cases remain fail-closed. No schema, background worker, provider-retry path or parallel persistence authority was added.
+
+## Debt Review
+
+**Decision:** no_action
+
+The closeout review removed the disabled opening-time auto-recovery branch, its obsolete policy helper, and the superseded generic synchronization notice instead of carrying parallel recovery mechanisms forward. Recovery policy is centralized in `conversationRecovery.ts`; presentation is centralized in `ConversationRecoveryNotice.tsx`; exact mutation remains with the journal, settlement, outbox, Conversation creation and generation-reset authorities. CR035’s proportional Journey-context work is pre-existing planned scope rather than debt introduced here.
+
 ## Outcome
 
-Plan approved. Local implementation is in progress under the assigned Driver and Delivery.
+Done. Generic recovery re-entry has been replaced by explicit, evidence-driven, model-free routes. Ineligible inactive projections now have one bounded native escape that preserves terminal evidence, provider failures cannot strand the runtime on **Finishing…**, and ordinary automatic Mirror delivery remains silent unless synchronization debt survives finalization. Navigator DEV validation passed. No production app-data mutation, push, merge, publication or release was performed.

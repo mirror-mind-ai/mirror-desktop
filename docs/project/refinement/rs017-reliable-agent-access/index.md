@@ -30,8 +30,8 @@ Journey authority remains exact for run correlation, cancellation, persistence a
 ## Change Requests
 
 - [CR033 — Separate Local Turn Completion from Mirror Synchronization](cr033-separate-local-completion-from-mirror-synchronization.md), `done`, validated with Driver `@alissonvale` and Delivery `refinement/rs017-cr033-local-completion`
-- [CR034 — Replace Generic Retry with Explicit Recovery Routes](cr034-replace-generic-retry-with-explicit-recovery-routes.md), `in_progress`, with Driver `@alissonvale` and Delivery `refinement/rs017-cr034-explicit-recovery-routes`
+- [CR034 — Replace Generic Retry with Explicit Recovery Routes](cr034-replace-generic-retry-with-explicit-recovery-routes.md), `done`, validated with Driver `@alissonvale` and Delivery `refinement/rs017-cr034-explicit-recovery-routes`
 - [CR035 — Make Journey Authority Proportional to the Operation](cr035-make-journey-authority-proportional.md), `captured`
 - [CR032 — Establish the Conversation Availability Contract](cr032-establish-conversation-availability-contract.md), `done`
 
-CR032 established the centralized availability contract. CR033 separated exact durable local completion from secondary Mirror synchronization and was validated through a controlled DEV outbox failure, successor admission and later exact synchronization repair. CR034 is selected, approved and in progress with assigned Driver and Delivery. CR035 preserves the agreed sequence without authorizing selection, planning or implementation.
+CR032 established the centralized availability contract. CR033 separated exact durable local completion from secondary Mirror synchronization and was validated through a controlled DEV outbox failure, successor admission and later exact synchronization repair. CR034 replaced generic retry with explicit model-free recovery routes and passed Navigator DEV validation across stale projection recovery, failed-turn settlement, successors and normal Mirror synchronization. CR035 preserves the agreed sequence without authorizing selection, planning or implementation.
