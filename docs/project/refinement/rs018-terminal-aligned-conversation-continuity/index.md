@@ -47,8 +47,11 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 
 ## Change Requests
 
+- [CR042: Decouple Successor Admission from Desktop Projections](cr042-decouple-successor-admission-from-desktop-projections.md)
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
+
+CR042 is `planned` and awaits explicit Driver and Delivery decisions. It removes Desktop projection certification from successor admission while preserving exact control-plane and active-execution authority.
 
 CR041 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr041-pi-session-transcript`. The Navigator accepted the versioned, authority-validated active Pi transcript inspection on 2026-09-17. Proportionality review found the read-only adapter appropriately bounded; Debt Review concluded `no_action`.
 

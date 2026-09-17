@@ -47,8 +47,9 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR037](rs016-ongoing-product-improvements-and-adjustments/cr037-confirm-app-closure-while-agents-are-working.md) | RS016 | Confirm app closure while agents are working | captured | — | — |
-| 2 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
+| 1 | [CR042](rs018-terminal-aligned-conversation-continuity/cr042-decouple-successor-admission-from-desktop-projections.md) | RS018 | Decouple Successor Admission from Desktop Projections | planned | — | — |
+| 2 | [CR037](rs016-ongoing-product-improvements-and-adjustments/cr037-confirm-app-closure-while-agents-are-working.md) | RS016 | Confirm app closure while agents are working | captured | — | — |
+| 3 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
 | — | [CR041](rs018-terminal-aligned-conversation-continuity/cr041-reconstruct-desktop-conversations-from-pi-session.md) | RS018 | Reconstruct Desktop Conversations from the Pi Session | done | @alissonvale | `refinement/rs018-cr041-pi-session-transcript` |
 | — | [CR040](rs018-terminal-aligned-conversation-continuity/cr040-establish-terminal-aligned-conversation-authority-contract.md) | RS018 | Establish the Terminal-Aligned Conversation Authority Contract | done | @alissonvale | `refinement/rs018-cr040-terminal-aligned-authority` |
 | — | [CR039](rs016-ongoing-product-improvements-and-adjustments/cr039-make-mirror-synchronization-recovery-actionable.md) | RS016 | Make Mirror synchronization recovery actionable | promoted | — | `RS018 / CR040` |
