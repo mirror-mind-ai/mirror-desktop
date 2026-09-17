@@ -2,7 +2,7 @@
 
 # CR042: Decouple Successor Admission from Desktop Projections
 
-**Status:** in_progress
+**Status:** validated
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr042-projection-independent-admission`
 
@@ -103,7 +103,7 @@ The change removes an admission dependency rather than deleting evidence. Journa
 
 ### Authority Boundary
 
-The Navigator confirmed Driver `@alissonvale`, Delivery `refinement/rs018-cr042-projection-independent-admission`, selection, focus, transition to `in_progress` and local implementation. Navigator Validation, production mutation, push, merge, publication and release remain separate decisions.
+The Navigator confirmed Driver `@alissonvale`, Delivery `refinement/rs018-cr042-projection-independent-admission`, selection, focus, transition to `in_progress` and local implementation, then accepted Navigator Validation on 2026-09-17. Debt Review, terminal closure, production mutation, push, merge, publication and release remain separate decisions.
 
 ## Evidence
 
@@ -112,9 +112,15 @@ The Navigator confirmed Driver `@alissonvale`, Delivery `refinement/rs018-cr042-
 - Flip Podcast retained completed Pi and journal evidence while projection reconciliation reported `checkpoint_regression` and blocked later admission.
 - Current native admission validates historical locally completed projections before worker start, allowing presentation disagreement to masquerade as a worker-start failure.
 
+## Navigator Validation
+
+**Accepted:** 2026-09-17
+
+The Navigator accepted the native-occupancy authority boundary, projection-independent journal admission, relaunch behavior, distinct admission diagnostics and automated regression evidence. Acceptance does not authorize production Flip repair, release or later RS018 migration slices.
+
 ## Outcome
 
-Implementation is complete and awaiting Navigator Validation.
+Implementation and Navigator Validation are complete. CR042 remains `validated` pending proportionality and Debt Review.
 
 Native reservation now owns same-Journey overlap prevention. Journal admission appends the newly reserved run without consulting historical Desktop or Segment projections and without treating historical admitted, running, terminal, projected or delivery records as process occupancy. Exact run identity, Journey/thread/generation/Pi-session binding and runtime-channel validation remain unchanged.
 
