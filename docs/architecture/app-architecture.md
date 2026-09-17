@@ -13,6 +13,12 @@ Mirror Desktop is a Tauri 2 desktop application with a Vite, React and TypeScrip
 
 The architecture keeps the native shell thin, places application logic in TypeScript and preserves Nautilus domain logic only where the application is consuming the Nautilus method.
 
+## Terminal-aligned Conversation authority direction
+
+Normal alpha use exposed that the Pi session, Desktop projection, turn journal, Conversation Segments and Mirror delivery path can become competing authorities for one completed turn. RS018 therefore establishes a terminal-aligned target: the Pi session owns the agent transcript, native occupancy plus the turn journal own active execution, Desktop and Segment projections are rebuildable views, and Mirror append is independent delivery debt that never blocks a successor.
+
+The current runtime does not yet conform. Migration boundaries, compatibility constraints, incident traces and sustained-use acceptance are recorded in [Terminal-Aligned Conversation Authority](terminal-aligned-conversation-authority.md). Runtime changes must proceed through separate CRs rather than treating this architecture record as implementation authority.
+
 ## Initial stack
 
 - Tauri 2 for desktop shell and cross-platform packaging path.

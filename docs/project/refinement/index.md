@@ -12,8 +12,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: RS016 — Ongoing Product Improvements and Adjustments
-- Change Request: CR030 — Restore Journey Expansion Arrow Contrast in Light Themes
+- Refinement Story: RS018 — Terminal-Aligned Conversation Continuity
+- Change Request: none
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -39,6 +39,7 @@ executes work.
 | 15 | [RS015](rs015-light-theme-interaction-contrast/index.md) | Light Theme Interaction Contrast | closed |
 | 16 | [RS016](rs016-ongoing-product-improvements-and-adjustments/index.md) | Ongoing Product Improvements and Adjustments | active |
 | 17 | [RS017](rs017-reliable-agent-access/index.md) | Reliable Agent Access | closed |
+| 18 | [RS018](rs018-terminal-aligned-conversation-continuity/index.md) | Terminal-Aligned Conversation Continuity | active |
 
 ## Change Requests
 
@@ -46,6 +47,12 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
+| 1 | [CR037](rs016-ongoing-product-improvements-and-adjustments/cr037-confirm-app-closure-while-agents-are-working.md) | RS016 | Confirm app closure while agents are working | captured | — | — |
+| 2 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
+| — | [CR041](rs018-terminal-aligned-conversation-continuity/cr041-reconstruct-desktop-conversations-from-pi-session.md) | RS018 | Reconstruct Desktop Conversations from the Pi Session | done | @alissonvale | `refinement/rs018-cr041-pi-session-transcript` |
+| — | [CR040](rs018-terminal-aligned-conversation-continuity/cr040-establish-terminal-aligned-conversation-authority-contract.md) | RS018 | Establish the Terminal-Aligned Conversation Authority Contract | done | @alissonvale | `refinement/rs018-cr040-terminal-aligned-authority` |
+| — | [CR039](rs016-ongoing-product-improvements-and-adjustments/cr039-make-mirror-synchronization-recovery-actionable.md) | RS016 | Make Mirror synchronization recovery actionable | promoted | — | `RS018 / CR040` |
+| — | [CR036](rs016-ongoing-product-improvements-and-adjustments/cr036-restore-generation-ready-notice-contrast-in-light-themes.md) | RS016 | Restore generation-ready notice contrast in light themes | done | @alissonvale | `refinement/rs016-cr036-generation-ready-notice-contrast` |
 | — | [CR030](rs016-ongoing-product-improvements-and-adjustments/cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md) | RS016 | Restore Journey expansion arrow contrast in light themes | done | @alissonvale | `refinement/rs016-cr030-journey-expansion-arrow-contrast` |
 | — | [CR035](rs017-reliable-agent-access/cr035-make-journey-authority-proportional.md) | RS017 | Make Journey Authority Proportional to the Operation | done | @alissonvale | `refinement/rs017-cr035-proportional-journey-authority` |
 | — | [CR034](rs017-reliable-agent-access/cr034-replace-generic-retry-with-explicit-recovery-routes.md) | RS017 | Replace Generic Retry with Explicit Recovery Routes | done | @alissonvale | `refinement/rs017-cr034-explicit-recovery-routes` |

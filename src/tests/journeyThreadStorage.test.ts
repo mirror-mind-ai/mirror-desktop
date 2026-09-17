@@ -50,6 +50,23 @@ describe("Journey thread storage boundary", () => {
     expect(invoke).toHaveBeenCalledWith("provision_journey_thread", { journeyId: "journey-one", journeyName: "Journey One" });
   });
 
+  it("inspects the exact generation-bound Pi transcript without a Desktop projection", async () => {
+    const { inspectDedicatedPiTranscript } = await import("../app/journeyThreadStorage");
+    const inspection = {
+      schemaVersion: "0.1.0", leafEntryId: "assistant-1", activeEntryCount: 2,
+      compactionCount: 0, unknownPromptEnvelopeCount: 0, incompleteUserEntryId: null, entries: [], turns: [],
+    };
+    invoke.mockResolvedValueOnce(inspection);
+
+    await expect(inspectDedicatedPiTranscript(
+      "journey-one", "thread-one", 2, "pi-two", "/app/pi-sessions/pi-two.jsonl",
+    )).resolves.toEqual(inspection);
+    expect(invoke).toHaveBeenCalledWith("inspect_dedicated_pi_transcript", {
+      journeyId: "journey-one", threadId: "thread-one", generation: 2,
+      sessionId: "pi-two", sessionFile: "/app/pi-sessions/pi-two.jsonl",
+    });
+  });
+
   it("does not downgrade malformed dedicated authority to absent", async () => {
     const { loadNautilusJourneyThread } = await import("../app/journeyThreadStorage");
     invoke.mockResolvedValueOnce(JSON.stringify({ schemaVersion: "1.0.0", thread: {}, savedAt: new Date().toISOString() }));

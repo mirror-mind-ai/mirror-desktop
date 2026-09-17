@@ -28,9 +28,21 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
+- [CR039: Make Mirror Synchronization Recovery Actionable](cr039-make-mirror-synchronization-recovery-actionable.md)
+- [CR038: Coalesce Composer Draft Persistence](cr038-coalesce-composer-draft-persistence.md)
+- [CR037: Confirm App Closure While Agents Are Working](cr037-confirm-app-closure-while-agents-are-working.md)
+- [CR036: Restore Generation Ready Notice Contrast in Light Themes](cr036-restore-generation-ready-notice-contrast-in-light-themes.md)
 - [CR030 — Restore Journey Expansion Arrow Contrast in Light Themes](cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md)
 - [CR031 — Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md)
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
+
+CR039 is `promoted` to RS018 / CR040. Its recovery incident revealed the same competing-authority structure later reproduced by the Flip Podcast Segment checkpoint failure. Its original plan remains evidence, but its isolated implementation is superseded by the terminal-aligned Conversation authority contract.
+
+CR038 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs016-cr038-coalesced-composer-drafts`. Its Navigator-approved plan separates immediate local typing from coalesced durable draft persistence while preserving explicit flush and recovery boundaries.
+
+CR037 is `captured` and unassigned. It records the need to intercept ordinary app closure while agents are `working`, disclose the active work and require explicit user confirmation before closing.
+
+CR036 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr036-generation-ready-notice-contrast`. The Navigator accepted the rebuilt isolated Mirror Desktop Dev light-theme route, and Debt Review concluded `no_action`.
 
 CR030 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr030-journey-expansion-arrow-contrast`. The Navigator accepted the rebuilt isolated Mirror Desktop Dev light-theme route, and Debt Review concluded `no_action`.
 

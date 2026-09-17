@@ -32,6 +32,7 @@ export type DedicatedPiTranscriptTurn = {
   userEntryId: string;
   assistantEntryId: string;
   userText: string;
+  userPromptEnvelope: "mirror_desktop" | "nautilus_harness" | "raw" | "unknown";
   assistantText: string;
   entryCount: number;
   startedAt: string;
@@ -46,6 +47,43 @@ export async function loadDedicatedPiTranscript(
   sessionFile: string,
 ): Promise<DedicatedPiTranscriptTurn[]> {
   return invoke<DedicatedPiTranscriptTurn[]>("load_dedicated_pi_transcript", {
+    journeyId, threadId, generation, sessionId, sessionFile,
+  });
+}
+
+export type DedicatedPiTranscriptEntry = {
+  entryId: string;
+  parentEntryId: string | null;
+  role: string;
+  visibleText: string;
+  promptEnvelope: "mirror_desktop" | "nautilus_harness" | "raw" | "unknown" | null;
+  stopReason: string | null;
+  timestamp: string;
+  nativeContent: unknown;
+  toolCallId: string | null;
+  toolName: string | null;
+  isError: boolean | null;
+};
+
+export type DedicatedPiTranscriptInspection = {
+  schemaVersion: "0.1.0";
+  leafEntryId: string | null;
+  activeEntryCount: number;
+  compactionCount: number;
+  unknownPromptEnvelopeCount: number;
+  incompleteUserEntryId: string | null;
+  entries: DedicatedPiTranscriptEntry[];
+  turns: DedicatedPiTranscriptTurn[];
+};
+
+export async function inspectDedicatedPiTranscript(
+  journeyId: string,
+  threadId: string,
+  generation: number,
+  sessionId: string,
+  sessionFile: string,
+): Promise<DedicatedPiTranscriptInspection> {
+  return invoke<DedicatedPiTranscriptInspection>("inspect_dedicated_pi_transcript", {
     journeyId, threadId, generation, sessionId, sessionFile,
   });
 }

@@ -301,10 +301,40 @@ struct DedicatedPiTranscriptTurn {
     user_entry_id: String,
     assistant_entry_id: String,
     user_text: String,
+    user_prompt_envelope: String,
     assistant_text: String,
     entry_count: usize,
     started_at: String,
     committed_at: String,
+}
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct DedicatedPiTranscriptInspection {
+    schema_version: String,
+    leaf_entry_id: Option<String>,
+    active_entry_count: usize,
+    compaction_count: usize,
+    unknown_prompt_envelope_count: usize,
+    incomplete_user_entry_id: Option<String>,
+    entries: Vec<DedicatedPiTranscriptEntry>,
+    turns: Vec<DedicatedPiTranscriptTurn>,
+}
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct DedicatedPiTranscriptEntry {
+    entry_id: String,
+    parent_entry_id: Option<String>,
+    role: String,
+    visible_text: String,
+    prompt_envelope: Option<String>,
+    stop_reason: Option<String>,
+    timestamp: String,
+    native_content: Value,
+    tool_call_id: Option<String>,
+    tool_name: Option<String>,
+    is_error: Option<bool>,
 }
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
@@ -319,10 +349,15 @@ struct DedicatedPiUserEntry {
 struct PiBranchEntry {
     id: String,
     parent_id: Option<String>,
+    entry_type: String,
     role: Option<String>,
     text: String,
     stop_reason: Option<String>,
     timestamp: String,
+    native_content: Value,
+    tool_call_id: Option<String>,
+    tool_name: Option<String>,
+    is_error: Option<bool>,
 }
 
 #[tauri::command]
@@ -3729,6 +3764,28 @@ fn load_dedicated_pi_transcript(
 }
 
 #[tauri::command]
+fn inspect_dedicated_pi_transcript(
+    app: AppHandle,
+    journey_id: String,
+    thread_id: String,
+    generation: u64,
+    session_id: String,
+    session_file: String,
+) -> Result<DedicatedPiTranscriptInspection, String> {
+    validate_conversation_session_authority(
+        &app, &journey_id, &thread_id, generation, &session_id, &session_file,
+    )?;
+    let metadata = fs::symlink_metadata(&session_file)
+        .map_err(|_| "Dedicated Pi session JSONL is unavailable.".to_string())?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 256 * 1024 * 1024 {
+        return Err("Dedicated Pi session JSONL exceeds its inspection bound.".to_string());
+    }
+    inspect_complete_pi_transcript(
+        &fs::read_to_string(session_file).map_err(|_| "Dedicated Pi session JSONL is unavailable.".to_string())?,
+    )
+}
+
+#[tauri::command]
 fn load_dedicated_pi_user_entries(
     app: AppHandle,
     journey_id: String,
@@ -4209,18 +4266,30 @@ fn load_conversation_segment_projections(
 
 fn project_active_pi_branch(content: &str) -> Result<Vec<PiBranchEntry>, String> {
     let mut entries = Vec::new();
+    let mut entry_ids = std::collections::HashSet::new();
     for line in content.lines() {
         let value: Value = serde_json::from_str(line).map_err(|_| "Dedicated Pi session JSONL is invalid.".to_string())?;
         if value.get("type").and_then(Value::as_str) == Some("session") { continue; }
         let Some(id) = value.get("id").and_then(Value::as_str) else { continue };
         let message = value.get("message");
+        if entries.len() >= 1_000_000 {
+            return Err("Dedicated Pi session exceeds its entry bound.".to_string());
+        }
+        if !entry_ids.insert(id.to_string()) {
+            return Err("Dedicated Pi session contains duplicate entry identity.".to_string());
+        }
         entries.push(PiBranchEntry {
             id: id.to_string(),
             parent_id: value.get("parentId").and_then(Value::as_str).map(str::to_string),
+            entry_type: value.get("type").and_then(Value::as_str).unwrap_or("unknown").to_string(),
             role: message.and_then(|item| item.get("role")).and_then(Value::as_str).map(str::to_string),
             text: message.map(extract_pi_visible_text).unwrap_or_default(),
             stop_reason: message.and_then(|item| item.get("stopReason")).and_then(Value::as_str).map(str::to_string),
             timestamp: value.get("timestamp").and_then(Value::as_str).unwrap_or("").to_string(),
+            native_content: message.and_then(|item| item.get("content")).cloned().unwrap_or(Value::Null),
+            tool_call_id: message.and_then(|item| item.get("toolCallId")).and_then(Value::as_str).map(str::to_string),
+            tool_name: message.and_then(|item| item.get("toolName")).and_then(Value::as_str).map(str::to_string),
+            is_error: message.and_then(|item| item.get("isError")).and_then(Value::as_bool),
         });
     }
     if entries.is_empty() { return Ok(Vec::new()); }
@@ -4232,7 +4301,11 @@ fn project_active_pi_branch(content: &str) -> Result<Vec<PiBranchEntry>, String>
     while let Some(entry) = cursor {
         if !seen.insert(entry.id.as_str()) { return Err("Dedicated Pi ancestry contains a cycle.".to_string()); }
         branch.push(entry.clone());
-        cursor = entry.parent_id.as_deref().and_then(|parent| by_id.get(parent)).map(|index| &entries[*index]);
+        cursor = match entry.parent_id.as_deref() {
+            Some(parent) => Some(&entries[*by_id.get(parent)
+                .ok_or_else(|| "Dedicated Pi ancestry references a missing parent.".to_string())?]),
+            None => None,
+        };
     }
     branch.reverse();
     Ok(branch)
@@ -4249,8 +4322,64 @@ fn project_pi_user_entries(content: &str) -> Result<Vec<DedicatedPiUserEntry>, S
         .collect())
 }
 
-fn project_complete_pi_transcript(content: &str) -> Result<Vec<DedicatedPiTranscriptTurn>, String> {
+fn inspect_complete_pi_transcript(content: &str) -> Result<DedicatedPiTranscriptInspection, String> {
     let branch = project_active_pi_branch(content)?;
+    let mut pending_user_entry_id = None;
+    for entry in &branch {
+        match entry.role.as_deref() {
+            Some("user") => pending_user_entry_id = Some(entry.id.clone()),
+            Some("assistant") if matches!(entry.stop_reason.as_deref(), Some("stop" | "length")) => {
+                pending_user_entry_id = None;
+            }
+            _ => {}
+        }
+    }
+    let unknown_prompt_envelope_count = branch.iter()
+        .filter(|entry| entry.role.as_deref() == Some("user"))
+        .filter(|entry| project_dedicated_user_text_and_envelope(&entry.text).1 == "unknown")
+        .count();
+    Ok(DedicatedPiTranscriptInspection {
+        schema_version: "0.1.0".to_string(),
+        leaf_entry_id: branch.last().map(|entry| entry.id.clone()),
+        active_entry_count: branch.len(),
+        compaction_count: branch.iter().filter(|entry| entry.entry_type == "compaction").count(),
+        unknown_prompt_envelope_count,
+        incomplete_user_entry_id: pending_user_entry_id,
+        entries: project_pi_transcript_entries(&branch),
+        turns: project_complete_pi_transcript_from_branch(&branch),
+    })
+}
+
+fn project_pi_transcript_entries(branch: &[PiBranchEntry]) -> Vec<DedicatedPiTranscriptEntry> {
+    branch.iter().filter_map(|entry| {
+        let role = entry.role.clone()?;
+        let (visible_text, prompt_envelope) = if role == "user" {
+            let (text, envelope) = project_dedicated_user_text_and_envelope(&entry.text);
+            (text, Some(envelope))
+        } else {
+            (entry.text.trim().to_string(), None)
+        };
+        Some(DedicatedPiTranscriptEntry {
+            entry_id: entry.id.clone(),
+            parent_entry_id: entry.parent_id.clone(),
+            role,
+            visible_text,
+            prompt_envelope,
+            stop_reason: entry.stop_reason.clone(),
+            timestamp: entry.timestamp.clone(),
+            native_content: entry.native_content.clone(),
+            tool_call_id: entry.tool_call_id.clone(),
+            tool_name: entry.tool_name.clone(),
+            is_error: entry.is_error,
+        })
+    }).collect()
+}
+
+fn project_complete_pi_transcript(content: &str) -> Result<Vec<DedicatedPiTranscriptTurn>, String> {
+    Ok(project_complete_pi_transcript_from_branch(&project_active_pi_branch(content)?))
+}
+
+fn project_complete_pi_transcript_from_branch(branch: &[PiBranchEntry]) -> Vec<DedicatedPiTranscriptTurn> {
     let mut turns = Vec::new();
     let mut pending_user: Option<&PiBranchEntry> = None;
     let mut assistant_texts = Vec::new();
@@ -4266,10 +4395,12 @@ fn project_complete_pi_transcript(content: &str) -> Result<Vec<DedicatedPiTransc
                     let user = pending_user.take().unwrap();
                     let assistant_text = assistant_texts.join("\n\n");
                     if !user.text.trim().is_empty() && !assistant_text.trim().is_empty() {
+                        let (user_text, user_prompt_envelope) = project_dedicated_user_text_and_envelope(&user.text);
                         turns.push(DedicatedPiTranscriptTurn {
                             user_entry_id: user.id.clone(),
                             assistant_entry_id: entry.id.clone(),
-                            user_text: project_dedicated_user_text(&user.text),
+                            user_text,
+                            user_prompt_envelope,
                             assistant_text,
                             entry_count: entry_index + 1,
                             started_at: user.timestamp.clone(),
@@ -4282,21 +4413,39 @@ fn project_complete_pi_transcript(content: &str) -> Result<Vec<DedicatedPiTransc
             _ => {}
         }
     }
-    Ok(turns)
+    turns
 }
 
 fn project_dedicated_user_text(value: &str) -> String {
+    project_dedicated_user_text_and_envelope(value).0
+}
+
+fn project_dedicated_user_text_and_envelope(value: &str) -> (String, String) {
+    let envelope = if value.starts_with("[Mirror Desktop Journey authority]") {
+        "mirror_desktop"
+    } else if value.starts_with("[Nautilus Harness Journey authority]") {
+        "nautilus_harness"
+    } else if value.lines().next().is_some_and(|line| {
+        line.starts_with('[') && line.ends_with("Journey authority]")
+    }) {
+        return (value.trim().to_string(), "unknown".to_string());
+    } else {
+        return (value.trim().to_string(), "raw".to_string());
+    };
     for marker in ["\n\nExplicit Navigator intent:\n", "\n\nUser request:\n"] {
         if let Some((_, visible)) = value.rsplit_once(marker) {
-            return visible
-                .split("\n\nFiles explicitly selected by the user\n")
-                .next()
-                .unwrap_or(visible)
-                .trim()
-                .to_string();
+            return (
+                visible
+                    .split("\n\nFiles explicitly selected by the user\n")
+                    .next()
+                    .unwrap_or(visible)
+                    .trim()
+                    .to_string(),
+                envelope.to_string(),
+            );
         }
     }
-    value.trim().to_string()
+    (value.trim().to_string(), "unknown".to_string())
 }
 
 fn validate_pi_session_file(app: &AppHandle, session_file: &str, pi_session_id: &str) -> Result<(), String> {
@@ -7262,6 +7411,7 @@ fn main() {
             interrupt_inactive_turn_journal,
             read_pi_session_context_stats,
             load_dedicated_pi_transcript,
+            inspect_dedicated_pi_transcript,
             load_dedicated_pi_user_entries,
             refresh_conversation_segments,
             load_conversation_segments,
@@ -7308,7 +7458,7 @@ mod tests {
         apply_desktop_conversation_reset, desktop_conversation_entry_from_creation,
         ensure_unique_desktop_conversation_title, load_desktop_conversation_catalog_at,
         materialize_empty_pi_session, parse_pi_session_state,
-        project_complete_pi_transcript, project_conversation_segment_manifest,
+        inspect_complete_pi_transcript, project_complete_pi_transcript, project_conversation_segment_manifest,
         publish_conversation_segment_manifest_at,
         project_pi_user_entries, projection_manifest_coordinates_at,
         inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
@@ -8414,8 +8564,94 @@ mod tests {
         let turns = project_complete_pi_transcript(&session).unwrap();
         assert_eq!(turns.len(), 1);
         assert_eq!(turns[0].user_text, "Olá");
+        assert_eq!(turns[0].user_prompt_envelope, "nautilus_harness");
         assert_eq!(turns[0].assistant_text, "Resposta");
         assert_eq!(turns[0].entry_count, 2);
+    }
+
+    #[test]
+    fn inspects_the_versioned_active_pi_transcript_without_a_desktop_projection() {
+        let session = [
+            r#"{"type":"session","id":"session-1"}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-09-17T10:00:00Z","message":{"role":"user","content":[{"type":"text","text":"[Mirror Desktop Journey authority]\nselected\n\nUser request:\nQuestion\n\nFiles explicitly selected by the user\n```json\n[]\n```"}]}}"#,
+            r#"{"type":"message","id":"tool-use","parentId":"user-1","timestamp":"2026-09-17T10:00:01Z","message":{"role":"assistant","content":[{"type":"toolCall","id":"call-1","name":"read","arguments":{"path":"fixture.md"}}],"stopReason":"toolUse"}}"#,
+            r#"{"type":"message","id":"tool-result","parentId":"tool-use","timestamp":"2026-09-17T10:00:02Z","message":{"role":"toolResult","toolCallId":"call-1","toolName":"read","content":[{"type":"text","text":"fixture"}],"isError":false}}"#,
+            r#"{"type":"message","id":"assistant-1","parentId":"tool-result","timestamp":"2026-09-17T10:00:03Z","message":{"role":"assistant","content":[{"type":"text","text":"Answer"}],"stopReason":"stop"}}"#,
+        ].join("\n");
+
+        let inspection = inspect_complete_pi_transcript(&session).unwrap();
+        assert_eq!(inspection.schema_version, "0.1.0");
+        assert_eq!(inspection.leaf_entry_id.as_deref(), Some("assistant-1"));
+        assert_eq!(inspection.active_entry_count, 4);
+        assert_eq!(inspection.compaction_count, 0);
+        assert_eq!(inspection.unknown_prompt_envelope_count, 0);
+        assert_eq!(inspection.incomplete_user_entry_id, None);
+        assert_eq!(inspection.entries.len(), 4);
+        assert_eq!(inspection.entries[0].role, "user");
+        assert_eq!(inspection.entries[0].visible_text, "Question");
+        assert_eq!(inspection.entries[0].prompt_envelope.as_deref(), Some("mirror_desktop"));
+        assert_eq!(inspection.entries[1].native_content[0]["type"], "toolCall");
+        assert_eq!(inspection.entries[2].role, "toolResult");
+        assert_eq!(inspection.entries[2].tool_call_id.as_deref(), Some("call-1"));
+        assert_eq!(inspection.entries[2].tool_name.as_deref(), Some("read"));
+        assert_eq!(inspection.entries[2].is_error, Some(false));
+        assert_eq!(inspection.turns.len(), 1);
+        assert_eq!(inspection.turns[0].user_text, "Question");
+        assert_eq!(inspection.turns[0].user_prompt_envelope, "mirror_desktop");
+        assert_eq!(inspection.turns[0].assistant_text, "Answer");
+    }
+
+    #[test]
+    fn transcript_inspection_follows_the_active_leaf_and_counts_compaction() {
+        let session = [
+            r#"{"type":"session","id":"session-1"}"#,
+            r#"{"type":"message","id":"root","parentId":null,"timestamp":"2026-09-17T10:00:00Z","message":{"role":"user","content":"Root"}}"#,
+            r#"{"type":"message","id":"abandoned","parentId":"root","timestamp":"2026-09-17T10:00:01Z","message":{"role":"assistant","content":"Abandoned","stopReason":"stop"}}"#,
+            r#"{"type":"compaction","id":"compact-1","parentId":"root","firstKeptEntryId":"root","summary":"private"}"#,
+            r#"{"type":"message","id":"assistant-1","parentId":"compact-1","timestamp":"2026-09-17T10:00:02Z","message":{"role":"assistant","content":"Active","stopReason":"stop"}}"#,
+        ].join("\n");
+
+        let inspection = inspect_complete_pi_transcript(&session).unwrap();
+        assert_eq!(inspection.leaf_entry_id.as_deref(), Some("assistant-1"));
+        assert_eq!(inspection.active_entry_count, 3);
+        assert_eq!(inspection.compaction_count, 1);
+        assert_eq!(inspection.turns.len(), 1);
+        assert_eq!(inspection.turns[0].assistant_entry_id, "assistant-1");
+    }
+
+    #[test]
+    fn transcript_inspection_preserves_unknown_envelopes_and_reports_incomplete_input() {
+        let session = [
+            r#"{"type":"session","id":"session-1"}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-09-17T10:00:00Z","message":{"role":"user","content":"[Future Journey authority]\nopaque"}}"#,
+        ].join("\n");
+
+        let inspection = inspect_complete_pi_transcript(&session).unwrap();
+        assert_eq!(inspection.turns.len(), 0);
+        assert_eq!(inspection.unknown_prompt_envelope_count, 1);
+        assert_eq!(inspection.incomplete_user_entry_id.as_deref(), Some("user-1"));
+    }
+
+    #[test]
+    fn transcript_inspection_rejects_cyclic_or_missing_ancestry() {
+        let cyclic = [
+            r#"{"type":"session","id":"session-1"}"#,
+            r#"{"type":"message","id":"a","parentId":"b","message":{"role":"user","content":"A"}}"#,
+            r#"{"type":"message","id":"b","parentId":"a","message":{"role":"assistant","content":"B","stopReason":"stop"}}"#,
+        ].join("\n");
+        assert_eq!(
+            inspect_complete_pi_transcript(&cyclic).unwrap_err(),
+            "Dedicated Pi ancestry contains a cycle.",
+        );
+
+        let missing = [
+            r#"{"type":"session","id":"session-1"}"#,
+            r#"{"type":"message","id":"leaf","parentId":"vanished","message":{"role":"user","content":"A"}}"#,
+        ].join("\n");
+        assert_eq!(
+            inspect_complete_pi_transcript(&missing).unwrap_err(),
+            "Dedicated Pi ancestry references a missing parent.",
+        );
     }
 
     #[test]
@@ -8435,6 +8671,12 @@ mod tests {
         assert_eq!(entries[1].user_entry_id, "steer-1");
         assert_eq!(entries[1].user_text, "First correction");
         assert_eq!(entries[2].user_entry_id, "steer-2");
+        let inspection = inspect_complete_pi_transcript(&session).unwrap();
+        assert_eq!(
+            inspection.entries.iter().filter(|entry| entry.role == "user")
+                .map(|entry| entry.entry_id.as_str()).collect::<Vec<_>>(),
+            vec!["initial", "steer-1", "steer-2"],
+        );
     }
 
     #[test]
