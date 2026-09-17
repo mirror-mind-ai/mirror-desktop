@@ -2,7 +2,7 @@
 
 # CR042: Decouple Successor Admission from Desktop Projections
 
-**Status:** validated
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr042-projection-independent-admission`
 
@@ -103,7 +103,7 @@ The change removes an admission dependency rather than deleting evidence. Journa
 
 ### Authority Boundary
 
-The Navigator confirmed Driver `@alissonvale`, Delivery `refinement/rs018-cr042-projection-independent-admission`, selection, focus, transition to `in_progress` and local implementation, then accepted Navigator Validation on 2026-09-17. Debt Review selected `create_follow_up` and created CR043 for bounded non-blocking journal retention. Terminal closure, production mutation, push, merge, publication and release remain separate decisions.
+The Navigator confirmed Driver `@alissonvale`, Delivery `refinement/rs018-cr042-projection-independent-admission`, selection, focus, transition to `in_progress` and local implementation, accepted Navigator Validation, selected Debt Review `create_follow_up` and authorized terminal closure on 2026-09-17. Production mutation, push, merge, publication and release remain separate decisions.
 
 ## Evidence
 
@@ -126,7 +126,7 @@ Debt decision: `create_follow_up` as [CR043](cr043-keep-bounded-turn-journal-ret
 
 ## Outcome
 
-Implementation, Navigator Validation, proportionality review and Debt Review are complete. CR042 remains `validated` pending explicit terminal closure.
+Done. Projection-independent successor admission is accepted. Bounded journal retention debt continues explicitly as CR043.
 
 Native reservation now owns same-Journey overlap prevention. Journal admission appends the newly reserved run without consulting historical Desktop or Segment projections and without treating historical admitted, running, terminal, projected or delivery records as process occupancy. Exact run identity, Journey/thread/generation/Pi-session binding and runtime-channel validation remain unchanged.
 

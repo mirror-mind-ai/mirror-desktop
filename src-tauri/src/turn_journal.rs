@@ -241,16 +241,55 @@ pub fn read_turn_journal(path: &Path) -> Result<TurnJournalDocument, String> {
     Ok(document)
 }
 
-fn write_turn_journal(path: &Path, document: &mut TurnJournalDocument) -> Result<(), String> {
-    if document.records.len() > JOURNAL_MAX_RECORDS {
-        return Err("turn_journal_full".to_string());
+fn retention_priority(phase: TurnPhase) -> u8 {
+    match phase {
+        TurnPhase::Settled => 0,
+        TurnPhase::Interrupted => 1,
+        TurnPhase::OutboxEnqueued => 2,
+        TurnPhase::Projected => 3,
+        TurnPhase::TerminalDurable => 4,
+        TurnPhase::Admitted | TurnPhase::Running => 5,
     }
+}
+
+fn compact_turn_journal_for_write(
+    document: &mut TurnJournalDocument,
+    protected_run_id: &str,
+    permit_unfinished_pruning: bool,
+) -> Result<(), String> {
+    loop {
+        let bytes = serde_json::to_vec_pretty(document)
+            .map_err(|_| "turn_journal_invalid".to_string())?;
+        if document.records.len() <= JOURNAL_MAX_RECORDS && bytes.len() <= JOURNAL_MAX_BYTES {
+            return Ok(());
+        }
+        let candidate = document.records.iter().enumerate()
+            .filter(|(_, record)| record.authority.run_id != protected_run_id)
+            .filter(|(_, record)| {
+                permit_unfinished_pruning
+                    || !matches!(record.phase, TurnPhase::Admitted | TurnPhase::Running)
+            })
+            .min_by_key(|(_, record)| (
+                retention_priority(record.phase),
+                record.created_at.as_str(),
+                record.authority.run_id.as_str(),
+            ))
+            .map(|(index, _)| index)
+            .ok_or_else(|| "turn_journal_full".to_string())?;
+        document.records.remove(candidate);
+    }
+}
+
+fn write_turn_journal(
+    path: &Path,
+    document: &mut TurnJournalDocument,
+    protected_run_id: &str,
+    permit_unfinished_pruning: bool,
+) -> Result<(), String> {
     document.saved_at = now();
+    compact_turn_journal_for_write(document, protected_run_id, permit_unfinished_pruning)?;
     let bytes =
         serde_json::to_vec_pretty(document).map_err(|_| "turn_journal_invalid".to_string())?;
-    if bytes.len() > JOURNAL_MAX_BYTES {
-        return Err("turn_journal_full".to_string());
-    }
     let parent = path
         .parent()
         .ok_or_else(|| "turn_journal_unavailable".to_string())?;
@@ -319,16 +358,7 @@ pub fn admit_turn(
             Err("turn_journal_authority_conflict".to_string())
         };
     }
-    while document.records.len() >= JOURNAL_MAX_RECORDS {
-        let Some(index) = document
-            .records
-            .iter()
-            .position(|record| record.phase == TurnPhase::Settled)
-        else {
-            return Err("turn_journal_full".to_string());
-        };
-        document.records.remove(index);
-    }
+    let protected_run_id = authority.run_id.clone();
     let timestamp = admitted_at.unwrap_or_else(now);
     let record = TurnJournalRecord {
         schema_version: JOURNAL_SCHEMA_VERSION.to_string(),
@@ -349,7 +379,9 @@ pub fn admit_turn(
             .cmp(&right.created_at)
             .then_with(|| left.authority.run_id.cmp(&right.authority.run_id))
     });
-    write_turn_journal(path, &mut document)?;
+    // Native admission reserves the only Journey lease before this call, proving
+    // every pre-existing journal record is inactive in this process.
+    write_turn_journal(path, &mut document, &protected_run_id, true)?;
     Ok(record)
 }
 
@@ -552,7 +584,7 @@ fn transition_turn_with_policy(
     record.updated_at = now();
     record.last_receipt = Some(receipt);
     let result = record.clone();
-    write_turn_journal(path, &mut document)?;
+    write_turn_journal(path, &mut document, &authority.run_id, false)?;
     Ok(result)
 }
 
@@ -777,6 +809,138 @@ mod tests {
     }
 
     #[test]
+    fn bounded_historical_retention_never_blocks_a_reserved_successor() {
+        let root = root("bounded-historical-retention");
+        let path = root.join("turn-journal.json");
+        for index in 0..=JOURNAL_MAX_RECORDS {
+            admit_turn(
+                &path,
+                authority(&format!("run-{index:03}"), "journey-a"),
+                Some(format!("2026-09-17T10:00:00.{index:09}Z")),
+            ).unwrap();
+        }
+
+        let journal = read_turn_journal(&path).unwrap();
+        assert_eq!(journal.records.len(), JOURNAL_MAX_RECORDS);
+        assert!(!journal.records.iter().any(|record| record.authority.run_id == "run-000"));
+        assert!(journal.records.iter().any(|record| record.authority.run_id == "run-064"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn bounded_retention_prefers_settled_history_and_protects_the_new_run() {
+        let root = root("deterministic-retention");
+        let path = root.join("turn-journal.json");
+        for index in 0..JOURNAL_MAX_RECORDS {
+            admit_turn(
+                &path,
+                authority(&format!("run-{index:03}"), "journey-a"),
+                Some(format!("2026-09-17T10:00:00.{index:09}Z")),
+            ).unwrap();
+        }
+        let settled_authority = authority("run-010", "journey-a");
+        let running = transition_turn(
+            &path,
+            &settled_authority,
+            transition(1, TurnPhase::Admitted, TurnPhase::Running, "running-010"),
+        ).unwrap();
+        let terminal = transition_turn(
+            &path,
+            &settled_authority,
+            transition(running.revision, TurnPhase::Running, TurnPhase::TerminalDurable, "terminal-010"),
+        ).unwrap();
+        let projected = transition_turn(
+            &path,
+            &settled_authority,
+            transition(terminal.revision, TurnPhase::TerminalDurable, TurnPhase::Projected, "projected-010"),
+        ).unwrap();
+        let enqueued = transition_turn(
+            &path,
+            &settled_authority,
+            transition(projected.revision, TurnPhase::Projected, TurnPhase::OutboxEnqueued, "enqueued-010"),
+        ).unwrap();
+        transition_turn(
+            &path,
+            &settled_authority,
+            transition(enqueued.revision, TurnPhase::OutboxEnqueued, TurnPhase::Settled, "settled-010"),
+        ).unwrap();
+
+        admit_turn(
+            &path,
+            authority("run-064", "journey-a"),
+            Some("2026-09-17T10:00:01.000000000Z".to_string()),
+        ).unwrap();
+        let journal = read_turn_journal(&path).unwrap();
+        assert!(!journal.records.iter().any(|record| record.authority.run_id == "run-010"));
+        assert!(journal.records.iter().any(|record| record.authority.run_id == "run-000"));
+        assert!(journal.records.iter().any(|record| record.authority.run_id == "run-064"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn byte_retention_prunes_history_but_fails_closed_for_one_oversized_protected_run() {
+        let root = root("byte-retention");
+        let path = root.join("turn-journal.json");
+        let protected = admit_turn(&path, authority("run-current", "journey-a"), None).unwrap();
+        let mut historical = protected.clone();
+        historical.authority = authority("run-historical", "journey-a");
+        historical.phase = TurnPhase::TerminalDurable;
+        historical.terminal_outcome = Some(TurnTerminalOutcome::Completed);
+        historical.terminal_evidence = transition(
+            2,
+            TurnPhase::Running,
+            TurnPhase::TerminalDurable,
+            "historical-terminal",
+        ).terminal_evidence;
+        historical.terminal_evidence.as_mut().unwrap().pi_execution
+            .as_mut().unwrap().assistant_text = "x".repeat(JOURNAL_MAX_BYTES);
+        let mut journal = empty_document();
+        journal.records = vec![historical.clone(), protected];
+
+        compact_turn_journal_for_write(&mut journal, "run-current", false).unwrap();
+        assert_eq!(journal.records.len(), 1);
+        assert_eq!(journal.records[0].authority.run_id, "run-current");
+
+        let mut oversized_protected = empty_document();
+        oversized_protected.records.push(historical);
+        assert_eq!(
+            compact_turn_journal_for_write(
+                &mut oversized_protected,
+                "run-historical",
+                false,
+            ).unwrap_err(),
+            "turn_journal_full",
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn transition_retention_never_prunes_another_unfinished_run_without_occupancy_proof() {
+        let root = root("protected-unfinished-retention");
+        let path = root.join("turn-journal.json");
+        for index in 0..JOURNAL_MAX_RECORDS {
+            admit_turn(
+                &path,
+                authority(&format!("run-{index:03}"), "journey-a"),
+                Some(format!("2026-09-17T10:00:00.{index:09}Z")),
+            ).unwrap();
+        }
+        let mut journal = read_turn_journal(&path).unwrap();
+        let mut extra = journal.records[0].clone();
+        extra.authority = authority("run-064", "journey-a");
+        journal.records.push(extra);
+
+        assert_eq!(
+            compact_turn_journal_for_write(&mut journal, "run-000", false).unwrap_err(),
+            "turn_journal_full",
+        );
+        assert_eq!(journal.records.len(), JOURNAL_MAX_RECORDS + 1);
+        assert!(journal.records.iter().any(|record| record.authority.run_id == "run-000"));
+        assert!(journal.records.iter().any(|record| record.authority.run_id == "run-064"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn historical_journal_lifecycle_never_owns_successor_admission() {
         let root = root("native-owned-successor-admission");
         let path = root.join("turn-journal.json");
@@ -860,7 +1024,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .assistant_text_truncated = true;
-        write_turn_journal(&path, &mut document).unwrap();
+        write_turn_journal(&path, &mut document, &auth.run_id, false).unwrap();
         let stale = read_turn_journal(&path).unwrap().records.remove(0);
         assert!(!is_successor_eligible(&stale));
         assert!(admit_turn(&path, authority("run-2", "journey-a"), None).is_ok());

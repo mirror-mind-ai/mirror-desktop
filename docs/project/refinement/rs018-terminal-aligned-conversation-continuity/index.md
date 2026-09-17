@@ -52,9 +52,9 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
 
-CR043 is `planned` as CR042's explicit Debt Review follow-up and awaits Driver and Delivery decisions. It prevents bounded historical journal retention from becoming a successor-admission gate.
+CR043 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. It prevents bounded historical journal retention from becoming a successor-admission gate.
 
-CR042 is `validated` with Driver `@alissonvale` and Delivery `refinement/rs018-cr042-projection-independent-admission`. The Navigator accepted projection-independent successor admission and exact native-occupancy blocking on 2026-09-17. Proportionality review found the correction appropriately bounded; Debt Review selected `create_follow_up` as CR043. Explicit terminal closure remains pending.
+CR042 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr042-projection-independent-admission`. The Navigator accepted projection-independent successor admission and exact native-occupancy blocking on 2026-09-17. Proportionality review found the correction appropriately bounded; Debt Review selected `create_follow_up` as CR043, and the Navigator authorized terminal closure.
 
 CR041 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr041-pi-session-transcript`. The Navigator accepted the versioned, authority-validated active Pi transcript inspection on 2026-09-17. Proportionality review found the read-only adapter appropriately bounded; Debt Review concluded `no_action`.
 

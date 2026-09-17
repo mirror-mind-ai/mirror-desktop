@@ -81,6 +81,8 @@ Presentation projections are not an authority class. They are materialized views
 
 **Current responsibility after CR042:** active lifecycle and terminal evidence only. Native registry reservation owns same-Journey occupancy. Historical admitted, running, terminal, projected or delivery records remain durable evidence but do not reject journal admission for a newly reserved exact invocation. Frontend journal blocking is correlated to the exact active native run, so relaunch does not infer occupancy from a vanished lease.
 
+**Bounded retention after CR043:** journal writes protect the exact run being admitted or transitioned and compact inactive history deterministically before record-count or byte bounds can become availability gates. Settled and interrupted evidence is retired first, followed by delivery/projection/terminal evidence. Admitted or running history is pruned only at the post-reservation admission boundary, where the exact native registry has already proved that every pre-existing same-Journey record is inactive. Pi JSONL and the compatibility outbox remain the transcript and delivery authorities; no journal archive is created.
+
 ### Dedicated Desktop projection
 
 **Storage:** `dedicated-journey-conversations/<journey>/.../generation-<n>.json`.

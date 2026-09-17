@@ -2,9 +2,9 @@
 
 # CR043: Keep Bounded Turn Journal Retention Non-Blocking
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs018-cr043-non-blocking-journal-retention`
 
 ## Problem
 
@@ -87,7 +87,7 @@ The retention policy changes only which inactive historical journal records rema
 
 ### Authority Boundary
 
-CR043 was created by the CR042 Debt Review decision `create_follow_up`. Driver, Delivery, selection, focus, transition to `in_progress`, implementation, validation, production mutation, push, merge, publication and release remain separate decisions.
+CR043 was created by the CR042 Debt Review decision `create_follow_up`. The Navigator confirmed Driver `@alissonvale`, Delivery `refinement/rs018-cr043-non-blocking-journal-retention`, selection, focus, transition to `in_progress` and local implementation. Navigator Validation, production mutation, push, merge, publication and release remain separate decisions.
 
 ## Evidence
 
@@ -98,4 +98,25 @@ CR043 was created by the CR042 Debt Review decision `create_follow_up`. Driver, 
 
 ## Outcome
 
-Planned as the explicit follow-up from CR042 Debt Review.
+Implementation is complete and awaiting Navigator Validation.
+
+Journal writes now protect the exact run being admitted or transitioned and compact historical records deterministically whenever either the 64-record or 8 MiB serialized bound would be exceeded. Retention priority is `settled`, `interrupted`, `outbox_enqueued`, `projected`, `terminal_durable`, then unfinished history.
+
+Unfinished admitted/running history can be pruned only during `admit_turn()`. That function is called after the native registry reserves the only same-Journey lease, proving all pre-existing records inactive. Ordinary lifecycle transitions never prune another unfinished run without that occupancy proof. The newly admitted or transitioned run is always protected; if it alone exceeds the byte budget, the write remains fail-closed.
+
+No archive or replacement authority was introduced. Compaction removes only bounded lifecycle-cache records; Pi transcript, compatibility-outbox items, Mirror state and control-plane bindings are untouched.
+
+### TDD And Validation Evidence
+
+- The initial 65th unresolved admission test failed with `turn_journal_full`.
+- Record-count coverage now proves that 65 unresolved historical attempts admit the protected successor and retire the oldest inactive record.
+- Deterministic-order coverage proves that settled history is retired before older unfinished history and that the new run is retained.
+- Occupancy-safety coverage proves ordinary transitions cannot prune another admitted/running record without post-reservation proof.
+- Byte-bound coverage proves oversized history is compacted while one oversized protected run remains fail-closed.
+- Complete Rust suite: 146 passed, 1 ignored.
+- Complete frontend suite: 802 passed.
+- `cargo check`: passed without warnings.
+- TypeScript and production web build: passed.
+- `npm run roadmap:check`: `Mirror Desktop roadmap: READY`.
+
+No provider was invoked and no production app data was read or mutated.
