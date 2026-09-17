@@ -103,7 +103,7 @@ The change removes an admission dependency rather than deleting evidence. Journa
 
 ### Authority Boundary
 
-The Navigator confirmed Driver `@alissonvale`, Delivery `refinement/rs018-cr042-projection-independent-admission`, selection, focus, transition to `in_progress` and local implementation, then accepted Navigator Validation on 2026-09-17. Debt Review, terminal closure, production mutation, push, merge, publication and release remain separate decisions.
+The Navigator confirmed Driver `@alissonvale`, Delivery `refinement/rs018-cr042-projection-independent-admission`, selection, focus, transition to `in_progress` and local implementation, then accepted Navigator Validation on 2026-09-17. Debt Review selected `create_follow_up` and created CR043 for bounded non-blocking journal retention. Terminal closure, production mutation, push, merge, publication and release remain separate decisions.
 
 ## Evidence
 
@@ -118,9 +118,15 @@ The Navigator confirmed Driver `@alissonvale`, Delivery `refinement/rs018-cr042-
 
 The Navigator accepted the native-occupancy authority boundary, projection-independent journal admission, relaunch behavior, distinct admission diagnostics and automated regression evidence. Acceptance does not authorize production Flip repair, release or later RS018 migration slices.
 
+## Proportionality And Debt Review
+
+The delivered authority correction is proportional: it removes historical projection and journal occupancy gates while retaining exact native capacity, lifecycle evidence and control-plane validation. It does not migrate transcript, delivery or production data.
+
+Debt decision: `create_follow_up` as [CR043](cr043-keep-bounded-turn-journal-retention-non-blocking.md). The journal's 64-record and serialized-byte bounds can still return `turn_journal_full` when accumulated unresolved historical records cannot be evicted, reintroducing an availability gate despite no active native execution. CR043 will make bounded lifecycle retention deterministic and non-blocking without creating an archive authority.
+
 ## Outcome
 
-Implementation and Navigator Validation are complete. CR042 remains `validated` pending proportionality and Debt Review.
+Implementation, Navigator Validation, proportionality review and Debt Review are complete. CR042 remains `validated` pending explicit terminal closure.
 
 Native reservation now owns same-Journey overlap prevention. Journal admission appends the newly reserved run without consulting historical Desktop or Segment projections and without treating historical admitted, running, terminal, projected or delivery records as process occupancy. Exact run identity, Journey/thread/generation/Pi-session binding and runtime-channel validation remain unchanged.
 
