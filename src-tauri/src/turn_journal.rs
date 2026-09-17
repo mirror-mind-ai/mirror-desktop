@@ -427,17 +427,52 @@ pub fn transition_turn(
     authority: &TurnJournalAuthority,
     request: TurnTransitionRequest,
 ) -> Result<TurnJournalRecord, String> {
+    transition_turn_with_policy(path, authority, request, false)
+}
+
+pub fn interrupt_inactive_turn(
+    path: &Path,
+    authority: &TurnJournalAuthority,
+    request: TurnTransitionRequest,
+    active_generation: u64,
+    journey_has_retained_lease: bool,
+) -> Result<TurnJournalRecord, String> {
+    let record = read_turn_journal(path)?
+        .records
+        .into_iter()
+        .find(|record| record.authority == *authority)
+        .ok_or_else(|| "turn_journal_record_missing".to_string())?;
+    if record.revision != request.expected_revision {
+        return Err("turn_journal_inactive_revision_stale".to_string());
+    }
+    if !can_interrupt_inactive_turn(&record, active_generation, journey_has_retained_lease) {
+        return Err("turn_journal_inactive_interruption_unsafe".to_string());
+    }
+    transition_turn_with_policy(path, authority, request, true)
+}
+
+fn transition_turn_with_policy(
+    path: &Path,
+    authority: &TurnJournalAuthority,
+    request: TurnTransitionRequest,
+    permit_ineligible_projected_interruption: bool,
+) -> Result<TurnJournalRecord, String> {
     validate_authority(authority)?;
+    let requests_projected_interruption = request.expected_phase == TurnPhase::Projected
+        && request.next_phase == TurnPhase::Interrupted
+        && request.terminal_outcome.is_none()
+        && request.terminal_evidence.is_none()
+        && request.cancellation_intent.is_none();
     if request.receipt_id.is_empty()
         || request.receipt_id.len() > JOURNAL_MAX_RECEIPT_LENGTH
         || !valid_identifier(&request.receipt_id)
-        || !valid_transition(
+        || (!valid_transition(
             request.expected_phase,
             request.next_phase,
             request.terminal_outcome,
             request.terminal_evidence.as_ref(),
             request.cancellation_intent,
-        )
+        ) && !(permit_ineligible_projected_interruption && requests_projected_interruption))
     {
         return Err("turn_journal_transition_invalid".to_string());
     }
@@ -476,6 +511,11 @@ pub fn transition_turn(
     }
     if record.revision != request.expected_revision || record.phase != request.expected_phase {
         return Err("turn_journal_transition_stale".to_string());
+    }
+    if requests_projected_interruption
+        && (!permit_ineligible_projected_interruption || is_successor_eligible(record))
+    {
+        return Err("turn_journal_transition_invalid".to_string());
     }
     if request.next_phase == TurnPhase::TerminalDurable
         && request.terminal_outcome == Some(TurnTerminalOutcome::Completed)
@@ -527,7 +567,8 @@ pub fn can_interrupt_inactive_turn(
 ) -> bool {
     !journey_has_retained_lease
         && record.authority.generation <= active_generation
-        && matches!(record.phase, TurnPhase::Admitted | TurnPhase::Running | TurnPhase::TerminalDurable)
+        && (matches!(record.phase, TurnPhase::Admitted | TurnPhase::Running | TurnPhase::TerminalDurable)
+            || (record.phase == TurnPhase::Projected && !is_successor_eligible(record)))
 }
 
 #[cfg(test)]
@@ -758,13 +799,79 @@ mod tests {
             &auth,
             transition(running.revision, TurnPhase::Running, TurnPhase::TerminalDurable, "terminal"),
         ).unwrap();
+        let projected = transition_turn(
+            &path,
+            &auth,
+            transition(terminal.revision, TurnPhase::TerminalDurable, TurnPhase::Projected, "projected"),
+        ).unwrap();
+        assert!(!can_interrupt_inactive_turn(&projected, 1, false));
+        assert_eq!(
+            transition_turn(
+                &path,
+                &auth,
+                transition(projected.revision, TurnPhase::Projected, TurnPhase::Interrupted, "invalid-interruption"),
+            ).unwrap_err(),
+            "turn_journal_transition_invalid",
+        );
+
+        assert!(admit_turn(&path, authority("run-2", "journey-a"), None).is_ok());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn stale_completed_projection_can_be_preserved_and_interrupted_without_losing_evidence() {
+        let root = root("stale-completed-projected");
+        let path = root.join("turn-journal.json");
+        let auth = authority("run-1", "journey-a");
+        let admitted = admit_turn(&path, auth.clone(), None).unwrap();
+        let running = transition_turn(
+            &path,
+            &auth,
+            transition(admitted.revision, TurnPhase::Admitted, TurnPhase::Running, "running"),
+        ).unwrap();
+        let terminal = transition_turn(
+            &path,
+            &auth,
+            transition(running.revision, TurnPhase::Running, TurnPhase::TerminalDurable, "terminal"),
+        ).unwrap();
         transition_turn(
             &path,
             &auth,
             transition(terminal.revision, TurnPhase::TerminalDurable, TurnPhase::Projected, "projected"),
         ).unwrap();
 
-        assert!(admit_turn(&path, authority("run-2", "journey-a"), None).is_ok());
+        let mut document = read_turn_journal(&path).unwrap();
+        document.records[0]
+            .terminal_evidence
+            .as_mut()
+            .unwrap()
+            .pi_execution
+            .as_mut()
+            .unwrap()
+            .assistant_text_truncated = true;
+        write_turn_journal(&path, &mut document).unwrap();
+        let stale = read_turn_journal(&path).unwrap().records.remove(0);
+        assert!(!is_successor_eligible(&stale));
+        assert!(can_interrupt_inactive_turn(&stale, 1, false));
+        assert_eq!(
+            transition_turn(
+                &path,
+                &auth,
+                transition(stale.revision, TurnPhase::Projected, TurnPhase::Interrupted, "generic-interruption"),
+            ).unwrap_err(),
+            "turn_journal_transition_invalid",
+        );
+
+        let interrupted = interrupt_inactive_turn(
+            &path,
+            &auth,
+            transition(stale.revision, TurnPhase::Projected, TurnPhase::Interrupted, "preserved-stale-projection"),
+            1,
+            false,
+        ).unwrap();
+        assert_eq!(interrupted.phase, TurnPhase::Interrupted);
+        assert_eq!(interrupted.terminal_outcome, stale.terminal_outcome);
+        assert_eq!(interrupted.terminal_evidence, stale.terminal_evidence);
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -787,7 +894,7 @@ mod tests {
         );
         failed.terminal_outcome = Some(TurnTerminalOutcome::ProcessDied);
         let terminal = transition_turn(&path, &auth, failed).unwrap();
-        transition_turn(
+        let projected = transition_turn(
             &path,
             &auth,
             transition(terminal.revision, TurnPhase::TerminalDurable, TurnPhase::Projected, "projected"),
@@ -797,6 +904,29 @@ mod tests {
             admit_turn(&path, authority("run-2", "journey-a"), None).unwrap_err(),
             "turn_journal_journey_occupied",
         );
+        assert!(can_interrupt_inactive_turn(&projected, 1, false));
+        assert!(!can_interrupt_inactive_turn(&projected, 1, true));
+        assert_eq!(
+            interrupt_inactive_turn(
+                &path,
+                &auth,
+                transition(projected.revision, TurnPhase::Projected, TurnPhase::Interrupted, "retained-lease"),
+                1,
+                true,
+            ).unwrap_err(),
+            "turn_journal_inactive_interruption_unsafe",
+        );
+        let interrupted = interrupt_inactive_turn(
+            &path,
+            &auth,
+            transition(projected.revision, TurnPhase::Projected, TurnPhase::Interrupted, "preserved-interruption"),
+            1,
+            false,
+        ).unwrap();
+        assert_eq!(interrupted.phase, TurnPhase::Interrupted);
+        assert_eq!(interrupted.terminal_outcome, projected.terminal_outcome);
+        assert_eq!(interrupted.terminal_evidence, projected.terminal_evidence);
+        assert!(admit_turn(&path, authority("run-2", "journey-a"), None).is_ok());
         fs::remove_dir_all(root).unwrap();
     }
 

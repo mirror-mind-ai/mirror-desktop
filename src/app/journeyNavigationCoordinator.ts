@@ -1,5 +1,4 @@
 import type { JourneyConversation } from "../domain/journeyConversation";
-import type { PiInvocationOccupancyState } from "./piInvocationOccupancy";
 import {
   hasActiveOrFinalizingJourneyRuntime,
   isJourneyRuntimeActiveOrFinalizing,
@@ -102,16 +101,6 @@ export function resolveJourneyConversationRestore(
   const selected = selectJourneyRuntimeConversation(state, journeyId, generation);
   const runtimeConversation = !threadId || selected?.id === threadId ? selected : undefined;
   return { runtimeConversation, allowPersistedRecovery: !runtimeConversation };
-}
-
-export function shouldRecoverDurableTurnJournal(input: {
-  allowPersistedRecovery: boolean;
-  nativeInspectionStatus: PiInvocationOccupancyState["status"];
-  ownerHasLiveNativeExecution: boolean;
-}): boolean {
-  return input.allowPersistedRecovery
-    && input.nativeInspectionStatus === "known"
-    && !input.ownerHasLiveNativeExecution;
 }
 
 export function deriveJourneyNavigationPresentation(input: {

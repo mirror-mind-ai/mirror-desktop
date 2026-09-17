@@ -3,7 +3,6 @@ import type { JourneySettlementAuthority } from "../domain/journeySettlementAuth
 import {
   decideTurnJournalRecovery,
   decideTurnJournalTerminal,
-  decideTurnJournalOpeningRecovery,
   findBlockingTurnJournalRecord,
   findExactTurnJournalRecord,
   isTurnJournalSuccessorEligible,
@@ -107,14 +106,6 @@ describe("durable turn journal authority", () => {
     expect(decideTurnJournalRecovery(record({ phase: "projected" }))).toBe("resume_outbox");
     expect(decideTurnJournalRecovery(record({ phase: "outbox_enqueued" }))).toBe("complete");
     expect(decideTurnJournalRecovery(record({ phase: "interrupted", terminalOutcome: null, terminalEvidence: null }))).toBe("interrupt");
-  });
-
-  it("automates only recoveries with one safe outcome", () => {
-    expect(decideTurnJournalOpeningRecovery(record({ phase: "admitted", terminalOutcome: null, terminalEvidence: null }), false)).toBe("auto_interrupt");
-    expect(decideTurnJournalOpeningRecovery(record({ terminalOutcome: "process_died" }), false)).toBe("auto_interrupt");
-    expect(decideTurnJournalOpeningRecovery(record(), false)).toBe("recover_response");
-    expect(decideTurnJournalOpeningRecovery(record({ phase: "projected" }), false)).toBe("recover_response");
-    expect(decideTurnJournalOpeningRecovery(record({ phase: "running", terminalOutcome: null, terminalEvidence: null }), true)).toBe("wait_for_agent");
   });
 
   it("surfaces blocking records from the active or a prior generation", () => {

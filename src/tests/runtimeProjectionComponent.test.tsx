@@ -124,8 +124,12 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("showBlockingTurnRecoveryNotice");
     expect(appSource).toContain("showNativeOccupancyNotice");
     expect(appSource).toContain("showConversationSyncNotice");
+    expect(appSource).toContain("const showConversationRecoveryNotice = recoveryRoutes.length > 0");
+    expect(appSource).toContain("|| showConversationSyncNotice");
+    expect(appSource).toContain("{showConversationRecoveryNotice ? (");
     expect(appSource).toContain('composerTurnStatus !== "finishing"');
-    expect(appSource).toContain("We couldn’t restore the previous response");
+    expect(appSource).toContain("Resolve the preserved attempt");
+    expect(appSource).toContain("No recovery action will run the agent again.");
     expect(appSource).toContain("Native Journey lease retained");
     expect(appSource).toMatch(
       /onLeaseReleased: \(\) => \{[\s\S]*?setBlockingTurnJournalRecord\(undefined\);/,

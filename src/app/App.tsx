@@ -84,7 +84,7 @@ import {
   resolvePersistedSettlementRecovery,
   resolveRetainedLeaseForOutboxRecovery,
 } from "./journeySettlementRecovery";
-import { ConversationSyncNotice, LegacyMirrorGapNotice } from "./ConversationSyncNotice";
+import { ConversationRecoveryNotice } from "./ConversationRecoveryNotice";
 import { PendingFileAttachments } from "./PendingFileAttachments";
 import { chooseFileAttachments, inspectDroppedFileAttachments } from "./fileAttachmentStorage";
 import { listenForFileAttachments } from "./fileAttachmentDrop";
@@ -117,6 +117,10 @@ import {
 } from "./conversationSegmentStorage";
 import { partitionConversationBySegments } from "../domain/conversationSegmentProjection";
 import { decideConversationAvailability } from "../domain/conversationAvailability";
+import {
+  decideConversationRecoveryRoutes,
+  type ConversationRecoveryRouteId,
+} from "../domain/conversationRecovery";
 import { loadDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import { projectGenerationHistory } from "../domain/journeyThreadRestart";
@@ -155,7 +159,6 @@ import {
   resolveJourneyConversationRestore,
   resolveJourneySelection,
   shouldPreserveReadyJourneyConversation,
-  shouldRecoverDurableTurnJournal,
   shouldSubmitJourneyDraft,
   type JourneyNavigationIntent,
 } from "./journeyNavigationCoordinator";
@@ -170,11 +173,11 @@ import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPrefere
 import { loadComposerDrafts, saveComposerDrafts } from "./composerDraftStorage";
 import {
   advanceTurnJournal,
-  decideTurnJournalOpeningRecovery,
   decideTurnJournalRecovery,
   decideTurnJournalTerminal,
   findBlockingTurnJournalRecord,
   findExactTurnJournalRecord,
+  hasFreshCompleteTurnJournalEvidence,
   isTurnJournalSuccessorEligible,
   interruptInactiveTurnJournal,
   loadTurnJournal,
@@ -568,7 +571,7 @@ export function App({ model }: AppProps) {
   const [turnRecoveryBusy, setTurnRecoveryBusy] = useState(false);
   const [turnRecoveryError, setTurnRecoveryError] = useState<string>();
   const [turnRecoveryNotice, setTurnRecoveryNotice] = useState<string>();
-  const [turnRecoveryAttempt, setTurnRecoveryAttempt] = useState(0);
+  const [activeRecoveryRoute, setActiveRecoveryRoute] = useState<ConversationRecoveryRouteId>();
   const [registryLoaded, setRegistryLoaded] = useState(false);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [loadedJourneyRegistry, setLoadedJourneyRegistry] = useState<JourneyRegistry>(emptyJourneyRegistry);
@@ -740,11 +743,7 @@ export function App({ model }: AppProps) {
   const selectedNativeLease = piInvocationOccupancy.entries.find((entry) => (
     entry.authority.journeyId === selectedJourney
   ));
-  const blockingOpeningRecovery = blockingTurnJournalRecord
-    ? decideTurnJournalOpeningRecovery(blockingTurnJournalRecord, Boolean(selectedNativeLease))
-    : undefined;
-  const previousResponseCanBeDiscarded = blockingOpeningRecovery === "recover_response"
-    && blockingTurnJournalRecord?.phase === "terminal_durable";
+  const blockingTurnAwaitingNativeLease = Boolean(blockingTurnJournalRecord && selectedNativeLease);
   const retainedLeaseWithoutRecovery = selectedNativeLease
     && !selectedRuntimeBusy
     && !exactRetainedSettlementRecovery;
@@ -778,7 +777,7 @@ export function App({ model }: AppProps) {
   });
   const showBlockingTurnRecoveryNotice = Boolean(blockingTurnJournalRecord)
     && !isStreaming
-    && (blockingOpeningRecovery !== "wait_for_agent" || composerTurnStatus !== "finishing");
+    && (!blockingTurnAwaitingNativeLease || composerTurnStatus !== "finishing");
   const showNativeOccupancyNotice = piInvocationOccupancy.status !== "known"
     && composerTurnStatus !== "finishing";
   const showConversationSyncNotice = shouldShowConversationSyncNotice({
@@ -797,6 +796,28 @@ export function App({ model }: AppProps) {
     mirrorSynchronizationPending: showConversationSyncNotice,
   });
   const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;
+  const blockingRecoveryEvidence = blockingTurnJournalRecord
+    && ["admitted", "running", "terminal_durable", "projected"].includes(blockingTurnJournalRecord.phase)
+    ? {
+        phase: blockingTurnJournalRecord.phase as "admitted" | "running" | "terminal_durable" | "projected",
+        terminalOutcome: blockingTurnJournalRecord.terminalOutcome,
+        hasFreshCompletePiEvidence: hasFreshCompleteTurnJournalEvidence(blockingTurnJournalRecord),
+        exactRunInactive: piInvocationOccupancy.status === "known"
+          && !selectedNativeLease
+          && !selectedRuntimeBusy,
+      }
+    : undefined;
+  const recoveryRoutes = decideConversationRecoveryRoutes({
+    availability: conversationAvailability,
+    blockingTurn: blockingRecoveryEvidence,
+    mirrorSynchronization: pendingMirrorRepair
+      ? legacyMirrorGap ? "legacy_gap" : "exact_repair_available"
+      : "none",
+    canCreateDesktopConversation: journeyThreadState.kind === "ready",
+  });
+  const showConversationRecoveryNotice = recoveryRoutes.length > 0
+    && !isStreaming
+    && (Boolean(blockingTurnJournalRecord) || legacyMirrorGap || showConversationSyncNotice);
   const configuredContextWindow = piModelCatalog.find((entry) =>
     entry.provider === effectiveAgentProfile.model.provider && entry.model === effectiveAgentProfile.model.model,
   )?.contextWindow ?? configuredModelContextWindow(effectiveProviderConfig);
@@ -1148,7 +1169,7 @@ export function App({ model }: AppProps) {
   }, [journeyRegistryRefreshState]);
 
   useEffect(() => {
-    setTurnRecoveryAttempt(0);
+    setActiveRecoveryRoute(undefined);
     setTurnRecoveryNotice(undefined);
     setTurnRecoveryError(undefined);
     chatAutoFollowRef.current = nextConversationAutoFollow(
@@ -1246,105 +1267,29 @@ export function App({ model }: AppProps) {
         let restoredConversation = restoreDecision.runtimeConversation ?? (classified.kind === "ready"
           ? restoreDedicatedJourneyConversation(classified.thread, persistedConversation)
           : createJourneyConversation({ journeyId: selectedJourney, initialMessages }));
-        const ownerHasLiveNativeExecution = classified.kind === "ready" && piInvocationOccupancy.entries.some((entry) => (
-          entry.authority.journeyId === selectedJourney
-          && entry.authority.generation === classified.activeGeneration.generation
-          && entry.terminalState === "open"
+        const latestRestoredNautilusTurn = [...restoredConversation.reconciliation.turns].reverse().find((turn) => (
+          turn.origin === "nautilus" && turn.runId
         ));
         if (classified.kind === "ready" && classified.activeGeneration.piSessionFile
-          && piInvocationBootstrapComplete
-          && shouldRecoverDurableTurnJournal({
-            allowPersistedRecovery: restoreDecision.allowPersistedRecovery,
-            nativeInspectionStatus: piInvocationOccupancy.status,
-            ownerHasLiveNativeExecution,
-          })) {
-          const journal = await loadTurnJournal(selectedJourney);
-          if (!requestIsCurrent()) return;
-          const latestNautilusTurn = [...restoredConversation.reconciliation.turns].reverse().find((turn) =>
-            turn.origin === "nautilus" && turn.runId,
-          );
-          const pendingTurn = latestNautilusTurn?.pi.state === "pending" ? latestNautilusTurn : undefined;
-          const stagedUser = [...restoredConversation.messages].reverse().find((message) => message.role === "user");
-          const stagedAssistant = [...restoredConversation.messages].reverse().find((message) => message.role === "assistant");
-          if (pendingTurn?.runId && stagedUser && stagedAssistant) {
-            const recoveryCorrelation = createDedicatedTurnAuthority(
-              classified.thread,
-              pendingTurn.runId,
-              pendingTurn.turnId,
-              stagedUser.id,
-              stagedAssistant.id,
-            );
-            const recoveryAuthority = createJourneySettlementAuthority(
-              createRunAuthority(recoveryCorrelation, restoredConversation.liveIdentity),
-            );
-            const hasJournalRecord = journal.records.some((record) => record.authority.runId === pendingTurn.runId);
-            if (hasJournalRecord) {
-              const journalRecord = requireExactTurnJournalRecord(journal, recoveryAuthority);
-              const decision = decideTurnJournalRecovery(journalRecord);
-              if (decision === "project_completed") {
-                const execution = journalRecord.terminalEvidence?.piExecution;
-                if (!execution) throw new Error("turn_journal_completed_evidence_missing");
-                restoredConversation = replaceJourneyConversationMessages(
-                  restoredConversation,
-                  restoredConversation.messages.map((message) => message.id === stagedAssistant.id
-                    ? { ...message, content: execution.assistantText }
-                    : message),
-                );
-                restoredConversation = applyPiExecutionEvidence(restoredConversation, recoveryCorrelation, {
-                  userEntryId: execution.userEntryId,
-                  assistantEntryId: execution.assistantEntryId,
-                  leafEntryId: execution.leafEntryId,
-                  entryCount: execution.entryCount,
-                  sessionFile: classified.activeGeneration.piSessionFile,
-                  committedAt: execution.committedAt,
-                });
-                restoredConversation = commitHarnessTurn(restoredConversation, recoveryCorrelation, new Date().toISOString());
-                await saveProjectedTurnLifecycle(restoredConversation, recoveryAuthority);
-                await enqueueExactProjectionOutbox(restoredConversation, recoveryAuthority);
-              } else if (decision === "interrupt" || decision === "project_cancelled" || decision === "project_failed") {
-                restoredConversation = interruptDedicatedTurn(
-                  restoredConversation,
-                  pendingTurn.turnId,
-                  decision === "project_cancelled"
-                    ? "turn_journal_cancelled"
-                    : decision === "project_failed" ? "turn_journal_failed" : "turn_journal_interrupted",
-                  new Date().toISOString(),
-                );
-                restoredConversation = replaceJourneyConversationMessages(
-                  restoredConversation,
-                  restoredConversation.messages.filter((message) => message.id !== stagedAssistant.id || message.content.trim().length > 0),
-                );
-                await saveInterruptedTurnLifecycle(restoredConversation, recoveryAuthority);
-              } else {
-                throw new Error(`turn_journal_projection_divergence:${decision}`);
-              }
-            } else {
-              dispatchJourneyRuntime({
-                type: "append_warning",
-                journeyId: selectedJourney,
-                message: "Pending turn retained because no durable lifecycle journal authority exists for recovery.",
-              });
-            }
-          } else if (!latestNautilusTurn && !childEntry) {
-            const turns = await loadDedicatedPiTranscript(
-              selectedJourney,
-              classified.thread.threadId,
-              classified.activeGeneration.generation,
-              classified.activeGeneration.piSessionId,
-              classified.activeGeneration.piSessionFile,
-            ).catch(() => []);
-            restoredConversation = replaceJourneyConversationMessages(restoredConversation, turns.flatMap((turn) => [{
-              id: `pi-${turn.userEntryId}`,
-              role: "user" as const,
-              content: turn.userText,
-              createdAt: turn.startedAt,
-            }, {
-              id: `pi-${turn.assistantEntryId}`,
-              role: "assistant" as const,
-              content: turn.assistantText,
-              createdAt: turn.committedAt,
-            }]));
-          }
+          && !latestRestoredNautilusTurn && !childEntry) {
+          const turns = await loadDedicatedPiTranscript(
+            selectedJourney,
+            classified.thread.threadId,
+            classified.activeGeneration.generation,
+            classified.activeGeneration.piSessionId,
+            classified.activeGeneration.piSessionFile,
+          ).catch(() => []);
+          restoredConversation = replaceJourneyConversationMessages(restoredConversation, turns.flatMap((turn) => [{
+            id: `pi-${turn.userEntryId}`,
+            role: "user" as const,
+            content: turn.userText,
+            createdAt: turn.startedAt,
+          }, {
+            id: `pi-${turn.assistantEntryId}`,
+            role: "assistant" as const,
+            content: turn.assistantText,
+            createdAt: turn.committedAt,
+          }]));
         }
         const repairableSteering = restoredConversation.steeringEvidence?.some((item) => (
           item.status === "pending" || item.status === "accepted" || item.status === "terminally_unconsumed"
@@ -1423,7 +1368,6 @@ export function App({ model }: AppProps) {
     piInvocationBootstrapComplete,
     selectedNativeLease?.leasePhase,
     selectedNativeLease?.terminalState,
-    turnRecoveryAttempt,
   ]);
 
   useEffect(() => {
@@ -1439,7 +1383,6 @@ export function App({ model }: AppProps) {
           setBlockingTurnJournalRecord(undefined);
           setTurnRecoveryError(undefined);
           setTurnRecoveryBusy(false);
-          setTurnRecoveryAttempt(0);
           const projectedSyncRecord = [...journal.records].reverse().find((record) => (
             record.authority.journeyId === ownerJourneyId
             && record.authority.threadId === journeyThreadState.thread.threadId
@@ -1457,29 +1400,8 @@ export function App({ model }: AppProps) {
           }
           return;
         }
-        const decision = decideTurnJournalOpeningRecovery(blockingRecord, Boolean(selectedNativeLease));
-        if (decision !== "auto_interrupt") {
-          setBlockingTurnJournalRecord(blockingRecord);
-          setTurnRecoveryError(turnRecoveryAttempt > 0 && decision === "recover_response"
-            ? "Mirror still couldn’t restore the previous response. Your data remains preserved."
-            : undefined);
-          setTurnRecoveryBusy(false);
-          return;
-        }
         setBlockingTurnJournalRecord(blockingRecord);
-        setTurnRecoveryBusy(true);
-        const recoveredJournal = await interruptInactiveTurnRecord(
-          blockingRecord,
-          ownerJourneyId,
-          activeGeneration,
-        );
-        if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
-        setBlockingTurnJournalRecord(
-          findBlockingTurnJournalRecord(recoveredJournal, ownerJourneyId, activeGeneration, journeyThreadState.thread.threadId),
-        );
-        setTurnRecoveryNotice("A previous attempt didn’t finish. You can send your message again.");
         setTurnRecoveryError(undefined);
-        setTurnRecoveryAttempt(0);
         setTurnRecoveryBusy(false);
       })
       .catch(() => {
@@ -1497,7 +1419,6 @@ export function App({ model }: AppProps) {
     selectedJourney,
     selectedNativeLease?.leasePhase,
     selectedNativeLease?.terminalState,
-    turnRecoveryAttempt,
   ]);
 
   useEffect(() => {
@@ -2305,6 +2226,7 @@ export function App({ model }: AppProps) {
             });
           }
         }
+        dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
       } else if (correlation && settlementAuthority) {
         dispatchJourneyRuntime({ type: "finalization_started", identity: runtimeIdentity });
         let finalizationReleased = false;
@@ -2747,7 +2669,8 @@ export function App({ model }: AppProps) {
       setJourneyMirrorCommitError(ownerJourneyId, undefined);
       checkedMirrorTurnRef.current.add(settlement.outbox.itemId);
     } catch (error) {
-      setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      setJourneyMirrorCommitError(ownerJourneyId, `Retry Mirror synchronization failed: ${message}`);
     } finally {
       setIsRetryingMirrorCommit(false);
     }
@@ -2913,13 +2836,84 @@ export function App({ model }: AppProps) {
     }
   }
 
-  function resumeBlockingTurnRecovery() {
-    if (!blockingTurnJournalRecord || selectedRuntimeBusy) return;
+  async function recoverPreservedResponse() {
+    const record = blockingTurnJournalRecord;
+    if (!record || record.phase !== "terminal_durable" || journeyThreadState.kind !== "ready"
+      || selectedRuntimeBusy || !hasFreshCompleteTurnJournalEvidence(record)) return;
+    const ownerJourneyId = selectedJourney;
+    let localCompletionEstablished = false;
     setTurnRecoveryBusy(true);
     setTurnRecoveryError(undefined);
-    setConversationLoaded(false);
-    setJourneyReloadStatus("Trying to restore the previous response…");
-    setTurnRecoveryAttempt((attempt) => attempt + 1);
+    try {
+      const durable = await loadDedicatedJourneyConversation(
+        ownerJourneyId,
+        record.authority.generation,
+        record.authority.threadId,
+      );
+      if (!durable) throw new Error("complete_durable_conversation_missing");
+      const correlation = createDedicatedTurnAuthority(
+        journeyThreadState.thread,
+        record.authority.runId,
+        record.authority.turnId,
+        record.authority.harnessUserMessageId,
+        record.authority.harnessAssistantMessageId,
+      );
+      const authority = createJourneySettlementAuthority(
+        createRunAuthority(correlation, durable.liveIdentity, journeyThreadState.activeGeneration),
+      );
+      const exactRecord = requireExactTurnJournalRecord(await loadTurnJournal(ownerJourneyId), authority);
+      if (decideTurnJournalRecovery(exactRecord) !== "project_completed"
+        || !hasFreshCompleteTurnJournalEvidence(exactRecord)) {
+        throw new Error("preserved_response_authority_changed");
+      }
+      const execution = exactRecord.terminalEvidence!.piExecution!;
+      const sessionFile = durable.liveIdentity.piSessionFile;
+      if (!sessionFile) throw new Error("preserved_response_session_authority_missing");
+      const user = durable.messages.find((message) => message.id === authority.harnessUserMessageId);
+      const assistant = durable.messages.find((message) => message.id === authority.harnessAssistantMessageId);
+      if (!user || !assistant) throw new Error("preserved_response_staged_messages_missing");
+      let recovered = replaceJourneyConversationMessages(
+        durable,
+        durable.messages.map((message) => message.id === authority.harnessAssistantMessageId
+          ? { ...message, content: execution.assistantText }
+          : message),
+      );
+      recovered = applyPiExecutionEvidence(recovered, correlation, {
+        userEntryId: execution.userEntryId,
+        assistantEntryId: execution.assistantEntryId,
+        leafEntryId: execution.leafEntryId,
+        entryCount: execution.entryCount,
+        sessionFile,
+        committedAt: execution.committedAt,
+      });
+      recovered = commitHarnessTurn(recovered, correlation, new Date().toISOString());
+      await saveProjectedTurnLifecycle(recovered, authority);
+      localCompletionEstablished = true;
+      conversationRef.current = recovered;
+      setConversation(recovered);
+      setBlockingTurnJournalRecord(undefined);
+      setTurnRecoveryNotice("The preserved response was recovered without running the agent again.");
+      const projectedRecord = requireExactTurnJournalRecord(await loadTurnJournal(ownerJourneyId), authority);
+      await resumeProjectedMirrorSynchronization(projectedRecord);
+      const settled = await loadDedicatedJourneyConversation(
+        ownerJourneyId,
+        authority.generation,
+        authority.threadId,
+      );
+      if (settled && selectedJourneyRef.current === ownerJourneyId) {
+        conversationRef.current = settled;
+        setConversation(settled);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (localCompletionEstablished) {
+        setJourneyMirrorCommitError(ownerJourneyId, message);
+      } else {
+        setTurnRecoveryError(`Recover preserved response failed: ${message}. Durable evidence remains preserved.`);
+      }
+    } finally {
+      if (selectedJourneyRef.current === ownerJourneyId) setTurnRecoveryBusy(false);
+    }
   }
 
   async function interruptInactiveTurnRecord(
@@ -2933,11 +2927,17 @@ export function App({ model }: AppProps) {
       const ownsTurn = currentConversation.journeyId === ownerJourneyId
         && currentConversation.reconciliation.turns.some((turn) => turn.turnId === interruptedRecord.authority.turnId);
       if (ownsTurn) {
-        const interruptedConversation = interruptDedicatedTurn(
+        let interruptedConversation = interruptDedicatedTurn(
           currentConversation,
           interruptedRecord.authority.turnId,
           "turn_interrupted_after_native_inactivity",
           new Date().toISOString(),
+        );
+        interruptedConversation = replaceJourneyConversationMessages(
+          interruptedConversation,
+          interruptedConversation.messages.filter(
+            (message) => message.id !== interruptedRecord.authority.harnessAssistantMessageId,
+          ),
         );
         await saveDedicatedJourneyConversation(interruptedConversation);
         conversationRef.current = interruptedConversation;
@@ -2963,13 +2963,37 @@ export function App({ model }: AppProps) {
       setBlockingTurnJournalRecord(
         findBlockingTurnJournalRecord(journal, ownerJourneyId, activeGeneration, journeyThreadState.thread.threadId),
       );
-      setTurnRecoveryNotice("The previous unfinished attempt was discarded. You can send your message again.");
+      setTurnRecoveryNotice("The durable attempt was preserved. You can continue without the unverified response.");
       setJourneyReloadStatus(undefined);
     } catch {
       if (selectedJourneyRef.current !== ownerJourneyId) return;
-      setTurnRecoveryError("Mirror couldn’t discard the previous attempt safely. Your data is preserved.");
+      setTurnRecoveryError("Preserve attempt and continue failed. Durable evidence remains preserved.");
     } finally {
       if (selectedJourneyRef.current === ownerJourneyId) setTurnRecoveryBusy(false);
+    }
+  }
+
+  async function performRecoveryRoute(route: ConversationRecoveryRouteId) {
+    if (activeRecoveryRoute) return;
+    if (route === "start_new_conversation") {
+      requestBlankDesktopConversation();
+      return;
+    }
+    if (route === "reset_agent_context") {
+      requestConversationRestart();
+      return;
+    }
+    setActiveRecoveryRoute(route);
+    try {
+      if (route === "retry_mirror_sync") {
+        await retryPendingMirrorCommit();
+      } else if (route === "recover_preserved_response") {
+        await recoverPreservedResponse();
+      } else if (route === "preserve_attempt_and_continue") {
+        await markBlockingTurnInterrupted();
+      }
+    } finally {
+      setActiveRecoveryRoute(undefined);
     }
   }
 
@@ -4469,41 +4493,14 @@ export function App({ model }: AppProps) {
               <p>{turnRecoveryNotice}</p>
             </section>
           ) : null}
-          {showBlockingTurnRecoveryNotice ? (
-            <section className="dedicated-turn-notice" role="alert">
-              {turnRecoveryBusy ? (
-                <><strong>Preparing your conversation…</strong><p>Mirror is safely checking the previous attempt.</p></>
-              ) : blockingOpeningRecovery === "wait_for_agent" ? (
-                <><strong>The agent is still finishing the previous message</strong><p>Your conversation will become available when it finishes.</p></>
-              ) : (
-                <>
-                  <strong>We couldn’t restore the previous response</strong>
-                  <p>Your data is preserved. Try restoring it again before deciding whether to discard that response.</p>
-                  <div className="provider-actions">
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      onClick={resumeBlockingTurnRecovery}
-                      disabled={selectedRuntimeBusy || piInvocationOccupancy.status !== "known"}
-                    >
-                      Try again
-                    </button>
-                    {previousResponseCanBeDiscarded ? (
-                      <button
-                        className="secondary-button"
-                        type="button"
-                        onClick={() => void markBlockingTurnInterrupted()}
-                        disabled={selectedRuntimeBusy || piInvocationOccupancy.status !== "known"}
-                      >
-                        Discard previous response
-                      </button>
-                    ) : null}
-                  </div>
-                </>
-              )}
-              {turnRecoveryError ? <p className="provider-error">{turnRecoveryError}</p> : null}
+          {showBlockingTurnRecoveryNotice && recoveryRoutes.length === 0 ? (
+            <section className="dedicated-turn-notice" role="status">
+              <strong>{blockingTurnAwaitingNativeLease
+                ? "The agent is still finishing the previous message"
+                : "Recovery is not available yet"}</strong>
+              <p>The preserved attempt remains unchanged until exact native inactivity is established.</p>
             </section>
-          ) : turnRecoveryError && !isStreaming ? (
+          ) : turnRecoveryError && !isStreaming && recoveryRoutes.length === 0 ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>We couldn’t prepare this conversation</strong>
               <p>{turnRecoveryError}</p>
@@ -4533,12 +4530,20 @@ export function App({ model }: AppProps) {
               <p>Operational actions remain blocked because persisted evidence does not authorize cleanup or recovery for this exact run.</p>
             </section>
           ) : null}
-          {legacyMirrorGap && !isStreaming ? <LegacyMirrorGapNotice /> : null}
-          {showConversationSyncNotice ? (
-            <ConversationSyncNotice
-              retrying={isRetryingMirrorCommit}
-              error={mirrorCommitError ?? pendingMirrorRepair?.failureCode}
-              onRetry={() => void retryPendingMirrorCommit()}
+          {showConversationRecoveryNotice ? (
+            <ConversationRecoveryNotice
+              title={blockingTurnJournalRecord
+                ? "Resolve the preserved attempt"
+                : legacyMirrorGap ? "Choose how to continue" : "Repair Mirror synchronization"}
+              message={blockingTurnJournalRecord
+                ? "Choose one explicit operation. No recovery action will run the agent again."
+                : legacyMirrorGap
+                  ? "The exact legacy Mirror payload is unavailable, so synchronization cannot be reconstructed."
+                  : "The local response is complete. This operation repairs only its secondary Mirror copy."}
+              routes={recoveryRoutes}
+              activeRoute={activeRecoveryRoute}
+              error={turnRecoveryError ?? mirrorCommitError ?? pendingMirrorRepair?.failureCode}
+              onSelect={(route) => { void performRecoveryRoute(route); }}
             />
           ) : null}
           {fileAttachmentError ? <p className="context-attachment-error" role="alert">{fileAttachmentError}</p> : null}

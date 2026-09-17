@@ -29,8 +29,8 @@ use runtime_channel::{
 };
 use whats_new_state::{load_whats_new_state, save_whats_new_state};
 use turn_journal::{
-    admit_turn, can_interrupt_inactive_turn, read_turn_journal, transition_turn,
-    TurnJournalAuthority, TurnJournalDocument, TurnJournalRecord, TurnPhase, TurnPiExecutionEvidence,
+    admit_turn, interrupt_inactive_turn, read_turn_journal, transition_turn, TurnJournalAuthority,
+    TurnJournalDocument, TurnJournalRecord, TurnPhase, TurnPiExecutionEvidence,
     TurnRecoveryDisposition, TurnTerminalEvidence, TurnTerminalOutcome, TurnTransitionRequest,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
@@ -3435,10 +3435,7 @@ fn interrupt_inactive_turn_journal(
         if record.revision != expected_revision {
             return Err("turn_journal_inactive_revision_stale".to_string());
         }
-        if !can_interrupt_inactive_turn(&record, active_generation, journey_has_retained_lease) {
-            return Err("turn_journal_inactive_interruption_unsafe".to_string());
-        }
-        transition_turn(
+        interrupt_inactive_turn(
             path,
             &authority,
             TurnTransitionRequest {
@@ -3451,6 +3448,8 @@ fn interrupt_inactive_turn_journal(
                 cancellation_intent: None,
                 recovery_disposition: Some(TurnRecoveryDisposition::Interrupted),
             },
+            active_generation,
+            journey_has_retained_lease,
         )
     })
 }

@@ -36,7 +36,7 @@ describe("Journey runtime integration guardrails", () => {
       /if \(!preserveReadyConversation\) \{\s*setConversationLoaded\(false\);\s*setJourneyThreadState\(\{ kind: "loading" \}\);\s*\}/,
     );
     expect(appSource).toContain('type: "conversation_snapshot", identity: runtimeIdentity');
-    expect(appSource).toContain("shouldRecoverDurableTurnJournal({");
+    expect(appSource).not.toContain("shouldRecoverDurableTurnJournal({");
     expect(appSource).toContain("piInvocationBootstrapComplete");
     expect(appSource).toContain("selectedNativeLease?.terminalState");
     expect(appSource).not.toContain("[selectedJourney, registryLoaded, preferencesLoaded, runtimeBusy]");
@@ -123,6 +123,8 @@ describe("Journey runtime integration guardrails", () => {
     expect(preAgentRollback).toContain("setJourneyComposerDraft(ownerJourneyId, content)");
     expect(preAgentRollback).toContain("Message returned to the composer");
     expect(preAgentRollback).not.toContain('type: "conversation_snapshot"');
+    const durableFailure = sourceBetween("} else if (runWasCancelled || runFailed)", "} else if (correlation && settlementAuthority)");
+    expect(durableFailure).toContain('type: "finalization_finished", identity: runtimeIdentity');
   });
 
   it("keeps native occupancy as execution ownership while journal controls lifecycle", () => {
