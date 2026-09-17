@@ -2,7 +2,7 @@
 
 # CR033 — Separate Local Turn Completion from Mirror Synchronization
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs017-cr033-local-completion`
 
@@ -90,17 +90,23 @@ The Navigator approved this Plan, Driver `@alissonvale`, Delivery `refinement/rs
 
 The alpha 8 incident and CR031 experiment exposed `projected`, `outbox_enqueued`, partial Segment projection, timestamp and recovery-evidence coupling across the current frontier.
 
-## Outcome
+## Navigator Validation
 
-Implementation is complete and awaiting Navigator validation.
+Accepted explicitly by the Navigator after controlled validation in the isolated `ai.mirrormind.desktop.dev` bundle.
 
-The local-completion frontier now releases the exact native Journey lease immediately after the completed turn and complete Conversation projection are durably established. Mirror enqueue, append, receipt projection and acknowledgement remain exact, durable synchronization work, but failures after local completion no longer remove Send access. On restart, an eligible `projected` record is non-blocking and its Mirror synchronization is resumed model-free from the complete durable projection.
+The validation used the disposable **US1 Rerun A 0831** Journey and `openai-codex/gpt-5.5`:
 
-Native admission independently verifies the completed terminal evidence against the exact persisted Conversation, including Journey, thread, generation, session, Mirror identity, run, turn, committed harness/Pi states and exact user/assistant messages. The next provider packet reloads the complete durable Conversation rather than extending the displayed Segment.
+1. a normal provider turn established a fresh exact baseline;
+2. the DEV outbox was replaced temporarily with a controlled invalid target;
+3. the next response completed exactly and remained durably `projected` while the synchronization error stayed visible and Send remained available;
+4. the original DEV outbox was restored without repairing the pending turn;
+5. a successor turn was admitted, answered exactly and reached `settled` while the prior turn remained preserved in `projected`;
+6. explicit **Retry** reconstructed the prior exact outbox item from the complete durable Conversation and advanced it to `settled` without another provider execution;
+7. the final outbox was empty and both turns had committed harness, Pi and Mirror evidence.
 
-The first Navigator validation pass exposed an unsupported-model provider error whose unchanged Pi leaf was being mistaken for fresh completion evidence. The outbox fault fixture was restored without retrying that invalid turn. Terminalization now captures the pre-invocation Pi leaf and refuses completion unless the durable Pi transcript advances beyond it; successor eligibility also rejects stale, empty, truncated or chronologically invalid completion evidence. This preserves the fail-closed side of the local-completion contract.
+The first validation attempt also exposed an unsupported-model provider error whose unchanged Pi leaf was being mistaken for fresh completion evidence. The fixture was restored without retrying that invalid turn. Terminalization now captures the pre-invocation Pi leaf and refuses completion unless the durable Pi transcript advances beyond it; successor eligibility also rejects stale, empty, truncated or chronologically invalid completion evidence.
 
-Validation evidence:
+Automated validation evidence:
 
 - frontend: 143 test files and 792 tests passed;
 - production web build passed, with only the pre-existing Vite chunk-size warning;
@@ -108,4 +114,14 @@ Validation evidence:
 - `cargo check` passed;
 - focused local-completion, settlement, composer, availability and source-contract tests passed.
 
-Navigator validation in Mirror Desktop Dev remains required before this CR can move to `validated` or `done`. No production app-data mutation, push, merge, publication or release was performed.
+## Debt Review
+
+**Decision:** no_action
+
+The change uses the existing journal, projection, outbox and settlement authorities without adding a schema, background worker or parallel recovery mechanism. The `projectionAlreadyDurable` route is internal to exact model-free synchronization recovery and remains guarded by persisted journal and projection authority. The generic recovery interaction remains intentionally owned by CR034, and Journey prompt scope remains intentionally owned by CR035; neither is debt introduced by CR033.
+
+## Outcome
+
+Done. The local-completion frontier now releases the exact native Journey lease immediately after a completed turn and complete Conversation projection are durably established. Mirror synchronization remains exact and durable but no longer controls agent availability. Native admission independently verifies fresh terminal evidence against the persisted Conversation, and every successor reloads the complete durable Conversation rather than extending the displayed Segment.
+
+CR034 is the recommended next movement, but it is not selected or authorized by this closure. No production app-data mutation, push, merge, publication or release was performed.

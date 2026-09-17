@@ -46,10 +46,10 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR033](rs017-reliable-agent-access/cr033-separate-local-completion-from-mirror-synchronization.md) | RS017 | Separate Local Turn Completion from Mirror Synchronization | in_progress | @alissonvale | `refinement/rs017-cr033-local-completion` |
-| 2 | [CR034](rs017-reliable-agent-access/cr034-replace-generic-retry-with-explicit-recovery-routes.md) | RS017 | Replace Generic Retry with Explicit Recovery Routes | captured | — | — |
-| 3 | [CR035](rs017-reliable-agent-access/cr035-make-journey-authority-proportional.md) | RS017 | Make Journey Authority Proportional to the Operation | captured | — | — |
-| 4 | [CR030](rs016-ongoing-product-improvements-and-adjustments/cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md) | RS016 | Restore Journey expansion arrow contrast in light themes | in_progress | @alissonvale | `refinement/rs016-cr030-journey-expansion-arrow-contrast` |
+| 1 | [CR034](rs017-reliable-agent-access/cr034-replace-generic-retry-with-explicit-recovery-routes.md) | RS017 | Replace Generic Retry with Explicit Recovery Routes | captured | — | — |
+| 2 | [CR035](rs017-reliable-agent-access/cr035-make-journey-authority-proportional.md) | RS017 | Make Journey Authority Proportional to the Operation | captured | — | — |
+| 3 | [CR030](rs016-ongoing-product-improvements-and-adjustments/cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md) | RS016 | Restore Journey expansion arrow contrast in light themes | in_progress | @alissonvale | `refinement/rs016-cr030-journey-expansion-arrow-contrast` |
+| — | [CR033](rs017-reliable-agent-access/cr033-separate-local-completion-from-mirror-synchronization.md) | RS017 | Separate Local Turn Completion from Mirror Synchronization | done | @alissonvale | `refinement/rs017-cr033-local-completion` |
 | — | [CR032](rs017-reliable-agent-access/cr032-establish-conversation-availability-contract.md) | RS017 | Establish the Conversation Availability Contract | done | @alissonvale | `refinement/rs017-cr032-conversation-availability-contract` |
 | — | [CR031](rs016-ongoing-product-improvements-and-adjustments/cr031-recover-from-unrestorable-previous-response.md) | RS016 | Recover from unrestorable previous response | promoted | @alissonvale | `refinement/rs016-cr031-unrestorable-response-recovery` |
 | — | [CR029](rs016-ongoing-product-improvements-and-adjustments/cr029-restore-responsiveness-for-long-conversations.md) | RS016 | Restore responsiveness for long conversations | done | @alissonvale | `refinement/rs016-cr029-long-conversation-responsiveness` |
