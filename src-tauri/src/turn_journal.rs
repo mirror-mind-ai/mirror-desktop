@@ -252,6 +252,16 @@ fn retention_priority(phase: TurnPhase) -> u8 {
     }
 }
 
+fn can_prune_retained_record(record: &TurnJournalRecord, permit_unfinished_pruning: bool) -> bool {
+    match record.phase {
+        TurnPhase::Settled | TurnPhase::Interrupted | TurnPhase::OutboxEnqueued => true,
+        TurnPhase::Projected | TurnPhase::TerminalDurable => {
+            record.terminal_outcome != Some(TurnTerminalOutcome::Completed)
+        }
+        TurnPhase::Admitted | TurnPhase::Running => permit_unfinished_pruning,
+    }
+}
+
 fn compact_turn_journal_for_write(
     document: &mut TurnJournalDocument,
     protected_run_id: &str,
@@ -265,10 +275,7 @@ fn compact_turn_journal_for_write(
         }
         let candidate = document.records.iter().enumerate()
             .filter(|(_, record)| record.authority.run_id != protected_run_id)
-            .filter(|(_, record)| {
-                permit_unfinished_pruning
-                    || !matches!(record.phase, TurnPhase::Admitted | TurnPhase::Running)
-            })
+            .filter(|(_, record)| can_prune_retained_record(record, permit_unfinished_pruning))
             .min_by_key(|(_, record)| (
                 retention_priority(record.phase),
                 record.created_at.as_str(),
@@ -885,7 +892,7 @@ mod tests {
         let mut historical = protected.clone();
         historical.authority = authority("run-historical", "journey-a");
         historical.phase = TurnPhase::TerminalDurable;
-        historical.terminal_outcome = Some(TurnTerminalOutcome::Completed);
+        historical.terminal_outcome = Some(TurnTerminalOutcome::ProcessDied);
         historical.terminal_evidence = transition(
             2,
             TurnPhase::Running,
@@ -911,6 +918,42 @@ mod tests {
             ).unwrap_err(),
             "turn_journal_full",
         );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn completed_pre_outbox_evidence_is_not_pruned_as_if_delivery_debt_were_durable() {
+        let root = root("pre-outbox-retention");
+        let path = root.join("turn-journal.json");
+        let auth = authority("source", "journey-a");
+        let admitted = admit_turn(&path, auth.clone(), None).unwrap();
+        let running = transition_turn(
+            &path,
+            &auth,
+            transition(admitted.revision, TurnPhase::Admitted, TurnPhase::Running, "running-source"),
+        ).unwrap();
+        let terminal = transition_turn(
+            &path,
+            &auth,
+            transition(running.revision, TurnPhase::Running, TurnPhase::TerminalDurable, "terminal-source"),
+        ).unwrap();
+        let projected = transition_turn(
+            &path,
+            &auth,
+            transition(terminal.revision, TurnPhase::TerminalDurable, TurnPhase::Projected, "projected-source"),
+        ).unwrap();
+        let mut journal = empty_document();
+        journal.records = (0..=JOURNAL_MAX_RECORDS).map(|index| {
+            let mut record = projected.clone();
+            record.authority = authority(&format!("run-{index:03}"), "journey-a");
+            record
+        }).collect();
+
+        assert_eq!(
+            compact_turn_journal_for_write(&mut journal, "run-064", true).unwrap_err(),
+            "turn_journal_full",
+        );
+        assert_eq!(journal.records.len(), JOURNAL_MAX_RECORDS + 1);
         fs::remove_dir_all(root).unwrap();
     }
 

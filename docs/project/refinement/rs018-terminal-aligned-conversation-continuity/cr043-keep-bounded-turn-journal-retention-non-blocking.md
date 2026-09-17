@@ -98,13 +98,13 @@ CR043 was created by the CR042 Debt Review decision `create_follow_up`. The Navi
 
 ## Outcome
 
-Implementation is complete and awaiting Navigator Validation.
+Implementation reached a safe architectural boundary and is awaiting a Navigator decision before further work.
 
-Journal writes now protect the exact run being admitted or transitioned and compact historical records deterministically whenever either the 64-record or 8 MiB serialized bound would be exceeded. Retention priority is `settled`, `interrupted`, `outbox_enqueued`, `projected`, `terminal_durable`, then unfinished history.
+Journal writes now protect the exact run being admitted or transitioned and can compact safely disposable history when either the 64-record or 8 MiB serialized bound is exceeded. Settled, interrupted, outbox-enqueued and non-completed terminal/projection records are eligible. Unfinished admitted/running history is eligible only during `admit_turn()`, after native reservation proves every pre-existing same-Journey record inactive. Ordinary lifecycle transitions never prune another unfinished run without that proof.
 
-Unfinished admitted/running history can be pruned only during `admit_turn()`. That function is called after the native registry reserves the only same-Journey lease, proving all pre-existing records inactive. Ordinary lifecycle transitions never prune another unfinished run without that occupancy proof. The newly admitted or transitioned run is always protected; if it alone exceeds the byte budget, the write remains fail-closed.
+A deeper dependency emerged: completed `terminal_durable` and `projected` records cannot be pruned safely. Before phase `outbox_enqueued`, the journal remains the only durable cue that the completed Pi pair still needs compatibility-outbox materialization. Pruning those records would silently discard Mirror delivery debt, violating RS018 even though the Pi transcript survives.
 
-No archive or replacement authority was introduced. Compaction removes only bounded lifecycle-cache records; Pi transcript, compatibility-outbox items, Mirror state and control-plane bindings are untouched.
+The implementation therefore preserves completed pre-outbox evidence and still returns `turn_journal_full` in the extreme case where the entire bound consists of that unsafe-to-prune state. Eliminating that final gate requires moving self-contained outbox materialization earlier or combining CR043 with the planned compatibility-outbox isolation slice. No archive or replacement authority was introduced.
 
 ### TDD And Validation Evidence
 
@@ -112,11 +112,10 @@ No archive or replacement authority was introduced. Compaction removes only boun
 - Record-count coverage now proves that 65 unresolved historical attempts admit the protected successor and retire the oldest inactive record.
 - Deterministic-order coverage proves that settled history is retired before older unfinished history and that the new run is retained.
 - Occupancy-safety coverage proves ordinary transitions cannot prune another admitted/running record without post-reservation proof.
-- Byte-bound coverage proves oversized history is compacted while one oversized protected run remains fail-closed.
-- Complete Rust suite: 146 passed, 1 ignored.
-- Complete frontend suite: 802 passed.
-- `cargo check`: passed without warnings.
-- TypeScript and production web build: passed.
-- `npm run roadmap:check`: `Mirror Desktop roadmap: READY`.
+- Byte-bound coverage proves safely disposable oversized history is compacted while one oversized protected run remains fail-closed.
+- Delivery-safety coverage proves completed pre-outbox evidence is not pruned as if delivery debt were already self-contained.
+- Current safe-boundary Rust suite: 147 passed, 1 ignored; `cargo check` passed without warnings.
+- Frontend regression baseline remains 802 passed with TypeScript and production web build passing; no frontend code changed in the safety correction.
+- Final acceptance validation remains pending the Navigator decision on whether to expand or promote CR043.
 
 No provider was invoked and no production app data was read or mutated.
