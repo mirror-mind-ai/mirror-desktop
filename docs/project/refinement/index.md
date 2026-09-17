@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS018 — Terminal-Aligned Conversation Continuity
-- Change Request: none
+- Change Request: CR042 — Decouple Successor Admission from Desktop Projections
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -47,7 +47,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR042](rs018-terminal-aligned-conversation-continuity/cr042-decouple-successor-admission-from-desktop-projections.md) | RS018 | Decouple Successor Admission from Desktop Projections | planned | — | — |
+| 1 | [CR042](rs018-terminal-aligned-conversation-continuity/cr042-decouple-successor-admission-from-desktop-projections.md) | RS018 | Decouple Successor Admission from Desktop Projections | in_progress | @alissonvale | `refinement/rs018-cr042-projection-independent-admission` |
 | 2 | [CR037](rs016-ongoing-product-improvements-and-adjustments/cr037-confirm-app-closure-while-agents-are-working.md) | RS016 | Confirm app closure while agents are working | captured | — | — |
 | 3 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
 | — | [CR041](rs018-terminal-aligned-conversation-continuity/cr041-reconstruct-desktop-conversations-from-pi-session.md) | RS018 | Reconstruct Desktop Conversations from the Pi Session | done | @alissonvale | `refinement/rs018-cr041-pi-session-transcript` |

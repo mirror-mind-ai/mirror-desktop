@@ -108,16 +108,24 @@ describe("durable turn journal authority", () => {
     expect(decideTurnJournalRecovery(record({ phase: "interrupted", terminalOutcome: null, terminalEvidence: null }))).toBe("interrupt");
   });
 
-  it("surfaces blocking records from the active or a prior generation", () => {
+  it("surfaces a journal blocker only for the exact active native run", () => {
     const prior = record({ phase: "running", terminalOutcome: null, terminalEvidence: null });
-    expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 2)).toBe(prior);
-    expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 1)).toBe(prior);
-    expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 0)).toBeUndefined();
-    expect(findBlockingTurnJournalRecord(document({ ...prior, phase: "interrupted" }), "journey-a", 2)).toBeUndefined();
-    expect(findBlockingTurnJournalRecord(document(record({ phase: "projected" })), "journey-a", 2)).toBeUndefined();
-    expect(findBlockingTurnJournalRecord(document(record({ phase: "projected", terminalOutcome: "cancelled" })), "journey-a", 2))
-      .toMatchObject({ phase: "projected", terminalOutcome: "cancelled" });
-    expect(findBlockingTurnJournalRecord(document(prior), "journey-b", 2)).toBeUndefined();
+    expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 2)).toBeUndefined();
+    expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 2, undefined, "run-1")).toBe(prior);
+    expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 1, undefined, "run-1")).toBe(prior);
+    expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 0, undefined, "run-1")).toBeUndefined();
+    expect(findBlockingTurnJournalRecord(document(prior), "journey-a", 2, undefined, "replacement")).toBeUndefined();
+    expect(findBlockingTurnJournalRecord(
+      document({ ...prior, phase: "interrupted" }), "journey-a", 2, undefined, "run-1",
+    )).toBeUndefined();
+    expect(findBlockingTurnJournalRecord(
+      document(record({ phase: "projected" })), "journey-a", 2, undefined, "run-1",
+    )).toBeUndefined();
+    expect(findBlockingTurnJournalRecord(
+      document(record({ phase: "projected", terminalOutcome: "cancelled" })),
+      "journey-a", 2, undefined, "run-1",
+    )).toMatchObject({ phase: "projected", terminalOutcome: "cancelled" });
+    expect(findBlockingTurnJournalRecord(document(prior), "journey-b", 2, undefined, "run-1")).toBeUndefined();
   });
 
   it("permits a successor after exact local completion without waiting for Mirror synchronization", () => {

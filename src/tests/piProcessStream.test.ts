@@ -553,6 +553,34 @@ describe("Pi process stream adapter", () => {
     expect(events).toEqual([{ type: "run_status", status: "starting" }, { type: "done" }]);
   });
 
+  it("preserves native admission diagnostics instead of reporting a worker-start failure", async () => {
+    const packet = createMissionExtractionPacket({
+      currentState,
+      conversation: [{ id: "msg-admission-fail", role: "user", content: "test", createdAt: "2026-08-21T00:00:00.000Z" }],
+    });
+    let aborted = false;
+    const dispatcher = {
+      register: vi.fn(async () => ({
+        isClosed: () => aborted,
+        abortBeforeInvocation: () => { aborted = true; },
+      })),
+    };
+    const invokeCommand = vi.fn(async () => {
+      throw new Error("Pi invocation admission failed: turn_journal_unavailable");
+    });
+    const events = [];
+
+    for await (const event of livePiAgentStream(
+      packet, defaultPiProviderConfig, testRunAuthority(), { dispatcher, invokeCommand },
+    )) events.push(event);
+
+    expect(aborted).toBe(true);
+    expect(events).toEqual([
+      { type: "error", message: "Could not invoke local Pi: Pi invocation admission failed: turn_journal_unavailable" },
+      { type: "done" },
+    ]);
+  });
+
   it("does not invoke when authority-route registration fails", async () => {
     const packet = createMissionExtractionPacket({
       currentState,

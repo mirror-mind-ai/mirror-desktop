@@ -299,6 +299,8 @@ fn is_successor_eligible(record: &TurnJournalRecord) -> bool {
         && has_current_completion_evidence(record))
 }
 
+/// Appends lifecycle authority after the native registry has reserved exact execution.
+/// Historical journal records are evidence, not process-occupancy authority.
 pub fn admit_turn(
     path: &Path,
     authority: TurnJournalAuthority,
@@ -316,12 +318,6 @@ pub fn admit_turn(
         } else {
             Err("turn_journal_authority_conflict".to_string())
         };
-    }
-    if document.records.iter().any(|record| {
-        record.authority.journey_id == authority.journey_id
-            && !is_successor_eligible(record)
-    }) {
-        return Err("turn_journal_journey_occupied".to_string());
     }
     while document.records.len() >= JOURNAL_MAX_RECORDS {
         let Some(index) = document
@@ -742,10 +738,7 @@ mod tests {
         let path = root.join("turn-journal.json");
         let auth = authority("run-1", "journey-a");
         admit_turn(&path, auth.clone(), None).unwrap();
-        assert_eq!(
-            admit_turn(&path, authority("run-2", "journey-a"), None).unwrap_err(),
-            "turn_journal_journey_occupied"
-        );
+        assert!(admit_turn(&path, authority("run-2", "journey-a"), None).is_ok());
         assert_eq!(
             transition_turn(
                 &path,
@@ -780,6 +773,24 @@ mod tests {
             "turn_journal_receipt_conflict"
         );
         assert_eq!(read_turn_journal(&path).unwrap().records[0], running);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn historical_journal_lifecycle_never_owns_successor_admission() {
+        let root = root("native-owned-successor-admission");
+        let path = root.join("turn-journal.json");
+        let first = authority("run-1", "journey-a");
+        admit_turn(&path, first.clone(), None).unwrap();
+        transition_turn(
+            &path,
+            &first,
+            transition(1, TurnPhase::Admitted, TurnPhase::Running, "running"),
+        ).unwrap();
+
+        let successor = admit_turn(&path, authority("run-2", "journey-a"), None).unwrap();
+        assert_eq!(successor.authority.run_id, "run-2");
+        assert_eq!(read_turn_journal(&path).unwrap().records.len(), 2);
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -852,6 +863,7 @@ mod tests {
         write_turn_journal(&path, &mut document).unwrap();
         let stale = read_turn_journal(&path).unwrap().records.remove(0);
         assert!(!is_successor_eligible(&stale));
+        assert!(admit_turn(&path, authority("run-2", "journey-a"), None).is_ok());
         assert!(can_interrupt_inactive_turn(&stale, 1, false));
         assert_eq!(
             transition_turn(
@@ -876,7 +888,7 @@ mod tests {
     }
 
     #[test]
-    fn failed_projected_turn_remains_ineligible_for_a_successor() {
+    fn failed_projected_turn_preserves_recovery_evidence_without_blocking_a_successor() {
         let root = root("failed-projected-successor");
         let path = root.join("turn-journal.json");
         let auth = authority("run-1", "journey-a");
@@ -900,10 +912,7 @@ mod tests {
             transition(terminal.revision, TurnPhase::TerminalDurable, TurnPhase::Projected, "projected"),
         ).unwrap();
 
-        assert_eq!(
-            admit_turn(&path, authority("run-2", "journey-a"), None).unwrap_err(),
-            "turn_journal_journey_occupied",
-        );
+        assert!(admit_turn(&path, authority("run-2", "journey-a"), None).is_ok());
         assert!(can_interrupt_inactive_turn(&projected, 1, false));
         assert!(!can_interrupt_inactive_turn(&projected, 1, true));
         assert_eq!(
@@ -1091,10 +1100,7 @@ mod tests {
             &auth_b,
             transition(admitted_b.revision, TurnPhase::Admitted, TurnPhase::Running, "b-running"),
         ).unwrap();
-        assert_eq!(
-            admit_turn(&path_a, authority("run-a2", "journey-a"), None).unwrap_err(),
-            "turn_journal_journey_occupied",
-        );
+        assert!(admit_turn(&path_a, authority("run-a2", "journey-a"), None).is_ok());
 
         let a_while_running = fs::read(&path_a).unwrap();
         let terminal_b = transition_turn(

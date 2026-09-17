@@ -1378,7 +1378,13 @@ export function App({ model }: AppProps) {
     void loadTurnJournal(ownerJourneyId)
       .then(async (journal) => {
         if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
-        const blockingRecord = findBlockingTurnJournalRecord(journal, ownerJourneyId, activeGeneration, journeyThreadState.thread.threadId);
+        const blockingRecord = findBlockingTurnJournalRecord(
+          journal,
+          ownerJourneyId,
+          activeGeneration,
+          journeyThreadState.thread.threadId,
+          selectedNativeLease?.authority.runId,
+        );
         if (!blockingRecord) {
           setBlockingTurnJournalRecord(undefined);
           setTurnRecoveryError(undefined);
@@ -1417,6 +1423,7 @@ export function App({ model }: AppProps) {
     journeyThreadState,
     piInvocationBootstrapComplete,
     selectedJourney,
+    selectedNativeLease?.authority.runId,
     selectedNativeLease?.leasePhase,
     selectedNativeLease?.terminalState,
   ]);
@@ -2780,7 +2787,13 @@ export function App({ model }: AppProps) {
     setJourneyReloadStatus("Checking durable turn recovery…");
     try {
       const journal = await loadTurnJournal(ownerJourneyId);
-      const blockingRecord = findBlockingTurnJournalRecord(journal, ownerJourneyId, previousGeneration, journeyThreadState.thread.threadId);
+      const blockingRecord = findBlockingTurnJournalRecord(
+        journal,
+        ownerJourneyId,
+        previousGeneration,
+        journeyThreadState.thread.threadId,
+        selectedNativeLease?.authority.runId,
+      );
       if (blockingRecord) {
         setBlockingTurnJournalRecord(blockingRecord);
         setRestartConfirmationOpen(false);
@@ -2961,7 +2974,13 @@ export function App({ model }: AppProps) {
       );
       if (selectedJourneyRef.current !== ownerJourneyId) return;
       setBlockingTurnJournalRecord(
-        findBlockingTurnJournalRecord(journal, ownerJourneyId, activeGeneration, journeyThreadState.thread.threadId),
+        findBlockingTurnJournalRecord(
+          journal,
+          ownerJourneyId,
+          activeGeneration,
+          journeyThreadState.thread.threadId,
+          selectedNativeLease?.authority.runId,
+        ),
       );
       setTurnRecoveryNotice("The durable attempt was preserved. You can continue without the unverified response.");
       setJourneyReloadStatus(undefined);

@@ -2,9 +2,9 @@
 
 # CR042: Decouple Successor Admission from Desktop Projections
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs018-cr042-projection-independent-admission`
 
 ## Problem
 
@@ -103,7 +103,7 @@ The change removes an admission dependency rather than deleting evidence. Journa
 
 ### Authority Boundary
 
-The Navigator requested planning of the next RS018 CR. Driver, Delivery, selection, focus, transition to `in_progress`, implementation, validation, production mutation, push, merge, publication and release remain separate decisions.
+The Navigator confirmed Driver `@alissonvale`, Delivery `refinement/rs018-cr042-projection-independent-admission`, selection, focus, transition to `in_progress` and local implementation. Navigator Validation, production mutation, push, merge, publication and release remain separate decisions.
 
 ## Evidence
 
@@ -114,4 +114,24 @@ The Navigator requested planning of the next RS018 CR. Driver, Delivery, selecti
 
 ## Outcome
 
-Planned. Awaiting explicit Driver and Delivery decisions before implementation begins.
+Implementation is complete and awaiting Navigator Validation.
+
+Native reservation now owns same-Journey overlap prevention. Journal admission appends the newly reserved run without consulting historical Desktop or Segment projections and without treating historical admitted, running, terminal, projected or delivery records as process occupancy. Exact run identity, Journey/thread/generation/Pi-session binding and runtime-channel validation remain unchanged.
+
+The frontend now surfaces a journal blocker only when it correlates to the exact active native run. When the registry is empty after relaunch, stale journal lifecycle records remain durable but cannot set `localAdmissionReady` false or retain an unavailable Conversation.
+
+Admission rejection is distinct from worker spawn failure. A pre-worker journal admission failure releases the newly terminalized reservation and returns `Pi invocation admission failed: <reason>` without fabricating spawn evidence. A real worker-thread spawn failure retains the existing durable terminalization path.
+
+The obsolete locally-completed projection admission validator and its projection-certification test were removed. Projection validators used by projection persistence and explicit settlement remain unchanged.
+
+### TDD And Validation Evidence
+
+- The initial native test failed with `turn_journal_journey_occupied` when a historical running record preceded a successor.
+- Native tests now cover journal-independent successor admission, stale completed projection evidence, failed projection evidence, exact registry occupancy and distinct admission/worker errors.
+- Frontend tests prove that journal records block only when correlated to the exact active native run and that native admission diagnostics survive the stream boundary.
+- Complete Rust suite: 142 passed, 1 ignored.
+- Complete frontend suite: 802 passed.
+- `cargo check`: passed without warnings.
+- TypeScript and production web build: passed.
+
+No provider was invoked. No Pi session, projection, Segment, journal, outbox, Mirror Core file or production app-data file was rewritten during implementation.

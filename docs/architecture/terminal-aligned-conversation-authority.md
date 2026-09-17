@@ -3,7 +3,7 @@
 # Terminal-Aligned Conversation Authority
 
 **Status:** authority contract established by RS018 / CR040; reconstruction adapter characterized by CR041
-**Runtime status:** the read-only Pi inspection contract exists, but current opening, admission and settlement code does not yet conform
+**Runtime status:** the read-only Pi inspection contract exists and successor admission now follows native occupancy; opening, transcript presentation and settlement do not yet fully conform
 
 ## Decision Context
 
@@ -77,11 +77,9 @@ Presentation projections are not an authority class. They are materialized views
 
 **Readers:** opening recovery, successor admission, finalization and explicit recovery routes.
 
-**Current gates:** `admit_turn_journal()` validates every completed `projected` record against the dedicated Desktop projection before calling `admit_turn()`. `is_successor_eligible()` also classifies journal phases and terminal evidence.
+**Former gate removed by CR042:** `admit_turn_journal()` previously validated every completed `projected` record against the dedicated Desktop projection before calling `admit_turn()`. A missing, Segment-local or disagreed projection could therefore block all successors after Pi had ended.
 
-**Current failure consequence:** an already completed Pi response can block all successors when its Desktop projection is missing or disagrees.
-
-**Target responsibility:** active lifecycle and terminal evidence only. A fresh complete Pi terminal record establishes that provider execution ended. Projection or Mirror delivery state cannot revoke that fact. Historical projected records are repair work, not occupancy.
+**Current responsibility after CR042:** active lifecycle and terminal evidence only. Native registry reservation owns same-Journey occupancy. Historical admitted, running, terminal, projected or delivery records remain durable evidence but do not reject journal admission for a newly reserved exact invocation. Frontend journal blocking is correlated to the exact active native run, so relaunch does not infer occupancy from a vanished lease.
 
 ### Dedicated Desktop projection
 
@@ -146,7 +144,7 @@ The current live path places the Desktop projection before and after provider ex
 1. React loads a dedicated Desktop projection and creates Desktop user, assistant, run and turn IDs.
 2. `stageCorrelatedTurn()` appends an optimistic pair and pending reconciliation turn.
 3. The staged projection is durably saved before `livePiAgentStream()` invokes `start_pi_invocation`.
-4. Native reservation calls `admit_turn_journal()`, which revalidates older completed projected records against the Desktop projection before spawning the worker.
+4. Native reservation calls `admit_turn_journal()` to append exact lifecycle authority without reading a Desktop or Segment projection. CR042 makes historical journal records non-blocking; the exact native registry reservation owns overlap prevention.
 5. Pi writes the exact session and native terminal evidence is copied into the turn journal.
 6. React applies Pi evidence, fills the assistant message and calls `commitHarnessTurn()` using the current projection's array length as checkpoint count.
 7. Completed settlement validates the projection against active generation evidence, durably publishes it, releases the lease, enqueues Mirror delivery, appends to Mirror and publishes the acknowledgement back into the projection.
