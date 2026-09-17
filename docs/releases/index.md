@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.9 — Reliable Agent Access](v0.2.0-alpha.9.md) — keeps the agent available after durable local completion, adds explicit model-free recovery, permits intended cross-Journey source material, and restores readable light-theme Conversation controls.
 - [v0.2.0-alpha.8 — Multiple Conversations per Journey](v0.2.0-alpha.8.md) — adds multiple Conversations inside each Journey, actionable Mirror history, safe handoffs, compaction-aligned Segments, explicit Conversation naming, and unified detail surfaces.
 - [v0.2.0-alpha.7 — Four Concurrent Journey Turns](v0.2.0-alpha.7.md) — admits four independent Journey turns while preserving exact ownership, safe overflow, responsive drafting, and a quiet conversation surface.
 - [v0.2.0-alpha.6 — Active Steering and Responsive Conversation History](v0.2.0-alpha.6.md) — lets the Navigator correct an exact active Pi turn without restarting it and keeps long Journey conversations responsive through bounded historical rendering.
