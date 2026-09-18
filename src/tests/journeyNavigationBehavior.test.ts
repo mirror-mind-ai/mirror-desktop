@@ -187,6 +187,18 @@ describe("Journey navigation behavior under serial occupancy", () => {
     expect(restore.runtimeConversation?.reconciliation.turns[0].pi.state).toBe("pending");
   });
 
+  it("hides a previously loaded sibling Conversation while the selected thread is loading", () => {
+    const previous = { ...inactiveConversation("journey-a", "Previous child history"), id: "desktop-thread-previous" };
+    const presentation = deriveJourneyNavigationPresentation({
+      runtimeState: createInitialJourneyRuntimeState(),
+      selectedJourneyId: "journey-a",
+      selectedThreadId: "desktop-thread-next",
+      loadedConversation: previous,
+    });
+    expect(presentation.conversation).toBeUndefined();
+    expect(presentation.messages).toEqual([]);
+  });
+
   it("keeps B clean while A finalizes and returns exactly one settled turn", () => {
     const owner = liveIdentity("journey-a", "run-a1");
     const settledA = runConversation(owner, "settled A response");

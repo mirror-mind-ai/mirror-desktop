@@ -37,6 +37,15 @@ describe("Journey conversation-space integration", () => {
     expect(appSource).not.toContain("window.confirm(");
   });
 
+  it("clears the previous Journey catalog before another Journey expands", () => {
+    const switchPath = appSource.slice(
+      appSource.indexOf("function selectJourney("),
+      appSource.indexOf("function openJourneyTreeMenu("),
+    );
+    expect(switchPath).toMatch(/if \(conversationFocus\.kind === "focused_journey"\) \{[\s\S]*?\n    \}\n    setConversationCatalog\(\[\]\);/);
+    expect(switchPath.indexOf("setConversationCatalog([]);")).toBeLessThan(switchPath.indexOf("setSelectedJourney(journeyId);"));
+  });
+
   it("loads child thread authority into the existing transcript and composer lifecycle", () => {
     expect(appSource).toContain("desktopConversationThread(selectedJourney, childEntry)");
     expect(appSource).toContain("classified.thread.threadId");

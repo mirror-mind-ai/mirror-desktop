@@ -3371,10 +3371,10 @@ export function App({ model }: AppProps) {
     if (journeyId === selectedJourney) return;
     if (conversationFocus.kind === "focused_journey") {
       dispatchConversationFocus({ type: "collapse", journeyId: conversationFocus.journeyId });
-      setConversationCatalog([]);
-      setFocusedJourneyRootThreadId(undefined);
-      setConversationCatalogStatus("idle");
     }
+    setConversationCatalog([]);
+    setFocusedJourneyRootThreadId(undefined);
+    setConversationCatalogStatus("idle");
 
     const runtimeEntry = selectJourneyRuntime(journeyRuntimeState, journeyId);
     const runtimeSnapshot = runtimeEntry.conversationSnapshot

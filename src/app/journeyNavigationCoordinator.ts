@@ -119,6 +119,7 @@ export function deriveJourneyNavigationPresentation(input: {
     ? selectedRuntimeConversation
     : undefined;
   const loadedConversation = input.loadedConversation?.journeyId === input.selectedJourneyId
+    && (!input.selectedThreadId || input.loadedConversation.id === input.selectedThreadId)
     ? input.loadedConversation
     : undefined;
   const conversation = runtimeConversation ?? loadedConversation;

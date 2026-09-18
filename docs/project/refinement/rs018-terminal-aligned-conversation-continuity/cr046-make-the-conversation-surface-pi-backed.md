@@ -80,7 +80,7 @@ Relaunch after completed execution, projection lag or a pre-agent rejection show
 ### Exclusions
 
 - No new transcript database or Pi JSONL writer.
-- No provider invocation, replay or implicit retry.
+- No automated provider invocation, replay or implicit retry; an explicit Navigator-submitted DEV GUI turn is validation evidence only.
 - No redesign of streaming event presentation.
 - No CR038 composer-draft coalescing work.
 - No Mirror delivery, journal or production Flip mutation.
@@ -119,8 +119,10 @@ Inactive Journey-root and child Desktop Conversations now call `inspect_dedicate
 - Unbound ghost attachments are not transferred.
 - Invalid inspection schema and conflicting metadata fail closed.
 - Source integration coverage proves Journey-root and child restore use exact Pi inspection, active in-memory streaming is preserved, live-send staging is rebuilt from Pi and Segment projections cannot supply transcript content.
-- Complete frontend suite: 813 passed.
+- Complete frontend suite: 815 passed.
 - Complete Rust suite: 151 passed, 1 ignored; `cargo check` passed without warnings.
 - TypeScript, production web build, roadmap consistency and diff checks passed.
+- Interactive DEV validation on 2026-09-18 confirmed existing multi-turn Pi history, full relaunch reconstruction, one new explicit turn, post-turn relaunch, readable normalized output and child Conversation hydration.
+- Interactive navigation exposed a transient cross-Journey sidebar leak: expanding a new Journey while its catalog loaded displayed entries from the previously collapsed Journey. The Journey switch now clears catalog and root-thread presentation state unconditionally before loading; focused tests and repeated GUI validation passed.
 
-No provider was invoked. No production app data, Mirror database or Mirror Core source was read or mutated. No push, merge, publication or release occurred.
+One provider turn was explicitly invoked by the Navigator during DEV GUI validation. No provider was invoked implicitly. No production app data, Mirror database or Mirror Core source was read or mutated. No push, merge, publication or release occurred.
