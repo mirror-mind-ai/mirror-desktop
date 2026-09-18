@@ -47,7 +47,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR051](rs018-terminal-aligned-conversation-continuity/cr051-repair-post-native-terminal-delivery-debt-from-pi-evidence.md) | RS018 | Repair Post-Native Terminal Delivery Debt from Pi Evidence | planned | — | — |
+| 1 | [CR051](rs018-terminal-aligned-conversation-continuity/cr051-repair-post-native-terminal-delivery-debt-from-pi-evidence.md) | RS018 | Repair Post-Native Terminal Delivery Debt from Pi Evidence | in_progress | @alissonvale | `refinement/rs018-cr051-pi-backed-terminal-delivery-repair` |
 | 2 | [CR049](rs018-terminal-aligned-conversation-continuity/cr049-complete-the-release-shaped-rs018-acceptance-route.md) | RS018 | Complete the Release-Shaped RS018 Acceptance Route | blocked | @alissonvale | `refinement/rs018-cr049-release-shaped-acceptance` |
 | 3 | [CR037](rs016-ongoing-product-improvements-and-adjustments/cr037-confirm-app-closure-while-agents-are-working.md) | RS016 | Confirm app closure while agents are working | captured | — | — |
 | 4 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |

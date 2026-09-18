@@ -2,9 +2,9 @@
 
 # CR051 — Repair Post-Native Terminal Delivery Debt from Pi Evidence
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs018-cr051-pi-backed-terminal-delivery-repair`
 
 ## Problem
 
@@ -133,10 +133,9 @@ Interactive validation reopens the archived private-data-free CR049 fixture in a
 ## Planning Decisions
 
 - Selected and moved to `planned` by the Navigator on 2026-09-18.
-- Recommended Driver: `@alissonvale`.
-- Recommended Delivery: `refinement/rs018-cr051-pi-backed-terminal-delivery-repair`.
-- Implementation requires separate Navigator authorization with explicit Driver and Delivery assignment.
+- Driver `@alissonvale` and Delivery `refinement/rs018-cr051-pi-backed-terminal-delivery-repair` were confirmed by the Navigator on 2026-09-18.
+- Implementation was explicitly authorized on 2026-09-18.
 
 ## Authority Boundary
 
-CR051 was captured from a product defect in the explicitly authorized CR049 sandbox. Selection and planning are approved. Driver, Delivery, implementation, validation, CR049 resumption, push, merge, publication, release, production mutation and RS018 closure remain explicit Navigator decisions.
+CR051 was captured from a product defect in the explicitly authorized CR049 sandbox. Selection, planning, Driver, Delivery and implementation are approved. Navigator Validation, CR049 resumption, push, merge, publication, release, production mutation and RS018 closure remain explicit decisions.
