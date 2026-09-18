@@ -2,7 +2,7 @@
 
 # CR045: Make Pre-Agent Staging Non-Authoritative
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr045-pre-agent-staging-atomicity`
 
@@ -91,7 +91,7 @@ Legacy projections remain readable. Reverting CR045 restores pre-admission compa
 
 ### Authority Boundary
 
-The Navigator selected CR045, approved Driver `@alissonvale`, Delivery `refinement/rs018-cr045-pre-agent-staging-atomicity`, focus, planning and implementation. Navigator Validation, push, merge, publication, release and production mutation remain separate decisions.
+The Navigator selected CR045, approved Driver `@alissonvale`, Delivery `refinement/rs018-cr045-pre-agent-staging-atomicity`, focus, planning and implementation, and accepted Navigator Validation on 2026-09-18. Push, merge, publication, release and production mutation remain separate decisions.
 
 ## Evidence
 
@@ -102,7 +102,7 @@ The Navigator selected CR045, approved Driver `@alissonvale`, Delivery `refineme
 
 ## Outcome
 
-Implementation is complete and awaiting Navigator Validation.
+Implementation is complete and accepted by Navigator Validation.
 
 `start_pi_invocation` now uses a dedicated pre-admission validator. It validates correlation shape, active generation, Journey and Conversation binding, runtime channel, activation receipt, Mirror destination and exact Pi session file without reading the Desktop projection. Existing post-admission mutation and settlement paths retain stricter projection validation.
 
@@ -122,3 +122,17 @@ Pre-agent rejection now restores the captured base Conversation, draft and selec
 - TypeScript, production web build, roadmap consistency and diff checks passed.
 
 No provider was invoked. No production app data, Mirror database or Mirror Core source was read or mutated. No push, merge, publication or release occurred.
+
+### Navigator Validation
+
+Accepted on 2026-09-18. Automated validation was accepted as sufficient for CR045's scoped closure. This acceptance does not authorize production repair, push, merge, publication, release or RS018 closure.
+
+### Proportionality Review
+
+The implementation is proportional. It separates the pre-agent admission boundary, removes one obsolete rollback mutation path and adds focused lifecycle evidence without introducing a new durable format, transcript authority, provider retry or Mirror Core dependency.
+
+### Debt Review
+
+Decision: `no_action`.
+
+Direct Pi-backed Surface reconstruction and production-shaped crash/relaunch endurance remain explicit parts of the RS018 acceptance horizon. They are not hidden CR045 implementation debt and should be handled as separately authorized story slices.
