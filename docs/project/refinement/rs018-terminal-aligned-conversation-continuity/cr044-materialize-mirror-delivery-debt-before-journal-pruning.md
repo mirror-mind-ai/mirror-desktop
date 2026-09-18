@@ -3,8 +3,8 @@
 # CR044: Materialize Mirror Delivery Debt Before Journal Pruning
 
 **Status:** captured
-**Driver:** —
-**Delivery:** —
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs018-cr044-self-contained-mirror-delivery-debt`
 
 ## Problem
 
@@ -94,7 +94,7 @@ The compatibility path remains based on the released `memory conversations appen
 
 ### Authority Boundary
 
-CR044 was captured after the Navigator selected the recommended response to CR043's discovered delivery dependency: park CR043 and create a dedicated compatibility-outbox isolation slice. Selection, focus, Driver, Delivery, transition to `planned` or `in_progress`, implementation, validation, push, merge, publication and release remain separate Navigator decisions.
+CR044 was captured after the Navigator selected the recommended response to CR043's discovered delivery dependency: park CR043 and create a dedicated compatibility-outbox isolation slice. The Navigator subsequently confirmed Driver `@alissonvale` and Delivery `refinement/rs018-cr044-self-contained-mirror-delivery-debt`. Selection, focus, transition to `planned` or `in_progress`, implementation, validation, push, merge, publication and release remain separate Navigator decisions.
 
 ## Evidence
 
