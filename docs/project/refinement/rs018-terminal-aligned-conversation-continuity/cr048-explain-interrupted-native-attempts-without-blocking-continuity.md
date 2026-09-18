@@ -67,7 +67,7 @@ The Navigator explicitly requested capture after CR047, then selected, planned a
 
 ## Outcome
 
-Implementation is complete and awaiting guided DEV validation.
+Implementation and guided DEV validation are complete; explicit Navigator Validation remains pending.
 
 A pure `deriveInactiveNativeAttemptCandidate()` now accepts only an exact Pi inspection where the same visible user entry is both active leaf and `incompleteUserEntryId`. The ephemeral candidate carries Journey, thread, generation and Pi-session coordinates; malformed or contradictory evidence fails closed.
 
@@ -84,6 +84,17 @@ A pure `deriveInactiveNativeAttemptCandidate()` now accepts only an exact Pi ins
 - Complete frontend suite: 824 passed.
 - Complete Rust suite: 152 passed, 1 ignored; `cargo check` passed.
 - TypeScript, production web build, roadmap consistency and `git diff --check` passed.
-- No provider was invoked. No production app data, Mirror database or Mirror Core source was read or mutated.
+- Two provider turns were explicitly submitted by the Navigator during DEV validation. No provider was invoked implicitly. No production app data, Mirror database or Mirror Core source was read or mutated.
+
+### Interactive DEV Evidence
+
+Guided validation on 2026-09-18 confirmed:
+
+- a complete Conversation displays no false interruption notice;
+- termination during an explicitly submitted provider turn preserves the admitted user entry without fabricating an assistant response;
+- relaunch displays `Previous attempt was interrupted`, states that no retry started, offers no retry button and leaves the Composer available;
+- no provider retry starts implicitly;
+- an explicitly submitted successor hides the notice at agent start, completes once with `aviso resolvido` and restores Composer availability;
+- final relaunch preserves the incomplete user entry and completed successor exactly once, does not restore the resolved notice and shows no blank message, duplicate or raw JSON.
 
 The first isolated Rust run exhausted the nearly full local disk while creating a redundant per-worktree target directory. That partial build output was deleted, and the full Rust gates passed using the existing shared development target. No source or durable application data was removed.
