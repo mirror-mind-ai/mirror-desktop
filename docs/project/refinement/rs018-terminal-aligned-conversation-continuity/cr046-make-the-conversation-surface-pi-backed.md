@@ -2,7 +2,7 @@
 
 # CR046: Make the Conversation Surface Pi-Backed
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr046-pi-backed-conversation-surface`
 
@@ -92,7 +92,7 @@ The projector is read-only and projection formats remain compatible. Reverting C
 
 ### Authority Boundary
 
-The Navigator requested CR046, approved Driver `@alissonvale`, Delivery `refinement/rs018-cr046-pi-backed-conversation-surface`, focus, planning and implementation. Navigator Validation, push, merge, publication, release, production mutation and RS018 closure remain separate decisions.
+The Navigator requested CR046, approved Driver `@alissonvale`, Delivery `refinement/rs018-cr046-pi-backed-conversation-surface`, focus, planning and implementation, and accepted Navigator Validation on 2026-09-18. Push, merge, publication, release, production mutation and RS018 closure remain separate decisions.
 
 ## Evidence
 
@@ -103,7 +103,7 @@ The Navigator requested CR046, approved Driver `@alissonvale`, Delivery `refinem
 
 ## Outcome
 
-Implementation is complete and awaiting Navigator Validation.
+Implementation is complete and accepted by Navigator Validation.
 
 A pure `projectPiBackedConversationSurface()` now replaces projected message content with every non-empty visible native user and assistant entry from the validated active Pi branch. Raw structured assistant output is normalized through the same deterministic presentation adapter used at live settlement. Native entry IDs provide deterministic fallback message identity. Exact reconciliation bindings may preserve stable Desktop aliases and user attachment metadata, but never projected content. Projection-only ghosts disappear, native-only and incomplete admitted user entries remain visible, and conflicting or malformed inspection evidence fails closed.
 
@@ -126,3 +126,17 @@ Inactive Journey-root and child Desktop Conversations now call `inspect_dedicate
 - Interactive navigation exposed a transient cross-Journey sidebar leak: expanding a new Journey while its catalog loaded displayed entries from the previously collapsed Journey. The Journey switch now clears catalog and root-thread presentation state unconditionally before loading; focused tests and repeated GUI validation passed.
 
 One provider turn was explicitly invoked by the Navigator during DEV GUI validation. No provider was invoked implicitly. No production app data, Mirror database or Mirror Core source was read or mutated. No push, merge, publication or release occurred.
+
+### Navigator Validation
+
+Accepted on 2026-09-18 after automated gates and guided DEV GUI validation. Acceptance includes the interactive defect correction that removed stale cross-Journey sidebar catalog presentation. This validation does not authorize production repair, push, merge, publication, release or RS018 closure.
+
+### Proportionality Review
+
+The implementation is proportional. It adds one pure read-only Pi-to-Surface adapter, routes inactive restore and send preflight through the existing exact inspection command, removes Segment reads from normal restore and corrects transient presentation isolation. It introduces no transcript store, durable schema, Mirror Core dependency or implicit provider execution.
+
+### Debt Review
+
+Decision: `no_action`.
+
+Production-shaped crash/relaunch endurance, Pi compaction rehearsal, Mirror unavailability and production recovery remain explicit RS018 acceptance work. They are not hidden CR046 implementation debt and require separately authorized story slices.

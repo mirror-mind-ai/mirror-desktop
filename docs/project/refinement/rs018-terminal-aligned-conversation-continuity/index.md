@@ -55,7 +55,7 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
 
-CR046 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr046-pi-backed-conversation-surface`. Implementation is complete and awaiting Navigator Validation. Inactive restore and live-send preflight now derive transcript messages from exact Pi inspection; Desktop projections retain compatible metadata and Segments no longer supply normal transcript content.
+CR046 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr046-pi-backed-conversation-surface`. The Navigator accepted Pi-backed inactive restore, live-send preflight, Segment demotion, child-Conversation relaunch and corrected cross-Journey presentation isolation on 2026-09-18. Proportionality review found the read-only Surface adapter appropriately local; Debt Review concluded `no_action` because production-shaped endurance and recovery already belong to the RS018 acceptance horizon.
 
 CR045 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr045-pre-agent-staging-atomicity`. The Navigator accepted projection-independent pre-agent admission, exact agent-start publication and non-mutating rejection on 2026-09-18. Proportionality review found the boundary correction appropriately local; Debt Review concluded `no_action` because Pi-backed Surface reconstruction and production-shaped endurance already belong to the RS018 acceptance horizon.
 
