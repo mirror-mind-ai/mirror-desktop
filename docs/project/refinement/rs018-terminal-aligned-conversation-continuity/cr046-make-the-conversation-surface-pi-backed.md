@@ -122,7 +122,7 @@ Inactive Journey-root and child Desktop Conversations now call `inspect_dedicate
 - Complete frontend suite: 815 passed.
 - Complete Rust suite: 151 passed, 1 ignored; `cargo check` passed without warnings.
 - TypeScript, production web build, roadmap consistency and diff checks passed.
-- Interactive DEV validation on 2026-09-18 confirmed existing multi-turn Pi history, full relaunch reconstruction, one new explicit turn, post-turn relaunch, readable normalized output and child Conversation hydration.
+- Interactive DEV validation on 2026-09-18 confirmed existing multi-turn Pi history, full relaunch reconstruction, one new explicit turn, post-turn relaunch, readable normalized output, child Conversation hydration and child Conversation relaunch.
 - Interactive navigation exposed a transient cross-Journey sidebar leak: expanding a new Journey while its catalog loaded displayed entries from the previously collapsed Journey. The Journey switch now clears catalog and root-thread presentation state unconditionally before loading; focused tests and repeated GUI validation passed.
 
 One provider turn was explicitly invoked by the Navigator during DEV GUI validation. No provider was invoked implicitly. No production app data, Mirror database or Mirror Core source was read or mutated. No push, merge, publication or release occurred.
