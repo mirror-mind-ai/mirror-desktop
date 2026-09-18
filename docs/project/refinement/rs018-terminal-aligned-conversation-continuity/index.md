@@ -47,12 +47,15 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 
 ## Change Requests
 
+- [CR044: Materialize Mirror Delivery Debt Before Journal Pruning](cr044-materialize-mirror-delivery-debt-before-journal-pruning.md)
 - [CR043: Keep Bounded Turn Journal Retention Non-Blocking](cr043-keep-bounded-turn-journal-retention-non-blocking.md)
 - [CR042: Decouple Successor Admission from Desktop Projections](cr042-decouple-successor-admission-from-desktop-projections.md)
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
 
-CR043 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. It prevents bounded historical journal retention from becoming a successor-admission gate.
+CR044 is `captured` without Driver or Delivery. It will make completed Mirror delivery debt independently durable before the corresponding journal evidence becomes eligible for pruning. Selection, planning and assignment remain pending.
+
+CR043 is `parked` with Driver `@alissonvale` and Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. Safe retention for inactive, settled and independently delivered history is implemented locally, but completed pre-outbox evidence remains protected because pruning it would discard Mirror delivery debt. Revisit after CR044 proves exact debt materialization and reconciliation across every completed-turn crash window.
 
 CR042 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr042-projection-independent-admission`. The Navigator accepted projection-independent successor admission and exact native-occupancy blocking on 2026-09-17. Proportionality review found the correction appropriately bounded; Debt Review selected `create_follow_up` as CR043, and the Navigator authorized terminal closure.
 
