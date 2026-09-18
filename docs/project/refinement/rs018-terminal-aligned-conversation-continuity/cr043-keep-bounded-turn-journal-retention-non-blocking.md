@@ -2,7 +2,7 @@
 
 # CR043: Keep Bounded Turn Journal Retention Non-Blocking
 
-**Status:** parked
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr043-non-blocking-journal-retention`
 
@@ -98,7 +98,7 @@ CR043 was created by the CR042 Debt Review decision `create_follow_up`. The Navi
 
 ## Outcome
 
-Implementation reached a safe architectural boundary. The Navigator parked CR043 and captured CR044 as the dedicated compatibility-outbox isolation slice.
+Implementation resumed after the Navigator validated and closed CR044. The compatibility outbox can now own exact Pi-backed delivery debt before completed journal evidence becomes eligible for pruning.
 
 Journal writes now protect the exact run being admitted or transitioned and can compact safely disposable history when either the 64-record or 8 MiB serialized bound is exceeded. Settled, interrupted, outbox-enqueued and non-completed terminal/projection records are eligible. Unfinished admitted/running history is eligible only during `admit_turn()`, after native reservation proves every pre-existing same-Journey record inactive. Ordinary lifecycle transitions never prune another unfinished run without that proof.
 
@@ -118,12 +118,10 @@ The implementation therefore preserves completed pre-outbox evidence and still r
 - Frontend regression baseline remains 802 passed with TypeScript and production web build passing; no frontend code changed in the safety correction.
 - Final acceptance validation remains pending CR044 and CR043 resumption.
 
-### Parking Decision
+### Resumption Decision
 
-**Reason:** completed `terminal_durable` and `projected` records remain the only durable cue for Mirror delivery before outbox enqueue. Completing CR043 in isolation would require either silently discarding that debt or violating its explicit compatibility-outbox migration exclusion.
+CR043 was parked because completed pre-outbox evidence was the only durable Mirror delivery cue. [CR044](cr044-materialize-mirror-delivery-debt-before-journal-pruning.md) satisfied the revisit trigger and was validated and closed on 2026-09-18. The Navigator authorized continuation.
 
-**Revisit trigger:** resume CR043 after [CR044](cr044-materialize-mirror-delivery-debt-before-journal-pruning.md) proves that every completed pre-outbox crash window can be reconciled into exact, self-contained compatibility-outbox debt without provider invocation, projection authority or Mirror Core changes, and the Navigator explicitly authorizes resumption.
-
-The local safe-retention implementation and tests remain on Delivery `refinement/rs018-cr043-non-blocking-journal-retention`; they are not validated, pushed or merged.
+CR043 resumes on Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. Final integration must preserve CR044's Pi-backed debt materialization before admitting and compacting a successor. CR043 remains unvalidated, unpushed and unmerged.
 
 No provider was invoked and no production app data was read or mutated.

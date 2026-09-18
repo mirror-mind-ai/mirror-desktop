@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS018 — Terminal-Aligned Conversation Continuity
-- Change Request: CR044 — Materialize Mirror Delivery Debt Before Journal Pruning
+- Change Request: CR043 — Keep Bounded Turn Journal Retention Non-Blocking
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -47,10 +47,10 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR044](rs018-terminal-aligned-conversation-continuity/cr044-materialize-mirror-delivery-debt-before-journal-pruning.md) | RS018 | Materialize Mirror Delivery Debt Before Journal Pruning | in_progress | @alissonvale | `refinement/rs018-cr044-self-contained-mirror-delivery-debt` |
+| 1 | [CR043](rs018-terminal-aligned-conversation-continuity/cr043-keep-bounded-turn-journal-retention-non-blocking.md) | RS018 | Keep Bounded Turn Journal Retention Non-Blocking | in_progress | @alissonvale | `refinement/rs018-cr043-non-blocking-journal-retention` |
 | 2 | [CR037](rs016-ongoing-product-improvements-and-adjustments/cr037-confirm-app-closure-while-agents-are-working.md) | RS016 | Confirm app closure while agents are working | captured | — | — |
 | 3 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
-| 4 | [CR043](rs018-terminal-aligned-conversation-continuity/cr043-keep-bounded-turn-journal-retention-non-blocking.md) | RS018 | Keep Bounded Turn Journal Retention Non-Blocking | parked | @alissonvale | `refinement/rs018-cr043-non-blocking-journal-retention` |
+| — | [CR044](rs018-terminal-aligned-conversation-continuity/cr044-materialize-mirror-delivery-debt-before-journal-pruning.md) | RS018 | Materialize Mirror Delivery Debt Before Journal Pruning | done | @alissonvale | `refinement/rs018-cr044-self-contained-mirror-delivery-debt` |
 | — | [CR042](rs018-terminal-aligned-conversation-continuity/cr042-decouple-successor-admission-from-desktop-projections.md) | RS018 | Decouple Successor Admission from Desktop Projections | done | @alissonvale | `refinement/rs018-cr042-projection-independent-admission` |
 | — | [CR041](rs018-terminal-aligned-conversation-continuity/cr041-reconstruct-desktop-conversations-from-pi-session.md) | RS018 | Reconstruct Desktop Conversations from the Pi Session | done | @alissonvale | `refinement/rs018-cr041-pi-session-transcript` |
 | — | [CR040](rs018-terminal-aligned-conversation-continuity/cr040-establish-terminal-aligned-conversation-authority-contract.md) | RS018 | Establish the Terminal-Aligned Conversation Authority Contract | done | @alissonvale | `refinement/rs018-cr040-terminal-aligned-authority` |

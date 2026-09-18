@@ -2,7 +2,7 @@
 
 # CR044: Materialize Mirror Delivery Debt Before Journal Pruning
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr044-self-contained-mirror-delivery-debt`
 
@@ -127,3 +127,17 @@ The compatibility store remains bounded but its practical outage envelope increa
 - `cargo check`, TypeScript, production build, roadmap consistency and diff checks passed.
 
 No provider was invoked. No production app data, Mirror database or Mirror Core source was read or mutated. No push, merge, publication or release occurred.
+
+### Navigator Validation
+
+Accepted on 2026-09-18. The Navigator authorized terminal closure and continuation to the dependent retention work.
+
+### Proportionality Review
+
+The implementation is proportional to the discovered dependency. It versions only the Desktop compatibility item, retains the legacy reader, derives new debt from existing Pi and control-plane authority, and adds one explicit projection-independent delivery route. It does not alter Mirror Core, Pi JSONL, provider execution or production data.
+
+### Debt Review
+
+Decision: `no_action`.
+
+The compatibility outbox retains explicit physical bounds and monolithic local storage, but this is not promoted into a new authority or an immediate separate CR. Sustained-use and outage endurance already belong to the RS018 acceptance horizon. Any observed performance or capacity failure will be captured from evidence rather than pre-creating speculative work.

@@ -53,9 +53,9 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
 
-CR044 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr044-self-contained-mirror-delivery-debt`. Implementation is complete and awaiting Navigator Validation. Completed pre-outbox journal evidence is reconciled model-free into exact Pi-backed compatibility debt before becoming eligible for pruning; legacy outbox items remain compatible.
+CR044 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr044-self-contained-mirror-delivery-debt`. The Navigator accepted exact Pi-backed compatibility debt, projection-independent explicit delivery and model-free pre-admission reconciliation on 2026-09-18. Proportionality review found the compatibility boundary appropriately local; Debt Review concluded `no_action` because physical outbox bounds and sustained-use endurance remain part of the existing RS018 acceptance horizon.
 
-CR043 is `parked` with Driver `@alissonvale` and Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. Safe retention for inactive, settled and independently delivered history is implemented locally, but completed pre-outbox evidence remains protected because pruning it would discard Mirror delivery debt. Revisit after CR044 proves exact debt materialization and reconciliation across every completed-turn crash window.
+CR043 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. Its revisit trigger was satisfied by CR044 validation. Safe retention work resumes with completed pre-outbox evidence first reconciled into independently durable delivery debt.
 
 CR042 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr042-projection-independent-admission`. The Navigator accepted projection-independent successor admission and exact native-occupancy blocking on 2026-09-17. Proportionality review found the correction appropriately bounded; Debt Review selected `create_follow_up` as CR043, and the Navigator authorized terminal closure.
 
