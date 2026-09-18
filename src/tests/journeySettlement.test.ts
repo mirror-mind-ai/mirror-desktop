@@ -285,28 +285,26 @@ describe("interrupted and rejected reservation boundaries", () => {
     expect(order).toEqual(["validate_active", "save_interrupted"]);
   });
 
-  it("durably restores reversible staging before inspecting a reservation loser", async () => {
+  it("inspects a reservation loser without mutating the durable projection", async () => {
     const order: string[] = [];
-    await rollbackRejectedReservation({ projection: "before-a1", authority: rollbackAuthority }, {
-      saveRollbackProjection: async () => { order.push("save_rollback"); },
+    await rollbackRejectedReservation({ authority: rollbackAuthority }, {
       inspectAfterRollback: async () => { order.push("inspect"); return "free"; },
       cleanupExactFinalizingLease: async () => { order.push("cleanup"); },
       isExactFinalizingLease: () => false,
       onRollbackConfirmed: () => { order.push("runtime_cleanup"); },
     });
-    expect(order).toEqual(["save_rollback", "inspect", "runtime_cleanup"]);
+    expect(order).toEqual(["inspect", "runtime_cleanup"]);
   });
 
-  it("cleans an exact finalizing loser only after rollback and inspection", async () => {
+  it("cleans an exact finalizing loser only after inspection", async () => {
     const order: string[] = [];
-    await rollbackRejectedReservation({ projection: "before-a1", authority: rollbackAuthority }, {
-      saveRollbackProjection: async () => { order.push("save_rollback"); },
+    await rollbackRejectedReservation({ authority: rollbackAuthority }, {
       inspectAfterRollback: async () => { order.push("inspect"); return "exact_finalizing"; },
       cleanupExactFinalizingLease: async () => { order.push("cleanup"); },
       isExactFinalizingLease: (value) => value === "exact_finalizing",
       onRollbackConfirmed: () => { order.push("runtime_cleanup"); },
     });
-    expect(order).toEqual(["save_rollback", "inspect", "cleanup", "runtime_cleanup"]);
+    expect(order).toEqual(["inspect", "cleanup", "runtime_cleanup"]);
   });
 
   it("removes only an exact stale-admission loser after rollback while preserving occupied A and B", async () => {
@@ -331,13 +329,9 @@ describe("interrupted and rejected reservation boundaries", () => {
       event: { type: "error", message: "The global Pi process capacity is occupied." },
     });
     runtime = journeyRuntimeReducer(runtime, { type: "stream_finished", identity: c.identity });
-    let persistedC = c.projection;
-
     await rollbackRejectedReservation({
-      projection: c.base,
       authority: c.identity.kind === "live" ? c.identity.authority : { journeyId: "", runId: "" },
     }, {
-      saveRollbackProjection: async (projection) => { persistedC = projection; },
       inspectAfterRollback: async () => ({ occupied: ["journey-a", "journey-b"] }),
       isExactFinalizingLease: () => false,
       cleanupExactFinalizingLease: async () => { throw new Error("unexpected_cleanup"); },
@@ -350,8 +344,8 @@ describe("interrupted and rejected reservation boundaries", () => {
     expect(JSON.stringify(runtime.entries["journey-b"])).toBe(bBefore);
     expect(runtime.entries["journey-c"]).toBeUndefined();
     expect(runtime.quarantine).toEqual([]);
-    expect(persistedC.reconciliation.turns).toEqual([]);
-    expect(persistedC.messages).toEqual([]);
+    expect(c.base.reconciliation.turns).toEqual([]);
+    expect(c.base.messages).toEqual([]);
   });
 
   it("retains rejected runtime evidence when rollback cannot be confirmed", async () => {
@@ -372,21 +366,8 @@ describe("interrupted and rejected reservation boundaries", () => {
     let cleanupCalls = 0;
 
     await expect(rollbackRejectedReservation({
-      projection: c.base,
       authority: c.identity.kind === "live" ? c.identity.authority : { journeyId: "", runId: "" },
     }, {
-      saveRollbackProjection: async () => { throw new Error("rollback_save_failed"); },
-      inspectAfterRollback: async () => ({ occupied: ["journey-a", "journey-b"] }),
-      isExactFinalizingLease: () => false,
-      cleanupExactFinalizingLease: async () => undefined,
-      onRollbackConfirmed: () => { cleanupCalls += 1; },
-    })).rejects.toThrow("rollback_save_failed");
-
-    await expect(rollbackRejectedReservation({
-      projection: c.base,
-      authority: c.identity.kind === "live" ? c.identity.authority : { journeyId: "", runId: "" },
-    }, {
-      saveRollbackProjection: async () => undefined,
       inspectAfterRollback: async () => { throw new Error("rollback_reinspection_failed"); },
       isExactFinalizingLease: () => false,
       cleanupExactFinalizingLease: async () => undefined,

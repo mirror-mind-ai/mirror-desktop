@@ -120,11 +120,31 @@ describe("Journey runtime integration guardrails", () => {
     expect(generation).toContain("selectedJourneyRef.current === ownerJourneyId");
     const preAgentRollback = sourceBetween("if (runFailed && !runReachedAgent)", "} else if (runWasCancelled || runFailed)");
     expect(preAgentRollback).toContain("conversationBeforeRun");
-    expect(preAgentRollback).toContain("setJourneyComposerDraft(ownerJourneyId, content)");
+    expect(preAgentRollback).toContain("persistOwnerComposerDraft(content)");
+    expect(preAgentRollback).not.toContain("saveRollbackProjection");
     expect(preAgentRollback).toContain("Message returned to the composer");
     expect(preAgentRollback).not.toContain('type: "conversation_snapshot"');
     const durableFailure = sourceBetween("} else if (runWasCancelled || runFailed)", "} else if (correlation && settlementAuthority)");
     expect(durableFailure).toContain('type: "finalization_finished", identity: runtimeIdentity');
+  });
+
+  it("keeps optimistic staging in memory until exact agent-start evidence", () => {
+    const generation = sourceBetween("async function generatePacket", "async function startSelectedJourney");
+    const beforeProvider = sourceBetween("runStartReservationRef.current = runtimeIdentity", "for await (const event of provider(packet))");
+    expect(beforeProvider).toContain('setDraft("")');
+    expect(beforeProvider).not.toContain("saveAdmittedTurnProjection(stagedConversation, settlementAuthority)");
+    const admitted = sourceBetween(
+      'if (event.type === "run_status" && event.status === "working")',
+      'if (event.type === "context_usage")',
+    );
+    expect(admitted).toContain("persistOwnerComposerDraft(\"\")");
+    expect(admitted).toContain("saveAdmittedTurnProjection(stagedConversation, settlementAuthority)");
+    expect(generation.indexOf("saveAdmittedTurnProjection(stagedConversation, settlementAuthority)")).toBeGreaterThan(
+      generation.indexOf("for await (const event of provider(packet))"),
+    );
+    const rejected = sourceBetween("if (runFailed && !runReachedAgent)", "} else if (runWasCancelled || runFailed)");
+    expect(rejected).not.toContain("saveRollbackProjection");
+    expect(rejected).not.toContain("saveDedicatedJourneyConversation(conversationBeforeRun)");
   });
 
   it("keeps native occupancy as execution ownership while journal controls lifecycle", () => {

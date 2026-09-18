@@ -93,9 +93,9 @@ Presentation projections are not an authority class. They are materialized views
 
 **Current responsibilities:** visible transcript, Desktop metadata, live identity, three-body reconciliation, checkpoints and settlement receipts.
 
-**Current gates:** the frontend refuses live invocation when it cannot load the projection; native journal admission validates completed Pi evidence against it; pre-frontier and post-frontier settlement require exact projection matches; outbox append and acknowledgement revalidate it.
+**Current gates after CR045:** the frontend still refuses live invocation when it cannot load the prior projection because Pi-backed Surface reconstruction is not integrated yet. Native admission no longer reads or requires the optimistic projection turn. After exact `agent_start`, compatibility and post-frontier settlement still require exact candidate projection authority; legacy outbox append and acknowledgement may revalidate it.
 
-**Current failure consequence:** parser drift, stale derived classification, Segment-local history or rollback races can turn a presentation body into a Conversation availability failure.
+**Current failure consequence:** parser drift, stale derived classification or Segment-local history can still prevent opening or compatibility settlement, but pre-agent rejection no longer leaves a durable projection ghost or requires a rollback write.
 
 **Target responsibility:** rebuildable materialized view plus Desktop-only metadata. Transcript content derives from Pi entries. Corrupt or absent projection state triggers reconstruction and a bounded presentation warning, not loss of agent access. Exact control-plane identity remains checked separately.
 
@@ -139,20 +139,21 @@ Presentation projections are not an authority class. They are materialized views
 
 **Target responsibility:** secondary memory projection owned by Mirror Core. The Desktop submits a bounded append request through the existing public CLI and accepts or rejects its receipt; it does not manage Mirror Conversation state. The receipt acknowledges compatibility-outbox delivery. It does not certify the existence of a Pi response and cannot block another agent turn.
 
-## Current Turn Path
+## Current Turn Path After CR045
 
-The current live path places the Desktop projection before and after provider execution:
+The live path no longer publishes optimistic transcript staging before native admission:
 
-1. React loads a dedicated Desktop projection and creates Desktop user, assistant, run and turn IDs.
-2. `stageCorrelatedTurn()` appends an optimistic pair and pending reconciliation turn.
-3. The staged projection is durably saved before `livePiAgentStream()` invokes `start_pi_invocation`.
-4. Native reservation calls `admit_turn_journal()` to append exact lifecycle authority without reading a Desktop or Segment projection. CR042 makes historical journal records non-blocking; the exact native registry reservation owns overlap prevention.
-5. Pi writes the exact session and native terminal evidence is copied into the turn journal.
-6. React applies Pi evidence, fills the assistant message and calls `commitHarnessTurn()` using the current projection's array length as checkpoint count.
-7. Completed settlement validates the projection against active generation evidence, durably publishes it, releases the lease, enqueues Mirror delivery, appends to Mirror and publishes the acknowledgement back into the projection.
-8. If invocation is rejected before Pi starts, rollback attempts to republish the previous projection and restore the composer.
+1. React loads the prior dedicated Desktop projection and creates Desktop user, assistant, run and turn IDs for an in-memory optimistic Surface.
+2. `stageCorrelatedTurn()` builds that compatibility view in memory only. The durable composer draft remains unchanged.
+3. `start_pi_invocation` validates structural correlation plus exact persisted control-plane, runtime-channel and Pi-session authority without requiring the new turn in a Desktop projection.
+4. Native reservation calls `admit_turn_journal()` and the worker advances the exact lifecycle record to `running`. CR042 makes historical journal records non-blocking; the exact native registry reservation owns overlap prevention.
+5. Only after Pi emits exact `agent_start` evidence does React clear the durable draft and publish the staged compatibility projection through the `admitted_pre_frontier` save mode. That save requires the exact running journal record and candidate authority.
+6. Pi writes the exact session and native terminal evidence is copied into the turn journal. A crash before compatibility publication leaves Pi/journal recovery evidence rather than a fabricated projection turn.
+7. React applies Pi evidence, fills the assistant message and calls `commitHarnessTurn()` as transitional projection settlement.
+8. Completed settlement validates the projection against active generation evidence, releases the lease, enqueues independent Mirror delivery and publishes acknowledgement.
+9. If admission or worker startup is rejected before `agent_start`, React removes only the in-memory optimistic pair, restores the captured draft and attachments, reinspects exact occupancy and performs no projection rollback write.
 
-This path gives one projection three incompatible roles: optimistic UI state, durable transcript and settlement certificate.
+The projection remains transitional presentation and settlement compatibility state, but it no longer certifies or enables native admission.
 
 ## Target Turn Path
 

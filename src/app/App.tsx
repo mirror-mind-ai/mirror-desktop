@@ -165,9 +165,9 @@ import {
 import {
   loadDedicatedJourneyConversation,
   saveActiveSettlementProjection,
+  saveAdmittedTurnProjection,
   saveDedicatedJourneyConversation,
   savePostFrontierReceiptProjection,
-  saveRejectedReservationRollback,
 } from "./journeyConversationStorage";
 import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPreferenceStorage";
 import { loadComposerDrafts, saveComposerDrafts } from "./composerDraftStorage";
@@ -1863,25 +1863,6 @@ export function App({ model }: AppProps) {
     runStartReservationRef.current = runtimeIdentity;
     setRunStartReservation(runtimeIdentity);
 
-    if (correlation) {
-      try {
-        if (!settlementAuthority) throw new Error("settlement_authority_missing");
-        await journeyPersistenceCoordinator.run(
-          settlementAuthority,
-          "pre_frontier",
-          () => saveDedicatedJourneyConversation(stagedConversation),
-        );
-      } catch (error) {
-        dispatchJourneyRuntime({
-          type: "append_warning",
-          journeyId: ownerJourneyId,
-          message: error instanceof Error ? error.message : String(error),
-        });
-        if (runStartReservationRef.current === runtimeIdentity) runStartReservationRef.current = undefined;
-        setRunStartReservation((current) => current === runtimeIdentity ? undefined : current);
-        return;
-      }
-    }
     if (invocationAuthority) {
       setPiInvocationOccupancy((current) => retainExpectedPiInvocationLease(current, invocationAuthority));
     }
@@ -1900,12 +1881,31 @@ export function App({ model }: AppProps) {
       conversationRef.current = stagedConversation;
       setConversation(stagedConversation);
     }
-    setJourneyComposerDraft(baseConversation.journeyId, "");
+    if (mode === "mock") {
+      setJourneyComposerDraft(baseConversation.journeyId, "");
+    } else if (selectedJourneyRef.current === ownerJourneyId) {
+      setDraft("");
+    }
     setPendingFileAttachments([]);
     setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
     setFileAttachmentError(undefined);
 
     const conversationBeforeRun = baseConversation;
+    const ownerDraftKey = conversationDraftKey(
+      ownerJourneyId,
+      selectedConversationEntry?.kind === "desktop_conversation"
+        ? selectedConversationEntry.conversationId
+        : undefined,
+    );
+    const persistOwnerComposerDraft = (text: string) => {
+      const boundedText = text.slice(0, COMPOSER_DRAFT_MAX_CHARS);
+      setComposerDrafts((current) => updateComposerDraft(current, ownerDraftKey, boundedText));
+      if (selectedJourneyRef.current === ownerJourneyId
+        && conversationRef.current.id === baseConversation.id) {
+        setDraft(boundedText);
+      }
+    };
+    let agentStartApplied = false;
     let rawLiveOutput = "";
     let runReachedAgent = false;
     let workActivityRecorded = false;
@@ -1954,6 +1954,19 @@ export function App({ model }: AppProps) {
         }
         if (event.type === "run_status" && event.status === "working") {
           runReachedAgent = true;
+          if (mode === "live" && correlation && settlementAuthority && !agentStartApplied) {
+            agentStartApplied = true;
+            persistOwnerComposerDraft("");
+            try {
+              await journeyPersistenceCoordinator.run(
+                settlementAuthority,
+                "pre_frontier",
+                () => saveAdmittedTurnProjection(stagedConversation, settlementAuthority),
+              );
+            } catch (error) {
+              diagnostics.push(`Could not persist the admitted compatibility projection: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          }
         }
         if (event.type === "context_usage") {
           if (
@@ -2127,13 +2140,8 @@ export function App({ model }: AppProps) {
           try {
             if (invocationAuthority) {
               await rollbackRejectedReservation({
-                projection: conversationBeforeRun,
                 authority: invocationAuthority,
               }, {
-                saveRollbackProjection: (projection) => {
-                  if (!settlementAuthority) throw new Error("settlement_authority_missing");
-                  return saveRejectedReservationRollback(projection, settlementAuthority);
-                },
                 inspectAfterRollback: async () => {
                   const inspection = await reconcilePiInvocationOccupancy();
                   if (!inspection) throw new Error("rejected_reservation_reinspection_invalid");
@@ -2146,7 +2154,7 @@ export function App({ model }: AppProps) {
                 ))),
                 cleanupExactFinalizingLease: releaseDurablePiInvocationLease,
                 onRollbackConfirmed: () => {
-                  setJourneyComposerDraft(ownerJourneyId, content);
+                  persistOwnerComposerDraft(content);
                   if (selectedJourneyRef.current === ownerJourneyId) {
                     setPendingFileAttachments(fileAttachments);
                   }
@@ -2158,11 +2166,9 @@ export function App({ model }: AppProps) {
                   });
                 },
               });
-            } else {
-              await saveDedicatedJourneyConversation(conversationBeforeRun);
             }
           } catch (error) {
-            setJourneyComposerDraft(ownerJourneyId, content);
+            persistOwnerComposerDraft(content);
             if (selectedJourneyRef.current === ownerJourneyId) {
               setPendingFileAttachments(fileAttachments);
             }

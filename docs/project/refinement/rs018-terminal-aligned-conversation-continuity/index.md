@@ -47,11 +47,14 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 
 ## Change Requests
 
+- [CR045: Make Pre-Agent Staging Non-Authoritative](cr045-make-pre-agent-staging-non-authoritative.md)
 - [CR044: Materialize Mirror Delivery Debt Before Journal Pruning](cr044-materialize-mirror-delivery-debt-before-journal-pruning.md)
 - [CR043: Keep Bounded Turn Journal Retention Non-Blocking](cr043-keep-bounded-turn-journal-retention-non-blocking.md)
 - [CR042: Decouple Successor Admission from Desktop Projections](cr042-decouple-successor-admission-from-desktop-projections.md)
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
+
+CR045 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr045-pre-agent-staging-atomicity`. Implementation is complete and awaiting Navigator Validation. Native admission no longer requires an optimistic projection turn; compatibility publication and durable draft clearing wait for exact agent-start evidence.
 
 CR044 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr044-self-contained-mirror-delivery-debt`. The Navigator accepted exact Pi-backed compatibility debt, projection-independent explicit delivery and model-free pre-admission reconciliation on 2026-09-18. Proportionality review found the compatibility boundary appropriately local; Debt Review concluded `no_action` because physical outbox bounds and sustained-use endurance remain part of the existing RS018 acceptance horizon.
 

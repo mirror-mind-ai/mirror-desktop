@@ -172,20 +172,17 @@ export async function executeInterruptedSettlement<TProjection extends JourneyCo
 }
 
 export async function rollbackRejectedReservation<
-  TProjection,
   TInspection,
   TAuthority extends ExactLeaseAuthority,
 >(
-  input: { projection: TProjection; authority: TAuthority },
+  input: { authority: TAuthority },
   dependencies: {
-    saveRollbackProjection: (projection: TProjection) => Promise<void>;
     inspectAfterRollback: () => Promise<TInspection>;
     isExactFinalizingLease: (inspection: TInspection, authority: TAuthority) => boolean;
     cleanupExactFinalizingLease: (authority: TAuthority) => Promise<void>;
     onRollbackConfirmed: (authority: TAuthority) => Promise<void> | void;
   },
 ): Promise<TInspection> {
-  await dependencies.saveRollbackProjection(input.projection);
   const inspection = await dependencies.inspectAfterRollback();
   if (dependencies.isExactFinalizingLease(inspection, input.authority)) {
     await dependencies.cleanupExactFinalizingLease(input.authority);

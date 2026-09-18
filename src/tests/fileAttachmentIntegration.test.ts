@@ -5,15 +5,15 @@ import promptSource from "../agent/piProcessStream.ts?raw";
 import nativeSource from "../../src-tauri/src/main.rs?raw";
 
 describe("Pi-style file attachment dedicated-turn integration", () => {
-  it("stages historical file references before clearing and provider invocation", () => {
+  it("keeps file references optimistic until exact agent-start evidence", () => {
     expect(appSource).toContain("attachments: fileAttachments");
     expect(appSource).toContain("fileAttachments: toAgentFileReferences(fileAttachments)");
-    const save = appSource.indexOf("() => saveDedicatedJourneyConversation(stagedConversation)");
-    const clear = appSource.indexOf("setPendingFileAttachments([])", save);
-    const provider = appSource.indexOf("for await (const event of provider(packet))", save);
-    expect(save).toBeGreaterThan(0);
-    expect(clear).toBeGreaterThan(save);
+    const clear = appSource.indexOf("setPendingFileAttachments([])");
+    const provider = appSource.indexOf("for await (const event of provider(packet))", clear);
+    const save = appSource.indexOf("() => saveAdmittedTurnProjection(stagedConversation, settlementAuthority)", provider);
+    expect(clear).toBeGreaterThan(0);
     expect(provider).toBeGreaterThan(clear);
+    expect(save).toBeGreaterThan(provider);
   });
 
   it("clears pending files on send, Journey switch and generation restart", () => {

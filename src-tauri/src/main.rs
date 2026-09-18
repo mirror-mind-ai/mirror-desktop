@@ -3635,7 +3635,7 @@ fn start_pi_invocation(
     if config.command.contains("..") {
         return Err("Provider command must not contain parent-directory traversal.".to_string());
     }
-    validate_run_authority(&app, &run_authority)?;
+    validate_pre_admission_run_authority(&app, &run_authority)?;
     let authority = event_authority(&run_authority);
     let fallback_app = app.clone();
     let fallback_authority = authority.clone();
@@ -6690,28 +6690,6 @@ fn validate_active_pre_frontier_projection_at(
         .map_err(|_| "dedicated_projection_persisted_current_turn_mismatch".to_string())
 }
 
-fn validate_active_pre_frontier_rollback_at(
-    path: &Path,
-    candidate: &Value,
-    authority: &RunAuthority,
-) -> Result<(), String> {
-    let persisted: Value = serde_json::from_str(
-        &fs::read_to_string(path)
-            .map_err(|_| "dedicated_projection_persisted_authority_missing".to_string())?,
-    ).map_err(|_| "dedicated_projection_persisted_authority_invalid".to_string())?;
-    validate_current_projection_turn_authority(&persisted, authority)
-        .map_err(|_| "dedicated_projection_persisted_current_turn_mismatch".to_string())?;
-    if candidate.pointer("/conversation/reconciliation/turns")
-        .and_then(Value::as_array)
-        .is_none_or(|turns| turns.iter().any(|turn| {
-            turn.get("turnId").and_then(Value::as_str) == Some(authority.turn_id.as_str())
-        }))
-    {
-        return Err("dedicated_projection_rollback_authority_mismatch".to_string());
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 fn merge_persisted_mirror_evidence(
     persisted: &Value,
@@ -6879,16 +6857,44 @@ fn save_dedicated_journey_conversation(
         return Err("dedicated_projection_authority_mismatch".to_string());
     }
 
+    let save_mode = mode.as_deref().unwrap_or("lifecycle");
+    if save_mode == "admitted_pre_frontier" {
+        let authority = run_authority.as_ref()
+            .ok_or_else(|| "dedicated_projection_authority_missing".to_string())?;
+        if authority.journey_id != journey_id || authority.generation != generation
+            || outbox_item_id.is_some() || outbox_conversation_id.is_some()
+        {
+            return Err("dedicated_projection_authority_mismatch".to_string());
+        }
+        validate_pre_admission_run_authority(&app, authority)?;
+        validate_current_projection_turn_authority(&parsed, authority)?;
+        let journal_authority = journal_authority(authority);
+        with_turn_journal_lock(&app, &journal_authority, |journal_path| {
+            let record = read_turn_journal(journal_path)?.records.into_iter()
+                .find(|record| record.authority == journal_authority)
+                .ok_or_else(|| "turn_journal_record_missing".to_string())?;
+            let completed_natively = record.phase == TurnPhase::TerminalDurable
+                && record.terminal_outcome == Some(TurnTerminalOutcome::Completed)
+                && record.terminal_evidence.as_ref()
+                    .and_then(|evidence| evidence.pi_execution.as_ref())
+                    .is_some();
+            if record.phase != TurnPhase::Running && !completed_natively {
+                return Err("turn_journal_agent_start_not_running".to_string());
+            }
+            Ok(())
+        })?;
+    }
+
     let stripe = persistence.stripe(&journey_id, generation);
     let _projection_guard = persistence.stripes[stripe].lock()
         .map_err(|_| "dedicated_projection_unavailable".to_string())?;
-    let save_mode = mode.as_deref().unwrap_or("lifecycle");
     match save_mode {
         "lifecycle" => {
             if run_authority.is_some() || outbox_item_id.is_some() || outbox_conversation_id.is_some() {
                 return Err("dedicated_projection_mode_invalid".to_string());
             }
         }
+        "admitted_pre_frontier" => {}
         "active_pre_frontier" => {
             let authority = run_authority.as_ref()
                 .ok_or_else(|| "dedicated_projection_authority_missing".to_string())?;
@@ -6897,17 +6903,6 @@ fn save_dedicated_journey_conversation(
             }
             validate_run_authority(&app, authority)?;
             validate_active_pre_frontier_projection_at(&path, &parsed, authority)?;
-        }
-        "active_pre_frontier_rollback" => {
-            let authority = run_authority.as_ref()
-                .ok_or_else(|| "dedicated_projection_authority_missing".to_string())?;
-            if authority.journey_id != journey_id || authority.generation != generation
-                || outbox_item_id.is_some() || outbox_conversation_id.is_some()
-            {
-                return Err("dedicated_projection_authority_mismatch".to_string());
-            }
-            validate_run_authority(&app, authority)?;
-            validate_active_pre_frontier_rollback_at(&path, &parsed, authority)?;
         }
         "generation_scoped_post_frontier" => {
             let authority = run_authority.as_ref()
@@ -6930,12 +6925,7 @@ fn save_dedicated_journey_conversation(
             &fs::read_to_string(&path)
                 .map_err(|_| "dedicated_projection_unavailable".to_string())?,
         ).map_err(|_| "dedicated_projection_invalid".to_string())?;
-        let ignored_turn_id = if save_mode == "active_pre_frontier_rollback" {
-            run_authority.as_ref().map(|authority| authority.turn_id.as_str())
-        } else {
-            None
-        };
-        if merge_persisted_mirror_evidence_except(&persisted, &mut parsed, ignored_turn_id)? {
+        if merge_persisted_mirror_evidence_except(&persisted, &mut parsed, None)? {
             serde_json::to_vec(&parsed).map_err(|_| "dedicated_projection_invalid".to_string())?
         } else {
             payload.into_bytes()
@@ -7139,9 +7129,39 @@ fn validate_run_authority(app: &AppHandle, authority: &RunAuthority) -> Result<(
     )
 }
 
+fn validate_pre_admission_run_authority(
+    app: &AppHandle,
+    authority: &RunAuthority,
+) -> Result<(), String> {
+    let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
+    let runtime_channel = active_runtime_channel()?.channel;
+    validate_pre_admission_run_authority_at_with_channel(
+        &app_data_dir,
+        &home.join(".pi").join("agent").join("sessions"),
+        authority,
+        runtime_channel.as_str(),
+    )
+}
+
 #[cfg(test)]
 fn validate_run_authority_at(app_data_dir: &Path, global_pi_sessions_dir: &Path, authority: &RunAuthority) -> Result<(), String> {
     validate_run_authority_at_with_channel(app_data_dir, global_pi_sessions_dir, authority, compiled_runtime_channel())
+}
+
+#[cfg(test)]
+fn validate_pre_admission_run_authority_at(
+    app_data_dir: &Path,
+    global_pi_sessions_dir: &Path,
+    authority: &RunAuthority,
+) -> Result<(), String> {
+    validate_pre_admission_run_authority_at_with_channel(
+        app_data_dir,
+        global_pi_sessions_dir,
+        authority,
+        compiled_runtime_channel(),
+    )
 }
 
 #[cfg(test)]
@@ -7152,7 +7172,7 @@ fn compiled_runtime_channel() -> &'static str {
     { "user" }
 }
 
-fn validate_run_authority_at_with_channel(app_data_dir: &Path, global_pi_sessions_dir: &Path, authority: &RunAuthority, runtime_channel: &str) -> Result<(), String> {
+fn validate_run_authority_shape(authority: &RunAuthority) -> Result<(), String> {
     if authority.schema_version != "0.1.0"
         || authority.journey_id != authority.correlation.journey_id
         || authority.run_id != authority.correlation.run_id
@@ -7169,8 +7189,27 @@ fn validate_run_authority_at_with_channel(app_data_dir: &Path, global_pi_session
     {
         return Err("Run authority does not match its turn correlation.".to_string());
     }
-    validate_turn_correlation(&authority.correlation)?;
+    validate_turn_correlation(&authority.correlation)
+}
+
+fn validate_run_authority_at_with_channel(app_data_dir: &Path, global_pi_sessions_dir: &Path, authority: &RunAuthority, runtime_channel: &str) -> Result<(), String> {
+    validate_run_authority_shape(authority)?;
     validate_persisted_turn_authority_at(app_data_dir, global_pi_sessions_dir, authority, runtime_channel)
+}
+
+fn validate_pre_admission_run_authority_at_with_channel(
+    app_data_dir: &Path,
+    global_pi_sessions_dir: &Path,
+    authority: &RunAuthority,
+    runtime_channel: &str,
+) -> Result<(), String> {
+    validate_run_authority_shape(authority)?;
+    validate_persisted_control_plane_authority_at(
+        app_data_dir,
+        global_pi_sessions_dir,
+        authority,
+        runtime_channel,
+    )
 }
 
 fn dedicated_journey_conversation_path_at(app_data_dir: &Path, journey_id: &str, generation: u64) -> Result<PathBuf, String> {
@@ -7243,36 +7282,54 @@ fn load_conversation_thread_authority_at(
     }))
 }
 
-fn validate_persisted_turn_authority_at(app_data_dir: &Path, global_pi_sessions_dir: &Path, authority: &RunAuthority, runtime_channel: &str) -> Result<(), String> {
+fn validate_persisted_control_plane_authority_at(
+    app_data_dir: &Path,
+    global_pi_sessions_dir: &Path,
+    authority: &RunAuthority,
+    runtime_channel: &str,
+) -> Result<(), String> {
     let value = &authority.correlation;
-    {
-        let stored_thread = load_conversation_thread_authority_at(
-            app_data_dir,
-            &value.journey_id,
-            value.thread_id.as_deref().ok_or_else(|| "Run authority has no thread.".to_string())?,
-        )?;
-        let thread = &stored_thread;
-        validate_thread_runtime_channel_name(thread, runtime_channel)?;
-        let active_generation = thread.get("activeGeneration").and_then(Value::as_u64);
-        let generation = thread.get("generations").and_then(Value::as_array)
-            .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active_generation))
-            .ok_or_else(|| "Dedicated active generation is missing.".to_string())?;
-        let receipt = generation.get("activationReceipt").and_then(Value::as_object)
-            .ok_or_else(|| "Dedicated activation receipt is missing.".to_string())?;
-        let dedicated_matches = thread.get("journeyId").and_then(Value::as_str) == Some(value.journey_id.as_str())
-            && thread.get("threadId").and_then(Value::as_str) == value.thread_id.as_deref()
-            && value.thread_id.as_deref() == Some(value.harness_conversation_id.as_str())
-            && active_generation == Some(value.generation)
-            && generation.get("status").and_then(Value::as_str) == Some("ready")
-            && generation.get("piSessionId").and_then(Value::as_str) == Some(value.pi_session_id.as_str())
-            && generation.get("piSessionFile").and_then(Value::as_str) == Some(authority.pi_session_file.as_str())
-            && generation.get("mirrorConversationId").and_then(Value::as_str) == value.mirror_conversation_id.as_deref()
-            && receipt.get("activatedAt").and_then(Value::as_str) == value.activation_receipt_activated_at.as_deref();
-        if !dedicated_matches {
-            return Err("Turn no longer matches the active dedicated generation.".to_string());
-        }
-        validate_pi_session_file_at(&authority.pi_session_file, &value.pi_session_id, global_pi_sessions_dir, app_data_dir)?;
+    let stored_thread = load_conversation_thread_authority_at(
+        app_data_dir,
+        &value.journey_id,
+        value.thread_id.as_deref().ok_or_else(|| "Run authority has no thread.".to_string())?,
+    )?;
+    let thread = &stored_thread;
+    validate_thread_runtime_channel_name(thread, runtime_channel)?;
+    let active_generation = thread.get("activeGeneration").and_then(Value::as_u64);
+    let generation = thread.get("generations").and_then(Value::as_array)
+        .and_then(|items| items.iter().find(|item| item.get("generation").and_then(Value::as_u64) == active_generation))
+        .ok_or_else(|| "Dedicated active generation is missing.".to_string())?;
+    let receipt = generation.get("activationReceipt").and_then(Value::as_object)
+        .ok_or_else(|| "Dedicated activation receipt is missing.".to_string())?;
+    let dedicated_matches = thread.get("journeyId").and_then(Value::as_str) == Some(value.journey_id.as_str())
+        && thread.get("threadId").and_then(Value::as_str) == value.thread_id.as_deref()
+        && value.thread_id.as_deref() == Some(value.harness_conversation_id.as_str())
+        && active_generation == Some(value.generation)
+        && generation.get("status").and_then(Value::as_str) == Some("ready")
+        && generation.get("piSessionId").and_then(Value::as_str) == Some(value.pi_session_id.as_str())
+        && generation.get("piSessionFile").and_then(Value::as_str) == Some(authority.pi_session_file.as_str())
+        && generation.get("mirrorConversationId").and_then(Value::as_str) == value.mirror_conversation_id.as_deref()
+        && receipt.get("activatedAt").and_then(Value::as_str) == value.activation_receipt_activated_at.as_deref();
+    if !dedicated_matches {
+        return Err("Turn no longer matches the active dedicated generation.".to_string());
     }
+    validate_pi_session_file_at(
+        &authority.pi_session_file,
+        &value.pi_session_id,
+        global_pi_sessions_dir,
+        app_data_dir,
+    )
+}
+
+fn validate_persisted_turn_authority_at(app_data_dir: &Path, global_pi_sessions_dir: &Path, authority: &RunAuthority, runtime_channel: &str) -> Result<(), String> {
+    validate_persisted_control_plane_authority_at(
+        app_data_dir,
+        global_pi_sessions_dir,
+        authority,
+        runtime_channel,
+    )?;
+    let value = &authority.correlation;
     let payload: Value = serde_json::from_str(
         &fs::read_to_string(conversation_projection_path_at(
             app_data_dir, &value.journey_id,
@@ -7710,8 +7767,8 @@ mod tests {
         validate_current_projection_turn_authority, validate_mirror_append_item,
         validate_outbox_item_run_authority_at,
         validate_desktop_conversation_deletion, validate_pi_session_file_at,
-        terminal_pi_execution_evidence, validate_projection_payload_authority, validate_run_authority_at,
-        validate_turn_correlation,
+        terminal_pi_execution_evidence, validate_pre_admission_run_authority_at,
+        validate_projection_payload_authority, validate_run_authority_at, validate_turn_correlation,
         write_durable_projection_at, JourneyProjectionPersistenceState, PiSessionContextSnapshot,
         RegistryAuthorityInspection, RunAuthority, TerminalState, TurnCorrelation, JOURNEY_REGISTRY_FILE, FILE_ATTACHMENT_MAX_FILES,
         DOCUMENT_PREVIEW_MAX_BYTES,
@@ -8947,6 +9004,35 @@ mod tests {
     }
 
     #[test]
+    fn pre_admission_authority_does_not_require_an_optimistic_projection_turn() {
+        let root = test_root("pre-admission-authority");
+        let authority = test_run_authority(&root);
+        persist_run_authority_fixture(&root, &authority, "2026-08-26T10:00:00Z");
+        let conversation_path = root.join("dedicated-journey-conversations/journey-one/generation-1.json");
+        let mut payload: Value = serde_json::from_str(&fs::read_to_string(&conversation_path).unwrap()).unwrap();
+        payload["conversation"]["reconciliation"]["turns"] = json!([]);
+        fs::write(&conversation_path, serde_json::to_vec(&payload).unwrap()).unwrap();
+
+        validate_pre_admission_run_authority_at(
+            &root,
+            &root.join("global-pi-sessions"),
+            &authority,
+        ).unwrap();
+        assert!(validate_run_authority_at(
+            &root,
+            &root.join("global-pi-sessions"),
+            &authority,
+        ).unwrap_err().contains("Staged reconciliation"));
+        fs::remove_file(&conversation_path).unwrap();
+        validate_pre_admission_run_authority_at(
+            &root,
+            &root.join("global-pi-sessions"),
+            &authority,
+        ).unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn rejects_run_authority_that_diverges_from_stored_active_generation() {
         let root = test_root("run-authority-generation");
         let authority = test_run_authority(&root);
@@ -8957,6 +9043,14 @@ mod tests {
 
         assert_eq!(
             validate_run_authority_at(&root, &root.join("global-pi-sessions"), &divergent).unwrap_err(),
+            "Turn no longer matches the active dedicated generation."
+        );
+        assert_eq!(
+            validate_pre_admission_run_authority_at(
+                &root,
+                &root.join("global-pi-sessions"),
+                &divergent,
+            ).unwrap_err(),
             "Turn no longer matches the active dedicated generation."
         );
         fs::remove_dir_all(root).unwrap();
