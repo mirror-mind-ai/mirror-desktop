@@ -51,6 +51,7 @@ The [2026-09-18 final acceptance review](acceptance-review-2026-09-18.md) conclu
 
 ## Change Requests
 
+- [CR051: Repair Post-Native Terminal Delivery Debt from Pi Evidence](cr051-repair-post-native-terminal-delivery-debt-from-pi-evidence.md)
 - [CR050: Accept Failed Native Leaves as Interrupted-Attempt Evidence](cr050-accept-failed-native-leaves-as-interrupted-attempt-evidence.md)
 - [CR049: Complete the Release-Shaped RS018 Acceptance Route](cr049-complete-the-release-shaped-rs018-acceptance-route.md)
 - [CR048: Explain Interrupted Native Attempts Without Blocking Continuity](cr048-explain-interrupted-native-attempts-without-blocking-continuity.md)
@@ -65,7 +66,9 @@ The [2026-09-18 final acceptance review](acceptance-review-2026-09-18.md) conclu
 
 CR050 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr050-failed-native-leaf-evidence`. The Navigator accepted exact failed-assistant-leaf reconstruction, single-notice presentation and full relaunch on 2026-09-18. Proportionality review found the ephemeral active-branch correction appropriately local; Debt Review concluded `no_action`. CR049 resumption remains a separate explicit decision.
 
-CR049 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr049-release-shaped-acceptance`. CR050 is integrated and the release-shaped route resumed after ordinary DEV restoration verification. The next private-data-free sandbox uses the catalog-supported `openai-codex/gpt-5.5` model; production remains untouched.
+CR051 is `captured`. CR049's exact terminal-window rehearsal proved Pi continuity and non-blocking relaunch, then exposed `mirror_append_message_authority_mismatch` when explicit repair attempted to materialize missing post-native delivery debt through stale harness projection IDs. Selection, planning approval, Driver, Delivery and implementation remain pending.
+
+CR049 is `blocked` with Driver `@alissonvale` and Delivery `refinement/rs018-cr049-release-shaped-acceptance`. The supported-model baseline, three-turn Mirror outage and post-native/pre-delivery termination window passed through relaunch. Execution stopped at CR051; the rehearsal archive is isolated, ordinary DEV state is restored to its exact verified manifest and production remains untouched.
 
 CR048 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr048-interrupted-attempt-notice`. The Navigator accepted exact inactive-attempt derivation, passive non-blocking explanation, successor agent-start resolution and final relaunch behavior on 2026-09-18. Proportionality review found the ephemeral presentation correction appropriately local; Debt Review concluded `no_action`.
 

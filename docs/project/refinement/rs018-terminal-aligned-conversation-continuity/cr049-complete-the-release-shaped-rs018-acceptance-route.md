@@ -2,7 +2,7 @@
 
 # CR049 — Complete the Release-Shaped RS018 Acceptance Route
 
-**Status:** in_progress
+**Status:** blocked
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr049-release-shaped-acceptance`
 
@@ -143,9 +143,11 @@ The Navigator authorized Driver `@alissonvale`, Delivery `refinement/rs018-cr049
 
 ## Outcome
 
-Resumed after CR050 Navigator Validation and integration on 2026-09-18.
+Blocked by CR051 after the resumed release-shaped route captured a valid post-native/pre-delivery repair defect.
 
-CR050 now accepts the valid failed-assistant-leaf shape, renders one passive interruption notice and reconstructs after full relaunch. Ordinary DEV state was restored and verified before resumption. The next isolated sandbox run will use the catalog-supported `openai-codex/gpt-5.5` model.
+The supported-model baseline and three-turn Mirror outage passed: each Pi response completed once, Composer availability remained non-blocking and three self-contained outbox items accumulated. The terminal-window watcher then observed a successful Pi assistant leaf and terminated the app before settlement. Relaunch reconstructed the complete turn exactly once without retry, but explicit Mirror repair failed with `mirror_append_message_authority_mismatch` because the stale journal authority and Pi-backed projection aliases could not materialize the missing fourth debt item.
+
+Execution stopped immediately. The app was closed, the 11-file rehearsal state was archived, ordinary DEV state was restored to the exact verified 63-file digest and production remained untouched.
 
 Safety tooling is implemented and focused tests pass. Ordinary DEV app data is preserved under a verified 63-file backup with manifest digest `0a9cd312e4a8624c99a12a24bab367f77ccea879159e6fe9abcd794153df3e27`. A fresh canonical DEV directory, generic isolated Mirror home/database and two private-data-free rehearsal Journeys were created. Production state remains untouched.
 
