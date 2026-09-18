@@ -2,7 +2,7 @@
 
 # CR049 — Complete the Release-Shaped RS018 Acceptance Route
 
-**Status:** blocked
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr049-release-shaped-acceptance`
 
@@ -143,11 +143,11 @@ The Navigator authorized Driver `@alissonvale`, Delivery `refinement/rs018-cr049
 
 ## Outcome
 
-Blocked by CR051 after the resumed release-shaped route captured a valid post-native/pre-delivery repair defect.
+Resumed after CR051 Navigator Validation and integration on 2026-09-18.
 
-The supported-model baseline and three-turn Mirror outage passed: each Pi response completed once, Composer availability remained non-blocking and three self-contained outbox items accumulated. The terminal-window watcher then observed a successful Pi assistant leaf and terminated the app before settlement. Relaunch reconstructed the complete turn exactly once without retry, but explicit Mirror repair failed with `mirror_append_message_authority_mismatch` because the stale journal authority and Pi-backed projection aliases could not materialize the missing fourth debt item.
+The supported-model baseline, three-turn Mirror outage, terminal-window termination, exact relaunch and model-free debt repair are accepted evidence for this route. CR051 recovered the stale turn from exact Pi evidence, promoted legacy outage debt, settled all five journal records, emptied the outbox and passed a full relaunch without provider execution.
 
-Execution stopped immediately. The app was closed, the 11-file rehearsal state was archived, ordinary DEV state was restored to the exact verified 63-file digest and production remained untouched.
+The resumed sandbox starts from that settled private-data-free fixture. Remaining execution is limited to concurrent Journeys, destructive deletion of copied rebuildable caches, exact Pi reconstruction and final relaunch review. Ordinary DEV state was restored and verified before this resumption; production remains untouched.
 
 Safety tooling is implemented and focused tests pass. Ordinary DEV app data is preserved under a verified 63-file backup with manifest digest `0a9cd312e4a8624c99a12a24bab367f77ccea879159e6fe9abcd794153df3e27`. A fresh canonical DEV directory, generic isolated Mirror home/database and two private-data-free rehearsal Journeys were created. Production state remains untouched.
 
