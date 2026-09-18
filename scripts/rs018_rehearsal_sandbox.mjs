@@ -110,14 +110,19 @@ function readReceipt(path) {
 
 export function runningMirrorDesktopProcesses() {
   if (process.platform !== "darwin") return [];
-  const output = execFileSync("ps", ["-axo", "pid=,command="], { encoding: "utf8" });
-  return output.split("\n").map((line) => line.trim()).filter(Boolean).filter((line) => (
-    line.includes("/target/debug/mirror-desktop")
-      || line.includes("/Mirror Desktop Dev.app/Contents/MacOS/")
-      || line.includes("mirror_desktop_channel.mjs dev")
-      || line.includes("/node_modules/.bin/tauri dev")
-      || line.includes("cargo run --no-default-features --features development-channel")
-  ));
+  const output = execFileSync("ps", ["-axo", "pid=,comm=,command="], { encoding: "utf8" });
+  return output.split("\n").map((line) => line.trim()).filter(Boolean).filter((line) => {
+    const match = line.match(/^\d+\s+(\S+)\s+(.+)$/);
+    if (!match) return false;
+    const executable = basename(match[1]);
+    const command = match[2];
+    return executable === "mirror-desktop"
+      || (executable === "node" && (
+        command.includes("mirror_desktop_channel.mjs dev")
+        || command.includes("/node_modules/.bin/tauri dev")
+      ))
+      || (executable === "cargo" && command.includes("--features development-channel"));
+  });
 }
 
 function assertNoRunningDesktop() {
