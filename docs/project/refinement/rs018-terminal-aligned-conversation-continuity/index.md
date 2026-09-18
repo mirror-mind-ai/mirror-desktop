@@ -65,7 +65,7 @@ The [2026-09-18 final acceptance review](acceptance-review-2026-09-18.md) conclu
 
 CR050 is `captured`. The first isolated CR049 baseline produced a valid Pi assistant error leaf after an admitted user; CR048's stricter user-equals-leaf classifier rejected that shape and made restore unavailable. CR050 must preserve exact active-branch authority while accepting failed native tails before CR049 resumes.
 
-CR049 is `blocked` with Driver `@alissonvale` and Delivery `refinement/rs018-cr049-release-shaped-acceptance`. Safety tooling and the disposable sandbox are prepared, ordinary DEV data is backed up and production remains untouched. Execution stopped after the first baseline exposed CR050; the app is closed and no outage, concurrency or destructive-cache scenario has run.
+CR049 is `blocked` with Driver `@alissonvale` and Delivery `refinement/rs018-cr049-release-shaped-acceptance`. Safety tooling passed and the disposable Mirror home remains isolated. Execution stopped after the first baseline exposed CR050; the app is closed, rehearsal app data is archived, ordinary DEV data is restored to its exact original manifest and production remains untouched. No outage, concurrency or destructive-cache scenario has run.
 
 CR048 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr048-interrupted-attempt-notice`. The Navigator accepted exact inactive-attempt derivation, passive non-blocking explanation, successor agent-start resolution and final relaunch behavior on 2026-09-18. Proportionality review found the ephemeral presentation correction appropriately local; Debt Review concluded `no_action`.
 
