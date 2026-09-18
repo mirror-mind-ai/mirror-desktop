@@ -112,8 +112,7 @@ import {
 import { loadMirrorConversationCatalog, openMirrorConversationInTerminal, renameMirrorConversation } from "./mirrorConversationCatalog";
 import { nextDesktopConversationTitle, normalizeConversationTitle, validateConversationTitle } from "./conversationTitles";
 import {
-  loadCompleteConversationSegmentHistory, loadConversationSegments,
-  publishConversationSegmentProjections, refreshConversationSegments,
+  loadConversationSegments, publishConversationSegmentProjections, refreshConversationSegments,
 } from "./conversationSegmentStorage";
 import { partitionConversationBySegments } from "../domain/conversationSegmentProjection";
 import { decideConversationAvailability } from "../domain/conversationAvailability";
@@ -121,7 +120,7 @@ import {
   decideConversationRecoveryRoutes,
   type ConversationRecoveryRouteId,
 } from "../domain/conversationRecovery";
-import { loadDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
+import { inspectDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import { projectGenerationHistory } from "../domain/journeyThreadRestart";
 import {
@@ -209,6 +208,7 @@ import {
   restoreDedicatedJourneyConversation,
   replaceJourneyConversationMessages,
 } from "../domain/journeyConversation";
+import { projectPiBackedConversationSurface } from "../domain/piBackedConversationSurface";
 import {
   commitHarnessTurn,
   pendingMirrorTurnRepair,
@@ -1255,42 +1255,21 @@ export function App({ model }: AppProps) {
               } : undefined,
             )
           : undefined;
-        const segmentManifest = classified.kind === "ready" && classified.activeGeneration.piSessionFile
-          ? await loadConversationSegments({
-              journeyId: selectedJourney,
-              threadId: classified.thread.threadId,
-              generation: classified.activeGeneration.generation,
-              sessionId: classified.activeGeneration.piSessionId,
-            }).catch(() => undefined)
-          : undefined;
         if (!requestIsCurrent()) return;
-        setHistoricalSegmentCount(Math.max(0, (segmentManifest?.segments.length ?? 1) - 1));
+        setHistoricalSegmentCount(0);
         let restoredConversation = restoreDecision.runtimeConversation ?? (classified.kind === "ready"
           ? restoreDedicatedJourneyConversation(classified.thread, persistedConversation)
           : createJourneyConversation({ journeyId: selectedJourney, initialMessages }));
-        const latestRestoredNautilusTurn = [...restoredConversation.reconciliation.turns].reverse().find((turn) => (
-          turn.origin === "nautilus" && turn.runId
-        ));
         if (classified.kind === "ready" && classified.activeGeneration.piSessionFile
-          && !latestRestoredNautilusTurn && !childEntry) {
-          const turns = await loadDedicatedPiTranscript(
+          && !restoreDecision.runtimeConversation) {
+          const inspection = await inspectDedicatedPiTranscript(
             selectedJourney,
             classified.thread.threadId,
             classified.activeGeneration.generation,
             classified.activeGeneration.piSessionId,
             classified.activeGeneration.piSessionFile,
-          ).catch(() => []);
-          restoredConversation = replaceJourneyConversationMessages(restoredConversation, turns.flatMap((turn) => [{
-            id: `pi-${turn.userEntryId}`,
-            role: "user" as const,
-            content: turn.userText,
-            createdAt: turn.startedAt,
-          }, {
-            id: `pi-${turn.assistantEntryId}`,
-            role: "assistant" as const,
-            content: turn.assistantText,
-            createdAt: turn.committedAt,
-          }]));
+          );
+          restoredConversation = projectPiBackedConversationSurface(restoredConversation, inspection);
         }
         const repairableSteering = restoredConversation.steeringEvidence?.some((item) => (
           item.status === "pending" || item.status === "accepted" || item.status === "terminally_unconsumed"
@@ -1769,23 +1748,40 @@ export function App({ model }: AppProps) {
         });
         return;
       }
-      const durableBaseConversation = await loadDedicatedJourneyConversation(
+      const durableMetadata = await loadDedicatedJourneyConversation(
         selectedJourney,
         journeyThreadState.activeGeneration.generation,
         journeyThreadState.thread.threadId,
       );
-      if (!durableBaseConversation
-        || durableBaseConversation.id !== baseConversation.id
-        || durableBaseConversation.journeyId !== selectedJourney
-        || durableBaseConversation.liveIdentity.generation !== baseConversation.liveIdentity.generation) {
+      const metadataBase = durableMetadata ?? baseConversation;
+      if (metadataBase.id !== baseConversation.id
+        || metadataBase.journeyId !== selectedJourney
+        || metadataBase.liveIdentity.generation !== baseConversation.liveIdentity.generation
+        || !journeyThreadState.activeGeneration.piSessionFile) {
         dispatchJourneyRuntime({
           type: "append_warning",
           journeyId: selectedJourney,
-          message: "Live invocation stopped because the complete durable conversation projection could not be loaded.",
+          message: "Live invocation stopped because exact Conversation metadata or Pi session authority changed.",
         });
         return;
       }
-      baseConversation = durableBaseConversation;
+      try {
+        const inspection = await inspectDedicatedPiTranscript(
+          selectedJourney,
+          journeyThreadState.thread.threadId,
+          journeyThreadState.activeGeneration.generation,
+          journeyThreadState.activeGeneration.piSessionId,
+          journeyThreadState.activeGeneration.piSessionFile,
+        );
+        baseConversation = projectPiBackedConversationSurface(metadataBase, inspection);
+      } catch (error) {
+        dispatchJourneyRuntime({
+          type: "append_warning",
+          journeyId: selectedJourney,
+          message: `Live invocation stopped because the Pi transcript could not be inspected: ${error instanceof Error ? error.message : String(error)}`,
+        });
+        return;
+      }
     }
 
     const fileAttachments = pendingFileAttachments;
@@ -3907,9 +3903,16 @@ export function App({ model }: AppProps) {
     const segmentCountBeingLoaded = historicalSegmentCount;
     setHistoricalSegmentState("loading");
     try {
-      const complete = await loadCompleteConversationSegmentHistory(authority);
-      if (selectedJourneyRef.current !== authority.journeyId || conversationRef.current.id !== selectedConversationId
-        || complete.id !== selectedConversationId) return;
+      const inspection = await inspectDedicatedPiTranscript(
+        authority.journeyId,
+        authority.threadId,
+        authority.generation,
+        authority.sessionId,
+        authority.sessionFile,
+      );
+      if (selectedJourneyRef.current !== authority.journeyId || conversationRef.current.id !== selectedConversationId) return;
+      const complete = projectPiBackedConversationSurface(conversationRef.current, inspection);
+      conversationRef.current = complete;
       setConversation(complete);
       setLoadedHistoricalSegmentCount(segmentCountBeingLoaded);
       setHistoricalSegmentCount(0);

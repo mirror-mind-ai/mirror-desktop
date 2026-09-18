@@ -5,12 +5,6 @@ import {
 } from "../domain/persistedJourneyConversation";
 import type { JourneyConversation } from "../domain/journeyConversation";
 import type { JourneySettlementAuthority } from "../domain/journeySettlementAuthority";
-import { partitionConversationBySegments } from "../domain/conversationSegmentProjection";
-import {
-  loadConversationSegments,
-  loadCurrentConversationSegmentProjection,
-  publishConversationSegmentProjections,
-} from "./conversationSegmentStorage";
 
 async function saveProjection(
   conversation: JourneyConversation,
@@ -63,25 +57,13 @@ export async function loadDedicatedJourneyConversation(
   threadId?: string,
   session?: { sessionId: string; sessionFile: string },
 ): Promise<JourneyConversation | undefined> {
-  const segmentAuthority = threadId && session
-    ? { journeyId, threadId, generation, ...session }
-    : undefined;
-  if (segmentAuthority) {
-    const current = await loadCurrentConversationSegmentProjection(segmentAuthority).catch(() => undefined);
-    if (current) return current;
-  }
+  void session;
   const payload = await invoke<string | null>("load_dedicated_journey_conversation", {
     journeyId, generation, ...(threadId ? { threadId } : {}),
   });
   if (!payload) return undefined;
   try {
-    const conversation = parsePersistedJourneyConversation(JSON.parse(payload))?.conversation;
-    if (!conversation || !segmentAuthority) return conversation;
-    const manifest = await loadConversationSegments(segmentAuthority);
-    if (!manifest) return conversation;
-    const projections = partitionConversationBySegments(conversation, manifest);
-    await publishConversationSegmentProjections(segmentAuthority, projections);
-    return projections[projections.length - 1]?.conversation;
+    return parsePersistedJourneyConversation(JSON.parse(payload))?.conversation;
   } catch {
     return undefined;
   }

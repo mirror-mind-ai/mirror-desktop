@@ -141,9 +141,10 @@ describe("runtime projection component", () => {
     expect(leaseReleaseCallback).not.toContain('type: "finalization_finished"');
     expect(appSource).toContain("mirrorSynchronizationPending: showConversationSyncNotice");
     expect(appSource).toContain("const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;");
-    expect(appSource).toContain("const durableBaseConversation = await loadDedicatedJourneyConversation(");
-    expect(appSource).toContain("baseConversation = durableBaseConversation;");
-    expect(appSource).toContain("complete durable conversation projection could not be loaded");
+    expect(appSource).toContain("const durableMetadata = await loadDedicatedJourneyConversation(");
+    expect(appSource).toContain("const metadataBase = durableMetadata ?? baseConversation;");
+    expect(appSource).toContain("baseConversation = projectPiBackedConversationSurface(metadataBase, inspection);");
+    expect(appSource).toContain("exact Conversation metadata or Pi session authority changed");
     expect(appSource).toContain("resumeProjectedMirrorSynchronization(projectedSyncRecord)");
     expect(appSource).toContain("projectionAlreadyDurable: true");
     expect(appSource).not.toContain("requiresConversationRestore:");

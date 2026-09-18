@@ -66,6 +66,7 @@ describe("Conversation Segment persistence", () => {
     expect(tauriSource).toContain("load_conversation_segment_projections");
     expect(appSource).toContain("Earlier history");
     expect(appSource).toContain("segmentCountBeingLoaded");
-    expect(appSource).toContain("loadCompleteConversationSegmentHistory");
+    expect(appSource).not.toContain("loadCompleteConversationSegmentHistory");
+    expect(appSource).toContain("const inspection = await inspectDedicatedPiTranscript(");
   });
 });

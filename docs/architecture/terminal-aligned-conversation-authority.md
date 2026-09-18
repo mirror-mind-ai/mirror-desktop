@@ -2,8 +2,8 @@
 
 # Terminal-Aligned Conversation Authority
 
-**Status:** authority contract established by RS018 / CR040; reconstruction adapter characterized by CR041
-**Runtime status:** the read-only Pi inspection contract exists and successor admission now follows native occupancy; opening, transcript presentation and settlement do not yet fully conform
+**Status:** authority contract established by RS018 / CR040; Pi-backed inactive Surface integrated by CR046
+**Runtime status:** read-only Pi inspection owns inactive transcript presentation, successor admission follows native occupancy and Segments no longer feed normal restore; compatibility settlement metadata is not yet fully reconstructible
 
 ## Decision Context
 
@@ -53,7 +53,7 @@ Presentation projections are not an authority class. They are materialized views
 
 **Current responsibility:** native provider transcript and compaction history. The Desktop also treats it as one body in three-body reconciliation.
 
-**Current limitation:** the visible Desktop transcript is not reconstructed from it. A valid Pi completion can therefore exist while the Desktop projection says that the harness body is pending.
+**Current responsibility after CR046:** inactive and relaunch Conversation Surfaces are reconstructed from the exact inspected active branch. Visible native user and assistant entries define content, order and native identity; exact reconciliation may retain stable Desktop aliases and user attachment metadata. During execution, the exact in-memory stream remains a temporary overlay until native evidence becomes inspectable.
 
 **Target responsibility:** authoritative agent transcript after native admission. Native Pi entry IDs, not array position in a Desktop projection, identify committed user and assistant content. Pi compaction changes model context, not transcript authority.
 
@@ -91,11 +91,11 @@ Presentation projections are not an authority class. They are materialized views
 
 **Readers:** application opening, invocation staging, settlement, journal projection validation, outbox validation, recovery and Conversation Segment publication.
 
-**Current responsibilities:** visible transcript, Desktop metadata, live identity, three-body reconciliation, checkpoints and settlement receipts.
+**Current responsibilities after CR046:** Desktop metadata, live identity, compatibility reconciliation, checkpoints, settlement receipts and optional stable message aliases or attachment metadata. Its message content is replaced by the inspected Pi-backed Surface on inactive restore.
 
-**Current gates after CR045:** the frontend still refuses live invocation when it cannot load the prior projection because Pi-backed Surface reconstruction is not integrated yet. Native admission no longer reads or requires the optimistic projection turn. After exact `agent_start`, compatibility and post-frontier settlement still require exact candidate projection authority; legacy outbox append and acknowledgement may revalidate it.
+**Current gates:** the frontend still requires parseable projection metadata for compatibility settlement and exact control-plane binding. Native admission does not read or require an optimistic projection turn. After exact `agent_start`, compatibility and post-frontier settlement require exact candidate authority; legacy outbox append and acknowledgement may revalidate it.
 
-**Current failure consequence:** parser drift, stale derived classification or Segment-local history can still prevent opening or compatibility settlement, but pre-agent rejection no longer leaves a durable projection ghost or requires a rollback write.
+**Current failure consequence:** corrupt projection metadata can still prevent compatibility opening or settlement until metadata reconstruction is implemented, but stale, truncated or ghost projection messages no longer define the visible transcript.
 
 **Target responsibility:** rebuildable materialized view plus Desktop-only metadata. Transcript content derives from Pi entries. Corrupt or absent projection state triggers reconstruction and a bounded presentation warning, not loss of agent access. Exact control-plane identity remains checked separately.
 
@@ -105,11 +105,11 @@ Presentation projections are not an authority class. They are materialized views
 
 **Writers:** `refresh_conversation_segments()` discovers Pi compaction boundaries; `partitionConversationBySegments()` slices Desktop messages and reconciliation turns; `publish_conversation_segment_projections()` publishes those slices.
 
-**Readers:** opening loads the current Segment preferentially; complete history can be combined on demand.
+**Readers after CR046:** normal opening no longer reads Segment manifests or projections. Segment publication remains compatibility output, and the retained historical action reinspects Pi rather than combining Segment message bodies.
 
-**Current indirect gate:** a current Segment projection can enter invocation and settlement paths as if its message count represented the generation. `commitHarnessTurn()` currently supplies `conversation.messages.length` to a generation-wide harness checkpoint.
+**Former indirect gate removed by CR046:** a current Segment projection previously entered invocation and settlement paths as if its message count represented the generation. Normal restore now loads complete projection metadata and replaces its messages from Pi inspection.
 
-**Observed failure:** Flip Podcast retained a checkpoint of 38 while a Segment-local projection contained 16 messages. The new commit was classified as `checkpoint_regression`, leaving the completed turn's harness body pending and causing later native admission to reject it.
+**Observed historical failure:** Flip Podcast retained a checkpoint of 38 while a Segment-local projection contained 16 messages. The next commit was classified as `checkpoint_regression`, leaving the completed turn's harness body pending.
 
 **Target responsibility:** presentation pagination only. Segments may select which transcript entries are rendered, but cannot define cumulative counts, completion, admission, settlement or delivery authority. Deleting Segment projections must be safe.
 
@@ -139,7 +139,9 @@ Presentation projections are not an authority class. They are materialized views
 
 **Target responsibility:** secondary memory projection owned by Mirror Core. The Desktop submits a bounded append request through the existing public CLI and accepts or rejects its receipt; it does not manage Mirror Conversation state. The receipt acknowledges compatibility-outbox delivery. It does not certify the existence of a Pi response and cannot block another agent turn.
 
-## Current Turn Path After CR045
+## Current Restore And Turn Path After CR046
+
+Inactive restore first loads exact generation metadata, inspects the authority-bound Pi session and replaces all projected messages with visible user and assistant entries from the active native branch. Exact reconciliation may preserve stable Desktop aliases and attachments; projection-only ghosts are omitted and native-only entries receive deterministic `pi-<entry-id>` aliases. A malformed inspection makes the Conversation unavailable rather than falling back to projected transcript content. Exact in-memory runtime state remains the temporary overlay while streaming.
 
 The live path no longer publishes optimistic transcript staging before native admission:
 

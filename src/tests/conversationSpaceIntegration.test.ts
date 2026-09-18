@@ -41,7 +41,10 @@ describe("Journey conversation-space integration", () => {
     expect(appSource).toContain("desktopConversationThread(selectedJourney, childEntry)");
     expect(appSource).toContain("classified.thread.threadId");
     expect(appSource).toContain("loadCompleteSegmentHistory");
-    expect(appSource).toContain("&& !latestRestoredNautilusTurn && !childEntry");
+    expect(appSource).not.toContain("loadCompleteConversationSegmentHistory");
+    expect(appSource).toContain("inspectDedicatedPiTranscript(");
+    expect(appSource).toContain("projectPiBackedConversationSurface(restoredConversation, inspection)");
+    expect(appSource).not.toContain("!latestRestoredNautilusTurn && !childEntry");
     expect(appSource).toContain('selectedConversationSpace.kind === "mirror_history"');
     expect(appSource).toContain("conversationRef.current.id === baseConversation.id");
     expect(appSource).toContain("await restartDesktopConversation(");
