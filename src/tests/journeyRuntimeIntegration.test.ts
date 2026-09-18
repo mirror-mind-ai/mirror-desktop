@@ -181,6 +181,12 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).not.toContain(".at(");
     const durableOutboxRetry = sourceBetween("async function retryMirrorAppendSummary", "async function retryPendingMirrorCommit");
     expect(durableOutboxRetry).toContain("resolveRetainedLeaseForOutboxRecovery(inspection, authority)");
+    expect(durableOutboxRetry).toContain("reconcilePiBackedMirrorDeliveryDebt(ownerJourneyId)");
+    expect(durableOutboxRetry).toContain('item.schemaVersion === "1.1.0"');
+    expect(durableOutboxRetry).toContain("deliverPiBackedMirrorOutboxItem(item.itemId, item.journeyId)");
+    expect(durableOutboxRetry).toContain("applyMirrorAppendReceipt(projection, authority, receipt");
+    expect(durableOutboxRetry).toContain("savePostFrontierReceiptProjection(settled, authority, item)");
+    expect(durableOutboxRetry).toContain("acknowledgeMirrorAppendItem(item.itemId, item.conversationId, authority)");
     expect(durableOutboxRetry.indexOf("releaseDurablePiInvocationLease(authority)")).toBeLessThan(
       durableOutboxRetry.indexOf("appendAndAcknowledgeExactProjection"),
     );

@@ -4,7 +4,7 @@ import { parseMirrorAppendReceipt } from "../domain/mirrorAppendOutbox";
 import type { JourneySettlementAuthority } from "../domain/journeySettlementAuthority";
 
 export type MirrorAppendOutboxSummary = {
-  schemaVersion: "1.0.0";
+  schemaVersion: "1.0.0" | "1.1.0";
   itemId: string;
   journeyId: string;
   threadId: string;
@@ -38,6 +38,12 @@ export async function enqueueMirrorAppendItem(
 
 export async function listMirrorAppendOutbox(journeyId: string): Promise<MirrorAppendOutboxSummary[]> {
   return invoke<MirrorAppendOutboxSummary[]>("list_mirror_append_outbox", { journeyId });
+}
+
+export async function reconcilePiBackedMirrorDeliveryDebt(
+  journeyId: string,
+): Promise<MirrorAppendOutboxSummary[]> {
+  return invoke<MirrorAppendOutboxSummary[]>("reconcile_pi_backed_mirror_delivery_debt", { journeyId });
 }
 
 export async function deliverPiBackedMirrorOutboxItem(

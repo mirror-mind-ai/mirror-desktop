@@ -233,6 +233,7 @@ import {
   deliverPiBackedMirrorOutboxItem,
   enqueueMirrorAppendItem,
   listMirrorAppendOutbox,
+  reconcilePiBackedMirrorDeliveryDebt,
   type MirrorAppendOutboxSummary,
 } from "./mirrorAppendOutboxStorage";
 import {
@@ -2671,6 +2672,59 @@ export function App({ model }: AppProps) {
     setJourneyMirrorCommitError(record.authority.journeyId, undefined);
   }
 
+  async function repairPiBackedMirrorDeliveryDebt(
+    ownerJourneyId: string,
+    initialProjection: JourneyConversation,
+  ): Promise<JourneyConversation | undefined> {
+    const items = await reconcilePiBackedMirrorDeliveryDebt(ownerJourneyId);
+    const piBackedItems = items.filter((item) => item.schemaVersion === "1.1.0")
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    if (piBackedItems.length === 0) return undefined;
+    if (piBackedItems.length !== items.length) {
+      throw new Error("mirror_append_pi_backed_repair_incomplete");
+    }
+    const journal = await loadTurnJournal(ownerJourneyId);
+    let projection = initialProjection;
+    for (const item of piBackedItems) {
+      const record = journal.records.find((candidate) => (
+        candidate.authority.turnId === item.itemId
+        && candidate.authority.journeyId === item.journeyId
+        && candidate.authority.threadId === item.threadId
+        && candidate.authority.generation === item.generation
+        && candidate.authority.mirrorConversationId === item.conversationId
+      ));
+      if (!record || !projection.liveIdentity.activationReceiptActivatedAt) {
+        throw new Error("mirror_append_pi_backed_journal_authority_missing");
+      }
+      const correlation = {
+        schemaVersion: "0.2.0" as const,
+        journeyId: record.authority.journeyId,
+        threadId: record.authority.threadId,
+        harnessConversationId: record.authority.threadId,
+        piSessionId: record.authority.piSessionId,
+        mirrorConversationId: record.authority.mirrorConversationId,
+        generation: record.authority.generation,
+        activationReceiptActivatedAt: projection.liveIdentity.activationReceiptActivatedAt,
+        turnId: record.authority.turnId,
+        runId: record.authority.runId,
+        harnessUserMessageId: record.authority.harnessUserMessageId,
+        harnessAssistantMessageId: record.authority.harnessAssistantMessageId,
+      };
+      const authority = createJourneySettlementAuthority(
+        createRunAuthority(correlation, projection.liveIdentity),
+      );
+      const receipt = await deliverPiBackedMirrorOutboxItem(item.itemId, item.journeyId);
+      const settled = applyMirrorAppendReceipt(projection, authority, receipt, new Date().toISOString());
+      await savePostFrontierReceiptProjection(settled, authority, item);
+      await acknowledgeMirrorAppendItem(item.itemId, item.conversationId, authority);
+      await advanceTurnJournal(authority, "outbox_enqueued", "settled");
+      checkedMirrorTurnRef.current.add(item.itemId);
+      projection = settled;
+    }
+    setMirrorOutboxItems(await listMirrorAppendOutbox(ownerJourneyId));
+    return projection;
+  }
+
   async function retryPendingMirrorCommit() {
     if (!pendingMirrorRepair || (runtimeBusy && !exactRetainedSettlementRecovery) || isRetryingMirrorCommit) return;
     const ownerJourneyId = conversationRef.current.journeyId;
@@ -2686,6 +2740,13 @@ export function App({ model }: AppProps) {
       );
       if (!projection) {
         throw new Error("mirror_append_complete_durable_projection_missing");
+      }
+      const piBackedProjection = await repairPiBackedMirrorDeliveryDebt(ownerJourneyId, projection);
+      if (piBackedProjection) {
+        conversationRef.current = piBackedProjection;
+        setConversation(piBackedProjection);
+        setJourneyMirrorCommitError(ownerJourneyId, undefined);
+        return;
       }
       const authority = createJourneySettlementAuthority(
         createRunAuthority(pendingMirrorRepair.correlation, projection.liveIdentity),

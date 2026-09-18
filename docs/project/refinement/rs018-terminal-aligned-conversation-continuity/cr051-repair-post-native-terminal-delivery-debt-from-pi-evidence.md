@@ -136,6 +136,32 @@ Interactive validation reopens the archived private-data-free CR049 fixture in a
 - Driver `@alissonvale` and Delivery `refinement/rs018-cr051-pi-backed-terminal-delivery-repair` were confirmed by the Navigator on 2026-09-18.
 - Implementation was explicitly authorized on 2026-09-18.
 
+## Outcome
+
+Implementation and guided DEV validation are complete; explicit Navigator Validation remains pending.
+
+The native reconciliation command now refuses active occupancy, matches stale admitted/running journal records to unclaimed complete Pi turns under monotonic session frontiers, adopts exact terminal evidence and materializes schema `1.1.0` debt. Existing schema `1.0.0` outage items are promoted only when Journey/thread/generation/destination, harness IDs, roles, content and metadata agree with exact Pi-backed evidence; staging timestamps are replaced by native Pi timestamps.
+
+Outbox summaries preserve their real schema. One explicit repair action delivers all exact Pi-backed items in order, applies each accepted or existing Mirror receipt to settlement metadata, acknowledges the durable item and advances its journal record to `settled`. Projection message aliases no longer participate in transcript or delivery validation.
+
+### Automated Validation Evidence
+
+- Complete frontend suite: 835 passed.
+- Complete Rust suite: 154 passed, 1 ignored.
+- TypeScript and production web build passed; the build retained only the existing chunk-size warning.
+- `cargo check`, roadmap consistency and `git diff --check` passed.
+- Focused coverage proves monotonic unclaimed-turn matching, ambiguity/cancellation rejection, exact legacy promotion and Pi-backed repair orchestration.
+
+### Interactive DEV Evidence
+
+The archived 11-file private-data-free CR049 terminal-window fixture was reopened under the CR051 build. Initial reconciliation recovered terminal leaf `bb452d3f`, advanced the stale journal record and materialized the fourth schema `1.1.0` item without changing the 12-entry Pi session or invoking a provider. Guided validation exposed and corrected over-strict comparison of harness staging timestamps against native Pi timestamps.
+
+After correction, all four outage items were Pi-backed. The first Mirror write after the historical read-only fixture returned `mirror_append_persistence_failure`; an exact direct invocation against the same disposable binding succeeded, and the retained outbox made the next explicit UI action idempotent. The UI action then delivered/acknowledged all items, emptied the outbox and left all five journal records `settled`. Full relaunch preserved the terminal response once, kept the synchronization notice absent, left Composer available and started no provider process.
+
+### Current Boundary
+
+Production remained untouched. The isolated fixture remains mounted only until CR051 evidence is recorded and ordinary DEV state is restored. CR049 remains blocked until CR051 Navigator Validation and explicit resumption.
+
 ## Authority Boundary
 
 CR051 was captured from a product defect in the explicitly authorized CR049 sandbox. Selection, planning, Driver, Delivery and implementation are approved. Navigator Validation, CR049 resumption, push, merge, publication, release, production mutation and RS018 closure remain explicit decisions.

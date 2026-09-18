@@ -5044,6 +5044,90 @@ fn outbox_item_matches_journal_record(item: &Value, record: &TurnJournalRecord) 
                     })))
 }
 
+fn legacy_outbox_item_matches_pi_backed_item(legacy: &Value, pi_backed: &Value) -> bool {
+    let legacy_messages = legacy.get("messages").and_then(Value::as_array);
+    let pi_messages = pi_backed.get("messages").and_then(Value::as_array);
+    legacy.get("schemaVersion").and_then(Value::as_str) == Some("1.0.0")
+        && ["itemId", "journeyId", "threadId", "generation", "conversationId", "sourceInterface", "createdAt"]
+            .iter().all(|key| legacy.get(*key) == pi_backed.get(*key))
+        && legacy_messages.is_some_and(|messages| messages.len() == 2)
+        && pi_messages.is_some_and(|messages| messages.len() == 2)
+        && legacy_messages.unwrap().iter().zip(pi_messages.unwrap()).all(|(left, right)| {
+            ["id", "role", "content", "metadata"].iter().all(|key| left.get(*key) == right.get(*key))
+        })
+}
+
+fn replace_legacy_outbox_item_at(path: &Path, replacement: Value) -> Result<(), String> {
+    let mut outbox = read_mirror_append_outbox(path)?;
+    let items = outbox.get_mut("items").and_then(Value::as_array_mut)
+        .ok_or_else(|| "mirror_append_outbox_invalid".to_string())?;
+    let index = items.iter().position(|item| item.get("itemId") == replacement.get("itemId"))
+        .ok_or_else(|| "mirror_append_item_missing".to_string())?;
+    if items[index] == replacement { return Ok(()); }
+    if !legacy_outbox_item_matches_pi_backed_item(&items[index], &replacement) {
+        return Err("mirror_append_item_conflict".to_string());
+    }
+    items[index] = replacement;
+    write_mirror_append_outbox(path, outbox)
+}
+
+fn match_unclaimed_pi_turn<'a>(
+    record: &TurnJournalRecord,
+    records: &[TurnJournalRecord],
+    turns: &'a [DedicatedPiTranscriptTurn],
+) -> Result<&'a DedicatedPiTranscriptTurn, String> {
+    if !matches!(record.phase, TurnPhase::Admitted | TurnPhase::Running)
+        || record.terminal_outcome.is_some()
+        || record.cancellation_intent != turn_journal::TurnCancellationIntent::None
+    {
+        return Err("mirror_append_pi_recovery_record_ineligible".to_string());
+    }
+    let related = records.iter().filter(|candidate| {
+        candidate.authority.thread_id == record.authority.thread_id
+            && candidate.authority.generation == record.authority.generation
+            && candidate.authority.pi_session_id == record.authority.pi_session_id
+    }).collect::<Vec<_>>();
+    let claimed = related.iter().filter_map(|candidate| {
+        candidate.terminal_evidence.as_ref()?.pi_execution.as_ref()
+    }).collect::<Vec<_>>();
+    let frontier = claimed.iter().map(|evidence| evidence.entry_count).max().unwrap_or(0);
+    let mut stale = related.into_iter().filter(|candidate| {
+        matches!(candidate.phase, TurnPhase::Admitted | TurnPhase::Running)
+            && candidate.terminal_outcome.is_none()
+            && candidate.cancellation_intent == turn_journal::TurnCancellationIntent::None
+    }).collect::<Vec<_>>();
+    stale.sort_by(|left, right| left.created_at.cmp(&right.created_at));
+    let mut unclaimed = turns.iter().filter(|turn| {
+        turn.entry_count > frontier
+            && !claimed.iter().any(|evidence| {
+                evidence.user_entry_id == turn.user_entry_id
+                    || evidence.assistant_entry_id == turn.assistant_entry_id
+            })
+    }).collect::<Vec<_>>();
+    unclaimed.sort_by_key(|turn| turn.entry_count);
+    if stale.len() != unclaimed.len() || stale.is_empty() {
+        return Err("mirror_append_pi_recovery_ambiguous".to_string());
+    }
+    for (index, (candidate, turn)) in stale.iter().zip(unclaimed.iter()).enumerate() {
+        let admitted_at = chrono::DateTime::parse_from_rfc3339(&candidate.created_at)
+            .map_err(|_| "mirror_append_pi_recovery_timestamp_invalid".to_string())?;
+        let started_at = chrono::DateTime::parse_from_rfc3339(&turn.started_at)
+            .map_err(|_| "mirror_append_pi_recovery_timestamp_invalid".to_string())?;
+        let committed_at = chrono::DateTime::parse_from_rfc3339(&turn.committed_at)
+            .map_err(|_| "mirror_append_pi_recovery_timestamp_invalid".to_string())?;
+        if started_at < admitted_at || committed_at < started_at
+            || stale.get(index + 1).is_some_and(|next| {
+                chrono::DateTime::parse_from_rfc3339(&next.created_at)
+                    .is_ok_and(|next_admitted| committed_at > next_admitted)
+            })
+        {
+            return Err("mirror_append_pi_recovery_frontier_mismatch".to_string());
+        }
+        if candidate.authority == record.authority { return Ok(turn); }
+    }
+    Err("mirror_append_pi_recovery_record_missing".to_string())
+}
+
 fn materialize_completed_journal_delivery_debt(
     app: &AppHandle,
     journey_id: &str,
@@ -5063,7 +5147,7 @@ fn materialize_completed_journal_delivery_debt(
     let records = with_turn_journal_lock(app, &probe, |path| Ok(read_turn_journal(path)?.records))?;
     let candidates = records.into_iter().filter(|record| {
         record.terminal_outcome == Some(TurnTerminalOutcome::Completed)
-            && matches!(record.phase, TurnPhase::TerminalDurable | TurnPhase::Projected)
+            && matches!(record.phase, TurnPhase::TerminalDurable | TurnPhase::Projected | TurnPhase::OutboxEnqueued)
     }).collect::<Vec<_>>();
     let mut materialized = 0;
     for record in candidates {
@@ -5078,20 +5162,29 @@ fn materialize_completed_journal_delivery_debt(
                     }).cloned()
                 }))
             })?;
+        let Ok((session_file, content)) = pi_session_for_journal_record(app, &record) else {
+            continue;
+        };
+        let Ok(pi_backed_item) = create_pi_backed_mirror_append_item(&record, &session_file, &content) else {
+            continue;
+        };
         let debt_is_durable = if let Some(item) = existing {
-            outbox_item_matches_journal_record(&item, &record)
-                && validate_outbox_generation_authority(app, &item).is_ok()
+            if item.get("schemaVersion").and_then(Value::as_str) == Some("1.0.0") {
+                outbox_state.lock.lock()
+                    .map_err(|_| "mirror_append_outbox_unavailable".to_string())
+                    .and_then(|_guard| replace_legacy_outbox_item_at(
+                        &mirror_append_outbox_path(app)?, pi_backed_item.clone(),
+                    )).is_ok()
+            } else {
+                outbox_item_matches_journal_record(&item, &record)
+                    && validate_outbox_generation_authority(app, &item).is_ok()
+            }
         } else {
-            let Ok((session_file, content)) = pi_session_for_journal_record(app, &record) else {
-                continue;
-            };
-            let Ok(item) = create_pi_backed_mirror_append_item(&record, &session_file, &content) else {
-                continue;
-            };
             outbox_state.lock.lock()
                 .map_err(|_| "mirror_append_outbox_unavailable".to_string())
-                .and_then(|_guard| enqueue_mirror_append_item_at(&mirror_append_outbox_path(app)?, item))
-                .is_ok()
+                .and_then(|_guard| enqueue_mirror_append_item_at(
+                    &mirror_append_outbox_path(app)?, pi_backed_item,
+                )).is_ok()
         };
         if !debt_is_durable {
             continue;
@@ -5120,6 +5213,87 @@ fn materialize_completed_journal_delivery_debt(
         }
     }
     Ok(materialized)
+}
+
+#[tauri::command]
+fn reconcile_pi_backed_mirror_delivery_debt(
+    app: AppHandle,
+    process_state: State<'_, PiProcessState>,
+    journey_id: String,
+) -> Result<Vec<Value>, String> {
+    sanitize_journey_id(&journey_id)?;
+    if process_state.registry.lock()
+        .map_err(|_| "mirror_append_pi_recovery_occupancy_unavailable".to_string())?
+        .inspect().entries.iter().any(|entry| entry.authority.journey_id == journey_id)
+    {
+        return Err("mirror_append_pi_recovery_active_lease".to_string());
+    }
+    let probe = TurnJournalAuthority {
+        schema_version: "0.1.0".to_string(), journey_id: journey_id.clone(),
+        run_id: "delivery-recovery-probe".to_string(), turn_id: "delivery-recovery-probe".to_string(),
+        thread_id: "delivery-recovery-probe".to_string(), generation: 1,
+        pi_session_id: "delivery-recovery-probe".to_string(),
+        mirror_conversation_id: "delivery-recovery-probe".to_string(),
+        harness_user_message_id: "delivery-recovery-probe".to_string(),
+        harness_assistant_message_id: "delivery-recovery-probe".to_string(),
+    };
+    let records = with_turn_journal_lock(&app, &probe, |path| Ok(read_turn_journal(path)?.records))?;
+    let stale = records.iter().filter(|record| {
+        matches!(record.phase, TurnPhase::Admitted | TurnPhase::Running)
+            && record.terminal_outcome.is_none()
+            && record.cancellation_intent == turn_journal::TurnCancellationIntent::None
+    }).cloned().collect::<Vec<_>>();
+    for record in stale {
+        let (_, content) = pi_session_for_journal_record(&app, &record)?;
+        let turns = project_complete_pi_transcript(&content)
+            .map_err(|_| "mirror_append_pi_recovery_transcript_invalid".to_string())?;
+        let turn = match_unclaimed_pi_turn(&record, &records, &turns)?;
+        let assistant_text = bounded_utf8(&turn.assistant_text, 65_536);
+        let evidence = TurnTerminalEvidence {
+            legacy_stdout: String::new(), legacy_stderr: String::new(),
+            legacy_stdout_truncated: false, legacy_stderr_truncated: false,
+            captured_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
+            pi_execution: Some(TurnPiExecutionEvidence {
+                user_entry_id: turn.user_entry_id.clone(),
+                assistant_entry_id: turn.assistant_entry_id.clone(),
+                leaf_entry_id: turn.assistant_entry_id.clone(),
+                entry_count: turn.entry_count,
+                assistant_text_truncated: assistant_text.len() < turn.assistant_text.len(),
+                assistant_text,
+                started_at: turn.started_at.clone(),
+                committed_at: turn.committed_at.clone(),
+            }),
+        };
+        let authority = record.authority.clone();
+        with_turn_journal_lock(&app, &authority, |path| {
+            let current = read_turn_journal(path)?.records.into_iter()
+                .find(|candidate| candidate.authority == authority)
+                .ok_or_else(|| "turn_journal_record_missing".to_string())?;
+            if !matches!(current.phase, TurnPhase::Admitted | TurnPhase::Running)
+                || current.terminal_outcome.is_some()
+            {
+                return Err("mirror_append_pi_recovery_record_stale".to_string());
+            }
+            transition_turn(path, &authority, TurnTransitionRequest {
+                expected_revision: current.revision,
+                expected_phase: current.phase,
+                next_phase: TurnPhase::TerminalDurable,
+                receipt_id: format!("pi-delivery-recovery-{}", authority.run_id),
+                terminal_outcome: Some(TurnTerminalOutcome::Completed),
+                terminal_evidence: Some(evidence),
+                cancellation_intent: None,
+                recovery_disposition: Some(TurnRecoveryDisposition::ResumeOutbox),
+            }).map(|_| ())
+        })?;
+    }
+    materialize_completed_journal_delivery_debt(&app, &journey_id)?;
+    let outbox_state = app.state::<MirrorAppendOutboxState>();
+    let _guard = outbox_state.lock.lock()
+        .map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
+    let outbox = read_mirror_append_outbox(&mirror_append_outbox_path(&app)?)?;
+    Ok(outbox.get("items").and_then(Value::as_array).into_iter().flatten()
+        .filter(|item| item.get("journeyId").and_then(Value::as_str) == Some(journey_id.as_str()))
+        .map(mirror_append_outbox_summary).collect())
 }
 
 #[tauri::command]
@@ -5152,6 +5326,15 @@ fn enqueue_mirror_append_item(
     enqueue_mirror_append_item_at(&mirror_append_outbox_path(&app)?, item)
 }
 
+fn mirror_append_outbox_summary(item: &Value) -> Value {
+    json!({
+        "schemaVersion": item["schemaVersion"], "itemId": item["itemId"],
+        "journeyId": item["journeyId"], "threadId": item["threadId"],
+        "generation": item["generation"], "conversationId": item["conversationId"],
+        "createdAt": item["createdAt"]
+    })
+}
+
 #[tauri::command]
 fn list_mirror_append_outbox(
     app: AppHandle,
@@ -5166,11 +5349,7 @@ fn list_mirror_append_outbox(
     let outbox = read_mirror_append_outbox(&mirror_append_outbox_path(&app)?)?;
     Ok(outbox.get("items").and_then(Value::as_array).into_iter().flatten()
         .filter(|item| item.get("journeyId").and_then(Value::as_str) == Some(journey_id.as_str()))
-        .map(|item| json!({
-            "schemaVersion":"1.0.0", "itemId":item["itemId"], "journeyId":item["journeyId"],
-            "threadId":item["threadId"], "generation":item["generation"], "conversationId":item["conversationId"],
-            "createdAt":item["createdAt"]
-        })).collect())
+        .map(mirror_append_outbox_summary).collect())
 }
 
 fn validate_outbox_generation_authority(app: &AppHandle, item: &Value) -> Result<(), String> {
@@ -7707,6 +7886,7 @@ fn main() {
             load_conversation_segment_projections,
             enqueue_mirror_append_item,
             list_mirror_append_outbox,
+            reconcile_pi_backed_mirror_delivery_debt,
             deliver_pi_backed_mirror_outbox_item,
             append_mirror_outbox_item,
             acknowledge_mirror_append_item,
@@ -7743,6 +7923,7 @@ mod tests {
         enqueue_mirror_append_item_at_with_limit, exact_steering_authority_matches,
         extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
+        legacy_outbox_item_matches_pi_backed_item, match_unclaimed_pi_turn,
         outbox_item_matches_journal_record,
         list_journey_documentation_at, load_conversation_segments_at,
         load_conversation_thread_authority_at,
@@ -8501,6 +8682,67 @@ mod tests {
             create_pi_backed_mirror_append_item(&stale, "/app/pi/session-one.jsonl", session).unwrap_err(),
             "mirror_append_pi_turn_missing",
         );
+    }
+
+    #[test]
+    fn recovers_only_one_monotonic_unclaimed_pi_turn_for_a_stale_record() {
+        let session = concat!(
+            "{\"type\":\"session\",\"id\":\"session-one\"}\n",
+            "{\"type\":\"message\",\"id\":\"pi-user\",\"parentId\":null,\"timestamp\":\"2026-08-30T10:00:00Z\",\"message\":{\"role\":\"user\",\"content\":\"hello\"}}\n",
+            "{\"type\":\"message\",\"id\":\"pi-assistant\",\"parentId\":\"pi-user\",\"timestamp\":\"2026-08-30T10:00:01Z\",\"message\":{\"role\":\"assistant\",\"content\":\"hi\",\"stopReason\":\"stop\"}}\n",
+        );
+        let record = TurnJournalRecord {
+            schema_version: "0.1.0".to_string(),
+            authority: TurnJournalAuthority {
+                schema_version: "0.1.0".to_string(), journey_id: "journey-one".to_string(),
+                run_id: "run-one".to_string(), turn_id: "turn-one".to_string(),
+                thread_id: "thread-one".to_string(), generation: 1,
+                pi_session_id: "session-one".to_string(), mirror_conversation_id: "mirror-one".to_string(),
+                harness_user_message_id: "user-one".to_string(), harness_assistant_message_id: "assistant-one".to_string(),
+            },
+            phase: TurnPhase::Running, terminal_outcome: None, terminal_evidence: None,
+            cancellation_intent: TurnCancellationIntent::None,
+            recovery_disposition: TurnRecoveryDisposition::ResumeExecution,
+            revision: 2, created_at: "2026-08-30T09:59:59Z".to_string(),
+            updated_at: "2026-08-30T10:00:00Z".to_string(), last_receipt: None,
+        };
+        let turns = project_complete_pi_transcript(session).unwrap();
+        assert_eq!(match_unclaimed_pi_turn(&record, &[record.clone()], &turns).unwrap().assistant_entry_id, "pi-assistant");
+        let mut ambiguous = turns.clone();
+        ambiguous.push(super::DedicatedPiTranscriptTurn {
+            user_entry_id: "pi-user-two".to_string(), assistant_entry_id: "pi-assistant-two".to_string(),
+            user_text: "again".to_string(), user_prompt_envelope: "raw".to_string(),
+            assistant_text: "again".to_string(), entry_count: 4,
+            started_at: "2026-08-30T10:00:02Z".to_string(), committed_at: "2026-08-30T10:00:03Z".to_string(),
+        });
+        assert_eq!(match_unclaimed_pi_turn(&record, &[record.clone()], &ambiguous).unwrap_err(), "mirror_append_pi_recovery_ambiguous");
+        let mut cancelled = record.clone();
+        cancelled.cancellation_intent = TurnCancellationIntent::Requested;
+        assert_eq!(match_unclaimed_pi_turn(&cancelled, &[cancelled.clone()], &turns).unwrap_err(), "mirror_append_pi_recovery_record_ineligible");
+    }
+
+    #[test]
+    fn upgrades_only_an_exact_legacy_item_to_pi_backed_authority() {
+        let pi_backed = json!({
+            "schemaVersion":"1.1.0", "itemId":"turn-one", "journeyId":"journey-one",
+            "threadId":"thread-one", "generation":1, "conversationId":"mirror-one",
+            "sourceInterface":"nautilus-harness", "createdAt":"2026-08-30T10:00:01Z",
+            "runId":"run-one", "piSessionId":"session-one", "piSessionFile":"/tmp/session.jsonl",
+            "piUserEntryId":"pi-user", "piAssistantEntryId":"pi-assistant",
+            "messages":[
+                {"id":"user-one","role":"user","content":"hello","createdAt":"2026-08-30T10:00:00Z","metadata":{"sourceTurnId":"turn-one","generation":1}},
+                {"id":"assistant-one","role":"assistant","content":"hi","createdAt":"2026-08-30T10:00:01Z","metadata":{"sourceTurnId":"turn-one","generation":1}}
+            ]
+        });
+        let mut legacy = pi_backed.clone();
+        legacy.as_object_mut().unwrap().retain(|key, _| ![
+            "runId", "piSessionId", "piSessionFile", "piUserEntryId", "piAssistantEntryId",
+        ].contains(&key.as_str()));
+        legacy["schemaVersion"] = Value::String("1.0.0".to_string());
+        legacy["messages"][0]["createdAt"] = Value::String("2026-08-30T09:59:59Z".to_string());
+        assert!(legacy_outbox_item_matches_pi_backed_item(&legacy, &pi_backed));
+        legacy["messages"][1]["content"] = Value::String("different".to_string());
+        assert!(!legacy_outbox_item_matches_pi_backed_item(&legacy, &pi_backed));
     }
 
     #[test]
