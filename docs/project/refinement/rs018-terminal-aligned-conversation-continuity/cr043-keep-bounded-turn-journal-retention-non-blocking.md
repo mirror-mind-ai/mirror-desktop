@@ -2,7 +2,7 @@
 
 # CR043: Keep Bounded Turn Journal Retention Non-Blocking
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr043-non-blocking-journal-retention`
 
@@ -124,6 +124,20 @@ No archive or replacement authority was introduced. Pi JSONL, outbox items, Mirr
 
 CR043 was parked because completed pre-outbox evidence was the only durable Mirror delivery cue. [CR044](cr044-materialize-mirror-delivery-debt-before-journal-pruning.md) satisfied the revisit trigger and was validated and closed on 2026-09-18. The Navigator authorized continuation.
 
-CR043 resumed on Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. Final integration preserves CR044's Pi-backed debt materialization before admitting and compacting a successor. CR043 remains unvalidated, unpushed and unmerged.
+CR043 resumed on Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. Final integration preserves CR044's Pi-backed debt materialization before admitting and compacting a successor.
 
 No provider was invoked and no production app data was read or mutated.
+
+### Navigator Validation
+
+Accepted on 2026-09-18. Automated validation was accepted as sufficient for CR043's scoped closure. This acceptance does not authorize production repair, merge, publication, release or RS018 closure.
+
+### Proportionality Review
+
+The implementation is proportional. It changes only bounded journal retention, exact pre-admission debt reconciliation inherited from CR044, and focused evidence. It does not create an archive, alter Pi JSONL, retry the provider or grant projections new authority.
+
+### Debt Review
+
+Decision: `no_action`.
+
+The remaining production-shaped relaunch and endurance rehearsal is not CR043 implementation debt. It already belongs to the RS018 acceptance horizon and should be performed as the next explicit story slice before release or production recovery.
