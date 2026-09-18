@@ -2,7 +2,7 @@
 
 # CR051 — Repair Post-Native Terminal Delivery Debt from Pi Evidence
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr051-pi-backed-terminal-delivery-repair`
 
@@ -138,7 +138,7 @@ Interactive validation reopens the archived private-data-free CR049 fixture in a
 
 ## Outcome
 
-Implementation and guided DEV validation are complete; explicit Navigator Validation remains pending.
+Implementation and guided DEV validation are complete and accepted by Navigator Validation.
 
 The native reconciliation command now refuses active occupancy, matches stale admitted/running journal records to unclaimed complete Pi turns under monotonic session frontiers, adopts exact terminal evidence and materializes schema `1.1.0` debt. Existing schema `1.0.0` outage items are promoted only when Journey/thread/generation/destination, harness IDs, roles, content and metadata agree with exact Pi-backed evidence; staging timestamps are replaced by native Pi timestamps.
 
@@ -160,8 +160,22 @@ After correction, all four outage items were Pi-backed. The first Mirror write a
 
 ### Current Boundary
 
-Production remained untouched. The settled 11-file fixture was archived with a redacted manifest, and ordinary DEV state was restored to the exact original 63-file digest `0a9cd312e4a8624c99a12a24bab367f77ccea879159e6fe9abcd794153df3e27`. CR049 remains blocked until CR051 Navigator Validation and explicit resumption.
+Production remained untouched. The settled 11-file fixture was archived with a redacted manifest, and ordinary DEV state was restored to the exact original 63-file digest `0a9cd312e4a8624c99a12a24bab367f77ccea879159e6fe9abcd794153df3e27`. CR049 remains blocked until explicit resumption.
+
+### Navigator Validation
+
+Accepted on 2026-09-18 after exact Pi recovery, legacy-debt promotion, idempotent Mirror delivery, empty-outbox settlement and full relaunch continuity passed against the private-data-free fixture.
+
+### Proportionality Review
+
+The implementation is proportional. It extends the existing native journal/outbox boundary rather than creating a new transcript or queue. Recovery is limited to inactive, monotonic, unambiguous Pi evidence; the frontend only orchestrates explicit delivery and durable acknowledgement. No availability, provider or Mirror Core contract changed.
+
+### Debt Review
+
+Decision: `no_action`.
+
+The transient first write failure remained visible and safely retryable through the existing durable outbox; it did not lose evidence or repeat provider work. CR049 already owns the remaining composed concurrency and copied-cache acceptance scenarios, so no separate CR051 follow-up is warranted.
 
 ## Authority Boundary
 
-CR051 was captured from a product defect in the explicitly authorized CR049 sandbox. Selection, planning, Driver, Delivery and implementation are approved. Navigator Validation, CR049 resumption, push, merge, publication, release, production mutation and RS018 closure remain explicit decisions.
+CR051 was captured from a product defect in the explicitly authorized CR049 sandbox. Selection, planning, Driver, Delivery, implementation and Navigator Validation are complete. CR049 resumption, push, merge, publication, release, production mutation and RS018 closure remain explicit decisions.
