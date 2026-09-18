@@ -2,7 +2,7 @@
 
 # CR049 — Complete the Release-Shaped RS018 Acceptance Route
 
-**Status:** blocked
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr049-release-shaped-acceptance`
 
@@ -143,10 +143,12 @@ The Navigator authorized Driver `@alissonvale`, Delivery `refinement/rs018-cr049
 
 ## Outcome
 
-Blocked by CR050 after the first isolated baseline exposed a valid failed-native-leaf restore defect.
+Resumed after CR050 Navigator Validation and integration on 2026-09-18.
+
+CR050 now accepts the valid failed-assistant-leaf shape, renders one passive interruption notice and reconstructs after full relaunch. Ordinary DEV state was restored and verified before resumption. The next isolated sandbox run will use the catalog-supported `openai-codex/gpt-5.5` model.
 
 Safety tooling is implemented and focused tests pass. Ordinary DEV app data is preserved under a verified 63-file backup with manifest digest `0a9cd312e4a8624c99a12a24bab367f77ccea879159e6fe9abcd794153df3e27`. A fresh canonical DEV directory, generic isolated Mirror home/database and two private-data-free rehearsal Journeys were created. Production state remains untouched.
 
 The first explicit baseline selected `gpt-5.3-codex-spark`, which Codex rejected for the active ChatGPT account. Pi correctly persisted an admitted user followed by an empty assistant leaf with `stopReason: error`; the journal retained `process_died`. CR048 then rejected the valid inspection shape because the incomplete user was not itself the physical leaf, causing `runtime_read_failed` on restore. CR050 captures this product defect. The app was stopped immediately and no further rehearsal scenario ran.
 
-The unsupported model will be corrected to a catalog-supported model before retry. The rehearsal app data was archived with a 10-file redacted manifest, and ordinary DEV state was restored to the exact original 63-file digest before other project work resumed. The disposable Mirror home remains isolated for review. CR049 execution may resume only after CR050 disposition and a newly prepared sandbox.
+The failed first run was archived with a 10-file redacted manifest, and ordinary DEV state was restored to the exact original 63-file digest before other project work resumed. The disposable Mirror home remains isolated for the resumed rehearsal.
