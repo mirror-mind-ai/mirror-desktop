@@ -8074,6 +8074,52 @@ mod tests {
     }
 
     #[test]
+    fn reconstructs_fifty_compacted_turns_and_an_interrupted_tail_without_desktop_caches() {
+        let mut lines = vec![json!({
+            "type":"session", "version":3, "id":"endurance-session"
+        }).to_string()];
+        let mut parent_id: Option<String> = None;
+        for index in 1..=50 {
+            let user_id = format!("user-{index}");
+            lines.push(json!({
+                "type":"message", "id":user_id, "parentId":parent_id,
+                "timestamp":format!("2026-09-18T10:{:02}:00Z", index % 60),
+                "message":{"role":"user","content":[{"type":"text","text":format!("Question {index}")}]}
+            }).to_string());
+            let assistant_id = format!("assistant-{index}");
+            lines.push(json!({
+                "type":"message", "id":assistant_id, "parentId":format!("user-{index}"),
+                "timestamp":format!("2026-09-18T10:{:02}:01Z", index % 60),
+                "message":{"role":"assistant","content":[{"type":"text","text":format!("Answer {index}")}],"stopReason":"stop"}
+            }).to_string());
+            parent_id = Some(format!("assistant-{index}"));
+            if index == 25 {
+                lines.push(json!({
+                    "type":"compaction", "id":"compaction-1", "parentId":parent_id,
+                    "firstKeptEntryId":"assistant-25", "summary":"private-data-free endurance summary"
+                }).to_string());
+                parent_id = Some("compaction-1".to_string());
+            }
+        }
+        lines.push(json!({
+            "type":"message", "id":"user-incomplete", "parentId":parent_id,
+            "timestamp":"2026-09-18T10:59:00Z",
+            "message":{"role":"user","content":[{"type":"text","text":"Admitted before interruption"}]}
+        }).to_string());
+
+        let inspection = inspect_complete_pi_transcript(&lines.join("\n")).unwrap();
+        assert_eq!(inspection.active_entry_count, 102);
+        assert_eq!(inspection.compaction_count, 1);
+        assert_eq!(inspection.turns.len(), 50);
+        assert_eq!(inspection.entries.len(), 101);
+        assert_eq!(inspection.incomplete_user_entry_id.as_deref(), Some("user-incomplete"));
+        assert_eq!(inspection.leaf_entry_id.as_deref(), Some("user-incomplete"));
+        assert_eq!(inspection.entries.first().map(|entry| entry.visible_text.as_str()), Some("Question 1"));
+        assert_eq!(inspection.entries.get(99).map(|entry| entry.visible_text.as_str()), Some("Answer 50"));
+        assert_eq!(inspection.entries.last().map(|entry| entry.visible_text.as_str()), Some("Admitted before interruption"));
+    }
+
+    #[test]
     fn segment_manifest_publication_and_loading_fail_closed_on_corruption() {
         let root = test_root("segment-manifest-publication");
         let path = root.join("generation-1.json");

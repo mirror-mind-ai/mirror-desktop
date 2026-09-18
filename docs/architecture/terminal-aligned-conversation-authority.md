@@ -326,6 +326,8 @@ A release candidate for RS018 must survive a deterministic endurance route in is
 
 The acceptance oracle is the Pi session plus exact control-plane binding. Projection and Mirror comparisons detect debt; they do not redefine whether the agent Conversation exists.
 
+CR047 binds this horizon to a private-data-free deterministic fixture: 50 complete turns, one compaction and one interrupted admitted tail are reconstructed without Desktop transcript caches. Distributed native occupancy, journal, outbox, provider-failure and cancellation tests form the failure matrix; guided DEV relaunch remains separate observable evidence and never invokes the provider implicitly.
+
 ## Rollback and Compatibility
 
 Each migration slice must preserve readers for the immediately previous durable format until its replacement has been exercised against copied production-shaped data. A failed slice rolls back application code while leaving Pi sessions, old projections, journals and outbox items readable. No migration may rewrite Pi JSONL or require a Mirror Core release.

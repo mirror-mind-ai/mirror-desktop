@@ -47,6 +47,7 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 
 ## Change Requests
 
+- [CR047: Rehearse Terminal-Aligned Continuity Under Failure](cr047-rehearse-terminal-aligned-continuity-under-failure.md)
 - [CR046: Make the Conversation Surface Pi-Backed](cr046-make-the-conversation-surface-pi-backed.md)
 - [CR045: Make Pre-Agent Staging Non-Authoritative](cr045-make-pre-agent-staging-non-authoritative.md)
 - [CR044: Materialize Mirror Delivery Debt Before Journal Pruning](cr044-materialize-mirror-delivery-debt-before-journal-pruning.md)
@@ -54,6 +55,8 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 - [CR042: Decouple Successor Admission from Desktop Projections](cr042-decouple-successor-admission-from-desktop-projections.md)
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
+
+CR047 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr047-continuity-endurance-rehearsal`. It exercises a private-data-free 50-turn compacted Pi fixture, destructive-cache reconstruction and the composed interruption/failure matrix before guided DEV relaunch validation.
 
 CR046 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr046-pi-backed-conversation-surface`. The Navigator accepted Pi-backed inactive restore, live-send preflight, Segment demotion, child-Conversation relaunch and corrected cross-Journey presentation isolation on 2026-09-18. Proportionality review found the read-only Surface adapter appropriately local; Debt Review concluded `no_action` because production-shaped endurance and recovery already belong to the RS018 acceptance horizon.
 
