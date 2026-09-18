@@ -160,7 +160,7 @@ After correction, all four outage items were Pi-backed. The first Mirror write a
 
 ### Current Boundary
 
-Production remained untouched. The isolated fixture remains mounted only until CR051 evidence is recorded and ordinary DEV state is restored. CR049 remains blocked until CR051 Navigator Validation and explicit resumption.
+Production remained untouched. The settled 11-file fixture was archived with a redacted manifest, and ordinary DEV state was restored to the exact original 63-file digest `0a9cd312e4a8624c99a12a24bab367f77ccea879159e6fe9abcd794153df3e27`. CR049 remains blocked until CR051 Navigator Validation and explicit resumption.
 
 ## Authority Boundary
 
