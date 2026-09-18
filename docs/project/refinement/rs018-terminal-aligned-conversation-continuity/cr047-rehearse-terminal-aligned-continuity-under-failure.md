@@ -97,7 +97,7 @@ The Navigator explicitly requested CR047 creation, planning and execution and ap
 
 ## Outcome
 
-Automated rehearsal is complete; guided DEV relaunch validation remains pending.
+Automated rehearsal and guided DEV relaunch execution are complete; explicit Navigator Validation remains pending.
 
 The private-data-free native fixture builds 50 complete user/assistant turns, inserts one Pi compaction after turn 25 and ends with one admitted user entry interrupted before an assistant response. Rust inspection reconstructs the exact 102-entry active branch, reports one compaction and 50 completed turns, projects 101 visible user/assistant entries and names the incomplete native user leaf. No Desktop projection, Segment body, journal or Mirror record exists in that fixture.
 
@@ -125,4 +125,17 @@ The frontend endurance fixture rebuilds the same 100 completed-turn messages plu
 - `cargo check`, TypeScript and production web build passed.
 - Roadmap consistency and `git diff --check` passed.
 - Global `cargo fmt --check` retains unrelated pre-existing drift beginning in `src-tauri/src/journey_appearance.rs`; no mass formatting was applied.
-- No provider was invoked. No production app data, Mirror database or Mirror Core source was read or mutated.
+- Two provider turns were explicitly submitted by the Navigator during DEV validation. No provider was invoked implicitly. No production app data, Mirror database or Mirror Core source was read or mutated.
+
+### Interactive DEV Evidence
+
+Guided validation on 2026-09-18 confirmed:
+
+- idle relaunch preserved ordered Conversation history without duplicates, blank messages, raw JSON or implicit retry;
+- application termination during an explicitly submitted provider turn retained the admitted native user entry and fabricated no assistant response;
+- relaunch did not retry the provider and did not retain vanished-process occupancy;
+- the Composer was available immediately after relaunch;
+- an explicitly submitted successor completed once with `sucessor confirmado`;
+- a second relaunch preserved the interrupted user entry and the complete successor exactly once, with the Composer available.
+
+The interrupted attempt displayed no dedicated interruption notice. This is a non-blocking UX observation rather than transcript, admission or recovery authority failure: the incomplete native entry remained visible and the successor route was immediately available. Whether to add explicit inactive-attempt explanation belongs to Debt Review; it is not silently treated as completed CR047 behavior.
