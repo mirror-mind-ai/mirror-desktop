@@ -98,13 +98,13 @@ CR043 was created by the CR042 Debt Review decision `create_follow_up`. The Navi
 
 ## Outcome
 
-Implementation resumed after the Navigator validated and closed CR044. The compatibility outbox can now own exact Pi-backed delivery debt before completed journal evidence becomes eligible for pruning.
+Implementation is complete and awaiting Navigator Validation.
 
-Journal writes now protect the exact run being admitted or transitioned and can compact safely disposable history when either the 64-record or 8 MiB serialized bound is exceeded. Settled, interrupted, outbox-enqueued and non-completed terminal/projection records are eligible. Unfinished admitted/running history is eligible only during `admit_turn()`, after native reservation proves every pre-existing same-Journey record inactive. Ordinary lifecycle transitions never prune another unfinished run without that proof.
+Journal writes protect the exact run being admitted or transitioned and compact safely disposable history before either the 64-record or 8 MiB serialized bound is exceeded. Settled, interrupted, outbox-enqueued and non-completed terminal/projection records are eligible. Unfinished admitted/running history is eligible only during `admit_turn()`, after native reservation proves every pre-existing same-Journey record inactive. Ordinary lifecycle transitions never prune another unfinished run without that proof.
 
-A deeper dependency emerged: completed `terminal_durable` and `projected` records cannot be pruned safely. Before phase `outbox_enqueued`, the journal remains the only durable cue that the completed Pi pair still needs compatibility-outbox materialization. Pruning those records would silently discard Mirror delivery debt, violating RS018 even though the Pi transcript survives.
+Completed `terminal_durable` and `projected` records are never pruned directly. CR044 now reconciles their exact Pi evidence into independently durable compatibility-outbox debt before journal admission, then advances them to `outbox_enqueued`. This removes the final historical-capacity gate without silently discarding Mirror delivery obligations. Missing or contradictory Pi/control-plane evidence remains fail-closed as a durability error.
 
-The implementation therefore preserves completed pre-outbox evidence and still returns `turn_journal_full` in the extreme case where the entire bound consists of that unsafe-to-prune state. Eliminating that final gate requires moving self-contained outbox materialization earlier or combining CR043 with the planned compatibility-outbox isolation slice. No archive or replacement authority was introduced.
+No archive or replacement authority was introduced. Pi JSONL, outbox items, Mirror state and exact control-plane bindings remain untouched by journal compaction.
 
 ### TDD And Validation Evidence
 
@@ -114,14 +114,16 @@ The implementation therefore preserves completed pre-outbox evidence and still r
 - Occupancy-safety coverage proves ordinary transitions cannot prune another admitted/running record without post-reservation proof.
 - Byte-bound coverage proves safely disposable oversized history is compacted while one oversized protected run remains fail-closed.
 - Delivery-safety coverage proves completed pre-outbox evidence is not pruned as if delivery debt were already self-contained.
-- Current safe-boundary Rust suite: 147 passed, 1 ignored; `cargo check` passed without warnings.
-- Frontend regression baseline remains 802 passed with TypeScript and production web build passing; no frontend code changed in the safety correction.
-- Final acceptance validation remains pending CR044 and CR043 resumption.
+- Integrated CR044 coverage proves independently durable completed history cannot fill the journal and the protected successor remains present.
+- Complete Rust suite: 150 passed, 1 ignored; `cargo check` passed without warnings.
+- Complete frontend suite: 803 passed.
+- TypeScript, production web build, roadmap consistency and diff checks passed.
+- Final Navigator Validation remains pending.
 
 ### Resumption Decision
 
 CR043 was parked because completed pre-outbox evidence was the only durable Mirror delivery cue. [CR044](cr044-materialize-mirror-delivery-debt-before-journal-pruning.md) satisfied the revisit trigger and was validated and closed on 2026-09-18. The Navigator authorized continuation.
 
-CR043 resumes on Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. Final integration must preserve CR044's Pi-backed debt materialization before admitting and compacting a successor. CR043 remains unvalidated, unpushed and unmerged.
+CR043 resumed on Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. Final integration preserves CR044's Pi-backed debt materialization before admitting and compacting a successor. CR043 remains unvalidated, unpushed and unmerged.
 
 No provider was invoked and no production app data was read or mutated.

@@ -922,6 +922,49 @@ mod tests {
     }
 
     #[test]
+    fn independently_durable_completed_history_cannot_fill_the_journal() {
+        let root = root("durable-delivery-retention");
+        let path = root.join("turn-journal.json");
+        let source = authority("source", "journey-a");
+        let admitted = admit_turn(&path, source.clone(), None).unwrap();
+        let running = transition_turn(
+            &path,
+            &source,
+            transition(admitted.revision, TurnPhase::Admitted, TurnPhase::Running, "running-source"),
+        ).unwrap();
+        let terminal = transition_turn(
+            &path,
+            &source,
+            transition(running.revision, TurnPhase::Running, TurnPhase::TerminalDurable, "terminal-source"),
+        ).unwrap();
+        let enqueued = transition_turn(
+            &path,
+            &source,
+            transition(terminal.revision, TurnPhase::TerminalDurable, TurnPhase::OutboxEnqueued, "enqueued-source"),
+        ).unwrap();
+        let mut journal = empty_document();
+        journal.records = (0..JOURNAL_MAX_RECORDS).map(|index| {
+            let mut record = enqueued.clone();
+            record.authority = authority(&format!("delivered-{index:03}"), "journey-a");
+            record.created_at = format!("2026-09-01T20:{:02}:00.000Z", index % 60);
+            record
+        }).collect();
+        let protected = TurnJournalRecord {
+            authority: authority("run-current", "journey-a"),
+            created_at: "2026-09-01T21:30:00.000Z".to_string(),
+            updated_at: "2026-09-01T21:30:00.000Z".to_string(),
+            ..admitted
+        };
+        journal.records.push(protected);
+
+        compact_turn_journal_for_write(&mut journal, "run-current", true).unwrap();
+        assert_eq!(journal.records.len(), JOURNAL_MAX_RECORDS);
+        assert!(journal.records.iter().any(|record| record.authority.run_id == "run-current"));
+        assert!(!journal.records.iter().any(|record| record.authority.run_id == "delivered-000"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn completed_pre_outbox_evidence_is_not_pruned_as_if_delivery_debt_were_durable() {
         let root = root("pre-outbox-retention");
         let path = root.join("turn-journal.json");

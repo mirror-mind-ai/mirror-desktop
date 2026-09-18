@@ -55,7 +55,7 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 
 CR044 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr044-self-contained-mirror-delivery-debt`. The Navigator accepted exact Pi-backed compatibility debt, projection-independent explicit delivery and model-free pre-admission reconciliation on 2026-09-18. Proportionality review found the compatibility boundary appropriately local; Debt Review concluded `no_action` because physical outbox bounds and sustained-use endurance remain part of the existing RS018 acceptance horizon.
 
-CR043 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. Its revisit trigger was satisfied by CR044 validation. Safe retention work resumes with completed pre-outbox evidence first reconciled into independently durable delivery debt.
+CR043 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. Its revisit trigger was satisfied by CR044 validation. Integrated retention implementation is complete and awaiting Navigator Validation; completed pre-outbox evidence is first reconciled into independently durable delivery debt.
 
 CR042 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr042-projection-independent-admission`. The Navigator accepted projection-independent successor admission and exact native-occupancy blocking on 2026-09-17. Proportionality review found the correction appropriately bounded; Debt Review selected `create_follow_up` as CR043, and the Navigator authorized terminal closure.
 
