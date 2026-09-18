@@ -62,7 +62,7 @@ The [2026-09-18 final acceptance review](acceptance-review-2026-09-18.md) conclu
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
 
-CR049 is `captured`. It owns the remaining isolated release-shaped acceptance route identified by the final RS018 review. Planning must define private-data-free real compaction evidence, isolated Mirror fault injection, exact temporary paths and backups before any operational mutation.
+CR049 is `planned`. The plan uses an idempotent ordinary-DEV app-data swap, a disposable generic Mirror home, redacted evidence, read-only isolated SQLite for Mirror outage, a metadata-only terminal-window watcher, two live DEV Journeys and copied-cache deletion. Driver, Delivery, sandbox mutation, provider spend and the real-versus-deterministic compaction decision remain explicitly unapproved.
 
 CR048 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr048-interrupted-attempt-notice`. The Navigator accepted exact inactive-attempt derivation, passive non-blocking explanation, successor agent-start resolution and final relaunch behavior on 2026-09-18. Proportionality review found the ephemeral presentation correction appropriately local; Debt Review concluded `no_action`.
 

@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS018 — Terminal-Aligned Conversation Continuity
-- Change Request: —
+- Change Request: CR049 — Complete the Release-Shaped RS018 Acceptance Route
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -47,7 +47,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR049](rs018-terminal-aligned-conversation-continuity/cr049-complete-the-release-shaped-rs018-acceptance-route.md) | RS018 | Complete the Release-Shaped RS018 Acceptance Route | captured | — | — |
+| 1 | [CR049](rs018-terminal-aligned-conversation-continuity/cr049-complete-the-release-shaped-rs018-acceptance-route.md) | RS018 | Complete the Release-Shaped RS018 Acceptance Route | planned | — | — |
 | 2 | [CR037](rs016-ongoing-product-improvements-and-adjustments/cr037-confirm-app-closure-while-agents-are-working.md) | RS016 | Confirm app closure while agents are working | captured | — | — |
 | 3 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
 | — | [CR048](rs018-terminal-aligned-conversation-continuity/cr048-explain-interrupted-native-attempts-without-blocking-continuity.md) | RS018 | Explain Interrupted Native Attempts Without Blocking Continuity | done | @alissonvale | `refinement/rs018-cr048-interrupted-attempt-notice` |
