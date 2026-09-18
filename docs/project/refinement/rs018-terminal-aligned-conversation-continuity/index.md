@@ -63,7 +63,7 @@ The [2026-09-18 final acceptance review](acceptance-review-2026-09-18.md) conclu
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
 
-CR050 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr050-failed-native-leaf-evidence`. It preserves exact Pi incomplete-user semantics while validating active-branch order across direct user, failed assistant and tool-result leaves before CR049 resumes.
+CR050 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr050-failed-native-leaf-evidence`. The Navigator accepted exact failed-assistant-leaf reconstruction, single-notice presentation and full relaunch on 2026-09-18. Proportionality review found the ephemeral active-branch correction appropriately local; Debt Review concluded `no_action`. CR049 resumption remains a separate explicit decision.
 
 CR049 is `blocked` with Driver `@alissonvale` and Delivery `refinement/rs018-cr049-release-shaped-acceptance`. Safety tooling passed and the disposable Mirror home remains isolated. Execution stopped after the first baseline exposed CR050; the app is closed, rehearsal app data is archived, ordinary DEV data is restored to its exact original manifest and production remains untouched. No outage, concurrency or destructive-cache scenario has run.
 

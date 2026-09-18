@@ -2,7 +2,7 @@
 
 # CR050 — Accept Failed Native Leaves as Interrupted-Attempt Evidence
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr050-failed-native-leaf-evidence`
 
@@ -64,11 +64,11 @@ Do not weaken Rust active-branch inspection, infer from Desktop projections, ret
 
 ## Authority Boundary
 
-CR050 was captured from a product defect found during the explicitly authorized CR049 sandbox. The Navigator selected, planned and authorized implementation with Driver `@alissonvale` and Delivery `refinement/rs018-cr050-failed-native-leaf-evidence` on 2026-09-18. Navigator Validation, CR049 resumption, push, merge, publication, release, production mutation and RS018 closure remain separate decisions.
+CR050 was captured from a product defect found during the explicitly authorized CR049 sandbox. The Navigator selected, planned and authorized implementation with Driver `@alissonvale` and Delivery `refinement/rs018-cr050-failed-native-leaf-evidence`, then accepted Navigator Validation on 2026-09-18. CR049 resumption, push, merge, publication, release, production mutation and RS018 closure remain separate decisions.
 
 ## Outcome
 
-Implementation and guided DEV validation are complete; explicit Navigator Validation remains pending.
+Implementation and guided DEV validation are complete and accepted by Navigator Validation.
 
 `deriveInactiveNativeAttemptCandidate()` now preserves Rust inspection semantics. It requires one visible incomplete user on the active role-bearing entry order, rejects successful `stop` or `length` assistants after that user and retains both the incomplete user ID and physical native leaf ID. A direct user leaf, later failed assistant, tool-result tail or exact non-role leaf may therefore explain an inactive attempt without weakening exact Journey/thread/generation/Pi-session binding.
 
@@ -94,3 +94,17 @@ Guided validation on 2026-09-18 reopened the exact private-data-free CR049 failu
 The sandbox tests were also decoupled from unrelated live DEV processes through dependency injection available only to direct programmatic tests; the CLI still always performs real process inspection. Process inspection now keys on the actual executable rather than matching shell command text, preventing the restore command from identifying its own parent shell as a DEV process. The complete frontend suite passed again with 835 tests after the classifier correction and notice deduplication; focused sandbox tests passed after the executable correction.
 
 After validation, the app was stopped, the CR050 rehearsal fixture was archived with a redacted 10-file manifest, and ordinary DEV state was restored to the exact original 63-file digest `0a9cd312e4a8624c99a12a24bab367f77ccea879159e6fe9abcd794153df3e27`. Production remained untouched.
+
+### Navigator Validation
+
+Accepted on 2026-09-18 after exact failed-assistant-leaf restore, single-notice presentation and full relaunch passed against the captured private-data-free fixture. Validation does not authorize CR049 resumption, push, merge, publication, release, production mutation or RS018 closure.
+
+### Proportionality Review
+
+The implementation is proportional. It extends one ephemeral classifier to respect existing Rust active-branch semantics, retains the physical leaf as evidence and suppresses one redundant legacy notice. It changes no durable schema, transcript authority, provider path, availability contract or Mirror Core behavior.
+
+### Debt Review
+
+Decision: `no_action`.
+
+The failed-native-leaf shape now reconstructs honestly and remains non-blocking. The release-shaped outage, terminal-window, concurrency and cache-rebuild route remains explicit CR049 acceptance work, not hidden CR050 debt.
