@@ -45,8 +45,13 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 - CR038 remains independent work in its existing worktree; RS018 does not absorb its uncommitted implementation.
 - Commit, push, merge, publication and release remain separate Navigator decisions.
 
+## Acceptance Review
+
+The [2026-09-18 final acceptance review](acceptance-review-2026-09-18.md) concludes that the authority redesign is accepted but RS018 is not yet ready for closure. Release-shaped composed evidence remains for real Pi compaction, Mirror outage/restoration, the post-native/pre-delivery termination window, concurrent live DEV Journeys and destructive copied-cache reconstruction.
+
 ## Change Requests
 
+- [CR049: Complete the Release-Shaped RS018 Acceptance Route](cr049-complete-the-release-shaped-rs018-acceptance-route.md)
 - [CR048: Explain Interrupted Native Attempts Without Blocking Continuity](cr048-explain-interrupted-native-attempts-without-blocking-continuity.md)
 - [CR047: Rehearse Terminal-Aligned Continuity Under Failure](cr047-rehearse-terminal-aligned-continuity-under-failure.md)
 - [CR046: Make the Conversation Surface Pi-Backed](cr046-make-the-conversation-surface-pi-backed.md)
@@ -56,6 +61,8 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 - [CR042: Decouple Successor Admission from Desktop Projections](cr042-decouple-successor-admission-from-desktop-projections.md)
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
+
+CR049 is `captured`. It owns the remaining isolated release-shaped acceptance route identified by the final RS018 review. Planning must define private-data-free real compaction evidence, isolated Mirror fault injection, exact temporary paths and backups before any operational mutation.
 
 CR048 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr048-interrupted-attempt-notice`. The Navigator accepted exact inactive-attempt derivation, passive non-blocking explanation, successor agent-start resolution and final relaunch behavior on 2026-09-18. Proportionality review found the ephemeral presentation correction appropriately local; Debt Review concluded `no_action`.
 

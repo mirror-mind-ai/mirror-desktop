@@ -47,8 +47,9 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR037](rs016-ongoing-product-improvements-and-adjustments/cr037-confirm-app-closure-while-agents-are-working.md) | RS016 | Confirm app closure while agents are working | captured | — | — |
-| 2 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
+| 1 | [CR049](rs018-terminal-aligned-conversation-continuity/cr049-complete-the-release-shaped-rs018-acceptance-route.md) | RS018 | Complete the Release-Shaped RS018 Acceptance Route | captured | — | — |
+| 2 | [CR037](rs016-ongoing-product-improvements-and-adjustments/cr037-confirm-app-closure-while-agents-are-working.md) | RS016 | Confirm app closure while agents are working | captured | — | — |
+| 3 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
 | — | [CR048](rs018-terminal-aligned-conversation-continuity/cr048-explain-interrupted-native-attempts-without-blocking-continuity.md) | RS018 | Explain Interrupted Native Attempts Without Blocking Continuity | done | @alissonvale | `refinement/rs018-cr048-interrupted-attempt-notice` |
 | — | [CR047](rs018-terminal-aligned-conversation-continuity/cr047-rehearse-terminal-aligned-continuity-under-failure.md) | RS018 | Rehearse Terminal-Aligned Continuity Under Failure | done | @alissonvale | `refinement/rs018-cr047-continuity-endurance-rehearsal` |
 | — | [CR046](rs018-terminal-aligned-conversation-continuity/cr046-make-the-conversation-surface-pi-backed.md) | RS018 | Make the Conversation Surface Pi-Backed | done | @alissonvale | `refinement/rs018-cr046-pi-backed-conversation-surface` |
