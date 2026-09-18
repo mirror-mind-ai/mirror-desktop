@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS018 — Terminal-Aligned Conversation Continuity
-- Change Request: CR047 — Rehearse Terminal-Aligned Continuity Under Failure
+- Change Request: —
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -47,9 +47,10 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR047](rs018-terminal-aligned-conversation-continuity/cr047-rehearse-terminal-aligned-continuity-under-failure.md) | RS018 | Rehearse Terminal-Aligned Continuity Under Failure | in_progress | @alissonvale | `refinement/rs018-cr047-continuity-endurance-rehearsal` |
+| 1 | [CR048](rs018-terminal-aligned-conversation-continuity/cr048-explain-interrupted-native-attempts-without-blocking-continuity.md) | RS018 | Explain Interrupted Native Attempts Without Blocking Continuity | captured | — | — |
 | 2 | [CR037](rs016-ongoing-product-improvements-and-adjustments/cr037-confirm-app-closure-while-agents-are-working.md) | RS016 | Confirm app closure while agents are working | captured | — | — |
 | 3 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
+| — | [CR047](rs018-terminal-aligned-conversation-continuity/cr047-rehearse-terminal-aligned-continuity-under-failure.md) | RS018 | Rehearse Terminal-Aligned Continuity Under Failure | done | @alissonvale | `refinement/rs018-cr047-continuity-endurance-rehearsal` |
 | — | [CR046](rs018-terminal-aligned-conversation-continuity/cr046-make-the-conversation-surface-pi-backed.md) | RS018 | Make the Conversation Surface Pi-Backed | done | @alissonvale | `refinement/rs018-cr046-pi-backed-conversation-surface` |
 | — | [CR045](rs018-terminal-aligned-conversation-continuity/cr045-make-pre-agent-staging-non-authoritative.md) | RS018 | Make Pre-Agent Staging Non-Authoritative | done | @alissonvale | `refinement/rs018-cr045-pre-agent-staging-atomicity` |
 | — | [CR044](rs018-terminal-aligned-conversation-continuity/cr044-materialize-mirror-delivery-debt-before-journal-pruning.md) | RS018 | Materialize Mirror Delivery Debt Before Journal Pruning | done | @alissonvale | `refinement/rs018-cr044-self-contained-mirror-delivery-debt` |

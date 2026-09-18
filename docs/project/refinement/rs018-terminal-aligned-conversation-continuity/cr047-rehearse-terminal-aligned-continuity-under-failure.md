@@ -2,8 +2,8 @@
 
 # CR047 — Rehearse Terminal-Aligned Continuity Under Failure
 
-**Status:** in_progress  
-**Driver:** @alissonvale  
+**Status:** done
+**Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr047-continuity-endurance-rehearsal`
 
 ## Problem
@@ -97,7 +97,7 @@ The Navigator explicitly requested CR047 creation, planning and execution and ap
 
 ## Outcome
 
-Automated rehearsal and guided DEV relaunch execution are complete; explicit Navigator Validation remains pending.
+Automated rehearsal and guided DEV relaunch execution are complete and accepted by Navigator Validation.
 
 The private-data-free native fixture builds 50 complete user/assistant turns, inserts one Pi compaction after turn 25 and ends with one admitted user entry interrupted before an assistant response. Rust inspection reconstructs the exact 102-entry active branch, reports one compaction and 50 completed turns, projects 101 visible user/assistant entries and names the incomplete native user leaf. No Desktop projection, Segment body, journal or Mirror record exists in that fixture.
 
@@ -139,3 +139,17 @@ Guided validation on 2026-09-18 confirmed:
 - a second relaunch preserved the interrupted user entry and the complete successor exactly once, with the Composer available.
 
 The interrupted attempt displayed no dedicated interruption notice. This is a non-blocking UX observation rather than transcript, admission or recovery authority failure: the incomplete native entry remained visible and the successor route was immediately available. Whether to add explicit inactive-attempt explanation belongs to Debt Review; it is not silently treated as completed CR047 behavior.
+
+### Navigator Validation
+
+Accepted on 2026-09-18 after the deterministic endurance matrix and guided interruption/successor/relaunch route passed. Validation does not authorize push, merge, publication, release, production mutation or RS018 closure.
+
+### Proportionality Review
+
+The implementation is proportional. It adds private-data-free frontend and Rust endurance fixtures, binds existing failure tests into one explicit matrix and records observable DEV evidence. It changes no product behavior, durable schema, Pi session, Mirror Core contract or provider policy.
+
+### Debt Review
+
+Decision: `create_follow_up`.
+
+CR048 captures the missing non-blocking explanation for an inactive admitted attempt with no terminal assistant response. The observation does not invalidate CR047: Pi transcript truth, native occupancy release, successor admission and relaunch continuity all held. Production Flip recovery, push, merge, release and RS018 closure remain separate decisions.
