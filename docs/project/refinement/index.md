@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS018 — Terminal-Aligned Conversation Continuity
-- Change Request: —
+- Change Request: CR048 — Explain Interrupted Native Attempts Without Blocking Continuity
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -47,7 +47,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR048](rs018-terminal-aligned-conversation-continuity/cr048-explain-interrupted-native-attempts-without-blocking-continuity.md) | RS018 | Explain Interrupted Native Attempts Without Blocking Continuity | captured | — | — |
+| 1 | [CR048](rs018-terminal-aligned-conversation-continuity/cr048-explain-interrupted-native-attempts-without-blocking-continuity.md) | RS018 | Explain Interrupted Native Attempts Without Blocking Continuity | in_progress | @alissonvale | `refinement/rs018-cr048-interrupted-attempt-notice` |
 | 2 | [CR037](rs016-ongoing-product-improvements-and-adjustments/cr037-confirm-app-closure-while-agents-are-working.md) | RS016 | Confirm app closure while agents are working | captured | — | — |
 | 3 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
 | — | [CR047](rs018-terminal-aligned-conversation-continuity/cr047-rehearse-terminal-aligned-continuity-under-failure.md) | RS018 | Rehearse Terminal-Aligned Continuity Under Failure | done | @alissonvale | `refinement/rs018-cr047-continuity-endurance-rehearsal` |

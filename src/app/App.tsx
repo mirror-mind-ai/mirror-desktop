@@ -85,6 +85,7 @@ import {
   resolveRetainedLeaseForOutboxRecovery,
 } from "./journeySettlementRecovery";
 import { ConversationRecoveryNotice } from "./ConversationRecoveryNotice";
+import { InterruptedNativeAttemptNotice } from "./InterruptedNativeAttemptNotice";
 import { PendingFileAttachments } from "./PendingFileAttachments";
 import { chooseFileAttachments, inspectDroppedFileAttachments } from "./fileAttachmentStorage";
 import { listenForFileAttachments } from "./fileAttachmentDrop";
@@ -116,6 +117,11 @@ import {
 } from "./conversationSegmentStorage";
 import { partitionConversationBySegments } from "../domain/conversationSegmentProjection";
 import { decideConversationAvailability } from "../domain/conversationAvailability";
+import {
+  deriveInactiveNativeAttemptCandidate,
+  shouldPresentInactiveNativeAttempt,
+  type InactiveNativeAttemptCandidate,
+} from "../domain/inactiveNativeAttempt";
 import {
   decideConversationRecoveryRoutes,
   type ConversationRecoveryRouteId,
@@ -460,6 +466,7 @@ export function App({ model }: AppProps) {
   const [conversation, setConversation] = useState(() =>
     createJourneyConversation({ journeyId: selectedJourney, initialMessages }),
   );
+  const [inactiveNativeAttempt, setInactiveNativeAttempt] = useState<InactiveNativeAttemptCandidate>();
   const [journeyRuntimeState, dispatchJourneyRuntime] = useReducer(
     journeyRuntimeReducer,
     undefined,
@@ -819,6 +826,17 @@ export function App({ model }: AppProps) {
   const showConversationRecoveryNotice = recoveryRoutes.length > 0
     && !isStreaming
     && (Boolean(blockingTurnJournalRecord) || legacyMirrorGap || showConversationSyncNotice);
+  const showInactiveNativeAttemptNotice = shouldPresentInactiveNativeAttempt({
+    candidate: inactiveNativeAttempt,
+    journeyId: selectedJourney,
+    threadId: conversation.id,
+    generation: conversation.liveIdentity.generation,
+    piSessionId: conversation.liveIdentity.piSessionId,
+    occupancyKnown: piInvocationOccupancy.status === "known",
+    exactNativeLeaseActive: Boolean(selectedNativeLease),
+    selectedRuntimeBusy,
+    isStreaming,
+  });
   const configuredContextWindow = piModelCatalog.find((entry) =>
     entry.provider === effectiveAgentProfile.model.provider && entry.model === effectiveAgentProfile.model.model,
   )?.contextWindow ?? configuredModelContextWindow(effectiveProviderConfig);
@@ -1196,6 +1214,14 @@ export function App({ model }: AppProps) {
   ]);
 
   useEffect(() => {
+    setInactiveNativeAttempt(undefined);
+  }, [
+    selectedJourney,
+    selectedConversationSpace.kind,
+    selectedConversationSpace.kind === "journey_workspace" ? undefined : selectedConversationSpace.conversationId,
+  ]);
+
+  useEffect(() => {
     setLocalReferenceError(undefined);
     setFileAttachmentError(undefined);
     setDismissedStreamWarningKey(undefined);
@@ -1270,6 +1296,12 @@ export function App({ model }: AppProps) {
             classified.activeGeneration.piSessionFile,
           );
           restoredConversation = projectPiBackedConversationSurface(restoredConversation, inspection);
+          setInactiveNativeAttempt(deriveInactiveNativeAttemptCandidate({
+            journeyId: selectedJourney,
+            threadId: classified.thread.threadId,
+            generation: classified.activeGeneration.generation,
+            piSessionId: classified.activeGeneration.piSessionId,
+          }, inspection));
         }
         const repairableSteering = restoredConversation.steeringEvidence?.some((item) => (
           item.status === "pending" || item.status === "accepted" || item.status === "terminally_unconsumed"
@@ -1952,6 +1984,13 @@ export function App({ model }: AppProps) {
           runReachedAgent = true;
           if (mode === "live" && correlation && settlementAuthority && !agentStartApplied) {
             agentStartApplied = true;
+            setInactiveNativeAttempt((current) => current
+              && current.journeyId === ownerJourneyId
+              && current.threadId === baseConversation.id
+              && current.generation === ownerGeneration
+              && current.piSessionId === baseConversation.liveIdentity.piSessionId
+                ? undefined
+                : current);
             persistOwnerComposerDraft("");
             try {
               await journeyPersistenceCoordinator.run(
@@ -3375,6 +3414,7 @@ export function App({ model }: AppProps) {
     setConversationCatalog([]);
     setFocusedJourneyRootThreadId(undefined);
     setConversationCatalogStatus("idle");
+    setInactiveNativeAttempt(undefined);
 
     const runtimeEntry = selectJourneyRuntime(journeyRuntimeState, journeyId);
     const runtimeSnapshot = runtimeEntry.conversationSnapshot
@@ -4550,6 +4590,7 @@ export function App({ model }: AppProps) {
               <p>You can keep drafting, but Send remains unavailable until a Journey slot is free. Native admission remains the atomic capacity authority.</p>
             </section>
           ) : null}
+          {showInactiveNativeAttemptNotice ? <InterruptedNativeAttemptNotice /> : null}
           {durableInterruptedTurn && !isStreaming ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Previous turn was interrupted</strong>
