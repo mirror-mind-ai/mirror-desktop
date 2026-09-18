@@ -328,7 +328,7 @@ The acceptance oracle is the Pi session plus exact control-plane binding. Projec
 
 CR047 binds this horizon to a private-data-free deterministic fixture: 50 complete turns, one compaction and one interrupted admitted tail are reconstructed without Desktop transcript caches. Distributed native occupancy, journal, outbox, provider-failure and cancellation tests form the failure matrix; guided DEV relaunch remains separate observable evidence and never invokes the provider implicitly.
 
-CR048 makes the interrupted tail legible without changing authority. An ephemeral notice candidate exists only when exact Pi inspection identifies the same visible user entry as active leaf and incomplete input. It renders only after native occupancy is known inactive, offers no retry and never changes Composer availability. Exact successor agent-start evidence clears the candidate; a pre-agent rejection does not.
+CR048 makes the interrupted tail legible without changing authority. An ephemeral notice candidate exists only when exact Pi inspection identifies a visible incomplete user on the active branch. CR050 clarifies that the physical leaf may be that user or a later failed assistant, tool-result or non-role native entry; a successful `stop` or `length` assistant remains contradictory to incomplete evidence. The notice renders only after native occupancy is known inactive, offers no retry and never changes Composer availability. Exact successor agent-start evidence clears the candidate; a pre-agent rejection does not.
 
 ## Rollback and Compatibility
 

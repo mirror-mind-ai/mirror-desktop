@@ -147,7 +147,25 @@ export function prepareSandbox({ home, timestamp, dryRun = false }) {
   }
   try {
     const existing = readReceipt(paths.receipt);
-    throw new Error(`Sandbox receipt already exists in phase ${existing.phase}. Restore it before preparing another rehearsal.`);
+    if (existing.phase !== "restored") {
+      throw new Error(`Sandbox receipt already exists in phase ${existing.phase}. Restore it before preparing another rehearsal.`);
+    }
+    const restoredInventory = redactedInventory(paths.active);
+    if (restoredInventory.manifestDigest !== existing.originalInventory.manifestDigest) {
+      throw new Error("A restored receipt cannot roll over because ordinary DEV data diverged.");
+    }
+    if (!dryRun) {
+      const history = join(paths.controlRoot, "receipt-history");
+      mkdirSync(history, { recursive: true });
+      const historicalReceipt = join(history, `swap-receipt-${existing.preparedAt.replaceAll(/[^A-Za-z0-9._-]/g, "-")}.json`);
+      try {
+        lstatSync(historicalReceipt);
+        throw new Error(`Historical sandbox receipt already exists: ${historicalReceipt}`);
+      } catch (error) {
+        if (error?.code !== "ENOENT") throw error;
+      }
+      renameSync(paths.receipt, historicalReceipt);
+    }
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
   }

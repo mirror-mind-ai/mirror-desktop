@@ -81,4 +81,19 @@ describe("RS018 rehearsal app-data sandbox", () => {
     prepareSandbox({ home, timestamp: "first" });
     expect(() => prepareSandbox({ home, timestamp: "second" })).toThrow("receipt already exists");
   });
+
+  it("rolls over a verified restored receipt before a later rehearsal", () => {
+    const { home, paths } = fixture();
+    const first = prepareSandbox({ home, timestamp: "first" });
+    writeFileSync(join(paths.active, "first-rehearsal.json"), "fixture");
+    restoreSandbox({ home, timestamp: "first-restored" });
+
+    const second = prepareSandbox({ home, timestamp: "second" });
+    expect(second.phase).toBe("prepared");
+    expect(second.backupPath).not.toBe(first.backupPath);
+    expect(sandboxStatus({ home }).phase).toBe("prepared");
+    expect(redactedInventory(paths.active).fileCount).toBe(0);
+    expect(readFileSync(join(paths.controlRoot, "receipt-history", "swap-receipt-first.json"), "utf8"))
+      .toContain('"phase": "restored"');
+  });
 });

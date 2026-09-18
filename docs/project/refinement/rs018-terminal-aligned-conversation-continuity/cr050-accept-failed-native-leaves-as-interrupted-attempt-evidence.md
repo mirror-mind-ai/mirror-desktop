@@ -2,9 +2,9 @@
 
 # CR050 — Accept Failed Native Leaves as Interrupted-Attempt Evidence
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs018-cr050-failed-native-leaf-evidence`
 
 ## Problem
 
@@ -34,21 +34,55 @@ Private-data-free isolated CR049 fixture on 2026-09-18:
 
 No production data was involved. The unsupported model choice is a separate sandbox configuration correction; the restore failure is a product defect independent of which provider error produced the native shape.
 
-## Initial Boundary
+## Plan
 
-Likely change:
+### Preserve inspection semantics
 
-- extend the pure CR048 classifier to validate that the incomplete user exists visibly on the inspected active branch and is not ordered after a role-bearing leaf;
-- retain the inspected native leaf ID as candidate evidence;
-- add failed-assistant, tool-tail, successful-assistant and malformed-order tests;
-- rerun the CR048 interruption/relaunch route before resuming CR049.
+Keep Rust `incompleteUserEntryId` semantics unchanged: it names the latest active-branch user that has no successful `stop` or `length` assistant completion. The physical leaf may be that user or a later failed assistant/tool entry.
+
+### Validate active-branch order
+
+Extend the pure CR048 classifier's structural inspection input with `stopReason`. Require:
+
+- a non-empty `leafEntryId`;
+- one visible user entry matching `incompleteUserEntryId`;
+- a role-bearing leaf entry when the leaf is represented in `entries`;
+- the incomplete user not to occur after that leaf;
+- no successful assistant entry with `stop` or `length` after the incomplete user.
+
+Store both `userEntryId` and `leafEntryId` in the ephemeral candidate. Contradictory, missing, completed or out-of-order evidence fails closed. Non-role Pi leaves remain acceptable only when the exact inspector still reports the visible user as incomplete.
+
+### Preserve presentation and availability
+
+Reuse CR048's known-inactive occupancy gate and passive notice. Do not alter `ConversationAvailability`, add actions, retry the provider or persist the candidate. Exact successor agent-start still clears only the matching Journey/thread/generation/session candidate.
+
+### TDD and validation
+
+Add pure cases for direct user leaf, failed assistant leaf, tool-result leaf, successful assistant contradiction, missing leaf, out-of-order evidence and exact authority gating. Add integration evidence for the captured private-data-free failed-leaf shape. Run complete frontend/Rust/build gates, then reproduce the failed provider shape in DEV and verify restore displays the passive notice with an available Composer.
 
 Do not weaken Rust active-branch inspection, infer from Desktop projections, retry the provider or alter availability.
 
 ## Authority Boundary
 
-CR050 was captured from a product defect found during the explicitly authorized CR049 sandbox. Capture does not authorize implementation. CR049 remains blocked until this defect is resolved or the Navigator chooses another disposition.
+CR050 was captured from a product defect found during the explicitly authorized CR049 sandbox. The Navigator selected, planned and authorized implementation with Driver `@alissonvale` and Delivery `refinement/rs018-cr050-failed-native-leaf-evidence` on 2026-09-18. Navigator Validation, CR049 resumption, push, merge, publication, release, production mutation and RS018 closure remain separate decisions.
 
 ## Outcome
 
-Captured for explicit planning and implementation authority.
+Implementation is complete and awaiting guided DEV validation.
+
+`deriveInactiveNativeAttemptCandidate()` now preserves Rust inspection semantics. It requires one visible incomplete user on the active role-bearing entry order, rejects successful `stop` or `length` assistants after that user and retains both the incomplete user ID and physical native leaf ID. A direct user leaf, later failed assistant, tool-result tail or exact non-role leaf may therefore explain an inactive attempt without weakening exact Journey/thread/generation/Pi-session binding.
+
+The captured CR049 shape now restores the admitted user, omits the empty failed assistant from visible transcript content and derives passive interruption evidence from the assistant error leaf. Missing leaf identity, non-user evidence, empty user content, represented leaf order regression and successful-assistant contradiction still fail closed. Availability and provider execution paths are unchanged.
+
+The sandbox coordinator also gained verified restored-receipt rollover so CR049 can safely prepare a new isolated run after ordinary DEV state was restored. Rollover requires the current ordinary DEV manifest to match the prior receipt and archives that receipt before any new swap.
+
+### Automated Validation Evidence
+
+- Direct-user, failed-assistant, tool-result, non-role leaf, complete transcript and malformed-order classifier coverage passed.
+- Captured failed-native-leaf restore integration passed.
+- Sandbox restored-receipt rollover coverage passed.
+- Focused CR050 and safety suites passed.
+- Complete frontend suite: 835 passed.
+- Complete Rust suite: 152 passed, 1 ignored; `cargo check` passed.
+- TypeScript, production web build, roadmap consistency and `git diff --check` passed.
+- No provider was invoked during implementation validation. Ordinary DEV data and production state were not mutated.
