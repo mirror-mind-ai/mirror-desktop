@@ -57,7 +57,7 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
 
-CR048 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr048-interrupted-attempt-notice`. It derives an exact ephemeral inactive-attempt candidate from Pi leaf inspection, distinguishes it from native occupancy and explains the state without retrying the provider or blocking the Composer.
+CR048 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr048-interrupted-attempt-notice`. The Navigator accepted exact inactive-attempt derivation, passive non-blocking explanation, successor agent-start resolution and final relaunch behavior on 2026-09-18. Proportionality review found the ephemeral presentation correction appropriately local; Debt Review concluded `no_action`.
 
 CR047 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr047-continuity-endurance-rehearsal`. The Navigator accepted the private-data-free 50-turn compacted fixture, composed failure matrix and guided interruption/successor/relaunch route on 2026-09-18. Proportionality review found the test-only rehearsal appropriately bounded; Debt Review selected `create_follow_up` as CR048 for the missing non-blocking interruption explanation.
 

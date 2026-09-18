@@ -2,7 +2,7 @@
 
 # CR048 — Explain Interrupted Native Attempts Without Blocking Continuity
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr048-interrupted-attempt-notice`
 
@@ -63,11 +63,11 @@ The solution must not make the turn journal, Desktop projection, Segment or Mirr
 
 ## Authority Boundary
 
-The Navigator explicitly requested capture after CR047, then selected, planned and authorized implementation with Driver `@alissonvale` and Delivery `refinement/rs018-cr048-interrupted-attempt-notice` on 2026-09-18. Navigator Validation, push, merge, publication, release, production mutation and RS018 closure remain separate decisions.
+The Navigator explicitly requested capture after CR047, then selected, planned and authorized implementation with Driver `@alissonvale` and Delivery `refinement/rs018-cr048-interrupted-attempt-notice` on 2026-09-18. Navigator Validation was accepted on 2026-09-18. Push, merge, publication, release, production mutation and RS018 closure remain separate decisions.
 
 ## Outcome
 
-Implementation and guided DEV validation are complete; explicit Navigator Validation remains pending.
+Implementation and guided DEV validation are complete and accepted by Navigator Validation.
 
 A pure `deriveInactiveNativeAttemptCandidate()` now accepts only an exact Pi inspection where the same visible user entry is both active leaf and `incompleteUserEntryId`. The ephemeral candidate carries Journey, thread, generation and Pi-session coordinates; malformed or contradictory evidence fails closed.
 
@@ -98,3 +98,17 @@ Guided validation on 2026-09-18 confirmed:
 - final relaunch preserves the incomplete user entry and completed successor exactly once, does not restore the resolved notice and shows no blank message, duplicate or raw JSON.
 
 The first isolated Rust run exhausted the nearly full local disk while creating a redundant per-worktree target directory. That partial build output was deleted, and the full Rust gates passed using the existing shared development target. No source or durable application data was removed.
+
+### Navigator Validation
+
+Accepted on 2026-09-18 after exact interruption, passive notice, successor agent-start and final relaunch behavior passed in DEV. Validation does not authorize push, merge, publication, release, production mutation or RS018 closure.
+
+### Proportionality Review
+
+The implementation is proportional. It adds one pure ephemeral classifier, one passive notice and exact integration wiring. It changes no durable schema, transcript representation, availability policy, provider invocation path, Mirror delivery contract or Mirror Core behavior.
+
+### Debt Review
+
+Decision: `no_action`.
+
+The notice is exact, non-blocking, transient and resolved by native successor evidence. Remaining production recovery, branch integration and RS018 closure are governed project decisions rather than hidden CR048 implementation debt.
