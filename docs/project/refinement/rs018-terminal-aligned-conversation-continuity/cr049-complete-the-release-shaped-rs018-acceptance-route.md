@@ -2,9 +2,9 @@
 
 # CR049 — Complete the Release-Shaped RS018 Acceptance Route
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs018-cr049-release-shaped-acceptance`
 
 ## Problem
 
@@ -90,7 +90,7 @@ The existing private-data-free fixture uses the exact characterized Pi compactio
 - **Recommended substitute:** explicitly accept the deterministic 50-turn compacted fixture plus parser, Segment and relaunch evidence as the compaction gate. This avoids paid token inflation whose only purpose is forcing an automatic threshold.
 - **Real compaction route:** authorize a capped provider/model budget and generate a private-data-free Pi session until Pi itself emits compaction. Stop at the approved budget if compaction does not occur; do not infer success.
 
-No route is selected by this plan.
+The Navigator selected the recommended deterministic substitute on 2026-09-18. The accepted compaction gate is the private-data-free 50-turn fixture plus exact parser, Segment and relaunch evidence; CR049 will not spend provider tokens solely to force an automatic threshold.
 
 ### Phase 8 — Restore and verification
 
@@ -139,8 +139,8 @@ The sandbox coordinator preserves the complete ordinary DEV directory under a un
 
 ## Authority Boundary
 
-The Navigator authorized CR049 planning on 2026-09-18. Planning selects the CR but does not assign a Driver, choose a Delivery branch, authorize sandbox mutation, approve provider spend, select the compaction route or begin execution. Those decisions remain explicit.
+The Navigator authorized Driver `@alissonvale`, Delivery `refinement/rs018-cr049-release-shaped-acceptance`, isolated sandbox execution, explicit provider submissions and the deterministic compaction substitute on 2026-09-18. Production mutation, push, merge, publication, release, Navigator Validation and RS018 closure remain separate decisions.
 
 ## Outcome
 
-Planned. Awaiting Driver, Delivery, execution authority and the compaction-route decision.
+In progress.
