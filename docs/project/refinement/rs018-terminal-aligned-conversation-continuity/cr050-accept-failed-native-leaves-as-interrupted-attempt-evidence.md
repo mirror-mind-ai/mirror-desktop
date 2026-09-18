@@ -68,7 +68,7 @@ CR050 was captured from a product defect found during the explicitly authorized 
 
 ## Outcome
 
-Implementation is complete and awaiting guided DEV validation.
+Implementation and guided DEV validation are complete; explicit Navigator Validation remains pending.
 
 `deriveInactiveNativeAttemptCandidate()` now preserves Rust inspection semantics. It requires one visible incomplete user on the active role-bearing entry order, rejects successful `stop` or `length` assistants after that user and retains both the incomplete user ID and physical native leaf ID. A direct user leaf, later failed assistant, tool-result tail or exact non-role leaf may therefore explain an inactive attempt without weakening exact Journey/thread/generation/Pi-session binding.
 
@@ -86,3 +86,9 @@ The sandbox coordinator also gained verified restored-receipt rollover so CR049 
 - Complete Rust suite: 152 passed, 1 ignored; `cargo check` passed.
 - TypeScript, production web build, roadmap consistency and `git diff --check` passed.
 - No provider was invoked during implementation validation. Ordinary DEV data and production state were not mutated.
+
+### Interactive DEV Evidence
+
+Guided validation on 2026-09-18 reopened the exact private-data-free CR049 failure fixture. The admitted baseline user message remained visible, the empty assistant error leaf produced no fabricated response, `runtime_read_failed` disappeared, no provider retry started and the Composer remained available. The exact Pi-backed interruption notice initially appeared alongside the older journal interruption notice; presentation was corrected so exact Pi evidence suppresses the redundant journal notice. A full app relaunch then preserved the message and displayed only `Previous attempt was interrupted`, with no retry and an available Composer.
+
+The sandbox tests were also decoupled from unrelated live DEV processes through dependency injection available only to direct programmatic tests; the CLI still always performs real process inspection. The complete frontend suite passed again with 835 tests after this correction and the notice deduplication.

@@ -32,6 +32,7 @@ describe("inactive native attempt notice integration", () => {
 
   it("renders a passive explanation without recovery or provider actions", () => {
     expect(appSource).toContain("showInactiveNativeAttemptNotice ? <InterruptedNativeAttemptNotice /> : null");
+    expect(appSource).toContain("durableInterruptedTurn && !isStreaming && !showInactiveNativeAttemptNotice");
     expect(noticeSource).not.toContain("button");
     expect(noticeSource).not.toContain("provider(");
     expect(noticeSource).not.toContain("onClick");

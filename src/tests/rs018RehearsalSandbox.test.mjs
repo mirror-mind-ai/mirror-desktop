@@ -16,6 +16,16 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
+const noProcesses = () => undefined;
+
+function prepare(options) {
+  return prepareSandbox({ ...options, processInspection: noProcesses });
+}
+
+function restore(options) {
+  return restoreSandbox({ ...options, processInspection: noProcesses });
+}
+
 function fixture() {
   const home = mkdtempSync(join(tmpdir(), "rs018-sandbox-"));
   roots.push(home);
@@ -32,7 +42,7 @@ function fixture() {
 describe("RS018 rehearsal app-data sandbox", () => {
   it("dry-runs without moving ordinary DEV data or writing a receipt", () => {
     const { home, paths } = fixture();
-    const result = prepareSandbox({ home, timestamp: "2026-09-18T18-00-00Z", dryRun: true });
+    const result = prepare({ home, timestamp: "2026-09-18T18-00-00Z", dryRun: true });
     expect(result.phase).toBe("dry_run");
     expect(readFileSync(join(paths.active, "ordinary.json"), "utf8")).toContain("private");
     expect(() => readFileSync(paths.receipt)).toThrow();
@@ -41,19 +51,19 @@ describe("RS018 rehearsal app-data sandbox", () => {
   it("swaps, inventories, restores, and verifies ordinary DEV state idempotently", () => {
     const { home, paths } = fixture();
     const before = redactedInventory(paths.active);
-    const prepared = prepareSandbox({ home, timestamp: "2026-09-18T18-01-00Z" });
+    const prepared = prepare({ home, timestamp: "2026-09-18T18-01-00Z" });
     expect(prepared.phase).toBe("prepared");
     expect(sandboxStatus({ home })).toMatchObject({ phase: "prepared", originalInventory: before });
     expect(redactedInventory(paths.active).fileCount).toBe(0);
     writeFileSync(join(paths.active, "rehearsal.json"), '{"message":"private-free"}');
 
-    const restored = restoreSandbox({ home, timestamp: "2026-09-18T18-02-00Z" });
+    const restored = restore({ home, timestamp: "2026-09-18T18-02-00Z" });
     expect(restored.phase).toBe("restored");
     expect(restored.restoredInventory).toEqual(before);
     expect(restored.rehearsalInventory.fileCount).toBe(1);
     expect(readFileSync(join(paths.active, "ordinary.json"), "utf8")).toContain("private");
     expect(readFileSync(join(paths.production, "untouched.txt"), "utf8")).toBe("production");
-    expect(restoreSandbox({ home, timestamp: "later" }).restoredInventory).toEqual(before);
+    expect(restore({ home, timestamp: "later" }).restoredInventory).toEqual(before);
   });
 
   it("emits only bounded counts and digests, never file names or content", () => {
@@ -68,27 +78,27 @@ describe("RS018 rehearsal app-data sandbox", () => {
     const { home, paths } = fixture();
     rmSync(paths.active, { recursive: true });
     symlinkSync(paths.production, paths.active);
-    expect(() => prepareSandbox({ home, timestamp: "symbolic" })).toThrow("regular directory");
+    expect(() => prepare({ home, timestamp: "symbolic" })).toThrow("regular directory");
 
     unlinkSync(paths.active);
     mkdirSync(paths.active);
     mkdirSync(join(paths.appSupport, "ai.mirrormind.desktop.dev.rs018-backup-collision"));
-    expect(() => prepareSandbox({ home, timestamp: "collision" })).toThrow("already exists");
+    expect(() => prepare({ home, timestamp: "collision" })).toThrow("already exists");
   });
 
   it("refuses a second preparation while a durable receipt owns restoration", () => {
     const { home } = fixture();
-    prepareSandbox({ home, timestamp: "first" });
-    expect(() => prepareSandbox({ home, timestamp: "second" })).toThrow("receipt already exists");
+    prepare({ home, timestamp: "first" });
+    expect(() => prepare({ home, timestamp: "second" })).toThrow("receipt already exists");
   });
 
   it("rolls over a verified restored receipt before a later rehearsal", () => {
     const { home, paths } = fixture();
-    const first = prepareSandbox({ home, timestamp: "first" });
+    const first = prepare({ home, timestamp: "first" });
     writeFileSync(join(paths.active, "first-rehearsal.json"), "fixture");
-    restoreSandbox({ home, timestamp: "first-restored" });
+    restore({ home, timestamp: "first-restored" });
 
-    const second = prepareSandbox({ home, timestamp: "second" });
+    const second = prepare({ home, timestamp: "second" });
     expect(second.phase).toBe("prepared");
     expect(second.backupPath).not.toBe(first.backupPath);
     expect(sandboxStatus({ home }).phase).toBe("prepared");

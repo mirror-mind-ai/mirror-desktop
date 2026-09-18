@@ -4591,7 +4591,7 @@ export function App({ model }: AppProps) {
             </section>
           ) : null}
           {showInactiveNativeAttemptNotice ? <InterruptedNativeAttemptNotice /> : null}
-          {durableInterruptedTurn && !isStreaming ? (
+          {durableInterruptedTurn && !isStreaming && !showInactiveNativeAttemptNotice ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Previous turn was interrupted</strong>
               <p>The durable journal retained the interruption without inventing a response. Your next message can start a new turn.</p>

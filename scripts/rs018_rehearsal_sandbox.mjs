@@ -125,8 +125,8 @@ function assertNoRunningDesktop() {
   if (processes.length > 0) throw new Error(`Mirror Desktop DEV is still running (${processes.length} process(es)).`);
 }
 
-export function prepareSandbox({ home, timestamp, dryRun = false }) {
-  assertNoRunningDesktop();
+export function prepareSandbox({ home, timestamp, dryRun = false, processInspection = assertNoRunningDesktop }) {
+  processInspection();
   const paths = sandboxPaths(home);
   if (basename(paths.active) !== DEV_IDENTIFIER || basename(paths.production) !== USER_IDENTIFIER) {
     throw new Error("Sandbox paths do not match the closed channel identifiers.");
@@ -203,8 +203,8 @@ export function sandboxStatus({ home }) {
   };
 }
 
-export function restoreSandbox({ home, timestamp }) {
-  assertNoRunningDesktop();
+export function restoreSandbox({ home, timestamp, processInspection = assertNoRunningDesktop }) {
+  processInspection();
   const paths = sandboxPaths(home);
   const receipt = readReceipt(paths.receipt);
   if (receipt.activePath !== paths.active || receipt.productionPath !== paths.production) {
