@@ -53,7 +53,7 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
 
-CR044 is `captured` with Driver `@alissonvale` and Delivery `refinement/rs018-cr044-self-contained-mirror-delivery-debt`. It will make completed Mirror delivery debt independently durable before the corresponding journal evidence becomes eligible for pruning. Selection, focus and transition to `planned` remain pending.
+CR044 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr044-self-contained-mirror-delivery-debt`. Implementation is complete and awaiting Navigator Validation. Completed pre-outbox journal evidence is reconciled model-free into exact Pi-backed compatibility debt before becoming eligible for pruning; legacy outbox items remain compatible.
 
 CR043 is `parked` with Driver `@alissonvale` and Delivery `refinement/rs018-cr043-non-blocking-journal-retention`. Safe retention for inactive, settled and independently delivered history is implemented locally, but completed pre-outbox evidence remains protected because pruning it would discard Mirror delivery debt. Revisit after CR044 proves exact debt materialization and reconciliation across every completed-turn crash window.
 

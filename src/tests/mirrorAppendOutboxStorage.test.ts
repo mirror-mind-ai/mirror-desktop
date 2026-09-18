@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { acknowledgeMirrorAppendItem, appendMirrorOutboxItem } from "../app/mirrorAppendOutboxStorage";
+import {
+  acknowledgeMirrorAppendItem,
+  appendMirrorOutboxItem,
+  deliverPiBackedMirrorOutboxItem,
+} from "../app/mirrorAppendOutboxStorage";
 import { createDedicatedJourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { createJourneySettlementAuthority } from "../domain/journeySettlementAuthority";
@@ -36,6 +40,20 @@ describe("Mirror append storage authority", () => {
     await expect(acknowledgeMirrorAppendItem("turn-a2", exact.mirrorConversationId, exact))
       .rejects.toThrow("mirror_append_acknowledgement_authority_mismatch");
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("delivers Pi-backed debt without requiring a Desktop projection authority", async () => {
+    invoke.mockResolvedValue({
+      schemaVersion: "1.0.0", status: "accepted", conversationId: "mirror-one",
+      journeyId: "journey-one", insertedCount: 2, existingCount: 0,
+      messages: [{ id: "user-one", state: "inserted" }, { id: "assistant-one", state: "inserted" }],
+    });
+
+    await expect(deliverPiBackedMirrorOutboxItem("turn-one", "journey-one"))
+      .resolves.toMatchObject({ status: "accepted", journeyId: "journey-one" });
+    expect(invoke).toHaveBeenCalledWith("deliver_pi_backed_mirror_outbox_item", {
+      itemId: "turn-one", journeyId: "journey-one",
+    });
   });
 
   it("validates inserted/existing receipts against the complete authority", async () => {

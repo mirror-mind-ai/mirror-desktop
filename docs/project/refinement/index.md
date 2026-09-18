@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS018 — Terminal-Aligned Conversation Continuity
-- Change Request: —
+- Change Request: CR044 — Materialize Mirror Delivery Debt Before Journal Pruning
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -47,7 +47,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR044](rs018-terminal-aligned-conversation-continuity/cr044-materialize-mirror-delivery-debt-before-journal-pruning.md) | RS018 | Materialize Mirror Delivery Debt Before Journal Pruning | captured | @alissonvale | `refinement/rs018-cr044-self-contained-mirror-delivery-debt` |
+| 1 | [CR044](rs018-terminal-aligned-conversation-continuity/cr044-materialize-mirror-delivery-debt-before-journal-pruning.md) | RS018 | Materialize Mirror Delivery Debt Before Journal Pruning | in_progress | @alissonvale | `refinement/rs018-cr044-self-contained-mirror-delivery-debt` |
 | 2 | [CR037](rs016-ongoing-product-improvements-and-adjustments/cr037-confirm-app-closure-while-agents-are-working.md) | RS016 | Confirm app closure while agents are working | captured | — | — |
 | 3 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
 | 4 | [CR043](rs018-terminal-aligned-conversation-continuity/cr043-keep-bounded-turn-journal-retention-non-blocking.md) | RS018 | Keep Bounded Turn Journal Retention Non-Blocking | parked | @alissonvale | `refinement/rs018-cr043-non-blocking-journal-retention` |

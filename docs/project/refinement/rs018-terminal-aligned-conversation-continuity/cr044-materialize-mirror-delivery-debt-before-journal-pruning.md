@@ -2,7 +2,7 @@
 
 # CR044: Materialize Mirror Delivery Debt Before Journal Pruning
 
-**Status:** captured
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr044-self-contained-mirror-delivery-debt`
 
@@ -94,7 +94,7 @@ The compatibility path remains based on the released `memory conversations appen
 
 ### Authority Boundary
 
-CR044 was captured after the Navigator selected the recommended response to CR043's discovered delivery dependency: park CR043 and create a dedicated compatibility-outbox isolation slice. The Navigator subsequently confirmed Driver `@alissonvale` and Delivery `refinement/rs018-cr044-self-contained-mirror-delivery-debt`. Selection, focus, transition to `planned` or `in_progress`, implementation, validation, push, merge, publication and release remain separate Navigator decisions.
+CR044 was captured after the Navigator selected the recommended response to CR043's discovered delivery dependency: park CR043 and create a dedicated compatibility-outbox isolation slice. The Navigator subsequently confirmed Driver `@alissonvale`, Delivery `refinement/rs018-cr044-self-contained-mirror-delivery-debt`, selection, focus, the documented plan and implementation. Validation, push, merge, publication and release remain separate Navigator decisions.
 
 ## Evidence
 
@@ -105,4 +105,25 @@ CR044 was captured after the Navigator selected the recommended response to CR04
 
 ## Outcome
 
-Captured. No implementation has begun.
+Implementation is complete and awaiting Navigator Validation.
+
+CR044 introduces compatibility-outbox item schema `1.1.0`. A Pi-backed item contains the exact Journey, Desktop Conversation, generation, Mirror destination, native run, Pi session, Pi user/assistant entry IDs, harness message IDs, bounded message pair and idempotent turn identity. Native validation resolves the exact ready or inactive generation, validates the runtime channel and Pi session path, follows the active Pi branch and requires the item content to match the named complete Pi turn. It does not read the Desktop projection.
+
+Before a newly reserved invocation is admitted to the journal, native reconciliation scans completed `terminal_durable` and `projected` history. An already durable exact legacy or Pi-backed item is adopted; otherwise exact Pi evidence is materialized as `1.1.0` debt. Only after the item is durable does the journal advance directly to `outbox_enqueued`, making CR043 retention safe. Missing, stale, malformed or mismatched evidence remains preserved and fail-closed instead of being silently discarded.
+
+Normal projection-backed `1.0.0` items remain compatible. Pi-backed items can call the released `memory conversations append` boundary without a Desktop projection through an explicit retry route. The append remains user-triggered, idempotent and provider-free. If Mirror accepts delivery while the projection is absent, the item remains pending local acknowledgement until Pi-backed projection reconstruction can apply the receipt honestly.
+
+The compatibility store remains bounded but its practical outage envelope increases from 32 items / 4 MiB to 16,384 items / 64 MiB. No outbox item, append failure or Mirror receipt participates in native occupancy.
+
+### TDD And Validation Evidence
+
+- Native Pi-backed materialization test proves exact Pi IDs become the exact harness message pair and stale Pi identity fails closed.
+- Journal transition test proves independently durable debt may advance directly from `terminal_durable` to `outbox_enqueued` without projection certification.
+- Existing-item reconciliation accepts only exact generation/destination authority before advancing journal evidence.
+- Frontend storage test proves explicit Pi-backed delivery does not require Desktop projection authority.
+- Bounded compatibility tests preserve idempotent enqueue, conflict rejection and no-eviction behavior.
+- Complete Rust suite: 149 passed, 1 ignored.
+- Complete frontend suite: 803 passed.
+- `cargo check`, TypeScript, production build, roadmap consistency and diff checks passed.
+
+No provider was invoked. No production app data, Mirror database or Mirror Core source was read or mutated. No push, merge, publication or release occurred.

@@ -435,7 +435,7 @@ fn valid_transition(
         (TurnPhase::Admitted | TurnPhase::Running, TurnPhase::Interrupted) => {
             outcome.is_none() && evidence.is_none()
         }
-        (TurnPhase::TerminalDurable, TurnPhase::Projected | TurnPhase::Interrupted) => {
+        (TurnPhase::TerminalDurable, TurnPhase::Projected | TurnPhase::OutboxEnqueued | TurnPhase::Interrupted) => {
             outcome.is_none() && evidence.is_none()
         }
         (TurnPhase::Projected, TurnPhase::OutboxEnqueued) => {
@@ -998,6 +998,33 @@ mod tests {
         let successor = admit_turn(&path, authority("run-2", "journey-a"), None).unwrap();
         assert_eq!(successor.authority.run_id, "run-2");
         assert_eq!(read_turn_journal(&path).unwrap().records.len(), 2);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn independently_durable_delivery_debt_can_skip_the_projection_phase() {
+        let root = root("direct-outbox-frontier");
+        let path = root.join("turn-journal.json");
+        let auth = authority("run-current", "journey-a");
+        let admitted = admit_turn(&path, auth.clone(), None).unwrap();
+        let running = transition_turn(
+            &path,
+            &auth,
+            transition(admitted.revision, TurnPhase::Admitted, TurnPhase::Running, "running"),
+        ).unwrap();
+        let terminal = transition_turn(
+            &path,
+            &auth,
+            transition(running.revision, TurnPhase::Running, TurnPhase::TerminalDurable, "terminal"),
+        ).unwrap();
+
+        let enqueued = transition_turn(
+            &path,
+            &auth,
+            transition(terminal.revision, TurnPhase::TerminalDurable, TurnPhase::OutboxEnqueued, "debt-durable"),
+        ).unwrap();
+        assert_eq!(enqueued.phase, TurnPhase::OutboxEnqueued);
+        assert_eq!(enqueued.recovery_disposition, TurnRecoveryDisposition::Complete);
         fs::remove_dir_all(root).unwrap();
     }
 

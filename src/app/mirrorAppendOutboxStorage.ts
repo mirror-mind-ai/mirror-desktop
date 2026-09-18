@@ -40,6 +40,19 @@ export async function listMirrorAppendOutbox(journeyId: string): Promise<MirrorA
   return invoke<MirrorAppendOutboxSummary[]>("list_mirror_append_outbox", { journeyId });
 }
 
+export async function deliverPiBackedMirrorOutboxItem(
+  itemId: string,
+  journeyId: string,
+): Promise<MirrorAppendReceipt> {
+  const receipt = parseMirrorAppendReceipt(await invoke<unknown>("deliver_pi_backed_mirror_outbox_item", {
+    itemId, journeyId,
+  }));
+  if (!receipt || receipt.journeyId !== journeyId) {
+    throw new Error("mirror_append_invalid_receipt");
+  }
+  return receipt;
+}
+
 export async function appendMirrorOutboxItem(
   itemId: string,
   authority: JourneySettlementAuthority,

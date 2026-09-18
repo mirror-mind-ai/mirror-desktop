@@ -117,17 +117,17 @@ Presentation projections are not an authority class. They are materialized views
 
 **Storage:** `mirror-append-outbox.json`.
 
-**Writers:** exact post-completion enqueue after local projection settlement.
+**Writers after CR044:** normal post-completion settlement and pre-admission delivery reconciliation. The latter reconstructs an exact version `1.1.0` item from the completed Pi entry pair and generation control-plane binding when a journal record survived without an outbox item.
 
-**Readers:** startup recovery, manual retry, explicit append and acknowledgement.
+**Readers:** startup recovery, manual retry, pre-admission reconciliation, explicit append and acknowledgement.
 
-**Current responsibility:** retain a two-message delivery item with Journey, thread, generation and Mirror Conversation coordinates.
+**Current responsibility after CR044:** retain self-contained two-message delivery debt with Journey, thread, generation, Mirror destination, native run, Pi session and exact Pi entry coordinates. Legacy `1.0.0` items remain readable and projection-validated; Pi-backed `1.1.0` items validate and append without a Desktop projection.
 
-**Current gate:** append validation reconstructs `RunAuthority` and validates generation and projection state. Recovery requires `pendingMirrorTurnRepair()` from the originating Desktop projection.
+**Current gate:** no outbox state participates in provider admission. Before journal admission, completed pre-outbox evidence is converted model-free into exact outbox debt when Pi and control-plane bindings validate, then advances directly to `outbox_enqueued` and becomes safely pruneable. Missing, malformed or mismatched Pi evidence remains fail-closed as durability evidence rather than being discarded. The compatibility store remains bounded at 16,384 items and 64 MiB.
 
 **Observed failure:** a generation-1 item remained durable, but stale derived reconciliation classification caused the originating projection parser to return no Conversation. Retry reported missing evidence even though the outbox retained its message pair.
 
-**Target responsibility:** self-contained compatibility delivery debt. It retains exact destination, source Pi entry IDs, message content and idempotency identity needed to call the existing Mirror Core append command without requiring an old presentation projection. Mirror Core continues to own canonical mutation and receipt semantics. Delivery success or failure never changes Pi admission, and the Desktop does not inspect or repair Mirror internals.
+**Target responsibility:** self-contained compatibility delivery debt. It retains exact destination, source Pi entry IDs, message content and idempotency identity needed to call the existing Mirror Core append command without requiring an old presentation projection. Mirror Core continues to own canonical mutation and receipt semantics. CR044 establishes this for newly reconciled debt while preserving the legacy reader; later migration may retire projection validation for old `1.0.0` items only after bounded compatibility evidence. Delivery success or failure never changes Pi admission, and the Desktop does not inspect or repair Mirror internals.
 
 ### Mirror Conversation
 

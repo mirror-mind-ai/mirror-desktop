@@ -8,8 +8,8 @@ import {
 import type { JourneyConversation } from "./journeyConversation";
 import type { JourneySettlementAuthority } from "./journeySettlementAuthority";
 
-export const MIRROR_APPEND_MAX_ITEMS = 32;
-export const MIRROR_APPEND_MAX_FILE_BYTES = 4 * 1024 * 1024;
+export const MIRROR_APPEND_MAX_ITEMS = 16_384;
+export const MIRROR_APPEND_MAX_FILE_BYTES = 64 * 1024 * 1024;
 export const MIRROR_APPEND_MAX_ITEM_BYTES = 131_072;
 
 export type MirrorAppendMessage = Pick<ConversationMessage, "id" | "role" | "content" | "createdAt"> & {

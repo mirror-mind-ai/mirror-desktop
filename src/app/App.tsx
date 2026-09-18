@@ -224,6 +224,7 @@ import {
 import {
   acknowledgeMirrorAppendItem,
   appendMirrorOutboxItem,
+  deliverPiBackedMirrorOutboxItem,
   enqueueMirrorAppendItem,
   listMirrorAppendOutbox,
   type MirrorAppendOutboxSummary,
@@ -2487,11 +2488,6 @@ export function App({ model }: AppProps) {
         entry.kind === "desktop_conversation" && entry.threadId === authority.threadId ? updatedEntry : entry
       )));
     }
-    const journal = await loadTurnJournal(authority.journeyId);
-    const journalRecord = journal.records.find((record) => record.authority.runId === authority.runId);
-    if (journalRecord?.phase === "terminal_durable") {
-      await advanceTurnJournal(authority, "terminal_durable", "projected");
-    }
   }
 
   async function saveInterruptedTurnLifecycle(
@@ -2513,8 +2509,8 @@ export function App({ model }: AppProps) {
     await enqueueMirrorAppendItem(outboxItem, authority);
     const journal = await loadTurnJournal(authority.journeyId);
     const journalRecord = journal.records.find((record) => record.authority.runId === authority.runId);
-    if (journalRecord?.phase === "projected") {
-      await advanceTurnJournal(authority, "projected", "outbox_enqueued");
+    if (journalRecord?.phase === "terminal_durable" || journalRecord?.phase === "projected") {
+      await advanceTurnJournal(authority, journalRecord.phase, "outbox_enqueued");
     }
     const summary: MirrorAppendOutboxSummary = {
       schemaVersion: "1.0.0",
@@ -2558,6 +2554,14 @@ export function App({ model }: AppProps) {
   async function retryMirrorAppendSummary(item: MirrorAppendOutboxSummary) {
     try {
       const projected = await loadDedicatedJourneyConversation(item.journeyId, item.generation, item.threadId);
+      if (!projected) {
+        await deliverPiBackedMirrorOutboxItem(item.itemId, item.journeyId);
+        setJourneyMirrorCommitError(
+          item.journeyId,
+          "Mirror delivery was accepted; local acknowledgement awaits Pi-backed projection reconstruction.",
+        );
+        return;
+      }
       const recovery = resolvePersistedSettlementRecovery(projected, item);
       if (recovery.status === "blocked") throw new Error(recovery.diagnostic);
       const { authority } = recovery;
