@@ -51,6 +51,7 @@ The [2026-09-18 final acceptance review](acceptance-review-2026-09-18.md) conclu
 
 ## Change Requests
 
+- [CR050: Accept Failed Native Leaves as Interrupted-Attempt Evidence](cr050-accept-failed-native-leaves-as-interrupted-attempt-evidence.md)
 - [CR049: Complete the Release-Shaped RS018 Acceptance Route](cr049-complete-the-release-shaped-rs018-acceptance-route.md)
 - [CR048: Explain Interrupted Native Attempts Without Blocking Continuity](cr048-explain-interrupted-native-attempts-without-blocking-continuity.md)
 - [CR047: Rehearse Terminal-Aligned Continuity Under Failure](cr047-rehearse-terminal-aligned-continuity-under-failure.md)
@@ -62,7 +63,9 @@ The [2026-09-18 final acceptance review](acceptance-review-2026-09-18.md) conclu
 - [CR041: Reconstruct Desktop Conversations from the Pi Session](cr041-reconstruct-desktop-conversations-from-pi-session.md)
 - [CR040: Establish the Terminal-Aligned Conversation Authority Contract](cr040-establish-terminal-aligned-conversation-authority-contract.md)
 
-CR049 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs018-cr049-release-shaped-acceptance`. The authorized plan uses an idempotent ordinary-DEV app-data swap, a disposable generic Mirror home, redacted evidence, read-only isolated SQLite for Mirror outage, a metadata-only terminal-window watcher, two live DEV Journeys and copied-cache deletion. The Navigator accepted the deterministic private-data-free fixture as the compaction gate.
+CR050 is `captured`. The first isolated CR049 baseline produced a valid Pi assistant error leaf after an admitted user; CR048's stricter user-equals-leaf classifier rejected that shape and made restore unavailable. CR050 must preserve exact active-branch authority while accepting failed native tails before CR049 resumes.
+
+CR049 is `blocked` with Driver `@alissonvale` and Delivery `refinement/rs018-cr049-release-shaped-acceptance`. Safety tooling and the disposable sandbox are prepared, ordinary DEV data is backed up and production remains untouched. Execution stopped after the first baseline exposed CR050; the app is closed and no outage, concurrency or destructive-cache scenario has run.
 
 CR048 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr048-interrupted-attempt-notice`. The Navigator accepted exact inactive-attempt derivation, passive non-blocking explanation, successor agent-start resolution and final relaunch behavior on 2026-09-18. Proportionality review found the ephemeral presentation correction appropriately local; Debt Review concluded `no_action`.
 

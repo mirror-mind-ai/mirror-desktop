@@ -2,7 +2,7 @@
 
 # CR049 — Complete the Release-Shaped RS018 Acceptance Route
 
-**Status:** in_progress
+**Status:** blocked
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr049-release-shaped-acceptance`
 
@@ -143,4 +143,10 @@ The Navigator authorized Driver `@alissonvale`, Delivery `refinement/rs018-cr049
 
 ## Outcome
 
-In progress.
+Blocked by CR050 after the first isolated baseline exposed a valid failed-native-leaf restore defect.
+
+Safety tooling is implemented and focused tests pass. Ordinary DEV app data is preserved under a verified 63-file backup with manifest digest `0a9cd312e4a8624c99a12a24bab367f77ccea879159e6fe9abcd794153df3e27`. A fresh canonical DEV directory, generic isolated Mirror home/database and two private-data-free rehearsal Journeys were created. Production state remains untouched.
+
+The first explicit baseline selected `gpt-5.3-codex-spark`, which Codex rejected for the active ChatGPT account. Pi correctly persisted an admitted user followed by an empty assistant leaf with `stopReason: error`; the journal retained `process_died`. CR048 then rejected the valid inspection shape because the incomplete user was not itself the physical leaf, causing `runtime_read_failed` on restore. CR050 captures this product defect. The app was stopped immediately and no further rehearsal scenario ran.
+
+The unsupported model will be corrected to a catalog-supported model before retry. The sandbox remains prepared and restorable; CR049 execution may resume only after CR050 disposition and exact restore validation.
