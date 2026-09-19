@@ -1,0 +1,80 @@
+[< Refinement Workbench](../index.md)
+
+# RS019: Post-Terminal Continuity
+
+**Status:** active
+
+## Framing
+
+RS018 established the correct authority contract: Pi JSONL owns the agent transcript, native process occupancy owns only active execution, Desktop projections are rebuildable views and Mirror synchronization is independent delivery debt. Sustained alpha use after RS018 closure showed that the runtime still keeps one important pre-RS018 coupling.
+
+When Pi reaches an exact terminal outcome, the native registry releases process capacity but retains a same-Journey `finalizing` lease until Desktop projection, journal, outbox and acknowledgement work finishes. Frontend admission treats any registry entry as same-Journey occupancy and also feeds a correlated non-successor-eligible journal record into `localAdmissionReady`. A failure after Pi termination can therefore preserve the complete response in JSONL while disabling the Composer. Relaunch makes the same Journey usable because the process-local registry disappears, proving that the retained block was not durable execution authority.
+
+CR055 fixed one interrupted provider-error route, and CR056 captured the equivalent completed `terminal_durable` route. These are symptoms of the same remaining authority defect rather than independent recovery features.
+
+## Desired Outcome
+
+Once an exact Pi process is terminal and no writer remains active, the Journey becomes available for a successor immediately. Projection publication, journal advancement, outbox materialization, Mirror delivery, acknowledgement and presentation recovery continue as bounded run-scoped debt without retaining Journey occupancy.
+
+Pi JSONL remains the sole transcript authority. Control-plane binding remains exact and fail-closed. No recovery path retries the provider implicitly, discards evidence or allows two active Pi writers for the same Journey.
+
+## Authority Contract
+
+- `reserved` and `running` exact native executions may occupy a Journey.
+- Unknown native occupancy may block while bounded inspection completes.
+- A terminal registry entry with released process capacity is finalization debt, not Journey occupancy.
+- A `terminal_durable`, `projected`, `outbox_enqueued` or `settled` journal record is evidence/debt and cannot independently set `canSend` false.
+- Desktop projection, Segment and Mirror failures degrade presentation or delivery only.
+- A new run must never let late cleanup from an older run remove, overwrite or misclassify the successor.
+- All post-terminal work remains exact, idempotent and keyed by immutable run, turn and Pi entry identity.
+
+## Work Shape
+
+RS019 removes the remaining gate in four ordered slices:
+
+1. separate terminal finalization from Journey occupancy in the native registry and frontend admission;
+2. remove post-terminal journal/projection state from Conversation availability;
+3. make projection, outbox and acknowledgement work safely independent and run-scoped after occupancy release;
+4. rehearse every post-terminal failure frontier and prove immediate successors without restart.
+
+Each CR must preserve current evidence and exact routing. Availability is corrected before cleanup machinery is simplified.
+
+## Acceptance Horizon
+
+RS019 is complete only when fault injection at every post-terminal frontier proves:
+
+- the exact response remains reconstructible from Pi JSONL;
+- the Composer becomes available after native terminalization without relaunch;
+- a successor starts while older projection or delivery debt remains unresolved;
+- late finalization for the older run cannot affect the successor;
+- no provider call is retried implicitly;
+- debt remains visible, bounded and explicitly recoverable.
+
+Validation must include completion, provider failure, cancellation, process death, stale/missing Desktop projection, outbox failure, Mirror outage, acknowledgement failure, concurrent Journeys and application relaunch.
+
+## Boundaries
+
+- Journey authority is exactly `mirror-desktop`.
+- Production app data remains read-only evidence unless a separate recovery operation is explicitly authorized.
+- No production Conversation repair is implied by implementation or validation.
+- No Mirror Core schema or runtime change is required.
+- No weakening of Journey/thread/generation/Pi-session binding is permitted.
+- No implicit provider retry, provider fallback or model substitution is permitted.
+- Push, merge, publication, release, stable promotion, notarization and installation remain separate Navigator decisions.
+
+## Change Requests
+
+- [CR060: Rehearse Non-Blocking Post-Terminal Continuity](cr060-rehearse-non-blocking-post-terminal-continuity.md)
+- [CR059: Make Post-Terminal Settlement Independent and Run-Scoped](cr059-make-post-terminal-settlement-independent-and-run-scoped.md)
+- [CR058: Remove Post-Terminal Journal State from Conversation Admission](cr058-remove-post-terminal-journal-state-from-conversation-admission.md)
+- [CR057: Separate Native Terminalization from Journey Occupancy](cr057-separate-native-terminalization-from-journey-occupancy.md)
+
+CR057 is `planned` with Driver `@alissonvale` and Delivery `refinement/rs019-cr057-terminal-occupancy-release`. It is the selected first slice and is prepared for TDD, but implementation has not started.
+
+CR058 is `captured` and unassigned. It removes the remaining frontend `localAdmissionReady` dependency on post-terminal journal evidence after CR057 establishes the native occupancy boundary.
+
+CR059 is `captured` and unassigned. It makes late projection, outbox, Mirror acknowledgement and cleanup operations exact and harmless in the presence of a newer run.
+
+CR060 is `captured` and unassigned. It supplies the release-shaped failure matrix required before RS019 closure.
+
+CR056 is promoted from RS016 to RS019 / CR057 as production evidence of completed terminal evidence being misclassified as retained occupancy.

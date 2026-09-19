@@ -41,7 +41,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR031 — Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md)
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
 
-CR056 is `captured` and unassigned. It records the post-alpha.12 retained-lease bug where an exact completed `terminal_durable` Pi turn with fresh evidence remains blocked because the stale Desktop projection does not expose a pending Mirror repair or staged harness pair for recovery.
+CR056 is `promoted` to RS019 / CR057. The post-alpha.12 retained-lease incident proved that terminal finalization and secondary settlement debt still possess admission authority after Pi has stopped; RS019 removes that authority structurally rather than adding another isolated recovery patch.
 
 CR055 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr055-provider-error-composer-release`. The Navigator accepted the implemented correction that clears stale Composer blocking after terminal provider failure, and Debt Review concluded `no_action`.
 

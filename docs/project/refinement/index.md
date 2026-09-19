@@ -12,8 +12,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: —
-- Change Request: —
+- Refinement Story: RS019 — Post-Terminal Continuity
+- Change Request: CR057 — Separate Native Terminalization from Journey Occupancy
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -40,6 +40,7 @@ executes work.
 | 16 | [RS016](rs016-ongoing-product-improvements-and-adjustments/index.md) | Ongoing Product Improvements and Adjustments | active |
 | 17 | [RS017](rs017-reliable-agent-access/index.md) | Reliable Agent Access | closed |
 | 18 | [RS018](rs018-terminal-aligned-conversation-continuity/index.md) | Terminal-Aligned Conversation Continuity | closed |
+| 19 | [RS019](rs019-post-terminal-continuity/index.md) | Post-Terminal Continuity | active |
 
 ## Change Requests
 
@@ -47,9 +48,13 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR056](rs016-ongoing-product-improvements-and-adjustments/cr056-release-composer-after-completed-terminal-durable-lease.md) | RS016 | Release Composer After Completed Terminal-Durable Lease | captured | — | — |
-| 2 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
-| 3 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| 1 | [CR057](rs019-post-terminal-continuity/cr057-separate-native-terminalization-from-journey-occupancy.md) | RS019 | Separate Native Terminalization from Journey Occupancy | planned | @alissonvale | `refinement/rs019-cr057-terminal-occupancy-release` |
+| 2 | [CR058](rs019-post-terminal-continuity/cr058-remove-post-terminal-journal-state-from-conversation-admission.md) | RS019 | Remove Post-Terminal Journal State from Conversation Admission | captured | — | — |
+| 3 | [CR059](rs019-post-terminal-continuity/cr059-make-post-terminal-settlement-independent-and-run-scoped.md) | RS019 | Make Post-Terminal Settlement Independent and Run-Scoped | captured | — | — |
+| 4 | [CR060](rs019-post-terminal-continuity/cr060-rehearse-non-blocking-post-terminal-continuity.md) | RS019 | Rehearse Non-Blocking Post-Terminal Continuity | captured | — | — |
+| 5 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
+| 6 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| — | [CR056](rs016-ongoing-product-improvements-and-adjustments/cr056-release-composer-after-completed-terminal-durable-lease.md) | RS016 | Release Composer After Completed Terminal-Durable Lease | promoted | — | `RS019 / CR057` |
 | — | [CR055](rs016-ongoing-product-improvements-and-adjustments/cr055-release-composer-after-terminal-provider-error.md) | RS016 | Release Composer After Terminal Provider Error | done | @alissonvale | `refinement/rs016-cr055-provider-error-composer-release` |
 | — | [CR052](rs016-ongoing-product-improvements-and-adjustments/cr052-ship-generation-ready-notice-contrast-in-light-themes.md) | RS016 | Ship Generation-Ready Notice Contrast in Light Themes | done | @alissonvale | `refinement/rs016-cr052-generation-ready-notice-contrast` |
 | — | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | done | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |

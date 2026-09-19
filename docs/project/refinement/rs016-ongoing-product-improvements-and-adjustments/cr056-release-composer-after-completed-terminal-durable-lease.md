@@ -1,8 +1,8 @@
 # CR056: Release Composer After Completed Terminal-Durable Lease
 
-**Status:** captured  
-**Driver:** —  
-**Delivery:** —
+**Status:** promoted
+**Driver:** —
+**Delivery:** `RS019 / CR057`
 
 ## Problem
 
@@ -72,6 +72,10 @@ Read-only inspection paths:
 /Users/alissonvale/Library/Application Support/ai.mirrormind.desktop/dedicated-journey-conversations/mirror-desktop/generation-3.json
 /Users/alissonvale/Library/Application Support/ai.mirrormind.desktop/pi-sessions/2026-09-19T03-29-39-169Z_nautilus-mirror-desktop-g3-18d69b3a83c9b268.jsonl
 ```
+
+## Promotion
+
+The Navigator accepted the broader diagnosis on 2026-09-19: this incident is not an isolated recovery-action omission. It proves that process-local terminal finalization, journal state and stale projection debt still retain admission authority after Pi has stopped. CR056 is therefore promoted to [RS019 / CR057](../rs019-post-terminal-continuity/cr057-separate-native-terminalization-from-journey-occupancy.md). Its evidence remains here; no isolated CR056 patch will be implemented.
 
 ## Boundaries
 
