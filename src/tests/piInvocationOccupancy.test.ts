@@ -103,29 +103,53 @@ describe("native Pi invocation occupancy", () => {
     expect(shouldRehydratePiProcessRoute(undefined, false)).toBe(false);
   });
 
-  it("keeps finalizing occupancy separate from presentation phase", () => {
-    const occupied = applyPiInvocationInspection(beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 1), 1, inspection());
-    expect(occupied.entries[0]?.leasePhase).toBe("finalizing");
-    expect(hasBlockingPiInvocationOccupancy(occupied)).toBe(true);
+  it("keeps terminal finalization inspectable without treating it as active occupancy", () => {
+    const finalized = applyPiInvocationInspection(beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 1), 1, inspection());
+    expect(finalized.entries[0]?.leasePhase).toBe("finalizing");
+    expect(hasBlockingPiInvocationOccupancy(finalized)).toBe(false);
+    expect(derivePiInvocationAdmission(finalized, "journey-a")).toEqual({
+      allowed: true,
+      reason: null,
+    });
   });
 
-  it("admits a second Journey only with known limit-two capacity", () => {
+  it.each([
+    ["completed", "none"],
+    ["cancelled", "requested"],
+    ["spawn_failed", "none"],
+    ["process_died", "none"],
+  ] as const)("treats %s terminal finalization as non-blocking debt", (terminalState, cancellationState) => {
+    const finalized = applyPiInvocationInspection(
+      beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 1),
+      1,
+      inspection({ entries: [{
+        ...inspection().entries[0],
+        terminalState,
+        cancellationState,
+      }] }),
+    );
+    expect(finalized.status).toBe("known");
+    expect(hasBlockingPiInvocationOccupancy(finalized)).toBe(false);
+    expect(derivePiInvocationAdmission(finalized, "journey-a")).toEqual({ allowed: true, reason: null });
+  });
+
+  it("derives same-Journey occupancy and global capacity only from open process entries", () => {
     const unknown = createUnknownPiInvocationOccupancy();
     expect(derivePiInvocationAdmission(unknown, "journey-b")).toEqual({
       allowed: false,
       reason: "inspection_unknown",
     });
 
-    const limitTwo = applyPiInvocationInspection(
+    const limitTwoWithFinalizationDebt = applyPiInvocationInspection(
       beginPiInvocationReconciliation(unknown, 1),
       1,
       inspection({ limit: 2 }),
     );
-    expect(derivePiInvocationAdmission(limitTwo, "journey-a")).toEqual({
-      allowed: false,
-      reason: "same_journey_occupied",
+    expect(derivePiInvocationAdmission(limitTwoWithFinalizationDebt, "journey-a")).toEqual({
+      allowed: true,
+      reason: null,
     });
-    expect(derivePiInvocationAdmission(limitTwo, "journey-b")).toEqual({
+    expect(derivePiInvocationAdmission(limitTwoWithFinalizationDebt, "journey-b")).toEqual({
       allowed: true,
       reason: null,
     });
@@ -141,29 +165,24 @@ describe("native Pi invocation occupancy", () => {
       harnessUserMessageId: "user-b1",
       harnessAssistantMessageId: "assistant-b1",
     };
-    const full = retainExpectedPiInvocationLease(limitTwo, authorityB);
-    expect(derivePiInvocationAdmission(full, "journey-c")).toEqual({
+    const oneActive = retainExpectedPiInvocationLease(limitTwoWithFinalizationDebt, authorityB);
+    expect(derivePiInvocationAdmission(oneActive, "journey-b")).toEqual({
       allowed: false,
-      reason: "global_capacity_reached",
+      reason: "same_journey_occupied",
+    });
+    expect(derivePiInvocationAdmission(oneActive, "journey-c")).toEqual({
+      allowed: true,
+      reason: null,
     });
   });
 
-  it("uses the same admission logic for rollback limit one", () => {
+  it("does not make released finalization debt consume a limit-one process slot", () => {
     const limitOne = applyPiInvocationInspection(
       beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 1),
       1,
       inspection(),
     );
     expect(derivePiInvocationAdmission(limitOne, "journey-b")).toEqual({
-      allowed: false,
-      reason: "global_capacity_reached",
-    });
-    const free = applyPiInvocationInspection(
-      beginPiInvocationReconciliation(limitOne, 2),
-      2,
-      inspection({ entries: [] }),
-    );
-    expect(derivePiInvocationAdmission(free, "journey-b")).toEqual({
       allowed: true,
       reason: null,
     });

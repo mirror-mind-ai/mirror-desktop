@@ -18,7 +18,7 @@ describe("inactive native attempt notice integration", () => {
   it("requires known inactive native occupancy and clears only after agent start", () => {
     expect(appSource).toContain("const showInactiveNativeAttemptNotice = shouldPresentInactiveNativeAttempt({");
     expect(appSource).toContain('occupancyKnown: piInvocationOccupancy.status === "known"');
-    expect(appSource).toContain("exactNativeLeaseActive: Boolean(selectedNativeLease)");
+    expect(appSource).toContain("exactNativeLeaseActive: Boolean(selectedActiveNativeLease)");
     const working = appSource.slice(
       appSource.indexOf('if (event.type === "run_status" && event.status === "working")'),
       appSource.indexOf('if (event.type === "context_usage")'),

@@ -130,7 +130,9 @@ describe("runtime projection component", () => {
     expect(appSource).toContain('composerTurnStatus !== "finishing"');
     expect(appSource).toContain("Resolve the preserved attempt");
     expect(appSource).toContain("No recovery action will run the agent again.");
-    expect(appSource).toContain("Native Journey lease retained");
+    expect(appSource).toContain("Terminal finalization pending");
+    expect(appSource).toContain("The agent is inactive and new messages remain available.");
+    expect(appSource).toContain("selectedActiveNativeLease?.authority.runId");
     expect(appSource).toMatch(
       /onLeaseReleased: \(\) => \{[\s\S]*?setBlockingTurnJournalRecord\(undefined\);/,
     );

@@ -63,11 +63,11 @@ Presentation projections are not an authority class. They are materialized views
 
 **Writers and readers:** `PiProcessRegistry`, `reserve_then_start()`, cancellation, inspection and release paths.
 
-**Current responsibility:** global capacity, same-Journey occupancy and retained finalization leases.
+**Current responsibility after CR057:** global active-process capacity, same-Journey active occupancy and inspectable bounded terminal finalization debt.
 
-**Current gates:** frontend availability and native reservation.
+**Current gates:** frontend availability and native reservation use only exact open `reserved` or `running` execution. Unknown inspection remains fail-closed.
 
-**Target responsibility:** own only process-local occupancy. A registry entry may block while an exact process is active or while bounded terminalization is still being completed in the same process. A relaunch cannot treat a vanished in-memory lease as durable execution authority.
+**Responsibility boundary:** own only process-local occupancy. The first exact terminal outcome releases both process capacity and Journey occupancy; a retained non-open `finalizing` entry is cleanup/settlement evidence, not admission authority. A competing reservation may safely retire that bounded debt, and remembered exact targets make late cleanup idempotent without altering a successor. A relaunch cannot treat a vanished in-memory lease as durable execution authority.
 
 ### Turn journal
 

@@ -177,6 +177,14 @@ pub struct PiInvocationLeaseInspection {
     pub terminal_state: TerminalState,
 }
 
+impl PiInvocationLeaseInspection {
+    pub fn is_active_execution(&self) -> bool {
+        self.terminal_state == TerminalState::Open
+            && matches!(self.lease_phase, JourneyLeasePhase::Reserved | JourneyLeasePhase::Running)
+            && matches!(self.process_capacity_state, ProcessCapacityState::Reserved | ProcessCapacityState::Running)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PiInvocationRegistryInspection {
@@ -258,11 +266,26 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
         provider_snapshot: P,
     ) -> Result<RunTarget, ReserveError> {
         let journey_id = authority.journey_id().to_string();
-        if self.entries.contains_key(&journey_id) {
+        let existing_is_terminal_finalization = self.entries.get(&journey_id)
+            .map(Self::is_terminal_finalization);
+        if existing_is_terminal_finalization == Some(false) {
             return Err(ReserveError::DuplicateJourney);
         }
-        if self.entries.len() >= self.limit || self.process_capacity_in_use >= self.limit {
+        if self.process_capacity_in_use >= self.limit {
             return Err(ReserveError::CapacityReached);
+        }
+        if existing_is_terminal_finalization == Some(true) {
+            self.retire_finalizing_journey(&journey_id);
+        }
+        while self.entries.len() >= self.limit {
+            let retireable_journey = self.entries.iter()
+                .filter(|(_, entry)| Self::is_terminal_finalization(entry))
+                .map(|(journey_id, _)| journey_id.clone())
+                .min();
+            let Some(retireable_journey) = retireable_journey else {
+                return Err(ReserveError::CapacityReached);
+            };
+            self.retire_finalizing_journey(&retireable_journey);
         }
         let target = RunTarget::new(&journey_id, authority.run_id());
         self.entries.insert(
@@ -368,30 +391,56 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
 
     pub fn release_lease(&mut self, target: &RunTarget) -> Result<ReleaseOutcome, TargetError> {
         let Some(entry) = self.entries.get(&target.journey_id) else {
-            return if self
-                .released_targets
-                .iter()
-                .any(|released| released == target)
-            {
+            return if self.was_released(target) {
                 Ok(ReleaseOutcome::AlreadyReleased)
             } else {
                 Err(TargetError::Missing)
             };
         };
         if entry.authority.run_id() != target.run_id {
-            return Err(TargetError::Stale);
+            return if self.was_released(target) {
+                Ok(ReleaseOutcome::AlreadyReleased)
+            } else {
+                Err(TargetError::Stale)
+            };
         }
-        if entry.lease_phase != JourneyLeasePhase::Finalizing
-            || entry.process_capacity_state != ProcessCapacityState::Released
-        {
+        if !Self::is_terminal_finalization(entry) {
             return Err(TargetError::NotFinalizing);
         }
         self.entries.remove(&target.journey_id);
-        self.released_targets.push_back(target.clone());
+        self.remember_released(target.clone());
+        Ok(ReleaseOutcome::Released)
+    }
+
+    fn is_terminal_finalization(entry: &RegistryEntry<A, C, P>) -> bool {
+        entry.lease_phase == JourneyLeasePhase::Finalizing
+            && entry.process_capacity_state == ProcessCapacityState::Released
+            && entry.terminal_state != TerminalState::Open
+    }
+
+    fn retire_finalizing_journey(&mut self, journey_id: &str) -> bool {
+        let target = self.entries.get(journey_id).and_then(|entry| {
+            Self::is_terminal_finalization(entry).then(|| {
+                RunTarget::new(entry.authority.journey_id(), entry.authority.run_id())
+            })
+        });
+        let Some(target) = target else { return false; };
+        self.entries.remove(journey_id);
+        self.remember_released(target);
+        true
+    }
+
+    fn remember_released(&mut self, target: RunTarget) {
+        if !self.was_released(&target) {
+            self.released_targets.push_back(target);
+        }
         while self.released_targets.len() > self.limit.saturating_mul(2) {
             self.released_targets.pop_front();
         }
-        Ok(ReleaseOutcome::Released)
+    }
+
+    fn was_released(&self, target: &RunTarget) -> bool {
+        self.released_targets.iter().any(|released| released == target)
     }
 
     pub fn running_child_handles(&self) -> Vec<(RunTarget, C)>
@@ -786,7 +835,7 @@ mod tests {
     }
 
     #[test]
-    fn process_capacity_releases_while_finalizing_lease_still_blocks_limit_one() {
+    fn terminal_finalization_releases_limit_one_for_an_immediate_successor() {
         let mut registry =
             PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(1).unwrap();
         let a1 = registry
@@ -804,23 +853,46 @@ mod tests {
         );
         let inspection = registry.inspect();
         assert_eq!(inspection.process_capacity_in_use, 0);
-        assert_eq!(
-            inspection.entries[0].lease_phase,
-            JourneyLeasePhase::Finalizing
-        );
-        assert_eq!(
-            registry.reserve(
-                authority("b", "b1"),
-                FakeProvider {
-                    secret: "two".into()
-                }
-            ),
-            Err(ReserveError::CapacityReached)
-        );
+        assert_eq!(inspection.entries[0].lease_phase, JourneyLeasePhase::Finalizing);
+
+        let a2 = registry.reserve(
+            authority("a", "a2"),
+            FakeProvider { secret: "two".into() },
+        ).unwrap();
+        registry.attach_child(&a2, FakeChild::default()).unwrap();
+        assert_eq!(registry.release_lease(&a1), Ok(ReleaseOutcome::AlreadyReleased));
+        assert!(registry.child_handle(&a2).is_ok());
+        assert_eq!(registry.inspect().entries[0].authority.run_id, "a2");
     }
 
     #[test]
-    fn exact_cleanup_frees_one_limit_two_slot_without_disturbing_the_other_journey() {
+    fn every_terminal_outcome_releases_same_journey_occupancy() {
+        for terminal in [
+            TerminalState::Completed,
+            TerminalState::Cancelled,
+            TerminalState::SpawnFailed,
+            TerminalState::ProcessDied,
+        ] {
+            let mut registry =
+                PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(1).unwrap();
+            let a1 = registry.reserve(
+                authority("a", "a1"),
+                FakeProvider { secret: "one".into() },
+            ).unwrap();
+            registry.attach_child(&a1, FakeChild::default()).unwrap();
+            assert_eq!(registry.terminalize(&a1, terminal), TerminalizeOutcome::First);
+            assert!(!registry.inspect().entries[0].is_active_execution());
+            let a2 = registry.reserve(
+                authority("a", "a2"),
+                FakeProvider { secret: "two".into() },
+            ).unwrap();
+            assert_eq!(registry.release_lease(&a1), Ok(ReleaseOutcome::AlreadyReleased));
+            assert_eq!(registry.inspect().entries[0].authority.run_id, a2.run_id);
+        }
+    }
+
+    #[test]
+    fn terminal_finalization_does_not_consume_capacity_or_disturb_an_active_sibling() {
         let mut registry =
             PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(2).unwrap();
         let a1 = registry.reserve(
@@ -835,20 +907,13 @@ mod tests {
         registry.attach_child(&b1, FakeChild::default()).unwrap();
         assert_eq!(registry.terminalize(&a1, TerminalState::Completed), TerminalizeOutcome::First);
         assert_eq!(registry.inspect().process_capacity_in_use, 1);
-        assert_eq!(
-            registry.reserve(
-                authority("c", "c1"),
-                FakeProvider { secret: "c".into() },
-            ),
-            Err(ReserveError::CapacityReached),
-        );
 
-        assert_eq!(registry.release_lease(&a1), Ok(ReleaseOutcome::Released));
         let c1 = registry.reserve(
             authority("c", "c1"),
             FakeProvider { secret: "c".into() },
         ).unwrap();
         registry.attach_child(&c1, FakeChild::default()).unwrap();
+        assert_eq!(registry.release_lease(&a1), Ok(ReleaseOutcome::AlreadyReleased));
         let inspection = registry.inspect();
         assert_eq!(inspection.process_capacity_in_use, 2);
         assert_eq!(
@@ -856,6 +921,7 @@ mod tests {
             vec!["b1", "c1"],
         );
         assert!(registry.child_handle(&b1).is_ok());
+        assert!(registry.child_handle(&c1).is_ok());
     }
 
     #[test]
@@ -1292,7 +1358,7 @@ mod tests {
             TerminalizeOutcome::Stale
         );
         assert_eq!(registry.request_cancel(&a1), Err(TargetError::Stale));
-        assert_eq!(registry.release_lease(&a1), Err(TargetError::Stale));
+        assert_eq!(registry.release_lease(&a1), Ok(ReleaseOutcome::AlreadyReleased));
         assert_eq!(registry.inspect(), before);
         assert_eq!(registry.inspect().entries[0].authority.run_id, a2.run_id);
     }

@@ -69,7 +69,7 @@ Validation must include completion, provider failure, cancellation, process deat
 - [CR058: Remove Post-Terminal Journal State from Conversation Admission](cr058-remove-post-terminal-journal-state-from-conversation-admission.md)
 - [CR057: Separate Native Terminalization from Journey Occupancy](cr057-separate-native-terminalization-from-journey-occupancy.md)
 
-CR057 is `planned` with Driver `@alissonvale` and Delivery `refinement/rs019-cr057-terminal-occupancy-release`. It is the selected first slice and is prepared for TDD, but implementation has not started.
+CR057 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs019-cr057-terminal-occupancy-release`. Implementation and automated gates are complete: exact native terminalization releases active occupancy, terminal debt remains bounded/inspectable, and stale cleanup cannot disturb a successor. Isolated development-app rehearsal and explicit Navigator Validation remain outstanding.
 
 CR058 is `captured` and unassigned. It removes the remaining frontend `localAdmissionReady` dependency on post-terminal journal evidence after CR057 establishes the native occupancy boundary.
 

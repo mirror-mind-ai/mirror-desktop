@@ -2,7 +2,7 @@
 
 # CR057: Separate Native Terminalization from Journey Occupancy
 
-**Status:** planned
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs019-cr057-terminal-occupancy-release`
 
@@ -111,7 +111,7 @@ The change preserves terminal evidence and narrows only occupancy authority. If 
 
 ### Authority Boundary
 
-The Navigator authorized creation of RS019, selection of CR057, Driver `@alissonvale`, Delivery `refinement/rs019-cr057-terminal-occupancy-release`, and preparation through `planned`. Implementation/TDD has not started. Push, merge, publication, release and production mutation remain separate decisions.
+The Navigator authorized creation of RS019, selection of CR057, Driver `@alissonvale`, Delivery `refinement/rs019-cr057-terminal-occupancy-release`, preparation and implementation start. Push, merge, publication, release and production mutation remain separate decisions.
 
 ## Evidence
 
@@ -120,8 +120,15 @@ The Navigator authorized creation of RS019, selection of CR057, Driver `@alisson
 - Process-local finalizing lease remained visible with released process capacity.
 - Relaunch restored successor availability without changing the Pi transcript or repairing the stale projection.
 - `PiProcessRegistry::terminalize()` sets `Finalizing` after releasing capacity.
-- `derivePiInvocationAdmission()` currently rejects when any same-Journey registry entry exists.
+- `derivePiInvocationAdmission()` previously rejected when any same-Journey registry entry existed.
+- TDD now proves all four terminal outcomes (`completed`, `cancelled`, `spawn_failed`, `process_died`) release same-Journey occupancy while retaining inspectable finalization evidence.
+- Native reservation retires terminal finalization debt only when a successor/capacity needs its slot and remembers the exact released target; late cleanup returns `already_released` without touching the successor.
+- Frontend admission and active-run correlation now classify only exact `open + reserved/running` entries as active execution; unknown inspection and true active capacity remain fail-closed.
+- Native Conversation deletion and Pi-backed delivery-recovery gates use the same active-execution classification instead of treating terminal debt as a child.
+- Focused validation: 58 TypeScript tests and 25 Rust registry tests passed.
+- Complete validation: 851 frontend tests across 155 files passed; TypeScript/Vite production build passed; 155 Rust tests passed with 1 ignored fixture; `cargo check --locked`, roadmap consistency and whitespace checks passed.
+- Stable app data, production Mirror data, providers, release state and remote repository state were not mutated.
 
 ## Outcome
 
-Planned and ready for TDD. No implementation has started.
+Implementation and automated gates are complete while CR057 remains `in_progress`. The isolated development-app successor rehearsal and explicit Navigator Validation remain outstanding; closure, push, merge, publication, release and production repair are not authorized.

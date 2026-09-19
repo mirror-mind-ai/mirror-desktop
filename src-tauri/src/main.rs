@@ -1297,9 +1297,11 @@ fn delete_desktop_conversation(
     sanitize_journey_id(&journey_id)?;
     sanitize_session_id(&conversation_id)?;
     if process.registry.lock().map_err(|_| "Pi process registry is unavailable.".to_string())?
-        .inspect().entries.iter().any(|entry| entry.authority.journey_id == journey_id)
+        .inspect().entries.iter().any(|entry| {
+            entry.authority.journey_id == journey_id && entry.is_active_execution()
+        })
     {
-        return Err("A Conversation cannot be deleted while its Journey is working or finishing.".to_string());
+        return Err("A Conversation cannot be deleted while its Journey is working.".to_string());
     }
     {
         let mut active = lifecycle.active.lock()
@@ -5224,7 +5226,9 @@ fn reconcile_pi_backed_mirror_delivery_debt(
     sanitize_journey_id(&journey_id)?;
     if process_state.registry.lock()
         .map_err(|_| "mirror_append_pi_recovery_occupancy_unavailable".to_string())?
-        .inspect().entries.iter().any(|entry| entry.authority.journey_id == journey_id)
+        .inspect().entries.iter().any(|entry| {
+            entry.authority.journey_id == journey_id && entry.is_active_execution()
+        })
     {
         return Err("mirror_append_pi_recovery_active_lease".to_string());
     }

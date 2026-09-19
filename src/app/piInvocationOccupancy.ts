@@ -272,6 +272,12 @@ export function retainExpectedPiInvocationLease(
   };
 }
 
+export function isActivePiInvocationLease(entry: PiInvocationLeaseInspection): boolean {
+  return entry.terminalState === "open"
+    && (entry.leasePhase === "reserved" || entry.leasePhase === "running")
+    && (entry.processCapacityState === "reserved" || entry.processCapacityState === "running");
+}
+
 export function derivePiInvocationAdmission(
   state: PiInvocationOccupancyState,
   journeyId: string,
@@ -279,17 +285,19 @@ export function derivePiInvocationAdmission(
   if (state.status !== "known" || state.limit === null || state.processCapacityInUse === null) {
     return { allowed: false, reason: "inspection_unknown" };
   }
-  if (state.entries.some((entry) => entry.authority.journeyId === journeyId)) {
+  if (state.entries.some((entry) => (
+    entry.authority.journeyId === journeyId && isActivePiInvocationLease(entry)
+  ))) {
     return { allowed: false, reason: "same_journey_occupied" };
   }
-  if (state.entries.length >= state.limit || state.processCapacityInUse >= state.limit) {
+  if (state.processCapacityInUse >= state.limit) {
     return { allowed: false, reason: "global_capacity_reached" };
   }
   return { allowed: true, reason: null };
 }
 
 export function hasBlockingPiInvocationOccupancy(state: PiInvocationOccupancyState): boolean {
-  return state.status !== "known" || state.entries.length > 0;
+  return state.status !== "known" || state.entries.some(isActivePiInvocationLease);
 }
 
 function sameRecoveryAuthority(

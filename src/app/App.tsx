@@ -62,6 +62,7 @@ import {
   derivePiInvocationAdmission,
   failPiInvocationReconciliation,
   hasBlockingPiInvocationOccupancy,
+  isActivePiInvocationLease,
   piInvocationAuthorityFromRunAuthority,
   releaseAndReinspectPiInvocationLease,
   resolveExactSettlementRecovery,
@@ -770,8 +771,11 @@ export function App({ model }: AppProps) {
   const selectedNativeLease = piInvocationOccupancy.entries.find((entry) => (
     entry.authority.journeyId === selectedJourney
   ));
-  const blockingTurnAwaitingNativeLease = Boolean(blockingTurnJournalRecord && selectedNativeLease);
-  const retainedLeaseWithoutRecovery = selectedNativeLease
+  const selectedActiveNativeLease = selectedNativeLease && isActivePiInvocationLease(selectedNativeLease)
+    ? selectedNativeLease
+    : undefined;
+  const blockingTurnAwaitingNativeLease = Boolean(blockingTurnJournalRecord && selectedActiveNativeLease);
+  const retainedLeaseWithoutRecovery = selectedNativeLease?.leasePhase === "finalizing"
     && !selectedRuntimeBusy
     && !exactRetainedSettlementRecovery;
   const pendingMirrorOutboxItem = mirrorOutboxItems.find((item) => item.itemId === pendingMirrorRepair?.correlation.turnId);
@@ -830,7 +834,7 @@ export function App({ model }: AppProps) {
         terminalOutcome: blockingTurnJournalRecord.terminalOutcome,
         hasFreshCompletePiEvidence: hasFreshCompleteTurnJournalEvidence(blockingTurnJournalRecord),
         exactRunInactive: piInvocationOccupancy.status === "known"
-          && !selectedNativeLease
+          && !selectedActiveNativeLease
           && !selectedRuntimeBusy,
       }
     : undefined;
@@ -852,7 +856,7 @@ export function App({ model }: AppProps) {
     generation: conversation.liveIdentity.generation,
     piSessionId: conversation.liveIdentity.piSessionId,
     occupancyKnown: piInvocationOccupancy.status === "known",
-    exactNativeLeaseActive: Boolean(selectedNativeLease),
+    exactNativeLeaseActive: Boolean(selectedActiveNativeLease),
     selectedRuntimeBusy,
     isStreaming,
   });
@@ -936,32 +940,32 @@ export function App({ model }: AppProps) {
   }, []);
 
   useEffect(() => {
-    if (!shouldRehydratePiProcessRoute(selectedNativeLease, selectedRuntimeBusy)
-      || !selectedNativeLease
+    if (!shouldRehydratePiProcessRoute(selectedActiveNativeLease, selectedRuntimeBusy)
+      || !selectedActiveNativeLease
       || !conversationLoaded
       || journeyThreadState.kind !== "ready"
-      || selectedNativeLease.authority.generation !== conversation.liveIdentity.generation) return;
+      || selectedActiveNativeLease.authority.generation !== conversation.liveIdentity.generation) return;
     const evidence = conversation.reconciliation.turns.find((turn) => (
-      turn.turnId === selectedNativeLease.authority.turnId
-      && turn.runId === selectedNativeLease.authority.runId
-      && turn.harness.userMessageId === selectedNativeLease.authority.harnessUserMessageId
-      && turn.harness.assistantMessageId === selectedNativeLease.authority.harnessAssistantMessageId
+      turn.turnId === selectedActiveNativeLease.authority.turnId
+      && turn.runId === selectedActiveNativeLease.authority.runId
+      && turn.harness.userMessageId === selectedActiveNativeLease.authority.harnessUserMessageId
+      && turn.harness.assistantMessageId === selectedActiveNativeLease.authority.harnessAssistantMessageId
     ));
     if (!evidence) return;
     try {
       const correlation = createDedicatedTurnAuthority(
         journeyThreadState.thread,
-        selectedNativeLease.authority.runId,
-        selectedNativeLease.authority.turnId,
-        selectedNativeLease.authority.harnessUserMessageId,
-        selectedNativeLease.authority.harnessAssistantMessageId,
+        selectedActiveNativeLease.authority.runId,
+        selectedActiveNativeLease.authority.turnId,
+        selectedActiveNativeLease.authority.harnessUserMessageId,
+        selectedActiveNativeLease.authority.harnessAssistantMessageId,
       );
       const recoveredAuthority = createRunAuthority(
         correlation,
         conversation.liveIdentity,
         journeyThreadState.activeGeneration,
       );
-      if (!samePiProcessEventAuthority(selectedNativeLease.authority, recoveredAuthority)) return;
+      if (!samePiProcessEventAuthority(selectedActiveNativeLease.authority, recoveredAuthority)) return;
       void piProcessEventDispatcher.rehydrate(recoveredAuthority, (event) => {
         if (event.kind === "done") void reconcilePiInvocationOccupancy();
       }).catch(() => {
@@ -974,7 +978,7 @@ export function App({ model }: AppProps) {
     } catch {
       dispatchJourneyRuntime({
         type: "append_warning",
-        journeyId: selectedNativeLease.authority.journeyId,
+        journeyId: selectedActiveNativeLease.authority.journeyId,
         message: "settlement_authority_mismatch",
       });
     }
@@ -982,7 +986,7 @@ export function App({ model }: AppProps) {
     conversation,
     conversationLoaded,
     journeyThreadState,
-    selectedNativeLease,
+    selectedActiveNativeLease,
     selectedRuntimeBusy,
   ]);
 
@@ -1415,7 +1419,7 @@ export function App({ model }: AppProps) {
           ownerJourneyId,
           activeGeneration,
           journeyThreadState.thread.threadId,
-          selectedNativeLease?.authority.runId,
+          selectedActiveNativeLease?.authority.runId,
         );
         if (!blockingRecord) {
           setBlockingTurnJournalRecord(undefined);
@@ -2991,7 +2995,7 @@ export function App({ model }: AppProps) {
         ownerJourneyId,
         previousGeneration,
         journeyThreadState.thread.threadId,
-        selectedNativeLease?.authority.runId,
+        selectedActiveNativeLease?.authority.runId,
       );
       if (blockingRecord) {
         setBlockingTurnJournalRecord(blockingRecord);
@@ -3178,7 +3182,7 @@ export function App({ model }: AppProps) {
           ownerJourneyId,
           activeGeneration,
           journeyThreadState.thread.threadId,
-          selectedNativeLease?.authority.runId,
+          selectedActiveNativeLease?.authority.runId,
         ),
       );
       setTurnRecoveryNotice("The durable attempt was preserved. You can continue without the unverified response.");
@@ -4781,9 +4785,9 @@ export function App({ model }: AppProps) {
             </section>
           ) : null}
           {retainedLeaseWithoutRecovery ? (
-            <section className="dedicated-turn-notice" role="alert">
-              <strong>Native Journey lease retained</strong>
-              <p>Operational actions remain blocked because persisted evidence does not authorize cleanup or recovery for this exact run.</p>
+            <section className="dedicated-turn-notice" role="status">
+              <strong>Terminal finalization pending</strong>
+              <p>The agent is inactive and new messages remain available. Preserved finalization debt will continue through its exact recovery path.</p>
             </section>
           ) : null}
           {showConversationRecoveryNotice ? (
