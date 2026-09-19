@@ -127,8 +127,15 @@ The Navigator authorized creation of RS019, selection of CR057, Driver `@alisson
 - Native Conversation deletion and Pi-backed delivery-recovery gates use the same active-execution classification instead of treating terminal debt as a child.
 - Focused validation: 58 TypeScript tests and 25 Rust registry tests passed.
 - Complete validation: 851 frontend tests across 155 files passed; TypeScript/Vite production build passed; 155 Rust tests passed with 1 ignored fixture; `cargo check --locked`, roadmap consistency and whitespace checks passed.
-- Stable app data, production Mirror data, providers, release state and remote repository state were not mutated.
+- Authorized isolated DEV rehearsal passed on disposable Journey `us1-rerun-a-0831us1-rerun-a-0831` in one unrestarted debug-app process (`PID 68014`):
+  - run `agent-run-2026-09-19T20:17:46.894Z` completed after an exact child (`PID 70991`) executed `sleep 15` and produced `CR057 FIRST`;
+  - temporary DEV-only projection-directory mode `500` forced `dedicated_projection_unavailable`, leaving the run at `terminal_durable / completed / resume_projection` while the Composer became available;
+  - after restoring the original directory mode `755`, the same window admitted successor `agent-run-2026-09-19T20:18:55.279Z` without relaunch and rendered `CR057 SECOND`;
+  - the successor reached `settled / completed / complete`; the older run advanced independently to bounded `outbox_enqueued / completed / complete` debt;
+  - final direct DEV child count was zero and the DEV process chain was stopped explicitly.
+- Rehearsal artifacts are under `/tmp/rs019-cr057-dev-20260919T200538Z/`, including pre-successor journal authority, post-successor journal state and screenshots of the failure and settled successor.
+- Stable app data remained byte-identical across 135 files (`49fecded26a17aac699014f8e81b996df4e9575ade5051efb1df1b290e7d334b`). Production Mirror remained unchanged at 984 conversations and 44,159 messages. Release state and remote repository state were not mutated.
 
 ## Outcome
 
-Implementation and automated gates are complete while CR057 remains `in_progress`. The isolated development-app successor rehearsal and explicit Navigator Validation remain outstanding; closure, push, merge, publication, release and production repair are not authorized.
+Implementation, automated gates and the isolated same-process DEV successor rehearsal are complete while CR057 remains `in_progress`. Explicit Navigator acceptance remains outstanding; closure, push, merge, publication, release and production repair are not authorized.
