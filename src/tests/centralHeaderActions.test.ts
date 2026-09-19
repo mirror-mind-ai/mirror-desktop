@@ -14,15 +14,21 @@ describe("central header actions", () => {
     expect(appStyles).not.toContain(".grammar-panel");
   });
 
-  it("keeps one accessible shortcut back to the active Journey conversation", () => {
+  it("keeps accessible conversation controls ahead of the Journey menu", () => {
     expect(appSource).toContain("function showConversation()");
     expect(appSource).toContain('setSelectedAltitude("operational")');
     expect(appSource).toContain('setSelectedOperationalSurface("chat")');
-    expect(appSource).toContain('aria-label="Go to conversation"');
-    expect(appSource).toContain('title="Conversation"');
+    expect(appSource).toContain('aria-label="Search active conversation"');
+    expect(appSource).toContain('aria-label="Navigate active conversation turns"');
+    expect(appSource).toContain('title="Search conversation"');
+    expect(appSource).toContain('title="Navigate turns"');
     expect(appSource).toContain("chatEndRef.current?.scrollIntoView");
-    expect(appSource).toContain('aria-current={operationalChatSelected ? "location" : undefined}');
-    expect(appSource.indexOf('aria-label="Go to conversation"')).toBeLessThan(
+    expect(appSource).toContain("aria-pressed={conversationSearchOpen}");
+    expect(appSource).toContain("aria-pressed={conversationTurnNavigatorOpen}");
+    expect(appSource.indexOf('aria-label="Search active conversation"')).toBeLessThan(
+      appSource.indexOf('aria-label="Journey conversation menu"'),
+    );
+    expect(appSource.indexOf('aria-label="Navigate active conversation turns"')).toBeLessThan(
       appSource.indexOf('aria-label="Journey conversation menu"'),
     );
   });

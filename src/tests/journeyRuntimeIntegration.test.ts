@@ -137,7 +137,7 @@ describe("Journey runtime integration guardrails", () => {
       'if (event.type === "run_status" && event.status === "working")',
       'if (event.type === "context_usage")',
     );
-    expect(admitted).toContain("persistOwnerComposerDraft(\"\")");
+    expect(admitted).toContain("persistOwnerComposerDraft(\"\", true)");
     expect(admitted).toContain("saveAdmittedTurnProjection(stagedConversation, settlementAuthority)");
     expect(generation.indexOf("saveAdmittedTurnProjection(stagedConversation, settlementAuthority)")).toBeGreaterThan(
       generation.indexOf("for await (const event of provider(packet))"),

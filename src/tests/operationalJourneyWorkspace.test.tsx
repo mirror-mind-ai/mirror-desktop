@@ -81,7 +81,8 @@ describe("Operational Journey workspace", () => {
     expect(appSource).toContain("useState<OperationalSurface>(\"chat\")");
     expect(appSource).not.toContain("headerExpanded");
     expect(appSource).not.toContain("rightPanelCollapsed");
-    expect(appSource).toContain('aria-label="Go to conversation"');
+    expect(appSource).toContain('aria-label="Search active conversation"');
+    expect(appSource).toContain('aria-label="Navigate active conversation turns"');
     expect(appSource).toContain("void generatePacket(\"live\")");
     expect(appSource).not.toContain("dangerouslySetInnerHTML");
   });
