@@ -48,7 +48,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR057](rs019-post-terminal-continuity/cr057-separate-native-terminalization-from-journey-occupancy.md) | RS019 | Separate Native Terminalization from Journey Occupancy | in_progress | @alissonvale | `refinement/rs019-cr057-terminal-occupancy-release` |
+| 1 | [CR057](rs019-post-terminal-continuity/cr057-separate-native-terminalization-from-journey-occupancy.md) | RS019 | Separate Native Terminalization from Journey Occupancy | validated | @alissonvale | `refinement/rs019-cr057-terminal-occupancy-release` |
 | 2 | [CR058](rs019-post-terminal-continuity/cr058-remove-post-terminal-journal-state-from-conversation-admission.md) | RS019 | Remove Post-Terminal Journal State from Conversation Admission | captured | — | — |
 | 3 | [CR059](rs019-post-terminal-continuity/cr059-make-post-terminal-settlement-independent-and-run-scoped.md) | RS019 | Make Post-Terminal Settlement Independent and Run-Scoped | captured | — | — |
 | 4 | [CR060](rs019-post-terminal-continuity/cr060-rehearse-non-blocking-post-terminal-continuity.md) | RS019 | Rehearse Non-Blocking Post-Terminal Continuity | captured | — | — |
