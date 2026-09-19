@@ -147,7 +147,12 @@ The Navigator selected CR059, confirmed Driver `@alissonvale` plus Delivery `ref
 - Rust regression: 157 tests passed, 1 ignored; `cargo check --locked` passed.
 - Workspace `cargo fmt --check` still reports pre-existing formatting debt in untouched Rust files; CR059 additions in `src-tauri/src/main.rs` were kept locally rustfmt-shaped without expanding scope.
 - Roadmap consistency and whitespace checks passed.
+- Isolated DEV rehearsal ran in one unrestarted process (`PID 94320`) with existing exact A delivery debt retained from CR057 and an already persisted CR058 successor visible.
+- A new successor (`agent-run-2026-09-19T21:53:43.483Z`) was admitted without relaunch, rendered `CR059 SUCCESSOR` and reached local `outbox_enqueued / completed / complete` while the older A debt remained independently inspectable.
+- With both Mirror operations unavailable, the UI aggregated `2 Mirror settlement operations need attention.`, preserved the CR059 successor transcript and kept the Composer available. Retrying the selected exact operation did not clear or replace the older debt when delivery remained unavailable.
+- DEV rehearsal evidence is stored under `/tmp/rs019-cr059-dev-20260919T214756Z/`. Stable app data remained byte-identical across 135 files with SHA-256 `7a4582496c5b2924435f70cf373dc4b9617791e8162c9d4ea52cc85271904c95`; no stable app-data mutation occurred.
+- The successful late-A receipt-save race is established by the native tests rather than this outage rehearsal: the available retained DEV debt lacks a recoverable committed harness projection, so the rehearsal intentionally did not manufacture or rewrite authority to force success.
 
 ## Outcome
 
-Implementation and automated validation are complete. Isolated DEV rehearsal and explicit Navigator Validation remain required before CR059 can close.
+Implementation, automated validation and the proportional isolated DEV rehearsal are complete. Explicit Navigator Validation remains required before CR059 can close.
