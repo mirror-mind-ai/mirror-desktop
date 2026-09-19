@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS019 — Post-Terminal Continuity
-- Change Request: none — CR057 is closed and no successor has been selected
+- Change Request: CR058 — Remove Post-Terminal Journal State from Conversation Admission
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
