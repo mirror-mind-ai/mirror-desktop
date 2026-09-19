@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS019 — Post-Terminal Continuity
-- Change Request: —
+- Change Request: CR059 — Make Post-Terminal Settlement Independent and Run-Scoped
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
