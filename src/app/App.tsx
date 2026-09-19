@@ -820,7 +820,6 @@ export function App({ model }: AppProps) {
   const conversationAvailability = decideConversationAvailability({
     runtimeBindingReady,
     conversationAuthorityReady: journeyThreadState.kind === "ready",
-    localAdmissionReady: !blockingTurnJournalRecord,
     sameConversationExecutionActive: Boolean(runStartReservation) || selectedRuntimeBusy,
     nativeAdmission: piInvocationPresentation.allowed ? "allowed" : piInvocationPresentation.reason,
     recoveryInspectionActive: turnRecoveryBusy || isJourneyReloading,
@@ -1854,7 +1853,7 @@ export function App({ model }: AppProps) {
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
     const content = (retryContent ?? draft).trim();
     const invocationAdmissionBlocked = mode === "live"
-      ? selectedInvocationAdmissionBlocked || turnRecoveryBusy || Boolean(blockingTurnJournalRecord)
+      ? selectedInvocationAdmissionBlocked || turnRecoveryBusy
       : selectedRuntimeBusy;
     if (!content || fileAttachmentError || journeyThreadState.kind !== "ready" || invocationAdmissionBlocked || runStartReservationRef.current || (mode === "live" && (providerErrors.length > 0 || agentSettingsState !== "ready"))) {
       return;

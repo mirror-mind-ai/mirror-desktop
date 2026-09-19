@@ -2,7 +2,7 @@
 
 # CR058: Remove Post-Terminal Journal State from Conversation Admission
 
-**Status:** planned
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs019-cr058-journal-admission-release`
 
@@ -111,7 +111,7 @@ The change removes an obsolete frontend admission input and hidden duplicate gua
 
 ### Authority Boundary
 
-The Navigator selected CR058 and confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr058-journal-admission-release`. Planning is authorized through `planned`. Implementation/TDD, push, merge, publication, release, production mutation and CR059/CR060 work remain separate decisions.
+The Navigator selected CR058, confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr058-journal-admission-release`, and authorized implementation/TDD. Push, merge, publication, release, production mutation and CR059/CR060 work remain separate decisions.
 
 ## Evidence
 
@@ -119,9 +119,14 @@ The Navigator selected CR058 and confirmed Driver `@alissonvale` plus Delivery `
 - `decideConversationAvailability()` still accepts `localAdmissionReady` and maps false to `local_admission_unavailable`.
 - `App.tsx` still passes `localAdmissionReady: !blockingTurnJournalRecord`.
 - `generatePacket("live")` independently includes `Boolean(blockingTurnJournalRecord)` after canonical availability is computed.
-- Recovery-route derivation already accepts journal evidence separately and can remain model-free.
+- Recovery-route derivation already accepts journal evidence separately and remains model-free.
 - CR057's forced DEV projection failure proved a complete terminal answer and immediate same-process successor without production mutation.
+- TDD removed `localAdmissionReady`, `local_admission_unavailable` and `repair_local_admission`, then removed the independent `Boolean(blockingTurnJournalRecord)` live-submission guard.
+- Focused availability coverage table-drives `terminal_durable`, `projected`, `outbox_enqueued`, `settled` and `interrupted` debt while App source-contract coverage proves retained recovery evidence is absent from submission admission.
+- Frontend regression: 856 tests passed across 155 files.
+- TypeScript/Vite production build, roadmap consistency, RS019 relative links and whitespace validation passed.
+- No native source changed; Rust behavior remains the CR057 terminal-occupancy boundary.
 
 ## Outcome
 
-Planned and ready for TDD. No CR058 implementation has started.
+Implementation and automated validation are complete. Isolated DEV rehearsal and explicit Navigator Validation remain required before CR058 can close.

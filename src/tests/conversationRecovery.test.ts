@@ -6,7 +6,6 @@ import { decideConversationRecoveryRoutes } from "../domain/conversationRecovery
 const availability = decideConversationAvailability({
   runtimeBindingReady: true,
   conversationAuthorityReady: true,
-  localAdmissionReady: true,
   sameConversationExecutionActive: false,
   nativeAdmission: "allowed",
   recoveryInspectionActive: false,

@@ -16,9 +16,6 @@ export function composerPlaceholder({
   if (availabilityCondition === "conversation_authority_unavailable") {
     return "This conversation authority must be inspected before another message can be sent.";
   }
-  if (availabilityCondition === "local_admission_unavailable") {
-    return "The previous local turn must be made safe before another message can be sent.";
-  }
   if (availabilityCondition === "recovery_inspection") {
     return "Mirror Desktop is checking whether a new turn can be persisted safely.";
   }

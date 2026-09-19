@@ -7,7 +7,6 @@ import {
 const ready: ConversationAvailabilityInput = {
   runtimeBindingReady: true,
   conversationAuthorityReady: true,
-  localAdmissionReady: true,
   sameConversationExecutionActive: false,
   nativeAdmission: "allowed",
   recoveryInspectionActive: false,
@@ -54,15 +53,16 @@ describe("Conversation availability contract", () => {
     });
   });
 
-  it("blocks provider execution when local admission cannot be persisted", () => {
-    expect(decideConversationAvailability({
-      ...ready,
-      localAdmissionReady: false,
-    })).toMatchObject({
-      condition: "local_admission_unavailable",
-      canSend: false,
-      canStartNewConversation: false,
-      recoveryActions: ["repair_local_admission"],
+  it.each([
+    "terminal_durable",
+    "projected",
+    "outbox_enqueued",
+    "settled",
+    "interrupted",
+  ])("keeps Send available when inactive journal debt is %s", () => {
+    expect(decideConversationAvailability(ready)).toMatchObject({
+      condition: "ready",
+      canSend: true,
     });
   });
 

@@ -71,6 +71,14 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).not.toContain("Restart conversation?");
   });
 
+  it("keeps journal recovery evidence outside Conversation submission admission", () => {
+    const generation = sourceBetween("async function generatePacket", "async function startSelectedJourney");
+    expect(appSource).not.toContain("localAdmissionReady");
+    expect(generation).not.toContain("Boolean(blockingTurnJournalRecord)");
+    expect(generation).toContain("selectedInvocationAdmissionBlocked || turnRecoveryBusy");
+    expect(appSource).toContain("blockingTurn: blockingRecoveryEvidence");
+  });
+
   it("keeps ordinary occupancy silent and disables Send when capacity refusal is known", () => {
     expect(appSource).not.toContain("derivePiInvocationCapacityPresentation");
     expect(appSource).not.toContain("ConcurrentTurnCapacityNotice");

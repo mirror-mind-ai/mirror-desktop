@@ -9,7 +9,6 @@ export type ConversationAvailabilityCondition =
   | "sync_pending"
   | "runtime_unbound"
   | "conversation_authority_unavailable"
-  | "local_admission_unavailable"
   | "live_turn"
   | "native_authority_unknown"
   | "native_capacity_full"
@@ -19,7 +18,6 @@ export type ConversationAvailabilityCondition =
 export type ConversationRecoveryAction =
   | "configure_runtime"
   | "inspect_conversation_authority"
-  | "repair_local_admission"
   | "wait_for_live_turn"
   | "inspect_native_authority"
   | "wait_for_native_capacity"
@@ -30,7 +28,6 @@ export type ConversationRecoveryAction =
 export interface ConversationAvailabilityInput {
   runtimeBindingReady: boolean;
   conversationAuthorityReady: boolean;
-  localAdmissionReady: boolean;
   sameConversationExecutionActive: boolean;
   nativeAdmission: NativeConversationAdmission;
   recoveryInspectionActive: boolean;
@@ -69,9 +66,6 @@ export function decideConversationAvailability(
 ): ConversationAvailability {
   if (!input.conversationAuthorityReady) {
     return blocked("conversation_authority_unavailable", "inspect_conversation_authority");
-  }
-  if (!input.localAdmissionReady) {
-    return blocked("local_admission_unavailable", "repair_local_admission");
   }
   if (input.sameConversationExecutionActive) {
     return blocked("live_turn", "wait_for_live_turn");

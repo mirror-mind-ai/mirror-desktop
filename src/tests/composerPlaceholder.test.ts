@@ -24,15 +24,11 @@ describe("composer placeholder", () => {
       .toBe("Prepare your next message. You can send it after this turn is recorded.");
   });
 
-  it("names the authority or local durability boundary instead of generic restoration", () => {
+  it("names the conversation authority boundary instead of generic restoration", () => {
     expect(composerPlaceholder({
       ...ready,
       availabilityCondition: "conversation_authority_unavailable",
     })).toBe("This conversation authority must be inspected before another message can be sent.");
-    expect(composerPlaceholder({
-      ...ready,
-      availabilityCondition: "local_admission_unavailable",
-    })).toBe("The previous local turn must be made safe before another message can be sent.");
   });
 
   it("keeps synchronization debt from replacing ordinary ready copy", () => {
