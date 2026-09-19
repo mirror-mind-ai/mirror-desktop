@@ -2,7 +2,7 @@
 
 # CR060: Rehearse Non-Blocking Post-Terminal Continuity
 
-**Status:** planned
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs019-cr060-post-terminal-rehearsal`
 
@@ -120,7 +120,15 @@ The Navigator selected CR060, confirmed Driver `@alissonvale` plus Delivery `ref
 - CR058 proved retained journal phases do not participate in `canSend`.
 - CR059 proved exact late receipt merge and run-scoped diagnostic publication while a successor exists.
 - RS018 supplies a bounded DEV app-data sandbox, terminal-window watcher and Pi-backed endurance fixture that can be reused without exposing content.
+- TDD began with a missing `rs019_post_terminal_matrix.mjs` module and then established an exact 28-coordinate validator with bounded file input, exact-key parsing, DEV-only app identity, invariant enforcement and count/digest-only output.
+- The composed matrix executes all 4 terminal outcomes × 7 secondary frontiers through the production occupancy and availability functions. Every terminal lease is non-blocking, Mirror-shaped debt remains `sync_pending` with `canSend: true`, and successor active execution remains exact and blocking only while open.
+- Cross-run tests prove exact diagnostics clear independently and old cleanup followed by fresh inspection preserves a successor. Cross-Journey tests prove terminal debt consumes no process capacity while four real active executions still produce `global_capacity_reached`.
+- Relaunch-style tests rebuild both turns from Pi evidence, discard stale projection messages and perform zero provider calls.
+- `npm run rehearsal:rs019:validate -- /tmp/rs019-cr060-matrix-fixture.json` accepted all 28 coordinates and emitted digest `b98e168bb5e7ebaf4c3713e35a79940d6b6940f0f2d62fc3aca89559446670b3` without scenario content.
+- Focused continuity and dependency suites passed 96 tests across 8 files. The complete frontend suite passed 899 tests across 158 files, and the TypeScript/Vite production build passed with only the existing chunk-size warning.
+- Rust regression passed 157 tests with 1 explicitly ignored private fixture; `cargo check --locked` passed. No Rust source changed.
+- Roadmap consistency and whitespace checks passed.
 
 ## Outcome
 
-Plan approved for implementation. TDD begins with the bounded matrix validator and then composes the accepted CR057–CR059 authority functions across all required coordinates.
+Implementation and automated validation are complete. The separately authorized isolated DEV matrix and explicit Navigator Validation remain required before CR060 or RS019 can close.
