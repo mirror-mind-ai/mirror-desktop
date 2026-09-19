@@ -3,8 +3,8 @@
 # CR060: Rehearse Non-Blocking Post-Terminal Continuity
 
 **Status:** captured
-**Driver:** —
-**Delivery:** —
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs019-cr060-post-terminal-rehearsal`
 
 ## Problem
 
@@ -42,7 +42,7 @@ RS019 cannot close until this matrix passes in tests and an isolated development
 
 ## Authority Boundary
 
-The Navigator selected CR060 as the next Workbench focus after closing CR059. Selection changes focus only: CR060 remains `captured` and unassigned. Driver, Delivery, planning, implementation/TDD, DEV mutation, validation, push, merge, publication and release require separate decisions.
+The Navigator selected CR060 as the next Workbench focus after closing CR059 and confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr060-post-terminal-rehearsal`. CR060 remains `captured`; planning, status advancement, implementation/TDD, DEV mutation, validation, push, merge, publication and release require separate decisions.
 
 ## Boundaries
 

@@ -75,6 +75,6 @@ CR058 is `done`. The Navigator accepted its automated and same-process DEV valid
 
 CR059 is `done` with Driver `@alissonvale` and Delivery `refinement/rs019-cr059-run-scoped-settlement`. The Navigator accepted the native exact-receipt merge, successor-safe frontend publication, run-scoped settlement diagnostics, automated gates and proportional isolated DEV rehearsal. Its proportionality/debt review concluded `no_action`, and terminal closure was explicitly authorized.
 
-CR060 is selected as the current focus and remains `captured` and unassigned. It supplies the release-shaped failure matrix required before RS019 closure; Driver, Delivery and planning remain separate decisions.
+CR060 is selected as the current focus and remains `captured`, with Driver `@alissonvale` and Delivery `refinement/rs019-cr060-post-terminal-rehearsal`. It supplies the release-shaped failure matrix required before RS019 closure; planning and status advancement remain separate decisions.
 
 CR056 is promoted from RS016 to RS019 / CR057 as production evidence of completed terminal evidence being misclassified as retained occupancy.
