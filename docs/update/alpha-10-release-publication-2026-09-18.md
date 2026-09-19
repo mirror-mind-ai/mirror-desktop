@@ -113,7 +113,35 @@ Remote byte verification matched local or staged bytes:
 
 ## Git And GitHub Publication
 
-Pending in this evidence revision until the commit is pushed, the immutable tag is created, and the GitHub prerelease is published.
+The completed source and endpoint evidence were pushed to `origin/main`.
+
+Annotated tag object:
+
+```text
+8f104c0f7871f2ff15cd330420f8d93dcfa7e50e
+```
+
+Annotated tag `v0.2.0-alpha.10` resolves to endpoint-evidence revision:
+
+```text
+94c0f416bb802bfeb32c09babdd5e63c59972687
+```
+
+GitHub prerelease:
+
+```text
+https://github.com/mirror-mind-ai/mirror-desktop/releases/tag/v0.2.0-alpha.10
+```
+
+GitHub reports a non-draft prerelease published at `2026-09-19T03:00:59Z`. Downloaded copies of all three assets match the local candidate SHA-256 digests and byte counts:
+
+- `Mirror.Desktop_0.2.0-alpha.10_x64.dmg` — `ed4156f5a30ed33254ddf194ec10c8ffe8ac9ff12768b163efdf7923b1bf2e7e`, 7,066,254 bytes.
+- `Mirror.Desktop.app.tar.gz` — `88d01172754ba410c24b58b45c0b2bc9b3e023fb8583b3f6a3565a381f5b3337`, 7,045,643 bytes.
+- `Mirror.Desktop.app.tar.gz.sig` — `834bc6b88c18fc31f4cd407e487e66bd6b06525ece5b315a9c2b3c85a181b6a9`, 416 bytes.
+
+The tag is annotated but not GPG-signed. Artifact trust remains the separate updater-signature contract. This repository reported no GitHub Actions workflow runs for the pushed `main` revision or tag, so there was no remote workflow run to await; the governed local gates above remain the release evidence.
+
+A final evidence-only commit records this GitHub publication result after the immutable tag revision.
 
 ## Explicit Boundary
 
