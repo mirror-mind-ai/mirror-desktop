@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.11 — Conversation Search and Close Safety](v0.2.0-alpha.11.md) — adds active Conversation search, user-turn navigation, coalesced Composer draft persistence, and explicit close safety while preserving transcript authority.
 - [v0.2.0-alpha.10 — Terminal-Aligned Conversation Continuity](v0.2.0-alpha.10.md) — makes Pi JSONL the transcript authority, rebuilds Desktop Conversation views from exact native evidence, and keeps Mirror delivery model-free and non-blocking across outages, relaunches, concurrent Journeys, and deleted caches.
 - [v0.2.0-alpha.9 — Reliable Agent Access](v0.2.0-alpha.9.md) — keeps the agent available after durable local completion, adds explicit model-free recovery, permits intended cross-Journey source material, and restores readable light-theme Conversation controls.
 - [v0.2.0-alpha.8 — Multiple Conversations per Journey](v0.2.0-alpha.8.md) — adds multiple Conversations inside each Journey, actionable Mirror history, safe handoffs, compaction-aligned Segments, explicit Conversation naming, and unified detail surfaces.
