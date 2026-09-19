@@ -48,7 +48,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR059](rs019-post-terminal-continuity/cr059-make-post-terminal-settlement-independent-and-run-scoped.md) | RS019 | Make Post-Terminal Settlement Independent and Run-Scoped | captured | — | — |
+| 1 | [CR059](rs019-post-terminal-continuity/cr059-make-post-terminal-settlement-independent-and-run-scoped.md) | RS019 | Make Post-Terminal Settlement Independent and Run-Scoped | planned | @alissonvale | `refinement/rs019-cr059-run-scoped-settlement` |
 | 2 | [CR060](rs019-post-terminal-continuity/cr060-rehearse-non-blocking-post-terminal-continuity.md) | RS019 | Rehearse Non-Blocking Post-Terminal Continuity | captured | — | — |
 | 3 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
 | 4 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
