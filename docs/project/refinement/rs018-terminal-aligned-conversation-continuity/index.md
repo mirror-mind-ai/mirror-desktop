@@ -2,7 +2,7 @@
 
 # RS018: Terminal-Aligned Conversation Continuity
 
-**Status:** active
+**Status:** closed
 
 ## Framing
 
@@ -47,7 +47,17 @@ The story is not complete when isolated unit tests pass. Closure requires sustai
 
 ## Acceptance Review
 
-The [2026-09-18 final acceptance review](acceptance-review-2026-09-18.md) concludes that the authority redesign is accepted but RS018 is not yet ready for closure. Release-shaped composed evidence remains for real Pi compaction, Mirror outage/restoration, the post-native/pre-delivery termination window, concurrent live DEV Journeys and destructive copied-cache reconstruction.
+The [2026-09-18 final acceptance review](acceptance-review-2026-09-18.md) first held RS018 open for release-shaped evidence. CR049, CR050 and CR051 then completed that acceptance route: supported-model baseline, multi-turn Mirror outage/restoration, post-native/pre-delivery termination, exact model-free repair, concurrent DEV Journeys, copied-cache deletion, Pi reconstruction and full relaunch continuity. The Navigator accepted CR049 and explicitly authorized RS018 closure on 2026-09-18.
+
+## Closure
+
+RS018 is closed on 2026-09-18.
+
+The accepted design now matches the terminal authority shape: Pi JSONL owns transcript continuity; native occupancy alone blocks successors; Desktop projections and Segments are rebuildable views; turn journal and outbox preserve lifecycle and Mirror delivery debt without becoming transcript authority; Mirror delivery remains model-free and non-blocking; reconstruction, repair and relaunch never retry the provider implicitly.
+
+Proportionality review: proportional. The story migrated one authority boundary at a time, split defects into CR050 and CR051 rather than masking them, and used private-data-free release-shaped evidence before closure.
+
+Debt review: `no_action`. Production Flip Podcast recovery, release/promotion, publication, push/merge and production mutation are separate Navigator decisions after RS018; they are not closure debt for the story.
 
 ## Change Requests
 
@@ -66,7 +76,7 @@ The [2026-09-18 final acceptance review](acceptance-review-2026-09-18.md) conclu
 
 CR050 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr050-failed-native-leaf-evidence`. The Navigator accepted exact failed-assistant-leaf reconstruction, single-notice presentation and full relaunch on 2026-09-18. Proportionality review found the ephemeral active-branch correction appropriately local; Debt Review concluded `no_action`. CR049 resumption remains a separate explicit decision.
 
-CR051 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr051-pi-backed-terminal-delivery-repair`. The Navigator accepted exact inactive stale-journal recovery, legacy-debt promotion, idempotent Pi-backed Mirror settlement and full relaunch continuity on 2026-09-18. Proportionality review found the native journal/outbox extension appropriately local; Debt Review concluded `no_action`. CR049 resumption remains a separate explicit decision.
+CR051 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr051-pi-backed-terminal-delivery-repair`. The Navigator accepted exact inactive stale-journal recovery, legacy-debt promotion, idempotent Pi-backed Mirror settlement and full relaunch continuity on 2026-09-18. Proportionality review found the native journal/outbox extension appropriately local; Debt Review concluded `no_action`.
 
 CR049 is `done` with Driver `@alissonvale` and Delivery `refinement/rs018-cr049-release-shaped-acceptance`. The Navigator accepted the supported-model baseline, three-turn Mirror outage, post-native/pre-delivery termination, exact repair through CR051, concurrent Journeys, copied-cache destruction, Pi reconstruction and final relaunch review on 2026-09-18. Proportionality review found the isolated private-data-free acceptance route appropriately bounded; Debt Review concluded `no_action`. Production remains untouched.
 
