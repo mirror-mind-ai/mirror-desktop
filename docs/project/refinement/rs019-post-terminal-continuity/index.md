@@ -73,7 +73,7 @@ CR057 is `done` with Driver `@alissonvale` and Delivery `refinement/rs019-cr057-
 
 CR058 is `done`. The Navigator accepted its automated and same-process DEV validation, and the proportionality/debt review concluded `no_action`. Retained post-terminal journal evidence remains available for diagnosis and explicit model-free recovery but no longer participates in Conversation admission or the live submission guard.
 
-CR059 is `validated` with Driver `@alissonvale` and Delivery `refinement/rs019-cr059-run-scoped-settlement`. The Navigator accepted the native exact-receipt merge, successor-safe frontend publication, run-scoped settlement diagnostics, automated gates and proportional isolated DEV rehearsal. Proportionality and debt review remain before terminal closure.
+CR059 is `validated` with Driver `@alissonvale` and Delivery `refinement/rs019-cr059-run-scoped-settlement`. The Navigator accepted the native exact-receipt merge, successor-safe frontend publication, run-scoped settlement diagnostics, automated gates and proportional isolated DEV rehearsal. Its proportionality/debt review concluded `no_action`; terminal closure is authorized.
 
 CR060 is `captured` and unassigned. It supplies the release-shaped failure matrix required before RS019 closure.
 

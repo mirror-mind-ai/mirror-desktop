@@ -154,6 +154,16 @@ The Navigator selected CR059, confirmed Driver `@alissonvale` plus Delivery `ref
 - The successful late-A receipt-save race is established by the native tests rather than this outage rehearsal: the available retained DEV debt lacks a recoverable committed harness projection, so the rehearsal intentionally did not manufacture or rewrite authority to force success.
 - The Navigator explicitly accepted the implementation, automated gates and proportional isolated DEV evidence on 2026-09-19.
 
+## Proportionality and Debt Review
+
+**Result:** `no_action`
+
+- The implementation is confined to the existing generation-scoped post-frontier save mode, exact frontend publication and settlement-diagnostic projection; it introduces no schema migration, provider rerun or new admission authority.
+- The extracted diagnostic helper reduces Journey-only coupling without creating a broader state subsystem.
+- CR060's release-shaped failure matrix is intentional ordered RS019 scope, not hidden CR059 debt.
+- The retained CR057 DEV item lacks recoverable committed harness projection authority and was preserved rather than rewritten; no repair expansion belongs in CR059.
+- Existing workspace Rust formatting differences predate this change and remain unrelated maintenance debt.
+
 ## Outcome
 
-Navigator Validation is accepted. Proportionality and debt review remain required before terminal closure.
+Navigator Validation is accepted and the proportionality/debt review concluded `no_action`. CR059 is ready for the explicitly authorized terminal closure.
