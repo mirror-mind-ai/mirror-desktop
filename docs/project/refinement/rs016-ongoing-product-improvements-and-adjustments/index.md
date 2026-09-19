@@ -28,6 +28,10 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
+- [CR055: Release Composer After Terminal Provider Error](cr055-release-composer-after-terminal-provider-error.md)
+- [CR054: Surface Provider Terminal Errors in the GUI](cr054-surface-provider-terminal-errors-in-the-gui.md)
+- [CR053: Clarify Effective Model in Agent Arguments Settings](cr053-clarify-effective-model-in-agent-arguments-settings.md)
+- [CR052: Ship Generation-Ready Notice Contrast in Light Themes](cr052-ship-generation-ready-notice-contrast-in-light-themes.md)
 - [CR039: Make Mirror Synchronization Recovery Actionable](cr039-make-mirror-synchronization-recovery-actionable.md)
 - [CR038: Coalesce Composer Draft Persistence](cr038-coalesce-composer-draft-persistence.md)
 - [CR037: Confirm App Closure While Agents Are Working](cr037-confirm-app-closure-while-agents-are-working.md)
@@ -36,9 +40,17 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR031 — Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md)
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
 
+CR055 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr055-provider-error-composer-release`. The Navigator accepted the implemented correction that clears stale Composer blocking after terminal provider failure, and Debt Review concluded `no_action`.
+
+CR054 is `captured` and unassigned. It records the need to surface bounded provider terminal errors, such as ChatGPT usage-limit failures, instead of showing only a generic interrupted-attempt notice.
+
+CR053 is `captured` and unassigned. It records the Settings confusion caused by showing literal `--provider` and `--model` values in editable Arguments even though the effective agent profile strips and reinjects provider/model/thinking at send time.
+
+CR052 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr052-generation-ready-notice-contrast`. The Navigator accepted the light-theme generation-ready notice correction, and Debt Review concluded `no_action`.
+
 CR039 is `promoted` to RS018 / CR040. Its recovery incident revealed the same competing-authority structure later reproduced by the Flip Podcast Segment checkpoint failure. Its original plan remains evidence, but its isolated implementation is superseded by the terminal-aligned Conversation authority contract.
 
-CR038 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs016-cr038-coalesced-composer-drafts`. Its Navigator-approved plan separates immediate local typing from coalesced durable draft persistence while preserving explicit flush and recovery boundaries.
+CR038 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr038-coalesced-composer-drafts`. The Navigator accepted coalesced composer draft persistence and the rebuilt close-route flush behavior, and Debt Review concluded `no_action`.
 
 CR037 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr037-confirm-app-closure`. The Navigator accepted the rebuilt dev app route: the main window `x` closes when idle, active/finalizing agent work requires explicit confirmation, and the light-theme explanation box contrast was corrected. Debt Review concluded `no_action`.
 

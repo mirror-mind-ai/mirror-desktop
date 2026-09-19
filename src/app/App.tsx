@@ -2354,6 +2354,11 @@ export function App({ model }: AppProps) {
                 saveInterruptedProjection: saveInterruptedTurnLifecycle,
                 cleanupLease: releaseDurablePiInvocationLease,
               }));
+              if (selectedJourneyRef.current === ownerJourneyId) {
+                setBlockingTurnJournalRecord(undefined);
+                setTurnRecoveryError(undefined);
+                setTurnRecoveryBusy(false);
+              }
             } else {
               await saveDedicatedJourneyConversation(interrupted);
             }

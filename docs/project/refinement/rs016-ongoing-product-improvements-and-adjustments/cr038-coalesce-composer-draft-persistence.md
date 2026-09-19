@@ -2,7 +2,7 @@
 
 # CR038: Coalesce Composer Draft Persistence
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr038-coalesced-composer-drafts`
 
@@ -86,8 +86,18 @@ Implementation evidence:
 
 ## Navigator Validation
 
-Typing responsiveness was accepted by the Navigator in isolated `Mirror Desktop Dev` on 2026-09-17. Final validation remains pending for the rebuilt close route: use the red macOS window control immediately after editing, confirm the window closes, relaunch and confirm the latest draft is restored.
+Typing responsiveness was accepted by the Navigator in isolated `Mirror Desktop Dev` on 2026-09-17. The Navigator later confirmed final visual validation of the rebuilt close route: using the red macOS window control after editing closes the window, relaunch restores the latest draft, and the coalesced persistence behavior is accepted.
+
+## Proportionality Review
+
+The correction is proportional to the observed draft-persistence cost. It introduces a bounded coalescing coordinator and explicit flush boundaries while preserving immediate in-memory typing, destination ownership, schema, storage limits, attachment exclusion, native atomic publication and existing Send semantics. The close-route adjustment grants only the narrow window close capability required for the validated two-phase close flow.
+
+## Debt Review
+
+**Decision:** no_action
+
+No additional debt is accepted. CR037 owns the active-agent close confirmation behavior that emerged through this delivery and is recorded separately as done.
 
 ## Outcome
 
-Implementation complete. CR038 remains `in_progress` pending explicit Navigator validation, proportionality review and debt review.
+Done. Coalesced composer draft persistence and the rebuilt close-route flush behavior were implemented, validated and accepted by the Navigator. Push, merge, publication and release remain separate decisions.

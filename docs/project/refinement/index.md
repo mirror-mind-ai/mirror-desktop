@@ -47,7 +47,11 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | in_progress | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
+| 1 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
+| 2 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| — | [CR055](rs016-ongoing-product-improvements-and-adjustments/cr055-release-composer-after-terminal-provider-error.md) | RS016 | Release Composer After Terminal Provider Error | done | @alissonvale | `refinement/rs016-cr055-provider-error-composer-release` |
+| — | [CR052](rs016-ongoing-product-improvements-and-adjustments/cr052-ship-generation-ready-notice-contrast-in-light-themes.md) | RS016 | Ship Generation-Ready Notice Contrast in Light Themes | done | @alissonvale | `refinement/rs016-cr052-generation-ready-notice-contrast` |
+| — | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | done | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |
 | — | [CR049](rs018-terminal-aligned-conversation-continuity/cr049-complete-the-release-shaped-rs018-acceptance-route.md) | RS018 | Complete the Release-Shaped RS018 Acceptance Route | done | @alissonvale | `refinement/rs018-cr049-release-shaped-acceptance` |
 | — | [CR051](rs018-terminal-aligned-conversation-continuity/cr051-repair-post-native-terminal-delivery-debt-from-pi-evidence.md) | RS018 | Repair Post-Native Terminal Delivery Debt from Pi Evidence | done | @alissonvale | `refinement/rs018-cr051-pi-backed-terminal-delivery-repair` |
 | — | [CR050](rs018-terminal-aligned-conversation-continuity/cr050-accept-failed-native-leaves-as-interrupted-attempt-evidence.md) | RS018 | Accept Failed Native Leaves as Interrupted-Attempt Evidence | done | @alissonvale | `refinement/rs018-cr050-failed-native-leaf-evidence` |

@@ -158,6 +158,15 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("savePostFrontierReceiptProjection(settled, authority, summary)");
     expect(appSource).toContain("cleanupLease: releaseDurablePiInvocationLease");
     expect(appSource).toContain("() => executeInterruptedSettlement({");
+    const interruptedSettlement = sourceBetween(
+      'journeyPersistenceCoordinator.run(settlementAuthority, "interrupted"',
+      "} else {\n              await saveDedicatedJourneyConversation(interrupted);",
+    );
+    expect(interruptedSettlement.indexOf("cleanupLease: releaseDurablePiInvocationLease")).toBeLessThan(
+      interruptedSettlement.indexOf("setBlockingTurnJournalRecord(undefined)"),
+    );
+    expect(interruptedSettlement).toContain("setTurnRecoveryError(undefined)");
+    expect(interruptedSettlement).toContain("setTurnRecoveryBusy(false)");
     expect(appSource).toContain("await rollbackRejectedReservation({");
     expect(appSource).toContain('throw new Error("rejected_reservation_reinspection_invalid")');
     expect(appSource).toContain("onRollbackConfirmed: () => {");
