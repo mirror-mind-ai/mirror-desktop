@@ -40,6 +40,10 @@ For every post-terminal failure frontier:
 
 RS019 cannot close until this matrix passes in tests and an isolated development-app route receives explicit Navigator Validation.
 
+## Authority Boundary
+
+The Navigator selected CR060 as the next Workbench focus after closing CR059. Selection changes focus only: CR060 remains `captured` and unassigned. Driver, Delivery, planning, implementation/TDD, DEV mutation, validation, push, merge, publication and release require separate decisions.
+
 ## Boundaries
 
 - Depends on CR057–CR059.

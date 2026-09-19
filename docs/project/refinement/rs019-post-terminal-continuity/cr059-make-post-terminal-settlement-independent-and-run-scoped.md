@@ -2,7 +2,7 @@
 
 # CR059: Make Post-Terminal Settlement Independent and Run-Scoped
 
-**Status:** validated
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs019-cr059-run-scoped-settlement`
 
@@ -129,7 +129,7 @@ The change remains behind existing exact save modes and durable outbox/journal a
 
 ## Authority Boundary
 
-The Navigator selected CR059, confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr059-run-scoped-settlement`, authorized implementation/TDD and explicitly validated the resulting implementation and evidence. Push, merge, publication, release and production mutation remain separate decisions.
+The Navigator selected CR059, confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr059-run-scoped-settlement`, authorized implementation/TDD, explicitly validated the resulting implementation and evidence, and authorized terminal closure. Push, merge, publication, release and production mutation remain separate decisions.
 
 ## Evidence
 
@@ -166,4 +166,4 @@ The Navigator selected CR059, confirmed Driver `@alissonvale` plus Delivery `ref
 
 ## Outcome
 
-Navigator Validation is accepted and the proportionality/debt review concluded `no_action`. CR059 is ready for the explicitly authorized terminal closure.
+CR059 is closed as `done` after explicit Navigator Validation and closure authorization. The proportionality/debt review concluded `no_action`; CR060 owns the ordered release-shaped failure matrix.
