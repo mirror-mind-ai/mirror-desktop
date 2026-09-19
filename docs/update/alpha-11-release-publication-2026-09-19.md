@@ -109,6 +109,38 @@ Remote byte verification matched local or staged bytes:
 | latest DMG alias | `99f3748638df00302dfc329ebc05735c7e3d6f0f5058ea7b4b98ae4136763ec6` |
 | latest download manifest | `9b9f1a48d1008755a5a30729148f034694c06b1b4bd7efa2665029b97e7937bf` |
 
+## Git And GitHub Publication
+
+The completed source and endpoint evidence were pushed to `origin/main`.
+
+Annotated tag object:
+
+```text
+e45447eb38d623c5406b2bac69765e91a8d54868
+```
+
+Annotated tag `v0.2.0-alpha.11` resolves to endpoint-evidence revision:
+
+```text
+d275bddee34d18e3157772e6008ca41446bad47a
+```
+
+GitHub prerelease:
+
+```text
+https://github.com/mirror-mind-ai/mirror-desktop/releases/tag/v0.2.0-alpha.11
+```
+
+GitHub reports a non-draft prerelease published at `2026-09-19T14:35:07Z`. Uploaded asset digests match the local candidate SHA-256 digests and byte counts:
+
+- `Mirror.Desktop_0.2.0-alpha.11_x64.dmg` — `99f3748638df00302dfc329ebc05735c7e3d6f0f5058ea7b4b98ae4136763ec6`, 7,076,789 bytes.
+- `Mirror.Desktop.app.tar.gz` — `64d8126df9798cd1880baa3ddfd35454eae9b7e57aeeb1e42740130b31c0e16a`, 7,051,865 bytes.
+- `Mirror.Desktop.app.tar.gz.sig` — `a7f45ee44b80847b287dc76158bbed12ad1d71c99b24a29df17096b5bcb8d7bb`, 416 bytes.
+
+The tag is annotated but not GPG-signed. Artifact trust remains the separate updater-signature contract. This repository reported no GitHub Actions workflow runs for the pushed `main` revision or tag, so there was no remote workflow run to await; the governed local gates above remain the release evidence.
+
+A final evidence-only commit records this GitHub publication result after the immutable tag revision.
+
 ## Explicit Boundary
 
 The release may replace application bytes and write only the bounded channel-local What's New recognition receipt. It does not mutate Mirror homes, `memory.db`, identity, credentials, Journey content, conversations, attachments, unrelated app data, Nautilus Harness state, or production Conversation data. No stable promotion, Apple signing, notarization, app-store distribution, production recovery, or separate public announcement is performed.
