@@ -126,7 +126,15 @@ The Navigator selected CR058, confirmed Driver `@alissonvale` plus Delivery `ref
 - Frontend regression: 856 tests passed across 155 files.
 - TypeScript/Vite production build, roadmap consistency, RS019 relative links and whitespace validation passed.
 - No native source changed; Rust behavior remains the CR057 terminal-occupancy boundary.
+- Authorized isolated DEV rehearsal passed on disposable Journey `us1-rerun-a-0831us1-rerun-a-0831` in one unrestarted debug-app process (`PID 81645`):
+  - startup retained 17 journal records, including exact `interrupted`, `outbox_enqueued` and `settled` debt, while the Composer remained available;
+  - the available Composer admitted successor `agent-run-2026-09-19T21:03:50.886Z` without relaunch and rendered `CR058 SUCCESSOR`;
+  - the successor reached `settled / completed / complete` in the same process;
+  - the older CR057 records remained independently inspectable at `outbox_enqueued / completed / complete` and `settled / completed / complete`;
+  - no automatic provider retry, fallback or model switch occurred, and the DEV process chain was stopped explicitly.
+- Rehearsal artifacts are under `/tmp/rs019-cr058-dev-20260919T205931Z/`, including journal snapshots, process identity, stable-data digests and screenshots of ready, running and settled states.
+- Stable app data remained byte-identical across 135 files (`7a4582496c5b2924435f70cf373dc4b9617791e8162c9d4ea52cc85271904c95`). Production app-data, release state and remote repository state were not mutated.
 
 ## Outcome
 
-Implementation and automated validation are complete. Isolated DEV rehearsal and explicit Navigator Validation remain required before CR058 can close.
+Implementation, automated validation and isolated DEV rehearsal are complete. Explicit Navigator Validation remains required before CR058 can close.
