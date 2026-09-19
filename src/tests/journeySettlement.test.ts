@@ -4,6 +4,7 @@ import {
   createJourneySettlementAuthority,
   executeCompletedSettlement,
   executeInterruptedSettlement,
+  projectionCurrentTurnMatchesAuthority,
   rollbackRejectedReservation,
   type ActiveSettlementEvidence,
   type GenerationScopedOutboxAuthority,
@@ -107,6 +108,30 @@ function completedDependencies(
 }
 
 describe("phase-specific completed settlement boundary", () => {
+  it("publishes settlement presentation only while the exact run remains current", () => {
+    const a = fixture("journey-a", "run-a1");
+    const currentTurn = a.projection.reconciliation.turns.at(-1)!;
+    const successor = {
+      ...a.projection,
+      reconciliation: {
+        ...a.projection.reconciliation,
+        turns: [...a.projection.reconciliation.turns, {
+          ...currentTurn,
+          turnId: "turn-run-a2",
+          runId: "run-a2",
+          harness: {
+            ...currentTurn.harness,
+            userMessageId: "user-run-a2",
+            assistantMessageId: "assistant-run-a2",
+          },
+        }],
+      },
+    };
+
+    expect(projectionCurrentTurnMatchesAuthority(a.projection, a.authority)).toBe(true);
+    expect(projectionCurrentTurnMatchesAuthority(successor, a.authority)).toBe(false);
+  });
+
   it("releases local availability after the durable projection, before Mirror enqueue and append", async () => {
     const { projection, authority, outbox, active } = fixture();
     const order: string[] = [];

@@ -44,6 +44,20 @@ function projectionMatchesAuthority(
     && turn.harness.assistantMessageId === authority.harnessAssistantMessageId;
 }
 
+export function projectionCurrentTurnMatchesAuthority(
+  projection: JourneyConversation,
+  authority: JourneySettlementAuthority,
+): boolean {
+  const current = projection.reconciliation.turns.at(-1);
+  return projection.journeyId === authority.journeyId
+    && projection.id === authority.threadId
+    && projection.liveIdentity.generation === authority.generation
+    && current?.turnId === authority.turnId
+    && current.runId === authority.runId
+    && current.harness.userMessageId === authority.harnessUserMessageId
+    && current.harness.assistantMessageId === authority.harnessAssistantMessageId;
+}
+
 export function validatePreFrontierSettlement(
   authority: JourneySettlementAuthority,
   projection: JourneyConversation,

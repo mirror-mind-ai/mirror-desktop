@@ -216,6 +216,21 @@ describe("Journey runtime integration guardrails", () => {
     expect(streamSource).toContain('invoke<PiInvocationLeaseRelease>("release_pi_invocation_lease", { journeyId, runId })');
   });
 
+  it("keeps late settlement publication and diagnostics scoped to the exact run", () => {
+    const publication = sourceBetween(
+      "async function publishSettledProjectionIfCurrent",
+      "function validateExactOutboxSummary",
+    );
+    expect(publication.match(/projectionCurrentTurnMatchesAuthority/g)).toHaveLength(3);
+    expect(publication).toContain("selectedJourneyRef.current !== authority.journeyId");
+    const retry = sourceBetween("async function retryPendingMirrorCommit", "function publishSteeringConversation");
+    expect(retry).toContain("await publishSettledProjectionIfCurrent(authority)");
+    expect(retry).not.toContain("conversationRef.current = settlement.projection");
+    expect(retry).not.toContain("setConversation(settlement.projection)");
+    expect(appSource).toContain("updateExactSettlementError(current, authority, error)");
+    expect(appSource).toContain("projectJourneySettlementErrors(mirrorCommitErrors, exactSettlementErrors)");
+  });
+
   it("mounts the shared dispatcher once and leaves mock streaming Tauri-free", () => {
     expect(appSource).toContain("piProcessEventDispatcher.mount()");
     expect(appSource).toContain("piProcessEventDispatcher.dispose()");

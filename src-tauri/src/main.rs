@@ -6968,6 +6968,122 @@ fn merge_persisted_mirror_evidence_except(
     Ok(changed)
 }
 
+fn merge_post_frontier_receipt_into_persisted(
+    persisted: &Value,
+    candidate: &Value,
+    authority: &RunAuthority,
+) -> Result<Value, String> {
+    validate_projection_payload_authority(persisted, authority)?;
+    validate_projection_payload_authority(candidate, authority)?;
+
+    let candidate_turn = candidate
+        .pointer("/conversation/reconciliation/turns")
+        .and_then(Value::as_array)
+        .and_then(|turns| {
+            turns.iter().find(|turn| {
+                turn.get("turnId").and_then(Value::as_str) == Some(authority.turn_id.as_str())
+            })
+        })
+        .ok_or_else(|| "dedicated_projection_receipt_authority_mismatch".to_string())?;
+    let candidate_mirror = candidate_turn
+        .get("mirror")
+        .filter(|mirror| {
+            mirror.get("state").and_then(Value::as_str) == Some("committed")
+                && mirror.get("userMessageId").and_then(Value::as_str)
+                    == Some(authority.harness_user_message_id.as_str())
+                && mirror.get("assistantMessageId").and_then(Value::as_str)
+                    == Some(authority.harness_assistant_message_id.as_str())
+                && mirror.get("committedAt").and_then(Value::as_str).is_some()
+        })
+        .cloned()
+        .ok_or_else(|| "dedicated_projection_receipt_authority_mismatch".to_string())?;
+    let candidate_checkpoint = candidate
+        .pointer("/conversation/reconciliation/checkpoints/mirror")
+        .filter(|checkpoint| {
+            checkpoint.get("conversationId").and_then(Value::as_str)
+                == Some(authority.mirror_conversation_id.as_str())
+                && checkpoint.get("lastMessageId").and_then(Value::as_str)
+                    == Some(authority.harness_assistant_message_id.as_str())
+                && checkpoint
+                    .get("messageCount")
+                    .and_then(Value::as_u64)
+                    .is_some()
+                && checkpoint
+                    .get("updatedAt")
+                    .and_then(Value::as_str)
+                    .is_some()
+        })
+        .cloned()
+        .ok_or_else(|| "dedicated_projection_receipt_authority_mismatch".to_string())?;
+
+    let mut merged = persisted.clone();
+    let target_index = merged
+        .pointer("/conversation/reconciliation/turns")
+        .and_then(Value::as_array)
+        .and_then(|turns| {
+            turns.iter().position(|turn| {
+                turn.get("turnId").and_then(Value::as_str) == Some(authority.turn_id.as_str())
+            })
+        })
+        .ok_or_else(|| "dedicated_projection_receipt_authority_mismatch".to_string())?;
+    let persisted_mirror = merged
+        .pointer(&format!(
+            "/conversation/reconciliation/turns/{target_index}/mirror",
+        ))
+        .cloned();
+    if persisted_mirror
+        .as_ref()
+        .and_then(|mirror| mirror.get("state"))
+        .and_then(Value::as_str)
+        == Some("committed")
+    {
+        if persisted_mirror.as_ref() != Some(&candidate_mirror) {
+            return Err("dedicated_projection_receipt_conflict".to_string());
+        }
+        return Ok(merged);
+    }
+    if persisted_mirror
+        .as_ref()
+        .and_then(|mirror| mirror.get("state"))
+        .and_then(Value::as_str)
+        .is_some_and(|state| state != "pending")
+    {
+        return Err("dedicated_projection_receipt_conflict".to_string());
+    }
+
+    merged["conversation"]["reconciliation"]["turns"][target_index]["mirror"] = candidate_mirror;
+    let persisted_checkpoint = persisted.pointer("/conversation/reconciliation/checkpoints/mirror");
+    let next_checkpoint = if let Some(checkpoint) = persisted_checkpoint {
+        if checkpoint.get("conversationId").and_then(Value::as_str)
+            != Some(authority.mirror_conversation_id.as_str())
+        {
+            return Err("dedicated_projection_receipt_conflict".to_string());
+        }
+        let count = checkpoint
+            .get("messageCount")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "dedicated_projection_receipt_regression".to_string())?
+            .checked_add(2)
+            .ok_or_else(|| "dedicated_projection_receipt_regression".to_string())?;
+        let mut next = checkpoint.clone();
+        next["messageCount"] = json!(count);
+        next
+    } else {
+        candidate_checkpoint
+    };
+    let reconciliation = merged
+        .pointer_mut("/conversation/reconciliation")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "dedicated_projection_receipt_regression".to_string())?;
+    let checkpoints = reconciliation
+        .entry("checkpoints")
+        .or_insert_with(|| json!({}))
+        .as_object_mut()
+        .ok_or_else(|| "dedicated_projection_receipt_regression".to_string())?;
+    checkpoints.insert("mirror".to_string(), next_checkpoint);
+    Ok(merged)
+}
+
 fn write_durable_projection_at(path: &Path, payload: &[u8], staged_nonce: u64) -> Result<(), String> {
     let parent = path.parent().ok_or_else(|| "dedicated_projection_unavailable".to_string())?;
     fs::create_dir_all(parent).map_err(|_| "dedicated_projection_unavailable".to_string())?;
@@ -7107,8 +7223,16 @@ fn save_dedicated_journey_conversation(
         let persisted: Value = serde_json::from_str(
             &fs::read_to_string(&path)
                 .map_err(|_| "dedicated_projection_unavailable".to_string())?,
-        ).map_err(|_| "dedicated_projection_invalid".to_string())?;
-        if merge_persisted_mirror_evidence_except(&persisted, &mut parsed, None)? {
+        )
+        .map_err(|_| "dedicated_projection_invalid".to_string())?;
+        if save_mode == "generation_scoped_post_frontier" {
+            let authority = run_authority
+                .as_ref()
+                .ok_or_else(|| "dedicated_projection_authority_missing".to_string())?;
+            let merged =
+                merge_post_frontier_receipt_into_persisted(&persisted, &parsed, authority)?;
+            serde_json::to_vec(&merged).map_err(|_| "dedicated_projection_invalid".to_string())?
+        } else if merge_persisted_mirror_evidence_except(&persisted, &mut parsed, None)? {
             serde_json::to_vec(&parsed).map_err(|_| "dedicated_projection_invalid".to_string())?
         } else {
             payload.into_bytes()
@@ -7946,7 +8070,7 @@ mod tests {
         classify_chat_local_reference_at, classify_chat_local_reference_at_with_home,
         unwrap_persisted_thread, validate_acknowledged_projection_authority_at,
         validate_composer_drafts_payload, validate_external_url, validate_journey_registry_payload,
-        merge_persisted_mirror_evidence, mirror_rpc_args,
+        merge_persisted_mirror_evidence, merge_post_frontier_receipt_into_persisted, mirror_rpc_args,
         pi_invocation_start_error_message, PiInvocationStartError,
         validate_active_pre_frontier_projection_at,
         validate_current_projection_turn_authority, validate_mirror_append_item,
@@ -8854,6 +8978,138 @@ mod tests {
             validate_active_pre_frontier_projection_at(&path, &stale_candidate, &authority)
                 .unwrap_err(),
             "dedicated_projection_persisted_current_turn_mismatch",
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn post_frontier_receipt_merges_into_a_persisted_successor_without_replacing_it() {
+        let root = test_root("post-frontier-successor-merge");
+        let authority = test_run_authority(&root);
+        persist_run_authority_fixture(&root, &authority, "2026-08-26T10:00:00Z");
+        let path = root.join("dedicated-journey-conversations/journey-one/generation-1.json");
+        let mut stale_receipt: Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        stale_receipt["conversation"]["reconciliation"]["turns"][0]["mirror"] = json!({
+            "state":"committed", "userMessageId":"user-one", "assistantMessageId":"assistant-one",
+            "committedAt":"2026-09-19T21:00:00Z"
+        });
+        stale_receipt["conversation"]["reconciliation"]["checkpoints"] = json!({"mirror":{
+            "conversationId":"mirror-one", "lastMessageId":"assistant-one",
+            "messageCount":2, "updatedAt":"2026-09-19T21:00:00Z"
+        }});
+        let mut persisted_successor: Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        persisted_successor["conversation"]["messages"] = json!([
+            {"id":"user-one","role":"user","content":"A"},
+            {"id":"assistant-one","role":"assistant","content":"A done"},
+            {"id":"user-two","role":"user","content":"B"},
+            {"id":"assistant-two","role":"assistant","content":"B pending"}
+        ]);
+        persisted_successor["conversation"]["reconciliation"]["turns"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "turnId":"turn-two", "runId":"run-two",
+                "harness":{"userMessageId":"user-two","assistantMessageId":"assistant-two"},
+                "pi":{"state":"committed"}, "mirror":{"state":"pending"}
+            }));
+        persisted_successor["conversation"]["terminalAgentActionEvidence"] = json!({
+            "turn-two":{"runId":"run-two","marker":"preserve-successor"}
+        });
+
+        let merged = merge_post_frontier_receipt_into_persisted(
+            &persisted_successor,
+            &stale_receipt,
+            &authority,
+        )
+        .unwrap();
+
+        assert_eq!(
+            merged.pointer("/conversation/messages"),
+            persisted_successor.pointer("/conversation/messages"),
+        );
+        assert_eq!(
+            merged.pointer("/conversation/reconciliation/turns/1"),
+            persisted_successor.pointer("/conversation/reconciliation/turns/1"),
+        );
+        assert_eq!(
+            merged.pointer("/conversation/terminalAgentActionEvidence"),
+            persisted_successor.pointer("/conversation/terminalAgentActionEvidence"),
+        );
+        assert_eq!(
+            merged
+                .pointer("/conversation/reconciliation/turns/0/mirror/state")
+                .and_then(Value::as_str),
+            Some("committed")
+        );
+        assert_eq!(
+            merged
+                .pointer("/conversation/reconciliation/checkpoints/mirror/messageCount")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            merge_post_frontier_receipt_into_persisted(&merged, &stale_receipt, &authority)
+                .unwrap(),
+            merged,
+        );
+        let mut conflicting_receipt = stale_receipt;
+        conflicting_receipt["conversation"]["reconciliation"]["turns"][0]["mirror"]
+            ["committedAt"] = Value::String("2026-09-19T21:00:09Z".to_string());
+        assert_eq!(
+            merge_post_frontier_receipt_into_persisted(&merged, &conflicting_receipt, &authority)
+                .unwrap_err(),
+            "dedicated_projection_receipt_conflict",
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn post_frontier_receipt_advances_from_a_newer_committed_successor_checkpoint() {
+        let root = test_root("post-frontier-successor-checkpoint");
+        let authority = test_run_authority(&root);
+        persist_run_authority_fixture(&root, &authority, "2026-08-26T10:00:00Z");
+        let path = root.join("dedicated-journey-conversations/journey-one/generation-1.json");
+        let mut candidate: Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        candidate["conversation"]["reconciliation"]["turns"][0]["mirror"] = json!({
+            "state":"committed", "userMessageId":"user-one", "assistantMessageId":"assistant-one",
+            "committedAt":"2026-09-19T21:00:00Z"
+        });
+        candidate["conversation"]["reconciliation"]["checkpoints"] = json!({"mirror":{
+            "conversationId":"mirror-one", "lastMessageId":"assistant-one",
+            "messageCount":2, "updatedAt":"2026-09-19T21:00:00Z"
+        }});
+        let mut persisted =
+            serde_json::from_str::<Value>(&fs::read_to_string(&path).unwrap()).unwrap();
+        persisted["conversation"]["reconciliation"]["turns"].as_array_mut().unwrap().push(json!({
+            "turnId":"turn-two", "runId":"run-two",
+            "harness":{"userMessageId":"user-two","assistantMessageId":"assistant-two"},
+            "mirror":{"state":"committed","userMessageId":"user-two","assistantMessageId":"assistant-two","committedAt":"2026-09-19T21:00:01Z"}
+        }));
+        persisted["conversation"]["reconciliation"]["checkpoints"] = json!({"mirror":{
+            "conversationId":"mirror-one", "lastMessageId":"assistant-two",
+            "messageCount":2, "updatedAt":"2026-09-19T21:00:01Z"
+        }});
+
+        let merged =
+            merge_post_frontier_receipt_into_persisted(&persisted, &candidate, &authority).unwrap();
+        assert_eq!(
+            merged
+                .pointer("/conversation/reconciliation/checkpoints/mirror/messageCount")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            merged
+                .pointer("/conversation/reconciliation/checkpoints/mirror/lastMessageId")
+                .and_then(Value::as_str),
+            Some("assistant-two")
+        );
+        assert_eq!(
+            merged.pointer("/conversation/reconciliation/turns/1/mirror"),
+            persisted.pointer("/conversation/reconciliation/turns/1/mirror")
         );
         fs::remove_dir_all(root).unwrap();
     }

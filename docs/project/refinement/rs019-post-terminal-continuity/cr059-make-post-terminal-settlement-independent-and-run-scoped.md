@@ -2,7 +2,7 @@
 
 # CR059: Make Post-Terminal Settlement Independent and Run-Scoped
 
-**Status:** planned
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs019-cr059-run-scoped-settlement`
 
@@ -129,7 +129,7 @@ The change remains behind existing exact save modes and durable outbox/journal a
 
 ## Authority Boundary
 
-The Navigator selected CR059 and confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr059-run-scoped-settlement`. Planning is authorized through `planned`. Implementation/TDD, push, merge, publication, release, production mutation and CR060 work remain separate decisions.
+The Navigator selected CR059, confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr059-run-scoped-settlement`, and authorized implementation/TDD. Push, merge, publication, release, production mutation and CR060 work remain separate decisions.
 
 ## Evidence
 
@@ -138,8 +138,16 @@ The Navigator selected CR059 and confirmed Driver `@alissonvale` plus Delivery `
 - Native post-frontier save currently validates exact outbox authority but calls `merge_persisted_mirror_evidence_except()` with the stale candidate as destination, so a newly persisted successor absent from that candidate produces `dedicated_projection_turn_regression`.
 - `appendAndAcknowledgeExactProjection()` reloads before applying a receipt, narrowing but not eliminating the load/save race.
 - `retryPendingMirrorCommit()` currently assigns the recovered settlement projection to `conversationRef` and React state without rechecking current-turn authority after awaited work.
-- `mirrorCommitErrors` is keyed only by Journey, so exact old and successor settlement diagnostics can clear or replace one another.
+- `mirrorCommitErrors` was keyed only by Journey, so exact old and successor settlement diagnostics could clear or replace one another.
+- TDD added the native A-load → B-persist → A-receipt race and proved that the exact A receipt merges into the persisted B projection while preserving B messages, reconciliation, terminal/action evidence and metadata.
+- Native `generation_scoped_post_frontier` now uses the persisted projection as merge base, applies only the exact compatible receipt, advances the checkpoint monotonically and treats an identical receipt idempotently while rejecting contradiction.
+- Frontend settlement publication now reloads durable state and rechecks selected Journey plus visible and persisted current-turn authority before publishing.
+- Exact settlement errors are keyed by Journey/run/turn; one completion clears only its own debt and concurrent debts aggregate without replacing each other.
+- Frontend regression: 861 tests passed across 156 files. TypeScript/Vite production build passed.
+- Rust regression: 157 tests passed, 1 ignored; `cargo check --locked` passed.
+- Workspace `cargo fmt --check` still reports pre-existing formatting debt in untouched Rust files; CR059 additions in `src-tauri/src/main.rs` were kept locally rustfmt-shaped without expanding scope.
+- Roadmap consistency and whitespace checks passed.
 
 ## Outcome
 
-Planned and ready for TDD. No CR059 implementation has started.
+Implementation and automated validation are complete. Isolated DEV rehearsal and explicit Navigator Validation remain required before CR059 can close.

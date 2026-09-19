@@ -95,6 +95,8 @@ Presentation projections are not an authority class. They are materialized views
 
 **Current gates:** the frontend still requires parseable projection metadata for compatibility settlement and exact control-plane binding. Native admission does not read or require an optimistic projection turn. After exact `agent_start`, compatibility and post-frontier settlement require exact candidate authority; legacy outbox append and acknowledgement may revalidate it.
 
+**Current post-frontier merge after CR059:** generation-scoped receipt persistence validates the exact run/turn and durable outbox authority under the native Journey/generation lock, uses the latest persisted projection as merge base and changes only the target turn's compatible Mirror receipt plus a monotonic checkpoint. A stale A candidate can therefore finish after successor B is persisted without deleting B's transcript, reconciliation, terminal/Steering evidence or metadata. Identical A completion is idempotent; contradictory receipt or authority fails closed. Frontend publication is separately conditioned on A still being the visible and persisted current turn, and exact settlement diagnostics are keyed by Journey/run/turn.
+
 **Current failure consequence:** corrupt projection metadata can still prevent compatibility opening or settlement until metadata reconstruction is implemented, but stale, truncated or ghost projection messages no longer define the visible transcript.
 
 **Target responsibility:** rebuildable materialized view plus Desktop-only metadata. Transcript content derives from Pi entries. Corrupt or absent projection state triggers reconstruction and a bounded presentation warning, not loss of agent access. Exact control-plane identity remains checked separately.
