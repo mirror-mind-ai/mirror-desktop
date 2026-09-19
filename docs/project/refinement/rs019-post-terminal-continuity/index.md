@@ -71,7 +71,7 @@ Validation must include completion, provider failure, cancellation, process deat
 
 CR057 is `done` with Driver `@alissonvale` and Delivery `refinement/rs019-cr057-terminal-occupancy-release`. The Navigator accepted the implementation, automated gates and isolated DEV proof that exact native terminalization releases active occupancy, terminal debt remains bounded/inspectable, and an immediate same-Journey successor completes without relaunch after forced post-terminal projection failure. Proportionality/debt review concluded `no_action`, and terminal closure was explicitly authorized.
 
-CR058 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs019-cr058-journal-admission-release`. The Navigator authorized implementation/TDD to remove the remaining frontend `localAdmissionReady` and direct submission dependencies on post-terminal journal evidence while preserving native atomic admission and model-free recovery presentation.
+CR058 is `done`. The Navigator accepted its automated and same-process DEV validation, and the proportionality/debt review concluded `no_action`. Retained post-terminal journal evidence remains available for diagnosis and explicit model-free recovery but no longer participates in Conversation admission or the live submission guard. No CR is currently selected; CR059 remains the next ordered captured item and requires a separate focus, Driver and Delivery decision.
 
 CR059 is `captured` and unassigned. It makes late projection, outbox, Mirror acknowledgement and cleanup operations exact and harmless in the presence of a newer run.
 

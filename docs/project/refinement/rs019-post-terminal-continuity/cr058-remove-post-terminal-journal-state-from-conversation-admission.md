@@ -2,7 +2,7 @@
 
 # CR058: Remove Post-Terminal Journal State from Conversation Admission
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs019-cr058-journal-admission-release`
 
@@ -111,7 +111,7 @@ The change removes an obsolete frontend admission input and hidden duplicate gua
 
 ### Authority Boundary
 
-The Navigator selected CR058, confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr058-journal-admission-release`, and authorized implementation/TDD. Push, merge, publication, release, production mutation and CR059/CR060 work remain separate decisions.
+The Navigator selected CR058, confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr058-journal-admission-release`, authorized implementation/TDD, accepted Validation and explicitly authorized terminal closure. Push, merge, publication, release, production mutation and CR059/CR060 work remain separate decisions.
 
 ## Evidence
 
@@ -135,6 +135,21 @@ The Navigator selected CR058, confirmed Driver `@alissonvale` plus Delivery `ref
 - Rehearsal artifacts are under `/tmp/rs019-cr058-dev-20260919T205931Z/`, including journal snapshots, process identity, stable-data digests and screenshots of ready, running and settled states.
 - Stable app data remained byte-identical across 135 files (`7a4582496c5b2924435f70cf373dc4b9617791e8162c9d4ea52cc85271904c95`). Production app-data, release state and remote repository state were not mutated.
 
+## Navigator Validation
+
+**Accepted.** The Navigator accepted the automated checks and isolated same-process DEV rehearsal as sufficient evidence that retained post-terminal journal debt no longer owns Conversation admission while exact native safety boundaries remain intact.
+
+## Proportionality and Debt Review
+
+**Result:** `no_action`
+
+- The implementation deletes one obsolete availability input, its condition/action pair and one duplicated live-submission guard; it introduces no replacement authority or state machine.
+- Journal evidence, notices and explicit model-free recovery remain available without being promoted back into occupancy.
+- Native atomic journal admission, unknown-inspection fail-closed behavior, exact active execution, start reservation and selected live runtime continue to protect overlap.
+- No schema, migration, background scheduler, retry, queue, provider/model fallback, credential inference or production-data repair was introduced.
+- Post-terminal settlement ordering and cross-run callback isolation remain intentionally sequenced CR059 scope, not hidden CR058 debt.
+- The broader release-shaped frontier rehearsal remains CR060 scope.
+
 ## Outcome
 
-Implementation, automated validation and isolated DEV rehearsal are complete. Explicit Navigator Validation remains required before CR058 can close.
+Done. The Navigator accepted Validation, the proportionality/debt review concluded `no_action`, and terminal closure was explicitly authorized. Retained post-terminal journal records no longer disable Send or independently block live submission. RS019 remains active with no selected CR; CR059 remains captured. Push, merge, publication, release and production repair remain unauthorized.
