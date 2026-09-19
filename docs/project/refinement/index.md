@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS019 — Post-Terminal Continuity
-- Change Request: CR057 — Separate Native Terminalization from Journey Occupancy
+- Change Request: none — CR057 is closed and no successor has been selected
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -48,12 +48,12 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR057](rs019-post-terminal-continuity/cr057-separate-native-terminalization-from-journey-occupancy.md) | RS019 | Separate Native Terminalization from Journey Occupancy | validated | @alissonvale | `refinement/rs019-cr057-terminal-occupancy-release` |
-| 2 | [CR058](rs019-post-terminal-continuity/cr058-remove-post-terminal-journal-state-from-conversation-admission.md) | RS019 | Remove Post-Terminal Journal State from Conversation Admission | captured | — | — |
-| 3 | [CR059](rs019-post-terminal-continuity/cr059-make-post-terminal-settlement-independent-and-run-scoped.md) | RS019 | Make Post-Terminal Settlement Independent and Run-Scoped | captured | — | — |
-| 4 | [CR060](rs019-post-terminal-continuity/cr060-rehearse-non-blocking-post-terminal-continuity.md) | RS019 | Rehearse Non-Blocking Post-Terminal Continuity | captured | — | — |
-| 5 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
-| 6 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| 1 | [CR058](rs019-post-terminal-continuity/cr058-remove-post-terminal-journal-state-from-conversation-admission.md) | RS019 | Remove Post-Terminal Journal State from Conversation Admission | captured | — | — |
+| 2 | [CR059](rs019-post-terminal-continuity/cr059-make-post-terminal-settlement-independent-and-run-scoped.md) | RS019 | Make Post-Terminal Settlement Independent and Run-Scoped | captured | — | — |
+| 3 | [CR060](rs019-post-terminal-continuity/cr060-rehearse-non-blocking-post-terminal-continuity.md) | RS019 | Rehearse Non-Blocking Post-Terminal Continuity | captured | — | — |
+| 4 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
+| 5 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| — | [CR057](rs019-post-terminal-continuity/cr057-separate-native-terminalization-from-journey-occupancy.md) | RS019 | Separate Native Terminalization from Journey Occupancy | done | @alissonvale | `refinement/rs019-cr057-terminal-occupancy-release` |
 | — | [CR056](rs016-ongoing-product-improvements-and-adjustments/cr056-release-composer-after-completed-terminal-durable-lease.md) | RS016 | Release Composer After Completed Terminal-Durable Lease | promoted | — | `RS019 / CR057` |
 | — | [CR055](rs016-ongoing-product-improvements-and-adjustments/cr055-release-composer-after-terminal-provider-error.md) | RS016 | Release Composer After Terminal Provider Error | done | @alissonvale | `refinement/rs016-cr055-provider-error-composer-release` |
 | — | [CR052](rs016-ongoing-product-improvements-and-adjustments/cr052-ship-generation-ready-notice-contrast-in-light-themes.md) | RS016 | Ship Generation-Ready Notice Contrast in Light Themes | done | @alissonvale | `refinement/rs016-cr052-generation-ready-notice-contrast` |

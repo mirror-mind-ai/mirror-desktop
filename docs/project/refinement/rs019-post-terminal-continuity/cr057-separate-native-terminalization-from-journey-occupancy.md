@@ -2,7 +2,7 @@
 
 # CR057: Separate Native Terminalization from Journey Occupancy
 
-**Status:** validated
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs019-cr057-terminal-occupancy-release`
 
@@ -111,7 +111,7 @@ The change preserves terminal evidence and narrows only occupancy authority. If 
 
 ### Authority Boundary
 
-The Navigator authorized creation of RS019, selection of CR057, Driver `@alissonvale`, Delivery `refinement/rs019-cr057-terminal-occupancy-release`, preparation, implementation, isolated DEV rehearsal and formal Validation. Push, merge, publication, release, production mutation, terminal closure and selection of successor work remain separate decisions.
+The Navigator authorized creation of RS019, selection of CR057, Driver `@alissonvale`, Delivery `refinement/rs019-cr057-terminal-occupancy-release`, preparation, implementation, isolated DEV rehearsal, formal Validation, proportionality/debt review and terminal closure. Push, merge, publication, release, production mutation and selection of successor work remain separate decisions.
 
 ## Evidence
 
@@ -150,4 +150,4 @@ The Navigator authorized creation of RS019, selection of CR057, Driver `@alisson
 
 ## Outcome
 
-The Navigator accepted Validation after reviewing the completed implementation, automated gates and isolated same-process DEV successor rehearsal. CR057 is `validated`, and its proportionality/debt review concluded `no_action`. Terminal closure remains a separate decision; push, merge, publication, release, production repair and CR058 execution are not authorized.
+Done. The Navigator accepted Validation, the proportionality/debt review concluded `no_action`, and terminal closure was explicitly authorized. Native terminalization now releases Journey occupancy while preserving bounded finalization evidence and exact successor-safe cleanup. Push, merge, publication, release, production repair and CR058 execution are not authorized.
