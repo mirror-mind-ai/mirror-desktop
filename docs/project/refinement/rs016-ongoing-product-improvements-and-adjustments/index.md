@@ -40,7 +40,7 @@ CR039 is `promoted` to RS018 / CR040. Its recovery incident revealed the same co
 
 CR038 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs016-cr038-coalesced-composer-drafts`. Its Navigator-approved plan separates immediate local typing from coalesced durable draft persistence while preserving explicit flush and recovery boundaries.
 
-CR037 is `captured` and unassigned. It records the need to intercept ordinary app closure while agents are `working`, disclose the active work and require explicit user confirmation before closing.
+CR037 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr037-confirm-app-closure`. The Navigator accepted the rebuilt dev app route: the main window `x` closes when idle, active/finalizing agent work requires explicit confirmation, and the light-theme explanation box contrast was corrected. Debt Review concluded `no_action`.
 
 CR036 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr036-generation-ready-notice-contrast`. The Navigator accepted the rebuilt isolated Mirror Desktop Dev light-theme route, and Debt Review concluded `no_action`.
 

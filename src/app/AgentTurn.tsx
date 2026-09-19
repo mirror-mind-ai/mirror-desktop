@@ -19,6 +19,7 @@ type AgentTurnProps = {
   proximity?: AssistantTurnProximity;
   basePath?: string;
   onLocalPathClick?: (path: string) => void;
+  highlightQuery?: string;
 };
 
 export function AgentTurn({
@@ -28,6 +29,7 @@ export function AgentTurn({
   proximity = "latest_completed",
   basePath,
   onLocalPathClick,
+  highlightQuery,
 }: AgentTurnProps) {
   const hasContent = Boolean(
     presentation.agentActions
@@ -71,6 +73,7 @@ export function AgentTurn({
         basePath={basePath}
         onLocalPathClick={onLocalPathClick}
         copyCodeBlocks
+        highlightQuery={highlightQuery}
       />
     </section>
   ) : null;

@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import type { ConversationMessage } from "../agent/piTaskPacket";
 import type { JourneyConversation, SteeringEvidence } from "../domain/journeyConversation";
 import { AgentTurn } from "./AgentTurn";
@@ -22,6 +22,11 @@ import { projectAgentTurnPresentation } from "./conversationTurnPresentation";
 import type { RuntimeProjectionState } from "./runtimeActivityModel";
 import type { AssistantTurnProximity } from "./turnProximity";
 import { buildConversationTranscriptIndex } from "./conversationTranscriptModel";
+import {
+  clampConversationNavigationIndex,
+  createConversationTurnNavigationItems,
+  findConversationSearchMatches,
+} from "./conversationSearchNavigation";
 
 type GroupedImportedActivity = ReturnType<typeof groupImportedActivityByMessage>;
 const EMPTY_ACTIVITY: GroupedImportedActivity["unlinked"] = [];
@@ -37,6 +42,10 @@ type ConversationTranscriptProps = {
   basePath?: string;
   userAvatar?: string;
   onLocalPathClick: (path: string) => void;
+  searchOpen?: boolean;
+  turnNavigatorOpen?: boolean;
+  onSearchOpenChange?: (open: boolean) => void;
+  onTurnNavigatorOpenChange?: (open: boolean) => void;
 };
 
 type ConversationMessageRowProps = {
@@ -48,6 +57,7 @@ type ConversationMessageRowProps = {
   basePath?: string;
   userAvatar?: string;
   onLocalPathClick: (path: string) => void;
+  highlightQuery?: string;
 };
 
 const ConversationMessageRow = memo(function ConversationMessageRow({
@@ -59,6 +69,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
   basePath,
   userAvatar,
   onLocalPathClick,
+  highlightQuery,
 }: ConversationMessageRowProps) {
   const contentWithoutSurfaces = stripMirrorSurfaceBlocks(message.content);
   const renderedContent = stripMirrorModeBlocks(contentWithoutSurfaces);
@@ -80,6 +91,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
         proximity={proximity}
         basePath={basePath}
         onLocalPathClick={onLocalPathClick}
+        highlightQuery={highlightQuery}
       />
     );
   }
@@ -113,6 +125,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
             basePath={basePath}
             onLocalPathClick={onLocalPathClick}
             preserveParagraphLineBreaks
+            highlightQuery={highlightQuery}
           />
           <MessageFileAttachments attachments={message.attachments} />
           <MessageAttachmentProvenance attachments={message.attachments} />
@@ -134,11 +147,98 @@ export const ConversationTranscript = memo(function ConversationTranscript({
   basePath,
   userAvatar,
   onLocalPathClick,
+  searchOpen = false,
+  turnNavigatorOpen = false,
+  onSearchOpenChange,
+  onTurnNavigatorOpenChange,
 }: ConversationTranscriptProps) {
   const index = useMemo(() => buildConversationTranscriptIndex(conversation), [conversation]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const messageRefs = useRef(new Map<string, HTMLDivElement>());
+  const searchMatches = useMemo(() => findConversationSearchMatches(messages, searchQuery), [messages, searchQuery]);
+  const turnItems = useMemo(() => createConversationTurnNavigationItems(messages), [messages]);
+  const activeMatch = searchMatches[clampConversationNavigationIndex(currentMatchIndex, searchMatches.length)];
+
+  const scrollToMessage = useCallback((messageId: string) => {
+    messageRefs.current.get(messageId)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, []);
+
+  const moveSearch = useCallback((direction: 1 | -1) => {
+    if (searchMatches.length === 0) {
+      return;
+    }
+    const nextIndex = clampConversationNavigationIndex(currentMatchIndex + direction, searchMatches.length);
+    setCurrentMatchIndex(nextIndex);
+    scrollToMessage(searchMatches[nextIndex].messageId);
+  }, [currentMatchIndex, scrollToMessage, searchMatches]);
+
+  const updateSearchQuery = useCallback((value: string) => {
+    setSearchQuery(value);
+    setCurrentMatchIndex(0);
+  }, []);
+
+  const searchStatus = !searchQuery.trim()
+    ? "Search is scoped to loaded content in this Conversation."
+    : searchMatches.length === 0
+      ? "No matches in loaded Conversation content."
+      : `Match ${clampConversationNavigationIndex(currentMatchIndex, searchMatches.length) + 1} of ${searchMatches.length} in loaded Conversation content.`;
 
   return (
     <>
+      {messages.length > 0 && searchOpen ? (
+        <section className="conversation-search-panel" role="search" aria-label="Search loaded Conversation content">
+          <button
+            type="button"
+            className="conversation-panel-close"
+            onClick={() => onSearchOpenChange?.(false)}
+            aria-label="Close conversation search"
+            title="Close"
+          >
+            ×
+          </button>
+          <label>
+            <span>Search loaded Conversation content</span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => updateSearchQuery(event.target.value)}
+              placeholder="Find text in this Conversation"
+              autoFocus
+            />
+          </label>
+          <p role="status">{searchStatus}</p>
+          <div className="conversation-search-controls">
+            <button type="button" className="secondary-button" disabled={searchMatches.length === 0} onClick={() => moveSearch(-1)}>Previous</button>
+            <button type="button" className="secondary-button" disabled={searchMatches.length === 0} onClick={() => moveSearch(1)}>Next</button>
+          </div>
+        </section>
+      ) : null}
+      {messages.length > 0 && turnNavigatorOpen ? (
+        <aside className="conversation-turn-panel" aria-label="Conversation turns">
+          <button
+            type="button"
+            className="conversation-panel-close"
+            onClick={() => onTurnNavigatorOpenChange?.(false)}
+            aria-label="Close turn navigator"
+            title="Close"
+          >
+            ×
+          </button>
+          <p>User turns, from newest to oldest.</p>
+          <ol>
+            {turnItems.map((item) => (
+              <li key={item.messageId}>
+                <button type="button" onClick={() => scrollToMessage(item.messageId)} aria-label={`Go to user turn ${item.ordinal}: ${item.snippet}`}>
+                  <MessageSpeakerAvatar speakerKind="user" fallback="N" userAvatar={userAvatar} />
+                  <q>{item.snippet}</q>
+                  <span className="conversation-turn-number" aria-hidden="true">{item.ordinal}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </aside>
+      ) : null}
       <ImportedActivity events={importedActivity.unlinked} variant="summary" basePath={basePath} />
       {messages.map((message) => {
         const linkedActivity = importedActivity.byMessageId.get(message.id) ?? EMPTY_ACTIVITY;
@@ -152,17 +252,30 @@ export const ConversationTranscript = memo(function ConversationTranscript({
             : index.terminalEvidenceByAssistantMessageId.get(message.id)?.projection
           : undefined;
         return (
-          <ConversationMessageRow
+          <div
             key={message.id}
-            message={message}
-            linkedActivity={linkedActivity}
-            proximity={assistantTurnProximity.get(message.id)}
-            exactRuntimeProjection={exactRuntimeProjection}
-            steering={steering}
-            basePath={basePath}
-            userAvatar={userAvatar}
-            onLocalPathClick={onLocalPathClick}
-          />
+            ref={(element) => {
+              if (element) {
+                messageRefs.current.set(message.id, element);
+              } else {
+                messageRefs.current.delete(message.id);
+              }
+            }}
+            className={activeMatch?.messageId === message.id ? "conversation-message-search-current" : undefined}
+            data-conversation-message-id={message.id}
+          >
+            <ConversationMessageRow
+              message={message}
+              linkedActivity={linkedActivity}
+              proximity={assistantTurnProximity.get(message.id)}
+              exactRuntimeProjection={exactRuntimeProjection}
+              steering={steering}
+              basePath={basePath}
+              userAvatar={userAvatar}
+              onLocalPathClick={onLocalPathClick}
+              highlightQuery={searchOpen ? searchQuery : undefined}
+            />
+          </div>
         );
       })}
     </>

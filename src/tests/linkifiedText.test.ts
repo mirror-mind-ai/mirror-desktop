@@ -2,9 +2,17 @@
 import { readFileSync } from "node:fs";
 import { isValidElement, type ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { applyVerifiedLocalPaths, parseLinkifiedText, renderLinkifiedText } from "../app/LinkifiedText";
+import { applyVerifiedLocalPaths, highlightConversationText, parseLinkifiedText, renderLinkifiedText } from "../app/LinkifiedText";
 
 describe("LinkifiedText", () => {
+  it("highlights every case-insensitive search match without changing its text", () => {
+    const result = highlightConversationText("Mirror and mirror", "mirror");
+    expect(Array.isArray(result)).toBe(true);
+    const parts = result as Array<string | ReactElement>;
+    expect(parts.filter((part) => isValidElement(part))).toHaveLength(2);
+    expect(parts.filter((part) => isValidElement(part)).map((part) => (part as ReactElement<{ children: string }>).props.children)).toEqual(["Mirror", "mirror"]);
+  });
+
   it("detects public and loopback HTTP links without trailing punctuation", () => {
     expect(parseLinkifiedText("Open https://example.com/docs.")) .toEqual([
       { type: "text", text: "Open " },

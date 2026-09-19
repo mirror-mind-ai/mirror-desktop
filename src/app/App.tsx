@@ -148,6 +148,7 @@ import {
 } from "./runtimeActivityModel";
 import {
   createInitialJourneyRuntimeState,
+  hasActiveOrFinalizingJourneyRuntime,
   identityJourneyId,
   isJourneyRuntimeActiveOrFinalizing,
   journeyRuntimeReducer,
@@ -175,7 +176,9 @@ import {
   savePostFrontierReceiptProjection,
 } from "./journeyConversationStorage";
 import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPreferenceStorage";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { loadComposerDrafts, saveComposerDrafts } from "./composerDraftStorage";
+import { createComposerDraftPersistence, type ComposerDraftPersistence } from "./composerDraftPersistence";
 import {
   advanceTurnJournal,
   decideTurnJournalRecovery,
@@ -458,6 +461,16 @@ export function App({ model }: AppProps) {
   const [draggedJourneyId, setDraggedJourneyId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [composerDrafts, setComposerDrafts] = useState<ComposerDraftMap>({});
+  const composerDraftsRef = useRef<ComposerDraftMap>({});
+  const composerDraftPersistenceRef = useRef<ComposerDraftPersistence | null>(null);
+  if (!composerDraftPersistenceRef.current) {
+    composerDraftPersistenceRef.current = createComposerDraftPersistence({
+      save: saveComposerDrafts,
+      idleMs: 750,
+      onError: (error) => console.warn("Could not persist Composer drafts.", error),
+    });
+  }
+  const composerDraftPersistence = composerDraftPersistenceRef.current;
   const [composerDraftsLoaded, setComposerDraftsLoaded] = useState(false);
   const [pendingFileAttachments, setPendingFileAttachments] = useState<FileAttachment[]>([]);
   const [fileAttachmentMaxFiles, setFileAttachmentMaxFiles] = useState(MAX_FILE_ATTACHMENTS);
@@ -568,6 +581,11 @@ export function App({ model }: AppProps) {
   const [runtimeOnboardingEditing, setRuntimeOnboardingEditing] = useState(false);
   const [runtimeOnboardingMessage, setRuntimeOnboardingMessage] = useState<string>();
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
+  const [closeConfirmationOpen, setCloseConfirmationOpen] = useState(false);
+  const [closeConfirmationBusy, setCloseConfirmationBusy] = useState(false);
+  const [closeConfirmationError, setCloseConfirmationError] = useState<string>();
+  const [conversationSearchOpen, setConversationSearchOpen] = useState(false);
+  const [conversationTurnNavigatorOpen, setConversationTurnNavigatorOpen] = useState(false);
   const [conversationLoaded, setConversationLoaded] = useState(false);
   const [journeyThreadState, setJourneyThreadState] = useState<JourneyThreadDisplayState>({ kind: "loading" });
   const [startingJourneyId, setStartingJourneyId] = useState<string | undefined>();
@@ -1152,6 +1170,7 @@ export function App({ model }: AppProps) {
       }
 
       setLoadedJourneyRegistry(registry);
+      composerDraftsRef.current = restoredDrafts;
       setComposerDrafts(restoredDrafts);
       setJourneyPreferences({
         pinnedJourneyIds: sanitizedPreferences.pinnedJourneyIds,
@@ -1566,10 +1585,58 @@ export function App({ model }: AppProps) {
 
   useEffect(() => {
     if (!composerDraftsLoaded) return;
-    void saveComposerDrafts(composerDrafts).catch((error) => {
-      console.warn("Could not persist Composer drafts.", error);
+    void composerDraftPersistence.flush().catch((error) => {
+      console.warn("Could not flush Composer drafts after destination change.", error);
     });
-  }, [composerDrafts, composerDraftsLoaded]);
+  }, [
+    composerDraftPersistence,
+    composerDraftsLoaded,
+    selectedJourney,
+    selectedConversationSpace.kind,
+    selectedConversationSpace.kind === "journey_workspace" ? undefined : selectedConversationSpace.conversationId,
+  ]);
+
+  const activeCloseWorkCount = useMemo(
+    () => Object.values(journeyRuntimeState.entries).filter(isJourneyRuntimeActiveOrFinalizing).length,
+    [journeyRuntimeState],
+  );
+
+  const closeAfterDraftFlush = useCallback(async () => {
+    const appWindow = getCurrentWindow();
+    setCloseConfirmationBusy(true);
+    setCloseConfirmationError(undefined);
+    try {
+      await composerDraftPersistence.flush();
+      await appWindow.destroy();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setCloseConfirmationError(`Could not close Mirror Desktop: ${message}`);
+      setCloseConfirmationBusy(false);
+      console.warn("Could not close the app after flushing Composer drafts.", error);
+    }
+  }, [composerDraftPersistence]);
+
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    let unlisten: (() => void) | undefined;
+    void appWindow.onCloseRequested((event) => {
+      event.preventDefault();
+      if (hasActiveOrFinalizingJourneyRuntime(journeyRuntimeStateRef.current)) {
+        setCloseConfirmationError(undefined);
+        setCloseConfirmationOpen(true);
+        return;
+      }
+      void closeAfterDraftFlush();
+    }).then((stopListening) => {
+      unlisten = stopListening;
+    }).catch((error) => {
+      console.warn("Could not install the Composer draft close boundary.", error);
+    });
+    return () => {
+      unlisten?.();
+      composerDraftPersistence.dispose();
+    };
+  }, [closeAfterDraftFlush, composerDraftPersistence]);
 
   useEffect(() => {
     if (!registryLoaded || !preferencesLoaded) {
@@ -1721,7 +1788,28 @@ export function App({ model }: AppProps) {
     }
   }
 
-  function setJourneyComposerDraft(journeyId: string, text: string) {
+  function updateComposerDrafts(
+    update: (current: ComposerDraftMap) => ComposerDraftMap,
+    flush = false,
+  ) {
+    const next = update(composerDraftsRef.current);
+    composerDraftsRef.current = next;
+    setComposerDrafts(next);
+    composerDraftPersistence.schedule(next);
+    if (flush) {
+      void composerDraftPersistence.flush().catch((error) => {
+        console.warn("Could not flush Composer drafts.", error);
+      });
+    }
+  }
+
+  function flushComposerDrafts() {
+    void composerDraftPersistence.flush().catch((error) => {
+      console.warn("Could not flush Composer drafts.", error);
+    });
+  }
+
+  function setJourneyComposerDraft(journeyId: string, text: string, flush = false) {
     const boundedText = text.slice(0, COMPOSER_DRAFT_MAX_CHARS);
     const childEntry = selectedConversationEntry?.kind === "desktop_conversation"
       ? selectedConversationEntry
@@ -1730,7 +1818,7 @@ export function App({ model }: AppProps) {
     const selectedAuthorityStillMatches = selectedJourneyRef.current === journeyId
       && (!childEntry || conversationRef.current.id === childEntry.threadId);
     if (selectedAuthorityStillMatches) setDraft(boundedText);
-    setComposerDrafts((current) => updateComposerDraft(current, draftKey, boundedText));
+    updateComposerDrafts((current) => updateComposerDraft(current, draftKey, boundedText), flush);
   }
 
   async function attachDroppedFiles(paths: string[]) {
@@ -1911,7 +1999,7 @@ export function App({ model }: AppProps) {
       setConversation(stagedConversation);
     }
     if (mode === "mock") {
-      setJourneyComposerDraft(baseConversation.journeyId, "");
+      setJourneyComposerDraft(baseConversation.journeyId, "", true);
     } else if (selectedJourneyRef.current === ownerJourneyId) {
       setDraft("");
     }
@@ -1926,9 +2014,9 @@ export function App({ model }: AppProps) {
         ? selectedConversationEntry.conversationId
         : undefined,
     );
-    const persistOwnerComposerDraft = (text: string) => {
+    const persistOwnerComposerDraft = (text: string, flush = false) => {
       const boundedText = text.slice(0, COMPOSER_DRAFT_MAX_CHARS);
-      setComposerDrafts((current) => updateComposerDraft(current, ownerDraftKey, boundedText));
+      updateComposerDrafts((current) => updateComposerDraft(current, ownerDraftKey, boundedText), flush);
       if (selectedJourneyRef.current === ownerJourneyId
         && conversationRef.current.id === baseConversation.id) {
         setDraft(boundedText);
@@ -1992,7 +2080,7 @@ export function App({ model }: AppProps) {
               && current.piSessionId === baseConversation.liveIdentity.piSessionId
                 ? undefined
                 : current);
-            persistOwnerComposerDraft("");
+            persistOwnerComposerDraft("", true);
             try {
               await journeyPersistenceCoordinator.run(
                 settlementAuthority,
@@ -2818,7 +2906,7 @@ export function App({ model }: AppProps) {
       requestId = result.evidence.requestId;
       publishSteeringConversation(staged, identity);
       await saveDedicatedJourneyConversation(staged);
-      setJourneyComposerDraft(identity.authority.journeyId, "");
+      setJourneyComposerDraft(identity.authority.journeyId, "", true);
     } catch (error) {
       dispatchJourneyRuntime({
         type: "append_warning",
@@ -2937,7 +3025,7 @@ export function App({ model }: AppProps) {
       conversationRef.current = restartedConversation;
       setConversation(restartedConversation);
       setJourneyThreadState(classified);
-      setJourneyComposerDraft(ownerJourneyId, "");
+      setJourneyComposerDraft(ownerJourneyId, "", true);
       setPendingFileAttachments([]);
       setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
       setFileAttachmentError(undefined);
@@ -3329,7 +3417,7 @@ export function App({ model }: AppProps) {
         messageLimit: 30,
       });
       setConversationCatalog((current) => [created, ...current]);
-      setComposerDrafts((current) => updateComposerDraft(
+      updateComposerDrafts((current) => updateComposerDraft(
         current, conversationDraftKey(selectedJourney, created.conversationId), prompt,
       ));
       dispatchConversationFocus({ type: "select_desktop", journeyId: selectedJourney, conversationId: created.conversationId });
@@ -3370,11 +3458,11 @@ export function App({ model }: AppProps) {
     try {
       await deleteDesktopConversation({ journeyId: selectedJourney, conversationId: entry.conversationId });
       setConversationCatalog((current) => current.filter((candidate) => candidate.conversationId !== entry.conversationId));
-      setComposerDrafts((current) => {
+      updateComposerDrafts((current) => {
         const next = { ...current };
         delete next[conversationDraftKey(selectedJourney, entry.conversationId)];
         return next;
-      });
+      }, true);
       dispatchConversationFocus({ type: "select_root", journeyId: selectedJourney });
       setConversationActionMessage("Desktop Conversation deleted.");
       setConversationDeleteTarget(undefined);
@@ -4385,16 +4473,41 @@ export function App({ model }: AppProps) {
               </div>
               <div className="chat-header-actions">
                 <button
-                  className={`menu-button conversation-shortcut ${operationalChatSelected ? "selected" : ""}`}
+                  className={`menu-button conversation-search-shortcut ${conversationSearchOpen ? "selected" : ""}`}
                   type="button"
-                  onClick={showConversation}
-                  disabled={altitudeSwitchDisabled}
-                  aria-label="Go to conversation"
-                  aria-current={operationalChatSelected ? "location" : undefined}
-                  title="Conversation"
+                  onClick={() => {
+                    showConversation();
+                    setConversationSearchOpen((open) => !open);
+                  }}
+                  disabled={altitudeSwitchDisabled || messages.length === 0 || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
+                  aria-label="Search active conversation"
+                  aria-pressed={conversationSearchOpen}
+                  title="Search conversation"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 5.75h14v9.5H9.25L5 18.5V5.75Z" />
+                    <circle cx="10.5" cy="10.5" r="5.25" />
+                    <path d="m14.5 14.5 4.5 4.5" />
+                  </svg>
+                </button>
+                <button
+                  className={`menu-button conversation-turn-shortcut ${conversationTurnNavigatorOpen ? "selected" : ""}`}
+                  type="button"
+                  onClick={() => {
+                    showConversation();
+                    setConversationTurnNavigatorOpen((open) => !open);
+                  }}
+                  disabled={altitudeSwitchDisabled || messages.length === 0 || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
+                  aria-label="Navigate active conversation turns"
+                  aria-pressed={conversationTurnNavigatorOpen}
+                  title="Navigate turns"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 6h10" />
+                    <path d="M7 12h10" />
+                    <path d="M7 18h10" />
+                    <circle cx="4" cy="6" r="1" />
+                    <circle cx="4" cy="12" r="1" />
+                    <circle cx="4" cy="18" r="1" />
                   </svg>
                 </button>
                 <div className="journey-menu-wrap" ref={journeyMenuRef}>
@@ -4590,6 +4703,10 @@ export function App({ model }: AppProps) {
             basePath={selectedJourneyBasePath}
             userAvatar={userAvatar}
             onLocalPathClick={handleChatLocalPath}
+            searchOpen={conversationSearchOpen}
+            turnNavigatorOpen={conversationTurnNavigatorOpen}
+            onSearchOpenChange={setConversationSearchOpen}
+            onTurnNavigatorOpenChange={setConversationTurnNavigatorOpen}
           />
 
           <div ref={chatEndRef} className="chat-scroll-anchor" aria-hidden="true" />
@@ -4701,6 +4818,7 @@ export function App({ model }: AppProps) {
               value={draft}
               maxLength={COMPOSER_DRAFT_MAX_CHARS}
               onChange={(event) => setJourneyComposerDraft(selectedJourney, event.target.value)}
+              onBlur={flushComposerDrafts}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
@@ -4783,6 +4901,42 @@ export function App({ model }: AppProps) {
         </section>
       </section>
 
+
+      {closeConfirmationOpen ? (
+        <div className="settings-backdrop" role="presentation" onClick={() => !closeConfirmationBusy && setCloseConfirmationOpen(false)}>
+          <section
+            className="settings-window close-confirmation-dialog danger-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Confirm closing Mirror Desktop"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="settings-header">
+              <div>
+                <p className="eyebrow">Active agent work</p>
+                <h2>Close while agents are working?</h2>
+                <p className="settings-intro">
+                  Mirror Desktop still has {activeCloseWorkCount} active {activeCloseWorkCount === 1 ? "agent operation" : "agent operations"}. Closing now can interrupt visible work before it settles.
+                </p>
+              </div>
+              <button type="button" onClick={() => setCloseConfirmationOpen(false)} disabled={closeConfirmationBusy}>×</button>
+            </header>
+            <div className="restart-assurances">
+              <p>Cancel keeps the app open and leaves active work untouched.</p>
+              <p>Close anyway flushes Composer drafts first, then closes the app.</p>
+            </div>
+            {closeConfirmationError ? <p className="settings-error" role="alert">{closeConfirmationError}</p> : null}
+            <div className="provider-actions">
+              <button type="button" className="danger-button" onClick={() => void closeAfterDraftFlush()} disabled={closeConfirmationBusy}>
+                {closeConfirmationBusy ? "Closing…" : "Close anyway"}
+              </button>
+              <button className="secondary-button" type="button" onClick={() => setCloseConfirmationOpen(false)} disabled={closeConfirmationBusy}>
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {restartConfirmationOpen && journeyThreadState.kind === "ready" ? (
         <div className="settings-backdrop" role="presentation" onClick={() => !isJourneyReloading && setRestartConfirmationOpen(false)}>

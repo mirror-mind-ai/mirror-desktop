@@ -83,6 +83,7 @@ describe("application themes", () => {
     expect(cssSource).toContain(".message-copy-ready-block");
     expect(cssSource).toContain(".operational-artifacts-browser");
     expect(cssSource).toContain(".settings-window");
+    expect(cssSource).toContain(") .restart-assurances {");
   });
 
   it("keeps Mist cool-blue and Parchment warm while making Journey ordering readable", () => {
@@ -121,6 +122,7 @@ describe("application themes", () => {
     expect(contrast("#ffffff", "#344054")).toBeGreaterThanOrEqual(7);
     expect(contrast("#ffffff", "#6941c6")).toBeGreaterThanOrEqual(4.5);
     expect(cssSource).toContain(".message.speaker-user .message-avatar");
+    expect(cssSource).toContain(".conversation-turn-panel .message-avatar:not(.has-custom-user-avatar)");
     expect(cssSource).toContain(".message.speaker-agent .message-avatar");
     expect(cssSource).toContain(".message.speaker-persona .message-avatar");
   });
@@ -213,6 +215,17 @@ describe("application themes", () => {
     expect(cssSource).toContain(") button.focused-conversation-create {");
     expect(cssSource).toContain(") .focused-conversation-create span {");
     expect(cssSource).toContain(") button.focused-conversation-create:is(:hover, :focus-visible) {");
+  });
+
+  it("keeps generation-ready notices legible in light themes", () => {
+    for (const theme of lightApplicationThemes) {
+      const noticeSurface = mixHex(theme.tokens.accentText, theme.tokens.canvas, 0.1);
+      expect(contrast(theme.tokens.primaryText, noticeSurface), `${theme.id} generation-ready notice`)
+        .toBeGreaterThanOrEqual(4.5);
+    }
+    expect(cssSource).toContain("/* Light generation-ready notice contrast contract. */");
+    expect(cssSource).toContain(") .journey-reload-status {");
+    expect(cssSource).toContain("color: var(--light-text);");
   });
 
   it("keeps the completed composer status legible in light themes", () => {

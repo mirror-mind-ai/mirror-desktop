@@ -68,10 +68,12 @@ export function LinkifiedText({
   text,
   basePath,
   onLocalPathClick,
+  highlightQuery,
 }: {
   text: string;
   basePath?: string;
   onLocalPathClick?: (path: string) => void;
+  highlightQuery?: string;
 }) {
   const parsedParts = useMemo(() => parseLinkifiedText(text), [text]);
   const candidates = useMemo(() => [...new Set(parsedParts
@@ -95,13 +97,26 @@ export function LinkifiedText({
     return () => { cancelled = true; };
   }, [basePath, candidates]);
 
-  return <>{renderLinkifiedText(applyVerifiedLocalPaths(parsedParts, verifiedPaths), basePath, onLocalPathClick)}</>;
+  return <>{renderLinkifiedText(applyVerifiedLocalPaths(parsedParts, verifiedPaths), basePath, onLocalPathClick, highlightQuery)}</>;
+}
+
+export function highlightConversationText(text: string, query?: string): ReactNode {
+  const normalizedQuery = query?.trim();
+  if (!normalizedQuery) return text;
+  const escapedQuery = normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matcher = new RegExp(`(${escapedQuery})`, "gi");
+  return text.split(matcher).map((part, index) => (
+    part.toLocaleLowerCase() === normalizedQuery.toLocaleLowerCase()
+      ? <mark className="conversation-search-highlight" key={index}>{part}</mark>
+      : part
+  ));
 }
 
 export function renderLinkifiedText(
   parts: LinkifiedTextPart[],
   basePath?: string,
   onLocalPathClick?: (path: string) => void,
+  highlightQuery?: string,
 ): ReactNode[] {
   return parts.map((part, index) => {
     if (part.type === "url") {
@@ -116,7 +131,7 @@ export function renderLinkifiedText(
           }}
           title="Open external URL"
         >
-          {part.text}
+          {highlightConversationText(part.text, highlightQuery)}
         </a>
       );
     }
@@ -134,11 +149,13 @@ export function renderLinkifiedText(
           }}
           title="Open local path"
         >
-          {part.text}
+          {highlightConversationText(part.text, highlightQuery)}
         </a>
       );
     }
 
-    return part.text;
+    return highlightQuery?.trim()
+      ? <span key={index}>{highlightConversationText(part.text, highlightQuery)}</span>
+      : part.text;
   });
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { LinkifiedText } from "./LinkifiedText";
+import { highlightConversationText, LinkifiedText } from "./LinkifiedText";
 import { MessageCopyAction, type MessageCopyLabels } from "./MessageCopyAction";
 
 type TableAlignment = "left" | "center" | "right";
@@ -48,18 +48,20 @@ export function MessageContent({
   onLocalPathClick,
   preserveParagraphLineBreaks = false,
   copyCodeBlocks = false,
+  highlightQuery,
 }: {
   content: string;
   basePath?: string;
   onLocalPathClick?: (path: string) => void;
   preserveParagraphLineBreaks?: boolean;
   copyCodeBlocks?: boolean;
+  highlightQuery?: string;
 }) {
   const blocks = parseMessageBlocks(content, { preserveParagraphLineBreaks });
 
   return (
     <div className={`message-content${preserveParagraphLineBreaks ? " preserve-line-breaks" : ""}`}>
-      {blocks.map((block, index) => renderBlock(block, index, basePath, onLocalPathClick, copyCodeBlocks))}
+      {blocks.map((block, index) => renderBlock(block, index, basePath, onLocalPathClick, copyCodeBlocks, highlightQuery))}
     </div>
   );
 }
@@ -333,17 +335,18 @@ function renderBlock(
   basePath?: string,
   onLocalPathClick?: (path: string) => void,
   copyCodeBlocks = false,
+  highlightQuery?: string,
 ) {
   switch (block.type) {
     case "heading": {
       const Heading = block.level === 2 ? "h2" : "h3";
-      return <Heading key={index}>{renderInline(block.text, basePath, onLocalPathClick)}</Heading>;
+      return <Heading key={index}>{renderInline(block.text, basePath, onLocalPathClick, highlightQuery)}</Heading>;
     }
     case "unordered_list":
       return (
         <ul key={index}>
           {block.items.map((item) => (
-            <li key={item}>{renderInline(item, basePath, onLocalPathClick)}</li>
+            <li key={item}>{renderInline(item, basePath, onLocalPathClick, highlightQuery)}</li>
           ))}
         </ul>
       );
@@ -351,7 +354,7 @@ function renderBlock(
       return (
         <ol key={index}>
           {block.items.map((item) => (
-            <li key={item}>{renderInline(item, basePath, onLocalPathClick)}</li>
+            <li key={item}>{renderInline(item, basePath, onLocalPathClick, highlightQuery)}</li>
           ))}
         </ol>
       );
@@ -359,7 +362,7 @@ function renderBlock(
       if (!copyCodeBlocks) {
         return (
           <pre key={index} className="message-code-block">
-            <code><LinkifiedText text={block.text} basePath={basePath} onLocalPathClick={onLocalPathClick} /></code>
+            <code><LinkifiedText text={block.text} basePath={basePath} onLocalPathClick={onLocalPathClick} highlightQuery={highlightQuery} /></code>
           </pre>
         );
       }
@@ -371,7 +374,7 @@ function renderBlock(
             className="message-code-block-copy-action"
           />
           <pre className="message-code-block">
-            <code><LinkifiedText text={block.text} basePath={basePath} onLocalPathClick={onLocalPathClick} /></code>
+            <code><LinkifiedText text={block.text} basePath={basePath} onLocalPathClick={onLocalPathClick} highlightQuery={highlightQuery} /></code>
           </pre>
         </div>
       );
@@ -381,7 +384,7 @@ function renderBlock(
         <blockquote key={index} className="message-copy-ready-block">
           <div className="message-copy-ready-prose">
             {block.paragraphs.map((paragraph, paragraphIndex) => (
-              <p key={paragraphIndex}>{renderInline(paragraph, basePath, onLocalPathClick)}</p>
+              <p key={paragraphIndex}>{renderInline(paragraph, basePath, onLocalPathClick, highlightQuery)}</p>
             ))}
           </div>
           <MessageCopyAction
@@ -400,7 +403,7 @@ function renderBlock(
               <tr>
                 {block.headers.map((header, columnIndex) => (
                   <th scope="col" style={{ textAlign: block.alignments[columnIndex] }} key={columnIndex}>
-                    {renderInline(header, basePath, onLocalPathClick)}
+                    {renderInline(header, basePath, onLocalPathClick, highlightQuery)}
                   </th>
                 ))}
               </tr>
@@ -410,7 +413,7 @@ function renderBlock(
                 <tr key={rowIndex}>
                   {row.map((cell, columnIndex) => (
                     <td style={{ textAlign: block.alignments[columnIndex] }} key={columnIndex}>
-                      {renderInline(cell, basePath, onLocalPathClick)}
+                      {renderInline(cell, basePath, onLocalPathClick, highlightQuery)}
                     </td>
                   ))}
                 </tr>
@@ -420,7 +423,7 @@ function renderBlock(
         </div>
       );
     case "paragraph":
-      return <p key={index}>{renderInline(block.text, basePath, onLocalPathClick)}</p>;
+      return <p key={index}>{renderInline(block.text, basePath, onLocalPathClick, highlightQuery)}</p>;
   }
 }
 
@@ -428,17 +431,18 @@ function renderInline(
   text: string,
   basePath?: string,
   onLocalPathClick?: (path: string) => void,
+  highlightQuery?: string,
 ): ReactNode[] {
   return parseInlineTokens(text).map((token, index) => {
     switch (token.type) {
       case "strong":
-        return <strong key={index}>{token.text}</strong>;
+        return <strong key={index}>{highlightConversationText(token.text, highlightQuery)}</strong>;
       case "emphasis":
-        return <em key={index}>{token.text}</em>;
+        return <em key={index}>{highlightConversationText(token.text, highlightQuery)}</em>;
       case "code":
-        return <code key={index}><LinkifiedText text={token.text} basePath={basePath} onLocalPathClick={onLocalPathClick} /></code>;
+        return <code key={index}><LinkifiedText text={token.text} basePath={basePath} onLocalPathClick={onLocalPathClick} highlightQuery={highlightQuery} /></code>;
       case "text":
-        return <LinkifiedText key={index} text={token.text} basePath={basePath} onLocalPathClick={onLocalPathClick} />;
+        return <LinkifiedText key={index} text={token.text} basePath={basePath} onLocalPathClick={onLocalPathClick} highlightQuery={highlightQuery} />;
     }
   });
 }
