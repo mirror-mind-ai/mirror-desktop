@@ -71,9 +71,9 @@ Validation must include completion, provider failure, cancellation, process deat
 
 CR057 is `done` with Driver `@alissonvale` and Delivery `refinement/rs019-cr057-terminal-occupancy-release`. The Navigator accepted the implementation, automated gates and isolated DEV proof that exact native terminalization releases active occupancy, terminal debt remains bounded/inspectable, and an immediate same-Journey successor completes without relaunch after forced post-terminal projection failure. Proportionality/debt review concluded `no_action`, and terminal closure was explicitly authorized.
 
-CR058 is `done`. The Navigator accepted its automated and same-process DEV validation, and the proportionality/debt review concluded `no_action`. Retained post-terminal journal evidence remains available for diagnosis and explicit model-free recovery but no longer participates in Conversation admission or the live submission guard. CR059 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs019-cr059-run-scoped-settlement`. Its implementation begins at the native post-frontier A/B persistence race, followed by exact settlement diagnostics and successor-safe frontend publication.
+CR058 is `done`. The Navigator accepted its automated and same-process DEV validation, and the proportionality/debt review concluded `no_action`. Retained post-terminal journal evidence remains available for diagnosis and explicit model-free recovery but no longer participates in Conversation admission or the live submission guard.
 
-CR059 is `captured` and unassigned. It makes late projection, outbox, Mirror acknowledgement and cleanup operations exact and harmless in the presence of a newer run.
+CR059 is `validated` with Driver `@alissonvale` and Delivery `refinement/rs019-cr059-run-scoped-settlement`. The Navigator accepted the native exact-receipt merge, successor-safe frontend publication, run-scoped settlement diagnostics, automated gates and proportional isolated DEV rehearsal. Proportionality and debt review remain before terminal closure.
 
 CR060 is `captured` and unassigned. It supplies the release-shaped failure matrix required before RS019 closure.
 

@@ -2,7 +2,7 @@
 
 # CR059: Make Post-Terminal Settlement Independent and Run-Scoped
 
-**Status:** in_progress
+**Status:** validated
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs019-cr059-run-scoped-settlement`
 
@@ -129,7 +129,7 @@ The change remains behind existing exact save modes and durable outbox/journal a
 
 ## Authority Boundary
 
-The Navigator selected CR059, confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr059-run-scoped-settlement`, and authorized implementation/TDD. Push, merge, publication, release, production mutation and CR060 work remain separate decisions.
+The Navigator selected CR059, confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr059-run-scoped-settlement`, authorized implementation/TDD and explicitly validated the resulting implementation and evidence. Push, merge, publication, release and production mutation remain separate decisions.
 
 ## Evidence
 
@@ -152,7 +152,8 @@ The Navigator selected CR059, confirmed Driver `@alissonvale` plus Delivery `ref
 - With both Mirror operations unavailable, the UI aggregated `2 Mirror settlement operations need attention.`, preserved the CR059 successor transcript and kept the Composer available. Retrying the selected exact operation did not clear or replace the older debt when delivery remained unavailable.
 - DEV rehearsal evidence is stored under `/tmp/rs019-cr059-dev-20260919T214756Z/`. Stable app data remained byte-identical across 135 files with SHA-256 `7a4582496c5b2924435f70cf373dc4b9617791e8162c9d4ea52cc85271904c95`; no stable app-data mutation occurred.
 - The successful late-A receipt-save race is established by the native tests rather than this outage rehearsal: the available retained DEV debt lacks a recoverable committed harness projection, so the rehearsal intentionally did not manufacture or rewrite authority to force success.
+- The Navigator explicitly accepted the implementation, automated gates and proportional isolated DEV evidence on 2026-09-19.
 
 ## Outcome
 
-Implementation, automated validation and the proportional isolated DEV rehearsal are complete. Explicit Navigator Validation remains required before CR059 can close.
+Navigator Validation is accepted. Proportionality and debt review remain required before terminal closure.
