@@ -136,6 +136,18 @@ The Navigator authorized creation of RS019, selection of CR057, Driver `@alisson
 - Rehearsal artifacts are under `/tmp/rs019-cr057-dev-20260919T200538Z/`, including pre-successor journal authority, post-successor journal state and screenshots of the failure and settled successor.
 - Stable app data remained byte-identical across 135 files (`49fecded26a17aac699014f8e81b996df4e9575ade5051efb1df1b290e7d334b`). Production Mirror remained unchanged at 984 conversations and 44,159 messages. Release state and remote repository state were not mutated.
 
+## Proportionality and Debt Review
+
+**Result:** `no_action`
+
+- The implementation changes only native occupancy classification, bounded finalization retirement, stale cleanup idempotency and the frontend/native consumers that previously equated every registry entry with active execution.
+- It adds no persistent schema, migration, runtime setting, environment switch, provider retry, provider/model selection, credential inference, queue or background scheduler.
+- The released-target ledger remains bounded at twice the governed registry limit; stale callbacks and cleanup retain exact `journeyId + runId` comparison and cannot mutate a replacement.
+- Unknown or malformed inspection remains fail-closed, while all four exact terminal outcomes become non-occupying only after process capacity is released.
+- The DEV proof exercised the intended user-visible boundary with a real Pi child and forced secondary persistence failure, rather than relying only on presentation state.
+- Journal admission authority removal and broader run-scoped settlement ordering remain intentionally sequenced CR058 and CR059 scope. They are not hidden CR057 implementation debt.
+- No proportionality reduction or follow-up correction is required before terminal closure.
+
 ## Outcome
 
-The Navigator accepted Validation after reviewing the completed implementation, automated gates and isolated same-process DEV successor rehearsal. CR057 is `validated`. Proportionality/debt review and terminal closure remain outstanding; push, merge, publication, release, production repair and CR058 execution are not authorized.
+The Navigator accepted Validation after reviewing the completed implementation, automated gates and isolated same-process DEV successor rehearsal. CR057 is `validated`, and its proportionality/debt review concluded `no_action`. Terminal closure remains a separate decision; push, merge, publication, release, production repair and CR058 execution are not authorized.
