@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.12 — Provider Error Composer Release](v0.2.0-alpha.12.md) — releases the Composer after terminal provider failures settle as interrupted attempts while keeping native evidence preserved and retry behavior explicit.
 - [v0.2.0-alpha.11 — Conversation Search and Close Safety](v0.2.0-alpha.11.md) — adds active Conversation search, user-turn navigation, coalesced Composer draft persistence, and explicit close safety while preserving transcript authority.
 - [v0.2.0-alpha.10 — Terminal-Aligned Conversation Continuity](v0.2.0-alpha.10.md) — makes Pi JSONL the transcript authority, rebuilds Desktop Conversation views from exact native evidence, and keeps Mirror delivery model-free and non-blocking across outages, relaunches, concurrent Journeys, and deleted caches.
 - [v0.2.0-alpha.9 — Reliable Agent Access](v0.2.0-alpha.9.md) — keeps the agent available after durable local completion, adds explicit model-free recovery, permits intended cross-Journey source material, and restores readable light-theme Conversation controls.
