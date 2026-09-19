@@ -48,7 +48,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR058](rs019-post-terminal-continuity/cr058-remove-post-terminal-journal-state-from-conversation-admission.md) | RS019 | Remove Post-Terminal Journal State from Conversation Admission | captured | — | — |
+| 1 | [CR058](rs019-post-terminal-continuity/cr058-remove-post-terminal-journal-state-from-conversation-admission.md) | RS019 | Remove Post-Terminal Journal State from Conversation Admission | planned | @alissonvale | `refinement/rs019-cr058-journal-admission-release` |
 | 2 | [CR059](rs019-post-terminal-continuity/cr059-make-post-terminal-settlement-independent-and-run-scoped.md) | RS019 | Make Post-Terminal Settlement Independent and Run-Scoped | captured | — | — |
 | 3 | [CR060](rs019-post-terminal-continuity/cr060-rehearse-non-blocking-post-terminal-continuity.md) | RS019 | Rehearse Non-Blocking Post-Terminal Continuity | captured | — | — |
 | 4 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
