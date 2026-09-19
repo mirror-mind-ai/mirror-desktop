@@ -47,8 +47,9 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
-| 2 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| 1 | [CR056](rs016-ongoing-product-improvements-and-adjustments/cr056-release-composer-after-completed-terminal-durable-lease.md) | RS016 | Release Composer After Completed Terminal-Durable Lease | captured | — | — |
+| 2 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
+| 3 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
 | — | [CR055](rs016-ongoing-product-improvements-and-adjustments/cr055-release-composer-after-terminal-provider-error.md) | RS016 | Release Composer After Terminal Provider Error | done | @alissonvale | `refinement/rs016-cr055-provider-error-composer-release` |
 | — | [CR052](rs016-ongoing-product-improvements-and-adjustments/cr052-ship-generation-ready-notice-contrast-in-light-themes.md) | RS016 | Ship Generation-Ready Notice Contrast in Light Themes | done | @alissonvale | `refinement/rs016-cr052-generation-ready-notice-contrast` |
 | — | [CR038](rs016-ongoing-product-improvements-and-adjustments/cr038-coalesce-composer-draft-persistence.md) | RS016 | Coalesce composer draft persistence | done | @alissonvale | `refinement/rs016-cr038-coalesced-composer-drafts` |

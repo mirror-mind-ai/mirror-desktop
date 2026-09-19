@@ -28,6 +28,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
+- [CR056: Release Composer After Completed Terminal-Durable Lease](cr056-release-composer-after-completed-terminal-durable-lease.md)
 - [CR055: Release Composer After Terminal Provider Error](cr055-release-composer-after-terminal-provider-error.md)
 - [CR054: Surface Provider Terminal Errors in the GUI](cr054-surface-provider-terminal-errors-in-the-gui.md)
 - [CR053: Clarify Effective Model in Agent Arguments Settings](cr053-clarify-effective-model-in-agent-arguments-settings.md)
@@ -39,6 +40,8 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR030 — Restore Journey Expansion Arrow Contrast in Light Themes](cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md)
 - [CR031 — Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md)
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
+
+CR056 is `captured` and unassigned. It records the post-alpha.12 retained-lease bug where an exact completed `terminal_durable` Pi turn with fresh evidence remains blocked because the stale Desktop projection does not expose a pending Mirror repair or staged harness pair for recovery.
 
 CR055 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr055-provider-error-composer-release`. The Navigator accepted the implemented correction that clears stale Composer blocking after terminal provider failure, and Debt Review concluded `no_action`.
 
