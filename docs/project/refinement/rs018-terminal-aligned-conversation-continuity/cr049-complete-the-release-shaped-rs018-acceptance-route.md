@@ -2,7 +2,7 @@
 
 # CR049 — Complete the Release-Shaped RS018 Acceptance Route
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs018-cr049-release-shaped-acceptance`
 
@@ -143,13 +143,27 @@ The Navigator authorized Driver `@alissonvale`, Delivery `refinement/rs018-cr049
 
 ## Outcome
 
-Resumed after CR051 Navigator Validation and integration on 2026-09-18.
+Completed and accepted by Navigator Validation on 2026-09-18 after CR051 integration.
 
 The supported-model baseline, three-turn Mirror outage, terminal-window termination, exact relaunch and model-free debt repair are accepted evidence for this route. CR051 recovered the stale turn from exact Pi evidence, promoted legacy outage debt, settled all five journal records, emptied the outbox and passed a full relaunch without provider execution.
 
 The resumed sandbox starts from that settled private-data-free fixture. Remaining execution is limited to concurrent Journeys, destructive deletion of copied rebuildable caches, exact Pi reconstruction and final relaunch review. Ordinary DEV state was restored and verified before this resumption; production remains untouched.
 
 Concurrent Journey validation then completed: `RS018 Rehearsal B` ran in its own Pi session and settled independently while `RS018 Rehearsal A` remained intact. The copied `dedicated-journey-conversations` and `conversation-segments` caches were deleted from the isolated DEV app data while Pi sessions, Journey threads, journal and outbox remained. After full relaunch, both Journeys reconstructed from exact Pi state: A retained 12 Pi entries with leaf `bb452d3f`, B retained 4 Pi entries with leaf `0e45fe67`, all journal records were `settled`, outbox was empty, no provider retry ran, no error appeared and Composer remained available.
+
+### Navigator Validation
+
+Accepted on 2026-09-18 after the release-shaped route passed with a supported model, Mirror outage/restoration, post-native/pre-delivery termination, model-free repair, concurrent Journeys, copied-cache deletion, Pi-only reconstruction and relaunch continuity.
+
+### Proportionality Review
+
+The composed acceptance route was proportional. It used a disposable private-data-free sandbox, exact receipts, redacted manifests and one scenario at a time. Product defects were stopped and split into CR050 and CR051 rather than being hidden inside acceptance. No production app data, production Mirror data, push, merge, publication or release was touched.
+
+### Debt Review
+
+Decision: `no_action`.
+
+CR049 validates the release-shaped RS018 acceptance path. Remaining production Flip Podcast recovery, promotion/release decisions and RS018 closure are separate Navigator decisions, not CR049 debt.
 
 Safety tooling is implemented and focused tests pass. Ordinary DEV app data is preserved under a verified 63-file backup with manifest digest `0a9cd312e4a8624c99a12a24bab367f77ccea879159e6fe9abcd794153df3e27`. A fresh canonical DEV directory, generic isolated Mirror home/database and two private-data-free rehearsal Journeys were created. Production state remains untouched.
 
