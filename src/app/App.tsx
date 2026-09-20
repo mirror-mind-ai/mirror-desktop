@@ -760,7 +760,10 @@ export function App({ model }: AppProps) {
     && authoritativeContextStats.generation === conversation.liveIdentity.generation
     && authoritativeContextStats.providerModel === providerModelLabel(effectiveProviderConfig);
   const reportedContextUsage = contextIdentityMatches ? authoritativeContextStats.usage : undefined;
-  const pendingMirrorRepair = useMemo(() => pendingMirrorTurnRepair(conversation), [conversation]);
+  const pendingMirrorRepair = useMemo(
+    () => pendingMirrorTurnRepair(presentedConversation),
+    [presentedConversation],
+  );
   const pendingSettlementRecoveryEvidence: PiInvocationAuthorityInspection | undefined = pendingMirrorRepair
     && pendingMirrorRepair.correlation.threadId
     && pendingMirrorRepair.correlation.mirrorConversationId
@@ -799,7 +802,7 @@ export function App({ model }: AppProps) {
   const pendingMirrorOutboxItem = mirrorOutboxItems.find((item) => item.itemId === pendingMirrorRepair?.correlation.turnId);
   const pendingMirrorDisposition = pendingMirrorRepair
     ? classifyPendingMirrorAppend(
-        classifyMirrorAppendMessagePair(conversation, pendingMirrorRepair.correlation),
+        classifyMirrorAppendMessagePair(presentedConversation, pendingMirrorRepair.correlation),
         Boolean(pendingMirrorOutboxItem),
       )
     : undefined;

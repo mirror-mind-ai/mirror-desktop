@@ -143,6 +143,9 @@ describe("runtime projection component", () => {
     expect(automaticRecoveryStart).not.toContain("setJourneyMirrorCommitError(ownerJourneyId, undefined)");
     expect(appSource).toContain("Conversation synchronization needs attention");
     expect(appSource).toContain("Repair synchronization");
+    expect(appSource).toContain("pendingMirrorTurnRepair(presentedConversation)");
+    expect(appSource).not.toContain("pendingMirrorTurnRepair(conversation)");
+    expect(appSource).toContain("classifyMirrorAppendMessagePair(presentedConversation, pendingMirrorRepair.correlation)");
     expect(appSource).toContain("No recovery action will run the agent again.");
     expect(appSource).toContain("selectedActiveNativeLease?.authority.runId");
     expect(appSource).toMatch(

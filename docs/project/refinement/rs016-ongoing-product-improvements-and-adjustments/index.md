@@ -28,6 +28,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
+- [CR063: Align Synchronization Recovery Notice with the Presented Conversation](cr063-align-sync-recovery-notice-with-presented-conversation.md)
 - [CR062: Make Post-Terminal Finalization Self-Healing and Actionable](cr062-make-post-terminal-finalization-self-healing-and-actionable.md)
 - [CR061: Reconcile Mirror Append Timestamp Idempotency](cr061-reconcile-mirror-append-timestamp-idempotency.md)
 - [CR056: Release Composer After Completed Terminal-Durable Lease](cr056-release-composer-after-completed-terminal-durable-lease.md)
@@ -42,6 +43,8 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR030 — Restore Journey Expansion Arrow Contrast in Light Themes](cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md)
 - [CR031 — Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md)
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
+
+CR063 is `in_progress`, selected, assigned to Driver `@alissonvale` and routed through Delivery `refinement/rs016-cr063-align-sync-notice-projection`. It corrects a renderer authority split where the visible Conversation uses a committed runtime snapshot while synchronization recovery still classifies an older base snapshot as pending. Production mutation, acceptance, closure, push, merge, publication and release remain unauthorized.
 
 CR062 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr062-post-terminal-self-healing`. The Navigator accepted its exact model-free recovery from the zero-outbox frontier after production-backed Eval homologation settled the preserved turn, emptied the Journey outbox, retained exact Mirror message identity and preserved Pi JSONL without provider execution. Subsequent manual Eval validation accepted the transient-notice and stable Composer-placeholder corrections. Debt Review concluded `no_action`; push, merge, publication, release and Stable installation remain separately governed.
 
