@@ -118,6 +118,14 @@ No Mirror Core change, production-data mutation, Stable promotion, publication o
 - A retained native lease is removed only when its complete authority matches the recovered item and its phase is `finalizing`; successor leases are never selected by run-only or Journey-only matching.
 - Automatic failure is retained by Journey and becomes manually retryable. Safe details expose the bounded diagnostic without converting persistence debt back into Conversation admission authority.
 
+## Validation
+
+- Automated gates: 901 frontend tests; 161 Rust tests plus 1 ignored under both Stable and Eval feature sets; TypeScript/Vite build; roadmap consistency; whitespace validation.
+- Isolated DEV homologation: [2026-09-20 evidence](cr062-isolated-dev-homologation-2026-09-20.md).
+- The exact sandbox route advanced from `terminal_durable / resume_projection` with no outbox item to `settled / complete`, inserted the two exact messages in the sandbox Mirror database, acknowledged the outbox item, preserved every Pi JSONL byte and created no provider run.
+- Relaunch removed the synchronization/finalization notice while leaving the Composer available.
+- Production repair and production-backed Eval homologation were not performed.
+
 ## Relationships
 
 - CR061 corrects timestamp idempotency and acknowledgement after a Pi-backed outbox item exists. CR062 covers the earlier frontier where completed Pi evidence never becomes a projection/outbox item.
