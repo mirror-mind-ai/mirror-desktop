@@ -196,6 +196,15 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("Message was not sent");
     expect(appSource).toContain("lastItem(streamWarnings)");
     expect(appSource).not.toContain(".at(");
+    const automaticOutboxRecovery = sourceBetween(
+      "void listMirrorAppendOutbox(conversation.journeyId).then((items) => {",
+      "checkedMirrorTurnRef.current.clear();",
+    );
+    expect(automaticOutboxRecovery).toContain('items.every((item) => item.schemaVersion === "1.1.0")');
+    expect(automaticOutboxRecovery).toContain("await repairPiBackedMirrorDeliveryDebt(conversation.journeyId)");
+    expect(automaticOutboxRecovery.indexOf("repairPiBackedMirrorDeliveryDebt")).toBeLessThan(
+      automaticOutboxRecovery.indexOf("retryMirrorAppendSummary(item)"),
+    );
     const durableOutboxRetry = sourceBetween("async function retryMirrorAppendSummary", "async function retryPendingMirrorCommit");
     expect(durableOutboxRetry).toContain("resolveRetainedLeaseForOutboxRecovery(inspection, authority)");
     expect(durableOutboxRetry).toContain("reconcilePiBackedMirrorDeliveryDebt(ownerJourneyId)");

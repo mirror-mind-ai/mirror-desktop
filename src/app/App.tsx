@@ -1712,6 +1712,19 @@ export function App({ model }: AppProps) {
       if (cancelled) return;
       setMirrorOutboxItems(items);
       void (async () => {
+        if (items.length > 0 && items.every((item) => item.schemaVersion === "1.1.0")) {
+          try {
+            await repairPiBackedMirrorDeliveryDebt(conversation.journeyId);
+          } catch (error) {
+            if (!cancelled) {
+              setJourneyMirrorCommitError(
+                conversation.journeyId,
+                error instanceof Error ? error.message : String(error),
+              );
+            }
+          }
+          return;
+        }
         for (const item of items) {
           if (cancelled || checkedMirrorTurnRef.current.has(item.itemId)) continue;
           checkedMirrorTurnRef.current.add(item.itemId);

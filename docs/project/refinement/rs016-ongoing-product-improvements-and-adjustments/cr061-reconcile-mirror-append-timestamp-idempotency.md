@@ -104,6 +104,7 @@ This allows the already-persisted Alpha.13 turn to acknowledge as `existing` and
 - Eval uses a green `EVAL` bundle/Dock/UI identity, disables updater support, and refuses startup when macOS reports the Stable `Mirror Desktop` application running.
 - `npm run install:eval` builds, verifies and atomically installs only `~/Applications/Mirror Desktop Eval.app`; it never launches the application.
 - The first production-backed Eval rehearsal proved Core delivery but exposed a post-frontier acknowledgement mismatch: Desktop required `updatedAt` in the Mirror checkpoint even though its canonical `MirrorCheckpoint` contract makes that field optional. The native receipt merge now accepts absence, still rejects a present non-string value, and preserves every exact receipt/authority check.
+- The follow-up rehearsal settled the current-generation operation but showed that automatic launch recovery still sent an older Pi-backed item with historical `harness.state = pending` through the stricter ordinary projection route. When every retained Journey item is schema `1.1.0`, launch recovery now selects the dedicated Pi-backed repair route first; mixed/legacy sets retain the prior per-item path.
 
 ## Validation Evidence
 
@@ -116,7 +117,7 @@ This allows the already-persisted Alpha.13 turn to acknowledge as `existing` and
 - `cargo check --locked --features evaluation-channel` passed.
 - `npm run roadmap:check` reported `Mirror Desktop roadmap: READY`.
 - `git diff --check` passed.
-- Eval rebuilt and installed at `~/Applications/Mirror Desktop Eval.app` without launching; its verified bundle identifier is `ai.mirrormind.desktop`, name/display name is `Mirror Desktop Eval`, version is `0.2.0-alpha.13`, embedded icon carries the green `EVAL` badge, and corrected executable SHA-256 is `c289b92af60fd5aa888f4862da3fdab949c877f201b98288f989560d57edd1c7`.
+- Eval rebuilt and installed at `~/Applications/Mirror Desktop Eval.app` without launching; its verified bundle identifier is `ai.mirrormind.desktop`, name/display name is `Mirror Desktop Eval`, version is `0.2.0-alpha.13`, embedded icon carries the green `EVAL` badge, and final automatic-recovery executable SHA-256 is `bf9af665594ff85f14cd79e49de741ceb46af3f59aa717f078a53738063747ff`.
 - No Eval process was running after corrected installation. No provider was invoked during either rehearsal or correction.
 
 ## Incident Evidence
@@ -127,6 +128,7 @@ This allows the already-persisted Alpha.13 turn to acknowledge as `existing` and
 - Mirror Core `ConversationAppendService` normalizes `createdAt`; `MessageStore.append_conversation_messages` rejects any persisted mismatch as `idempotency_conflict`.
 - Mirror Desktop reconstructs schema `1.1.0` outbox messages from Pi evidence and maps a Core rejection to `mirror_append_<reason>`, but the current recovery notice shows only the aggregate operation count.
 - The first Eval retry inserted the genuinely absent older pair and acknowledged the timestamp-compatible newer pair at the Core boundary, without provider execution. Local settlement then rejected both receipts as `dedicated_projection_receipt_authority_mismatch` because their canonical checkpoints omitted optional `updatedAt`; both durable outbox items and journals therefore remained unsettled for a safe idempotent follow-up.
+- After the checkpoint correction, read-only durable verification found the newer operation fully settled and removed from outbox. The older operation remained safely retained because its historical projection has `harness.state = pending`; this produced the final automatic Pi-backed route correction rather than weakening ordinary post-frontier authority.
 
 ## Outcome
 
