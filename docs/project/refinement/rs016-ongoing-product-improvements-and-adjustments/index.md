@@ -43,7 +43,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR031 — Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md)
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
 
-CR062 is `captured` and unassigned. It records the production-backed Eval defect where a completed inactive Pi turn remains at `terminal_durable` before projection/outbox materialization, never reaches Mirror, and exposes only a passive non-actionable finalization notice despite having exact evidence for model-free self-healing.
+CR062 is `captured`, selected, assigned to Driver `@alissonvale` and routed through Delivery `refinement/rs016-cr062-post-terminal-self-healing`. It records the production-backed Eval defect where a completed inactive Pi turn remains at `terminal_durable` before projection/outbox materialization, never reaches Mirror, and exposes only a passive non-actionable finalization notice despite having exact evidence for model-free self-healing. Planning and implementation remain unauthorized.
 
 CR061 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr061-mirror-timestamp-idempotency`. The Navigator accepted the Desktop-only timestamp-idempotency correction after production-backed Eval validation removed both target items from the outbox, committed both exact generation projections and cleared the synchronization notice without provider execution. Debt Review concluded `no_action`.
 

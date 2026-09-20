@@ -48,7 +48,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR062](rs016-ongoing-product-improvements-and-adjustments/cr062-make-post-terminal-finalization-self-healing-and-actionable.md) | RS016 | Make Post-Terminal Finalization Self-Healing and Actionable | captured | — | — |
+| 1 | [CR062](rs016-ongoing-product-improvements-and-adjustments/cr062-make-post-terminal-finalization-self-healing-and-actionable.md) | RS016 | Make Post-Terminal Finalization Self-Healing and Actionable | captured | @alissonvale | `refinement/rs016-cr062-post-terminal-self-healing` |
 | 2 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
 | 3 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
 | — | [CR061](rs016-ongoing-product-improvements-and-adjustments/cr061-reconcile-mirror-append-timestamp-idempotency.md) | RS016 | Reconcile Mirror Append Timestamp Idempotency | done | @alissonvale | `refinement/rs016-cr061-mirror-timestamp-idempotency` |

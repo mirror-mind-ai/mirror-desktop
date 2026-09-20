@@ -3,8 +3,8 @@
 # CR062: Make Post-Terminal Finalization Self-Healing and Actionable
 
 **Status:** captured
-**Driver:** —
-**Delivery:** —
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr062-post-terminal-self-healing`
 
 ## Problem
 
@@ -106,8 +106,8 @@ A passive non-actionable notice also asks the user to interpret internal lifecyc
 
 ## Selection
 
-Selected as the current RS016 Change Request by explicit Navigator authority on 2026-09-20. Selection changes no status and does not assign a Driver, choose Delivery, authorize planning/implementation, mutate production data, push, merge, publish or release.
+Selected as the current RS016 Change Request by explicit Navigator authority on 2026-09-20. Driver `@alissonvale` and Delivery `refinement/rs016-cr062-post-terminal-self-healing` were subsequently confirmed by explicit Navigator authority. Selection and assignment change no status and do not authorize planning/implementation, mutate production data, push, merge, publish or release.
 
 ## Authority Boundary
 
-Captured and selected only. Choosing Driver/Delivery, changing status, planning, implementing, mutating production data, pushing, merging, publication and release remain separate Navigator decisions.
+Captured, selected and assigned only. Changing status, planning, implementing, mutating production data, pushing, merging, publication and release remain separate Navigator decisions.
