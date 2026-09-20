@@ -2,9 +2,9 @@
 
 # CR061: Reconcile Mirror Append Timestamp Idempotency
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** planned
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr061-mirror-timestamp-idempotency`
 
 ## Problem
 
@@ -62,6 +62,30 @@ This allows the already-persisted Alpha.13 turn to acknowledge as `existing` and
 - Production Mirror and application data remain read-only unless a separately authorized recovery operation is named explicitly.
 - Capturing this CR does not select it, assign a Driver, choose a Delivery branch, authorize planning or implementation, push, release or repair the two retained production operations.
 
+## Approved Plan
+
+1. Add failing Rust unit coverage for the Alpha.13 timestamp split: a Pi-backed item must permit a compatibility payload only when its exact run, turn and harness message IDs encode bounded legacy Desktop timestamps.
+2. Normalize newly enqueued completed-turn debt to the already-validated Pi-backed item before its first Core append, retaining schema `1.1.0` as durable outbox authority.
+3. Keep the canonical Pi-backed append first. Only on exact `mirror_append_idempotency_conflict`, retry once with the bounded legacy timestamp payload; let Mirror Core validate every persisted field and receipt.
+4. Make retained items from different generations recover independently by loading each item's exact generation projection rather than applying all debt against the currently displayed generation.
+5. Preserve exact bounded error codes in the existing recovery notice and continue processing independent items after one failure.
+6. Add TypeScript integration assertions for exact-generation processing and Rust tests proving malformed IDs, inconsistent timestamps and non-idempotency failures cannot invoke compatibility.
+7. Run focused frontend and Rust tests, then the full frontend suite, Rust suite, TypeScript/Vite build, `cargo check --locked`, roadmap consistency and diff checks.
+
+## Files
+
+- `src-tauri/src/main.rs`
+- `src/app/App.tsx`
+- `src/tests/journeyRuntimeIntegration.test.ts`
+- this CR and canonical refinement indexes
+
+## Exclusions
+
+- Mirror Core changes or releases.
+- Provider/model execution or credential changes.
+- Production outbox, journal, projection or Mirror Conversation mutation.
+- Automatic repair of the two observed production operations before separate authorization and validation.
+
 ## Evidence
 
 - Installed application: `0.2.0-alpha.13`.
@@ -72,4 +96,4 @@ This allows the already-persisted Alpha.13 turn to acknowledge as `existing` and
 
 ## Outcome
 
-Captured for explicit selection, assignment, planning and implementation decisions.
+Selected, assigned and planned by the Navigator. Implementation is authorized within the Desktop-only boundary.

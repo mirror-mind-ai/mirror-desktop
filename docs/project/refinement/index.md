@@ -12,8 +12,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: —
-- Change Request: —
+- Refinement Story: RS016
+- Change Request: CR061
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -48,7 +48,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR061](rs016-ongoing-product-improvements-and-adjustments/cr061-reconcile-mirror-append-timestamp-idempotency.md) | RS016 | Reconcile Mirror Append Timestamp Idempotency | captured | — | — |
+| 1 | [CR061](rs016-ongoing-product-improvements-and-adjustments/cr061-reconcile-mirror-append-timestamp-idempotency.md) | RS016 | Reconcile Mirror Append Timestamp Idempotency | planned | @alissonvale | `refinement/rs016-cr061-mirror-timestamp-idempotency` |
 | 2 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
 | 3 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
 | — | [CR060](rs019-post-terminal-continuity/cr060-rehearse-non-blocking-post-terminal-continuity.md) | RS019 | Rehearse Non-Blocking Post-Terminal Continuity | done | @alissonvale | `refinement/rs019-cr060-post-terminal-rehearsal` |
