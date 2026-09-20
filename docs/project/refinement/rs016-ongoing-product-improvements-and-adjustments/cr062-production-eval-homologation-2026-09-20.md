@@ -59,11 +59,13 @@ Primary final artifacts:
 - `eval-installed-accepted-relaunch.png`
 - `eval-installed-final-source-sha256.txt`
 
-## Post-homologation manual-validation candidate
+## Post-homologation manual-validation candidates
 
-The subsequent transient-notice stabilization was installed for Navigator manual Eval validation without being launched by the installer. Candidate executable SHA-256:
+The transient-notice stabilization was first installed for Navigator manual Eval validation with executable SHA-256 `46b908d8c69a5a313c83fab6ca2ba3f1aa2d1a011913551a7377fd6cf41e1722`.
 
-`46b908d8c69a5a313c83fab6ca2ba3f1aa2d1a011913551a7377fd6cf41e1722`
+After stabilizing the Composer placeholder across hydration, authority, capacity, synchronization and finalization transitions, the replacement Eval candidate was installed without being launched by the installer. Current executable SHA-256:
+
+`686e775c9e3310fcfed10e9f9d732ad3618b83c853d311fd9fc00b929ca65a66`
 
 ## Remaining governance
 
