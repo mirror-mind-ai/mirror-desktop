@@ -104,6 +104,10 @@ A passive non-actionable notice also asks the user to interpret internal lifecyc
 - No production repair as part of capture.
 - No stable promotion, release, installation or publication.
 
+## Selection
+
+Selected as the current RS016 Change Request by explicit Navigator authority on 2026-09-20. Selection changes no status and does not assign a Driver, choose Delivery, authorize planning/implementation, mutate production data, push, merge, publish or release.
+
 ## Authority Boundary
 
-Captured only. This CR is not selected, assigned, planned or authorized for implementation. Selecting it, choosing Driver/Delivery, changing status, implementing, mutating production data, pushing, merging, publication and release remain separate Navigator decisions.
+Captured and selected only. Choosing Driver/Delivery, changing status, planning, implementing, mutating production data, pushing, merging, publication and release remain separate Navigator decisions.
