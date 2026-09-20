@@ -116,15 +116,17 @@ No Mirror Core change, production-data mutation, Stable promotion, publication o
 - Recovery is serialized in the renderer, runs only under known inactive selected-Journey occupancy and invokes no provider route.
 - The existing native coordinator remains responsible for exact journal/Pi matching and schema `1.1.0` materialization; existing projection, append, receipt and acknowledgement validators remain authoritative.
 - A retained native lease is removed only when its complete authority matches the recovered item and its phase is `finalizing`; successor leases are never selected by run-only or Journey-only matching.
-- Automatic failure is retained by Journey and becomes manually retryable. Safe details expose the bounded diagnostic without converting persistence debt back into Conversation admission authority.
+- Automatic failure is retained by Journey and becomes manually retryable. Safe details are expanded by default and expose the bounded diagnostic without converting persistence debt back into Conversation admission authority.
+- Production-shaped recovery reconstructs an absent exact turn from journal/thread/Pi authority, carries forward unrelated persisted turns and messages, and permits read-only inspection plus journal settlement for an exact inactive generation without granting it active execution authority.
+- Re-observing an already committed receipt preserves the prior projection when both exact message identities agree; message-identity divergence remains fail-closed.
 
 ## Validation
 
-- Automated gates: 901 frontend tests; 161 Rust tests plus 1 ignored under both Stable and Eval feature sets; TypeScript/Vite build; roadmap consistency; whitespace validation.
+- Automated gates: 901 frontend tests; 162 Rust tests plus 1 ignored under both Stable and Eval feature sets; TypeScript/Vite build; roadmap consistency; whitespace validation.
 - Isolated DEV homologation: [2026-09-20 evidence](cr062-isolated-dev-homologation-2026-09-20.md).
-- The exact sandbox route advanced from `terminal_durable / resume_projection` with no outbox item to `settled / complete`, inserted the two exact messages in the sandbox Mirror database, acknowledged the outbox item, preserved every Pi JSONL byte and created no provider run.
-- Relaunch removed the synchronization/finalization notice while leaving the Composer available.
-- Production repair and production-backed Eval homologation were not performed.
+- Production-backed Eval homologation: [2026-09-20 evidence](cr062-production-eval-homologation-2026-09-20.md).
+- The production target advanced from `terminal_durable / resume_projection` with no outbox item to `settled / complete`, preserved the two exact message IDs in Mirror, emptied the Journey outbox, preserved the Pi JSONL hash and created no provider run.
+- Clean installed-Eval relaunch removed the synchronization/finalization notice while leaving the Composer available. Stable remained closed.
 
 ## Relationships
 
@@ -138,7 +140,7 @@ No Mirror Core change, production-data mutation, Stable promotion, publication o
 - No provider retry, fallback, model switching or credential inference.
 - No Pi JSONL rewrite.
 - No new parallel transcript or persistence authority.
-- No production repair as part of capture.
+- No further production mutation beyond the explicitly authorized Eval homologation and exact persistence repair.
 - No stable promotion, release, installation or publication.
 
 ## Selection

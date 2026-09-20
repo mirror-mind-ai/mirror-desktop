@@ -2805,10 +2805,31 @@ export function App({ model }: AppProps) {
       }
       let authority: JourneySettlementAuthority | undefined;
       try {
-        const projection = await loadDedicatedJourneyConversation(
+        const storedProjection = await loadDedicatedJourneyConversation(
           item.journeyId, item.generation, item.threadId,
         );
-        if (!projection?.liveIdentity.activationReceiptActivatedAt) {
+        const thread = await loadNautilusJourneyThread(item.journeyId);
+        const generation = thread?.generations.find((candidate) => (
+          candidate.generation === item.generation
+          && candidate.piSessionId === record.authority.piSessionId
+          && candidate.mirrorConversationId === item.conversationId
+          && Boolean(candidate.piSessionFile)
+          && Boolean(candidate.activationReceipt?.activatedAt)
+        ));
+        if (!thread || thread.threadId !== item.threadId || !generation) {
+          throw new Error("mirror_append_complete_durable_projection_missing");
+        }
+        const recoveryThread = {
+          ...thread,
+          activeGeneration: generation.generation,
+          generations: thread.generations.map((candidate) => ({
+            ...candidate,
+            status: candidate.generation === generation.generation ? "ready" as const : "inactive" as const,
+          })),
+        };
+        const persistedProjection = storedProjection
+          ?? createDedicatedJourneyConversation({ thread: recoveryThread, initialMessages: [] });
+        if (!persistedProjection.liveIdentity.activationReceiptActivatedAt) {
           throw new Error("mirror_append_complete_durable_projection_missing");
         }
         const correlation = {
@@ -2819,24 +2840,82 @@ export function App({ model }: AppProps) {
           piSessionId: record.authority.piSessionId,
           mirrorConversationId: record.authority.mirrorConversationId,
           generation: record.authority.generation,
-          activationReceiptActivatedAt: projection.liveIdentity.activationReceiptActivatedAt,
+          activationReceiptActivatedAt: persistedProjection.liveIdentity.activationReceiptActivatedAt,
           turnId: record.authority.turnId,
           runId: record.authority.runId,
           harnessUserMessageId: record.authority.harnessUserMessageId,
           harnessAssistantMessageId: record.authority.harnessAssistantMessageId,
         };
         authority = createJourneySettlementAuthority(
-          createRunAuthority(correlation, projection.liveIdentity),
+          createRunAuthority(correlation, persistedProjection.liveIdentity),
         );
+        const execution = record.terminalEvidence?.piExecution;
+        if (!execution || !hasFreshCompleteTurnJournalEvidence(record)) {
+          throw new Error("mirror_append_complete_durable_evidence_missing");
+        }
+        const transcriptInspection = await inspectDedicatedPiTranscript(
+          authority.journeyId,
+          authority.threadId,
+          authority.generation,
+          authority.piSessionId,
+          authority.piSessionFile,
+          true,
+        );
+        let projection = persistedProjection;
+        if (!projection.reconciliation.turns.some((turn) => turn.turnId === correlation.turnId)) {
+          const userEntry = transcriptInspection.entries.find((entry) => entry.entryId === execution.userEntryId);
+          const assistantEntry = transcriptInspection.entries.find(
+            (entry) => entry.entryId === execution.assistantEntryId,
+          );
+          if (!userEntry || !assistantEntry) {
+            throw new Error("mirror_append_complete_durable_evidence_missing");
+          }
+          projection = stageCorrelatedTurn(
+            projection,
+            correlation,
+            {
+              id: correlation.harnessUserMessageId,
+              role: "user",
+              content: userEntry.visibleText,
+              createdAt: userEntry.timestamp,
+            },
+            {
+              id: correlation.harnessAssistantMessageId,
+              role: "assistant",
+              content: execution.assistantText,
+              createdAt: assistantEntry.timestamp,
+            },
+          );
+        }
+        projection = applyPiExecutionEvidence(projection, correlation, {
+          userEntryId: execution.userEntryId,
+          assistantEntryId: execution.assistantEntryId,
+          leafEntryId: execution.leafEntryId,
+          entryCount: execution.entryCount,
+          sessionFile: authority.piSessionFile,
+          committedAt: execution.committedAt,
+        });
+        projection = commitHarnessTurn(projection, correlation, execution.committedAt);
+        projection = projectPiBackedConversationSurface(projection, transcriptInspection);
         const inspection = await inspectPiInvocations();
         if (resolveRetainedLeaseForOutboxRecovery(inspection, authority)) {
           await releaseDurablePiInvocationLease(authority);
         }
         const receipt = await deliverPiBackedMirrorOutboxItem(item.itemId, item.journeyId);
+        const persistedTargetMirror = persistedProjection.reconciliation.turns.find(
+          (turn) => turn.turnId === correlation.turnId,
+        )?.mirror;
+        const projectionAlreadyCommitted = persistedTargetMirror?.state === "committed"
+          && persistedTargetMirror.userMessageId === correlation.harnessUserMessageId
+          && persistedTargetMirror.assistantMessageId === correlation.harnessAssistantMessageId
+          && receipt.messages[0]?.id === correlation.harnessUserMessageId
+          && receipt.messages[1]?.id === correlation.harnessAssistantMessageId;
         const settled = applyMirrorAppendReceipt(projection, authority, receipt, new Date().toISOString());
-        await savePostFrontierReceiptProjection(settled, authority, item);
-        await acknowledgeMirrorAppendItem(item.itemId, item.conversationId, authority);
+        if (!projectionAlreadyCommitted) {
+          await savePostFrontierReceiptProjection(settled, authority, item);
+        }
         await advanceTurnJournal(authority, "outbox_enqueued", "settled");
+        await acknowledgeMirrorAppendItem(item.itemId, item.conversationId, authority);
         checkedMirrorTurnRef.current.add(item.itemId);
         await publishSettledProjectionIfCurrent(authority);
         setExactSettlementError(authority, undefined);
@@ -4850,7 +4929,7 @@ export function App({ model }: AppProps) {
                       Repair synchronization
                     </button>
                   </div>
-                  <details>
+                  <details open>
                     <summary>Details</summary>
                     <code>{mirrorCommitError}</code>
                   </details>
@@ -4868,7 +4947,7 @@ export function App({ model }: AppProps) {
                   {isRetryingMirrorCommit ? "Repairing conversation synchronization…" : "Repair synchronization"}
                 </button>
               </div>
-              <details>
+              <details open>
                 <summary>Details</summary>
                 <code>{mirrorCommitError}</code>
               </details>

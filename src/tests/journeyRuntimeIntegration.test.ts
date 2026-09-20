@@ -222,6 +222,17 @@ describe("Journey runtime integration guardrails", () => {
     expect(piBackedRepair).toContain('legacyItems = orderedItems.filter((item) => item.schemaVersion !== "1.1.0")');
     expect(piBackedRepair).toContain("await retryMirrorAppendSummary(item)");
     expect(piBackedRepair).toContain("resolveRetainedLeaseForOutboxRecovery(inspection, authority)");
+    expect(piBackedRepair).toContain("loadNautilusJourneyThread(item.journeyId)");
+    expect(piBackedRepair).toContain("createDedicatedJourneyConversation({ thread: recoveryThread, initialMessages: [] })");
+    expect(piBackedRepair).toContain("inspectDedicatedPiTranscript(");
+    expect(piBackedRepair).toContain("stageCorrelatedTurn(");
+    expect(piBackedRepair).toContain("applyPiExecutionEvidence(projection, correlation");
+    expect(piBackedRepair).toContain("projectPiBackedConversationSurface(projection, transcriptInspection)");
+    expect(piBackedRepair).toContain("const projectionAlreadyCommitted = persistedTargetMirror?.state === \"committed\"");
+    expect(piBackedRepair).toContain("if (!projectionAlreadyCommitted)");
+    expect(piBackedRepair.indexOf("projectPiBackedConversationSurface(persistedProjection, transcriptInspection)")).toBeLessThan(
+      piBackedRepair.indexOf("applyMirrorAppendReceipt(projection, authority, receipt"),
+    );
     expect(piBackedRepair.indexOf("releaseDurablePiInvocationLease(authority)")).toBeLessThan(
       piBackedRepair.indexOf("deliverPiBackedMirrorOutboxItem(item.itemId, item.journeyId)"),
     );
