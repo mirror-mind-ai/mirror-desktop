@@ -2,7 +2,7 @@
 
 # CR060: Rehearse Non-Blocking Post-Terminal Continuity
 
-**Status:** validated
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs019-cr060-post-terminal-rehearsal`
 
@@ -105,7 +105,7 @@ The deliverable is a private-data-free validator, fixtures, tests, package comma
 
 ## Authority Boundary
 
-The Navigator selected CR060, confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr060-post-terminal-rehearsal`, explicitly authorized planning and implementation, and accepted the automated matrix plus isolated DEV evidence with its disclosed development-Mirror provisioning deviation. Push, merge, publication, release and production mutation remain separate decisions.
+The Navigator selected CR060, confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr060-post-terminal-rehearsal`, explicitly authorized planning and implementation, accepted the automated matrix plus isolated DEV evidence with its disclosed development-Mirror provisioning deviation, and authorized terminal closure. Push, merge, publication, release and production mutation remain separate decisions.
 
 ## Boundaries
 
@@ -147,4 +147,4 @@ The Navigator selected CR060, confirmed Driver `@alissonvale` plus Delivery `ref
 
 ## Outcome
 
-Navigator Validation is accepted and the proportionality/debt review concluded `no_action`. CR060 is ready for the explicitly authorized terminal closure; RS019 closure remains a separate Navigator decision. No push, merge, publication or release is authorized.
+CR060 is closed as `done` after explicit Navigator Validation and closure authorization. The proportionality/debt review concluded `no_action`; RS019 closure remains a separate Navigator decision. No push, merge, publication or release is authorized.
