@@ -2,7 +2,7 @@
 
 # CR060: Rehearse Non-Blocking Post-Terminal Continuity
 
-**Status:** in_progress
+**Status:** validated
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs019-cr060-post-terminal-rehearsal`
 
@@ -105,7 +105,7 @@ The deliverable is a private-data-free validator, fixtures, tests, package comma
 
 ## Authority Boundary
 
-The Navigator selected CR060, confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr060-post-terminal-rehearsal`, and explicitly authorized planning and implementation. Isolated DEV mutation, Navigator Validation, push, merge, publication, release and production mutation remain separate decisions.
+The Navigator selected CR060, confirmed Driver `@alissonvale` plus Delivery `refinement/rs019-cr060-post-terminal-rehearsal`, explicitly authorized planning and implementation, and accepted the automated matrix plus isolated DEV evidence with its disclosed development-Mirror provisioning deviation. Push, merge, publication, release and production mutation remain separate decisions.
 
 ## Boundaries
 
@@ -133,7 +133,8 @@ The Navigator selected CR060, confirmed Driver `@alissonvale` plus Delivery `ref
 - A source-built relaunch against the same disposable directory retained both exact journal records, restored the successor draft and left the Composer available without invoking a provider. The bounded GUI summary is `/tmp/rs019-cr060-dev-20260920T022130Z/gui-rehearsal-summary.json`.
 - Cleanup stopped all source-built DEV processes, preserved the synthetic sandbox under the evidence directory and restored ordinary DEV app data byte-for-byte: 63 files, 2,119,405 bytes and manifest digest `c8dbf9e57142a7144a576cbf31d7838a128cc56d9203c73544345fae48b3976e`. The stable app was reopened successfully as PID `74603`; `/tmp/rs019-cr060-dev-20260920T022130Z/stable-reopened.png` records the resumed application.
 - Boundary deviation remains explicit: starting the fresh synthetic Journey made one model-free Mirror conversation-provisioning mutation in the configured development Mirror home. The two turns made zero provider calls and zero Mirror append calls, but the intended GUI route was zero-Mirror-call. No cleanup of that Mirror conversation was attempted because such mutation requires separate authority.
+- The Navigator explicitly accepted the automated matrix, same-process successor proof, relaunch evidence, exact ordinary-DEV restoration and disclosed development-Mirror provisioning deviation on 2026-09-20.
 
 ## Outcome
 
-Implementation, the complete automated matrix and the same-process plus relaunch GUI continuity observations are complete. The GUI route's single development-Mirror provisioning call requires explicit Navigator disposition before the rehearsal can be accepted; CR060 and RS019 remain open, and no push, merge, publication or release is authorized.
+Navigator Validation is accepted. Proportionality and debt review remain required before terminal closure; RS019 closure remains a separate Navigator decision. No push, merge, publication or release is authorized.
