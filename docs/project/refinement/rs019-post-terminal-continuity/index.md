@@ -75,6 +75,6 @@ CR058 is `done`. The Navigator accepted its automated and same-process DEV valid
 
 CR059 is `done` with Driver `@alissonvale` and Delivery `refinement/rs019-cr059-run-scoped-settlement`. The Navigator accepted the native exact-receipt merge, successor-safe frontend publication, run-scoped settlement diagnostics, automated gates and proportional isolated DEV rehearsal. Its proportionality/debt review concluded `no_action`, and terminal closure was explicitly authorized.
 
-CR060 is `validated`, with Driver `@alissonvale` and Delivery `refinement/rs019-cr060-post-terminal-rehearsal`. The Navigator accepted its bounded private-data-free 4 × 7 evidence contract, complete automated matrix, same-process successor proof and relaunch continuity, including the disclosed one-time development-Mirror provisioning deviation. Proportionality and debt review remain before terminal closure; RS019 closure remains a separate decision.
+CR060 is `validated`, with Driver `@alissonvale` and Delivery `refinement/rs019-cr060-post-terminal-rehearsal`. The Navigator accepted its bounded private-data-free 4 × 7 evidence contract, complete automated matrix, same-process successor proof and relaunch continuity, including the disclosed one-time development-Mirror provisioning deviation. Its proportionality/debt review concluded `no_action`; terminal closure is authorized, while RS019 closure remains a separate decision.
 
 CR056 is promoted from RS016 to RS019 / CR057 as production evidence of completed terminal evidence being misclassified as retained occupancy.
