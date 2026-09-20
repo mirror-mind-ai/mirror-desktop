@@ -7106,8 +7106,7 @@ fn merge_post_frontier_receipt_into_persisted(
                     .is_some()
                 && checkpoint
                     .get("updatedAt")
-                    .and_then(Value::as_str)
-                    .is_some()
+                    .is_none_or(|value| value.as_str().is_some())
         })
         .cloned()
         .ok_or_else(|| "dedicated_projection_receipt_authority_mismatch".to_string())?;
@@ -9182,7 +9181,7 @@ mod tests {
     }
 
     #[test]
-    fn post_frontier_receipt_merges_into_a_persisted_successor_without_replacing_it() {
+    fn post_frontier_receipt_accepts_the_canonical_optional_updated_at_and_preserves_a_successor() {
         let root = test_root("post-frontier-successor-merge");
         let authority = test_run_authority(&root);
         persist_run_authority_fixture(&root, &authority, "2026-08-26T10:00:00Z");
@@ -9194,8 +9193,7 @@ mod tests {
             "committedAt":"2026-09-19T21:00:00Z"
         });
         stale_receipt["conversation"]["reconciliation"]["checkpoints"] = json!({"mirror":{
-            "conversationId":"mirror-one", "lastMessageId":"assistant-one",
-            "messageCount":2, "updatedAt":"2026-09-19T21:00:00Z"
+            "conversationId":"mirror-one", "lastMessageId":"assistant-one", "messageCount":2
         }});
         let mut persisted_successor: Value =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
