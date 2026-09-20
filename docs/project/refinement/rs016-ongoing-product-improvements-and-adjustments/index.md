@@ -28,6 +28,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
+- [CR061: Reconcile Mirror Append Timestamp Idempotency](cr061-reconcile-mirror-append-timestamp-idempotency.md)
 - [CR056: Release Composer After Completed Terminal-Durable Lease](cr056-release-composer-after-completed-terminal-durable-lease.md)
 - [CR055: Release Composer After Terminal Provider Error](cr055-release-composer-after-terminal-provider-error.md)
 - [CR054: Surface Provider Terminal Errors in the GUI](cr054-surface-provider-terminal-errors-in-the-gui.md)
@@ -40,6 +41,8 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR030 — Restore Journey Expansion Arrow Contrast in Light Themes](cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md)
 - [CR031 — Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md)
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
+
+CR061 is `captured` and unassigned. It records the Alpha.13 defect where an initially persisted Mirror turn remains unsettled because Pi-backed recovery presents different timestamps for otherwise identical messages, producing `idempotency_conflict` without actionable GUI feedback.
 
 CR056 is `promoted` to RS019 / CR057. The post-alpha.12 retained-lease incident proved that terminal finalization and secondary settlement debt still possess admission authority after Pi has stopped; RS019 removes that authority structurally rather than adding another isolated recovery patch.
 
