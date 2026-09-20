@@ -2,7 +2,7 @@
 
 # CR061: Reconcile Mirror Append Timestamp Idempotency
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr061-mirror-timestamp-idempotency`
 
@@ -131,6 +131,22 @@ This allows the already-persisted Alpha.13 turn to acknowledge as `existing` and
 - After the checkpoint correction, read-only durable verification found the newer operation fully settled and removed from outbox. The older operation remained safely retained because its historical projection has `harness.state = pending`; this produced the final automatic Pi-backed route correction rather than weakening ordinary post-frontier authority.
 - Final production-backed rehearsal removed both target items from the outbox and left both generation projections with exact committed Mirror message IDs. The synchronization notice disappeared without a manual retry or provider execution. The newer journal is `settled`; the historical generation-2 journal remains non-authoritative `outbox_enqueued` evidence after acknowledgement because generic journal mutation requires the active generation. It does not own occupancy, admission, projection or delivery and remains explicit residual lifecycle debt rather than hidden Mirror debt.
 
+## Navigator Validation
+
+Accepted by the Navigator on 2026-09-20 after repeated production-backed Eval rehearsal. The final build cleared the synchronization notice automatically, removed both exact Flip Podcast operations from the durable outbox, committed both generation projections with the expected Mirror message IDs and performed no provider execution.
+
+## Proportionality Review
+
+The correction is proportional. It changes only Desktop payload construction, bounded timestamp compatibility, exact-generation acknowledgement and the dedicated evaluation route. Mirror Core remains unchanged and fail-closed; no provider retry, provider/model substitution, Pi JSONL rewrite, parallel persistence writer or new durable schema was introduced.
+
+## Debt Review
+
+**Decision:** no_action
+
+The historical generation-2 journal record remains at `outbox_enqueued` after its outbox acknowledgement because generic journal transition authority is intentionally limited to the active generation. This is retained lifecycle evidence, not Mirror debt or occupancy authority: the outbox item is absent, the exact projection is Mirror-committed, the messages are persisted, and CR057–CR059 prevent historical journal state from blocking or altering a successor. Adding a special historical journal mutation route would expand this temporary Desktop stabilization beyond the accepted authority boundary without product benefit.
+
+The Eval bundle remains a homologation tool until a separately authorized release updates Stable. Publication, release, Stable installation and later retirement through the TypeScript Mirror convergence remain separately governed and are not CR061 closure debt.
+
 ## Outcome
 
-Selected, assigned and in progress by Navigator authority. Implementation is authorized within the Desktop-only boundary.
+Done. The Navigator accepted the Desktop-only timestamp-idempotency correction, production-backed recovery of both retained Flip Podcast operations, and the proportional `no_action` debt decision.
