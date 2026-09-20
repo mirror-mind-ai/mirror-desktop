@@ -2,7 +2,7 @@
 
 # CR061: Reconcile Mirror Append Timestamp Idempotency
 
-**Status:** planned
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr061-mirror-timestamp-idempotency`
 
@@ -86,7 +86,28 @@ This allows the already-persisted Alpha.13 turn to acknowledge as `existing` and
 - Production outbox, journal, projection or Mirror Conversation mutation.
 - Automatic repair of the two observed production operations before separate authorization and validation.
 
-## Evidence
+## Implementation Evidence
+
+- New completed-turn enqueue input is converted to an exact Pi-backed `1.1.0` item before its first Core append, eliminating split timestamp authority for future turns.
+- A Pi-backed append retries exactly once with bounded legacy Desktop timestamps only after `mirror_append_idempotency_conflict`; run, turn, user and assistant IDs must contain canonical millisecond RFC 3339 timestamps in the historical generated shape.
+- The compatibility attempt changes only the two `createdAt` values. Mirror Core remains the final authority for conversation, IDs, roles, content, metadata and receipt equivalence.
+- Retained Pi-backed items load and settle against their own generation projection. A failure is recorded and iteration continues, so older and newer debt cannot hide each other.
+- The existing recovery notice receives the exact bounded failure code when repair remains partial.
+- Architecture documentation now records canonical Pi-first timestamps and bounded Desktop-only legacy compatibility.
+
+## Validation Evidence
+
+- Frontend: 899 tests passed across 158 files.
+- Rust: 160 tests passed, 1 private-fixture test ignored, across 161 tests.
+- Added Rust coverage for first-enqueue normalization, strict legacy timestamp derivation, exact conflict-only fallback and one-attempt behavior for unrelated failures.
+- Added frontend integration guardrails for exact-generation loading and continue-on-failure processing.
+- TypeScript and Vite production build passed.
+- `cargo check --locked` passed.
+- `npm run roadmap:check` reported `Mirror Desktop roadmap: READY`.
+- `git diff --check` passed.
+- No provider was invoked and no production application or Mirror data was mutated.
+
+## Incident Evidence
 
 - Installed application: `0.2.0-alpha.13`.
 - A read-only comparison through the released Mirror API found the current turn's two persisted messages identical in conversation, IDs, roles, content and canonical metadata, with both normalized timestamps divergent.
@@ -96,4 +117,4 @@ This allows the already-persisted Alpha.13 turn to acknowledge as `existing` and
 
 ## Outcome
 
-Selected, assigned and planned by the Navigator. Implementation is authorized within the Desktop-only boundary.
+Selected, assigned and in progress by Navigator authority. Implementation is authorized within the Desktop-only boundary.

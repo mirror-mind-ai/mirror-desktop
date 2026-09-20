@@ -5059,6 +5059,14 @@ fn legacy_outbox_item_matches_pi_backed_item(legacy: &Value, pi_backed: &Value) 
         })
 }
 
+fn normalize_legacy_enqueue_item(legacy: &Value, pi_backed: &Value) -> Result<Value, String> {
+    if !legacy_outbox_item_matches_pi_backed_item(legacy, pi_backed) {
+        return Err("mirror_append_item_conflict".to_string());
+    }
+    validate_mirror_append_item(pi_backed)?;
+    Ok(pi_backed.clone())
+}
+
 fn replace_legacy_outbox_item_at(path: &Path, replacement: Value) -> Result<(), String> {
     let mut outbox = read_mirror_append_outbox(path)?;
     let items = outbox.get_mut("items").and_then(Value::as_array_mut)
@@ -5300,6 +5308,29 @@ fn reconcile_pi_backed_mirror_delivery_debt(
         .map(mirror_append_outbox_summary).collect())
 }
 
+fn pi_backed_enqueue_item(
+    app: &AppHandle,
+    legacy: &Value,
+    run_authority: &RunAuthority,
+) -> Result<Value, String> {
+    let authority = journal_authority(run_authority);
+    let record = with_turn_journal_lock(app, &authority, |path| {
+        read_turn_journal(path)?.records.into_iter()
+            .find(|candidate| candidate.authority == authority)
+            .ok_or_else(|| "mirror_append_pi_recovery_record_missing".to_string())
+    })?;
+    if record.terminal_outcome != Some(TurnTerminalOutcome::Completed)
+        || !matches!(record.phase, TurnPhase::TerminalDurable | TurnPhase::Projected | TurnPhase::OutboxEnqueued)
+    {
+        return Err("mirror_append_pi_recovery_record_ineligible".to_string());
+    }
+    let (session_file, content) = pi_session_for_journal_record(app, &record)?;
+    let pi_backed = create_pi_backed_mirror_append_item(&record, &session_file, &content)?;
+    let normalized = normalize_legacy_enqueue_item(legacy, &pi_backed)?;
+    validate_outbox_generation_authority(app, &normalized)?;
+    Ok(normalized)
+}
+
 #[tauri::command]
 fn enqueue_mirror_append_item(
     app: AppHandle,
@@ -5310,7 +5341,7 @@ fn enqueue_mirror_append_item(
     if payload.len() > MIRROR_APPEND_MAX_ITEM_BYTES {
         return Err("mirror_append_item_oversized".to_string());
     }
-    let item: Value =
+    let mut item: Value =
         serde_json::from_str(&payload).map_err(|_| "mirror_append_item_invalid".to_string())?;
     validate_mirror_append_item(&item)?;
     validate_run_authority(&app, &run_authority)?;
@@ -5323,6 +5354,9 @@ fn enqueue_mirror_append_item(
         return Err("mirror_append_item_authority_mismatch".to_string());
     }
     validate_outbox_generation_authority(&app, &item)?;
+    if item.get("schemaVersion").and_then(Value::as_str) == Some("1.0.0") {
+        item = pi_backed_enqueue_item(&app, &item, &run_authority)?;
+    }
     let _guard = state
         .lock
         .lock()
@@ -5502,6 +5536,48 @@ fn validate_outbox_acknowledgement(app: &AppHandle, item: &Value) -> Result<(), 
     Ok(())
 }
 
+fn should_retry_legacy_timestamp_compatibility(reason: &str) -> bool {
+    reason == "mirror_append_idempotency_conflict"
+}
+
+fn legacy_timestamp_compatibility_item(item: &Value) -> Result<Value, String> {
+    let ineligible = || "mirror_append_legacy_timestamp_ineligible".to_string();
+    if item.get("schemaVersion").and_then(Value::as_str) != Some("1.1.0") {
+        return Err(ineligible());
+    }
+    let canonical_timestamp = |timestamp: &str| -> Result<String, String> {
+        let parsed = chrono::DateTime::parse_from_rfc3339(timestamp).map_err(|_| ineligible())?;
+        if parsed.with_timezone(&Utc).to_rfc3339_opts(SecondsFormat::Millis, true) != timestamp {
+            return Err(ineligible());
+        }
+        Ok(timestamp.to_string())
+    };
+    let run_id = item.get("runId").and_then(Value::as_str).ok_or_else(ineligible)?;
+    let run_timestamp = run_id.strip_prefix("agent-run-").ok_or_else(ineligible)?;
+    canonical_timestamp(run_timestamp)?;
+    if item.get("itemId").and_then(Value::as_str) != Some(format!("turn-{run_id}").as_str()) {
+        return Err(ineligible());
+    }
+    let messages = item.get("messages").and_then(Value::as_array).ok_or_else(ineligible)?;
+    if messages.len() != 2
+        || messages[0].get("role").and_then(Value::as_str) != Some("user")
+        || messages[1].get("role").and_then(Value::as_str) != Some("assistant")
+    {
+        return Err(ineligible());
+    }
+    let timestamp_from_id = |message: &Value, prefix: &str| -> Result<String, String> {
+        let timestamp = message.get("id").and_then(Value::as_str)
+            .and_then(|id| id.strip_prefix(prefix)).ok_or_else(ineligible)?;
+        canonical_timestamp(timestamp)
+    };
+    let user_timestamp = timestamp_from_id(&messages[0], "user-")?;
+    let assistant_timestamp = timestamp_from_id(&messages[1], "assistant-")?;
+    let mut compatible = item.clone();
+    compatible["messages"][0]["createdAt"] = Value::String(user_timestamp);
+    compatible["messages"][1]["createdAt"] = Value::String(assistant_timestamp);
+    Ok(compatible)
+}
+
 fn run_explicit_mirror_append(item: &Value) -> Result<Value, String> {
     let profile = active_runtime_channel()?;
     let request = json!({
@@ -5587,6 +5663,22 @@ fn run_explicit_mirror_append(item: &Value) -> Result<Value, String> {
     Ok(receipt)
 }
 
+fn run_pi_backed_mirror_append_with<F>(item: &Value, mut append: F) -> Result<Value, String>
+where
+    F: FnMut(&Value) -> Result<Value, String>,
+{
+    match append(item) {
+        Err(reason) if should_retry_legacy_timestamp_compatibility(&reason) => {
+            append(&legacy_timestamp_compatibility_item(item)?)
+        }
+        result => result,
+    }
+}
+
+fn run_pi_backed_mirror_append(item: &Value) -> Result<Value, String> {
+    run_pi_backed_mirror_append_with(item, run_explicit_mirror_append)
+}
+
 #[tauri::command]
 fn deliver_pi_backed_mirror_outbox_item(
     app: AppHandle,
@@ -5612,7 +5704,7 @@ fn deliver_pi_backed_mirror_outbox_item(
         validate_outbox_generation_authority(&app, item)?;
         item.clone()
     };
-    run_explicit_mirror_append(&item)
+    run_pi_backed_mirror_append(&item)
 }
 
 #[tauri::command]
@@ -5646,7 +5738,11 @@ fn append_mirror_outbox_item(
         validate_outbox_item_run_authority_at(&app_data_dir, item, &run_authority)?;
         item.clone()
     };
-    run_explicit_mirror_append(&item)
+    if item.get("schemaVersion").and_then(Value::as_str) == Some("1.1.0") {
+        run_pi_backed_mirror_append(&item)
+    } else {
+        run_explicit_mirror_append(&item)
+    }
 }
 
 fn validate_outbox_item_run_authority_at(
@@ -8051,8 +8147,9 @@ mod tests {
         enqueue_mirror_append_item_at_with_limit, exact_steering_authority_matches,
         extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
-        legacy_outbox_item_matches_pi_backed_item, match_unclaimed_pi_turn,
-        outbox_item_matches_journal_record,
+        legacy_outbox_item_matches_pi_backed_item, legacy_timestamp_compatibility_item,
+        match_unclaimed_pi_turn, normalize_legacy_enqueue_item, outbox_item_matches_journal_record,
+        run_pi_backed_mirror_append_with, should_retry_legacy_timestamp_compatibility,
         list_journey_documentation_at, load_conversation_segments_at,
         load_conversation_thread_authority_at,
         apply_desktop_conversation_reset, desktop_conversation_entry_from_creation,
@@ -8752,6 +8849,99 @@ mod tests {
         let mut duplicate = item;
         duplicate["messages"][1]["id"] = Value::String("user-one".to_string());
         assert!(validate_mirror_append_item(&duplicate).is_err());
+    }
+
+    #[test]
+    fn normalizes_first_legacy_enqueue_to_exact_pi_backed_timestamps() {
+        let legacy = json!({
+            "schemaVersion":"1.0.0", "itemId":"turn-one", "journeyId":"journey-one",
+            "threadId":"thread-one", "generation":1, "conversationId":"mirror-one",
+            "sourceInterface":"nautilus-harness", "createdAt":"2026-08-30T10:00:02Z",
+            "messages":[
+                {"id":"user-one","role":"user","content":"hello","createdAt":"2026-08-30T09:59:59Z","metadata":{"sourceTurnId":"turn-one","generation":1}},
+                {"id":"assistant-one","role":"assistant","content":"hi","createdAt":"2026-08-30T09:59:59Z","metadata":{"sourceTurnId":"turn-one","generation":1}}
+            ]
+        });
+        let mut pi_backed = legacy.clone();
+        pi_backed["schemaVersion"] = Value::String("1.1.0".to_string());
+        pi_backed["runId"] = Value::String("run-one".to_string());
+        pi_backed["piSessionId"] = Value::String("session-one".to_string());
+        pi_backed["piSessionFile"] = Value::String("/app/pi.jsonl".to_string());
+        pi_backed["piUserEntryId"] = Value::String("pi-user".to_string());
+        pi_backed["piAssistantEntryId"] = Value::String("pi-assistant".to_string());
+        pi_backed["messages"][0]["createdAt"] = Value::String("2026-08-30T10:00:00Z".to_string());
+        pi_backed["messages"][1]["createdAt"] = Value::String("2026-08-30T10:00:01Z".to_string());
+
+        let normalized = normalize_legacy_enqueue_item(&legacy, &pi_backed).unwrap();
+        assert_eq!(normalized["schemaVersion"], "1.1.0");
+        assert_eq!(normalized["messages"][0]["createdAt"], "2026-08-30T10:00:00Z");
+        assert_eq!(normalized["messages"][1]["createdAt"], "2026-08-30T10:00:01Z");
+        let mut conflict = pi_backed;
+        conflict["messages"][1]["content"] = Value::String("different".to_string());
+        assert_eq!(normalize_legacy_enqueue_item(&legacy, &conflict).unwrap_err(), "mirror_append_item_conflict");
+    }
+
+    #[test]
+    fn derives_only_bounded_legacy_desktop_timestamps_for_pi_backed_retry() {
+        let item = json!({
+            "schemaVersion":"1.1.0", "itemId":"turn-agent-run-2026-09-20T12:29:28.893Z",
+            "runId":"agent-run-2026-09-20T12:29:28.893Z", "journeyId":"journey-one",
+            "threadId":"thread-one", "generation":1, "conversationId":"mirror-one",
+            "piSessionId":"session-one", "piSessionFile":"/app/pi.jsonl",
+            "piUserEntryId":"pi-user", "piAssistantEntryId":"pi-assistant",
+            "sourceInterface":"nautilus-harness", "createdAt":"2026-09-20T12:29:40.574Z",
+            "messages":[
+                {"id":"user-2026-09-20T12:29:28.891Z","role":"user","content":"hello","createdAt":"2026-09-20T12:29:29.916Z","metadata":{"sourceTurnId":"turn-agent-run-2026-09-20T12:29:28.893Z","generation":1}},
+                {"id":"assistant-2026-09-20T12:29:28.892Z","role":"assistant","content":"hi","createdAt":"2026-09-20T12:29:40.574Z","metadata":{"sourceTurnId":"turn-agent-run-2026-09-20T12:29:28.893Z","generation":1}}
+            ]
+        });
+        let compatible = legacy_timestamp_compatibility_item(&item).unwrap();
+        assert_eq!(compatible["messages"][0]["createdAt"], "2026-09-20T12:29:28.891Z");
+        assert_eq!(compatible["messages"][1]["createdAt"], "2026-09-20T12:29:28.892Z");
+        assert_eq!(compatible["messages"][0]["content"], "hello");
+        assert_eq!(compatible["messages"][1]["content"], "hi");
+
+        let mut wrong_turn = item.clone();
+        wrong_turn["itemId"] = Value::String("turn-other".to_string());
+        assert_eq!(legacy_timestamp_compatibility_item(&wrong_turn).unwrap_err(), "mirror_append_legacy_timestamp_ineligible");
+        let mut wrong_message = item;
+        wrong_message["messages"][1]["id"] = Value::String("assistant-other".to_string());
+        assert_eq!(legacy_timestamp_compatibility_item(&wrong_message).unwrap_err(), "mirror_append_legacy_timestamp_ineligible");
+    }
+
+    #[test]
+    fn limits_legacy_timestamp_retry_to_exact_idempotency_conflict() {
+        assert!(should_retry_legacy_timestamp_compatibility("mirror_append_idempotency_conflict"));
+        assert!(!should_retry_legacy_timestamp_compatibility("mirror_append_persistence_failure"));
+        assert!(!should_retry_legacy_timestamp_compatibility("mirror_append_invalid_receipt"));
+
+        let item = json!({
+            "schemaVersion":"1.1.0", "itemId":"turn-agent-run-2026-09-20T12:29:28.893Z",
+            "runId":"agent-run-2026-09-20T12:29:28.893Z", "journeyId":"journey-one",
+            "threadId":"thread-one", "generation":1, "conversationId":"mirror-one",
+            "messages":[
+                {"id":"user-2026-09-20T12:29:28.891Z","role":"user","content":"hello","createdAt":"2026-09-20T12:29:29.916Z"},
+                {"id":"assistant-2026-09-20T12:29:28.892Z","role":"assistant","content":"hi","createdAt":"2026-09-20T12:29:40.574Z"}
+            ]
+        });
+        let mut attempts = Vec::new();
+        let receipt = run_pi_backed_mirror_append_with(&item, |candidate| {
+            attempts.push(candidate["messages"][0]["createdAt"].as_str().unwrap().to_string());
+            if attempts.len() == 1 {
+                Err("mirror_append_idempotency_conflict".to_string())
+            } else {
+                Ok(json!({"status":"accepted"}))
+            }
+        }).unwrap();
+        assert_eq!(receipt["status"], "accepted");
+        assert_eq!(attempts, vec!["2026-09-20T12:29:29.916Z", "2026-09-20T12:29:28.891Z"]);
+
+        let mut rejected_attempts = 0;
+        assert_eq!(run_pi_backed_mirror_append_with(&item, |_| {
+            rejected_attempts += 1;
+            Err("mirror_append_persistence_failure".to_string())
+        }).unwrap_err(), "mirror_append_persistence_failure");
+        assert_eq!(rejected_attempts, 1);
     }
 
     #[test]

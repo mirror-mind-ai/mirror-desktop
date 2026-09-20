@@ -42,7 +42,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR031 — Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md)
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
 
-CR061 is `planned` with Driver `@alissonvale` and Delivery `refinement/rs016-cr061-mirror-timestamp-idempotency`. It corrects the Alpha.13 defect where an initially persisted Mirror turn remains unsettled because Pi-backed recovery presents different timestamps for otherwise identical messages, producing `idempotency_conflict` without actionable GUI feedback.
+CR061 is `in_progress` with Driver `@alissonvale` and Delivery `refinement/rs016-cr061-mirror-timestamp-idempotency`. It corrects the Alpha.13 defect where an initially persisted Mirror turn remains unsettled because Pi-backed recovery presents different timestamps for otherwise identical messages, producing `idempotency_conflict` without actionable GUI feedback.
 
 CR056 is `promoted` to RS019 / CR057. The post-alpha.12 retained-lease incident proved that terminal finalization and secondary settlement debt still possess admission authority after Pi has stopped; RS019 removes that authority structurally rather than adding another isolated recovery patch.
 

@@ -201,6 +201,9 @@ describe("Journey runtime integration guardrails", () => {
     expect(durableOutboxRetry).toContain("reconcilePiBackedMirrorDeliveryDebt(ownerJourneyId)");
     expect(durableOutboxRetry).toContain('item.schemaVersion === "1.1.0"');
     expect(durableOutboxRetry).toContain("deliverPiBackedMirrorOutboxItem(item.itemId, item.journeyId)");
+    expect(durableOutboxRetry).toContain("item.journeyId, item.generation, item.threadId");
+    expect(durableOutboxRetry).toContain("failures.push");
+    expect(durableOutboxRetry).toContain("continue;");
     expect(durableOutboxRetry).toContain("applyMirrorAppendReceipt(projection, authority, receipt");
     expect(durableOutboxRetry).toContain("savePostFrontierReceiptProjection(settled, authority, item)");
     expect(durableOutboxRetry).toContain("acknowledgeMirrorAppendItem(item.itemId, item.conversationId, authority)");
