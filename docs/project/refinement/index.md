@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS016
-- Change Request: CR062
+- Change Request: —
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -48,9 +48,9 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR062](rs016-ongoing-product-improvements-and-adjustments/cr062-make-post-terminal-finalization-self-healing-and-actionable.md) | RS016 | Make Post-Terminal Finalization Self-Healing and Actionable | captured | @alissonvale | `refinement/rs016-cr062-post-terminal-self-healing` |
-| 2 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
-| 3 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| 1 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
+| 2 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| — | [CR062](rs016-ongoing-product-improvements-and-adjustments/cr062-make-post-terminal-finalization-self-healing-and-actionable.md) | RS016 | Make Post-Terminal Finalization Self-Healing and Actionable | done | @alissonvale | `refinement/rs016-cr062-post-terminal-self-healing` |
 | — | [CR061](rs016-ongoing-product-improvements-and-adjustments/cr061-reconcile-mirror-append-timestamp-idempotency.md) | RS016 | Reconcile Mirror Append Timestamp Idempotency | done | @alissonvale | `refinement/rs016-cr061-mirror-timestamp-idempotency` |
 | — | [CR060](rs019-post-terminal-continuity/cr060-rehearse-non-blocking-post-terminal-continuity.md) | RS019 | Rehearse Non-Blocking Post-Terminal Continuity | done | @alissonvale | `refinement/rs019-cr060-post-terminal-rehearsal` |
 | — | [CR059](rs019-post-terminal-continuity/cr059-make-post-terminal-settlement-independent-and-run-scoped.md) | RS019 | Make Post-Terminal Settlement Independent and Run-Scoped | done | @alissonvale | `refinement/rs019-cr059-run-scoped-settlement` |

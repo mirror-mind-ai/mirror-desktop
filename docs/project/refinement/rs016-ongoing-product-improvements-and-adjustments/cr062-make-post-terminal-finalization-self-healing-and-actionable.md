@@ -2,7 +2,7 @@
 
 # CR062: Make Post-Terminal Finalization Self-Healing and Actionable
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr062-post-terminal-self-healing`
 
@@ -129,7 +129,25 @@ No Mirror Core change, production-data mutation, Stable promotion, publication o
 - Production-backed Eval homologation: [2026-09-20 evidence](cr062-production-eval-homologation-2026-09-20.md).
 - The production target advanced from `terminal_durable / resume_projection` with no outbox item to `settled / complete`, preserved the two exact message IDs in Mirror, emptied the Journey outbox, preserved the Pi JSONL hash and created no provider run.
 - Clean installed-Eval relaunch removed the synchronization/finalization notice while leaving the Composer available. Stable remained closed.
-- The subsequent transient-notice stabilization is covered by deterministic timing tests and awaits Navigator manual validation in the newly installed Eval bundle.
+- The Navigator manually validated both the transient-notice stabilization and the stable Composer placeholder in the installed Eval bundle. Journey opening no longer produces the observed synchronization-card or placeholder flicker.
+
+## Navigator Validation
+
+Accepted by the Navigator on 2026-09-20 after production-backed Eval recovery, clean relaunch verification and subsequent manual validation of the transient synchronization notices and stable Composer placeholder. The exact production turn is settled, the Journey outbox is empty, Mirror contains the two exact messages, Pi JSONL remained byte-identical, no provider ran during recovery and ordinary Journey opening no longer exhibits the reported flicker.
+
+## Proportionality Review
+
+The correction is proportional to the demonstrated post-terminal gap. It composes existing journal, Pi transcript, projection, outbox, append and acknowledgement authorities rather than creating a new persistence path. Historical-generation access remains read-only or exact-outbox-scoped, successor state is preserved, message-identity divergence fails closed and the presentation adjustments change no admission or execution authority.
+
+## Debt Review
+
+**Decision:** no_action
+
+The Eval bundle remains a homologation channel and the CR062 branch remains local until separately authorized push/merge/release work. Those are delivery-governance decisions rather than hidden product debt. CR054 and CR053 remain independent captured adjustments. Stable promotion, Alpha.14 packaging and any later convergence of Desktop recovery into shared Mirror contracts require separate roadmap or release authority.
+
+## Outcome
+
+Done. The Navigator accepted exact model-free self-healing from the pre-outbox frontier, successor-safe historical settlement, actionable failure UX and the final flicker corrections after manual Eval validation.
 
 ## Relationships
 
@@ -152,4 +170,4 @@ Selected as the current RS016 Change Request by explicit Navigator authority on 
 
 ## Authority Boundary
 
-Planning, transition to `in_progress` and implementation were explicitly authorized on 2026-09-20. Production-data mutation, acceptance, closure, push, merge, publication, release and Stable installation remain separate Navigator decisions.
+Planning, transition to `in_progress`, implementation, production-backed Eval homologation, acceptance and closure were explicitly authorized on 2026-09-20. Push, merge, publication, release and Stable installation remain separate Navigator decisions.
