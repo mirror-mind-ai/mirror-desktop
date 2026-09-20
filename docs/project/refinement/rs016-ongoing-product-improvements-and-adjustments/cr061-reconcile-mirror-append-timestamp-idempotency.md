@@ -70,21 +70,27 @@ This allows the already-persisted Alpha.13 turn to acknowledge as `existing` and
 4. Make retained items from different generations recover independently by loading each item's exact generation projection rather than applying all debt against the currently displayed generation.
 5. Preserve exact bounded error codes in the existing recovery notice and continue processing independent items after one failure.
 6. Add TypeScript integration assertions for exact-generation processing and Rust tests proving malformed IDs, inconsistent timestamps and non-idempotency failures cannot invoke compatibility.
-7. Run focused frontend and Rust tests, then the full frontend suite, Rust suite, TypeScript/Vite build, `cargo check --locked`, roadmap consistency and diff checks.
+7. Add a macOS evaluation bundle as the production-data validation route: `Mirror Desktop Eval`, a green `EVAL` icon/application badge, updater disabled, installed only at `~/Applications/Mirror Desktop Eval.app`.
+8. Bind Eval intentionally to the user runtime and existing `ai.mirrormind.desktop` app-data so it can exercise the exact retained production debt; preserve a distinct compiled evaluation channel while leaving Stable unchanged.
+9. Refuse Eval startup when the Stable `Mirror Desktop` application is already running, and document that Stable must remain closed for the complete Eval session because both processes share production app-data.
+10. Build and install Eval without launching it, retrying synchronization or otherwise mutating production app-data or Mirror Conversations.
+11. Run focused frontend and Rust tests, then the full frontend suite, Rust suite, TypeScript/Vite build, `cargo check --locked`, roadmap consistency and diff checks.
 
 ## Files
 
 - `src-tauri/src/main.rs`
 - `src/app/App.tsx`
 - `src/tests/journeyRuntimeIntegration.test.ts`
+- runtime channel, launcher, Tauri config, icon assets and channel tests for Eval
+- environment/setup and icon documentation
 - this CR and canonical refinement indexes
 
 ## Exclusions
 
 - Mirror Core changes or releases.
 - Provider/model execution or credential changes.
-- Production outbox, journal, projection or Mirror Conversation mutation.
-- Automatic repair of the two observed production operations before separate authorization and validation.
+- Production outbox, journal, projection or Mirror Conversation mutation during build or installation.
+- Launching Eval, running it concurrently with Stable or automatically repairing the two observed production operations.
 
 ## Implementation Evidence
 
