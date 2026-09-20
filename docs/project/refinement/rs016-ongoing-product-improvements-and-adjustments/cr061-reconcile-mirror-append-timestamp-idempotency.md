@@ -31,6 +31,18 @@ For retained historical debt where conversation, message IDs, roles, content and
 
 The GUI must expose a bounded actionable reason when exact Mirror settlement remains rejected. One failed operation must not hide, replace or prevent an independent older operation from being inspected or retried.
 
+## Desktop-Only Correction Direction
+
+Mirror Core remains unchanged and continues rejecting any unequal reuse of a persisted message ID. Desktop must instead make its delivery protocol consistent:
+
+- new initial appends use Pi-backed timestamps, so recovery repeats the exact original payload;
+- after an exact `idempotency_conflict`, a bounded legacy compatibility retry may reconstruct the former Desktop staging timestamp only when the Pi-backed item has validated run, turn, generation, session and message authority and both harness message IDs encode that same legacy run timestamp;
+- Core remains the final fail-closed authority: any difference beyond the known timestamp shape continues to reject the compatibility attempt;
+- genuinely absent legacy messages first receive the canonical Pi-backed append and therefore do not acquire legacy timestamps;
+- Desktop preserves and presents the exact bounded rejection reason when neither exact route succeeds.
+
+This allows the already-persisted Alpha.13 turn to acknowledge as `existing` and the genuinely absent older turn to append with Pi-backed timestamps, without reading or modifying Mirror internals and without changing the Core contract.
+
 ## Initial Acceptance Horizon
 
 - A test reproduces initial Desktop delivery followed by Pi-backed retry with timestamp-only divergence.
@@ -44,8 +56,9 @@ The GUI must expose a bounded actionable reason when exact Mirror settlement rem
 
 ## Boundaries
 
-- Mirror Core owns append-contract equivalence; Mirror Desktop owns payload construction, Pi-backed recovery, acknowledgement and presentation.
-- Any Mirror Core implementation must occur in `/Users/alissonvale/Code/mirror-dev`, never the production checkout, and follow its own release/promotion path.
+- Mirror Core owns append-contract equivalence and remains unchanged by this CR.
+- Mirror Desktop owns the complete correction: payload construction, Pi-backed recovery, bounded legacy timestamp compatibility, acknowledgement and presentation.
+- The production Mirror checkout and `/Users/alissonvale/Code/mirror-dev` remain read-only and outside implementation scope.
 - Production Mirror and application data remain read-only unless a separately authorized recovery operation is named explicitly.
 - Capturing this CR does not select it, assign a Driver, choose a Delivery branch, authorize planning or implementation, push, release or repair the two retained production operations.
 
