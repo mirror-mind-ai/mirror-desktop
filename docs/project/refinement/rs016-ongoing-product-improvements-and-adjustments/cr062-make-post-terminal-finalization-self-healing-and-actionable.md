@@ -2,7 +2,7 @@
 
 # CR062: Make Post-Terminal Finalization Self-Healing and Actionable
 
-**Status:** captured
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr062-post-terminal-self-healing`
 
@@ -89,6 +89,35 @@ A passive non-actionable notice also asks the user to interpret internal lifecyc
 - The manual action never invokes a provider or changes provider/model credentials.
 - New messages remain available whenever exact native occupancy is inactive.
 
+## Approved Plan
+
+Authorized by the Navigator on 2026-09-20 together with implementation.
+
+1. Reuse the CR051/CR061 Pi-backed reconciliation command as the single pre-outbox recovery coordinator rather than adding another transcript or persistence authority.
+2. Trigger one bounded, model-free recovery attempt when a ready Conversation is hydrated or returns to known inactive native occupancy, including the zero-outbox frontier demonstrated by the Eval incident.
+3. Require known occupancy and no active selected-Journey runtime before recovery; retain fail-closed behavior for unknown occupancy, missing Pi evidence and authority/content divergence.
+4. After exact projection and outbox materialization, release only the exact retained `finalizing` lease, deliver through the existing Pi-backed append path, merge the receipt into the exact generation, acknowledge the item and settle the journal.
+5. Replace the permanent passive notice with `Finalizing turn…`, `Repairing conversation synchronization…`, and an actionable failure surface containing `Repair synchronization` and `Details`; keep the Composer independent from this persistence debt.
+6. Cover automatic zero-outbox activation, occupancy gating, exact lease cleanup before delivery, actionable copy and provider-free recovery through focused tests, then run the complete frontend, Rust, build and roadmap gates.
+
+## Affected Files
+
+- `src/app/App.tsx`
+- `src/tests/journeyRuntimeIntegration.test.ts`
+- `src/tests/runtimeProjectionComponent.test.tsx`
+- `docs/architecture/terminal-aligned-conversation-authority.md`
+- this CR and the RS016 index
+
+No Mirror Core change, production-data mutation, Stable promotion, publication or release is in scope.
+
+## Implementation Notes
+
+- Conversation hydration now enters Pi-backed reconciliation even when the outbox is empty, which closes the `terminal_durable → projection/outbox` gap rather than waiting for an outbox item that does not yet exist.
+- Recovery is serialized in the renderer, runs only under known inactive selected-Journey occupancy and invokes no provider route.
+- The existing native coordinator remains responsible for exact journal/Pi matching and schema `1.1.0` materialization; existing projection, append, receipt and acknowledgement validators remain authoritative.
+- A retained native lease is removed only when its complete authority matches the recovered item and its phase is `finalizing`; successor leases are never selected by run-only or Journey-only matching.
+- Automatic failure is retained by Journey and becomes manually retryable. Safe details expose the bounded diagnostic without converting persistence debt back into Conversation admission authority.
+
 ## Relationships
 
 - CR061 corrects timestamp idempotency and acknowledgement after a Pi-backed outbox item exists. CR062 covers the earlier frontier where completed Pi evidence never becomes a projection/outbox item.
@@ -110,4 +139,4 @@ Selected as the current RS016 Change Request by explicit Navigator authority on 
 
 ## Authority Boundary
 
-Captured, selected and assigned only. Changing status, planning, implementing, mutating production data, pushing, merging, publication and release remain separate Navigator decisions.
+Planning, transition to `in_progress` and implementation were explicitly authorized on 2026-09-20. Production-data mutation, acceptance, closure, push, merge, publication, release and Stable installation remain separate Navigator decisions.

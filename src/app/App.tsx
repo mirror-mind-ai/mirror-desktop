@@ -500,6 +500,7 @@ export function App({ model }: AppProps) {
   const [piInvocationBootstrapComplete, setPiInvocationBootstrapComplete] = useState(false);
   const [piContextState, setPiContextState] = useState<PiContextState>("checking");
   const [isRetryingMirrorCommit, setIsRetryingMirrorCommit] = useState(false);
+  const postTerminalRecoveryRef = useRef(false);
   const [mirrorCommitErrors, setMirrorCommitErrors] = useState<Record<string, string | undefined>>({});
   const [exactSettlementErrors, setExactSettlementErrors] = useState<Record<string, ExactSettlementError>>({});
   const [mirrorOutboxItems, setMirrorOutboxItems] = useState<MirrorAppendOutboxSummary[]>([]);
@@ -1712,17 +1713,8 @@ export function App({ model }: AppProps) {
       if (cancelled) return;
       setMirrorOutboxItems(items);
       void (async () => {
-        if (items.length > 0 && items.every((item) => item.schemaVersion === "1.1.0")) {
-          try {
-            await repairPiBackedMirrorDeliveryDebt(conversation.journeyId);
-          } catch (error) {
-            if (!cancelled) {
-              setJourneyMirrorCommitError(
-                conversation.journeyId,
-                error instanceof Error ? error.message : String(error),
-              );
-            }
-          }
+        if (!selectedRuntimeBusy && piInvocationOccupancy.status === "known") {
+          await recoverPostTerminalPersistence(conversation.journeyId);
           return;
         }
         for (const item of items) {
@@ -1739,7 +1731,7 @@ export function App({ model }: AppProps) {
       if (!cancelled) setJourneyMirrorCommitError(conversation.journeyId, error instanceof Error ? error.message : String(error));
     });
     return () => { cancelled = true; };
-  }, [conversation.journeyId, conversationLoaded, journeyThreadState.kind]);
+  }, [conversation.journeyId, conversationLoaded, journeyThreadState.kind, piInvocationOccupancy.status, selectedRuntimeBusy]);
 
   useEffect(() => {
     checkedMirrorTurnRef.current.clear();
@@ -2785,17 +2777,22 @@ export function App({ model }: AppProps) {
 
   async function repairPiBackedMirrorDeliveryDebt(ownerJourneyId: string): Promise<boolean> {
     const items = await reconcilePiBackedMirrorDeliveryDebt(ownerJourneyId);
-    const piBackedItems = items.filter((item) => item.schemaVersion === "1.1.0")
-      .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
-    if (piBackedItems.length === 0) return false;
-    if (piBackedItems.length !== items.length) {
-      throw new Error("mirror_append_pi_backed_repair_incomplete");
-    }
-    const journal = await loadTurnJournal(ownerJourneyId);
+    const orderedItems = [...items].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    const piBackedItems = orderedItems.filter((item) => item.schemaVersion === "1.1.0");
+    const legacyItems = orderedItems.filter((item) => item.schemaVersion !== "1.1.0");
     const failures: string[] = [];
     let settledAny = false;
+    for (const item of legacyItems) {
+      try {
+        await retryMirrorAppendSummary(item);
+        settledAny = true;
+      } catch (error) {
+        failures.push(`${item.itemId}:${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    const journal = piBackedItems.length > 0 ? await loadTurnJournal(ownerJourneyId) : undefined;
     for (const item of piBackedItems) {
-      const record = journal.records.find((candidate) => (
+      const record = journal?.records.find((candidate) => (
         candidate.authority.turnId === item.itemId
         && candidate.authority.journeyId === item.journeyId
         && candidate.authority.threadId === item.threadId
@@ -2831,6 +2828,10 @@ export function App({ model }: AppProps) {
         authority = createJourneySettlementAuthority(
           createRunAuthority(correlation, projection.liveIdentity),
         );
+        const inspection = await inspectPiInvocations();
+        if (resolveRetainedLeaseForOutboxRecovery(inspection, authority)) {
+          await releaseDurablePiInvocationLease(authority);
+        }
         const receipt = await deliverPiBackedMirrorOutboxItem(item.itemId, item.journeyId);
         const settled = applyMirrorAppendReceipt(projection, authority, receipt, new Date().toISOString());
         await savePostFrontierReceiptProjection(settled, authority, item);
@@ -2852,6 +2853,23 @@ export function App({ model }: AppProps) {
       throw new Error(`mirror_append_pi_backed_repair_partial:${failures.join(",")}`);
     }
     return settledAny;
+  }
+
+  async function recoverPostTerminalPersistence(ownerJourneyId: string) {
+    if (postTerminalRecoveryRef.current || selectedRuntimeBusy || piInvocationOccupancy.status !== "known") return;
+    postTerminalRecoveryRef.current = true;
+    setIsRetryingMirrorCommit(true);
+    setJourneyMirrorCommitError(ownerJourneyId, undefined);
+    try {
+      await repairPiBackedMirrorDeliveryDebt(ownerJourneyId);
+      await reconcilePiInvocationOccupancy();
+      setJourneyMirrorCommitError(ownerJourneyId, undefined);
+    } catch (error) {
+      setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
+    } finally {
+      postTerminalRecoveryRef.current = false;
+      setIsRetryingMirrorCommit(false);
+    }
   }
 
   async function retryPendingMirrorCommit() {
@@ -4818,9 +4836,43 @@ export function App({ model }: AppProps) {
             </section>
           ) : null}
           {retainedLeaseWithoutRecovery ? (
-            <section className="dedicated-turn-notice" role="status">
-              <strong>Terminal finalization pending</strong>
-              <p>The agent is inactive and new messages remain available. Preserved finalization debt will continue through its exact recovery path.</p>
+            <section className="dedicated-turn-notice" role={mirrorCommitError ? "alert" : "status"}>
+              <strong>{isRetryingMirrorCommit
+                ? "Repairing conversation synchronization…"
+                : mirrorCommitError
+                  ? "Conversation synchronization needs attention"
+                  : "Finalizing turn…"}</strong>
+              <p>The native Pi execution is inactive. Mirror Desktop is completing this exact run from preserved Pi evidence; new messages remain available.</p>
+              {mirrorCommitError ? (
+                <>
+                  <div className="recovery-actions">
+                    <button type="button" onClick={() => void recoverPostTerminalPersistence(selectedJourney)} disabled={isRetryingMirrorCommit || piInvocationOccupancy.status !== "known"}>
+                      Repair synchronization
+                    </button>
+                  </div>
+                  <details>
+                    <summary>Details</summary>
+                    <code>{mirrorCommitError}</code>
+                  </details>
+                  <small>No recovery action will run the agent again.</small>
+                </>
+              ) : null}
+            </section>
+          ) : null}
+          {mirrorCommitError && !retainedLeaseWithoutRecovery && !showConversationRecoveryNotice && !showConversationSyncNotice ? (
+            <section className="dedicated-turn-notice" role="alert">
+              <strong>Conversation synchronization needs attention</strong>
+              <p>The agent is inactive, but Mirror Desktop could not complete the preserved persistence path.</p>
+              <div className="recovery-actions">
+                <button type="button" onClick={() => void recoverPostTerminalPersistence(selectedJourney)} disabled={isRetryingMirrorCommit || piInvocationOccupancy.status !== "known"}>
+                  {isRetryingMirrorCommit ? "Repairing conversation synchronization…" : "Repair synchronization"}
+                </button>
+              </div>
+              <details>
+                <summary>Details</summary>
+                <code>{mirrorCommitError}</code>
+              </details>
+              <small>No recovery action will run the agent again.</small>
             </section>
           ) : null}
           {showConversationRecoveryNotice ? (

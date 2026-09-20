@@ -200,11 +200,13 @@ describe("Journey runtime integration guardrails", () => {
       "void listMirrorAppendOutbox(conversation.journeyId).then((items) => {",
       "checkedMirrorTurnRef.current.clear();",
     );
-    expect(automaticOutboxRecovery).toContain('items.every((item) => item.schemaVersion === "1.1.0")');
-    expect(automaticOutboxRecovery).toContain("await repairPiBackedMirrorDeliveryDebt(conversation.journeyId)");
-    expect(automaticOutboxRecovery.indexOf("repairPiBackedMirrorDeliveryDebt")).toBeLessThan(
+    expect(automaticOutboxRecovery).not.toContain("items.length > 0");
+    expect(automaticOutboxRecovery).toContain("await recoverPostTerminalPersistence(conversation.journeyId)");
+    expect(automaticOutboxRecovery.indexOf("recoverPostTerminalPersistence")).toBeLessThan(
       automaticOutboxRecovery.indexOf("retryMirrorAppendSummary(item)"),
     );
+    expect(automaticOutboxRecovery).toContain("!selectedRuntimeBusy");
+    expect(automaticOutboxRecovery).toContain('piInvocationOccupancy.status === "known"');
     const durableOutboxRetry = sourceBetween("async function retryMirrorAppendSummary", "async function retryPendingMirrorCommit");
     expect(durableOutboxRetry).toContain("resolveRetainedLeaseForOutboxRecovery(inspection, authority)");
     expect(durableOutboxRetry).toContain("reconcilePiBackedMirrorDeliveryDebt(ownerJourneyId)");
@@ -213,6 +215,25 @@ describe("Journey runtime integration guardrails", () => {
     expect(durableOutboxRetry).toContain("item.journeyId, item.generation, item.threadId");
     expect(durableOutboxRetry).toContain("failures.push");
     expect(durableOutboxRetry).toContain("continue;");
+    const piBackedRepair = sourceBetween(
+      "async function repairPiBackedMirrorDeliveryDebt",
+      "async function retryPendingMirrorCommit",
+    );
+    expect(piBackedRepair).toContain('legacyItems = orderedItems.filter((item) => item.schemaVersion !== "1.1.0")');
+    expect(piBackedRepair).toContain("await retryMirrorAppendSummary(item)");
+    expect(piBackedRepair).toContain("resolveRetainedLeaseForOutboxRecovery(inspection, authority)");
+    expect(piBackedRepair.indexOf("releaseDurablePiInvocationLease(authority)")).toBeLessThan(
+      piBackedRepair.indexOf("deliverPiBackedMirrorOutboxItem(item.itemId, item.journeyId)"),
+    );
+    const postTerminalRecovery = sourceBetween(
+      "async function recoverPostTerminalPersistence",
+      "async function retryPendingMirrorCommit",
+    );
+    expect(postTerminalRecovery).toContain("postTerminalRecoveryRef.current");
+    expect(postTerminalRecovery).toContain('piInvocationOccupancy.status !== "known"');
+    expect(postTerminalRecovery).toContain("repairPiBackedMirrorDeliveryDebt(ownerJourneyId)");
+    expect(postTerminalRecovery).not.toContain("provider(");
+    expect(postTerminalRecovery).not.toContain("generatePacket(");
     expect(durableOutboxRetry).toContain("applyMirrorAppendReceipt(projection, authority, receipt");
     expect(durableOutboxRetry).toContain("savePostFrontierReceiptProjection(settled, authority, item)");
     expect(durableOutboxRetry).toContain("acknowledgeMirrorAppendItem(item.itemId, item.conversationId, authority)");
