@@ -341,6 +341,7 @@ import { loadResolvedWhatsNewState, saveWhatsNewState } from "./whatsNewStorage"
 import { acknowledgeWhatsNew, resolveWhatsNewState, type ResolvedWhatsNewState } from "../domain/whatsNewState";
 import { UserAvatarSettings } from "./UserAvatar";
 import { importUserAvatar, loadUserAvatar, removeUserAvatar } from "./userAvatarStorage";
+import { useDelayedVisibility } from "./useDelayedVisibility";
 
 type AppProps = {
   model: NautilusViewModel;
@@ -789,6 +790,12 @@ export function App({ model }: AppProps) {
   const retainedLeaseWithoutRecovery = selectedNativeLease?.leasePhase === "finalizing"
     && !selectedRuntimeBusy
     && !exactRetainedSettlementRecovery;
+  const delayedRetainedLeaseNotice = useDelayedVisibility(retainedLeaseWithoutRecovery, {
+    showDelayMs: 300,
+    minimumVisibleMs: 700,
+  });
+  const showRetainedLeaseNotice = delayedRetainedLeaseNotice
+    || Boolean(retainedLeaseWithoutRecovery && mirrorCommitError);
   const pendingMirrorOutboxItem = mirrorOutboxItems.find((item) => item.itemId === pendingMirrorRepair?.correlation.turnId);
   const pendingMirrorDisposition = pendingMirrorRepair
     ? classifyPendingMirrorAppend(
@@ -820,8 +827,12 @@ export function App({ model }: AppProps) {
   const showBlockingTurnRecoveryNotice = Boolean(blockingTurnJournalRecord)
     && !isStreaming
     && (!blockingTurnAwaitingNativeLease || composerTurnStatus !== "finishing");
-  const showNativeOccupancyNotice = piInvocationOccupancy.status !== "known"
+  const nativeOccupancyNoticeRequested = piInvocationOccupancy.status !== "known"
     && composerTurnStatus !== "finishing";
+  const showNativeOccupancyNotice = useDelayedVisibility(nativeOccupancyNoticeRequested, {
+    showDelayMs: 300,
+    minimumVisibleMs: 700,
+  });
   const showConversationSyncNotice = shouldShowConversationSyncNotice({
     mirrorRepairPending: Boolean(pendingMirrorRepair),
     legacyMirrorGap,
@@ -2938,7 +2949,6 @@ export function App({ model }: AppProps) {
     if (postTerminalRecoveryRef.current || selectedRuntimeBusy || piInvocationOccupancy.status !== "known") return;
     postTerminalRecoveryRef.current = true;
     setIsRetryingMirrorCommit(true);
-    setJourneyMirrorCommitError(ownerJourneyId, undefined);
     try {
       await repairPiBackedMirrorDeliveryDebt(ownerJourneyId);
       await reconcilePiInvocationOccupancy();
@@ -4914,7 +4924,7 @@ export function App({ model }: AppProps) {
               <p>The durable journal retained the interruption without inventing a response. Your next message can start a new turn.</p>
             </section>
           ) : null}
-          {retainedLeaseWithoutRecovery ? (
+          {showRetainedLeaseNotice ? (
             <section className="dedicated-turn-notice" role={mirrorCommitError ? "alert" : "status"}>
               <strong>{isRetryingMirrorCommit
                 ? "Repairing conversation synchronization…"
@@ -4938,7 +4948,7 @@ export function App({ model }: AppProps) {
               ) : null}
             </section>
           ) : null}
-          {mirrorCommitError && !retainedLeaseWithoutRecovery && !showConversationRecoveryNotice && !showConversationSyncNotice ? (
+          {mirrorCommitError && !showRetainedLeaseNotice && !showConversationRecoveryNotice && !showConversationSyncNotice ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Conversation synchronization needs attention</strong>
               <p>The agent is inactive, but Mirror Desktop could not complete the preserved persistence path.</p>

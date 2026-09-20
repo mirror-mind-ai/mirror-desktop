@@ -119,14 +119,16 @@ No Mirror Core change, production-data mutation, Stable promotion, publication o
 - Automatic failure is retained by Journey and becomes manually retryable. Safe details are expanded by default and expose the bounded diagnostic without converting persistence debt back into Conversation admission authority.
 - Production-shaped recovery reconstructs an absent exact turn from journal/thread/Pi authority, carries forward unrelated persisted turns and messages, and permits read-only inspection plus journal settlement for an exact inactive generation without granting it active execution authority.
 - Re-observing an already committed receipt preserves the prior projection when both exact message identities agree; message-identity divergence remains fail-closed.
+- Transient occupancy and retained-finalization notices use a 300 ms silent grace period and, once visible, a 700 ms minimum duration. Existing synchronization errors remain mounted throughout retry and clear atomically only after confirmed success, preventing hydration/reconciliation flicker without hiding durable failures.
 
 ## Validation
 
-- Automated gates: 901 frontend tests; 162 Rust tests plus 1 ignored under both Stable and Eval feature sets; TypeScript/Vite build; roadmap consistency; whitespace validation.
+- Automated gates: 904 frontend tests; 162 Rust tests plus 1 ignored under both Stable and Eval feature sets; TypeScript/Vite build; roadmap consistency; whitespace validation.
 - Isolated DEV homologation: [2026-09-20 evidence](cr062-isolated-dev-homologation-2026-09-20.md).
 - Production-backed Eval homologation: [2026-09-20 evidence](cr062-production-eval-homologation-2026-09-20.md).
 - The production target advanced from `terminal_durable / resume_projection` with no outbox item to `settled / complete`, preserved the two exact message IDs in Mirror, emptied the Journey outbox, preserved the Pi JSONL hash and created no provider run.
 - Clean installed-Eval relaunch removed the synchronization/finalization notice while leaving the Composer available. Stable remained closed.
+- The subsequent transient-notice stabilization is covered by deterministic timing tests and awaits Navigator manual validation in the newly installed Eval bundle.
 
 ## Relationships
 

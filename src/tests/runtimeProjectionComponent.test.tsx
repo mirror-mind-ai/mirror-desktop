@@ -132,6 +132,15 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("No recovery action will run the agent again.");
     expect(appSource).not.toContain("Terminal finalization pending");
     expect(appSource).toContain("Repairing conversation synchronization");
+    expect(appSource).toContain("useDelayedVisibility(retainedLeaseWithoutRecovery");
+    expect(appSource).toContain("useDelayedVisibility(nativeOccupancyNoticeRequested");
+    expect(appSource).toContain("showDelayMs: 300");
+    expect(appSource).toContain("minimumVisibleMs: 700");
+    const automaticRecoveryStart = appSource.slice(
+      appSource.indexOf("async function recoverPostTerminalPersistence"),
+      appSource.indexOf("try {", appSource.indexOf("async function recoverPostTerminalPersistence")),
+    );
+    expect(automaticRecoveryStart).not.toContain("setJourneyMirrorCommitError(ownerJourneyId, undefined)");
     expect(appSource).toContain("Conversation synchronization needs attention");
     expect(appSource).toContain("Repair synchronization");
     expect(appSource).toContain("No recovery action will run the agent again.");

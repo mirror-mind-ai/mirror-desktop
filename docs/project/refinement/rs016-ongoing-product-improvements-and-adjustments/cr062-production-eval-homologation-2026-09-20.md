@@ -59,6 +59,12 @@ Primary final artifacts:
 - `eval-installed-accepted-relaunch.png`
 - `eval-installed-final-source-sha256.txt`
 
+## Post-homologation manual-validation candidate
+
+The subsequent transient-notice stabilization was installed for Navigator manual Eval validation without being launched by the installer. Candidate executable SHA-256:
+
+`46b908d8c69a5a313c83fab6ca2ba3f1aa2d1a011913551a7377fd6cf41e1722`
+
 ## Remaining governance
 
 This homologation does not close CR062 and does not authorize push, merge, publication, release or Stable installation. Those decisions remain with the Navigator.
