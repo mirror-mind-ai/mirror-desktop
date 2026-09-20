@@ -5015,10 +5015,7 @@ export function App({ model }: AppProps) {
               placeholder={selectedCanSteer
                 ? "Send a correction to the active turn"
                 : composerPlaceholder({
-                    availabilityCondition: conversationAvailability.condition,
-                    isRecordingTurn: isFinalizingTurn || reconciliationBlocksInvocation,
                     isAgentResponding: isStreaming || agentRun.status === "running",
-                    hasUserMessage: messages.some((message) => message.role === "user"),
                   })}
               disabled={isJourneyReloading}
             />
