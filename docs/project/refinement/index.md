@@ -12,7 +12,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: RS019 — Post-Terminal Continuity
+- Refinement Story: —
 - Change Request: —
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
@@ -40,7 +40,7 @@ executes work.
 | 16 | [RS016](rs016-ongoing-product-improvements-and-adjustments/index.md) | Ongoing Product Improvements and Adjustments | active |
 | 17 | [RS017](rs017-reliable-agent-access/index.md) | Reliable Agent Access | closed |
 | 18 | [RS018](rs018-terminal-aligned-conversation-continuity/index.md) | Terminal-Aligned Conversation Continuity | closed |
-| 19 | [RS019](rs019-post-terminal-continuity/index.md) | Post-Terminal Continuity | active |
+| 19 | [RS019](rs019-post-terminal-continuity/index.md) | Post-Terminal Continuity | closed |
 
 ## Change Requests
 

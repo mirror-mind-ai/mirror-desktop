@@ -2,7 +2,7 @@
 
 # RS019: Post-Terminal Continuity
 
-**Status:** active
+**Status:** closed
 
 ## Framing
 
@@ -61,6 +61,18 @@ Validation must include completion, provider failure, cancellation, process deat
 - No weakening of Journey/thread/generation/Pi-session binding is permitted.
 - No implicit provider retry, provider fallback or model substitution is permitted.
 - Push, merge, publication, release, stable promotion, notarization and installation remain separate Navigator decisions.
+
+## Closure
+
+RS019 is closed on 2026-09-20 after explicit Navigator authorization.
+
+The accepted authority model now makes only exact active native execution an occupancy gate. Once Pi terminates, projection publication, journal advancement, Segment publication, outbox materialization, Mirror delivery, acknowledgement and presentation remain exact, bounded and recoverable debt without blocking a same-Journey successor. Older settlement and cleanup cannot replace, release or misclassify a newer run, and no recovery path retries a provider or changes provider/model implicitly.
+
+The closure horizon is satisfied by CR057–CR060: exact terminal occupancy release, journal-independent admission, run-scoped post-frontier settlement, a complete private-data-free 4 × 7 outcome/frontier matrix, same-process successor evidence and relaunch continuity. The Navigator explicitly accepted the disclosed one-time development-Mirror provisioning deviation in CR060.
+
+Proportionality review: proportional. RS019 corrected one authority boundary in ordered slices, reused Pi JSONL and the existing native registry as authority, and added no parallel runtime or new durable schema.
+
+Debt review: `no_action`. The accepted empty development-Mirror rehearsal artifact, release preparation, push/merge, publication, stable promotion and production repair remain separately governed decisions rather than RS019 closure debt.
 
 ## Change Requests
 
