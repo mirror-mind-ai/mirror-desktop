@@ -73,6 +73,16 @@ describe("runtime channel storage", () => {
     }).status).toBe("unbound");
   });
 
+  it("accepts evaluation presentation over the exact user app-data identity", () => {
+    expect(parseRuntimeChannelDiagnostic({
+      ...development,
+      channel: "evaluation",
+      productName: "Mirror Desktop Eval",
+      bundleIdentifier: "ai.mirrormind.desktop",
+      appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop",
+    })).toMatchObject({ channel: "evaluation", productName: "Mirror Desktop Eval" });
+  });
+
   it("rejects unknown fields, cross-channel identifiers and incomplete validated state", () => {
     expect(() => parseRuntimeChannelDiagnostic({ ...development, token: "secret" })).toThrow(/unsupported fields/);
     expect(() => parseRuntimeChannelDiagnostic({ ...development, bundleIdentifier: "ai.mirrormind.desktop" })).toThrow(/bundle identity/);

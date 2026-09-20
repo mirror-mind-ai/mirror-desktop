@@ -100,18 +100,23 @@ This allows the already-persisted Alpha.13 turn to acknowledge as `existing` and
 - Retained Pi-backed items load and settle against their own generation projection. A failure is recorded and iteration continues, so older and newer debt cannot hide each other.
 - The existing recovery notice receives the exact bounded failure code when repair remains partial.
 - Architecture documentation now records canonical Pi-first timestamps and bounded Desktop-only legacy compatibility.
+- The dedicated `evaluation-channel` compiles as `Mirror Desktop Eval` with the stable bundle identifier/app-data boundary, while retaining `evaluation` as a presentation diagnostic and `user` as persisted runtime authority.
+- Eval uses a green `EVAL` bundle/Dock/UI identity, disables updater support, and refuses startup when macOS reports the Stable `Mirror Desktop` application running.
+- `npm run install:eval` builds, verifies and atomically installs only `~/Applications/Mirror Desktop Eval.app`; it never launches the application.
 
 ## Validation Evidence
 
-- Frontend: 899 tests passed across 158 files.
-- Rust: 160 tests passed, 1 private-fixture test ignored, across 161 tests.
-- Added Rust coverage for first-enqueue normalization, strict legacy timestamp derivation, exact conflict-only fallback and one-attempt behavior for unrelated failures.
-- Added frontend integration guardrails for exact-generation loading and continue-on-failure processing.
+- Frontend: 901 tests passed across 158 files.
+- Rust default channel: 161 tests passed, 1 private-fixture test ignored, across 162 tests.
+- Rust evaluation channel: 161 tests passed, 1 private-fixture test ignored, across 162 tests.
+- Added Rust coverage for first-enqueue normalization, strict legacy timestamp derivation, exact conflict-only fallback, one-attempt behavior for unrelated failures, shared Eval user authority and Stable-process exclusion matching.
+- Added frontend integration guardrails for exact-generation loading, continue-on-failure processing and the distinct bounded evaluation diagnostic/branding.
 - TypeScript and Vite production build passed.
-- `cargo check --locked` passed.
+- `cargo check --locked --features evaluation-channel` passed.
 - `npm run roadmap:check` reported `Mirror Desktop roadmap: READY`.
 - `git diff --check` passed.
-- No provider was invoked and no production application or Mirror data was mutated.
+- Eval built and installed at `~/Applications/Mirror Desktop Eval.app` without launching; its verified bundle identifier is `ai.mirrormind.desktop`, name/display name is `Mirror Desktop Eval`, version is `0.2.0-alpha.13`, embedded icon carries the green `EVAL` badge, and executable SHA-256 is `51e1b5073f2d224be441177f5bff2a5d2f81baa54ac549c1a34b88543fb91240`.
+- No Eval process was running after installation. No provider was invoked and no production application data or Mirror data was mutated.
 
 ## Incident Evidence
 

@@ -10,6 +10,7 @@ use std::{
 pub enum RuntimeChannel {
     User,
     Development,
+    Evaluation,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -50,7 +51,9 @@ pub struct RuntimeChannelDiagnostic {
 
 impl RuntimeChannel {
     pub fn active() -> Self {
-        if cfg!(feature = "development-channel") {
+        if cfg!(feature = "evaluation-channel") {
+            Self::Evaluation
+        } else if cfg!(feature = "development-channel") {
             Self::Development
         } else {
             Self::User
@@ -59,8 +62,16 @@ impl RuntimeChannel {
 
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::User | Self::Evaluation => "user",
+            Self::Development => "development",
+        }
+    }
+
+    pub fn diagnostic_str(self) -> &'static str {
+        match self {
             Self::User => "user",
             Self::Development => "development",
+            Self::Evaluation => "evaluation",
         }
     }
 
@@ -68,6 +79,7 @@ impl RuntimeChannel {
         match self {
             Self::User => "Mirror Desktop",
             Self::Development => "Mirror Desktop Dev",
+            Self::Evaluation => "Mirror Desktop Eval",
         }
     }
 
@@ -75,6 +87,7 @@ impl RuntimeChannel {
         match self {
             Self::User => "ai.mirrormind.desktop",
             Self::Development => "ai.mirrormind.desktop.dev",
+            Self::Evaluation => "ai.mirrormind.desktop",
         }
     }
 
@@ -82,9 +95,34 @@ impl RuntimeChannel {
         matches!(self, Self::User)
     }
 
+    pub fn validate_operational_exclusion(self) -> Result<(), String> {
+        #[cfg(target_os = "macos")]
+        if self == Self::Evaluation {
+            use objc2_app_kit::NSRunningApplication;
+            use objc2_foundation::NSString;
+            let identifier = NSString::from_str(self.bundle_identifier());
+            for application in
+                NSRunningApplication::runningApplicationsWithBundleIdentifier(&identifier).iter()
+            {
+                let bundle_identifier = application
+                    .bundleIdentifier()
+                    .map(|value| value.to_string());
+                let localized_name = application.localizedName().map(|value| value.to_string());
+                if evaluation_conflicts_with_running_application(
+                    self,
+                    bundle_identifier.as_deref(),
+                    localized_name.as_deref(),
+                ) {
+                    return Err("Close Mirror Desktop before opening Mirror Desktop Eval. Both applications use the production app-data boundary.".to_string());
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn binding_channel(self) -> BindingChannel {
         match self {
-            Self::User => BindingChannel::User,
+            Self::User | Self::Evaluation => BindingChannel::User,
             Self::Development => BindingChannel::Development,
         }
     }
@@ -109,22 +147,36 @@ impl RuntimeChannel {
 
     pub fn apply_macos_dock_icon(self) -> Result<(), String> {
         #[cfg(target_os = "macos")]
-        if self == Self::Development {
+        if matches!(self, Self::Development | Self::Evaluation) {
             use objc2::{AllocAnyThread, MainThreadMarker};
             use objc2_app_kit::{NSApplication, NSImage};
             use objc2_foundation::NSData;
             let marker = MainThreadMarker::new().ok_or_else(|| {
                 "Development Dock icon must be applied on the main thread.".to_string()
             })?;
-            let data = NSData::with_bytes(include_bytes!("../icons/dev/icon.png"));
+            let data = NSData::with_bytes(match self {
+                Self::Development => include_bytes!("../icons/dev/icon.png"),
+                Self::Evaluation => include_bytes!("../icons/eval/icon.png"),
+                Self::User => unreachable!("stable channel does not override the Dock icon"),
+            });
             let icon = NSImage::initWithData(NSImage::alloc(), &data).ok_or_else(|| {
-                "Could not decode the Mirror Desktop development Dock icon.".to_string()
+                "Could not decode the Mirror Desktop channel Dock icon.".to_string()
             })?;
             let application = NSApplication::sharedApplication(marker);
             unsafe { application.setApplicationIconImage(Some(&icon)) };
         }
         Ok(())
     }
+}
+
+pub(crate) fn evaluation_conflicts_with_running_application(
+    channel: RuntimeChannel,
+    bundle_identifier: Option<&str>,
+    localized_name: Option<&str>,
+) -> bool {
+    channel == RuntimeChannel::Evaluation
+        && bundle_identifier == Some("ai.mirrormind.desktop")
+        && localized_name == Some("Mirror Desktop")
 }
 
 pub(crate) fn runtime_search_directories(home: &Path) -> Vec<PathBuf> {
@@ -190,7 +242,7 @@ fn discover_versioned_runtime_directories(root: &Path, suffix: &str) -> Vec<Path
 impl RuntimeChannelDiagnostic {
     pub fn unavailable(channel: RuntimeChannel, app_data_root: &Path, message: String) -> Self {
         Self {
-            channel: channel.as_str(),
+            channel: channel.diagnostic_str(),
             product_name: channel.product_name(),
             bundle_identifier: channel.bundle_identifier(),
             app_data_root: app_data_root.to_string_lossy().to_string(),
@@ -228,7 +280,7 @@ impl RuntimeChannelProfile {
     #[cfg(test)]
     pub fn for_home(channel: RuntimeChannel, home: &Path) -> Self {
         let (mirror_root, mirror_home, mirror_user) = match channel {
-            RuntimeChannel::User => (
+            RuntimeChannel::User | RuntimeChannel::Evaluation => (
                 home.join("mirror"),
                 home.join(".mirror-minds/example"),
                 "example",
@@ -349,7 +401,7 @@ impl RuntimeChannelProfile {
 
     pub fn diagnostic(&self, app_data_root: &Path) -> RuntimeChannelDiagnostic {
         RuntimeChannelDiagnostic {
-            channel: self.channel.as_str(),
+            channel: self.channel.diagnostic_str(),
             product_name: self.product_name,
             bundle_identifier: self.bundle_identifier,
             app_data_root: app_data_root.to_string_lossy().to_string(),
@@ -401,6 +453,7 @@ mod tests {
         let home = Path::new("/Users/example");
         let user = RuntimeChannelProfile::for_home(RuntimeChannel::User, home);
         let development = RuntimeChannelProfile::for_home(RuntimeChannel::Development, home);
+        let evaluation = RuntimeChannelProfile::for_home(RuntimeChannel::Evaluation, home);
 
         assert_eq!(user.bundle_identifier, "ai.mirrormind.desktop");
         assert_eq!(development.bundle_identifier, "ai.mirrormind.desktop.dev");
@@ -418,8 +471,40 @@ mod tests {
             home.join(".mirror-minds/mirror-dev/memory.db")
         );
         assert_ne!(user.mirror_home, development.mirror_home);
+        assert_eq!(evaluation.product_name, "Mirror Desktop Eval");
+        assert_eq!(evaluation.bundle_identifier, "ai.mirrormind.desktop");
+        assert_eq!(evaluation.mirror_root, user.mirror_root);
+        assert_eq!(evaluation.mirror_home, user.mirror_home);
+        assert_eq!(evaluation.db_path, user.db_path);
         assert!(RuntimeChannel::User.supports_updater());
         assert!(!RuntimeChannel::Development.supports_updater());
+        assert!(!RuntimeChannel::Evaluation.supports_updater());
+    }
+
+    #[test]
+    fn evaluation_exclusion_recognizes_only_the_stable_application() {
+        assert_eq!(RuntimeChannel::Evaluation.as_str(), "user");
+        assert_eq!(RuntimeChannel::Evaluation.diagnostic_str(), "evaluation");
+        assert!(super::evaluation_conflicts_with_running_application(
+            RuntimeChannel::Evaluation,
+            Some("ai.mirrormind.desktop"),
+            Some("Mirror Desktop"),
+        ));
+        assert!(!super::evaluation_conflicts_with_running_application(
+            RuntimeChannel::Evaluation,
+            Some("ai.mirrormind.desktop"),
+            Some("Mirror Desktop Eval"),
+        ));
+        assert!(!super::evaluation_conflicts_with_running_application(
+            RuntimeChannel::User,
+            Some("ai.mirrormind.desktop"),
+            Some("Mirror Desktop"),
+        ));
+        assert!(!super::evaluation_conflicts_with_running_application(
+            RuntimeChannel::Evaluation,
+            Some("other.bundle"),
+            Some("Mirror Desktop"),
+        ));
     }
 
     #[test]

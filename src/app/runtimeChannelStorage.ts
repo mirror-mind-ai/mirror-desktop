@@ -10,7 +10,7 @@ export type RuntimeBinding = {
 };
 
 export type RuntimeChannelDiagnostic = {
-  channel: "user" | "development";
+  channel: "user" | "development" | "evaluation";
   productName: string;
   bundleIdentifier: string;
   appDataRoot: string;
@@ -58,7 +58,7 @@ export function parseRuntimeChannelDiagnostic(value: unknown): RuntimeChannelDia
       throw new Error("Runtime channel diagnostic contains invalid identity fields.");
     }
   }
-  if (!["user", "development"].includes(diagnostic.channel as string)
+  if (!["user", "development", "evaluation"].includes(diagnostic.channel as string)
     || !["unbound", "invalid", "validated"].includes(diagnostic.status as string)) {
     throw new Error("Runtime channel diagnostic contains an unsupported identity.");
   }

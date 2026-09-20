@@ -347,6 +347,7 @@ type AppProps = {
 };
 
 const DEVELOPMENT_BADGE_LABEL = "DEV LAB";
+const EVALUATION_BADGE_LABEL = "EVAL";
 
 const journeyVisuals: Record<string, { icon: string; accent: string }> = {
   "vida-criativa": { icon: "✺", accent: "green" },
@@ -3926,10 +3927,11 @@ export function App({ model }: AppProps) {
   }
 
   const developmentChannel = runtimeChannel?.channel === "development";
+  const evaluationChannel = runtimeChannel?.channel === "evaluation";
   const runtimeBindingDraft: RuntimeBinding | undefined = runtimeChannel && runtimeMirrorRoot && runtimeMirrorHome && runtimeMirrorUser
     ? {
         schemaVersion: "1.0.0",
-        channel: runtimeChannel.channel,
+        channel: runtimeChannel.channel === "development" ? "development" : "user",
         mirrorRoot: runtimeMirrorRoot,
         mirrorHome: runtimeMirrorHome,
         mirrorUser: runtimeMirrorUser,
@@ -4024,7 +4026,7 @@ export function App({ model }: AppProps) {
           <span className="runtime-onboarding-mark" aria-hidden="true"><img src={appIconUrl} alt="" /></span>
           {runtimeSetupNeedsConnection ? (
             <>
-              <p className="eyebrow">Mirror Desktop {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</p>
+              <p className="eyebrow">Mirror Desktop {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : evaluationChannel ? <span className="evaluation-badge">{EVALUATION_BADGE_LABEL}</span> : null}</p>
               <h1>Connect your Mirror</h1>
               <p>Choose the Mirror installation and personal home this app should use. These fields stay on this Mac.</p>
               <div className="runtime-onboarding-form" aria-label="Required Mirror connection">
@@ -4152,10 +4154,10 @@ export function App({ model }: AppProps) {
         <div className="brand-block">
           <span className="brand-mark-wrap" aria-hidden="true">
             <img className="brand-mark" src={appIconUrl} alt="" />
-            {developmentChannel ? <span className="brand-channel-badge">DEV</span> : null}
+            {developmentChannel ? <span className="brand-channel-badge">DEV</span> : evaluationChannel ? <span className="brand-channel-badge is-evaluation">EVAL</span> : null}
           </span>
           <div className="brand-copy">
-            <strong>Mirror Desktop {developmentChannel ? <span className="sr-only">Development channel</span> : null}</strong>
+            <strong>Mirror Desktop {developmentChannel ? <span className="sr-only">Development channel</span> : evaluationChannel ? <span className="sr-only">Evaluation channel</span> : null}</strong>
             <SelfUpdateNotification
               runtimeBusy={runtimeBusy}
               installedReleaseReading={whatsNewState?.installed}
@@ -5366,7 +5368,7 @@ export function App({ model }: AppProps) {
                 aria-labelledby="settings-tab-runtime"
               >
                 <section className="settings-section runtime-channel-card" aria-label="Runtime channel">
-              <h3>Runtime channel {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : null}</h3>
+              <h3>Runtime channel {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : evaluationChannel ? <span className="evaluation-badge">{EVALUATION_BADGE_LABEL}</span> : null}</h3>
               {runtimeChannel ? (
                 <dl className="runtime-channel-diagnostic">
                   <div><dt>Channel</dt><dd>{runtimeChannel.channel}</dd></div>

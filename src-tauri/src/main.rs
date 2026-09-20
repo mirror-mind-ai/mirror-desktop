@@ -8023,6 +8023,15 @@ fn retire_legacy_parity_state(app: AppHandle) -> Result<LegacyParityRetirementSu
 }
 
 fn main() {
+    if let Err(error) = RuntimeChannel::active().validate_operational_exclusion() {
+        rfd::MessageDialog::new()
+            .set_level(rfd::MessageLevel::Warning)
+            .set_title("Mirror Desktop Eval")
+            .set_description(&error)
+            .set_buttons(rfd::MessageButtons::Ok)
+            .show();
+        return;
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_process::init())

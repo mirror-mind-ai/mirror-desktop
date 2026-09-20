@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import packageJson from "../../package.json";
 import stableConfig from "../../src-tauri/tauri.conf.json";
 import developmentConfig from "../../src-tauri/tauri.dev.conf.json";
+import evaluationConfig from "../../src-tauri/tauri.eval.conf.json";
 import alphaUpdaterConfig from "../../src-tauri/tauri.alpha-update.conf.json";
 import rustSource from "../../src-tauri/src/main.rs?raw";
 import runtimeBindingSource from "../../src-tauri/src/runtime_binding.rs?raw";
@@ -22,6 +23,7 @@ const agentsSource = readFileSync(new URL("../../AGENTS.md", import.meta.url), "
 const setupGuide = readFileSync(new URL("../../docs/development/environment-setup.md", import.meta.url), "utf8");
 const stableIconSource = readFileSync(new URL("../../src-tauri/icons/icon.svg", import.meta.url), "utf8");
 const developmentIconSource = readFileSync(new URL("../../src-tauri/icons/dev/icon.svg", import.meta.url), "utf8");
+const evaluationIconSource = readFileSync(new URL("../../src-tauri/icons/eval/icon.svg", import.meta.url), "utf8");
 
 describe("runtime channel configuration", () => {
   it("keeps stable and development Tauri identities non-colliding", () => {
@@ -35,7 +37,21 @@ describe("runtime channel configuration", () => {
     expect(runtimeChannelSource).toContain('include_bytes!("../icons/dev/icon.png")');
   });
 
-  it("uses the Mirror Desktop mirror artwork with DEV as the only channel overlay", () => {
+  it("defines an evaluation identity that shares only the user app-data authority", () => {
+    expect(evaluationConfig.identifier).toBe("ai.mirrormind.desktop");
+    expect(evaluationConfig.productName).toBe("Mirror Desktop Eval");
+    expect(evaluationConfig.app.windows[0].title).toBe("Mirror Desktop Eval");
+    expect(evaluationConfig.bundle.icon).toContain("icons/eval/icon.png");
+    expect(evaluationConfig.bundle.targets).toEqual(["app"]);
+    expect(evaluationConfig.bundle.createUpdaterArtifacts).toBe(false);
+    expect(scripts["tauri:build:eval"]).toContain("mirror_desktop_channel.mjs build-eval");
+    expect(scripts["install:eval"]).toContain("mirror_desktop_channel.mjs install-eval");
+    expect(channelLauncher).toContain('"evaluation-channel"');
+    expect(channelLauncher).toContain('"Mirror Desktop Eval.app"');
+    expect(channelLauncher).toContain('resolve(process.env.HOME ?? "", "Applications", "Mirror Desktop Eval.app")');
+  });
+
+  it("uses the Mirror Desktop mirror artwork with explicit DEV and EVAL overlays", () => {
     expect(stableIconSource).toContain("Mirror Desktop icon");
     expect(stableIconSource).toContain('<ellipse cx="256" cy="246" rx="124" ry="156"');
     expect(stableIconSource).toContain('<circle cx="256" cy="246" r="12"');
@@ -46,6 +62,9 @@ describe("runtime channel configuration", () => {
     expect(developmentIconSource).toContain('<circle cx="256" cy="246" r="12"');
     expect(developmentIconSource).not.toContain("Nautilus Harness Dev icon");
     expect(developmentIconSource).toContain(">DEV<");
+    expect(evaluationIconSource).toContain("Mirror Desktop Eval icon");
+    expect(evaluationIconSource).toContain(">EVAL<");
+    expect(evaluationIconSource).toContain('fill="#2f9e5b"');
     expect(appSource).toContain('import appIconUrl from "../../src-tauri/icons/icon.svg"');
     expect(appSource).not.toContain("devAppIconUrl");
     expect(appSource).toContain('className="brand-channel-badge"');
@@ -57,6 +76,8 @@ describe("runtime channel configuration", () => {
       scripts["tauri:user"],
       scripts["tauri:build:dev"],
       scripts["tauri:build:user"],
+      scripts["tauri:build:eval"],
+      scripts["install:eval"],
     ]) {
       expect(command).toContain("scripts/mirror_desktop_channel.mjs");
     }
@@ -75,6 +96,7 @@ describe("runtime channel configuration", () => {
     expect(channelLauncher).toContain('"--mirror-root"');
     expect(channelLauncher).toContain('"ai.mirrormind.desktop.dev"');
     expect(channelLauncher).toContain('mode === "import-user" || mode === "import-dev"');
+    expect(channelLauncher).toContain("installEvaluationBundle");
     expect(channelLauncher).toContain('const inheritedMirrorEnvironment = ["MIRROR_HOME", "MIRROR_USER", "DB_PATH"]');
     expect(channelLauncher).toContain('delete environment[name]');
     expect(channelLauncher).toContain('return { ...environment, ...extra };');
@@ -132,6 +154,11 @@ describe("runtime channel configuration", () => {
   it("renders a textual development identity and bounded runtime diagnostics", () => {
     expect(appSource).toContain('className="development-badge"');
     expect(appSource).toContain('const DEVELOPMENT_BADGE_LABEL = "DEV LAB";');
+    expect(appSource).toContain('const EVALUATION_BADGE_LABEL = "EVAL";');
+    expect(appSource).toContain('runtimeChannel?.channel === "evaluation"');
+    expect(appSource).toContain('className="evaluation-badge"');
+    expect(cssSource).toContain(".evaluation-badge");
+    expect(cssSource).toContain(".brand-channel-badge.is-evaluation");
     expect(appSource).not.toContain("Journey Navigation");
     expect(appSource).not.toContain("PRODUCT_DESCRIPTOR");
     expect(appSource).toContain("<strong>Mirror Desktop ");

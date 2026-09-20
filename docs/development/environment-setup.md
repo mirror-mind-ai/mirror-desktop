@@ -140,6 +140,14 @@ Trusted alpha user bundle:
 npm run tauri:build:user
 ```
 
+Production-data evaluation bundle:
+
+```bash
+npm run install:eval
+```
+
+This builds an unsigned `Mirror Desktop Eval` application with a green `EVAL` badge, verifies its macOS bundle identity and atomically installs it at `~/Applications/Mirror Desktop Eval.app` without launching it. Eval intentionally uses the stable `ai.mirrormind.desktop` app-data and production Mirror binding so it can validate exact retained production debt. It disables the updater and refuses startup while the Stable `Mirror Desktop` application is already running. Stable must remain closed for the complete Eval session; close Eval before reopening Stable. Building and installing Eval do not authorize launching it or mutating production data.
+
 The user-channel build always overlays `src-tauri/tauri.alpha-update.conf.json` and creates signed updater artifacts. It fails closed unless the updater signing key exists at `$HOME/.mirror-desktop-updater/alpha/updater.key` (or the path named by `MIRROR_DESKTOP_UPDATER_SIGNING_KEY`). Use `npm run tauri:build:dev` for unsigned local validation; there is no unsigned user-identity build route.
 
 A source-built bundle starts with channel-local state. Import the canonical Journey registry explicitly when needed:

@@ -18,6 +18,8 @@
     "tauri:user": "node scripts/mirror_desktop_channel.mjs user",
     "tauri:build:dev": "node scripts/mirror_desktop_channel.mjs build-dev",
     "tauri:build:user": "node scripts/mirror_desktop_channel.mjs build-user",
+    "tauri:build:eval": "node scripts/mirror_desktop_channel.mjs build-eval",
+    "install:eval": "node scripts/mirror_desktop_channel.mjs install-eval",
     "promote:production": "node scripts/promote_production.mjs",
     "self-update:preflight": "node scripts/self_update_preflight.mjs --config src-tauri/tauri.self-update.test.conf.json",
     "release:notes": "node scripts/release_notes.mjs",

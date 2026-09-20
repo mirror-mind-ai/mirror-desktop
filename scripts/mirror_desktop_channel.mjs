@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import { loadRuntimeBinding } from "./runtime_binding_file.mjs";
@@ -36,6 +36,19 @@ const channels = {
     args: ["build", "--config", "src-tauri/tauri.alpha-update.conf.json"],
     bundle: "Mirror Desktop.app",
     requiresUpdaterSigning: true,
+  },
+  "build-eval": {
+    channel: "evaluation",
+    identifier: "ai.mirrormind.desktop",
+    args: ["build", "--config", "src-tauri/tauri.eval.conf.json", "--features", "evaluation-channel"],
+    bundle: "Mirror Desktop Eval.app",
+  },
+  "install-eval": {
+    channel: "evaluation",
+    identifier: "ai.mirrormind.desktop",
+    args: ["build", "--config", "src-tauri/tauri.eval.conf.json", "--features", "evaluation-channel"],
+    bundle: "Mirror Desktop Eval.app",
+    installsEvaluationBundle: true,
   },
   "import-user": {
     channel: "user",
@@ -87,6 +100,47 @@ function runBootstrap(profile) {
   }
 }
 
+function installEvaluationBundle(profile) {
+  if (process.platform !== "darwin") {
+    console.error("Mirror Desktop Eval installation currently supports macOS only.");
+    process.exit(2);
+  }
+  const source = resolve("src-tauri", "target", "release", "bundle", "macos", profile.bundle);
+  const destination = resolve(process.env.HOME ?? "", "Applications", "Mirror Desktop Eval.app");
+  if (!existsSync(source)) {
+    console.error(`Built evaluation bundle is unavailable at ${source}.`);
+    process.exit(1);
+  }
+  const plist = resolve(source, "Contents", "Info.plist");
+  const identifier = spawnSync("/usr/libexec/PlistBuddy", ["-c", "Print :CFBundleIdentifier", plist], { encoding: "utf8" });
+  const name = spawnSync("/usr/libexec/PlistBuddy", ["-c", "Print :CFBundleName", plist], { encoding: "utf8" });
+  if (identifier.status !== 0 || identifier.stdout.trim() !== "ai.mirrormind.desktop"
+    || name.status !== 0 || name.stdout.trim() !== "Mirror Desktop Eval") {
+    console.error("Built evaluation bundle identity is invalid.");
+    process.exit(1);
+  }
+  mkdirSync(resolve(process.env.HOME ?? "", "Applications"), { recursive: true });
+  const staged = `${destination}.installing-${process.pid}`;
+  const backup = `${destination}.backup-${process.pid}`;
+  rmSync(staged, { recursive: true, force: true });
+  rmSync(backup, { recursive: true, force: true });
+  cpSync(source, staged, { recursive: true, dereference: false });
+  let replaced = false;
+  try {
+    if (existsSync(destination)) {
+      renameSync(destination, backup);
+      replaced = true;
+    }
+    renameSync(staged, destination);
+    rmSync(backup, { recursive: true, force: true });
+  } catch (error) {
+    rmSync(staged, { recursive: true, force: true });
+    if (replaced && !existsSync(destination) && existsSync(backup)) renameSync(backup, destination);
+    throw error;
+  }
+  console.log(`Installed Mirror Desktop Eval at ${destination}. It was not launched.`);
+}
+
 function launchDesktopValidation() {
   if (process.platform !== "darwin") {
     console.error("Source-built desktop validation launch currently supports macOS only.");
@@ -116,7 +170,7 @@ if (mode === "validate-desktop") {
 }
 const selected = channels[mode];
 if (!selected) {
-  console.error("Usage: node scripts/mirror_desktop_channel.mjs <user|dev|build-dev|build-user|import-user|import-dev|validate-desktop>");
+  console.error("Usage: node scripts/mirror_desktop_channel.mjs <user|dev|build-dev|build-user|build-eval|install-eval|import-user|import-dev|validate-desktop>");
   process.exit(2);
 }
 if (mode === "import-user" || mode === "import-dev") {
@@ -132,4 +186,6 @@ if (result.error) {
   console.error(result.error.message);
   process.exit(1);
 }
-process.exit(result.status ?? 1);
+if (result.status !== 0) process.exit(result.status ?? 1);
+if (selected.installsEvaluationBundle) installEvaluationBundle(selected);
+process.exit(0);
