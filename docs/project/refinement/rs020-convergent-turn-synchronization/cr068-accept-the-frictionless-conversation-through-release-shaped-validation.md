@@ -76,10 +76,26 @@ Gates repeated: CR064 contract 11 scenarios, 918 frontend tests, Rust 162 + 1 ig
 
 - executable SHA-256: `ce21d2d5404b794061a6f7d9ef2cb8b14b26efc7a11f0acd34eee7de343bd84e`
 
-## Step 3 (third) — Navigator Homologation
+## Step 3 (third) — PARTIAL (2026-09-21): Retained Turn Auto-Converged, Transient Flash Remained
 
-Pending. Same script, in both the dedicated `Mirror Desktop` Conversation and the `RS020 Validation` Desktop Conversation. On opening `RS020 Validation`, the retained turn should converge silently and the notice should disappear without any manual action.
+Two confirmations and one remaining defect:
+
+- the retained `RS020 Validation` turn **converged automatically** on candidate hydration at `2026-09-21T10:08:56Z`, with no manual action: journal settled, outbox empty, projection committed, all six exact messages in Mirror Conversation `f308e82c`;
+- the two new turns (`10:32:57`, `10:34:44`) delivered exactly and settled;
+- the notice still flashed for a few seconds after every turn.
+
+Root cause of the flash: post-turn convergence triggered while native execution was still active received the native refusal `mirror_append_pi_recovery_active_lease`; recording that refusal as Journey failure evidence satisfied the notice gate together with the transient settlement-window debt. Corrections recorded in CR065 and CR067: silent deferral, debt-scoped exact-error evidence, post-convergence error hygiene and removal of renderer-replica failure text.
+
+## Step 2 (fourth) — Corrected Eval Candidate (2026-09-21)
+
+Gates repeated: CR064 contract 12 scenarios, 919 frontend tests, Rust 162 + 1 ignored under both feature sets, build, roadmap `READY`, whitespace clean. Candidate installed atomically without launching, Stable and Eval closed.
+
+- executable SHA-256: `2344c4e96a7a63fce6ddae6984c4c51d548cb4c585cdeecec5e00d0ba60c00d9`
+
+## Step 3 (fourth) — Navigator Homologation
+
+Pending. Same script; the acceptance bar is zero synchronization surfaces at any moment of ordinary use.
 
 ## Step 4 — Durable Evidence
 
-Pending the third Step 3.
+Pending the fourth Step 3.
