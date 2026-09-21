@@ -29,23 +29,52 @@ extensions a high cost.
   (no `--no-extensions`) and the mirror-mediated invocation
   (`--no-extensions`).
 
+## Design Decision (Navigator, 2026-09-21)
+
+The first draft proposed a Desktop-managed allowlist. The Navigator redirected:
+Desktop should mirror what is already installed in Pi rather than ask the user
+to curate a second list — `pi install` is the curation. Verification made this
+cleaner than a name-based denylist:
+
+- `mirror-logger.ts` exists **only** in project-local `.pi/extensions/`
+  directories (the Mirror checkouts). It is not a global package and not a
+  global user extension.
+- The global set is therefore already writer-free: `packages` in
+  `~/.pi/agent/settings.json` (`pi-agent-browser-native`, `pi-gmail`,
+  `pi-claude-bridge`) plus `~/.pi/agent/extensions/` (`librarian`).
+
+The boundary is structural, not nominal: **global loads, project-local never
+does.**
+
 ## Expected Behavior
 
-- Desktop agent settings gain a Navigator-approved extension allowlist:
-  explicit package identities resolved to their declared entry files. Default
-  is empty; approval is an explicit per-package Navigator decision recorded in
-  settings.
-- The mirror-mediated invocation keeps `--no-extensions` and appends one
-  `--extension <entry>` per approved package. Discovery stays disabled;
-  project-local extensions stay excluded; `mirror-logger` is never eligible
-  (it is a conversation writer — the invariant this contract exists for).
-- Catalog and invocation agree: models provided by approved extensions are
-  offered as runnable; models from non-approved extensions surface through
-  CR071's unavailable indicator with the reason, now truthfully transitional
-  ("not approved" rather than "impossible").
-- Loading an extension executes third-party code in the Pi process; the
-  allowlist consent is the boundary that makes this explicit rather than
-  ambient.
+- The mirror-mediated invocation keeps `--no-extensions` (discovery stays
+  disabled, so project-local extensions — where conversation writers live —
+  are structurally excluded) and appends one `--extension <entry>` per global
+  Pi extension: each settings `packages` entry resolved through its
+  `package.json#pi.extensions` declaration under `~/.pi/agent/npm/`, plus each
+  entry in `~/.pi/agent/extensions/`.
+- No new Desktop-side list to maintain: installing or removing an extension
+  with `pi install` / `pi remove` changes what Desktop loads, exactly like the
+  terminal.
+- Catalog and invocation agree: models provided by globally installed
+  extensions are offered as runnable. CR071's unavailable indicator remains
+  for the residual cases (an extension model whose global entry cannot be
+  resolved, or future project-only providers).
+- Defense in depth for the invariant: if a `mirror-logger` entry ever appears
+  in the global set, Desktop refuses to pass it and surfaces why — the single
+  conversation writer contract outranks parity with the terminal.
+
+## Implementation Considerations
+
+- Desktop mirror-mediated runs pass `--approve`: tools contributed by global
+  extensions (browser, gmail) will run auto-approved, a broader posture than a
+  prompting terminal session. This mirrors the existing treatment of built-in
+  tools and skills; if the Navigator wants provider-models-only without
+  extension tools, Pi's `--tools` allowlist is the available instrument, at the
+  cost of maintaining a tool list.
+- Entry resolution must fail visibly per extension (skip-and-report), never
+  abort the invocation for one unresolvable package.
 
 ## Relationship
 
