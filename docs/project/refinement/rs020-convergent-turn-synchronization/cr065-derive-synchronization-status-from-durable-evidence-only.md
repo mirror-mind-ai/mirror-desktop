@@ -2,7 +2,7 @@
 
 # CR065: Derive Synchronization Status from Durable Evidence Only
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs020-cr065-durable-sync-status`
 
@@ -49,3 +49,9 @@ The CR064 world fixture mirrors the new derivation, and both red scenarios were 
 - TypeScript/Vite build passed; roadmap consistency `READY`; `git diff --check` clean.
 
 Eval homologation of the visible behavior remains for CR068's release-shaped validation.
+
+## Closure
+
+Closed on 2026-09-21 with explicit Navigator authorization after the CR064 contract flipped fully green.
+
+Proportionality and debt review: `no_action`. The change replaces the presentation input with existing durable evidence and adds one bounded state hydration; no schema, mutation-path or Mirror Core change.
