@@ -80,7 +80,7 @@ export type ConvergenceDeps = {
     threadId: string,
   ): Promise<JourneyConversation | undefined>;
   deliverPiBackedOutboxItem(itemId: string, journeyId: string): Promise<MirrorAppendReceipt>;
-  loadThread(journeyId: string): Promise<NautilusJourneyThread | undefined>;
+  loadThread(journeyId: string, threadId: string): Promise<NautilusJourneyThread | undefined>;
   inspectTranscript(
     journeyId: string,
     threadId: string,
@@ -423,7 +423,7 @@ export function createTurnFinalizationCoordinator(): TurnFinalizationCoordinator
         let authority: JourneySettlementAuthority | undefined;
         try {
           const storedProjection = await deps.loadProjectionByCoords(item.journeyId, item.generation, item.threadId);
-          const thread = await deps.loadThread(item.journeyId);
+          const thread = await deps.loadThread(item.journeyId, item.threadId);
           const generation = thread?.generations.find((candidate) => (
             candidate.generation === item.generation
             && candidate.piSessionId === record.authority.piSessionId

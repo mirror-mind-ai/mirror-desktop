@@ -220,7 +220,7 @@ describe("Journey runtime integration guardrails", () => {
     expect(convergence).toContain('legacyItems = orderedItems.filter((item) => item.schemaVersion !== "1.1.0")');
     expect(convergence).toContain("convergeLegacyItem(item)");
     expect(convergence).toContain("convergePiBackedItem(item, record)");
-    expect(convergence).toContain("deps.loadThread(item.journeyId)");
+    expect(convergence).toContain("deps.loadThread(item.journeyId, item.threadId)");
     expect(convergence).toContain("createDedicatedJourneyConversation({ thread: recoveryThread, initialMessages: [] })");
     expect(convergence).toContain("deps.inspectTranscript(");
     expect(convergence).toContain("stageCorrelatedTurn(");

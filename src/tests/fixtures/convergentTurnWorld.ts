@@ -182,7 +182,7 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
     deliverPiBackedOutboxItem: async () => {
       throw new Error("world_pi_backed_delivery_unused");
     },
-    loadThread: async () => thread,
+    loadThread: async (_journeyId, threadId) => threadId === thread.threadId ? thread : undefined,
     inspectTranscript: async () => ({ schemaVersion: "0.1.0", entries: [] }),
     inspectNativeOccupancy: async () => ({
       schemaVersion: "0.1.0",

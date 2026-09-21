@@ -2617,7 +2617,7 @@ export function App({ model }: AppProps) {
     deliverPiBackedOutboxItem: (itemId: string, journeyId: string) => (
       deliverPiBackedMirrorOutboxItem(itemId, journeyId)
     ),
-    loadThread: (journeyId: string) => loadNautilusJourneyThread(journeyId),
+    loadThread: (journeyId: string, threadId: string) => loadConversationThreadAuthority(journeyId, threadId),
     inspectTranscript: (
       journeyId: string, threadId: string, generation: number, piSessionId: string, piSessionFile: string,
     ) => inspectDedicatedPiTranscript(journeyId, threadId, generation, piSessionId, piSessionFile, true),

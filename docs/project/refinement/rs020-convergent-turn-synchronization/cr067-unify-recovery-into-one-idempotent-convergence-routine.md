@@ -62,3 +62,9 @@ CR068 homologation recorded `mirror_append_item_missing`: a convergence pass rac
 ## Reopening Correction (2026-09-21)
 
 Convergence now treats an already-settled exact journal record as an immediate no-op before touching the journal or outbox, and a natively vanished item (`mirror_append_item_missing`) whose record is settled as already converged, clearing any stale exact error. The coordinator also stopped emitting `durable_evidence_changed` mid-transaction at enqueue time; evidence events fire only at terminal outcomes. The CR064 contract gained the scene "treats a vanished outbox item with a settled journal as already converged", exercising a stale reconcile snapshot racing an out-of-band completion. Delivered on `refinement/rs020-cr068-release-shaped-acceptance`.
+
+## Reopening Correction 2 (2026-09-21)
+
+The repeated CR068 homologation, run in the Desktop Conversation `RS020 Validation`, exposed a convergence authority gap: `mirror_append_complete_durable_projection_missing` for `turn-agent-run-2026-09-21T03:02:00.677Z`. Read-only inspection showed the true frontier: both exact messages already delivered to Mirror Conversation `f308e82c`, journal retained at `outbox_enqueued`, outbox item retained — only acknowledgement and settlement missing. Convergence failed before reaching them because `ConvergenceDeps.loadThread` resolved only the Journey's dedicated Nautilus thread, while this item belongs to a `desktop-thread-*` Conversation.
+
+Correction: thread authority lookup is now scoped by `(journeyId, threadId)` and wired to `loadConversationThreadAuthority`, which resolves dedicated and Desktop Conversation threads alike. The world fixture now refuses thread lookups for foreign threadIds, pinning the scoped contract. The retained production turn is expected to converge automatically on the corrected candidate's hydration, through the idempotent existing-message receipt.

@@ -64,10 +64,22 @@ After the CR065 and CR067 reopening corrections, all gates were repeated: CR064 
 
 - executable SHA-256: `a3c0fe84b1840c719c107b890feee87bd5ce6961b9eaaf8d1557cabe4d59bae4`
 
-## Step 3 (repeated) — Navigator Homologation
+## Step 3 (repeated) — FAILED (2026-09-21): Desktop Conversation Convergence Gap
 
-Pending. Same script; additionally confirm that no synchronization notice appears at the end of ordinary turns.
+The Navigator repeated homologation in the Desktop Conversation `RS020 Validation` and received `synchronization_convergence_partial:turn-agent-run-2026-09-21T03:02:00.677Z:mirror_append_complete_durable_projection_missing`. The gated notice worked as designed — it surfaced a real convergence failure — but the failure itself was a CR067 authority gap: convergence resolved thread authority only for the Journey's dedicated thread, never for `desktop-thread-*` Conversations. Read-only evidence: both exact messages already in Mirror Conversation `f308e82c`; journal retained at `outbox_enqueued`; outbox item retained; only acknowledgement and settlement missing.
+
+The correction (recorded in CR067) scopes thread lookup by `(journeyId, threadId)` through `loadConversationThreadAuthority`. The retained turn is expected to converge automatically when the corrected candidate hydrates the Conversation, with no manual production mutation.
+
+## Step 2 (third) — Corrected Eval Candidate (2026-09-21)
+
+Gates repeated: CR064 contract 11 scenarios, 918 frontend tests, Rust 162 + 1 ignored under both feature sets, build, roadmap `READY`, whitespace clean. Candidate installed atomically without launching, Stable and Eval closed.
+
+- executable SHA-256: `ce21d2d5404b794061a6f7d9ef2cb8b14b26efc7a11f0acd34eee7de343bd84e`
+
+## Step 3 (third) — Navigator Homologation
+
+Pending. Same script, in both the dedicated `Mirror Desktop` Conversation and the `RS020 Validation` Desktop Conversation. On opening `RS020 Validation`, the retained turn should converge silently and the notice should disappear without any manual action.
 
 ## Step 4 — Durable Evidence
 
-Pending the repeated Step 3.
+Pending the third Step 3.
