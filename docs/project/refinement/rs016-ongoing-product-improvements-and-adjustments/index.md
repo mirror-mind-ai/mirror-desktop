@@ -44,7 +44,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR031 — Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md)
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
 
-CR063 is `in_progress`, selected, assigned to Driver `@alissonvale` and routed through Delivery `refinement/rs016-cr063-align-sync-notice-projection`. It corrects a renderer authority split where the visible Conversation uses a committed runtime snapshot while synchronization recovery still classifies an older base snapshot as pending. Production mutation, acceptance, closure, push, merge, publication and release remain unauthorized.
+CR063 is `promoted` into [RS020](../rs020-convergent-turn-synchronization/index.md). Its partial presented-projection correction remains in the refinement baseline; its two recorded false-positive diagnoses (2026-09-20 and 2026-09-21, identical settled durable evidence with a stale renderer replica) are founding evidence for the RS020 structural treatment.
 
 CR062 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr062-post-terminal-self-healing`. The Navigator accepted its exact model-free recovery from the zero-outbox frontier after production-backed Eval homologation settled the preserved turn, emptied the Journey outbox, retained exact Mirror message identity and preserved Pi JSONL without provider execution. Subsequent manual Eval validation accepted the transient-notice and stable Composer-placeholder corrections. Debt Review concluded `no_action`; push, merge, publication, release and Stable installation remain separately governed.
 

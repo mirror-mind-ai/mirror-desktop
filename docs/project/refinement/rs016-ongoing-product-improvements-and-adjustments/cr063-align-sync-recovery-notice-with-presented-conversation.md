@@ -2,9 +2,11 @@
 
 # CR063: Align Synchronization Recovery Notice with the Presented Conversation
 
-**Status:** in_progress
+**Status:** promoted
 **Driver:** @alissonvale
-**Delivery:** `refinement/rs016-cr063-align-sync-notice-projection`
+**Delivery:** `RS020 / CR064–CR065`
+
+> Promoted on 2026-09-21. Two consecutive false positives with identical durable evidence proved this defect is structural, not local: the same conversation truth lives in multiple renderer replicas and the notice derives from whichever replica the renderer holds. The partial correction (presented-projection alignment, commit `1730a30`) remains in the baseline. The definitive treatment is [RS020: Convergent Turn Synchronization](../rs020-convergent-turn-synchronization/index.md); both recorded diagnoses are founding evidence for its CR064 contract and CR065 durable-evidence derivation.
 
 ## Problem
 
