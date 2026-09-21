@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS020
-- Change Request: CR064
+- Change Request: CR065
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -49,13 +49,13 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR064](rs020-convergent-turn-synchronization/cr064-encode-the-multi-turn-happy-path-as-an-executable-contract.md) | RS020 | Encode the Multi-Turn Happy Path as an Executable Contract | in_progress | @alissonvale | `refinement/rs020-cr064-happy-path-contract` |
-| 2 | [CR065](rs020-convergent-turn-synchronization/cr065-derive-synchronization-status-from-durable-evidence-only.md) | RS020 | Derive Synchronization Status from Durable Evidence Only | captured | — | — |
-| 3 | [CR066](rs020-convergent-turn-synchronization/cr066-extract-a-serialized-turn-finalization-coordinator-from-the-renderer.md) | RS020 | Extract a Serialized Turn Finalization Coordinator from the Renderer | captured | — | — |
-| 4 | [CR067](rs020-convergent-turn-synchronization/cr067-unify-recovery-into-one-idempotent-convergence-routine.md) | RS020 | Unify Recovery into One Idempotent Convergence Routine | captured | — | — |
-| 5 | [CR068](rs020-convergent-turn-synchronization/cr068-accept-the-frictionless-conversation-through-release-shaped-validation.md) | RS020 | Accept the Frictionless Conversation Through Release-Shaped Validation | captured | — | — |
-| 6 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
-| 7 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| 1 | [CR065](rs020-convergent-turn-synchronization/cr065-derive-synchronization-status-from-durable-evidence-only.md) | RS020 | Derive Synchronization Status from Durable Evidence Only | in_progress | @alissonvale | `refinement/rs020-cr065-durable-sync-status` |
+| 2 | [CR066](rs020-convergent-turn-synchronization/cr066-extract-a-serialized-turn-finalization-coordinator-from-the-renderer.md) | RS020 | Extract a Serialized Turn Finalization Coordinator from the Renderer | captured | — | — |
+| 3 | [CR067](rs020-convergent-turn-synchronization/cr067-unify-recovery-into-one-idempotent-convergence-routine.md) | RS020 | Unify Recovery into One Idempotent Convergence Routine | captured | — | — |
+| 4 | [CR068](rs020-convergent-turn-synchronization/cr068-accept-the-frictionless-conversation-through-release-shaped-validation.md) | RS020 | Accept the Frictionless Conversation Through Release-Shaped Validation | captured | — | — |
+| 5 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
+| 6 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| — | [CR064](rs020-convergent-turn-synchronization/cr064-encode-the-multi-turn-happy-path-as-an-executable-contract.md) | RS020 | Encode the Multi-Turn Happy Path as an Executable Contract | done | @alissonvale | `refinement/rs020-cr064-happy-path-contract` |
 | — | [CR063](rs016-ongoing-product-improvements-and-adjustments/cr063-align-sync-recovery-notice-with-presented-conversation.md) | RS016 | Align Synchronization Recovery Notice with the Presented Conversation | promoted | @alissonvale | `RS020 / CR064–CR065` |
 | — | [CR062](rs016-ongoing-product-improvements-and-adjustments/cr062-make-post-terminal-finalization-self-healing-and-actionable.md) | RS016 | Make Post-Terminal Finalization Self-Healing and Actionable | done | @alissonvale | `refinement/rs016-cr062-post-terminal-self-healing` |
 | — | [CR061](rs016-ongoing-product-improvements-and-adjustments/cr061-reconcile-mirror-append-timestamp-idempotency.md) | RS016 | Reconcile Mirror Append Timestamp Idempotency | done | @alissonvale | `refinement/rs016-cr061-mirror-timestamp-idempotency` |

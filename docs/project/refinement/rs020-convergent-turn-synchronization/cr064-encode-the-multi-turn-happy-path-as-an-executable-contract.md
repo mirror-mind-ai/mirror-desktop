@@ -2,7 +2,7 @@
 
 # CR064: Encode the Multi-Turn Happy Path as an Executable Contract
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs020-cr064-happy-path-contract`
 
@@ -64,3 +64,9 @@ The defect mechanism pinned by the fixture: repair publishes only through `publi
 - Temporary inversion run confirmed both red scenarios fail on the notice assertion with settled durable evidence, not on incidental fixture errors.
 - Complete frontend suite: 160 files, 910 tests.
 - TypeScript/Vite build passed; roadmap consistency `READY`; `git diff --check` clean.
+
+## Closure
+
+Closed on 2026-09-21 with explicit Navigator authorization after the red-phase evidence was reviewed. The contract is the acceptance gate for CR065–CR067; the two `it.fails` scenarios must flip to `it` as the corrections land.
+
+Proportionality and debt review: `no_action`. The contract adds test-only code composing real production modules; no production change, no new schema and no seam was required.
