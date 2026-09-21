@@ -87,8 +87,17 @@ Verified on 2026-09-21 in `mirror-dev`, branch `origin/mirror-ts-core`
    strangled, which seam declared stable) before embedding Mirror TS?
 4. Does the extension-runtime decision paused in TS2 change the shape of
    provider-extension loading for an embedded Pi?
-5. Interim step worth evaluating: a Desktop-curated extension directory for the
-   spawned Pi (providers in, writers out) as a bridge before full embedding.
+5. ~~Interim step worth evaluating: a Desktop-curated extension directory for the
+   spawned Pi (providers in, writers out) as a bridge before full embedding.~~
+   **Answered on 2026-09-21.** Pi (`0.86.1`) natively supports exactly this:
+   `--no-extensions` disables discovery while explicit `--extension <path>`
+   arguments still load. `pi-claude-bridge` declares its entry point through
+   `package.json#pi.extensions` and contains no persistence writes (audited:
+   provider registration plus an AskClaude tool only). The trap's mechanism is a
+   catalog/invocation mismatch: the catalog is read through `pi --list-models`
+   without `--no-extensions`, so bridge models are offered that the invocation
+   cannot run. Captured as CR072; this exploration no longer gates the interim
+   restoration of provider extensions.
 
 ## Relationship to Open Work
 
