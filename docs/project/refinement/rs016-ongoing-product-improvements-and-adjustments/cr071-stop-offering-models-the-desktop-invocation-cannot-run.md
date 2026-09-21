@@ -28,3 +28,10 @@ A failure whose cause cannot be classified still surfaces truthfully through lay
 - No error-path behavior is weakened: pre-agent and terminal failures keep flowing through CR070 and CR054 with their exact provider reasons.
 
 Related: CR053 (clarify effective model), CR054 (surface provider terminal errors), CR070 (pre-agent rejection visibility).
+
+## Horizon
+
+The unavailable indicator is interim treatment. The captured direction
+[Embedded TS Runtime, Full Control](../../explorations/embedded-ts-runtime-full-control/index.md)
+would make provider extensions loadable under Desktop control, turning this
+unavailability into a transitional state rather than a permanent one.
