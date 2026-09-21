@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS020
-- Change Request: —
+- Change Request: CR064
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -49,7 +49,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR064](rs020-convergent-turn-synchronization/cr064-encode-the-multi-turn-happy-path-as-an-executable-contract.md) | RS020 | Encode the Multi-Turn Happy Path as an Executable Contract | captured | — | — |
+| 1 | [CR064](rs020-convergent-turn-synchronization/cr064-encode-the-multi-turn-happy-path-as-an-executable-contract.md) | RS020 | Encode the Multi-Turn Happy Path as an Executable Contract | in_progress | @alissonvale | `refinement/rs020-cr064-happy-path-contract` |
 | 2 | [CR065](rs020-convergent-turn-synchronization/cr065-derive-synchronization-status-from-durable-evidence-only.md) | RS020 | Derive Synchronization Status from Durable Evidence Only | captured | — | — |
 | 3 | [CR066](rs020-convergent-turn-synchronization/cr066-extract-a-serialized-turn-finalization-coordinator-from-the-renderer.md) | RS020 | Extract a Serialized Turn Finalization Coordinator from the Renderer | captured | — | — |
 | 4 | [CR067](rs020-convergent-turn-synchronization/cr067-unify-recovery-into-one-idempotent-convergence-routine.md) | RS020 | Unify Recovery into One Idempotent Convergence Routine | captured | — | — |
