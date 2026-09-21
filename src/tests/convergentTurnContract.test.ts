@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createConvergentTurnWorld } from "./fixtures/convergentTurnWorld";
 
-// CR064 contract. `it.fails` marks defects reproduced against the current
-// architecture; CR065–CR067 must flip each one to `it` as they turn green.
+// CR064 contract: the RS020 acceptance gate for frictionless multi-turn conversation.
 
 async function runCleanTurn(
   world: ReturnType<typeof createConvergentTurnWorld>,
@@ -81,7 +80,7 @@ describe("CR064 multi-turn happy-path contract", () => {
     expect(view.availability.canSend).toBe(true);
   });
 
-  it.fails("clears the notice when repair converges while a successor turn is active", async () => {
+  it("clears the notice when repair converges while a successor turn is active", async () => {
     const world = createConvergentTurnWorld();
     world.beginTurn("run-1", "question 1");
     world.streamAssistant("answer 1");
@@ -98,7 +97,7 @@ describe("CR064 multi-turn happy-path contract", () => {
     expect(view.assistantContentByTurn["turn-run-2"]).toBe("answer 2");
   });
 
-  it.fails("keeps the conversation clean after restart when repair raced a successor", async () => {
+  it("keeps the conversation clean after restart when repair raced a successor", async () => {
     const world = createConvergentTurnWorld();
     world.beginTurn("run-1", "question 1");
     world.streamAssistant("answer 1");

@@ -125,6 +125,7 @@ import {
 } from "./conversationSegmentStorage";
 import { partitionConversationBySegments } from "../domain/conversationSegmentProjection";
 import { decideConversationAvailability } from "../domain/conversationAvailability";
+import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
 import {
   deriveInactiveNativeAttemptCandidate,
   shouldPresentInactiveNativeAttempt,
@@ -505,6 +506,7 @@ export function App({ model }: AppProps) {
   const [mirrorCommitErrors, setMirrorCommitErrors] = useState<Record<string, string | undefined>>({});
   const [exactSettlementErrors, setExactSettlementErrors] = useState<Record<string, ExactSettlementError>>({});
   const [mirrorOutboxItems, setMirrorOutboxItems] = useState<MirrorAppendOutboxSummary[]>([]);
+  const [journeyTurnJournalRecords, setJourneyTurnJournalRecords] = useState<TurnJournalRecord[]>([]);
   const [providerConfig, setProviderConfig] = useState(defaultPiProviderConfig);
   const [providerCommand, setProviderCommand] = useState(defaultPiProviderConfig.command);
   const [providerArgsText, setProviderArgsText] = useState(providerConfigToArgsText(defaultPiProviderConfig));
@@ -806,7 +808,19 @@ export function App({ model }: AppProps) {
         Boolean(pendingMirrorOutboxItem),
       )
     : undefined;
-  const legacyMirrorGap = pendingMirrorDisposition === "legacy_gap";
+  const durableSyncDebt = useMemo(() => deriveDurableSynchronizationDebt({
+    journalRecords: journeyTurnJournalRecords
+      .filter((record) => record.authority.journeyId === selectedJourney)
+      .map((record) => ({
+        turnId: record.authority.turnId,
+        phase: record.phase,
+        terminalOutcome: record.terminalOutcome,
+      })),
+    outboxItems: mirrorOutboxItems
+      .filter((item) => item.journeyId === selectedJourney)
+      .map((item) => ({ itemId: item.itemId })),
+  }), [journeyTurnJournalRecords, mirrorOutboxItems, selectedJourney]);
+  const legacyMirrorGap = Boolean(durableSyncDebt) && pendingMirrorDisposition === "legacy_gap";
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
   const dedicatedTurnState = classifyDedicatedTurnState(conversation, selectedRuntimeBusy);
   const latestNautilusTurn = [...conversation.reconciliation.turns].reverse().find((turn) => turn.origin === "nautilus");
@@ -825,7 +839,7 @@ export function App({ model }: AppProps) {
     isStreaming,
     isFinalizingTurn,
     reconciliationBlocksInvocation,
-    mirrorRepairPending: Boolean(pendingMirrorRepair),
+    mirrorRepairPending: Boolean(durableSyncDebt),
   });
   const showBlockingTurnRecoveryNotice = Boolean(blockingTurnJournalRecord)
     && !isStreaming
@@ -837,7 +851,7 @@ export function App({ model }: AppProps) {
     minimumVisibleMs: 700,
   });
   const showConversationSyncNotice = shouldShowConversationSyncNotice({
-    mirrorRepairPending: Boolean(pendingMirrorRepair),
+    mirrorRepairPending: Boolean(durableSyncDebt),
     legacyMirrorGap,
     isStreaming,
     isFinalizingTurn,
@@ -865,7 +879,7 @@ export function App({ model }: AppProps) {
   const recoveryRoutes = decideConversationRecoveryRoutes({
     availability: conversationAvailability,
     blockingTurn: blockingRecoveryEvidence,
-    mirrorSynchronization: pendingMirrorRepair
+    mirrorSynchronization: durableSyncDebt
       ? legacyMirrorGap ? "legacy_gap" : "exact_repair_available"
       : "none",
     canCreateDesktopConversation: journeyThreadState.kind === "ready",
@@ -1438,6 +1452,7 @@ export function App({ model }: AppProps) {
     void loadTurnJournal(ownerJourneyId)
       .then(async (journal) => {
         if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
+        setJourneyTurnJournalRecords(journal.records);
         const blockingRecord = findBlockingTurnJournalRecord(
           journal,
           ownerJourneyId,
@@ -1750,6 +1765,7 @@ export function App({ model }: AppProps) {
   useEffect(() => {
     checkedMirrorTurnRef.current.clear();
     setMirrorOutboxItems([]);
+    setJourneyTurnJournalRecords([]);
   }, [selectedJourney]);
 
   useEffect(() => {
@@ -2488,6 +2504,7 @@ export function App({ model }: AppProps) {
         } finally {
           dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: settled });
           dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
+          await refreshTurnJournalEvidence(ownerJourneyId);
         }
       }
     }
@@ -2948,6 +2965,17 @@ export function App({ model }: AppProps) {
     return settledAny;
   }
 
+  async function refreshTurnJournalEvidence(ownerJourneyId: string) {
+    try {
+      const journal = await loadTurnJournal(ownerJourneyId);
+      if (selectedJourneyRef.current === ownerJourneyId) {
+        setJourneyTurnJournalRecords(journal.records);
+      }
+    } catch {
+      // Presentation evidence refresh only; durable stores stay authoritative.
+    }
+  }
+
   async function recoverPostTerminalPersistence(ownerJourneyId: string) {
     if (postTerminalRecoveryRef.current || selectedRuntimeBusy || piInvocationOccupancy.status !== "known") return;
     postTerminalRecoveryRef.current = true;
@@ -2961,6 +2989,7 @@ export function App({ model }: AppProps) {
     } finally {
       postTerminalRecoveryRef.current = false;
       setIsRetryingMirrorCommit(false);
+      await refreshTurnJournalEvidence(ownerJourneyId);
     }
   }
 
@@ -3025,6 +3054,7 @@ export function App({ model }: AppProps) {
       else setJourneyMirrorCommitError(ownerJourneyId, message);
     } finally {
       setIsRetryingMirrorCommit(false);
+      await refreshTurnJournalEvidence(ownerJourneyId);
     }
   }
 

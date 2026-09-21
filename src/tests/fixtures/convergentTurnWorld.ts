@@ -20,20 +20,15 @@ import {
   decideConversationAvailability,
   type ConversationAvailability,
 } from "../../domain/conversationAvailability";
+import { deriveDurableSynchronizationDebt } from "../../domain/durableSynchronizationStatus";
 import {
   applyMirrorAppendReceipt,
   applyPiExecutionEvidence,
-  classifyMirrorAppendMessagePair,
-  classifyPendingMirrorAppend,
   createMirrorAppendOutboxItem,
   type MirrorAppendOutboxItem,
   type MirrorAppendReceipt,
 } from "../../domain/mirrorAppendOutbox";
-import {
-  commitHarnessTurn,
-  pendingMirrorTurnRepair,
-  stageCorrelatedTurn,
-} from "../../domain/threeBodyTurnCommit";
+import { commitHarnessTurn, stageCorrelatedTurn } from "../../domain/threeBodyTurnCommit";
 import {
   createDedicatedJourneyConversation,
   restoreDedicatedJourneyConversation,
@@ -319,16 +314,13 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
       });
       const presented = presentationState.conversation ?? base;
       const entry = presentationState.selectedRuntime;
-      const pendingRepair = pendingMirrorTurnRepair(presented);
-      const legacyMirrorGap = pendingRepair
-        ? classifyPendingMirrorAppend(
-            classifyMirrorAppendMessagePair(presented, pendingRepair.correlation),
-            stores.outbox.some((item) => item.itemId === pendingRepair.correlation.turnId),
-          ) === "legacy_gap"
-        : false;
+      const durableDebt = deriveDurableSynchronizationDebt({
+        journalRecords: stores.journal,
+        outboxItems: stores.outbox.map((item) => ({ itemId: item.itemId })),
+      });
       const syncNoticeVisible = shouldShowConversationSyncNotice({
-        mirrorRepairPending: Boolean(pendingRepair),
-        legacyMirrorGap,
+        mirrorRepairPending: Boolean(durableDebt),
+        legacyMirrorGap: false,
         isStreaming: entry.isStreaming,
         isFinalizingTurn: entry.isFinalizingTurn,
       });
@@ -351,7 +343,7 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
         presented,
         assistantContentByTurn,
         syncNoticeVisible,
-        ...(pendingRepair ? { pendingRepairTurnId: pendingRepair.correlation.turnId } : {}),
+        ...(durableDebt ? { pendingRepairTurnId: durableDebt.turnId } : {}),
         availability,
       };
     },
