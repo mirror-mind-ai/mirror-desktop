@@ -87,6 +87,22 @@ With Navigator authorization, a production-authority Eval candidate was built an
 - Stable and Eval matching processes during installation: none
 - local evidence: `/private/tmp/cr063-eval-20260920T210533Z`
 
+## Failed Eval Acceptance: Runtime Snapshot After Automatic Repair
+
+The Navigator initially observed the notice disappear, then reported its recurrence in the same Conversation after later turns. Closure and push were stopped before either action occurred.
+
+Read-only inspection of the latest affected turn, `agent-run-2026-09-21T00:23:47.067Z`, proves that synchronization completed:
+
+- journal `settled / completed / complete` at `2026-09-21T00:25:03.005Z`;
+- no Journey outbox item;
+- generation-4 durable projection has Harness, Pi and Mirror `committed` for all three retained turns;
+- exact user and assistant IDs for the latest turn exist in Mirror Conversation `20f40b74`;
+- the latest projection was saved at `2026-09-21T00:25:03.159Z`.
+
+The timing and code path identify a second renderer authority gap. Automatic debt repair calls `publishSettledProjectionIfCurrent(...)`, which reloads and publishes the committed projection into base `conversation` state. It does not replace the matching Journey runtime `conversationSnapshot`. `deriveJourneyNavigationPresentation(...)` intentionally prioritizes that runtime snapshot over loaded/base state, so the presented Conversation can remain Mirror-pending after durable repair succeeds. CR063's first correction then correctly follows the presented projection, but that projection itself is stale.
+
+The required extension is to publish a repaired settled projection to both base state and the exact matching runtime identity. Successor-safe checks must prevent an older repaired run from replacing or quarantining a newer runtime. Regression coverage must model pending runtime snapshot + committed durable repair and prove that the exact runtime snapshot advances while a successor remains untouched.
+
 ## Authority Boundary
 
-Capture, selection, Driver `@alissonvale`, Delivery `refinement/rs016-cr063-align-sync-notice-projection`, planning and implementation were explicitly authorized on 2026-09-20. Production mutation, acceptance, closure, push, merge, publication, release and Stable installation remain separately governed.
+Capture, selection, Driver `@alissonvale`, Delivery `refinement/rs016-cr063-align-sync-notice-projection`, initial planning and initial implementation were explicitly authorized on 2026-09-20. The failed Eval acceptance and read-only diagnosis were recorded on 2026-09-21. The extension described above requires renewed implementation authorization. Production mutation, acceptance, closure, push, merge, publication, release and Stable installation remain separately governed.
