@@ -105,7 +105,7 @@ describe("explicit Conversation recovery routes", () => {
       appSource.indexOf("async function performRecoveryRoute"),
       appSource.indexOf("async function persistAgentSettings"),
     );
-    expect(handler).toContain("retryPendingMirrorCommit()");
+    expect(handler).toContain("recoverPostTerminalPersistence(selectedJourney)");
     expect(handler).toContain("recoverPreservedResponse()");
     expect(handler).toContain("markBlockingTurnInterrupted()");
     expect(handler).toContain("requestBlankDesktopConversation()");

@@ -64,6 +64,7 @@ describe("Journey thread storage boundary", () => {
     expect(invoke).toHaveBeenCalledWith("inspect_dedicated_pi_transcript", {
       journeyId: "journey-one", threadId: "thread-one", generation: 2,
       sessionId: "pi-two", sessionFile: "/app/pi-sessions/pi-two.jsonl",
+      allowInactiveGeneration: false,
     });
   });
 

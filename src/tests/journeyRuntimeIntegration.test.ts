@@ -3,6 +3,7 @@ import appSource from "../app/App.tsx?raw";
 import streamSource from "../agent/piProcessStream.ts?raw";
 import mockSource from "../agent/agentStream.ts?raw";
 import cancellationSource from "../app/journeyCancellation.ts?raw";
+import coordinatorSource from "../app/turnFinalizationCoordinator.ts?raw";
 
 function sourceBetween(start: string, end: string): string {
   return appSource.slice(appSource.indexOf(start), appSource.indexOf(end));
@@ -158,16 +159,15 @@ describe("Journey runtime integration guardrails", () => {
   it("keeps native occupancy as execution ownership while journal controls lifecycle", () => {
     expect(appSource).toContain("hasBlockingPiInvocationOccupancy(piInvocationOccupancy)");
     expect(appSource).toContain("createJourneySettlementAuthority(runAuthority)");
-    expect(appSource).toContain("const settlement = await executeCompletedSettlement({");
-    expect(appSource).toContain("saveActiveProjection: (projection, authority) => journeyPersistenceCoordinator.run");
-    expect(appSource).toContain("enqueueOutbox: (projection, authority) => journeyPersistenceCoordinator.run");
-    expect(appSource).toContain('journeyPersistenceCoordinator.run(');
-    expect(appSource).toContain('"post_frontier"');
-    expect(appSource).toContain("savePostFrontierReceiptProjection(settled, authority, summary)");
+    expect(coordinatorSource).toContain("const settlement = await executeCompletedSettlement({");
+    expect(coordinatorSource).toContain("saveActiveProjection: (projection, exactAuthority) => journeyPersistenceCoordinator.run(");
+    expect(coordinatorSource).toContain("enqueueOutbox: (projection, exactAuthority) => journeyPersistenceCoordinator.run(");
+    expect(coordinatorSource).toContain('journeyPersistenceCoordinator.run(authority, "post_frontier"');
+    expect(coordinatorSource).toContain("await ports.savePostFrontierProjection(settled, authority, summary)");
     expect(appSource).toContain("cleanupLease: releaseDurablePiInvocationLease");
-    expect(appSource).toContain("() => executeInterruptedSettlement({");
+    expect(coordinatorSource).toContain("() => executeInterruptedSettlement({");
     const interruptedSettlement = sourceBetween(
-      'journeyPersistenceCoordinator.run(settlementAuthority, "interrupted"',
+      "await turnFinalizationCoordinator.finalizeInterruptedTurn({",
       "} else {\n              await saveDedicatedJourneyConversation(interrupted);",
     );
     expect(interruptedSettlement.indexOf("cleanupLease: releaseDurablePiInvocationLease")).toBeLessThan(
@@ -181,8 +181,9 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain('dispatchJourneyRuntime({ type: "cleanup", identity: runtimeIdentity })');
     expect(appSource).toContain("releaseAndReinspectPiInvocationLease(authority");
     const generation = sourceBetween("async function generatePacket", "async function startSelectedJourney");
-    expect(generation).toContain("requireExactTurnJournalRecord(journal, settlementAuthority)");
-    expect(generation).toContain("decideTurnJournalTerminal(journalRecord)");
+    expect(generation).toContain("turnFinalizationCoordinator.finalizeCompletedTurn({");
+    expect(coordinatorSource).toContain("requireExactTurnJournalRecord(journal, authority)");
+    expect(coordinatorSource).toContain("decideTurnJournalTerminal(journalRecord)");
     expect(generation).not.toContain("resolveCommittedLeaseBeforeInvocation");
     expect(generation).toContain("loadDedicatedPiUserEntries(");
     expect(generation).toContain("reconcileSteeringUserEntries(");
@@ -190,8 +191,9 @@ describe("Journey runtime integration guardrails", () => {
     expect(generation.indexOf("loadDedicatedPiUserEntries(")).toBeGreaterThan(
       generation.indexOf("for await (const event of provider(packet))"),
     );
-    expect(generation.indexOf("attachTerminalAgentActionEvidence(")).toBeLessThan(
-      generation.indexOf("const projectionAtFrontier = settled"),
+    expect(generation).toContain("attachTerminalAgentActionEvidence(");
+    expect(coordinatorSource.indexOf("input.decorate?.(settled) ?? settled")).toBeLessThan(
+      coordinatorSource.indexOf("const projectionAtFrontier = settled"),
     );
     expect(appSource).toContain("Message was not sent");
     expect(appSource).toContain("lastItem(streamWarnings)");
@@ -200,26 +202,55 @@ describe("Journey runtime integration guardrails", () => {
       "void listMirrorAppendOutbox(conversation.journeyId).then((items) => {",
       "checkedMirrorTurnRef.current.clear();",
     );
-    expect(automaticOutboxRecovery).toContain('items.every((item) => item.schemaVersion === "1.1.0")');
-    expect(automaticOutboxRecovery).toContain("await repairPiBackedMirrorDeliveryDebt(conversation.journeyId)");
-    expect(automaticOutboxRecovery.indexOf("repairPiBackedMirrorDeliveryDebt")).toBeLessThan(
-      automaticOutboxRecovery.indexOf("retryMirrorAppendSummary(item)"),
+    expect(automaticOutboxRecovery).not.toContain("items.length > 0");
+    expect(automaticOutboxRecovery).toContain("await recoverPostTerminalPersistence(conversation.journeyId)");
+    expect(automaticOutboxRecovery).not.toContain("retryMirrorAppendSummary");
+    expect(automaticOutboxRecovery).toContain("!selectedRuntimeBusy");
+    expect(automaticOutboxRecovery).toContain('piInvocationOccupancy.status === "known"');
+    const convergence = coordinatorSource.slice(
+      coordinatorSource.indexOf("convergeDelivery(journeyId, deps) {"),
+      coordinatorSource.indexOf("publishSettled(authority, projection) {"),
     );
-    const durableOutboxRetry = sourceBetween("async function retryMirrorAppendSummary", "async function retryPendingMirrorCommit");
-    expect(durableOutboxRetry).toContain("resolveRetainedLeaseForOutboxRecovery(inspection, authority)");
-    expect(durableOutboxRetry).toContain("reconcilePiBackedMirrorDeliveryDebt(ownerJourneyId)");
-    expect(durableOutboxRetry).toContain('item.schemaVersion === "1.1.0"');
-    expect(durableOutboxRetry).toContain("deliverPiBackedMirrorOutboxItem(item.itemId, item.journeyId)");
-    expect(durableOutboxRetry).toContain("item.journeyId, item.generation, item.threadId");
-    expect(durableOutboxRetry).toContain("failures.push");
-    expect(durableOutboxRetry).toContain("continue;");
-    expect(durableOutboxRetry).toContain("applyMirrorAppendReceipt(projection, authority, receipt");
-    expect(durableOutboxRetry).toContain("savePostFrontierReceiptProjection(settled, authority, item)");
-    expect(durableOutboxRetry).toContain("acknowledgeMirrorAppendItem(item.itemId, item.conversationId, authority)");
-    expect(durableOutboxRetry.indexOf("releaseDurablePiInvocationLease(authority)")).toBeLessThan(
-      durableOutboxRetry.indexOf("appendAndAcknowledgeExactProjection"),
+    expect(convergence).toContain("resolveRetainedLeaseForOutboxRecovery(inspection, authority)");
+    expect(convergence).toContain("deps.reconcileDeliveryDebt(journeyId)");
+    expect(convergence).toContain('item.schemaVersion === "1.1.0"');
+    expect(convergence).toContain("deps.deliverPiBackedOutboxItem(item.itemId, item.journeyId)");
+    expect(convergence).toContain("failures.push");
+    expect(convergence).toContain("continue;");
+    expect(convergence).toContain('legacyItems = orderedItems.filter((item) => item.schemaVersion !== "1.1.0")');
+    expect(convergence).toContain("convergeLegacyItem(item)");
+    expect(convergence).toContain("convergePiBackedItem(item, record)");
+    expect(convergence).toContain("deps.loadThread(item.journeyId, item.threadId)");
+    expect(convergence).toContain("createDedicatedJourneyConversation({ thread: recoveryThread, initialMessages: [] })");
+    expect(convergence).toContain("deps.inspectTranscript(");
+    expect(convergence).toContain("stageCorrelatedTurn(");
+    expect(convergence).toContain("applyPiExecutionEvidence(projection, correlation");
+    expect(convergence).toContain("projectPiBackedConversationSurface(projection, transcriptInspection)");
+    expect(convergence).toContain("const projectionAlreadyCommitted = persistedTargetMirror?.state === \"committed\"");
+    expect(convergence).toContain("if (!projectionAlreadyCommitted)");
+    expect(convergence).toContain('record.phase === "projected"');
+    expect(convergence).toContain("isTurnJournalSuccessorEligible(record)");
+    expect(convergence).toContain("synchronization_convergence_partial");
+    const piBackedSection = convergence.slice(convergence.indexOf("const convergePiBackedItem"));
+    expect(piBackedSection.indexOf("ports.cleanupLease(authority)")).toBeLessThan(
+      piBackedSection.indexOf("deps.deliverPiBackedOutboxItem(item.itemId, item.journeyId)"),
     );
-    expect(appSource).toContain("runtimeBusy && !exactRetainedSettlementRecovery");
+    expect(convergence).toContain("applyMirrorAppendReceipt(projection, authority, receipt");
+    expect(convergence).toContain("ports.savePostFrontierProjection(settled, authority, item)");
+    expect(convergence).toContain("ports.acknowledgeOutboxItem(item.itemId, item.conversationId, authority)");
+    const postTerminalRecovery = sourceBetween(
+      "async function recoverPostTerminalPersistence",
+      "function publishSteeringConversation",
+    );
+    expect(postTerminalRecovery).toContain("postTerminalRecoveryRef.current");
+    expect(postTerminalRecovery).toContain('piInvocationOccupancy.status !== "known"');
+    expect(postTerminalRecovery).toContain("turnFinalizationCoordinator.convergeDelivery(ownerJourneyId, convergenceDeps)");
+    expect(postTerminalRecovery).not.toContain("provider(");
+    expect(postTerminalRecovery).not.toContain("generatePacket(");
+    expect(appSource).not.toContain("retryMirrorAppendSummary");
+    expect(appSource).not.toContain("repairPiBackedMirrorDeliveryDebt");
+    expect(appSource).not.toContain("retryPendingMirrorCommit");
+    expect(appSource).not.toContain("resumeProjectedMirrorSynchronization");
     expect(appSource).not.toContain("resolveExactInterruptedRecovery(piInvocationOccupancy");
     expect(appSource).toContain("shouldRehydratePiProcessRoute(selectedActiveNativeLease, selectedRuntimeBusy)");
     expect(appSource).toContain("await reconcilePiInvocationOccupancy()");
@@ -229,16 +260,22 @@ describe("Journey runtime integration guardrails", () => {
   });
 
   it("keeps late settlement publication and diagnostics scoped to the exact run", () => {
-    const publication = sourceBetween(
-      "async function publishSettledProjectionIfCurrent",
-      "function validateExactOutboxSummary",
+    const listener = sourceBetween(
+      "useEffect(() => turnFinalizationCoordinator.subscribe((event) => {",
+      "}), []);",
     );
-    expect(publication.match(/projectionCurrentTurnMatchesAuthority/g)).toHaveLength(3);
-    expect(publication).toContain("selectedJourneyRef.current !== authority.journeyId");
-    const retry = sourceBetween("async function retryPendingMirrorCommit", "function publishSteeringConversation");
-    expect(retry).toContain("await publishSettledProjectionIfCurrent(authority)");
-    expect(retry).not.toContain("conversationRef.current = settlement.projection");
-    expect(retry).not.toContain("setConversation(settlement.projection)");
+    expect(listener).toContain("entryIdentity.authority.runId === authority.runId");
+    expect(listener).toContain("entryIdentity.authority.generation === authority.generation");
+    expect(listener).toContain("selectedJourneyRef.current !== authority.journeyId");
+    expect(listener).toContain("upgradeMirrorCommitments(current, event.projection)");
+    expect(coordinatorSource).toContain("upgradeMirrorCommitments(projection, previous)");
+    const convergenceRoutine = coordinatorSource.slice(
+      coordinatorSource.indexOf("convergeDelivery(journeyId, deps) {"),
+      coordinatorSource.indexOf("publishSettled(authority, projection) {"),
+    );
+    expect(convergenceRoutine).toContain('publish(authority, settled, "settled")');
+    expect(convergenceRoutine).not.toContain("conversationRef");
+    expect(convergenceRoutine).not.toContain("setConversation");
     expect(appSource).toContain("updateExactSettlementError(current, authority, error)");
     expect(appSource).toContain("projectJourneySettlementErrors(mirrorCommitErrors, exactSettlementErrors)");
   });

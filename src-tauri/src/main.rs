@@ -3414,10 +3414,23 @@ fn list_turn_journal(app: AppHandle, journey_id: String) -> Result<TurnJournalDo
 #[tauri::command]
 fn transition_turn_journal(
     app: AppHandle,
+    outbox: State<'_, MirrorAppendOutboxState>,
     run_authority: RunAuthority,
     request: TurnTransitionRequest,
 ) -> Result<TurnJournalRecord, String> {
-    validate_run_authority(&app, &run_authority)?;
+    if request.expected_phase == TurnPhase::OutboxEnqueued
+        && request.next_phase == TurnPhase::Settled
+    {
+        validate_post_frontier_outbox_authority(
+            &app,
+            &outbox,
+            &run_authority,
+            &run_authority.turn_id,
+            &run_authority.mirror_conversation_id,
+        )?;
+    } else {
+        validate_run_authority(&app, &run_authority)?;
+    }
     let authority = journal_authority(&run_authority);
     with_turn_journal_lock(&app, &authority, |path| transition_turn(path, &authority, request))
 }
@@ -3715,6 +3728,39 @@ fn start_pi_invocation(
     }
 }
 
+fn validate_recorded_conversation_session_authority(
+    app: &AppHandle,
+    journey_id: &str,
+    thread_id: &str,
+    generation: u64,
+    session_id: &str,
+    session_file: &str,
+) -> Result<(), String> {
+    sanitize_journey_id(journey_id)?;
+    sanitize_session_id(thread_id)?;
+    sanitize_session_id(session_id)?;
+    validate_pi_session_file(app, session_file, session_id)?;
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
+    let thread = load_conversation_thread_authority_at(&app_data_dir, journey_id, thread_id)?;
+    validate_thread_runtime_channel(&thread)?;
+    let recorded_generation = thread.get("generations").and_then(Value::as_array)
+        .and_then(|items| items.iter().find(|item| {
+            item.get("generation").and_then(Value::as_u64) == Some(generation)
+        }))
+        .ok_or_else(|| "Dedicated recorded generation is missing.".to_string())?;
+    let status = recorded_generation.get("status").and_then(Value::as_str);
+    if thread.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+        || thread.get("threadId").and_then(Value::as_str) != Some(thread_id)
+        || !matches!(status, Some("ready" | "inactive"))
+        || recorded_generation.get("piSessionId").and_then(Value::as_str) != Some(session_id)
+        || recorded_generation.get("piSessionFile").and_then(Value::as_str) != Some(session_file)
+    {
+        return Err("Pi session inspection authority does not match the recorded Conversation generation.".to_string());
+    }
+    Ok(())
+}
+
 fn validate_conversation_session_authority(
     app: &AppHandle,
     journey_id: &str,
@@ -3788,10 +3834,17 @@ fn inspect_dedicated_pi_transcript(
     generation: u64,
     session_id: String,
     session_file: String,
+    allow_inactive_generation: Option<bool>,
 ) -> Result<DedicatedPiTranscriptInspection, String> {
-    validate_conversation_session_authority(
-        &app, &journey_id, &thread_id, generation, &session_id, &session_file,
-    )?;
+    if allow_inactive_generation == Some(true) {
+        validate_recorded_conversation_session_authority(
+            &app, &journey_id, &thread_id, generation, &session_id, &session_file,
+        )?;
+    } else {
+        validate_conversation_session_authority(
+            &app, &journey_id, &thread_id, generation, &session_id, &session_file,
+        )?;
+    }
     let metadata = fs::symlink_metadata(&session_file)
         .map_err(|_| "Dedicated Pi session JSONL is unavailable.".to_string())?;
     if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 256 * 1024 * 1024 {
@@ -6891,16 +6944,10 @@ fn conversation_projection_path(
     conversation_projection_path_at(&app_data_dir, journey_id, thread_id, generation)
 }
 
-fn validate_projection_payload_authority(parsed: &Value, authority: &RunAuthority) -> Result<(), String> {
+fn validate_projection_live_authority(parsed: &Value, authority: &RunAuthority) -> Result<(), String> {
     let conversation = parsed.get("conversation")
         .ok_or_else(|| "dedicated_projection_authority_mismatch".to_string())?;
     let live = conversation.get("liveIdentity")
-        .ok_or_else(|| "dedicated_projection_authority_mismatch".to_string())?;
-    let turn = conversation.get("reconciliation").and_then(|value| value.get("turns"))
-        .and_then(Value::as_array)
-        .and_then(|turns| turns.iter().find(|turn| {
-            turn.get("turnId").and_then(Value::as_str) == Some(authority.turn_id.as_str())
-        }))
         .ok_or_else(|| "dedicated_projection_authority_mismatch".to_string())?;
     if authority.schema_version != "0.1.0"
         || authority.correlation.schema_version != "0.2.0"
@@ -6925,7 +6972,21 @@ fn validate_projection_payload_authority(parsed: &Value, authority: &RunAuthorit
         || live.get("mirrorConversationId").and_then(Value::as_str) != Some(authority.mirror_conversation_id.as_str())
         || live.get("activationReceiptActivatedAt").and_then(Value::as_str)
             != Some(authority.activation_receipt_activated_at.as_str())
-        || turn.get("runId").and_then(Value::as_str) != Some(authority.run_id.as_str())
+    {
+        return Err("dedicated_projection_authority_mismatch".to_string());
+    }
+    Ok(())
+}
+
+fn validate_projection_payload_authority(parsed: &Value, authority: &RunAuthority) -> Result<(), String> {
+    validate_projection_live_authority(parsed, authority)?;
+    let turn = parsed.pointer("/conversation/reconciliation/turns")
+        .and_then(Value::as_array)
+        .and_then(|turns| turns.iter().find(|turn| {
+            turn.get("turnId").and_then(Value::as_str) == Some(authority.turn_id.as_str())
+        }))
+        .ok_or_else(|| "dedicated_projection_authority_mismatch".to_string())?;
+    if turn.get("runId").and_then(Value::as_str) != Some(authority.run_id.as_str())
         || turn.pointer("/harness/userMessageId").and_then(Value::as_str) != Some(authority.harness_user_message_id.as_str())
         || turn.pointer("/harness/assistantMessageId").and_then(Value::as_str) != Some(authority.harness_assistant_message_id.as_str())
     {
@@ -7069,7 +7130,7 @@ fn merge_post_frontier_receipt_into_persisted(
     candidate: &Value,
     authority: &RunAuthority,
 ) -> Result<Value, String> {
-    validate_projection_payload_authority(persisted, authority)?;
+    validate_projection_live_authority(persisted, authority)?;
     validate_projection_payload_authority(candidate, authority)?;
 
     let candidate_turn = candidate
@@ -7119,8 +7180,72 @@ fn merge_post_frontier_receipt_into_persisted(
             turns.iter().position(|turn| {
                 turn.get("turnId").and_then(Value::as_str) == Some(authority.turn_id.as_str())
             })
-        })
-        .ok_or_else(|| "dedicated_projection_receipt_authority_mismatch".to_string())?;
+        });
+    let Some(target_index) = target_index else {
+        let mut reconstructed = candidate.clone();
+        let persisted_turns = persisted.pointer("/conversation/reconciliation/turns")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let reconstructed_turns = reconstructed.pointer_mut("/conversation/reconciliation/turns")
+            .and_then(Value::as_array_mut)
+            .ok_or_else(|| "dedicated_projection_turn_regression".to_string())?;
+        for turn in persisted_turns {
+            let turn_id = turn.get("turnId").and_then(Value::as_str)
+                .ok_or_else(|| "dedicated_projection_turn_regression".to_string())?
+                .to_string();
+            if !reconstructed_turns.iter().any(|candidate_turn| {
+                candidate_turn.get("turnId").and_then(Value::as_str) == Some(turn_id.as_str())
+            }) {
+                reconstructed_turns.push(turn);
+            }
+        }
+        reconstructed_turns.sort_by(|left, right| {
+            left.get("startedAt").and_then(Value::as_str).unwrap_or_default()
+                .cmp(right.get("startedAt").and_then(Value::as_str).unwrap_or_default())
+        });
+        let persisted_messages = persisted.pointer("/conversation/messages")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let reconstructed_messages = reconstructed.pointer_mut("/conversation/messages")
+            .and_then(Value::as_array_mut)
+            .ok_or_else(|| "dedicated_projection_turn_regression".to_string())?;
+        for message in persisted_messages {
+            let message_id = message.get("id").and_then(Value::as_str)
+                .ok_or_else(|| "dedicated_projection_turn_regression".to_string())?
+                .to_string();
+            if !reconstructed_messages.iter().any(|candidate_message| {
+                candidate_message.get("id").and_then(Value::as_str) == Some(message_id.as_str())
+            }) {
+                reconstructed_messages.push(message);
+            }
+        }
+        reconstructed_messages.sort_by(|left, right| {
+            left.get("createdAt").and_then(Value::as_str).unwrap_or_default()
+                .cmp(right.get("createdAt").and_then(Value::as_str).unwrap_or_default())
+        });
+        if let Some(persisted_evidence) = persisted.pointer("/conversation/terminalAgentActionEvidence")
+            .and_then(Value::as_object)
+        {
+            let reconstructed_evidence = reconstructed["conversation"]
+                .as_object_mut()
+                .ok_or_else(|| "dedicated_projection_turn_regression".to_string())?
+                .entry("terminalAgentActionEvidence")
+                .or_insert_with(|| json!({}))
+                .as_object_mut()
+                .ok_or_else(|| "dedicated_projection_turn_regression".to_string())?;
+            for (turn_id, evidence) in persisted_evidence {
+                reconstructed_evidence.entry(turn_id.clone()).or_insert_with(|| evidence.clone());
+            }
+        }
+        merge_persisted_mirror_evidence_except(
+            persisted,
+            &mut reconstructed,
+            Some(authority.turn_id.as_str()),
+        )?;
+        return Ok(reconstructed);
+    };
     let persisted_mirror = merged
         .pointer(&format!(
             "/conversation/reconciliation/turns/{target_index}/mirror",
@@ -7132,7 +7257,11 @@ fn merge_post_frontier_receipt_into_persisted(
         .and_then(Value::as_str)
         == Some("committed")
     {
-        if persisted_mirror.as_ref() != Some(&candidate_mirror) {
+        let same_message_identity = persisted_mirror.as_ref().is_some_and(|mirror| {
+            mirror.get("userMessageId") == candidate_mirror.get("userMessageId")
+                && mirror.get("assistantMessageId") == candidate_mirror.get("assistantMessageId")
+        });
+        if !same_message_identity {
             return Err("dedicated_projection_receipt_conflict".to_string());
         }
         return Ok(merged);
@@ -7213,6 +7342,9 @@ fn validate_post_frontier_outbox_authority(
                 && item.get("conversationId").and_then(Value::as_str) == Some(conversation_id)
         })).ok_or_else(|| "mirror_append_item_missing".to_string())?;
     validate_outbox_generation_authority(app, item)?;
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|_| "mirror_append_authority_missing".to_string())?;
+    validate_outbox_item_run_authority_at(&app_data_dir, item, authority)?;
     if item_id != authority.turn_id
         || conversation_id != authority.mirror_conversation_id
         || item.get("journeyId").and_then(Value::as_str) != Some(authority.journey_id.as_str())
@@ -9251,13 +9383,72 @@ mod tests {
                 .unwrap(),
             merged,
         );
-        let mut conflicting_receipt = stale_receipt;
-        conflicting_receipt["conversation"]["reconciliation"]["turns"][0]["mirror"]
+        let mut repeated_receipt = stale_receipt;
+        repeated_receipt["conversation"]["reconciliation"]["turns"][0]["mirror"]
             ["committedAt"] = Value::String("2026-09-19T21:00:09Z".to_string());
         assert_eq!(
-            merge_post_frontier_receipt_into_persisted(&merged, &conflicting_receipt, &authority)
+            merge_post_frontier_receipt_into_persisted(&merged, &repeated_receipt, &authority)
+                .unwrap(),
+            merged,
+        );
+        repeated_receipt["conversation"]["reconciliation"]["turns"][0]["mirror"]
+            ["assistantMessageId"] = Value::String("assistant-conflict".to_string());
+        assert_eq!(
+            merge_post_frontier_receipt_into_persisted(&merged, &repeated_receipt, &authority)
                 .unwrap_err(),
-            "dedicated_projection_receipt_conflict",
+            "dedicated_projection_receipt_authority_mismatch",
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn post_frontier_receipt_reconstructs_a_missing_exact_turn_without_replacing_a_successor() {
+        let root = test_root("post-frontier-missing-turn-merge");
+        let authority = test_run_authority(&root);
+        persist_run_authority_fixture(&root, &authority, "2026-08-26T10:00:00Z");
+        let path = root.join("dedicated-journey-conversations/journey-one/generation-1.json");
+        let mut candidate: Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        candidate["conversation"]["reconciliation"]["turns"][0]["mirror"] = json!({
+            "state":"committed", "userMessageId":"user-one", "assistantMessageId":"assistant-one",
+            "committedAt":"2026-09-20T20:00:00Z"
+        });
+        candidate["conversation"]["reconciliation"]["checkpoints"] = json!({"mirror":{
+            "conversationId":"mirror-one", "lastMessageId":"assistant-one", "messageCount":2
+        }});
+        candidate["conversation"]["messages"] = json!([
+            {"id":"user-one","role":"user","content":"A"},
+            {"id":"assistant-one","role":"assistant","content":"A done"},
+            {"id":"user-two","role":"user","content":"B"},
+            {"id":"assistant-two","role":"assistant","content":"B done"}
+        ]);
+        candidate["conversation"]["reconciliation"]["turns"].as_array_mut().unwrap().push(json!({
+            "turnId":"turn-two", "runId":"run-two",
+            "harness":{"userMessageId":"user-two","assistantMessageId":"assistant-two"},
+            "pi":{"state":"committed"}, "mirror":{"state":"pending"}
+        }));
+        candidate["conversation"]["terminalAgentActionEvidence"] = json!({
+            "turn-two":{"runId":"run-two","marker":"preserve-successor"}
+        });
+
+        let expected = candidate.clone();
+        let mut persisted = candidate.clone();
+        persisted["conversation"]["messages"].as_array_mut().unwrap().drain(0..2);
+        persisted["conversation"]["reconciliation"]["turns"].as_array_mut().unwrap().remove(0);
+        persisted["conversation"]["reconciliation"]["checkpoints"] = json!({});
+        candidate["conversation"]["messages"].as_array_mut().unwrap().drain(2..4);
+        candidate["conversation"]["reconciliation"]["turns"].as_array_mut().unwrap().remove(1);
+        candidate["conversation"].as_object_mut().unwrap().remove("terminalAgentActionEvidence");
+
+        let merged = merge_post_frontier_receipt_into_persisted(
+            &persisted,
+            &candidate,
+            &authority,
+        ).unwrap();
+        assert_eq!(merged, expected);
+        assert_eq!(
+            merged.pointer("/conversation/terminalAgentActionEvidence"),
+            persisted.pointer("/conversation/terminalAgentActionEvidence"),
         );
         fs::remove_dir_all(root).unwrap();
     }

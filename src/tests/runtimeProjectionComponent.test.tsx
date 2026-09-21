@@ -8,6 +8,7 @@ import type { RuntimeProjectionState } from "../app/runtimeActivityModel";
 import appSource from "../app/App.tsx?raw";
 import agentTurnSource from "../app/AgentTurn.tsx?raw";
 import transcriptSource from "../app/ConversationTranscript.tsx?raw";
+import coordinatorSource from "../app/turnFinalizationCoordinator.ts?raw";
 
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
@@ -130,25 +131,31 @@ describe("runtime projection component", () => {
     expect(appSource).toContain('composerTurnStatus !== "finishing"');
     expect(appSource).toContain("Resolve the preserved attempt");
     expect(appSource).toContain("No recovery action will run the agent again.");
-    expect(appSource).toContain("Terminal finalization pending");
-    expect(appSource).toContain("The agent is inactive and new messages remain available.");
+    expect(appSource).not.toContain("Terminal finalization pending");
+    expect(appSource).toContain("Repairing conversation synchronization");
+    expect(appSource).toContain("useDelayedVisibility(retainedLeaseWithoutRecovery");
+    expect(appSource).toContain("useDelayedVisibility(nativeOccupancyNoticeRequested");
+    expect(appSource).toContain("showDelayMs: 300");
+    expect(appSource).toContain("minimumVisibleMs: 700");
+    const automaticRecoveryStart = appSource.slice(
+      appSource.indexOf("async function recoverPostTerminalPersistence"),
+      appSource.indexOf("try {", appSource.indexOf("async function recoverPostTerminalPersistence")),
+    );
+    expect(automaticRecoveryStart).not.toContain("setJourneyMirrorCommitError(ownerJourneyId, undefined)");
+    expect(appSource).toContain("Conversation synchronization needs attention");
+    expect(appSource).toContain("Repair synchronization");
+    expect(appSource).toContain("No recovery action will run the agent again.");
     expect(appSource).toContain("selectedActiveNativeLease?.authority.runId");
-    expect(appSource).toMatch(
-      /onLeaseReleased: \(\) => \{[\s\S]*?setBlockingTurnJournalRecord\(undefined\);/,
-    );
-    const leaseReleaseCallback = appSource.slice(
-      appSource.indexOf("onLeaseReleased: () => {"),
-      appSource.indexOf("appendAndAcknowledge:", appSource.indexOf("onLeaseReleased: () => {")),
-    );
-    expect(leaseReleaseCallback).not.toContain('type: "finalization_finished"');
+    expect(coordinatorSource).toContain('onLeaseReleased: () => publish(authority, projectionAtFrontier, "frontier")');
+    expect(appSource).toContain('if (event.phase === "frontier") setBlockingTurnJournalRecord(undefined);');
     expect(appSource).toContain("mirrorSynchronizationPending: showConversationSyncNotice");
     expect(appSource).toContain("const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;");
     expect(appSource).toContain("const durableMetadata = await loadDedicatedJourneyConversation(");
     expect(appSource).toContain("const metadataBase = durableMetadata ?? baseConversation;");
     expect(appSource).toContain("baseConversation = projectPiBackedConversationSurface(metadataBase, inspection);");
     expect(appSource).toContain("exact Conversation metadata or Pi session authority changed");
-    expect(appSource).toContain("resumeProjectedMirrorSynchronization(projectedSyncRecord)");
-    expect(appSource).toContain("projectionAlreadyDurable: true");
+    expect(appSource).toContain("void recoverPostTerminalPersistence(ownerJourneyId);");
+    expect(coordinatorSource).toContain("projectionAlreadyDurable: true");
     expect(appSource).not.toContain("requiresConversationRestore:");
     expect(appSource).toContain("status={composerTurnStatus}");
     expect(appSource).toContain("if (journeyId === selectedJourney)");

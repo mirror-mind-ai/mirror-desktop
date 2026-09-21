@@ -2,9 +2,9 @@
 
 # CR062: Make Post-Terminal Finalization Self-Healing and Actionable
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr062-post-terminal-self-healing`
 
 ## Problem
 
@@ -89,6 +89,66 @@ A passive non-actionable notice also asks the user to interpret internal lifecyc
 - The manual action never invokes a provider or changes provider/model credentials.
 - New messages remain available whenever exact native occupancy is inactive.
 
+## Approved Plan
+
+Authorized by the Navigator on 2026-09-20 together with implementation.
+
+1. Reuse the CR051/CR061 Pi-backed reconciliation command as the single pre-outbox recovery coordinator rather than adding another transcript or persistence authority.
+2. Trigger one bounded, model-free recovery attempt when a ready Conversation is hydrated or returns to known inactive native occupancy, including the zero-outbox frontier demonstrated by the Eval incident.
+3. Require known occupancy and no active selected-Journey runtime before recovery; retain fail-closed behavior for unknown occupancy, missing Pi evidence and authority/content divergence.
+4. After exact projection and outbox materialization, release only the exact retained `finalizing` lease, deliver through the existing Pi-backed append path, merge the receipt into the exact generation, acknowledge the item and settle the journal.
+5. Replace the permanent passive notice with `Finalizing turn…`, `Repairing conversation synchronization…`, and an actionable failure surface containing `Repair synchronization` and `Details`; keep the Composer independent from this persistence debt.
+6. Cover automatic zero-outbox activation, occupancy gating, exact lease cleanup before delivery, actionable copy and provider-free recovery through focused tests, then run the complete frontend, Rust, build and roadmap gates.
+
+## Affected Files
+
+- `src/app/App.tsx`
+- `src/tests/journeyRuntimeIntegration.test.ts`
+- `src/tests/runtimeProjectionComponent.test.tsx`
+- `docs/architecture/terminal-aligned-conversation-authority.md`
+- this CR and the RS016 index
+
+No Mirror Core change, production-data mutation, Stable promotion, publication or release is in scope.
+
+## Implementation Notes
+
+- Conversation hydration now enters Pi-backed reconciliation even when the outbox is empty, which closes the `terminal_durable → projection/outbox` gap rather than waiting for an outbox item that does not yet exist.
+- Recovery is serialized in the renderer, runs only under known inactive selected-Journey occupancy and invokes no provider route.
+- The existing native coordinator remains responsible for exact journal/Pi matching and schema `1.1.0` materialization; existing projection, append, receipt and acknowledgement validators remain authoritative.
+- A retained native lease is removed only when its complete authority matches the recovered item and its phase is `finalizing`; successor leases are never selected by run-only or Journey-only matching.
+- Automatic failure is retained by Journey and becomes manually retryable. Safe details are expanded by default and expose the bounded diagnostic without converting persistence debt back into Conversation admission authority.
+- Production-shaped recovery reconstructs an absent exact turn from journal/thread/Pi authority, carries forward unrelated persisted turns and messages, and permits read-only inspection plus journal settlement for an exact inactive generation without granting it active execution authority.
+- Re-observing an already committed receipt preserves the prior projection when both exact message identities agree; message-identity divergence remains fail-closed.
+- Transient occupancy and retained-finalization notices use a 300 ms silent grace period and, once visible, a 700 ms minimum duration. Existing synchronization errors remain mounted throughout retry and clear atomically only after confirmed success, preventing hydration/reconciliation flicker without hiding durable failures.
+- The Composer placeholder is a stable drafting instruction rather than an operational status surface: inactive Conversations always show `What would you like to do next?`, active responses show the next-message instruction and steering retains its explicit correction copy. Hydration, authority, capacity, synchronization and post-terminal finalization no longer rewrite placeholder text.
+
+## Validation
+
+- Automated gates: 902 frontend tests; 162 Rust tests plus 1 ignored under both Stable and Eval feature sets; TypeScript/Vite build; roadmap consistency; whitespace validation.
+- Isolated DEV homologation: [2026-09-20 evidence](cr062-isolated-dev-homologation-2026-09-20.md).
+- Production-backed Eval homologation: [2026-09-20 evidence](cr062-production-eval-homologation-2026-09-20.md).
+- The production target advanced from `terminal_durable / resume_projection` with no outbox item to `settled / complete`, preserved the two exact message IDs in Mirror, emptied the Journey outbox, preserved the Pi JSONL hash and created no provider run.
+- Clean installed-Eval relaunch removed the synchronization/finalization notice while leaving the Composer available. Stable remained closed.
+- The Navigator manually validated both the transient-notice stabilization and the stable Composer placeholder in the installed Eval bundle. Journey opening no longer produces the observed synchronization-card or placeholder flicker.
+
+## Navigator Validation
+
+Accepted by the Navigator on 2026-09-20 after production-backed Eval recovery, clean relaunch verification and subsequent manual validation of the transient synchronization notices and stable Composer placeholder. The exact production turn is settled, the Journey outbox is empty, Mirror contains the two exact messages, Pi JSONL remained byte-identical, no provider ran during recovery and ordinary Journey opening no longer exhibits the reported flicker.
+
+## Proportionality Review
+
+The correction is proportional to the demonstrated post-terminal gap. It composes existing journal, Pi transcript, projection, outbox, append and acknowledgement authorities rather than creating a new persistence path. Historical-generation access remains read-only or exact-outbox-scoped, successor state is preserved, message-identity divergence fails closed and the presentation adjustments change no admission or execution authority.
+
+## Debt Review
+
+**Decision:** no_action
+
+The Eval bundle remains a homologation channel and the CR062 branch remains local until separately authorized push/merge/release work. Those are delivery-governance decisions rather than hidden product debt. CR054 and CR053 remain independent captured adjustments. Stable promotion, Alpha.14 packaging and any later convergence of Desktop recovery into shared Mirror contracts require separate roadmap or release authority.
+
+## Outcome
+
+Done. The Navigator accepted exact model-free self-healing from the pre-outbox frontier, successor-safe historical settlement, actionable failure UX and the final flicker corrections after manual Eval validation.
+
 ## Relationships
 
 - CR061 corrects timestamp idempotency and acknowledgement after a Pi-backed outbox item exists. CR062 covers the earlier frontier where completed Pi evidence never becomes a projection/outbox item.
@@ -101,13 +161,13 @@ A passive non-actionable notice also asks the user to interpret internal lifecyc
 - No provider retry, fallback, model switching or credential inference.
 - No Pi JSONL rewrite.
 - No new parallel transcript or persistence authority.
-- No production repair as part of capture.
+- No further production mutation beyond the explicitly authorized Eval homologation and exact persistence repair.
 - No stable promotion, release, installation or publication.
 
 ## Selection
 
-Selected as the current RS016 Change Request by explicit Navigator authority on 2026-09-20. Selection changes no status and does not assign a Driver, choose Delivery, authorize planning/implementation, mutate production data, push, merge, publish or release.
+Selected as the current RS016 Change Request by explicit Navigator authority on 2026-09-20. Driver `@alissonvale` and Delivery `refinement/rs016-cr062-post-terminal-self-healing` were subsequently confirmed by explicit Navigator authority. Selection and assignment change no status and do not authorize planning/implementation, mutate production data, push, merge, publish or release.
 
 ## Authority Boundary
 
-Captured and selected only. Choosing Driver/Delivery, changing status, planning, implementing, mutating production data, pushing, merging, publication and release remain separate Navigator decisions.
+Planning, transition to `in_progress`, implementation, production-backed Eval homologation, acceptance and closure were explicitly authorized on 2026-09-20. Push, merge, publication, release and Stable installation remain separate Navigator decisions.

@@ -82,9 +82,10 @@ export async function inspectDedicatedPiTranscript(
   generation: number,
   sessionId: string,
   sessionFile: string,
+  allowInactiveGeneration = false,
 ): Promise<DedicatedPiTranscriptInspection> {
   return invoke<DedicatedPiTranscriptInspection>("inspect_dedicated_pi_transcript", {
-    journeyId, threadId, generation, sessionId, sessionFile,
+    journeyId, threadId, generation, sessionId, sessionFile, allowInactiveGeneration,
   });
 }
 

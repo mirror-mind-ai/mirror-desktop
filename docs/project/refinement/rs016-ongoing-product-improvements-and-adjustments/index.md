@@ -28,6 +28,8 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
+- [CR069: Stop Presenting Non-Fatal Provider Warnings as Unsent Messages](cr069-stop-presenting-non-fatal-provider-warnings-as-unsent-messages.md)
+- [CR063: Align Synchronization Recovery Notice with the Presented Conversation](cr063-align-sync-recovery-notice-with-presented-conversation.md)
 - [CR062: Make Post-Terminal Finalization Self-Healing and Actionable](cr062-make-post-terminal-finalization-self-healing-and-actionable.md)
 - [CR061: Reconcile Mirror Append Timestamp Idempotency](cr061-reconcile-mirror-append-timestamp-idempotency.md)
 - [CR056: Release Composer After Completed Terminal-Durable Lease](cr056-release-composer-after-completed-terminal-durable-lease.md)
@@ -43,7 +45,9 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR031 — Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md)
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
 
-CR062 is `captured` and unassigned. It records the production-backed Eval defect where a completed inactive Pi turn remains at `terminal_durable` before projection/outbox materialization, never reaches Mirror, and exposes only a passive non-actionable finalization notice despite having exact evidence for model-free self-healing.
+CR063 is `promoted` into [RS020](../rs020-convergent-turn-synchronization/index.md). Its partial presented-projection correction remains in the refinement baseline; its two recorded false-positive diagnoses (2026-09-20 and 2026-09-21, identical settled durable evidence with a stale renderer replica) are founding evidence for the RS020 structural treatment.
+
+CR062 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr062-post-terminal-self-healing`. The Navigator accepted its exact model-free recovery from the zero-outbox frontier after production-backed Eval homologation settled the preserved turn, emptied the Journey outbox, retained exact Mirror message identity and preserved Pi JSONL without provider execution. Subsequent manual Eval validation accepted the transient-notice and stable Composer-placeholder corrections. Debt Review concluded `no_action`; push, merge, publication, release and Stable installation remain separately governed.
 
 CR061 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr061-mirror-timestamp-idempotency`. The Navigator accepted the Desktop-only timestamp-idempotency correction after production-backed Eval validation removed both target items from the outbox, committed both exact generation projections and cleared the synchronization notice without provider execution. Debt Review concluded `no_action`.
 
