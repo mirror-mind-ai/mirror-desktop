@@ -2,9 +2,9 @@
 
 # CR066: Extract a Serialized Turn Finalization Coordinator from the Renderer
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs020-cr066-finalization-coordinator`
 
 ## Problem
 
@@ -32,3 +32,29 @@ A renderer-independent module owns turn finalization:
 ## Boundaries
 
 Refactor, not rewrite: durable schemas, domain modules and validation semantics are preserved. No provider or model route. No Mirror Core change.
+
+## Implementation Outcome
+
+New module `src/app/turnFinalizationCoordinator.ts` with production storage wiring in `src/app/turnFinalizationPorts.ts`:
+
+- `createTurnFinalizationCoordinator()` owns a serialized per-Journey queue, `finalizeCompletedTurn(...)` (journal-completed validation, exact evidence application, harness commit, decoration, `executeCompletedSettlement`) and `finalizeInterruptedTurn(...)`;
+- publication is atomic and monotonic: every presentation event passes through `upgradeMirrorCommitments(...)`, so a committed exact turn can never regress to pending for the same generation, and late older-run publications upgrade instead of replace;
+- storage effects flow through an injectable `TurnFinalizationPorts`, letting the CR064 contract drive the real coordinator with deterministic in-memory stores;
+- `enqueueProjectionOutbox`, `appendAndAcknowledgeProjection` and `validateExactOutboxSummary` moved out of the renderer and are shared by the remaining repair paths.
+
+In `App.tsx`:
+
+- the completed-turn settlement transaction and the interrupted settlement call were replaced by coordinator calls;
+- one subscription applies each publication to the runtime snapshot (exact identity) and the base conversation in the same tick; a publication that does not contain the base's current turn upgrades it monotonically instead of replacing it;
+- `publishSettledProjectionIfCurrent`, `validateExactOutboxSummary`, `enqueueExactProjectionOutbox` and `appendAndAcknowledgeExactProjection` were deleted; repair paths now publish through `turnFinalizationCoordinator.publishSettled(...)`;
+- outbox and journal presentation state refresh through coordinator `durable_evidence_changed` events.
+
+The CR064 world fixture now executes the real coordinator with full journal-record authority, proving the extraction against the acceptance contract. The CR063 grep assertions were deleted; the remaining source-inspection tests were repointed at the coordinator module.
+
+Repair orchestration (`retryMirrorAppendSummary`, `repairPiBackedMirrorDeliveryDebt`, `retryPendingMirrorCommit`, `resumeProjectedMirrorSynchronization`, `recoverPostTerminalPersistence`) intentionally remains in `App.tsx`: deleting and unifying those five entry points is exactly CR067's scope.
+
+## Validation
+
+- CR064 contract: 8 scenarios green through the real coordinator.
+- Complete frontend suite: 161 files, 915 tests.
+- TypeScript/Vite build passed; roadmap consistency `READY`; `git diff --check` clean.

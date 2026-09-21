@@ -127,6 +127,14 @@ import { partitionConversationBySegments } from "../domain/conversationSegmentPr
 import { decideConversationAvailability } from "../domain/conversationAvailability";
 import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
 import {
+  appendAndAcknowledgeProjection,
+  enqueueProjectionOutbox,
+  turnFinalizationCoordinator,
+  upgradeMirrorCommitments,
+  validateExactOutboxSummary,
+} from "./turnFinalizationCoordinator";
+import { createProductionFinalizationPorts } from "./turnFinalizationPorts";
+import {
   deriveInactiveNativeAttemptCandidate,
   shouldPresentInactiveNativeAttempt,
   type InactiveNativeAttemptCandidate,
@@ -1768,6 +1776,41 @@ export function App({ model }: AppProps) {
     setJourneyTurnJournalRecords([]);
   }, [selectedJourney]);
 
+  useEffect(() => turnFinalizationCoordinator.subscribe((event) => {
+    if (event.type === "durable_evidence_changed") {
+      if (selectedJourneyRef.current !== event.journeyId) return;
+      void listMirrorAppendOutbox(event.journeyId).then((items) => {
+        if (selectedJourneyRef.current === event.journeyId) setMirrorOutboxItems(items);
+      }).catch(() => {});
+      void refreshTurnJournalEvidence(event.journeyId);
+      return;
+    }
+    const authority = event.authority;
+    const entryIdentity = journeyRuntimeStateRef.current.entries[authority.journeyId]?.identity;
+    if (entryIdentity?.kind === "live"
+      && entryIdentity.authority.runId === authority.runId
+      && entryIdentity.authority.generation === authority.generation) {
+      dispatchJourneyRuntime({
+        type: "conversation_snapshot",
+        identity: entryIdentity,
+        conversation: event.projection,
+      });
+    }
+    if (selectedJourneyRef.current !== authority.journeyId) return;
+    if (event.phase === "frontier") setBlockingTurnJournalRecord(undefined);
+    const current = conversationRef.current;
+    if (current.id !== authority.threadId
+      || current.liveIdentity.generation !== authority.generation) return;
+    const currentTurnId = lastItem(current.reconciliation.turns)?.turnId;
+    const next = !currentTurnId
+      || event.projection.reconciliation.turns.some((turn) => turn.turnId === currentTurnId)
+      ? event.projection
+      : upgradeMirrorCommitments(current, event.projection);
+    if (next === current) return;
+    conversationRef.current = next;
+    setConversation(next);
+  }), []);
+
   useEffect(() => {
     const chatStream = chatStreamRef.current;
     const chatEnd = chatEndRef.current;
@@ -2394,14 +2437,14 @@ export function App({ model }: AppProps) {
         if (correlation) {
           try {
             if (settlementAuthority) {
-              await journeyPersistenceCoordinator.run(settlementAuthority, "interrupted", () => executeInterruptedSettlement({
+              await turnFinalizationCoordinator.finalizeInterruptedTurn({
                 projection: interrupted,
                 authority: settlementAuthority,
               }, {
                 loadActiveEvidence: loadActiveSettlementEvidence,
                 saveInterruptedProjection: saveInterruptedTurnLifecycle,
                 cleanupLease: releaseDurablePiInvocationLease,
-              }));
+              });
               if (selectedJourneyRef.current === ownerJourneyId) {
                 setBlockingTurnJournalRecord(undefined);
                 setTurnRecoveryError(undefined);
@@ -2420,89 +2463,23 @@ export function App({ model }: AppProps) {
         dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
       } else if (correlation && settlementAuthority) {
         dispatchJourneyRuntime({ type: "finalization_started", identity: runtimeIdentity });
-        let settled = runConversation;
         try {
-          validatePreFrontierSettlement(
-            settlementAuthority,
-            settled,
-            await loadActiveSettlementEvidence(settlementAuthority),
-          );
-          const journal = await loadTurnJournal(settlementAuthority.journeyId);
-          const journalRecord = requireExactTurnJournalRecord(journal, settlementAuthority);
-          if (decideTurnJournalTerminal(journalRecord) !== "completed") {
-            throw new Error("turn_journal_completed_outcome_required");
-          }
-          const execution = journalRecord.terminalEvidence?.piExecution;
-          if (!execution) throw new Error("turn_journal_completed_evidence_missing");
-          validatePreFrontierSettlement(
-            settlementAuthority,
-            settled,
-            await loadActiveSettlementEvidence(settlementAuthority),
-          );
-          settled = replaceJourneyConversationMessages(
-            settled,
-            settled.messages.map((message) => message.id === settlementAuthority.harnessAssistantMessageId
-              ? { ...message, content: execution.assistantText }
-              : message),
-          );
-          settled = applyPiExecutionEvidence(settled, correlation, {
-            userEntryId: execution.userEntryId,
-            assistantEntryId: execution.assistantEntryId,
-            leafEntryId: execution.leafEntryId,
-            entryCount: execution.entryCount,
-            sessionFile: settlementAuthority.piSessionFile,
-            committedAt: execution.committedAt,
-          });
-          settled = commitHarnessTurn(settled, correlation, new Date().toISOString());
-          runRuntimeProjection = reduceRuntimeProjection(runRuntimeProjection, { type: "done" });
-          settled = attachTerminalAgentActionEvidence(
-            settled,
-            createTerminalAgentActionEvidence({ correlation, projection: runRuntimeProjection }),
-          );
-          const projectionAtFrontier = settled;
-          const settlement = await executeCompletedSettlement({
-            projection: projectionAtFrontier,
+          await turnFinalizationCoordinator.finalizeCompletedTurn({
             authority: settlementAuthority,
-            cleanupLeaseAuthority: settlementAuthority,
-          }, {
-            loadActiveEvidence: loadActiveSettlementEvidence,
-            saveActiveProjection: (projection, authority) => journeyPersistenceCoordinator.run(
-              authority, "pre_frontier", () => saveProjectedTurnLifecycle(projection, authority),
-            ),
-            enqueueOutbox: (projection, authority) => journeyPersistenceCoordinator.run(
-              authority, "pre_frontier", () => enqueueExactProjectionOutbox(projection, authority),
-            ),
-            cleanupLease: releaseDurablePiInvocationLease,
-            onLeaseReleased: () => {
-                dispatchJourneyRuntime({
-                  type: "conversation_snapshot",
-                  identity: runtimeIdentity,
-                  conversation: projectionAtFrontier,
-                });
-                if (selectedJourneyRef.current === settlementAuthority.journeyId) {
-                  setBlockingTurnJournalRecord(undefined);
-                  if (projectionCurrentTurnMatchesAuthority(conversationRef.current, settlementAuthority)) {
-                    conversationRef.current = projectionAtFrontier;
-                    setConversation(projectionAtFrontier);
-                  }
-                }
-              },
-            appendAndAcknowledge: (projection, summary, authority) => (
-              appendAndAcknowledgeExactProjection(projection, authority, summary)
-            ),
-          });
-          settled = settlement.projection;
+            correlation,
+            projection: runConversation,
+            decorate: (settled) => {
+              runRuntimeProjection = reduceRuntimeProjection(runRuntimeProjection, { type: "done" });
+              return attachTerminalAgentActionEvidence(
+                settled,
+                createTerminalAgentActionEvidence({ correlation, projection: runRuntimeProjection }),
+              );
+            },
+          }, finalizationPorts);
           setExactSettlementError(settlementAuthority, undefined);
-          await publishSettledProjectionIfCurrent(settlementAuthority);
         } catch (error) {
           setExactSettlementError(settlementAuthority, error instanceof Error ? error.message : String(error));
-          if (selectedJourneyRef.current === ownerJourneyId
-            && projectionCurrentTurnMatchesAuthority(conversationRef.current, settlementAuthority)) {
-            conversationRef.current = settled;
-            setConversation(settled);
-          }
         } finally {
-          dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: settled });
           dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
           await refreshTurnJournalEvidence(ownerJourneyId);
         }
@@ -2558,6 +2535,12 @@ export function App({ model }: AppProps) {
     return desktopConversationThread(journeyId, child);
   }
 
+  const finalizationPorts = createProductionFinalizationPorts({
+    loadActiveEvidence: (authority) => loadActiveSettlementEvidence(authority),
+    saveProjection: (projection, authority) => saveProjectedTurnLifecycle(projection, authority),
+    cleanupLease: (authority) => releaseDurablePiInvocationLease(authority),
+  });
+
   async function loadActiveSettlementEvidence(authority: JourneySettlementAuthority) {
     const [thread, persisted] = await Promise.all([
       loadConversationThreadAuthority(authority.journeyId, authority.threadId),
@@ -2577,41 +2560,6 @@ export function App({ model }: AppProps) {
     };
     validatePreFrontierSettlement(authority, persisted, evidence);
     return evidence;
-  }
-
-  async function publishSettledProjectionIfCurrent(
-    authority: JourneySettlementAuthority,
-  ): Promise<boolean> {
-    if (selectedJourneyRef.current !== authority.journeyId
-      || !projectionCurrentTurnMatchesAuthority(conversationRef.current, authority)) return false;
-    const persisted = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId, {
-      sessionId: authority.piSessionId, sessionFile: authority.piSessionFile,
-    });
-    if (!persisted
-      || selectedJourneyRef.current !== authority.journeyId
-      || !projectionCurrentTurnMatchesAuthority(conversationRef.current, authority)
-      || !projectionCurrentTurnMatchesAuthority(persisted, authority)) return false;
-    conversationRef.current = persisted;
-    setConversation(persisted);
-    return true;
-  }
-
-  function validateExactOutboxSummary(
-    summary: MirrorAppendOutboxSummary,
-    projection: JourneyConversation,
-    authority: JourneySettlementAuthority,
-  ) {
-    if (summary.itemId !== authority.turnId
-      || summary.journeyId !== authority.journeyId
-      || summary.threadId !== authority.threadId
-      || summary.generation !== authority.generation
-      || summary.conversationId !== authority.mirrorConversationId
-      || projection.journeyId !== authority.journeyId
-      || projection.id !== authority.threadId
-      || projection.liveIdentity.generation !== authority.generation
-      || projection.liveIdentity.mirrorConversationId !== authority.mirrorConversationId) {
-      throw new Error("mirror_append_outbox_authority_mismatch");
-    }
   }
 
   async function saveProjectedTurnLifecycle(
@@ -2671,56 +2619,6 @@ export function App({ model }: AppProps) {
     }
   }
 
-  async function enqueueExactProjectionOutbox(
-    projection: JourneyConversation,
-    authority: JourneySettlementAuthority,
-  ): Promise<MirrorAppendOutboxSummary> {
-    const outboxItem = createMirrorAppendOutboxItem(projection, authority);
-    await enqueueMirrorAppendItem(outboxItem, authority);
-    const journal = await loadTurnJournal(authority.journeyId);
-    const journalRecord = journal.records.find((record) => record.authority.runId === authority.runId);
-    if (journalRecord?.phase === "terminal_durable" || journalRecord?.phase === "projected") {
-      await advanceTurnJournal(authority, journalRecord.phase, "outbox_enqueued");
-    }
-    const summary: MirrorAppendOutboxSummary = {
-      schemaVersion: "1.0.0",
-      itemId: outboxItem.itemId,
-      journeyId: outboxItem.journeyId,
-      threadId: outboxItem.threadId,
-      generation: outboxItem.generation,
-      conversationId: outboxItem.conversationId,
-      createdAt: outboxItem.createdAt,
-    };
-    setMirrorOutboxItems((items) => items.some((item) => item.itemId === summary.itemId)
-      ? items : [...items, summary]);
-    return summary;
-  }
-
-  async function appendAndAcknowledgeExactProjection(
-    projection: JourneyConversation,
-    authority: JourneySettlementAuthority,
-    summary: MirrorAppendOutboxSummary,
-  ): Promise<JourneyConversation> {
-    validateExactOutboxSummary(summary, projection, authority);
-    const receipt = await appendMirrorOutboxItem(summary.itemId, authority);
-    return journeyPersistenceCoordinator.run(authority, "post_frontier", async () => {
-      const latestProjection = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId, {
-        sessionId: authority.piSessionId, sessionFile: authority.piSessionFile,
-      });
-      if (!latestProjection) throw new Error("mirror_append_projection_missing");
-      validateExactOutboxSummary(summary, latestProjection, authority);
-      const settled = applyMirrorAppendReceipt(latestProjection, authority, receipt, new Date().toISOString());
-      await savePostFrontierReceiptProjection(settled, authority, summary);
-      await acknowledgeMirrorAppendItem(summary.itemId, summary.conversationId, authority);
-      const journal = await loadTurnJournal(authority.journeyId);
-      if (journal.records.some((record) => record.authority.runId === authority.runId)) {
-        await advanceTurnJournal(authority, "outbox_enqueued", "settled");
-      }
-      setMirrorOutboxItems((items) => items.filter((item) => item.itemId !== summary.itemId));
-      return settled;
-    });
-  }
-
   async function retryMirrorAppendSummary(item: MirrorAppendOutboxSummary) {
     let exactIdentity: ExactSettlementIdentity | undefined;
     try {
@@ -2754,8 +2652,8 @@ export function App({ model }: AppProps) {
       if (resolveRetainedLeaseForOutboxRecovery(inspection, authority)) {
         await releaseDurablePiInvocationLease(authority);
       }
-      await appendAndAcknowledgeExactProjection(recovery.projection, authority, item);
-      await publishSettledProjectionIfCurrent(authority);
+      const settledRecovery = await appendAndAcknowledgeProjection(recovery.projection, authority, item, finalizationPorts);
+      turnFinalizationCoordinator.publishSettled(authority, settledRecovery);
       setExactSettlementError(authority, undefined);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -2797,12 +2695,13 @@ export function App({ model }: AppProps) {
       loadActiveEvidence: loadActiveSettlementEvidence,
       saveActiveProjection: saveProjectedTurnLifecycle,
       enqueueOutbox: (candidate, exactAuthority) => journeyPersistenceCoordinator.run(
-        exactAuthority, "pre_frontier", () => enqueueExactProjectionOutbox(candidate, exactAuthority),
+        exactAuthority, "pre_frontier", () => enqueueProjectionOutbox(candidate, exactAuthority, finalizationPorts),
       ),
       appendAndAcknowledge: (candidate, summary, exactAuthority) => (
-        appendAndAcknowledgeExactProjection(candidate, exactAuthority, summary)
+        appendAndAcknowledgeProjection(candidate, exactAuthority, summary, finalizationPorts)
       ),
     });
+    turnFinalizationCoordinator.notifyDurableEvidenceChanged(authority.journeyId);
     setExactSettlementError(authority, undefined);
   }
 
@@ -2948,7 +2847,7 @@ export function App({ model }: AppProps) {
         await advanceTurnJournal(authority, "outbox_enqueued", "settled");
         await acknowledgeMirrorAppendItem(item.itemId, item.conversationId, authority);
         checkedMirrorTurnRef.current.add(item.itemId);
-        await publishSettledProjectionIfCurrent(authority);
+        turnFinalizationCoordinator.publishSettled(authority, settled);
         setExactSettlementError(authority, undefined);
         settledAny = true;
       } catch (error) {
@@ -3038,14 +2937,14 @@ export function App({ model }: AppProps) {
           exactAuthority, "pre_frontier", () => saveProjectedTurnLifecycle(candidate, exactAuthority),
         ),
         enqueueOutbox: (candidate, exactAuthority) => journeyPersistenceCoordinator.run(
-          exactAuthority, "pre_frontier", () => enqueueExactProjectionOutbox(candidate, exactAuthority),
+          exactAuthority, "pre_frontier", () => enqueueProjectionOutbox(candidate, exactAuthority, finalizationPorts),
         ),
         cleanupLease: releaseDurablePiInvocationLease,
         appendAndAcknowledge: (candidate, summary, exactAuthority) => (
-          appendAndAcknowledgeExactProjection(candidate, exactAuthority, summary)
+          appendAndAcknowledgeProjection(candidate, exactAuthority, summary, finalizationPorts)
         ),
       });
-      await publishSettledProjectionIfCurrent(authority);
+      turnFinalizationCoordinator.publishSettled(authority, settlement.projection);
       setExactSettlementError(authority, undefined);
       checkedMirrorTurnRef.current.add(settlement.outbox.itemId);
     } catch (error) {

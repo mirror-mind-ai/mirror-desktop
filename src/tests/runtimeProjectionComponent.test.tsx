@@ -8,6 +8,7 @@ import type { RuntimeProjectionState } from "../app/runtimeActivityModel";
 import appSource from "../app/App.tsx?raw";
 import agentTurnSource from "../app/AgentTurn.tsx?raw";
 import transcriptSource from "../app/ConversationTranscript.tsx?raw";
+import coordinatorSource from "../app/turnFinalizationCoordinator.ts?raw";
 
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
@@ -143,19 +144,10 @@ describe("runtime projection component", () => {
     expect(automaticRecoveryStart).not.toContain("setJourneyMirrorCommitError(ownerJourneyId, undefined)");
     expect(appSource).toContain("Conversation synchronization needs attention");
     expect(appSource).toContain("Repair synchronization");
-    expect(appSource).toContain("pendingMirrorTurnRepair(presentedConversation)");
-    expect(appSource).not.toContain("pendingMirrorTurnRepair(conversation)");
-    expect(appSource).toContain("classifyMirrorAppendMessagePair(presentedConversation, pendingMirrorRepair.correlation)");
     expect(appSource).toContain("No recovery action will run the agent again.");
     expect(appSource).toContain("selectedActiveNativeLease?.authority.runId");
-    expect(appSource).toMatch(
-      /onLeaseReleased: \(\) => \{[\s\S]*?setBlockingTurnJournalRecord\(undefined\);/,
-    );
-    const leaseReleaseCallback = appSource.slice(
-      appSource.indexOf("onLeaseReleased: () => {"),
-      appSource.indexOf("appendAndAcknowledge:", appSource.indexOf("onLeaseReleased: () => {")),
-    );
-    expect(leaseReleaseCallback).not.toContain('type: "finalization_finished"');
+    expect(coordinatorSource).toContain('onLeaseReleased: () => publish(authority, projectionAtFrontier, "frontier")');
+    expect(appSource).toContain('if (event.phase === "frontier") setBlockingTurnJournalRecord(undefined);');
     expect(appSource).toContain("mirrorSynchronizationPending: showConversationSyncNotice");
     expect(appSource).toContain("const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;");
     expect(appSource).toContain("const durableMetadata = await loadDedicatedJourneyConversation(");
