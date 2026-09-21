@@ -76,6 +76,17 @@ No persistence or provider path changed.
 
 Eval acceptance remains required before status transition or closure.
 
+## Eval Candidate
+
+With Navigator authorization, a production-authority Eval candidate was built and atomically installed on 2026-09-20 without launching it.
+
+- application: `~/Applications/Mirror Desktop Eval.app`
+- bundle name: `Mirror Desktop Eval`
+- bundle identifier: `ai.mirrormind.desktop`
+- executable SHA-256: `ba780ba3de4ae1fc056e0aac91853fbefbaa961db7a72fc428a4cb2d6123368f`
+- Stable and Eval matching processes during installation: none
+- local evidence: `/private/tmp/cr063-eval-20260920T210533Z`
+
 ## Authority Boundary
 
 Capture, selection, Driver `@alissonvale`, Delivery `refinement/rs016-cr063-align-sync-notice-projection`, planning and implementation were explicitly authorized on 2026-09-20. Production mutation, acceptance, closure, push, merge, publication, release and Stable installation remain separately governed.
