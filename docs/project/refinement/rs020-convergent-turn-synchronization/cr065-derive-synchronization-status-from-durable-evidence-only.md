@@ -63,3 +63,7 @@ CR068 homologation failed on presentation: the durable-evidence notice surfaces 
 ## Reopening Correction (2026-09-21)
 
 The notice now requires durable debt **and** recorded failure evidence: a Journey-level convergence error or an exact settlement error for the selected Journey. Ordinary settlement-window debt stays internal, and Composer status, recovery routing and the legacy-gap classification follow the same gated condition. The CR064 contract gained the scene "keeps ordinary settlement debt internal without a user-facing notice", and the world fixture now models failure evidence with production semantics. Delivered on `refinement/rs020-cr068-release-shaped-acceptance`.
+
+## Reopening Correction 2 (2026-09-21)
+
+The third homologation still flashed the notice for a few seconds per turn. Root cause: convergence invoked while native execution was active received the native refusal `mirror_append_pi_recovery_active_lease`, and that refusal was recorded as Journey failure evidence, which combined with the transient settlement-window debt to satisfy the notice gate. Corrections: the active-lease refusal is now a silent deferral, never failure evidence; exact-error evidence counts only when its turnId matches the current durable debt; a fully successful convergence clears all retained Journey settlement errors; and the recovery panel no longer falls back to renderer-replica `failureCode` text. Contract scenes added for silent deferral and deferred-then-converged racing.

@@ -829,7 +829,9 @@ export function App({ model }: AppProps) {
       .map((item) => ({ itemId: item.itemId })),
   }), [journeyTurnJournalRecords, mirrorOutboxItems, selectedJourney]);
   const durableSyncFailureEvidence = Boolean(mirrorCommitError)
-    || Object.values(exactSettlementErrors).some((error) => error.journeyId === selectedJourney);
+    || Object.values(exactSettlementErrors).some((error) => (
+      error.journeyId === selectedJourney && error.turnId === durableSyncDebt?.turnId
+    ));
   const durableSyncAttention = Boolean(durableSyncDebt) && durableSyncFailureEvidence;
   const legacyMirrorGap = durableSyncAttention && pendingMirrorDisposition === "legacy_gap";
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
@@ -2641,14 +2643,22 @@ export function App({ model }: AppProps) {
 
   async function recoverPostTerminalPersistence(ownerJourneyId: string) {
     if (postTerminalRecoveryRef.current || selectedRuntimeBusy || piInvocationOccupancy.status !== "known") return;
+    const ownerEntry = journeyRuntimeStateRef.current.entries[ownerJourneyId];
+    if (ownerEntry && isJourneyRuntimeActiveOrFinalizing(ownerEntry)) return;
     postTerminalRecoveryRef.current = true;
     setIsRetryingMirrorCommit(true);
     try {
       await turnFinalizationCoordinator.convergeDelivery(ownerJourneyId, convergenceDeps);
       await reconcilePiInvocationOccupancy();
       setJourneyMirrorCommitError(ownerJourneyId, undefined);
+      setExactSettlementErrors((current) => Object.fromEntries(
+        Object.entries(current).filter(([, error]) => error.journeyId !== ownerJourneyId),
+      ));
     } catch (error) {
-      setJourneyMirrorCommitError(ownerJourneyId, error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes("mirror_append_pi_recovery_active_lease")) {
+        setJourneyMirrorCommitError(ownerJourneyId, message);
+      }
     } finally {
       postTerminalRecoveryRef.current = false;
       setIsRetryingMirrorCommit(false);
@@ -4607,7 +4617,7 @@ export function App({ model }: AppProps) {
                   : "The local response is complete. This operation repairs only its secondary Mirror copy."}
               routes={recoveryRoutes}
               activeRoute={activeRecoveryRoute}
-              error={turnRecoveryError ?? mirrorCommitError ?? pendingMirrorRepair?.failureCode}
+              error={turnRecoveryError ?? mirrorCommitError}
               onSelect={(route) => { void performRecoveryRoute(route); }}
             />
           ) : null}

@@ -80,7 +80,7 @@ describe("CR064 multi-turn happy-path contract", () => {
     expect(view.availability.canSend).toBe(true);
   });
 
-  it("clears the notice when repair converges while a successor turn is active", async () => {
+  it("defers repair during an active successor and converges after it settles", async () => {
     const world = createConvergentTurnWorld();
     world.beginTurn("run-1", "question 1");
     world.streamAssistant("answer 1");
@@ -89,12 +89,23 @@ describe("CR064 multi-turn happy-path contract", () => {
     world.streamAssistant("answer 2");
     await world.repairDeliveryDebt();
     await world.settleTerminal();
+    await world.repairDeliveryDebt();
     const view = world.presentation();
     expect(world.durableEvidenceSettled()).toBe(true);
     expect(view.syncNoticeVisible).toBe(false);
     expect(view.pendingRepairTurnId).toBeUndefined();
     expect(view.availability.condition).toBe("ready");
     expect(view.assistantContentByTurn["turn-run-2"]).toBe("answer 2");
+  });
+
+  it("keeps a deferred repair attempt free of failure evidence", async () => {
+    const world = createConvergentTurnWorld();
+    await runCleanTurn(world, 1);
+    world.beginTurn("run-2", "question 2");
+    world.streamAssistant("answer 2");
+    await world.repairDeliveryDebt();
+    await world.settleTerminal();
+    expectFrictionless(world, 2);
   });
 
   it("keeps the conversation clean after restart when repair raced a successor", async () => {
@@ -106,6 +117,7 @@ describe("CR064 multi-turn happy-path contract", () => {
     world.streamAssistant("answer 2");
     await world.repairDeliveryDebt();
     await world.settleTerminal();
+    await world.repairDeliveryDebt();
     world.restart();
     const view = world.presentation();
     expect(world.durableEvidenceSettled()).toBe(true);
@@ -161,6 +173,7 @@ describe("CR064 multi-turn happy-path contract", () => {
     world.streamAssistant("answer 2");
     await world.repairDeliveryDebt();
     await world.settleTerminal();
+    await world.repairDeliveryDebt();
     const view = world.presentation();
     expect(view.assistantContentByTurn["turn-run-2"]).toBe("answer 2");
     const mirrorMessages = world.stores.mirror.get("mirror-convergent-journey") ?? [];

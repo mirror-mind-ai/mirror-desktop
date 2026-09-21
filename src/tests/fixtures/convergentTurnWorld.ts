@@ -171,6 +171,7 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
   const convergenceDeps: ConvergenceDeps = {
     ports,
     reconcileDeliveryDebt: async () => {
+      if (active) throw new Error("mirror_append_pi_recovery_active_lease");
       if (staleReconcileSnapshot) {
         const snapshot = staleReconcileSnapshot;
         staleReconcileSnapshot = undefined;
@@ -340,7 +341,15 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
     },
 
     async repairDeliveryDebt(): Promise<void> {
-      await coordinator.convergeDelivery(journeyId, convergenceDeps);
+      try {
+        await coordinator.convergeDelivery(journeyId, convergenceDeps);
+        syncFailureEvidence = false;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes("mirror_append_pi_recovery_active_lease")) return;
+        syncFailureEvidence = true;
+        throw error;
+      }
     },
 
     navigateAway(): void {
