@@ -2,7 +2,7 @@
 
 # CR069: Stop Presenting Non-Fatal Provider Warnings as Unsent Messages
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr069-non-fatal-provider-warnings`
 
@@ -40,3 +40,9 @@ Related captured work: CR054 (surface provider terminal errors) and CR053 (clari
 - Complete frontend suite: 920 tests. TypeScript/Vite build passed; roadmap consistency `READY`; whitespace clean.
 
 Eval candidate installed atomically without launching on 2026-09-21, Stable and Eval closed; executable SHA-256 `a33a0f112b13a41a747adbb17b1f35d29113b047e331ce38cb9586ffc1010027`. Navigator homologation pending.
+
+## Closure
+
+Closed on 2026-09-21 after Navigator Eval validation confirmed that ordinary turns show no unsent-message banner and no claude-bridge warning, while synchronization stays silent.
+
+Proportionality and debt review: `no_action`. One predicate gained the run status it always needed; genuine provider-failure presentation remains CR054's captured scope.

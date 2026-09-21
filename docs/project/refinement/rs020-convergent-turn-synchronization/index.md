@@ -2,7 +2,7 @@
 
 # RS020: Convergent Turn Synchronization
 
-**Status:** active
+**Status:** closed
 
 ## Framing
 
@@ -69,3 +69,17 @@ RS020 is complete only when:
 - [CR068: Accept the Frictionless Conversation Through Release-Shaped Validation](cr068-accept-the-frictionless-conversation-through-release-shaped-validation.md)
 
 CR063 is promoted into this series: its presented-projection alignment remains in the baseline and its two recorded false-positive diagnoses are founding evidence for CR064 and CR065.
+
+## Closure
+
+RS020 is closed on 2026-09-21 with explicit Navigator authorization.
+
+The series replaced twenty-five pairwise replica corrections with a structural treatment and found the latent root cause that had survived all of them: the live settlement path acknowledged the outbox item before advancing the journal to `settled`, while the native transition requires the exact item to still exist. Every turn therefore delivered to Mirror but failed its final journal advance, leaving debt that convergence re-settled seconds later — the per-turn synchronization surface visible since the CR063 era.
+
+Delivered: an executable multi-turn contract that models the native journal contract (CR064); durable-evidence-only synchronization status gated on real, persistent failure (CR065); a renderer-independent serialized coordinator with atomic monotonic publication (CR066); one idempotent convergence routine replacing five repair paths (CR067); and release-shaped acceptance across five homologation rounds (CR068).
+
+The closure horizon is satisfied: the contract runs green in CI covering consecutive turns, navigation, restart, injected append failure, deferral under an active successor and delayed older-run convergence; no notice can appear while durable stores agree; finalization orchestration left the renderer and its grep-the-source tests were deleted; exactly one convergence routine remains; and the Navigator homologated a frictionless multi-turn conversation in Eval on production data with recorded durable evidence.
+
+Proportionality review: proportional. The series reused Pi JSONL, the journal, the outbox and existing domain modules as authority, added no durable schema and deleted more renderer code than it introduced.
+
+Debt review: `no_action` for RS020. Push, merge, Alpha packaging, publication and Stable promotion remain separately governed decisions, and the roadmap candidates unfreeze with closure.

@@ -2,7 +2,7 @@
 
 # CR067: Unify Recovery into One Idempotent Convergence Routine
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs020-cr067-unified-convergence`
 
@@ -72,3 +72,7 @@ Correction: thread authority lookup is now scoped by `(journeyId, threadId)` and
 ## Reopening Correction 3 (2026-09-21)
 
 Convergence entry now also refuses fresh-runtime activity through `journeyRuntimeStateRef` before calling the native reconcile, and the native `mirror_append_pi_recovery_active_lease` refusal is classified as deferral rather than failure. The world fixture mirrors the native active-lease refusal, and the CR064 race scenes were corrected to the true semantics: repair defers during an active successor and converges after it settles.
+
+## Closure
+
+Closed on 2026-09-21. The three reopening corrections (deferral classification, already-converged tolerance and Desktop Conversation thread authority) were validated by the passed fifth homologation, including the retained production turn converging automatically on hydration. Proportionality and debt review: `no_action`.

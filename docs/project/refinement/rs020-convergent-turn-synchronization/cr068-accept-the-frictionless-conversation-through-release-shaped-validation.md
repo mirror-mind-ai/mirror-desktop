@@ -2,7 +2,7 @@
 
 # CR068: Accept the Frictionless Conversation Through Release-Shaped Validation
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs020-cr068-release-shaped-acceptance`
 
@@ -124,3 +124,9 @@ All homologated runs verified read-only after acceptance:
 Journey outbox item count: 0. Accepted executable SHA-256: `3315126c2280d179153ca3638888219c634c631b5c0888f7e488d94333e86e5f`.
 
 All four steps are complete. CR068 closure, the CR065/CR067 return to `done` and RS020 closure await explicit Navigator authorization.
+
+## Closure
+
+Closed on 2026-09-21 with explicit Navigator authorization after all four steps completed: full automated gates, an atomically installed Eval candidate, passed multi-turn homologation with zero synchronization surfaces, and recorded durable evidence for every homologated run.
+
+Proportionality and debt review: `no_action`. The five homologation rounds each reopened the responsible CR rather than absorbing fixes here, as the CR required. The residual provider-warning presentation was captured and delivered separately as CR069.

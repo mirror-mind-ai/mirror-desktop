@@ -2,7 +2,7 @@
 
 # CR065: Derive Synchronization Status from Durable Evidence Only
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs020-cr065-durable-sync-status`
 
@@ -67,3 +67,7 @@ The notice now requires durable debt **and** recorded failure evidence: a Journe
 ## Reopening Correction 2 (2026-09-21)
 
 The third homologation still flashed the notice for a few seconds per turn. Root cause: convergence invoked while native execution was active received the native refusal `mirror_append_pi_recovery_active_lease`, and that refusal was recorded as Journey failure evidence, which combined with the transient settlement-window debt to satisfy the notice gate. Corrections: the active-lease refusal is now a silent deferral, never failure evidence; exact-error evidence counts only when its turnId matches the current durable debt; a fully successful convergence clears all retained Journey settlement errors; and the recovery panel no longer falls back to renderer-replica `failureCode` text. Contract scenes added for silent deferral and deferred-then-converged racing.
+
+## Closure
+
+Closed on 2026-09-21. The fifth CR068 homologation confirmed both reopening corrections: no synchronization surface appears during ordinary use, and the gate still exposes genuine, persistent failures. Proportionality and debt review: `no_action`.
