@@ -104,10 +104,23 @@ Gates repeated: CR064 contract 12 scenarios (red-then-green through the modeled 
 
 - executable SHA-256: `3315126c2280d179153ca3638888219c634c631b5c0888f7e488d94333e86e5f`
 
-## Step 3 (fifth) — Navigator Homologation
+## Step 3 (fifth) — PASSED (2026-09-21)
 
-Pending. Same script; acceptance bar unchanged: zero synchronization surfaces at any moment of ordinary use.
+The Navigator homologated the fifth candidate: multi-turn conversation with zero synchronization surfaces at any moment. The root-cause reorder (journal settled before outbox acknowledgement) removed the per-turn failure entirely; turns now settle inside their own flow with nothing left for convergence or the UI.
 
-## Step 4 — Durable Evidence
+One residual, out of RS020 scope, was reported and captured as CR069: a Pi warning (`No models match pattern "claude-bridge/claude-fable-5"`, emitted because the claude-bridge Pi extension is unavailable under `--no-extensions`) is presented under a false `Message was not sent` banner although the turn delivered.
 
-Pending the fifth Step 3.
+## Step 4 — Durable Evidence (2026-09-21)
+
+All homologated runs verified read-only after acceptance:
+
+| Run | Thread | Journal | Outbox | Exact pair in Mirror |
+|---|---|---|---|---|
+| `agent-run-2026-09-21T11:11:54.962Z` | `desktop-thread-…18d736d9e4891a18` | settled / completed / complete | — | `f308e82c`: 2/2 |
+| `agent-run-2026-09-21T11:13:30.681Z` | `desktop-thread-…18d736d9e4891a18` | settled / completed / complete | — | `f308e82c`: 2/2 |
+| `agent-run-2026-09-21T11:15:34.090Z` | `desktop-thread-…18d736d9e4891a18` | settled / completed / complete | — | `f308e82c`: 2/2 |
+| `agent-run-2026-09-21T11:18:34.272Z` | `nautilus-thread-mirror-desktop` | settled / completed / complete | — | `20f40b74`: 2/2 |
+
+Journey outbox item count: 0. Accepted executable SHA-256: `3315126c2280d179153ca3638888219c634c631b5c0888f7e488d94333e86e5f`.
+
+All four steps are complete. CR068 closure, the CR065/CR067 return to `done` and RS020 closure await explicit Navigator authorization.

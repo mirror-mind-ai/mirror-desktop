@@ -50,8 +50,9 @@ Open work is ordered intentionally. Terminal history follows open work.
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
 | 1 | [CR068](rs020-convergent-turn-synchronization/cr068-accept-the-frictionless-conversation-through-release-shaped-validation.md) | RS020 | Accept the Frictionless Conversation Through Release-Shaped Validation | in_progress | @alissonvale | `refinement/rs020-cr068-release-shaped-acceptance` |
-| 2 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
-| 3 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| 2 | [CR069](rs016-ongoing-product-improvements-and-adjustments/cr069-stop-presenting-non-fatal-provider-warnings-as-unsent-messages.md) | RS016 | Stop Presenting Non-Fatal Provider Warnings as Unsent Messages | captured | — | — |
+| 3 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
+| 4 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
 | — | [CR067](rs020-convergent-turn-synchronization/cr067-unify-recovery-into-one-idempotent-convergence-routine.md) | RS020 | Unify Recovery into One Idempotent Convergence Routine | in_progress | @alissonvale | `refinement/rs020-cr067-unified-convergence` |
 | — | [CR066](rs020-convergent-turn-synchronization/cr066-extract-a-serialized-turn-finalization-coordinator-from-the-renderer.md) | RS020 | Extract a Serialized Turn Finalization Coordinator from the Renderer | done | @alissonvale | `refinement/rs020-cr066-finalization-coordinator` |
 | — | [CR065](rs020-convergent-turn-synchronization/cr065-derive-synchronization-status-from-durable-evidence-only.md) | RS020 | Derive Synchronization Status from Durable Evidence Only | in_progress | @alissonvale | `refinement/rs020-cr065-durable-sync-status` |

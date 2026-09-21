@@ -28,6 +28,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
+- [CR069: Stop Presenting Non-Fatal Provider Warnings as Unsent Messages](cr069-stop-presenting-non-fatal-provider-warnings-as-unsent-messages.md)
 - [CR063: Align Synchronization Recovery Notice with the Presented Conversation](cr063-align-sync-recovery-notice-with-presented-conversation.md)
 - [CR062: Make Post-Terminal Finalization Self-Healing and Actionable](cr062-make-post-terminal-finalization-self-healing-and-actionable.md)
 - [CR061: Reconcile Mirror Append Timestamp Idempotency](cr061-reconcile-mirror-append-timestamp-idempotency.md)
