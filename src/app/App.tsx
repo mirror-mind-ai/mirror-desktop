@@ -134,6 +134,7 @@ import {
   validateExactOutboxSummary,
 } from "./turnFinalizationCoordinator";
 import { createProductionFinalizationPorts } from "./turnFinalizationPorts";
+import { clearUnsentDraft, recordUnsentDraft, type UnsentDraftNotices } from "./unsentDraftNotice";
 import {
   deriveInactiveNativeAttemptCandidate,
   shouldPresentInactiveNativeAttempt,
@@ -515,6 +516,7 @@ export function App({ model }: AppProps) {
   const [exactSettlementErrors, setExactSettlementErrors] = useState<Record<string, ExactSettlementError>>({});
   const [mirrorOutboxItems, setMirrorOutboxItems] = useState<MirrorAppendOutboxSummary[]>([]);
   const [journeyTurnJournalRecords, setJourneyTurnJournalRecords] = useState<TurnJournalRecord[]>([]);
+  const [unsentDraftNotices, setUnsentDraftNotices] = useState<UnsentDraftNotices>({});
   const [providerConfig, setProviderConfig] = useState(defaultPiProviderConfig);
   const [providerCommand, setProviderCommand] = useState(defaultPiProviderConfig.command);
   const [providerArgsText, setProviderArgsText] = useState(providerConfigToArgsText(defaultPiProviderConfig));
@@ -726,6 +728,7 @@ export function App({ model }: AppProps) {
   const piInvocationPresentation = derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney);
   const runtimeBindingReady = runtimeChannel?.status === "validated";
   const mirrorCommitError = navigationPresentation.mirrorCommitError;
+  const unsentDraftNotice = unsentDraftNotices[selectedJourney];
   const messages = navigationPresentation.messages;
   const presentedConversation = navigationPresentation.conversation ?? conversation;
   const presentedImportedActivity = presentedConversation.importedActivity?.events;
@@ -1944,11 +1947,9 @@ export function App({ model }: AppProps) {
       const preflightBlocked = baseConversation.journeyId !== selectedJourney
         || journeyThreadState.kind !== "ready";
       if (preflightBlocked) {
-        dispatchJourneyRuntime({
-          type: "append_warning",
-          journeyId: selectedJourney,
-          message: "Live invocation stopped because Journey conversation authority changed or is still being inspected. Reconcile the selected Journey and try again.",
-        });
+        const message = "Live invocation stopped because Journey conversation authority changed or is still being inspected. Reconcile the selected Journey and try again.";
+        setUnsentDraftNotices((current) => recordUnsentDraft(current, selectedJourney, message));
+        dispatchJourneyRuntime({ type: "append_warning", journeyId: selectedJourney, message });
         return;
       }
       const durableMetadata = await loadDedicatedJourneyConversation(
@@ -1961,11 +1962,9 @@ export function App({ model }: AppProps) {
         || metadataBase.journeyId !== selectedJourney
         || metadataBase.liveIdentity.generation !== baseConversation.liveIdentity.generation
         || !journeyThreadState.activeGeneration.piSessionFile) {
-        dispatchJourneyRuntime({
-          type: "append_warning",
-          journeyId: selectedJourney,
-          message: "Live invocation stopped because exact Conversation metadata or Pi session authority changed.",
-        });
+        const message = "Live invocation stopped because exact Conversation metadata or Pi session authority changed.";
+        setUnsentDraftNotices((current) => recordUnsentDraft(current, selectedJourney, message));
+        dispatchJourneyRuntime({ type: "append_warning", journeyId: selectedJourney, message });
         return;
       }
       try {
@@ -1978,11 +1977,9 @@ export function App({ model }: AppProps) {
         );
         baseConversation = projectPiBackedConversationSurface(metadataBase, inspection);
       } catch (error) {
-        dispatchJourneyRuntime({
-          type: "append_warning",
-          journeyId: selectedJourney,
-          message: `Live invocation stopped because the Pi transcript could not be inspected: ${error instanceof Error ? error.message : String(error)}`,
-        });
+        const message = `Live invocation stopped because the Pi transcript could not be inspected: ${error instanceof Error ? error.message : String(error)}`;
+        setUnsentDraftNotices((current) => recordUnsentDraft(current, selectedJourney, message));
+        dispatchJourneyRuntime({ type: "append_warning", journeyId: selectedJourney, message });
         return;
       }
     }
@@ -2029,11 +2026,9 @@ export function App({ model }: AppProps) {
         ? createRunAuthority(correlation, baseConversation.liveIdentity, journeyThreadState.activeGeneration)
         : undefined;
     } catch (error) {
-      dispatchJourneyRuntime({
-        type: "append_warning",
-        journeyId: selectedJourney,
-        message: `Live invocation stopped because run authority could not be built: ${error instanceof Error ? error.message : String(error)}`,
-      });
+      const message = `Live invocation stopped because run authority could not be built: ${error instanceof Error ? error.message : String(error)}`;
+      setUnsentDraftNotices((current) => recordUnsentDraft(current, selectedJourney, message));
+      dispatchJourneyRuntime({ type: "append_warning", journeyId: selectedJourney, message });
       return;
     }
     const settlementAuthority = runAuthority
@@ -2065,6 +2060,7 @@ export function App({ model }: AppProps) {
     if (invocationAuthority) {
       setPiInvocationOccupancy((current) => retainExpectedPiInvocationLease(current, invocationAuthority));
     }
+    setUnsentDraftNotices((current) => clearUnsentDraft(current, ownerJourneyId));
     dispatchJourneyRuntime({
       type: "register",
       identity: runtimeIdentity,
@@ -2365,11 +2361,9 @@ export function App({ model }: AppProps) {
                     setPendingFileAttachments(fileAttachments);
                   }
                   dispatchJourneyRuntime({ type: "cleanup", identity: runtimeIdentity });
-                  dispatchJourneyRuntime({
-                    type: "append_warning",
-                    journeyId: ownerJourneyId,
-                    message: `Message returned to the composer: ${preAgentFailureMessage}`,
-                  });
+                  const message = `Message returned to the composer: ${preAgentFailureMessage}`;
+                  setUnsentDraftNotices((current) => recordUnsentDraft(current, ownerJourneyId, message));
+                  dispatchJourneyRuntime({ type: "append_warning", journeyId: ownerJourneyId, message });
                 },
               });
             }
@@ -2378,9 +2372,11 @@ export function App({ model }: AppProps) {
             if (selectedJourneyRef.current === ownerJourneyId) {
               setPendingFileAttachments(fileAttachments);
             }
+            const rollbackMessage = `Message returned to the composer after rollback failed: ${error instanceof Error ? error.message : String(error)}`;
+            setUnsentDraftNotices((current) => recordUnsentDraft(current, ownerJourneyId, rollbackMessage));
             dispatchJourneyRuntime({
               type: "append_warning", journeyId: ownerJourneyId, identity: runtimeIdentity,
-              message: `Message returned to the composer after rollback failed: ${error instanceof Error ? error.message : String(error)}`,
+              message: rollbackMessage,
             });
           }
         }
@@ -4515,7 +4511,13 @@ export function App({ model }: AppProps) {
               <p>{localReferenceError}</p>
             </section>
           ) : null}
-          {showTransientStreamWarning ? (
+          {unsentDraftNotice ? (
+            <section className="dedicated-turn-notice" role="alert">
+              <strong>Message was not sent</strong>
+              <p>{unsentDraftNotice}</p>
+            </section>
+          ) : null}
+          {showTransientStreamWarning && !unsentDraftNotice ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Message was not sent</strong>
               <p>{lastItem(streamWarnings)}</p>
