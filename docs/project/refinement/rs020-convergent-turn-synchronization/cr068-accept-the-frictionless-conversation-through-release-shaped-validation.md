@@ -58,6 +58,16 @@ Separately observed, outside RS020 scope: one send failed pre-agent with `No mod
 
 Per this CR's own rule, the fixes cannot be absorbed here: CR065 and CR067 are reopened, and Step 3 must be repeated on a new candidate.
 
+## Step 2 (repeated) — Corrected Eval Candidate (2026-09-21)
+
+After the CR065 and CR067 reopening corrections, all gates were repeated: CR064 contract with 11 scenarios (including the two new failure-mode scenes), 918 frontend tests, Rust 162 + 1 ignored under both feature sets, build, roadmap `READY`, whitespace clean. A corrected candidate was atomically installed without launching, Stable and Eval closed.
+
+- executable SHA-256: `a3c0fe84b1840c719c107b890feee87bd5ce6961b9eaaf8d1557cabe4d59bae4`
+
+## Step 3 (repeated) — Navigator Homologation
+
+Pending. Same script; additionally confirm that no synchronization notice appears at the end of ordinary turns.
+
 ## Step 4 — Durable Evidence
 
-Pending a repeated Step 3.
+Pending the repeated Step 3.

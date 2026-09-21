@@ -59,3 +59,7 @@ Proportionality and debt review: `no_action`. The change replaces the presentati
 ## Reopened (2026-09-21)
 
 CR068 homologation failed on presentation: the durable-evidence notice surfaces the ordinary settlement window after every turn. The Navigator's direction: synchronization stays internal; the notice appears only when durable debt persists after an automatic convergence attempt has failed. Status returns to `in_progress` for this gating correction.
+
+## Reopening Correction (2026-09-21)
+
+The notice now requires durable debt **and** recorded failure evidence: a Journey-level convergence error or an exact settlement error for the selected Journey. Ordinary settlement-window debt stays internal, and Composer status, recovery routing and the legacy-gap classification follow the same gated condition. The CR064 contract gained the scene "keeps ordinary settlement debt internal without a user-facing notice", and the world fixture now models failure evidence with production semantics. Delivered on `refinement/rs020-cr068-release-shaped-acceptance`.

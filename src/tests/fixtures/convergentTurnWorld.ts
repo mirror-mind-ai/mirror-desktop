@@ -75,6 +75,20 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
   let selectedJourneyId = journeyId;
   let active: ActiveTurn | undefined;
   let failNextDelivery = false;
+  let syncFailureEvidence = false;
+  let staleReconcileSnapshot: ReturnType<typeof summarizeOutbox> | undefined;
+
+  function summarizeOutbox() {
+    return stores.outbox.map((item) => ({
+      schemaVersion: item.schemaVersion,
+      itemId: item.itemId,
+      journeyId: item.journeyId,
+      threadId: item.threadId,
+      generation: item.generation,
+      conversationId: item.conversationId,
+      createdAt: item.createdAt,
+    }));
+  }
 
   function journalRecordByRunId(runId: string): TurnJournalRecord | undefined {
     return stores.journal.find((record) => record.authority.runId === runId);
@@ -138,7 +152,7 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
         throw new Error("mirror_append_failed");
       }
       const item = stores.outbox.find((candidate) => candidate.itemId === itemId);
-      if (!item) throw new Error("mirror_append_outbox_item_missing");
+      if (!item) throw new Error("mirror_append_item_missing");
       return deliverToMirror(item);
     },
     acknowledgeOutboxItem: async (itemId) => {
@@ -156,15 +170,14 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
 
   const convergenceDeps: ConvergenceDeps = {
     ports,
-    reconcileDeliveryDebt: async () => stores.outbox.map((item) => ({
-      schemaVersion: item.schemaVersion,
-      itemId: item.itemId,
-      journeyId: item.journeyId,
-      threadId: item.threadId,
-      generation: item.generation,
-      conversationId: item.conversationId,
-      createdAt: item.createdAt,
-    })),
+    reconcileDeliveryDebt: async () => {
+      if (staleReconcileSnapshot) {
+        const snapshot = staleReconcileSnapshot;
+        staleReconcileSnapshot = undefined;
+        return snapshot;
+      }
+      return summarizeOutbox();
+    },
     loadProjectionByCoords: async (_journeyId, generationNumber) => stores.projections.get(generationNumber),
     deliverPiBackedOutboxItem: async () => {
       throw new Error("world_pi_backed_delivery_unused");
@@ -177,7 +190,9 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
       processCapacityInUse: 0,
       entries: [],
     } as never),
-    onExactError: () => {},
+    onExactError: (_identity, message) => {
+      syncFailureEvidence = message !== undefined;
+    },
   };
 
   coordinator.subscribe((event) => {
@@ -303,12 +318,25 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
           projection: turn.runConversation,
         }, ports);
       } catch {
-        // The coordinator already published the failed frontier state.
+        syncFailureEvidence = true;
       } finally {
         failNextDelivery = false;
         dispatch({ type: "finalization_finished", identity: turn.identity });
       }
       active = undefined;
+    },
+
+    primeStaleReconcileSnapshot(): void {
+      staleReconcileSnapshot = summarizeOutbox();
+    },
+
+    completeDeliveryOutOfBand(): void {
+      for (const item of [...stores.outbox]) {
+        deliverToMirror(item);
+        const record = stores.journal.find((candidate) => candidate.authority.turnId === item.itemId);
+        if (record) record.phase = "settled";
+      }
+      stores.outbox = [];
     },
 
     async repairDeliveryDebt(): Promise<void> {
@@ -362,7 +390,7 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
         outboxItems: stores.outbox.map((item) => ({ itemId: item.itemId })),
       });
       const syncNoticeVisible = shouldShowConversationSyncNotice({
-        mirrorRepairPending: Boolean(durableDebt),
+        mirrorRepairPending: Boolean(durableDebt) && syncFailureEvidence,
         legacyMirrorGap: false,
         isStreaming: entry.isStreaming,
         isFinalizingTurn: entry.isFinalizingTurn,

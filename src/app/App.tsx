@@ -828,7 +828,10 @@ export function App({ model }: AppProps) {
       .filter((item) => item.journeyId === selectedJourney)
       .map((item) => ({ itemId: item.itemId })),
   }), [journeyTurnJournalRecords, mirrorOutboxItems, selectedJourney]);
-  const legacyMirrorGap = Boolean(durableSyncDebt) && pendingMirrorDisposition === "legacy_gap";
+  const durableSyncFailureEvidence = Boolean(mirrorCommitError)
+    || Object.values(exactSettlementErrors).some((error) => error.journeyId === selectedJourney);
+  const durableSyncAttention = Boolean(durableSyncDebt) && durableSyncFailureEvidence;
+  const legacyMirrorGap = durableSyncAttention && pendingMirrorDisposition === "legacy_gap";
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
   const dedicatedTurnState = classifyDedicatedTurnState(conversation, selectedRuntimeBusy);
   const latestNautilusTurn = [...conversation.reconciliation.turns].reverse().find((turn) => turn.origin === "nautilus");
@@ -847,7 +850,7 @@ export function App({ model }: AppProps) {
     isStreaming,
     isFinalizingTurn,
     reconciliationBlocksInvocation,
-    mirrorRepairPending: Boolean(durableSyncDebt),
+    mirrorRepairPending: durableSyncAttention,
   });
   const showBlockingTurnRecoveryNotice = Boolean(blockingTurnJournalRecord)
     && !isStreaming
@@ -859,7 +862,7 @@ export function App({ model }: AppProps) {
     minimumVisibleMs: 700,
   });
   const showConversationSyncNotice = shouldShowConversationSyncNotice({
-    mirrorRepairPending: Boolean(durableSyncDebt),
+    mirrorRepairPending: durableSyncAttention,
     legacyMirrorGap,
     isStreaming,
     isFinalizingTurn,
@@ -887,7 +890,7 @@ export function App({ model }: AppProps) {
   const recoveryRoutes = decideConversationRecoveryRoutes({
     availability: conversationAvailability,
     blockingTurn: blockingRecoveryEvidence,
-    mirrorSynchronization: durableSyncDebt
+    mirrorSynchronization: durableSyncAttention
       ? legacyMirrorGap ? "legacy_gap" : "exact_repair_available"
       : "none",
     canCreateDesktopConversation: journeyThreadState.kind === "ready",

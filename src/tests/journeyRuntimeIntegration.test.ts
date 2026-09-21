@@ -161,7 +161,7 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("createJourneySettlementAuthority(runAuthority)");
     expect(coordinatorSource).toContain("const settlement = await executeCompletedSettlement({");
     expect(coordinatorSource).toContain("saveActiveProjection: (projection, exactAuthority) => journeyPersistenceCoordinator.run(");
-    expect(coordinatorSource).toContain("enqueueOutbox: async (projection, exactAuthority) => {");
+    expect(coordinatorSource).toContain("enqueueOutbox: (projection, exactAuthority) => journeyPersistenceCoordinator.run(");
     expect(coordinatorSource).toContain('journeyPersistenceCoordinator.run(authority, "post_frontier"');
     expect(coordinatorSource).toContain("await ports.savePostFrontierProjection(settled, authority, summary)");
     expect(appSource).toContain("cleanupLease: releaseDurablePiInvocationLease");

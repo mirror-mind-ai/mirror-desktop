@@ -113,6 +113,28 @@ describe("CR064 multi-turn happy-path contract", () => {
     expect(view.availability.condition).toBe("ready");
   });
 
+  it("keeps ordinary settlement debt internal without a user-facing notice", async () => {
+    const world = createConvergentTurnWorld();
+    await runCleanTurn(world, 1);
+    const record = world.stores.journal[0];
+    record.phase = "outbox_enqueued";
+    const view = world.presentation();
+    expect(view.syncNoticeVisible).toBe(false);
+    expect(view.availability.canSend).toBe(true);
+    record.phase = "settled";
+  });
+
+  it("treats a vanished outbox item with a settled journal as already converged", async () => {
+    const world = createConvergentTurnWorld();
+    world.beginTurn("run-1", "question 1");
+    world.streamAssistant("answer 1");
+    await world.settleTerminal({ failAppend: true });
+    world.primeStaleReconcileSnapshot();
+    world.completeDeliveryOutOfBand();
+    await world.repairDeliveryDebt();
+    expectFrictionless(world, 1);
+  });
+
   it("performs zero writes when converging an already synchronized conversation", async () => {
     const world = createConvergentTurnWorld();
     await runCleanTurn(world, 1);

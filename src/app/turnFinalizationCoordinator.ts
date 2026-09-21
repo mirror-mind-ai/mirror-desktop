@@ -229,6 +229,17 @@ export type TurnFinalizationCoordinator = {
   notifyDurableEvidenceChanged(journeyId: string): void;
 };
 
+async function exactRecordAlreadySettled(
+  ports: TurnFinalizationPorts,
+  journeyId: string,
+  turnId: string,
+): Promise<boolean> {
+  const journal = await ports.loadJournal(journeyId);
+  return journal.records.some((record) => (
+    record.authority.turnId === turnId && record.phase === "settled"
+  ));
+}
+
 export function createTurnFinalizationCoordinator(): TurnFinalizationCoordinator {
   const listeners = new Set<(event: TurnFinalizationEvent) => void>();
   const queues = new Map<string, Promise<unknown>>();
@@ -302,13 +313,9 @@ export function createTurnFinalizationCoordinator(): TurnFinalizationCoordinator
             saveActiveProjection: (projection, exactAuthority) => journeyPersistenceCoordinator.run(
               exactAuthority, "pre_frontier", () => ports.saveProjection(projection, exactAuthority),
             ),
-            enqueueOutbox: async (projection, exactAuthority) => {
-              const summary = await journeyPersistenceCoordinator.run(
-                exactAuthority, "pre_frontier", () => enqueueProjectionOutbox(projection, exactAuthority, ports),
-              );
-              emit({ type: "durable_evidence_changed", journeyId: exactAuthority.journeyId });
-              return summary;
-            },
+            enqueueOutbox: (projection, exactAuthority) => journeyPersistenceCoordinator.run(
+              exactAuthority, "pre_frontier", () => enqueueProjectionOutbox(projection, exactAuthority, ports),
+            ),
             cleanupLease: ports.cleanupLease,
             onLeaseReleased: () => publish(authority, projectionAtFrontier, "frontier"),
             appendAndAcknowledge: (projection, summary, exactAuthority) => (
@@ -350,14 +357,19 @@ export function createTurnFinalizationCoordinator(): TurnFinalizationCoordinator
       const { ports } = deps;
       const convergeLegacyItem = async (item: MirrorAppendOutboxSummary): Promise<boolean> => {
         const journal = await ports.loadJournal(item.journeyId);
+        const exactRecord = journal.records.find((record) => (
+          record.authority.turnId === item.itemId
+          && record.authority.journeyId === item.journeyId
+          && record.authority.threadId === item.threadId
+          && record.authority.generation === item.generation
+          && record.authority.mirrorConversationId === item.conversationId
+        ));
         let exactIdentity: TurnJournalRecord["authority"] | JourneySettlementAuthority | undefined =
-          journal.records.find((record) => (
-            record.authority.turnId === item.itemId
-            && record.authority.journeyId === item.journeyId
-            && record.authority.threadId === item.threadId
-            && record.authority.generation === item.generation
-            && record.authority.mirrorConversationId === item.conversationId
-          ))?.authority;
+          exactRecord?.authority;
+        if (exactRecord?.phase === "settled") {
+          deps.onExactError(exactRecord.authority, undefined);
+          return false;
+        }
         try {
           const projected = await deps.loadProjectionByCoords(item.journeyId, item.generation, item.threadId);
           if (!projected) {
@@ -390,9 +402,13 @@ export function createTurnFinalizationCoordinator(): TurnFinalizationCoordinator
           deps.onExactError(authority, undefined);
           return true;
         } catch (error) {
-          if (exactIdentity) {
-            deps.onExactError(exactIdentity, error instanceof Error ? error.message : String(error));
+          const reason = error instanceof Error ? error.message : String(error);
+          if (reason === "mirror_append_item_missing"
+            && await exactRecordAlreadySettled(ports, item.journeyId, item.itemId)) {
+            if (exactIdentity) deps.onExactError(exactIdentity, undefined);
+            return false;
           }
+          if (exactIdentity) deps.onExactError(exactIdentity, reason);
           throw error;
         }
       };
@@ -400,6 +416,10 @@ export function createTurnFinalizationCoordinator(): TurnFinalizationCoordinator
         item: MirrorAppendOutboxSummary,
         record: TurnJournalRecord,
       ): Promise<boolean> => {
+        if (record.phase === "settled") {
+          deps.onExactError(record.authority, undefined);
+          return false;
+        }
         let authority: JourneySettlementAuthority | undefined;
         try {
           const storedProjection = await deps.loadProjectionByCoords(item.journeyId, item.generation, item.threadId);
@@ -514,9 +534,13 @@ export function createTurnFinalizationCoordinator(): TurnFinalizationCoordinator
           deps.onExactError(authority, undefined);
           return true;
         } catch (error) {
-          if (authority) {
-            deps.onExactError(authority, error instanceof Error ? error.message : String(error));
+          const reason = error instanceof Error ? error.message : String(error);
+          if (reason === "mirror_append_item_missing"
+            && await exactRecordAlreadySettled(ports, item.journeyId, item.itemId)) {
+            if (authority) deps.onExactError(authority, undefined);
+            return false;
           }
+          if (authority) deps.onExactError(authority, reason);
           throw error;
         }
       };
