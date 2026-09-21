@@ -92,10 +92,22 @@ Gates repeated: CR064 contract 12 scenarios, 919 frontend tests, Rust 162 + 1 ig
 
 - executable SHA-256: `2344c4e96a7a63fce6ddae6984c4c51d548cb4c585cdeecec5e00d0ba60c00d9`
 
-## Step 3 (fourth) — Navigator Homologation
+## Step 3 (fourth) — FAILED (2026-09-21): The Historical Root Cause Found
 
-Pending. Same script; the acceptance bar is zero synchronization surfaces at any moment of ordinary use.
+The flash persisted with `mirror_append_item_missing`. Tracing the native error sites found the latent, pre-RS020 root cause of the entire per-turn synchronization class: the CR062-era native `transition_turn_journal` validates that the exact outbox item still exists for `outbox_enqueued → settled`, while the live path — preserved verbatim since before RS020 — acknowledged the item before advancing the journal. Every live turn therefore delivered to Mirror successfully but failed its final journal advance, leaving `outbox_enqueued` debt that convergence re-materialized and settled seconds later: the visible flash since the CR063 era.
+
+The CR064 world fixture had not modeled the native validation; with it modeled, ten of twelve contract scenarios (including the five clean turns) reproduced the failure red. The coordinator now settles the journal before acknowledging (matching the CR062 recovery ordering), and the fixture enforces the native contract permanently. Corrections recorded in CR064 and CR066.
+
+## Step 2 (fifth) — Corrected Eval Candidate (2026-09-21)
+
+Gates repeated: CR064 contract 12 scenarios (red-then-green through the modeled native contract), 919 frontend tests, Rust 162 + 1 ignored under both feature sets, build, roadmap `READY`, whitespace clean. Candidate installed atomically without launching, Stable and Eval closed.
+
+- executable SHA-256: `3315126c2280d179153ca3638888219c634c631b5c0888f7e488d94333e86e5f`
+
+## Step 3 (fifth) — Navigator Homologation
+
+Pending. Same script; acceptance bar unchanged: zero synchronization surfaces at any moment of ordinary use.
 
 ## Step 4 — Durable Evidence
 
-Pending the fourth Step 3.
+Pending the fifth Step 3.
