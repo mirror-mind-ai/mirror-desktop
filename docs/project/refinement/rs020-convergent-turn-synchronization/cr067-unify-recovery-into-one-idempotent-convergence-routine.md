@@ -2,7 +2,7 @@
 
 # CR067: Unify Recovery into One Idempotent Convergence Routine
 
-**Status:** done
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs020-cr067-unified-convergence`
 
@@ -54,3 +54,7 @@ Deleted from `App.tsx`: `retryMirrorAppendSummary`, `repairPiBackedMirrorDeliver
 Closed on 2026-09-21 with explicit Navigator authorization.
 
 Proportionality and debt review: `no_action`. The routine reuses the existing exact recovery semantics unchanged and deletes more code than it adds to the renderer; release-shaped and manual validation belong to CR068.
+
+## Reopened (2026-09-21)
+
+CR068 homologation recorded `mirror_append_item_missing`: a convergence pass raced a completing delivery and failed loudly on a vanished outbox item although final durable state was fully settled. Convergence must treat a natively-missing item whose journal record is settled (or whose exact messages already exist in Mirror) as an already-converged no-op, and the coordinator must stop emitting `durable_evidence_changed` mid-transaction at enqueue time. Status returns to `in_progress`.

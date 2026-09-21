@@ -2,7 +2,7 @@
 
 # CR065: Derive Synchronization Status from Durable Evidence Only
 
-**Status:** done
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs020-cr065-durable-sync-status`
 
@@ -55,3 +55,7 @@ Eval homologation of the visible behavior remains for CR068's release-shaped val
 Closed on 2026-09-21 with explicit Navigator authorization after the CR064 contract flipped fully green.
 
 Proportionality and debt review: `no_action`. The change replaces the presentation input with existing durable evidence and adds one bounded state hydration; no schema, mutation-path or Mirror Core change.
+
+## Reopened (2026-09-21)
+
+CR068 homologation failed on presentation: the durable-evidence notice surfaces the ordinary settlement window after every turn. The Navigator's direction: synchronization stays internal; the notice appears only when durable debt persists after an automatic convergence attempt has failed. Status returns to `in_progress` for this gating correction.

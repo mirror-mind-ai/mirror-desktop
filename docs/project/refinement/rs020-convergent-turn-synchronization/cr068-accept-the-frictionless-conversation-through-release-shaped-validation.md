@@ -45,10 +45,19 @@ Stable and Eval verified closed before and after; the candidate was built from t
 - executable SHA-256: `b9a3199d14d464fb33008500b72fa3ccda75f2b92f601b7b5abfa89685fa417e`
 - local evidence: `/private/tmp/cr068-eval-20260921T022900Z`
 
-## Step 3 — Navigator Homologation
+## Step 3 — Navigator Homologation: FAILED (2026-09-21)
 
-Pending. Script: open Eval with Stable closed, select the `mirror-desktop` Journey, run five consecutive turns with zero synchronization notices, navigate away and back, restart the application and confirm clean rehydration.
+The Navigator ran several turns in Eval. Every turn ended showing the Mirror synchronization notice, and the session ended with the recovery panel exposing `mirror_append_item_missing`. Screenshots were supplied at 23:38:59 and 23:40:53 (local).
+
+Read-only durable inspection immediately afterwards proved that **every homologated turn is intact**: journal `settled / completed / complete` for all generation-4 runs through `agent-run-2026-09-21T02:40:27.715Z`, zero Journey outbox items, generation-4 projection with Harness/Pi/Mirror committed for all turns, and all exact message IDs present in Mirror Conversation `20f40b74` (14 messages). Delivery works; the failures are presentational and in convergence robustness:
+
+1. **The notice surfaces the normal settlement window.** Durable debt legitimately exists for the instants between projection, outbox and settlement. The coordinator emits `durable_evidence_changed` at enqueue time, mid-transaction, so the App refreshes journal/outbox presentation into a pending state and shows the notice after `finalization_finished`, until the post-settlement refresh lands. The Navigator's product direction is explicit: synchronization must be internal; the user is told only when a real, persistent failure remains after automatic repair. Responsible: CR065 gating (reopened).
+2. **Convergence can attempt an item that no longer exists.** The recovery panel recorded `mirror_append_item_missing` (native outbox lookup failure) even though final durable state shows everything settled: a convergence pass raced an in-flight or just-completed delivery and then failed loudly on the vanished item instead of recognizing the already-converged outcome. Responsible: CR067 robustness plus the CR066 mid-transaction emission (reopened).
+
+Separately observed, outside RS020 scope: one send failed pre-agent with `No models match pattern "claude-bridge/claude-fable-5"` while the footer showed `openai-codex/gpt-5.6-sol`. The GUI surfaced it and returned the message to the Composer. This is evidence for the captured CR053/CR054 model-clarity work.
+
+Per this CR's own rule, the fixes cannot be absorbed here: CR065 and CR067 are reopened, and Step 3 must be repeated on a new candidate.
 
 ## Step 4 — Durable Evidence
 
-Pending Step 3.
+Pending a repeated Step 3.
