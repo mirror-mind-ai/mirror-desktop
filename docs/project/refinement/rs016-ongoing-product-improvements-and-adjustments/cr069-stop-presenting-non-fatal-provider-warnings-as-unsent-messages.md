@@ -39,4 +39,4 @@ Related captured work: CR054 (surface provider terminal errors) and CR053 (clari
 - Red-then-green unit coverage: completed, cancelled, idle and running statuses suppress the banner key; failed produces it.
 - Complete frontend suite: 920 tests. TypeScript/Vite build passed; roadmap consistency `READY`; whitespace clean.
 
-Eval validation pending Navigator homologation.
+Eval candidate installed atomically without launching on 2026-09-21, Stable and Eval closed; executable SHA-256 `a33a0f112b13a41a747adbb17b1f35d29113b047e331ce38cb9586ffc1010027`. Navigator homologation pending.
