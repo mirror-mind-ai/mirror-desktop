@@ -2,7 +2,7 @@
 
 # CR067: Unify Recovery into One Idempotent Convergence Routine
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs020-cr067-unified-convergence`
 
@@ -48,3 +48,9 @@ Deleted from `App.tsx`: `retryMirrorAppendSummary`, `repairPiBackedMirrorDeliver
 - Source-inspection guardrails repointed at the coordinator; `App.tsx` is asserted to contain none of the four deleted paths.
 - Complete frontend suite: 161 files, 916 tests.
 - TypeScript/Vite build passed; roadmap consistency `READY`; `git diff --check` clean.
+
+## Closure
+
+Closed on 2026-09-21 with explicit Navigator authorization.
+
+Proportionality and debt review: `no_action`. The routine reuses the existing exact recovery semantics unchanged and deletes more code than it adds to the renderer; release-shaped and manual validation belong to CR068.
