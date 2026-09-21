@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS016
-- Change Request: —
+- Change Request: CR070
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -49,7 +49,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR070](rs016-ongoing-product-improvements-and-adjustments/cr070-restore-visibility-of-pre-agent-send-rejection.md) | RS016 | Restore Visibility of Pre-Agent Send Rejection | captured | — | — |
+| 1 | [CR070](rs016-ongoing-product-improvements-and-adjustments/cr070-restore-visibility-of-pre-agent-send-rejection.md) | RS016 | Restore Visibility of Pre-Agent Send Rejection | in_progress | @alissonvale | `refinement/rs016-cr070-unsent-notice-visibility` |
 | 2 | [CR071](rs016-ongoing-product-improvements-and-adjustments/cr071-stop-offering-models-the-desktop-invocation-cannot-run.md) | RS016 | Stop Offering Models the Desktop Invocation Cannot Run | captured | — | — |
 | 3 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
 | 4 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |

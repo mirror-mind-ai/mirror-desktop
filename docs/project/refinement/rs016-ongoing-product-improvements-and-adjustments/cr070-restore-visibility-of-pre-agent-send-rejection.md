@@ -2,9 +2,9 @@
 
 # CR070: Restore Visibility of Pre-Agent Send Rejection
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr070-unsent-notice-visibility`
 
 ## Problem
 
