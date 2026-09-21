@@ -2,7 +2,7 @@
 
 # CR066: Extract a Serialized Turn Finalization Coordinator from the Renderer
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs020-cr066-finalization-coordinator`
 
@@ -58,3 +58,9 @@ Repair orchestration (`retryMirrorAppendSummary`, `repairPiBackedMirrorDeliveryD
 - CR064 contract: 8 scenarios green through the real coordinator.
 - Complete frontend suite: 161 files, 915 tests.
 - TypeScript/Vite build passed; roadmap consistency `READY`; `git diff --check` clean.
+
+## Closure
+
+Closed on 2026-09-21 with explicit Navigator authorization.
+
+Proportionality and debt review: `no_action` beyond captured scope. The remaining repair-path orchestration inside `App.tsx` and the surviving source-inspection tests are exactly CR067's deletion scope, not new debt.

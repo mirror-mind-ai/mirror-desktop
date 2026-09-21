@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS020
-- Change Request: CR066
+- Change Request: CR067
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -49,11 +49,11 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR066](rs020-convergent-turn-synchronization/cr066-extract-a-serialized-turn-finalization-coordinator-from-the-renderer.md) | RS020 | Extract a Serialized Turn Finalization Coordinator from the Renderer | in_progress | @alissonvale | `refinement/rs020-cr066-finalization-coordinator` |
-| 2 | [CR067](rs020-convergent-turn-synchronization/cr067-unify-recovery-into-one-idempotent-convergence-routine.md) | RS020 | Unify Recovery into One Idempotent Convergence Routine | captured | — | — |
-| 3 | [CR068](rs020-convergent-turn-synchronization/cr068-accept-the-frictionless-conversation-through-release-shaped-validation.md) | RS020 | Accept the Frictionless Conversation Through Release-Shaped Validation | captured | — | — |
-| 4 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
-| 5 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| 1 | [CR067](rs020-convergent-turn-synchronization/cr067-unify-recovery-into-one-idempotent-convergence-routine.md) | RS020 | Unify Recovery into One Idempotent Convergence Routine | in_progress | @alissonvale | `refinement/rs020-cr067-unified-convergence` |
+| 2 | [CR068](rs020-convergent-turn-synchronization/cr068-accept-the-frictionless-conversation-through-release-shaped-validation.md) | RS020 | Accept the Frictionless Conversation Through Release-Shaped Validation | captured | — | — |
+| 3 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
+| 4 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
+| — | [CR066](rs020-convergent-turn-synchronization/cr066-extract-a-serialized-turn-finalization-coordinator-from-the-renderer.md) | RS020 | Extract a Serialized Turn Finalization Coordinator from the Renderer | done | @alissonvale | `refinement/rs020-cr066-finalization-coordinator` |
 | — | [CR065](rs020-convergent-turn-synchronization/cr065-derive-synchronization-status-from-durable-evidence-only.md) | RS020 | Derive Synchronization Status from Durable Evidence Only | done | @alissonvale | `refinement/rs020-cr065-durable-sync-status` |
 | — | [CR064](rs020-convergent-turn-synchronization/cr064-encode-the-multi-turn-happy-path-as-an-executable-contract.md) | RS020 | Encode the Multi-Turn Happy Path as an Executable Contract | done | @alissonvale | `refinement/rs020-cr064-happy-path-contract` |
 | — | [CR063](rs016-ongoing-product-improvements-and-adjustments/cr063-align-sync-recovery-notice-with-presented-conversation.md) | RS016 | Align Synchronization Recovery Notice with the Presented Conversation | promoted | @alissonvale | `RS020 / CR064–CR065` |
