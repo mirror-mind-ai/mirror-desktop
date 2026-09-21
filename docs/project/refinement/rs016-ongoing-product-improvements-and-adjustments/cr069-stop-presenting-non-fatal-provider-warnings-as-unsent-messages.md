@@ -2,9 +2,9 @@
 
 # CR069: Stop Presenting Non-Fatal Provider Warnings as Unsent Messages
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr069-non-fatal-provider-warnings`
 
 ## Problem
 
@@ -29,3 +29,14 @@ Both halves are wrong for this case:
 ## Notes
 
 Related captured work: CR054 (surface provider terminal errors) and CR053 (clarify effective model). This CR is distinct: it corrects false failure presentation for successful turns rather than surfacing genuine failures.
+
+## Implementation Outcome (2026-09-21)
+
+`terminalStreamWarningNoticeKey(...)` now requires the run status and returns a key only for `failed` runs, so the `Message was not sent` banner is reserved for runs that genuinely did not complete — the pre-agent rejection path, which restores the Composer and marks the run failed. Warnings emitted during completed or cancelled runs (including the expected `--no-extensions` claude-bridge pattern noise) no longer occupy the Composer surface. Genuine provider-failure presentation remains CR054's captured scope.
+
+## Validation
+
+- Red-then-green unit coverage: completed, cancelled, idle and running statuses suppress the banner key; failed produces it.
+- Complete frontend suite: 920 tests. TypeScript/Vite build passed; roadmap consistency `READY`; whitespace clean.
+
+Eval validation pending Navigator homologation.

@@ -12,8 +12,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: RS020
-- Change Request: CR068
+- Refinement Story: RS016
+- Change Request: CR069
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -50,7 +50,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
 | 1 | [CR068](rs020-convergent-turn-synchronization/cr068-accept-the-frictionless-conversation-through-release-shaped-validation.md) | RS020 | Accept the Frictionless Conversation Through Release-Shaped Validation | in_progress | @alissonvale | `refinement/rs020-cr068-release-shaped-acceptance` |
-| 2 | [CR069](rs016-ongoing-product-improvements-and-adjustments/cr069-stop-presenting-non-fatal-provider-warnings-as-unsent-messages.md) | RS016 | Stop Presenting Non-Fatal Provider Warnings as Unsent Messages | captured | — | — |
+| 2 | [CR069](rs016-ongoing-product-improvements-and-adjustments/cr069-stop-presenting-non-fatal-provider-warnings-as-unsent-messages.md) | RS016 | Stop Presenting Non-Fatal Provider Warnings as Unsent Messages | in_progress | @alissonvale | `refinement/rs016-cr069-non-fatal-provider-warnings` |
 | 3 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | captured | — | — |
 | 4 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | captured | — | — |
 | — | [CR067](rs020-convergent-turn-synchronization/cr067-unify-recovery-into-one-idempotent-convergence-routine.md) | RS020 | Unify Recovery into One Idempotent Convergence Routine | in_progress | @alissonvale | `refinement/rs020-cr067-unified-convergence` |

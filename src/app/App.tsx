@@ -719,7 +719,7 @@ export function App({ model }: AppProps) {
   const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime);
   const terminalStreamWarningKey = selectedRuntimeBusy
     ? undefined
-    : terminalStreamWarningNoticeKey(selectedJourney, agentRun.id, streamWarnings);
+    : terminalStreamWarningNoticeKey(selectedJourney, agentRun.id, streamWarnings, agentRun.status);
   const showTransientStreamWarning = Boolean(
     terminalStreamWarningKey && terminalStreamWarningKey !== dismissedStreamWarningKey,
   );

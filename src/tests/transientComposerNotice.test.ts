@@ -44,15 +44,24 @@ describe("transient composer notices", () => {
   });
 
   it("keys terminal warning presentation by Journey, count and final warning", () => {
-    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", [])).toBeUndefined();
-    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", ["Repeated"])).not.toBe(
-      terminalStreamWarningNoticeKey("journey-a", "run-1", ["Repeated", "Repeated"]),
+    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", [], "failed")).toBeUndefined();
+    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", ["Repeated"], "failed")).not.toBe(
+      terminalStreamWarningNoticeKey("journey-a", "run-1", ["Repeated", "Repeated"], "failed"),
     );
-    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", ["Repeated"])).not.toBe(
-      terminalStreamWarningNoticeKey("journey-b", "run-1", ["Repeated"]),
+    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", ["Repeated"], "failed")).not.toBe(
+      terminalStreamWarningNoticeKey("journey-b", "run-1", ["Repeated"], "failed"),
     );
-    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", ["Repeated"])).not.toBe(
-      terminalStreamWarningNoticeKey("journey-a", "run-2", ["Repeated"]),
+    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", ["Repeated"], "failed")).not.toBe(
+      terminalStreamWarningNoticeKey("journey-a", "run-2", ["Repeated"], "failed"),
     );
+  });
+
+  it("reserves the unsent-message banner for genuinely failed runs", () => {
+    const noise = ['Warning: No models match pattern "claude-bridge/claude-fable-5"'];
+    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", noise, "completed")).toBeUndefined();
+    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", noise, "cancelled")).toBeUndefined();
+    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", noise, "idle")).toBeUndefined();
+    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", noise, "running")).toBeUndefined();
+    expect(terminalStreamWarningNoticeKey("journey-a", "run-1", noise, "failed")).toBeDefined();
   });
 });
