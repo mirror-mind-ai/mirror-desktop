@@ -138,6 +138,10 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
       if (!expectedPhases.includes(record.phase)) {
         throw new Error(`turn_journal_shadow_divergence:${record.phase}:${expectedPhases.join("|")}`);
       }
+      if (record.phase === "outbox_enqueued" && next === "settled"
+        && !stores.outbox.some((item) => item.itemId === authority.turnId)) {
+        throw new Error("mirror_append_item_missing");
+      }
       record.phase = next;
       record.updatedAt = nextInstant();
     },

@@ -198,11 +198,11 @@ export async function appendAndAcknowledgeProjection(
     validateExactOutboxSummary(summary, latestProjection, authority);
     const settled = applyMirrorAppendReceipt(latestProjection, authority, receipt, new Date().toISOString());
     await ports.savePostFrontierProjection(settled, authority, summary);
-    await ports.acknowledgeOutboxItem(summary.itemId, summary.conversationId, authority);
     const journal = await ports.loadJournal(authority.journeyId);
     if (journal.records.some((record) => record.authority.runId === authority.runId)) {
       await ports.advanceJournal(authority, "outbox_enqueued", "settled");
     }
+    await ports.acknowledgeOutboxItem(summary.itemId, summary.conversationId, authority);
     return settled;
   });
 }

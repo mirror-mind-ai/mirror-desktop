@@ -70,3 +70,7 @@ The defect mechanism pinned by the fixture: repair publishes only through `publi
 Closed on 2026-09-21 with explicit Navigator authorization after the red-phase evidence was reviewed. The contract is the acceptance gate for CR065–CR067; the two `it.fails` scenarios must flip to `it` as the corrections land.
 
 Proportionality and debt review: `no_action`. The contract adds test-only code composing real production modules; no production change, no new schema and no seam was required.
+
+## Fidelity Correction (2026-09-21)
+
+The fourth CR068 homologation exposed a world-fixture fidelity gap: the native `transition_turn_journal` validates that the exact outbox item still exists for `outbox_enqueued → settled`, and the world's `advanceJournal` did not model it. With the native contract modeled, ten of twelve scenarios turned red, reproducing the production per-turn failure exactly. The fixture now enforces the native validation permanently.

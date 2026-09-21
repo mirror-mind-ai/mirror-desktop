@@ -64,3 +64,7 @@ Repair orchestration (`retryMirrorAppendSummary`, `repairPiBackedMirrorDeliveryD
 Closed on 2026-09-21 with explicit Navigator authorization.
 
 Proportionality and debt review: `no_action` beyond captured scope. The remaining repair-path orchestration inside `App.tsx` and the surviving source-inspection tests are exactly CR067's deletion scope, not new debt.
+
+## Post-Closure Correction (2026-09-21)
+
+CR068 homologation traced the historical per-turn synchronization flash to a latent ordering defect that CR066 had preserved verbatim from the pre-RS020 renderer: `appendAndAcknowledgeProjection` acknowledged the outbox item before advancing the journal to `settled`, while the CR062-era native `transition_turn_journal` requires the exact item to still exist for that transition. Every live turn therefore failed its final journal advance with `mirror_append_item_missing`, leaving `outbox_enqueued` debt that convergence re-materialized and settled seconds later — the visible flash since the CR063 era. The coordinator now settles the journal before acknowledging, matching the native contract and the CR062 recovery ordering.
