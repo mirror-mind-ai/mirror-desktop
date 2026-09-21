@@ -113,6 +113,23 @@ describe("CR064 multi-turn happy-path contract", () => {
     expect(view.availability.condition).toBe("ready");
   });
 
+  it("performs zero writes when converging an already synchronized conversation", async () => {
+    const world = createConvergentTurnWorld();
+    await runCleanTurn(world, 1);
+    await runCleanTurn(world, 2);
+    const journalBefore = JSON.stringify(world.stores.journal);
+    const mirrorBefore = JSON.stringify([...world.stores.mirror.entries()]);
+    const projectionBefore = world.stores.projections.get(1);
+    const baseBefore = world.base;
+    await world.repairDeliveryDebt();
+    expect(JSON.stringify(world.stores.journal)).toBe(journalBefore);
+    expect(JSON.stringify([...world.stores.mirror.entries()])).toBe(mirrorBefore);
+    expect(world.stores.projections.get(1)).toBe(projectionBefore);
+    expect(world.base).toBe(baseBefore);
+    expect(world.stores.outbox).toHaveLength(0);
+    expectFrictionless(world, 2);
+  });
+
   it("never lets an older run's convergence alter the successor's content", async () => {
     const world = createConvergentTurnWorld();
     world.beginTurn("run-1", "question 1");

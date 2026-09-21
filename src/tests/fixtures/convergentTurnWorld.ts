@@ -16,6 +16,7 @@ import {
 import {
   createTurnFinalizationCoordinator,
   upgradeMirrorCommitments,
+  type ConvergenceDeps,
   type TurnFinalizationPorts,
 } from "../../app/turnFinalizationCoordinator";
 import type { TurnJournalRecord } from "../../app/turnJournal";
@@ -25,11 +26,7 @@ import {
   type ConversationAvailability,
 } from "../../domain/conversationAvailability";
 import { deriveDurableSynchronizationDebt } from "../../domain/durableSynchronizationStatus";
-import {
-  applyMirrorAppendReceipt,
-  type MirrorAppendOutboxItem,
-  type MirrorAppendReceipt,
-} from "../../domain/mirrorAppendOutbox";
+import type { MirrorAppendOutboxItem, MirrorAppendReceipt } from "../../domain/mirrorAppendOutbox";
 import { stageCorrelatedTurn } from "../../domain/threeBodyTurnCommit";
 import {
   createDedicatedJourneyConversation,
@@ -156,6 +153,32 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
   function dispatch(action: Parameters<typeof journeyRuntimeReducer>[1]): void {
     runtime = journeyRuntimeReducer(runtime, action);
   }
+
+  const convergenceDeps: ConvergenceDeps = {
+    ports,
+    reconcileDeliveryDebt: async () => stores.outbox.map((item) => ({
+      schemaVersion: item.schemaVersion,
+      itemId: item.itemId,
+      journeyId: item.journeyId,
+      threadId: item.threadId,
+      generation: item.generation,
+      conversationId: item.conversationId,
+      createdAt: item.createdAt,
+    })),
+    loadProjectionByCoords: async (_journeyId, generationNumber) => stores.projections.get(generationNumber),
+    deliverPiBackedOutboxItem: async () => {
+      throw new Error("world_pi_backed_delivery_unused");
+    },
+    loadThread: async () => thread,
+    inspectTranscript: async () => ({ schemaVersion: "0.1.0", entries: [] }),
+    inspectNativeOccupancy: async () => ({
+      schemaVersion: "0.1.0",
+      limit: 2,
+      processCapacityInUse: 0,
+      entries: [],
+    } as never),
+    onExactError: () => {},
+  };
 
   coordinator.subscribe((event) => {
     if (event.type !== "presentation") return;
@@ -289,26 +312,7 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
     },
 
     async repairDeliveryDebt(): Promise<void> {
-      for (const item of [...stores.outbox]) {
-        const record = stores.journal.find((candidate) => candidate.authority.turnId === item.itemId);
-        if (!record) continue;
-        const persisted = stores.projections.get(item.generation);
-        if (!persisted) continue;
-        const turn = persisted.reconciliation.turns.find((candidate) => candidate.turnId === item.itemId);
-        if (!turn?.runId) continue;
-        const correlation = createDedicatedTurnAuthority(
-          thread, turn.runId, item.itemId, item.messages[0].id, item.messages[1].id,
-        );
-        const authority = createJourneySettlementAuthority(
-          createRunAuthority(correlation, persisted.liveIdentity, generation),
-        );
-        const receipt = deliverToMirror(item);
-        const committed = applyMirrorAppendReceipt(persisted, authority, receipt, nextInstant());
-        stores.projections.set(item.generation, committed);
-        stores.outbox = stores.outbox.filter((candidate) => candidate.itemId !== item.itemId);
-        record.phase = "settled";
-        coordinator.publishSettled(authority, committed);
-      }
+      await coordinator.convergeDelivery(journeyId, convergenceDeps);
     },
 
     navigateAway(): void {

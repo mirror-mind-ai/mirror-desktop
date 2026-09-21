@@ -154,8 +154,8 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("const metadataBase = durableMetadata ?? baseConversation;");
     expect(appSource).toContain("baseConversation = projectPiBackedConversationSurface(metadataBase, inspection);");
     expect(appSource).toContain("exact Conversation metadata or Pi session authority changed");
-    expect(appSource).toContain("resumeProjectedMirrorSynchronization(projectedSyncRecord)");
-    expect(appSource).toContain("projectionAlreadyDurable: true");
+    expect(appSource).toContain("void recoverPostTerminalPersistence(ownerJourneyId);");
+    expect(coordinatorSource).toContain("projectionAlreadyDurable: true");
     expect(appSource).not.toContain("requiresConversationRestore:");
     expect(appSource).toContain("status={composerTurnStatus}");
     expect(appSource).toContain("if (journeyId === selectedJourney)");
