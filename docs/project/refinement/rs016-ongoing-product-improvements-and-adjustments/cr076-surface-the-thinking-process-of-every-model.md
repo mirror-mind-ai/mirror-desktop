@@ -181,6 +181,42 @@ never more than one answer to what a turn's reasoning was.
 - Navigator reviewed a rendered prototype of the proposed surface built with
   the application stylesheet on 2026-09-22 and approved the form.
 
+## Implementation Evidence
+
+- Admission: `supportsDisplayableReasoningSummaries(...)` now returns
+  `!config.safeTestMode`; the per-message `activeReasoningSummaryProvider`
+  gate and `isOpenAiCodexAssistantMessage(...)` were removed. Admission is
+  event-driven: Pi emits thinking events only when the model produced
+  thinking, so no allowlist and no catalog lookup are needed at the stream.
+- Bounds: `REASONING_BLOCK_MAX_CHARS = 8192` and
+  `REASONING_TURN_MAX_CHARS = 65536` enforced in `reduceRuntimeProjection`
+  capture. A block crossing either limit is capped and marked
+  `truncated: true`; once the turn ceiling is reached, new blocks are created
+  `elided: true` with empty content so ordering and tool nesting survive.
+  Bounds are measured in UTF-16 code units, which equals bytes for the
+  ASCII-dominant reasoning streams observed.
+- Classification in `projectAgentActionGroups(...)`: multi-paragraph
+  standalone bold titles keep today's chips; short single-line summaries
+  (≤ 120 chars) keep today's chip presentation; everything else becomes a
+  `kind: "reasoning"` group carrying the full text and a derived title
+  (first line if ≤ 80 chars, else first sentence, else truncation marked
+  with an ellipsis).
+- Presentation: reasoning groups render as `details` with
+  `Thinking · {title}`, the full prose in the previously unused
+  `.runtime-reasoning-summary` style, visible truncation/elision notes in a
+  new `.runtime-reasoning-truncation` style, nested operations, and the
+  existing `useRuntimeDisclosure` behavior (open while streaming, collapse
+  on settle, manual open preserved after settle).
+- Persistence: optional `truncated`/`elided` flags added to the reasoning
+  summary types and tolerated by `parseTerminalAgentActionProjection`;
+  terminal evidence copies them through its existing spread.
+- Tests: stream admission for non-codex providers and safe-test refusal;
+  block truncation, exact-fit non-marking, turn-ceiling elision with
+  preserved ordering, mid-block ceiling crossing; narrative classification,
+  chip preservation, title truncation, truncated/elided projection;
+  component rendering of the reasoning block with visible truncation notes.
+  Full suite 164 files / 961 tests green; TypeScript/Vite build green.
+
 ## Authority Boundary
 
 Captured only. Selecting, assigning Driver/Delivery, implementing, committing

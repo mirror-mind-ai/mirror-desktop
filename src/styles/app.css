@@ -2529,6 +2529,15 @@ h3 {
   white-space: pre-wrap;
 }
 
+.runtime-reasoning-truncation {
+  color: #668087;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  margin: 0 4px 4px;
+  text-transform: uppercase;
+}
+
 .runtime-reasoning-summary.status-streaming {
   color: #9aafb4;
 }

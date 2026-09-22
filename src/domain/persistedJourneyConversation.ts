@@ -230,7 +230,9 @@ function parseTerminalAgentActionProjection(value: unknown): TerminalAgentAction
     && (item.output === undefined || typeof item.output === "string"));
   const summariesValid = value.reasoningSummaries.every((item) => isRecord(item)
     && typeof item.id === "string" && typeof item.content === "string"
-    && ["completed", "interrupted"].includes(String(item.status)));
+    && ["completed", "interrupted"].includes(String(item.status))
+    && (item.truncated === undefined || item.truncated === true)
+    && (item.elided === undefined || item.elided === true));
   const orderValid = value.activityOrder.every((item) => isRecord(item)
     && ["operation", "reasoning_summary"].includes(String(item.type))
     && typeof item.id === "string");

@@ -91,7 +91,7 @@ describe("agent action projection", () => {
     ]);
   });
 
-  it("does not split mixed narrative or ordinary multiparagraph summaries", () => {
+  it("projects mixed multiparagraph summaries as one reasoning block, not a flooded label", () => {
     const groups = projectAgentActionGroups(projection({
       reasoningSummaries: [{
         id: "summary-mixed",
@@ -103,9 +103,78 @@ describe("agent action projection", () => {
 
     expect(groups).toMatchObject([{
       id: "summary:summary-mixed",
-      label: "Inspecting sources\n\nThis paragraph explains why the files belong together.",
+      kind: "reasoning",
+      label: "Inspecting sources",
+      reasoningText: "Inspecting sources\n\nThis paragraph explains why the files belong together.",
       operations: [],
     }]);
+  });
+
+  it("projects narrative thinking as a reasoning block with a derived title and nested tools", () => {
+    const narrative = "I need to figure out where these two files actually live, since mirror-dev looks like a Python project. I'll need to search for them.";
+    const groups = projectAgentActionGroups(projection({
+      reasoningSummaries: [{ id: "summary-1", content: narrative, status: "completed" }],
+      operations: [{ id: "glob-1", name: "glob", status: "completed" }],
+      activityOrder: [
+        { type: "reasoning_summary", id: "summary-1" },
+        { type: "operation", id: "glob-1" },
+      ],
+    }));
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({
+      kind: "reasoning",
+      reasoningText: narrative,
+      operations: [{ id: "glob-1" }],
+      active: false,
+    });
+    expect(groups[0].label.length).toBeLessThanOrEqual(120);
+    expect(groups[0].label.startsWith("I need to figure out")).toBe(true);
+  });
+
+  it("keeps short single-line summaries as chips and truncates long titles visibly", () => {
+    const shortLine = "Formulating a concise answer";
+    const longSingleSentence = `Weighing ${"tradeoff ".repeat(20)}between the two synchronization strategies without a sentence break`;
+    const groups = projectAgentActionGroups(projection({
+      reasoningSummaries: [
+        { id: "summary-1", content: shortLine, status: "completed" },
+        { id: "summary-2", content: longSingleSentence, status: "completed" },
+      ],
+      activityOrder: [
+        { type: "reasoning_summary", id: "summary-1" },
+        { type: "reasoning_summary", id: "summary-2" },
+      ],
+    }));
+
+    expect(groups[0]).toMatchObject({ label: shortLine, operations: [] });
+    expect(groups[0].kind).toBeUndefined();
+    expect(groups[1].kind).toBe("reasoning");
+    expect(groups[1].label.endsWith("\u2026")).toBe(true);
+    expect(groups[1].label.length).toBeLessThanOrEqual(80);
+  });
+
+  it("projects truncated and elided reasoning evidence visibly and preserves nesting", () => {
+    const groups = projectAgentActionGroups(projection({
+      reasoningSummaries: [
+        { id: "summary-1", content: `${"a".repeat(200)}. More reasoning follows here without end`, status: "completed", truncated: true },
+        { id: "summary-2", content: "", status: "completed", elided: true },
+      ],
+      operations: [{ id: "read-1", name: "read", status: "completed" }],
+      activityOrder: [
+        { type: "reasoning_summary", id: "summary-1" },
+        { type: "reasoning_summary", id: "summary-2" },
+        { type: "operation", id: "read-1" },
+      ],
+    }));
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({ kind: "reasoning", truncated: true });
+    expect(groups[1]).toMatchObject({
+      kind: "reasoning",
+      elided: true,
+      label: "further reasoning elided at the turn limit",
+      operations: [{ id: "read-1" }],
+    });
   });
 
   it("creates one honest fallback action for every unclaimed tool", () => {

@@ -222,7 +222,7 @@ describe("Pi process stream adapter", () => {
     ]);
   });
 
-  it("projects provider-designated OpenAI Codex reasoning summaries when explicitly enabled", () => {
+  it("projects thinking transport events for any provider when reasoning capture is enabled", () => {
     const lines = [
       JSON.stringify({
         type: "message_update",
@@ -248,45 +248,34 @@ describe("Pi process stream adapter", () => {
     ]);
   });
 
-  it("discards thinking transport events unless the provider path is certified as displayable summaries", () => {
+  it("discards thinking transport events unless reasoning capture is enabled", () => {
     const line = JSON.stringify({
       type: "message_update",
       assistantMessageEvent: { type: "thinking_delta", contentIndex: 0, delta: "private provider reasoning" },
     });
 
     expect(mapPiProcessEventToStreamEvents({ kind: "stdout", content: `${line}\n` })).toEqual([]);
-  });
-
-  it("certifies reasoning summaries from the actual assistant message metadata across process events", () => {
-    const mappingState = {};
-    const assistantStart = JSON.stringify({
-      type: "message_start",
-      message: {
-        role: "assistant",
-        api: "openai-codex-responses",
-        provider: "openai-codex",
-        model: "gpt-5.4-mini",
-        content: [],
-      },
-    });
-    const thinkingDelta = JSON.stringify({
-      type: "message_update",
-      assistantMessageEvent: { type: "thinking_delta", contentIndex: 0, delta: "Preparing context" },
-    });
-
     expect(mapPiProcessEventToStreamEvents(
-      { kind: "stdout", content: `${assistantStart}\n` },
-      { mappingState },
+      { kind: "stdout", content: `${line}\n` },
+      { mappingState: {} },
     )).toEqual([]);
-    expect(mapPiProcessEventToStreamEvents(
-      { kind: "stdout", content: `${thinkingDelta}\n` },
-      { mappingState },
-    )).toEqual([{ type: "reasoning_summary_delta", content: "Preparing context" }]);
   });
 
-  it("certifies only the OpenAI Codex provider adapter for reasoning-summary projection", () => {
-    // Certification happens on the projected config, the one a send uses;
-    // the raw default template no longer names a provider (CR053).
+  it("projects thinking from non-codex providers identically once capture is enabled", () => {
+    const anthropicThinking = JSON.stringify({
+      type: "message_update",
+      assistantMessageEvent: { type: "thinking_delta", contentIndex: 0, delta: "I need to find where these files live" },
+    });
+
+    expect(mapPiProcessEventToStreamEvents(
+      { kind: "stdout", content: `${anthropicThinking}\n` },
+      { projectReasoningSummaries: true, mappingState: {} },
+    )).toEqual([{ type: "reasoning_summary_delta", content: "I need to find where these files live" }]);
+  });
+
+  it("admits reasoning capture for every provider except safe-test invocations", () => {
+    // CR076: admission is capability- and event-driven. Pi only emits
+    // thinking events when the model produced thinking, so no allowlist.
     const projectedDefault = projectAgentProfile(defaultPiProviderConfig, {
       journeyId: "journey-a",
       model: { provider: "openai-codex", model: "gpt-5.5" },
@@ -296,22 +285,18 @@ describe("Pi process stream adapter", () => {
       thinkingSource: "global",
     });
     expect(supportsDisplayableReasoningSummaries(projectedDefault)).toBe(true);
-    expect(supportsDisplayableReasoningSummaries(defaultPiProviderConfig)).toBe(false);
-    expect(supportsDisplayableReasoningSummaries({
-      ...projectedDefault,
-      command: "/usr/local/bin/pi",
-    })).toBe(true);
-    expect(supportsDisplayableReasoningSummaries({
-      ...projectedDefault,
-      command: "custom-provider-wrapper",
-    })).toBe(true);
+    expect(supportsDisplayableReasoningSummaries(defaultPiProviderConfig)).toBe(true);
     expect(supportsDisplayableReasoningSummaries({
       ...defaultPiProviderConfig,
       args: ["--provider", "anthropic", "--model", "claude-opus"],
-    })).toBe(false);
+    })).toBe(true);
     expect(supportsDisplayableReasoningSummaries({
       ...defaultPiProviderConfig,
-      args: ["--model", "gpt-5.4-mini"],
+      args: ["--provider", "claude-bridge", "--model", "claude-opus-5"],
+    })).toBe(true);
+    expect(supportsDisplayableReasoningSummaries({
+      ...defaultPiProviderConfig,
+      safeTestMode: true,
     })).toBe(false);
   });
 
