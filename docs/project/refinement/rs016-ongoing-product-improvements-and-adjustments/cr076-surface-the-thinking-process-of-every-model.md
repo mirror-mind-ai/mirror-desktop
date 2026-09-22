@@ -2,7 +2,7 @@
 
 # CR076: Surface the Thinking Process of Every Model
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr076-model-agnostic-reasoning`
 
@@ -217,8 +217,56 @@ never more than one answer to what a turn's reasoning was.
   component rendering of the reasoning block with visible truncation notes.
   Full suite 164 files / 961 tests green; TypeScript/Vite build green.
 
+## Navigator Validation
+
+Validated by the Navigator on 2026-09-22 on the installed Dev build
+(`0.2.0-alpha.16`, exec `6d6a2391da743fa8`), running Journey
+`US1 Rerun A 0831` with `claude-bridge/claude-opus-4-7` at thinking `high`.
+Narrative thinking now appears on the conversation surface: reasoning blocks
+open while streaming, tools nest inside the reasoning that motivated them, and
+blocks collapse once settled. Codex-shaped reasoning keeps its existing chip
+presentation.
+
+## Proportionality and Debt Review
+
+**Proportionate.** The change removes a gate and adds a presentation branch.
+It touches the stream mapper, the activity model, the action projection, one
+component and one stylesheet. No Pi invocation, provider authentication, model
+selection, Mirror synchronization, transcript authority or turn finalization
+path was modified. A defect here misrenders reasoning; it cannot corrupt a
+conversation or a delivery.
+
+**Debt accepted, and named.** Three limits ship knowingly:
+
+- **Reasoning does not survive reconstruction.** A conversation rebuilt from
+  the Pi session still loses its reasoning, because
+  `piBackedConversationSurface.ts` has no `thinking` handling. This is the
+  exact gap CR077 exists to close, and until it lands the feature is live-only.
+- **Bounds are measured in UTF-16 code units**, which equals bytes only for
+  ASCII-dominant reasoning. Heavily non-Latin reasoning will be cut somewhat
+  earlier in byte terms than the stated 8 KB / 64 KB. Acceptable because the
+  bound exists to prevent unbounded growth, not to hit an exact byte target.
+- **The derived title is a truncation heuristic**, not comprehension. A
+  reasoning block whose first line is uninformative gets an uninformative
+  title. This was the deliberate choice over synthesizing labels, and the full
+  text is always one click away.
+
+**Debt retired.** Reasoning display is no longer provider-gated: the hardcoded
+`openai-codex` allowlist, its per-message companion gate and the
+`isOpenAiCodexAssistantMessage` predicate are gone. The orphaned
+`.runtime-reasoning-summary` style is now the real rendering path for narrative
+reasoning rather than dead CSS guarded by a test.
+
+## Closure
+
+Closed on 2026-09-22 on `refinement/rs016-cr076-model-agnostic-reasoning` at
+`053ba04`, merged to `main`. Anthropic thinking that Pi records is now shown
+rather than discarded, presented in the shape the model produced, bounded at
+capture with truncation and elision always visible.
+
 ## Authority Boundary
 
-Captured only. Selecting, assigning Driver/Delivery, implementing, committing
-beyond capture, pushing, merging, publication and release remain separate
-Navigator decisions.
+Closed under explicit Navigator validation on the installed Dev build. CR077
+remains a separate decision, and any release that carries this work remains its
+own Navigator decision under the single release-publication scope CR074
+defines.
