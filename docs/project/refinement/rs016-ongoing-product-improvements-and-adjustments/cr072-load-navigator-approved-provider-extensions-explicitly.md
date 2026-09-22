@@ -2,7 +2,7 @@
 
 # CR072: Load Navigator-Approved Provider Extensions Explicitly
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr072-global-pi-extensions`
 
@@ -102,8 +102,7 @@ extension-provided models.
   extension files/directories, and the empty case.
 - Full Rust suite: 167 passed. Full frontend suite: 926 passed.
   TypeScript/Vite build passed; roadmap `READY`; whitespace clean.
-- Manual DEV homologation pending: a `claude-bridge/claude-opus-5` send
-  must now execute end-to-end.
+- Manual DEV homologation (2026-09-21): validated by the Navigator. A `claude-bridge/claude-opus-5` send executed end-to-end in Dev (`exec f8786df2…`).
 
 ## Relationship
 
