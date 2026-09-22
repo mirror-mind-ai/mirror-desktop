@@ -76,6 +76,35 @@ does.**
 - Entry resolution must fail visibly per extension (skip-and-report), never
   abort the invocation for one unresolvable package.
 
+## Implementation Outcome (2026-09-21)
+
+`src-tauri/src/pi_global_extensions.rs` resolves the global set:
+`settings.json#packages` (`npm:` sources only) through each package's
+`package.json#pi.extensions` declaration, plus `~/.pi/agent/extensions/`
+files and directories (directory entries via `pi.extensions` or
+`index.ts|js`). Every unresolvable item — unsupported sources, missing
+packages, undeclared manifests, skill-shaped directories such as the
+user's `librarian` — is skipped with a note, never aborting the
+invocation. The `mirror-logger` refusal guards both by package name and
+by resolved entry path.
+
+The mirror-mediated invocation keeps `--no-extensions` and appends
+`--extension <entry>` per resolved item; skip notes surface as stderr
+warnings (visible in diagnostics, not banner-owning under CR069). The
+conversation-title suggestion call receives the same curated entries,
+since it inherits the user's `--model` and would otherwise fail on
+extension-provided models.
+
+## Validation
+
+- Five red-then-green unit tests cover npm resolution, writer refusal by
+  name and by path, skip-and-report of unresolvable material, user
+  extension files/directories, and the empty case.
+- Full Rust suite: 167 passed. Full frontend suite: 926 passed.
+  TypeScript/Vite build passed; roadmap `READY`; whitespace clean.
+- Manual DEV homologation pending: a `claude-bridge/claude-opus-5` send
+  must now execute end-to-end.
+
 ## Relationship
 
 Supersedes the permanent framing of CR071's indicator; the
