@@ -2,9 +2,9 @@
 
 # CR077: Reconstruct Reasoning from Pi Session Evidence
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr077-reconstruct-reasoning`
 
 ## Problem
 
