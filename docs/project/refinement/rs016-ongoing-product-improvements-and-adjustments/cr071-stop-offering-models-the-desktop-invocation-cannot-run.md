@@ -2,9 +2,9 @@
 
 # CR071: Stop Offering Models the Desktop Invocation Cannot Run
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr071-unavailable-models`
 
 ## Problem
 
