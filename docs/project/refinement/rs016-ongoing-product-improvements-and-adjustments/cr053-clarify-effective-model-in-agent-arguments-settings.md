@@ -2,9 +2,9 @@
 
 # CR053: Clarify Effective Model in Agent Arguments Settings
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr053-effective-model-clarity`
 
 ## Problem
 
