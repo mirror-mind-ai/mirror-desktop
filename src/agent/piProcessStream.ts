@@ -108,7 +108,6 @@ export function createPiInvocationPrompt(packet: PiTaskPacket, invocationMode = 
 }
 
 export type PiProcessMappingState = {
-  activeReasoningSummaryProvider?: "openai-codex";
   activeCompactionId?: string;
   compactionCount?: number;
   lastContextUsageSignature?: string;
@@ -240,16 +239,7 @@ function mapPiJsonEventToStreamEvents(event: PiJsonEvent, options: PiProcessMapp
   const usage = event.usage ?? assistantMessageUsage(event.message);
   const usageEvents = mapUsageToStreamEvents(usage, options.mappingState, options.contextWindow);
 
-  if (event.type === "message_start" && isOpenAiCodexAssistantMessage(event.message)) {
-    if (options.mappingState) {
-      options.mappingState.activeReasoningSummaryProvider = "openai-codex";
-    }
-  }
-
   if (event.type === "message_end" && isAssistantMessage(event.message)) {
-    if (options.mappingState) {
-      options.mappingState.activeReasoningSummaryProvider = undefined;
-    }
     return usageEvents;
   }
 
@@ -259,11 +249,7 @@ function mapPiJsonEventToStreamEvents(event: PiJsonEvent, options: PiProcessMapp
     case "message_start":
       return mapJsonMessageStart(event.message);
     case "message_update":
-      return [...usageEvents, ...mapJsonAssistantMessageEvent(event.assistantMessageEvent, {
-        ...options,
-        projectReasoningSummaries: options.projectReasoningSummaries
-          || options.mappingState?.activeReasoningSummaryProvider === "openai-codex",
-      })];
+      return [...usageEvents, ...mapJsonAssistantMessageEvent(event.assistantMessageEvent, options)];
     case "tool_execution_start":
       return [operationUpdate(event, "running", event.args)];
     case "tool_execution_update":
@@ -426,14 +412,6 @@ function isAssistantMessage(message: unknown): message is {
 
 function assistantMessageUsage(message: unknown): PiJsonEvent["usage"] {
   return isAssistantMessage(message) ? message.usage : undefined;
-}
-
-function isOpenAiCodexAssistantMessage(message: unknown): boolean {
-  return isAssistantMessage(message)
-    && "provider" in message
-    && message.provider === "openai-codex"
-    && "api" in message
-    && message.api === "openai-codex-responses";
 }
 
 function mapJsonMessageStart(message: unknown): AgentStreamEvent[] {
@@ -672,10 +650,9 @@ export async function* livePiAgentStream(
 }
 
 export function supportsDisplayableReasoningSummaries(config: AgentProviderConfig): boolean {
-  const providerIndex = config.args.indexOf("--provider");
-  return !config.safeTestMode
-    && providerIndex >= 0
-    && config.args[providerIndex + 1] === "openai-codex";
+  // Admission is capability- and event-driven (CR076): Pi emits thinking
+  // events only when the model produced thinking, so no provider allowlist.
+  return !config.safeTestMode;
 }
 
 type QueueState<T> = {

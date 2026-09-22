@@ -5,6 +5,8 @@ import {
   isRuntimeProjectionActive,
   mergeRuntimeContextUsage,
   reduceRuntimeProjection,
+  REASONING_BLOCK_MAX_CHARS,
+  REASONING_TURN_MAX_CHARS,
   type RuntimeProjectionState,
 } from "../app/runtimeActivityModel";
 import type { AgentStreamEvent } from "../agent/agentStream";
@@ -12,6 +14,83 @@ import type { AgentStreamEvent } from "../agent/agentStream";
 function reduce(events: AgentStreamEvent[]): RuntimeProjectionState {
   return events.reduce(reduceRuntimeProjection, initialRuntimeProjectionState);
 }
+
+describe("reasoning capture bounds", () => {
+  it("truncates a reasoning block at the 8 KB limit and marks it visibly", () => {
+    const state = reduce([
+      { type: "reasoning_summary_start" },
+      { type: "reasoning_summary_delta", content: "a".repeat(REASONING_BLOCK_MAX_CHARS - 10) },
+      { type: "reasoning_summary_delta", content: "b".repeat(100) },
+      { type: "reasoning_summary_end" },
+    ]);
+    const summary = state.reasoningSummaries[0];
+    expect(summary.content.length).toBe(REASONING_BLOCK_MAX_CHARS);
+    expect(summary.content.endsWith("b".repeat(10))).toBe(true);
+    expect(summary.truncated).toBe(true);
+    expect(summary.status).toBe("completed");
+  });
+
+  it("does not mark a block that fits exactly within the limit", () => {
+    const state = reduce([
+      { type: "reasoning_summary_start" },
+      { type: "reasoning_summary_delta", content: "a".repeat(REASONING_BLOCK_MAX_CHARS) },
+      { type: "reasoning_summary_end" },
+    ]);
+    expect(state.reasoningSummaries[0].content.length).toBe(REASONING_BLOCK_MAX_CHARS);
+    expect(state.reasoningSummaries[0].truncated).toBeUndefined();
+  });
+
+  it("elides further reasoning blocks once the turn ceiling is reached, preserving order", () => {
+    const fullBlocks = REASONING_TURN_MAX_CHARS / REASONING_BLOCK_MAX_CHARS;
+    const events: AgentStreamEvent[] = [];
+    for (let index = 0; index < fullBlocks; index += 1) {
+      events.push(
+        { type: "reasoning_summary_start" },
+        { type: "reasoning_summary_delta", content: "a".repeat(REASONING_BLOCK_MAX_CHARS) },
+        { type: "reasoning_summary_end" },
+      );
+    }
+    events.push(
+      { type: "reasoning_summary_start" },
+      { type: "reasoning_summary_delta", content: "this should be elided" },
+      { type: "reasoning_summary_end" },
+      { type: "operation_update", operation: { id: "read-1", name: "read", status: "running" } },
+    );
+    const state = reduce(events);
+    const last = state.reasoningSummaries.at(-1);
+    expect(state.reasoningSummaries).toHaveLength(fullBlocks + 1);
+    expect(last?.elided).toBe(true);
+    expect(last?.content).toBe("");
+    expect(state.activityOrder.at(-2)).toEqual({ type: "reasoning_summary", id: last?.id });
+    expect(state.activityOrder.at(-1)).toEqual({ type: "operation", id: "read-1" });
+  });
+
+  it("caps the block that crosses the turn ceiling mid-stream and marks it truncated", () => {
+    const fullBlocks = REASONING_TURN_MAX_CHARS / REASONING_BLOCK_MAX_CHARS - 1;
+    const events: AgentStreamEvent[] = [];
+    for (let index = 0; index < fullBlocks; index += 1) {
+      events.push(
+        { type: "reasoning_summary_start" },
+        { type: "reasoning_summary_delta", content: "a".repeat(REASONING_BLOCK_MAX_CHARS) },
+        { type: "reasoning_summary_end" },
+      );
+    }
+    events.push(
+      { type: "reasoning_summary_start" },
+      { type: "reasoning_summary_delta", content: "b".repeat(5000) },
+      { type: "reasoning_summary_end" },
+      { type: "reasoning_summary_start" },
+      { type: "reasoning_summary_delta", content: "c".repeat(REASONING_BLOCK_MAX_CHARS) },
+      { type: "reasoning_summary_end" },
+    );
+    const state = reduce(events);
+    const last = state.reasoningSummaries.at(-1);
+    expect(last?.content.length).toBe(REASONING_BLOCK_MAX_CHARS - 5000);
+    expect(last?.truncated).toBe(true);
+    const total = state.reasoningSummaries.reduce((sum, summary) => sum + summary.content.length, 0);
+    expect(total).toBe(REASONING_TURN_MAX_CHARS);
+  });
+});
 
 describe("ordered runtime projection", () => {
   it("does not reserve an empty chat card before runtime content arrives", () => {

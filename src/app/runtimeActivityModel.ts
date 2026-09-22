@@ -16,7 +16,14 @@ export type ProjectedReasoningSummary = {
   id: string;
   content: string;
   status: "streaming" | "completed" | "interrupted";
+  truncated?: true;
+  elided?: true;
 };
+
+// CR076 bounds decision: enforced at capture so reasoning cannot grow
+// durable evidence without limit; truncation and elision stay visible.
+export const REASONING_BLOCK_MAX_CHARS = 8192;
+export const REASONING_TURN_MAX_CHARS = 65536;
 
 export type RuntimeActivityReference =
   | { type: "operation"; id: string }
@@ -138,14 +145,22 @@ export function isRuntimeProjectionTerminal(state: RuntimeProjectionState): bool
   return !isRuntimeProjectionActive(state);
 }
 
+function capturedReasoningChars(state: RuntimeProjectionState): number {
+  return state.reasoningSummaries.reduce((total, summary) => total + summary.content.length, 0);
+}
+
 function startReasoningSummary(state: RuntimeProjectionState): RuntimeProjectionState {
   const settledPrevious = state.reasoningSummaries.map((summary) =>
     summary.status === "streaming" ? { ...summary, status: "completed" as const } : summary,
   );
   const id = `reasoning-${state.reasoningSummaries.length + 1}`;
+  const elided = capturedReasoningChars(state) >= REASONING_TURN_MAX_CHARS;
   return {
     ...state,
-    reasoningSummaries: [...settledPrevious, { id, content: "", status: "streaming" }],
+    reasoningSummaries: [
+      ...settledPrevious,
+      { id, content: "", status: "streaming", ...(elided ? { elided: true as const } : {}) },
+    ],
     activityOrder: [...state.activityOrder, { type: "reasoning_summary", id }],
   };
 }
@@ -155,10 +170,23 @@ function appendReasoningSummary(state: RuntimeProjectionState, content: string):
   if (currentIndex === -1) {
     return appendReasoningSummary(startReasoningSummary(state), content);
   }
+  const current = state.reasoningSummaries[currentIndex];
+  if (current.elided) {
+    return state;
+  }
+  const remaining = Math.min(
+    REASONING_BLOCK_MAX_CHARS - current.content.length,
+    REASONING_TURN_MAX_CHARS - capturedReasoningChars(state),
+  );
   const reasoningSummaries = [...state.reasoningSummaries];
+  if (remaining <= 0) {
+    reasoningSummaries[currentIndex] = { ...current, truncated: true };
+    return { ...state, reasoningSummaries };
+  }
   reasoningSummaries[currentIndex] = {
-    ...reasoningSummaries[currentIndex],
-    content: `${reasoningSummaries[currentIndex].content}${content}`,
+    ...current,
+    content: `${current.content}${content.slice(0, remaining)}`,
+    ...(content.length > remaining ? { truncated: true as const } : {}),
   };
   return { ...state, reasoningSummaries };
 }

@@ -78,6 +78,11 @@ export function LiveRuntimeActivity({
   );
 }
 
+function reasoningSizeLabel(text?: string): string | undefined {
+  if (!text || text.length < 1024) return undefined;
+  return `${(text.length / 1024).toFixed(1)} KB`;
+}
+
 function RuntimeAgentAction({
   action,
   basePath,
@@ -88,6 +93,51 @@ function RuntimeAgentAction({
   suppressedSurfaceContents: string[];
 }) {
   const disclosure = useRuntimeDisclosure(action.active);
+  if (action.kind === "reasoning") {
+    if (action.elided && action.operations.length === 0) {
+      return (
+        <p className={`runtime-agent-action-statement${action.active ? " is-active" : ""}`}>
+          Thinking · {action.label}
+        </p>
+      );
+    }
+    const toolCount = action.operations.length;
+    const statusParts = action.active
+      ? ["running"]
+      : [
+          reasoningSizeLabel(action.reasoningText),
+          toolCount > 0 ? `${toolCount} ${toolCount === 1 ? "tool" : "tools"}` : undefined,
+        ].filter((part): part is string => Boolean(part));
+    return (
+      <details
+        className={`runtime-agent-action reasoning${action.active ? " is-active" : " is-settled"}`}
+        open={disclosure.open}
+        onToggle={disclosure.onToggle}
+      >
+        <summary>
+          <strong>Thinking · {action.label}</strong>
+          {statusParts.length > 0 ? <span>{statusParts.join(" · ")}</span> : null}
+        </summary>
+        <div className="runtime-agent-action-body">
+          {action.reasoningText ? <p className="runtime-reasoning-summary">{action.reasoningText}</p> : null}
+          {action.truncated ? (
+            <p className="runtime-reasoning-truncation" role="note">Reasoning truncated at the 8 KB block limit.</p>
+          ) : null}
+          {action.elided ? (
+            <p className="runtime-reasoning-truncation" role="note">Reasoning elided at the 64 KB turn limit.</p>
+          ) : null}
+          {action.operations.map((operation) => operation.kind === "compaction"
+            ? <RuntimeCompaction key={operation.id} operation={operation} basePath={basePath} />
+            : <RuntimeOperation
+                key={operation.id}
+                operation={operation}
+                basePath={basePath}
+                suppressedSurfaceContents={suppressedSurfaceContents}
+              />)}
+        </div>
+      </details>
+    );
+  }
   if (action.operations.length === 0) {
     return (
       <p className={`runtime-agent-action-statement${action.active ? " is-active" : ""}`}>

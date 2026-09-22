@@ -53,6 +53,8 @@ export type TerminalAgentActionProjection = {
     id: string;
     content: string;
     status: "completed" | "interrupted";
+    truncated?: true;
+    elided?: true;
   }>;
   activityOrder: Array<
     | { type: "operation"; id: string }

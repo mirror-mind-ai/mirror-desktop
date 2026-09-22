@@ -4,10 +4,17 @@ import type { ProjectedRuntimeOperation, RuntimeProjectionState } from "./runtim
 export type AgentActionGroup = {
   id: string;
   label: string;
+  kind?: "reasoning";
+  reasoningText?: string;
+  truncated?: boolean;
+  elided?: boolean;
   summaryId?: string;
   operations: ProjectedRuntimeOperation[];
   active: boolean;
 };
+
+const REASONING_TITLE_MAX_CHARS = 80;
+const ACTION_CHIP_MAX_CHARS = 120;
 
 export function projectAgentActionGroups(projection: RuntimeProjectionState): AgentActionGroup[] {
   const groups: AgentActionGroup[] = [];
@@ -18,18 +25,58 @@ export function projectAgentActionGroups(projection: RuntimeProjectionState): Ag
       currentSummaryGroup = undefined;
       const summary = projection.reasoningSummaries.find((candidate) => candidate.id === reference.id);
       if (!summary) continue;
-      const labels = actionLabels(summary.content);
-      labels.forEach((label, index) => {
+      if (summary.elided) {
         const group: AgentActionGroup = {
-          id: labels.length > 1 ? `summary:${summary.id}:${index}` : `summary:${summary.id}`,
-          label,
+          id: `summary:${summary.id}`,
+          label: "further reasoning elided at the turn limit",
+          kind: "reasoning",
+          elided: true,
           summaryId: summary.id,
           operations: [],
-          active: summary.status === "streaming" && index === labels.length - 1,
+          active: summary.status === "streaming",
         };
         groups.push(group);
         currentSummaryGroup = group;
-      });
+        continue;
+      }
+      const source = summary.content.trim();
+      if (!source) continue;
+      const titles = standaloneTitles(source);
+      if (titles) {
+        titles.forEach((label, index) => {
+          const group: AgentActionGroup = {
+            id: titles.length > 1 ? `summary:${summary.id}:${index}` : `summary:${summary.id}`,
+            label,
+            summaryId: summary.id,
+            operations: [],
+            active: summary.status === "streaming" && index === titles.length - 1,
+          };
+          groups.push(group);
+          currentSummaryGroup = group;
+        });
+        continue;
+      }
+      const formatted = formatSummary(source);
+      const group: AgentActionGroup = isChipShaped(formatted)
+        ? {
+            id: `summary:${summary.id}`,
+            label: formatted,
+            summaryId: summary.id,
+            operations: [],
+            active: summary.status === "streaming",
+          }
+        : {
+            id: `summary:${summary.id}`,
+            label: deriveReasoningTitle(formatted),
+            kind: "reasoning",
+            reasoningText: formatted,
+            ...(summary.truncated ? { truncated: true } : {}),
+            summaryId: summary.id,
+            operations: [],
+            active: summary.status === "streaming",
+          };
+      groups.push(group);
+      currentSummaryGroup = group;
       continue;
     }
 
@@ -60,18 +107,26 @@ export function operationLabel(operation: Pick<ProjectedRuntimeOperation, "name"
   return preview ? `${operation.name} · ${preview}` : operation.name;
 }
 
-function actionLabels(content: string): string[] {
-  const source = content.trim();
-  if (!source) return [];
+function standaloneTitles(source: string): string[] | undefined {
   const paragraphs = source.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
-  if (paragraphs.length > 1) {
-    const standaloneTitles = paragraphs.map((paragraph) => {
-      const match = paragraph.match(/^(\*\*|__)([^\n]+)\1$/);
-      return match?.[2].trim();
-    });
-    if (standaloneTitles.every((title): title is string => Boolean(title))) return standaloneTitles;
-  }
-  return [formatSummary(source)];
+  if (paragraphs.length <= 1) return undefined;
+  const titles = paragraphs.map((paragraph) => {
+    const match = paragraph.match(/^(\*\*|__)([^\n]+)\1$/);
+    return match?.[2].trim();
+  });
+  return titles.every((title): title is string => Boolean(title)) ? titles : undefined;
+}
+
+function isChipShaped(formatted: string): boolean {
+  return !formatted.includes("\n") && formatted.length <= ACTION_CHIP_MAX_CHARS;
+}
+
+export function deriveReasoningTitle(text: string): string {
+  const firstLine = text.split("\n").map((line) => line.trim()).find(Boolean) ?? "";
+  if (firstLine.length <= REASONING_TITLE_MAX_CHARS) return firstLine;
+  const sentence = firstLine.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? firstLine;
+  if (sentence.length <= REASONING_TITLE_MAX_CHARS) return sentence;
+  return `${sentence.slice(0, REASONING_TITLE_MAX_CHARS - 1).trimEnd()}…`;
 }
 
 function formatSummary(content: string): string {

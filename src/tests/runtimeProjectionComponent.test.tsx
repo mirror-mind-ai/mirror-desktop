@@ -245,6 +245,33 @@ describe("runtime projection component", () => {
     expect(html).not.toContain("Reasoning summary");
   });
 
+  it("renders narrative thinking as a disclosed reasoning block with visible truncation", () => {
+    const narrative = "I need to figure out where these two files actually live, since mirror-dev looks like a Python project but the paths given are TypeScript. I'll need to search for them before comparing anything.";
+    const projection: RuntimeProjectionState = {
+      status: "completed",
+      operations: [{ id: "glob-1", name: "glob", status: "completed" }],
+      reasoningSummaries: [
+        { id: "reasoning-1", content: narrative, status: "completed", truncated: true },
+        { id: "reasoning-2", content: "", status: "completed", elided: true },
+      ],
+      activityOrder: [
+        { type: "reasoning_summary", id: "reasoning-1" },
+        { type: "operation", id: "glob-1" },
+        { type: "reasoning_summary", id: "reasoning-2" },
+      ],
+    };
+
+    const html = renderToStaticMarkup(<LiveRuntimeActivity projection={projection} />);
+
+    expect(html).toContain("Thinking · I need to figure out where these two files actually live");
+    expect(html).toContain('class="runtime-reasoning-summary"');
+    expect(html).toContain("ll need to search for them before comparing anything.");
+    expect(html).toContain("Reasoning truncated at the 8 KB block limit.");
+    expect(html).toContain("Thinking · further reasoning elided at the turn limit");
+    expect(html).toContain(">1 tool</span>");
+    expect(cssSource).toContain(".runtime-reasoning-truncation");
+  });
+
   it("renders the settled run outcome after all ordered agent activity", () => {
     const projection: RuntimeProjectionState = {
       status: "completed",

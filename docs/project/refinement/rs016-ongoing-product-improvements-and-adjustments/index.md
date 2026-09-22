@@ -28,7 +28,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
-- [CR076: Surface the Thinking Process of Every Model](cr076-surface-the-thinking-process-of-every-model.md)
+- [CR076: Surface the Thinking Process of Every Model](cr076-surface-the-thinking-process-of-every-model.md) — done
 - [CR077: Reconstruct Reasoning from Pi Session Evidence](cr077-reconstruct-reasoning-from-pi-session-evidence.md)
 - [CR075: Serve the Latest Release to Every Installed Version](cr075-serve-the-latest-release-to-every-installed-version.md) — done
 - [CR074: One-Command Deterministic Release Deployment](cr074-one-command-deterministic-release-deployment.md) — done
