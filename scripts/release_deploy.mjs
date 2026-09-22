@@ -59,14 +59,13 @@ export function deriveRetainedVersions({ version, tags }) {
     .filter((candidate) => {
       try {
         parseSemver(candidate);
-        return candidate !== releaseVersion;
       } catch {
         return false;
       }
+      return compareReleaseVersions(candidate, releaseVersion) < 0;
     })
     .sort(compareReleaseVersions);
-  const previous = published.at(-1);
-  return previous ? [previous, releaseVersion] : [releaseVersion];
+  return [...published, releaseVersion];
 }
 
 export function releaseNoteAuthorship({ version, source, baseUrl = defaultBaseUrl }) {

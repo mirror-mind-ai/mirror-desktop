@@ -62,13 +62,20 @@ describe("retained version derivation", () => {
     expect(compareReleaseVersions("0.2.0", "0.2.0-alpha.15")).toBeGreaterThan(0);
   });
 
-  it("derives the retained set as the latest published version plus the release", () => {
+  it("derives the retained set as every published version below the release plus the release", () => {
     const tags = ["v0.2.0-alpha.9", "v0.2.0-alpha.14", "v0.2.0-alpha.15", "not-a-version"];
-    expect(deriveRetainedVersions({ version: "0.2.0-alpha.16", tags })).toEqual(["0.2.0-alpha.15", "0.2.0-alpha.16"]);
+    expect(deriveRetainedVersions({ version: "0.2.0-alpha.16", tags })).toEqual(["0.2.0-alpha.9", "0.2.0-alpha.14", "0.2.0-alpha.15", "0.2.0-alpha.16"]);
   });
 
-  it("republishes an already tagged version against its own predecessor", () => {
-    const tags = ["v0.2.0-alpha.14", "v0.2.0-alpha.15"];
+  it("rewrites the manifest chain of an application several versions behind (no chained updates)", () => {
+    const tags = ["v0.2.0-alpha.13", "v0.2.0-alpha.14", "v0.2.0-alpha.15"];
+    const retained = deriveRetainedVersions({ version: "0.2.0-alpha.16", tags });
+    expect(retained).toContain("0.2.0-alpha.13");
+    expect(retained).toContain("0.2.0-alpha.14");
+  });
+
+  it("never downgrades the chain of a newer published version when republishing an older one", () => {
+    const tags = ["v0.2.0-alpha.14", "v0.2.0-alpha.15", "v0.2.0-alpha.16"];
     expect(deriveRetainedVersions({ version: "0.2.0-alpha.15", tags })).toEqual(["0.2.0-alpha.14", "0.2.0-alpha.15"]);
   });
 

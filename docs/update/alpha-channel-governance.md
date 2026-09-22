@@ -67,7 +67,10 @@ URLs installed applications poll, and script-generated publication evidence.
 The publication base URL is derived from `endpoints[0]` of
 `src-tauri/tauri.alpha-update.conf.json`; a divergent explicit base URL fails
 closed. Retained current versions and manifest paths are derived from Git tags,
-not hand-typed. The route state under `.tmp/release-deploy/` makes re-runs
+not hand-typed: **every published version below the release gets its manifest
+rewritten to the release**, so any installed application updates to the latest
+version in one hop, never through intermediate versions, and republishing an
+older release can never downgrade the chain of a newer one. The route state under `.tmp/release-deploy/` makes re-runs
 resume after a mid-sequence failure instead of repeating completed stages.
 
 The manual order below remains the reference for what the route performs:
