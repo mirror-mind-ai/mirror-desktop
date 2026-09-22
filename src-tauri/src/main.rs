@@ -31,6 +31,7 @@ use runtime_channel::{
 };
 use whats_new_state::{load_whats_new_state, save_whats_new_state};
 use turn_journal::{
+    ProviderStderrCapture,
     admit_turn, interrupt_inactive_turn, read_turn_journal, transition_turn, TurnJournalAuthority,
     TurnJournalDocument, TurnJournalRecord, TurnPhase, TurnPiExecutionEvidence,
     TurnRecoveryDisposition, TurnTerminalEvidence,
@@ -5337,6 +5338,7 @@ fn reconcile_pi_backed_mirror_delivery_debt(
                 started_at: turn.started_at.clone(),
                 committed_at: turn.committed_at.clone(),
             }),
+            provider_failure: None,
         };
         let authority = record.authority.clone();
         with_turn_journal_lock(&app, &authority, |path| {
@@ -5991,6 +5993,7 @@ fn empty_terminal_evidence() -> TurnTerminalEvidence {
         legacy_stderr_truncated: false,
         captured_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
         pi_execution: None,
+        provider_failure: None,
     }
 }
 
@@ -6297,13 +6300,20 @@ fn run_pi_process(
         })
     });
 
+    let provider_stderr_capture = Arc::new(Mutex::new(ProviderStderrCapture::default()));
     let stderr_handle = child.stderr.take().map(|stderr| {
         let app = app.clone();
         let authority = authority.clone();
+        let capture = provider_stderr_capture.clone();
         thread::spawn(move || {
             for line in BufReader::new(stderr).lines() {
                 match line {
-                    Ok(line) => emit(&app, &authority, PiProcessEventKind::Stderr, line),
+                    Ok(line) => {
+                        if let Ok(mut capture) = capture.lock() {
+                            capture.observe(&line);
+                        }
+                        emit(&app, &authority, PiProcessEventKind::Stderr, line);
+                    }
                     Err(error) => emit(
                         &app,
                         &authority,
@@ -6534,6 +6544,12 @@ fn run_pi_process(
                         &run_authority,
                         baseline_leaf_entry_id.as_deref(),
                     );
+                }
+                if terminal_state == TerminalState::ProcessDied {
+                    evidence.provider_failure = provider_stderr_capture
+                        .lock()
+                        .ok()
+                        .and_then(|capture| capture.evidence());
                 }
                 match adopt_terminal_journal(&app, &authority, terminal_state, evidence) {
                     Ok(()) => emit(
@@ -9143,6 +9159,7 @@ mod tests {
                     started_at: "2026-08-30T10:00:00Z".to_string(),
                     committed_at: "2026-08-30T10:00:01Z".to_string(),
                 }),
+                provider_failure: None,
             }),
             cancellation_intent: TurnCancellationIntent::None,
             recovery_disposition: TurnRecoveryDisposition::ResumeProjection,

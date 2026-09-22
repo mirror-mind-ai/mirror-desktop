@@ -32,6 +32,10 @@ export interface TurnJournalRecord {
       startedAt: string;
       committedAt: string;
     } | null;
+    providerFailure?: {
+      message: string;
+      truncated: boolean;
+    } | null;
   } | null;
   cancellationIntent: "none" | "requested";
   recoveryDisposition: "none" | "resume_execution" | "resume_projection" | "resume_outbox" | "complete" | "interrupted";
@@ -50,6 +54,27 @@ export interface TurnJournalDocument {
 const phases: TurnPhase[] = [
   "admitted", "running", "terminal_durable", "projected", "outbox_enqueued", "settled", "interrupted",
 ];
+
+// Surfaces the provider's own words only while the interruption is the
+// thread's latest durable outcome; a newer record silences the stale reason.
+export function providerTerminalFailureDetail(
+  records: readonly TurnJournalRecord[],
+  identity: { threadId: string; generation: number; piSessionId: string },
+): string | undefined {
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    const record = records[index];
+    if (record.authority.threadId !== identity.threadId
+      || record.authority.generation !== identity.generation
+      || record.authority.piSessionId !== identity.piSessionId) {
+      continue;
+    }
+    if (record.terminalOutcome !== "process_died") return undefined;
+    const failure = record.terminalEvidence?.providerFailure;
+    if (!failure || !failure.message.trim()) return undefined;
+    return failure.truncated ? `${failure.message}…` : failure.message;
+  }
+  return undefined;
+}
 
 export function findExactTurnJournalRecord(
   document: TurnJournalDocument,

@@ -77,6 +77,53 @@ pub struct TurnPiExecutionEvidence {
     pub committed_at: String,
 }
 
+pub const PROVIDER_FAILURE_MAX_BYTES: usize = 2_048;
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TurnProviderFailureEvidence {
+    pub message: String,
+    pub truncated: bool,
+}
+
+// Retains a bounded copy of the child's stderr so a provider failure can name
+// its cause after the renderer state is gone; never the whole stream.
+#[derive(Clone, Debug, Default)]
+pub struct ProviderStderrCapture {
+    last_line: Option<(String, bool)>,
+    last_error_line: Option<(String, bool)>,
+}
+
+impl ProviderStderrCapture {
+    pub fn observe(&mut self, line: &str) {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            return;
+        }
+        let bounded = bounded_provider_line(trimmed);
+        if trimmed.to_ascii_lowercase().contains("error") {
+            self.last_error_line = Some(bounded.clone());
+        }
+        self.last_line = Some(bounded);
+    }
+
+    pub fn evidence(&self) -> Option<TurnProviderFailureEvidence> {
+        let (message, truncated) = self.last_error_line.clone().or_else(|| self.last_line.clone())?;
+        Some(TurnProviderFailureEvidence { message, truncated })
+    }
+}
+
+fn bounded_provider_line(line: &str) -> (String, bool) {
+    if line.len() <= PROVIDER_FAILURE_MAX_BYTES {
+        return (line.to_string(), false);
+    }
+    let boundary = (0..=PROVIDER_FAILURE_MAX_BYTES)
+        .rev()
+        .find(|index| line.is_char_boundary(*index))
+        .unwrap_or(0);
+    (line[..boundary].to_string(), true)
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TurnTerminalEvidence {
@@ -90,6 +137,8 @@ pub struct TurnTerminalEvidence {
     pub legacy_stderr_truncated: bool,
     pub captured_at: String,
     pub pi_execution: Option<TurnPiExecutionEvidence>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_failure: Option<TurnProviderFailureEvidence>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -403,7 +452,11 @@ fn valid_terminal_evidence(evidence: &TurnTerminalEvidence) -> bool {
             && !execution.started_at.is_empty()
             && !execution.committed_at.is_empty()
     });
-    evidence.legacy_stdout.len() <= JOURNAL_MAX_TERMINAL_STREAM_BYTES
+    let provider_failure_valid = evidence.provider_failure.as_ref().map_or(true, |failure| {
+        !failure.message.trim().is_empty() && failure.message.len() <= PROVIDER_FAILURE_MAX_BYTES
+    });
+    provider_failure_valid
+        && evidence.legacy_stdout.len() <= JOURNAL_MAX_TERMINAL_STREAM_BYTES
         && evidence.legacy_stderr.len() <= JOURNAL_MAX_TERMINAL_STREAM_BYTES
         && evidence.legacy_stdout.len() + evidence.legacy_stderr.len() <= JOURNAL_MAX_TERMINAL_STREAM_BYTES
         && !evidence.captured_at.trim().is_empty()
@@ -608,6 +661,51 @@ pub fn can_interrupt_inactive_turn(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn provider_stderr_capture_prefers_the_last_error_line() {
+        let mut capture = ProviderStderrCapture::default();
+        capture.observe("Loading extensions");
+        capture.observe("Error: You have hit your ChatGPT usage limit (plus plan).");
+        capture.observe("shutting down");
+        let evidence = capture.evidence().unwrap();
+        assert_eq!(evidence.message, "Error: You have hit your ChatGPT usage limit (plus plan).");
+        assert!(!evidence.truncated);
+    }
+
+    #[test]
+    fn provider_stderr_capture_falls_back_to_the_last_line_and_bounds_it() {
+        let mut capture = ProviderStderrCapture::default();
+        capture.observe("   ");
+        assert!(capture.evidence().is_none());
+        capture.observe(&"x".repeat(PROVIDER_FAILURE_MAX_BYTES + 10));
+        let evidence = capture.evidence().unwrap();
+        assert_eq!(evidence.message.len(), PROVIDER_FAILURE_MAX_BYTES);
+        assert!(evidence.truncated);
+        let mut multibyte = ProviderStderrCapture::default();
+        multibyte.observe(&"e\u{301}".repeat(PROVIDER_FAILURE_MAX_BYTES));
+        assert!(multibyte.evidence().unwrap().message.len() <= PROVIDER_FAILURE_MAX_BYTES);
+    }
+
+    #[test]
+    fn terminal_evidence_bounds_provider_failure() {
+        let mut evidence = TurnTerminalEvidence {
+            legacy_stdout: String::new(), legacy_stderr: String::new(),
+            legacy_stdout_truncated: false, legacy_stderr_truncated: false,
+            captured_at: "2026-09-21T10:00:00Z".to_string(),
+            pi_execution: None,
+            provider_failure: Some(TurnProviderFailureEvidence {
+                message: "Error: quota".to_string(), truncated: false,
+            }),
+        };
+        assert!(valid_terminal_evidence(&evidence));
+        evidence.provider_failure = Some(TurnProviderFailureEvidence { message: "   ".to_string(), truncated: false });
+        assert!(!valid_terminal_evidence(&evidence));
+        evidence.provider_failure = Some(TurnProviderFailureEvidence {
+            message: "x".repeat(PROVIDER_FAILURE_MAX_BYTES + 1), truncated: true,
+        });
+        assert!(!valid_terminal_evidence(&evidence));
+    }
+
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -667,6 +765,7 @@ mod tests {
                         started_at: "2099-09-01T20:00:00.000Z".to_string(),
                         committed_at: "2099-09-01T20:00:01.000Z".to_string(),
                     }),
+                    provider_failure: None,
                 })
             } else {
                 None

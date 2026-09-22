@@ -78,6 +78,42 @@ This indicates the error existed in the provider/Pi path but was not carried int
 - Successor send remains available once exact native occupancy is inactive.
 - Existing interrupted-attempt behavior without safe error evidence remains passive and non-blocking.
 
+## Implementation Outcome (2026-09-21)
+
+The gap was durable capture, not presentation: a failed run's journal record
+retained `terminalOutcome: process_died` with `piExecution: null` and no
+provider text, so the reason died with the renderer (verified against the DEV
+evidence record for `agent-run-2026-09-21T12:49:06.244Z`).
+
+- `ProviderStderrCapture` (Rust, `turn_journal.rs`) retains a bounded copy of
+  the child's stderr — the last error-looking line, falling back to the last
+  non-empty line, capped at 2 KiB on a char boundary with a `truncated` flag.
+  Never the whole stream, never environment or paths beyond what the provider
+  itself printed.
+- On a `process_died` terminal, the capture is attached to the journal record
+  as `terminalEvidence.providerFailure` at the same adoption point that already
+  records terminal evidence, after the reader threads join. Journal validation
+  bounds the field.
+- `providerTerminalFailureDetail` (TS) surfaces the provider's words only while
+  the interruption is the thread's latest durable record — a newer settled turn
+  silences the stale reason. Both interruption surfaces render it: the
+  Pi-transcript notice (`InterruptedNativeAttemptNotice`) and the durable
+  journal notice, as "The provider reported: …".
+- No retry route, no fabricated assistant message, Composer untouched; without
+  evidence both notices keep their existing passive text.
+
+## Validation
+
+- Red-then-green units: capture preference/bounding/multibyte truncation and
+  evidence validation (Rust); detail derivation including staleness silencing,
+  ellipsis on truncation and identity mismatch (TS); component rendering with
+  and without evidence; source-inspection wiring guardrails.
+- Full suites: 171 Rust, 935 frontend; TypeScript/Vite build passed; roadmap
+  `READY`; whitespace clean.
+- Manual DEV homologation pending: a mid-run provider death must show the
+  provider's reported reason under the interruption notice after reopening the
+  Journey.
+
 ## Exclusions
 
 - No provider credential management changes.

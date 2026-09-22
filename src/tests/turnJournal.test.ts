@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { JourneySettlementAuthority } from "../domain/journeySettlementAuthority";
 import {
   decideTurnJournalRecovery,
+  providerTerminalFailureDetail,
   decideTurnJournalTerminal,
   findBlockingTurnJournalRecord,
   findExactTurnJournalRecord,
@@ -76,6 +77,41 @@ function document(item: TurnJournalRecord): TurnJournalDocument {
     savedAt: item.updatedAt,
   };
 }
+
+describe("provider terminal failure detail", () => {
+  const identity = { threadId: "thread-a", generation: 1, piSessionId: "pi-a" };
+  const failed = record({
+    terminalOutcome: "process_died",
+    terminalEvidence: {
+      capturedAt: "2026-09-01T20:00:00.000Z",
+      piExecution: null,
+      providerFailure: { message: "Error: You have hit your ChatGPT usage limit (plus plan).", truncated: false },
+    },
+  });
+
+  it("surfaces the provider words for the latest failed record of the thread", () => {
+    expect(providerTerminalFailureDetail([failed], identity))
+      .toBe("Error: You have hit your ChatGPT usage limit (plus plan).");
+  });
+
+  it("marks truncated evidence with an ellipsis", () => {
+    const truncated = record({
+      terminalOutcome: "process_died",
+      terminalEvidence: { capturedAt: "t", piExecution: null, providerFailure: { message: "Error: long", truncated: true } },
+    });
+    expect(providerTerminalFailureDetail([truncated], identity)).toBe("Error: long\u2026");
+  });
+
+  it("stays silent when a newer record settled the thread", () => {
+    expect(providerTerminalFailureDetail([failed, record()], identity)).toBeUndefined();
+  });
+
+  it("stays silent without failure evidence or for another identity", () => {
+    const bare = record({ terminalOutcome: "process_died", terminalEvidence: { capturedAt: "t", piExecution: null } });
+    expect(providerTerminalFailureDetail([bare], identity)).toBeUndefined();
+    expect(providerTerminalFailureDetail([failed], { ...identity, piSessionId: "pi-b" })).toBeUndefined();
+  });
+});
 
 describe("durable turn journal authority", () => {
   it("requires every exact authority coordinate instead of selected-Journey identity", () => {

@@ -213,6 +213,7 @@ import {
   isTurnJournalSuccessorEligible,
   interruptInactiveTurnJournal,
   loadTurnJournal,
+  providerTerminalFailureDetail,
   requireExactTurnJournalRecord,
   type TurnJournalRecord,
 } from "./turnJournal";
@@ -846,6 +847,11 @@ export function App({ model }: AppProps) {
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
   const dedicatedTurnState = classifyDedicatedTurnState(conversation, selectedRuntimeBusy);
   const latestNautilusTurn = [...conversation.reconciliation.turns].reverse().find((turn) => turn.origin === "nautilus");
+  const interruptedProviderFailure = providerTerminalFailureDetail(journeyTurnJournalRecords, {
+    threadId: conversation.id,
+    generation: conversation.liveIdentity.generation,
+    piSessionId: conversation.liveIdentity.piSessionId,
+  });
   const durableInterruptedTurn = latestNautilusTurn?.pi.state === "failed"
     && latestNautilusTurn.pi.failureCode?.startsWith("turn_journal_")
     ? latestNautilusTurn
@@ -4577,11 +4583,12 @@ export function App({ model }: AppProps) {
               <p>You can keep drafting, but Send remains unavailable until a Journey slot is free. Native admission remains the atomic capacity authority.</p>
             </section>
           ) : null}
-          {showInactiveNativeAttemptNotice ? <InterruptedNativeAttemptNotice /> : null}
+          {showInactiveNativeAttemptNotice ? <InterruptedNativeAttemptNotice providerFailure={interruptedProviderFailure} /> : null}
           {durableInterruptedTurn && !isStreaming && !showInactiveNativeAttemptNotice ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Previous turn was interrupted</strong>
               <p>The durable journal retained the interruption without inventing a response. Your next message can start a new turn.</p>
+              {interruptedProviderFailure ? <p className="provider-terminal-failure">The provider reported: {interruptedProviderFailure}</p> : null}
             </section>
           ) : null}
           {showRetainedLeaseNotice ? (
