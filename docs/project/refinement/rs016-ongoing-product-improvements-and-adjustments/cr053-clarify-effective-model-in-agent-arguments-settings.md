@@ -2,7 +2,7 @@
 
 # CR053: Clarify Effective Model in Agent Arguments Settings
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr053-effective-model-clarity`
 
@@ -108,7 +108,12 @@ does not certify.
   warning wiring.
 - Full suites: 172 Rust, 938 frontend; TypeScript/Vite build passed; roadmap
   `READY`; whitespace clean.
-- Manual DEV homologation pending.
+- Manual DEV homologation (2026-09-22): validated by the Navigator on Dev
+  (`exec 517bf8c4…`). The effective-model line tracked the global selector and
+  switched to `— from Journey override` under an override, the arguments field
+  showed only stable arguments, the inline note appeared and cleared as
+  profile-owned flags were typed and removed, and an ordinary send used the
+  selected model.
 
 ## Exclusions
 
