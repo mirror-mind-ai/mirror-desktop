@@ -2,9 +2,9 @@
 
 # CR074: One-Command Deterministic Release Deployment
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr074-one-command-release-deploy`
 
 ## Problem
 
