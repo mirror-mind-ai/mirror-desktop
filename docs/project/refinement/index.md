@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS016
-- Change Request: CR075
+- Change Request: CR077
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -49,14 +49,16 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR075](rs016-ongoing-product-improvements-and-adjustments/cr075-serve-the-latest-release-to-every-installed-version.md) | RS016 | Serve the Latest Release to Every Installed Version | done | @alissonvale | `refinement/rs016-cr075-update-to-latest` |
-| 2 | [CR074](rs016-ongoing-product-improvements-and-adjustments/cr074-one-command-deterministic-release-deployment.md) | RS016 | One-Command Deterministic Release Deployment | done | @alissonvale | `refinement/rs016-cr074-one-command-release-deploy` |
-| 3 | [CR070](rs016-ongoing-product-improvements-and-adjustments/cr070-restore-visibility-of-pre-agent-send-rejection.md) | RS016 | Restore Visibility of Pre-Agent Send Rejection | done | @alissonvale | `refinement/rs016-cr070-unsent-notice-visibility` |
-| 4 | [CR072](rs016-ongoing-product-improvements-and-adjustments/cr072-load-navigator-approved-provider-extensions-explicitly.md) | RS016 | Load Navigator-Approved Provider Extensions Explicitly | done | @alissonvale | `refinement/rs016-cr072-global-pi-extensions` |
-| 5 | [CR071](rs016-ongoing-product-improvements-and-adjustments/cr071-stop-offering-models-the-desktop-invocation-cannot-run.md) | RS016 | Stop Offering Models the Desktop Invocation Cannot Run | done | @alissonvale | `refinement/rs016-cr071-unavailable-models` |
-| 6 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | done | @alissonvale | `refinement/rs016-cr054-provider-terminal-errors` |
-| 7 | [CR073](rs016-ongoing-product-improvements-and-adjustments/cr073-surface-stalled-provider-streams.md) | RS016 | Surface Stalled Provider Streams | dismissed | — | — |
-| 8 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | done | @alissonvale | `refinement/rs016-cr053-effective-model-clarity` |
+| 1 | [CR076](rs016-ongoing-product-improvements-and-adjustments/cr076-surface-the-thinking-process-of-every-model.md) | RS016 | Surface the Thinking Process of Every Model | captured | — | — |
+| 2 | [CR077](rs016-ongoing-product-improvements-and-adjustments/cr077-reconstruct-reasoning-from-pi-session-evidence.md) | RS016 | Reconstruct Reasoning from Pi Session Evidence | captured | — | — |
+| 3 | [CR075](rs016-ongoing-product-improvements-and-adjustments/cr075-serve-the-latest-release-to-every-installed-version.md) | RS016 | Serve the Latest Release to Every Installed Version | done | @alissonvale | `refinement/rs016-cr075-update-to-latest` |
+| 4 | [CR074](rs016-ongoing-product-improvements-and-adjustments/cr074-one-command-deterministic-release-deployment.md) | RS016 | One-Command Deterministic Release Deployment | done | @alissonvale | `refinement/rs016-cr074-one-command-release-deploy` |
+| 5 | [CR070](rs016-ongoing-product-improvements-and-adjustments/cr070-restore-visibility-of-pre-agent-send-rejection.md) | RS016 | Restore Visibility of Pre-Agent Send Rejection | done | @alissonvale | `refinement/rs016-cr070-unsent-notice-visibility` |
+| 6 | [CR072](rs016-ongoing-product-improvements-and-adjustments/cr072-load-navigator-approved-provider-extensions-explicitly.md) | RS016 | Load Navigator-Approved Provider Extensions Explicitly | done | @alissonvale | `refinement/rs016-cr072-global-pi-extensions` |
+| 7 | [CR071](rs016-ongoing-product-improvements-and-adjustments/cr071-stop-offering-models-the-desktop-invocation-cannot-run.md) | RS016 | Stop Offering Models the Desktop Invocation Cannot Run | done | @alissonvale | `refinement/rs016-cr071-unavailable-models` |
+| 8 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | done | @alissonvale | `refinement/rs016-cr054-provider-terminal-errors` |
+| 9 | [CR073](rs016-ongoing-product-improvements-and-adjustments/cr073-surface-stalled-provider-streams.md) | RS016 | Surface Stalled Provider Streams | dismissed | — | — |
+| 10 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | done | @alissonvale | `refinement/rs016-cr053-effective-model-clarity` |
 | — | [CR068](rs020-convergent-turn-synchronization/cr068-accept-the-frictionless-conversation-through-release-shaped-validation.md) | RS020 | Accept the Frictionless Conversation Through Release-Shaped Validation | done | @alissonvale | `refinement/rs020-cr068-release-shaped-acceptance` |
 | — | [CR069](rs016-ongoing-product-improvements-and-adjustments/cr069-stop-presenting-non-fatal-provider-warnings-as-unsent-messages.md) | RS016 | Stop Presenting Non-Fatal Provider Warnings as Unsent Messages | done | @alissonvale | `refinement/rs016-cr069-non-fatal-provider-warnings` |
 | — | [CR067](rs020-convergent-turn-synchronization/cr067-unify-recovery-into-one-idempotent-convergence-routine.md) | RS020 | Unify Recovery into One Idempotent Convergence Routine | done | @alissonvale | `refinement/rs020-cr067-unified-convergence` |
