@@ -14,10 +14,49 @@ Every URL below is exactly what an installed application polls. Each served the 
 
 | Polled URL | Served version | Signature bytes |
 |------------|----------------|-----------------|
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.2/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.3/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.4/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.5/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.6/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.7/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.8/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.9/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.10/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.11/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.12/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.13/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.14/latest.json` | `0.2.0-alpha.16` | 416 |
 | `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.15/latest.json` | `0.2.0-alpha.16` | 416 |
 | `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.16/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.2/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.3/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.4/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.5/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.6/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.7/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.8/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.9/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.10/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.11/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.12/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.13/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.14/latest.json` | `0.2.0-alpha.16` | 416 |
 | `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.15/latest.json` | `0.2.0-alpha.16` | 416 |
 | `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-x86_64/0.2.0-alpha.16/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.2/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.3/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.4/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.5/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.6/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.7/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.8/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.9/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.10/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.11/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.12/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.13/latest.json` | `0.2.0-alpha.16` | 416 |
+| `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.14/latest.json` | `0.2.0-alpha.16` | 416 |
 | `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.15/latest.json` | `0.2.0-alpha.16` | 416 |
 | `https://updates.mirrormind.sh/mirror-desktop/alpha/darwin-aarch64/0.2.0-alpha.16/latest.json` | `0.2.0-alpha.16` | 416 |
 
