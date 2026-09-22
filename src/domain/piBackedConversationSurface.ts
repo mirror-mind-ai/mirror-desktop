@@ -1,12 +1,18 @@
 import type { ConversationMessage } from "../agent/piTaskPacket";
 import { normalizePiResponse } from "../agent/piResponseNormalizer";
-import type { JourneyConversation } from "./journeyConversation";
+import type { JourneyConversation, TerminalAgentActionProjection } from "./journeyConversation";
+import { boundReasoningBlocks } from "./reasoningBounds";
 
 export type PiConversationSurfaceEntry = {
   entryId: string;
   role: string;
   visibleText: string;
   timestamp: string;
+  // Raw Pi entry content blocks; carried by the full transcript inspection and
+  // used to reconstruct reasoning and tool-call ordering (CR077).
+  nativeContent?: unknown;
+  toolCallId?: string | null;
+  isError?: boolean | null;
 };
 
 export type PiConversationSurfaceInspection = {
@@ -15,6 +21,77 @@ export type PiConversationSurfaceInspection = {
 };
 
 type MessageBinding = { messageId: string; role: ConversationMessage["role"] };
+
+type PendingActivityBlock =
+  | { kind: "thinking"; text: string }
+  | { kind: "toolCall"; id: string; name: string; arguments?: unknown };
+
+function extractActivityBlocks(nativeContent: unknown): PendingActivityBlock[] {
+  if (!Array.isArray(nativeContent)) return [];
+  const blocks: PendingActivityBlock[] = [];
+  for (const block of nativeContent) {
+    if (!block || typeof block !== "object") continue;
+    const record = block as Record<string, unknown>;
+    if (record.type === "thinking" && typeof record.thinking === "string" && record.thinking.trim()) {
+      blocks.push({ kind: "thinking", text: record.thinking });
+      continue;
+    }
+    if (record.type === "toolCall" && typeof record.id === "string" && record.id
+      && typeof record.name === "string" && record.name) {
+      blocks.push({
+        kind: "toolCall",
+        id: record.id,
+        name: record.name,
+        ...(record.arguments !== undefined ? { arguments: record.arguments } : {}),
+      });
+    }
+  }
+  return blocks;
+}
+
+function reconstructAgentActionProjection(
+  messageId: string,
+  blocks: PendingActivityBlock[],
+  resultsByToolCallId: ReadonlyMap<string, boolean>,
+): TerminalAgentActionProjection | undefined {
+  const thinkingTexts = blocks.filter((block) => block.kind === "thinking").map((block) => block.text);
+  if (thinkingTexts.length === 0) return undefined;
+  const boundedThinking = boundReasoningBlocks(thinkingTexts);
+
+  const projection: TerminalAgentActionProjection = {
+    status: "completed",
+    operations: [],
+    reasoningSummaries: [],
+    activityOrder: [],
+  };
+  let thinkingIndex = 0;
+  for (const block of blocks) {
+    if (block.kind === "thinking") {
+      const bounded = boundedThinking[thinkingIndex];
+      thinkingIndex += 1;
+      const id = `${messageId}:thinking:${thinkingIndex}`;
+      projection.reasoningSummaries.push({
+        id,
+        content: bounded.content,
+        status: "completed",
+        ...(bounded.truncated ? { truncated: true as const } : {}),
+        ...(bounded.elided ? { elided: true as const } : {}),
+      });
+      projection.activityOrder.push({ type: "reasoning_summary", id });
+      continue;
+    }
+    const result = resultsByToolCallId.get(block.id);
+    projection.operations.push({
+      id: block.id,
+      name: block.name,
+      status: result === undefined ? "interrupted" : result ? "failed" : "completed",
+      ...(block.arguments !== undefined ? { arguments: block.arguments } : {}),
+      ...(result === true ? { isError: true } : {}),
+    });
+    projection.activityOrder.push({ type: "operation", id: block.id });
+  }
+  return projection;
+}
 
 export function projectPiBackedConversationSurface(
   metadata: JourneyConversation,
@@ -34,10 +111,19 @@ export function projectPiBackedConversationSurface(
     }
   }
 
+  const resultsByToolCallId = new Map<string, boolean>();
+  for (const entry of inspection.entries) {
+    if (entry && entry.role === "toolResult" && typeof entry.toolCallId === "string" && entry.toolCallId) {
+      resultsByToolCallId.set(entry.toolCallId, entry.isError === true);
+    }
+  }
+
   const projectedById = new Map(metadata.messages.map((message) => [message.id, message]));
   const nativeIds = new Set<string>();
   const messageIds = new Set<string>();
   const messages: ConversationMessage[] = [];
+  const reconstructedAgentActions: Record<string, TerminalAgentActionProjection> = {};
+  let pendingBlocks: PendingActivityBlock[] = [];
   for (const entry of inspection.entries) {
     if (!entry || typeof entry.entryId !== "string" || !entry.entryId
       || typeof entry.role !== "string" || typeof entry.visibleText !== "string"
@@ -45,6 +131,11 @@ export function projectPiBackedConversationSurface(
       throw new Error("pi_surface_inspection_invalid");
     }
     nativeIds.add(entry.entryId);
+    if (entry.role === "assistant") {
+      pendingBlocks.push(...extractActivityBlocks(entry.nativeContent));
+    } else if (entry.role === "user") {
+      pendingBlocks = [];
+    }
     if ((entry.role !== "user" && entry.role !== "assistant") || !entry.visibleText.trim()) continue;
 
     const role = entry.role;
@@ -55,6 +146,16 @@ export function projectPiBackedConversationSurface(
     if (messageIds.has(id)) id = `pi-${entry.entryId}`;
     if (messageIds.has(id)) throw new Error("pi_surface_inspection_invalid");
     messageIds.add(id);
+
+    if (role === "assistant") {
+      // Live-captured terminal evidence is authoritative and richer than a
+      // session reconstruction; only messages without it are reconstructed.
+      if (!metadata.terminalAgentActionEvidence?.[id]) {
+        const reconstructed = reconstructAgentActionProjection(id, pendingBlocks, resultsByToolCallId);
+        if (reconstructed) reconstructedAgentActions[id] = reconstructed;
+      }
+      pendingBlocks = [];
+    }
 
     messages.push({
       id,
@@ -69,7 +170,11 @@ export function projectPiBackedConversationSurface(
     });
   }
 
-  return { ...metadata, messages };
+  return {
+    ...metadata,
+    messages,
+    ...(Object.keys(reconstructedAgentActions).length > 0 ? { reconstructedAgentActions } : {}),
+  };
 }
 
 function bind(bindings: Map<string, MessageBinding>, entryId: string, binding: MessageBinding): void {

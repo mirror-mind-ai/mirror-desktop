@@ -104,6 +104,11 @@ export type JourneyConversation = {
   importedActivity?: ImportedConversationActivity;
   terminalAgentActionEvidence?: Record<string, TerminalAgentActionEvidence>;
   steeringEvidence?: SteeringEvidence[];
+  // Derived at hydration from Pi session evidence (CR077), keyed by assistant
+  // message id. Deliberately not persisted: Pi JSONL is the authority and the
+  // projection is re-derived on every surface reconstruction. Live-captured
+  // terminal evidence always wins over these entries.
+  reconstructedAgentActions?: Record<string, TerminalAgentActionProjection>;
 };
 
 export type JourneyConversationSummary = {

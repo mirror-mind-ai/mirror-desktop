@@ -133,4 +133,115 @@ describe("Pi-backed Conversation Surface", () => {
     expect(() => projectPiBackedConversationSurface(conflicted, inspection([])))
       .toThrow("pi_surface_metadata_conflict");
   });
+
+  it("reconstructs interleaved thinking and tool calls across a multi-entry turn in order", () => {
+    const result = projectPiBackedConversationSurface(conversation(), inspection([
+      { entryId: "user-1", role: "user", visibleText: "Question", timestamp: "2026-09-18T10:01:00Z" },
+      { entryId: "step-1", role: "assistant", visibleText: "", timestamp: "2026-09-18T10:01:01Z",
+        nativeContent: [
+          { type: "thinking", thinking: "I need to find where these files live." },
+          { type: "toolCall", id: "call-1", name: "glob", arguments: { pattern: "**/*.ts" } },
+        ] },
+      { entryId: "result-1", role: "toolResult", visibleText: "matches", timestamp: "2026-09-18T10:01:02Z", toolCallId: "call-1", isError: false },
+      { entryId: "step-2", role: "assistant", visibleText: "", timestamp: "2026-09-18T10:01:03Z",
+        nativeContent: [
+          { type: "thinking", thinking: "Not there, widening the search." },
+          { type: "toolCall", id: "call-2", name: "bash", arguments: { command: "rg pattern" } },
+        ] },
+      { entryId: "result-2", role: "toolResult", visibleText: "boom", timestamp: "2026-09-18T10:01:04Z", toolCallId: "call-2", isError: true },
+      { entryId: "final", role: "assistant", visibleText: "Answer", timestamp: "2026-09-18T10:01:05Z",
+        nativeContent: [
+          { type: "thinking", thinking: "Now I can answer." },
+          { type: "text", text: "Answer" },
+        ] },
+    ]));
+
+    const projection = result.reconstructedAgentActions?.["pi-final"];
+    expect(projection).toBeDefined();
+    expect(projection?.status).toBe("completed");
+    expect(projection?.activityOrder).toEqual([
+      { type: "reasoning_summary", id: "pi-final:thinking:1" },
+      { type: "operation", id: "call-1" },
+      { type: "reasoning_summary", id: "pi-final:thinking:2" },
+      { type: "operation", id: "call-2" },
+      { type: "reasoning_summary", id: "pi-final:thinking:3" },
+    ]);
+    expect(projection?.reasoningSummaries.map((summary) => summary.content)).toEqual([
+      "I need to find where these files live.",
+      "Not there, widening the search.",
+      "Now I can answer.",
+    ]);
+    expect(projection?.operations).toEqual([
+      { id: "call-1", name: "glob", status: "completed", arguments: { pattern: "**/*.ts" } },
+      { id: "call-2", name: "bash", status: "failed", arguments: { command: "rg pattern" }, isError: true },
+    ]);
+  });
+
+  it("marks tool calls without a recorded result as interrupted", () => {
+    const result = projectPiBackedConversationSurface(conversation(), inspection([
+      { entryId: "final", role: "assistant", visibleText: "Answer", timestamp: "2026-09-18T10:01:00Z",
+        nativeContent: [
+          { type: "thinking", thinking: "Trying a tool that never returned." },
+          { type: "toolCall", id: "call-lost", name: "bash", arguments: { command: "sleep" } },
+        ] },
+    ]));
+    expect(result.reconstructedAgentActions?.["pi-final"]?.operations).toEqual([
+      { id: "call-lost", name: "bash", status: "interrupted", arguments: { command: "sleep" } },
+    ]);
+  });
+
+  it("reconstructs nothing without thinking evidence and keeps live evidence authoritative", () => {
+    const toolsOnly = projectPiBackedConversationSurface(conversation(), inspection([
+      { entryId: "final", role: "assistant", visibleText: "Answer", timestamp: "2026-09-18T10:01:00Z",
+        nativeContent: [{ type: "toolCall", id: "call-1", name: "read", arguments: {} }] },
+    ]));
+    expect(toolsOnly.reconstructedAgentActions).toBeUndefined();
+
+    const base = conversation();
+    const withEvidence: JourneyConversation = {
+      ...base,
+      terminalAgentActionEvidence: {
+        "pi-final": {
+          schemaVersion: "0.1.0", journeyId: "journey-a", generation: 1, runId: "run-live", turnId: "turn-live",
+          assistantMessageId: "pi-final",
+          projection: { status: "completed", operations: [], reasoningSummaries: [{ id: "live-1", content: "live capture", status: "completed" }], activityOrder: [{ type: "reasoning_summary", id: "live-1" }] },
+        },
+      },
+    };
+    const preserved = projectPiBackedConversationSurface(withEvidence, inspection([
+      { entryId: "final", role: "assistant", visibleText: "Answer", timestamp: "2026-09-18T10:01:00Z",
+        nativeContent: [{ type: "thinking", thinking: "session-derived reasoning" }] },
+    ]));
+    expect(preserved.reconstructedAgentActions).toBeUndefined();
+    expect(preserved.terminalAgentActionEvidence?.["pi-final"]?.projection.reasoningSummaries[0]?.content).toBe("live capture");
+  });
+
+  it("drops pending reasoning when a new user entry arrives before a visible assistant answer", () => {
+    const result = projectPiBackedConversationSurface(conversation(), inspection([
+      { entryId: "step-1", role: "assistant", visibleText: "", timestamp: "2026-09-18T10:01:00Z",
+        nativeContent: [{ type: "thinking", thinking: "interrupted reasoning" }] },
+      { entryId: "user-2", role: "user", visibleText: "New question", timestamp: "2026-09-18T10:02:00Z" },
+      { entryId: "final", role: "assistant", visibleText: "Fresh answer", timestamp: "2026-09-18T10:02:05Z",
+        nativeContent: [{ type: "thinking", thinking: "fresh reasoning" }] },
+    ]));
+    const projection = result.reconstructedAgentActions?.["pi-final"];
+    expect(projection?.reasoningSummaries.map((summary) => summary.content)).toEqual(["fresh reasoning"]);
+  });
+
+  it("applies the CR076 bounds to reconstructed reasoning with visible truncation and elision", () => {
+    const bigBlocks = Array.from({ length: 9 }, (_, index) => (
+      { type: "thinking", thinking: String.fromCharCode(97 + index).repeat(9000) }
+    ));
+    const result = projectPiBackedConversationSurface(conversation(), inspection([
+      { entryId: "final", role: "assistant", visibleText: "Answer", timestamp: "2026-09-18T10:01:00Z",
+        nativeContent: bigBlocks },
+    ]));
+    const summaries = result.reconstructedAgentActions?.["pi-final"]?.reasoningSummaries ?? [];
+    expect(summaries).toHaveLength(9);
+    expect(summaries[0].content.length).toBe(8192);
+    expect(summaries[0].truncated).toBe(true);
+    expect(summaries.at(-1)).toMatchObject({ content: "", elided: true });
+    const total = summaries.reduce((sum, summary) => sum + summary.content.length, 0);
+    expect(total).toBeLessThanOrEqual(65536);
+  });
 });
