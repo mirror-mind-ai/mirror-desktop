@@ -2,9 +2,9 @@
 
 # CR076: Surface the Thinking Process of Every Model
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr076-model-agnostic-reasoning`
 
 ## Problem
 
