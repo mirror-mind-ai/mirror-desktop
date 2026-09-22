@@ -8,7 +8,22 @@ import { parseSemver } from "./release_candidate.mjs";
 import { releaseNotesUrl, releaseReadingFromSource } from "./release_notes.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const defaultBaseUrl = "https://updates.mirrormind.sh/mirror-desktop";
+const channelUpdaterConfigPath = resolve(repositoryRoot, "src-tauri", "tauri.alpha-update.conf.json");
+
+export function deriveBaseUrlFromUpdaterConfig(config) {
+  const endpoint = config?.plugins?.updater?.endpoints?.[0];
+  const polledSuffix = "/{{target}}/{{current_version}}/latest.json";
+  if (typeof endpoint !== "string" || !endpoint.endsWith(polledSuffix)) {
+    throw new Error(`Application updater endpoint must end with ${polledSuffix}.`);
+  }
+  const baseUrl = endpoint.slice(0, -polledSuffix.length);
+  if (!/^https:\/\/[^/]+\/.+$/.test(baseUrl)) {
+    throw new Error("Application updater endpoint must be an HTTPS URL with a path prefix.");
+  }
+  return baseUrl;
+}
+
+export const defaultBaseUrl = deriveBaseUrlFromUpdaterConfig(JSON.parse(readFileSync(channelUpdaterConfigPath, "utf8")));
 const defaultWebRoot = "/var/www/mirror-desktop-updates/mirror-desktop";
 const defaultTargets = ["darwin", "darwin-x86_64", "darwin-aarch64"];
 

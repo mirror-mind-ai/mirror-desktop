@@ -11,7 +11,11 @@ outcomes. Git owns diffs, history, conflicts, collaboration, and recovery.
 - Never inspect, compare, reconcile, or dual-write legacy SQLite Workbench state.
 - Reading never selects or executes work.
 - Focus, status, assignment, commit, push, merge, publication, and release require
-  explicit Navigator authority.
+  explicit Navigator authority. Release publication is one authorization scope: a
+  single Navigator instruction covers the deterministic deploy route end to end,
+  with exactly one confirmation after preparation (see
+  `docs/update/alpha-channel-governance.md`, Publication Boundary); the route's
+  internal push, tag, release, and endpoint steps are not separate decisions.
 - IDs never encode people, journeys, databases, local paths, conversations, or runtime IDs.
 
 ## Contributor Route

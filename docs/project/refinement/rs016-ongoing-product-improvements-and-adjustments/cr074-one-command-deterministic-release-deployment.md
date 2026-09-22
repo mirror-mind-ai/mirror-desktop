@@ -144,8 +144,58 @@ for any invocation that does not declare publication intent.
   `src-tauri/tauri.alpha-update.conf.json` `endpoints[0]`.
 - `scripts/alpha_build.mjs` reads the channel config; the publisher does not.
 
+## Plan
+
+- `scripts/release_deploy.mjs`: the orchestrated route with pure, tested
+  functions (`assertBaseUrlAgreement`, `compareReleaseVersions`,
+  `deriveRetainedVersions`, `releaseNoteAuthorship`, `confirmationPayload`,
+  `renderConfirmation`, `verifyPublishedEndpoints`, evidence renderers) and a
+  CLI with `plan` (dry-run default), `prepare`, `publish --yes` and `reset`,
+  backed by resumable per-version state under `.tmp/release-deploy/`.
+- `scripts/private_update_publish.mjs`: kill the root defect by deriving
+  `defaultBaseUrl` from `endpoints[0]` of `src-tauri/tauri.alpha-update.conf.json`
+  through exported `deriveBaseUrlFromUpdaterConfig(...)`.
+- `package.json`: `release:deploy` command.
+- Governance amendments in `docs/update/alpha-channel-governance.md`
+  (Publication Boundary as one authorization scope; runbook points to the
+  deterministic route) and `docs/project/refinement/collaboration-protocol.md`
+  (Authority Boundary names the single release-publication scope).
+- Tests in `src/tests/releaseDeploy.test.mjs`; updated expectations in
+  `src/tests/privateUpdatePublish.test.mjs` for the derived default.
+
+## Implementation Evidence
+
+- `deriveBaseUrlFromUpdaterConfig` requires the polled manifest shape
+  `/{{target}}/{{current_version}}/latest.json` and HTTPS with a path prefix;
+  the publisher default is now the derived `/mirror-desktop/alpha` base.
+- `assertBaseUrlAgreement` reproduces the Alpha.15 defect as a refusal:
+  requesting `https://updates.mirrormind.sh/mirror-desktop` against the derived
+  `/alpha` base fails closed with "no installed application polls it".
+- `deriveRetainedVersions` orders prerelease numbers numerically (Git tag
+  listing is lexicographic: `alpha.9` sorted after `alpha.15`), returning the
+  latest published tag plus the release.
+- `confirmationPayload` refuses missing authored title/text, placeholder
+  SHA-256 digests, empty manifest paths; `renderConfirmation` prints the
+  authored title and the full release-note text verbatim between explicit
+  delimiters.
+- `verifyPublishedEndpoints` polls every `target x retained-version` URL and
+  fails closed on wrong served version, empty signature or unreachable
+  manifest.
+- Preparation and publication evidence markdown is rendered by the script from
+  route data; the publish route commits and pushes it as its final stage.
+- Dry-run smoke: `npm run release:deploy` derived base URL
+  `https://updates.mirrormind.sh/mirror-desktop/alpha`, retained versions
+  `0.2.0-alpha.14, 0.2.0-alpha.15` and the six manifest paths, matching the
+  corrected Alpha.15 publication exactly; the divergent `--base-url` was
+  refused.
+
+## Checks
+
+- `npx vitest run src/tests/releaseDeploy.test.mjs src/tests/privateUpdatePublish.test.mjs` — 19 passed.
+- Full `npm test -- --run` and `node scripts/roadmap_consistency.mjs` recorded at commit time.
+
 ## Authority Boundary
 
-Captured only. Selecting, assigning Driver/Delivery, implementing, committing
-beyond capture, pushing, merging, publication and release remain separate
+Implemented under the assigned Driver/Delivery. Navigator validation, closure,
+merge to `main` and any release that exercises the new route remain separate
 Navigator decisions.
