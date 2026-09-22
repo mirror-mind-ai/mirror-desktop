@@ -2,7 +2,7 @@
 
 # CR070: Restore Visibility of Pre-Agent Send Rejection
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr070-unsent-notice-visibility`
 
@@ -36,7 +36,7 @@ The rejection emits two signals: the provider's own `warning` event naming the c
 `resolveUnsentReason(providerWarnings, processFailure)` now composes the notice, preferring the last meaningful pre-agent provider warning and falling back to the process failure when none was emitted. Warnings are collected only while `runReachedAgent` is false, so mid-run warnings never leak into an unsent-message notice.
 
 - Complete frontend suite after the correction: 926 tests.
-- Manual DEV homologation, round 2: pending.
+- Manual DEV homologation, round 2 (2026-09-21): validated by the Navigator. The banner showed the provider reason, cleared on the next admitted valid-model send, and ordinary follow-up turns stayed clean.
 
 ## Notes
 
