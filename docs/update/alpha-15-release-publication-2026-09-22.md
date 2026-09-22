@@ -35,10 +35,10 @@ npm run release:private-update -- \
 
 Result: `PUBLISHED`
 
-- Artifact URL: <https://updates.mirrormind.sh/mirror-desktop/artifacts/Mirror%20Desktop_0.2.0-alpha.15.app.tar.gz>
-- Release notes URL: <https://updates.mirrormind.sh/mirror-desktop/releases/v0.2.0-alpha.15.md>
-- Latest macOS DMG URL: <https://updates.mirrormind.sh/mirror-desktop/downloads/macos/mirror-desktop-latest.dmg>
-- Web root: `/var/www/mirror-desktop-updates/mirror-desktop`
+- Artifact URL: <https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.2.0-alpha.15.app.tar.gz>
+- Release notes URL: <https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.2.0-alpha.15.md>
+- Latest macOS DMG URL: <https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/mirror-desktop-latest.dmg>
+- Web root: `/var/www/mirror-desktop-updates/mirror-desktop/alpha`
 
 ## Remote Manifest Verification
 
@@ -53,9 +53,13 @@ All six updater manifest paths served `0.2.0-alpha.15` with a 416-byte signature
 
 Additional checks:
 
-- <https://updates.mirrormind.sh/mirror-desktop/releases/v0.2.0-alpha.15.md> returned HTTP 200.
-- <https://updates.mirrormind.sh/mirror-desktop/downloads/macos/latest.json> returned HTTP 200 with version `0.2.0-alpha.15`.
-- <https://updates.mirrormind.sh/mirror-desktop/downloads/macos/mirror-desktop-latest.dmg> returned HTTP 200.
+- <https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.2.0-alpha.15.md> returned HTTP 200.
+- <https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.json> returned HTTP 200 with version `0.2.0-alpha.15`.
+- <https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/mirror-desktop-latest.dmg> returned HTTP 200.
+
+## Correction
+
+The first publication command in this session omitted the `/alpha` base URL and staged artifacts under `/mirror-desktop`. Installed Alpha.14 applications poll `/mirror-desktop/alpha`, so no update appeared. The publication was immediately repeated with `--base-url https://updates.mirrormind.sh/mirror-desktop/alpha`, and the six `/alpha` manifest paths listed above were verified serving `0.2.0-alpha.15`.
 
 ## Artifact Hashes
 
@@ -64,4 +68,4 @@ Additional checks:
 
 ## Boundary
 
-Publication completed for the private alpha endpoint and GitHub prerelease. No production Mirror memory/database mutation, notarization, app-store distribution, Windows/Linux packaging or stable-channel widening was performed by this publication.
+Publication completed for the private alpha endpoint (`/mirror-desktop/alpha`) and GitHub prerelease. No production Mirror memory/database mutation, notarization, app-store distribution, Windows/Linux packaging or stable-channel widening was performed by this publication.
