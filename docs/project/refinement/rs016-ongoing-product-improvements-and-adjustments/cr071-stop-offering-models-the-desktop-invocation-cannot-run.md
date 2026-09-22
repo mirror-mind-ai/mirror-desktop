@@ -2,7 +2,7 @@
 
 # CR071: Stop Offering Models the Desktop Invocation Cannot Run
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr071-unavailable-models`
 
@@ -62,7 +62,16 @@ indicator covers only what the send truly cannot resolve.
   disabled options.
 - Full suites: 168 Rust, 930 frontend; TypeScript/Vite build passed; roadmap
   `READY`; whitespace clean.
-- Manual DEV homologation pending.
+- Manual DEV homologation (2026-09-21): validated by the Navigator on Dev
+  (`exec 42cddb15…`) as a no-false-positive check — the catalog loaded with no
+  model marked unavailable and sends ran normally, which is the expected state
+  once CR072 makes every offered model resolvable.
+- Derivation measured on the Navigator's installation and recorded in
+  [availability derivation evidence](cr071-availability-derivation-evidence-2026-09-21.md).
+- Accepted scope limit: the positive rendering (a disabled option showing its
+  reason) is covered by unit tests on both layers plus a source-inspection
+  guardrail, not by GUI observation, because no unresolvable model exists on
+  this machine after CR072.
 
 ## Horizon
 

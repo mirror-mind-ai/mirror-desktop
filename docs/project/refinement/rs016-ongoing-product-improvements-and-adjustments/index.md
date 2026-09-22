@@ -29,7 +29,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 ## Change Requests
 
 - [CR072: Load Navigator-Approved Provider Extensions Explicitly](cr072-load-navigator-approved-provider-extensions-explicitly.md) — done
-- [CR071: Stop Offering Models the Desktop Invocation Cannot Run](cr071-stop-offering-models-the-desktop-invocation-cannot-run.md)
+- [CR071: Stop Offering Models the Desktop Invocation Cannot Run](cr071-stop-offering-models-the-desktop-invocation-cannot-run.md) — done
 - [CR070: Restore Visibility of Pre-Agent Send Rejection](cr070-restore-visibility-of-pre-agent-send-rejection.md) — done
 - [CR069: Stop Presenting Non-Fatal Provider Warnings as Unsent Messages](cr069-stop-presenting-non-fatal-provider-warnings-as-unsent-messages.md)
 - [CR063: Align Synchronization Recovery Notice with the Presented Conversation](cr063-align-sync-recovery-notice-with-presented-conversation.md)
