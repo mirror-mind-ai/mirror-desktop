@@ -28,7 +28,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
-- [CR075: Serve the Latest Release to Every Installed Version](cr075-serve-the-latest-release-to-every-installed-version.md) — in_progress
+- [CR075: Serve the Latest Release to Every Installed Version](cr075-serve-the-latest-release-to-every-installed-version.md) — done
 - [CR074: One-Command Deterministic Release Deployment](cr074-one-command-deterministic-release-deployment.md) — done
 - [CR073: Surface Stalled Provider Streams](cr073-surface-stalled-provider-streams.md) — dismissed
 - [CR072: Load Navigator-Approved Provider Extensions Explicitly](cr072-load-navigator-approved-provider-extensions-explicitly.md) — done
