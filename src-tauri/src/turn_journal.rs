@@ -87,30 +87,39 @@ pub struct TurnProviderFailureEvidence {
 }
 
 // Retains a bounded copy of the child's stderr so a provider failure can name
-// its cause after the renderer state is gone; never the whole stream.
+// its cause after the renderer state is gone; never the whole stream. Only
+// error-shaped lines qualify: Pi also prints startup warnings, and quoting one
+// as the terminal cause would invent an explanation the evidence cannot carry.
 #[derive(Clone, Debug, Default)]
 pub struct ProviderStderrCapture {
-    last_line: Option<(String, bool)>,
     last_error_line: Option<(String, bool)>,
 }
 
 impl ProviderStderrCapture {
     pub fn observe(&mut self, line: &str) {
         let trimmed = line.trim();
-        if trimmed.is_empty() {
+        if trimmed.is_empty() || !error_shaped(trimmed) {
             return;
         }
-        let bounded = bounded_provider_line(trimmed);
-        if trimmed.to_ascii_lowercase().contains("error") {
-            self.last_error_line = Some(bounded.clone());
-        }
-        self.last_line = Some(bounded);
+        self.last_error_line = Some(bounded_provider_line(trimmed));
     }
 
     pub fn evidence(&self) -> Option<TurnProviderFailureEvidence> {
-        let (message, truncated) = self.last_error_line.clone().or_else(|| self.last_line.clone())?;
+        let (message, truncated) = self.last_error_line.clone()?;
         Some(TurnProviderFailureEvidence { message, truncated })
     }
+}
+
+fn error_shaped(line: &str) -> bool {
+    let lowered = line.to_ascii_lowercase();
+    if lowered.starts_with("warning") {
+        return false;
+    }
+    lowered.contains("error")
+        || lowered.contains("failed")
+        || lowered.contains("exceeded")
+        || lowered.contains("usage limit")
+        || lowered.contains("rate limit")
 }
 
 fn bounded_provider_line(line: &str) -> (String, bool) {
@@ -662,27 +671,38 @@ pub fn can_interrupt_inactive_turn(
 #[cfg(test)]
 mod tests {
     #[test]
-    fn provider_stderr_capture_prefers_the_last_error_line() {
+    fn provider_stderr_capture_keeps_the_last_error_line() {
         let mut capture = ProviderStderrCapture::default();
-        capture.observe("Loading extensions");
+        capture.observe("Error: transient hiccup");
         capture.observe("Error: You have hit your ChatGPT usage limit (plus plan).");
-        capture.observe("shutting down");
         let evidence = capture.evidence().unwrap();
         assert_eq!(evidence.message, "Error: You have hit your ChatGPT usage limit (plus plan).");
         assert!(!evidence.truncated);
     }
 
     #[test]
-    fn provider_stderr_capture_falls_back_to_the_last_line_and_bounds_it() {
+    fn provider_stderr_capture_ignores_startup_noise() {
         let mut capture = ProviderStderrCapture::default();
         capture.observe("   ");
+        capture.observe("Loading extensions");
+        capture.observe("Warning: No models match pattern \"claude-bridge/claude-fable-5\"");
         assert!(capture.evidence().is_none());
-        capture.observe(&"x".repeat(PROVIDER_FAILURE_MAX_BYTES + 10));
+        capture.observe("Error: quota exhausted");
+        capture.observe("shutting down");
+        assert_eq!(capture.evidence().unwrap().message, "Error: quota exhausted");
+    }
+
+    #[test]
+    fn provider_stderr_capture_recognizes_limit_phrasings_and_bounds_them() {
+        let mut capture = ProviderStderrCapture::default();
+        capture.observe("Request failed: rate limit reached");
+        assert_eq!(capture.evidence().unwrap().message, "Request failed: rate limit reached");
+        capture.observe(&format!("Error: {}", "x".repeat(PROVIDER_FAILURE_MAX_BYTES)));
         let evidence = capture.evidence().unwrap();
         assert_eq!(evidence.message.len(), PROVIDER_FAILURE_MAX_BYTES);
         assert!(evidence.truncated);
         let mut multibyte = ProviderStderrCapture::default();
-        multibyte.observe(&"e\u{301}".repeat(PROVIDER_FAILURE_MAX_BYTES));
+        multibyte.observe(&format!("Error: {}", "é".repeat(PROVIDER_FAILURE_MAX_BYTES)));
         assert!(multibyte.evidence().unwrap().message.len() <= PROVIDER_FAILURE_MAX_BYTES);
     }
 
