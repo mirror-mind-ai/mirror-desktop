@@ -134,7 +134,12 @@ import {
   validateExactOutboxSummary,
 } from "./turnFinalizationCoordinator";
 import { createProductionFinalizationPorts } from "./turnFinalizationPorts";
-import { clearUnsentDraft, recordUnsentDraft, type UnsentDraftNotices } from "./unsentDraftNotice";
+import {
+  clearUnsentDraft,
+  recordUnsentDraft,
+  resolveUnsentReason,
+  type UnsentDraftNotices,
+} from "./unsentDraftNotice";
 import {
   deriveInactiveNativeAttemptCandidate,
   shouldPresentInactiveNativeAttempt,
@@ -2106,6 +2111,7 @@ export function App({ model }: AppProps) {
     let workActivityRecorded = false;
     let runTerminal: JourneyRunTerminal | undefined;
     let preAgentFailureMessage = "The local Pi invocation was rejected before the agent started.";
+    const preAgentProviderWarnings: string[] = [];
     const diagnostics: string[] = [];
     let streamedAssistantContent = "";
     let runConversation = stagedConversation;
@@ -2241,6 +2247,9 @@ export function App({ model }: AppProps) {
         if (event.type === "cancelled" && mode === "mock") {
           runTerminal = captureJourneyRunTerminal(runTerminal, "cancelled");
         }
+        if (event.type === "warning" && !runReachedAgent) {
+          preAgentProviderWarnings.push(event.message);
+        }
         if (event.type === "error") {
           if (mode === "mock") runTerminal = captureJourneyRunTerminal(runTerminal, "failed");
           preAgentFailureMessage = event.message;
@@ -2361,7 +2370,7 @@ export function App({ model }: AppProps) {
                     setPendingFileAttachments(fileAttachments);
                   }
                   dispatchJourneyRuntime({ type: "cleanup", identity: runtimeIdentity });
-                  const message = `Message returned to the composer: ${preAgentFailureMessage}`;
+                  const message = `Message returned to the composer: ${resolveUnsentReason(preAgentProviderWarnings, preAgentFailureMessage)}`;
                   setUnsentDraftNotices((current) => recordUnsentDraft(current, ownerJourneyId, message));
                   dispatchJourneyRuntime({ type: "append_warning", journeyId: ownerJourneyId, message });
                 },
@@ -2372,7 +2381,7 @@ export function App({ model }: AppProps) {
             if (selectedJourneyRef.current === ownerJourneyId) {
               setPendingFileAttachments(fileAttachments);
             }
-            const rollbackMessage = `Message returned to the composer after rollback failed: ${error instanceof Error ? error.message : String(error)}`;
+            const rollbackMessage = `Message returned to the composer after rollback failed: ${resolveUnsentReason(preAgentProviderWarnings, error instanceof Error ? error.message : String(error))}`;
             setUnsentDraftNotices((current) => recordUnsentDraft(current, ownerJourneyId, rollbackMessage));
             dispatchJourneyRuntime({
               type: "append_warning", journeyId: ownerJourneyId, identity: runtimeIdentity,

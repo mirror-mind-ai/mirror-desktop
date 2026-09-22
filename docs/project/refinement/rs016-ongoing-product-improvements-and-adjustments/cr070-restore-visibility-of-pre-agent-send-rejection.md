@@ -27,7 +27,16 @@ The `Message was not sent` banner renders from this state. The CR069 failed-run 
 - Red-then-green unit coverage for record/replace/clear semantics.
 - Source-inspection guardrails pin the rollback recording, the pre-register clearing and the banner render.
 - Complete frontend suite: 923 tests. TypeScript/Vite build passed; roadmap `READY`; whitespace clean.
-- Manual DEV homologation pending: repeat the claude-bridge send and observe the banner with the provider reason while the draft returns to the Composer.
+- Manual DEV homologation, round 1 (2026-09-21): the banner appeared, restoring visibility, but carried the generic `Pi command exited with status exit status: 1` instead of the provider's reason. Corrected below.
+
+## Reason Fidelity Correction (2026-09-21)
+
+The rejection emits two signals: the provider's own `warning` event naming the cause (`No models match pattern "claude-bridge/claude-opus-5"`), and the thrown process failure reporting only the exit status that followed. `preAgentFailureMessage` captured the second and overwrote nothing of the first, so the banner reported the symptom rather than the cause. The pre-CR070 banner had shown the warning because it rendered `lastItem(streamWarnings)`.
+
+`resolveUnsentReason(providerWarnings, processFailure)` now composes the notice, preferring the last meaningful pre-agent provider warning and falling back to the process failure when none was emitted. Warnings are collected only while `runReachedAgent` is false, so mid-run warnings never leak into an unsent-message notice.
+
+- Complete frontend suite after the correction: 926 tests.
+- Manual DEV homologation, round 2: pending.
 
 ## Notes
 

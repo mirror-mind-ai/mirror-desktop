@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clearUnsentDraft, recordUnsentDraft } from "../app/unsentDraftNotice";
+import { clearUnsentDraft, recordUnsentDraft, resolveUnsentReason } from "../app/unsentDraftNotice";
 
 describe("unsent draft notices", () => {
   it("records the rejection reason per Journey", () => {
@@ -15,6 +15,22 @@ describe("unsent draft notices", () => {
       "newer",
     );
     expect(notices["journey-a"]).toBe("newer");
+  });
+
+  it("prefers the provider warning over the generic process failure", () => {
+    expect(resolveUnsentReason(
+      ['Warning: No models match pattern "claude-bridge/claude-opus-5"'],
+      "Pi command exited with status exit status: 1",
+    )).toBe('Warning: No models match pattern "claude-bridge/claude-opus-5"');
+  });
+
+  it("uses the last meaningful warning and ignores blank ones", () => {
+    expect(resolveUnsentReason(["first", "second", "   "], "exit 1")).toBe("second");
+  });
+
+  it("falls back to the process failure when no warning was emitted", () => {
+    expect(resolveUnsentReason([], "Pi command exited with status exit status: 1"))
+      .toBe("Pi command exited with status exit status: 1");
   });
 
   it("clears only the admitted Journey and is a no-op when absent", () => {
