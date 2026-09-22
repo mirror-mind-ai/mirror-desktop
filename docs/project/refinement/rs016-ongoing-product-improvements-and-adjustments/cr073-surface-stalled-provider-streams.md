@@ -2,64 +2,54 @@
 
 # CR073: Surface Stalled Provider Streams
 
-**Status:** captured
+**Status:** dismissed
 **Driver:** —
 **Delivery:** —
 
-## Problem
+## Dismissal (2026-09-22)
 
-Observed by the Navigator on 2026-09-22 while homologating CR054. With a turn
-already streaming, the network was disconnected. The Pi process did **not**
-die: the response stopped mid-flight and the run stayed in `Working`
-indefinitely, with no output, no error and no change of state. The only way
-out was manual cancellation.
+Dismissed by the Navigator after direct retesting: **this is not a defect.**
 
-Durable evidence of that run:
+Losing network connectivity mid-turn does not kill the Pi process and does not
+hang the turn. The process waits for connectivity, **resumes the response
+automatically when the connection returns**, and cancellation stays available
+to the user throughout.
+
+In that light `Working` is literally truthful — the run is in progress,
+waiting — and there is no deadlock, because an exit always exists and belongs
+to the user.
+
+## Why the Original Capture Was Wrong
+
+The capture below inferred an indefinite hang from an incomplete observation:
+in the first test the run was cancelled *before* the connection returned, so
+the automatic recovery was never seen. The recorded journal outcome
+(`cancelled` with `cancellationIntent: requested`) was therefore the faithful
+record of a user cancellation, not evidence of a stuck run.
+
+This document is kept rather than deleted so that a future session observing a
+response pausing during a network drop does not recapture the same false
+defect.
+
+## Original Capture (superseded)
+
+Observed while homologating CR054: with a turn already streaming, the network
+was disconnected. The response stopped mid-flight and the run stayed in
+`Working` with no output, no error and no change of state. Durable evidence of
+that run:
 
 ```json
 {"phase":"interrupted","terminalOutcome":"cancelled","cancellationIntent":"requested"}
 ```
 
-The turn therefore ends as a user cancellation, which is truthful about what
-happened but says nothing about why the user had to intervene.
+The capture proposed distinguishing a stalled stream from a working one, with
+open questions about which signal would be authoritative for "no progress" and
+how to avoid misreading legitimate silence from long tool calls or deep
+thinking. Retesting made the question moot: the silence is legitimate waiting,
+and it ends on its own.
 
-## Why This Is Not CR054
+## Relationship
 
-CR054 covers a provider failure that terminates the invocation: the process
-dies, and its reported reason is now retained as durable evidence. A stall is
-the opposite shape — the process is alive and healthy, the provider simply
-stopped producing. No terminal outcome is ever reached, so no failure evidence
-exists to surface.
-
-It is also not CR070: the message did reach the agent.
-
-## Expected Behavior
-
-- A run that produces no output for a bounded period while claiming to work is
-  distinguishable from a run that is genuinely working.
-- The user learns that the stream stalled, without the app inventing a cause it
-  cannot observe.
-- Cancellation stays the user's decision; the app must not silently kill or
-  restart the invocation, and must not retry the provider.
-- If the stream resumes, the notice disappears without side effects.
-
-## Open Questions
-
-- Which signal is authoritative for "no progress": absence of stdout lines,
-  absence of assistant tokens, or Pi-level heartbeat if one exists.
-- Whether the threshold is fixed or derived from observed streaming cadence,
-  given that long tool calls and deep thinking legitimately produce silence.
-- Whether a cancellation following a detected stall should record that context
-  in the journal, so the interruption notice can explain the stall afterwards
-  instead of reporting a bare cancellation.
-
-## Exclusions
-
-- No automatic cancellation, restart or provider retry.
-- No fabricated provider error text.
-- No change to cancellation authority or to Pi JSONL transcript authority.
-
-## Authority Boundary
-
-Captured only. Selecting, assigning Driver/Delivery, implementing, pushing,
-merging, publication and release remain separate Navigator decisions.
+Distinct from [CR054](cr054-surface-provider-terminal-errors-in-the-gui.md),
+which covers an invocation that genuinely terminates and whose provider reason
+is now retained as durable evidence.

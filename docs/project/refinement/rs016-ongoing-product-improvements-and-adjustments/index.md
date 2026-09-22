@@ -28,7 +28,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
-- [CR073: Surface Stalled Provider Streams](cr073-surface-stalled-provider-streams.md)
+- [CR073: Surface Stalled Provider Streams](cr073-surface-stalled-provider-streams.md) — dismissed
 - [CR072: Load Navigator-Approved Provider Extensions Explicitly](cr072-load-navigator-approved-provider-extensions-explicitly.md) — done
 - [CR071: Stop Offering Models the Desktop Invocation Cannot Run](cr071-stop-offering-models-the-desktop-invocation-cannot-run.md) — done
 - [CR070: Restore Visibility of Pre-Agent Send Rejection](cr070-restore-visibility-of-pre-agent-send-rejection.md) — done
