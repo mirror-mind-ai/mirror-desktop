@@ -28,19 +28,19 @@ afterEach(async () => {
 });
 
 describe("private update publication", () => {
-  it("derives updater artifact names and encoded HTTPS URLs", () => {
+  it("derives updater artifact names and encoded HTTPS URLs from the application channel", () => {
     expect(updaterArtifactName("0.1.1-test.1")).toBe("Mirror Desktop_0.1.1-test.1.app.tar.gz");
-    expect(updaterArtifactUrl("0.1.1-test.1")).toBe("https://updates.mirrormind.sh/mirror-desktop/artifacts/Mirror%20Desktop_0.1.1-test.1.app.tar.gz");
-    expect(latestMacosDmgUrl()).toBe("https://updates.mirrormind.sh/mirror-desktop/downloads/macos/mirror-desktop-latest.dmg");
+    expect(updaterArtifactUrl("0.1.1-test.1")).toBe("https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.1.1-test.1.app.tar.gz");
+    expect(latestMacosDmgUrl()).toBe("https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/mirror-desktop-latest.dmg");
     expect(latestMacosDownloadManifestUrl("https://updates.mirrormind.sh/mirror-desktop/alpha")).toBe("https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.json");
   });
 
   it("renders Tauri updater manifest fields with release notes", () => {
     expect(manifestFor({ version: "0.1.1-test.1", signature: "abc", pubDate: "2026-09-08T15:05:00Z" })).toEqual({
       version: "0.1.1-test.1",
-      notes: "https://updates.mirrormind.sh/mirror-desktop/releases/v0.1.1-test.1.md",
+      notes: "https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.1.1-test.1.md",
       pub_date: "2026-09-08T15:05:00Z",
-      url: "https://updates.mirrormind.sh/mirror-desktop/artifacts/Mirror%20Desktop_0.1.1-test.1.app.tar.gz",
+      url: "https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/Mirror%20Desktop_0.1.1-test.1.app.tar.gz",
       signature: "abc",
     });
   });
@@ -81,14 +81,14 @@ describe("private update publication", () => {
     });
 
     expect(plan).toMatchObject(planPrivateUpdatePublication({ version: "0.1.1-test.1", currentVersions: ["0.1.1-test.0"], targets: ["darwin"] }));
-    expect(plan.webRoot).toBe("/var/www/mirror-desktop-updates/mirror-desktop");
+    expect(plan.webRoot).toBe("/var/www/mirror-desktop-updates/mirror-desktop/alpha");
     expect(readFileSync(join(stage, "artifacts", "Mirror Desktop_0.1.1-test.1.app.tar.gz"), "utf8")).toBe("artifact");
     expect(readFileSync(join(stage, "downloads", "macos", "mirror-desktop-latest.dmg"), "utf8")).toBe("dmg");
     expect(JSON.parse(readFileSync(join(stage, "downloads", "macos", "latest.json"), "utf8"))).toMatchObject({
       version: "0.1.1-test.1",
-      dmg: "https://updates.mirrormind.sh/mirror-desktop/downloads/macos/mirror-desktop-latest.dmg",
-      artifact: "https://updates.mirrormind.sh/mirror-desktop/artifacts/app.dmg",
-      releaseNotes: "https://updates.mirrormind.sh/mirror-desktop/releases/v0.1.1-test.1.md",
+      dmg: "https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/mirror-desktop-latest.dmg",
+      artifact: "https://updates.mirrormind.sh/mirror-desktop/alpha/artifacts/app.dmg",
+      releaseNotes: "https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.1.1-test.1.md",
     });
     expect(JSON.parse(readFileSync(join(stage, "manifests", "darwin", "0.1.1-test.0", "latest.json"), "utf8"))).toMatchObject({
       version: "0.1.1-test.1",
@@ -97,7 +97,7 @@ describe("private update publication", () => {
         schema_version: "1.0.0",
         product: "Mirror Desktop",
         version: "0.1.1-test.1",
-        release_notes_url: "https://updates.mirrormind.sh/mirror-desktop/releases/v0.1.1-test.1.md",
+        release_notes_url: "https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.1.1-test.1.md",
       },
     });
     expect(readFileSync(join(stage, "releases", "v0.1.1-test.1.md"), "utf8")).toContain("# v0.1.1-test.1");

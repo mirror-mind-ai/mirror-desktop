@@ -2,9 +2,9 @@
 
 # CR074: One-Command Deterministic Release Deployment
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr074-one-command-release-deploy`
 
 ## Problem
 
@@ -144,8 +144,98 @@ for any invocation that does not declare publication intent.
   `src-tauri/tauri.alpha-update.conf.json` `endpoints[0]`.
 - `scripts/alpha_build.mjs` reads the channel config; the publisher does not.
 
+## Plan
+
+- `scripts/release_deploy.mjs`: the orchestrated route with pure, tested
+  functions (`assertBaseUrlAgreement`, `compareReleaseVersions`,
+  `deriveRetainedVersions`, `releaseNoteAuthorship`, `confirmationPayload`,
+  `renderConfirmation`, `verifyPublishedEndpoints`, evidence renderers) and a
+  CLI with `plan` (dry-run default), `prepare`, `publish --yes` and `reset`,
+  backed by resumable per-version state under `.tmp/release-deploy/`.
+- `scripts/private_update_publish.mjs`: kill the root defect by deriving
+  `defaultBaseUrl` from `endpoints[0]` of `src-tauri/tauri.alpha-update.conf.json`
+  through exported `deriveBaseUrlFromUpdaterConfig(...)`.
+- `package.json`: `release:deploy` command.
+- Governance amendments in `docs/update/alpha-channel-governance.md`
+  (Publication Boundary as one authorization scope; runbook points to the
+  deterministic route) and `docs/project/refinement/collaboration-protocol.md`
+  (Authority Boundary names the single release-publication scope).
+- Tests in `src/tests/releaseDeploy.test.mjs`; updated expectations in
+  `src/tests/privateUpdatePublish.test.mjs` for the derived default.
+
+## Implementation Evidence
+
+- `deriveBaseUrlFromUpdaterConfig` requires the polled manifest shape
+  `/{{target}}/{{current_version}}/latest.json` and HTTPS with a path prefix;
+  the publisher default is now the derived `/mirror-desktop/alpha` base.
+- `assertBaseUrlAgreement` reproduces the Alpha.15 defect as a refusal:
+  requesting `https://updates.mirrormind.sh/mirror-desktop` against the derived
+  `/alpha` base fails closed with "no installed application polls it".
+- `deriveRetainedVersions` orders prerelease numbers numerically (Git tag
+  listing is lexicographic: `alpha.9` sorted after `alpha.15`), returning the
+  latest published tag plus the release.
+- `confirmationPayload` refuses missing authored title/text, placeholder
+  SHA-256 digests, empty manifest paths; `renderConfirmation` prints the
+  authored title and the full release-note text verbatim between explicit
+  delimiters.
+- `verifyPublishedEndpoints` polls every `target x retained-version` URL and
+  fails closed on wrong served version, empty signature or unreachable
+  manifest.
+- Preparation and publication evidence markdown is rendered by the script from
+  route data; the publish route commits and pushes it as its final stage.
+- Dry-run smoke: `npm run release:deploy` derived base URL
+  `https://updates.mirrormind.sh/mirror-desktop/alpha`, retained versions
+  `0.2.0-alpha.14, 0.2.0-alpha.15` and the six manifest paths, matching the
+  corrected Alpha.15 publication exactly; the divergent `--base-url` was
+  refused.
+
+## Checks
+
+- `npx vitest run src/tests/releaseDeploy.test.mjs src/tests/privateUpdatePublish.test.mjs` — 19 passed.
+- Full `npm test -- --run` and `node scripts/roadmap_consistency.mjs` recorded at commit time.
+
+## Navigator Validation
+
+Validated by the Navigator on 2026-09-22 over the implementation evidence and
+the dry-run behavior: the derived publication base URL matches the endpoint the
+installed application polls, a divergent base URL is refused, retained versions
+and manifest paths are derived, and the confirmation payload carries the
+authored release title and full release-note text.
+
+## Proportionality and Debt Review
+
+**Proportionate.** The change is confined to release tooling, its tests and the
+two governance documents that own authorization scope. No product runtime,
+conversation authority, Mirror persistence or provider path was touched, so the
+blast radius of a defect here is a blocked release, never corrupted user data.
+
+**Debt accepted, and named.** Three limits ship knowingly:
+
+- The route is exercised end to end only by a real release. The pure functions
+  are unit-covered, but push, tag, GitHub release and SSH upload are verified
+  by use, not by test doubles. The first release after this CR is therefore the
+  route's real acceptance.
+- Post-publication verification proves the manifest an installed application
+  would read; it does not prove that a running application then downloaded and
+  applied the update. Installed-app update validation stays a manual step.
+- The derived base URL binds to `src-tauri/tauri.alpha-update.conf.json`. A
+  future second channel with its own config will need the channel selected
+  explicitly rather than assumed.
+
+**Debt retired.** The publisher no longer carries a base URL constant that can
+silently disagree with the application, and evidence documents are no longer
+hand-composed through shell heredocs.
+
+## Closure
+
+Closed on 2026-09-22 on `refinement/rs016-cr074-one-command-release-deploy` at
+`22e5700`, merged to `main`. The Alpha.15 wrong-prefix defect is structurally
+unreachable: the destination is derived, divergence fails closed, and
+publication cannot report success while the polled URLs still serve the
+previous version.
+
 ## Authority Boundary
 
-Captured only. Selecting, assigning Driver/Delivery, implementing, committing
-beyond capture, pushing, merging, publication and release remain separate
-Navigator decisions.
+Closed under explicit Navigator validation. Any release that exercises the new
+route remains its own Navigator decision, authorized as the single
+release-publication scope this CR defines.

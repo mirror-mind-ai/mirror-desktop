@@ -51,7 +51,26 @@ The current alpha key was generated for governed alpha rehearsal. It is not a no
 
 ## Alpha Release Runbook
 
-A governed alpha release should follow this order:
+The deterministic route for the whole runbook is the deploy script:
+
+```bash
+npm run release:deploy -- prepare --mirror-root <root> --mirror-home <home> --mirror-user <user>
+npm run release:deploy -- publish --yes
+```
+
+`prepare` runs preflight, the full test and build gates, the signed alpha build
+and the candidate inspection, then emits the confirmation payload — including
+the authored release title and full release-note text — and script-generated
+preparation evidence. `publish --yes` runs push, tag, GitHub prerelease,
+endpoint publication, blocking post-publication verification against the exact
+URLs installed applications poll, and script-generated publication evidence.
+The publication base URL is derived from `endpoints[0]` of
+`src-tauri/tauri.alpha-update.conf.json`; a divergent explicit base URL fails
+closed. Retained current versions and manifest paths are derived from Git tags,
+not hand-typed. The route state under `.tmp/release-deploy/` makes re-runs
+resume after a mid-sequence failure instead of repeating completed stages.
+
+The manual order below remains the reference for what the route performs:
 
 1. choose the alpha version and update version authority in:
    - `package.json`
@@ -77,15 +96,26 @@ The command runs the alpha updater preflight, reads the alpha signing key from `
 
 ## Publication Boundary
 
-Alpha publication is not implied by building. These require explicit Navigator authorization each time:
+Alpha publication is not implied by building. **Release publication is one
+authorization scope**: a single explicit Navigator instruction such as
+"publish the release" authorizes the whole deterministic route — push, tag,
+GitHub Release and upload to the alpha endpoint — with exactly one
+confirmation after preparation, taken over materialized artifacts and the
+authored release note. Between that confirmation and completion, the route
+asks no further questions; its internal mechanics are covered by automatic
+fail-closed gates (derived destination, blocking post-publication
+verification, script-emitted evidence), not by repeated authorization
+requests. Any invocation that does not declare publication intent stays a dry
+run.
 
-- upload to the alpha endpoint;
-- Git push;
-- Git tag;
-- GitHub Release;
+Outside that scope, these still require their own explicit Navigator
+authorization each time:
+
 - Apple notarization submission;
 - public announcement;
-- promotion to stable or production.
+- promotion to stable or production;
+- any publication that departs from the deterministic route (manual uploads,
+  divergent destinations, out-of-band tags or releases).
 
 ## Retention and Cleanup
 
