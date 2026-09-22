@@ -2,7 +2,7 @@
 
 # CR054: Surface Provider Terminal Errors in the GUI
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr054-provider-terminal-errors`
 
@@ -110,9 +110,28 @@ evidence record for `agent-run-2026-09-21T12:49:06.244Z`).
   and without evidence; source-inspection wiring guardrails.
 - Full suites: 171 Rust, 935 frontend; TypeScript/Vite build passed; roadmap
   `READY`; whitespace clean.
-- Manual DEV homologation pending: a mid-run provider death must show the
-  provider's reported reason under the interruption notice after reopening the
-  Journey.
+- Homologation correction (2026-09-22): the first recipe — disconnecting the
+  network mid-run — does not exercise this CR. Pi does not die; the stream
+  stalls and the run stays in `Working` until the user cancels, recording
+  `cancelled` with `cancellationIntent: requested`. That distinct defect is
+  captured as [CR073](cr073-surface-stalled-provider-streams.md).
+- Capture narrowing (2026-09-22): investigating real Pi stderr showed startup
+  warnings (`Warning: No models match pattern ...`) interleaved with the actual
+  `Error:` line. The original last-line fallback could therefore have quoted
+  innocuous startup noise as the terminal cause. Capture now admits only
+  error-shaped lines and stays silent otherwise, since inventing an explanation
+  the evidence cannot carry is exactly what this CR forbids.
+- Manual DEV homologation (2026-09-22): validated by the Navigator on Dev
+  (`exec 6b028c61…`). A `kill -9` during a live turn recorded
+  `terminalOutcome: process_died` with `cancellationIntent: none` and **no**
+  `providerFailure`, and the interruption notice rendered without the provider
+  line. An abrupt death leaves no provider words, so none are shown.
+- Accepted scope limit: the positive rendering — a provider error printed
+  before the process exits — is covered by unit tests on both layers and
+  supported by command-line evidence that Pi writes provider errors to stderr
+  before exiting non-zero (`Error: Model ... not found`, exit 1). It is not
+  GUI-observed, because a mid-generation provider failure such as a quota
+  exhaustion cannot be triggered deterministically in this environment.
 
 ## Exclusions
 
