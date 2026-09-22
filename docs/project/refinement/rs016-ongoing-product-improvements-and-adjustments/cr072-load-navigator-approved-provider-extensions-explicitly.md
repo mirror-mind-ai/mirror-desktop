@@ -2,9 +2,9 @@
 
 # CR072: Load Navigator-Approved Provider Extensions Explicitly
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr072-global-pi-extensions`
 
 ## Problem
 
