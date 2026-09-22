@@ -2,7 +2,7 @@
 
 # CR077: Reconstruct Reasoning from Pi Session Evidence
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr077-reconstruct-reasoning`
 
@@ -119,8 +119,54 @@ refuses to display for non-codex providers.
   CR076 bounds with visible truncation and elision. Full suite 165 files /
   970 tests green; TypeScript/Vite build green.
 
+## Navigator Validation
+
+Validated by the Navigator on 2026-09-22 on the installed Dev build
+(`0.2.0-alpha.16`, exec `388a24d34e6fee5f`). Historical turns in Journey
+`US1 Rerun A 0831` that previously showed only bare tool rows now show their
+reasoning, reconstructed from the Pi session, with tools nested inside the
+thinking that motivated them. Reasoning survives closing and reopening the
+application, which was the gap CR076 shipped with.
+
+## Proportionality and Debt Review
+
+**Proportionate, and smaller than expected.** The change touched one domain
+projector, one derived index, one transcript fallback line and a new bounds
+module. No Rust change was required: the transcript inspection already carried
+the raw Pi content blocks, so the fix was to stop discarding them rather than
+to extract anything new. No Pi invocation, transcript authority, Mirror
+synchronization or persistence schema was modified.
+
+**Debt accepted, and named.** Three limits ship knowingly:
+
+- **Reconstruction cost is linear in session size and repeats on every
+  hydration**, since the derived projection is deliberately not persisted. For
+  the session sizes observed this is negligible, but a very long session pays
+  it on each surface rebuild. Recomputation was chosen over duplication so Pi
+  JSONL stays the only authority.
+- **Tool status is inferred from recorded results only.** A call whose result
+  was never written is reported `interrupted`, which is honest but coarser
+  than live capture: it cannot distinguish a tool that was killed from one
+  whose result was lost. Exact-match correlation was verified against the real
+  Dev session (14 of 14).
+- **Reconstructed turns report `completed`** as run status, because the Pi
+  session records no terminal run outcome. Live evidence, which does know,
+  always takes precedence, so this only applies to turns never captured live.
+
+**Debt retired.** Reasoning now survives restart, closing the live-only
+limitation named when CR076 closed. Live and reconstructed reasoning share one
+bounds definition (`src/domain/reasoningBounds.ts`) and one rendering path, so
+the two cannot drift into disagreeing about what a turn's reasoning was.
+
+## Closure
+
+Closed on 2026-09-22 on `refinement/rs016-cr077-reconstruct-reasoning` at
+`437d832`, merged to `main`. Reasoning that Pi records is now shown whether it
+was captured live or reconstructed from the session, bounded identically in
+both paths, with live capture always authoritative.
+
 ## Authority Boundary
 
-Captured only. Selecting, assigning Driver/Delivery, implementing, committing
-beyond capture, pushing, merging, publication and release remain separate
-Navigator decisions.
+Closed under explicit Navigator validation on the installed Dev build. Any
+release that carries this work remains its own Navigator decision under the
+single release-publication scope CR074 defines.
