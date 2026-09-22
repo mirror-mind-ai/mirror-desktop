@@ -250,6 +250,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
           ? runtimeProjectionMessageId === message.id
             ? runtimeProjection
             : index.terminalEvidenceByAssistantMessageId.get(message.id)?.projection
+              ?? index.reconstructedProjectionByAssistantMessageId.get(message.id)
           : undefined;
         return (
           <div

@@ -80,6 +80,45 @@ refuses to display for non-codex providers.
 - Dev Journey `us1-rerun-a-0831` Pi session JSONL carries assistant messages
   whose content is `['thinking', 'toolCall']`.
 
+## Implementation Evidence
+
+- **No Rust change was needed.** The full transcript inspection already
+  carries each entry's raw Pi content (`nativeContent`) plus `toolCallId` and
+  `isError` for tool results; the loss was entirely in the TypeScript
+  projector, which read only `visibleText`.
+- **Reconstruction in `projectPiBackedConversationSurface`.** Assistant
+  entries accumulate `thinking` and `toolCall` blocks in native order across
+  the multi-entry run of a turn; a user entry drops pending blocks; the
+  assistant entry with visible text attaches the accumulated projection to its
+  message. Tool status is correlated through a pre-pass over `toolResult`
+  entries by exact `toolCallId` match (verified exact on the real Dev session:
+  14 of 14 recorded results match; calls without a result are honestly
+  `interrupted`). Only turns with at least one thinking block are
+  reconstructed; tools-only turns stay as today.
+- **Provenance is not manufactured.** Reconstruction does not synthesize
+  terminal agent action evidence (no fabricated `runId`/`turnId`). It
+  populates a separate derived map, `reconstructedAgentActions`, keyed by
+  assistant message id. Live-captured evidence always wins: messages with an
+  entry in `terminalAgentActionEvidence` are skipped.
+- **Deliberately not persisted.** The persistence parser rebuilds
+  conversations from a field whitelist, so the derived map is dropped on save
+  and re-derived from Pi JSONL at every surface reconstruction. Pi remains the
+  authority; storage carries no duplicate. This also honors the exclusion
+  against backfilling stored conversations.
+- **Same bounds, one definition.** `REASONING_BLOCK_MAX_CHARS` and
+  `REASONING_TURN_MAX_CHARS` moved to `src/domain/reasoningBounds.ts` with a
+  batch `boundReasoningBlocks(...)`; the live activity model imports and
+  re-exports them, so live and reconstructed paths cannot drift.
+- **One presentation path.** `ConversationTranscript` falls back from live
+  runtime projection to exact terminal evidence to the reconstructed
+  projection, all feeding the same `projectAgentTurnPresentation` and CR076
+  rendering. No new component or rendering branch.
+- **Tests.** Bounds module unit tests; interleaved multi-entry reconstruction
+  with order preservation; failed/interrupted tool status correlation;
+  tools-only absence; live-evidence authority; pending-drop on interruption;
+  CR076 bounds with visible truncation and elision. Full suite 165 files /
+  970 tests green; TypeScript/Vite build green.
+
 ## Authority Boundary
 
 Captured only. Selecting, assigning Driver/Delivery, implementing, committing

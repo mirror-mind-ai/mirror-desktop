@@ -1,4 +1,4 @@
-import type { JourneyConversation, SteeringEvidence, TerminalAgentActionEvidence } from "../domain/journeyConversation";
+import type { JourneyConversation, SteeringEvidence, TerminalAgentActionEvidence, TerminalAgentActionProjection } from "../domain/journeyConversation";
 import { indexExactTerminalAgentActionEvidence } from "./terminalAgentActionEvidence";
 
 type ReconciliationTurn = JourneyConversation["reconciliation"]["turns"][number];
@@ -7,6 +7,7 @@ export type ConversationTranscriptIndex = {
   turnByUserMessageId: ReadonlyMap<string, ReconciliationTurn>;
   steeringByAssistantMessageId: ReadonlyMap<string, SteeringEvidence[]>;
   terminalEvidenceByAssistantMessageId: ReadonlyMap<string, TerminalAgentActionEvidence>;
+  reconstructedProjectionByAssistantMessageId: ReadonlyMap<string, TerminalAgentActionProjection>;
 };
 
 export function buildConversationTranscriptIndex(
@@ -33,5 +34,8 @@ export function buildConversationTranscriptIndex(
     turnByUserMessageId,
     steeringByAssistantMessageId,
     terminalEvidenceByAssistantMessageId: indexExactTerminalAgentActionEvidence(conversation),
+    reconstructedProjectionByAssistantMessageId: new Map(
+      Object.entries(conversation.reconstructedAgentActions ?? {}),
+    ),
   };
 }

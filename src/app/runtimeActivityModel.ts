@@ -1,4 +1,5 @@
 import type { AgentOperationStatus, AgentRunStatus, AgentStreamEvent } from "../agent/agentStream";
+import { REASONING_BLOCK_MAX_CHARS, REASONING_TURN_MAX_CHARS } from "../domain/reasoningBounds";
 
 export type RuntimeProjectionStatus = AgentRunStatus | "cancelled" | "failed";
 
@@ -22,8 +23,9 @@ export type ProjectedReasoningSummary = {
 
 // CR076 bounds decision: enforced at capture so reasoning cannot grow
 // durable evidence without limit; truncation and elision stay visible.
-export const REASONING_BLOCK_MAX_CHARS = 8192;
-export const REASONING_TURN_MAX_CHARS = 65536;
+// The constants live in the domain (reasoningBounds) so Pi-session
+// reconstruction (CR077) applies the identical bounds.
+export { REASONING_BLOCK_MAX_CHARS, REASONING_TURN_MAX_CHARS };
 
 export type RuntimeActivityReference =
   | { type: "operation"; id: string }
