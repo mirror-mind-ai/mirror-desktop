@@ -28,7 +28,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
-- [CR074: One-Command Deterministic Release Deployment](cr074-one-command-deterministic-release-deployment.md) — in_progress
+- [CR074: One-Command Deterministic Release Deployment](cr074-one-command-deterministic-release-deployment.md) — done
 - [CR073: Surface Stalled Provider Streams](cr073-surface-stalled-provider-streams.md) — dismissed
 - [CR072: Load Navigator-Approved Provider Extensions Explicitly](cr072-load-navigator-approved-provider-extensions-explicitly.md) — done
 - [CR071: Stop Offering Models the Desktop Invocation Cannot Run](cr071-stop-offering-models-the-desktop-invocation-cannot-run.md) — done

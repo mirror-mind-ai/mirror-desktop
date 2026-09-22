@@ -49,7 +49,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR074](rs016-ongoing-product-improvements-and-adjustments/cr074-one-command-deterministic-release-deployment.md) | RS016 | One-Command Deterministic Release Deployment | in_progress | @alissonvale | `refinement/rs016-cr074-one-command-release-deploy` |
+| 1 | [CR074](rs016-ongoing-product-improvements-and-adjustments/cr074-one-command-deterministic-release-deployment.md) | RS016 | One-Command Deterministic Release Deployment | done | @alissonvale | `refinement/rs016-cr074-one-command-release-deploy` |
 | 2 | [CR070](rs016-ongoing-product-improvements-and-adjustments/cr070-restore-visibility-of-pre-agent-send-rejection.md) | RS016 | Restore Visibility of Pre-Agent Send Rejection | done | @alissonvale | `refinement/rs016-cr070-unsent-notice-visibility` |
 | 3 | [CR072](rs016-ongoing-product-improvements-and-adjustments/cr072-load-navigator-approved-provider-extensions-explicitly.md) | RS016 | Load Navigator-Approved Provider Extensions Explicitly | done | @alissonvale | `refinement/rs016-cr072-global-pi-extensions` |
 | 4 | [CR071](rs016-ongoing-product-improvements-and-adjustments/cr071-stop-offering-models-the-desktop-invocation-cannot-run.md) | RS016 | Stop Offering Models the Desktop Invocation Cannot Run | done | @alissonvale | `refinement/rs016-cr071-unavailable-models` |
