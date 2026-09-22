@@ -27,8 +27,14 @@ describe("agent settings storage boundary", () => {
 
   it("loads a bounded structured local Pi catalog", async () => {
     const { listPiModels } = await import("../app/agentSettingsStorage");
-    invoke.mockResolvedValueOnce([{ provider: "openai-codex", model: "gpt-5.4", contextWindow: 1050000, maxOutput: 128000, thinking: true, images: true }]);
+    invoke.mockResolvedValueOnce([{ provider: "openai-codex", model: "gpt-5.4", contextWindow: 1050000, maxOutput: 128000, thinking: true, images: true, available: true }]);
     await expect(listPiModels()).resolves.toHaveLength(1);
     expect(invoke).toHaveBeenCalledWith("list_pi_models");
+  });
+
+  it("rejects catalog entries without an availability verdict", async () => {
+    const { listPiModels } = await import("../app/agentSettingsStorage");
+    invoke.mockResolvedValueOnce([{ provider: "openai-codex", model: "gpt-5.4", contextWindow: 1050000, maxOutput: 128000, thinking: true, images: true }]);
+    await expect(listPiModels()).rejects.toThrow("invalid");
   });
 });

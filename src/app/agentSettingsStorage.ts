@@ -12,6 +12,7 @@ export type PiModelCatalogEntry = {
   maxOutput: number;
   thinking: boolean;
   images: boolean;
+  available: boolean;
 };
 
 export async function loadAgentSettings(): Promise<AgentSettings | undefined> {
@@ -40,12 +41,13 @@ function parseCatalogEntry(value: unknown): PiModelCatalogEntry {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Pi model catalog entry is invalid.");
   const entry = value as Record<string, unknown>;
   const keys = Object.keys(entry);
-  if (keys.some((key) => !["provider", "model", "contextWindow", "maxOutput", "thinking", "images"].includes(key))) {
+  if (keys.some((key) => !["provider", "model", "contextWindow", "maxOutput", "thinking", "images", "available"].includes(key))) {
     throw new Error("Pi model catalog entry contains unsupported fields.");
   }
   if (typeof entry.provider !== "string" || typeof entry.model !== "string"
     || !Number.isSafeInteger(entry.contextWindow) || !Number.isSafeInteger(entry.maxOutput)
-    || typeof entry.thinking !== "boolean" || typeof entry.images !== "boolean") {
+    || typeof entry.thinking !== "boolean" || typeof entry.images !== "boolean"
+    || typeof entry.available !== "boolean") {
     throw new Error("Pi model catalog entry is invalid.");
   }
   return entry as PiModelCatalogEntry;

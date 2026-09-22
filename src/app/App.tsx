@@ -140,6 +140,7 @@ import {
   resolveUnsentReason,
   type UnsentDraftNotices,
 } from "./unsentDraftNotice";
+import { unavailableModelReason } from "../domain/modelAvailability";
 import {
   deriveInactiveNativeAttemptCandidate,
   shouldPresentInactiveNativeAttempt,
@@ -1953,6 +1954,13 @@ export function App({ model }: AppProps) {
         || journeyThreadState.kind !== "ready";
       if (preflightBlocked) {
         const message = "Live invocation stopped because Journey conversation authority changed or is still being inspected. Reconcile the selected Journey and try again.";
+        setUnsentDraftNotices((current) => recordUnsentDraft(current, selectedJourney, message));
+        dispatchJourneyRuntime({ type: "append_warning", journeyId: selectedJourney, message });
+        return;
+      }
+      const modelRejection = unavailableModelReason(piModelCatalog, effectiveAgentProfile.model);
+      if (modelRejection) {
+        const message = `Live invocation stopped: ${modelRejection}`;
         setUnsentDraftNotices((current) => recordUnsentDraft(current, selectedJourney, message));
         dispatchJourneyRuntime({ type: "append_warning", journeyId: selectedJourney, message });
         return;
@@ -5135,10 +5143,18 @@ export function App({ model }: AppProps) {
                   setGlobalModelDraft(next);
                   if (!modelSupportsThinking(piModelCatalog, next) && !["pi-default", "off"].includes(globalThinkingDraft)) setGlobalThinkingDraft("off");
                 }}>
-                  {modelOptions.map((model) => (
-                    <option key={modelOptionValue(model)} value={modelOptionValue(model)}>{model.provider} / {model.model}</option>
-                  ))}
+                  {modelOptions.map((model) => {
+                    const unavailable = Boolean(unavailableModelReason(piModelCatalog, model));
+                    return (
+                      <option key={modelOptionValue(model)} value={modelOptionValue(model)} disabled={unavailable}>
+                        {model.provider} / {model.model}{unavailable ? " — unavailable" : ""}
+                      </option>
+                    );
+                  })}
                 </select>
+                {modelKeyUnavailableReason(piModelCatalog, globalModelDraft) ? (
+                  <p className="provider-note">{modelKeyUnavailableReason(piModelCatalog, globalModelDraft)}</p>
+                ) : null}
               </label>
               <label className="provider-field">
                 Thinking level
@@ -5263,10 +5279,24 @@ export function App({ model }: AppProps) {
                   if (!modelSupportsThinking(piModelCatalog, resolvedModel) && journeyThinkingDraft !== "inherit" && !["pi-default", "off"].includes(journeyThinkingDraft)) setJourneyThinkingDraft("off");
                 }}>
                   <option value="inherit">Use global model · {agentSettings.globalProfile.model.provider}/{agentSettings.globalProfile.model.model}</option>
-                  {modelOptions.map((model) => (
-                    <option key={modelOptionValue(model)} value={modelOptionValue(model)}>{model.provider} / {model.model}</option>
-                  ))}
+                  {modelOptions.map((model) => {
+                    const unavailable = Boolean(unavailableModelReason(piModelCatalog, model));
+                    return (
+                      <option key={modelOptionValue(model)} value={modelOptionValue(model)} disabled={unavailable}>
+                        {model.provider} / {model.model}{unavailable ? " — unavailable" : ""}
+                      </option>
+                    );
+                  })}
                 </select>
+                {modelKeyUnavailableReason(
+                  piModelCatalog,
+                  journeyModelDraft === "inherit" ? modelOptionValue(agentSettings.globalProfile.model) : journeyModelDraft,
+                ) ? (
+                  <p className="provider-note">{modelKeyUnavailableReason(
+                    piModelCatalog,
+                    journeyModelDraft === "inherit" ? modelOptionValue(agentSettings.globalProfile.model) : journeyModelDraft,
+                  )}</p>
+                ) : null}
               </label>
               <label className="provider-field">
                 Thinking level
@@ -5317,6 +5347,14 @@ function uniqueModelOptions(models: AgentModelSelection[]): AgentModelSelection[
     seen.add(key);
     return true;
   }).sort((left, right) => modelOptionValue(left).localeCompare(modelOptionValue(right)));
+}
+
+function modelKeyUnavailableReason(catalog: PiModelCatalogEntry[], modelKey: string): string | undefined {
+  try {
+    return unavailableModelReason(catalog, modelFromOptionValue(modelKey));
+  } catch {
+    return undefined;
+  }
 }
 
 function modelSupportsThinking(catalog: PiModelCatalogEntry[], modelKey: string): boolean {

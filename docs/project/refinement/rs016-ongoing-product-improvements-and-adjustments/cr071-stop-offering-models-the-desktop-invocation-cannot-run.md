@@ -29,6 +29,41 @@ A failure whose cause cannot be classified still surfaces truthfully through lay
 
 Related: CR053 (clarify effective model), CR054 (surface provider terminal errors), CR070 (pre-agent rejection visibility).
 
+## Implementation Outcome (2026-09-21)
+
+Availability is derived from the invocation itself, not from heuristics: the
+catalog command now performs two reads — the full offering (as before) and an
+invocation-shaped read carrying exactly the extension flags of the
+mirror-mediated send (`--no-extensions` plus CR072's resolved global entries).
+A model offered by the first read but absent from the second is marked
+`available: false`; `mark_model_availability` is pure and unit-tested.
+
+Presentation and refusal:
+
+- Both model choosers (global and Journey override) keep unavailable models
+  visible but `disabled`, suffixed `— unavailable`.
+- When the current selection or a retained override resolves to an unavailable
+  model, the reason renders under the chooser (`provider-note`).
+- At send time, a pre-flight guard refuses the invocation and returns the
+  draft through CR070's unsent-notice surface with the same reason.
+
+Truth boundaries: models unknown to the catalog pass through untouched — Pi
+remains the authority, and their failures keep flowing through CR070/CR054
+with exact provider text. No error is silently filtered. After CR072, the
+resolvable global extensions make their models genuinely available, so this
+indicator covers only what the send truly cannot resolve.
+
+## Validation
+
+- Red-then-green units: availability marking (Rust), `unavailableModelReason`
+  boundaries (catalog-unknown models pass), catalog entries without a verdict
+  rejected at the parse boundary.
+- Source-inspection guardrails pin the send guard before `register` and the
+  disabled options.
+- Full suites: 168 Rust, 930 frontend; TypeScript/Vite build passed; roadmap
+  `READY`; whitespace clean.
+- Manual DEV homologation pending.
+
 ## Horizon
 
 The unavailable indicator is interim treatment. The captured direction

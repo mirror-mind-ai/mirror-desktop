@@ -1,3 +1,4 @@
+use crate::pi_global_extensions::resolve_global_pi_extensions;
 use crate::runtime_channel::RuntimeChannelProfile;
 use serde::Serialize;
 use serde_json::Value;
@@ -17,6 +18,7 @@ pub struct PiModelCatalogEntry {
     max_output: u64,
     thinking: bool,
     images: bool,
+    available: bool,
 }
 
 #[tauri::command]
@@ -40,7 +42,13 @@ pub fn save_agent_settings(app: AppHandle, payload: String) -> Result<(), String
 #[tauri::command]
 pub fn list_pi_models() -> Result<Vec<PiModelCatalogEntry>, String> {
     let profile = RuntimeChannelProfile::active()?;
-    let output = pi_model_catalog_command(&profile)?
+    let offered = run_pi_model_catalog(pi_model_catalog_command(&profile)?)?;
+    let runnable = run_pi_model_catalog(pi_invocation_catalog_command(&profile)?)?;
+    Ok(mark_model_availability(offered, &runnable))
+}
+
+fn run_pi_model_catalog(mut command: Command) -> Result<Vec<PiModelCatalogEntry>, String> {
+    let output = command
         .output()
         .map_err(|error| format!("Could not inspect the local Pi model catalog: {}", error))?;
     if !output.status.success() {
@@ -51,10 +59,37 @@ pub fn list_pi_models() -> Result<Vec<PiModelCatalogEntry>, String> {
     parse_pi_model_catalog(&text)
 }
 
+fn mark_model_availability(
+    offered: Vec<PiModelCatalogEntry>,
+    runnable: &[PiModelCatalogEntry],
+) -> Vec<PiModelCatalogEntry> {
+    offered
+        .into_iter()
+        .map(|entry| {
+            let available = runnable
+                .iter()
+                .any(|candidate| candidate.provider == entry.provider && candidate.model == entry.model);
+            PiModelCatalogEntry { available, ..entry }
+        })
+        .collect()
+}
+
 fn pi_model_catalog_command(profile: &RuntimeChannelProfile) -> Result<Command, String> {
     let mut command = profile.runtime_command("pi")?;
     profile.detach_journey_turn_authority(&mut command);
     command.arg("--list-models").env("PI_OFFLINE", "1");
+    Ok(command)
+}
+
+// Mirrors the extension flags of the mirror-mediated invocation so that
+// availability means exactly "this send would resolve the model".
+fn pi_invocation_catalog_command(profile: &RuntimeChannelProfile) -> Result<Command, String> {
+    let mut command = pi_model_catalog_command(profile)?;
+    command.arg("--no-extensions");
+    let home = crate::current_user_home_directory()?;
+    for entry in resolve_global_pi_extensions(&home.join(".pi").join("agent")).entries {
+        command.arg("--extension").arg(entry);
+    }
     Ok(command)
 }
 
@@ -284,6 +319,7 @@ fn parse_pi_model_catalog(payload: &str) -> Result<Vec<PiModelCatalogEntry>, Str
             max_output: parse_compact_count(columns[3])?,
             thinking: parse_yes_no(columns[4])?,
             images: parse_yes_no(columns[5])?,
+            available: true,
         });
     }
     Ok(entries)
@@ -390,10 +426,27 @@ mod tests {
                 context_window: 1_050_000,
                 max_output: 128_000,
                 thinking: true,
-                images: true
+                images: true,
+                available: true
             }]
         );
         assert!(parse_pi_model_catalog("bad header\n").is_err());
+    }
+
+    #[test]
+    fn marks_models_missing_from_the_invocation_catalog_as_unavailable() {
+        let offered = parse_pi_model_catalog(
+            "provider model context max-out thinking images\nanthropic claude-opus-4-7 200K 64K yes yes\nclaude-bridge claude-opus-5 200K 64K yes yes\n",
+        )
+        .unwrap();
+        let runnable = parse_pi_model_catalog(
+            "provider model context max-out thinking images\nanthropic claude-opus-4-7 200K 64K yes yes\n",
+        )
+        .unwrap();
+        let marked = mark_model_availability(offered, &runnable);
+        assert!(marked[0].available);
+        assert!(!marked[1].available);
+        assert_eq!(marked[1].provider, "claude-bridge");
     }
 
     #[test]

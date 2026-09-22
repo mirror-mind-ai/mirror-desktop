@@ -198,6 +198,9 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("Message was not sent");
     expect(appSource).toContain("lastItem(streamWarnings)");
     expect(appSource).toContain("recordUnsentDraft(current, ownerJourneyId, message)");
+    expect(appSource).toContain("unavailableModelReason(piModelCatalog, effectiveAgentProfile.model)");
+    expect(appSource.indexOf("const modelRejection")).toBeLessThan(appSource.indexOf('type: "register"'));
+    expect(appSource).toContain("disabled={unavailable}");
     expect(appSource).toContain("clearUnsentDraft(current, ownerJourneyId)");
     expect(appSource).toContain("{unsentDraftNotice}");
     expect(appSource.indexOf("clearUnsentDraft(current, ownerJourneyId)")).toBeLessThan(
