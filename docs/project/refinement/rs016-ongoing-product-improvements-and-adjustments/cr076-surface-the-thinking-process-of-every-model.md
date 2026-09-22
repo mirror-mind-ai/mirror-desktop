@@ -91,12 +91,65 @@ collapses when the reasoning-plus-tool pair completes. This is intended.
   class, which is already defined in `src/styles/app.css` and currently used by
   no component.
 - Derive a bounded title from the reasoning prose by truncation.
-- Decide and enforce explicit bounds on captured reasoning size, since
-  narrative thinking is substantially larger than codex summaries and flows
-  into terminal agent action evidence and conversation storage.
+- Enforce the reasoning bounds decided below at capture and projection time.
 - Tests: capture admitted for a non-codex thinking-capable model, narrative
   classification, chip classification preserved, nesting of operations, bounds
   enforcement.
+
+## Bounds Decision
+
+Decided on 2026-09-22 after measuring the real material rather than estimating
+it.
+
+**Measured context.** 134 thinking blocks across the Dev Pi sessions give p90 =
+45 characters and a maximum of 279, but almost all of that ran at `pi-default`
+thinking, so the sample understates the target case; at `high` or `max` on a
+complex task, blocks of 1-4 KB are ordinary. Persisted conversations already
+reach 1.1 MB (`mirror-desktop-rescue-journey/generation-1.json`, 4.6 MB across
+all conversations), and `operation.output` in the same
+`parseTerminalAgentActionProjection` structure is validated as a string with no
+length bound at all. Reasoning therefore joins an existing growth vector rather
+than creating a new one, and its bounds should be proportionate to that fact.
+
+**Two bounds, both applied at capture and projection, never at render.**
+Truncating only at render bounds nothing, because the material has already
+become durable evidence by then.
+
+- **8 KB per reasoning block.** Generous enough that ordinary thinking is never
+  touched, tight enough that a pathological block cannot escape. One order of
+  magnitude above the existing `PROVIDER_FAILURE_MAX_BYTES` (2,048).
+- **64 KB of total reasoning per assistant turn.** Once reached, further blocks
+  are not captured. This is half of the existing
+  `JOURNAL_MAX_TERMINAL_STREAM_BYTES` (131,072) and comfortably covers a long
+  agentic turn (20 blocks of 2 KB is 40 KB).
+
+**Truncation must be visible.** A truncated block says it was truncated, and a
+turn that reached the ceiling says reasoning was elided. Silent truncation
+would misrepresent what the model produced, which is the failure mode CR054 and
+CR069 were written to eliminate. This requirement is not negotiable in
+implementation.
+
+**CR077 inherits these bounds** and applies them at its projection point, so
+the live and reconstructed paths yield the same bounded artifact and there is
+never more than one answer to what a turn's reasoning was.
+
+## Adjacent Debt, Deliberately Not Addressed
+
+- **`operation.output` is unbounded** in the same persisted structure and is
+  the larger contributor to conversation growth today. Bounding it here would
+  be scope creep and risks truncating output that existing surfaces read in
+  full. Named as known debt, to be addressed on its own terms.
+- **No conversation-level reasoning cap.** It would be the strongest protection
+  against accumulation, but no such cap exists for operations either, and
+  adding one only for reasoning would let a conversation discard the *why*
+  while keeping the *what*. If accumulation becomes a real problem it belongs
+  to the whole conversation and should be solved for both fields together.
+- **Reasoning stays in terminal evidence** rather than being stored only as a
+  preview with full text fetched from the Pi session on demand. That would
+  remove duplication, since Pi JSONL is transcript authority and already holds
+  the thinking, but it would make display depend on Pi session availability for
+  material the user has already seen. Bounded duplication is cheaper than
+  fragile display.
 
 ## Acceptance
 
@@ -104,7 +157,10 @@ collapses when the reasoning-plus-tool pair completes. This is intended.
   surface, streaming while active and collapsed once settled.
 - A turn run with `openai-codex` keeps today's chip presentation unchanged.
 - No reasoning title or block is produced from content the model did not emit.
-- Reasoning volume cannot grow conversation storage without bound.
+- Reasoning volume cannot grow conversation storage without bound: no single
+  block exceeds 8 KB and no turn exceeds 64 KB of captured reasoning.
+- Every truncated block and every turn that reached the ceiling says so on the
+  surface; no truncation is silent.
 
 ## Exclusions
 

@@ -45,8 +45,10 @@ messages and operations.
   with existing tool-call projection.
 - Reuse the presentation classification introduced by CR076 rather than adding
   a parallel rendering path.
-- Apply explicit retention or truncation bounds consistent with the bounds
-  CR076 establishes for live capture.
+- Apply the bounds CR076 decided (8 KB per reasoning block, 64 KB of total
+  reasoning per assistant turn, truncation always visible) at the projection
+  point, so the reconstructed path yields the same bounded artifact as live
+  capture.
 - Tests: reconstruction with interleaved thinking and tool calls, ordering
   preservation, absence when no thinking exists, bounds enforcement.
 
@@ -67,9 +69,10 @@ messages and operations.
 
 ## Dependencies
 
-Depends on CR076 for the shape classification and the bounds decision. Landing
-CR077 first would either duplicate presentation logic or reconstruct reasoning
-the surface still refuses to display for non-codex providers.
+Depends on CR076 for the shape classification and inherits its recorded bounds
+decision by reference rather than restating it. Landing CR077 first would
+either duplicate presentation logic or reconstruct reasoning the surface still
+refuses to display for non-codex providers.
 
 ## Evidence
 
