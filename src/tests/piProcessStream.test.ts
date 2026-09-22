@@ -6,7 +6,7 @@ import {
   supportsDisplayableReasoningSummaries,
 } from "../agent/piProcessStream";
 import { createMissionExtractionPacket, type NautilusGrammarState } from "../agent/piTaskPacket";
-import { defaultPiProviderConfig } from "../agent/providerConfig";
+import { defaultPiProviderConfig, projectAgentProfile } from "../agent/providerConfig";
 import { createDedicatedJourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { createRunAuthority } from "../domain/runAuthority";
@@ -285,13 +285,24 @@ describe("Pi process stream adapter", () => {
   });
 
   it("certifies only the OpenAI Codex provider adapter for reasoning-summary projection", () => {
-    expect(supportsDisplayableReasoningSummaries(defaultPiProviderConfig)).toBe(true);
+    // Certification happens on the projected config, the one a send uses;
+    // the raw default template no longer names a provider (CR053).
+    const projectedDefault = projectAgentProfile(defaultPiProviderConfig, {
+      journeyId: "journey-a",
+      model: { provider: "openai-codex", model: "gpt-5.5" },
+      thinkingLevel: "pi-default",
+      invocationMode: "mirror",
+      modelSource: "global",
+      thinkingSource: "global",
+    });
+    expect(supportsDisplayableReasoningSummaries(projectedDefault)).toBe(true);
+    expect(supportsDisplayableReasoningSummaries(defaultPiProviderConfig)).toBe(false);
     expect(supportsDisplayableReasoningSummaries({
-      ...defaultPiProviderConfig,
+      ...projectedDefault,
       command: "/usr/local/bin/pi",
     })).toBe(true);
     expect(supportsDisplayableReasoningSummaries({
-      ...defaultPiProviderConfig,
+      ...projectedDefault,
       command: "custom-provider-wrapper",
     })).toBe(true);
     expect(supportsDisplayableReasoningSummaries({

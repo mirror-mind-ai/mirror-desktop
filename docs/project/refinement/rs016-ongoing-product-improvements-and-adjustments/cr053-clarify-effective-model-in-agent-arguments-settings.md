@@ -71,6 +71,45 @@ Architecture documentation already states that React projects the resolved profi
 - Existing sends still strip and reinject `--provider`, `--model` and `--thinking` from the effective agent profile.
 - Safe test mode and raw/mirror invocation mode behavior remain unchanged.
 
+## Implementation Outcome (2026-09-22)
+
+The confusion had one seed: `defaultPiProviderConfig.args` shipped with literal
+`--provider openai-codex --model gpt-5.4-mini`, text that `projectAgentProfile`
+strips and reinjects on every real send — dead text presented as authoritative.
+
+- The default args template is now `--print` only, with a comment naming why
+  model literals do not belong there.
+- The Current session controls card opens with a read-only line sourced from
+  the same authority the send consumes:
+  `Effective model: openai-codex/gpt-5.5 · thinking high — from Journey override`
+  (`describeEffectiveAgentProfile`, including global-vs-Journey origin via the
+  existing `modelSource`).
+- Typing `--provider`, `--model` or `--thinking` into the editable field is not
+  blocked or rewritten; an inline note names the typed flags and states they
+  will be replaced at send time by the effective model above
+  (`profileOwnedArgumentFlags`).
+- The closing note now reads in user language: provider, model and thinking
+  are owned by the agent profile and applied at send time; the field is for
+  other invocation arguments.
+
+Runtime authority untouched: strip-and-reinject, safe test mode and invocation
+modes are unchanged. One stale test corrected on inspection: reasoning-summary
+certification asserted on the raw default config, while production certifies
+the projected config (`livePiAgentStream(packet, effectiveProviderConfig, …)`);
+the test now projects first, and the raw template without a provider correctly
+does not certify.
+
+## Validation
+
+- Red-then-green units: default template free of model literals, typed-flag
+  detection, effective-profile description for global/Journey origin and
+  thinking suffix, projected-config certification boundary.
+- Source-inspection guardrails pin the effective-model line and the inline
+  warning wiring.
+- Full suites: 172 Rust, 938 frontend; TypeScript/Vite build passed; roadmap
+  `READY`; whitespace clean.
+- Manual DEV homologation pending.
+
 ## Exclusions
 
 - No change to Pi provider authentication.

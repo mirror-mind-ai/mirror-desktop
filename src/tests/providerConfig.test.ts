@@ -5,6 +5,7 @@ import {
   defaultPiProviderConfig,
   describeProviderMode,
   parseProviderArgs,
+  profileOwnedArgumentFlags,
   providerConfigToArgsText,
   providerModelLabel,
   projectAgentProfile,
@@ -13,20 +14,21 @@ import {
 } from "../agent/providerConfig";
 
 describe("agent provider configuration", () => {
-  it("defines safe default Pi invocation settings", () => {
+  it("defines safe default Pi invocation settings without model literals", () => {
     expect(defaultPiProviderConfig).toEqual({
       command: "pi",
-      args: [
-        "--print",
-        "--provider",
-        "openai-codex",
-        "--model",
-        "gpt-5.4-mini",
-      ],
+      args: ["--print"],
       useStdin: false,
       safeTestMode: false,
       invocationMode: "mirror",
     });
+  });
+
+  it("names the profile-owned flags a user typed into the arguments field", () => {
+    expect(profileOwnedArgumentFlags("--print --no-session")).toEqual([]);
+    expect(profileOwnedArgumentFlags("--print --model gpt-5.5 --thinking high"))
+      .toEqual(["--model", "--thinking"]);
+    expect(profileOwnedArgumentFlags("--provider openai-codex")).toEqual(["--provider"]);
   });
 
   it("parses argument text without shell interpretation", () => {

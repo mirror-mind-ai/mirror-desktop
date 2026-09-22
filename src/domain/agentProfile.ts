@@ -62,6 +62,15 @@ export function resolveAgentProfile(settings: AgentSettings, journeyId: string):
   };
 }
 
+// User-facing sentence for the model a send will actually use, naming which
+// surface owns it, so nobody has to read raw command arguments (CR053).
+export function describeEffectiveAgentProfile(profile: EffectiveAgentProfile): string {
+  const model = `${profile.model.provider}/${profile.model.model}`;
+  const thinking = profile.thinkingLevel === "pi-default" ? "" : ` · thinking ${profile.thinkingLevel}`;
+  const source = profile.modelSource === "journey" ? "Journey override" : "global default";
+  return `${model}${thinking} — from ${source}`;
+}
+
 export function setJourneyAgentOverride(
   settings: AgentSettings,
   journeyId: string,

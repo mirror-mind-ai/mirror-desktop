@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createDefaultAgentSettings,
+  describeEffectiveAgentProfile,
   parseAgentSettings,
   resolveAgentProfile,
   serializeAgentSettings,
@@ -23,6 +24,30 @@ const stored: AgentSettings = {
     beta: { thinkingLevel: "off" },
   },
 };
+
+describe("effective agent profile description", () => {
+  it("names the global default without a thinking suffix for pi-default", () => {
+    expect(describeEffectiveAgentProfile({
+      journeyId: "journey-a",
+      model: { provider: "openai-codex", model: "gpt-5.5" },
+      thinkingLevel: "pi-default",
+      invocationMode: "mirror",
+      modelSource: "global",
+      thinkingSource: "global",
+    })).toBe("openai-codex/gpt-5.5 \u2014 from global default");
+  });
+
+  it("names the Journey override and the explicit thinking level", () => {
+    expect(describeEffectiveAgentProfile({
+      journeyId: "journey-a",
+      model: { provider: "anthropic", model: "claude-opus-4-7" },
+      thinkingLevel: "high",
+      invocationMode: "mirror",
+      modelSource: "journey",
+      thinkingSource: "journey",
+    })).toBe("anthropic/claude-opus-4-7 \u00b7 thinking high \u2014 from Journey override");
+  });
+});
 
 describe("persistent agent profiles", () => {
   it("provides a versioned non-secret Harness default", () => {

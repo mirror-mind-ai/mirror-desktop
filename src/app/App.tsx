@@ -21,6 +21,7 @@ import {
   configuredModelContextWindow,
   createProviderConfig,
   defaultPiProviderConfig,
+  profileOwnedArgumentFlags,
   providerConfigToArgsText,
   providerModelLabel,
   projectAgentProfile,
@@ -298,6 +299,7 @@ import { appendJourneyPosition, createMutationRequest, journeyAdministrationErro
 import {
   agentThinkingLevels,
   createDefaultAgentSettings,
+  describeEffectiveAgentProfile,
   resolveAgentProfile,
   setJourneyAgentOverride,
   type AgentModelSelection,
@@ -5231,8 +5233,12 @@ export function App({ model }: AppProps) {
 
             <section className="settings-section provider-card" aria-label="Current session invocation controls">
               <h3>Current session controls</h3>
+              <p className="provider-note"><strong>Effective model:</strong> {describeEffectiveAgentProfile(effectiveAgentProfile)}</p>
               <label className="provider-field">Command<input value={providerCommand} onChange={(event) => setProviderCommand(event.target.value)} disabled={providerSafeTestMode} /></label>
               <label className="provider-field">Arguments<input value={providerArgsText} onChange={(event) => setProviderArgsText(event.target.value)} disabled={providerSafeTestMode} /></label>
+              {profileOwnedArgumentFlags(providerArgsText).length > 0 ? (
+                <p className="provider-note">{profileOwnedArgumentFlags(providerArgsText).join(", ")} typed here will be replaced at send time by the effective model above.</p>
+              ) : null}
               <label className="provider-check"><input type="checkbox" checked={providerUseStdin} onChange={(event) => setProviderUseStdin(event.target.checked)} disabled={providerSafeTestMode} />Send prompt through stdin</label>
               <label className="provider-check"><input type="checkbox" checked={providerSafeTestMode} onChange={(event) => setProviderSafeTestMode(event.target.checked)} />Safe test mode (cat)</label>
               {providerErrors.length > 0 ? <p className="provider-error">{providerErrors.join(" ")}</p> : null}
@@ -5240,7 +5246,7 @@ export function App({ model }: AppProps) {
                 <button type="button" onClick={applyProviderConfiguration} disabled={runtimeBusy}>Apply for this session</button>
                 <button className="secondary-button" type="button" onClick={resetProviderConfiguration} disabled={runtimeBusy}>Reset session controls</button>
               </div>
-              <p className="provider-note">Command, arguments, stdin and test mode are never persisted. Effective model and thinking flags replace conflicting raw arguments.</p>
+              <p className="provider-note">Command, arguments, stdin and test mode are never persisted. Provider, model and thinking are owned by the agent profile above and applied at send time; use this field for other invocation arguments.</p>
                 </section>
               </div>
             ) : null}

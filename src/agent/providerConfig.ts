@@ -10,19 +10,26 @@ export type AgentProviderConfig = {
   invocationMode: AgentInvocationMode;
 };
 
+// The args template deliberately carries no --provider/--model/--thinking:
+// projectAgentProfile strips and reinjects them from the effective agent
+// profile at send time, so a literal here would be dead text presented as
+// authoritative (CR053).
 export const defaultPiProviderConfig: AgentProviderConfig = {
   command: "pi",
-  args: [
-    "--print",
-    "--provider",
-    "openai-codex",
-    "--model",
-    "gpt-5.4-mini",
-  ],
+  args: ["--print"],
   useStdin: false,
   safeTestMode: false,
   invocationMode: "mirror",
 };
+
+const PROFILE_OWNED_FLAGS = ["--provider", "--model", "--thinking"] as const;
+
+// Names the flags a user typed into the editable arguments field that the
+// effective agent profile will replace at send time.
+export function profileOwnedArgumentFlags(argsText: string): string[] {
+  const args = new Set(parseProviderArgs(argsText));
+  return PROFILE_OWNED_FLAGS.filter((flag) => args.has(flag));
+}
 
 export const safeTestProviderConfig: AgentProviderConfig = {
   command: "cat",

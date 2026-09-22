@@ -201,6 +201,8 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("unavailableModelReason(piModelCatalog, effectiveAgentProfile.model)");
     expect(appSource.indexOf("const modelRejection")).toBeLessThan(appSource.indexOf('type: "register"'));
     expect(appSource).toContain("disabled={unavailable}");
+    expect(appSource).toContain("{describeEffectiveAgentProfile(effectiveAgentProfile)}");
+    expect(appSource).toContain("profileOwnedArgumentFlags(providerArgsText)");
     expect(appSource).toContain("providerTerminalFailureDetail(journeyTurnJournalRecords");
     expect(appSource).toContain("<InterruptedNativeAttemptNotice providerFailure={interruptedProviderFailure} />");
     expect(appSource).toContain("clearUnsentDraft(current, ownerJourneyId)");
