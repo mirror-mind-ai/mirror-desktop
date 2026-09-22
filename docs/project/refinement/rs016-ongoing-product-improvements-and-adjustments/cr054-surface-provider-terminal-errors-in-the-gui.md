@@ -2,9 +2,9 @@
 
 # CR054: Surface Provider Terminal Errors in the GUI
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr054-provider-terminal-errors`
 
 ## Problem
 
