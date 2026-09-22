@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.16](v0.2.0-alpha.16.md) — Deterministic Release Deployment
 - [v0.2.0-alpha.15](v0.2.0-alpha.15.md) — Truthful Provider and Model Surfaces
 - [v0.2.0-alpha.14 — Convergent Turn Synchronization](v0.2.0-alpha.14.md) — makes the essential conversation frictionless by moving turn finalization out of the renderer, keeping synchronization internal unless automatic repair fails, and replacing five repair paths with one idempotent convergence routine.
 - [v0.2.0-alpha.13 — Post-Terminal Continuity](v0.2.0-alpha.13.md) — makes only active native Pi execution block a Journey, keeps every post-terminal failure as run-scoped debt, and certifies immediate successor continuity across the complete 4 × 7 matrix.
