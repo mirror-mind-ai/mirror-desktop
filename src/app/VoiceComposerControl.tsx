@@ -1,0 +1,174 @@
+import {
+  describeInstallProgress,
+  formatComponentSize,
+  voiceControlIntent,
+  voiceControlLabel,
+  type VoiceComponentStatus,
+  type VoiceControlIntent,
+  type VoiceInstallProgress,
+  type VoiceSession,
+} from "../domain/voiceTranscription";
+
+type VoiceComposerControlProps = {
+  status: VoiceComponentStatus | undefined;
+  session: VoiceSession;
+  installing: boolean;
+  composerBusy: boolean;
+  onIntent: (intent: VoiceControlIntent) => void;
+};
+
+/**
+ * One microphone entry point for two separate consents: installing the local
+ * component and recording. It never starts a recording after installation.
+ */
+export function VoiceComposerControl({ status, session, installing, composerBusy, onIntent }: VoiceComposerControlProps) {
+  const intent = voiceControlIntent(status, session, { installing, composerBusy });
+  const label = voiceControlLabel(intent, session, installing);
+  const recording = session.kind === "recording";
+  const busy = session.kind === "transcribing" || session.kind === "requesting_permission" || installing;
+  return (
+    <button
+      className={`icon-button voice-composer-button${recording ? " is-recording" : ""}${busy ? " is-busy" : ""}`}
+      type="button"
+      onClick={() => onIntent(intent)}
+      disabled={intent === "blocked"}
+      aria-label={label}
+      aria-pressed={recording}
+      title={label}
+      data-voice-intent={intent}
+    >
+      {recording ? "■" : "🎤"}
+    </button>
+  );
+}
+
+type VoiceSessionStatusProps = {
+  session: VoiceSession;
+  elapsedSeconds?: number;
+  onCancel: () => void;
+};
+
+export function VoiceSessionStatus({ session, elapsedSeconds, onCancel }: VoiceSessionStatusProps) {
+  if (session.kind === "idle") return null;
+  const text = session.kind === "recording"
+    ? `Recording${elapsedSeconds !== undefined ? ` · ${Math.floor(elapsedSeconds / 60)}:${String(elapsedSeconds % 60).padStart(2, "0")}` : ""} · limit 5:00`
+    : session.kind === "transcribing"
+      ? "Transcribing locally…"
+      : "Waiting for microphone permission…";
+  return (
+    <div className={`voice-session-status is-${session.kind}`} role="status" aria-live="polite">
+      <span className="runtime-live-dot" aria-hidden="true" />
+      <span>{text}</span>
+      <button type="button" className="secondary-button" onClick={onCancel}>Cancel</button>
+    </div>
+  );
+}
+
+type VoiceInstallDialogProps = {
+  status: VoiceComponentStatus;
+  installing: boolean;
+  progress?: VoiceInstallProgress;
+  error?: string;
+  onConfirm: () => void;
+  onClose: () => void;
+};
+
+export function VoiceInstallDialog({ status, installing, progress, error, onConfirm, onClose }: VoiceInstallDialogProps) {
+  const ready = status.state === "ready";
+  return (
+    <div className="settings-backdrop" role="presentation" onClick={() => !installing && onClose()}>
+      <section
+        className="settings-window voice-install-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Install local voice transcription"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="settings-header">
+          <div>
+            <p className="eyebrow">Voice prompt composition</p>
+            <h2>{ready ? "Local transcription is ready" : "Install local transcription?"}</h2>
+            <p className="settings-intro">
+              {ready
+                ? "Click the microphone again to start a recording. Nothing was recorded during installation."
+                : "Mirror Desktop downloads a small speech-to-text engine and model, verifies their checksums and keeps them in this app's data folder."}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} disabled={installing}>×</button>
+        </header>
+        {!ready ? (
+          <div className="restart-assurances">
+            <p>Audio is transcribed on this computer. Recordings are never uploaded and are deleted after each transcription.</p>
+            <p>The download is roughly 100 MB and can be removed at any time in Settings → Voice.</p>
+            <p>Installing does not turn on the microphone. Recording starts only when you click the microphone afterwards.</p>
+          </div>
+        ) : null}
+        {installing ? <p className="provider-note" role="status">{describeInstallProgress(progress)}</p> : null}
+        {error ? <p className="settings-error" role="alert">{error}</p> : null}
+        <div className="provider-actions">
+          {ready ? (
+            <button type="button" onClick={onClose}>Done</button>
+          ) : (
+            <>
+              <button type="button" onClick={onConfirm} disabled={installing}>{installing ? "Installing…" : "Install"}</button>
+              <button className="secondary-button" type="button" onClick={onClose} disabled={installing}>Not now</button>
+            </>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+type VoiceSettingsPanelProps = {
+  status: VoiceComponentStatus | undefined;
+  installing: boolean;
+  removing: boolean;
+  progress?: VoiceInstallProgress;
+  error?: string;
+  sessionActive: boolean;
+  onInstall: () => void;
+  onRemove: () => void;
+};
+
+export function VoiceSettingsPanel({ status, installing, removing, progress, error, sessionActive, onInstall, onRemove }: VoiceSettingsPanelProps) {
+  const busy = installing || removing || sessionActive;
+  return (
+    <section className="settings-section provider-card" aria-label="Local voice transcription">
+      <h3>Local voice transcription</h3>
+      <p className="settings-intro">Optional speech-to-text component managed by Mirror Desktop. Audio never leaves this computer.</p>
+      <dl>
+        <div><dt>Status</dt><dd>{voiceStateLabel(status)}</dd></div>
+        {status?.state === "ready" ? (
+          <>
+            <div><dt>Engine</dt><dd>whisper.cpp {status.componentVersion}</dd></div>
+            <div><dt>Model</dt><dd>{status.modelId}</dd></div>
+            <div><dt>Size</dt><dd>{formatComponentSize(status.sizeBytes)}</dd></div>
+            {status.installedAt ? <div><dt>Installed</dt><dd>{status.installedAt}</dd></div> : null}
+          </>
+        ) : null}
+      </dl>
+      {status?.message ? <p className="provider-note">{status.message}</p> : null}
+      {installing ? <p className="provider-note" role="status">{describeInstallProgress(progress)}</p> : null}
+      {error ? <p className="provider-error" role="alert">{error}</p> : null}
+      <div className="provider-actions">
+        {status?.state === "not_installed" || status?.state === "damaged" ? (
+          <button type="button" onClick={onInstall} disabled={busy || status.state === "damaged"}>{installing ? "Installing…" : "Install local transcription"}</button>
+        ) : null}
+        {status?.state === "ready" || status?.state === "damaged" ? (
+          <button type="button" className="secondary-button" onClick={onRemove} disabled={busy}>{removing ? "Removing…" : "Remove local transcription"}</button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function voiceStateLabel(status: VoiceComponentStatus | undefined): string {
+  switch (status?.state) {
+    case "ready": return "Installed and verified";
+    case "not_installed": return "Not installed";
+    case "damaged": return "Incomplete — remove and install again";
+    case "unsupported": return "Not available on this platform";
+    default: return "Checking…";
+  }
+}

@@ -7464,3 +7464,45 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 @media (max-width: 720px) {
   .mirror-history-actions { grid-template-columns: 1fr; }
 }
+
+/* CV-008.DS-005 — voice prompt composition. */
+.voice-composer-button { color: #8bd8cd; font-size: 1rem; }
+
+.voice-composer-button.is-recording:not(:disabled) {
+  animation: voice-recording-pulse 1.4s ease-in-out infinite;
+  background: rgba(255, 110, 110, 0.18);
+  border-color: rgba(255, 110, 110, 0.7);
+  color: #ffb7b7;
+}
+
+.voice-composer-button.is-busy { opacity: 0.7; }
+
+@keyframes voice-recording-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 110, 110, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 110, 110, 0); }
+}
+
+.voice-session-status {
+  align-items: center;
+  background: rgba(var(--ui-accent-rgb), 0.07);
+  border: 1px solid rgba(var(--ui-accent-rgb), 0.22);
+  border-radius: 10px;
+  color: #c8d6da;
+  display: flex;
+  font-size: 0.78rem;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+}
+
+.voice-session-status.is-recording { border-color: rgba(255, 110, 110, 0.45); }
+.voice-session-status.is-recording .runtime-live-dot { background: #ff6e6e; }
+.voice-session-status button { font-size: 0.74rem; margin-left: auto; padding: 4px 10px; }
+
+.voice-notice {
+  color: #9bbbc3;
+  font-size: 0.78rem;
+  margin: 0 0 8px;
+}
+
+.voice-install-dialog { max-width: 560px; }
