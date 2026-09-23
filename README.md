@@ -16,6 +16,8 @@ Maintainers preparing a versioned candidate should follow the [versioned macOS r
 
 The read-only self-update discovery contract lives in [docs/update/trusted-self-update.md](docs/update/trusted-self-update.md). It defines the update manifest, compatibility decision and no-mutation boundary before any download or installation work.
 
+Local voice prompt composition is documented in [docs/architecture/voice-transcription.md](docs/architecture/voice-transcription.md). It defines the optional managed `whisper.cpp` component, its Mirror-controlled manifest, the bounded native transcription boundary and the draft-authority rules that keep transcription outside Mirror Core, Pi and the network.
+
 ## Website
 
 The Mirror Mind public website now lives in its own repository: [mirror-mind-ai/mirrormind-site](https://github.com/mirror-mind-ai/mirrormind-site).

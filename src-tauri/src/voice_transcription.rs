@@ -42,7 +42,9 @@ pub const WAV_SAMPLE_RATE: u32 = 16_000;
 pub const MAX_AUDIO_SECONDS: u32 = 300;
 /// 5 minutes of 16 kHz mono PCM16 plus header slack.
 pub const MAX_WAV_BYTES: usize = (WAV_SAMPLE_RATE as usize) * 2 * (MAX_AUDIO_SECONDS as usize) + 4096;
-pub const TRANSCRIPTION_TIMEOUT: Duration = Duration::from_secs(180);
+/// TS-1 spike: base-q5_1 on a 2019 Intel i7 without Metal encodes roughly 1 s of
+/// audio per second with auto-detect, so a five-minute clip needs headroom.
+pub const TRANSCRIPTION_TIMEOUT: Duration = Duration::from_secs(600);
 const MAX_TRANSCRIPT_CHARS: usize = 51_200;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -177,13 +179,18 @@ fn is_safe_file_name(value: &str) -> bool {
         && !value.starts_with('.')
 }
 
-fn parse_manifest_file(value: &Value, maximum_bytes: u64) -> Result<ManifestFile, String> {
+fn loopback_http(url: &str) -> bool {
+    url.starts_with("http://127.0.0.1") || url.starts_with("http://localhost")
+}
+
+fn parse_manifest_file(value: &Value, maximum_bytes: u64, allow_loopback: bool) -> Result<ManifestFile, String> {
     let object = value.as_object().ok_or("voice_manifest_invalid")?;
     let file_name = object.get("fileName").and_then(Value::as_str).ok_or("voice_manifest_invalid")?;
     let url = object.get("url").and_then(Value::as_str).ok_or("voice_manifest_invalid")?;
     let sha256 = object.get("sha256").and_then(Value::as_str).ok_or("voice_manifest_invalid")?;
     let size_bytes = object.get("sizeBytes").and_then(Value::as_u64).ok_or("voice_manifest_invalid")?;
-    if !is_safe_file_name(file_name) || !url.starts_with("https://") || !is_sha256_hex(sha256) {
+    let trusted_url = url.starts_with("https://") || (allow_loopback && loopback_http(url));
+    if !is_safe_file_name(file_name) || !trusted_url || !is_sha256_hex(sha256) {
         return Err("voice_manifest_invalid".to_string());
     }
     if size_bytes == 0 || size_bytes > maximum_bytes {
@@ -198,8 +205,9 @@ fn parse_manifest_file(value: &Value, maximum_bytes: u64) -> Result<ManifestFile
 }
 
 /// Validate a manifest payload and select the executable for one platform/architecture
-/// plus the manifest's default model.
-pub fn parse_manifest(payload: &str, platform: &str, architecture: &str) -> Result<VoiceComponentManifest, String> {
+/// plus the manifest's default model. `allow_loopback` admits `http://127.0.0.1`
+/// artifact URLs and is true only for development-channel rehearsals.
+pub fn parse_manifest(payload: &str, platform: &str, architecture: &str, allow_loopback: bool) -> Result<VoiceComponentManifest, String> {
     if payload.len() > MAX_MANIFEST_BYTES {
         return Err("voice_manifest_invalid".to_string());
     }
@@ -225,7 +233,7 @@ pub fn parse_manifest(payload: &str, platform: &str, architecture: &str) -> Resu
                 && entry.get("architecture").and_then(Value::as_str) == Some(architecture)
         })
         .ok_or("voice_platform_unsupported")?;
-    let executable = parse_manifest_file(executable, MAX_EXECUTABLE_BYTES)?;
+    let executable = parse_manifest_file(executable, MAX_EXECUTABLE_BYTES, allow_loopback)?;
 
     let default_model = object.get("defaultModel").and_then(Value::as_str).ok_or("voice_manifest_invalid")?;
     let models = object.get("models").and_then(Value::as_array).ok_or("voice_manifest_invalid")?;
@@ -233,7 +241,7 @@ pub fn parse_manifest(payload: &str, platform: &str, architecture: &str) -> Resu
         .iter()
         .find(|entry| entry.get("id").and_then(Value::as_str) == Some(default_model))
         .ok_or("voice_manifest_invalid")?;
-    let model = parse_manifest_file(model, MAX_MODEL_BYTES)?;
+    let model = parse_manifest_file(model, MAX_MODEL_BYTES, allow_loopback)?;
     if !is_safe_file_name(default_model) || model.file_name == executable.file_name {
         return Err("voice_manifest_invalid".to_string());
     }
@@ -469,6 +477,17 @@ fn now_iso() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
 
+/// Build the download client. `reqwest` is compiled with `rustls-no-provider`
+/// (matching the updater plugin), so a process-level crypto provider must be
+/// installed before the first client is built; installing twice is harmless.
+fn http_client() -> Result<reqwest::Client, String> {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    reqwest::Client::builder()
+        .timeout(DOWNLOAD_TIMEOUT)
+        .build()
+        .map_err(|_| "voice_download_failed".to_string())
+}
+
 async fn download(client: &reqwest::Client, url: &str, maximum: u64, on_progress: &(dyn Fn(u64, Option<u64>) + Sync)) -> Result<Vec<u8>, String> {
     if !url.starts_with("https://") && !dev_loopback(url) {
         return Err("voice_manifest_invalid".to_string());
@@ -494,9 +513,12 @@ async fn download(client: &reqwest::Client, url: &str, maximum: u64, on_progress
 }
 
 /// Development rehearsals may serve the manifest and artifacts from loopback.
-fn dev_loopback(url: &str) -> bool {
+fn loopback_rehearsal_allowed() -> bool {
     RuntimeChannel::active() == RuntimeChannel::Development
-        && (url.starts_with("http://127.0.0.1") || url.starts_with("http://localhost"))
+}
+
+fn dev_loopback(url: &str) -> bool {
+    loopback_rehearsal_allowed() && loopback_http(url)
 }
 
 fn emit_progress(app: &AppHandle, phase: &'static str, received: Option<u64>, total: Option<u64>) {
@@ -682,14 +704,11 @@ pub async fn voice_transcription_install(app: AppHandle) -> Result<VoiceComponen
         return Err("voice_platform_unsupported".to_string());
     }
     let url = manifest_url(RuntimeChannel::active());
-    let client = reqwest::Client::builder()
-        .timeout(DOWNLOAD_TIMEOUT)
-        .build()
-        .map_err(|_| "voice_download_failed".to_string())?;
+    let client = http_client()?;
 
     emit_progress(&app, "manifest", None, None);
     let manifest_bytes = download(&client, &url, MAX_MANIFEST_BYTES as u64, &|_, _| {}).await?;
-    let manifest = parse_manifest(&String::from_utf8_lossy(&manifest_bytes), platform, architecture)?;
+    let manifest = parse_manifest(&String::from_utf8_lossy(&manifest_bytes), platform, architecture, loopback_rehearsal_allowed())?;
 
     let progress_app = app.clone();
     let executable_bytes = download(&client, &manifest.executable.url, manifest.executable.size_bytes, &move |received, total| {
@@ -794,7 +813,7 @@ mod tests {
 
     #[test]
     fn parses_manifest_and_selects_platform_executable_and_default_model() {
-        let manifest = parse_manifest(&manifest_json("https"), "macos", "aarch64").unwrap();
+        let manifest = parse_manifest(&manifest_json("https"), "macos", "aarch64", false).unwrap();
         assert_eq!(manifest.component_version, "1.7.5");
         assert!(manifest.executable.url.ends_with("aarch64"));
         assert_eq!(manifest.model_id, "base-q5_1");
@@ -803,14 +822,21 @@ mod tests {
 
     #[test]
     fn rejects_manifest_without_https_wrong_product_or_unsupported_platform() {
-        assert_eq!(parse_manifest(&manifest_json("http"), "macos", "x64").unwrap_err(), "voice_manifest_invalid");
-        assert_eq!(parse_manifest(&manifest_json("https"), "windows", "x64").unwrap_err(), "voice_platform_unsupported");
+        assert_eq!(parse_manifest(&manifest_json("http"), "macos", "x64", true).unwrap_err(), "voice_manifest_invalid");
+        assert_eq!(parse_manifest(&manifest_json("https"), "windows", "x64", false).unwrap_err(), "voice_platform_unsupported");
         let wrong_product = manifest_json("https").replace("Mirror Desktop", "Other");
-        assert_eq!(parse_manifest(&wrong_product, "macos", "x64").unwrap_err(), "voice_manifest_invalid");
+        assert_eq!(parse_manifest(&wrong_product, "macos", "x64", false).unwrap_err(), "voice_manifest_invalid");
         let bad_sha = manifest_json("https").replace(&"b".repeat(64), &"B".repeat(64));
-        assert_eq!(parse_manifest(&bad_sha, "macos", "x64").unwrap_err(), "voice_manifest_invalid");
+        assert_eq!(parse_manifest(&bad_sha, "macos", "x64", false).unwrap_err(), "voice_manifest_invalid");
         let missing_model = manifest_json("https").replace("\"defaultModel\": \"base-q5_1\"", "\"defaultModel\": \"small\"");
-        assert_eq!(parse_manifest(&missing_model, "macos", "x64").unwrap_err(), "voice_manifest_invalid");
+        assert_eq!(parse_manifest(&missing_model, "macos", "x64", false).unwrap_err(), "voice_manifest_invalid");
+    }
+
+    #[test]
+    fn loopback_artifact_urls_are_admitted_only_when_rehearsal_is_allowed() {
+        let loopback = manifest_json("https").replace("https://updates.mirrormind.sh", "http://127.0.0.1:8791");
+        assert_eq!(parse_manifest(&loopback, "macos", "x64", false).unwrap_err(), "voice_manifest_invalid");
+        assert!(parse_manifest(&loopback, "macos", "x64", true).is_ok());
     }
 
     #[test]
@@ -898,6 +924,58 @@ mod tests {
         );
         assert!(!root.join("voice-transcription").join("current").exists());
         assert!(!root.join("voice-transcription").join(RECEIPT_FILE).exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    /// TS-1 spike against a real whisper.cpp build. Run explicitly:
+    /// `MIRROR_DESKTOP_VOICE_SPIKE_EXECUTABLE=... MIRROR_DESKTOP_VOICE_SPIKE_MODEL=... MIRROR_DESKTOP_VOICE_SPIKE_WAV=... cargo test real_component_spike -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_component_spike() {
+        let executable = PathBuf::from(std::env::var("MIRROR_DESKTOP_VOICE_SPIKE_EXECUTABLE").expect("spike executable"));
+        let model = PathBuf::from(std::env::var("MIRROR_DESKTOP_VOICE_SPIKE_MODEL").expect("spike model"));
+        let wav = fs::read(std::env::var("MIRROR_DESKTOP_VOICE_SPIKE_WAV").expect("spike wav")).unwrap();
+        let language = std::env::var("MIRROR_DESKTOP_VOICE_SPIKE_LANGUAGE").unwrap_or_else(|_| "auto".to_string());
+        let root = temp_root("real-spike");
+        let seconds = validate_wav(&wav).unwrap();
+        let (text, duration_ms) = run_transcription(&root, &executable, &model, &wav, &language, TRANSCRIPTION_TIMEOUT).unwrap();
+        println!("audio_seconds={seconds} duration_ms={duration_ms} transcript={text:?}");
+        assert!(!text.is_empty());
+        assert!(fs::read_dir(temp_dir(&root)).unwrap().next().is_none(), "temporary audio must be deleted");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    /// TS-1 install rehearsal against a loopback manifest served by
+    /// `scripts/voice_component_manifest.mjs serve`. Requires the development
+    /// channel so loopback http is admitted:
+    /// `MIRROR_DESKTOP_VOICE_SPIKE_MANIFEST_URL=http://127.0.0.1:8765/manifest.json cargo test --features development-channel real_install_spike -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_install_spike() {
+        let url = std::env::var("MIRROR_DESKTOP_VOICE_SPIKE_MANIFEST_URL").expect("spike manifest url");
+        let root = temp_root("real-install");
+        let platform = current_platform();
+        let architecture = current_architecture();
+        tauri::async_runtime::block_on(async {
+            let client = http_client().unwrap();
+            let manifest_bytes = download(&client, &url, MAX_MANIFEST_BYTES as u64, &|_, _| {}).await.unwrap();
+            let manifest = parse_manifest(&String::from_utf8_lossy(&manifest_bytes), platform, architecture, loopback_rehearsal_allowed()).unwrap();
+            let executable = download(&client, &manifest.executable.url, manifest.executable.size_bytes, &|_, _| {}).await.unwrap();
+            let model = download(&client, &manifest.model.url, manifest.model.size_bytes, &|_, _| {}).await.unwrap();
+            install_verified_files(&root, &manifest, &executable, &model, platform, architecture, &now_iso()).unwrap();
+        });
+        let status = status_at(&root, platform, architecture, url);
+        println!("status={status:?}");
+        assert_eq!(status.state, "ready");
+        if let Ok(wav_path) = std::env::var("MIRROR_DESKTOP_VOICE_SPIKE_WAV") {
+            let component = installed_component(&root, platform, architecture).unwrap().unwrap();
+            let wav = fs::read(wav_path).unwrap();
+            let (text, duration_ms) = run_transcription(&root, &component.executable_path, &component.model_path, &wav, "auto", TRANSCRIPTION_TIMEOUT).unwrap();
+            println!("installed component transcript duration_ms={duration_ms} text={text:?}");
+            assert!(!text.is_empty());
+        }
+        remove_at(&root).unwrap();
+        assert_eq!(status_at(&root, platform, architecture, String::new()).state, "not_installed");
         let _ = fs::remove_dir_all(root);
     }
 

@@ -475,6 +475,10 @@ The stable `tauri.conf.json` remains the user baseline. A committed Tauri overla
 
 The canonical setup and verification route is [Development Environment](../development/environment-setup.md).
 
+## Local voice transcription boundary
+
+CV-008.DS-005 adds voice prompt composition as a desktop input capability. Mirror Desktop manages an optional `whisper.cpp` component under channel-scoped app data, installed only after explicit consent from a Mirror-controlled manifest with SHA-256 verification. Recording is a separate explicit action; audio is converted to 16 kHz mono WAV in TypeScript, transcribed locally through one bounded Tauri command that writes a single ephemeral temp file, and the transcript is appended to the draft owned by the destination captured at recording start. Transcription never starts an agent turn, never reaches Mirror Core or Pi and never leaves the machine. The contract lives in [Local Voice Transcription Boundary](voice-transcription.md).
+
 ## Next implementation story
 
 The next implementation story should create the Tauri app skeleton and migrate DS-001/DS-002 protocol validation into TypeScript while preserving the Python scripts as temporary references until parity is validated.

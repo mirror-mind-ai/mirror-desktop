@@ -21,11 +21,29 @@ npm run build
 npm run roadmap:check
 ```
 
+Opt-in rehearsals against a real `whisper.cpp` build (see [characterization](characterization.md) for the build recipe):
+
+```bash
+# real executable through the Rust boundary
+MIRROR_DESKTOP_VOICE_SPIKE_EXECUTABLE=<whisper-cli> MIRROR_DESKTOP_VOICE_SPIKE_MODEL=<ggml-base-q5_1.bin> \
+MIRROR_DESKTOP_VOICE_SPIKE_WAV=<16k-mono.wav> cargo test real_component_spike -- --ignored --nocapture
+
+# loopback install: generate a manifest, serve it, then run the rehearsal on the development channel
+node scripts/voice_component_manifest.mjs generate --component-version 1.8.3 --base-url http://127.0.0.1:8791/ \
+  --executable macos:x64:<dir>/whisper-cli --model base-q5_1:<dir>/ggml-base-q5_1.bin --default-model base-q5_1 --out <dir>/manifest.json
+node scripts/voice_component_manifest.mjs serve --dir <dir> --port 8791
+MIRROR_DESKTOP_VOICE_SPIKE_MANIFEST_URL=http://127.0.0.1:8791/manifest.json cargo test --features development-channel real_install_spike -- --ignored --nocapture
+```
+
+For the Navigator route in `Mirror Desktop Dev`, keep the same server running and launch the app with `MIRROR_DESKTOP_VOICE_MANIFEST_URL=http://127.0.0.1:8791/manifest.json` so the microphone control installs from the rehearsal manifest.
+
 Focused suites:
 
 - `src/tests/voiceTranscription.test.ts` — session state machine, limits, transcript merge and manifest/receipt transport parsing.
 - `src/tests/voiceAudio.test.ts` — downmix, resampling and PCM16 WAV encoding.
 - `src/tests/voiceComposerIntegration.test.ts` — App and Settings integration contracts, capability and bundle requirements.
+- `src/tests/voiceComposerControl.test.tsx` — microphone control, session status, install dialog and Settings panel rendering.
+- `src/tests/voiceComponentManifestScript.test.mjs` — manifest helper contract.
 - `src-tauri/src/voice_transcription.rs` unit tests — manifest validation, receipt lifecycle, WAV bounds, fixed argument construction, temporary audio cleanup and removal.
 
 ## Navigator Validation
