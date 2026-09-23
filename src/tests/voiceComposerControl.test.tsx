@@ -59,6 +59,7 @@ describe("Voice composer surfaces", () => {
 
   it("exposes version, model, size and removal in Settings", () => {
     const html = renderToStaticMarkup(<VoiceSettingsPanel status={ready} installing={false} removing={false} sessionActive={false} {...panelDefaults} onInstall={() => undefined} onRemove={() => undefined} />);
+    expect(html).toContain("voice-status-row");
     expect(html).toContain("voice-status-badge is-ready");
     expect(html).toContain("Installed and verified");
     expect(html).toContain("whisper.cpp 1.7.5");

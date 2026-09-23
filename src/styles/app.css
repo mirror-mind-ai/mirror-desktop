@@ -7623,6 +7623,23 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 
 .voice-install-dialog { max-width: 560px; }
 
+.voice-status-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 2px 0 14px;
+}
+
+.voice-status-row dt {
+  line-height: 1;
+}
+
+.voice-status-row dd {
+  margin: 0;
+  text-align: left;
+}
+
 .voice-status-badge {
   align-items: center;
   border: 1px solid rgba(var(--ui-accent-rgb), 0.28);
