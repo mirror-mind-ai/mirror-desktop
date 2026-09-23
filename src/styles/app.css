@@ -5540,6 +5540,8 @@ dd {
   .empty-chat-copy,
   .provider-field,
   .provider-note,
+  .voice-model-picker > span,
+  .voice-model-picker small,
   dt,
   .theme-family h4
 ) {
@@ -7563,10 +7565,11 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   margin: 12px 0;
 }
 
+/* Settings labels follow the .provider-field and dt contract, not a local colour. */
 .voice-model-picker > span {
-  color: var(--text-muted, #9bbbc3);
+  color: #9bbbc3;
   font-size: 0.78rem;
   font-weight: 600;
 }
 
-.voice-model-picker small { color: var(--text-muted, #9bbbc3); font-size: 0.74rem; line-height: 1.4; }
+.voice-model-picker small { color: #9bbbc3; font-size: 0.74rem; line-height: 1.4; }

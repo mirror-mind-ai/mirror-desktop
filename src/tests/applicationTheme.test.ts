@@ -243,9 +243,17 @@ describe("application themes", () => {
     expect(cssSource).toContain("/* Light voice recording contrast contract. */");
     expect(cssSource).toContain(") .voice-session-status.is-recording {");
     expect(cssSource).toContain(") .voice-composer-button.is-recording:not(:disabled) {");
-    // The model picker must inherit themed tokens rather than fixed dark colours.
-    expect(cssSource).toContain(".voice-model-picker > span {");
-    expect(cssSource).toContain("color: var(--text-muted, #9bbbc3);");
+    // Voice setting labels must join the shared muted-label contract instead of
+    // carrying a local colour that survives into the light themes.
+    const mutedLabels = cssSource.slice(cssSource.indexOf("  .provider-field,"));
+    const mutedLabelRule = mutedLabels.slice(0, mutedLabels.indexOf("}"));
+    expect(mutedLabelRule).toContain(".voice-model-picker > span,");
+    expect(mutedLabelRule).toContain(".voice-model-picker small,");
+    expect(mutedLabelRule).toContain("color: var(--light-muted);");
+    for (const theme of lightApplicationThemes) {
+      expect(contrast(theme.tokens.mutedText, theme.tokens.surface), `${theme.id} voice setting label`)
+        .toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   it("keeps the completed composer status legible in light themes", () => {
