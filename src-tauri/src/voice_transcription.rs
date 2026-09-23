@@ -61,6 +61,24 @@ pub struct VoiceComponentManifest {
     pub executable: ManifestFile,
     pub model_id: String,
     pub model: ManifestFile,
+    pub catalog: VoiceComponentCatalog,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct VoiceModelChoice {
+    pub id: String,
+    pub size_bytes: u64,
+}
+
+/// The models a manifest offers, so the Navigator can trade accuracy against
+/// speed on their own hardware instead of inheriting one baked-in default.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct VoiceComponentCatalog {
+    pub component_version: String,
+    pub default_model: String,
+    pub models: Vec<VoiceModelChoice>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -205,9 +223,16 @@ fn parse_manifest_file(value: &Value, maximum_bytes: u64, allow_loopback: bool) 
 }
 
 /// Validate a manifest payload and select the executable for one platform/architecture
-/// plus the manifest's default model. `allow_loopback` admits `http://127.0.0.1`
-/// artifact URLs and is true only for development-channel rehearsals.
-pub fn parse_manifest(payload: &str, platform: &str, architecture: &str, allow_loopback: bool) -> Result<VoiceComponentManifest, String> {
+/// plus `requested_model`, falling back to the manifest default. `allow_loopback`
+/// admits `http://127.0.0.1` artifact URLs and is true only for development-channel
+/// rehearsals.
+pub fn parse_manifest(
+    payload: &str,
+    platform: &str,
+    architecture: &str,
+    allow_loopback: bool,
+    requested_model: Option<&str>,
+) -> Result<VoiceComponentManifest, String> {
     if payload.len() > MAX_MANIFEST_BYTES {
         return Err("voice_manifest_invalid".to_string());
     }
@@ -237,20 +262,36 @@ pub fn parse_manifest(payload: &str, platform: &str, architecture: &str, allow_l
 
     let default_model = object.get("defaultModel").and_then(Value::as_str).ok_or("voice_manifest_invalid")?;
     let models = object.get("models").and_then(Value::as_array).ok_or("voice_manifest_invalid")?;
-    let model = models
-        .iter()
-        .find(|entry| entry.get("id").and_then(Value::as_str) == Some(default_model))
-        .ok_or("voice_manifest_invalid")?;
-    let model = parse_manifest_file(model, MAX_MODEL_BYTES, allow_loopback)?;
-    if !is_safe_file_name(default_model) || model.file_name == executable.file_name {
+    let mut choices = Vec::with_capacity(models.len());
+    for entry in models {
+        let id = entry.get("id").and_then(Value::as_str).ok_or("voice_manifest_invalid")?;
+        let file = parse_manifest_file(entry, MAX_MODEL_BYTES, allow_loopback)?;
+        if !is_safe_file_name(id) || file.file_name == executable.file_name {
+            return Err("voice_manifest_invalid".to_string());
+        }
+        choices.push(VoiceModelChoice { id: id.to_string(), size_bytes: file.size_bytes });
+    }
+    if !choices.iter().any(|choice| choice.id == default_model) {
         return Err("voice_manifest_invalid".to_string());
     }
+
+    let selected_id = requested_model.unwrap_or(default_model);
+    let model = models
+        .iter()
+        .find(|entry| entry.get("id").and_then(Value::as_str) == Some(selected_id))
+        .ok_or("voice_model_unknown")?;
+    let model = parse_manifest_file(model, MAX_MODEL_BYTES, allow_loopback)?;
 
     Ok(VoiceComponentManifest {
         component_version: component_version.to_string(),
         executable,
-        model_id: default_model.to_string(),
+        model_id: selected_id.to_string(),
         model,
+        catalog: VoiceComponentCatalog {
+            component_version: component_version.to_string(),
+            default_model: default_model.to_string(),
+            models: choices,
+        },
     })
 }
 
@@ -695,8 +736,29 @@ pub fn voice_transcription_remove(app: AppHandle) -> Result<VoiceComponentStatus
     Ok(status_at(&root, current_platform(), current_architecture(), manifest_url(RuntimeChannel::active())))
 }
 
+/// Read-only: fetches the manifest and reports the models it offers. Installs nothing.
 #[tauri::command]
-pub async fn voice_transcription_install(app: AppHandle) -> Result<VoiceComponentStatus, String> {
+pub async fn voice_transcription_catalog() -> Result<VoiceComponentCatalog, String> {
+    let platform = current_platform();
+    let architecture = current_architecture();
+    if platform == "unsupported" || architecture == "unsupported" {
+        return Err("voice_platform_unsupported".to_string());
+    }
+    let client = http_client()?;
+    let url = manifest_url(RuntimeChannel::active());
+    let bytes = download(&client, &url, MAX_MANIFEST_BYTES as u64, &|_, _| {}).await?;
+    let manifest = parse_manifest(
+        &String::from_utf8_lossy(&bytes),
+        platform,
+        architecture,
+        loopback_rehearsal_allowed(),
+        None,
+    )?;
+    Ok(manifest.catalog)
+}
+
+#[tauri::command]
+pub async fn voice_transcription_install(app: AppHandle, model_id: Option<String>) -> Result<VoiceComponentStatus, String> {
     let root = app_data_root(&app)?;
     let platform = current_platform();
     let architecture = current_architecture();
@@ -708,7 +770,13 @@ pub async fn voice_transcription_install(app: AppHandle) -> Result<VoiceComponen
 
     emit_progress(&app, "manifest", None, None);
     let manifest_bytes = download(&client, &url, MAX_MANIFEST_BYTES as u64, &|_, _| {}).await?;
-    let manifest = parse_manifest(&String::from_utf8_lossy(&manifest_bytes), platform, architecture, loopback_rehearsal_allowed())?;
+    let manifest = parse_manifest(
+        &String::from_utf8_lossy(&manifest_bytes),
+        platform,
+        architecture,
+        loopback_rehearsal_allowed(),
+        model_id.as_deref(),
+    )?;
 
     let progress_app = app.clone();
     let executable_bytes = download(&client, &manifest.executable.url, manifest.executable.size_bytes, &move |received, total| {
@@ -808,12 +876,17 @@ mod tests {
             executable: ManifestFile { file_name: "whisper-cli".to_string(), url: "https://x/y".to_string(), sha256: sha256_hex(exe), size_bytes: exe.len() as u64 },
             model_id: "base-q5_1".to_string(),
             model: ManifestFile { file_name: "ggml-base-q5_1.bin".to_string(), url: "https://x/z".to_string(), sha256: sha256_hex(model), size_bytes: model.len() as u64 },
+            catalog: VoiceComponentCatalog {
+                component_version: "1.7.5".to_string(),
+                default_model: "base-q5_1".to_string(),
+                models: vec![VoiceModelChoice { id: "base-q5_1".to_string(), size_bytes: model.len() as u64 }],
+            },
         }
     }
 
     #[test]
     fn parses_manifest_and_selects_platform_executable_and_default_model() {
-        let manifest = parse_manifest(&manifest_json("https"), "macos", "aarch64", false).unwrap();
+        let manifest = parse_manifest(&manifest_json("https"), "macos", "aarch64", false, None).unwrap();
         assert_eq!(manifest.component_version, "1.7.5");
         assert!(manifest.executable.url.ends_with("aarch64"));
         assert_eq!(manifest.model_id, "base-q5_1");
@@ -821,22 +894,41 @@ mod tests {
     }
 
     #[test]
+    fn offers_every_manifest_model_and_installs_the_requested_one() {
+        let manifest = parse_manifest(&manifest_json("https"), "macos", "x64", false, None).unwrap();
+        assert_eq!(manifest.catalog.default_model, "base-q5_1");
+        assert_eq!(
+            manifest.catalog.models.iter().map(|model| model.id.as_str()).collect::<Vec<_>>(),
+            vec!["base-q5_1"],
+        );
+        // An unknown request must fail closed rather than silently install the default.
+        assert_eq!(
+            parse_manifest(&manifest_json("https"), "macos", "x64", false, Some("small-q5_1")).unwrap_err(),
+            "voice_model_unknown",
+        );
+        assert_eq!(
+            parse_manifest(&manifest_json("https"), "macos", "x64", false, Some("base-q5_1")).unwrap().model_id,
+            "base-q5_1",
+        );
+    }
+
+    #[test]
     fn rejects_manifest_without_https_wrong_product_or_unsupported_platform() {
-        assert_eq!(parse_manifest(&manifest_json("http"), "macos", "x64", true).unwrap_err(), "voice_manifest_invalid");
-        assert_eq!(parse_manifest(&manifest_json("https"), "windows", "x64", false).unwrap_err(), "voice_platform_unsupported");
+        assert_eq!(parse_manifest(&manifest_json("http"), "macos", "x64", true, None).unwrap_err(), "voice_manifest_invalid");
+        assert_eq!(parse_manifest(&manifest_json("https"), "windows", "x64", false, None).unwrap_err(), "voice_platform_unsupported");
         let wrong_product = manifest_json("https").replace("Mirror Desktop", "Other");
-        assert_eq!(parse_manifest(&wrong_product, "macos", "x64", false).unwrap_err(), "voice_manifest_invalid");
+        assert_eq!(parse_manifest(&wrong_product, "macos", "x64", false, None).unwrap_err(), "voice_manifest_invalid");
         let bad_sha = manifest_json("https").replace(&"b".repeat(64), &"B".repeat(64));
-        assert_eq!(parse_manifest(&bad_sha, "macos", "x64", false).unwrap_err(), "voice_manifest_invalid");
+        assert_eq!(parse_manifest(&bad_sha, "macos", "x64", false, None).unwrap_err(), "voice_manifest_invalid");
         let missing_model = manifest_json("https").replace("\"defaultModel\": \"base-q5_1\"", "\"defaultModel\": \"small\"");
-        assert_eq!(parse_manifest(&missing_model, "macos", "x64", false).unwrap_err(), "voice_manifest_invalid");
+        assert_eq!(parse_manifest(&missing_model, "macos", "x64", false, None).unwrap_err(), "voice_manifest_invalid");
     }
 
     #[test]
     fn loopback_artifact_urls_are_admitted_only_when_rehearsal_is_allowed() {
         let loopback = manifest_json("https").replace("https://updates.mirrormind.sh", "http://127.0.0.1:8791");
-        assert_eq!(parse_manifest(&loopback, "macos", "x64", false).unwrap_err(), "voice_manifest_invalid");
-        assert!(parse_manifest(&loopback, "macos", "x64", true).is_ok());
+        assert_eq!(parse_manifest(&loopback, "macos", "x64", false, None).unwrap_err(), "voice_manifest_invalid");
+        assert!(parse_manifest(&loopback, "macos", "x64", true, None).is_ok());
     }
 
     #[test]
@@ -959,7 +1051,7 @@ mod tests {
         tauri::async_runtime::block_on(async {
             let client = http_client().unwrap();
             let manifest_bytes = download(&client, &url, MAX_MANIFEST_BYTES as u64, &|_, _| {}).await.unwrap();
-            let manifest = parse_manifest(&String::from_utf8_lossy(&manifest_bytes), platform, architecture, loopback_rehearsal_allowed()).unwrap();
+            let manifest = parse_manifest(&String::from_utf8_lossy(&manifest_bytes), platform, architecture, loopback_rehearsal_allowed(), std::env::var("MIRROR_DESKTOP_VOICE_SPIKE_MODEL_ID").ok().as_deref()).unwrap();
             let executable = download(&client, &manifest.executable.url, manifest.executable.size_bytes, &|_, _| {}).await.unwrap();
             let model = download(&client, &manifest.model.url, manifest.model.size_bytes, &|_, _| {}).await.unwrap();
             install_verified_files(&root, &manifest, &executable, &model, platform, architecture, &now_iso()).unwrap();

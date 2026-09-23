@@ -7556,3 +7556,17 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 }
 
 .voice-install-dialog { max-width: 560px; }
+
+.voice-model-picker {
+  display: grid;
+  gap: 5px;
+  margin: 12px 0;
+}
+
+.voice-model-picker > span {
+  color: var(--text-muted, #9bbbc3);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.voice-model-picker small { color: var(--text-muted, #9bbbc3); font-size: 0.74rem; line-height: 1.4; }

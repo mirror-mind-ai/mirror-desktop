@@ -1,8 +1,10 @@
 import {
   describeInstallProgress,
+  describeVoiceModel,
   formatComponentSize,
   voiceControlIntent,
   voiceControlLabel,
+  type VoiceComponentCatalog,
   type VoiceComponentStatus,
   type VoiceControlIntent,
   type VoiceInstallProgress,
@@ -84,16 +86,54 @@ export function VoiceSessionStatus({ session, elapsedSeconds, onCancel }: VoiceS
   );
 }
 
+type VoiceModelPickerProps = {
+  catalog: VoiceComponentCatalog | undefined;
+  loading: boolean;
+  modelId: string | undefined;
+  disabled: boolean;
+  onChange: (modelId: string) => void;
+};
+
+/**
+ * Accuracy and speed trade off sharply by model and the right answer depends on
+ * the machine, so the choice belongs to the Navigator rather than to a default
+ * baked in from one benchmark.
+ */
+export function VoiceModelPicker({ catalog, loading, modelId, disabled, onChange }: VoiceModelPickerProps) {
+  if (!catalog) {
+    return loading ? <p className="provider-note" role="status">Reading the available speech models…</p> : null;
+  }
+  const selected = modelId ?? catalog.defaultModel;
+  return (
+    <label className="voice-model-picker">
+      <span>Speech model</span>
+      <select value={selected} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+        {catalog.models.map((model) => (
+          <option key={model.id} value={model.id}>
+            {describeVoiceModel(model.id).label} · {formatComponentSize(model.sizeBytes)}
+            {model.id === catalog.defaultModel ? " · recommended" : ""}
+          </option>
+        ))}
+      </select>
+      <small>{describeVoiceModel(selected).detail}</small>
+    </label>
+  );
+}
+
 type VoiceInstallDialogProps = {
   status: VoiceComponentStatus;
   installing: boolean;
   progress?: VoiceInstallProgress;
   error?: string;
+  catalog?: VoiceComponentCatalog;
+  catalogLoading: boolean;
+  modelId?: string;
+  onModelChange: (modelId: string) => void;
   onConfirm: () => void;
   onClose: () => void;
 };
 
-export function VoiceInstallDialog({ status, installing, progress, error, onConfirm, onClose }: VoiceInstallDialogProps) {
+export function VoiceInstallDialog({ status, installing, progress, error, catalog, catalogLoading, modelId, onModelChange, onConfirm, onClose }: VoiceInstallDialogProps) {
   const ready = status.state === "ready";
   return (
     <div className="settings-backdrop" role="presentation" onClick={() => !installing && onClose()}>
@@ -123,6 +163,9 @@ export function VoiceInstallDialog({ status, installing, progress, error, onConf
             <p>Installing does not turn on the microphone. Recording starts only when you click the microphone afterwards.</p>
           </div>
         ) : null}
+        {!ready ? (
+          <VoiceModelPicker catalog={catalog} loading={catalogLoading} modelId={modelId} disabled={installing} onChange={onModelChange} />
+        ) : null}
         {installing ? <p className="provider-note" role="status">{describeInstallProgress(progress)}</p> : null}
         {error ? <p className="settings-error" role="alert">{error}</p> : null}
         <div className="provider-actions">
@@ -147,12 +190,19 @@ type VoiceSettingsPanelProps = {
   progress?: VoiceInstallProgress;
   error?: string;
   sessionActive: boolean;
+  catalog?: VoiceComponentCatalog;
+  catalogLoading: boolean;
+  modelId?: string;
+  onModelChange: (modelId: string) => void;
   onInstall: () => void;
   onRemove: () => void;
 };
 
-export function VoiceSettingsPanel({ status, installing, removing, progress, error, sessionActive, onInstall, onRemove }: VoiceSettingsPanelProps) {
+export function VoiceSettingsPanel({ status, installing, removing, progress, error, sessionActive, catalog, catalogLoading, modelId, onModelChange, onInstall, onRemove }: VoiceSettingsPanelProps) {
   const busy = installing || removing || sessionActive;
+  const installed = status?.modelId;
+  const selected = modelId ?? catalog?.defaultModel;
+  const switching = status?.state === "ready" && selected !== undefined && selected !== installed;
   return (
     <section className="settings-section provider-card" aria-label="Local voice transcription">
       <h3>Local voice transcription</h3>
@@ -162,7 +212,7 @@ export function VoiceSettingsPanel({ status, installing, removing, progress, err
         {status?.state === "ready" ? (
           <>
             <div><dt>Engine</dt><dd>whisper.cpp {status.componentVersion}</dd></div>
-            <div><dt>Model</dt><dd>{status.modelId}</dd></div>
+            <div><dt>Model</dt><dd>{describeVoiceModel(status.modelId ?? "").label} ({status.modelId})</dd></div>
             <div><dt>Size</dt><dd>{formatComponentSize(status.sizeBytes)}</dd></div>
             {status.installedAt ? <div><dt>Installed</dt><dd>{status.installedAt}</dd></div> : null}
           </>
@@ -171,9 +221,18 @@ export function VoiceSettingsPanel({ status, installing, removing, progress, err
       {status?.message ? <p className="provider-note">{status.message}</p> : null}
       {installing ? <p className="provider-note" role="status">{describeInstallProgress(progress)}</p> : null}
       {error ? <p className="provider-error" role="alert">{error}</p> : null}
+      {status?.state === "ready" || status?.state === "not_installed" ? (
+        <VoiceModelPicker catalog={catalog} loading={catalogLoading} modelId={selected} disabled={busy} onChange={onModelChange} />
+      ) : null}
+      {switching ? (
+        <p className="provider-note">Switching models downloads the new one and replaces the installed model. The engine is kept.</p>
+      ) : null}
       <div className="provider-actions">
         {status?.state === "not_installed" || status?.state === "damaged" ? (
           <button type="button" onClick={onInstall} disabled={busy || status.state === "damaged"}>{installing ? "Installing…" : "Install local transcription"}</button>
+        ) : null}
+        {switching ? (
+          <button type="button" onClick={onInstall} disabled={busy}>{installing ? "Installing…" : "Switch model"}</button>
         ) : null}
         {status?.state === "ready" || status?.state === "damaged" ? (
           <button type="button" className="secondary-button" onClick={onRemove} disabled={busy}>{removing ? "Removing…" : "Remove local transcription"}</button>

@@ -1,10 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
+  parseVoiceComponentCatalog,
   parseVoiceComponentStatus,
   parseVoiceInstallProgress,
   parseVoiceTranscript,
   VOICE_MAX_WAV_BYTES,
+  type VoiceComponentCatalog,
   type VoiceComponentStatus,
   type VoiceInstallProgress,
   type VoiceTranscript,
@@ -22,12 +24,20 @@ export async function loadVoiceComponentStatus(): Promise<VoiceComponentStatus> 
   return requireStatus(await invoke<unknown>("voice_transcription_status"));
 }
 
+/** Read-only: reports the models the manifest offers. Installs nothing. */
+export async function loadVoiceComponentCatalog(): Promise<VoiceComponentCatalog> {
+  const catalog = parseVoiceComponentCatalog(await invoke<unknown>("voice_transcription_catalog"));
+  if (!catalog) throw new Error("voice_manifest_invalid");
+  return catalog;
+}
+
 /**
  * Install the managed local transcription component after explicit consent.
  * The native side fetches the Mirror-controlled manifest, verifies checksums
  * and installs under channel-scoped app data; it never starts a recording.
+ * Installing a different model replaces the previous one.
  */
-export async function installVoiceComponent(onProgress?: (progress: VoiceInstallProgress) => void): Promise<VoiceComponentStatus> {
+export async function installVoiceComponent(onProgress?: (progress: VoiceInstallProgress) => void, modelId?: string): Promise<VoiceComponentStatus> {
   const unlisten = onProgress
     ? await listen<unknown>(VOICE_INSTALL_PROGRESS_EVENT, (event) => {
         const progress = parseVoiceInstallProgress(event.payload);
@@ -35,7 +45,7 @@ export async function installVoiceComponent(onProgress?: (progress: VoiceInstall
       })
     : () => undefined;
   try {
-    return requireStatus(await invoke<unknown>("voice_transcription_install"));
+    return requireStatus(await invoke<unknown>("voice_transcription_install", { modelId: modelId ?? null }));
   } finally {
     unlisten();
   }

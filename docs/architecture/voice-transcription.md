@@ -50,7 +50,7 @@ The native boundary accepts only this manifest, fetched from a Mirror-controlled
 }
 ```
 
-Rules: URLs must be `https`; SHA-256 digests are lowercase 64-character hex; file names are plain names without path separators; sizes are bounded (executable ≤ 96 MiB, model ≤ 768 MiB). Downloaded bytes must match both size and digest before anything is moved into `current/`. The default manifest URL is compiled in; the development channel may override it with `MIRROR_DESKTOP_VOICE_MANIFEST_URL` and may use loopback `http` for rehearsal. Upstream repositories are never contacted by the product; artifacts are curated with `scripts/voice_component_manifest.mjs`.
+Rules: URLs must be `https`; SHA-256 digests are lowercase 64-character hex; file names are plain names without path separators; sizes are bounded (executable ≤ 96 MiB, model ≤ 768 MiB). Every entry in `models` must validate, and `defaultModel` must name one of them. Downloaded bytes must match both size and digest before anything is moved into `current/`. The default manifest URL is compiled in; the development channel may override it with `MIRROR_DESKTOP_VOICE_MANIFEST_URL` and may use loopback `http` for rehearsal. Upstream repositories are never contacted by the product; artifacts are curated with `scripts/voice_component_manifest.mjs`.
 
 The voice manifest is independent from the self-update manifest. Updating the app never replaces the component and vice versa.
 
@@ -58,8 +58,9 @@ The voice manifest is independent from the self-update manifest. Updating the ap
 
 | Command | Input | Effect |
 |---|---|---|
-| `voice_transcription_status` | none | Reports `not_installed`, `ready`, `damaged` or `unsupported` with version, model and size. Read-only. |
-| `voice_transcription_install` | none | Fetches the manifest, downloads, verifies and installs. Emits `voice-transcription-progress` events. |
+| `voice_transcription_status` | none | Reports `not_installed`, `ready`, `damaged` or `unsupported` with version, model and size. Read-only, no network. |
+| `voice_transcription_catalog` | none | Fetches the manifest and reports the models it offers with their sizes. Read-only; installs nothing. |
+| `voice_transcription_install` | optional model id | Fetches the manifest, downloads, verifies and installs. An unknown model id fails closed rather than falling back to the default. Emits `voice-transcription-progress` events. |
 | `voice_transcription_remove` | none | Deletes the component directory. |
 | `voice_transcription_transcribe` | WAV bytes, optional two-letter language | Validates 16 kHz mono PCM16 WAV within five minutes, writes one temp file, runs the pinned executable with fixed arguments and a timeout, deletes the temp file and returns text plus timing. |
 
@@ -68,6 +69,16 @@ The frontend never sends paths, executable names or arguments. The argument vect
 ```text
 --model <current model> --file <temp wav> --language <auto|xx> --no-timestamps --no-prints
 ```
+
+## Model choice
+
+Accuracy and speed trade off sharply by model, and the right answer depends on the machine, so the choice is exposed rather than assumed. The install dialog and Settings → Voice list every model the manifest offers with its size and a plain description; `defaultModel` is marked as recommended. Selecting a different model than the installed one offers a switch, which redownloads only the model and replaces the installed one — the engine and the receipt are rewritten atomically, so a failed switch leaves the previous component intact.
+
+The recommended default is `small-q5_1`. `base-q5_1` is faster but was measured unusable for Portuguese dictation; `large-v3-turbo-q5_0` is accurate but roughly nine times real time without a GPU. See the [TS-1 characterization](../project/roadmap/cv-008-conversation-spaces/ds-005-voice-prompt-composition/characterization.md).
+
+## Audio conversion
+
+Captured audio is downmixed to mono and resampled to 16 kHz entirely in TypeScript. Downsampling is band-limited: a windowed-sinc kernel narrowed by the rate ratio low-passes and resamples in one pass, with kernels precomputed per output phase. Plain interpolation is not acceptable here — at the usual 48 kHz capture rate it folds everything above 8 kHz back into the speech band and measurably corrupts recognition.
 
 ## Frontend flow
 

@@ -31,7 +31,8 @@ use runtime_channel::{
     runtime_search_directories, RuntimeChannel, RuntimeChannelDiagnostic, RuntimeChannelProfile,
 };
 use voice_transcription::{
-    voice_transcription_install, voice_transcription_remove, voice_transcription_status, voice_transcription_transcribe,
+    voice_transcription_catalog, voice_transcription_install, voice_transcription_remove, voice_transcription_status,
+    voice_transcription_transcribe,
 };
 use whats_new_state::{load_whats_new_state, save_whats_new_state};
 use turn_journal::{
@@ -8267,6 +8268,7 @@ fn main() {
             load_whats_new_state,
             save_whats_new_state,
             voice_transcription_status,
+            voice_transcription_catalog,
             voice_transcription_install,
             voice_transcription_remove,
             voice_transcription_transcribe,

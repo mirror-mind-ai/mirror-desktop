@@ -35,6 +35,17 @@ export type VoiceTranscript = {
   componentVersion: string;
 };
 
+export type VoiceModelChoice = {
+  id: string;
+  sizeBytes: number;
+};
+
+export type VoiceComponentCatalog = {
+  componentVersion: string;
+  defaultModel: string;
+  models: VoiceModelChoice[];
+};
+
 export type VoiceInstallProgress = {
   phase: "manifest" | "executable" | "model" | "verifying" | "ready";
   receivedBytes?: number;
@@ -91,6 +102,39 @@ export function parseVoiceTranscript(value: unknown): VoiceTranscript | undefine
   const componentVersion = optionalString(value.componentVersion);
   if (audioSeconds === undefined || durationMs === undefined || !modelId || !componentVersion) return undefined;
   return { text: value.text, audioSeconds, durationMs, modelId, componentVersion };
+}
+
+export function parseVoiceComponentCatalog(value: unknown): VoiceComponentCatalog | undefined {
+  if (!isRecord(value) || !Array.isArray(value.models)) return undefined;
+  const componentVersion = optionalString(value.componentVersion);
+  const defaultModel = optionalString(value.defaultModel);
+  if (!componentVersion || !defaultModel) return undefined;
+  const models: VoiceModelChoice[] = [];
+  for (const entry of value.models) {
+    if (!isRecord(entry)) return undefined;
+    const id = optionalString(entry.id);
+    const sizeBytes = optionalNonNegativeNumber(entry.sizeBytes);
+    if (!id || sizeBytes === undefined) return undefined;
+    models.push({ id, sizeBytes });
+  }
+  if (!models.some((model) => model.id === defaultModel)) return undefined;
+  return { componentVersion, defaultModel, models };
+}
+
+/**
+ * Accuracy and speed trade off sharply by model, and the right choice depends
+ * on the machine. TS-1 measured a 2019 Intel i7 without Metal: `base` mistook
+ * ordinary Portuguese words, `small` recovered them at roughly three times
+ * real time, and `large-v3-turbo` was accurate at roughly nine times real time.
+ */
+export function describeVoiceModel(id: string): { label: string; detail: string } {
+  if (id.includes("tiny")) return { label: "Tiny", detail: "Fastest. English only in practice; unreliable for Portuguese." };
+  if (id.includes("base")) return { label: "Base", detail: "Fast. Good English; misses Portuguese words and proper nouns." };
+  if (id.includes("small")) return { label: "Small", detail: "Balanced. Reliable Portuguese and English for dictation." };
+  if (id.includes("medium")) return { label: "Medium", detail: "Accurate and slow." };
+  if (id.includes("turbo")) return { label: "Large turbo", detail: "Most accurate Portuguese. Slow without a GPU." };
+  if (id.includes("large")) return { label: "Large", detail: "Most accurate. Slowest." };
+  return { label: id, detail: "" };
 }
 
 export function parseVoiceInstallProgress(value: unknown): VoiceInstallProgress | undefined {
@@ -178,6 +222,7 @@ export function describeInstallProgress(progress: VoiceInstallProgress | undefin
 
 const voiceErrorMessages: Record<string, string> = {
   voice_manifest_invalid: "The voice component manifest could not be validated. Installation was not started.",
+  voice_model_unknown: "That speech model is not offered by the component manifest.",
   voice_platform_unsupported: "Local transcription is not available for this platform yet.",
   voice_download_failed: "The voice component could not be downloaded. Check the connection and try again.",
   voice_artifact_checksum_mismatch: "A downloaded file failed checksum verification, so nothing was installed.",

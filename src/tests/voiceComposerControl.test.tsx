@@ -8,6 +8,16 @@ const ready: VoiceComponentStatus = {
   componentVersion: "1.7.5", modelId: "base-q5_1", sizeBytes: 60 * 1024 * 1024, installedAt: "2026-09-23T12:00:00.000Z",
 };
 const notInstalled: VoiceComponentStatus = { state: "not_installed", platform: "macos", architecture: "x64", manifestUrl: ready.manifestUrl };
+const catalog = {
+  componentVersion: "1.7.5",
+  defaultModel: "small-q5_1",
+  models: [
+    { id: "base-q5_1", sizeBytes: 60 * 1024 * 1024 },
+    { id: "small-q5_1", sizeBytes: 190 * 1024 * 1024 },
+    { id: "large-v3-turbo-q5_0", sizeBytes: 547 * 1024 * 1024 },
+  ],
+};
+const noCatalog = { catalogLoading: false, onModelChange: () => undefined } as const;
 
 describe("Voice composer surfaces", () => {
   it("renders the microphone with the intent it will perform", () => {
@@ -35,25 +45,63 @@ describe("Voice composer surfaces", () => {
   });
 
   it("explains local processing, size and removability before installation and never records afterwards", () => {
-    const html = renderToStaticMarkup(<VoiceInstallDialog status={notInstalled} installing={false} onConfirm={() => undefined} onClose={() => undefined} />);
+    const html = renderToStaticMarkup(<VoiceInstallDialog status={notInstalled} installing={false} {...noCatalog} onConfirm={() => undefined} onClose={() => undefined} />);
     expect(html).toContain("Install local transcription?");
     expect(html).toContain("never uploaded");
     expect(html).toContain("roughly 100 MB");
     expect(html).toContain("Installing does not turn on the microphone");
     expect(html).toContain("Not now");
-    const done = renderToStaticMarkup(<VoiceInstallDialog status={ready} installing={false} onConfirm={() => undefined} onClose={() => undefined} />);
+    const done = renderToStaticMarkup(<VoiceInstallDialog status={ready} installing={false} {...noCatalog} onConfirm={() => undefined} onClose={() => undefined} />);
     expect(done).toContain("Local transcription is ready");
     expect(done).toContain("Nothing was recorded during installation");
   });
 
   it("exposes version, model, size and removal in Settings", () => {
-    const html = renderToStaticMarkup(<VoiceSettingsPanel status={ready} installing={false} removing={false} sessionActive={false} onInstall={() => undefined} onRemove={() => undefined} />);
+    const html = renderToStaticMarkup(<VoiceSettingsPanel status={ready} installing={false} removing={false} sessionActive={false} {...noCatalog} onInstall={() => undefined} onRemove={() => undefined} />);
     expect(html).toContain("whisper.cpp 1.7.5");
     expect(html).toContain("base-q5_1");
     expect(html).toContain("60 MB");
     expect(html).toContain("Remove local transcription");
-    const absent = renderToStaticMarkup(<VoiceSettingsPanel status={notInstalled} installing={false} removing={false} sessionActive={false} onInstall={() => undefined} onRemove={() => undefined} />);
+    const absent = renderToStaticMarkup(<VoiceSettingsPanel status={notInstalled} installing={false} removing={false} sessionActive={false} {...noCatalog} onInstall={() => undefined} onRemove={() => undefined} />);
     expect(absent).toContain("Install local transcription");
     expect(absent).not.toContain("Remove local transcription");
+  });
+
+  it("lets the Navigator trade model accuracy against speed and offers a switch when it differs", () => {
+    const choosing = renderToStaticMarkup(
+      <VoiceSettingsPanel
+        status={ready}
+        installing={false}
+        removing={false}
+        sessionActive={false}
+        catalog={catalog}
+        catalogLoading={false}
+        modelId="large-v3-turbo-q5_0"
+        onModelChange={() => undefined}
+        onInstall={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+    expect(choosing).toContain("Speech model");
+    expect(choosing).toContain("Small");
+    expect(choosing).toContain("recommended");
+    expect(choosing).toContain("Most accurate Portuguese");
+    expect(choosing).toContain("Switch model");
+
+    const unchanged = renderToStaticMarkup(
+      <VoiceSettingsPanel
+        status={ready}
+        installing={false}
+        removing={false}
+        sessionActive={false}
+        catalog={catalog}
+        catalogLoading={false}
+        modelId={ready.modelId}
+        onModelChange={() => undefined}
+        onInstall={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+    expect(unchanged).not.toContain("Switch model");
   });
 });

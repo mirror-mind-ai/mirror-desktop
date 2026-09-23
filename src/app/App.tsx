@@ -97,13 +97,14 @@ import { ConversationRecoveryNotice } from "./ConversationRecoveryNotice";
 import { InterruptedNativeAttemptNotice } from "./InterruptedNativeAttemptNotice";
 import { PendingFileAttachments } from "./PendingFileAttachments";
 import { VoiceComposerControl, VoiceInstallDialog, VoiceSessionStatus, VoiceSettingsPanel } from "./VoiceComposerControl";
-import { installVoiceComponent, loadVoiceComponentStatus, removeVoiceComponent, transcribeVoiceWav } from "./voiceTranscriptionStorage";
+import { installVoiceComponent, loadVoiceComponentCatalog, loadVoiceComponentStatus, removeVoiceComponent, transcribeVoiceWav } from "./voiceTranscriptionStorage";
 import { recordingToPcm16Wav, startVoiceCapture, type VoiceCaptureHandle } from "./voiceCapture";
 import {
   appendTranscriptToDraft,
   idleVoiceSession,
   transcriptDestinationNotice,
   voiceErrorMessage,
+  type VoiceComponentCatalog,
   type VoiceComponentStatus,
   type VoiceControlIntent,
   type VoiceInstallProgress,
@@ -550,6 +551,9 @@ export function App({ model }: AppProps) {
   const [voiceError, setVoiceError] = useState<string>();
   const [voiceNotice, setVoiceNotice] = useState<string>();
   const [voiceElapsedSeconds, setVoiceElapsedSeconds] = useState(0);
+  const [voiceCatalog, setVoiceCatalog] = useState<VoiceComponentCatalog>();
+  const [voiceCatalogLoading, setVoiceCatalogLoading] = useState(false);
+  const [voiceModelId, setVoiceModelId] = useState<string>();
   const voiceCaptureRef = useRef<VoiceCaptureHandle | undefined>(undefined);
   const voiceOriginRef = useRef<{ draftKey: string; label: string } | undefined>(undefined);
   const [providerConfig, setProviderConfig] = useState(defaultPiProviderConfig);
@@ -1608,6 +1612,11 @@ export function App({ model }: AppProps) {
   useEffect(() => () => { voiceCaptureRef.current?.cancel(); }, []);
 
   useEffect(() => {
+    if (settingsOpen && settingsTab === "voice") void loadVoiceCatalog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsOpen, settingsTab]);
+
+  useEffect(() => {
     if (!turnRecoveryNotice) return;
     const scheduled = turnRecoveryNotice;
     return scheduleTransientComposerNotice(() => {
@@ -1980,13 +1989,31 @@ export function App({ model }: AppProps) {
     return selectedConversationEntry?.kind === "desktop_conversation" ? `${journeyName} · ${selectedConversationEntry.title}` : journeyName;
   }
 
+  /**
+   * Read-only manifest lookup so the Navigator can weigh model size, speed and
+   * accuracy. Triggered only by opening the install dialog or Settings -> Voice.
+   */
+  async function loadVoiceCatalog() {
+    if (voiceCatalog || voiceCatalogLoading) return;
+    setVoiceCatalogLoading(true);
+    try {
+      const catalog = await loadVoiceComponentCatalog();
+      setVoiceCatalog(catalog);
+      setVoiceModelId((current) => current ?? voiceStatus?.modelId ?? catalog.defaultModel);
+    } catch (error) {
+      setVoiceError(voiceErrorMessage(error));
+    } finally {
+      setVoiceCatalogLoading(false);
+    }
+  }
+
   async function installVoice() {
     if (voiceInstalling || voiceSession.kind !== "idle") return;
     setVoiceInstalling(true);
     setVoiceError(undefined);
     setVoiceInstallProgress(undefined);
     try {
-      setVoiceStatus(await installVoiceComponent(setVoiceInstallProgress));
+      setVoiceStatus(await installVoiceComponent(setVoiceInstallProgress, voiceModelId));
     } catch (error) {
       setVoiceError(voiceErrorMessage(error));
     } finally {
@@ -2066,7 +2093,10 @@ export function App({ model }: AppProps) {
   }
 
   function handleVoiceIntent(intent: VoiceControlIntent) {
-    if (intent === "install") setVoiceInstallDialogOpen(true);
+    if (intent === "install") {
+      setVoiceInstallDialogOpen(true);
+      void loadVoiceCatalog();
+    }
     else if (intent === "record") void startVoiceRecording();
     else if (intent === "stop") void stopVoiceRecording();
     else if (intent === "explain") {
@@ -4935,6 +4965,10 @@ export function App({ model }: AppProps) {
           installing={voiceInstalling}
           progress={voiceInstallProgress}
           error={voiceError}
+          catalog={voiceCatalog}
+          catalogLoading={voiceCatalogLoading}
+          modelId={voiceModelId}
+          onModelChange={setVoiceModelId}
           onConfirm={() => void installVoice()}
           onClose={() => setVoiceInstallDialogOpen(false)}
         />
@@ -5454,6 +5488,10 @@ export function App({ model }: AppProps) {
                   progress={voiceInstallProgress}
                   error={voiceError}
                   sessionActive={voiceSession.kind !== "idle"}
+                  catalog={voiceCatalog}
+                  catalogLoading={voiceCatalogLoading}
+                  modelId={voiceModelId}
+                  onModelChange={setVoiceModelId}
                   onInstall={() => void installVoice()}
                   onRemove={() => void removeVoice()}
                 />

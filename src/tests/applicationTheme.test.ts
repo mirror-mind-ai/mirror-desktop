@@ -243,6 +243,9 @@ describe("application themes", () => {
     expect(cssSource).toContain("/* Light voice recording contrast contract. */");
     expect(cssSource).toContain(") .voice-session-status.is-recording {");
     expect(cssSource).toContain(") .voice-composer-button.is-recording:not(:disabled) {");
+    // The model picker must inherit themed tokens rather than fixed dark colours.
+    expect(cssSource).toContain(".voice-model-picker > span {");
+    expect(cssSource).toContain("color: var(--text-muted, #9bbbc3);");
   });
 
   it("keeps the completed composer status legible in light themes", () => {

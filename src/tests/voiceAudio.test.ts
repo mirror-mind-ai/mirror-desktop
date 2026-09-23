@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { downmixToMono, encodePcm16Wav, pcm16WavFromDecodedAudio, resampleLinear } from "../domain/voiceAudio";
+import { downmixToMono, encodePcm16Wav, pcm16WavFromDecodedAudio, resampleLinear, resampleSinc } from "../domain/voiceAudio";
+
+function tone(frequency: number, sampleRate: number, seconds: number): Float32Array {
+  const samples = new Float32Array(Math.round(sampleRate * seconds));
+  for (let index = 0; index < samples.length; index += 1) {
+    samples[index] = Math.sin((2 * Math.PI * frequency * index) / sampleRate);
+  }
+  return samples;
+}
+
+/** Peak amplitude away from the edges, where any finite kernel tapers. */
+function steadyPeak(samples: Float32Array): number {
+  let peak = 0;
+  const margin = Math.floor(samples.length * 0.2);
+  for (let index = margin; index < samples.length - margin; index += 1) {
+    peak = Math.max(peak, Math.abs(samples[index]));
+  }
+  return peak;
+}
 
 function ascii(bytes: Uint8Array, offset: number, length: number): string {
   return String.fromCharCode(...bytes.subarray(offset, offset + length));
@@ -31,6 +49,32 @@ describe("Voice audio conversion", () => {
     expect(doubled).toHaveLength(4);
     expect(doubled[2]).toBeCloseTo(1, 5);
     expect(() => resampleLinear(source, 0, 16_000)).toThrow("voice_audio_invalid");
+  });
+
+  it("band-limits before decimating so content above the target Nyquist cannot alias", () => {
+    // 12 kHz cannot exist at 16 kHz; plain interpolation folds it onto 4 kHz.
+    const aliasing = resampleLinear(tone(12_000, 48_000, 0.25), 48_000, 16_000);
+    expect(steadyPeak(aliasing)).toBeGreaterThan(0.5);
+
+    const bandLimited = resampleSinc(tone(12_000, 48_000, 0.25), 48_000, 16_000);
+    expect(steadyPeak(bandLimited)).toBeLessThan(0.02);
+
+    // Speech-band content must survive essentially untouched.
+    const speech = resampleSinc(tone(1_000, 48_000, 0.25), 48_000, 16_000);
+    expect(steadyPeak(speech)).toBeGreaterThan(0.98);
+    expect(resampleSinc(speech, 16_000, 16_000)).toBe(speech);
+    expect(() => resampleSinc(speech, 16_000, 0)).toThrow("voice_audio_invalid");
+  });
+
+  it("matches the direct kernel when rates force the phase-table fallback", () => {
+    // A prime target rate pushes the phase count past the table limit.
+    const source = tone(1_000, 48_000, 0.05);
+    const tabled = resampleSinc(source, 48_000, 16_000);
+    const untabled = resampleSinc(source, 48_000 * 1_048_573, 16_000 * 1_048_573);
+    expect(untabled).toHaveLength(tabled.length);
+    for (let index = 0; index < tabled.length; index += 1) {
+      expect(untabled[index]).toBeCloseTo(tabled[index], 5);
+    }
   });
 
   it("encodes a canonical 16 kHz mono PCM16 WAV header the native boundary accepts", () => {

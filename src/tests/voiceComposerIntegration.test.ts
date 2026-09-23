@@ -27,8 +27,13 @@ describe("CV-008.DS-005 voice prompt composition integration", () => {
   });
 
   it("keeps installation consent and microphone consent as separate actions", () => {
-    expect(appSource).toContain('if (intent === "install") setVoiceInstallDialogOpen(true)');
+    expect(appSource).toContain('if (intent === "install") {');
+    expect(appSource).toContain("setVoiceInstallDialogOpen(true);");
     expect(appSource).toContain('else if (intent === "record") void startVoiceRecording()');
+    // Reading the model catalogue is read-only and must not install or record.
+    const catalog = appSource.slice(appSource.indexOf("async function loadVoiceCatalog()"), appSource.indexOf("async function installVoice()"));
+    expect(catalog).not.toContain("installVoiceComponent");
+    expect(catalog).not.toContain("startVoiceRecording");
     const install = appSource.slice(appSource.indexOf("async function installVoice()"), appSource.indexOf("async function removeVoice()"));
     expect(install).not.toContain("startVoiceRecording");
     expect(install).not.toContain("startVoiceCapture");
