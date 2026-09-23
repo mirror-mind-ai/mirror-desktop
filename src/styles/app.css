@@ -5792,6 +5792,17 @@ dd {
   color: var(--light-text);
 }
 
+/* Light icon-button hover contrast contract. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(.icon-button, .send-button):not(:disabled):hover {
+  background: color-mix(in srgb, var(--ui-accent) 10%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 45%, var(--light-border));
+  color: var(--light-text);
+}
+
 .app-shell:is(
   [data-application-theme="daylight"],
   [data-application-theme="mist"],
@@ -6266,6 +6277,18 @@ dd {
 ) .voice-composer-button.is-recording:not(:disabled) {
   background: #b42318;
   border-color: #b42318;
+  color: #ffffff;
+}
+
+/* Hovering the stop control deepens the destructive fill; it must not pick up
+   the accent tint shared by ordinary icon buttons. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .voice-composer-button.is-recording:not(:disabled):hover {
+  background: #911c13;
+  border-color: #911c13;
   color: #ffffff;
 }
 

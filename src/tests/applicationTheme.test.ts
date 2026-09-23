@@ -256,6 +256,22 @@ describe("application themes", () => {
     }
   });
 
+  it("keeps composer icon buttons legible on hover in light themes", () => {
+    for (const theme of lightApplicationThemes) {
+      // The shared hover treatment tints the surface with the accent.
+      const hoverSurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.1);
+      expect(contrast(theme.tokens.primaryText, hoverSurface), `${theme.id} icon button hover`)
+        .toBeGreaterThanOrEqual(4.5);
+      // The dark-theme hover colour must never reach a light surface.
+      expect(contrast("#bff2eb", hoverSurface)).toBeLessThan(4.5);
+    }
+    expect(cssSource).toContain("/* Light icon-button hover contrast contract. */");
+    expect(cssSource).toContain(") :is(.icon-button, .send-button):not(:disabled):hover {");
+    // The stop control keeps its destructive fill instead of the accent tint.
+    expect(cssSource).toContain(") .voice-composer-button.is-recording:not(:disabled):hover {");
+    expect(contrast("#ffffff", "#911c13"), "stop control hover").toBeGreaterThanOrEqual(4.5);
+  });
+
   it("keeps the completed composer status legible in light themes", () => {
     expect(cssSource).toContain("/* Light composer status contrast contract. */");
     expect(cssSource).toContain(".composer-runtime-status.is-finishing");
