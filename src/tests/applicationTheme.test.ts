@@ -228,6 +228,21 @@ describe("application themes", () => {
     expect(cssSource).toContain("color: var(--light-text);");
   });
 
+  it("keeps the voice component status badges legible in light themes", () => {
+    for (const theme of lightApplicationThemes) {
+      const readySurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.1);
+      expect(contrast(theme.tokens.primaryText, readySurface), `${theme.id} ready voice status badge`)
+        .toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.primaryText, theme.tokens.raisedSurface), `${theme.id} not-installed voice status badge`)
+        .toBeGreaterThanOrEqual(4.5);
+      expect(contrast("#b42318", "#fff4f2"), `${theme.id} damaged voice status badge`)
+        .toBeGreaterThanOrEqual(4.5);
+    }
+    expect(cssSource).toContain("/* Light voice component status contrast contract. */");
+    expect(cssSource).toContain(") .voice-status-badge.is-not_installed,");
+    expect(cssSource).toContain(") .voice-status-badge.is-damaged,");
+  });
+
   it("keeps the recording notice and stop control legible in light themes", () => {
     const recordingSurface = "#fff4f2";
     const destructive = "#b42318";

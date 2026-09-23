@@ -6239,6 +6239,47 @@ dd {
   color: var(--light-text);
 }
 
+/* Light voice component status contrast contract. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .voice-status-badge {
+  background: color-mix(in srgb, var(--ui-accent) 10%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 45%, var(--light-border));
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .voice-status-badge.is-not_installed,
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .voice-status-badge.is-checking {
+  background: var(--light-raised);
+  border-color: var(--light-border);
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .voice-status-badge.is-damaged,
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .voice-status-badge.is-unsupported {
+  background: #fff4f2;
+  border-color: #f4b4ad;
+  color: #b42318;
+}
+
 /* Light voice recording contrast contract. */
 :is(
   .app-shell[data-application-theme="daylight"],
@@ -7581,6 +7622,38 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 }
 
 .voice-install-dialog { max-width: 560px; }
+
+.voice-status-badge {
+  align-items: center;
+  border: 1px solid rgba(var(--ui-accent-rgb), 0.28);
+  border-radius: 999px;
+  color: #d7f4ef;
+  display: inline-flex;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+
+.voice-status-badge.is-ready {
+  background: rgba(var(--ui-accent-rgb), 0.14);
+}
+
+.voice-status-badge.is-not_installed,
+.voice-status-badge.is-checking {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #c8d6da;
+}
+
+.voice-status-badge.is-damaged,
+.voice-status-badge.is-unsupported {
+  background: rgba(226, 92, 92, 0.14);
+  border-color: rgba(226, 92, 92, 0.42);
+  color: #f2a6a6;
+}
 
 .voice-model-picker {
   display: grid;

@@ -241,7 +241,7 @@ export function VoiceSettingsPanel({ status, installing, removing, progress, err
       <h3>Local voice transcription</h3>
       <p className="settings-intro">Optional speech-to-text component managed by Mirror Desktop. Audio never leaves this computer.</p>
       <dl>
-        <div><dt>Status</dt><dd>{voiceStateLabel(status)}</dd></div>
+        <div><dt>Status</dt><dd><span className={`voice-status-badge is-${status?.state ?? "checking"}`}>{voiceStateLabel(status)}</span></dd></div>
         {status?.state === "ready" ? (
           <>
             <div><dt>Engine</dt><dd>whisper.cpp {status.componentVersion}</dd></div>
