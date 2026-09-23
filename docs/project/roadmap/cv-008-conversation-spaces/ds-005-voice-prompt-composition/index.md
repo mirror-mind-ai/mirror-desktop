@@ -23,17 +23,68 @@ Some thoughts arrive more naturally through speech than typing, especially when 
 - Preserve exact Journey, conversation and draft ownership while recording and processing.
 - Define interruption behavior when the active destination changes, the app closes or another recording starts.
 
+## Refined Implementation Design
+
+Voice transcription is a Mirror Desktop input capability, not a Mirror Core, Pi or OpenRouter capability. Mirror Desktop owns microphone consent, local audio capture, optional local transcription component installation, draft insertion and failure recovery. Transcription never starts an agent turn and never produces agent output.
+
+The first implementation uses a local `whisper.cpp` command-line component managed by Mirror Desktop in channel-scoped app data. The app remains small by default. When the Navigator first clicks the microphone and the voice component is absent, Mirror Desktop asks for explicit installation consent, explains the local-first behavior and download size, downloads a versioned platform artifact and model from a Mirror-controlled manifest, verifies checksums and reports readiness. Installation consent does not imply microphone consent, and recording does not begin automatically after installation.
+
+Runtime flow:
+
+```text
+React composer
+  capture explicit microphone intent
+  manage voice UI states
+  capture the destination draft key at recording start
+  record bounded audio through the WebView where supported
+  convert the captured audio to 16 kHz mono WAV before invoking Tauri
+
+Tauri voice boundary
+  expose component status, install, remove and transcribe commands
+  accept bounded audio bytes, never arbitrary paths or arguments
+  write only an ephemeral temp WAV
+  spawn the pinned local whisper component with fixed arguments and timeout
+  delete temporary audio in success and failure paths
+  return transcript text plus safe diagnostic metadata
+
+Composer draft layer
+  append transcript text to the original draft key
+  keep text editable
+  require explicit Send
+```
+
+If the visible destination changes while recording or transcribing, the transcript returns to the destination captured at recording start. Existing per-destination draft ownership remains authoritative; the UI may notify the Navigator where the transcript was placed, but it must not redirect text to the newly visible destination. Existing draft text is preserved and the transcript is appended with a clear separator.
+
+The managed voice component is distributed from a Mirror-controlled component manifest, separate from app self-update. The manifest names platform/architecture artifacts, versions, sizes and sha256 digests. Mirror Desktop never downloads upstream artifacts directly during product use. Updating the app and updating the voice component remain independent. Settings expose installed version, size and removal.
+
+The initial model target is a compact multilingual Whisper model sufficient for Portuguese and English dictation. The first technical slice must validate WebView microphone support, WAV conversion without bundling ffmpeg, local inference latency and Portuguese transcription quality before committing the final default model.
+
+## Candidate Stories
+
+| Code | Story | Type | Status |
+| --- | --- | --- | --- |
+| CV-008.DS-005-TS-1 | Local Transcription Spike and Contract | Technical | candidate |
+| CV-008.DS-005-US-1 | Voice Transcription Readiness | User | candidate |
+| CV-008.DS-005-US-2 | Record and Compose by Voice | User | candidate |
+
+## Delivery Coordination
+
+**Driver:** `CV-008.DS-005-TS-1 — Local Transcription Spike and Contract` proves the capture/transcription contract before product UI relies on it.
+
+**Navigator flow unit:** `delivery_story`. The child packages remain traceable implementation units, but Navigator-facing planning, validation, debt review and Done happen at the aggregate Delivery Story level unless the Navigator explicitly switches to story-by-story flow.
+
+**Delivery branch:** `delivery/cv-008-ds-005-voice-prompt-composition`.
+
 ## Acceptance Direction
 
-The Navigator opens a Journey or conversation, clicks the microphone, speaks a prompt and stops recording. Mirror Desktop visibly processes the audio and places the transcript in the same destination's composer. The text remains editable and no agent turn begins until the Navigator explicitly sends it. Permission refusal, transcription failure, destination change and cancellation leave no hidden send or cross-destination draft mutation.
+The Navigator opens a Journey or conversation, clicks the microphone, speaks a prompt and stops recording. Mirror Desktop visibly processes the audio locally and places the transcript in the same destination's composer draft captured at recording start. The text remains editable and no agent turn begins until the Navigator explicitly sends it. Permission refusal, installation failure, transcription failure, destination change and cancellation leave no hidden send or cross-destination draft mutation.
 
 ## Open Questions
 
-- Is transcription local, Mirror-provided, operating-system-provided or delegated to an external service?
-- Which audio formats, duration and byte limits are supported?
-- Which languages are detected or selected, and how is mixed-language speech handled?
-- Is captured audio ephemeral, retained temporarily for recovery or never persisted?
-- How should transcription merge with text already present in the composer?
+- Which exact Whisper model variant is the smallest acceptable default for Portuguese and English dictation?
+- Does WebView microphone capture and audio decoding behave reliably across the supported macOS and Windows targets, or does capture need a native fallback?
+- Which duration, byte and timeout limits should the first release enforce?
+- Which Mirror-controlled host publishes the voice component manifest and artifacts?
 - What visual and keyboard interactions start, stop, cancel and retry recording accessibly?
 
 ## Boundary
