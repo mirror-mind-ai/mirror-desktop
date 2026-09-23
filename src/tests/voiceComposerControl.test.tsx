@@ -18,6 +18,7 @@ const catalog = {
   ],
 };
 const noCatalog = { catalogLoading: false, onModelChange: () => undefined } as const;
+const panelDefaults = { ...noCatalog, language: "auto", onLanguageChange: () => undefined } as const;
 
 describe("Voice composer surfaces", () => {
   it("renders the microphone with the intent it will perform", () => {
@@ -57,12 +58,12 @@ describe("Voice composer surfaces", () => {
   });
 
   it("exposes version, model, size and removal in Settings", () => {
-    const html = renderToStaticMarkup(<VoiceSettingsPanel status={ready} installing={false} removing={false} sessionActive={false} {...noCatalog} onInstall={() => undefined} onRemove={() => undefined} />);
+    const html = renderToStaticMarkup(<VoiceSettingsPanel status={ready} installing={false} removing={false} sessionActive={false} {...panelDefaults} onInstall={() => undefined} onRemove={() => undefined} />);
     expect(html).toContain("whisper.cpp 1.7.5");
     expect(html).toContain("base-q5_1");
     expect(html).toContain("60 MB");
     expect(html).toContain("Remove local transcription");
-    const absent = renderToStaticMarkup(<VoiceSettingsPanel status={notInstalled} installing={false} removing={false} sessionActive={false} {...noCatalog} onInstall={() => undefined} onRemove={() => undefined} />);
+    const absent = renderToStaticMarkup(<VoiceSettingsPanel status={notInstalled} installing={false} removing={false} sessionActive={false} {...panelDefaults} onInstall={() => undefined} onRemove={() => undefined} />);
     expect(absent).toContain("Install local transcription");
     expect(absent).not.toContain("Remove local transcription");
   });
@@ -77,7 +78,9 @@ describe("Voice composer surfaces", () => {
         catalog={catalog}
         catalogLoading={false}
         modelId="large-v3-turbo-q5_0"
+        language="auto"
         onModelChange={() => undefined}
+        onLanguageChange={() => undefined}
         onInstall={() => undefined}
         onRemove={() => undefined}
       />,
@@ -97,11 +100,62 @@ describe("Voice composer surfaces", () => {
         catalog={catalog}
         catalogLoading={false}
         modelId={ready.modelId}
+        language="auto"
         onModelChange={() => undefined}
+        onLanguageChange={() => undefined}
         onInstall={() => undefined}
         onRemove={() => undefined}
       />,
     );
     expect(unchanged).not.toContain("Switch model");
+  });
+
+  it("offers a spoken-language hint only once transcription is installed", () => {
+    const detecting = renderToStaticMarkup(
+      <VoiceSettingsPanel
+        status={ready}
+        installing={false}
+        removing={false}
+        sessionActive={false}
+        {...noCatalog}
+        language="auto"
+        onLanguageChange={() => undefined}
+        onInstall={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+    expect(detecting).toContain("Spoken language");
+    expect(detecting).toContain("Detect automatically");
+    expect(detecting).toContain("Portuguese");
+    expect(detecting).toContain("adds noticeably to the wait");
+
+    const pinned = renderToStaticMarkup(
+      <VoiceSettingsPanel
+        status={ready}
+        installing={false}
+        removing={false}
+        sessionActive={false}
+        {...noCatalog}
+        language="pt"
+        onLanguageChange={() => undefined}
+        onInstall={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+    expect(pinned).toContain("Skips language detection");
+    expect(pinned).toContain('value="pt" selected');
+
+    const absent = renderToStaticMarkup(
+      <VoiceSettingsPanel
+        status={notInstalled}
+        installing={false}
+        removing={false}
+        sessionActive={false}
+        {...panelDefaults}
+        onInstall={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+    expect(absent).not.toContain("Spoken language");
   });
 });

@@ -16,6 +16,7 @@ describe("Journey management guardrails", () => {
       lastWorkedAtByJourneyId: { nautilus: "2026-09-02T15:00:00.000Z" },
       applicationTheme: "tide",
       journeyAppearanceById: { nautilus: { kind: "custom" } },
+      voiceLanguage: "auto",
     });
 
     expect(Object.keys(persisted.preferences).sort()).toEqual([
@@ -27,6 +28,7 @@ describe("Journey management guardrails", () => {
       "pinnedJourneyIds",
       "recentJourneyIds",
       "sidebarCompact",
+      "voiceLanguage",
     ]);
     expect(JSON.stringify(persisted).toLowerCase()).not.toMatch(/api[_-]?key|token|secret|password|env/);
   });

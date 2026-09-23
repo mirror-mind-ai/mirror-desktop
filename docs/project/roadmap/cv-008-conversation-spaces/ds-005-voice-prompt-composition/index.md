@@ -84,12 +84,13 @@ The Navigator opens a Journey or conversation, clicks the microphone, speaks a p
 - Default model: `base-q5_1` (57 MB). `tiny` is unusable for Portuguese; `small` is better but roughly five times slower on Intel hardware and may be offered later through the same manifest.
 - Limits: five-minute recordings, 9.6 MB WAV bound, ten-minute transcription timeout, transcript bounded by the Composer draft limit.
 - Host: `https://updates.mirrormind.sh/mirror-desktop/voice/manifest.json`, curated with `scripts/voice_component_manifest.mjs`. Publishing the first artifacts is a separate release gate.
-- Interactions: one microphone button toggles record/stop, a status row shows elapsed time with the limit and a Cancel action, Settings → Voice installs and removes the component.
+- Interactions: one microphone button toggles record/stop, a status row shows elapsed time with the limit and a Cancel action, Settings → Voice installs, switches the model, sets the spoken language and removes the component.
+- Language hint: exposed as a persisted Settings → Voice preference defaulting to automatic detection. Naming the language cut a Portuguese clip from 12.24 s to 7.62 s with an identical transcript.
 
 ## Open Questions
 
 - Does WebView microphone capture behave reliably on the supported macOS and Windows targets? Automated evidence covers conversion and the native boundary; the permission prompt and `MediaRecorder` path need Navigator validation in `Mirror Desktop Dev`.
-- Should a language hint (auto / Portuguese / English) be exposed in Settings? Auto-detection is correct but roughly doubles latency on the base model.
+- Should the recommended default model adapt to the host? `small-q5_1` suits an Intel Mac; Apple Silicon with Metal could comfortably recommend `large-v3-turbo-q5_0`.
 
 ## Boundary
 

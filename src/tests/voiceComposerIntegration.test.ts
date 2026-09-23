@@ -9,7 +9,7 @@ import cargoSource from "../../src-tauri/Cargo.toml?raw";
 
 describe("CV-008.DS-005 voice prompt composition integration", () => {
   it("captures the destination draft key at recording start and appends to that exact draft", () => {
-    expect(appSource).toContain("voiceOriginRef.current = { draftKey, label: currentComposerDestinationLabel() }");
+    expect(appSource).toContain("voiceOriginRef.current = { draftKey, label: currentComposerDestinationLabel(), language: voiceLanguage }");
     expect(appSource).toContain("appendTranscriptToDraft(current[origin.draftKey] ?? \"\", transcript.text)");
     expect(appSource).toContain("updateComposerDraft(current, origin.draftKey, merged)");
     expect(appSource).toContain("if (visibleDraftKey === origin.draftKey) setDraft(merged)");
@@ -34,6 +34,15 @@ describe("CV-008.DS-005 voice prompt composition integration", () => {
     const catalog = appSource.slice(appSource.indexOf("async function loadVoiceCatalog()"), appSource.indexOf("async function installVoice()"));
     expect(catalog).not.toContain("installVoiceComponent");
     expect(catalog).not.toContain("startVoiceRecording");
+  });
+
+  it("fixes the spoken language at recording start and persists it as a preference", () => {
+    // Captured with the destination, so changing the setting mid-recording cannot
+    // change how the in-flight audio is transcribed.
+    expect(appSource).toContain("label: currentComposerDestinationLabel(), language: voiceLanguage }");
+    expect(appSource).toContain("transcribeVoiceWav(await recordingToPcm16Wav(recording), origin.language)");
+    expect(appSource).toContain("setVoiceLanguage(sanitizedPreferences.voiceLanguage)");
+    expect(appSource).toContain("onLanguageChange={setVoiceLanguage}");
     const install = appSource.slice(appSource.indexOf("async function installVoice()"), appSource.indexOf("async function removeVoice()"));
     expect(install).not.toContain("startVoiceRecording");
     expect(install).not.toContain("startVoiceCapture");

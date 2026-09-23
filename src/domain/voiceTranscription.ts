@@ -15,6 +15,39 @@ export const VOICE_TRANSCRIPT_SEPARATOR = "\n\n";
 
 export type VoiceComponentState = "not_installed" | "ready" | "damaged" | "unsupported";
 
+/**
+ * Naming the spoken language lets the engine skip its detection pass. TS-1
+ * measured the same Portuguese clip at 12.2 s with detection and 7.6 s with an
+ * explicit hint, for an identical transcript. Detection stays the default
+ * because a wrong hint is worse than a slow correct answer.
+ */
+export const voiceLanguages = [
+  { id: "auto", label: "Detect automatically" },
+  { id: "pt", label: "Portuguese" },
+  { id: "en", label: "English" },
+  { id: "es", label: "Spanish" },
+  { id: "fr", label: "French" },
+  { id: "de", label: "German" },
+  { id: "it", label: "Italian" },
+  { id: "nl", label: "Dutch" },
+  { id: "ru", label: "Russian" },
+  { id: "ja", label: "Japanese" },
+  { id: "ko", label: "Korean" },
+  { id: "zh", label: "Chinese" },
+] as const;
+
+export type VoiceLanguage = (typeof voiceLanguages)[number]["id"];
+
+export const defaultVoiceLanguage: VoiceLanguage = "auto";
+
+export function parseVoiceLanguage(value: unknown): VoiceLanguage | undefined {
+  return voiceLanguages.some((language) => language.id === value) ? value as VoiceLanguage : undefined;
+}
+
+export function voiceLanguageLabel(language: VoiceLanguage): string {
+  return voiceLanguages.find((entry) => entry.id === language)?.label ?? language;
+}
+
 export type VoiceComponentStatus = {
   state: VoiceComponentState;
   platform: string;

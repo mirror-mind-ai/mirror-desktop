@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { COMPOSER_DRAFT_MAX_CHARS } from "../domain/composerDrafts";
 import {
   appendTranscriptToDraft,
+  defaultVoiceLanguage,
   describeInstallProgress,
   formatComponentSize,
   idleVoiceSession,
@@ -11,11 +12,15 @@ import {
   transcriptDestinationNotice,
   VOICE_MAX_RECORDING_MS,
   VOICE_MAX_WAV_BYTES,
+  parseVoiceLanguage,
   voiceControlIntent,
   voiceControlLabel,
   voiceErrorMessage,
+  voiceLanguageLabel,
+  voiceLanguages,
   type VoiceComponentStatus,
 } from "../domain/voiceTranscription";
+import { createPersistedJourneyPreferences, defaultJourneyPreferenceState, parsePersistedJourneyPreferences } from "../domain/journeyPreferencePersistence";
 
 const ready: VoiceComponentStatus = {
   state: "ready",
@@ -90,5 +95,30 @@ describe("Voice transcription contract", () => {
   it("notifies only when the transcript landed in a destination that is no longer visible", () => {
     expect(transcriptDestinationNotice("a", "a", "Journey A")).toBeUndefined();
     expect(transcriptDestinationNotice("a", "b", "Journey A")).toBe("The voice transcript was added to the draft for Journey A, where the recording started.");
+  });
+
+  it("round-trips the spoken-language preference and rejects unsupported codes", () => {
+    expect(defaultVoiceLanguage).toBe("auto");
+    expect(voiceLanguages.map((entry) => entry.id)).toContain("pt");
+    expect(voiceLanguageLabel("pt")).toBe("Portuguese");
+    expect(parseVoiceLanguage("pt")).toBe("pt");
+    expect(parseVoiceLanguage("auto")).toBe("auto");
+    // The native boundary accepts only "auto" or two lowercase letters.
+    expect(parseVoiceLanguage("PT")).toBeUndefined();
+    expect(parseVoiceLanguage("pt-BR")).toBeUndefined();
+    expect(parseVoiceLanguage(undefined)).toBeUndefined();
+    expect(voiceLanguages.every((entry) => entry.id === "auto" || /^[a-z]{2}$/.test(entry.id))).toBe(true);
+
+    const persisted = createPersistedJourneyPreferences({ ...defaultJourneyPreferenceState, voiceLanguage: "pt" });
+    expect(parsePersistedJourneyPreferences(JSON.parse(JSON.stringify(persisted)))?.preferences.voiceLanguage).toBe("pt");
+    // An unreadable stored value must fail the whole payload rather than silently
+    // transcribing in a language the Navigator never chose.
+    const corrupted = JSON.parse(JSON.stringify(persisted));
+    corrupted.preferences.voiceLanguage = "klingon";
+    expect(parsePersistedJourneyPreferences(corrupted)).toBeUndefined();
+    // Preferences written before this setting existed keep detecting.
+    const legacy = JSON.parse(JSON.stringify(persisted));
+    delete legacy.preferences.voiceLanguage;
+    expect(parsePersistedJourneyPreferences(legacy)?.preferences.voiceLanguage).toBe("auto");
   });
 });

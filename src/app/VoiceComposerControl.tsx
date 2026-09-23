@@ -4,8 +4,10 @@ import {
   formatComponentSize,
   voiceControlIntent,
   voiceControlLabel,
+  voiceLanguages,
   type VoiceComponentCatalog,
   type VoiceComponentStatus,
+  type VoiceLanguage,
   type VoiceControlIntent,
   type VoiceInstallProgress,
   type VoiceSession,
@@ -183,6 +185,35 @@ export function VoiceInstallDialog({ status, installing, progress, error, catalo
   );
 }
 
+type VoiceLanguagePickerProps = {
+  language: VoiceLanguage;
+  disabled: boolean;
+  onChange: (language: VoiceLanguage) => void;
+};
+
+/**
+ * Naming the language skips the engine's detection pass, which is a large share
+ * of the wait on a short prompt. Detection remains the default because a wrong
+ * hint transcribes the wrong language outright.
+ */
+export function VoiceLanguagePicker({ language, disabled, onChange }: VoiceLanguagePickerProps) {
+  return (
+    <label className="voice-model-picker">
+      <span>Spoken language</span>
+      <select value={language} disabled={disabled} onChange={(event) => onChange(event.target.value as VoiceLanguage)}>
+        {voiceLanguages.map((entry) => (
+          <option key={entry.id} value={entry.id}>{entry.label}</option>
+        ))}
+      </select>
+      <small>
+        {language === "auto"
+          ? "The engine detects the language on every recording, which adds noticeably to the wait."
+          : "Skips language detection, so transcription finishes sooner. Speaking another language will transcribe incorrectly."}
+      </small>
+    </label>
+  );
+}
+
 type VoiceSettingsPanelProps = {
   status: VoiceComponentStatus | undefined;
   installing: boolean;
@@ -193,12 +224,14 @@ type VoiceSettingsPanelProps = {
   catalog?: VoiceComponentCatalog;
   catalogLoading: boolean;
   modelId?: string;
+  language: VoiceLanguage;
   onModelChange: (modelId: string) => void;
+  onLanguageChange: (language: VoiceLanguage) => void;
   onInstall: () => void;
   onRemove: () => void;
 };
 
-export function VoiceSettingsPanel({ status, installing, removing, progress, error, sessionActive, catalog, catalogLoading, modelId, onModelChange, onInstall, onRemove }: VoiceSettingsPanelProps) {
+export function VoiceSettingsPanel({ status, installing, removing, progress, error, sessionActive, catalog, catalogLoading, modelId, language, onModelChange, onLanguageChange, onInstall, onRemove }: VoiceSettingsPanelProps) {
   const busy = installing || removing || sessionActive;
   const installed = status?.modelId;
   const selected = modelId ?? catalog?.defaultModel;
@@ -223,6 +256,9 @@ export function VoiceSettingsPanel({ status, installing, removing, progress, err
       {error ? <p className="provider-error" role="alert">{error}</p> : null}
       {status?.state === "ready" || status?.state === "not_installed" ? (
         <VoiceModelPicker catalog={catalog} loading={catalogLoading} modelId={selected} disabled={busy} onChange={onModelChange} />
+      ) : null}
+      {status?.state === "ready" ? (
+        <VoiceLanguagePicker language={language} disabled={sessionActive} onChange={onLanguageChange} />
       ) : null}
       {switching ? (
         <p className="provider-note">Switching models downloads the new one and replaces the installed model. The engine is kept.</p>

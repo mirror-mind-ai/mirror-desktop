@@ -1,5 +1,6 @@
 import { findJourneyById, type JourneyListOrder, type JourneyPreferences, type JourneyRegistry } from "./journeyRegistry";
 import { parseApplicationTheme, type ApplicationTheme } from "./applicationTheme";
+import { defaultVoiceLanguage, parseVoiceLanguage, type VoiceLanguage } from "./voiceTranscription";
 import {
   parseJourneyAppearanceById,
   sanitizeJourneyAppearanceById,
@@ -14,6 +15,7 @@ export type PersistedJourneyPreferences = {
     lastWorkedAtByJourneyId: Record<string, string>;
     applicationTheme: ApplicationTheme;
     journeyAppearanceById: JourneyAppearanceById;
+    voiceLanguage: VoiceLanguage;
   };
   savedAt: string;
 };
@@ -29,6 +31,7 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   lastWorkedAtByJourneyId: {},
   applicationTheme: "channel",
   journeyAppearanceById: {},
+  voiceLanguage: defaultVoiceLanguage,
 };
 
 export function createPersistedJourneyPreferences(
@@ -66,6 +69,10 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
   const journeyAppearanceById = preferences.journeyAppearanceById === undefined
     ? {}
     : parseJourneyAppearanceById(preferences.journeyAppearanceById);
+  const voiceLanguage = preferences.voiceLanguage === undefined
+    ? defaultVoiceLanguage
+    : parseVoiceLanguage(preferences.voiceLanguage);
+  if (!voiceLanguage) return undefined;
   if (!pinnedJourneyIds || !recentJourneyIds || !journeyListOrder || typeof sidebarCompact !== "boolean" || !lastWorkedAtByJourneyId || !applicationTheme || !journeyAppearanceById) {
     return undefined;
   }
@@ -89,6 +96,7 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       lastWorkedAtByJourneyId,
       applicationTheme,
       journeyAppearanceById,
+      voiceLanguage,
     },
     savedAt: record.savedAt,
   };
@@ -112,6 +120,7 @@ export function sanitizeJourneyPreferenceState(
     ),
     applicationTheme: preferences.applicationTheme,
     journeyAppearanceById: sanitizeJourneyAppearanceById(preferences.journeyAppearanceById, registry),
+    voiceLanguage: preferences.voiceLanguage,
   };
 }
 

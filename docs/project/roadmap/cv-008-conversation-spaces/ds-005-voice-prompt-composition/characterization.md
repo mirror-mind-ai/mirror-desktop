@@ -67,7 +67,7 @@ Both timings are for a 2019 Intel i7 without Metal; Apple Silicon with Metal is 
 
 - **Default model:** `small-q5_1`, with `base-q5_1` and `large-v3-turbo-q5_0` offered alongside it. `base-q5_1` was the original default and was demonstrably unusable for Portuguese; see the regression section above.
 - **Engine:** `whisper.cpp` v1.8.3 `whisper-cli`, statically linked per platform/architecture; macOS aarch64 builds with Metal, x64 without.
-- **Language:** `auto` by default for correctness; an explicit hint halves latency and is a candidate Settings refinement, not part of this Delivery Story.
+- **Language:** `auto` by default for correctness. An explicit hint does not change accuracy but removes the detection pass: the same Portuguese clip on `small-q5_1` took 12.24 s detecting and 7.62 s with `--language pt`, a 38% reduction for an identical transcript. Exposed as a persisted Settings → Voice preference, captured at recording start.
 - **Limits:** 5-minute recordings, 9.6 MB WAV bound, 10-minute transcription timeout, transcript bounded by the Composer draft limit.
 - **Capture:** WebView `getUserMedia` + `MediaRecorder`, TypeScript WAV conversion (no ffmpeg). Downsampling must be band-limited; plain interpolation is a correctness defect, not a quality preference. WebView permission behavior remains Navigator validation in `Mirror Desktop Dev`.
 - **Hosting:** Mirror-controlled `https://updates.mirrormind.sh/mirror-desktop/voice/manifest.json`; artifacts curated with the manifest helper. Publication is a separate release gate.

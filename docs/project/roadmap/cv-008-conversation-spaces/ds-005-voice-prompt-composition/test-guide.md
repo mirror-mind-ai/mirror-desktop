@@ -44,6 +44,16 @@ Focused suites:
 - `src/tests/voiceComposerIntegration.test.ts` — App and Settings integration contracts, capability and bundle requirements.
 - `src/tests/voiceComposerControl.test.tsx` — microphone control, session status, install dialog and Settings panel rendering.
 - `src/tests/voiceComponentManifestScript.test.mjs` — manifest helper contract.
+- `src/tests/voiceAudio.test.ts` — band-limited resampling: aliasing rejection, speech-band preservation and phase-table equivalence.
+- `src/tests/journeyPreferencePersistence.test.ts` — spoken-language preference round-trip, legacy default and corrupted-value rejection.
+
+Navigator checks for the model and language settings in `Mirror Desktop Dev`:
+
+1. Open Settings → Voice and confirm the model list shows every manifest model with its size and the recommended marker.
+2. Select a different model, confirm **Switch model** appears, run it, and confirm the reported model and size change while the engine version stays.
+3. Set the spoken language to Portuguese, dictate a Portuguese prompt and confirm the transcript is correct and noticeably faster than with automatic detection.
+4. Start a recording, change the language setting while it runs, stop it, and confirm the transcript used the language selected when recording started.
+5. Restart the app and confirm both the model and the language setting survive.
 - `src-tauri/src/voice_transcription.rs` unit tests — manifest validation, receipt lifecycle, WAV bounds, fixed argument construction, temporary audio cleanup and removal.
 
 ## Navigator Validation

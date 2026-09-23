@@ -107,6 +107,7 @@ import {
   type VoiceComponentCatalog,
   type VoiceComponentStatus,
   type VoiceControlIntent,
+  type VoiceLanguage,
   type VoiceInstallProgress,
   type VoiceSession,
 } from "../domain/voiceTranscription";
@@ -554,8 +555,9 @@ export function App({ model }: AppProps) {
   const [voiceCatalog, setVoiceCatalog] = useState<VoiceComponentCatalog>();
   const [voiceCatalogLoading, setVoiceCatalogLoading] = useState(false);
   const [voiceModelId, setVoiceModelId] = useState<string>();
+  const [voiceLanguage, setVoiceLanguage] = useState<VoiceLanguage>(defaultJourneyPreferenceState.voiceLanguage);
   const voiceCaptureRef = useRef<VoiceCaptureHandle | undefined>(undefined);
-  const voiceOriginRef = useRef<{ draftKey: string; label: string } | undefined>(undefined);
+  const voiceOriginRef = useRef<{ draftKey: string; label: string; language: VoiceLanguage } | undefined>(undefined);
   const [providerConfig, setProviderConfig] = useState(defaultPiProviderConfig);
   const [providerCommand, setProviderCommand] = useState(defaultPiProviderConfig.command);
   const [providerArgsText, setProviderArgsText] = useState(providerConfigToArgsText(defaultPiProviderConfig));
@@ -1283,6 +1285,7 @@ export function App({ model }: AppProps) {
       setSidebarCompact(sanitizedPreferences.sidebarCompact);
       setLastWorkedAtByJourneyId(sanitizedPreferences.lastWorkedAtByJourneyId);
       setApplicationTheme(sanitizedPreferences.applicationTheme);
+      setVoiceLanguage(sanitizedPreferences.voiceLanguage);
       setJourneyAppearanceById(sanitizedPreferences.journeyAppearanceById);
       if (nextActiveJourney) {
         setSelectedJourney(nextActiveJourney);
@@ -1790,8 +1793,9 @@ export function App({ model }: AppProps) {
       lastWorkedAtByJourneyId,
       applicationTheme,
       journeyAppearanceById,
+      voiceLanguage,
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, registryLoaded, preferencesLoaded]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setRelativeTimeNow(Date.now()), 60_000);
@@ -2037,7 +2041,9 @@ export function App({ model }: AppProps) {
   async function startVoiceRecording() {
     if (voiceSession.kind !== "idle" || voiceStatus?.state !== "ready") return;
     const draftKey = currentComposerDraftKey();
-    voiceOriginRef.current = { draftKey, label: currentComposerDestinationLabel() };
+    // Destination and language are both fixed at recording start, so changing
+    // either mid-recording cannot retarget or relabel the in-flight transcript.
+    voiceOriginRef.current = { draftKey, label: currentComposerDestinationLabel(), language: voiceLanguage };
     setVoiceError(undefined);
     setVoiceSession({ kind: "requesting_permission", draftKey });
     try {
@@ -2061,7 +2067,7 @@ export function App({ model }: AppProps) {
     setVoiceSession({ kind: "transcribing", draftKey: origin.draftKey });
     try {
       const recording = await capture.stop();
-      const transcript = await transcribeVoiceWav(await recordingToPcm16Wav(recording));
+      const transcript = await transcribeVoiceWav(await recordingToPcm16Wav(recording), origin.language);
       if (voiceOriginRef.current !== origin) return; // cancelled while transcribing
       if (!transcript.text.trim()) {
         setVoiceError(voiceErrorMessage("voice_recording_empty"));
@@ -5491,7 +5497,9 @@ export function App({ model }: AppProps) {
                   catalog={voiceCatalog}
                   catalogLoading={voiceCatalogLoading}
                   modelId={voiceModelId}
+                  language={voiceLanguage}
                   onModelChange={setVoiceModelId}
+                  onLanguageChange={setVoiceLanguage}
                   onInstall={() => void installVoice()}
                   onRemove={() => void removeVoice()}
                 />

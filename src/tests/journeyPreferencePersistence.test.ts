@@ -21,6 +21,7 @@ describe("Journey preference persistence", () => {
           lastWorkedAtByJourneyId: { nautilus: "2026-08-23T09:00:00.000Z" },
           applicationTheme: "violet",
           journeyAppearanceById: { nautilus: { kind: "system", icon: "book" } },
+          voiceLanguage: "auto",
         },
         new Date("2026-08-23T10:00:00.000Z"),
       ),
@@ -35,6 +36,7 @@ describe("Journey preference persistence", () => {
         lastWorkedAtByJourneyId: { nautilus: "2026-08-23T09:00:00.000Z" },
         applicationTheme: "violet",
         journeyAppearanceById: { nautilus: { kind: "system", icon: "book" } },
+        voiceLanguage: "auto",
       },
       savedAt: "2026-08-23T10:00:00.000Z",
     });
@@ -106,6 +108,7 @@ describe("Journey preference persistence", () => {
             amplia: { kind: "system", icon: "book" },
             missing: { kind: "custom" },
           },
+          voiceLanguage: "pt",
         },
         fixtureJourneyRegistry,
       ),
@@ -118,6 +121,8 @@ describe("Journey preference persistence", () => {
       lastWorkedAtByJourneyId: { amplia: "2026-08-23T09:00:00.000Z" },
       applicationTheme: "ember",
       journeyAppearanceById: { amplia: { kind: "system", icon: "book" } },
+      // Sanitization prunes missing Journeys; it must not reset unrelated settings.
+      voiceLanguage: "pt",
     });
   });
 });

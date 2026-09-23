@@ -76,6 +76,12 @@ Accuracy and speed trade off sharply by model, and the right answer depends on t
 
 The recommended default is `small-q5_1`. `base-q5_1` is faster but was measured unusable for Portuguese dictation; `large-v3-turbo-q5_0` is accurate but roughly nine times real time without a GPU. See the [TS-1 characterization](../project/roadmap/cv-008-conversation-spaces/ds-005-voice-prompt-composition/characterization.md).
 
+## Spoken language
+
+The engine detects the language on every recording unless told otherwise, and that detection pass is a large share of the wait on a short prompt: TS-1 measured the same Portuguese clip at 12.2 s detecting and 7.6 s with an explicit hint, for an identical transcript. Settings → Voice therefore offers a spoken-language setting, persisted with the other channel-local preferences and defaulting to `Detect automatically` — a wrong hint transcribes the wrong language outright, so detection stays the safe default rather than a guess from the system locale.
+
+The chosen language is captured when recording starts, alongside the destination draft key. Changing the setting mid-recording cannot alter how in-flight audio is transcribed. Only `auto` or a two-letter lowercase code crosses the boundary; the native side rejects anything else.
+
 ## Audio conversion
 
 Captured audio is downmixed to mono and resampled to 16 kHz entirely in TypeScript. Downsampling is band-limited: a windowed-sinc kernel narrowed by the rate ratio low-passes and resamples in one pass, with kernels precomputed per output phase. Plain interpolation is not acceptable here — at the usual 48 kHz capture rate it folds everything above 8 kHz back into the speech band and measurably corrupts recognition.
@@ -101,9 +107,10 @@ The destination draft key is captured when recording starts. If the visible dest
 | Recording duration | 5 minutes |
 | WAV bytes | 9.6 MB plus header slack |
 | Transcript characters | 51,200 (Composer draft bound) |
+| Language hint | `auto` or two lowercase letters |
 | Transcription timeout | 10 minutes |
 | Manifest bytes | 64 KiB |
 
 ## Non-goals
 
-No streaming or partial transcripts, no voice commands, no Send-by-voice, no diarization, no translation or model rewriting, no persistent audio history, no network transcription, no Mirror Core involvement.
+No streaming or partial transcripts, no voice commands, no Send-by-voice, no diarization, no translation or model rewriting, no persistent audio history, no network transcription, no Mirror Core involvement. The language setting selects a transcription language; it never translates, and it is never inferred from the system locale.
