@@ -6226,6 +6226,55 @@ dd {
   color: var(--light-text);
 }
 
+/* Light voice recording contrast contract. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .voice-session-status {
+  background: color-mix(in srgb, var(--ui-accent) 8%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-accent) 42%, var(--light-border));
+  color: var(--light-text);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .voice-session-status.is-recording {
+  background: #fff4f2;
+  border-color: #f4b4ad;
+  color: #b42318;
+  font-weight: 600;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .voice-session-status.is-recording .runtime-live-dot {
+  background: #b42318;
+}
+
+/* The stop control must read as a solid destructive action over a light canvas. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .voice-composer-button.is-recording:not(:disabled) {
+  background: #b42318;
+  border-color: #b42318;
+  color: #ffffff;
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .voice-notice {
+  color: var(--light-text);
+}
+
 /* Light composer status contrast contract. */
 :is(
   .app-shell[data-application-theme="daylight"],
@@ -7466,7 +7515,8 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 }
 
 /* CV-008.DS-005 — voice prompt composition. */
-.voice-composer-button { color: #8bd8cd; font-size: 1rem; }
+.voice-composer-button { color: #8bd8cd; }
+.voice-icon { display: block; }
 
 .voice-composer-button.is-recording:not(:disabled) {
   animation: voice-recording-pulse 1.4s ease-in-out infinite;

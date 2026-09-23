@@ -228,6 +228,23 @@ describe("application themes", () => {
     expect(cssSource).toContain("color: var(--light-text);");
   });
 
+  it("keeps the recording notice and stop control legible in light themes", () => {
+    const recordingSurface = "#fff4f2";
+    const destructive = "#b42318";
+    expect(contrast(destructive, recordingSurface), "recording notice text").toBeGreaterThanOrEqual(4.5);
+    expect(contrast("#ffffff", destructive), "stop control icon").toBeGreaterThanOrEqual(4.5);
+    for (const theme of lightApplicationThemes) {
+      const idleSurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.08);
+      expect(contrast(theme.tokens.primaryText, idleSurface), `${theme.id} voice session status`)
+        .toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.primaryText, theme.tokens.canvas), `${theme.id} voice notice`)
+        .toBeGreaterThanOrEqual(4.5);
+    }
+    expect(cssSource).toContain("/* Light voice recording contrast contract. */");
+    expect(cssSource).toContain(") .voice-session-status.is-recording {");
+    expect(cssSource).toContain(") .voice-composer-button.is-recording:not(:disabled) {");
+  });
+
   it("keeps the completed composer status legible in light themes", () => {
     expect(cssSource).toContain("/* Light composer status contrast contract. */");
     expect(cssSource).toContain(".composer-runtime-status.is-finishing");

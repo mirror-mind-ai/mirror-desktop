@@ -16,10 +16,13 @@ describe("Voice composer surfaces", () => {
     expect(install).toContain('aria-label="Install local transcription"');
     const record = renderToStaticMarkup(<VoiceComposerControl status={ready} session={idleVoiceSession} installing={false} composerBusy={false} onIntent={() => undefined} />);
     expect(record).toContain('data-voice-intent="record"');
-    expect(record).toContain("🎤");
+    expect(record).toContain("<svg");
+    expect(record).toContain('stroke="currentColor"');
+    expect(record).not.toContain("🎤");
     const stop = renderToStaticMarkup(<VoiceComposerControl status={ready} session={{ kind: "recording", draftKey: "j", startedAt: 1 }} installing={false} composerBusy={false} onIntent={() => undefined} />);
     expect(stop).toContain('aria-pressed="true"');
     expect(stop).toContain("is-recording");
+    expect(stop).toContain('fill="currentColor"');
     const blocked = renderToStaticMarkup(<VoiceComposerControl status={ready} session={{ kind: "transcribing", draftKey: "j" }} installing={false} composerBusy={false} onIntent={() => undefined} />);
     expect(blocked).toContain("disabled");
   });
