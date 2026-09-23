@@ -2,7 +2,7 @@
 
 # CV-008.DS-005-TS-1 — Local Transcription Spike and Contract
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** Technical Story
 
 ---

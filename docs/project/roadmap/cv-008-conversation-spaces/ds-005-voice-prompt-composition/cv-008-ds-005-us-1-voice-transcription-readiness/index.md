@@ -2,7 +2,7 @@
 
 # CV-008.DS-005-US-1 — Voice Transcription Readiness
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ---

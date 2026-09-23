@@ -2,7 +2,7 @@
 
 # CV-008.DS-005-US-2 — Record and Compose by Voice
 
-**Status:** 🟡 Planned
+**Status:** 🟢 Done
 **Type:** User Story
 
 ---

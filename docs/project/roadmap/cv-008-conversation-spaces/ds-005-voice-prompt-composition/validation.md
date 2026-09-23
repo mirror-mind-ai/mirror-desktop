@@ -2,11 +2,11 @@
 
 ## Status
 
-pending_navigator_validation
+passed
 
 ## Summary
 
-Automated validation complete on branch delivery/cv-008-ds-005-voice-prompt-composition: 996 Vitest tests, 183 Cargo tests, tsc, production build and roadmap check green. TS-1 spike ran whisper.cpp v1.8.3 with tiny/base/small models on PT and EN speech through the Rust boundary and a loopback install rehearsal (manifest, download, sha256, install, transcribe, remove). Pending Navigator validation in Mirror Desktop Dev: real microphone permission and MediaRecorder path, install consent from the microphone control, transcript landing in the origin destination after switching Journeys, cancel/deny flows and removal in Settings → Voice.
+Navigator accepted CV-008.DS-005 in isolated Mirror Desktop Dev after iterative visual and functional corrections: conventional microphone icon, light-theme contrast for recording status, stop/send/mic hover states and Settings voice labels, improved Portuguese recognition with band-limited resampling and selectable model, spoken-language Settings preference set to Portuguese for faster local transcription, real microphone capture filling the Composer as editable text, no auto-send, and draft authority preserved. Remaining productization work is separate: publish the curated whisper.cpp executable, manifest and models to a Mirror-controlled endpoint so installation works without the development override.
 
 ## Child Work Packages
 
@@ -16,4 +16,4 @@ Automated validation complete on branch delivery/cv-008-ds-005-voice-prompt-comp
 
 ## Boundary
 
-Do not proceed to DS-level Debt Review until Navigator validation is accepted.
+No push or release action is authorized by this checkpoint.

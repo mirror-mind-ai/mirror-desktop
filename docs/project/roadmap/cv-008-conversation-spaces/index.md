@@ -26,7 +26,7 @@ The codes below provide stable identity, not implementation priority. Current ap
 | [CV-008.DS-002](ds-002-expanded-concurrent-journey-turns/index.md) | Expanded Concurrent Journey Turns | Mirror Desktop admits more simultaneous turns across independent Journeys through a bounded observable policy without cross-run leakage | ✅ Done |
 | [CV-008.DS-004](ds-004-multiple-conversations-per-journey/index.md) | Multiple Conversations per Journey | Navigator keeps the existing Journey-level workspace, explicitly focuses one Journey to browse additional Conversations, and can organize Mirror history or continue it through an agent handoff without a Mirror core update | ✅ Done |
 | [CV-008.DS-003](ds-003-persona-conversation-spaces/index.md) | Persona Conversation Spaces | Navigator can address a persona as a first-class sidebar destination backed by a stable Mirror Desktop-managed internal Journey | 🟡 Planned |
-| [CV-008.DS-005](ds-005-voice-prompt-composition/index.md) | Voice Prompt Composition | Navigator can record a spoken prompt and place its transcription into the active composer for review and explicit sending | 🟡 Planned |
+| [CV-008.DS-005](ds-005-voice-prompt-composition/index.md) | Voice Prompt Composition | Navigator can record a spoken prompt and place its transcription into the active composer for review and explicit sending | ✅ Done |
 | [CV-008.DS-006](ds-006-conversation-search-and-turn-navigation/index.md) | Conversation Search and Turn Navigation | Navigator can find text in the active Conversation and jump among recognizable turns without manually traversing the full transcript | ✅ Done |
 
 ## Product Contract

@@ -2,7 +2,7 @@
 
 # CV-008.DS-005 - Voice Prompt Composition
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done
 
 ## Outcome
 
@@ -63,9 +63,9 @@ The initial model target is a compact multilingual Whisper model sufficient for 
 
 | Code | Story | Type | Status |
 | --- | --- | --- | --- |
-| CV-008.DS-005-TS-1 | Local Transcription Spike and Contract | Technical | candidate |
-| CV-008.DS-005-US-1 | Voice Transcription Readiness | User | candidate |
-| CV-008.DS-005-US-2 | Record and Compose by Voice | User | candidate |
+| CV-008.DS-005-TS-1 | Local Transcription Spike and Contract | Technical | 🟢 Done |
+| CV-008.DS-005-US-1 | Voice Transcription Readiness | User | 🟢 Done |
+| CV-008.DS-005-US-2 | Record and Compose by Voice | User | 🟢 Done |
 
 ## Delivery Coordination
 
