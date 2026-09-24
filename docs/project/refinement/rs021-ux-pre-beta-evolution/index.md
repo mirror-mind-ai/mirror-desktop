@@ -2,7 +2,7 @@
 
 # RS021: UX Pre-Beta Evolution
 
-**Status:** proposed
+**Status:** active
 
 ## Framing
 
@@ -17,7 +17,7 @@ Mirror Desktop feels less like an alpha harness and more like a beta-ready daily
 ## Authority Contract
 
 - Journey authority is exactly `mirror-desktop`.
-- This RS captures and orders Change Requests; it does not select focus or authorize implementation.
+- This RS captures and orders Change Requests. CR086 is explicitly pulled as the current focus by Navigator request; later focus changes require explicit Navigator intent.
 - Each CR must preserve Pi/Mirror transcript authority and existing Journey/run authority boundaries.
 - UX changes must not silently start, cancel, retry, send, compact, split, publish, release, or mutate Mirror data.
 - Any behavior that affects active native processes must distinguish safe preference/UI mutation from run-control mutation.
@@ -25,16 +25,17 @@ Mirror Desktop feels less like an alpha harness and more like a beta-ready daily
 
 ## Work Shape
 
-Captured Change Requests:
+Captured Change Requests, ordered by Navigator-approved daily-use impact:
 
-1. **CR078 — Model Fast Switch.** Keep the model switcher usable while a process is alive when the change affects only future turns.
-2. **CR079 — Deep Context Stats Analysis.** Explain and close the gap between terminal Pi context stats and Desktop's frequent Checking state.
-3. **CR080 — Manual Compaction / Compaction Checkpoint.** Understand the current Desktop checkpoint and use it to suggest splitting long conversations when appropriate.
+1. **CR086 — Suppress Transient Synchronization Notices.** Hide self-repairing synchronization flicker and show only durable failures.
+2. **CR084 — Recenter to Conversation End.** Add a top control that returns the conversation surface to its latest/end position.
+3. **CR078 — Model Fast Switch.** Keep the model switcher usable while a process is alive when the change affects only future turns.
 4. **CR081 — Agent Running Animation.** Separate pinning from active-agent status and replace the overloaded pin affordance with a real running indicator.
-5. **CR082 — Collapsed Sidebar Polish.** Improve the aesthetics and usability of the collapsed sidebar.
-6. **CR083 — Agent Comments Continuity.** Make adjacent Agent Comments visually breathe and read as coherent continuation rather than glued text.
-7. **CR084 — Recenter to Conversation End.** Add a top control that returns the conversation surface to its latest/end position.
-8. **CR085 — Close Without Quitting.** Make the macOS red close button hide/close the window without terminating the app process.
+5. **CR083 — Agent Comments Continuity.** Make adjacent Agent Comments visually breathe and read as coherent continuation rather than glued text.
+6. **CR082 — Collapsed Sidebar Polish.** Improve the aesthetics and usability of the collapsed sidebar.
+7. **CR085 — Close Without Quitting.** Make the macOS red close button hide/close the window without terminating the app process.
+8. **CR079 — Deep Context Stats Analysis.** Explain and close the gap between terminal Pi context stats and Desktop's frequent Checking state.
+9. **CR080 — Manual Compaction / Compaction Checkpoint.** Understand the current Desktop checkpoint and use it to suggest splitting long conversations when appropriate.
 
 ## Acceptance Horizon
 
@@ -42,17 +43,17 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 
 ## Boundaries
 
-- No implementation is authorized by creating this RS.
-- No focus is selected by creating this RS.
+- CR086 is the current pulled focus; later CRs remain captured until explicitly pulled.
 - No app release, Beta promotion, endpoint publication, Git push or tag is authorized by this document.
 
 ## Change Requests
 
+- [CR086: Suppress Transient Synchronization Notices](cr086-suppress-transient-synchronization-notices.md)
+- [CR084: Recenter to Conversation End](cr084-recenter-to-conversation-end.md)
 - [CR078: Model Fast Switch](cr078-model-fast-switch.md)
+- [CR081: Agent Running Animation](cr081-agent-running-animation.md)
+- [CR083: Agent Comments Continuity](cr083-agent-comments-continuity.md)
+- [CR082: Collapsed Sidebar Polish](cr082-collapsed-sidebar-polish.md)
+- [CR085: Close Without Quitting](cr085-close-without-quitting.md)
 - [CR079: Deep Context Stats Analysis](cr079-deep-context-stats-analysis.md)
 - [CR080: Manual Compaction / Compaction Checkpoint](cr080-manual-compaction-checkpoint.md)
-- [CR081: Agent Running Animation](cr081-agent-running-animation.md)
-- [CR082: Collapsed Sidebar Polish](cr082-collapsed-sidebar-polish.md)
-- [CR083: Agent Comments Continuity](cr083-agent-comments-continuity.md)
-- [CR084: Recenter to Conversation End](cr084-recenter-to-conversation-end.md)
-- [CR085: Close Without Quitting](cr085-close-without-quitting.md)
