@@ -290,7 +290,10 @@ describe("Journey runtime integration guardrails", () => {
     expect(convergenceRoutine).not.toContain("conversationRef");
     expect(convergenceRoutine).not.toContain("setConversation");
     expect(appSource).toContain("updateExactSettlementError(current, authority, error)");
-    expect(appSource).toContain("projectJourneySettlementErrors(mirrorCommitErrors, exactSettlementErrors)");
+    // CR086: exact settlement errors are detail text for a legitimate notice, never evidence alone.
+    expect(appSource).toContain("const durableSyncAttention = Boolean(durableSyncDebt) && syncAttention.attention;");
+    expect(appSource).toContain("syncAttention.attention ? exactSettlementErrors : {}");
+    expect(appSource).not.toContain("setJourneyMirrorCommitError");
   });
 
   it("mounts the shared dispatcher once and leaves mock streaming Tauri-free", () => {

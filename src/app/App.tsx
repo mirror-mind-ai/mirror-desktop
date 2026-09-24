@@ -143,6 +143,14 @@ import { partitionConversationBySegments } from "../domain/conversationSegmentPr
 import { decideConversationAvailability } from "../domain/conversationAvailability";
 import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
 import {
+  beginSynchronizationAttempt,
+  deriveSynchronizationAttention,
+  isSilentSynchronizationDeferral,
+  recordSynchronizationAttempt,
+  type JourneySynchronizationLedger,
+  type SynchronizationAttemptOutcome,
+} from "../domain/synchronizationAttention";
+import {
   appendAndAcknowledgeProjection,
   enqueueProjectionOutbox,
   turnFinalizationCoordinator,
@@ -536,7 +544,10 @@ export function App({ model }: AppProps) {
   const [piContextState, setPiContextState] = useState<PiContextState>("checking");
   const [isRetryingMirrorCommit, setIsRetryingMirrorCommit] = useState(false);
   const postTerminalRecoveryRef = useRef(false);
-  const [mirrorCommitErrors, setMirrorCommitErrors] = useState<Record<string, string | undefined>>({});
+  // CR086: synchronization attention derives from a per-Journey ledger of convergence
+  // attempts, never from the first error string. A single transient failure stays internal.
+  const [syncLedgers, setSyncLedgers] = useState<Record<string, JourneySynchronizationLedger | undefined>>({});
+  const [syncAttentionClock, setSyncAttentionClock] = useState(() => Date.now());
   const [exactSettlementErrors, setExactSettlementErrors] = useState<Record<string, ExactSettlementError>>({});
   const [mirrorOutboxItems, setMirrorOutboxItems] = useState<MirrorAppendOutboxSummary[]>([]);
   const [journeyTurnJournalRecords, setJourneyTurnJournalRecords] = useState<TurnJournalRecord[]>([]);
@@ -733,7 +744,29 @@ export function App({ model }: AppProps) {
     ? undefined
     : conversationCatalog.find((entry) => entry.kind === selectedConversationSpace.kind
       && entry.conversationId === selectedConversationSpace.conversationId);
-  const projectedMirrorCommitErrors = projectJourneySettlementErrors(mirrorCommitErrors, exactSettlementErrors);
+  const durableSyncDebt = useMemo(() => deriveDurableSynchronizationDebt({
+    journalRecords: journeyTurnJournalRecords
+      .filter((record) => record.authority.journeyId === selectedJourney)
+      .map((record) => ({
+        turnId: record.authority.turnId,
+        phase: record.phase,
+        terminalOutcome: record.terminalOutcome,
+      })),
+    outboxItems: mirrorOutboxItems
+      .filter((item) => item.journeyId === selectedJourney)
+      .map((item) => ({ itemId: item.itemId })),
+  }), [journeyTurnJournalRecords, mirrorOutboxItems, selectedJourney]);
+  const syncAttention = deriveSynchronizationAttention({
+    durableDebt: Boolean(durableSyncDebt),
+    ledger: syncLedgers[selectedJourney],
+    now: new Date(Math.max(syncAttentionClock, Date.now())).toISOString(),
+  });
+  // Exact settlement errors are detail text for a legitimate notice, never evidence on their own.
+  const mirrorCommitErrors = syncAttention.attention ? { [selectedJourney]: syncAttention.reason } : {};
+  const projectedMirrorCommitErrors = projectJourneySettlementErrors(
+    mirrorCommitErrors,
+    syncAttention.attention ? exactSettlementErrors : {},
+  );
   const navigationPresentation = deriveJourneyNavigationPresentation({
     runtimeState: journeyRuntimeState,
     selectedJourneyId: selectedJourney,
@@ -860,23 +893,7 @@ export function App({ model }: AppProps) {
         Boolean(pendingMirrorOutboxItem),
       )
     : undefined;
-  const durableSyncDebt = useMemo(() => deriveDurableSynchronizationDebt({
-    journalRecords: journeyTurnJournalRecords
-      .filter((record) => record.authority.journeyId === selectedJourney)
-      .map((record) => ({
-        turnId: record.authority.turnId,
-        phase: record.phase,
-        terminalOutcome: record.terminalOutcome,
-      })),
-    outboxItems: mirrorOutboxItems
-      .filter((item) => item.journeyId === selectedJourney)
-      .map((item) => ({ itemId: item.itemId })),
-  }), [journeyTurnJournalRecords, mirrorOutboxItems, selectedJourney]);
-  const durableSyncFailureEvidence = Boolean(mirrorCommitError)
-    || Object.values(exactSettlementErrors).some((error) => (
-      error.journeyId === selectedJourney && error.turnId === durableSyncDebt?.turnId
-    ));
-  const durableSyncAttention = Boolean(durableSyncDebt) && durableSyncFailureEvidence;
+  const durableSyncAttention = Boolean(durableSyncDebt) && syncAttention.attention;
   const legacyMirrorGap = durableSyncAttention && pendingMirrorDisposition === "legacy_gap";
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
   const dedicatedTurnState = classifyDedicatedTurnState(conversation, selectedRuntimeBusy);
@@ -1848,10 +1865,24 @@ export function App({ model }: AppProps) {
         }
       })();
     }).catch((error) => {
-      if (!cancelled) setJourneyMirrorCommitError(conversation.journeyId, error instanceof Error ? error.message : String(error));
+      if (cancelled) return;
+      recordSyncAttempt(conversation.journeyId, {
+        kind: "failed",
+        at: new Date().toISOString(),
+        reason: error instanceof Error ? error.message : String(error),
+        evidenceUnavailable: true,
+      });
     });
     return () => { cancelled = true; };
   }, [conversation.journeyId, conversationLoaded, journeyThreadState.kind, piInvocationOccupancy.status, selectedRuntimeBusy]);
+
+  // A single failure ages into attention only after the bounded window; re-evaluate then.
+  useEffect(() => {
+    if (syncAttention.attention || !syncAttention.reevaluateAt) return;
+    const delay = Math.max(0, Date.parse(syncAttention.reevaluateAt) - Date.now());
+    const timer = window.setTimeout(() => setSyncAttentionClock(Date.now()), delay + 1);
+    return () => window.clearTimeout(timer);
+  }, [syncAttention]);
 
   useEffect(() => {
     checkedMirrorTurnRef.current.clear();
@@ -2693,8 +2724,10 @@ export function App({ model }: AppProps) {
             },
           }, finalizationPorts);
           setExactSettlementError(settlementAuthority, undefined);
+          recordSyncAttempt(ownerJourneyId, { kind: "succeeded", at: new Date().toISOString() });
         } catch (error) {
           setExactSettlementError(settlementAuthority, error instanceof Error ? error.message : String(error));
+          recordSyncFailureOrDeferral(ownerJourneyId, error);
         } finally {
           dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
           await refreshTurnJournalEvidence(ownerJourneyId);
@@ -2734,8 +2767,19 @@ export function App({ model }: AppProps) {
     }
   }
 
-  function setJourneyMirrorCommitError(journeyId: string, error: string | undefined) {
-    setMirrorCommitErrors((current) => ({ ...current, [journeyId]: error }));
+  function beginSyncAttempt(journeyId: string) {
+    setSyncLedgers((current) => ({ ...current, [journeyId]: beginSynchronizationAttempt(current[journeyId]) }));
+  }
+
+  function recordSyncAttempt(journeyId: string, outcome: SynchronizationAttemptOutcome) {
+    setSyncLedgers((current) => ({ ...current, [journeyId]: recordSynchronizationAttempt(current[journeyId], outcome) }));
+  }
+
+  function recordSyncFailureOrDeferral(journeyId: string, error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error);
+    recordSyncAttempt(journeyId, isSilentSynchronizationDeferral(reason)
+      ? { kind: "deferred", at: new Date().toISOString() }
+      : { kind: "failed", at: new Date().toISOString(), reason });
   }
 
   function setExactSettlementError(authority: ExactSettlementIdentity, error: string | undefined) {
@@ -2872,18 +2916,16 @@ export function App({ model }: AppProps) {
     if (ownerEntry && isJourneyRuntimeActiveOrFinalizing(ownerEntry)) return;
     postTerminalRecoveryRef.current = true;
     setIsRetryingMirrorCommit(true);
+    beginSyncAttempt(ownerJourneyId);
     try {
       await turnFinalizationCoordinator.convergeDelivery(ownerJourneyId, convergenceDeps);
       await reconcilePiInvocationOccupancy();
-      setJourneyMirrorCommitError(ownerJourneyId, undefined);
+      recordSyncAttempt(ownerJourneyId, { kind: "succeeded", at: new Date().toISOString() });
       setExactSettlementErrors((current) => Object.fromEntries(
         Object.entries(current).filter(([, error]) => error.journeyId !== ownerJourneyId),
       ));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!message.includes("mirror_append_pi_recovery_active_lease")) {
-        setJourneyMirrorCommitError(ownerJourneyId, message);
-      }
+      recordSyncFailureOrDeferral(ownerJourneyId, error);
     } finally {
       postTerminalRecoveryRef.current = false;
       setIsRetryingMirrorCommit(false);
@@ -3128,7 +3170,7 @@ export function App({ model }: AppProps) {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (localCompletionEstablished) {
-        setJourneyMirrorCommitError(ownerJourneyId, message);
+        recordSyncFailureOrDeferral(ownerJourneyId, error);
       } else {
         setTurnRecoveryError(`Recover preserved response failed: ${message}. Durable evidence remains preserved.`);
       }
@@ -4799,17 +4841,15 @@ export function App({ model }: AppProps) {
           ) : null}
           {showRetainedLeaseNotice ? (
             <section className="dedicated-turn-notice" role={mirrorCommitError ? "alert" : "status"}>
-              <strong>{isRetryingMirrorCommit
-                ? "Repairing conversation synchronization…"
-                : mirrorCommitError
-                  ? "Conversation synchronization needs attention"
-                  : "Finalizing turn…"}</strong>
+              <strong>{mirrorCommitError
+                ? "Conversation synchronization needs attention"
+                : "Finalizing turn…"}</strong>
               <p>The native Pi execution is inactive. Mirror Desktop is completing this exact run from preserved Pi evidence; new messages remain available.</p>
               {mirrorCommitError ? (
                 <>
                   <div className="recovery-actions">
                     <button type="button" onClick={() => void recoverPostTerminalPersistence(selectedJourney)} disabled={isRetryingMirrorCommit || piInvocationOccupancy.status !== "known"}>
-                      Repair synchronization
+                      {isRetryingMirrorCommit ? "Repairing conversation synchronization…" : "Repair synchronization"}
                     </button>
                   </div>
                   <details open>
