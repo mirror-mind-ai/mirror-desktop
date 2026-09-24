@@ -28,14 +28,15 @@ Mirror Desktop feels less like an alpha harness and more like a beta-ready daily
 Captured Change Requests, ordered by Navigator-approved daily-use impact:
 
 1. **CR086 — Suppress Transient Synchronization Notices.** Hide self-repairing synchronization flicker and show only durable failures.
-2. **CR084 — Recenter to Conversation End.** Add a top control that returns the conversation surface to its latest/end position.
-3. **CR078 — Model Fast Switch.** Keep the model switcher usable while a process is alive when the change affects only future turns.
-4. **CR081 — Agent Running Animation.** Separate pinning from active-agent status and replace the overloaded pin affordance with a real running indicator.
-5. **CR083 — Agent Comments Continuity.** Make adjacent Agent Comments visually breathe and read as coherent continuation rather than glued text.
-6. **CR082 — Collapsed Sidebar Polish.** Improve the aesthetics and usability of the collapsed sidebar.
-7. **CR085 — Close Without Quitting.** Make the macOS red close button hide/close the window without terminating the app process.
-8. **CR079 — Deep Context Stats Analysis.** Explain and close the gap between terminal Pi context stats and Desktop's frequent Checking state.
-9. **CR080 — Manual Compaction / Compaction Checkpoint.** Understand the current Desktop checkpoint and use it to suggest splitting long conversations when appropriate.
+2. **CR087 — Make Outbox Enqueue Semantically Idempotent.** Remove the `mirror_append_item_conflict` race between live settlement and native reconciliation.
+3. **CR084 — Recenter to Conversation End.** Add a top control that returns the conversation surface to its latest/end position.
+4. **CR078 — Model Fast Switch.** Keep the model switcher usable while a process is alive when the change affects only future turns.
+5. **CR081 — Agent Running Animation.** Separate pinning from active-agent status and replace the overloaded pin affordance with a real running indicator.
+6. **CR083 — Agent Comments Continuity.** Make adjacent Agent Comments visually breathe and read as coherent continuation rather than glued text.
+7. **CR082 — Collapsed Sidebar Polish.** Improve the aesthetics and usability of the collapsed sidebar.
+8. **CR085 — Close Without Quitting.** Make the macOS red close button hide/close the window without terminating the app process.
+9. **CR079 — Deep Context Stats Analysis.** Explain and close the gap between terminal Pi context stats and Desktop's frequent Checking state.
+10. **CR080 — Manual Compaction / Compaction Checkpoint.** Understand the current Desktop checkpoint and use it to suggest splitting long conversations when appropriate.
 
 ## Acceptance Horizon
 
@@ -49,6 +50,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 ## Change Requests
 
 - [CR086: Suppress Transient Synchronization Notices](cr086-suppress-transient-synchronization-notices.md)
+- [CR087: Make Outbox Enqueue Semantically Idempotent](cr087-make-outbox-enqueue-semantically-idempotent.md)
 - [CR084: Recenter to Conversation End](cr084-recenter-to-conversation-end.md)
 - [CR078: Model Fast Switch](cr078-model-fast-switch.md)
 - [CR081: Agent Running Animation](cr081-agent-running-animation.md)

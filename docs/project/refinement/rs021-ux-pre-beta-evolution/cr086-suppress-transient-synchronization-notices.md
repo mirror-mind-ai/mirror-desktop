@@ -53,6 +53,50 @@ The ordinary healthy path is quiet:
 - No automatic conversation rewrite, compaction, split, or data migration.
 - No release, push, publication, or beta promotion authority.
 
+## Diagnosis (2026-09-24)
+
+Three blocks in `src/app/App.tsx` render the synchronization attention copy. Only the
+recovery panel is gated by the CR065 rule (durable debt plus failure evidence). The
+retained-lease block and the standalone commit-error block render on the presence of a
+Journey error string alone, with no durable-debt gate and no persistence requirement.
+
+That string is written on the first failed attempt, not on persistent failure:
+
+- the Journey hydration effect runs automatic convergence on every Journey switch,
+  occupancy change or runtime-busy change and records any non-lease error immediately;
+  the next run shows `Repairing…` and clears on success, which is the observed flicker;
+- exact settlement errors are recorded per item inside the convergence loop before the
+  overall outcome is known, and are projected into the same Journey error string;
+- Journey error strings survive Journey switches while outbox and journal state are
+  reset, so returning to a Journey re-shows a stale transient error until the next
+  convergence clears it;
+- `Repairing conversation synchronization…` is an in-flight state presented as an
+  alert title.
+
+The `mirror_append_item_conflict` reason itself is tracked separately as CR087.
+
+## Plan
+
+1. New domain module `src/domain/synchronizationAttention.ts`: a per-Journey attempt
+   ledger (`recordSynchronizationAttempt`) and a pure gate
+   (`deriveSynchronizationAttention`). Attention requires durable debt for the selected
+   Journey and failure that persisted: at least two consecutive failed attempts since
+   the last success, or one failure older than a bounded window (10 s). An in-flight
+   attempt is never attention by itself. A read failure of the durable evidence store
+   counts as attention without debt, because debt cannot be derived.
+2. The contract world fixture (`src/tests/fixtures/convergentTurnWorld.ts`) models the
+   ledger with a controllable clock. New CR064 scenes: a single transient failure that
+   self-repairs never shows the notice; a failure that persists through a second attempt
+   or past the window shows it; navigating away and back after repair keeps it hidden.
+3. `App.tsx` replaces the per-Journey error string state with the ledger. Every
+   convergence entry point (hydration, live finalization failure, manual repair,
+   post-terminal recovery) records an attempt outcome. The three notice blocks and the
+   Composer status all derive from the single gate. The in-flight title is removed; the
+   `Repairing…` label stays only on the button inside an already legitimate notice.
+4. Exact settlement errors remain the detail text for a legitimate notice and are no
+   longer failure evidence on their own.
+5. Source-text assertions that describe the old wiring are updated to the new module.
+
 ## Evidence
 
 - User-selected screenshot: `/Users/alissonvale/Desktop/Captura de Tela 2026-09-23 às 15.04.17.png`.
