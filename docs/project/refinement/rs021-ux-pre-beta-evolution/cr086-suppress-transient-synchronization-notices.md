@@ -97,6 +97,47 @@ The `mirror_append_item_conflict` reason itself is tracked separately as CR087.
    longer failure evidence on their own.
 5. Source-text assertions that describe the old wiring are updated to the new module.
 
+## Implementation Evidence (2026-09-24)
+
+Delivered on `refinement/rs021-cr086-suppress-transient-sync-notice`.
+
+- **New domain module** `src/domain/synchronizationAttention.ts`. A per-Journey ledger
+  (`beginSynchronizationAttempt`, `recordSynchronizationAttempt`) and one pure gate
+  (`deriveSynchronizationAttention`). Constants: two consecutive failed attempts, or one
+  failure older than 10 s with no retry in flight. Success clears the ledger; an
+  active-lease refusal is a deferral and leaves failure counts untouched; a read failure
+  of the outbox counts as attention without derived debt.
+- **App wiring** in `src/app/App.tsx`. The per-Journey error string state is gone. The
+  ledger is fed by every convergence entry point: Journey hydration, live finalization
+  success and failure, manual repair, post-terminal recovery and preserved-response
+  recovery. Durable debt and attention are derived once, before navigation presentation,
+  and feed the three notice blocks, the Composer status, recovery routing and the
+  legacy-gap classification. Exact settlement errors are projected into the notice
+  detail only when attention is already legitimate. The `Repairing…` copy is no longer a
+  title; it is the button label inside an already visible notice. A bounded timer
+  re-evaluates a single aging failure exactly at the window deadline.
+- **No change** to the turn journal, outbox, Rust commands, coordinator routines or
+  Mirror Core. `convergeDelivery` still records exact errors per item; the gate makes them
+  harmless on their own.
+- **Tests.** `src/tests/synchronizationAttention.test.ts` (11 cases). The CR064 contract
+  world now models the ledger with a controllable clock, and gained five scenes: first
+  failure stays internal, transient failure that self-repairs never shows, failure
+  persisting through a second attempt shows with reason, single failure aging past the
+  window shows, resolved failure does not re-show after navigating away and back. One
+  source-text assertion was updated to the new gate.
+
+## Validation
+
+- `npm test`: 171 files, 1020 tests green.
+- `npm run build` green; `npm run roadmap:check` READY; `git diff --check` clean.
+- Dev bundle built with `npm run tauri:build:dev -- -- --locked` and installed at
+  `/Applications/Mirror Desktop Dev.app` for Navigator homologation.
+
+Navigator homologation pending. Suggested route: run several turns in a Journey that
+previously flickered, switch between Journeys repeatedly, and confirm no synchronization
+notice appears; then, if desired, force a persistent failure and confirm the notice with
+details and the repair action still appears.
+
 ## Evidence
 
 - User-selected screenshot: `/Users/alissonvale/Desktop/Captura de Tela 2026-09-23 às 15.04.17.png`.
