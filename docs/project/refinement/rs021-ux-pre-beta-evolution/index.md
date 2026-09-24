@@ -28,7 +28,7 @@ Mirror Desktop feels less like an alpha harness and more like a beta-ready daily
 Captured Change Requests, ordered by Navigator-approved daily-use impact:
 
 1. **CR086 — Suppress Transient Synchronization Notices.** Hide self-repairing synchronization flicker and show only durable failures.
-2. **CR087 — Make Outbox Enqueue Semantically Idempotent.** Remove the `mirror_append_item_conflict` race between live settlement and native reconciliation.
+2. **CR087 — Project the Visible User Request Exactly.** Fix the native user-text projection so attachments and `/skill:` prompts no longer reach Mirror verbatim or fail enqueue with `mirror_append_item_conflict`.
 3. **CR084 — Recenter to Conversation End.** Add a top control that returns the conversation surface to its latest/end position.
 4. **CR078 — Model Fast Switch.** Keep the model switcher usable while a process is alive when the change affects only future turns.
 5. **CR081 — Agent Running Animation.** Separate pinning from active-agent status and replace the overloaded pin affordance with a real running indicator.
@@ -50,7 +50,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 ## Change Requests
 
 - [CR086: Suppress Transient Synchronization Notices](cr086-suppress-transient-synchronization-notices.md)
-- [CR087: Make Outbox Enqueue Semantically Idempotent](cr087-make-outbox-enqueue-semantically-idempotent.md)
+- [CR087: Project the Visible User Request Exactly](cr087-project-the-visible-user-request-exactly.md)
 - [CR084: Recenter to Conversation End](cr084-recenter-to-conversation-end.md)
 - [CR078: Model Fast Switch](cr078-model-fast-switch.md)
 - [CR081: Agent Running Animation](cr081-agent-running-animation.md)

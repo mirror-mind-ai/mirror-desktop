@@ -1,6 +1,6 @@
 [< RS021](index.md)
 
-# CR087: Make Outbox Enqueue Semantically Idempotent
+# CR087: Project the Visible User Request Exactly
 
 **Status:** in_progress
 **Driver:** @alissonvale
@@ -123,6 +123,39 @@ because the native layer discards both payloads at the point of conflict.
 Slice 1 lands first and can ship alone: it changes no behavior and turns the next
 occurrence into evidence instead of another guess.
 
+## Reproduction (2026-09-24)
+
+With slice 1 installed in the Dev bundle, the Navigator ran the four scenarios. Cancel-then-send
+and Journey switching produced nothing. Two scenarios recorded a `normalize_legacy` conflict:
+
+| Scenario | Navigator typed | Native derived user text |
+|---|---|---|
+| Message with a file attachment | `Esse é arquivo é sobre o que?` (29 chars) | the request plus the whole `Files explicitly selected by the user` block (303 chars) |
+| Nautilus synthesis intent | `atualize a síntese tática desta jornada` (39 chars) | `/skill:ext-nautilus-synthesis …` plus the full authority header (948 chars) |
+
+Assistant text, ids and authority were identical in both pairs. Only `messages[0].content`
+and the derived timestamps differed.
+
+Root causes, both in `project_dedicated_user_text_and_envelope`:
+
+- the frontend joins the attachment block with one newline, the native splitter expected
+  `\n\nFiles explicitly selected by the user\n`, so the block was never removed;
+- the synthesis prompt starts with a `/skill:` line, so envelope detection failed and the
+  whole prompt was classified `raw`.
+
+Consequence beyond the notice: the live enqueue fails closed, durable debt remains, and the
+native reconciliation path re-materializes the same polluted item without the legacy
+comparison and delivers it. Read-only inspection of the Mirror databases confirmed the
+delivered rows: 3 in `mirror-dev/memory.db` and 11 attachment cases in
+`alisson-vale/memory.db`. The Pi-backed conversation surface reconstructs the same polluted
+text because it shares the projection. The Navigator decided not to correct the existing
+rows.
+
+The original premise of this CR is therefore withdrawn: the fail-closed conflict was correct
+and protected Mirror on the live path. Making enqueue "semantically idempotent" would have
+accepted divergent content silently. The fix is in the producer projection; conflict
+semantics stay unchanged.
+
 ## Slice 1 Evidence (2026-09-24)
 
 - `src-tauri/src/main.rs`: `mirror_append_conflict_keys` names differing top-level keys
@@ -141,6 +174,20 @@ occurrence into evidence instead of another guess.
   untouched outbox, legacy replacement pair, legacy normalization pair.
 - Gates: `cargo test --locked` 187 passed / 3 ignored; `cargo check --locked` clean;
   `npm test` 171 files / 1020 tests; `npm run build` green; roadmap READY.
+
+## Fix Evidence (2026-09-24)
+
+- `project_dedicated_user_text_and_envelope` strips a leading `/skill:` line before
+  envelope detection and splits the attachment block on `\nFiles explicitly selected by the
+  user\n`, which also matches the older two-newline fixtures. Already-recorded sessions
+  reconstruct correctly through the same path.
+- Rust test `projects_the_visible_request_from_recorded_production_prompt_shapes` uses the
+  two recorded shapes, the legacy fixture shape, the combined case and a raw prompt.
+- Conflict recording from slice 1 stays in place as a permanent tripwire.
+- Frontend contract tests in `src/tests/piProcessStream.test.ts` lock the exact attachment
+  marker and the single `/skill:` line so producer and projection cannot drift apart again.
+- `cargo test --locked`: 188 passed, 3 ignored; `cargo check --locked` clean; `npm test` 171
+  files / 1021 tests; `npm run build` green; roadmap READY.
 
 ## Evidence
 

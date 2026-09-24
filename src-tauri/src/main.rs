@@ -4508,12 +4508,24 @@ fn project_dedicated_user_text(value: &str) -> String {
     project_dedicated_user_text_and_envelope(value).0
 }
 
+// CR087: the visible user text must equal what the Navigator typed. Two prompt shapes
+// escaped this projection and reached Mirror verbatim: the Nautilus synthesis prompt,
+// which prefixes the authority header with a `/skill:` line, and the file-attachment
+// block, which the frontend separates with a single newline while this splitter expected
+// two. Both are handled here so already-recorded sessions reconstruct correctly too.
+const FILE_REFERENCES_MARKER: &str = "\nFiles explicitly selected by the user\n";
+
 fn project_dedicated_user_text_and_envelope(value: &str) -> (String, String) {
-    let envelope = if value.starts_with("[Mirror Desktop Journey authority]") {
+    let body = if value.starts_with("/skill:") {
+        value.split_once('\n').map(|(_, rest)| rest).unwrap_or("")
+    } else {
+        value
+    };
+    let envelope = if body.starts_with("[Mirror Desktop Journey authority]") {
         "mirror_desktop"
-    } else if value.starts_with("[Nautilus Harness Journey authority]") {
+    } else if body.starts_with("[Nautilus Harness Journey authority]") {
         "nautilus_harness"
-    } else if value.lines().next().is_some_and(|line| {
+    } else if body.lines().next().is_some_and(|line| {
         line.starts_with('[') && line.ends_with("Journey authority]")
     }) {
         return (value.trim().to_string(), "unknown".to_string());
@@ -4521,10 +4533,10 @@ fn project_dedicated_user_text_and_envelope(value: &str) -> (String, String) {
         return (value.trim().to_string(), "raw".to_string());
     };
     for marker in ["\n\nExplicit Navigator intent:\n", "\n\nUser request:\n"] {
-        if let Some((_, visible)) = value.rsplit_once(marker) {
+        if let Some((_, visible)) = body.rsplit_once(marker) {
             return (
                 visible
-                    .split("\n\nFiles explicitly selected by the user\n")
+                    .split(FILE_REFERENCES_MARKER)
                     .next()
                     .unwrap_or(visible)
                     .trim()
@@ -8446,6 +8458,7 @@ mod tests {
         create_pi_backed_mirror_append_item, dedicated_native_names,
         enqueue_mirror_append_item_at_with_limit, exact_steering_authority_matches,
         mirror_append_conflict_keys, mirror_append_conflicts_path, read_mirror_append_conflicts,
+        project_dedicated_user_text_and_envelope,
         replace_legacy_outbox_item_at, MIRROR_APPEND_CONFLICT_MAX_RECORDS,
         extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
@@ -10094,6 +10107,31 @@ mod tests {
         assert_eq!(turns[0].user_prompt_envelope, "nautilus_harness");
         assert_eq!(turns[0].assistant_text, "Resposta");
         assert_eq!(turns[0].entry_count, 2);
+    }
+
+    #[test]
+    fn projects_the_visible_request_from_recorded_production_prompt_shapes() {
+        // Shape recorded on 2026-09-24 (CR087): the frontend joins the file block with one newline.
+        let attachment = "[Mirror Desktop Journey authority]\nThe selected Journey ID for this turn is exactly: j\n\nUser request:\nEsse é arquivo é sobre o que?\nFiles explicitly selected by the user\nThe paths below are references.\n```json\n[{\"absolutePath\":\"/tmp/a.pdf\"}]\n```";
+        assert_eq!(
+            project_dedicated_user_text_and_envelope(attachment),
+            ("Esse é arquivo é sobre o que?".to_string(), "mirror_desktop".to_string()),
+        );
+        // The two-newline shape used by older fixtures keeps working.
+        let spaced = "[Mirror Desktop Journey authority]\nselected\n\nUser request:\nQuestion\n\nFiles explicitly selected by the user\n```json\n[]\n```";
+        assert_eq!(project_dedicated_user_text_and_envelope(spaced).0, "Question");
+        // Nautilus synthesis prefixes the envelope with a skill line.
+        let synthesis = "/skill:ext-nautilus-synthesis journey-id=sandbox-pet-store\n[Mirror Desktop Journey authority]\nThe selected Journey ID for this turn is exactly: sandbox-pet-store\n\nExplicit Navigator intent:\natualize a síntese tática desta jornada";
+        assert_eq!(
+            project_dedicated_user_text_and_envelope(synthesis),
+            ("atualize a síntese tática desta jornada".to_string(), "mirror_desktop".to_string()),
+        );
+        // A skill line with attachments strips both.
+        let both = "/skill:ext-nautilus-synthesis journey-id=j\n[Mirror Desktop Journey authority]\nx\n\nExplicit Navigator intent:\nintent\nFiles explicitly selected by the user\n```json\n[]\n```";
+        assert_eq!(project_dedicated_user_text_and_envelope(both).0, "intent");
+        // A user request that merely mentions the marker mid-sentence is untouched.
+        let raw = "just a plain prompt";
+        assert_eq!(project_dedicated_user_text_and_envelope(raw), (raw.to_string(), "raw".to_string()));
     }
 
     #[test]
