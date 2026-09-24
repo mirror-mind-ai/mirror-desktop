@@ -228,6 +228,65 @@ describe("application themes", () => {
     expect(cssSource).toContain("color: var(--light-text);");
   });
 
+  it("keeps the voice component status badges legible in light themes", () => {
+    for (const theme of lightApplicationThemes) {
+      const readySurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.1);
+      expect(contrast(theme.tokens.primaryText, readySurface), `${theme.id} ready voice status badge`)
+        .toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.primaryText, theme.tokens.raisedSurface), `${theme.id} not-installed voice status badge`)
+        .toBeGreaterThanOrEqual(4.5);
+      expect(contrast("#b42318", "#fff4f2"), `${theme.id} damaged voice status badge`)
+        .toBeGreaterThanOrEqual(4.5);
+    }
+    expect(cssSource).toContain("/* Light voice component status contrast contract. */");
+    expect(cssSource).toContain(") .voice-status-badge.is-not_installed,");
+    expect(cssSource).toContain(") .voice-status-badge.is-damaged,");
+  });
+
+  it("keeps the recording notice and stop control legible in light themes", () => {
+    const recordingSurface = "#fff4f2";
+    const destructive = "#b42318";
+    expect(contrast(destructive, recordingSurface), "recording notice text").toBeGreaterThanOrEqual(4.5);
+    expect(contrast("#ffffff", destructive), "stop control icon").toBeGreaterThanOrEqual(4.5);
+    for (const theme of lightApplicationThemes) {
+      const idleSurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.08);
+      expect(contrast(theme.tokens.primaryText, idleSurface), `${theme.id} voice session status`)
+        .toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.tokens.primaryText, theme.tokens.canvas), `${theme.id} voice notice`)
+        .toBeGreaterThanOrEqual(4.5);
+    }
+    expect(cssSource).toContain("/* Light voice recording contrast contract. */");
+    expect(cssSource).toContain(") .voice-session-status.is-recording {");
+    expect(cssSource).toContain(") .voice-composer-button.is-recording:not(:disabled) {");
+    // Voice setting labels must join the shared muted-label contract instead of
+    // carrying a local colour that survives into the light themes.
+    const mutedLabels = cssSource.slice(cssSource.indexOf("  .provider-field,"));
+    const mutedLabelRule = mutedLabels.slice(0, mutedLabels.indexOf("}"));
+    expect(mutedLabelRule).toContain(".voice-model-picker > span,");
+    expect(mutedLabelRule).toContain(".voice-model-picker small,");
+    expect(mutedLabelRule).toContain("color: var(--light-muted);");
+    for (const theme of lightApplicationThemes) {
+      expect(contrast(theme.tokens.mutedText, theme.tokens.surface), `${theme.id} voice setting label`)
+        .toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("keeps composer icon buttons legible on hover in light themes", () => {
+    for (const theme of lightApplicationThemes) {
+      // The shared hover treatment tints the surface with the accent.
+      const hoverSurface = mixHex(theme.tokens.accentText, theme.tokens.surface, 0.1);
+      expect(contrast(theme.tokens.primaryText, hoverSurface), `${theme.id} icon button hover`)
+        .toBeGreaterThanOrEqual(4.5);
+      // The dark-theme hover colour must never reach a light surface.
+      expect(contrast("#bff2eb", hoverSurface)).toBeLessThan(4.5);
+    }
+    expect(cssSource).toContain("/* Light icon-button hover contrast contract. */");
+    expect(cssSource).toContain(") :is(.icon-button, .send-button):not(:disabled):hover {");
+    // The stop control keeps its destructive fill instead of the accent tint.
+    expect(cssSource).toContain(") .voice-composer-button.is-recording:not(:disabled):hover {");
+    expect(contrast("#ffffff", "#911c13"), "stop control hover").toBeGreaterThanOrEqual(4.5);
+  });
+
   it("keeps the completed composer status legible in light themes", () => {
     expect(cssSource).toContain("/* Light composer status contrast contract. */");
     expect(cssSource).toContain(".composer-runtime-status.is-finishing");

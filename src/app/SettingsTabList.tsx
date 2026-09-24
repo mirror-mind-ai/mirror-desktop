@@ -5,6 +5,7 @@ export const settingsTabs = [
   { id: "user-profile", label: "User Profile" },
   { id: "agent", label: "Agent" },
   { id: "runtime", label: "Runtime" },
+  { id: "voice", label: "Voice" },
   { id: "updates", label: "Updates" },
 ] as const;
 

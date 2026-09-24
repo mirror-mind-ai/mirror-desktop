@@ -96,6 +96,21 @@ import {
 import { ConversationRecoveryNotice } from "./ConversationRecoveryNotice";
 import { InterruptedNativeAttemptNotice } from "./InterruptedNativeAttemptNotice";
 import { PendingFileAttachments } from "./PendingFileAttachments";
+import { VoiceComposerControl, VoiceInstallDialog, VoiceSessionStatus, VoiceSettingsPanel } from "./VoiceComposerControl";
+import { installVoiceComponent, loadVoiceComponentCatalog, loadVoiceComponentStatus, removeVoiceComponent, transcribeVoiceWav } from "./voiceTranscriptionStorage";
+import { recordingToPcm16Wav, startVoiceCapture, type VoiceCaptureHandle } from "./voiceCapture";
+import {
+  appendTranscriptToDraft,
+  idleVoiceSession,
+  transcriptDestinationNotice,
+  voiceErrorMessage,
+  type VoiceComponentCatalog,
+  type VoiceComponentStatus,
+  type VoiceControlIntent,
+  type VoiceLanguage,
+  type VoiceInstallProgress,
+  type VoiceSession,
+} from "../domain/voiceTranscription";
 import { chooseFileAttachments, inspectDroppedFileAttachments } from "./fileAttachmentStorage";
 import { listenForFileAttachments } from "./fileAttachmentDrop";
 import { JourneyAltitudeSwitcher } from "./JourneyAltitudeSwitcher";
@@ -526,6 +541,23 @@ export function App({ model }: AppProps) {
   const [mirrorOutboxItems, setMirrorOutboxItems] = useState<MirrorAppendOutboxSummary[]>([]);
   const [journeyTurnJournalRecords, setJourneyTurnJournalRecords] = useState<TurnJournalRecord[]>([]);
   const [unsentDraftNotices, setUnsentDraftNotices] = useState<UnsentDraftNotices>({});
+  // CV-008.DS-005 — voice prompt composition. Recording and transcription are
+  // Desktop-local; the destination draft key is captured at recording start.
+  const [voiceStatus, setVoiceStatus] = useState<VoiceComponentStatus>();
+  const [voiceSession, setVoiceSession] = useState<VoiceSession>(idleVoiceSession);
+  const [voiceInstalling, setVoiceInstalling] = useState(false);
+  const [voiceRemoving, setVoiceRemoving] = useState(false);
+  const [voiceInstallProgress, setVoiceInstallProgress] = useState<VoiceInstallProgress>();
+  const [voiceInstallDialogOpen, setVoiceInstallDialogOpen] = useState(false);
+  const [voiceError, setVoiceError] = useState<string>();
+  const [voiceNotice, setVoiceNotice] = useState<string>();
+  const [voiceElapsedSeconds, setVoiceElapsedSeconds] = useState(0);
+  const [voiceCatalog, setVoiceCatalog] = useState<VoiceComponentCatalog>();
+  const [voiceCatalogLoading, setVoiceCatalogLoading] = useState(false);
+  const [voiceModelId, setVoiceModelId] = useState<string>();
+  const [voiceLanguage, setVoiceLanguage] = useState<VoiceLanguage>(defaultJourneyPreferenceState.voiceLanguage);
+  const voiceCaptureRef = useRef<VoiceCaptureHandle | undefined>(undefined);
+  const voiceOriginRef = useRef<{ draftKey: string; label: string; language: VoiceLanguage } | undefined>(undefined);
   const [providerConfig, setProviderConfig] = useState(defaultPiProviderConfig);
   const [providerCommand, setProviderCommand] = useState(defaultPiProviderConfig.command);
   const [providerArgsText, setProviderArgsText] = useState(providerConfigToArgsText(defaultPiProviderConfig));
@@ -1253,6 +1285,7 @@ export function App({ model }: AppProps) {
       setSidebarCompact(sanitizedPreferences.sidebarCompact);
       setLastWorkedAtByJourneyId(sanitizedPreferences.lastWorkedAtByJourneyId);
       setApplicationTheme(sanitizedPreferences.applicationTheme);
+      setVoiceLanguage(sanitizedPreferences.voiceLanguage);
       setJourneyAppearanceById(sanitizedPreferences.journeyAppearanceById);
       if (nextActiveJourney) {
         setSelectedJourney(nextActiveJourney);
@@ -1546,6 +1579,47 @@ export function App({ model }: AppProps) {
   }, [fileAttachmentError]);
 
   useEffect(() => {
+    if (!voiceError) return;
+    const scheduled = voiceError;
+    return scheduleTransientComposerNotice(() => {
+      setVoiceError((current) => clearScheduledNotice(current, scheduled));
+    });
+  }, [voiceError]);
+
+  useEffect(() => {
+    if (!voiceNotice) return;
+    const scheduled = voiceNotice;
+    return scheduleTransientComposerNotice(() => {
+      setVoiceNotice((current) => clearScheduledNotice(current, scheduled));
+    });
+  }, [voiceNotice]);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadVoiceComponentStatus()
+      .then((status) => { if (!cancelled) setVoiceStatus(status); })
+      .catch((error) => { if (!cancelled) setVoiceStatus({ state: "unsupported", platform: "unknown", architecture: "unknown", manifestUrl: "", message: voiceErrorMessage(error) }); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (voiceSession.kind !== "recording") {
+      setVoiceElapsedSeconds(0);
+      return;
+    }
+    const startedAt = voiceSession.startedAt;
+    const timer = setInterval(() => setVoiceElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000)), 500);
+    return () => clearInterval(timer);
+  }, [voiceSession]);
+
+  useEffect(() => () => { voiceCaptureRef.current?.cancel(); }, []);
+
+  useEffect(() => {
+    if (settingsOpen && settingsTab === "voice") void loadVoiceCatalog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsOpen, settingsTab]);
+
+  useEffect(() => {
     if (!turnRecoveryNotice) return;
     const scheduled = turnRecoveryNotice;
     return scheduleTransientComposerNotice(() => {
@@ -1719,8 +1793,9 @@ export function App({ model }: AppProps) {
       lastWorkedAtByJourneyId,
       applicationTheme,
       journeyAppearanceById,
+      voiceLanguage,
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, registryLoaded, preferencesLoaded]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setRelativeTimeNow(Date.now()), 60_000);
@@ -1906,6 +1981,135 @@ export function App({ model }: AppProps) {
     void composerDraftPersistence.flush().catch((error) => {
       console.warn("Could not flush Composer drafts.", error);
     });
+  }
+
+  function currentComposerDraftKey(): string {
+    const childEntry = selectedConversationEntry?.kind === "desktop_conversation" ? selectedConversationEntry : undefined;
+    return conversationDraftKey(selectedJourneyRef.current, childEntry?.conversationId);
+  }
+
+  function currentComposerDestinationLabel(): string {
+    const journeyName = findJourneyById(journeyRegistry, selectedJourneyRef.current)?.name ?? selectedJourneyRef.current;
+    return selectedConversationEntry?.kind === "desktop_conversation" ? `${journeyName} · ${selectedConversationEntry.title}` : journeyName;
+  }
+
+  /**
+   * Read-only manifest lookup so the Navigator can weigh model size, speed and
+   * accuracy. Triggered only by opening the install dialog or Settings -> Voice.
+   */
+  async function loadVoiceCatalog() {
+    if (voiceCatalog || voiceCatalogLoading) return;
+    setVoiceCatalogLoading(true);
+    try {
+      const catalog = await loadVoiceComponentCatalog();
+      setVoiceCatalog(catalog);
+      setVoiceModelId((current) => current ?? voiceStatus?.modelId ?? catalog.defaultModel);
+    } catch (error) {
+      setVoiceError(voiceErrorMessage(error));
+    } finally {
+      setVoiceCatalogLoading(false);
+    }
+  }
+
+  async function installVoice() {
+    if (voiceInstalling || voiceSession.kind !== "idle") return;
+    setVoiceInstalling(true);
+    setVoiceError(undefined);
+    setVoiceInstallProgress(undefined);
+    try {
+      setVoiceStatus(await installVoiceComponent(setVoiceInstallProgress, voiceModelId));
+    } catch (error) {
+      setVoiceError(voiceErrorMessage(error));
+    } finally {
+      setVoiceInstalling(false);
+    }
+  }
+
+  async function removeVoice() {
+    if (voiceInstalling || voiceRemoving || voiceSession.kind !== "idle") return;
+    setVoiceRemoving(true);
+    setVoiceError(undefined);
+    try {
+      setVoiceStatus(await removeVoiceComponent());
+    } catch (error) {
+      setVoiceError(voiceErrorMessage(error));
+    } finally {
+      setVoiceRemoving(false);
+    }
+  }
+
+  async function startVoiceRecording() {
+    if (voiceSession.kind !== "idle" || voiceStatus?.state !== "ready") return;
+    const draftKey = currentComposerDraftKey();
+    // Destination and language are both fixed at recording start, so changing
+    // either mid-recording cannot retarget or relabel the in-flight transcript.
+    voiceOriginRef.current = { draftKey, label: currentComposerDestinationLabel(), language: voiceLanguage };
+    setVoiceError(undefined);
+    setVoiceSession({ kind: "requesting_permission", draftKey });
+    try {
+      const capture = await startVoiceCapture({
+        onLimitReached: () => { void stopVoiceRecording(); },
+      });
+      voiceCaptureRef.current = capture;
+      setVoiceSession({ kind: "recording", draftKey, startedAt: Date.now() });
+    } catch (error) {
+      voiceCaptureRef.current = undefined;
+      setVoiceSession(idleVoiceSession);
+      setVoiceError(voiceErrorMessage(error));
+    }
+  }
+
+  async function stopVoiceRecording() {
+    const capture = voiceCaptureRef.current;
+    const origin = voiceOriginRef.current;
+    if (!capture || !origin) return;
+    voiceCaptureRef.current = undefined;
+    setVoiceSession({ kind: "transcribing", draftKey: origin.draftKey });
+    try {
+      const recording = await capture.stop();
+      const transcript = await transcribeVoiceWav(await recordingToPcm16Wav(recording), origin.language);
+      if (voiceOriginRef.current !== origin) return; // cancelled while transcribing
+      if (!transcript.text.trim()) {
+        setVoiceError(voiceErrorMessage("voice_recording_empty"));
+        return;
+      }
+      let merged = "";
+      updateComposerDrafts((current) => {
+        merged = appendTranscriptToDraft(current[origin.draftKey] ?? "", transcript.text);
+        return updateComposerDraft(current, origin.draftKey, merged);
+      }, true);
+      const visibleDraftKey = currentComposerDraftKey();
+      if (visibleDraftKey === origin.draftKey) setDraft(merged);
+      setVoiceNotice(transcriptDestinationNotice(origin.draftKey, visibleDraftKey, origin.label));
+    } catch (error) {
+      if (voiceOriginRef.current === origin) setVoiceError(voiceErrorMessage(error));
+    } finally {
+      if (voiceOriginRef.current === origin) {
+        voiceOriginRef.current = undefined;
+        setVoiceSession(idleVoiceSession);
+      }
+    }
+  }
+
+  function cancelVoiceRecording() {
+    voiceCaptureRef.current?.cancel();
+    voiceCaptureRef.current = undefined;
+    voiceOriginRef.current = undefined;
+    setVoiceSession(idleVoiceSession);
+  }
+
+  function handleVoiceIntent(intent: VoiceControlIntent) {
+    if (intent === "install") {
+      setVoiceInstallDialogOpen(true);
+      void loadVoiceCatalog();
+    }
+    else if (intent === "record") void startVoiceRecording();
+    else if (intent === "stop") void stopVoiceRecording();
+    else if (intent === "explain") {
+      setVoiceError(voiceStatus?.message ?? voiceErrorMessage("voice_component_damaged"));
+      setSettingsTab("voice");
+      setSettingsOpen(true);
+    }
   }
 
   function setJourneyComposerDraft(journeyId: string, text: string, flush = false) {
@@ -4650,6 +4854,9 @@ export function App({ model }: AppProps) {
             />
           ) : null}
           {fileAttachmentError ? <p className="context-attachment-error" role="alert">{fileAttachmentError}</p> : null}
+          {voiceError ? <p className="context-attachment-error voice-error" role="alert">{voiceError}</p> : null}
+          {voiceNotice ? <p className="voice-notice" role="status">{voiceNotice}</p> : null}
+          <VoiceSessionStatus session={voiceSession} elapsedSeconds={voiceElapsedSeconds} onCancel={cancelVoiceRecording} />
           <PendingFileAttachments
             attachments={pendingFileAttachments}
             disabled={selectedRuntimeBusy || fileAttachmentBusy}
@@ -4708,6 +4915,13 @@ export function App({ model }: AppProps) {
                 >
                   📎
                 </button>
+                <VoiceComposerControl
+                  status={voiceStatus}
+                  session={voiceSession}
+                  installing={voiceInstalling}
+                  composerBusy={isJourneyReloading || fileAttachmentBusy}
+                  onIntent={handleVoiceIntent}
+                />
                 {navigationPresentation.cancelVisible ? (
                   <>
                     <button
@@ -4750,6 +4964,21 @@ export function App({ model }: AppProps) {
         </section>
       </section>
 
+
+      {voiceInstallDialogOpen && voiceStatus ? (
+        <VoiceInstallDialog
+          status={voiceStatus}
+          installing={voiceInstalling}
+          progress={voiceInstallProgress}
+          error={voiceError}
+          catalog={voiceCatalog}
+          catalogLoading={voiceCatalogLoading}
+          modelId={voiceModelId}
+          onModelChange={setVoiceModelId}
+          onConfirm={() => void installVoice()}
+          onClose={() => setVoiceInstallDialogOpen(false)}
+        />
+      ) : null}
 
       {closeConfirmationOpen ? (
         <div className="settings-backdrop" role="presentation" onClick={() => !closeConfirmationBusy && setCloseConfirmationOpen(false)}>
@@ -5251,6 +5480,31 @@ export function App({ model }: AppProps) {
               </div>
             ) : null}
 
+            {settingsTab === "voice" ? (
+              <div
+                className="settings-tab-panel"
+                id="settings-panel-voice"
+                role="tabpanel"
+                aria-labelledby="settings-tab-voice"
+              >
+                <VoiceSettingsPanel
+                  status={voiceStatus}
+                  installing={voiceInstalling}
+                  removing={voiceRemoving}
+                  progress={voiceInstallProgress}
+                  error={voiceError}
+                  sessionActive={voiceSession.kind !== "idle"}
+                  catalog={voiceCatalog}
+                  catalogLoading={voiceCatalogLoading}
+                  modelId={voiceModelId}
+                  language={voiceLanguage}
+                  onModelChange={setVoiceModelId}
+                  onLanguageChange={setVoiceLanguage}
+                  onInstall={() => void installVoice()}
+                  onRemove={() => void removeVoice()}
+                />
+              </div>
+            ) : null}
             {settingsTab === "updates" ? (
               <div
                 className="settings-tab-panel"
