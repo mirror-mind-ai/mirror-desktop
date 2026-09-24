@@ -50,7 +50,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR086](rs021-ux-pre-beta-evolution/cr086-suppress-transient-synchronization-notices.md) | RS021 | Suppress Transient Synchronization Notices | in_progress | @alissonvale | `refinement/rs021-cr086-suppress-transient-sync-notice` |
+| 1 | [CR086](rs021-ux-pre-beta-evolution/cr086-suppress-transient-synchronization-notices.md) | RS021 | Suppress Transient Synchronization Notices | done | @alissonvale | `refinement/rs021-cr086-suppress-transient-sync-notice` |
 | 2 | [CR087](rs021-ux-pre-beta-evolution/cr087-make-outbox-enqueue-semantically-idempotent.md) | RS021 | Make Outbox Enqueue Semantically Idempotent | captured | — | — |
 | 3 | [CR084](rs021-ux-pre-beta-evolution/cr084-recenter-to-conversation-end.md) | RS021 | Recenter to Conversation End | captured | — | — |
 | 4 | [CR078](rs021-ux-pre-beta-evolution/cr078-model-fast-switch.md) | RS021 | Model Fast Switch | captured | — | — |

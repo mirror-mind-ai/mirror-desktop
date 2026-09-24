@@ -2,7 +2,7 @@
 
 # CR086: Suppress Transient Synchronization Notices
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr086-suppress-transient-sync-notice`
 
@@ -133,10 +133,20 @@ Delivered on `refinement/rs021-cr086-suppress-transient-sync-notice`.
 - Dev bundle built with `npm run tauri:build:dev -- -- --locked` and installed at
   `/Applications/Mirror Desktop Dev.app` for Navigator homologation.
 
-Navigator homologation pending. Suggested route: run several turns in a Journey that
-previously flickered, switch between Journeys repeatedly, and confirm no synchronization
-notice appears; then, if desired, force a persistent failure and confirm the notice with
-details and the repair action still appears.
+Navigator homologation on 2026-09-24 in `/Applications/Mirror Desktop Dev.app`
+(0.2.0-alpha.18 dev bundle): multiple turns across several Journeys with repeated Journey
+switching produced no synchronization notice. Accepted.
+
+## Closure
+
+Closed on 2026-09-24 with explicit Navigator validation.
+
+Proportionality review: proportional. One pure domain module and one presentation gate
+replaced three independently gated notice blocks; no durable schema, native command or
+Mirror Core change.
+
+Debt review: `no_action` for CR086. The `mirror_append_item_conflict` cause is tracked as
+CR087. Integration into `main`, push and release remain separate Navigator decisions.
 
 ## Evidence
 
