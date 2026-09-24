@@ -123,6 +123,25 @@ because the native layer discards both payloads at the point of conflict.
 Slice 1 lands first and can ship alone: it changes no behavior and turns the next
 occurrence into evidence instead of another guess.
 
+## Slice 1 Evidence (2026-09-24)
+
+- `src-tauri/src/main.rs`: `mirror_append_conflict_keys` names differing top-level keys
+  and `messages[i].key` entries; `record_mirror_append_conflict` appends a record
+  (`site`, `itemId`, `journeyId`, `differingKeys`, `existing`, `candidate`, `recordedAt`)
+  to `mirror-append-conflicts.jsonl` beside the outbox, keeping the most recent 64, via
+  staged write and rename. A failed diagnostic write never changes the caller's result.
+- The three sites record before returning `mirror_append_item_conflict`: enqueue with an
+  existing different payload (`enqueue`), replacement of a stored legacy item
+  (`replace_legacy`) and normalization of a legacy enqueue against the Pi-backed rebuild
+  (`normalize_legacy`). `normalize_legacy_enqueue_item` now receives the outbox path.
+- New read-only command `list_mirror_append_conflicts(journeyId)` and the TypeScript
+  wrapper `listMirrorAppendConflicts` in `src/app/mirrorAppendOutboxStorage.ts`. No
+  Settings surface yet; slice 2 reads the file directly.
+- Rust tests: key naming at both levels, bounded records with unchanged error code and
+  untouched outbox, legacy replacement pair, legacy normalization pair.
+- Gates: `cargo test --locked` 187 passed / 3 ignored; `cargo check --locked` clean;
+  `npm test` 171 files / 1020 tests; `npm run build` green; roadmap READY.
+
 ## Evidence
 
 - Screenshot from 2026-09-23 15:04 showing `mirror_append_item_conflict` as the notice
