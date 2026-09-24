@@ -14,6 +14,25 @@ Navigator validation accepted. Remaining debt is productization, not behavior: p
 - CV-008.DS-005-US-1
 - CV-008.DS-005-US-2
 
+## Post-closure publication update
+
+Published after explicit Navigator authorization on 2026-09-23. The deferred productization debt was paid by creating the official voice component endpoint at:
+
+```text
+https://updates.mirrormind.sh/mirror-desktop/voice/
+```
+
+Published artifacts:
+
+- `manifest.json`
+- `whisper-cli-v1.8.3-macos-x64`
+- `ggml-base-q5_1.bin`
+- `ggml-small-q5_1.bin`
+
+The manifest uses `small-q5_1` as the default model and offers `base-q5_1` as the lightweight alternative. Public HTTPS downloads were verified for all four artifacts, server-side and client-side SHA-256 hashes matched the manifest, and the ignored native install rehearsal passed against the official HTTPS manifest without a development loopback server. The Navigator then installed `small-q5_1` successfully from `/Applications/Mirror Desktop Dev.app` without `MIRROR_DESKTOP_VOICE_MANIFEST_URL`.
+
+Remaining non-blocking future work: publish `macos/aarch64` with Metal for Apple Silicon and decide whether to offer `large-v3-turbo` as an optional accuracy model.
+
 ## Boundary
 
 No push or release action is authorized by this checkpoint.
