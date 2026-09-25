@@ -20,6 +20,7 @@ function expectFrictionless(
   const view = world.presentation();
   expect(world.durableEvidenceSettled()).toBe(true);
   expect(view.syncNoticeVisible).toBe(false);
+  expect(view.recoveryPanelVisible).toBe(false);
   expect(view.pendingRepairTurnId).toBeUndefined();
   expect(view.availability.canSend).toBe(true);
   expect(view.availability.condition).toBe("ready");
@@ -91,6 +92,8 @@ describe("CR064 multi-turn happy-path contract", () => {
     expect(world.stores.outbox).toHaveLength(1);
     expect(view.syncNoticeVisible).toBe(true);
     expect(view.syncNoticeReason).toContain("mirror_append_failed");
+    // Genuine debt still reaches the recovery panel, so its absence elsewhere is meaningful.
+    expect(view.recoveryPanelVisible).toBe(true);
     expect(view.pendingRepairTurnId).toBe("turn-run-1");
     expect(view.availability.condition).toBe("sync_pending");
     expect(view.availability.canSend).toBe(true);
@@ -173,6 +176,23 @@ describe("CR064 multi-turn happy-path contract", () => {
     expect(world.durableEvidenceSettled()).toBe(true);
     expect(view.syncNoticeVisible).toBe(false);
     expect(view.availability.condition).toBe("ready");
+  });
+
+  // CR088: cancelling a turn must never flash the `Resolve the preserved attempt` panel.
+  it("shows no recovery panel across the cancellation window", async () => {
+    const world = createConvergentTurnWorld();
+    await runCleanTurn(world, 1);
+    world.beginTurn("run-2", "question 2");
+    world.streamAssistant("partial");
+    expect(world.presentation().recoveryPanelVisible).toBe(false);
+    // The native lease is released before the interrupted save advances the journal: the
+    // exact window where the stale record used to contradict current occupancy.
+    world.releaseNativeLease();
+    expect(world.presentation().recoveryPanelVisible).toBe(false);
+    world.cancelTurn();
+    expect(world.presentation().recoveryPanelVisible).toBe(false);
+    await runCleanTurn(world, 3);
+    expect(world.presentation().recoveryPanelVisible).toBe(false);
   });
 
   it("keeps ordinary settlement debt internal without a user-facing notice", async () => {

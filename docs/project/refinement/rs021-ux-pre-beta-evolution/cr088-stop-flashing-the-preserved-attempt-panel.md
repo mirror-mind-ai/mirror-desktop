@@ -133,6 +133,53 @@ and the branch is repaired instead of deleted. Evidence decides, not this docume
 Independent of CR086 and CR087, which are closed. It completes the same theme: no transient
 internal state may present itself as an alert demanding Navigator attention.
 
+## Implementation Evidence (2026-09-24)
+
+Delivered on `refinement/rs021-cr088-preserved-attempt-panel` in two commits, the second
+gated on the proof produced by the first.
+
+**Slice 1 — one coherent snapshot.** New `src/app/blockingTurnPresentation.ts` derives the
+blocking record from the already-hydrated `journeyTurnJournalRecords` and the current lease.
+`App.tsx` consumes it through a `useMemo`; the `blockingTurnJournalRecord` state and every
+setter are gone, including the frontier-event and post-interruption clears, which are now
+consequences of refreshing journal evidence. `findBlockingTurnJournalRecord` accepts
+`Pick<TurnJournalDocument, "records">` so the derivation needs no synthetic document.
+
+`src/tests/blockingTurnPresentation.test.ts` enumerates phase x outcome x lease x evidence x
+synchronization state and asserts, for every input producing a blocking record, that the
+lease was the exact active run and that no recovery route is offered. That is the proof the
+second slice depended on.
+
+**Slice 2 — remove the vestigial branch.** `decideConversationRecoveryRoutes` now takes
+`blockingTurnActive: boolean` and returns no routes while it holds, which preserves the
+previous early-return semantics so Mirror debt cannot reach a route through the
+fall-through. Deleted: the blocking branch, the `recover_preserved_response` and
+`preserve_attempt_and_continue` routes, the `BlockingTurnRecoveryEvidence` type, the three
+handlers only those routes reached (`recoverPreservedResponse`,
+`markBlockingTurnInterrupted`, `interruptInactiveTurnRecord`), their dispatch branches, the
+dead blocking titles in the recovery panel, and the unreachable
+`interruptInactiveTurnJournal` bridge. Net 346 deletions against 88 insertions.
+
+The native `interrupt_inactive_turn_journal` command stays registered as a durable
+capability, with a comment at the removed bridge recording how to re-expose it.
+
+**Contract.** The CR064 world models the native lease and a cancellation, including the
+exact window where the lease is released before the journal advances, and asserts
+`recoveryPanelVisible` is false at every step and after the next clean turn. The genuine
+debt scene asserts the same flag is true, so its absence elsewhere is meaningful rather
+than vacuous. The stranded `terminal_durable / completed` case is not duplicated in the
+TypeScript world, which does not model native materialization; it is covered where it is
+real, by the Rust test `materializes_self_contained_delivery_debt_from_exact_pi_entries`.
+
+## Validation
+
+- `npm test`: 172 files, 1024 tests green.
+- `cargo test --locked`: 188 passed, 3 ignored.
+- `npm run build` green; `npm run roadmap:check` READY; `git diff --check` clean.
+
+Navigator homologation pending: cancel a turn mid-response and continue, and confirm no
+panel appears at any point.
+
 ## Evidence
 
 - Navigator report, 2026-09-24, Dev bundle `0.2.0-alpha.18`: panel titled
