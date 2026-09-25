@@ -30,14 +30,15 @@ Captured Change Requests, ordered by Navigator-approved daily-use impact:
 1. **CR086 — Suppress Transient Synchronization Notices.** Hide self-repairing synchronization flicker and show only durable failures.
 2. **CR087 — Project the Visible User Request Exactly.** Fix the native user-text projection so attachments and `/skill:` prompts no longer reach Mirror verbatim or fail enqueue with `mirror_append_item_conflict`.
 3. **CR088 — Stop Flashing the Preserved Attempt Panel.** Remove the transient `Resolve the preserved attempt` panel after cancellation; same class as CR086, different surface.
-4. **CR084 — Recenter to Conversation End.** Add a top control that returns the conversation surface to its latest/end position.
-5. **CR078 — Model Fast Switch.** Keep the model switcher usable while a process is alive when the change affects only future turns.
-6. **CR081 — Agent Running Animation.** Separate pinning from active-agent status and replace the overloaded pin affordance with a real running indicator.
-7. **CR083 — Agent Comments Continuity.** Make adjacent Agent Comments visually breathe and read as coherent continuation rather than glued text.
-8. **CR082 — Collapsed Sidebar Polish.** Improve the aesthetics and usability of the collapsed sidebar.
-9. **CR085 — Close Without Quitting.** Make the macOS red close button hide/close the window without terminating the app process.
-10. **CR079 — Deep Context Stats Analysis.** Explain and close the gap between terminal Pi context stats and Desktop's frequent Checking state.
-11. **CR080 — Manual Compaction / Compaction Checkpoint.** Understand the current Desktop checkpoint and use it to suggest splitting long conversations when appropriate.
+4. **CR089 — Preserve the Interrupted Partial Response.** Keep the partial agent answer when a turn is cancelled mid-response, marked as interrupted.
+5. **CR084 — Recenter to Conversation End.** Add a top control that returns the conversation surface to its latest/end position.
+6. **CR078 — Model Fast Switch.** Keep the model switcher usable while a process is alive when the change affects only future turns.
+7. **CR081 — Agent Running Animation.** Separate pinning from active-agent status and replace the overloaded pin affordance with a real running indicator.
+8. **CR083 — Agent Comments Continuity.** Make adjacent Agent Comments visually breathe and read as coherent continuation rather than glued text.
+9. **CR082 — Collapsed Sidebar Polish.** Improve the aesthetics and usability of the collapsed sidebar.
+10. **CR085 — Close Without Quitting.** Make the macOS red close button hide/close the window without terminating the app process.
+11. **CR079 — Deep Context Stats Analysis.** Explain and close the gap between terminal Pi context stats and Desktop's frequent Checking state.
+12. **CR080 — Manual Compaction / Compaction Checkpoint.** Understand the current Desktop checkpoint and use it to suggest splitting long conversations when appropriate.
 
 ## Acceptance Horizon
 
@@ -53,6 +54,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR086: Suppress Transient Synchronization Notices](cr086-suppress-transient-synchronization-notices.md)
 - [CR087: Project the Visible User Request Exactly](cr087-project-the-visible-user-request-exactly.md)
 - [CR088: Stop Flashing the Preserved Attempt Panel](cr088-stop-flashing-the-preserved-attempt-panel.md)
+- [CR089: Preserve the Interrupted Partial Response](cr089-preserve-the-interrupted-partial-response.md)
 - [CR084: Recenter to Conversation End](cr084-recenter-to-conversation-end.md)
 - [CR078: Model Fast Switch](cr078-model-fast-switch.md)
 - [CR081: Agent Running Animation](cr081-agent-running-animation.md)
