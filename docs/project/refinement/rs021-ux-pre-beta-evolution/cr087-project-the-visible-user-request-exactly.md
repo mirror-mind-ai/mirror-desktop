@@ -2,7 +2,7 @@
 
 # CR087: Project the Visible User Request Exactly
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr087-idempotent-outbox-enqueue`
 
@@ -188,6 +188,28 @@ semantics stay unchanged.
   marker and the single `/skill:` line so producer and projection cannot drift apart again.
 - `cargo test --locked`: 188 passed, 3 ignored; `cargo check --locked` clean; `npm test` 171
   files / 1021 tests; `npm run build` green; roadmap READY.
+
+## Homologation (2026-09-24)
+
+Navigator relaunched `/Applications/Mirror Desktop Dev.app` on the fixed bundle and repeated
+the attachment and Nautilus synthesis scenarios. Durable evidence:
+
+- `mirror-append-conflicts.jsonl` kept only the two pre-fix records; no new conflict.
+- Both turns settled through the live path; outbox empty.
+- The Pi session entries still carry the full prompt (attachment block, `/skill:` line), while
+  the rows delivered to `mirror-dev/memory.db` are exactly the typed requests:
+  `Esse documento é sobre o que?` (29 chars) and `atualize a síntese tática desta jornada`
+  (39 chars). No polluted user row was created after the fix.
+
+## Closure
+
+Closed on 2026-09-24 with explicit Navigator validation.
+
+Proportionality review: proportional. One projection function corrected, one bounded
+diagnostic sink added, conflict semantics untouched, no schema or Mirror Core change.
+
+Debt review: `no_action`. The 11 previously delivered attachment rows in production remain
+as-is by Navigator decision. Integration, push and release remain separate decisions.
 
 ## Evidence
 
