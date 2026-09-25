@@ -2,7 +2,7 @@
 
 # CR084: Recenter to Conversation End
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr084-recenter-to-end`
 
@@ -72,6 +72,16 @@ repository, which makes those assertions real as well.
 - `npm test`: 172 files, 1028 tests green.
 - `npm run build` green; `npm run roadmap:check` READY; `git diff --check` clean.
 
-Navigator homologation pending: scroll up in a long Conversation, confirm the control gains
-emphasis, click it and confirm the transcript returns to the latest turn; confirm auto-follow
-resumes for the next turn.
+## Homologation (2026-09-25)
+
+Navigator validated the control in the Dev bundle. Accepted.
+
+## Closure
+
+Closed on 2026-09-25 with explicit Navigator validation.
+
+Proportionality review: proportional. One pure derivation, one reactive boolean fed by the
+existing scroll listener, and one extracted routine shared with surface entry; no durable
+schema, native command or Mirror Core change.
+
+Debt review: `no_action`. Integration, push and release remain separate Navigator decisions.
