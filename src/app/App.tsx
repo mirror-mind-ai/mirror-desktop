@@ -72,7 +72,11 @@ import {
   validatePiInvocationRegistryInspection,
   type PiInvocationAuthorityInspection,
 } from "./piInvocationOccupancy";
-import { nextConversationAutoFollow } from "./conversationAutoFollow";
+import {
+  deriveConversationRecenterState,
+  isConversationNearBottom,
+  nextConversationAutoFollow,
+} from "./conversationAutoFollow";
 import {
   createJourneySettlementAuthority,
   executeCompletedSettlement,
@@ -680,6 +684,8 @@ export function App({ model }: AppProps) {
   const [projectionLoadStatus, setProjectionLoadStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const chatStreamRef = useRef<HTMLElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  // CR084: mirrors the scroll position reactively so the recenter control can react to it.
+  const [conversationAwayFromEnd, setConversationAwayFromEnd] = useState(false);
   const chatAutoFollowRef = useRef(true);
   const journeyMenuRef = useRef<HTMLDivElement | null>(null);
   const journeyTreeButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -992,6 +998,13 @@ export function App({ model }: AppProps) {
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
   const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading";
   const operationalChatSelected = presentedAltitude === "operational" && presentedOperationalSurface === "chat";
+  const conversationRecenter = deriveConversationRecenterState({
+    surfaceReady: !altitudeSwitchDisabled
+      && selectedConversationSpace.kind !== "mirror_history"
+      && journeyThreadState.kind === "ready",
+    messageCount: messages.length,
+    awayFromEnd: conversationAwayFromEnd,
+  });
 
   useEffect(() => {
     if (selectedAltitude !== presentedAltitude) setSelectedAltitude(presentedAltitude);
@@ -1882,6 +1895,7 @@ export function App({ model }: AppProps) {
     checkedMirrorTurnRef.current.clear();
     setMirrorOutboxItems([]);
     setJourneyTurnJournalRecords([]);
+    setConversationAwayFromEnd(false);
   }, [selectedJourney]);
 
   useEffect(() => turnFinalizationCoordinator.subscribe((event) => {
@@ -3789,16 +3803,21 @@ export function App({ model }: AppProps) {
     }
   }, [journeyRegistry]);
 
-  function showConversation() {
-    setSelectedAltitude("operational");
-    setSelectedOperationalSurface("chat");
+  function revealConversationEnd() {
     chatAutoFollowRef.current = nextConversationAutoFollow(
       chatAutoFollowRef.current,
       { type: "explicit_bottom" },
     );
+    setConversationAwayFromEnd(false);
     requestAnimationFrame(() => {
       chatEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
     });
+  }
+
+  function showConversation() {
+    setSelectedAltitude("operational");
+    setSelectedOperationalSurface("chat");
+    revealConversationEnd();
   }
 
   const developmentChannel = runtimeChannel?.channel === "development";
@@ -4414,6 +4433,22 @@ export function App({ model }: AppProps) {
                     <circle cx="4" cy="18" r="1" />
                   </svg>
                 </button>
+                <button
+                  className={`menu-button conversation-recenter-shortcut ${conversationRecenter.emphasized ? "emphasized" : ""}`}
+                  type="button"
+                  onClick={() => {
+                    showConversation();
+                  }}
+                  disabled={!conversationRecenter.available}
+                  aria-label="Return to the latest turn"
+                  title="Back to latest"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 4v10" />
+                    <path d="m8 10.5 4 4 4-4" />
+                    <path d="M6 19h12" />
+                  </svg>
+                </button>
                 <div className="journey-menu-wrap" ref={journeyMenuRef}>
                   <button
                     className="menu-button"
@@ -4541,17 +4576,17 @@ export function App({ model }: AppProps) {
           ref={chatStreamRef}
           onScroll={(event) => {
             const container = event.currentTarget;
+            const metrics = {
+              scrollTop: container.scrollTop,
+              clientHeight: container.clientHeight,
+              scrollHeight: container.scrollHeight,
+            };
             chatAutoFollowRef.current = nextConversationAutoFollow(
               chatAutoFollowRef.current,
-              {
-                type: "scroll",
-                metrics: {
-                  scrollTop: container.scrollTop,
-                  clientHeight: container.clientHeight,
-                  scrollHeight: container.scrollHeight,
-                },
-              },
+              { type: "scroll", metrics },
             );
+            // React bails out when the value is unchanged, so this re-renders only on a flip.
+            setConversationAwayFromEnd(!isConversationNearBottom(metrics));
           }}
         >
           {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}

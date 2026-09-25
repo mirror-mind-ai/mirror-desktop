@@ -1674,7 +1674,8 @@ textarea {
 }
 
 .conversation-search-shortcut svg,
-.conversation-turn-shortcut svg {
+.conversation-turn-shortcut svg,
+.conversation-recenter-shortcut svg {
   fill: none;
   height: 18px;
   stroke: currentColor;
@@ -1685,7 +1686,8 @@ textarea {
 }
 
 .conversation-search-shortcut.selected,
-.conversation-turn-shortcut.selected {
+.conversation-turn-shortcut.selected,
+.conversation-recenter-shortcut.emphasized {
   background: rgba(var(--ui-accent-rgb), 0.12);
   border-color: rgba(var(--ui-accent-rgb), 0.48);
   color: #bff2eb;
@@ -6225,7 +6227,7 @@ dd {
   [data-application-theme="daylight"],
   [data-application-theme="mist"],
   [data-application-theme="parchment"]
-) :where(.conversation-search-shortcut.selected, .conversation-turn-shortcut.selected) {
+) :where(.conversation-search-shortcut.selected, .conversation-turn-shortcut.selected, .conversation-recenter-shortcut.emphasized) {
   background: color-mix(in srgb, var(--ui-accent) 12%, var(--light-surface));
   color: var(--light-accent);
 }
