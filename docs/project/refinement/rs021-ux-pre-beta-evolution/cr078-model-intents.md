@@ -120,6 +120,40 @@ Gates: `npm test` 173 files / 1045 tests; `cargo test --locked` 192 passed, 3 ig
 
 Remaining: the Settings surface and the footer menu.
 
+## Slice 2 Evidence — the Settings surface (2026-09-25)
+
+- **Placement.** The panel sits in the existing **Agent** tab, below `Global defaults`. The
+  tab set is pinned by contract at six accessible tabs, and Model Intents are the same
+  concern as the defaults they offer alternatives to, so someone configuring models finds
+  them by association rather than by remembering a new tab. A dedicated tab remains an easy
+  later move if the section outgrows the panel.
+- **`src/app/ModelIntentsPanel.tsx`**: the list with per-row reorder, edit and remove, and
+  one form that both composes and edits. Every mutation delegates to the domain module, so
+  the component holds drafts and nothing else.
+- **Binding always legible.** Each row shows the label and, beneath it,
+  `provider/model · thinking level` as permanent secondary text rather than a hover-only
+  disclosure, because the list has room for it.
+- **The demotion stays where it belongs.** Choosing a model that cannot think lowers the
+  level in the form, while the pair is being bound and the Navigator is looking at it —
+  mirroring the Journey dialog. That is precisely what makes later selection safe.
+- **Identity derives from the label** through `createModelIntentId`, so `model-intents.json`
+  reads as prose, and is assigned once so renaming never orphans a row.
+- **The store is the authority.** `persistModelIntents` advances the surface only after the
+  write lands, so a failed publish never shows intents that were not saved. Intents load on
+  mount rather than when Settings opens, because the footer menu will need them too.
+- Also moved the model-selection helpers (`modelOptionValue`, `modelFromOptionValue`,
+  `uniqueModelOptions`, `modelSupportsThinking`, `thinkingOptions`,
+  `modelKeyUnavailableReason`) out of `App.tsx` into `domain/modelAvailability.ts`, where the
+  panel could reach them. No test referenced them; they were domain logic sitting in the
+  renderer.
+- Tests: 2 more domain cases for identity derivation and collision, 6 render cases for the
+  panel, and 3 source assertions pinning the placement, the write-then-advance order and the
+  mount-time load.
+
+Gates: `npm test` 174 files / 1053 tests; `npm run build` green; roadmap READY.
+
+Remaining: the footer menu.
+
 ## Acceptance
 
 - An Intent can be created, renamed, reordered and removed in Settings, and survives restart.

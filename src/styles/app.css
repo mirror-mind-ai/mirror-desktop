@@ -4355,6 +4355,67 @@ dd {
   margin-top: 10px;
 }
 
+/* CR078: Model Intents. The label leads; the binding behind it stays legible without a
+   hover, because the semantic layer must never hide the mechanical one. */
+.model-intent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.model-intent-row {
+  align-items: flex-start;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.model-intent-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.model-intent-identity strong {
+  font-size: 0.86rem;
+}
+
+.model-intent-binding {
+  font-size: 0.74rem;
+  opacity: 0.75;
+}
+
+.model-intent-unavailable {
+  font-size: 0.74rem;
+  line-height: 1.35;
+  margin-top: 4px;
+}
+
+.model-intent-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.model-intent-actions button {
+  font-size: 0.74rem;
+  padding: 5px 8px;
+}
+
+.model-intent-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 .provider-error {
   color: #ffb7b7;
 }

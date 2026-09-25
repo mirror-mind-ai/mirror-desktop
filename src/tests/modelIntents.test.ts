@@ -4,6 +4,7 @@ import {
   MODEL_INTENT_LABEL_MAX_LENGTH,
   addModelIntent,
   createEmptyModelIntents,
+  createModelIntentId,
   matchModelIntent,
   normalizeModelIntentLabel,
   parseModelIntents,
@@ -127,5 +128,30 @@ describe("model intents", () => {
       schemaVersion: "1.0.0",
       intents: [{ ...everyday, model: { provider: "open ai", model: "gpt" } }],
     })).toThrow("Model intent provider is invalid.");
+  });
+
+  // Identity is derived from the label so the stored file stays readable, and stays stable
+  // afterwards: renaming an intent must not orphan the row the Navigator is editing.
+  it("derives a readable identity from the label and disambiguates collisions", () => {
+    const empty = createEmptyModelIntents();
+    expect(createModelIntentId("Para tarefas cotidianas", empty)).toBe("para-tarefas-cotidianas");
+    expect(createModelIntentId("Para as implementações mais difíceis", empty))
+      .toBe("para-as-implementacoes-mais-dificeis");
+    expect(createModelIntentId("  Rápido!!  ", empty)).toBe("rapido");
+
+    const taken = addModelIntent(empty, { ...everyday, id: "rapido", label: "Rápido" });
+    expect(createModelIntentId("Rápido", taken)).toBe("rapido-2");
+    expect(createModelIntentId("Rápido", addModelIntent(taken, { ...everyday, id: "rapido-2", label: "Outro" })))
+      .toBe("rapido-3");
+  });
+
+  it("always derives an identity the parser accepts, whatever the label", () => {
+    const empty = createEmptyModelIntents();
+    // Labels that slug to nothing, to one character, or past the identity bound still have to
+    // produce a usable identity; the label's own bound is a separate rule.
+    for (const label of ["!!!", "日本語", "a", "-", "x".repeat(200)]) {
+      const id = createModelIntentId(label, empty);
+      expect(() => addModelIntent(empty, { ...everyday, id, label: "Fallback" })).not.toThrow();
+    }
   });
 });

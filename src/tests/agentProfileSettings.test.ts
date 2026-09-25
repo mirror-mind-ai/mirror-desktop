@@ -59,3 +59,33 @@ describe("model surface availability", () => {
     expect(appSource).toContain("selectionScope={modelSelectionScope}");
   });
 });
+
+// CR078: Model Intents live in the Agent panel, beside the defaults they offer alternatives
+// to, and are loaded once on mount because the Composer footer needs them too.
+describe("model intents settings surface", () => {
+  it("renders the panel inside the Agent panel and persists through the store", () => {
+    const agentPanel = appSource.slice(
+      appSource.indexOf('id="settings-panel-agent"'),
+      appSource.indexOf('settingsTab === "runtime"'),
+    );
+    expect(agentPanel).toContain("<ModelIntentsPanel");
+    expect(agentPanel).toContain("intents={modelIntents}");
+    expect(agentPanel).toContain("void persistModelIntents(next)");
+    expect(appSource).toContain("async function persistModelIntents(next: ModelIntents)");
+  });
+
+  it("advances the surface only after the write lands", () => {
+    const persist = appSource.slice(
+      appSource.indexOf("async function persistModelIntents"),
+      appSource.indexOf("async function persistAgentSettings"),
+    );
+    expect(persist.indexOf("await saveModelIntents(next)")).toBeLessThan(persist.indexOf("setModelIntents(next)"));
+    expect(persist).toContain("setModelIntentsError(true)");
+  });
+
+  it("loads the intents on mount rather than when Settings opens", () => {
+    expect(appSource).toContain("void loadModelIntents()");
+    const load = appSource.slice(appSource.indexOf("void loadModelIntents()"));
+    expect(load.slice(0, 400)).not.toContain("settingsOpen");
+  });
+});

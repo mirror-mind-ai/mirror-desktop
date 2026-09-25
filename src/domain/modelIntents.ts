@@ -42,6 +42,27 @@ export function normalizeModelIntentLabel(value: string): string {
   return value.trim().replace(/\s+/gu, " ");
 }
 
+/**
+ * Derives a readable identity from the label so the stored file can be read by a person.
+ * The identity is assigned once and never re-derived, so renaming an intent keeps its row.
+ */
+export function createModelIntentId(label: string, store: ModelIntents): string {
+  const slug = label
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, "-")
+    .replace(/^-+|-+$/gu, "")
+    .slice(0, 60)
+    .replace(/-+$/gu, "");
+  const base = INTENT_ID.test(slug) ? slug : "intent";
+  if (!store.intents.some((intent) => intent.id === base)) return base;
+  for (let suffix = 2; ; suffix += 1) {
+    const candidate = `${base}-${suffix}`;
+    if (!store.intents.some((intent) => intent.id === candidate)) return candidate;
+  }
+}
+
 export function addModelIntent(store: ModelIntents, intent: ModelIntent): ModelIntents {
   const parsed = parseModelIntent(intent);
   if (store.intents.some((existing) => existing.id === parsed.id)) {

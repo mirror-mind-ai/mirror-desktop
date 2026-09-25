@@ -169,7 +169,16 @@ import {
   resolveUnsentReason,
   type UnsentDraftNotices,
 } from "./unsentDraftNotice";
-import { deriveModelSelectionScope, unavailableModelReason } from "../domain/modelAvailability";
+import {
+  deriveModelSelectionScope,
+  modelFromOptionValue,
+  modelKeyUnavailableReason,
+  modelOptionValue,
+  modelSupportsThinking,
+  thinkingOptions,
+  uniqueModelOptions,
+  unavailableModelReason,
+} from "../domain/modelAvailability";
 import {
   deriveInactiveNativeAttemptCandidate,
   shouldPresentInactiveNativeAttempt,
@@ -379,6 +388,9 @@ import {
   toggleJourneySidebar,
 } from "./journeySidebarPresentation";
 import { SettingsTabList, type SettingsTab } from "./SettingsTabList";
+import { ModelIntentsPanel } from "./ModelIntentsPanel";
+import { loadModelIntents, saveModelIntents } from "./modelIntentsStorage";
+import { createEmptyModelIntents, type ModelIntents } from "../domain/modelIntents";
 import { SelfUpdatePanel } from "./SelfUpdatePanel";
 import { SelfUpdateNotification } from "./SelfUpdateNotification";
 import { currentMirrorDesktopVersion, type SelfUpdateCheckResult } from "./selfUpdateStorage";
@@ -580,6 +592,11 @@ export function App({ model }: AppProps) {
   const [providerInvocationMode, setProviderInvocationMode] = useState<AgentInvocationMode>(defaultPiProviderConfig.invocationMode);
   const [agentSettings, setAgentSettings] = useState<AgentSettings>(() => createDefaultAgentSettings());
   const [agentSettingsState, setAgentSettingsState] = useState<"checking" | "ready" | "saving" | "error">("checking");
+  // CR078: the Navigator's own vocabulary for choosing a model.
+  const [modelIntents, setModelIntents] = useState<ModelIntents>(createEmptyModelIntents);
+  const [modelIntentsBusy, setModelIntentsBusy] = useState(false);
+  const [modelIntentsMessage, setModelIntentsMessage] = useState<string>();
+  const [modelIntentsError, setModelIntentsError] = useState(false);
   const [agentSettingsMessage, setAgentSettingsMessage] = useState<string | undefined>();
   const [agentProfileConfigured, setAgentProfileConfigured] = useState<boolean>();
   const [piModelCatalog, setPiModelCatalog] = useState<PiModelCatalogEntry[]>([]);
@@ -640,6 +657,18 @@ export function App({ model }: AppProps) {
       .then((version) => loadResolvedWhatsNewState(version))
       .then((state) => { if (!cancelled) setWhatsNewState(state); })
       .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadModelIntents()
+      .then((stored) => { if (!cancelled) setModelIntents(stored); })
+      .catch((error) => {
+        if (cancelled) return;
+        setModelIntentsError(true);
+        setModelIntentsMessage(error instanceof Error ? error.message : String(error));
+      });
     return () => { cancelled = true; };
   }, []);
 
@@ -3136,6 +3165,23 @@ export function App({ model }: AppProps) {
     }
   }
 
+  // The store is the authority: state advances only after the write lands, so a failed
+  // publish never leaves the surface showing intents that were not saved.
+  async function persistModelIntents(next: ModelIntents) {
+    setModelIntentsBusy(true);
+    setModelIntentsMessage(undefined);
+    setModelIntentsError(false);
+    try {
+      await saveModelIntents(next);
+      setModelIntents(next);
+    } catch (error) {
+      setModelIntentsError(true);
+      setModelIntentsMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setModelIntentsBusy(false);
+    }
+  }
+
   async function persistAgentSettings(next: AgentSettings, successMessage: string) {
     setAgentSettingsState("saving");
     setAgentSettingsMessage(undefined);
@@ -5342,6 +5388,16 @@ export function App({ model }: AppProps) {
               </div>
               <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>
                 </section>
+                <ModelIntentsPanel
+                  intents={modelIntents}
+                  catalog={piModelCatalog}
+                  modelOptions={modelOptions}
+                  defaultModelKey={globalModelDraft}
+                  busy={modelIntentsBusy}
+                  message={modelIntentsMessage}
+                  error={modelIntentsError}
+                  onChange={(next) => { void persistModelIntents(next); }}
+                />
                 {agentSettingsMessage ? <p className={agentSettingsState === "error" ? "settings-error" : "provider-note"} role={agentSettingsState === "error" ? "alert" : "status"}>{agentSettingsMessage}</p> : null}
               </div>
             ) : null}
@@ -5523,50 +5579,6 @@ export function App({ model }: AppProps) {
 
 function lastItem<T>(items: readonly T[]): T | undefined {
   return items[items.length - 1];
-}
-
-function modelOptionValue(model: AgentModelSelection): string {
-  return `${model.provider}\t${model.model}`;
-}
-
-function modelFromOptionValue(value: string): AgentModelSelection {
-  const separator = value.indexOf("\t");
-  if (separator <= 0 || separator === value.length - 1) throw new Error("Select a valid Pi model.");
-  return { provider: value.slice(0, separator), model: value.slice(separator + 1) };
-}
-
-function uniqueModelOptions(models: AgentModelSelection[]): AgentModelSelection[] {
-  const seen = new Set<string>();
-  return models.filter((model) => {
-    const key = modelOptionValue(model);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).sort((left, right) => modelOptionValue(left).localeCompare(modelOptionValue(right)));
-}
-
-function modelKeyUnavailableReason(catalog: PiModelCatalogEntry[], modelKey: string): string | undefined {
-  try {
-    return unavailableModelReason(catalog, modelFromOptionValue(modelKey));
-  } catch {
-    return undefined;
-  }
-}
-
-function modelSupportsThinking(catalog: PiModelCatalogEntry[], modelKey: string): boolean {
-  const model = modelFromOptionValue(modelKey);
-  return catalog.find((entry) => entry.provider === model.provider && entry.model === model.model)?.thinking ?? true;
-}
-
-function thinkingOptions(
-  catalog: PiModelCatalogEntry[],
-  modelKey: string,
-  current?: AgentThinkingLevel,
-): AgentThinkingLevel[] {
-  if (modelSupportsThinking(catalog, modelKey)) return [...agentThinkingLevels];
-  const supported: AgentThinkingLevel[] = ["pi-default", "off"];
-  if (current && !supported.includes(current)) supported.push(current);
-  return supported;
 }
 
 function formatDateTime(value: string): string {
