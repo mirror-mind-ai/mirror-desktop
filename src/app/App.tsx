@@ -389,8 +389,9 @@ import {
 } from "./journeySidebarPresentation";
 import { SettingsTabList, type SettingsTab } from "./SettingsTabList";
 import { ModelIntentsPanel } from "./ModelIntentsPanel";
+import { ModelIntentMenu } from "./ModelIntentMenu";
 import { loadModelIntents, saveModelIntents } from "./modelIntentsStorage";
-import { createEmptyModelIntents, type ModelIntents } from "../domain/modelIntents";
+import { createEmptyModelIntents, matchModelIntent, type ModelIntent, type ModelIntents } from "../domain/modelIntents";
 import { SelfUpdatePanel } from "./SelfUpdatePanel";
 import { SelfUpdateNotification } from "./SelfUpdateNotification";
 import { currentMirrorDesktopVersion, type SelfUpdateCheckResult } from "./selfUpdateStorage";
@@ -597,6 +598,8 @@ export function App({ model }: AppProps) {
   const [modelIntentsBusy, setModelIntentsBusy] = useState(false);
   const [modelIntentsMessage, setModelIntentsMessage] = useState<string>();
   const [modelIntentsError, setModelIntentsError] = useState(false);
+  const [modelIntentMenuOpen, setModelIntentMenuOpen] = useState(false);
+  const modelIntentMenuRef = useRef<HTMLDivElement | null>(null);
   const [agentSettingsMessage, setAgentSettingsMessage] = useState<string | undefined>();
   const [agentProfileConfigured, setAgentProfileConfigured] = useState<boolean>();
   const [piModelCatalog, setPiModelCatalog] = useState<PiModelCatalogEntry[]>([]);
@@ -875,6 +878,12 @@ export function App({ model }: AppProps) {
     effectiveAgentProfile.model,
     ...Object.values(agentSettings.journeyOverrides).flatMap((override) => override.model ? [override.model] : []),
   ]), [agentSettings, effectiveAgentProfile.model, piModelCatalog]);
+  const activeModelIntent = matchModelIntent(modelIntents, {
+    model: effectiveAgentProfile.model,
+    thinkingLevel: effectiveAgentProfile.thinkingLevel,
+  });
+  const usingGlobalAgentDefault = effectiveAgentProfile.modelSource === "global"
+    && effectiveAgentProfile.thinkingSource === "global";
   const selectedProviderModelLabel = providerModelLabel(effectiveProviderConfig);
   // CR090: the live turn keeps the model it was spawned with, so a newer selection reaches
   // the next message and the footer has to say which turn it means.
@@ -1170,6 +1179,22 @@ export function App({ model }: AppProps) {
     document.addEventListener("mousedown", closeMenuOnOutsidePointer);
     return () => document.removeEventListener("mousedown", closeMenuOnOutsidePointer);
   }, [journeyMenuOpen]);
+
+  useEffect(() => {
+    if (!modelIntentMenuOpen) return;
+    function closeOnOutsidePointer(event: MouseEvent) {
+      if (!modelIntentMenuRef.current?.contains(event.target as Node)) setModelIntentMenuOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setModelIntentMenuOpen(false);
+    }
+    document.addEventListener("mousedown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [modelIntentMenuOpen]);
 
   useEffect(() => {
     if (!journeyTreeMenuOpen) return;
@@ -3261,6 +3286,17 @@ export function App({ model }: AppProps) {
     if (saved) setJourneyAgentProfileOpen(false);
   }
 
+  async function applyModelIntent(intent: ModelIntent) {
+    setModelIntentMenuOpen(false);
+    await persistAgentSettings(
+      setJourneyAgentOverride(agentSettings, selectedJourney, {
+        model: intent.model,
+        thinkingLevel: intent.thinkingLevel,
+      }),
+      `${selectedJourneyItem.name} now uses “${intent.label}”.`,
+    );
+  }
+
   function openJourneyAgentProfileSelector() {
     setAgentSettingsMessage(undefined);
     setJourneyAgentProfileOpen(true);
@@ -4874,10 +4910,31 @@ export function App({ model }: AppProps) {
                 activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}
                 contextState={piContextState}
                 providerModel={providerModelLabel(effectiveProviderConfig)}
-                onSelectProviderModel={() => openJourneyAgentProfileSelector()}
+                onSelectProviderModel={() => setModelIntentMenuOpen((open) => !open)}
                 providerSelectionDisabled={agentSettingsState === "saving"}
                 selectionScope={modelSelectionScope}
                 liveRunProviderModel={liveRunProviderModel}
+                activeIntentLabel={activeModelIntent?.label}
+                providerModelMenuOpen={modelIntentMenuOpen}
+                menuWrapRef={modelIntentMenuRef}
+                providerModelMenu={modelIntentMenuOpen ? (
+                  <ModelIntentMenu
+                    intents={modelIntents}
+                    catalog={piModelCatalog}
+                    activeIntentId={activeModelIntent?.id}
+                    usingGlobalDefault={usingGlobalAgentDefault}
+                    globalModelLabel={`${agentSettings.globalProfile.model.provider}/${agentSettings.globalProfile.model.model}`}
+                    onSelectIntent={(intent) => { void applyModelIntent(intent); }}
+                    onUseGlobalDefaults={() => {
+                      setModelIntentMenuOpen(false);
+                      void resetSelectedJourneyAgentOverride();
+                    }}
+                    onOpenFullSelector={() => {
+                      setModelIntentMenuOpen(false);
+                      openJourneyAgentProfileSelector();
+                    }}
+                  />
+                ) : undefined}
               />
               <div className="composer-inline-actions">
                 <button

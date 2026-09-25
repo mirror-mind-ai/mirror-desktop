@@ -168,7 +168,11 @@ describe("runtime projection component", () => {
     expect(appSource).not.toContain("queryJourneyPiContext");
     expect(appSource).toContain("readJourneyPiContextStats");
     expect(appSource).toContain("providerModel={providerModelLabel(effectiveProviderConfig)}");
-    expect(appSource).toContain("onSelectProviderModel={() => openJourneyAgentProfileSelector()}");
+    // CR078: the footer control now opens the Model Intent menu; the full selector is one
+    // of its entries rather than the only destination.
+    expect(appSource).toContain("onSelectProviderModel={() => setModelIntentMenuOpen((open) => !open)}");
+    expect(appSource).toContain("onOpenFullSelector={() => {");
+    expect(appSource).toContain("openJourneyAgentProfileSelector();");
     expect(appSource).toContain('if (!runtimeBindingReady || piModelCatalogState !== "idle") return;');
     expect(appSource).not.toContain('if ((!settingsOpen && !journeyAgentProfileOpen) || piModelCatalogState !== "idle") return;');
   });

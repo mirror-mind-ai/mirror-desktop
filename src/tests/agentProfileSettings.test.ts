@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import appSource from "../app/App.tsx?raw";
+// @ts-expect-error Vitest runs in Node; production code has no Node dependency.
+import { readFileSync } from "node:fs";
 import rustSource from "../../src-tauri/src/agent_settings.rs?raw";
 
 describe("persistent agent profile application boundary", () => {
@@ -43,8 +45,9 @@ describe("model surface availability", () => {
       "saveSelectedJourneyAgentOverride()",
       "resetSelectedJourneyAgentOverride()",
     ]) {
-      // `void <action>` appears only in the JSX handler, not at the function definition.
-      const handler = `void ${action}`;
+      // The button form, which is distinct from both the function definition and the menu
+      // entry that now also reaches these actions.
+      const handler = `onClick={() => void ${action}}`;
       expect(appSource).toContain(handler);
       const call = appSource.slice(appSource.indexOf(handler), appSource.indexOf(handler) + 200);
       expect(call).toContain('disabled={agentSettingsState === "saving"}');
@@ -87,5 +90,42 @@ describe("model intents settings surface", () => {
     expect(appSource).toContain("void loadModelIntents()");
     const load = appSource.slice(appSource.indexOf("void loadModelIntents()"));
     expect(load.slice(0, 400)).not.toContain("settingsOpen");
+  });
+});
+
+// CR078: the footer is where intents become use. Selecting one performs the same Journey
+// override the dialog writes, so scope and persistence are unchanged.
+describe("model intents in the Composer footer", () => {
+  it("names the matching intent and keeps its binding reachable", () => {
+    expect(appSource).toContain("const activeModelIntent = matchModelIntent(modelIntents, {");
+    expect(appSource).toContain("activeIntentLabel={activeModelIntent?.label}");
+    const footer = readFileSync(
+      new URL("../app/ComposerRuntimeFooter.tsx", import.meta.url), "utf8",
+    ) as string;
+    // Pointer gets the title, keyboard and assistive technology get the accessible name.
+    expect(footer).toContain("title={activeIntentLabel ? providerModel : undefined}");
+    expect(footer).toContain("currently ${activeIntentLabel} (${providerModel})");
+    expect(footer).toContain('aria-haspopup="menu"');
+  });
+
+  it("applies an intent as the same Journey override the dialog writes", () => {
+    const apply = appSource.slice(
+      appSource.indexOf("async function applyModelIntent"),
+      appSource.indexOf("function openJourneyAgentProfileSelector"),
+    );
+    expect(apply).toContain("setJourneyAgentOverride(agentSettings, selectedJourney, {");
+    expect(apply).toContain("model: intent.model");
+    expect(apply).toContain("thinkingLevel: intent.thinkingLevel");
+    expect(apply).toContain("setModelIntentMenuOpen(false)");
+  });
+
+  it("dismisses the menu by outside pointer and by Escape", () => {
+    const dismissal = appSource.slice(
+      appSource.indexOf("if (!modelIntentMenuOpen) return;"),
+      appSource.indexOf("}, [modelIntentMenuOpen]);"),
+    );
+    expect(dismissal).toContain('document.addEventListener("mousedown", closeOnOutsidePointer)');
+    expect(dismissal).toContain('event.key === "Escape"');
+    expect(dismissal).toContain('document.removeEventListener("keydown", closeOnEscape)');
   });
 });

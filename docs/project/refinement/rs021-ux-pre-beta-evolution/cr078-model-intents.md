@@ -152,7 +152,37 @@ Remaining: the Settings surface and the footer menu.
 
 Gates: `npm test` 174 files / 1053 tests; `npm run build` green; roadmap READY.
 
-Remaining: the footer menu.
+## Slice 3 Evidence — the footer menu (2026-09-25)
+
+- **`src/app/ModelIntentMenu.tsx`**: the intents in the Navigator's order, each with its
+  binding as always-visible secondary text, followed by `Use global defaults` and
+  `Open full selector…`. The entry matching the Journey's effective profile carries
+  `aria-current`. An intent whose model can no longer run is disabled and explains why,
+  preserving the CR071 contract.
+- **One affordance, not two.** The footer control opens the menu, and the full selector is
+  one of its entries rather than a second destination on adjacent pixels. The Journey dialog
+  is unchanged and still reachable.
+- **The binding stays reachable from the compact footer.** When an intent matches, the label
+  replaces `provider/model`, which moves to the `title` for the pointer and into the
+  accessible name for the keyboard — `Choose model — currently X (provider/model)` — so the
+  disclosure is not mouse-only.
+- **Selection is the same write the dialog performs.** `applyModelIntent` calls
+  `setJourneyAgentOverride` with the intent's model and thinking level, so scope,
+  persistence and effective-model resolution are untouched.
+- **Dismissal** by outside pointer and by Escape, mirroring the Journey menu.
+- Tests: 5 render cases for the menu including order, active marking, the unavailable
+  refusal and the empty state pointing at Settings; 3 source assertions pinning the footer
+  naming, the override write and both dismissal paths.
+
+Gates: `npm test` 175 files / 1064 tests; `cargo test --locked` 192 passed, 3 ignored;
+`npm run build` green; roadmap READY.
+
+## Correction
+
+An earlier draft of this CR suggested an example label in the name field and in the empty
+state. Suggesting content in a field that exists to receive the Navigator's own vocabulary
+contradicts the capability, and it pinned one language into an English surface. Removed from
+both.
 
 ## Acceptance
 
