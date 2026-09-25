@@ -20,6 +20,7 @@ function expectFrictionless(
   const view = world.presentation();
   expect(world.durableEvidenceSettled()).toBe(true);
   expect(view.syncNoticeVisible).toBe(false);
+  expect(view.recoveryPanelVisible).toBe(false);
   expect(view.pendingRepairTurnId).toBeUndefined();
   expect(view.availability.canSend).toBe(true);
   expect(view.availability.condition).toBe("ready");
@@ -56,7 +57,8 @@ describe("CR064 multi-turn happy-path contract", () => {
     expectFrictionless(world, 2);
   });
 
-  it("surfaces genuine delivery debt after an append failure", async () => {
+  // CR086: a single failed attempt is ordinary self-repair and stays internal.
+  it("keeps a first append failure internal while automatic repair is still possible", async () => {
     const world = createConvergentTurnWorld();
     world.beginTurn("run-1", "question 1");
     world.streamAssistant("answer 1");
@@ -64,8 +66,59 @@ describe("CR064 multi-turn happy-path contract", () => {
     const view = world.presentation();
     expect(world.durableEvidenceSettled()).toBe(false);
     expect(world.stores.outbox).toHaveLength(1);
-    expect(view.syncNoticeVisible).toBe(true);
+    expect(view.syncNoticeVisible).toBe(false);
     expect(view.pendingRepairTurnId).toBe("turn-run-1");
+  });
+
+  it("never shows the notice for a transient failure that self-repairs", async () => {
+    const world = createConvergentTurnWorld();
+    world.beginTurn("run-1", "question 1");
+    world.streamAssistant("answer 1");
+    await world.settleTerminal({ failAppend: true });
+    expect(world.presentation().syncNoticeVisible).toBe(false);
+    await world.repairDeliveryDebt();
+    expect(world.presentation().syncNoticeVisible).toBe(false);
+    expectFrictionless(world, 1);
+  });
+
+  it("surfaces genuine delivery debt once failure persists through a second attempt", async () => {
+    const world = createConvergentTurnWorld();
+    world.beginTurn("run-1", "question 1");
+    world.streamAssistant("answer 1");
+    await world.settleTerminal({ failAppend: true });
+    await expect(world.repairDeliveryDebt({ failAppend: true })).rejects.toThrow();
+    const view = world.presentation();
+    expect(world.durableEvidenceSettled()).toBe(false);
+    expect(world.stores.outbox).toHaveLength(1);
+    expect(view.syncNoticeVisible).toBe(true);
+    expect(view.syncNoticeReason).toContain("mirror_append_failed");
+    // Genuine debt still reaches the recovery panel, so its absence elsewhere is meaningful.
+    expect(view.recoveryPanelVisible).toBe(true);
+    expect(view.pendingRepairTurnId).toBe("turn-run-1");
+    expect(view.availability.condition).toBe("sync_pending");
+    expect(view.availability.canSend).toBe(true);
+  });
+
+  it("surfaces a single failure that persists past the bounded window", async () => {
+    const world = createConvergentTurnWorld();
+    world.beginTurn("run-1", "question 1");
+    world.streamAssistant("answer 1");
+    await world.settleTerminal({ failAppend: true });
+    expect(world.presentation().syncNoticeVisible).toBe(false);
+    world.advanceClock(10_000);
+    expect(world.presentation().syncNoticeVisible).toBe(true);
+  });
+
+  it("does not re-show a resolved transient failure after navigating away and back", async () => {
+    const world = createConvergentTurnWorld();
+    world.beginTurn("run-1", "question 1");
+    world.streamAssistant("answer 1");
+    await world.settleTerminal({ failAppend: true });
+    await world.repairDeliveryDebt();
+    world.navigateAway();
+    world.advanceClock(60_000);
+    world.navigateBack();
+    expectFrictionless(world, 1);
   });
 
   it("clears the notice after repair completes while the conversation is idle", async () => {
@@ -123,6 +176,23 @@ describe("CR064 multi-turn happy-path contract", () => {
     expect(world.durableEvidenceSettled()).toBe(true);
     expect(view.syncNoticeVisible).toBe(false);
     expect(view.availability.condition).toBe("ready");
+  });
+
+  // CR088: cancelling a turn must never flash the `Resolve the preserved attempt` panel.
+  it("shows no recovery panel across the cancellation window", async () => {
+    const world = createConvergentTurnWorld();
+    await runCleanTurn(world, 1);
+    world.beginTurn("run-2", "question 2");
+    world.streamAssistant("partial");
+    expect(world.presentation().recoveryPanelVisible).toBe(false);
+    // The native lease is released before the interrupted save advances the journal: the
+    // exact window where the stale record used to contradict current occupancy.
+    world.releaseNativeLease();
+    expect(world.presentation().recoveryPanelVisible).toBe(false);
+    world.cancelTurn();
+    expect(world.presentation().recoveryPanelVisible).toBe(false);
+    await runCleanTurn(world, 3);
+    expect(world.presentation().recoveryPanelVisible).toBe(false);
   });
 
   it("keeps ordinary settlement debt internal without a user-facing notice", async () => {

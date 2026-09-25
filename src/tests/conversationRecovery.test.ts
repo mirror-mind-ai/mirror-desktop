@@ -33,61 +33,24 @@ describe("explicit Conversation recovery routes", () => {
     })).toEqual(["start_new_conversation", "reset_agent_context"]);
   });
 
-  it("offers deterministic response recovery and honest continuation for fresh completed evidence", () => {
-    expect(routeIds({
-      availability: { ...availability, canStartNewConversation: false, canResetAgentContext: false },
-      blockingTurn: {
-        phase: "terminal_durable",
-        terminalOutcome: "completed",
-        hasFreshCompletePiEvidence: true,
-        exactRunInactive: true,
-      },
-      canCreateDesktopConversation: true,
-    })).toEqual(["recover_preserved_response", "preserve_attempt_and_continue"]);
-  });
-
-  it("offers only preserve-and-continue for incomplete or failed inactive attempts", () => {
+  it("offers no recovery route while the exact native run is still finishing", () => {
+    // CR042 made a blocking turn mean exactly one thing: the run is still finishing. CR088
+    // removed the routes that assumed the opposite, so no debt can smuggle one back in.
     expect(routeIds({
       availability,
-      blockingTurn: {
-        phase: "running",
-        terminalOutcome: null,
-        hasFreshCompletePiEvidence: false,
-        exactRunInactive: true,
-      },
+      blockingTurnActive: true,
       canCreateDesktopConversation: true,
-    })).toEqual(["preserve_attempt_and_continue"]);
+    })).toEqual([]);
     expect(routeIds({
       availability,
-      blockingTurn: {
-        phase: "terminal_durable",
-        terminalOutcome: "process_died",
-        hasFreshCompletePiEvidence: false,
-        exactRunInactive: true,
-      },
+      blockingTurnActive: true,
+      mirrorSynchronization: "exact_repair_available",
       canCreateDesktopConversation: true,
-    })).toEqual(["preserve_attempt_and_continue"]);
+    })).toEqual([]);
     expect(routeIds({
       availability,
-      blockingTurn: {
-        phase: "projected",
-        terminalOutcome: "completed",
-        hasFreshCompletePiEvidence: false,
-        exactRunInactive: true,
-      },
-      canCreateDesktopConversation: true,
-    })).toEqual(["preserve_attempt_and_continue"]);
-  });
-
-  it("offers no mutation while the exact run may still be active", () => {
-    expect(routeIds({
-      availability,
-      blockingTurn: {
-        phase: "terminal_durable",
-        terminalOutcome: "completed",
-        hasFreshCompletePiEvidence: true,
-        exactRunInactive: false,
-      },
+      blockingTurnActive: true,
+      mirrorSynchronization: "legacy_gap",
       canCreateDesktopConversation: true,
     })).toEqual([]);
   });
@@ -106,8 +69,9 @@ describe("explicit Conversation recovery routes", () => {
       appSource.indexOf("async function persistAgentSettings"),
     );
     expect(handler).toContain("recoverPostTerminalPersistence(selectedJourney)");
-    expect(handler).toContain("recoverPreservedResponse()");
-    expect(handler).toContain("markBlockingTurnInterrupted()");
+    // CR088 removed the two blocking-turn operations; the remaining routes are unchanged.
+    expect(handler).not.toContain("recoverPreservedResponse()");
+    expect(handler).not.toContain("markBlockingTurnInterrupted()");
     expect(handler).toContain("requestBlankDesktopConversation()");
     expect(handler).toContain("requestConversationRestart()");
     expect(handler).not.toContain("generatePacket");

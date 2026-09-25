@@ -129,7 +129,7 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("|| showConversationSyncNotice");
     expect(appSource).toContain("{showConversationRecoveryNotice ? (");
     expect(appSource).toContain('composerTurnStatus !== "finishing"');
-    expect(appSource).toContain("Resolve the preserved attempt");
+    expect(appSource).not.toContain("Resolve the preserved attempt");
     expect(appSource).toContain("No recovery action will run the agent again.");
     expect(appSource).not.toContain("Terminal finalization pending");
     expect(appSource).toContain("Repairing conversation synchronization");
@@ -147,7 +147,10 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("No recovery action will run the agent again.");
     expect(appSource).toContain("selectedActiveNativeLease?.authority.runId");
     expect(coordinatorSource).toContain('onLeaseReleased: () => publish(authority, projectionAtFrontier, "frontier")');
-    expect(appSource).toContain('if (event.phase === "frontier") setBlockingTurnJournalRecord(undefined);');
+    // CR088: the blocking record is derived in-render from the journal plus the current
+    // lease, so no event has to clear an aged copy of it.
+    expect(appSource).not.toContain("setBlockingTurnJournalRecord");
+    expect(appSource).toContain("deriveBlockingTurnPresentation({");
     expect(appSource).toContain("mirrorSynchronizationPending: showConversationSyncNotice");
     expect(appSource).toContain("const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;");
     expect(appSource).toContain("const durableMetadata = await loadDedicatedJourneyConversation(");

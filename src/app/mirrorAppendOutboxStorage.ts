@@ -36,6 +36,22 @@ export async function enqueueMirrorAppendItem(
   });
 }
 
+// CR087: bounded diagnostic evidence recorded natively when an enqueue conflicts.
+export type MirrorAppendConflictRecord = {
+  schemaVersion: "1.0.0";
+  recordedAt: string;
+  site: "enqueue" | "replace_legacy" | "normalize_legacy";
+  itemId: string;
+  journeyId: string;
+  differingKeys: string[];
+  existing: unknown;
+  candidate: unknown;
+};
+
+export async function listMirrorAppendConflicts(journeyId: string): Promise<MirrorAppendConflictRecord[]> {
+  return invoke<MirrorAppendConflictRecord[]>("list_mirror_append_conflicts", { journeyId });
+}
+
 export async function listMirrorAppendOutbox(journeyId: string): Promise<MirrorAppendOutboxSummary[]> {
   return invoke<MirrorAppendOutboxSummary[]>("list_mirror_append_outbox", { journeyId });
 }

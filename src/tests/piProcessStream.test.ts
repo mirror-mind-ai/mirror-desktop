@@ -717,6 +717,21 @@ describe("Pi process stream adapter", () => {
     expect(prompt).toContain('"absolutePath": "/Users/example/Desktop/brief.pdf"');
     expect(prompt).not.toContain("data:image/png");
     expect(prompt.indexOf("User request:")).toBeLessThan(prompt.indexOf("Files explicitly selected"));
+    // CR087: the native projection strips the block on this exact marker so the visible
+    // request never carries file references into Mirror or the conversation surface.
+    expect(prompt).toContain("Use the brief.\nFiles explicitly selected by the user\n");
+  });
+
+  it("keeps the synthesis skill line before the authority envelope on its own line", () => {
+    const packet = createMissionExtractionPacket({
+      currentState,
+      conversation: [{ id: "msg-1", role: "user", content: "atualize a síntese tática desta jornada", createdAt: "now" }],
+      journeyId: "journey-a",
+    });
+    const prompt = createPiInvocationPrompt(packet, "mirror");
+    // CR087: the native projection drops exactly one leading `/skill:` line.
+    expect(prompt.startsWith("/skill:ext-nautilus-synthesis journey-id=journey-a\n[Mirror Desktop Journey authority]\n")).toBe(true);
+    expect(prompt).toContain("\n\nExplicit Navigator intent:\natualize a síntese tática desta jornada");
   });
 
   it("omits persisted thumbnail bytes from raw Pi packets", () => {

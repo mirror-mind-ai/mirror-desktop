@@ -25,7 +25,16 @@ import {
   decideConversationAvailability,
   type ConversationAvailability,
 } from "../../domain/conversationAvailability";
+import { decideConversationRecoveryRoutes } from "../../domain/conversationRecovery";
 import { deriveDurableSynchronizationDebt } from "../../domain/durableSynchronizationStatus";
+import { deriveBlockingTurnPresentation } from "../../app/blockingTurnPresentation";
+import {
+  beginSynchronizationAttempt,
+  deriveSynchronizationAttention,
+  isSilentSynchronizationDeferral,
+  recordSynchronizationAttempt,
+  type JourneySynchronizationLedger,
+} from "../../domain/synchronizationAttention";
 import type { MirrorAppendOutboxItem, MirrorAppendReceipt } from "../../domain/mirrorAppendOutbox";
 import { stageCorrelatedTurn } from "../../domain/threeBodyTurnCommit";
 import {
@@ -41,6 +50,9 @@ export type WorldPresentation = {
   presented: JourneyConversation;
   assistantContentByTurn: Record<string, string | undefined>;
   syncNoticeVisible: boolean;
+  syncNoticeReason?: string;
+  /** CR088: the `Resolve the preserved attempt` panel must never appear transiently. */
+  recoveryPanelVisible: boolean;
   pendingRepairTurnId?: string;
   availability: ConversationAvailability;
 };
@@ -54,10 +66,11 @@ type ActiveTurn = {
 };
 
 let clockTick = 0;
+let clockOffsetMs = 0;
 
 function nextInstant(): string {
   clockTick += 1;
-  return new Date(Date.UTC(2026, 8, 21, 12, 0, 0, clockTick)).toISOString();
+  return new Date(Date.UTC(2026, 8, 21, 12, 0, 0, clockTick) + clockOffsetMs).toISOString();
 }
 
 export function createConvergentTurnWorld(journeyId = "convergent-journey") {
@@ -75,7 +88,11 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
   let selectedJourneyId = journeyId;
   let active: ActiveTurn | undefined;
   let failNextDelivery = false;
-  let syncFailureEvidence = false;
+  // CR088: the exact native lease, released independently of the journal advancing.
+  let activeLeaseRunId: string | undefined;
+  // CR086: presentation derives from a per-Journey attempt ledger, never from a raw flag.
+  const syncLedgers = new Map<string, JourneySynchronizationLedger>();
+  clockOffsetMs = 0;
   let staleReconcileSnapshot: ReturnType<typeof summarizeOutbox> | undefined;
 
   function summarizeOutbox() {
@@ -195,8 +212,8 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
       processCapacityInUse: 0,
       entries: [],
     } as never),
-    onExactError: (_identity, message) => {
-      syncFailureEvidence = message !== undefined;
+    onExactError: () => {
+      // Exact errors are detail text for a legitimate notice; they are not failure evidence.
     },
   };
 
@@ -272,6 +289,7 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
         lastReceipt: null,
       });
       active = { runId, correlation, authority, identity, runConversation: staged };
+      activeLeaseRunId = runId;
     },
 
     streamAssistant(content: string): void {
@@ -322,13 +340,39 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
           correlation: turn.correlation,
           projection: turn.runConversation,
         }, ports);
-      } catch {
-        syncFailureEvidence = true;
+      } catch (error) {
+        syncLedgers.set(journeyId, recordSynchronizationAttempt(syncLedgers.get(journeyId), {
+          kind: "failed", at: nextInstant(), reason: error instanceof Error ? error.message : String(error),
+        }));
       } finally {
         failNextDelivery = false;
         dispatch({ type: "finalization_finished", identity: turn.identity });
       }
       active = undefined;
+      activeLeaseRunId = undefined;
+    },
+
+    /** Native execution ended and released its lease while the journal has not advanced yet. */
+    releaseNativeLease(): void {
+      activeLeaseRunId = undefined;
+    },
+
+    /** The durable interrupted save that follows a cancellation. */
+    cancelTurn(): void {
+      if (!active) throw new Error("world_no_active_turn");
+      const turn = active;
+      const record = journalRecordByRunId(turn.runId);
+      if (!record) throw new Error("world_journal_record_missing");
+      record.phase = "interrupted";
+      record.terminalOutcome = "cancelled";
+      record.cancellationIntent = "requested";
+      dispatch({ type: "finalization_finished", identity: turn.identity });
+      active = undefined;
+      activeLeaseRunId = undefined;
+    },
+
+    advanceClock(ms: number): void {
+      clockOffsetMs += ms;
     },
 
     primeStaleReconcileSnapshot(): void {
@@ -344,15 +388,28 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
       stores.outbox = [];
     },
 
-    async repairDeliveryDebt(): Promise<void> {
+    async repairDeliveryDebt(options: { failAppend?: boolean } = {}): Promise<void> {
+      syncLedgers.set(journeyId, beginSynchronizationAttempt(syncLedgers.get(journeyId)));
+      failNextDelivery = options.failAppend ?? false;
       try {
         await coordinator.convergeDelivery(journeyId, convergenceDeps);
-        syncFailureEvidence = false;
+        syncLedgers.set(journeyId, recordSynchronizationAttempt(syncLedgers.get(journeyId), {
+          kind: "succeeded", at: nextInstant(),
+        }));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        if (message.includes("mirror_append_pi_recovery_active_lease")) return;
-        syncFailureEvidence = true;
+        if (isSilentSynchronizationDeferral(message)) {
+          syncLedgers.set(journeyId, recordSynchronizationAttempt(syncLedgers.get(journeyId), {
+            kind: "deferred", at: nextInstant(),
+          }));
+          return;
+        }
+        syncLedgers.set(journeyId, recordSynchronizationAttempt(syncLedgers.get(journeyId), {
+          kind: "failed", at: nextInstant(), reason: message,
+        }));
         throw error;
+      } finally {
+        failNextDelivery = false;
       }
     },
 
@@ -368,6 +425,7 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
     restart(): void {
       runtime = createInitialJourneyRuntimeState();
       active = undefined;
+      activeLeaseRunId = undefined;
       selectedJourneyId = journeyId;
       base = restoreDedicatedJourneyConversation(thread, stores.projections.get(generation.generation));
     },
@@ -402,8 +460,13 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
         })),
         outboxItems: stores.outbox.map((item) => ({ itemId: item.itemId })),
       });
+      const attention = deriveSynchronizationAttention({
+        durableDebt: Boolean(durableDebt),
+        ledger: syncLedgers.get(selectedJourneyId),
+        now: nextInstant(),
+      });
       const syncNoticeVisible = shouldShowConversationSyncNotice({
-        mirrorRepairPending: Boolean(durableDebt) && syncFailureEvidence,
+        mirrorRepairPending: attention.attention,
         legacyMirrorGap: false,
         isStreaming: entry.isStreaming,
         isFinalizingTurn: entry.isFinalizingTurn,
@@ -423,10 +486,26 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
           (message) => message.id === turn.harness.assistantMessageId,
         )?.content;
       }
+      const blocking = deriveBlockingTurnPresentation({
+        journalRecords: stores.journal,
+        journeyId,
+        activeGeneration: generation.generation,
+        threadId: thread.threadId,
+        activeNativeRunId: activeLeaseRunId,
+      });
+      const recoveryRoutes = decideConversationRecoveryRoutes({
+        availability,
+        blockingTurnActive: Boolean(blocking.record),
+        mirrorSynchronization: syncNoticeVisible ? "exact_repair_available" : "none",
+        canCreateDesktopConversation: true,
+      });
+      const recoveryPanelVisible = recoveryRoutes.length > 0 && !entry.isStreaming && syncNoticeVisible;
       return {
         presented,
         assistantContentByTurn,
+        recoveryPanelVisible,
         syncNoticeVisible,
+        ...(attention.attention ? { syncNoticeReason: attention.reason } : {}),
         ...(durableDebt ? { pendingRepairTurnId: durableDebt.turnId } : {}),
         availability,
       };

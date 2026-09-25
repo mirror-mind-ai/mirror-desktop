@@ -72,7 +72,11 @@ import {
   validatePiInvocationRegistryInspection,
   type PiInvocationAuthorityInspection,
 } from "./piInvocationOccupancy";
-import { nextConversationAutoFollow } from "./conversationAutoFollow";
+import {
+  deriveConversationRecenterState,
+  isConversationNearBottom,
+  nextConversationAutoFollow,
+} from "./conversationAutoFollow";
 import {
   createJourneySettlementAuthority,
   executeCompletedSettlement,
@@ -142,6 +146,15 @@ import {
 import { partitionConversationBySegments } from "../domain/conversationSegmentProjection";
 import { decideConversationAvailability } from "../domain/conversationAvailability";
 import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
+import { deriveBlockingTurnPresentation } from "./blockingTurnPresentation";
+import {
+  beginSynchronizationAttempt,
+  deriveSynchronizationAttention,
+  isSilentSynchronizationDeferral,
+  recordSynchronizationAttempt,
+  type JourneySynchronizationLedger,
+  type SynchronizationAttemptOutcome,
+} from "../domain/synchronizationAttention";
 import {
   appendAndAcknowledgeProjection,
   enqueueProjectionOutbox,
@@ -225,9 +238,7 @@ import {
   decideTurnJournalTerminal,
   findBlockingTurnJournalRecord,
   findExactTurnJournalRecord,
-  hasFreshCompleteTurnJournalEvidence,
   isTurnJournalSuccessorEligible,
-  interruptInactiveTurnJournal,
   loadTurnJournal,
   providerTerminalFailureDetail,
   requireExactTurnJournalRecord,
@@ -536,7 +547,10 @@ export function App({ model }: AppProps) {
   const [piContextState, setPiContextState] = useState<PiContextState>("checking");
   const [isRetryingMirrorCommit, setIsRetryingMirrorCommit] = useState(false);
   const postTerminalRecoveryRef = useRef(false);
-  const [mirrorCommitErrors, setMirrorCommitErrors] = useState<Record<string, string | undefined>>({});
+  // CR086: synchronization attention derives from a per-Journey ledger of convergence
+  // attempts, never from the first error string. A single transient failure stays internal.
+  const [syncLedgers, setSyncLedgers] = useState<Record<string, JourneySynchronizationLedger | undefined>>({});
+  const [syncAttentionClock, setSyncAttentionClock] = useState(() => Date.now());
   const [exactSettlementErrors, setExactSettlementErrors] = useState<Record<string, ExactSettlementError>>({});
   const [mirrorOutboxItems, setMirrorOutboxItems] = useState<MirrorAppendOutboxSummary[]>([]);
   const [journeyTurnJournalRecords, setJourneyTurnJournalRecords] = useState<TurnJournalRecord[]>([]);
@@ -659,7 +673,6 @@ export function App({ model }: AppProps) {
   const [journeyReloadStatus, setJourneyReloadStatus] = useState<string | undefined>();
   const [isJourneyReloading, setIsJourneyReloading] = useState(false);
   const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false);
-  const [blockingTurnJournalRecord, setBlockingTurnJournalRecord] = useState<TurnJournalRecord>();
   const [turnRecoveryBusy, setTurnRecoveryBusy] = useState(false);
   const [turnRecoveryError, setTurnRecoveryError] = useState<string>();
   const [turnRecoveryNotice, setTurnRecoveryNotice] = useState<string>();
@@ -671,6 +684,8 @@ export function App({ model }: AppProps) {
   const [projectionLoadStatus, setProjectionLoadStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const chatStreamRef = useRef<HTMLElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  // CR084: mirrors the scroll position reactively so the recenter control can react to it.
+  const [conversationAwayFromEnd, setConversationAwayFromEnd] = useState(false);
   const chatAutoFollowRef = useRef(true);
   const journeyMenuRef = useRef<HTMLDivElement | null>(null);
   const journeyTreeButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -733,7 +748,29 @@ export function App({ model }: AppProps) {
     ? undefined
     : conversationCatalog.find((entry) => entry.kind === selectedConversationSpace.kind
       && entry.conversationId === selectedConversationSpace.conversationId);
-  const projectedMirrorCommitErrors = projectJourneySettlementErrors(mirrorCommitErrors, exactSettlementErrors);
+  const durableSyncDebt = useMemo(() => deriveDurableSynchronizationDebt({
+    journalRecords: journeyTurnJournalRecords
+      .filter((record) => record.authority.journeyId === selectedJourney)
+      .map((record) => ({
+        turnId: record.authority.turnId,
+        phase: record.phase,
+        terminalOutcome: record.terminalOutcome,
+      })),
+    outboxItems: mirrorOutboxItems
+      .filter((item) => item.journeyId === selectedJourney)
+      .map((item) => ({ itemId: item.itemId })),
+  }), [journeyTurnJournalRecords, mirrorOutboxItems, selectedJourney]);
+  const syncAttention = deriveSynchronizationAttention({
+    durableDebt: Boolean(durableSyncDebt),
+    ledger: syncLedgers[selectedJourney],
+    now: new Date(Math.max(syncAttentionClock, Date.now())).toISOString(),
+  });
+  // Exact settlement errors are detail text for a legitimate notice, never evidence on their own.
+  const mirrorCommitErrors = syncAttention.attention ? { [selectedJourney]: syncAttention.reason } : {};
+  const projectedMirrorCommitErrors = projectJourneySettlementErrors(
+    mirrorCommitErrors,
+    syncAttention.attention ? exactSettlementErrors : {},
+  );
   const navigationPresentation = deriveJourneyNavigationPresentation({
     runtimeState: journeyRuntimeState,
     selectedJourneyId: selectedJourney,
@@ -843,6 +880,18 @@ export function App({ model }: AppProps) {
   const selectedActiveNativeLease = selectedNativeLease && isActivePiInvocationLease(selectedNativeLease)
     ? selectedNativeLease
     : undefined;
+  // CR088: the blocking record and the occupancy it is judged against are derived together
+  // from this render, so the panel can no longer flash on an aged copy of either one.
+  const { record: blockingTurnJournalRecord } = useMemo(
+    () => deriveBlockingTurnPresentation({
+      journalRecords: journeyTurnJournalRecords,
+      journeyId: selectedJourney,
+      activeGeneration: journeyThreadState.kind === "ready" ? journeyThreadState.activeGeneration.generation : 0,
+      threadId: journeyThreadState.kind === "ready" ? journeyThreadState.thread.threadId : undefined,
+      activeNativeRunId: selectedActiveNativeLease?.authority.runId,
+    }),
+    [journeyTurnJournalRecords, selectedJourney, journeyThreadState, selectedActiveNativeLease?.authority.runId],
+  );
   const blockingTurnAwaitingNativeLease = Boolean(blockingTurnJournalRecord && selectedActiveNativeLease);
   const retainedLeaseWithoutRecovery = selectedNativeLease?.leasePhase === "finalizing"
     && !selectedRuntimeBusy
@@ -860,23 +909,7 @@ export function App({ model }: AppProps) {
         Boolean(pendingMirrorOutboxItem),
       )
     : undefined;
-  const durableSyncDebt = useMemo(() => deriveDurableSynchronizationDebt({
-    journalRecords: journeyTurnJournalRecords
-      .filter((record) => record.authority.journeyId === selectedJourney)
-      .map((record) => ({
-        turnId: record.authority.turnId,
-        phase: record.phase,
-        terminalOutcome: record.terminalOutcome,
-      })),
-    outboxItems: mirrorOutboxItems
-      .filter((item) => item.journeyId === selectedJourney)
-      .map((item) => ({ itemId: item.itemId })),
-  }), [journeyTurnJournalRecords, mirrorOutboxItems, selectedJourney]);
-  const durableSyncFailureEvidence = Boolean(mirrorCommitError)
-    || Object.values(exactSettlementErrors).some((error) => (
-      error.journeyId === selectedJourney && error.turnId === durableSyncDebt?.turnId
-    ));
-  const durableSyncAttention = Boolean(durableSyncDebt) && durableSyncFailureEvidence;
+  const durableSyncAttention = Boolean(durableSyncDebt) && syncAttention.attention;
   const legacyMirrorGap = durableSyncAttention && pendingMirrorDisposition === "legacy_gap";
   const dedicatedThreadReady = journeyThreadState.kind === "ready";
   const dedicatedTurnState = classifyDedicatedTurnState(conversation, selectedRuntimeBusy);
@@ -927,20 +960,9 @@ export function App({ model }: AppProps) {
     mirrorSynchronizationPending: showConversationSyncNotice,
   });
   const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;
-  const blockingRecoveryEvidence = blockingTurnJournalRecord
-    && ["admitted", "running", "terminal_durable", "projected"].includes(blockingTurnJournalRecord.phase)
-    ? {
-        phase: blockingTurnJournalRecord.phase as "admitted" | "running" | "terminal_durable" | "projected",
-        terminalOutcome: blockingTurnJournalRecord.terminalOutcome,
-        hasFreshCompletePiEvidence: hasFreshCompleteTurnJournalEvidence(blockingTurnJournalRecord),
-        exactRunInactive: piInvocationOccupancy.status === "known"
-          && !selectedActiveNativeLease
-          && !selectedRuntimeBusy,
-      }
-    : undefined;
   const recoveryRoutes = decideConversationRecoveryRoutes({
     availability: conversationAvailability,
-    blockingTurn: blockingRecoveryEvidence,
+    blockingTurnActive: Boolean(blockingTurnJournalRecord),
     mirrorSynchronization: durableSyncAttention
       ? legacyMirrorGap ? "legacy_gap" : "exact_repair_available"
       : "none",
@@ -948,7 +970,7 @@ export function App({ model }: AppProps) {
   });
   const showConversationRecoveryNotice = recoveryRoutes.length > 0
     && !isStreaming
-    && (Boolean(blockingTurnJournalRecord) || legacyMirrorGap || showConversationSyncNotice);
+    && (legacyMirrorGap || showConversationSyncNotice);
   const showInactiveNativeAttemptNotice = shouldPresentInactiveNativeAttempt({
     candidate: inactiveNativeAttempt,
     journeyId: selectedJourney,
@@ -976,6 +998,13 @@ export function App({ model }: AppProps) {
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
   const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading";
   const operationalChatSelected = presentedAltitude === "operational" && presentedOperationalSurface === "chat";
+  const conversationRecenter = deriveConversationRecenterState({
+    surfaceReady: !altitudeSwitchDisabled
+      && selectedConversationSpace.kind !== "mirror_history"
+      && journeyThreadState.kind === "ready",
+    messageCount: messages.length,
+    awayFromEnd: conversationAwayFromEnd,
+  });
 
   useEffect(() => {
     if (selectedAltitude !== presentedAltitude) setSelectedAltitude(presentedAltitude);
@@ -1523,10 +1552,9 @@ export function App({ model }: AppProps) {
           journeyThreadState.thread.threadId,
           selectedActiveNativeLease?.authority.runId,
         );
+        setTurnRecoveryError(undefined);
+        setTurnRecoveryBusy(false);
         if (!blockingRecord) {
-          setBlockingTurnJournalRecord(undefined);
-          setTurnRecoveryError(undefined);
-          setTurnRecoveryBusy(false);
           const projectedSyncRecord = [...journal.records].reverse().find((record) => (
             record.authority.journeyId === ownerJourneyId
             && record.authority.threadId === journeyThreadState.thread.threadId
@@ -1538,11 +1566,7 @@ export function App({ model }: AppProps) {
             checkedMirrorTurnRef.current.add(projectedSyncRecord.authority.turnId);
             void recoverPostTerminalPersistence(ownerJourneyId);
           }
-          return;
         }
-        setBlockingTurnJournalRecord(blockingRecord);
-        setTurnRecoveryError(undefined);
-        setTurnRecoveryBusy(false);
       })
       .catch(() => {
         if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
@@ -1848,15 +1872,30 @@ export function App({ model }: AppProps) {
         }
       })();
     }).catch((error) => {
-      if (!cancelled) setJourneyMirrorCommitError(conversation.journeyId, error instanceof Error ? error.message : String(error));
+      if (cancelled) return;
+      recordSyncAttempt(conversation.journeyId, {
+        kind: "failed",
+        at: new Date().toISOString(),
+        reason: error instanceof Error ? error.message : String(error),
+        evidenceUnavailable: true,
+      });
     });
     return () => { cancelled = true; };
   }, [conversation.journeyId, conversationLoaded, journeyThreadState.kind, piInvocationOccupancy.status, selectedRuntimeBusy]);
+
+  // A single failure ages into attention only after the bounded window; re-evaluate then.
+  useEffect(() => {
+    if (syncAttention.attention || !syncAttention.reevaluateAt) return;
+    const delay = Math.max(0, Date.parse(syncAttention.reevaluateAt) - Date.now());
+    const timer = window.setTimeout(() => setSyncAttentionClock(Date.now()), delay + 1);
+    return () => window.clearTimeout(timer);
+  }, [syncAttention]);
 
   useEffect(() => {
     checkedMirrorTurnRef.current.clear();
     setMirrorOutboxItems([]);
     setJourneyTurnJournalRecords([]);
+    setConversationAwayFromEnd(false);
   }, [selectedJourney]);
 
   useEffect(() => turnFinalizationCoordinator.subscribe((event) => {
@@ -1880,7 +1919,7 @@ export function App({ model }: AppProps) {
       });
     }
     if (selectedJourneyRef.current !== authority.journeyId) return;
-    if (event.phase === "frontier") setBlockingTurnJournalRecord(undefined);
+
     const current = conversationRef.current;
     if (current.id !== authority.threadId
       || current.liveIdentity.generation !== authority.generation) return;
@@ -2662,10 +2701,10 @@ export function App({ model }: AppProps) {
                 cleanupLease: releaseDurablePiInvocationLease,
               });
               if (selectedJourneyRef.current === ownerJourneyId) {
-                setBlockingTurnJournalRecord(undefined);
                 setTurnRecoveryError(undefined);
                 setTurnRecoveryBusy(false);
               }
+              await refreshTurnJournalEvidence(ownerJourneyId);
             } else {
               await saveDedicatedJourneyConversation(interrupted);
             }
@@ -2693,8 +2732,10 @@ export function App({ model }: AppProps) {
             },
           }, finalizationPorts);
           setExactSettlementError(settlementAuthority, undefined);
+          recordSyncAttempt(ownerJourneyId, { kind: "succeeded", at: new Date().toISOString() });
         } catch (error) {
           setExactSettlementError(settlementAuthority, error instanceof Error ? error.message : String(error));
+          recordSyncFailureOrDeferral(ownerJourneyId, error);
         } finally {
           dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
           await refreshTurnJournalEvidence(ownerJourneyId);
@@ -2734,8 +2775,19 @@ export function App({ model }: AppProps) {
     }
   }
 
-  function setJourneyMirrorCommitError(journeyId: string, error: string | undefined) {
-    setMirrorCommitErrors((current) => ({ ...current, [journeyId]: error }));
+  function beginSyncAttempt(journeyId: string) {
+    setSyncLedgers((current) => ({ ...current, [journeyId]: beginSynchronizationAttempt(current[journeyId]) }));
+  }
+
+  function recordSyncAttempt(journeyId: string, outcome: SynchronizationAttemptOutcome) {
+    setSyncLedgers((current) => ({ ...current, [journeyId]: recordSynchronizationAttempt(current[journeyId], outcome) }));
+  }
+
+  function recordSyncFailureOrDeferral(journeyId: string, error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error);
+    recordSyncAttempt(journeyId, isSilentSynchronizationDeferral(reason)
+      ? { kind: "deferred", at: new Date().toISOString() }
+      : { kind: "failed", at: new Date().toISOString(), reason });
   }
 
   function setExactSettlementError(authority: ExactSettlementIdentity, error: string | undefined) {
@@ -2872,18 +2924,16 @@ export function App({ model }: AppProps) {
     if (ownerEntry && isJourneyRuntimeActiveOrFinalizing(ownerEntry)) return;
     postTerminalRecoveryRef.current = true;
     setIsRetryingMirrorCommit(true);
+    beginSyncAttempt(ownerJourneyId);
     try {
       await turnFinalizationCoordinator.convergeDelivery(ownerJourneyId, convergenceDeps);
       await reconcilePiInvocationOccupancy();
-      setJourneyMirrorCommitError(ownerJourneyId, undefined);
+      recordSyncAttempt(ownerJourneyId, { kind: "succeeded", at: new Date().toISOString() });
       setExactSettlementErrors((current) => Object.fromEntries(
         Object.entries(current).filter(([, error]) => error.journeyId !== ownerJourneyId),
       ));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!message.includes("mirror_append_pi_recovery_active_lease")) {
-        setJourneyMirrorCommitError(ownerJourneyId, message);
-      }
+      recordSyncFailureOrDeferral(ownerJourneyId, error);
     } finally {
       postTerminalRecoveryRef.current = false;
       setIsRetryingMirrorCommit(false);
@@ -3003,7 +3053,7 @@ export function App({ model }: AppProps) {
         selectedActiveNativeLease?.authority.runId,
       );
       if (blockingRecord) {
-        setBlockingTurnJournalRecord(blockingRecord);
+        setJourneyTurnJournalRecords(journal.records);
         setRestartConfirmationOpen(false);
         throw new Error("Mirror is still preparing the previous message. Try again when the conversation is ready.");
       }
@@ -3057,149 +3107,6 @@ export function App({ model }: AppProps) {
     }
   }
 
-  async function recoverPreservedResponse() {
-    const record = blockingTurnJournalRecord;
-    if (!record || record.phase !== "terminal_durable" || journeyThreadState.kind !== "ready"
-      || selectedRuntimeBusy || !hasFreshCompleteTurnJournalEvidence(record)) return;
-    const ownerJourneyId = selectedJourney;
-    let localCompletionEstablished = false;
-    setTurnRecoveryBusy(true);
-    setTurnRecoveryError(undefined);
-    try {
-      const durable = await loadDedicatedJourneyConversation(
-        ownerJourneyId,
-        record.authority.generation,
-        record.authority.threadId,
-      );
-      if (!durable) throw new Error("complete_durable_conversation_missing");
-      const correlation = createDedicatedTurnAuthority(
-        journeyThreadState.thread,
-        record.authority.runId,
-        record.authority.turnId,
-        record.authority.harnessUserMessageId,
-        record.authority.harnessAssistantMessageId,
-      );
-      const authority = createJourneySettlementAuthority(
-        createRunAuthority(correlation, durable.liveIdentity, journeyThreadState.activeGeneration),
-      );
-      const exactRecord = requireExactTurnJournalRecord(await loadTurnJournal(ownerJourneyId), authority);
-      if (decideTurnJournalRecovery(exactRecord) !== "project_completed"
-        || !hasFreshCompleteTurnJournalEvidence(exactRecord)) {
-        throw new Error("preserved_response_authority_changed");
-      }
-      const execution = exactRecord.terminalEvidence!.piExecution!;
-      const sessionFile = durable.liveIdentity.piSessionFile;
-      if (!sessionFile) throw new Error("preserved_response_session_authority_missing");
-      const user = durable.messages.find((message) => message.id === authority.harnessUserMessageId);
-      const assistant = durable.messages.find((message) => message.id === authority.harnessAssistantMessageId);
-      if (!user || !assistant) throw new Error("preserved_response_staged_messages_missing");
-      let recovered = replaceJourneyConversationMessages(
-        durable,
-        durable.messages.map((message) => message.id === authority.harnessAssistantMessageId
-          ? { ...message, content: execution.assistantText }
-          : message),
-      );
-      recovered = applyPiExecutionEvidence(recovered, correlation, {
-        userEntryId: execution.userEntryId,
-        assistantEntryId: execution.assistantEntryId,
-        leafEntryId: execution.leafEntryId,
-        entryCount: execution.entryCount,
-        sessionFile,
-        committedAt: execution.committedAt,
-      });
-      recovered = commitHarnessTurn(recovered, correlation, new Date().toISOString());
-      await saveProjectedTurnLifecycle(recovered, authority);
-      localCompletionEstablished = true;
-      conversationRef.current = recovered;
-      setConversation(recovered);
-      setBlockingTurnJournalRecord(undefined);
-      setTurnRecoveryNotice("The preserved response was recovered without running the agent again.");
-      requireExactTurnJournalRecord(await loadTurnJournal(ownerJourneyId), authority);
-      await turnFinalizationCoordinator.convergeDelivery(ownerJourneyId, convergenceDeps);
-      const settled = await loadDedicatedJourneyConversation(
-        ownerJourneyId,
-        authority.generation,
-        authority.threadId,
-      );
-      if (settled && selectedJourneyRef.current === ownerJourneyId) {
-        conversationRef.current = settled;
-        setConversation(settled);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (localCompletionEstablished) {
-        setJourneyMirrorCommitError(ownerJourneyId, message);
-      } else {
-        setTurnRecoveryError(`Recover preserved response failed: ${message}. Durable evidence remains preserved.`);
-      }
-    } finally {
-      if (selectedJourneyRef.current === ownerJourneyId) setTurnRecoveryBusy(false);
-    }
-  }
-
-  async function interruptInactiveTurnRecord(
-    record: TurnJournalRecord,
-    ownerJourneyId: string,
-    activeGeneration: number,
-  ) {
-    const interruptedRecord = await interruptInactiveTurnJournal(record, activeGeneration);
-    if (interruptedRecord.authority.generation === activeGeneration) {
-      const currentConversation = conversationRef.current;
-      const ownsTurn = currentConversation.journeyId === ownerJourneyId
-        && currentConversation.reconciliation.turns.some((turn) => turn.turnId === interruptedRecord.authority.turnId);
-      if (ownsTurn) {
-        let interruptedConversation = interruptDedicatedTurn(
-          currentConversation,
-          interruptedRecord.authority.turnId,
-          "turn_interrupted_after_native_inactivity",
-          new Date().toISOString(),
-        );
-        interruptedConversation = replaceJourneyConversationMessages(
-          interruptedConversation,
-          interruptedConversation.messages.filter(
-            (message) => message.id !== interruptedRecord.authority.harnessAssistantMessageId,
-          ),
-        );
-        await saveDedicatedJourneyConversation(interruptedConversation);
-        conversationRef.current = interruptedConversation;
-        setConversation(interruptedConversation);
-      }
-    }
-    return loadTurnJournal(ownerJourneyId);
-  }
-
-  async function markBlockingTurnInterrupted() {
-    if (!blockingTurnJournalRecord || journeyThreadState.kind !== "ready" || selectedRuntimeBusy) return;
-    const ownerJourneyId = selectedJourney;
-    const activeGeneration = journeyThreadState.activeGeneration.generation;
-    setTurnRecoveryBusy(true);
-    setTurnRecoveryError(undefined);
-    try {
-      const journal = await interruptInactiveTurnRecord(
-        blockingTurnJournalRecord,
-        ownerJourneyId,
-        activeGeneration,
-      );
-      if (selectedJourneyRef.current !== ownerJourneyId) return;
-      setBlockingTurnJournalRecord(
-        findBlockingTurnJournalRecord(
-          journal,
-          ownerJourneyId,
-          activeGeneration,
-          journeyThreadState.thread.threadId,
-          selectedActiveNativeLease?.authority.runId,
-        ),
-      );
-      setTurnRecoveryNotice("The durable attempt was preserved. You can continue without the unverified response.");
-      setJourneyReloadStatus(undefined);
-    } catch {
-      if (selectedJourneyRef.current !== ownerJourneyId) return;
-      setTurnRecoveryError("Preserve attempt and continue failed. Durable evidence remains preserved.");
-    } finally {
-      if (selectedJourneyRef.current === ownerJourneyId) setTurnRecoveryBusy(false);
-    }
-  }
-
   async function performRecoveryRoute(route: ConversationRecoveryRouteId) {
     if (activeRecoveryRoute) return;
     if (route === "start_new_conversation") {
@@ -3214,10 +3121,6 @@ export function App({ model }: AppProps) {
     try {
       if (route === "retry_mirror_sync") {
         await recoverPostTerminalPersistence(selectedJourney);
-      } else if (route === "recover_preserved_response") {
-        await recoverPreservedResponse();
-      } else if (route === "preserve_attempt_and_continue") {
-        await markBlockingTurnInterrupted();
       }
     } finally {
       setActiveRecoveryRoute(undefined);
@@ -3900,16 +3803,21 @@ export function App({ model }: AppProps) {
     }
   }, [journeyRegistry]);
 
-  function showConversation() {
-    setSelectedAltitude("operational");
-    setSelectedOperationalSurface("chat");
+  function revealConversationEnd() {
     chatAutoFollowRef.current = nextConversationAutoFollow(
       chatAutoFollowRef.current,
       { type: "explicit_bottom" },
     );
+    setConversationAwayFromEnd(false);
     requestAnimationFrame(() => {
       chatEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
     });
+  }
+
+  function showConversation() {
+    setSelectedAltitude("operational");
+    setSelectedOperationalSurface("chat");
+    revealConversationEnd();
   }
 
   const developmentChannel = runtimeChannel?.channel === "development";
@@ -4525,6 +4433,22 @@ export function App({ model }: AppProps) {
                     <circle cx="4" cy="18" r="1" />
                   </svg>
                 </button>
+                <button
+                  className={`menu-button conversation-recenter-shortcut ${conversationRecenter.emphasized ? "emphasized" : ""}`}
+                  type="button"
+                  onClick={() => {
+                    showConversation();
+                  }}
+                  disabled={!conversationRecenter.available}
+                  aria-label="Return to the latest turn"
+                  title="Back to latest"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 4v10" />
+                    <path d="m8 10.5 4 4 4-4" />
+                    <path d="M6 19h12" />
+                  </svg>
+                </button>
                 <div className="journey-menu-wrap" ref={journeyMenuRef}>
                   <button
                     className="menu-button"
@@ -4652,17 +4576,17 @@ export function App({ model }: AppProps) {
           ref={chatStreamRef}
           onScroll={(event) => {
             const container = event.currentTarget;
+            const metrics = {
+              scrollTop: container.scrollTop,
+              clientHeight: container.clientHeight,
+              scrollHeight: container.scrollHeight,
+            };
             chatAutoFollowRef.current = nextConversationAutoFollow(
               chatAutoFollowRef.current,
-              {
-                type: "scroll",
-                metrics: {
-                  scrollTop: container.scrollTop,
-                  clientHeight: container.clientHeight,
-                  scrollHeight: container.scrollHeight,
-                },
-              },
+              { type: "scroll", metrics },
             );
+            // React bails out when the value is unchanged, so this re-renders only on a flip.
+            setConversationAwayFromEnd(!isConversationNearBottom(metrics));
           }}
         >
           {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}
@@ -4764,7 +4688,7 @@ export function App({ model }: AppProps) {
               <p>{turnRecoveryNotice}</p>
             </section>
           ) : null}
-          {showBlockingTurnRecoveryNotice && recoveryRoutes.length === 0 ? (
+          {showBlockingTurnRecoveryNotice ? (
             <section className="dedicated-turn-notice" role="status">
               <strong>{blockingTurnAwaitingNativeLease
                 ? "The agent is still finishing the previous message"
@@ -4799,17 +4723,15 @@ export function App({ model }: AppProps) {
           ) : null}
           {showRetainedLeaseNotice ? (
             <section className="dedicated-turn-notice" role={mirrorCommitError ? "alert" : "status"}>
-              <strong>{isRetryingMirrorCommit
-                ? "Repairing conversation synchronization…"
-                : mirrorCommitError
-                  ? "Conversation synchronization needs attention"
-                  : "Finalizing turn…"}</strong>
+              <strong>{mirrorCommitError
+                ? "Conversation synchronization needs attention"
+                : "Finalizing turn…"}</strong>
               <p>The native Pi execution is inactive. Mirror Desktop is completing this exact run from preserved Pi evidence; new messages remain available.</p>
               {mirrorCommitError ? (
                 <>
                   <div className="recovery-actions">
                     <button type="button" onClick={() => void recoverPostTerminalPersistence(selectedJourney)} disabled={isRetryingMirrorCommit || piInvocationOccupancy.status !== "known"}>
-                      Repair synchronization
+                      {isRetryingMirrorCommit ? "Repairing conversation synchronization…" : "Repair synchronization"}
                     </button>
                   </div>
                   <details open>
@@ -4839,14 +4761,10 @@ export function App({ model }: AppProps) {
           ) : null}
           {showConversationRecoveryNotice ? (
             <ConversationRecoveryNotice
-              title={blockingTurnJournalRecord
-                ? "Resolve the preserved attempt"
-                : legacyMirrorGap ? "Choose how to continue" : "Repair Mirror synchronization"}
-              message={blockingTurnJournalRecord
-                ? "Choose one explicit operation. No recovery action will run the agent again."
-                : legacyMirrorGap
-                  ? "The exact legacy Mirror payload is unavailable, so synchronization cannot be reconstructed."
-                  : "The local response is complete. This operation repairs only its secondary Mirror copy."}
+              title={legacyMirrorGap ? "Choose how to continue" : "Repair Mirror synchronization"}
+              message={legacyMirrorGap
+                ? "The exact legacy Mirror payload is unavailable, so synchronization cannot be reconstructed."
+                : "The local response is complete. This operation repairs only its secondary Mirror copy."}
               routes={recoveryRoutes}
               activeRoute={activeRecoveryRoute}
               error={turnRecoveryError ?? mirrorCommitError}

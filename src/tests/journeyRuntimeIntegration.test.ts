@@ -77,7 +77,7 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).not.toContain("localAdmissionReady");
     expect(generation).not.toContain("Boolean(blockingTurnJournalRecord)");
     expect(generation).toContain("selectedInvocationAdmissionBlocked || turnRecoveryBusy");
-    expect(appSource).toContain("blockingTurn: blockingRecoveryEvidence");
+    expect(appSource).toContain("blockingTurnActive: Boolean(blockingTurnJournalRecord)");
   });
 
   it("keeps ordinary occupancy silent and disables Send when capacity refusal is known", () => {
@@ -171,7 +171,7 @@ describe("Journey runtime integration guardrails", () => {
       "} else {\n              await saveDedicatedJourneyConversation(interrupted);",
     );
     expect(interruptedSettlement.indexOf("cleanupLease: releaseDurablePiInvocationLease")).toBeLessThan(
-      interruptedSettlement.indexOf("setBlockingTurnJournalRecord(undefined)"),
+      interruptedSettlement.indexOf("refreshTurnJournalEvidence(ownerJourneyId)"),
     );
     expect(interruptedSettlement).toContain("setTurnRecoveryError(undefined)");
     expect(interruptedSettlement).toContain("setTurnRecoveryBusy(false)");
@@ -290,7 +290,10 @@ describe("Journey runtime integration guardrails", () => {
     expect(convergenceRoutine).not.toContain("conversationRef");
     expect(convergenceRoutine).not.toContain("setConversation");
     expect(appSource).toContain("updateExactSettlementError(current, authority, error)");
-    expect(appSource).toContain("projectJourneySettlementErrors(mirrorCommitErrors, exactSettlementErrors)");
+    // CR086: exact settlement errors are detail text for a legitimate notice, never evidence alone.
+    expect(appSource).toContain("const durableSyncAttention = Boolean(durableSyncDebt) && syncAttention.attention;");
+    expect(appSource).toContain("syncAttention.attention ? exactSettlementErrors : {}");
+    expect(appSource).not.toContain("setJourneyMirrorCommitError");
   });
 
   it("mounts the shared dispatcher once and leaves mock streaming Tauri-free", () => {

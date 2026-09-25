@@ -73,6 +73,9 @@ const JOURNEY_PROVISIONING_EVENT: &str = "nautilus-journey-provisioning";
 const JOURNEY_RESTART_EVENT: &str = "nautilus-journey-restart";
 const JOURNEY_REGISTRY_FILE: &str = "journey-registry.json";
 const MIRROR_APPEND_OUTBOX_FILE: &str = "mirror-append-outbox.json";
+// CR087: conflicts keep both payloads as bounded diagnostic evidence next to the outbox.
+const MIRROR_APPEND_CONFLICTS_FILE: &str = "mirror-append-conflicts.jsonl";
+const MIRROR_APPEND_CONFLICT_MAX_RECORDS: usize = 64;
 const MIRROR_APPEND_MAX_ITEMS: usize = 16_384;
 const MIRROR_APPEND_MAX_FILE_BYTES: usize = 64 * 1024 * 1024;
 const MIRROR_APPEND_MAX_ITEM_BYTES: usize = 131_072;
@@ -4505,12 +4508,24 @@ fn project_dedicated_user_text(value: &str) -> String {
     project_dedicated_user_text_and_envelope(value).0
 }
 
+// CR087: the visible user text must equal what the Navigator typed. Two prompt shapes
+// escaped this projection and reached Mirror verbatim: the Nautilus synthesis prompt,
+// which prefixes the authority header with a `/skill:` line, and the file-attachment
+// block, which the frontend separates with a single newline while this splitter expected
+// two. Both are handled here so already-recorded sessions reconstruct correctly too.
+const FILE_REFERENCES_MARKER: &str = "\nFiles explicitly selected by the user\n";
+
 fn project_dedicated_user_text_and_envelope(value: &str) -> (String, String) {
-    let envelope = if value.starts_with("[Mirror Desktop Journey authority]") {
+    let body = if value.starts_with("/skill:") {
+        value.split_once('\n').map(|(_, rest)| rest).unwrap_or("")
+    } else {
+        value
+    };
+    let envelope = if body.starts_with("[Mirror Desktop Journey authority]") {
         "mirror_desktop"
-    } else if value.starts_with("[Nautilus Harness Journey authority]") {
+    } else if body.starts_with("[Nautilus Harness Journey authority]") {
         "nautilus_harness"
-    } else if value.lines().next().is_some_and(|line| {
+    } else if body.lines().next().is_some_and(|line| {
         line.starts_with('[') && line.ends_with("Journey authority]")
     }) {
         return (value.trim().to_string(), "unknown".to_string());
@@ -4518,10 +4533,10 @@ fn project_dedicated_user_text_and_envelope(value: &str) -> (String, String) {
         return (value.trim().to_string(), "raw".to_string());
     };
     for marker in ["\n\nExplicit Navigator intent:\n", "\n\nUser request:\n"] {
-        if let Some((_, visible)) = value.rsplit_once(marker) {
+        if let Some((_, visible)) = body.rsplit_once(marker) {
             return (
                 visible
-                    .split("\n\nFiles explicitly selected by the user\n")
+                    .split(FILE_REFERENCES_MARKER)
                     .next()
                     .unwrap_or(visible)
                     .trim()
@@ -5039,6 +5054,81 @@ fn write_mirror_append_outbox(path: &Path, mut value: Value) -> Result<(), Strin
     Ok(())
 }
 
+fn mirror_append_conflicts_path(outbox_path: &Path) -> PathBuf {
+    outbox_path.with_file_name(MIRROR_APPEND_CONFLICTS_FILE)
+}
+
+/// Top-level keys (except `messages`) and `messages[i].key` entries whose values differ.
+fn mirror_append_conflict_keys(existing: &Value, candidate: &Value) -> Vec<String> {
+    let mut keys = Vec::new();
+    let mut top = std::collections::BTreeSet::new();
+    for value in [existing, candidate] {
+        if let Some(object) = value.as_object() {
+            top.extend(object.keys().filter(|key| key.as_str() != "messages").cloned());
+        }
+    }
+    for key in top {
+        if existing.get(&key) != candidate.get(&key) { keys.push(key); }
+    }
+    let existing_messages = existing.get("messages").and_then(Value::as_array);
+    let candidate_messages = candidate.get("messages").and_then(Value::as_array);
+    let count = existing_messages.map_or(0, Vec::len).max(candidate_messages.map_or(0, Vec::len));
+    for index in 0..count {
+        match (existing_messages.and_then(|m| m.get(index)), candidate_messages.and_then(|m| m.get(index))) {
+            (Some(left), Some(right)) => {
+                let mut message_keys = std::collections::BTreeSet::new();
+                for value in [left, right] {
+                    if let Some(object) = value.as_object() { message_keys.extend(object.keys().cloned()); }
+                }
+                for key in message_keys {
+                    if left.get(&key) != right.get(&key) { keys.push(format!("messages[{index}].{key}")); }
+                }
+            }
+            _ => keys.push(format!("messages[{index}]")),
+        }
+    }
+    keys
+}
+
+fn read_mirror_append_conflicts(path: &Path) -> Vec<Value> {
+    let Ok(metadata) = fs::symlink_metadata(path) else { return Vec::new() };
+    if !metadata.is_file() || metadata.file_type().is_symlink() { return Vec::new(); }
+    let Ok(content) = fs::read_to_string(path) else { return Vec::new() };
+    content.lines()
+        .filter(|line| !line.trim().is_empty())
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .collect()
+}
+
+/// Records a conflict pair as diagnostic evidence. Never fails the caller: the error code
+/// returned to the caller stays `mirror_append_item_conflict` whether or not this write lands.
+fn record_mirror_append_conflict(outbox_path: &Path, site: &str, existing: &Value, candidate: &Value) -> Vec<String> {
+    let differing_keys = mirror_append_conflict_keys(existing, candidate);
+    let record = json!({
+        "schemaVersion": "1.0.0",
+        "recordedAt": Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
+        "site": site,
+        "itemId": candidate.get("itemId").cloned().unwrap_or(Value::Null),
+        "journeyId": candidate.get("journeyId").cloned().unwrap_or(Value::Null),
+        "differingKeys": differing_keys.clone(),
+        "existing": existing,
+        "candidate": candidate,
+    });
+    let path = mirror_append_conflicts_path(outbox_path);
+    let mut records = read_mirror_append_conflicts(&path);
+    records.push(record);
+    let keep = records.len().saturating_sub(MIRROR_APPEND_CONFLICT_MAX_RECORDS);
+    let payload = records[keep..].iter()
+        .filter_map(|value| serde_json::to_string(value).ok())
+        .map(|line| line + "\n")
+        .collect::<String>();
+    let staged = path.with_extension("jsonl.tmp");
+    if fs::write(&staged, payload).is_ok() {
+        let _ = fs::rename(&staged, &path);
+    }
+    differing_keys
+}
+
 fn enqueue_mirror_append_item_at(path: &Path, item: Value) -> Result<(), String> {
     enqueue_mirror_append_item_at_with_limit(path, item, MIRROR_APPEND_MAX_ITEMS)
 }
@@ -5052,7 +5142,9 @@ fn enqueue_mirror_append_item_at_with_limit(
     let items = outbox.get_mut("items").and_then(Value::as_array_mut)
         .ok_or_else(|| "mirror_append_outbox_invalid".to_string())?;
     if let Some(existing) = items.iter().find(|candidate| candidate.get("itemId") == item.get("itemId")) {
-        return if existing == &item { Ok(()) } else { Err("mirror_append_item_conflict".to_string()) };
+        if existing == &item { return Ok(()); }
+        record_mirror_append_conflict(path, "enqueue", existing, &item);
+        return Err("mirror_append_item_conflict".to_string());
     }
     if items.len() >= max_items { return Err("mirror_append_outbox_full".to_string()); }
     items.push(item);
@@ -5127,8 +5219,13 @@ fn legacy_outbox_item_matches_pi_backed_item(legacy: &Value, pi_backed: &Value) 
         })
 }
 
-fn normalize_legacy_enqueue_item(legacy: &Value, pi_backed: &Value) -> Result<Value, String> {
+fn normalize_legacy_enqueue_item(
+    outbox_path: &Path,
+    legacy: &Value,
+    pi_backed: &Value,
+) -> Result<Value, String> {
     if !legacy_outbox_item_matches_pi_backed_item(legacy, pi_backed) {
+        record_mirror_append_conflict(outbox_path, "normalize_legacy", pi_backed, legacy);
         return Err("mirror_append_item_conflict".to_string());
     }
     validate_mirror_append_item(pi_backed)?;
@@ -5143,6 +5240,7 @@ fn replace_legacy_outbox_item_at(path: &Path, replacement: Value) -> Result<(), 
         .ok_or_else(|| "mirror_append_item_missing".to_string())?;
     if items[index] == replacement { return Ok(()); }
     if !legacy_outbox_item_matches_pi_backed_item(&items[index], &replacement) {
+        record_mirror_append_conflict(path, "replace_legacy", &items[index], &replacement);
         return Err("mirror_append_item_conflict".to_string());
     }
     items[index] = replacement;
@@ -5395,7 +5493,7 @@ fn pi_backed_enqueue_item(
     }
     let (session_file, content) = pi_session_for_journal_record(app, &record)?;
     let pi_backed = create_pi_backed_mirror_append_item(&record, &session_file, &content)?;
-    let normalized = normalize_legacy_enqueue_item(legacy, &pi_backed)?;
+    let normalized = normalize_legacy_enqueue_item(&mirror_append_outbox_path(app)?, legacy, &pi_backed)?;
     validate_outbox_generation_authority(app, &normalized)?;
     Ok(normalized)
 }
@@ -5457,6 +5555,24 @@ fn list_mirror_append_outbox(
     Ok(outbox.get("items").and_then(Value::as_array).into_iter().flatten()
         .filter(|item| item.get("journeyId").and_then(Value::as_str) == Some(journey_id.as_str()))
         .map(mirror_append_outbox_summary).collect())
+}
+
+/// CR087 read-only diagnostics: recorded enqueue conflicts for one Journey, oldest first.
+#[tauri::command]
+fn list_mirror_append_conflicts(
+    app: AppHandle,
+    state: State<'_, MirrorAppendOutboxState>,
+    journey_id: String,
+) -> Result<Vec<Value>, String> {
+    sanitize_journey_id(&journey_id)?;
+    let _guard = state
+        .lock
+        .lock()
+        .map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
+    let path = mirror_append_conflicts_path(&mirror_append_outbox_path(&app)?);
+    Ok(read_mirror_append_conflicts(&path).into_iter()
+        .filter(|record| record.get("journeyId").and_then(Value::as_str) == Some(journey_id.as_str()))
+        .collect())
 }
 
 fn validate_outbox_generation_authority(app: &AppHandle, item: &Value) -> Result<(), String> {
@@ -8305,6 +8421,7 @@ fn main() {
             load_conversation_segment_projections,
             enqueue_mirror_append_item,
             list_mirror_append_outbox,
+            list_mirror_append_conflicts,
             reconcile_pi_backed_mirror_delivery_debt,
             deliver_pi_backed_mirror_outbox_item,
             append_mirror_outbox_item,
@@ -8340,6 +8457,9 @@ mod tests {
         rpc_settlement_exit_grace_expired,
         create_pi_backed_mirror_append_item, dedicated_native_names,
         enqueue_mirror_append_item_at_with_limit, exact_steering_authority_matches,
+        mirror_append_conflict_keys, mirror_append_conflicts_path, read_mirror_append_conflicts,
+        project_dedicated_user_text_and_envelope,
+        replace_legacy_outbox_item_at, MIRROR_APPEND_CONFLICT_MAX_RECORDS,
         extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
         legacy_outbox_item_matches_pi_backed_item, legacy_timestamp_compatibility_item,
@@ -9067,13 +9187,117 @@ mod tests {
         pi_backed["messages"][0]["createdAt"] = Value::String("2026-08-30T10:00:00Z".to_string());
         pi_backed["messages"][1]["createdAt"] = Value::String("2026-08-30T10:00:01Z".to_string());
 
-        let normalized = normalize_legacy_enqueue_item(&legacy, &pi_backed).unwrap();
+        let root = test_root("mirror-normalize");
+        fs::create_dir_all(&root).unwrap();
+        let outbox = root.join("outbox.json");
+        let normalized = normalize_legacy_enqueue_item(&outbox, &legacy, &pi_backed).unwrap();
         assert_eq!(normalized["schemaVersion"], "1.1.0");
         assert_eq!(normalized["messages"][0]["createdAt"], "2026-08-30T10:00:00Z");
         assert_eq!(normalized["messages"][1]["createdAt"], "2026-08-30T10:00:01Z");
+        assert!(!mirror_append_conflicts_path(&outbox).exists());
         let mut conflict = pi_backed;
         conflict["messages"][1]["content"] = Value::String("different".to_string());
-        assert_eq!(normalize_legacy_enqueue_item(&legacy, &conflict).unwrap_err(), "mirror_append_item_conflict");
+        assert_eq!(normalize_legacy_enqueue_item(&outbox, &legacy, &conflict).unwrap_err(), "mirror_append_item_conflict");
+        let records = read_mirror_append_conflicts(&mirror_append_conflicts_path(&outbox));
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0]["site"], "normalize_legacy");
+        // Raw keys are recorded, including the schema and timestamp fields that always
+        // differ between a legacy 1.0.0 item and its Pi-backed 1.1.0 rebuild.
+        let keys = records[0]["differingKeys"].as_array().unwrap();
+        assert!(keys.contains(&json!("messages[1].content")));
+        assert!(keys.contains(&json!("schemaVersion")));
+        assert!(!keys.contains(&json!("messages[0].content")));
+        assert_eq!(records[0]["candidate"]["schemaVersion"], "1.0.0");
+        assert_eq!(records[0]["existing"]["schemaVersion"], "1.1.0");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn conflict_keys_name_top_level_and_message_level_differences() {
+        let base = json!({
+            "itemId":"turn-one", "createdAt":"2026-08-30T10:00:02Z",
+            "messages":[{"id":"user-one","content":"hello"},{"id":"assistant-one","content":"hi"}]
+        });
+        let mut other = base.clone();
+        other["createdAt"] = Value::String("2026-08-30T10:00:03Z".to_string());
+        other["piSessionFile"] = Value::String("/app/pi.jsonl".to_string());
+        other["messages"][1]["content"] = Value::String("different".to_string());
+        assert_eq!(
+            mirror_append_conflict_keys(&base, &other),
+            vec!["createdAt".to_string(), "piSessionFile".to_string(), "messages[1].content".to_string()],
+        );
+        assert!(mirror_append_conflict_keys(&base, &base).is_empty());
+        let mut short = base.clone();
+        short["messages"] = json!([{"id":"user-one","content":"hello"}]);
+        assert_eq!(mirror_append_conflict_keys(&base, &short), vec!["messages[1]".to_string()]);
+    }
+
+    #[test]
+    fn conflict_records_are_bounded_and_never_change_the_error_code() {
+        let root = test_root("mirror-conflicts");
+        fs::create_dir_all(&root).unwrap();
+        let outbox = root.join("outbox.json");
+        let item = json!({
+            "schemaVersion":"1.0.0", "itemId":"turn-one", "journeyId":"journey-one",
+            "threadId":"thread-one", "generation":1, "conversationId":"mirror-one",
+            "sourceInterface":"nautilus-harness", "createdAt":"2026-08-30T10:00:00Z",
+            "messages":[
+                {"id":"user-one","role":"user","content":"hello","createdAt":"2026-08-30T10:00:00Z","metadata":{"sourceTurnId":"turn-one","generation":1}},
+                {"id":"assistant-one","role":"assistant","content":"hi","createdAt":"2026-08-30T10:00:01Z","metadata":{"sourceTurnId":"turn-one","generation":1}}
+            ]
+        });
+        enqueue_mirror_append_item_at_with_limit(&outbox, item.clone(), 32).unwrap();
+        for index in 0..(MIRROR_APPEND_CONFLICT_MAX_RECORDS + 6) {
+            let mut conflict = item.clone();
+            conflict["createdAt"] = Value::String(format!("2026-08-30T10:00:{:02}Z", index % 60));
+            conflict["messages"][0]["content"] = Value::String(format!("hello {index}"));
+            assert_eq!(enqueue_mirror_append_item_at_with_limit(&outbox, conflict, 32).unwrap_err(), "mirror_append_item_conflict");
+        }
+        let records = read_mirror_append_conflicts(&mirror_append_conflicts_path(&outbox));
+        assert_eq!(records.len(), MIRROR_APPEND_CONFLICT_MAX_RECORDS);
+        let last = records.last().unwrap();
+        assert_eq!(last["site"], "enqueue");
+        assert_eq!(last["journeyId"], "journey-one");
+        assert_eq!(last["differingKeys"], json!(["createdAt", "messages[0].content"]));
+        assert_eq!(last["candidate"]["messages"][0]["content"], format!("hello {}", MIRROR_APPEND_CONFLICT_MAX_RECORDS + 5));
+        assert_eq!(last["existing"]["messages"][0]["content"], "hello");
+        // The outbox itself is untouched by conflicts.
+        let persisted: Value = serde_json::from_str(&fs::read_to_string(&outbox).unwrap()).unwrap();
+        assert_eq!(persisted["items"].as_array().unwrap().len(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn replacing_a_divergent_legacy_item_records_the_pair() {
+        let root = test_root("mirror-replace-conflict");
+        fs::create_dir_all(&root).unwrap();
+        let outbox = root.join("outbox.json");
+        let legacy = json!({
+            "schemaVersion":"1.0.0", "itemId":"turn-one", "journeyId":"journey-one",
+            "threadId":"thread-one", "generation":1, "conversationId":"mirror-one",
+            "sourceInterface":"nautilus-harness", "createdAt":"2026-08-30T10:00:02Z",
+            "messages":[
+                {"id":"user-one","role":"user","content":"hello","createdAt":"2026-08-30T09:59:59Z","metadata":{"sourceTurnId":"turn-one","generation":1}},
+                {"id":"assistant-one","role":"assistant","content":"hi","createdAt":"2026-08-30T09:59:59Z","metadata":{"sourceTurnId":"turn-one","generation":1}}
+            ]
+        });
+        enqueue_mirror_append_item_at_with_limit(&outbox, legacy.clone(), 32).unwrap();
+        let mut replacement = legacy.clone();
+        replacement["schemaVersion"] = Value::String("1.1.0".to_string());
+        replacement["runId"] = Value::String("run-one".to_string());
+        replacement["piSessionId"] = Value::String("session-one".to_string());
+        replacement["piSessionFile"] = Value::String("/app/pi.jsonl".to_string());
+        replacement["piUserEntryId"] = Value::String("pi-user".to_string());
+        replacement["piAssistantEntryId"] = Value::String("pi-assistant".to_string());
+        replacement["messages"][1]["content"] = Value::String("different".to_string());
+        assert_eq!(replace_legacy_outbox_item_at(&outbox, replacement).unwrap_err(), "mirror_append_item_conflict");
+        let records = read_mirror_append_conflicts(&mirror_append_conflicts_path(&outbox));
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0]["site"], "replace_legacy");
+        let keys = records[0]["differingKeys"].as_array().unwrap();
+        assert!(keys.contains(&json!("messages[1].content")));
+        assert!(keys.contains(&json!("schemaVersion")));
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -9883,6 +10107,31 @@ mod tests {
         assert_eq!(turns[0].user_prompt_envelope, "nautilus_harness");
         assert_eq!(turns[0].assistant_text, "Resposta");
         assert_eq!(turns[0].entry_count, 2);
+    }
+
+    #[test]
+    fn projects_the_visible_request_from_recorded_production_prompt_shapes() {
+        // Shape recorded on 2026-09-24 (CR087): the frontend joins the file block with one newline.
+        let attachment = "[Mirror Desktop Journey authority]\nThe selected Journey ID for this turn is exactly: j\n\nUser request:\nEsse é arquivo é sobre o que?\nFiles explicitly selected by the user\nThe paths below are references.\n```json\n[{\"absolutePath\":\"/tmp/a.pdf\"}]\n```";
+        assert_eq!(
+            project_dedicated_user_text_and_envelope(attachment),
+            ("Esse é arquivo é sobre o que?".to_string(), "mirror_desktop".to_string()),
+        );
+        // The two-newline shape used by older fixtures keeps working.
+        let spaced = "[Mirror Desktop Journey authority]\nselected\n\nUser request:\nQuestion\n\nFiles explicitly selected by the user\n```json\n[]\n```";
+        assert_eq!(project_dedicated_user_text_and_envelope(spaced).0, "Question");
+        // Nautilus synthesis prefixes the envelope with a skill line.
+        let synthesis = "/skill:ext-nautilus-synthesis journey-id=sandbox-pet-store\n[Mirror Desktop Journey authority]\nThe selected Journey ID for this turn is exactly: sandbox-pet-store\n\nExplicit Navigator intent:\natualize a síntese tática desta jornada";
+        assert_eq!(
+            project_dedicated_user_text_and_envelope(synthesis),
+            ("atualize a síntese tática desta jornada".to_string(), "mirror_desktop".to_string()),
+        );
+        // A skill line with attachments strips both.
+        let both = "/skill:ext-nautilus-synthesis journey-id=j\n[Mirror Desktop Journey authority]\nx\n\nExplicit Navigator intent:\nintent\nFiles explicitly selected by the user\n```json\n[]\n```";
+        assert_eq!(project_dedicated_user_text_and_envelope(both).0, "intent");
+        // A user request that merely mentions the marker mid-sentence is untouched.
+        let raw = "just a plain prompt";
+        assert_eq!(project_dedicated_user_text_and_envelope(raw), (raw.to_string(), "raw".to_string()));
     }
 
     #[test]
