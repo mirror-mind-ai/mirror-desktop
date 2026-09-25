@@ -48,6 +48,45 @@ scenario they were designed for. That must be confirmed against real evidence be
 behavior is changed, because it decides whether the fix is "suppress the flicker" or
 "repair the recovery route".
 
+## Investigation (2026-09-24)
+
+Read-only inspection of the code history, the Dev journals and the native recovery paths.
+
+**The lease guard is deliberate, not an oversight.** `activeNativeRunId` was added to
+`findBlockingTurnJournalRecord` by `21d2f75` for CR042 (RS018), *Decouple Successor
+Admission from Desktop Projections*. Its test is named "surfaces a journal blocker only for
+the exact active native run". CR042's contract is explicit: "Treat only an exact active or
+still-finalizing native execution as Conversation occupancy. Treat terminal historical
+records as non-blocking regardless of projection, Segment or Mirror state." So a blocking
+record legitimately means one thing only: *the agent is still finishing the previous
+message*. That is the routes-empty branch, and it is correct.
+
+**The recovery-routes branch is vestigial.** `decideConversationRecoveryRoutes` returns
+early unless `exactRunInactive`, which contradicts the precondition that produced the
+record. The branch therefore predates CR042, when blocking records could exist without an
+active lease. Today it is reachable only across time, while the stored record is stale.
+The unreachability question raised at capture is answered: the routes are unreachable by
+design of CR042, not by accident.
+
+**The valuable case is already automatic.** `recoverPreservedResponse` exists for a turn
+stranded at `terminal_durable / completed` with fresh Pi evidence. Native
+`reconcile_pi_backed_mirror_delivery_debt` already selects exactly
+`TerminalDurable | Projected | OutboxEnqueued` with outcome `Completed`, materializes the
+outbox item and advances the journal. The Journey hydration effect in `App.tsx` calls
+`recoverPostTerminalPersistence` unconditionally once occupancy is known and the runtime is
+idle, so that path runs on every Journey load. The manual route duplicates work that
+already happens without the Navigator.
+
+**Stranded records are harmless today.** The Dev journals hold five non-terminal records
+that have persisted for days: two `running` on `mirror-desktop` whose `threadId` no longer
+matches the active thread, and three `terminal_durable / process_died` on
+`us1-rerun-a-0831…` matching the active thread and generation. None of them blocks
+admission, because CR042 moved admission to native occupancy, and none of them surfaces a
+panel. `process_died` means the response never completed, so there is nothing to recover.
+
+**Conclusion.** There is no missing recovery capability to restore. There is one defect: a
+stale copy of occupancy evidence lets a contradictory state render as an actionable alert.
+
 ## Expected Behavior
 
 Ordinary cancellation is quiet. No recovery panel appears for a turn that is settling
@@ -56,20 +95,30 @@ available.
 
 ## Proposed Scope
 
-- Confirm or refute the unreachability finding above with a real stranded-turn scenario.
-- Derive the blocking condition and occupancy from one consistent snapshot instead of
-  holding an independently-aged copy, so the inconsistent window cannot exist. Deriving the
-  blocking record from the already-hydrated `journeyTurnJournalRecords` in the same render
-  is the candidate shape.
-- If the recovery route is genuinely unreachable, restate the condition so it matches the
-  stranded case it was written for, keeping every authority check fail-closed.
-- Extend the CR064 contract with a cancel-then-continue scene asserting no recovery panel,
-  plus a stranded-turn scene asserting the panel and its routes do appear.
+1. Derive the blocking record in-render from the already-hydrated
+   `journeyTurnJournalRecords` and the current lease, instead of holding it as independently
+   aged React state. Both inputs then come from one render and the contradictory window
+   cannot exist.
+2. Delete the blocking branch of `decideConversationRecoveryRoutes` together with the
+   `recover_preserved_response` and `preserve_attempt_and_continue` routes and the handlers
+   that only they reach, once step 1 proves them unreachable. Keep the routes-empty status
+   ("The agent is still finishing the previous message"), which is the branch CR042 intended.
+3. Keep every authority check fail-closed and change no cancellation, lease or journal
+   semantics.
+4. Extend the CR064 contract with a cancel-then-continue scene asserting that no recovery
+   panel appears at any point, and a scene with a stranded `terminal_durable / completed`
+   record asserting that automatic reconciliation settles it with no panel and no Navigator
+   action.
+
+If step 1 turns out to leave any reachable path into the blocking branch, step 2 is dropped
+and the branch is repaired instead of deleted. Evidence decides, not this document.
 
 ## Acceptance
 
 - Cancelling a turn and continuing shows no recovery panel at any point.
-- A genuinely stranded turn still surfaces the panel with working routes.
+- A turn stranded at `terminal_durable / completed` is still recovered automatically, with
+  its response projected and delivered, without any panel.
+- While the exact native run is still finishing, the existing status still appears.
 - No recovery action runs the agent again; authority checks remain fail-closed.
 - The contract encodes both scenes.
 
