@@ -2,9 +2,9 @@
 
 # CR084: Recenter to Conversation End
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr084-recenter-to-end`
 
 ## Problem
 

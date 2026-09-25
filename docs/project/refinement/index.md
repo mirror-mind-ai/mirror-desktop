@@ -54,7 +54,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 2 | [CR087](rs021-ux-pre-beta-evolution/cr087-project-the-visible-user-request-exactly.md) | RS021 | Project the Visible User Request Exactly | done | @alissonvale | `refinement/rs021-cr087-idempotent-outbox-enqueue` |
 | 3 | [CR088](rs021-ux-pre-beta-evolution/cr088-stop-flashing-the-preserved-attempt-panel.md) | RS021 | Stop Flashing the Preserved Attempt Panel | done | @alissonvale | `refinement/rs021-cr088-preserved-attempt-panel` |
 | 4 | [CR089](rs021-ux-pre-beta-evolution/cr089-preserve-the-interrupted-partial-response.md) | RS021 | Preserve the Interrupted Partial Response | captured | — | — |
-| 5 | [CR084](rs021-ux-pre-beta-evolution/cr084-recenter-to-conversation-end.md) | RS021 | Recenter to Conversation End | captured | — | — |
+| 5 | [CR084](rs021-ux-pre-beta-evolution/cr084-recenter-to-conversation-end.md) | RS021 | Recenter to Conversation End | in_progress | @alissonvale | `refinement/rs021-cr084-recenter-to-end` |
 | 6 | [CR078](rs021-ux-pre-beta-evolution/cr078-model-fast-switch.md) | RS021 | Model Fast Switch | captured | — | — |
 | 7 | [CR081](rs021-ux-pre-beta-evolution/cr081-agent-running-animation.md) | RS021 | Agent Running Animation | captured | — | — |
 | 8 | [CR083](rs021-ux-pre-beta-evolution/cr083-agent-comments-continuity.md) | RS021 | Agent Comments Continuity | captured | — | — |
