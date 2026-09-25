@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.19](v0.2.0-alpha.19.md) — A Quiet, Truthful Surface
 - [v0.2.0-alpha.18](v0.2.0-alpha.18.md) — Local Voice Composition
 - [v0.2.0-alpha.17](v0.2.0-alpha.17.md) — Thinking Made Visible
 - [v0.2.0-alpha.16](v0.2.0-alpha.16.md) — Deterministic Release Deployment
