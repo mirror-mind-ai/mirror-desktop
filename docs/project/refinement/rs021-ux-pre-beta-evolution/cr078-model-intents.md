@@ -90,6 +90,36 @@ existing profile, and lets each file keep the validation its content deserves.
 9. The Journey agent profile dialog remains, as the place for configuration-shaped decisions
    and as the escape hatch for a one-off model.
 
+## Slice 1 Evidence — the durable store (2026-09-25)
+
+The foundation the other pieces stand on, landed on its own so its contract could be
+reviewed before any surface depends on it.
+
+- **`src/domain/modelIntents.ts`**: the `ModelIntent` and `ModelIntents` shapes, a throwing
+  parser and serializer following the `agentProfile` idiom, and the operations the Settings
+  surface will need — `add`, `update`, `remove`, `reorder`, plus `matchModelIntent` for the
+  footer. Labels are normalized on the way in: trimmed, with internal whitespace runs
+  collapsed, so stored labels are canonical.
+- **`src-tauri/src/model_intents.rs`**: `model-intents.json` with `load_model_intents` and
+  `save_model_intents`, following the atomic staged-write-and-rename publish the other
+  native stores use, with symlink and size guards. `agent-settings.json` is untouched.
+- **One rule, two validators.** The character rule is stated as control characters plus
+  U+2028 and U+2029, which is exactly what `char::is_control` expresses in Rust and
+  `[\p{Cc}\p{Zl}\p{Zp}]` expresses in TypeScript, so the two cannot drift apart. Label
+  length is counted in characters rather than bytes, and a Rust test pins that an accented
+  label at the bound still fits.
+- **`src/app/modelIntentsStorage.ts`**: an absent file loads as an empty store, because a
+  Navigator who has defined no intents is in a valid state rather than a failed load.
+- Tests: 10 TypeScript cases covering the round trip, the accented labels the agent settings
+  rule cannot express, normalization, the three label refusals, uniqueness and the bound,
+  rename, reorder, removal and exact matching; 4 Rust cases covering the same validation
+  contract plus atomic publication leaving a rejected payload without effect.
+
+Gates: `npm test` 173 files / 1045 tests; `cargo test --locked` 192 passed, 3 ignored;
+`npm run build` green; roadmap READY.
+
+Remaining: the Settings surface and the footer menu.
+
 ## Acceptance
 
 - An Intent can be created, renamed, reordered and removed in Settings, and survives restart.

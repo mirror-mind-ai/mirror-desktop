@@ -1,5 +1,6 @@
 mod agent_settings;
 mod journey_appearance;
+mod model_intents;
 mod pi_global_extensions;
 mod pi_process_registry;
 mod pi_rpc;
@@ -10,6 +11,7 @@ mod voice_transcription;
 mod whats_new_state;
 
 use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
+use model_intents::{load_model_intents, save_model_intents};
 use journey_appearance::{
     import_journey_custom_image, import_user_avatar, load_journey_custom_image,
     load_user_avatar, remove_journey_custom_image, remove_user_avatar,
@@ -8389,6 +8391,8 @@ fn main() {
             voice_transcription_remove,
             voice_transcription_transcribe,
             list_pi_models,
+            load_model_intents,
+            save_model_intents,
             inspect_runtime_channel,
             inspect_runtime_binding_candidate,
             validate_runtime_binding,
