@@ -2,9 +2,9 @@
 
 # CR088: Stop Flashing the Preserved Attempt Panel
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr088-preserved-attempt-panel`
 
 ## Problem
 
