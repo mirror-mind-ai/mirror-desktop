@@ -2,7 +2,7 @@
 
 # CR088: Stop Flashing the Preserved Attempt Panel
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr088-preserved-attempt-panel`
 
@@ -177,8 +177,23 @@ real, by the Rust test `materializes_self_contained_delivery_debt_from_exact_pi_
 - `cargo test --locked`: 188 passed, 3 ignored.
 - `npm run build` green; `npm run roadmap:check` READY; `git diff --check` clean.
 
-Navigator homologation pending: cancel a turn mid-response and continue, and confirm no
-panel appears at any point.
+## Homologation (2026-09-25)
+
+Navigator relaunched `/Applications/Mirror Desktop Dev.app` on the fixed bundle, cancelled a
+turn mid-response and continued. No panel appeared at any point. Accepted.
+
+## Closure
+
+Closed on 2026-09-25 with explicit Navigator validation.
+
+Proportionality review: proportional. One pure derivation replaced an independently aged
+copy of occupancy evidence, and the branch it proved unreachable was removed with the
+handlers only it reached — 346 deletions against 88 insertions, no durable schema, native
+command or Mirror Core change.
+
+Debt review: `no_action`. The native `interrupt_inactive_turn_journal` command remains
+registered without a frontend caller, recorded at the removed bridge. Integration, push and
+release remain separate Navigator decisions.
 
 ## Evidence
 
