@@ -97,6 +97,37 @@ alters, reattributes or discards the running turn's evidence.
 - A settings write in flight still blocks the surfaces.
 - No change to admission, cancellation, lease or journal semantics.
 
+## Implementation Evidence (2026-09-25)
+
+- **Availability.** `runtimeBusy` no longer gates any model surface. The Composer footer
+  entry, `Save global defaults`, `Restore Mirror Desktop defaults`, `Use model for this
+  Journey` and `Use global defaults` are all gated only on `agentSettingsState === "saving"`.
+  Unknown native occupancy no longer participates either, because writing a preference does
+  not touch the registry.
+- **Recorded run model.** `JourneyRuntimeEntry` gains `providerModel`, carried by the
+  `register` action and set from `providerModelLabel(effectiveProviderConfig)` at
+  registration. It survives the run lifecycle and disappears only when the entry is retired,
+  which the reducer refuses while finalization is still open.
+- **Selection scope.** New `deriveModelSelectionScope` in `src/domain/modelAvailability.ts`
+  returns `applies_to_next_message` only when a live run exists *and* its recorded model
+  differs from the current selection. `ComposerRuntimeFooter` renders a restrained marker
+  naming the model the running turn continues on.
+- **Untouched on purpose.** The streaming attribution path was left alone, because the
+  correction above established it was already right.
+- Tests: three cases for the selection scope, a runtime-state case following the recorded
+  model through stream, finalization and retirement, a component case for the marker in both
+  states plus its stylesheet contract, and source assertions pinning the per-surface
+  availability decision so `runtimeBusy` cannot return.
+
+## Validation
+
+- `npm test`: 172 files, 1035 tests green.
+- `npm run build` green; `npm run roadmap:check` READY; `git diff --check` clean.
+
+Navigator homologation pending: start a turn in one Journey, switch to another and confirm
+the model surfaces are usable; change the model during this Journey's own live turn and
+confirm the footer marks it as reaching the next message while the running turn continues.
+
 ## Exclusions
 
 - No mid-run model swap, provider fallback or automatic retry.

@@ -29,3 +29,33 @@ describe("persistent agent profile application boundary", () => {
     expect(persistence).not.toContain("start_pi_invocation");
   });
 });
+
+// CR090: choosing a model is a preference for the next turn, so only a settings write in
+// flight may block it. runtimeBusy is global — a run in one Journey must not disable the
+// model surfaces in every other one.
+describe("model surface availability", () => {
+  it("blocks model surfaces only while a settings write is in flight", () => {
+    expect(appSource).not.toContain('runtimeBusy || agentSettingsState === "saving"');
+    expect(appSource).toContain('providerSelectionDisabled={agentSettingsState === "saving"}');
+    for (const action of [
+      "saveGlobalAgentProfile()",
+      "restoreDefaultAgentSettings()",
+      "saveSelectedJourneyAgentOverride()",
+      "resetSelectedJourneyAgentOverride()",
+    ]) {
+      // `void <action>` appears only in the JSX handler, not at the function definition.
+      const handler = `void ${action}`;
+      expect(appSource).toContain(handler);
+      const call = appSource.slice(appSource.indexOf(handler), appSource.indexOf(handler) + 200);
+      expect(call).toContain('disabled={agentSettingsState === "saving"}');
+      expect(call).not.toContain("runtimeBusy");
+    }
+  });
+
+  it("records the run model and names the turn a newer selection reaches", () => {
+    expect(appSource).toContain("providerModel: providerModelLabel(effectiveProviderConfig)");
+    expect(appSource).toContain("providerModel: liveRunProviderModel");
+    expect(appSource).toContain("deriveModelSelectionScope({");
+    expect(appSource).toContain("selectionScope={modelSelectionScope}");
+  });
+});

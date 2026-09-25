@@ -2,6 +2,7 @@ import type { RuntimeContextUsage } from "./runtimeActivityModel";
 import type { PiContextState } from "./contextUsageState";
 import type { ComposerTurnStatus } from "./composerTurnStatus";
 import { mirrorModeDisplay, type MirrorOperatingMode } from "./mirrorModeState";
+import type { ModelSelectionScope } from "../domain/modelAvailability";
 
 type ComposerRuntimeFooterProps = {
   contextUsage?: RuntimeContextUsage;
@@ -13,6 +14,10 @@ type ComposerRuntimeFooterProps = {
   onInitializeContext?: () => void;
   onSelectProviderModel?: () => void;
   providerSelectionDisabled?: boolean;
+  /** CR090: whether the displayed selection reaches the live turn or only the next one. */
+  selectionScope?: ModelSelectionScope;
+  /** Model the live turn started with, shown so the difference is legible. */
+  liveRunProviderModel?: string;
 };
 
 type ComposerRuntimeStatusProps = {
@@ -44,6 +49,8 @@ export function ComposerRuntimeFooter({
   onInitializeContext,
   onSelectProviderModel,
   providerSelectionDisabled = false,
+  selectionScope = "applies_now",
+  liveRunProviderModel,
 }: ComposerRuntimeFooterProps) {
   return (
     <div className="composer-runtime-footer" aria-label="Agent session status">
@@ -80,6 +87,16 @@ export function ComposerRuntimeFooter({
             {providerModel}
           </button>
         ) : <span>{providerModel}</span>}
+        {selectionScope === "applies_to_next_message" ? (
+          <span
+            className="composer-provider-model-scope"
+            title={liveRunProviderModel
+              ? `The running turn continues on ${liveRunProviderModel}.`
+              : undefined}
+          >
+            next message{liveRunProviderModel ? ` · running on ${liveRunProviderModel}` : ""}
+          </span>
+        ) : null}
       </div>
     </div>
   );

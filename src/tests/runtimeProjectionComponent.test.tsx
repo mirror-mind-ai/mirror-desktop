@@ -173,6 +173,33 @@ describe("runtime projection component", () => {
     expect(appSource).not.toContain('if ((!settingsOpen && !journeyAgentProfileOpen) || piModelCatalogState !== "idle") return;');
   });
 
+  // CR090: a model chosen while a turn runs reaches the next message, and the footer says so
+  // instead of implying the live turn changed.
+  it("marks a model selection that only reaches the next message", () => {
+    const running = renderToStaticMarkup(
+      <ComposerRuntimeFooter
+        providerModel="claude-bridge/claude-fable-5-1"
+        liveRunProviderModel="openai-codex/gpt-5.5"
+        selectionScope="applies_to_next_message"
+        onSelectProviderModel={() => undefined}
+      />,
+    );
+    expect(running).toContain("next message");
+    expect(running).toContain("openai-codex/gpt-5.5");
+    expect(running).toContain("composer-provider-model-scope");
+
+    const settled = renderToStaticMarkup(
+      <ComposerRuntimeFooter
+        providerModel="claude-bridge/claude-fable-5-1"
+        selectionScope="applies_now"
+        onSelectProviderModel={() => undefined}
+      />,
+    );
+    expect(settled).not.toContain("next message");
+    expect(settled).not.toContain("composer-provider-model-scope");
+    expect(cssSource).toContain(".composer-provider-model-scope");
+  });
+
   it("uses a fixed middle-truncated preview of the first tool argument", () => {
     const preview = summarizeOperationArgument({
       path: "/Users/alissonvale/.mirror-journeys/vida-criativa/nautilus/harness/src/app/LiveRuntimeActivity.tsx",

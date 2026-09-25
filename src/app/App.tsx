@@ -169,7 +169,7 @@ import {
   resolveUnsentReason,
   type UnsentDraftNotices,
 } from "./unsentDraftNotice";
-import { unavailableModelReason } from "../domain/modelAvailability";
+import { deriveModelSelectionScope, unavailableModelReason } from "../domain/modelAvailability";
 import {
   deriveInactiveNativeAttemptCandidate,
   shouldPresentInactiveNativeAttempt,
@@ -792,6 +792,7 @@ export function App({ model }: AppProps) {
     mode: streamMode,
     runtimeProjection,
     runtimeProjectionMessageId,
+    providerModel: liveRunProviderModel,
   } = selectedRuntime;
   const runtimeBusy = Boolean(runStartReservation)
     || navigationPresentation.runtimeBusy
@@ -845,6 +846,13 @@ export function App({ model }: AppProps) {
     effectiveAgentProfile.model,
     ...Object.values(agentSettings.journeyOverrides).flatMap((override) => override.model ? [override.model] : []),
   ]), [agentSettings, effectiveAgentProfile.model, piModelCatalog]);
+  const selectedProviderModelLabel = providerModelLabel(effectiveProviderConfig);
+  // CR090: the live turn keeps the model it was spawned with, so a newer selection reaches
+  // the next message and the footer has to say which turn it means.
+  const modelSelectionScope = deriveModelSelectionScope({
+    liveRunProviderModel,
+    selectedProviderModel: selectedProviderModelLabel,
+  });
   const authoritativeContextStats = conversation.authoritativeContextStats;
   const contextIdentityMatches = authoritativeContextStats
     && authoritativeContextStats.piSessionId === conversation.liveIdentity.piSessionId
@@ -2330,6 +2338,7 @@ export function App({ model }: AppProps) {
       identity: runtimeIdentity,
       run,
       assistantMessageId: assistantMessage.id,
+      providerModel: providerModelLabel(effectiveProviderConfig),
       conversationSnapshot: stagedConversation,
     });
     if (selectedJourneyRef.current === ownerJourneyId) {
@@ -4820,7 +4829,9 @@ export function App({ model }: AppProps) {
                 contextState={piContextState}
                 providerModel={providerModelLabel(effectiveProviderConfig)}
                 onSelectProviderModel={() => openJourneyAgentProfileSelector()}
-                providerSelectionDisabled={runtimeBusy || agentSettingsState === "saving"}
+                providerSelectionDisabled={agentSettingsState === "saving"}
+                selectionScope={modelSelectionScope}
+                liveRunProviderModel={liveRunProviderModel}
               />
               <div className="composer-inline-actions">
                 <button
@@ -5326,8 +5337,8 @@ export function App({ model }: AppProps) {
                 </select>
               </label>
               <div className="provider-actions">
-                <button type="button" onClick={() => void saveGlobalAgentProfile()} disabled={runtimeBusy || agentSettingsState === "saving"}>Save global defaults</button>
-                <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={runtimeBusy || agentSettingsState === "saving"}>Restore Mirror Desktop defaults</button>
+                <button type="button" onClick={() => void saveGlobalAgentProfile()} disabled={agentSettingsState === "saving"}>Save global defaults</button>
+                <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={agentSettingsState === "saving"}>Restore Mirror Desktop defaults</button>
               </div>
               <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>
                 </section>
@@ -5497,8 +5508,8 @@ export function App({ model }: AppProps) {
               <p className="provider-note">Changes affect only the next explicit invocation. The current conversation and generation remain unchanged.</p>
               {agentSettingsMessage ? <p className={agentSettingsState === "error" ? "settings-error" : "provider-note"} role={agentSettingsState === "error" ? "alert" : "status"}>{agentSettingsMessage}</p> : null}
               <div className="provider-actions journey-agent-profile-actions">
-                <button type="button" onClick={() => void saveSelectedJourneyAgentOverride()} disabled={runtimeBusy || agentSettingsState === "saving"}>Use model for this Journey</button>
-                <button className="secondary-button" type="button" onClick={() => void resetSelectedJourneyAgentOverride()} disabled={runtimeBusy || agentSettingsState === "saving"}>Use global defaults</button>
+                <button type="button" onClick={() => void saveSelectedJourneyAgentOverride()} disabled={agentSettingsState === "saving"}>Use model for this Journey</button>
+                <button className="secondary-button" type="button" onClick={() => void resetSelectedJourneyAgentOverride()} disabled={agentSettingsState === "saving"}>Use global defaults</button>
                 <button className="secondary-button" type="button" onClick={() => setJourneyAgentProfileOpen(false)} disabled={agentSettingsState === "saving"}>Cancel</button>
               </div>
               <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>

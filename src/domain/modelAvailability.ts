@@ -6,6 +6,22 @@ export type ModelAvailabilityEntry = {
 
 export type ModelSelection = { provider: string; model: string };
 
+// CR090: a model chosen while a turn is alive is a preference for the next turn. The running
+// child keeps the configuration it was spawned with, so the interface must say which turn a
+// new selection reaches instead of implying the live one changed.
+export type ModelSelectionScope = "applies_now" | "applies_to_next_message";
+
+export function deriveModelSelectionScope(input: {
+  /** Model the currently running turn started with, absent when nothing is running. */
+  liveRunProviderModel?: string;
+  selectedProviderModel: string;
+}): ModelSelectionScope {
+  if (!input.liveRunProviderModel) return "applies_now";
+  return input.liveRunProviderModel === input.selectedProviderModel
+    ? "applies_now"
+    : "applies_to_next_message";
+}
+
 // Only a catalog entry explicitly marked unavailable yields a reason: models
 // unknown to the catalog pass through so Pi stays the authority on them.
 export function unavailableModelReason(

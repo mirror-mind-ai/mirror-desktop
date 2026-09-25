@@ -2268,6 +2268,15 @@ h3 {
   opacity: 0.65;
 }
 
+/* CR090: the selection reaches the next message while a turn is still running. */
+.composer-provider-model-scope {
+  color: var(--light-muted, #8aa3a9);
+  font-size: 0.82em;
+  margin-left: 0.4em;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
 .composer-runtime-separator {
   color: #466169;
 }
