@@ -13,11 +13,9 @@ operation that must wait for the machine to be idle. Every model surface is disa
 `runtimeBusy` holds, and `runtimeBusy` is global: a turn running in one Journey disables the
 model surfaces in every other Journey.
 
-Removing that block alone would be wrong. The live path reads the *current* effective
-configuration while a turn is streaming, so a model changed mid-run would silently corrupt
-that turn's context-stats attribution. The availability defect and the attribution defect
-are one unit of work: fixing the first without the second trades a visible friction for a
-silent falsehood.
+Alongside it sits a presentation question: while a turn is alive, nothing in the interface
+distinguishes the model that turn started with from the model the Navigator has just
+selected for the next one.
 
 This CR was split out of CR078, which returns to its original intent — making the switch
 itself fast. CR078 is about interaction; this one is about authority and availability.
@@ -46,11 +44,21 @@ so a mid-run model change cannot reach a steered message. The steered output sti
 to the original model, which is one more reason the run's model must be captured rather than
 re-read.
 
-**The attribution defect.** While a turn streams, the context-stats reducer compares
-`currentStats.providerModel === providerModelLabel(effectiveProviderConfig)`. That reads the
-current configuration, not the run's. If the model changed mid-run, `sameAuthority` becomes
-false, the accumulated usage of the running turn is discarded instead of merged, and the
-stats are then stamped with the new model label over numbers the old model produced.
+**Correction to the first reading of this CR.** An earlier draft claimed the streaming
+context-stats reducer reads the *current* configuration and would therefore corrupt a
+running turn's attribution after a mid-run switch. That is wrong. The reducer at the
+`for await` loop lives inside `generatePacket`, so `effectiveProviderConfig` there is the
+value lexically captured when the run started. A running turn already merges and labels its
+usage with the model it began with, and unblocking alone cannot corrupt it. The claim was
+the main argument for coupling availability with capture; that argument does not hold.
+
+**A real render-time behaviour, different in kind.** `contextIdentityMatches` compares the
+stored stats' `providerModel` against `providerModelLabel(effectiveProviderConfig)` at render
+time, and it feeds the Composer footer's context usage. Switching the model therefore blanks
+the displayed context usage until a new turn re-establishes stats under the new label. The
+durable data is untouched; only the display goes quiet, and it does so without explanation.
+Whether that is right is a question for CR079, which already asks why context stats are so
+often unavailable. This CR records it and changes nothing there.
 
 **Nothing records the model per run.** Neither `journeyRuntimeState`, nor `agentRun`, nor the
 turn journal authority carries it, so the correct value has to be captured at start.
@@ -66,26 +74,24 @@ alters, reattributes or discards the running turn's evidence.
 
 ## Proposed Scope
 
-1. Capture the effective model on the run at admission, alongside the existing run authority,
-   and treat it as the run's model for its whole lifetime.
-2. Replace the live-path reads of `effectiveProviderConfig` that describe the running turn —
-   the context-stats reducer above in particular — with the captured value, so accumulated
-   usage merges correctly and carries the producing model's label.
-3. Remove `runtimeBusy` from the three model surfaces, keeping `agentSettingsState ===
-   "saving"`. Decide explicitly whether unknown native occupancy should still block a
-   preference write; the working assumption is that it should not, because writing a
-   preference does not touch the registry.
-4. When a run is live and the selection differs from that run's captured model, say plainly
+1. Remove `runtimeBusy` from the three model surfaces, keeping `agentSettingsState ===
+   "saving"`. Unknown native occupancy should not block a preference write either, because
+   writing a preference does not touch the registry.
+2. Record the run's model on its runtime entry at registration. The closure already protects
+   the run's own attribution; the render cannot see that closure, so the captured value is
+   what lets the interface speak about the live turn. It is also what CR091 needs for a
+   still-streaming response.
+3. When a run is live and the selection differs from that run's recorded model, say plainly
    that the change applies to the next message.
-5. Tests: the attribution merge across a mid-run model change, the per-surface availability
-   matrix including the cross-Journey case, and a contract scene confirming the running turn
-   keeps its model and its evidence.
+4. Tests: the per-surface availability matrix including the cross-Journey and
+   unknown-occupancy cases, the recorded model surviving the run lifecycle, and the
+   next-message notice appearing only on a genuine difference.
 
 ## Acceptance
 
 - Changing the model in Journey A is possible while Journey B is running.
 - Changing the model during this Journey's own live turn is possible, and the running turn
-  keeps its model, its accumulated usage and its stats label.
+  keeps its model, its accumulated usage and its stats label — which it already did.
 - A steered message continues to belong to the running turn's model.
 - The next turn uses the new selection, and the UI states that while the old turn is alive.
 - A settings write in flight still blocks the surfaces.
