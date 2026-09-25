@@ -2,7 +2,7 @@
 
 # CR090: Run-Scoped Model Authority
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr090-run-scoped-model-authority`
 
@@ -124,9 +124,23 @@ alters, reattributes or discards the running turn's evidence.
 - `npm test`: 172 files, 1035 tests green.
 - `npm run build` green; `npm run roadmap:check` READY; `git diff --check` clean.
 
-Navigator homologation pending: start a turn in one Journey, switch to another and confirm
-the model surfaces are usable; change the model during this Journey's own live turn and
-confirm the footer marks it as reaching the next message while the running turn continues.
+## Homologation (2026-09-25)
+
+Navigator validated the behaviour in the Dev bundle. Accepted.
+
+## Closure
+
+Closed on 2026-09-25 with explicit Navigator validation.
+
+Proportionality review: proportional. One flag removed from five call sites, one field added
+to the runtime entry, one pure derivation and one restrained footer marker; no durable
+schema, native command or Mirror Core change. The investigation also corrected a wrong
+premise in this CR's own first draft before it could shape the code.
+
+Debt review: `no_action` for CR090. Switching the model still blanks the Composer's context
+usage until the next turn, because that display is gated on the stored stats matching the
+current selection; that behaviour is recorded here and belongs to CR079. Integration, push
+and release remain separate Navigator decisions.
 
 ## Exclusions
 
