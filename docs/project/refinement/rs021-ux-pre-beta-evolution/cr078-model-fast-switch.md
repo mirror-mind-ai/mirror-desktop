@@ -2,9 +2,9 @@
 
 # CR078: Model Fast Switch
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr078-model-fast-switch`
 
 ## Problem
 
