@@ -105,7 +105,7 @@ export function requireExactTurnJournalRecord(
 }
 
 export function findBlockingTurnJournalRecord(
-  document: TurnJournalDocument,
+  document: Pick<TurnJournalDocument, "records">,
   journeyId: string,
   activeGeneration: number,
   threadId?: string,

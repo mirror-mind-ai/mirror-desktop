@@ -171,7 +171,7 @@ describe("Journey runtime integration guardrails", () => {
       "} else {\n              await saveDedicatedJourneyConversation(interrupted);",
     );
     expect(interruptedSettlement.indexOf("cleanupLease: releaseDurablePiInvocationLease")).toBeLessThan(
-      interruptedSettlement.indexOf("setBlockingTurnJournalRecord(undefined)"),
+      interruptedSettlement.indexOf("refreshTurnJournalEvidence(ownerJourneyId)"),
     );
     expect(interruptedSettlement).toContain("setTurnRecoveryError(undefined)");
     expect(interruptedSettlement).toContain("setTurnRecoveryBusy(false)");

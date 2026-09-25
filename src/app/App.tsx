@@ -142,6 +142,7 @@ import {
 import { partitionConversationBySegments } from "../domain/conversationSegmentProjection";
 import { decideConversationAvailability } from "../domain/conversationAvailability";
 import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
+import { deriveBlockingTurnPresentation } from "./blockingTurnPresentation";
 import {
   beginSynchronizationAttempt,
   deriveSynchronizationAttention,
@@ -670,7 +671,6 @@ export function App({ model }: AppProps) {
   const [journeyReloadStatus, setJourneyReloadStatus] = useState<string | undefined>();
   const [isJourneyReloading, setIsJourneyReloading] = useState(false);
   const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false);
-  const [blockingTurnJournalRecord, setBlockingTurnJournalRecord] = useState<TurnJournalRecord>();
   const [turnRecoveryBusy, setTurnRecoveryBusy] = useState(false);
   const [turnRecoveryError, setTurnRecoveryError] = useState<string>();
   const [turnRecoveryNotice, setTurnRecoveryNotice] = useState<string>();
@@ -876,6 +876,27 @@ export function App({ model }: AppProps) {
   const selectedActiveNativeLease = selectedNativeLease && isActivePiInvocationLease(selectedNativeLease)
     ? selectedNativeLease
     : undefined;
+  // CR088: the blocking record and the occupancy it is judged against are derived together
+  // from this render, so the panel can no longer flash on an aged copy of either one.
+  const { record: blockingTurnJournalRecord, evidence: blockingRecoveryEvidence } = useMemo(
+    () => deriveBlockingTurnPresentation({
+      journalRecords: journeyTurnJournalRecords,
+      journeyId: selectedJourney,
+      activeGeneration: journeyThreadState.kind === "ready" ? journeyThreadState.activeGeneration.generation : 0,
+      threadId: journeyThreadState.kind === "ready" ? journeyThreadState.thread.threadId : undefined,
+      activeNativeRunId: selectedActiveNativeLease?.authority.runId,
+      occupancyKnown: piInvocationOccupancy.status === "known",
+      runtimeBusy: selectedRuntimeBusy,
+    }),
+    [
+      journeyTurnJournalRecords,
+      selectedJourney,
+      journeyThreadState,
+      selectedActiveNativeLease?.authority.runId,
+      piInvocationOccupancy.status,
+      selectedRuntimeBusy,
+    ],
+  );
   const blockingTurnAwaitingNativeLease = Boolean(blockingTurnJournalRecord && selectedActiveNativeLease);
   const retainedLeaseWithoutRecovery = selectedNativeLease?.leasePhase === "finalizing"
     && !selectedRuntimeBusy
@@ -944,17 +965,6 @@ export function App({ model }: AppProps) {
     mirrorSynchronizationPending: showConversationSyncNotice,
   });
   const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;
-  const blockingRecoveryEvidence = blockingTurnJournalRecord
-    && ["admitted", "running", "terminal_durable", "projected"].includes(blockingTurnJournalRecord.phase)
-    ? {
-        phase: blockingTurnJournalRecord.phase as "admitted" | "running" | "terminal_durable" | "projected",
-        terminalOutcome: blockingTurnJournalRecord.terminalOutcome,
-        hasFreshCompletePiEvidence: hasFreshCompleteTurnJournalEvidence(blockingTurnJournalRecord),
-        exactRunInactive: piInvocationOccupancy.status === "known"
-          && !selectedActiveNativeLease
-          && !selectedRuntimeBusy,
-      }
-    : undefined;
   const recoveryRoutes = decideConversationRecoveryRoutes({
     availability: conversationAvailability,
     blockingTurn: blockingRecoveryEvidence,
@@ -1540,10 +1550,9 @@ export function App({ model }: AppProps) {
           journeyThreadState.thread.threadId,
           selectedActiveNativeLease?.authority.runId,
         );
+        setTurnRecoveryError(undefined);
+        setTurnRecoveryBusy(false);
         if (!blockingRecord) {
-          setBlockingTurnJournalRecord(undefined);
-          setTurnRecoveryError(undefined);
-          setTurnRecoveryBusy(false);
           const projectedSyncRecord = [...journal.records].reverse().find((record) => (
             record.authority.journeyId === ownerJourneyId
             && record.authority.threadId === journeyThreadState.thread.threadId
@@ -1555,11 +1564,7 @@ export function App({ model }: AppProps) {
             checkedMirrorTurnRef.current.add(projectedSyncRecord.authority.turnId);
             void recoverPostTerminalPersistence(ownerJourneyId);
           }
-          return;
         }
-        setBlockingTurnJournalRecord(blockingRecord);
-        setTurnRecoveryError(undefined);
-        setTurnRecoveryBusy(false);
       })
       .catch(() => {
         if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
@@ -1911,7 +1916,7 @@ export function App({ model }: AppProps) {
       });
     }
     if (selectedJourneyRef.current !== authority.journeyId) return;
-    if (event.phase === "frontier") setBlockingTurnJournalRecord(undefined);
+
     const current = conversationRef.current;
     if (current.id !== authority.threadId
       || current.liveIdentity.generation !== authority.generation) return;
@@ -2693,10 +2698,10 @@ export function App({ model }: AppProps) {
                 cleanupLease: releaseDurablePiInvocationLease,
               });
               if (selectedJourneyRef.current === ownerJourneyId) {
-                setBlockingTurnJournalRecord(undefined);
                 setTurnRecoveryError(undefined);
                 setTurnRecoveryBusy(false);
               }
+              await refreshTurnJournalEvidence(ownerJourneyId);
             } else {
               await saveDedicatedJourneyConversation(interrupted);
             }
@@ -3045,7 +3050,7 @@ export function App({ model }: AppProps) {
         selectedActiveNativeLease?.authority.runId,
       );
       if (blockingRecord) {
-        setBlockingTurnJournalRecord(blockingRecord);
+        setJourneyTurnJournalRecords(journal.records);
         setRestartConfirmationOpen(false);
         throw new Error("Mirror is still preparing the previous message. Try again when the conversation is ready.");
       }
@@ -3154,7 +3159,6 @@ export function App({ model }: AppProps) {
       localCompletionEstablished = true;
       conversationRef.current = recovered;
       setConversation(recovered);
-      setBlockingTurnJournalRecord(undefined);
       setTurnRecoveryNotice("The preserved response was recovered without running the agent again.");
       requireExactTurnJournalRecord(await loadTurnJournal(ownerJourneyId), authority);
       await turnFinalizationCoordinator.convergeDelivery(ownerJourneyId, convergenceDeps);
@@ -3223,15 +3227,7 @@ export function App({ model }: AppProps) {
         activeGeneration,
       );
       if (selectedJourneyRef.current !== ownerJourneyId) return;
-      setBlockingTurnJournalRecord(
-        findBlockingTurnJournalRecord(
-          journal,
-          ownerJourneyId,
-          activeGeneration,
-          journeyThreadState.thread.threadId,
-          selectedActiveNativeLease?.authority.runId,
-        ),
-      );
+      setJourneyTurnJournalRecords(journal.records);
       setTurnRecoveryNotice("The durable attempt was preserved. You can continue without the unverified response.");
       setJourneyReloadStatus(undefined);
     } catch {
