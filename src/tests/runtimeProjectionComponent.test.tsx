@@ -129,7 +129,7 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("|| showConversationSyncNotice");
     expect(appSource).toContain("{showConversationRecoveryNotice ? (");
     expect(appSource).toContain('composerTurnStatus !== "finishing"');
-    expect(appSource).toContain("Resolve the preserved attempt");
+    expect(appSource).not.toContain("Resolve the preserved attempt");
     expect(appSource).toContain("No recovery action will run the agent again.");
     expect(appSource).not.toContain("Terminal finalization pending");
     expect(appSource).toContain("Repairing conversation synchronization");

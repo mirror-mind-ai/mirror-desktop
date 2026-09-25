@@ -22,12 +22,15 @@ describe("dedicated conversation context reset lifecycle", () => {
     expect(command).not.toContain("generatePacket");
   });
 
-  it("closes inactive attempts only through an explicit model-free recovery route", () => {
+  it("leaves inactive attempts to native reconciliation instead of a manual recovery route", () => {
     expect(appSource).not.toContain("automaticTurnRecoveryAuthorized");
-    expect(appSource).toContain('route === "preserve_attempt_and_continue"');
-    expect(appSource).toContain("await markBlockingTurnInterrupted()");
-    expect(appSource).toContain("await interruptInactiveTurnRecord(");
-    expect(appSource).toContain("The durable attempt was preserved. You can continue without the unverified response.");
+    // CR088 removed the manual routes: a blocking turn only means the exact run is still
+    // finishing, and a stranded completed turn is settled by native reconciliation.
+    expect(appSource).not.toContain("preserve_attempt_and_continue");
+    expect(appSource).not.toContain("recover_preserved_response");
+    expect(appSource).not.toContain("markBlockingTurnInterrupted");
+    expect(appSource).not.toContain("interruptInactiveTurnRecord");
+    expect(appSource).toContain("await recoverPostTerminalPersistence(conversation.journeyId)");
     expect(appSource).not.toContain("Discard previous response");
   });
 

@@ -77,7 +77,7 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).not.toContain("localAdmissionReady");
     expect(generation).not.toContain("Boolean(blockingTurnJournalRecord)");
     expect(generation).toContain("selectedInvocationAdmissionBlocked || turnRecoveryBusy");
-    expect(appSource).toContain("blockingTurn: blockingRecoveryEvidence");
+    expect(appSource).toContain("blockingTurnActive: Boolean(blockingTurnJournalRecord)");
   });
 
   it("keeps ordinary occupancy silent and disables Send when capacity refusal is known", () => {

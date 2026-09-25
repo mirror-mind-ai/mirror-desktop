@@ -61,66 +61,54 @@ const phases: TurnPhase[] = [
 const outcomes: (TurnTerminalOutcome | null)[] = [null, "completed", "cancelled", "spawn_failed", "process_died"];
 
 describe("blocking turn presentation coherence (CR088)", () => {
-  // The proof: across the whole finite input space, a blocking record and an inactive exact
-  // run can never hold together, so the blocking recovery branch can never produce routes.
-  it("never yields recovery routes for a blocking turn, across the whole input space", () => {
+  // The proof that justified deleting the blocking recovery branch: across the whole finite
+  // input space, a blocking record implies the exact native run is active, and no recovery
+  // route is ever offered for it.
+  it("only reports a blocking turn for an active run, and never offers it a route", () => {
     let blockingSeen = 0;
-    let inactiveSeen = 0;
     for (const phase of phases) {
       for (const terminalOutcome of outcomes) {
-        for (const activeNativeRunId of [undefined, "run-1"]) {
-          for (const occupancyKnown of [false, true]) {
-            for (const runtimeBusy of [false, true]) {
-              for (const withEvidence of [false, true]) {
-                const { record: blocking, evidence } = deriveBlockingTurnPresentation({
-                  journalRecords: [record({
-                    phase,
-                    terminalOutcome,
-                    terminalEvidence: withEvidence ? completedEvidence : null,
-                  })],
-                  journeyId: "journey-a",
-                  activeGeneration: 1,
-                  threadId: "thread-a",
-                  activeNativeRunId,
-                  occupancyKnown,
-                  runtimeBusy,
-                });
-                if (!blocking) continue;
-                blockingSeen += 1;
-                // A record exists only while the exact run is active, so it can never be inactive.
-                expect(evidence?.exactRunInactive ?? false).toBe(false);
-                const routes = decideConversationRecoveryRoutes({
-                  availability,
-                  blockingTurn: evidence,
-                  mirrorSynchronization: "none",
-                  canCreateDesktopConversation: true,
-                });
-                expect(routes).toEqual([]);
-                if (occupancyKnown && !runtimeBusy) inactiveSeen += 1;
-              }
+        for (const activeNativeRunId of [undefined, "run-1", "other-run"]) {
+          for (const withEvidence of [false, true]) {
+            for (const mirrorSynchronization of ["none", "exact_repair_available", "legacy_gap"] as const) {
+              const { record: blocking } = deriveBlockingTurnPresentation({
+                journalRecords: [record({
+                  phase,
+                  terminalOutcome,
+                  terminalEvidence: withEvidence ? completedEvidence : null,
+                })],
+                journeyId: "journey-a",
+                activeGeneration: 1,
+                threadId: "thread-a",
+                activeNativeRunId,
+              });
+              if (!blocking) continue;
+              blockingSeen += 1;
+              // Coherence: a record can only exist for the exact active run.
+              expect(activeNativeRunId).toBe("run-1");
+              expect(decideConversationRecoveryRoutes({
+                availability,
+                blockingTurnActive: true,
+                mirrorSynchronization,
+                canCreateDesktopConversation: true,
+              })).toEqual([]);
             }
           }
         }
       }
     }
-    // The space really did exercise blocking records, including the occupancy shape that
-    // would have produced routes under the previous cross-time derivation.
     expect(blockingSeen).toBeGreaterThan(0);
-    expect(inactiveSeen).toBeGreaterThan(0);
   });
 
-  it("keeps the still-finishing status for the exact active run", () => {
-    const { record: blocking, evidence } = deriveBlockingTurnPresentation({
+  it("reports the blocking turn while the exact run is active", () => {
+    const { record: blocking } = deriveBlockingTurnPresentation({
       journalRecords: [record({ phase: "running" })],
       journeyId: "journey-a",
       activeGeneration: 1,
       threadId: "thread-a",
       activeNativeRunId: "run-1",
-      occupancyKnown: true,
-      runtimeBusy: true,
     });
     expect(blocking?.authority.runId).toBe("run-1");
-    expect(evidence).toMatchObject({ phase: "running", exactRunInactive: false });
   });
 
   it("reports no blocking turn once the exact run is no longer active", () => {
@@ -131,8 +119,6 @@ describe("blocking turn presentation coherence (CR088)", () => {
       activeGeneration: 1,
       threadId: "thread-a",
       activeNativeRunId: undefined,
-      occupancyKnown: true,
-      runtimeBusy: false,
     })).toEqual({});
   });
 
@@ -142,8 +128,6 @@ describe("blocking turn presentation coherence (CR088)", () => {
       activeGeneration: 1,
       threadId: "thread-a",
       activeNativeRunId: "run-1",
-      occupancyKnown: true,
-      runtimeBusy: true,
     };
     expect(deriveBlockingTurnPresentation({ ...base, journalRecords: [record({ phase: "settled" })] })).toEqual({});
     expect(deriveBlockingTurnPresentation({ ...base, journalRecords: [record({ phase: "interrupted" })] })).toEqual({});

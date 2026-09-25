@@ -125,16 +125,9 @@ export async function loadTurnJournal(journeyId: string): Promise<TurnJournalDoc
   return invoke<TurnJournalDocument>("list_turn_journal", { journeyId });
 }
 
-export async function interruptInactiveTurnJournal(
-  record: TurnJournalRecord,
-  activeGeneration: number,
-): Promise<TurnJournalRecord> {
-  return invoke<TurnJournalRecord>("interrupt_inactive_turn_journal", {
-    authority: record.authority,
-    expectedRevision: record.revision,
-    activeGeneration,
-  });
-}
+// CR088 removed the only caller of `interrupt_inactive_turn_journal`. The native command
+// stays registered as a durable capability; re-bridging it is a few lines when a real
+// caller appears.
 
 export async function advanceTurnJournal(
   authority: JourneySettlementAuthority,
