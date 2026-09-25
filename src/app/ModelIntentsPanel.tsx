@@ -100,7 +100,7 @@ export function ModelIntentsPanel({
 
       {intents.intents.length === 0 ? (
         <p className="provider-note">
-          No intents yet — name your first one below, for example “Para tarefas cotidianas”.
+          No intents yet — name your first one below.
         </p>
       ) : (
         <ul className="model-intent-list">
@@ -174,7 +174,6 @@ export function ModelIntentsPanel({
           <input
             value={labelDraft}
             maxLength={MODEL_INTENT_LABEL_MAX_LENGTH}
-            placeholder="Para tarefas cotidianas"
             disabled={busy || full}
             onChange={(event) => { setLabelDraft(event.target.value); setDraftError(undefined); }}
           />
