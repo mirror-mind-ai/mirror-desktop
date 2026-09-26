@@ -66,6 +66,49 @@ without implying anything about the current selection.
 - Tests: projection carries attribution, reconstruction after restart preserves it, absence
   stays absent for entries without the fields, and the live case matches the captured model.
 
+## Decision — the model, not the Intent (2026-09-25)
+
+The Navigator asked to confirm that the transcript names the model rather than the Model
+Intent. It does, for two independent reasons.
+
+Intents are a living vocabulary. Renaming one, or rebinding it to another model, would make
+every past response labelled with it lie about what produced it. A transcript is history and
+history has to stay stable — the same class of retroactive falsehood CR087 removed.
+
+And the data settles it anyway. Across 1543 assistant messages in the production sessions,
+`provider` and `model` are present in all 1543; `providerThinkingLevel` appears in exactly
+one. An Intent binds model *and* thinking level, so the Intent in force at the time cannot be
+reconstructed even in principle. What Pi knows for certain is the model.
+
+## Implementation Evidence (2026-09-26)
+
+- **Native.** `DedicatedPiTranscriptEntry` and `PiBranchEntry` carry `provider` and `model`
+  off the raw Pi message. An entry Pi did not attribute stays unattributed rather than
+  inheriting a neighbour's.
+- **Domain.** `projectPiBackedConversationSurface` collects them into `responseModels`, keyed
+  by assistant message id, on the precedent CR077 set: derived at every reconstruction and
+  outside the persistence whitelist, so Pi stays the authority, storage carries no duplicate
+  and existing Conversations gain the attribution without migration. Only a complete
+  provider-and-model pair counts.
+- **Presentation.** `projectResponseModelBadges` decides what each answer shows: the model
+  label, and whether it changed from the previous *attributed* answer, skipping unattributed
+  ones in between. `AgentTurn` renders it beside the speaker label — always present so any
+  answer can be checked, drawn forward only where the model changed. This is the hybrid the
+  Navigator chose over always-visible, change-only and disclosure-only.
+- **The freshly finished turn.** A turn that just completed is not yet in the Pi session the
+  surface last read, since reprojection happens on hydration, restore, segment load and at
+  the start of the next send. The model captured on the run by CR090 covers that answer, and
+  Pi's own record wins whenever it exists. Nothing is persisted to close the gap.
+
+## Validation
+
+- `cargo test --locked`: 193 passed, 3 ignored.
+- `npm test`: 176 files, 1081 tests green.
+- `npm run build` green; `npm run roadmap:check` READY; `git diff --check` clean.
+
+Navigator homologation pending: open a Conversation that used more than one model and confirm
+each answer names its own, with the switches marked.
+
 ## Acceptance
 
 - A completed response shows which model produced it, including in Conversations that

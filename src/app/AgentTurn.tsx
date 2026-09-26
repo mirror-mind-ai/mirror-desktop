@@ -4,6 +4,7 @@ import type { MessageSpeaker } from "./conversationPresentation";
 import type { AgentTurnPresentation } from "./conversationTurnPresentation";
 import { projectAgentActionGroups } from "./agentActionProjection";
 import type { AssistantTurnProximity } from "./turnProximity";
+import type { ResponseModelBadge } from "./responseModelAttribution";
 import { ImportedActivity } from "./ImportedActivity";
 import { LiveRuntimeActivity } from "./LiveRuntimeActivity";
 import { MessageAttachmentProvenance } from "./MessageAttachmentProvenance";
@@ -20,6 +21,8 @@ type AgentTurnProps = {
   basePath?: string;
   onLocalPathClick?: (path: string) => void;
   highlightQuery?: string;
+  /** CR091: the model Pi recorded for this answer, absent where none was attributed. */
+  responseModel?: ResponseModelBadge;
 };
 
 export function AgentTurn({
@@ -30,6 +33,7 @@ export function AgentTurn({
   basePath,
   onLocalPathClick,
   highlightQuery,
+  responseModel,
 }: AgentTurnProps) {
   const hasContent = Boolean(
     presentation.agentActions
@@ -85,6 +89,14 @@ export function AgentTurn({
           <div className="message-speaker-row">
             <MessageSpeakerAvatar speakerKind={speaker.kind} fallback={speaker.avatar} />
             <span className="message-role">{speaker.label}</span>
+            {responseModel ? (
+              <span
+                className={`response-model-badge${responseModel.changed ? " is-changed" : ""}`}
+                title={`Answered by ${responseModel.label}`}
+              >
+                {responseModel.label}
+              </span>
+            ) : null}
             {presentation.agentComment ? <MessageCopyAction body={presentation.agentComment} /> : null}
           </div>
           {proximity === "historical" ? (

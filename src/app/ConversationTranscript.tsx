@@ -22,6 +22,7 @@ import { projectAgentTurnPresentation } from "./conversationTurnPresentation";
 import type { RuntimeProjectionState } from "./runtimeActivityModel";
 import type { AssistantTurnProximity } from "./turnProximity";
 import { buildConversationTranscriptIndex } from "./conversationTranscriptModel";
+import { projectResponseModelBadges, type ResponseModelBadge } from "./responseModelAttribution";
 import {
   clampConversationNavigationIndex,
   createConversationTurnNavigationItems,
@@ -46,6 +47,8 @@ type ConversationTranscriptProps = {
   turnNavigatorOpen?: boolean;
   onSearchOpenChange?: (open: boolean) => void;
   onTurnNavigatorOpenChange?: (open: boolean) => void;
+  /** CR091: model captured on the live run, for the answer Pi has not recorded yet. */
+  liveResponseModel?: { messageId: string; label: string };
 };
 
 type ConversationMessageRowProps = {
@@ -58,6 +61,7 @@ type ConversationMessageRowProps = {
   userAvatar?: string;
   onLocalPathClick: (path: string) => void;
   highlightQuery?: string;
+  responseModel?: ResponseModelBadge;
 };
 
 const ConversationMessageRow = memo(function ConversationMessageRow({
@@ -70,6 +74,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
   userAvatar,
   onLocalPathClick,
   highlightQuery,
+  responseModel,
 }: ConversationMessageRowProps) {
   const contentWithoutSurfaces = stripMirrorSurfaceBlocks(message.content);
   const renderedContent = stripMirrorModeBlocks(contentWithoutSurfaces);
@@ -92,6 +97,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
         basePath={basePath}
         onLocalPathClick={onLocalPathClick}
         highlightQuery={highlightQuery}
+        responseModel={responseModel}
       />
     );
   }
@@ -151,11 +157,20 @@ export const ConversationTranscript = memo(function ConversationTranscript({
   turnNavigatorOpen = false,
   onSearchOpenChange,
   onTurnNavigatorOpenChange,
+  liveResponseModel,
 }: ConversationTranscriptProps) {
   const index = useMemo(() => buildConversationTranscriptIndex(conversation), [conversation]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const messageRefs = useRef(new Map<string, HTMLDivElement>());
+  const responseModelBadges = useMemo(
+    () => projectResponseModelBadges({
+      messages,
+      ...(conversation.responseModels ? { responseModels: conversation.responseModels } : {}),
+      ...(liveResponseModel ? { liveAttribution: liveResponseModel } : {}),
+    }),
+    [messages, conversation.responseModels, liveResponseModel],
+  );
   const searchMatches = useMemo(() => findConversationSearchMatches(messages, searchQuery), [messages, searchQuery]);
   const turnItems = useMemo(() => createConversationTurnNavigationItems(messages), [messages]);
   const activeMatch = searchMatches[clampConversationNavigationIndex(currentMatchIndex, searchMatches.length)];
@@ -275,6 +290,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
               userAvatar={userAvatar}
               onLocalPathClick={onLocalPathClick}
               highlightQuery={searchOpen ? searchQuery : undefined}
+              responseModel={responseModelBadges[message.id]}
             />
           </div>
         );

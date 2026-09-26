@@ -4727,6 +4727,9 @@ export function App({ model }: AppProps) {
           <ConversationTranscript
             messages={messages}
             conversation={presentedConversation}
+            liveResponseModel={runtimeProjectionMessageId && liveRunProviderModel
+              ? { messageId: runtimeProjectionMessageId, label: liveRunProviderModel }
+              : undefined}
             importedActivity={importedActivity}
             assistantTurnProximity={assistantTurnProximity}
             runtimeProjection={runtimeProjection}
