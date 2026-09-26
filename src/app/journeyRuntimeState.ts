@@ -28,6 +28,8 @@ export type JourneyRuntimeEntry = {
   isStreaming: boolean;
   isFinalizingTurn: boolean;
   mode?: "mock" | "live";
+  /** CR090: the model this run started with, recorded so the render can name it. */
+  providerModel?: string;
   missionDraft?: MissionDraft;
   warnings: string[];
   diagnostics: string[];
@@ -64,7 +66,7 @@ type RuntimePatch = Partial<Pick<JourneyRuntimeEntry,
 >>;
 
 export type JourneyRuntimeAction =
-  | { type: "register"; identity: JourneyRunIdentity; run: AgentRunState; assistantMessageId: string; conversationSnapshot?: JourneyConversation }
+  | { type: "register"; identity: JourneyRunIdentity; run: AgentRunState; assistantMessageId: string; providerModel?: string; conversationSnapshot?: JourneyConversation }
   | { type: "conversation_snapshot"; identity: JourneyRunIdentity; conversation: JourneyConversation }
   | { type: "stream_started"; identity: JourneyRunIdentity }
   | { type: "stream_event"; identity: JourneyRunIdentity; event: AgentStreamEvent }
@@ -114,6 +116,7 @@ export function journeyRuntimeReducer(
           agentRun: action.run,
           isStreaming: true,
           mode: action.identity.kind === "live" ? "live" : "mock",
+          providerModel: action.providerModel,
           runtimeProjectionMessageId: action.assistantMessageId,
           conversationSnapshot: action.conversationSnapshot && conversationMatchesIdentity(action.conversationSnapshot, action.identity)
             ? action.conversationSnapshot

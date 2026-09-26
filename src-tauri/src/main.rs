@@ -1,5 +1,6 @@
 mod agent_settings;
 mod journey_appearance;
+mod model_intents;
 mod pi_global_extensions;
 mod pi_process_registry;
 mod pi_rpc;
@@ -10,6 +11,7 @@ mod voice_transcription;
 mod whats_new_state;
 
 use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
+use model_intents::{load_model_intents, save_model_intents};
 use journey_appearance::{
     import_journey_custom_image, import_user_avatar, load_journey_custom_image,
     load_user_avatar, remove_journey_custom_image, remove_user_avatar,
@@ -347,6 +349,10 @@ struct DedicatedPiTranscriptEntry {
     tool_call_id: Option<String>,
     tool_name: Option<String>,
     is_error: Option<bool>,
+    // CR091: what produced this entry. Pi records both on every assistant message; an
+    // entry it did not attribute stays unattributed rather than inheriting a guess.
+    provider: Option<String>,
+    model: Option<String>,
 }
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
@@ -370,6 +376,8 @@ struct PiBranchEntry {
     tool_call_id: Option<String>,
     tool_name: Option<String>,
     is_error: Option<bool>,
+    provider: Option<String>,
+    model: Option<String>,
 }
 
 #[tauri::command]
@@ -4378,6 +4386,8 @@ fn project_active_pi_branch(content: &str) -> Result<Vec<PiBranchEntry>, String>
             tool_call_id: message.and_then(|item| item.get("toolCallId")).and_then(Value::as_str).map(str::to_string),
             tool_name: message.and_then(|item| item.get("toolName")).and_then(Value::as_str).map(str::to_string),
             is_error: message.and_then(|item| item.get("isError")).and_then(Value::as_bool),
+            provider: message.and_then(|item| item.get("provider")).and_then(Value::as_str).map(str::to_string),
+            model: message.and_then(|item| item.get("model")).and_then(Value::as_str).map(str::to_string),
         });
     }
     if entries.is_empty() { return Ok(Vec::new()); }
@@ -4459,6 +4469,8 @@ fn project_pi_transcript_entries(branch: &[PiBranchEntry]) -> Vec<DedicatedPiTra
             tool_call_id: entry.tool_call_id.clone(),
             tool_name: entry.tool_name.clone(),
             is_error: entry.is_error,
+            provider: entry.provider.clone(),
+            model: entry.model.clone(),
         })
     }).collect()
 }
@@ -8389,6 +8401,8 @@ fn main() {
             voice_transcription_remove,
             voice_transcription_transcribe,
             list_pi_models,
+            load_model_intents,
+            save_model_intents,
             inspect_runtime_channel,
             inspect_runtime_binding_candidate,
             validate_runtime_binding,
@@ -10132,6 +10146,33 @@ mod tests {
         // A user request that merely mentions the marker mid-sentence is untouched.
         let raw = "just a plain prompt";
         assert_eq!(project_dedicated_user_text_and_envelope(raw), (raw.to_string(), "raw".to_string()));
+    }
+
+    #[test]
+    fn carries_the_model_that_produced_each_assistant_entry() {
+        // CR091: Pi records provider and model on every assistant message. The inspection
+        // dropped both, so nothing downstream could say which model produced a response.
+        let session = [
+            r#"{"type":"session","id":"session-1"}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-09-26T10:00:00Z","message":{"role":"user","content":[{"type":"text","text":"[Mirror Desktop Journey authority]\nselected\n\nUser request:\nQuestion"}]}}"#,
+            r#"{"type":"message","id":"assistant-1","parentId":"user-1","timestamp":"2026-09-26T10:00:01Z","message":{"role":"assistant","provider":"claude-bridge","model":"claude-opus-5","content":[{"type":"text","text":"Answer"}],"stopReason":"stop"}}"#,
+            r#"{"type":"message","id":"user-2","parentId":"assistant-1","timestamp":"2026-09-26T10:00:02Z","message":{"role":"user","content":[{"type":"text","text":"Second"}]}}"#,
+            r#"{"type":"message","id":"assistant-2","parentId":"user-2","timestamp":"2026-09-26T10:00:03Z","message":{"role":"assistant","content":[{"type":"text","text":"Unattributed"}],"stopReason":"stop"}}"#,
+        ].join("\n");
+
+        let inspection = inspect_complete_pi_transcript(&session).unwrap();
+        let attributed = inspection.entries.iter().find(|entry| entry.entry_id == "assistant-1").unwrap();
+        assert_eq!(attributed.provider.as_deref(), Some("claude-bridge"));
+        assert_eq!(attributed.model.as_deref(), Some("claude-opus-5"));
+
+        // An entry Pi did not attribute stays unattributed rather than inheriting a guess.
+        let bare = inspection.entries.iter().find(|entry| entry.entry_id == "assistant-2").unwrap();
+        assert_eq!(bare.provider, None);
+        assert_eq!(bare.model, None);
+
+        // User entries carry no model at all; attribution is an assistant-side fact.
+        let user = inspection.entries.iter().find(|entry| entry.entry_id == "user-1").unwrap();
+        assert_eq!(user.model, None);
     }
 
     #[test]

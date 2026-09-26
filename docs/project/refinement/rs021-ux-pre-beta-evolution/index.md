@@ -32,13 +32,15 @@ Captured Change Requests, ordered by Navigator-approved daily-use impact:
 3. **CR088 — Stop Flashing the Preserved Attempt Panel.** Remove the transient `Resolve the preserved attempt` panel after cancellation; same class as CR086, different surface.
 4. **CR089 — Preserve the Interrupted Partial Response.** Keep the partial agent answer when a turn is cancelled mid-response, marked as interrupted.
 5. **CR084 — Recenter to Conversation End.** Add a top control that returns the conversation surface to its latest/end position.
-6. **CR078 — Model Fast Switch.** Keep the model switcher usable while a process is alive when the change affects only future turns.
-7. **CR081 — Agent Running Animation.** Separate pinning from active-agent status and replace the overloaded pin affordance with a real running indicator.
-8. **CR083 — Agent Comments Continuity.** Make adjacent Agent Comments visually breathe and read as coherent continuation rather than glued text.
-9. **CR082 — Collapsed Sidebar Polish.** Improve the aesthetics and usability of the collapsed sidebar.
-10. **CR085 — Close Without Quitting.** Make the macOS red close button hide/close the window without terminating the app process.
-11. **CR079 — Deep Context Stats Analysis.** Explain and close the gap between terminal Pi context stats and Desktop's frequent Checking state.
-12. **CR080 — Manual Compaction / Compaction Checkpoint.** Understand the current Desktop checkpoint and use it to suggest splitting long conversations when appropriate.
+6. **CR090 — Run-Scoped Model Authority.** Capture the run's model and stop a global busy flag from blocking model preferences everywhere.
+7. **CR078 — Model Intents.** Let the Navigator name model and thinking pairs in their own language and switch between them from the Composer footer.
+8. **CR091 — Attribute Each Response to Its Model.** Show which model produced each answer, read from the Pi transcript that already records it.
+9. **CR081 — Agent Running Animation.** Separate pinning from active-agent status and replace the overloaded pin affordance with a real running indicator.
+10. **CR083 — Agent Comments Continuity.** Make adjacent Agent Comments visually breathe and read as coherent continuation rather than glued text.
+11. **CR082 — Collapsed Sidebar Polish.** Improve the aesthetics and usability of the collapsed sidebar.
+12. **CR085 — Close Without Quitting.** Make the macOS red close button hide/close the window without terminating the app process.
+13. **CR079 — Deep Context Stats Analysis.** Explain and close the gap between terminal Pi context stats and Desktop's frequent Checking state.
+14. **CR080 — Manual Compaction / Compaction Checkpoint.** Understand the current Desktop checkpoint and use it to suggest splitting long conversations when appropriate.
 
 ## Acceptance Horizon
 
@@ -56,7 +58,9 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR088: Stop Flashing the Preserved Attempt Panel](cr088-stop-flashing-the-preserved-attempt-panel.md)
 - [CR089: Preserve the Interrupted Partial Response](cr089-preserve-the-interrupted-partial-response.md)
 - [CR084: Recenter to Conversation End](cr084-recenter-to-conversation-end.md)
-- [CR078: Model Fast Switch](cr078-model-fast-switch.md)
+- [CR090: Run-Scoped Model Authority](cr090-run-scoped-model-authority.md)
+- [CR078: Model Intents](cr078-model-intents.md)
+- [CR091: Attribute Each Response to Its Model](cr091-attribute-each-response-to-its-model.md)
 - [CR081: Agent Running Animation](cr081-agent-running-animation.md)
 - [CR083: Agent Comments Continuity](cr083-agent-comments-continuity.md)
 - [CR082: Collapsed Sidebar Polish](cr082-collapsed-sidebar-polish.md)

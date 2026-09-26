@@ -59,11 +59,34 @@ function register(
     identity: owner,
     run: startAgentRun({ content: "hello", mode: owner.kind === "live" ? "live" : "mock", now: new Date("2026-01-01T00:00:00Z") }),
     assistantMessageId: "assistant-a",
+    providerModel: "claude-bridge/claude-opus-5",
     conversationSnapshot,
   });
 }
 
 describe("Journey-keyed frontend runtime state", () => {
+  // CR090: the render cannot see the run's closure, so the run records the model it
+  // started with and keeps it for the whole lifecycle.
+  it("records the model the run started with and keeps it across the run", () => {
+    const owner = identity("journey-a");
+    let state = register(createInitialJourneyRuntimeState(), owner);
+    expect(selectJourneyRuntime(state, "journey-a").providerModel).toBe("claude-bridge/claude-opus-5");
+    state = journeyRuntimeReducer(state, { type: "stream_started", identity: owner });
+    state = journeyRuntimeReducer(state, {
+      type: "stream_event", identity: owner, event: { type: "run_status", status: "completed" },
+    });
+    state = journeyRuntimeReducer(state, { type: "stream_finished", identity: owner });
+    state = journeyRuntimeReducer(state, { type: "finalization_started", identity: owner });
+    expect(selectJourneyRuntime(state, "journey-a").providerModel).toBe("claude-bridge/claude-opus-5");
+    // Cleanup is a no-op while finalization is still open, so the record survives until the
+    // run is genuinely retired.
+    state = journeyRuntimeReducer(state, { type: "cleanup", identity: owner });
+    expect(selectJourneyRuntime(state, "journey-a").providerModel).toBe("claude-bridge/claude-opus-5");
+    state = journeyRuntimeReducer(state, { type: "finalization_finished", identity: owner });
+    state = journeyRuntimeReducer(state, { type: "cleanup", identity: owner });
+    expect(selectJourneyRuntime(state, "journey-a").providerModel).toBeUndefined();
+  });
+
   it("routes stream presentation to the captured Journey independently of selection", () => {
     const owner = identity("journey-a");
     let state = register(createInitialJourneyRuntimeState(), owner);

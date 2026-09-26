@@ -12,13 +12,18 @@ const surface = {
   content: "<<<ARIAD:PLAN>>>\ncanonical\n<<<END:PLAN>>>",
 };
 
-function render(presentation: AgentTurnPresentation, proximity: "active" | "latest_completed" | "historical" = "latest_completed") {
+function render(
+  presentation: AgentTurnPresentation,
+  proximity: "active" | "latest_completed" | "historical" = "latest_completed",
+  responseModel?: { label: string; changed: boolean },
+) {
   return renderToStaticMarkup(
     <AgentTurn
       message={{ id: "assistant-1", role: "assistant", content: "ignored", createdAt: "2026-09-11T00:00:00.000Z" }}
       speaker={{ label: "Agent", avatar: "π", kind: "agent" }}
       presentation={presentation}
       proximity={proximity}
+      responseModel={responseModel}
     />,
   );
 }
@@ -147,5 +152,29 @@ describe("AgentTurn", () => {
     expect(html).toContain('class="message assistant speaker-agent"');
     expect(html).toContain("System Surfaces");
     expect(html).not.toContain("Agent Comments");
+  });
+
+  // CR091: the hybrid. Always present so any answer can be checked, emphasized only where
+  // the model changed, and subordinate to the answer itself.
+  it("names the model that produced the answer, emphasizing a change", () => {
+    const presentation = { systemSurfaces: [], remainingActivity: [], agentComment: "Answer" };
+
+    const changed = render(presentation, "latest_completed", {
+      label: "claude-bridge/claude-opus-5", changed: true,
+    });
+    expect(changed).toContain("claude-bridge/claude-opus-5");
+    expect(changed).toContain("response-model-badge");
+    expect(changed).toContain("is-changed");
+
+    const steady = render(presentation, "latest_completed", {
+      label: "claude-bridge/claude-opus-5", changed: false,
+    });
+    expect(steady).toContain("claude-bridge/claude-opus-5");
+    expect(steady).not.toContain("is-changed");
+  });
+
+  it("says nothing when the answer carries no attribution", () => {
+    const html = render({ systemSurfaces: [], remainingActivity: [], agentComment: "Answer" });
+    expect(html).not.toContain("response-model-badge");
   });
 });

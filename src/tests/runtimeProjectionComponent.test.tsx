@@ -167,10 +167,49 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}");
     expect(appSource).not.toContain("queryJourneyPiContext");
     expect(appSource).toContain("readJourneyPiContextStats");
-    expect(appSource).toContain("providerModel={providerModelLabel(effectiveProviderConfig)}");
-    expect(appSource).toContain("onSelectProviderModel={() => openJourneyAgentProfileSelector()}");
+    // CR078: the descriptor carries the whole selection, so a thinking-only change is visible.
+    expect(appSource).toContain("providerModel={describeComposerModelSelection(effectiveProviderConfig, effectiveAgentProfile.thinkingLevel)}");
+    // CR078: the footer control now opens the Model Intent menu; the full selector is one
+    // of its entries rather than the only destination.
+    expect(appSource).toContain("onSelectProviderModel={() => setModelIntentMenuOpen((open) => !open)}");
+    expect(appSource).toContain("onOpenFullSelector={() => {");
+    expect(appSource).toContain("openJourneyAgentProfileSelector();");
     expect(appSource).toContain('if (!runtimeBindingReady || piModelCatalogState !== "idle") return;');
     expect(appSource).not.toContain('if ((!settingsOpen && !journeyAgentProfileOpen) || piModelCatalogState !== "idle") return;');
+  });
+
+  // CR090: a model chosen while a turn runs reaches the next message, and the footer says so
+  // instead of implying the live turn changed.
+  it("marks a model selection that only reaches the next message", () => {
+    const running = renderToStaticMarkup(
+      <ComposerRuntimeFooter
+        providerModel="claude-bridge/claude-fable-5-1"
+        liveRunProviderModel="openai-codex/gpt-5.5"
+        selectionScope="applies_to_next_message"
+        onSelectProviderModel={() => undefined}
+      />,
+    );
+    expect(running).toContain("next message");
+    expect(running).toContain("openai-codex/gpt-5.5");
+    expect(running).toContain("composer-provider-model-scope");
+
+    const settled = renderToStaticMarkup(
+      <ComposerRuntimeFooter
+        providerModel="claude-bridge/claude-fable-5-1"
+        selectionScope="applies_now"
+        onSelectProviderModel={() => undefined}
+      />,
+    );
+    expect(settled).not.toContain("next message");
+    expect(settled).not.toContain("composer-provider-model-scope");
+    expect(cssSource).toContain(".composer-provider-model-scope");
+  });
+
+  // CR091 follow-up: the hover recoloured to a dark-theme mint that broke on light surfaces.
+  // A hover colour change is redundant with the pointer, so both hover rules are gone; the
+  // test pins their absence so neither returns as an isolated "quick fix".
+  it("leaves the Composer model link colour untouched on hover", () => {
+    expect(cssSource).not.toMatch(/\.composer-provider-model:hover/u);
   });
 
   it("uses a fixed middle-truncated preview of the first tool argument", () => {

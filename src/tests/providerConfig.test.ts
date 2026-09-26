@@ -7,6 +7,7 @@ import {
   parseProviderArgs,
   profileOwnedArgumentFlags,
   providerConfigToArgsText,
+  describeComposerModelSelection,
   providerModelLabel,
   projectAgentProfile,
   safeTestProviderConfig,
@@ -111,5 +112,32 @@ describe("agent provider configuration", () => {
     expect(validateProviderConfig({ command: "", args: [], useStdin: false, safeTestMode: false, invocationMode: "mirror" })).toEqual([
       "Provider command is required.",
     ]);
+  });
+});
+
+// CR078: the Composer descriptor has to represent the whole selection. Showing only the
+// model made a thinking-level change invisible: the Navigator chose `high` and the footer
+// read the same as before.
+describe("Composer model descriptor", () => {
+  const config = projectAgentProfile(defaultPiProviderConfig, {
+    journeyId: "journey-a",
+    model: { provider: "openai-codex", model: "gpt-5.5" },
+    thinkingLevel: "high",
+    invocationMode: "mirror",
+    modelSource: "journey",
+    thinkingSource: "journey",
+  });
+
+  it("names the thinking level the selection actually carries", () => {
+    expect(describeComposerModelSelection(config, "high")).toBe("openai-codex/gpt-5.5 · high");
+  });
+
+  it("stays quiet when the thinking level is Pi's own default", () => {
+    expect(describeComposerModelSelection(config, "pi-default")).toBe("openai-codex/gpt-5.5");
+  });
+
+  it("claims no thinking level in safe test mode, where none is passed", () => {
+    const safe = { ...config, safeTestMode: true };
+    expect(describeComposerModelSelection(safe, "high")).toBe("safe-test/cat");
   });
 });

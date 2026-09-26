@@ -5,6 +5,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+import { describeComposerModelSelection } from "../agent/providerConfig";
 import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamEvent, type AgentStreamProvider, type TurnCorrelation } from "../agent/agentStream";
 import {
   cancelLivePiInvocation,
@@ -169,7 +170,16 @@ import {
   resolveUnsentReason,
   type UnsentDraftNotices,
 } from "./unsentDraftNotice";
-import { unavailableModelReason } from "../domain/modelAvailability";
+import {
+  deriveModelSelectionScope,
+  modelFromOptionValue,
+  modelKeyUnavailableReason,
+  modelOptionValue,
+  modelSupportsThinking,
+  thinkingOptions,
+  uniqueModelOptions,
+  unavailableModelReason,
+} from "../domain/modelAvailability";
 import {
   deriveInactiveNativeAttemptCandidate,
   shouldPresentInactiveNativeAttempt,
@@ -379,6 +389,10 @@ import {
   toggleJourneySidebar,
 } from "./journeySidebarPresentation";
 import { SettingsTabList, type SettingsTab } from "./SettingsTabList";
+import { ModelIntentsPanel } from "./ModelIntentsPanel";
+import { ModelIntentMenu } from "./ModelIntentMenu";
+import { loadModelIntents, saveModelIntents } from "./modelIntentsStorage";
+import { createEmptyModelIntents, matchModelIntent, type ModelIntent, type ModelIntents } from "../domain/modelIntents";
 import { SelfUpdatePanel } from "./SelfUpdatePanel";
 import { SelfUpdateNotification } from "./SelfUpdateNotification";
 import { currentMirrorDesktopVersion, type SelfUpdateCheckResult } from "./selfUpdateStorage";
@@ -580,6 +594,13 @@ export function App({ model }: AppProps) {
   const [providerInvocationMode, setProviderInvocationMode] = useState<AgentInvocationMode>(defaultPiProviderConfig.invocationMode);
   const [agentSettings, setAgentSettings] = useState<AgentSettings>(() => createDefaultAgentSettings());
   const [agentSettingsState, setAgentSettingsState] = useState<"checking" | "ready" | "saving" | "error">("checking");
+  // CR078: the Navigator's own vocabulary for choosing a model.
+  const [modelIntents, setModelIntents] = useState<ModelIntents>(createEmptyModelIntents);
+  const [modelIntentsBusy, setModelIntentsBusy] = useState(false);
+  const [modelIntentsMessage, setModelIntentsMessage] = useState<string>();
+  const [modelIntentsError, setModelIntentsError] = useState(false);
+  const [modelIntentMenuOpen, setModelIntentMenuOpen] = useState(false);
+  const modelIntentMenuRef = useRef<HTMLDivElement | null>(null);
   const [agentSettingsMessage, setAgentSettingsMessage] = useState<string | undefined>();
   const [agentProfileConfigured, setAgentProfileConfigured] = useState<boolean>();
   const [piModelCatalog, setPiModelCatalog] = useState<PiModelCatalogEntry[]>([]);
@@ -640,6 +661,18 @@ export function App({ model }: AppProps) {
       .then((version) => loadResolvedWhatsNewState(version))
       .then((state) => { if (!cancelled) setWhatsNewState(state); })
       .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadModelIntents()
+      .then((stored) => { if (!cancelled) setModelIntents(stored); })
+      .catch((error) => {
+        if (cancelled) return;
+        setModelIntentsError(true);
+        setModelIntentsMessage(error instanceof Error ? error.message : String(error));
+      });
     return () => { cancelled = true; };
   }, []);
 
@@ -792,6 +825,7 @@ export function App({ model }: AppProps) {
     mode: streamMode,
     runtimeProjection,
     runtimeProjectionMessageId,
+    providerModel: liveRunProviderModel,
   } = selectedRuntime;
   const runtimeBusy = Boolean(runStartReservation)
     || navigationPresentation.runtimeBusy
@@ -845,6 +879,19 @@ export function App({ model }: AppProps) {
     effectiveAgentProfile.model,
     ...Object.values(agentSettings.journeyOverrides).flatMap((override) => override.model ? [override.model] : []),
   ]), [agentSettings, effectiveAgentProfile.model, piModelCatalog]);
+  const activeModelIntent = matchModelIntent(modelIntents, {
+    model: effectiveAgentProfile.model,
+    thinkingLevel: effectiveAgentProfile.thinkingLevel,
+  });
+  const usingGlobalAgentDefault = effectiveAgentProfile.modelSource === "global"
+    && effectiveAgentProfile.thinkingSource === "global";
+  const selectedProviderModelLabel = providerModelLabel(effectiveProviderConfig);
+  // CR090: the live turn keeps the model it was spawned with, so a newer selection reaches
+  // the next message and the footer has to say which turn it means.
+  const modelSelectionScope = deriveModelSelectionScope({
+    liveRunProviderModel,
+    selectedProviderModel: selectedProviderModelLabel,
+  });
   const authoritativeContextStats = conversation.authoritativeContextStats;
   const contextIdentityMatches = authoritativeContextStats
     && authoritativeContextStats.piSessionId === conversation.liveIdentity.piSessionId
@@ -1133,6 +1180,22 @@ export function App({ model }: AppProps) {
     document.addEventListener("mousedown", closeMenuOnOutsidePointer);
     return () => document.removeEventListener("mousedown", closeMenuOnOutsidePointer);
   }, [journeyMenuOpen]);
+
+  useEffect(() => {
+    if (!modelIntentMenuOpen) return;
+    function closeOnOutsidePointer(event: MouseEvent) {
+      if (!modelIntentMenuRef.current?.contains(event.target as Node)) setModelIntentMenuOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setModelIntentMenuOpen(false);
+    }
+    document.addEventListener("mousedown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [modelIntentMenuOpen]);
 
   useEffect(() => {
     if (!journeyTreeMenuOpen) return;
@@ -2330,6 +2393,7 @@ export function App({ model }: AppProps) {
       identity: runtimeIdentity,
       run,
       assistantMessageId: assistantMessage.id,
+      providerModel: providerModelLabel(effectiveProviderConfig),
       conversationSnapshot: stagedConversation,
     });
     if (selectedJourneyRef.current === ownerJourneyId) {
@@ -3127,6 +3191,23 @@ export function App({ model }: AppProps) {
     }
   }
 
+  // The store is the authority: state advances only after the write lands, so a failed
+  // publish never leaves the surface showing intents that were not saved.
+  async function persistModelIntents(next: ModelIntents) {
+    setModelIntentsBusy(true);
+    setModelIntentsMessage(undefined);
+    setModelIntentsError(false);
+    try {
+      await saveModelIntents(next);
+      setModelIntents(next);
+    } catch (error) {
+      setModelIntentsError(true);
+      setModelIntentsMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setModelIntentsBusy(false);
+    }
+  }
+
   async function persistAgentSettings(next: AgentSettings, successMessage: string) {
     setAgentSettingsState("saving");
     setAgentSettingsMessage(undefined);
@@ -3204,6 +3285,17 @@ export function App({ model }: AppProps) {
       `${selectedJourneyItem.name} now inherits global agent defaults.`,
     );
     if (saved) setJourneyAgentProfileOpen(false);
+  }
+
+  async function applyModelIntent(intent: ModelIntent) {
+    setModelIntentMenuOpen(false);
+    await persistAgentSettings(
+      setJourneyAgentOverride(agentSettings, selectedJourney, {
+        model: intent.model,
+        thinkingLevel: intent.thinkingLevel,
+      }),
+      `${selectedJourneyItem.name} now uses “${intent.label}”.`,
+    );
   }
 
   function openJourneyAgentProfileSelector() {
@@ -4635,6 +4727,9 @@ export function App({ model }: AppProps) {
           <ConversationTranscript
             messages={messages}
             conversation={presentedConversation}
+            liveResponseModel={runtimeProjectionMessageId && liveRunProviderModel
+              ? { messageId: runtimeProjectionMessageId, label: liveRunProviderModel }
+              : undefined}
             importedActivity={importedActivity}
             assistantTurnProximity={assistantTurnProximity}
             runtimeProjection={runtimeProjection}
@@ -4818,9 +4913,33 @@ export function App({ model }: AppProps) {
                 contextUsage={authoritativeContextUsage}
                 activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}
                 contextState={piContextState}
-                providerModel={providerModelLabel(effectiveProviderConfig)}
-                onSelectProviderModel={() => openJourneyAgentProfileSelector()}
-                providerSelectionDisabled={runtimeBusy || agentSettingsState === "saving"}
+                providerModel={describeComposerModelSelection(effectiveProviderConfig, effectiveAgentProfile.thinkingLevel)}
+                onSelectProviderModel={() => setModelIntentMenuOpen((open) => !open)}
+                providerSelectionDisabled={agentSettingsState === "saving"}
+                selectionScope={modelSelectionScope}
+                liveRunProviderModel={liveRunProviderModel}
+                activeIntentLabel={activeModelIntent?.label}
+                providerModelMenuOpen={modelIntentMenuOpen}
+                menuWrapRef={modelIntentMenuRef}
+                providerModelMenu={modelIntentMenuOpen ? (
+                  <ModelIntentMenu
+                    intents={modelIntents}
+                    catalog={piModelCatalog}
+                    activeIntentId={activeModelIntent?.id}
+                    usingGlobalDefault={usingGlobalAgentDefault}
+                    globalModelLabel={`${agentSettings.globalProfile.model.provider}/${agentSettings.globalProfile.model.model}`}
+                    currentBinding={describeComposerModelSelection(effectiveProviderConfig, effectiveAgentProfile.thinkingLevel)}
+                    onSelectIntent={(intent) => { void applyModelIntent(intent); }}
+                    onUseGlobalDefaults={() => {
+                      setModelIntentMenuOpen(false);
+                      void resetSelectedJourneyAgentOverride();
+                    }}
+                    onOpenFullSelector={() => {
+                      setModelIntentMenuOpen(false);
+                      openJourneyAgentProfileSelector();
+                    }}
+                  />
+                ) : undefined}
               />
               <div className="composer-inline-actions">
                 <button
@@ -5326,11 +5445,21 @@ export function App({ model }: AppProps) {
                 </select>
               </label>
               <div className="provider-actions">
-                <button type="button" onClick={() => void saveGlobalAgentProfile()} disabled={runtimeBusy || agentSettingsState === "saving"}>Save global defaults</button>
-                <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={runtimeBusy || agentSettingsState === "saving"}>Restore Mirror Desktop defaults</button>
+                <button type="button" onClick={() => void saveGlobalAgentProfile()} disabled={agentSettingsState === "saving"}>Save global defaults</button>
+                <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={agentSettingsState === "saving"}>Restore Mirror Desktop defaults</button>
               </div>
               <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>
                 </section>
+                <ModelIntentsPanel
+                  intents={modelIntents}
+                  catalog={piModelCatalog}
+                  modelOptions={modelOptions}
+                  defaultModelKey={globalModelDraft}
+                  busy={modelIntentsBusy}
+                  message={modelIntentsMessage}
+                  error={modelIntentsError}
+                  onChange={(next) => { void persistModelIntents(next); }}
+                />
                 {agentSettingsMessage ? <p className={agentSettingsState === "error" ? "settings-error" : "provider-note"} role={agentSettingsState === "error" ? "alert" : "status"}>{agentSettingsMessage}</p> : null}
               </div>
             ) : null}
@@ -5497,8 +5626,8 @@ export function App({ model }: AppProps) {
               <p className="provider-note">Changes affect only the next explicit invocation. The current conversation and generation remain unchanged.</p>
               {agentSettingsMessage ? <p className={agentSettingsState === "error" ? "settings-error" : "provider-note"} role={agentSettingsState === "error" ? "alert" : "status"}>{agentSettingsMessage}</p> : null}
               <div className="provider-actions journey-agent-profile-actions">
-                <button type="button" onClick={() => void saveSelectedJourneyAgentOverride()} disabled={runtimeBusy || agentSettingsState === "saving"}>Use model for this Journey</button>
-                <button className="secondary-button" type="button" onClick={() => void resetSelectedJourneyAgentOverride()} disabled={runtimeBusy || agentSettingsState === "saving"}>Use global defaults</button>
+                <button type="button" onClick={() => void saveSelectedJourneyAgentOverride()} disabled={agentSettingsState === "saving"}>Use model for this Journey</button>
+                <button className="secondary-button" type="button" onClick={() => void resetSelectedJourneyAgentOverride()} disabled={agentSettingsState === "saving"}>Use global defaults</button>
                 <button className="secondary-button" type="button" onClick={() => setJourneyAgentProfileOpen(false)} disabled={agentSettingsState === "saving"}>Cancel</button>
               </div>
               <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>
@@ -5512,50 +5641,6 @@ export function App({ model }: AppProps) {
 
 function lastItem<T>(items: readonly T[]): T | undefined {
   return items[items.length - 1];
-}
-
-function modelOptionValue(model: AgentModelSelection): string {
-  return `${model.provider}\t${model.model}`;
-}
-
-function modelFromOptionValue(value: string): AgentModelSelection {
-  const separator = value.indexOf("\t");
-  if (separator <= 0 || separator === value.length - 1) throw new Error("Select a valid Pi model.");
-  return { provider: value.slice(0, separator), model: value.slice(separator + 1) };
-}
-
-function uniqueModelOptions(models: AgentModelSelection[]): AgentModelSelection[] {
-  const seen = new Set<string>();
-  return models.filter((model) => {
-    const key = modelOptionValue(model);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).sort((left, right) => modelOptionValue(left).localeCompare(modelOptionValue(right)));
-}
-
-function modelKeyUnavailableReason(catalog: PiModelCatalogEntry[], modelKey: string): string | undefined {
-  try {
-    return unavailableModelReason(catalog, modelFromOptionValue(modelKey));
-  } catch {
-    return undefined;
-  }
-}
-
-function modelSupportsThinking(catalog: PiModelCatalogEntry[], modelKey: string): boolean {
-  const model = modelFromOptionValue(modelKey);
-  return catalog.find((entry) => entry.provider === model.provider && entry.model === model.model)?.thinking ?? true;
-}
-
-function thinkingOptions(
-  catalog: PiModelCatalogEntry[],
-  modelKey: string,
-  current?: AgentThinkingLevel,
-): AgentThinkingLevel[] {
-  if (modelSupportsThinking(catalog, modelKey)) return [...agentThinkingLevels];
-  const supported: AgentThinkingLevel[] = ["pi-default", "off"];
-  if (current && !supported.includes(current)) supported.push(current);
-  return supported;
 }
 
 function formatDateTime(value: string): string {

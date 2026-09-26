@@ -1,7 +1,9 @@
+import type { ReactNode, Ref } from "react";
 import type { RuntimeContextUsage } from "./runtimeActivityModel";
 import type { PiContextState } from "./contextUsageState";
 import type { ComposerTurnStatus } from "./composerTurnStatus";
 import { mirrorModeDisplay, type MirrorOperatingMode } from "./mirrorModeState";
+import type { ModelSelectionScope } from "../domain/modelAvailability";
 
 type ComposerRuntimeFooterProps = {
   contextUsage?: RuntimeContextUsage;
@@ -13,6 +15,15 @@ type ComposerRuntimeFooterProps = {
   onInitializeContext?: () => void;
   onSelectProviderModel?: () => void;
   providerSelectionDisabled?: boolean;
+  /** CR090: whether the displayed selection reaches the live turn or only the next one. */
+  selectionScope?: ModelSelectionScope;
+  /** Model the live turn started with, shown so the difference is legible. */
+  liveRunProviderModel?: string;
+  /** CR078: label of the Model Intent the effective profile matches, when one does. */
+  activeIntentLabel?: string;
+  providerModelMenu?: ReactNode;
+  providerModelMenuOpen?: boolean;
+  menuWrapRef?: Ref<HTMLDivElement>;
 };
 
 type ComposerRuntimeStatusProps = {
@@ -44,7 +55,19 @@ export function ComposerRuntimeFooter({
   onInitializeContext,
   onSelectProviderModel,
   providerSelectionDisabled = false,
+  selectionScope = "applies_now",
+  liveRunProviderModel,
+  activeIntentLabel,
+  providerModelMenu,
+  providerModelMenuOpen = false,
+  menuWrapRef,
 }: ComposerRuntimeFooterProps) {
+  // The semantic layer never hides the mechanical one: the binding rides the title for the
+  // pointer and the accessible name for the keyboard, since the footer has no room for it.
+  const modelLabel = activeIntentLabel ?? providerModel;
+  const accessibleName = activeIntentLabel
+    ? `Choose model — currently ${activeIntentLabel} (${providerModel})`
+    : `Choose model and thinking for ${providerModel}`;
   return (
     <div className="composer-runtime-footer" aria-label="Agent session status">
       <div className="composer-runtime-metadata">
@@ -70,16 +93,32 @@ export function ComposerRuntimeFooter({
         ) : null}
         <span className="composer-runtime-separator" aria-hidden="true">·</span>
         {onSelectProviderModel ? (
-          <button
-            type="button"
-            className="composer-provider-model"
-            onClick={onSelectProviderModel}
-            disabled={providerSelectionDisabled}
-            aria-label={`Choose model and thinking for ${providerModel}`}
+          <div className="model-intent-menu-wrap" ref={menuWrapRef}>
+            <button
+              type="button"
+              className="composer-provider-model"
+              onClick={onSelectProviderModel}
+              disabled={providerSelectionDisabled}
+              aria-haspopup="menu"
+              aria-expanded={providerModelMenuOpen}
+              aria-label={accessibleName}
+              title={activeIntentLabel ? providerModel : undefined}
+            >
+              {modelLabel}
+            </button>
+            {providerModelMenu}
+          </div>
+        ) : <span>{modelLabel}</span>}
+        {selectionScope === "applies_to_next_message" ? (
+          <span
+            className="composer-provider-model-scope"
+            title={liveRunProviderModel
+              ? `The running turn continues on ${liveRunProviderModel}.`
+              : undefined}
           >
-            {providerModel}
-          </button>
-        ) : <span>{providerModel}</span>}
+            next message{liveRunProviderModel ? ` · running on ${liveRunProviderModel}` : ""}
+          </span>
+        ) : null}
       </div>
     </div>
   );

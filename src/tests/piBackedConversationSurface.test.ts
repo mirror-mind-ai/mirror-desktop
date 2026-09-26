@@ -244,4 +244,50 @@ describe("Pi-backed Conversation Surface", () => {
     const total = summaries.reduce((sum, summary) => sum + summary.content.length, 0);
     expect(total).toBeLessThanOrEqual(65536);
   });
+
+  // CR091: the transcript should be able to say which model produced each answer. The
+  // attribution is re-derived from Pi at every reconstruction, never stored, so it survives
+  // by construction and applies to Conversations that already exist.
+  it("attributes each assistant message to the model Pi recorded for it", () => {
+    const surface = projectPiBackedConversationSurface(conversation(), inspection([
+      { entryId: "pi-user-1", role: "user", visibleText: "First", timestamp: "2026-09-18T10:00:00Z" },
+      {
+        entryId: "pi-assistant-1", role: "assistant", visibleText: "Deep answer",
+        timestamp: "2026-09-18T10:00:01Z", provider: "claude-bridge", model: "claude-opus-5",
+      },
+      { entryId: "pi-user-2", role: "user", visibleText: "Second", timestamp: "2026-09-18T10:00:02Z" },
+      {
+        entryId: "pi-assistant-2", role: "assistant", visibleText: "Everyday answer",
+        timestamp: "2026-09-18T10:00:03Z", provider: "openai-codex", model: "gpt-5.5",
+      },
+    ]));
+
+    const [, first, , second] = surface.messages;
+    expect(surface.responseModels?.[first.id]).toEqual({ provider: "claude-bridge", model: "claude-opus-5" });
+    expect(surface.responseModels?.[second.id]).toEqual({ provider: "openai-codex", model: "gpt-5.5" });
+  });
+
+  it("leaves an unattributed answer unattributed rather than borrowing a neighbour's model", () => {
+    const surface = projectPiBackedConversationSurface(conversation(), inspection([
+      { entryId: "pi-user-1", role: "user", visibleText: "First", timestamp: "2026-09-18T10:00:00Z" },
+      {
+        entryId: "pi-assistant-1", role: "assistant", visibleText: "Attributed",
+        timestamp: "2026-09-18T10:00:01Z", provider: "openai-codex", model: "gpt-5.5",
+      },
+      { entryId: "pi-user-2", role: "user", visibleText: "Second", timestamp: "2026-09-18T10:00:02Z" },
+      { entryId: "pi-assistant-2", role: "assistant", visibleText: "Bare", timestamp: "2026-09-18T10:00:03Z" },
+    ]));
+
+    const [, attributed, , bare] = surface.messages;
+    expect(surface.responseModels?.[attributed.id]).toEqual({ provider: "openai-codex", model: "gpt-5.5" });
+    expect(surface.responseModels?.[bare.id]).toBeUndefined();
+  });
+
+  it("carries no attribution map at all when Pi recorded none", () => {
+    const surface = projectPiBackedConversationSurface(conversation(), inspection([
+      { entryId: "pi-user-1", role: "user", visibleText: "First", timestamp: "2026-09-18T10:00:00Z" },
+      { entryId: "pi-assistant-1", role: "assistant", visibleText: "Bare", timestamp: "2026-09-18T10:00:01Z" },
+    ]));
+    expect(surface.responseModels).toBeUndefined();
+  });
 });
