@@ -177,6 +177,17 @@ Gates: `npm test` 174 files / 1053 tests; `npm run build` green; roadmap READY.
 Gates: `npm test` 175 files / 1064 tests; `cargo test --locked` 192 passed, 3 ignored;
 `npm run build` green; roadmap READY.
 
+## Correction — the menu refused every click (2026-09-25)
+
+Navigator homologation found the menu opening correctly and accepting no selection.
+`.composer-runtime-footer` sets `pointer-events: none` for its subtree and re-enables them
+only on the individual controls that need them, which is why the model button worked while
+everything inside the popover did not. The menu now claims them back.
+
+The contract is pinned by a test asserting both halves — that the footer disables them and
+that the menu re-enables them — because it is invisible in the markup and would regress
+silently.
+
 ## Correction
 
 An earlier draft of this CR suggested an example label in the name field and in the empty

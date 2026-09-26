@@ -83,4 +83,21 @@ describe("model intent menu", () => {
     expect(html).toContain("Open full selector");
     expect(html).toContain("Use global defaults");
   });
+
+  // The Composer footer disables pointer events for its subtree and re-enables them only on
+  // the controls that need them. A popover rendered inside it must claim them back, or it
+  // opens and refuses every click.
+  it("claims back the pointer events its Composer-footer ancestor disables", () => {
+    const footer = cssSource.slice(
+      cssSource.indexOf(".composer-runtime-footer {"),
+      cssSource.indexOf("}", cssSource.indexOf(".composer-runtime-footer {")),
+    );
+    expect(footer).toContain("pointer-events: none");
+
+    const menu = cssSource.slice(
+      cssSource.indexOf(".model-intent-menu {"),
+      cssSource.indexOf("}", cssSource.indexOf(".model-intent-menu {")),
+    );
+    expect(menu).toContain("pointer-events: auto");
+  });
 });

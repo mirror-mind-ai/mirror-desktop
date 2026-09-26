@@ -4423,6 +4423,9 @@ dd {
 }
 
 .model-intent-menu {
+  /* `.composer-runtime-footer` disables pointer events for its subtree; a popover rendered
+     inside it has to claim them back or it opens and refuses every click. */
+  pointer-events: auto;
   background: rgba(13, 18, 20, 0.98);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 12px;
