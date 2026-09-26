@@ -78,6 +78,11 @@ const MIRROR_APPEND_OUTBOX_FILE: &str = "mirror-append-outbox.json";
 // CR087: conflicts keep both payloads as bounded diagnostic evidence next to the outbox.
 const MIRROR_APPEND_CONFLICTS_FILE: &str = "mirror-append-conflicts.jsonl";
 const MIRROR_APPEND_CONFLICT_MAX_RECORDS: usize = 64;
+// CR095: a performed Journey rebind is the one place the Desktop writes a Mirror column
+// outside provisioning. It leaves bounded provenance next to the outbox so repeated repair is
+// a readable signal rather than an archaeological finding.
+const MIRROR_APPEND_REBINDS_FILE: &str = "mirror-append-rebinds.jsonl";
+const MIRROR_APPEND_REBIND_MAX_RECORDS: usize = 64;
 const MIRROR_APPEND_MAX_ITEMS: usize = 16_384;
 const MIRROR_APPEND_MAX_FILE_BYTES: usize = 64 * 1024 * 1024;
 const MIRROR_APPEND_MAX_ITEM_BYTES: usize = 131_072;
@@ -5102,7 +5107,52 @@ fn mirror_append_conflict_keys(existing: &Value, candidate: &Value) -> Vec<Strin
     keys
 }
 
+fn mirror_append_rebinds_path(outbox_path: &Path) -> PathBuf {
+    outbox_path.with_file_name(MIRROR_APPEND_REBINDS_FILE)
+}
+
+/// Records one performed Journey rebind. Never fails the caller: the repair outcome and the
+/// reason returned to the delivery route are identical whether or not this write lands.
+/// Carries provenance about the binding only, never message content.
+fn record_mirror_append_journey_rebind(
+    outbox_path: &Path,
+    item: &Value,
+    previous_journey_id: Option<&str>,
+) {
+    let record = json!({
+        "schemaVersion": "1.0.0",
+        "recordedAt": Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
+        "conversationId": item.get("conversationId").cloned().unwrap_or(Value::Null),
+        "journeyId": item.get("journeyId").cloned().unwrap_or(Value::Null),
+        "previousJourneyId": previous_journey_id.map_or(Value::Null, |value| json!(value)),
+        "itemId": item.get("itemId").cloned().unwrap_or(Value::Null),
+        "runId": item.get("runId").cloned().unwrap_or(Value::Null),
+        "threadId": item.get("threadId").cloned().unwrap_or(Value::Null),
+        "generation": item.get("generation").cloned().unwrap_or(Value::Null),
+    });
+    let path = mirror_append_rebinds_path(outbox_path);
+    let mut records = read_mirror_append_rebinds(&path);
+    records.push(record);
+    let keep = records.len().saturating_sub(MIRROR_APPEND_REBIND_MAX_RECORDS);
+    let payload = records[keep..].iter()
+        .filter_map(|value| serde_json::to_string(value).ok())
+        .map(|line| line + "\n")
+        .collect::<String>();
+    let staged = path.with_extension("jsonl.tmp");
+    if fs::write(&staged, payload).is_ok() {
+        let _ = fs::rename(&staged, &path);
+    }
+}
+
+fn read_mirror_append_rebinds(path: &Path) -> Vec<Value> {
+    read_bounded_jsonl_records(path)
+}
+
 fn read_mirror_append_conflicts(path: &Path) -> Vec<Value> {
+    read_bounded_jsonl_records(path)
+}
+
+fn read_bounded_jsonl_records(path: &Path) -> Vec<Value> {
     let Ok(metadata) = fs::symlink_metadata(path) else { return Vec::new() };
     if !metadata.is_file() || metadata.file_type().is_symlink() { return Vec::new(); }
     let Ok(content) = fs::read_to_string(path) else { return Vec::new() };
@@ -5587,6 +5637,24 @@ fn list_mirror_append_conflicts(
         .collect())
 }
 
+/// CR095: bounded read of performed Journey rebinds for one Journey.
+#[tauri::command]
+fn list_mirror_append_rebinds(
+    app: AppHandle,
+    state: State<'_, MirrorAppendOutboxState>,
+    journey_id: String,
+) -> Result<Vec<Value>, String> {
+    sanitize_journey_id(&journey_id)?;
+    let _guard = state
+        .lock
+        .lock()
+        .map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
+    let path = mirror_append_rebinds_path(&mirror_append_outbox_path(&app)?);
+    Ok(read_mirror_append_rebinds(&path).into_iter()
+        .filter(|record| record.get("journeyId").and_then(Value::as_str) == Some(journey_id.as_str()))
+        .collect())
+}
+
 fn validate_outbox_generation_authority(app: &AppHandle, item: &Value) -> Result<(), String> {
     let journey_id = item
         .get("journeyId")
@@ -5876,6 +5944,83 @@ fn run_pi_backed_mirror_append(item: &Value) -> Result<Value, String> {
     run_pi_backed_mirror_append_with(item, run_explicit_mirror_append)
 }
 
+/// CR093: Mirror core can rewrite `conversations.journey` for a Conversation that Mirror
+/// Desktop provisioned, which makes the explicit append contract reject every later delivery
+/// with `journey_mismatch` forever. Mirror core is not available for correction, so the
+/// Desktop defends the binding it owns: exactly one repair, then exactly one more attempt.
+fn should_repair_journey_binding(reason: &str) -> bool {
+    reason == "mirror_append_journey_mismatch"
+}
+
+fn run_mirror_append_with_binding_repair_using<A, R>(
+    item: &Value,
+    mut append: A,
+    repair: R,
+) -> Result<Value, String>
+where
+    A: FnMut(&Value) -> Result<Value, String>,
+    R: FnOnce(&Value) -> Result<bool, String>,
+{
+    match append(item) {
+        Err(reason) if should_repair_journey_binding(&reason) => {
+            if repair(item)? {
+                append(item)
+            } else {
+                // Mirror reported a mismatch while already holding the asserted Journey.
+                // Repeating cannot help, and no write is justified.
+                Err("mirror_append_journey_binding_unrepaired".to_string())
+            }
+        }
+        result => result,
+    }
+}
+
+/// Restore the Journey binding of a Conversation the Desktop provisioned. Returns whether a
+/// write was needed. Ownership is proved from durable Desktop thread authority first: a
+/// Conversation the Desktop did not create is never moved.
+fn repair_mirror_conversation_journey_binding(app: &AppHandle, item: &Value) -> Result<bool, String> {
+    validate_outbox_generation_authority(app, item)
+        .map_err(|_| "mirror_append_journey_binding_not_owned".to_string())?;
+    let journey_id = item.get("journeyId").and_then(Value::as_str)
+        .ok_or_else(|| "mirror_append_item_invalid".to_string())?;
+    let conversation_id = item.get("conversationId").and_then(Value::as_str)
+        .ok_or_else(|| "mirror_append_item_invalid".to_string())?;
+    let response = run_mirror_conversation_catalog(app, "rebind-journey", journey_id, &[
+        "--conversation-id", conversation_id,
+    ]).map_err(|_| "mirror_append_journey_binding_repair_failed".to_string())?;
+    if response.get("conversationId").and_then(Value::as_str) != Some(conversation_id) {
+        return Err("mirror_append_journey_binding_repair_failed".to_string());
+    }
+    let rebound = response.get("rebound").and_then(Value::as_bool)
+        .ok_or_else(|| "mirror_append_journey_binding_repair_failed".to_string())?;
+    // CR095: record only a performed rebind, and only after Mirror has confirmed the restore,
+    // so the evidence never claims a write that did not land. Best-effort by construction: a
+    // missing outbox path or a failed write leaves the repair outcome untouched.
+    if rebound {
+        if let Ok(outbox_path) = mirror_append_outbox_path(app) {
+            record_mirror_append_journey_rebind(
+                &outbox_path,
+                item,
+                response.get("previousJourneyId").and_then(Value::as_str),
+            );
+        }
+    }
+    Ok(rebound)
+}
+
+fn run_mirror_append_with_binding_repair<A>(
+    app: &AppHandle,
+    item: &Value,
+    append: A,
+) -> Result<Value, String>
+where
+    A: FnMut(&Value) -> Result<Value, String>,
+{
+    run_mirror_append_with_binding_repair_using(item, append, |candidate| {
+        repair_mirror_conversation_journey_binding(app, candidate)
+    })
+}
+
 #[tauri::command]
 fn deliver_pi_backed_mirror_outbox_item(
     app: AppHandle,
@@ -5901,7 +6046,7 @@ fn deliver_pi_backed_mirror_outbox_item(
         validate_outbox_generation_authority(&app, item)?;
         item.clone()
     };
-    run_pi_backed_mirror_append(&item)
+    run_mirror_append_with_binding_repair(&app, &item, run_pi_backed_mirror_append)
 }
 
 #[tauri::command]
@@ -5936,9 +6081,9 @@ fn append_mirror_outbox_item(
         item.clone()
     };
     if item.get("schemaVersion").and_then(Value::as_str) == Some("1.1.0") {
-        run_pi_backed_mirror_append(&item)
+        run_mirror_append_with_binding_repair(&app, &item, run_pi_backed_mirror_append)
     } else {
-        run_explicit_mirror_append(&item)
+        run_mirror_append_with_binding_repair(&app, &item, run_explicit_mirror_append)
     }
 }
 
@@ -8436,6 +8581,7 @@ fn main() {
             enqueue_mirror_append_item,
             list_mirror_append_outbox,
             list_mirror_append_conflicts,
+            list_mirror_append_rebinds,
             reconcile_pi_backed_mirror_delivery_debt,
             deliver_pi_backed_mirror_outbox_item,
             append_mirror_outbox_item,
@@ -8479,6 +8625,9 @@ mod tests {
         legacy_outbox_item_matches_pi_backed_item, legacy_timestamp_compatibility_item,
         match_unclaimed_pi_turn, normalize_legacy_enqueue_item, outbox_item_matches_journal_record,
         run_pi_backed_mirror_append_with, should_retry_legacy_timestamp_compatibility,
+        run_mirror_append_with_binding_repair_using, should_repair_journey_binding,
+        mirror_append_rebinds_path, read_mirror_append_rebinds,
+        record_mirror_append_journey_rebind, MIRROR_APPEND_REBIND_MAX_RECORDS,
         list_journey_documentation_at, load_conversation_segments_at,
         load_conversation_thread_authority_at,
         apply_desktop_conversation_reset, desktop_conversation_entry_from_creation,
@@ -9375,6 +9524,218 @@ mod tests {
             Err("mirror_append_persistence_failure".to_string())
         }).unwrap_err(), "mirror_append_persistence_failure");
         assert_eq!(rejected_attempts, 1);
+    }
+
+    fn journey_binding_repair_item() -> Value {
+        json!({
+            "schemaVersion":"1.1.0", "itemId":"turn-agent-run-2026-09-26T12:58:07.106Z",
+            "runId":"agent-run-2026-09-26T12:58:07.106Z", "journeyId":"mirror-desktop",
+            "threadId":"thread-one", "generation":1, "conversationId":"mirror-one",
+            "messages":[
+                {"id":"user-2026-09-26T12:58:07.106Z","role":"user","content":"hello","createdAt":"2026-09-26T12:58:08.979Z"},
+                {"id":"assistant-2026-09-26T12:58:07.106Z","role":"assistant","content":"hi","createdAt":"2026-09-26T12:59:01.323Z"}
+            ]
+        })
+    }
+
+    #[test]
+    fn records_one_performed_rebind_with_both_journeys_named() {
+        let root = std::env::temp_dir().join(format!("cr095-record-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let outbox = root.join("mirror-append-outbox.json");
+        let item = journey_binding_repair_item();
+
+        record_mirror_append_journey_rebind(&outbox, &item, Some("cr093-drift-decoy"));
+        let records = read_mirror_append_rebinds(&mirror_append_rebinds_path(&outbox));
+        assert_eq!(records.len(), 1);
+        let record = &records[0];
+        assert_eq!(record["schemaVersion"], "1.0.0");
+        assert_eq!(record["conversationId"], "mirror-one");
+        assert_eq!(record["previousJourneyId"], "cr093-drift-decoy");
+        assert_eq!(record["journeyId"], "mirror-desktop");
+        assert_eq!(record["itemId"], "turn-agent-run-2026-09-26T12:58:07.106Z");
+        assert_eq!(record["runId"], "agent-run-2026-09-26T12:58:07.106Z");
+        assert_eq!(record["threadId"], "thread-one");
+        assert_eq!(record["generation"], 1);
+        assert!(record.get("recordedAt").and_then(Value::as_str).is_some());
+        // Provenance about a binding, never a copy of the turn.
+        assert!(record.get("messages").is_none());
+        assert!(!serde_json::to_string(record).unwrap().contains("hello"));
+
+        // An absent previous binding is recorded as null rather than omitted.
+        record_mirror_append_journey_rebind(&outbox, &item, None);
+        let records = read_mirror_append_rebinds(&mirror_append_rebinds_path(&outbox));
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[1]["previousJourneyId"], Value::Null);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn keeps_rebind_records_bounded_and_drops_the_oldest() {
+        let root = std::env::temp_dir().join(format!("cr095-bound-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let outbox = root.join("mirror-append-outbox.json");
+        let mut item = journey_binding_repair_item();
+
+        for index in 0..(MIRROR_APPEND_REBIND_MAX_RECORDS + 5) {
+            item["conversationId"] = Value::String(format!("mirror-{index}"));
+            record_mirror_append_journey_rebind(&outbox, &item, Some("cr093-drift-decoy"));
+        }
+        let records = read_mirror_append_rebinds(&mirror_append_rebinds_path(&outbox));
+        assert_eq!(records.len(), MIRROR_APPEND_REBIND_MAX_RECORDS);
+        assert_eq!(
+            records.last().unwrap()["conversationId"],
+            format!("mirror-{}", MIRROR_APPEND_REBIND_MAX_RECORDS + 4),
+        );
+        assert_eq!(records.first().unwrap()["conversationId"], "mirror-5");
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rebind_evidence_is_separate_from_conflict_evidence() {
+        let outbox = Path::new("/tmp/mirror-append-outbox.json");
+        assert_eq!(
+            mirror_append_rebinds_path(outbox),
+            Path::new("/tmp/mirror-append-rebinds.jsonl"),
+        );
+        assert_ne!(mirror_append_rebinds_path(outbox), mirror_append_conflicts_path(outbox));
+        // Reading absent evidence is empty, never an error.
+        assert!(read_mirror_append_rebinds(Path::new("/tmp/cr095-absent-evidence.jsonl")).is_empty());
+    }
+
+    #[test]
+    fn limits_journey_binding_repair_to_exact_journey_mismatch() {
+        assert!(should_repair_journey_binding("mirror_append_journey_mismatch"));
+        assert!(!should_repair_journey_binding("mirror_append_idempotency_conflict"));
+        assert!(!should_repair_journey_binding("mirror_append_conversation_not_found"));
+        assert!(!should_repair_journey_binding("mirror_append_journey_mismatch_probe"));
+    }
+
+    #[test]
+    fn repairs_a_drifted_journey_binding_once_and_delivers_again() {
+        let item = journey_binding_repair_item();
+        let mut attempts = 0;
+        let mut repairs = 0;
+        let receipt = run_mirror_append_with_binding_repair_using(
+            &item,
+            |_| {
+                attempts += 1;
+                if attempts == 1 {
+                    Err("mirror_append_journey_mismatch".to_string())
+                } else {
+                    Ok(json!({"status":"accepted"}))
+                }
+            },
+            |candidate| {
+                repairs += 1;
+                assert_eq!(candidate["conversationId"], "mirror-one");
+                Ok(true)
+            },
+        ).unwrap();
+        assert_eq!(receipt["status"], "accepted");
+        assert_eq!(attempts, 2);
+        assert_eq!(repairs, 1);
+    }
+
+    #[test]
+    fn stops_after_one_repair_when_the_mismatch_survives_it() {
+        let item = journey_binding_repair_item();
+        let mut attempts = 0;
+        assert_eq!(
+            run_mirror_append_with_binding_repair_using(
+                &item,
+                |_| {
+                    attempts += 1;
+                    Err("mirror_append_journey_mismatch".to_string())
+                },
+                |_| Ok(true),
+            ).unwrap_err(),
+            "mirror_append_journey_mismatch",
+        );
+        assert_eq!(attempts, 2);
+    }
+
+    #[test]
+    fn refuses_to_repeat_a_mismatch_that_needed_no_repair() {
+        let item = journey_binding_repair_item();
+        let mut attempts = 0;
+        assert_eq!(
+            run_mirror_append_with_binding_repair_using(
+                &item,
+                |_| {
+                    attempts += 1;
+                    Err("mirror_append_journey_mismatch".to_string())
+                },
+                |_| Ok(false),
+            ).unwrap_err(),
+            "mirror_append_journey_binding_unrepaired",
+        );
+        assert_eq!(attempts, 1);
+    }
+
+    #[test]
+    fn surfaces_a_refused_rebind_without_delivering_again() {
+        let item = journey_binding_repair_item();
+        let mut attempts = 0;
+        assert_eq!(
+            run_mirror_append_with_binding_repair_using(
+                &item,
+                |_| {
+                    attempts += 1;
+                    Err("mirror_append_journey_mismatch".to_string())
+                },
+                |_| Err("mirror_append_journey_binding_not_owned".to_string()),
+            ).unwrap_err(),
+            "mirror_append_journey_binding_not_owned",
+        );
+        assert_eq!(attempts, 1);
+    }
+
+    #[test]
+    fn leaves_every_other_rejection_untouched_by_binding_repair() {
+        let item = journey_binding_repair_item();
+        for reason in [
+            "mirror_append_idempotency_conflict",
+            "mirror_append_conversation_not_found",
+            "mirror_append_process_failed",
+        ] {
+            let mut attempts = 0;
+            let mut repairs = 0;
+            assert_eq!(
+                run_mirror_append_with_binding_repair_using(
+                    &item,
+                    |_| {
+                        attempts += 1;
+                        Err(reason.to_string())
+                    },
+                    |_| {
+                        repairs += 1;
+                        Ok(true)
+                    },
+                ).unwrap_err(),
+                reason,
+            );
+            assert_eq!(attempts, 1);
+            assert_eq!(repairs, 0);
+        }
+    }
+
+    #[test]
+    fn accepts_a_first_attempt_without_any_repair() {
+        let item = journey_binding_repair_item();
+        let mut repairs = 0;
+        let receipt = run_mirror_append_with_binding_repair_using(
+            &item,
+            |_| Ok(json!({"status":"accepted"})),
+            |_| {
+                repairs += 1;
+                Ok(true)
+            },
+        ).unwrap();
+        assert_eq!(receipt["status"], "accepted");
+        assert_eq!(repairs, 0);
     }
 
     #[test]
