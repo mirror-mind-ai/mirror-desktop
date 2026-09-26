@@ -2,7 +2,7 @@
 
 # CR078: Model Intents
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr078-model-intents`
 
@@ -259,3 +259,24 @@ was the vendor vocabulary. Rewritten on the Navigator's concept of a Navigator-a
 semantic layer, and renamed, because the name now describes the capability rather than the
 symptom. The availability and attribution concerns captured into the original CR were split
 into CR090 before this rewrite.
+
+
+## Homologation (2026-09-26)
+
+Navigator validated the full capability in the Dev bundle across the three slices and the
+three corrections: the durable store, the Settings surface, the footer menu, the pointer-events
+fix, and the descriptor carrying the whole selection.
+
+## Closure
+
+Closed on 2026-09-26 with explicit Navigator validation.
+
+Proportionality review: proportional. A separate durable store with human-label validation, a
+Settings panel, a footer menu, and the selection descriptor; the fail-closed conflict and the
+effective-model resolution are untouched. Three defects surfaced in homologation — a
+mouse-only placeholder, a popover inheriting `pointer-events: none`, and a descriptor that hid
+the thinking level — each pinned by a test before its fix.
+
+Debt review: `no_action`. Ordering exists in the store and the menu but has no reorder-by-drag
+affordance yet; the up/down arrows serve for now. Integration, push and release remain
+separate Navigator decisions.
