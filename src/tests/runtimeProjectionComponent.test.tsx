@@ -205,15 +205,11 @@ describe("runtime projection component", () => {
     expect(cssSource).toContain(".composer-provider-model-scope");
   });
 
-  // CR091 follow-up: on daylight/mist/parchment the hover was `#a0e2d8`, a dark-theme mint
-  // that all but disappears against a light background. The hover has to name the light
-  // themes explicitly, the way every other accent surface in this file does.
-  it("keeps the Composer model link hover readable across light themes", () => {
-    const darkHover = cssSource.match(/\.composer-provider-model:hover:not\(:disabled\) \{[^}]+\}/u)?.[0] ?? "";
-    expect(darkHover).toContain("color:");
-    expect(cssSource).toMatch(
-      /app-shell:is\(\s*\[data-application-theme="daylight"\],\s*\[data-application-theme="mist"\],\s*\[data-application-theme="parchment"\]\s*\) :where\(\.composer-provider-model:hover:not\(:disabled\)\)/u,
-    );
+  // CR091 follow-up: the hover recoloured to a dark-theme mint that broke on light surfaces.
+  // A hover colour change is redundant with the pointer, so both hover rules are gone; the
+  // test pins their absence so neither returns as an isolated "quick fix".
+  it("leaves the Composer model link colour untouched on hover", () => {
+    expect(cssSource).not.toMatch(/\.composer-provider-model:hover/u);
   });
 
   it("uses a fixed middle-truncated preview of the first tool argument", () => {

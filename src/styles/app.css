@@ -2259,9 +2259,8 @@ h3 {
   white-space: nowrap;
 }
 
-.composer-provider-model:hover:not(:disabled) {
-  color: #a0e2d8;
-}
+/* CR091 follow-up: no color change on hover; the pointer already signals interactivity, and
+   the earlier dark-theme mint had no honest light-theme counterpart. */
 
 .composer-provider-model:disabled {
   cursor: default;
@@ -5989,15 +5988,7 @@ dd {
   color: var(--light-accent);
 }
 
-/* CR091 follow-up: the model descriptor's hover was a dark-theme mint that all but
-   disappears against a light surface. Deepen the accent instead. */
-.app-shell:is(
-  [data-application-theme="daylight"],
-  [data-application-theme="mist"],
-  [data-application-theme="parchment"]
-) :where(.composer-provider-model:hover:not(:disabled)) {
-  color: color-mix(in srgb, var(--light-accent) 65%, var(--light-text));
-}
+
 
 .app-shell:is(
   [data-application-theme="daylight"],
