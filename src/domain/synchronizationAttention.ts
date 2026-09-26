@@ -4,6 +4,8 @@
 // failure older than a bounded window) becomes user-visible, and only when durable
 // debt exists for the Journey or the durable evidence store itself is unreadable.
 
+import { hasTerminalMirrorAppendRejection } from "./mirrorAppendRejection";
+
 export const SYNCHRONIZATION_FAILURE_PERSISTENCE_MS = 10_000;
 export const SYNCHRONIZATION_FAILURE_ATTEMPT_THRESHOLD = 2;
 
@@ -69,6 +71,11 @@ export function deriveSynchronizationAttention(input: {
     return { attention: false };
   }
   if (!input.durableDebt && !ledger.evidenceUnavailable) return { attention: false };
+  // CR093: patience only makes sense for failures that might self-repair. A bounded contract
+  // rejection is a fact about the durable record, so it becomes actionable on first sight.
+  if (hasTerminalMirrorAppendRejection(ledger.lastFailureReason)) {
+    return { attention: true, reason: ledger.lastFailureReason };
+  }
   if (ledger.consecutiveFailures >= SYNCHRONIZATION_FAILURE_ATTEMPT_THRESHOLD) {
     return { attention: true, reason: ledger.lastFailureReason };
   }

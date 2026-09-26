@@ -43,6 +43,45 @@ describe("synchronization attention gate", () => {
     })).toEqual({ attention: true, reason: "mirror_append_outbox_full" });
   });
 
+  // CR093: the CR086 patience gate assumes a failure might self-repair. A bounded contract
+  // rejection cannot, so waiting only delays a Navigator decision.
+  it("surfaces attention immediately on a terminal contract rejection", () => {
+    const ledger = recordSynchronizationAttempt(undefined, {
+      kind: "failed",
+      reason: "synchronization_convergence_partial:turn-one:mirror_append_journey_mismatch",
+      at: at(0),
+    });
+    expect(deriveSynchronizationAttention({ durableDebt: true, ledger, now: at(1) })).toEqual({
+      attention: true,
+      reason: "synchronization_convergence_partial:turn-one:mirror_append_journey_mismatch",
+    });
+  });
+
+  it("surfaces a terminal contract rejection even while a retry is in flight", () => {
+    let ledger = recordSynchronizationAttempt(undefined, {
+      kind: "failed", reason: "mirror_append_journey_binding_not_owned", at: at(0),
+    });
+    ledger = beginSynchronizationAttempt(ledger);
+    expect(deriveSynchronizationAttention({ durableDebt: true, ledger, now: at(1) }))
+      .toEqual({ attention: true, reason: "mirror_append_journey_binding_not_owned" });
+  });
+
+  it("still requires durable debt before surfacing a terminal contract rejection", () => {
+    const ledger = recordSynchronizationAttempt(undefined, {
+      kind: "failed", reason: "mirror_append_journey_mismatch", at: at(0),
+    });
+    expect(deriveSynchronizationAttention({ durableDebt: false, ledger, now: at(1) }))
+      .toEqual({ attention: false });
+  });
+
+  it("keeps the patient gate for a transient first failure", () => {
+    const ledger = recordSynchronizationAttempt(undefined, {
+      kind: "failed", reason: "mirror_append_journey_binding_repair_failed", at: at(0),
+    });
+    expect(deriveSynchronizationAttention({ durableDebt: true, ledger, now: at(1) }))
+      .toMatchObject({ attention: false });
+  });
+
   it("never surfaces attention without durable debt, even after repeated failures", () => {
     expect(deriveSynchronizationAttention({ durableDebt: false, ledger: failedTwice(), now: at(5_000) }))
       .toEqual({ attention: false });

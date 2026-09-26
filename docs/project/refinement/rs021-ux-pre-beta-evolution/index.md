@@ -41,6 +41,7 @@ Captured Change Requests, ordered by Navigator-approved daily-use impact:
 12. **CR085 — Close Without Quitting.** Make the macOS red close button hide/close the window without terminating the app process.
 13. **CR079 — Deep Context Stats Analysis.** Explain and close the gap between terminal Pi context stats and Desktop's frequent Checking state.
 14. **CR080 — Manual Compaction / Compaction Checkpoint.** Understand the current Desktop checkpoint and use it to suggest splitting long conversations when appropriate.
+15. **CR092 — Float the Recenter Control Over the Conversation.** Move the CR084 control out of the header into a floating bottom-right affordance that is visible only while the surface is away from the end.
 
 ## Acceptance Horizon
 
@@ -67,3 +68,4 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR085: Close Without Quitting](cr085-close-without-quitting.md)
 - [CR079: Deep Context Stats Analysis](cr079-deep-context-stats-analysis.md)
 - [CR080: Manual Compaction / Compaction Checkpoint](cr080-manual-compaction-checkpoint.md)
+- [CR092: Float the Recenter Control Over the Conversation](cr092-float-the-recenter-control-over-the-conversation.md)

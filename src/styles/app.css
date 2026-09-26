@@ -3518,6 +3518,12 @@ h3 {
   margin: 3px 0 0;
 }
 
+/* CR093: the named cause of a bounded contract rejection is the actionable line in the
+   notice, so it reads at notice strength rather than muted supporting text. */
+.dedicated-turn-notice p.sync-attention-cause {
+  color: #c8d6da;
+}
+
 .conversation-sync-notice {
   align-items: center;
   background: rgba(205, 151, 61, 0.1);
@@ -6104,6 +6110,15 @@ dd {
   [data-application-theme="parchment"]
 ) :where(.inline-grammar-card p, .dedicated-turn-notice p, .conversation-sync-notice, .imported-context-disclosure) {
   color: var(--light-muted);
+}
+
+/* CR093 light contract: keep the named cause readable above the muted notice body. */
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .dedicated-turn-notice p.sync-attention-cause {
+  color: var(--light-text);
 }
 
 .app-shell:is(
