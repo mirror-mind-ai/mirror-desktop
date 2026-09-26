@@ -205,6 +205,17 @@ describe("runtime projection component", () => {
     expect(cssSource).toContain(".composer-provider-model-scope");
   });
 
+  // CR091 follow-up: on daylight/mist/parchment the hover was `#a0e2d8`, a dark-theme mint
+  // that all but disappears against a light background. The hover has to name the light
+  // themes explicitly, the way every other accent surface in this file does.
+  it("keeps the Composer model link hover readable across light themes", () => {
+    const darkHover = cssSource.match(/\.composer-provider-model:hover:not\(:disabled\) \{[^}]+\}/u)?.[0] ?? "";
+    expect(darkHover).toContain("color:");
+    expect(cssSource).toMatch(
+      /app-shell:is\(\s*\[data-application-theme="daylight"\],\s*\[data-application-theme="mist"\],\s*\[data-application-theme="parchment"\]\s*\) :where\(\.composer-provider-model:hover:not\(:disabled\)\)/u,
+    );
+  });
+
   it("uses a fixed middle-truncated preview of the first tool argument", () => {
     const preview = summarizeOperationArgument({
       path: "/Users/alissonvale/.mirror-journeys/vida-criativa/nautilus/harness/src/app/LiveRuntimeActivity.tsx",
