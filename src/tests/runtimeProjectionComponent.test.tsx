@@ -167,7 +167,8 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}");
     expect(appSource).not.toContain("queryJourneyPiContext");
     expect(appSource).toContain("readJourneyPiContextStats");
-    expect(appSource).toContain("providerModel={providerModelLabel(effectiveProviderConfig)}");
+    // CR078: the descriptor carries the whole selection, so a thinking-only change is visible.
+    expect(appSource).toContain("providerModel={describeComposerModelSelection(effectiveProviderConfig, effectiveAgentProfile.thinkingLevel)}");
     // CR078: the footer control now opens the Model Intent menu; the full selector is one
     // of its entries rather than the only destination.
     expect(appSource).toContain("onSelectProviderModel={() => setModelIntentMenuOpen((open) => !open)}");

@@ -1,4 +1,4 @@
-import type { EffectiveAgentProfile } from "../domain/agentProfile";
+import type { AgentThinkingLevel, EffectiveAgentProfile } from "../domain/agentProfile";
 
 export type AgentInvocationMode = "raw" | "mirror";
 
@@ -97,6 +97,22 @@ export function providerModelLabel(config: AgentProviderConfig): string {
   const provider = argValue(config.args, "--provider") ?? "default-provider";
   const model = argValue(config.args, "--model") ?? "default-model";
   return `${provider}/${model}`;
+}
+
+/**
+ * CR078: the Composer footer descriptor. It names the thinking level whenever the selection
+ * carries one, because showing the model alone made a thinking-only change invisible — the
+ * Navigator chose `high` and the footer read exactly as before. `pi-default` stays silent,
+ * following the convention `describeEffectiveAgentProfile` already set, and safe test mode
+ * claims nothing, since no thinking level is passed there at all.
+ */
+export function describeComposerModelSelection(
+  config: AgentProviderConfig,
+  thinkingLevel: AgentThinkingLevel,
+): string {
+  const label = providerModelLabel(config);
+  if (config.safeTestMode || thinkingLevel === "pi-default") return label;
+  return `${label} · ${thinkingLevel}`;
 }
 
 // Supported-model snapshot from @earendil-works/pi-ai 0.84.2.

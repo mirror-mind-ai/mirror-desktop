@@ -177,6 +177,28 @@ Gates: `npm test` 174 files / 1053 tests; `npm run build` green; roadmap READY.
 Gates: `npm test` 175 files / 1064 tests; `cargo test --locked` 192 passed, 3 ignored;
 `npm run build` green; roadmap READY.
 
+## Correction — the descriptor hid half the selection (2026-09-25)
+
+A Navigator report that a newly chosen model did not appear in the footer did not reproduce.
+A scripted walkthrough on `sandbox-pet-store` showed the footer updating correctly when the
+model changed, with both saves landing in `agent-settings.json`. There was no staleness and
+no clipping.
+
+What the walkthrough did expose is the defect underneath the report. Changing only the
+thinking level to `high` moved the footer from the intent name `Dev Jr` to
+`openai-codex/gpt-5.5` — a string identical to what the same model with the default thinking
+level would show. The descriptor named the model and silently dropped the rest, so the one
+thing the Navigator had just changed was the one thing it did not represent.
+
+`describeComposerModelSelection` now carries the thinking level whenever the selection has
+one. `pi-default` stays silent, following the convention `describeEffectiveAgentProfile`
+already set, and safe test mode claims none, since none is passed there.
+
+The same walkthrough confirmed a sibling gap: with a configuration matching no intent and
+differing from the global default, nothing in the menu was marked and there was no way to
+tell where you were. The menu now names the configuration in force when no entry represents
+it.
+
 ## Correction — the menu refused every click (2026-09-25)
 
 Navigator homologation found the menu opening correctly and accepting no selection.

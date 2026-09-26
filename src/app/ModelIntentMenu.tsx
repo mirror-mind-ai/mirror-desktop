@@ -11,6 +11,8 @@ type ModelIntentMenuProps = {
   activeIntentId?: string;
   usingGlobalDefault: boolean;
   globalModelLabel: string;
+  /** The configuration in force, named when no entry in this menu represents it. */
+  currentBinding?: string;
   onSelectIntent: (intent: ModelIntent) => void;
   onUseGlobalDefaults: () => void;
   onOpenFullSelector: () => void;
@@ -25,12 +27,18 @@ export function ModelIntentMenu({
   activeIntentId,
   usingGlobalDefault,
   globalModelLabel,
+  currentBinding,
   onSelectIntent,
   onUseGlobalDefaults,
   onOpenFullSelector,
 }: ModelIntentMenuProps) {
   return (
     <div className="model-intent-menu" role="menu" aria-label="Model intents">
+      {!activeIntentId && !usingGlobalDefault && currentBinding ? (
+        <p className="model-intent-menu-current">
+          Currently {currentBinding} — not saved as an intent.
+        </p>
+      ) : null}
       {intents.intents.length === 0 ? (
         <p className="model-intent-menu-empty">
           No intents yet. Name the configurations you reach for in Settings → Agent.

@@ -5,6 +5,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+import { describeComposerModelSelection } from "../agent/providerConfig";
 import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamEvent, type AgentStreamProvider, type TurnCorrelation } from "../agent/agentStream";
 import {
   cancelLivePiInvocation,
@@ -4909,7 +4910,7 @@ export function App({ model }: AppProps) {
                 contextUsage={authoritativeContextUsage}
                 activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}
                 contextState={piContextState}
-                providerModel={providerModelLabel(effectiveProviderConfig)}
+                providerModel={describeComposerModelSelection(effectiveProviderConfig, effectiveAgentProfile.thinkingLevel)}
                 onSelectProviderModel={() => setModelIntentMenuOpen((open) => !open)}
                 providerSelectionDisabled={agentSettingsState === "saving"}
                 selectionScope={modelSelectionScope}
@@ -4924,6 +4925,7 @@ export function App({ model }: AppProps) {
                     activeIntentId={activeModelIntent?.id}
                     usingGlobalDefault={usingGlobalAgentDefault}
                     globalModelLabel={`${agentSettings.globalProfile.model.provider}/${agentSettings.globalProfile.model.model}`}
+                    currentBinding={describeComposerModelSelection(effectiveProviderConfig, effectiveAgentProfile.thinkingLevel)}
                     onSelectIntent={(intent) => { void applyModelIntent(intent); }}
                     onUseGlobalDefaults={() => {
                       setModelIntentMenuOpen(false);

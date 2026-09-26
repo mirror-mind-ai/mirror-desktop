@@ -100,4 +100,21 @@ describe("model intent menu", () => {
     );
     expect(menu).toContain("pointer-events: auto");
   });
+
+  // Passo 3 of the 2026-09-25 reproduction: with a configuration that matches no intent and
+  // is not the global default, nothing in the menu was marked and the Navigator could not
+  // tell where they were.
+  it("names the current configuration when no entry represents it", () => {
+    const html = render({ currentBinding: "openai-codex/gpt-5.5 · high" });
+    expect(html).toContain("openai-codex/gpt-5.5 · high");
+    expect(html).toContain("model-intent-menu-current");
+    expect(html).not.toContain('aria-current="true"');
+  });
+
+  it("stays quiet about the current configuration when an entry already carries it", () => {
+    expect(render({ activeIntentId: "everyday", currentBinding: "openai-codex/gpt-5.5" }))
+      .not.toContain("model-intent-menu-current");
+    expect(render({ usingGlobalDefault: true, currentBinding: "openai-codex/gpt-5.4-mini" }))
+      .not.toContain("model-intent-menu-current");
+  });
 });

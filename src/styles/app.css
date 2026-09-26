@@ -4480,6 +4480,15 @@ dd {
   margin: 4px 2px;
 }
 
+.model-intent-menu-current {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  margin: 2px 8px 6px;
+  opacity: 0.8;
+  padding-bottom: 6px;
+}
+
 .model-intent-menu-empty {
   font-size: 0.76rem;
   line-height: 1.4;
