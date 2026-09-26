@@ -2,7 +2,7 @@
 
 # CR091: Attribute Each Response to Its Model
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr091-response-model-attribution`
 
@@ -106,8 +106,27 @@ reconstructed even in principle. What Pi knows for certain is the model.
 - `npm test`: 176 files, 1081 tests green.
 - `npm run build` green; `npm run roadmap:check` READY; `git diff --check` clean.
 
-Navigator homologation pending: open a Conversation that used more than one model and confirm
-each answer names its own, with the switches marked.
+## Homologation (2026-09-26)
+
+Navigator validated attribution across Conversations that used more than one model,
+including the freshly-finished turn falling back to the run's captured model. Two follow-up
+findings surfaced: a light-theme hover on the Composer descriptor with no readable colour,
+which was first patched and then removed entirely — the pointer already signals
+interactivity, and a hover recolour had no honest cross-theme rule anyway.
+
+## Closure
+
+Closed on 2026-09-26 with explicit Navigator validation.
+
+Proportionality review: proportional. Two new fields carried off the raw Pi message, a
+derived attribution map on the CR077 precedent, a pure badge projector and one line beside
+the speaker label. The persistence whitelist, the fail-closed conflict semantics and the
+effective-model resolution are untouched.
+
+Debt review: `no_action`. Ordering of past-response attribution is Pi's order because that is
+the transcript authority; a Conversation whose Pi session was replaced under the same
+generation number reprojects against the new session, which is the RS018 contract. Integration,
+push and release remain separate Navigator decisions.
 
 ## Acceptance
 

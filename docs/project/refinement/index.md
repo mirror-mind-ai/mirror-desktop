@@ -57,7 +57,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 5 | [CR084](rs021-ux-pre-beta-evolution/cr084-recenter-to-conversation-end.md) | RS021 | Recenter to Conversation End | done | @alissonvale | `refinement/rs021-cr084-recenter-to-end` |
 | 6 | [CR090](rs021-ux-pre-beta-evolution/cr090-run-scoped-model-authority.md) | RS021 | Run-Scoped Model Authority | done | @alissonvale | `refinement/rs021-cr090-run-scoped-model-authority` |
 | 7 | [CR078](rs021-ux-pre-beta-evolution/cr078-model-intents.md) | RS021 | Model Intents | done | @alissonvale | `refinement/rs021-cr078-model-intents` |
-| 8 | [CR091](rs021-ux-pre-beta-evolution/cr091-attribute-each-response-to-its-model.md) | RS021 | Attribute Each Response to Its Model | in_progress | @alissonvale | `refinement/rs021-cr091-response-model-attribution` |
+| 8 | [CR091](rs021-ux-pre-beta-evolution/cr091-attribute-each-response-to-its-model.md) | RS021 | Attribute Each Response to Its Model | done | @alissonvale | `refinement/rs021-cr091-response-model-attribution` |
 | 9 | [CR081](rs021-ux-pre-beta-evolution/cr081-agent-running-animation.md) | RS021 | Agent Running Animation | captured | — | — |
 | 10 | [CR083](rs021-ux-pre-beta-evolution/cr083-agent-comments-continuity.md) | RS021 | Agent Comments Continuity | captured | — | — |
 | 11 | [CR082](rs021-ux-pre-beta-evolution/cr082-collapsed-sidebar-polish.md) | RS021 | Collapsed Sidebar Polish | captured | — | — |
