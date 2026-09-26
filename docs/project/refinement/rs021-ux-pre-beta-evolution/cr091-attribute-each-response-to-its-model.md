@@ -2,9 +2,9 @@
 
 # CR091: Attribute Each Response to Its Model
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr091-response-model-attribution`
 
 ## Problem
 
