@@ -1,6 +1,6 @@
 [package]
 name = "mirror-desktop"
-version = "0.2.0-alpha.19"
+version = "0.2.0-alpha.20"
 description = "Mirror Desktop application"
 authors = ["Mirror Mind"]
 license = "UNLICENSED"
