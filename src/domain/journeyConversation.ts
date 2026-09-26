@@ -109,6 +109,15 @@ export type JourneyConversation = {
   // projection is re-derived on every surface reconstruction. Live-captured
   // terminal evidence always wins over these entries.
   reconstructedAgentActions?: Record<string, TerminalAgentActionProjection>;
+  // CR091: which model produced each answer, keyed by assistant message id. Derived from Pi
+  // on every surface reconstruction for the same reason as the map above: Pi JSONL is the
+  // authority, so storage carries no duplicate and existing Conversations gain it for free.
+  responseModels?: Record<string, ResponseModelAttribution>;
+};
+
+export type ResponseModelAttribution = {
+  provider: string;
+  model: string;
 };
 
 export type JourneyConversationSummary = {

@@ -1,6 +1,10 @@
 import type { ConversationMessage } from "../agent/piTaskPacket";
 import { normalizePiResponse } from "../agent/piResponseNormalizer";
-import type { JourneyConversation, TerminalAgentActionProjection } from "./journeyConversation";
+import type {
+  JourneyConversation,
+  ResponseModelAttribution,
+  TerminalAgentActionProjection,
+} from "./journeyConversation";
 import { boundReasoningBlocks } from "./reasoningBounds";
 
 export type PiConversationSurfaceEntry = {
@@ -13,6 +17,10 @@ export type PiConversationSurfaceEntry = {
   nativeContent?: unknown;
   toolCallId?: string | null;
   isError?: boolean | null;
+  // CR091: what produced the entry. Absent for user entries and for anything Pi left
+  // unattributed.
+  provider?: string | null;
+  model?: string | null;
 };
 
 export type PiConversationSurfaceInspection = {
@@ -123,6 +131,7 @@ export function projectPiBackedConversationSurface(
   const messageIds = new Set<string>();
   const messages: ConversationMessage[] = [];
   const reconstructedAgentActions: Record<string, TerminalAgentActionProjection> = {};
+  const responseModels: Record<string, ResponseModelAttribution> = {};
   let pendingBlocks: PendingActivityBlock[] = [];
   for (const entry of inspection.entries) {
     if (!entry || typeof entry.entryId !== "string" || !entry.entryId
@@ -155,6 +164,10 @@ export function projectPiBackedConversationSurface(
         if (reconstructed) reconstructedAgentActions[id] = reconstructed;
       }
       pendingBlocks = [];
+      // Only a complete pair is attribution; half of one would be a guess.
+      if (entry.provider && entry.model) {
+        responseModels[id] = { provider: entry.provider, model: entry.model };
+      }
     }
 
     messages.push({
@@ -174,6 +187,7 @@ export function projectPiBackedConversationSurface(
     ...metadata,
     messages,
     ...(Object.keys(reconstructedAgentActions).length > 0 ? { reconstructedAgentActions } : {}),
+    ...(Object.keys(responseModels).length > 0 ? { responseModels } : {}),
   };
 }
 
