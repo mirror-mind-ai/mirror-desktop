@@ -16,7 +16,10 @@ IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,255}$")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("catalog", "inspect", "rename", "delete"))
+    parser.add_argument(
+        "operation",
+        choices=("catalog", "inspect", "rename", "delete", "rebind-journey"),
+    )
     parser.add_argument("--journey-id", required=True)
     parser.add_argument("--conversation-id")
     parser.add_argument("--title")
@@ -39,12 +42,23 @@ def fail(operation: str, journey_id: str, reason: str) -> None:
 
 
 def exact_conversation(mem: object, args: argparse.Namespace) -> object:
+    conversation = owned_conversation(mem, args)
+    if conversation.journey != args.journey_id:
+        fail(args.operation, args.journey_id, "conversation_unavailable")
+    return conversation
+
+
+def owned_conversation(mem: object, args: argparse.Namespace) -> object:
+    """Resolve one exact Conversation without requiring its Journey binding to be intact.
+
+    CR093: the repair route must reach a Conversation precisely because its ``journey``
+    column diverged, so it cannot use the Journey as part of the lookup precondition. The
+    caller proves ownership from Desktop thread authority before asking for this.
+    """
     if not isinstance(args.conversation_id, str) or not IDENTIFIER_RE.fullmatch(args.conversation_id):
         fail(args.operation, args.journey_id, "invalid_conversation_id")
     conversation = mem.conversations.find_by_id_prefix(args.conversation_id)
     if conversation is None or conversation.id != args.conversation_id:
-        fail(args.operation, args.journey_id, "conversation_unavailable")
-    if conversation.journey != args.journey_id:
         fail(args.operation, args.journey_id, "conversation_unavailable")
     return conversation
 
@@ -122,6 +136,28 @@ def main() -> None:
                 "journeyId": args.journey_id,
                 "conversationId": updated.id,
                 "title": updated.title,
+            }
+        elif args.operation == "rebind-journey":
+            conversation = owned_conversation(mem, args)
+            previous_journey_id = conversation.journey
+            rebound = previous_journey_id != args.journey_id
+            if rebound:
+                mem.store.update_conversation(conversation.id, journey=args.journey_id)
+                restored = mem.conversations.find_by_id_prefix(conversation.id)
+                if (
+                    restored is None
+                    or restored.id != conversation.id
+                    or restored.journey != args.journey_id
+                ):
+                    fail(args.operation, args.journey_id, "persistence_failure")
+            result = {
+                "schemaVersion": "1.0.0",
+                "operation": "rebind-journey",
+                "status": "ok",
+                "journeyId": args.journey_id,
+                "conversationId": conversation.id,
+                "rebound": rebound,
+                "previousJourneyId": previous_journey_id,
             }
         else:
             try:

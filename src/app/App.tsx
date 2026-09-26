@@ -147,6 +147,7 @@ import {
 import { partitionConversationBySegments } from "../domain/conversationSegmentProjection";
 import { decideConversationAvailability } from "../domain/conversationAvailability";
 import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
+import { describeMirrorAppendRejection } from "../domain/mirrorAppendRejection";
 import { deriveBlockingTurnPresentation } from "./blockingTurnPresentation";
 import {
   beginSynchronizationAttempt,
@@ -840,6 +841,11 @@ export function App({ model }: AppProps) {
   const piInvocationPresentation = derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney);
   const runtimeBindingReady = runtimeChannel?.status === "validated";
   const mirrorCommitError = navigationPresentation.mirrorCommitError;
+  // CR093: a bounded contract rejection has a cause the Navigator can act on. Name it above
+  // the raw reason code instead of leaving only a generic persistence sentence.
+  const mirrorCommitExplanation = mirrorCommitError
+    ? describeMirrorAppendRejection(mirrorCommitError)
+    : undefined;
   const unsentDraftNotice = unsentDraftNotices[selectedJourney];
   const messages = navigationPresentation.messages;
   const presentedConversation = navigationPresentation.conversation ?? conversation;
@@ -4824,6 +4830,7 @@ export function App({ model }: AppProps) {
               <p>The native Pi execution is inactive. Mirror Desktop is completing this exact run from preserved Pi evidence; new messages remain available.</p>
               {mirrorCommitError ? (
                 <>
+                  {mirrorCommitExplanation ? <p className="sync-attention-cause">{mirrorCommitExplanation}</p> : null}
                   <div className="recovery-actions">
                     <button type="button" onClick={() => void recoverPostTerminalPersistence(selectedJourney)} disabled={isRetryingMirrorCommit || piInvocationOccupancy.status !== "known"}>
                       {isRetryingMirrorCommit ? "Repairing conversation synchronization…" : "Repair synchronization"}
@@ -4842,6 +4849,7 @@ export function App({ model }: AppProps) {
             <section className="dedicated-turn-notice" role="alert">
               <strong>Conversation synchronization needs attention</strong>
               <p>The agent is inactive, but Mirror Desktop could not complete the preserved persistence path.</p>
+              {mirrorCommitExplanation ? <p className="sync-attention-cause">{mirrorCommitExplanation}</p> : null}
               <div className="recovery-actions">
                 <button type="button" onClick={() => void recoverPostTerminalPersistence(selectedJourney)} disabled={isRetryingMirrorCommit || piInvocationOccupancy.status !== "known"}>
                   {isRetryingMirrorCommit ? "Repairing conversation synchronization…" : "Repair synchronization"}
