@@ -68,4 +68,4 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR085: Close Without Quitting](cr085-close-without-quitting.md)
 - [CR079: Deep Context Stats Analysis](cr079-deep-context-stats-analysis.md)
 - [CR080: Manual Compaction / Compaction Checkpoint](cr080-manual-compaction-checkpoint.md)
-- [CR092: Float the Recenter Control Over the Conversation](cr092-float-the-recenter-control-over-the-conversation.md)
+- [CR092: Float the Recenter Control Over the Conversation](cr092-float-the-recenter-control-over-the-conversation.md) — done

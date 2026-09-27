@@ -1051,6 +1051,11 @@ export function App({ model }: AppProps) {
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
   const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading";
   const operationalChatSelected = presentedAltitude === "operational" && presentedOperationalSurface === "chat";
+  // CR092: the floating recenter control lives in a viewport wrapping the scroller, so the
+  // viewport must disappear under exactly the same condition as the Conversation surface.
+  const conversationSurfaceHidden = !operationalChatSelected
+    || selectedConversationSpace.kind === "mirror_history"
+    || journeyThreadState.kind !== "ready";
   const conversationRecenter = deriveConversationRecenterState({
     surfaceReady: !altitudeSwitchDisabled
       && selectedConversationSpace.kind !== "mirror_history"
@@ -4531,22 +4536,6 @@ export function App({ model }: AppProps) {
                     <circle cx="4" cy="18" r="1" />
                   </svg>
                 </button>
-                <button
-                  className={`menu-button conversation-recenter-shortcut ${conversationRecenter.emphasized ? "emphasized" : ""}`}
-                  type="button"
-                  onClick={() => {
-                    showConversation();
-                  }}
-                  disabled={!conversationRecenter.available}
-                  aria-label="Return to the latest turn"
-                  title="Back to latest"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 4v10" />
-                    <path d="m8 10.5 4 4 4-4" />
-                    <path d="M6 19h12" />
-                  </svg>
-                </button>
                 <div className="journey-menu-wrap" ref={journeyMenuRef}>
                   <button
                     className="menu-button"
@@ -4665,92 +4654,113 @@ export function App({ model }: AppProps) {
           />
         ) : null}
 
-        <section
-          id="operational-chat-panel"
-          className="chat-stream"
-          role="tabpanel"
-          aria-label="Conversation"
-          hidden={!operationalChatSelected || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
-          ref={chatStreamRef}
-          onScroll={(event) => {
-            const container = event.currentTarget;
-            const metrics = {
-              scrollTop: container.scrollTop,
-              clientHeight: container.clientHeight,
-              scrollHeight: container.scrollHeight,
-            };
-            chatAutoFollowRef.current = nextConversationAutoFollow(
-              chatAutoFollowRef.current,
-              { type: "scroll", metrics },
-            );
-            // React bails out when the value is unchanged, so this re-renders only on a flip.
-            setConversationAwayFromEnd(!isConversationNearBottom(metrics));
-          }}
-        >
-          {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}
-          {messages.length > 0 && selectedConversationEntry?.kind === "desktop_conversation" ? (
-            <ConversationDetailHeader
-              entry={selectedConversationEntry}
-              messageCount={messages.length}
-              historicalSegmentCount={historicalSegmentCount}
-              loadedHistoricalSegmentCount={loadedHistoricalSegmentCount}
+        <div className="chat-stream-viewport" hidden={conversationSurfaceHidden}>
+          <section
+            id="operational-chat-panel"
+            className="chat-stream"
+            role="tabpanel"
+            aria-label="Conversation"
+            hidden={conversationSurfaceHidden}
+            ref={chatStreamRef}
+            onScroll={(event) => {
+              const container = event.currentTarget;
+              const metrics = {
+                scrollTop: container.scrollTop,
+                clientHeight: container.clientHeight,
+                scrollHeight: container.scrollHeight,
+              };
+              chatAutoFollowRef.current = nextConversationAutoFollow(
+                chatAutoFollowRef.current,
+                { type: "scroll", metrics },
+              );
+              // React bails out when the value is unchanged, so this re-renders only on a flip.
+              setConversationAwayFromEnd(!isConversationNearBottom(metrics));
+            }}
+          >
+            {journeyReloadStatus ? <p className="journey-reload-status">{journeyReloadStatus}</p> : null}
+            {messages.length > 0 && selectedConversationEntry?.kind === "desktop_conversation" ? (
+              <ConversationDetailHeader
+                entry={selectedConversationEntry}
+                messageCount={messages.length}
+                historicalSegmentCount={historicalSegmentCount}
+                loadedHistoricalSegmentCount={loadedHistoricalSegmentCount}
+              />
+            ) : null}
+            {messages.length === 0 && journeyThreadState.kind === "ready" && selectedConversationEntry?.kind === "desktop_conversation" ? (
+              <EmptyDesktopConversation
+                entry={selectedConversationEntry}
+                journeyName={selectedJourneyItem.name}
+                historicalSegments={{
+                  count: historicalSegmentCount,
+                  state: historicalSegmentState,
+                  disabled: runtimeBusy,
+                  onLoad: () => void loadCompleteSegmentHistory(),
+                }}
+                onChoose={(text) => setJourneyComposerDraft(selectedJourney, text)}
+              />
+            ) : null}
+            {messages.length === 0 && journeyThreadState.kind === "ready" && selectedConversationSpace.kind === "journey_workspace" ? (
+              <JourneyArrivalSurface
+                journeyName={selectedJourneyItem.name}
+                stage={selectedJourneyItem.stage}
+                onChoose={(text) => setJourneyComposerDraft(selectedJourney, text)}
+              />
+            ) : null}
+            {messages.length > 0 && (historicalSegmentCount > 0 || historicalSegmentState === "error") ? (
+              <div className="historical-segment-control conversation-history-action" role={historicalSegmentState === "error" ? "alert" : "status"}>
+                <strong>Earlier history</strong>
+                <span>{historicalSegmentState === "error"
+                  ? "Earlier history could not be verified. The current Segment remains available."
+                  : `${historicalSegmentCount} earlier ${historicalSegmentCount === 1 ? "Segment" : "Segments"} available.`}</span>
+                <button type="button" className="secondary-button" onClick={() => void loadCompleteSegmentHistory()}
+                  disabled={historicalSegmentState === "loading" || runtimeBusy}>
+                  {historicalSegmentState === "loading"
+                    ? "Loading earlier Segments…"
+                    : `Load ${historicalSegmentCount} earlier ${historicalSegmentCount === 1 ? "Segment" : "Segments"}`}
+                </button>
+              </div>
+            ) : null}
+            <ConversationTranscript
+              messages={messages}
+              conversation={presentedConversation}
+              liveResponseModel={runtimeProjectionMessageId && liveRunProviderModel
+                ? { messageId: runtimeProjectionMessageId, label: liveRunProviderModel }
+                : undefined}
+              importedActivity={importedActivity}
+              assistantTurnProximity={assistantTurnProximity}
+              runtimeProjection={runtimeProjection}
+              runtimeProjectionMessageId={runtimeProjectionMessageId}
+              basePath={selectedJourneyBasePath}
+              userAvatar={userAvatar}
+              onLocalPathClick={handleChatLocalPath}
+              searchOpen={conversationSearchOpen}
+              turnNavigatorOpen={conversationTurnNavigatorOpen}
+              onSearchOpenChange={setConversationSearchOpen}
+              onTurnNavigatorOpenChange={setConversationTurnNavigatorOpen}
             />
-          ) : null}
-          {messages.length === 0 && journeyThreadState.kind === "ready" && selectedConversationEntry?.kind === "desktop_conversation" ? (
-            <EmptyDesktopConversation
-              entry={selectedConversationEntry}
-              journeyName={selectedJourneyItem.name}
-              historicalSegments={{
-                count: historicalSegmentCount,
-                state: historicalSegmentState,
-                disabled: runtimeBusy,
-                onLoad: () => void loadCompleteSegmentHistory(),
-              }}
-              onChoose={(text) => setJourneyComposerDraft(selectedJourney, text)}
-            />
-          ) : null}
-          {messages.length === 0 && journeyThreadState.kind === "ready" && selectedConversationSpace.kind === "journey_workspace" ? (
-            <JourneyArrivalSurface
-              journeyName={selectedJourneyItem.name}
-              stage={selectedJourneyItem.stage}
-              onChoose={(text) => setJourneyComposerDraft(selectedJourney, text)}
-            />
-          ) : null}
-          {messages.length > 0 && (historicalSegmentCount > 0 || historicalSegmentState === "error") ? (
-            <div className="historical-segment-control conversation-history-action" role={historicalSegmentState === "error" ? "alert" : "status"}>
-              <strong>Earlier history</strong>
-              <span>{historicalSegmentState === "error"
-                ? "Earlier history could not be verified. The current Segment remains available."
-                : `${historicalSegmentCount} earlier ${historicalSegmentCount === 1 ? "Segment" : "Segments"} available.`}</span>
-              <button type="button" className="secondary-button" onClick={() => void loadCompleteSegmentHistory()}
-                disabled={historicalSegmentState === "loading" || runtimeBusy}>
-                {historicalSegmentState === "loading"
-                  ? "Loading earlier Segments…"
-                  : `Load ${historicalSegmentCount} earlier ${historicalSegmentCount === 1 ? "Segment" : "Segments"}`}
-              </button>
-            </div>
-          ) : null}
-          <ConversationTranscript
-            messages={messages}
-            conversation={presentedConversation}
-            liveResponseModel={runtimeProjectionMessageId && liveRunProviderModel
-              ? { messageId: runtimeProjectionMessageId, label: liveRunProviderModel }
-              : undefined}
-            importedActivity={importedActivity}
-            assistantTurnProximity={assistantTurnProximity}
-            runtimeProjection={runtimeProjection}
-            runtimeProjectionMessageId={runtimeProjectionMessageId}
-            basePath={selectedJourneyBasePath}
-            userAvatar={userAvatar}
-            onLocalPathClick={handleChatLocalPath}
-            searchOpen={conversationSearchOpen}
-            turnNavigatorOpen={conversationTurnNavigatorOpen}
-            onSearchOpenChange={setConversationSearchOpen}
-            onTurnNavigatorOpenChange={setConversationTurnNavigatorOpen}
-          />
 
-          <div ref={chatEndRef} className="chat-scroll-anchor" aria-hidden="true" />
-        </section>
+            <div ref={chatEndRef} className="chat-scroll-anchor" aria-hidden="true" />
+          </section>
+
+          {/* CR092: anchored to the viewport rather than the scroller, so it stays put while the
+              reader scrolls. Kept mounted so arriving and leaving can be a transition instead of
+              a blink, and taken out of the tab order while it has nothing to offer. */}
+          <button
+            className={`conversation-recenter-floating ${conversationRecenter.visible ? "visible" : ""}`}
+            type="button"
+            onClick={() => revealConversationEnd()}
+            aria-label="Return to the latest turn"
+            title="Back to latest"
+            aria-hidden={!conversationRecenter.visible}
+            tabIndex={conversationRecenter.visible ? undefined : -1}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 4v10" />
+              <path d="m8 10.5 4 4 4-4" />
+              <path d="M6 19h12" />
+            </svg>
+          </button>
+        </div>
 
         <section
           className="composer"

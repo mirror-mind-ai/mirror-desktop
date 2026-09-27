@@ -12,8 +12,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: RS016
-- Change Request: CR096
+- Refinement Story: RS021
+- Change Request: CR092
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -69,7 +69,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 16 | [CR085](rs021-ux-pre-beta-evolution/cr085-close-without-quitting.md) | RS021 | Close Without Quitting | captured | — | — |
 | 17 | [CR079](rs021-ux-pre-beta-evolution/cr079-deep-context-stats-analysis.md) | RS021 | Deep Context Stats Analysis | captured | — | — |
 | 18 | [CR080](rs021-ux-pre-beta-evolution/cr080-manual-compaction-checkpoint.md) | RS021 | Manual Compaction / Compaction Checkpoint | captured | — | — |
-| 19 | [CR092](rs021-ux-pre-beta-evolution/cr092-float-the-recenter-control-over-the-conversation.md) | RS021 | Float the Recenter Control Over the Conversation | captured | — | — |
+| 19 | [CR092](rs021-ux-pre-beta-evolution/cr092-float-the-recenter-control-over-the-conversation.md) | RS021 | Float the Recenter Control Over the Conversation | done | @alissonvale | `refinement/rs021-cr092-floating-recenter-control` |
 | 20 | [CR077](rs016-ongoing-product-improvements-and-adjustments/cr077-reconstruct-reasoning-from-pi-session-evidence.md) | RS016 | Reconstruct Reasoning from Pi Session Evidence | done | @alissonvale | `refinement/rs016-cr077-reconstruct-reasoning` |
 | 21 | [CR076](rs016-ongoing-product-improvements-and-adjustments/cr076-surface-the-thinking-process-of-every-model.md) | RS016 | Surface the Thinking Process of Every Model | done | @alissonvale | `refinement/rs016-cr076-model-agnostic-reasoning` |
 | 22 | [CR075](rs016-ongoing-product-improvements-and-adjustments/cr075-serve-the-latest-release-to-every-installed-version.md) | RS016 | Serve the Latest Release to Every Installed Version | done | @alissonvale | `refinement/rs016-cr075-update-to-latest` |
