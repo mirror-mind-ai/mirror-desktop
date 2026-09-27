@@ -64,7 +64,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR091: Attribute Each Response to Its Model](cr091-attribute-each-response-to-its-model.md)
 - [CR081: Agent Running Animation](cr081-agent-running-animation.md)
 - [CR083: Agent Comments Continuity](cr083-agent-comments-continuity.md)
-- [CR082: Collapsed Sidebar Polish](cr082-collapsed-sidebar-polish.md)
+- [CR082: Collapsed Sidebar Polish](cr082-collapsed-sidebar-polish.md) — done
 - [CR085: Close Without Quitting](cr085-close-without-quitting.md)
 - [CR079: Deep Context Stats Analysis](cr079-deep-context-stats-analysis.md)
 - [CR080: Manual Compaction / Compaction Checkpoint](cr080-manual-compaction-checkpoint.md)

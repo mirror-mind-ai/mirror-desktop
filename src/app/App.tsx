@@ -4284,16 +4284,21 @@ export function App({ model }: AppProps) {
             const hasChildren = (journey.children?.length ?? 0) > 0;
             const collapsed = collapsedJourneyIds.has(journey.id);
             const runtimeOwnerPhase = selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id);
+            const journeyStateDescription = [
+              runtimeOwnerPhase ? (runtimeOwnerPhase === "running" ? "Working" : "Finishing") : undefined,
+              journey.pinned ? "Pinned" : undefined,
+            ].filter(Boolean).join(", ");
             const conversationsExpanded = conversationFocus.kind === "focused_journey"
               && conversationFocus.journeyId === journey.id;
             return (
               <Fragment key={journey.id}>
               <div
-                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${journey.id === selectedJourney ? "selected" : ""} ${conversationsExpanded ? "conversations-expanded" : ""} ${runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : ""}`}
+                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${appearance?.kind === "custom" ? "has-custom-appearance" : ""} ${journey.id === selectedJourney ? "selected" : ""} ${journey.pinned ? "is-pinned" : ""} ${conversationsExpanded ? "conversations-expanded" : ""} ${runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : ""}`}
                 style={{ "--journey-depth": journeyListOrder === "tree" ? journey.depth : 0 } as CSSProperties & Record<"--journey-depth", number>}
                 role="button"
                 tabIndex={0}
-                aria-label={`${journey.name}${runtimeOwnerPhase ? `, ${runtimeOwnerPhase === "running" ? "Working" : "Finishing"}` : ""}`}
+                title={`${journey.name}${journeyStateDescription ? ` — ${journeyStateDescription}` : ""}`}
+                aria-label={`${journey.name}${journeyStateDescription ? `, ${journeyStateDescription}` : ""}`}
                 aria-haspopup="menu"
                 aria-expanded={journeyItemMenu?.journeyId === journey.id}
                 draggable={journeyListOrder === "tree" && !runtimeBusy}

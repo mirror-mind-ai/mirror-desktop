@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS021
-- Change Request: CR092
+- Change Request: CR082
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -65,7 +65,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 12 | [CR091](rs021-ux-pre-beta-evolution/cr091-attribute-each-response-to-its-model.md) | RS021 | Attribute Each Response to Its Model | done | @alissonvale | `refinement/rs021-cr091-response-model-attribution` |
 | 13 | [CR081](rs021-ux-pre-beta-evolution/cr081-agent-running-animation.md) | RS021 | Agent Running Animation | captured | — | — |
 | 14 | [CR083](rs021-ux-pre-beta-evolution/cr083-agent-comments-continuity.md) | RS021 | Agent Comments Continuity | captured | — | — |
-| 15 | [CR082](rs021-ux-pre-beta-evolution/cr082-collapsed-sidebar-polish.md) | RS021 | Collapsed Sidebar Polish | captured | — | — |
+| 15 | [CR082](rs021-ux-pre-beta-evolution/cr082-collapsed-sidebar-polish.md) | RS021 | Collapsed Sidebar Polish | done | @alissonvale | `refinement/rs021-cr082-collapsed-sidebar-polish` |
 | 16 | [CR085](rs021-ux-pre-beta-evolution/cr085-close-without-quitting.md) | RS021 | Close Without Quitting | captured | — | — |
 | 17 | [CR079](rs021-ux-pre-beta-evolution/cr079-deep-context-stats-analysis.md) | RS021 | Deep Context Stats Analysis | captured | — | — |
 | 18 | [CR080](rs021-ux-pre-beta-evolution/cr080-manual-compaction-checkpoint.md) | RS021 | Manual Compaction / Compaction Checkpoint | captured | — | — |
