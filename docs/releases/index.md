@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.23 — Journey Rail and Agent Status](v0.2.0-alpha.23.md)
 - [v0.2.0-alpha.22 — Floating Recenter Control](v0.2.0-alpha.22.md)
 - [v0.2.0-alpha.21](v0.2.0-alpha.21.md) — Journey Binding Defence
 - [v0.2.0-alpha.20](v0.2.0-alpha.20.md) — Model Intents and Response Attribution
