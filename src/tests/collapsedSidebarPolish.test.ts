@@ -55,10 +55,12 @@ describe("collapsed sidebar polish", () => {
   it("keeps active, running and pinned states visually orthogonal", () => {
     expect(appSource).toContain('appearance?.kind === "custom" ? "has-custom-appearance" : ""');
     expect(appSource).toContain('journey.pinned ? "is-pinned" : ""');
-    expect(appSource).toContain("runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : \"\"");
+    expect(appSource).toContain("deriveJourneyAgentStatus({");
+    expect(appSource).toContain('status={agentStatus} placement="sidebar"');
+    expect(appSource).not.toContain("runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : \"\"");
     expect(cssSource).toContain(".sidebar-compact .journey-item.card-node.selected,");
     expect(cssSource).toContain(".sidebar-compact .journey-item.card-node.has-custom-appearance.selected");
-    expect(cssSource).toContain(".sidebar-compact .journey-item.card-node.runtime-running .journey-icon");
+    expect(cssSource).toContain(".sidebar-compact .journey-agent-status.placement-sidebar");
     expect(cssSource).toContain(".sidebar-compact .journey-item.card-node.is-pinned::after,");
     const pinned = declarationBlock(".sidebar-compact .journey-item.card-node.is-pinned::after,");
     expect(pinned).toContain('content: ""');

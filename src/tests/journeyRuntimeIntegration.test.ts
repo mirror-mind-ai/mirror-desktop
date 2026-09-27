@@ -46,14 +46,13 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("await saveDedicatedJourneyConversation(restoredConversation)");
   });
 
-  it("shows owner-only sidebar, cancellation, and finalization errors", () => {
+  it("shows owner-only sidebar status, cancellation, and finalization errors", () => {
     expect(appSource).toContain("selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id)");
+    expect(appSource).toContain("deriveJourneyAgentStatus({");
     expect(appSource).toContain("<JourneyItemCopy");
-    expect(appSource).toContain("runtimePhase={runtimeOwnerPhase}");
-    const copy = appSource.indexOf("<JourneyItemCopy");
-    const pinAction = appSource.indexOf("className={`journey-pin", copy);
-    expect(copy).toBeGreaterThan(-1);
-    expect(copy).toBeLessThan(pinAction);
+    expect(appSource).toContain('<JourneyAgentStatusIndicator journeyName={journey.name} status={agentStatus} placement="sidebar" />');
+    expect(appSource).not.toContain("runtimePhase={runtimeOwnerPhase}");
+    expect(appSource).not.toContain("className={`journey-pin");
     expect(appSource).toContain("const mirrorCommitError = navigationPresentation.mirrorCommitError");
     expect(appSource).toContain("const durableInterruptedTurn = latestNautilusTurn?.pi.state === \"failed\"");
     expect(appSource).toContain("classifyDedicatedTurnState(conversation, selectedRuntimeBusy)");

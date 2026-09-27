@@ -16,11 +16,11 @@ describe("Journey tree presentation", () => {
     expect(html).not.toContain("journey-tree-activity-signal");
   });
 
-  it("adds a visible owner-phase signal without changing the glyph dimensions", () => {
-    const html = renderToStaticMarkup(<JourneyTreeIcon runtimePhase="running" />);
+  it("leaves agent status to the dedicated adjacent indicator", () => {
+    const html = renderToStaticMarkup(<JourneyTreeIcon />);
 
-    expect(html).toContain('data-runtime-phase="running"');
-    expect(html).toContain('class="journey-tree-activity-signal"');
+    expect(html).not.toContain("data-runtime-phase");
+    expect(html).not.toContain("journey-tree-activity-signal");
     expect(html).toContain('width="18"');
     expect(html).toContain('height="18"');
   });
@@ -41,8 +41,9 @@ describe("Journey tree presentation", () => {
     expect(appSource).toContain('journeyListOrder === "tree" ? "tree-mode" : "card-mode"');
     expect(appSource).toContain('journeyListOrder === "tree" ? "tree-node" : "card-node"');
     expect(appSource).toContain('journey.depth > 0 ? "is-nested" : "is-root"');
-    expect(appSource).toContain('runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : ""');
-    expect(appSource).toContain("<JourneyTreeIcon runtimePhase={runtimeOwnerPhase} />");
+    expect(appSource).not.toContain('runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : ""');
+    expect(appSource).toContain("<JourneyTreeIcon />");
+    expect(appSource).toContain('<JourneyAgentStatusIndicator journeyName={journey.name} status={agentStatus} placement="sidebar" />');
     expect(appSource).toContain("--journey-depth");
     expect(appSource).toContain("journey-tree-toggle");
     expect(appSource).toContain('collapsed ? "›" : "▾"');

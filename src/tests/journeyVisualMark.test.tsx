@@ -7,18 +7,17 @@ import tauriMainSource from "../../src-tauri/src/main.rs?raw";
 
 
 describe("Journey visual mark", () => {
-  it("renders curated system appearance while retaining runtime evidence", () => {
+  it("renders curated system appearance without duplicating agent status", () => {
     const html = renderToStaticMarkup(
       <JourneyVisualMark
         journeyId="journey-one"
         appearance={{ kind: "system", icon: "book" }}
         fallbackGlyph="•"
-        runtimePhase="running"
       />,
     );
     expect(html).toContain("▤");
-    expect(html).toContain('data-runtime-phase="running"');
-    expect(html).toContain("journey-visual-activity");
+    expect(html).not.toContain("data-runtime-phase");
+    expect(html).not.toContain("journey-visual-activity");
   });
 
   it("shows transparent custom pixels over a neutral surface instead of a theme tint", () => {

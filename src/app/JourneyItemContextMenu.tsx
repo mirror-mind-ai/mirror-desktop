@@ -5,9 +5,11 @@ type JourneyItemContextMenuProps = {
   x: number;
   y: number;
   runtimeBusy: boolean;
+  pinned: boolean;
   deleteDisabled: boolean;
   deleteTitle: string;
   returnFocusTo: HTMLElement | null;
+  onTogglePin: (journeyId: string) => void;
   onEdit: (journeyId: string) => void;
   onCreate: (journeyId: string) => void;
   onMove: (journeyId: string) => void;
@@ -20,9 +22,11 @@ export function JourneyItemContextMenu({
   x,
   y,
   runtimeBusy,
+  pinned,
   deleteDisabled,
   deleteTitle,
   returnFocusTo,
+  onTogglePin,
   onEdit,
   onCreate,
   onMove,
@@ -37,7 +41,7 @@ export function JourneyItemContextMenu({
 
   useEffect(() => {
     const focusTimer = window.setTimeout(() => {
-      menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus();
+      menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitemcheckbox"]:not(:disabled), [role="menuitem"]:not(:disabled)')?.focus();
     }, 0);
 
     function closeOnOutsidePointer(event: MouseEvent) {
@@ -68,6 +72,14 @@ export function JourneyItemContextMenu({
       aria-label="Journey options"
       style={{ left: x, top: y }}
     >
+      <button
+        type="button"
+        role="menuitemcheckbox"
+        aria-checked={pinned}
+        onClick={() => { onTogglePin(journeyId); onDismiss(); }}
+      >
+        {pinned ? "Unpin Journey" : "Pin Journey"}
+      </button>
       <button type="button" role="menuitem" disabled={runtimeBusy} onClick={() => onEdit(journeyId)}>Edit Journey…</button>
       <button type="button" role="menuitem" disabled={runtimeBusy} onClick={() => onCreate(journeyId)}>Create Journey…</button>
       <button type="button" role="menuitem" disabled={runtimeBusy} onClick={() => onMove(journeyId)}>Move Journey…</button>

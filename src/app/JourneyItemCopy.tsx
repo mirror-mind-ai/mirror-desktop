@@ -1,12 +1,10 @@
-import { JourneyRuntimeIndicator } from "./JourneyRuntimeIndicator";
-import type { JourneyRuntimeOwnerPhase } from "./journeyRuntimeState";
-
 type JourneyItemCopyProps = {
   layout: "card" | "tree";
   journeyName: string;
   description: string;
   lastWorkedLabel?: string;
-  runtimePhase?: JourneyRuntimeOwnerPhase;
+  agentStatusLabel?: string;
+  pinned?: boolean;
 };
 
 export function JourneyItemCopy({
@@ -14,15 +12,20 @@ export function JourneyItemCopy({
   journeyName,
   description,
   lastWorkedLabel,
-  runtimePhase,
+  agentStatusLabel,
+  pinned = false,
 }: JourneyItemCopyProps) {
   const content = (
     <>
-      <strong className="journey-name">{journeyName}</strong>
+      <strong className="journey-name">
+        {journeyName}
+        {pinned ? <span className="journey-pinned-marker" aria-label="Pinned" title="Pinned">◆</span> : null}
+      </strong>
       <small className="journey-context">{description}</small>
-      {lastWorkedLabel ? <small className="journey-last-worked">{lastWorkedLabel}</small> : null}
-      {runtimePhase ? (
-        <JourneyRuntimeIndicator journeyName={journeyName} phase={runtimePhase} />
+      {agentStatusLabel || lastWorkedLabel ? (
+        <small className={`journey-last-worked${agentStatusLabel ? " agent-status" : ""}`}>
+          {agentStatusLabel ?? lastWorkedLabel}
+        </small>
       ) : null}
     </>
   );
