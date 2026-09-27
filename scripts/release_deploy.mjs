@@ -123,8 +123,23 @@ export function renderConfirmation(payload) {
   ].join("\n");
 }
 
-export async function verifyPublishedEndpoints({ baseUrl, version, targets = defaultTargets, retainedVersions, fetchJson = defaultFetchJson }) {
+export async function verifyPublishedEndpoints({
+  baseUrl,
+  version,
+  targets = defaultTargets,
+  retainedVersions,
+  expectedDmgSha256,
+  fetchJson = defaultFetchJson,
+  fetchBinary = defaultFetchBinary,
+  fetchHead = defaultFetchHead,
+}) {
   const releaseVersion = parseSemver(version);
+  // CR096: the site download alias is a published surface too, and its staging and upload are
+  // both conditional inside private_update_publish. Requiring the digest here makes covering it
+  // fail-closed by construction: verification cannot run while ignoring that audience.
+  if (!/^[0-9a-f]{64}$/.test(expectedDmgSha256 ?? "")) {
+    throw new Error("Post-publication verification requires the published DMG digest.");
+  }
   const checks = [];
   const failures = [];
   for (const target of targets) {
@@ -144,16 +159,81 @@ export async function verifyPublishedEndpoints({ baseUrl, version, targets = def
       }
     }
   }
+  const downloadAlias = await verifyDownloadAlias({
+    baseUrl, releaseVersion, expectedDmgSha256, fetchJson, fetchBinary, fetchHead, failures,
+  });
   if (failures.length > 0) {
     throw new Error(`Post-publication verification failed:\n${failures.join("\n")}`);
   }
-  return { status: "verified", checks };
+  return { status: "verified", checks, downloadAlias };
+}
+
+/// The stable address the site offers to someone who does not have the application yet. Its URL
+/// never changes, so only the bytes behind it prove which release a new download receives.
+async function verifyDownloadAlias({
+  baseUrl, releaseVersion, expectedDmgSha256, fetchJson, fetchBinary, fetchHead, failures,
+}) {
+  const root = baseUrl.replace(/\/$/, "");
+  const url = `${root}/downloads/macos/latest.json`;
+  const canonicalDmgUrl = `${root}/downloads/macos/mirror-desktop-latest.dmg`;
+  let document;
+  try {
+    document = await fetchJson(url);
+  } catch (error) {
+    failures.push(`${url} is unreachable: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
+  if (document?.version !== releaseVersion) {
+    failures.push(`${url} announces ${document?.version ?? "no version"} instead of ${releaseVersion}.`);
+  }
+  if (document?.dmg !== canonicalDmgUrl) {
+    failures.push(`${url} points at ${document?.dmg ?? "nothing"} instead of the canonical download ${canonicalDmgUrl}.`);
+  }
+  const advertised = [];
+  for (const field of ["artifact", "releaseNotes"]) {
+    const candidate = document?.[field];
+    if (typeof candidate !== "string" || candidate.trim().length === 0) {
+      failures.push(`${url} advertises no ${field}.`);
+      continue;
+    }
+    try {
+      const response = await fetchHead(candidate);
+      if (response?.ok) advertised.push(candidate);
+      else failures.push(`${candidate} is advertised by ${field} but did not publish.`);
+    } catch (error) {
+      failures.push(`${candidate} is advertised by ${field} but is unreachable: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  let dmgSha256;
+  let dmgBytes;
+  try {
+    const bytes = await fetchBinary(canonicalDmgUrl);
+    dmgBytes = bytes.length;
+    dmgSha256 = createHash("sha256").update(bytes).digest("hex");
+    if (dmgSha256 !== expectedDmgSha256) {
+      failures.push(`${canonicalDmgUrl} serves ${dmgSha256} instead of the published ${expectedDmgSha256}.`);
+    }
+  } catch (error) {
+    failures.push(`${canonicalDmgUrl} is unreachable: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return { url, version: document?.version, dmgUrl: canonicalDmgUrl, dmgSha256, dmgBytes, advertised };
 }
 
 async function defaultFetchJson(url) {
   const response = await fetch(url, { headers: { "cache-control": "no-cache" } });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
+}
+
+async function defaultFetchBinary(url) {
+  const response = await fetch(url, { headers: { "cache-control": "no-cache" } });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
+}
+
+async function defaultFetchHead(url) {
+  const response = await fetch(url, { method: "HEAD", headers: { "cache-control": "no-cache" } });
+  return { ok: response.ok };
 }
 
 export function renderPreparationEvidence({ version, tag, revision, date, gates, artifacts, baseUrl, manifestPaths: paths, releaseNote }) {
@@ -208,11 +288,35 @@ export function renderPublicationEvidence({ version, tag, revision, date, baseUr
     "|------------|----------------|-----------------|",
     ...verification.checks.map((check) => `| \`${check.url}\` | \`${check.version}\` | ${check.signatureBytes} |`),
     "",
+    "## Site Download Alias",
+    "",
+    "The stable address a person without the application downloads. Its URL never changes, so the digest below is what proves which release a new download receives; any divergence would have blocked the route.",
+    "",
+    ...(verification.downloadAlias ? [
+      `- Announced by \`${verification.downloadAlias.url}\`: \`${verification.downloadAlias.version}\``,
+      `- Served \`${verification.downloadAlias.dmgUrl}\``,
+      `- SHA-256: \`${verification.downloadAlias.dmgSha256}\``,
+      `- Bytes: ${verification.downloadAlias.dmgBytes}`,
+      ...verification.downloadAlias.advertised.map((url) => `- Advertised and reachable: ${url}`),
+    ] : ["- Not recorded."]),
+    "",
     "## Boundary",
     "",
     "One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.",
     "",
   ].join("\n");
+}
+
+/// The digest of the exact DMG this release published, taken from the confirmation payload the
+/// Navigator approved rather than recomputed, so the site download is compared against what was
+/// confirmed and not merely against whatever is on disk now.
+function publishedDmgDigest(state, context) {
+  const name = context.build.dmg.split("/").pop();
+  const artifact = (state.confirmation?.artifacts ?? []).find((candidate) => candidate.name === name);
+  if (!/^[0-9a-f]{64}$/.test(artifact?.sha256 ?? "")) {
+    throw new Error(`Confirmed artifact digest for ${name} is missing; re-run prepare before publishing.`);
+  }
+  return artifact.sha256;
 }
 
 function run(command, args, options = {}) {
@@ -403,6 +507,9 @@ async function publish(options) {
     baseUrl: context.baseUrl,
     version: context.version,
     retainedVersions: context.retainedVersions,
+    // CR096: the DMG digest confirmed at preparation is the authority the site download is
+    // checked against. `publish` always stages a DMG, so this is never absent on this route.
+    expectedDmgSha256: publishedDmgDigest(state, context),
   }));
 
   const date = new Date().toISOString().slice(0, 10);
