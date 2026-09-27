@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest";
 import { JourneyItemCopy } from "../app/JourneyItemCopy";
 
 describe("Journey item copy", () => {
-  it("exposes identity, hierarchy context, and runtime status as independent layout rows", () => {
+  it("exposes identity and hierarchy context without duplicating agent status", () => {
     const html = renderToStaticMarkup(
       <JourneyItemCopy
         layout="card"
         journeyName="Venda de Livros"
         description="Empreendedora / Software Zen"
         lastWorkedLabel="2 days ago"
-        runtimePhase="running"
+        pinned
       />,
     );
 
@@ -19,27 +19,33 @@ describe("Journey item copy", () => {
     expect(html).not.toContain('class="journey-copy"');
     expect(html).toContain('class="journey-last-worked"');
     expect(html).toContain("2 days ago");
-    expect(html).toContain("journey-runtime-state running");
-    expect(html.indexOf("journey-name")).toBeLessThan(html.indexOf("journey-context"));
-    expect(html.indexOf("journey-context")).toBeLessThan(html.indexOf("journey-last-worked"));
-    expect(html.indexOf("journey-last-worked")).toBeLessThan(html.indexOf("journey-runtime-state"));
+    expect(html).toContain('class="journey-pinned-marker"');
+    expect(html).toContain('aria-label="Pinned"');
+    expect(html).not.toContain("journey-runtime-state");
   });
 
-  it("omits the runtime row when the Journey has no exact active owner phase", () => {
+  it("replaces last-worked time with agent state while the agent is not idle", () => {
     const html = renderToStaticMarkup(
-      <JourneyItemCopy layout="card" journeyName="Amplia" description="Vida Criativa" />,
+      <JourneyItemCopy
+        layout="card"
+        journeyName="Mirror Desktop"
+        description="Desktop"
+        lastWorkedLabel="2 minutes ago"
+        agentStatusLabel="Working"
+      />,
     );
-
-    expect(html).not.toContain("journey-runtime-state");
+    expect(html).toContain('class="journey-last-worked agent-status"');
+    expect(html).toContain("Working");
+    expect(html).not.toContain("2 minutes ago");
   });
 
   it("retains one compact copy wrapper for Tree layout", () => {
     const html = renderToStaticMarkup(
-      <JourneyItemCopy layout="tree" journeyName="TinTim" description="Vida Consultiva" runtimePhase="running" />,
+      <JourneyItemCopy layout="tree" journeyName="TinTim" description="Vida Consultiva" />,
     );
 
     expect(html).toContain('class="journey-copy"');
     expect(html).toContain("TinTim");
-    expect(html).toContain("journey-runtime-state running");
+    expect(html).not.toContain("journey-runtime-state");
   });
 });

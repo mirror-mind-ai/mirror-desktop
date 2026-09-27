@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { systemIconGlyph, type JourneyAppearance } from "../domain/journeyAppearance";
 import { loadJourneyCustomImage } from "./journeyAppearanceStorage";
-import type { JourneyRuntimeOwnerPhase } from "./journeyRuntimeState";
-
 const customImageCache = new Map<string, string | null>();
 const MAX_CACHE_ENTRIES = 256;
 
@@ -20,7 +18,6 @@ type JourneyVisualMarkProps = {
   journeyId: string;
   appearance?: JourneyAppearance;
   fallbackGlyph: string;
-  runtimePhase?: JourneyRuntimeOwnerPhase;
   className?: string;
 };
 
@@ -28,7 +25,6 @@ export function JourneyVisualMark({
   journeyId,
   appearance,
   fallbackGlyph,
-  runtimePhase,
   className = "",
 }: JourneyVisualMarkProps) {
   const cached = customImageCache.get(journeyId);
@@ -63,14 +59,12 @@ export function JourneyVisualMark({
   return (
     <span
       className={`journey-visual-mark ${appearance?.kind ?? "default"} ${className}`.trim()}
-      data-runtime-phase={runtimePhase}
       style={appearance?.kind === "custom" ? { backgroundColor: "#101719", borderColor: "rgba(255, 255, 255, 0.16)" } : undefined}
       aria-hidden="true"
     >
       {appearance?.kind === "custom" && customImage
         ? <img src={customImage} alt="" />
         : <span className="journey-visual-glyph">{glyph}</span>}
-      {runtimePhase ? <span className="journey-visual-activity" /> : null}
     </span>
   );
 }

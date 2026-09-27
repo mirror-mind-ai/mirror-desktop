@@ -221,6 +221,12 @@ import {
   selectJourneyRuntimeOwnerPhase,
   type JourneyRunIdentity,
 } from "./journeyRuntimeState";
+import {
+  deriveJourneyAgentStatus,
+  journeyAgentStatusLabel,
+  journeyFinishedAttentionReducer,
+  nextFinishedAttentionDeadline,
+} from "./journeyAgentStatus";
 import { withCertifiedPersona } from "./conversationPresentation";
 import {
   createJourneyConversationLoadCoordinator,
@@ -375,6 +381,7 @@ import {
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
 import { JourneySearchControl } from "./JourneySearchControl";
 import { JourneyItemCopy } from "./JourneyItemCopy";
+import { JourneyAgentStatusIndicator } from "./JourneyAgentStatusIndicator";
 import { JourneyItemContextMenu } from "./JourneyItemContextMenu";
 import { cacheJourneyCustomImage, JourneyVisualMark } from "./JourneyVisualMark";
 import {
@@ -556,6 +563,12 @@ export function App({ model }: AppProps) {
     undefined,
     createInitialJourneyRuntimeState,
   );
+  // CR081: runtime authority remains in journeyRuntimeState. This second reducer remembers only
+  // which finished Journeys still need the Navigator's attention during this app session.
+  const [journeyFinishedAttention, dispatchJourneyFinishedAttention] = useReducer(
+    journeyFinishedAttentionReducer,
+    {},
+  );
   const [runStartReservation, setRunStartReservation] = useState<JourneyRunIdentity | undefined>(undefined);
   const [piInvocationOccupancy, setPiInvocationOccupancy] = useState(createUnknownPiInvocationOccupancy);
   const [piInvocationBootstrapComplete, setPiInvocationBootstrapComplete] = useState(false);
@@ -647,6 +660,19 @@ export function App({ model }: AppProps) {
     if (!runtimeChannel?.channel) return;
     setFocusedSidebarWidth(loadFocusedSidebarWidth(runtimeChannel.channel, window.innerWidth));
   }, [runtimeChannel?.channel]);
+
+  useEffect(() => {
+    dispatchJourneyFinishedAttention({ type: "journey_selected", journeyId: selectedJourney, at: Date.now() });
+  }, [selectedJourney]);
+
+  useEffect(() => {
+    const deadline = nextFinishedAttentionDeadline(journeyFinishedAttention);
+    if (deadline === undefined) return;
+    const timer = window.setTimeout(() => {
+      dispatchJourneyFinishedAttention({ type: "time_elapsed", at: Date.now() });
+    }, Math.max(0, deadline - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [journeyFinishedAttention]);
 
   useEffect(() => {
     const resize = () => setFocusedSidebarWidth((current) => saveFocusedSidebarWidth(
@@ -815,6 +841,10 @@ export function App({ model }: AppProps) {
     mirrorCommitErrors: projectedMirrorCommitErrors,
   });
   const selectedRuntime = navigationPresentation.selectedRuntime;
+  const selectedAgentStatus = deriveJourneyAgentStatus({
+    runtimePhase: selectJourneyRuntimeOwnerPhase(journeyRuntimeState, selectedJourney),
+    finishedAttention: journeyFinishedAttention[selectedJourney],
+  });
   const {
     agentRun,
     isStreaming,
@@ -2399,6 +2429,7 @@ export function App({ model }: AppProps) {
       setPiInvocationOccupancy((current) => retainExpectedPiInvocationLease(current, invocationAuthority));
     }
     setUnsentDraftNotices((current) => clearUnsentDraft(current, ownerJourneyId));
+    dispatchJourneyFinishedAttention({ type: "run_started", journeyId: ownerJourneyId });
     dispatchJourneyRuntime({
       type: "register",
       identity: runtimeIdentity,
@@ -2816,6 +2847,16 @@ export function App({ model }: AppProps) {
           await refreshTurnJournalEvidence(ownerJourneyId);
         }
       }
+    }
+    // A completed answer is ready for attention even when Mirror synchronization remains debt.
+    // Failed/cancelled turns retain their existing notices and do not masquerade as Finished.
+    if (runTerminal === undefined) {
+      dispatchJourneyFinishedAttention({
+        type: "run_finished",
+        journeyId: ownerJourneyId,
+        selected: selectedJourneyRef.current === ownerJourneyId,
+        at: Date.now(),
+      });
     }
     if (runStartReservationRef.current === runtimeIdentity) runStartReservationRef.current = undefined;
     setRunStartReservation((current) => current === runtimeIdentity ? undefined : current);
@@ -3686,7 +3727,8 @@ export function App({ model }: AppProps) {
   }
 
   function togglePinnedJourney(journeyId: string) {
-    if (runtimeBusy) return;
+    // Pinning is a local preference, not a Journey mutation; CR081 keeps it available while an
+    // agent runs even though administrative menu actions remain disabled.
     setJourneyPreferences((preferences) => ({
       ...preferences,
       pinnedJourneyIds: preferences.pinnedJourneyIds.includes(journeyId)
@@ -3696,7 +3738,6 @@ export function App({ model }: AppProps) {
   }
 
   function openJourneyItemMenu(journeyId: string, trigger: HTMLElement, x: number, y: number) {
-    if (runtimeBusy) return;
     journeyItemMenuTriggerRef.current = trigger;
     setJourneyTreeMenuOpen(false);
     setJourneyItemMenu({ journeyId, x, y });
@@ -4284,8 +4325,12 @@ export function App({ model }: AppProps) {
             const hasChildren = (journey.children?.length ?? 0) > 0;
             const collapsed = collapsedJourneyIds.has(journey.id);
             const runtimeOwnerPhase = selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id);
+            const agentStatus = deriveJourneyAgentStatus({
+              runtimePhase: runtimeOwnerPhase,
+              finishedAttention: journeyFinishedAttention[journey.id],
+            });
             const journeyStateDescription = [
-              runtimeOwnerPhase ? (runtimeOwnerPhase === "running" ? "Working" : "Finishing") : undefined,
+              agentStatus === "idle" ? undefined : agentStatus === "finished" ? "Agent finished" : `Agent ${agentStatus}`,
               journey.pinned ? "Pinned" : undefined,
             ].filter(Boolean).join(", ");
             const conversationsExpanded = conversationFocus.kind === "focused_journey"
@@ -4293,7 +4338,7 @@ export function App({ model }: AppProps) {
             return (
               <Fragment key={journey.id}>
               <div
-                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${appearance?.kind === "custom" ? "has-custom-appearance" : ""} ${journey.id === selectedJourney ? "selected" : ""} ${journey.pinned ? "is-pinned" : ""} ${conversationsExpanded ? "conversations-expanded" : ""} ${runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : ""}`}
+                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${appearance?.kind === "custom" ? "has-custom-appearance" : ""} ${journey.id === selectedJourney ? "selected" : ""} ${journey.pinned ? "is-pinned" : ""} ${conversationsExpanded ? "conversations-expanded" : ""}`}
                 style={{ "--journey-depth": journeyListOrder === "tree" ? journey.depth : 0 } as CSSProperties & Record<"--journey-depth", number>}
                 role="button"
                 tabIndex={0}
@@ -4313,10 +4358,10 @@ export function App({ model }: AppProps) {
                   setDraggedJourneyId(null);
                 }}
                 onDragEnd={() => setDraggedJourneyId(null)}
-                onContextMenu={!runtimeBusy ? (event) => {
+                onContextMenu={(event) => {
                   event.preventDefault(); event.stopPropagation();
                   openJourneyItemMenu(journey.id, event.currentTarget, event.clientX, event.clientY);
-                } : undefined}
+                }}
                 onClick={() => {
                   if (conversationsExpanded) {
                     dispatchConversationFocus({ type: "select_root", journeyId: journey.id });
@@ -4325,7 +4370,7 @@ export function App({ model }: AppProps) {
                   dispatchJourneySearch({ type: "journey_selected", intent: "pointer" });
                 }}
                 onKeyDown={(event) => {
-                  if (!runtimeBusy && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))) {
+                  if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
                     event.preventDefault(); event.stopPropagation();
                     const rect = event.currentTarget.getBoundingClientRect();
                     openJourneyItemMenu(journey.id, event.currentTarget, rect.left + 24, rect.top + 24);
@@ -4359,37 +4404,27 @@ export function App({ model }: AppProps) {
                 {journeyListOrder === "tree" ? (
                   <span className="journey-tree-icon">
                     {appearance ? (
-                      <JourneyVisualMark journeyId={journey.id} appearance={appearance} fallbackGlyph={visual.icon} runtimePhase={runtimeOwnerPhase} className="tree-appearance" />
+                      <JourneyVisualMark journeyId={journey.id} appearance={appearance} fallbackGlyph={visual.icon} className="tree-appearance" />
                     ) : (
-                      <JourneyTreeIcon runtimePhase={runtimeOwnerPhase} />
+                      <JourneyTreeIcon />
                     )}
                   </span>
                 ) : (
-                  <JourneyVisualMark journeyId={journey.id} appearance={appearance} fallbackGlyph={visual.icon} runtimePhase={runtimeOwnerPhase} className="journey-icon" />
+                  <JourneyVisualMark journeyId={journey.id} appearance={appearance} fallbackGlyph={visual.icon} className="journey-icon" />
                 )}
                 <JourneyItemCopy
                   layout={journeyListOrder === "tree" ? "tree" : "card"}
                   journeyName={journey.name}
                   description={sidebarDescription(journey)}
-                  lastWorkedLabel={!pinnedOnly && journeyListOrder === "recent" && !sidebarCompact
+                  lastWorkedLabel={!pinnedOnly && journeyListOrder === "recent" && !sidebarCompact && agentStatus === "idle"
                     ? relativeLastWorkedLabel(lastWorkedAtByJourneyId[journey.id], relativeTimeNow)
                     : undefined}
-                  runtimePhase={runtimeOwnerPhase}
+                  agentStatusLabel={!pinnedOnly && journeyListOrder === "recent" && !sidebarCompact && agentStatus !== "idle"
+                    ? journeyAgentStatusLabel(agentStatus)
+                    : undefined}
+                  pinned={journey.pinned}
                 />
-                <button
-                  className={`journey-pin ${journey.pinned ? "pinned" : ""}`}
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    togglePinnedJourney(journey.id);
-                  }}
-                  disabled={runtimeBusy}
-                  aria-label={journey.pinned ? `Unpin ${journey.name}` : `Pin ${journey.name}`}
-                  aria-pressed={journey.pinned}
-                  title={journey.pinned ? "Unpin Journey" : "Pin Journey"}
-                >
-                  {journey.pinned ? "●" : "○"}
-                </button>
+                <JourneyAgentStatusIndicator journeyName={journey.name} status={agentStatus} placement="sidebar" />
                 <button
                   className="journey-conversation-toggle"
                   type="button"
@@ -4452,9 +4487,11 @@ export function App({ model }: AppProps) {
             x={journeyItemMenu.x}
             y={journeyItemMenu.y}
             runtimeBusy={runtimeBusy}
+            pinned={journeyPreferences.pinnedJourneyIds.includes(journeyItemMenu.journeyId)}
             deleteDisabled={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0}
             deleteTitle={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0 ? "Move or delete child Journeys first." : "Permanently delete this empty Journey."}
             returnFocusTo={journeyItemMenuTriggerRef.current}
+            onTogglePin={togglePinnedJourney}
             onEdit={openEditJourney}
             onCreate={openCreateJourney}
             onMove={openMoveJourney}
@@ -4493,7 +4530,10 @@ export function App({ model }: AppProps) {
                 <JourneyVisualMark journeyId={selectedJourneyItem.id} appearance={selectedJourneyAppearance} fallbackGlyph={selectedJourneyVisual.icon} className="active-journey-icon" />
                 <div className="active-journey-heading">
                   <p className="eyebrow">Active journey</p>
-                  <h1>{selectedJourneyItem.name}</h1>
+                  <div className="active-journey-name-row">
+                    <h1>{selectedJourneyItem.name}</h1>
+                    <JourneyAgentStatusIndicator journeyName={selectedJourneyItem.name} status={selectedAgentStatus} placement="header" />
+                  </div>
                   {operationalChatSelected && messages.length > 0 && selectedConversationEntry?.kind === "desktop_conversation" ? (
                     <div className="active-conversation-context" aria-label={`Active Desktop Conversation: ${selectedConversationEntry.title}`}>
                       <span>Desktop Conversation</span>
