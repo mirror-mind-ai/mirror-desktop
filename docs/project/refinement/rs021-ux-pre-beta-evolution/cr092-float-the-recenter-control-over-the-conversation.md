@@ -2,9 +2,9 @@
 
 # CR092: Float the Recenter Control Over the Conversation
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr092-floating-recenter-control`
 
 ## Problem
 
@@ -110,18 +110,128 @@ decision. It should land on a baseline that already contains CR084.
 Touches the same surface as CR081, CR082 and CR083, which remain `captured`; no ordering
 dependency between them is claimed here.
 
-## Open Decisions
+## Decisions (2026-09-27)
 
-- Whether the control shows an unconditional "go to end" meaning or distinguishes "new
-  content arrived below" — this CR proposes the former and excludes the latter. The map
-  metaphor supports that choice: a recenter control offers the return, it does not report
-  what changed while you were away.
-- Whether the overlay is also suppressed for `mirror_history` Conversation spaces, where the
-  header control was previously disabled rather than hidden.
+**Unconditional "go to end".** No new-content indicator, no badge, no count. A recenter control
+offers the return; it does not report what changed while you were away. Reporting is a different
+product with a different surface.
+
+**The `mirror_history` exclusion stays.** Reading the code turned this from a preference into a
+structural fact: `.chat-stream` carries `hidden` in that space, so the container that hosts the
+overlay does not render at all. The exclusion remains in the derivation anyway, so the intent is
+explicit rather than an accident of an ancestor being hidden. Extending the affordance to the
+Mirror history surface would be a different capability on a different surface, and would need its
+own verification.
+
+## Planning Finding: the overlay cannot live inside the scroller
+
+The capture assumed `.chat-stream` could host the overlay directly because it is already
+`position: relative`. That is wrong, and it is the one thing that shapes the delivery.
+
+`.chat-stream` is the scrolling container. An absolutely positioned child of a scrolling box is
+positioned against that box's padding box and **scrolls with the content**, so the control would
+drift up and out of view exactly when the reader scrolls away from the end — the moment it is
+supposed to appear.
+
+The overlay therefore needs a positioned ancestor that is not the scroller. `.chat-shell` is a
+grid whose middle row is the stream, so wrapping the stream in a `.chat-stream-viewport` gives
+the overlay a stable anchor without disturbing the grid's row structure. The viewport carries the
+same `hidden` condition as the stream, so it never occupies a row when the conversation surface
+is not showing.
+
+## Verified: programmatic jumps already update the state
+
+The capture required this be verified rather than assumed. It is covered: search and turn
+navigation scroll by `scrollIntoView` on the message element inside `.chat-stream`
+(`ConversationTranscript.tsx`), which fires the same `onScroll` handler that feeds
+`conversationAwayFromEnd`. No additional wiring is needed, and no new source of truth is
+introduced.
+
+## Implementation Evidence (2026-09-27)
+
+**Visibility.** `deriveConversationRecenterState` returns `{ visible }` instead of
+`{ available, emphasized }`. One boolean, fed by the `conversationAwayFromEnd` state that already
+existed. The emphasis contract is gone from the derivation, from `App.tsx` and from both theme
+blocks in the stylesheet.
+
+**Placement.** A new `.chat-stream-viewport` wraps the scroller and hosts the control as its
+sibling. The viewport is `position: relative` with `min-height: 0`, and carries the same `hidden`
+condition as the surface, now extracted as `conversationSurfaceHidden` so the two cannot drift.
+The control is `position: absolute` at `bottom: 20px; right: 26px` — a generous fixed offset that
+clears a visible macOS scrollbar without measuring anything at runtime, which a test pins by
+asserting no scrollbar arithmetic exists in the source.
+
+**Transition.** The control stays mounted and toggles a `visible` class, so leaving gets a
+transition too; conditional rendering would have made the exit a blink. `opacity` and a 6px
+`translateY` over 140ms, with `pointer-events` and the tab order following visibility —
+`aria-hidden` plus `tabIndex={-1}` while it has nothing to offer. `prefers-reduced-motion` drops
+the motion and keeps the presence, since presence is the signal.
+
+**Action.** `onClick` calls `revealConversationEnd()` directly rather than `showConversation()`.
+The control only exists inside the surface it would otherwise re-select, so the narrower call is
+the correct one, and the single end-reveal routine stays shared with surface entry.
+
+### An exclusion that resolved itself
+
+The capture worried about the control covering the last turn's content. The visibility rule
+removes the concern: the control is present only while the reader is away from the end, so what
+sits beneath it is mid-transcript rather than the latest turn, and at the end — where the overlap
+would have mattered — it is not there at all.
+
+## Validation
+
+- `npm test`: 179 files, 1121 tests green (178 / 1112 before this CR).
+- `npm run build` green; `npm run roadmap:check` READY; `git diff --check` clean.
+
+New coverage: a dedicated `floatingRecenterControl.test.ts` with seven cases pinning the
+structural constraint (the control is a sibling of the scroller, never a descendant), the fixed
+scrollbar offset, the viewport hiding with the surface, the transition and its reduced-motion
+fallback, the tab-order and pointer behavior, the narrowed click action, and the light-theme
+overlay contract. The derivation tests were rewritten for `{ visible }`, including a case
+asserting `emphasized` and `available` are gone rather than merely unused. The header test now
+pins the control's *absence* from `chat-header-actions`.
+
+## Dev Homologation (2026-09-27)
+
+Run by the Navigator on the Dev channel, built from this branch, on Journey `sandbox-pet-store`.
+
+Validated: the control appears at the bottom-right once the reader leaves the end and leaves on
+return; crossing the threshold repeatedly reads as arriving and leaving rather than flickering;
+turn navigation and search jumps reveal it, confirming the programmatic-jump path; the light
+themes read it as an overlay; a scrollbar drag beside it is not intercepted; it is absent from the
+tab order at the end and reachable with visible focus when present, with `Enter` returning to the
+end; and it does not appear on a `mirror_history` Conversation however far it is scrolled.
+
+The Navigator accepted the feel, which is the criterion this CR asked to be judged on.
+
+## Closure
+
+**Proportionality review: proportional.** One derivation reduced from two booleans to one, one
+wrapper element, one stylesheet block, and the removal of a contract that no longer had a reason
+to exist. No durable state, no schema, no Rust, no Mirror interaction, and no new dependency. The
+change removes more concept than it adds: CR084's emphasis state existed only to substitute for a
+presence the header could not offer.
+
+**Debt review: `follow_up`.** Two items, both about coverage rather than design.
+
+The acceptance line "existing auto-follow behavior during active runs is unchanged" was not
+exercised. The homologation script did not include an active run, and the Navigator's acceptance
+covers what was scripted. Reading supports it — `nextConversationAutoFollow` and the
+`content_updated` effect were untouched, and the derived behavior is coherent: while auto-follow
+holds the stream at the end the control stays absent, and scrolling up during a run turns
+auto-follow off and brings it in, which is what a reader would want. But that is reasoning, not
+observation. Ordinary use exercises it immediately, and the failure mode would be visible rather
+than silent.
+
+Long conversations were not genuinely tested. The longest active Dev generation carries 30
+messages; the 390-message Conversations exist only as Mirror history, which is precisely the
+surface where the control does not appear. Nothing in the implementation scales with transcript
+length — the control is positioned against the viewport, not the content — so the risk is low, but
+it is unobserved.
+
+Commit, merge, publication and release remain separate Navigator decisions.
 
 ## Boundaries
 
-- Priority and ordering within RS021 remain a Navigator decision; this capture claims no
-  position ahead of the other captured CRs.
-- Capture only. No selection, implementation, commit, push, merge, release or Beta promotion
-  is authorized by this document.
+- Priority and ordering within RS021 remain a Navigator decision.
+- No commit, push, merge, release or Beta promotion is authorized by this document.

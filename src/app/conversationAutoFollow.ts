@@ -19,12 +19,13 @@ export function isConversationNearBottom(
   return scrollHeight - scrollTop - clientHeight <= tolerance;
 }
 
-// CR084: a map-like recenter affordance. It stays in place wherever the Conversation is
-// readable so the header does not shift, and only draws attention once the reader has left
-// the latest turn behind.
+// CR092: a map-like recenter affordance floating over the Conversation. Sometimes the map
+// drifts away from the territory and you want it synced back; the end of the Conversation is
+// the territory. Because it no longer lives among header siblings it could displace, presence
+// itself is the signal — which is what the metaphor asks for, and why CR084's emphasis state
+// is gone: emphasis was a substitute for a presence the header could not offer.
 export type ConversationRecenterState = {
-  available: boolean;
-  emphasized: boolean;
+  visible: boolean;
 };
 
 export function deriveConversationRecenterState(input: {
@@ -32,8 +33,7 @@ export function deriveConversationRecenterState(input: {
   messageCount: number;
   awayFromEnd: boolean;
 }): ConversationRecenterState {
-  const available = input.surfaceReady && input.messageCount > 0;
-  return { available, emphasized: available && input.awayFromEnd };
+  return { visible: input.surfaceReady && input.messageCount > 0 && input.awayFromEnd };
 }
 
 export function nextConversationAutoFollow(

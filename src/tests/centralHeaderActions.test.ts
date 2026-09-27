@@ -38,14 +38,25 @@ describe("central header actions", () => {
     );
   });
 
-  // CR084: returning to the latest turn is one control beside the existing ones, sharing the
-  // single end-reveal routine so it cannot drift from surface entry.
-  it("offers a recenter control that reuses the one end-reveal routine", () => {
+  // CR092: the recenter control left the header for a floating affordance over the Conversation,
+  // so the header keeps three controls and the emphasis contract is gone. It still shares the
+  // single end-reveal routine, which is what kept it from drifting from surface entry in CR084.
+  it("keeps the recenter control out of the header", () => {
+    const headerActions = appSource.slice(
+      appSource.indexOf('className="chat-header-actions"'),
+      appSource.indexOf('aria-label="Journey conversation menu"'),
+    );
+    expect(headerActions).not.toContain("conversation-recenter-shortcut");
+    expect(headerActions).not.toContain('aria-label="Return to the latest turn"');
+    expect(appSource).not.toContain("conversationRecenter.available");
+    expect(appSource).not.toContain("conversationRecenter.emphasized");
+    expect(appStyles).not.toContain(".conversation-recenter-shortcut");
+  });
+
+  it("reuses the one end-reveal routine from the floating control", () => {
     expect(appSource).toContain("function revealConversationEnd()");
     expect(appSource).toContain('aria-label="Return to the latest turn"');
     expect(appSource).toContain('title="Back to latest"');
-    expect(appSource).toContain("disabled={!conversationRecenter.available}");
-    expect(appSource).toContain('conversationRecenter.emphasized ? "emphasized" : ""');
     // The scroll listener feeds reactive state; React bails out when the value is unchanged.
     expect(appSource).toContain("setConversationAwayFromEnd(!isConversationNearBottom(metrics))");
     // showConversation delegates rather than duplicating the scroll sequence.
@@ -55,11 +66,5 @@ describe("central header actions", () => {
     );
     expect(showConversationBody).toContain("revealConversationEnd()");
     expect(showConversationBody).not.toContain("scrollIntoView");
-    expect(appSource.indexOf('aria-label="Return to the latest turn"')).toBeLessThan(
-      appSource.indexOf('aria-label="Journey conversation menu"'),
-    );
-    // Light and dark themes both carry the emphasis contract.
-    expect(appStyles).toContain(".conversation-recenter-shortcut.emphasized");
-    expect(appStyles).toContain(".conversation-recenter-shortcut svg");
   });
 });

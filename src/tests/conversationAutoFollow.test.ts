@@ -34,8 +34,9 @@ describe("conversation auto-follow", () => {
   });
 });
 
-// CR084: the recenter control is offered wherever the Conversation is readable and is
-// emphasized only while the reader has left the latest turn behind.
+// CR092: the recenter control floats over the Conversation instead of sitting in the header, so
+// presence is the signal. It exists only while the surface is readable and away from its end;
+// CR084's emphasis state existed to substitute for a presence the header could not offer.
 describe("conversation recenter control", () => {
   const state = (overrides: Partial<Parameters<typeof deriveConversationRecenterState>[0]> = {}) =>
     deriveConversationRecenterState({
@@ -45,16 +46,21 @@ describe("conversation recenter control", () => {
       ...overrides,
     });
 
-  it("stays available and quiet while the latest turn is already in view", () => {
-    expect(state()).toEqual({ available: true, emphasized: false });
+  it("stays absent while the latest turn is already in view", () => {
+    expect(state()).toEqual({ visible: false });
   });
 
-  it("emphasizes itself once the reader has left the end", () => {
-    expect(state({ awayFromEnd: true })).toEqual({ available: true, emphasized: true });
+  it("appears once the reader has left the end", () => {
+    expect(state({ awayFromEnd: true })).toEqual({ visible: true });
   });
 
   it("offers nothing without a readable Conversation", () => {
-    expect(state({ messageCount: 0, awayFromEnd: true })).toEqual({ available: false, emphasized: false });
-    expect(state({ surfaceReady: false, awayFromEnd: true })).toEqual({ available: false, emphasized: false });
+    expect(state({ messageCount: 0, awayFromEnd: true })).toEqual({ visible: false });
+    expect(state({ surfaceReady: false, awayFromEnd: true })).toEqual({ visible: false });
+  });
+
+  it("retires the emphasis state, since presence is now the signal", () => {
+    expect(state({ awayFromEnd: true })).not.toHaveProperty("emphasized");
+    expect(state()).not.toHaveProperty("available");
   });
 });
