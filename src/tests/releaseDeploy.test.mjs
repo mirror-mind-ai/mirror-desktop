@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +10,7 @@ import {
   deriveRetainedVersions,
   releaseNoteAuthorship,
   renderConfirmation,
+  renderPublicationEvidence,
   verifyPublishedEndpoints,
 } from "../../scripts/release_deploy.mjs";
 import { deriveBaseUrlFromUpdaterConfig } from "../../scripts/private_update_publish.mjs";
@@ -118,13 +120,45 @@ describe("post-publication verification", () => {
   const baseUrl = "https://updates.mirrormind.sh/mirror-desktop/alpha";
   const targets = ["darwin", "darwin-x86_64"];
   const retainedVersions = ["0.2.0-alpha.15", "0.2.0-alpha.16"];
+  const aliasUrl = `${baseUrl}/downloads/macos/latest.json`;
+  const dmgUrl = `${baseUrl}/downloads/macos/mirror-desktop-latest.dmg`;
+  const dmgBytes = Buffer.from("mirror desktop installer bytes");
+  const dmgSha256 = createHash("sha256").update(dmgBytes).digest("hex");
+
+  // CR096: the alias is the surface a person without the app downloads, and its publication is
+  // conditional inside private_update_publish. Verification must cover it as strictly as the
+  // manifest URLs installed applications poll.
+  function aliasDocument(overrides = {}) {
+    return {
+      version: "0.2.0-alpha.16",
+      dmg: dmgUrl,
+      artifact: `${baseUrl}/artifacts/Mirror%20Desktop_0.2.0-alpha.16_x64.dmg`,
+      releaseNotes: `${baseUrl}/releases/v0.2.0-alpha.16.md`,
+      ...overrides,
+    };
+  }
+
+  function harness(overrides = {}) {
+    return {
+      baseUrl, version: "0.2.0-alpha.16", targets, retainedVersions,
+      expectedDmgSha256: dmgSha256,
+      fetchJson: async (url) => url === aliasUrl
+        ? aliasDocument()
+        : { version: "0.2.0-alpha.16", signature: "sig" },
+      fetchBinary: async () => dmgBytes,
+      fetchHead: async () => ({ ok: true }),
+      ...overrides,
+    };
+  }
 
   it("passes when every polled URL serves the published version with a signature", async () => {
     const fetched = [];
-    const report = await verifyPublishedEndpoints({
-      baseUrl, version: "0.2.0-alpha.16", targets, retainedVersions,
-      fetchJson: async (url) => { fetched.push(url); return { version: "0.2.0-alpha.16", signature: "sig" }; },
-    });
+    const report = await verifyPublishedEndpoints(harness({
+      fetchJson: async (url) => {
+        fetched.push(url);
+        return url === aliasUrl ? aliasDocument() : { version: "0.2.0-alpha.16", signature: "sig" };
+      },
+    }));
     expect(report.status).toBe("verified");
     expect(report.checks).toHaveLength(4);
     expect(fetched).toContain("https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.15/latest.json");
@@ -132,22 +166,120 @@ describe("post-publication verification", () => {
   });
 
   it("fails closed when a polled URL still serves the previous version", async () => {
-    await expect(verifyPublishedEndpoints({
-      baseUrl, version: "0.2.0-alpha.16", targets, retainedVersions,
-      fetchJson: async (url) => url.includes("darwin-x86_64/0.2.0-alpha.15")
-        ? { version: "0.2.0-alpha.15", signature: "sig" }
-        : { version: "0.2.0-alpha.16", signature: "sig" },
-    })).rejects.toThrow(/darwin-x86_64\/0\.2\.0-alpha\.15/);
+    await expect(verifyPublishedEndpoints(harness({
+      fetchJson: async (url) => {
+        if (url === aliasUrl) return aliasDocument();
+        return url.includes("darwin-x86_64/0.2.0-alpha.15")
+          ? { version: "0.2.0-alpha.15", signature: "sig" }
+          : { version: "0.2.0-alpha.16", signature: "sig" };
+      },
+    }))).rejects.toThrow(/darwin-x86_64\/0\.2\.0-alpha\.15/);
   });
 
   it("fails closed on an empty signature or unreachable manifest", async () => {
-    await expect(verifyPublishedEndpoints({
-      baseUrl, version: "0.2.0-alpha.16", targets: ["darwin"], retainedVersions: ["0.2.0-alpha.16"],
-      fetchJson: async () => ({ version: "0.2.0-alpha.16", signature: "  " }),
-    })).rejects.toThrow(/signature/i);
-    await expect(verifyPublishedEndpoints({
-      baseUrl, version: "0.2.0-alpha.16", targets: ["darwin"], retainedVersions: ["0.2.0-alpha.16"],
+    await expect(verifyPublishedEndpoints(harness({
+      targets: ["darwin"], retainedVersions: ["0.2.0-alpha.16"],
+      fetchJson: async (url) => url === aliasUrl ? aliasDocument() : { version: "0.2.0-alpha.16", signature: "  " },
+    }))).rejects.toThrow(/signature/i);
+    await expect(verifyPublishedEndpoints(harness({
+      targets: ["darwin"], retainedVersions: ["0.2.0-alpha.16"],
       fetchJson: async () => { throw new Error("connect ETIMEDOUT"); },
-    })).rejects.toThrow(/ETIMEDOUT/);
+    }))).rejects.toThrow(/ETIMEDOUT/);
+  });
+
+  it("verifies the download alias and reports what it served", async () => {
+    const report = await verifyPublishedEndpoints(harness());
+    expect(report.downloadAlias).toEqual({
+      url: aliasUrl,
+      version: "0.2.0-alpha.16",
+      dmgUrl,
+      dmgSha256,
+      dmgBytes: dmgBytes.length,
+      advertised: [
+        `${baseUrl}/artifacts/Mirror%20Desktop_0.2.0-alpha.16_x64.dmg`,
+        `${baseUrl}/releases/v0.2.0-alpha.16.md`,
+      ],
+    });
+  });
+
+  it("cannot be called without the published DMG digest", async () => {
+    await expect(verifyPublishedEndpoints(harness({ expectedDmgSha256: undefined })))
+      .rejects.toThrow(/digest/i);
+    await expect(verifyPublishedEndpoints(harness({ expectedDmgSha256: "not-a-digest" })))
+      .rejects.toThrow(/digest/i);
+  });
+
+  it("fails closed when the site download still serves the previous installer", async () => {
+    await expect(verifyPublishedEndpoints(harness({
+      fetchBinary: async () => Buffer.from("the previous release installer"),
+    }))).rejects.toThrow(/mirror-desktop-latest\.dmg/);
+    // The digest, not the announced version, is what proves the bytes.
+    await expect(verifyPublishedEndpoints(harness({
+      fetchBinary: async () => Buffer.from("the previous release installer"),
+    }))).rejects.toThrow(new RegExp(dmgSha256.slice(0, 12)));
+  });
+
+  it("fails closed when the alias announces the wrong version or is unreachable", async () => {
+    await expect(verifyPublishedEndpoints(harness({
+      fetchJson: async (url) => url === aliasUrl
+        ? aliasDocument({ version: "0.2.0-alpha.15" })
+        : { version: "0.2.0-alpha.16", signature: "sig" },
+    }))).rejects.toThrow(/downloads\/macos\/latest\.json/);
+    await expect(verifyPublishedEndpoints(harness({
+      fetchJson: async (url) => {
+        if (url === aliasUrl) throw new Error("HTTP 404");
+        return { version: "0.2.0-alpha.16", signature: "sig" };
+      },
+    }))).rejects.toThrow(/404/);
+  });
+
+  it("fails closed when the alias points somewhere other than the canonical download", async () => {
+    await expect(verifyPublishedEndpoints(harness({
+      fetchJson: async (url) => url === aliasUrl
+        ? aliasDocument({ dmg: `${baseUrl}/artifacts/some-other.dmg` })
+        : { version: "0.2.0-alpha.16", signature: "sig" },
+    }))).rejects.toThrow(/canonical/i);
+  });
+
+  it("fails closed when an advertised URL did not upload", async () => {
+    await expect(verifyPublishedEndpoints(harness({
+      fetchHead: async (url) => ({ ok: !url.endsWith(".md") }),
+    }))).rejects.toThrow(/releases\/v0\.2\.0-alpha\.16\.md/);
+    await expect(verifyPublishedEndpoints(harness({
+      fetchJson: async (url) => url === aliasUrl
+        ? aliasDocument({ releaseNotes: "" })
+        : { version: "0.2.0-alpha.16", signature: "sig" },
+    }))).rejects.toThrow(/releaseNotes/);
+  });
+});
+
+describe("publication evidence", () => {
+  it("describes both audiences, not only the polled manifests", () => {
+    const evidence = renderPublicationEvidence({
+      version: "0.2.0-alpha.16",
+      tag: "v0.2.0-alpha.16",
+      revision: "a".repeat(40),
+      date: "2026-09-26",
+      baseUrl: "https://updates.mirrormind.sh/mirror-desktop/alpha",
+      githubReleaseUrl: "https://github.com/mirror-mind-ai/mirror-desktop/releases/tag/v0.2.0-alpha.16",
+      verification: {
+        status: "verified",
+        checks: [{ url: "https://updates.mirrormind.sh/mirror-desktop/alpha/darwin/0.2.0-alpha.16/latest.json", version: "0.2.0-alpha.16", signatureBytes: 416 }],
+        downloadAlias: {
+          url: "https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/latest.json",
+          version: "0.2.0-alpha.16",
+          dmgUrl: "https://updates.mirrormind.sh/mirror-desktop/alpha/downloads/macos/mirror-desktop-latest.dmg",
+          dmgSha256: "c".repeat(64),
+          dmgBytes: 7231483,
+          advertised: ["https://updates.mirrormind.sh/mirror-desktop/alpha/releases/v0.2.0-alpha.16.md"],
+        },
+      },
+    });
+    expect(evidence).toContain("## Post-Publication Verification");
+    expect(evidence).toContain("Site Download Alias");
+    expect(evidence).toContain("mirror-desktop-latest.dmg");
+    expect(evidence).toContain("c".repeat(64));
+    expect(evidence).toContain("7231483");
+    expect(evidence).toContain("releases/v0.2.0-alpha.16.md");
   });
 });
