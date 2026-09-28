@@ -69,6 +69,19 @@ command. Manual compaction while idle therefore needs a one-shot RPC invocation 
 session file. `provision_pi_session` is the precedent: spawn Pi in RPC mode, write one
 command, drop stdin, `wait_with_output`, parse the last matching `response` line.
 
+**The precedent breaks on one point: stdin must stay open.** Proven on 2026-09-27 against a
+copy of a production session (production untouched). Writing `compact` and closing stdin
+returned `Turn prefix summarization failed: This operation was aborted`; holding stdin open
+until the response arrived produced a `## Goal` summary of 2,416 characters, a
+`firstKeptEntryId`, 36,622 → 19,221 tokens, and one new `compaction` entry in the copy. Pi
+treats EOF on stdin as shutdown and aborts the in-flight operation. `get_state` never showed
+this because it answers instantly. The native command therefore reads stdout until the
+compact response, then closes stdin and drains to exit.
+
+**Known limitation.** There is no timeout on the one-shot process. A compaction of a very
+large context takes minutes and that is legitimate; a hung Pi would hold the Journey's
+compaction claim until the app restarts. Recorded rather than solved, pending evidence.
+
 **The Desktop's RPC vocabulary today is `prompt`, `steer`, `set_steering_mode`.** Nothing
 else is encoded. `observe_line` parses `response` lines but discards `data`, so the compact
 response needs its own parser on the `parse_pi_session_state` precedent.

@@ -3704,7 +3704,8 @@ enum PiInvocationStartError {
 
 // CR080: manual compaction while the conversation is idle. A one-shot RPC invocation on
 // the provision_pi_session precedent — but without --offline, because compaction calls the
-// model, and with the runtime profile applied under Mirror mediation exactly as a turn does
+// model; with stdin held open until the response, because Pi aborts on EOF; and with the
+// runtime profile applied under Mirror mediation exactly as a turn does
 // so the model resolves the same way. Isolated from tools, extensions and skills: every
 // recorded summary came from Pi's default generator, so isolation does not change the
 // chapter's shape. No turn correlation and no journal record: this is not a turn.
@@ -3738,17 +3739,47 @@ fn run_manual_compaction(
     child.stdin.as_mut().ok_or_else(|| "Pi compaction stdin is unavailable.".to_string())?
         .write_all(line.as_bytes())
         .map_err(|error| format!("Could not request compaction: {}", error))?;
-    drop(child.stdin.take());
-    let output = child.wait_with_output()
-        .map_err(|error| format!("Could not settle compaction: {}", error))?;
-    let parsed = parse_pi_compaction_response(&output.stdout);
-    if parsed.is_err() && !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        if let Some(last) = stderr.lines().rev().map(str::trim).find(|line| !line.is_empty()) {
-            return Err(format!("Compaction did not complete: {}", last));
+    // Unlike get_state, compact runs for minutes and Pi aborts it the moment stdin closes
+    // ("This operation was aborted", proven 2026-09-27 on a session copy). So stdin stays
+    // open until the compact response has been read; only then is it dropped, and stdout
+    // is drained to EOF so Pi never writes into a closed pipe on its way out.
+    let stdout = child.stdout.take().ok_or_else(|| "Pi compaction stdout is unavailable.".to_string())?;
+    let stderr = child.stderr.take();
+    let stderr_reader = std::thread::spawn(move || {
+        let mut text = String::new();
+        if let Some(mut stream) = stderr {
+            let _ = std::io::Read::read_to_string(&mut stream, &mut text);
+        }
+        text
+    });
+    let mut response_line: Option<String> = None;
+    for line in BufReader::new(stdout).lines() {
+        let Ok(line) = line else { break };
+        if response_line.is_none() && is_pi_compaction_response_line(&line) {
+            response_line = Some(line);
+            drop(child.stdin.take());
         }
     }
-    parsed
+    drop(child.stdin.take());
+    let status = child.wait().map_err(|error| format!("Could not settle compaction: {}", error))?;
+    let stderr_text = stderr_reader.join().unwrap_or_default();
+    match response_line {
+        Some(line) => parse_pi_compaction_response(line.as_bytes()),
+        None => {
+            let last = stderr_text.lines().rev().map(str::trim).find(|line| !line.is_empty());
+            match last {
+                Some(reason) if !status.success() => Err(format!("Compaction did not complete: {}", reason)),
+                _ => Err("Pi did not return a compaction response.".to_string()),
+            }
+        }
+    }
+}
+
+fn is_pi_compaction_response_line(line: &str) -> bool {
+    serde_json::from_str::<Value>(line).ok().is_some_and(|value| {
+        value.get("type").and_then(Value::as_str) == Some("response")
+            && value.get("command").and_then(Value::as_str) == Some("compact")
+    })
 }
 
 #[tauri::command]
