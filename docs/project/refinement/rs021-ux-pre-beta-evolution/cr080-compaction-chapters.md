@@ -40,6 +40,13 @@ reads each `compaction` entry's `parentId` and `firstKeptEntryId` and emits a ma
 closed segments plus one current segment. The cut points are Pi's; the Desktop does not
 invent them.
 
+**The existing Segment pagination is unreachable.** `setHistoricalSegmentCount` has three
+call sites on the current baseline and every one passes `0`, so the `Load N earlier
+Segments` surface CR046 retained as compatibility output can never appear. Slice 6 therefore
+replaces it rather than extending it, and slice 4 leaves the count alone: a manual
+compaction reviving a surface that nothing else populates would make the app read
+differently after a manual compaction than after an automatic one.
+
 **CR046 fixed the authority boundary.** Segments are presentation pagination only: they may
 select what is rendered but cannot define counts, completion, admission, settlement or
 delivery, and deleting their projections must be safe. That constraint stays.
