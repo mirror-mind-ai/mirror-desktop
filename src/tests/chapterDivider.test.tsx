@@ -36,4 +36,13 @@ describe("chapter divider row", () => {
     expect(render.indexOf("<ChapterDividerRow")).toBeLessThan(render.indexOf("<ConversationMessageRow"));
     expect(cssSource).toContain(".chapter-divider {");
   });
+
+  // The divider was styled with a custom property this stylesheet never defines, so its
+  // title and date always fell back to a dark-theme grey and vanished on the light themes.
+  it("derives its muted text from the surrounding colour instead of an undefined variable", () => {
+    expect(cssSource).not.toContain("--ui-text-muted");
+    const dividerRules = cssSource.slice(cssSource.indexOf(".chapter-divider {"));
+    expect(dividerRules.slice(0, 900)).toContain("color-mix(in srgb, currentColor");
+    expect(dividerRules.slice(0, 900)).toContain("rgba(var(--ui-accent-rgb)");
+  });
 });

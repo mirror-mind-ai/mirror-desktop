@@ -81,6 +81,26 @@ describe("chapter index panel", () => {
     expect(firstChildRule).toContain(":not(.conversation-chapter-panel)");
   });
 
+  // The panel hard-coded dark-theme greys for its titles and metadata, which disappear on
+  // the light themes. The light contract is explicit in this stylesheet, so the panel has to
+  // join it rather than inherit and hope.
+  it("carries readable text on the light themes", () => {
+    const lightPanel = cssSource.slice(
+      cssSource.indexOf(":where(.conversation-search-panel, .conversation-turn-panel"),
+    );
+    expect(lightPanel.slice(0, 400)).toContain(".conversation-chapter-panel");
+
+    const lightRows = cssSource.indexOf(".conversation-chapter-panel li > button,\n") > 0;
+    expect(lightRows).toBe(true);
+    expect(cssSource).toContain(".conversation-chapter-meta");
+    // The muted metadata colour must be theme-aware rather than a fixed dark-theme grey.
+    const metaRule = cssSource.slice(
+      cssSource.indexOf(".conversation-chapter-meta,"),
+      cssSource.indexOf("}", cssSource.indexOf(".conversation-chapter-meta,")),
+    );
+    expect(metaRule).toContain("color-mix(in srgb, currentColor");
+  });
+
   it("draws the chapter header icon as a visible text glyph, not a fragile SVG", () => {
     expect(appSource).toContain("conversation-chapter-glyph");
     expect(appSource).toContain("§");
