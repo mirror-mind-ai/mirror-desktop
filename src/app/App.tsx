@@ -632,7 +632,10 @@ export function App({ model }: AppProps) {
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const [compactingJourneyId, setCompactingJourneyId] = useState<string>();
-  const [compactionOperation, setCompactionOperation] = useState<ProjectedRuntimeOperation>();
+  const [compactionOperation, setCompactionOperation] = useState<{
+    journeyId: string;
+    operation: ProjectedRuntimeOperation;
+  }>();
   const [contextRefreshEpoch, setContextRefreshEpoch] = useState(0);
   const [agentSettingsMessage, setAgentSettingsMessage] = useState<string | undefined>();
   const [agentProfileConfigured, setAgentProfileConfigured] = useState<boolean>();
@@ -1764,7 +1767,7 @@ export function App({ model }: AppProps) {
   }, [voiceNotice]);
 
   useEffect(() => {
-    if (compactionOperation?.status !== "completed") return;
+    if (compactionOperation?.operation.status !== "completed") return;
     const scheduled = compactionOperation;
     return scheduleTransientComposerNotice(() => {
       setCompactionOperation((current) => (current === scheduled ? undefined : current));
@@ -4272,11 +4275,14 @@ export function App({ model }: AppProps) {
     const selectedConversationId = conversation.id;
     setCompactingJourneyId(authority.journeyId);
     setCompactionOperation({
-      id: "manual-compaction",
-      kind: "compaction",
-      name: "Context compaction",
-      status: "running",
-      arguments: { reason: "manual" },
+      journeyId: authority.journeyId,
+      operation: {
+        id: "manual-compaction",
+        kind: "compaction",
+        name: "Context compaction",
+        status: "running",
+        arguments: { reason: "manual" },
+      },
     });
     try {
       const result = await compactJourneySession({
@@ -4313,23 +4319,29 @@ export function App({ model }: AppProps) {
         );
       }
       setCompactionOperation({
-        id: "manual-compaction",
-        kind: "compaction",
-        name: "Context compaction",
-        status: "completed",
-        arguments: { reason: "manual" },
-        output: `Chapter closed: ${chapterTitleFromSummary(result.summary)}`,
-        isError: false,
+        journeyId: authority.journeyId,
+        operation: {
+          id: "manual-compaction",
+          kind: "compaction",
+          name: "Context compaction",
+          status: "completed",
+          arguments: { reason: "manual" },
+          output: `Chapter closed: ${chapterTitleFromSummary(result.summary)}`,
+          isError: false,
+        },
       });
     } catch (error) {
       setCompactionOperation({
-        id: "manual-compaction",
-        kind: "compaction",
-        name: "Context compaction",
-        status: "failed",
-        arguments: { reason: "manual" },
-        output: error instanceof Error ? error.message : String(error),
-        isError: true,
+        journeyId: authority.journeyId,
+        operation: {
+          id: "manual-compaction",
+          kind: "compaction",
+          name: "Context compaction",
+          status: "failed",
+          arguments: { reason: "manual" },
+          output: error instanceof Error ? error.message : String(error),
+          isError: true,
+        },
       });
     } finally {
       setCompactingJourneyId((current) => (current === authority.journeyId ? undefined : current));
@@ -5145,9 +5157,9 @@ export function App({ model }: AppProps) {
           {fileAttachmentError ? <p className="context-attachment-error" role="alert">{fileAttachmentError}</p> : null}
           {voiceError ? <p className="context-attachment-error voice-error" role="alert">{voiceError}</p> : null}
           {voiceNotice ? <p className="voice-notice" role="status">{voiceNotice}</p> : null}
-          {compactionOperation ? (
+          {compactionOperation && compactionOperation.journeyId === selectedJourney ? (
             <div className="compaction-notice" role="status">
-              <RuntimeCompaction operation={compactionOperation} />
+              <RuntimeCompaction operation={compactionOperation.operation} />
             </div>
           ) : null}
           <VoiceSessionStatus session={voiceSession} elapsedSeconds={voiceElapsedSeconds} onCancel={cancelVoiceRecording} />

@@ -112,6 +112,11 @@ response needs its own parser on the `parse_pi_session_state` precedent.
   The Journey claim is still taken synchronously under the registry lock — that ordering is
   what keeps a turn and a compaction mutually exclusive — and only the process run moves to
   a blocking worker.
+- **The compaction card belongs to the Journey being compacted.** It is state on a single
+  App, so without an explicit owner it followed the reader into every Journey they opened
+  and claimed each one was compacting. The in-flight claim cannot gate it either, because
+  the outcome phases deliberately outlive that claim; the record carries its own
+  `journeyId` and renders only where it belongs.
 - **One way of saying the same thing.** A manual compaction reports through the same
   `RuntimeCompaction` card an automatic one already uses, rather than a second, bespoke
   notice. A settled success fades; a failure stays until the next attempt replaces it.

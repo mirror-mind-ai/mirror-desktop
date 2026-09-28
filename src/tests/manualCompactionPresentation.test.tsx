@@ -26,6 +26,12 @@ describe("manual compaction presentation", () => {
     expect(html).toContain("manual trigger");
 
     expect(appSource).toContain("<RuntimeCompaction");
+    // A compaction occupies one Journey. The card is state on a single App, so it has to
+    // carry the Journey it belongs to and be rendered only there — the outcome phases
+    // outlive the in-flight claim, so the claim alone cannot gate the surface.
+    expect(appSource).toContain("compactionOperation.journeyId === selectedJourney");
+    const start = appSource.indexOf("setCompactionOperation({");
+    expect(appSource.slice(start, start + 120)).toContain("journeyId: authority.journeyId");
     expect(appSource).toContain("compactionOperation");
     // The bespoke notice it replaces is gone.
     expect(appSource).not.toContain("setCompactionNotice");
