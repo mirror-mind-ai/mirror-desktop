@@ -191,6 +191,7 @@ A pre-agent rejection leaves the Pi transcript unchanged. It removes only in-mem
 - Native Pi entry IDs are the durable identity of admitted transcript messages.
 - Desktop message IDs may remain presentation aliases but cannot establish provider completion independently.
 - Pi compaction and Desktop pagination never reduce a cumulative transcript checkpoint.
+- Chapters derived from compaction are views over Pi entries and never an entity (CR080).
 
 ### Rejection and failure
 
@@ -209,6 +210,33 @@ A pre-agent rejection leaves the Pi transcript unchanged. It removes only in-mem
 - Outbox items contain sufficient immutable evidence for idempotent delivery without loading an originating presentation projection.
 - Delivery debt never changes `canSend` for a locally available Conversation.
 - Failed delivery remains visible and durable until acknowledged or explicitly disposed.
+
+## Chapters Are Views, Not Entities
+
+CR080 gives the Navigator chapters to navigate. A chapter is the span a Pi compaction closed,
+named by the `## Goal` line of the summary Pi itself wrote. It is a presentation view over Pi
+session entries and nothing more.
+
+Invariants:
+
+- A chapter has no identity of its own. It is addressed by the Segment it corresponds to,
+  and a Segment is addressed by Pi's own compaction entry and retained-tail coordinates.
+- Selecting, opening or listing a chapter never creates a Pi session, a Conversation, a
+  generation, a Mirror conversation or any persistence root.
+- Chapter titles, dates, turn counts and dividers are derived on every projection from the Pi
+  session. They are never persisted as authority, in the same way response model attribution
+  is derived rather than stored.
+- A manifest that disagrees with the Pi session about how many chapters have closed is
+  rewritten from Pi. Segments are presentation only, so that rewrite is always safe.
+- Manual compaction closes a chapter but is not a turn: it produces no journal record, no
+  run correlation and no Mirror delivery. It is occupancy on the session, and therefore
+  mutually exclusive with a turn on the same Journey in both directions.
+- The compaction summary is not delivered to Mirror.
+
+Consequence for pagination: a compaction entry's parent is the pre-compaction tail, so the
+active branch spans the whole history and the transcript already holds every chapter. Segment
+pagination therefore has nothing earlier to load; chapters replace it as the navigation
+surface rather than extending it.
 
 ## Desktop-Only Metadata Boundary
 
