@@ -5,6 +5,8 @@ import {
   chapterOpeningMessageIds,
   formatChapterDateRange,
   needsChapterEvidenceRefresh,
+  recentChapterShortcuts,
+  CHAPTER_RECENT_SECTION_THRESHOLD,
   chapterTitleFromSummary,
   describeChapterDivider,
   projectConversationChapters,
@@ -237,5 +239,36 @@ describe("chapter date presentation", () => {
   it("says nothing rather than something false when Pi recorded no dates", () => {
     expect(formatChapterDateRange(undefined, undefined, "en-US")).toBe("");
     expect(formatChapterDateRange("not-a-date", "also-not", "en-US")).toBe("");
+  });
+});
+
+// An index of 27 chapters opens on the three least likely targets. The chapters a reader
+// reaches for are the recent ones; the chronological list is how the whole arc is read.
+// A labelled section serves both without depending on where the scrollbar happens to sit.
+describe("recent chapter shortcuts", () => {
+  const chapters = (count: number) => Array.from({ length: count }, (_, index) => ({
+    segmentId: `segment-${index + 1}`,
+    number: index + 1,
+    status: index === count - 1 ? "current" as const : "closed" as const,
+    title: `Chapter ${index + 1}.`,
+    turnCount: 1,
+  }));
+
+  it("puts the current chapter and the two before it first, most recent first", () => {
+    expect(recentChapterShortcuts(chapters(27)).map((chapter) => chapter.number)).toEqual([27, 26, 25]);
+  });
+
+  // Below the threshold the whole chronological list already fits the first view, so a
+  // shortcut section would duplicate nearly all of it and solve nothing.
+  it("stays away until the list is long enough to bury its own end", () => {
+    expect(recentChapterShortcuts(chapters(6))).toEqual([]);
+    expect(recentChapterShortcuts(chapters(7)).map((chapter) => chapter.number)).toEqual([7, 6, 5]);
+    expect(CHAPTER_RECENT_SECTION_THRESHOLD).toBe(7);
+  });
+
+  it("does not disturb the chronological list it summarizes", () => {
+    const all = chapters(9);
+    recentChapterShortcuts(all);
+    expect(all.map((chapter) => chapter.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
 });

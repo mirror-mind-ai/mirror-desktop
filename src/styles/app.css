@@ -8242,14 +8242,37 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   max-width: 62ch;
 }
 
+/* Both sections belong to one reading: scrolling down carries the reader from the recent
+   shortcuts into the full index, instead of trapping them in two independent scrollers. */
+.conversation-chapter-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+  /* Without this a flex child refuses to shrink below its content, and the list overflows
+     the panel instead of scrolling inside it. */
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 4px 2px 0;
+}
+
+.conversation-chapter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conversation-chapter-section > .eyebrow {
+  margin: 0;
+}
+
 .conversation-chapter-panel ol {
   display: flex;
   flex-direction: column;
   gap: 8px;
   list-style: none;
   margin: 0;
-  overflow-y: auto;
-  padding: 2px 4px 2px 0;
+  padding: 0;
 }
 
 .conversation-chapter-panel li > button,

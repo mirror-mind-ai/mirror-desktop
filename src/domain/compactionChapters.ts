@@ -169,3 +169,23 @@ export function segmentProjectionsTouchedByCompaction<T extends { status: string
 ): readonly T[] {
   return projections.length <= 2 ? projections : projections.slice(-2);
 }
+
+/**
+ * Below this many chapters the whole chronological list already fits the first view, so a
+ * shortcut section would duplicate nearly all of it and solve nothing.
+ */
+export const CHAPTER_RECENT_SECTION_THRESHOLD = 7;
+export const CHAPTER_RECENT_SECTION_SIZE = 3;
+
+/**
+ * The chapters a reader actually reaches for. A long index opens on its oldest entries,
+ * which are the least likely targets, and scrolling to the end would fix that only through
+ * a state nothing on screen declares. A labelled section states it instead: recency first
+ * here, the chronological arc below, where the chapter metaphor belongs.
+ */
+export function recentChapterShortcuts(
+  chapters: readonly ConversationChapter[],
+): readonly ConversationChapter[] {
+  if (chapters.length < CHAPTER_RECENT_SECTION_THRESHOLD) return [];
+  return chapters.slice(-CHAPTER_RECENT_SECTION_SIZE).reverse();
+}

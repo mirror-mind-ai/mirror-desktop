@@ -153,6 +153,56 @@ describe("chapter index panel", () => {
     expect(hintRule).toContain("pointer-events: none");
   });
 
+  // A long index opens on its oldest entries, which are the least likely targets.
+  const longIndex: ConversationChapter[] = Array.from({ length: 9 }, (_, index) => ({
+    segmentId: `s${index + 1}`,
+    number: index + 1,
+    status: index === 8 ? "current" : "closed",
+    title: `Chapter ${index + 1}.`,
+    turnCount: 2,
+    openingMessageId: `m${index + 1}`,
+  }));
+
+  it("offers the recent chapters first, then the whole arc in order", () => {
+    const html = renderToStaticMarkup(
+      <ChapterIndexPanel chapters={longIndex} onSelect={() => undefined} locale="en-US" />,
+    );
+    expect(html).toContain("Most recent");
+    expect(html).toContain("All chapters");
+    // The shortcut section runs most recent first; the index below stays chronological.
+    const shortcuts = html.slice(html.indexOf("Most recent"), html.indexOf("All chapters"));
+    expect(shortcuts.indexOf("Chapter 9.")).toBeLessThan(shortcuts.indexOf("Chapter 7."));
+    expect(shortcuts).not.toContain("Chapter 6.");
+    const index = html.slice(html.indexOf("All chapters"));
+    expect(index.indexOf("Chapter 1.")).toBeLessThan(index.indexOf("Chapter 9."));
+  });
+
+  it("does not split a short index into sections it does not need", () => {
+    const html = renderToStaticMarkup(
+      <ChapterIndexPanel chapters={chapters} onSelect={() => undefined} locale="en-US" />,
+    );
+    expect(html).not.toContain("Most recent");
+    expect(html).not.toContain("All chapters");
+  });
+
+  // Both sections belong to one reading: scrolling down carries you from the shortcuts
+  // into the full index, rather than trapping you in two independent scroll areas.
+  it("scrolls the panel as a single region", () => {
+    const scrollRule = cssSource.slice(
+      cssSource.indexOf(".conversation-chapter-scroll {"),
+      cssSource.indexOf("}", cssSource.indexOf(".conversation-chapter-scroll {")),
+    );
+    expect(scrollRule).toContain("overflow-y: auto");
+    // A flex child will not shrink below its content without this, and the list would
+    // overflow the panel rather than scroll inside it.
+    expect(scrollRule).toContain("min-height: 0");
+    const listRule = cssSource.slice(
+      cssSource.indexOf(".conversation-chapter-panel ol {"),
+      cssSource.indexOf("}", cssSource.indexOf(".conversation-chapter-panel ol {")),
+    );
+    expect(listRule).not.toContain("overflow-y");
+  });
+
   it("draws the chapter header icon as a visible text glyph, not a fragile SVG", () => {
     expect(appSource).toContain("conversation-chapter-glyph");
     expect(appSource).toContain("§");

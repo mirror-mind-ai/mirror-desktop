@@ -127,6 +127,17 @@ response needs its own parser on the `parse_pi_session_state` precedent.
   in homologation: the manual path reprojected the whole surface from Pi and republished
   every Segment, which the automatic path never does because it publishes the same live
   Conversation object that wrote them.
+- **The index is chronological, with a recency section above a threshold.** Chapters keep
+  the order of the transcript they map, the direction the dividers already run, and stable
+  numbers a reader can refer to later. But a long index opens on its oldest entries, which
+  are the least likely targets: one live Conversation already holds 27 chapters. Scrolling
+  the panel to the current chapter would fix reach through a state nothing on screen
+  declares; a labelled `Most recent` section states it instead, carrying the current chapter
+  and the two before it, most recent first. It appears from 7 chapters up — below that the
+  whole list already fits the first view and the section would duplicate nearly all of it.
+  The sections share one scroll region, so reading down leads from the shortcuts into the
+  full arc. Numbers are not recomputed per section: chapter 27 is chapter 27 in both places,
+  which is what makes the duplication legible rather than confusing.
 - **Manual compaction runs isolated and without a turn.** No `--offline` (it calls the
   model), no turn correlation, no journal record, `--no-tools --no-extensions --no-skills
   --no-prompt-templates --no-context-files --approve`, always `--mode rpc`. The runtime
