@@ -1,4 +1,6 @@
 export const MAX_SEGMENTS_PER_GENERATION = 256;
+/** CR080: 255 summaries of 26k characters would not fit a manifest; the Goal line does. */
+export const MAX_SEGMENT_SUMMARY_HEAD = 400;
 export const MAX_SEGMENT_SOURCE_ENTRIES = 1_000_000;
 
 export type PiSegmentSourceEntry = {
@@ -6,6 +8,9 @@ export type PiSegmentSourceEntry = {
   parentId?: string;
   type: string;
   firstKeptEntryId?: string;
+  /** CR080: present on compaction entries; the chapter the checkpoint closed. */
+  summary?: string;
+  timestamp?: string;
 };
 
 export type SegmentTurnEvidence = {
@@ -24,6 +29,11 @@ export type ConversationSegment = {
   compactionEntryId?: string;
   firstTurnId?: string;
   lastTurnId?: string;
+  /** CR080: chapter evidence, read from Pi at manifest time. */
+  turnCount?: number;
+  summaryHead?: string;
+  openedAt?: string;
+  closedAt?: string;
 };
 
 export type ConversationSegmentManifest = {
@@ -63,6 +73,22 @@ export function parseConversationSegmentManifest(
       }
       if (expectedStatus === "closed" && (!segment.compactionEntryId || !segment.retainedTailFromEntryId)) {
         throw new Error("invalid checkpoint");
+      }
+      // Chapter evidence is optional: manifests published before CR080 have none, and a
+      // current Segment has no summary because no chapter closed.
+      if (segment.turnCount !== undefined
+        && (!Number.isInteger(segment.turnCount) || Number(segment.turnCount) < 0)) {
+        throw new Error("invalid chapter turn count");
+      }
+      if (segment.summaryHead !== undefined
+        && (typeof segment.summaryHead !== "string" || segment.summaryHead.length > MAX_SEGMENT_SUMMARY_HEAD)) {
+        throw new Error("invalid chapter summary");
+      }
+      for (const key of ["openedAt", "closedAt"] as const) {
+        if (segment[key] !== undefined
+          && (typeof segment[key] !== "string" || Number.isNaN(Date.parse(segment[key] as string)))) {
+          throw new Error("invalid chapter timestamp");
+        }
       }
       return segment as unknown as ConversationSegment;
     });
@@ -120,6 +146,9 @@ export function deriveConversationSegmentManifest(input: {
       sourceThroughEntryId: entry.parentId,
       retainedTailFromEntryId: entry.firstKeptEntryId,
       compactionEntryId: entry.id,
+      summaryHead: entry.summary?.slice(0, MAX_SEGMENT_SUMMARY_HEAD),
+      openedAt: openedAt(sourceFromEntryId, input.entries),
+      closedAt: entry.timestamp,
     }, turns, positions));
     sourceFromEntryId = entry.firstKeptEntryId!;
   }
@@ -130,6 +159,7 @@ export function deriveConversationSegmentManifest(input: {
     status: "current",
     sourceFromEntryId,
     sourceThroughEntryId: lastEntryId,
+    openedAt: openedAt(sourceFromEntryId, input.entries),
   }, turns, positions));
   return {
     schemaVersion: "1.0.0",
@@ -142,6 +172,10 @@ export function deriveConversationSegmentManifest(input: {
   };
 }
 
+function openedAt(entryId: string | undefined, entries: readonly PiSegmentSourceEntry[]): string | undefined {
+  return entryId ? entries.find((entry) => entry.id === entryId)?.timestamp : undefined;
+}
+
 function segmentWithTurns(
   segment: ConversationSegment,
   turns: readonly SegmentTurnEvidence[],
@@ -149,14 +183,16 @@ function segmentWithTurns(
 ): ConversationSegment {
   const from = segment.sourceFromEntryId ? positions.get(segment.sourceFromEntryId) : undefined;
   const through = segment.sourceThroughEntryId ? positions.get(segment.sourceThroughEntryId) : undefined;
-  if (from === undefined || through === undefined) return segment;
+  if (from === undefined || through === undefined) return { ...segment, turnCount: 0 };
   const included = turns.filter((turn) => {
     const user = positions.get(turn.userEntryId);
     const assistant = positions.get(turn.assistantEntryId);
     return (user !== undefined && user >= from && user <= through)
       || (assistant !== undefined && assistant >= from && assistant <= through);
   });
-  return included.length ? { ...segment, firstTurnId: included[0].turnId, lastTurnId: included.at(-1)!.turnId } : segment;
+  return included.length
+    ? { ...segment, firstTurnId: included[0].turnId, lastTurnId: included.at(-1)!.turnId, turnCount: included.length }
+    : { ...segment, turnCount: 0 };
 }
 
 function assertId(value: string): void {
