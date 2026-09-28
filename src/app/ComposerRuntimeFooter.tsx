@@ -4,9 +4,18 @@ import type { PiContextState } from "./contextUsageState";
 import type { ComposerTurnStatus } from "./composerTurnStatus";
 import { mirrorModeDisplay, type MirrorOperatingMode } from "./mirrorModeState";
 import type { ModelSelectionScope } from "../domain/modelAvailability";
+import { projectContextReading } from "../domain/contextReading";
 
 type ComposerRuntimeFooterProps = {
   contextUsage?: RuntimeContextUsage;
+  /**
+   * CR079: the selected model's declared window, known from the live Pi catalog even when
+   * nothing has measured this Conversation yet. It keeps the reading on screen instead of
+   * letting an absent token count replace it with prose.
+   */
+  contextWindow?: number | null;
+  /** The count is an estimate or was measured by another model, so the reading is marked. */
+  contextApproximate?: boolean;
   activeMode?: MirrorOperatingMode;
   contextState?: PiContextState;
   providerModel: string;
@@ -54,6 +63,8 @@ export function ComposerRuntimeStatus({ status }: ComposerRuntimeStatusProps) {
 
 export function ComposerRuntimeFooter({
   contextUsage,
+  contextWindow,
+  contextApproximate = false,
   activeMode,
   contextState = contextUsage ? "available" : "waiting",
   providerModel,
@@ -74,7 +85,14 @@ export function ComposerRuntimeFooter({
   contextMenuWrapRef,
   compacting = false,
 }: ComposerRuntimeFooterProps) {
-  const contextLabel = compacting ? "Compacting…" : formatComposerContext(contextUsage, contextState);
+  const reading = projectContextReading({
+    state: contextState,
+    tokens: contextUsage?.tokens ?? null,
+    contextWindow: contextWindow ?? contextUsage?.contextWindow ?? null,
+    approximate: contextApproximate,
+  });
+  const contextLabel = compacting ? "Compacting…" : reading.text;
+  const contextTone = compacting || !reading.tone ? undefined : `composer-context-${reading.tone}`;
   // The semantic layer never hides the mechanical one: the binding rides the title for the
   // pointer and the accessible name for the keyboard, since the footer has no room for it.
   const modelLabel = activeIntentLabel ?? providerModel;
@@ -97,19 +115,19 @@ export function ComposerRuntimeFooter({
           <div className="model-intent-menu-wrap" ref={contextMenuWrapRef}>
             <button
               type="button"
-              className={["composer-context-control", contextUsageTone(contextUsage)].filter(Boolean).join(" ")}
+              className={["composer-context-control", contextTone].filter(Boolean).join(" ")}
               onClick={onOpenContextMenu}
               aria-haspopup="menu"
               aria-expanded={contextMenuOpen}
               aria-label="Context window actions"
-              title="Context window actions"
+              title={`${reading.detail} Context window actions.`}
             >
               {contextLabel}
             </button>
             {contextMenu}
           </div>
         ) : (
-          <span className={contextUsageTone(contextUsage)}>{contextLabel}</span>
+          <span className={contextTone} title={reading.detail}>{contextLabel}</span>
         )}
         {canInitializeContext && onInitializeContext ? (
           <button
@@ -154,44 +172,3 @@ export function ComposerRuntimeFooter({
   );
 }
 
-function contextUsageTone(usage?: RuntimeContextUsage): string | undefined {
-  if (usage?.percent !== null && usage?.percent !== undefined) {
-    if (usage.percent > 90) {
-      return "composer-context-error";
-    }
-    if (usage.percent > 70) {
-      return "composer-context-warning";
-    }
-  }
-  return undefined;
-}
-
-function formatComposerContext(
-  usage: RuntimeContextUsage | undefined,
-  state: PiContextState,
-): string {
-  if (state === "not_initialized") return "Pi context not initialized";
-  if (state === "checking") return "Checking context stats…";
-  if (state === "updating" && usage) return `${formatAvailableContext(usage)} · updating…`;
-  if (state === "unknown_after_compaction") return "Context unknown after compaction";
-  if (state === "session_missing") return "Pi context session unavailable";
-  if (state === "model_mismatch") return "Waiting for usage from selected model…";
-  if (state === "inspection_failed") return "Context stats unavailable";
-  if (!usage || (usage.tokens === null && usage.contextWindow === null)) {
-    return "Waiting for first context usage…";
-  }
-  return formatAvailableContext(usage);
-}
-
-function formatAvailableContext(usage: RuntimeContextUsage): string {
-  if (usage.contextWindow === null) {
-    return `Context ${formatTokenCount(usage.tokens as number)} · window unavailable`;
-  }
-  const contextWindow = formatTokenCount(usage.contextWindow);
-  const percent = usage.percent === null ? "—" : `${usage.percent.toFixed(1)}%`;
-  return `${percent}/${contextWindow}`;
-}
-
-function formatTokenCount(value: number): string {
-  return value >= 1000 ? `${(value / 1000).toFixed(value >= 100000 ? 0 : 1)}k` : String(value);
-}

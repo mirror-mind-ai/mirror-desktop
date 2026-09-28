@@ -216,6 +216,9 @@ struct PiProcessEvent {
 struct PiSessionContextSnapshot {
     tokens: u64,
     provider_model: String,
+    /// CR079: the count is derived from message sizes rather than reported by a model, so the
+    /// reading is marked approximate instead of being withheld.
+    estimated: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -7427,6 +7430,7 @@ fn extract_context_stats_from_pi_entries(entries: &[Value]) -> Option<PiSessionC
             latest_usage = Some(PiSessionContextSnapshot {
                 tokens: calculate_pi_context_tokens(message.get("usage").unwrap()).unwrap(),
                 provider_model: provider_model.clone()?,
+                estimated: false,
             });
             trailing_tokens = 0;
         } else if latest_usage.is_some() {
@@ -7438,6 +7442,7 @@ fn extract_context_stats_from_pi_entries(entries: &[Value]) -> Option<PiSessionC
 
     if let Some(mut snapshot) = latest_usage {
         snapshot.tokens += trailing_tokens;
+        snapshot.estimated = trailing_tokens > 0;
         return Some(snapshot);
     }
     if has_compaction || estimated_without_usage == 0 {
@@ -7445,7 +7450,8 @@ fn extract_context_stats_from_pi_entries(entries: &[Value]) -> Option<PiSessionC
     }
     Some(PiSessionContextSnapshot {
         tokens: estimated_without_usage,
-        provider_model: provider_model?,
+        provider_model: provider_model.unwrap_or_default(),
+        estimated: true,
     })
 }
 
@@ -10803,6 +10809,7 @@ mod tests {
             Some(PiSessionContextSnapshot {
                 tokens: 8500,
                 provider_model: "openai-codex/gpt-5.4-mini".to_string(),
+                estimated: false,
             })
         );
     }
@@ -10821,8 +10828,25 @@ mod tests {
             Some(PiSessionContextSnapshot {
                 tokens: 101,
                 provider_model: "openai-codex/gpt-5.4-mini".to_string(),
+                estimated: true,
             })
         );
+    }
+
+    // CR079: the terminal already shows a percentage for a Conversation that has only a typed
+    // prompt. Requiring a provider/model pair meant the Desktop answered nothing at all, so a
+    // new Conversation read as a sentence until its first reply landed.
+    #[test]
+    fn estimates_a_conversation_that_has_no_assistant_reply_yet() {
+        let session = [
+            r#"{"type":"session","version":3,"id":"nautilus-lab"}"#,
+            r#"{"type":"message","id":"first","parentId":null,"message":{"role":"user","content":[{"type":"text","text":"plan the release"}]}}"#,
+        ].join("\n");
+
+        let snapshot = extract_context_stats_from_pi_session(&session).expect("an estimate");
+        assert!(snapshot.tokens > 0);
+        assert_eq!(snapshot.provider_model, "");
+        assert!(snapshot.estimated);
     }
 
     #[test]

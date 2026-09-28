@@ -56,11 +56,12 @@ describe("runtime projection component", () => {
       <ComposerRuntimeStatus status={undefined} />,
     );
     const waitingHtml = renderToStaticMarkup(
-      <ComposerRuntimeFooter contextUsage={undefined} providerModel="openai-codex/gpt-5.4-mini" />,
+      <ComposerRuntimeFooter contextUsage={undefined} contextWindow={272000} providerModel="openai-codex/gpt-5.4-mini" />,
     );
     const uninitializedHtml = renderToStaticMarkup(
       <ComposerRuntimeFooter
         contextState="not_initialized"
+        contextWindow={272000}
         providerModel="openai-codex/gpt-5.4-mini"
         canInitializeContext
         onInitializeContext={() => undefined}
@@ -69,12 +70,13 @@ describe("runtime projection component", () => {
     const updatingHtml = renderToStaticMarkup(
       <ComposerRuntimeFooter
         contextState="updating"
+        contextWindow={272000}
         contextUsage={{ tokens: 14880, contextWindow: 272000, percent: 5.47 }}
         providerModel="openai-codex/gpt-5.4-mini"
       />,
     );
     const compactedHtml = renderToStaticMarkup(
-      <ComposerRuntimeFooter contextState="unknown_after_compaction" providerModel="openai-codex/gpt-5.4-mini" />,
+      <ComposerRuntimeFooter contextState="unknown_after_compaction" contextWindow={272000} providerModel="openai-codex/gpt-5.4-mini" />,
     );
     const unknownWindowHtml = renderToStaticMarkup(
       <ComposerRuntimeFooter
@@ -105,18 +107,24 @@ describe("runtime projection component", () => {
     expect(completedHtml).not.toContain("Working");
     expect(completedHtml).toContain("■");
     expect(completedHtml).toContain("Builder Mode");
-    expect(completedHtml).toContain("5.5%/272k");
+    expect(completedHtml).toContain("5.5%/272K");
     expect(completedHtml).toContain("openai-codex/gpt-5.4-mini");
     expect(completedHtml).toContain('aria-label="Choose model and thinking for openai-codex/gpt-5.4-mini"');
     expect(completedHtml).toContain('class="composer-provider-model"');
     expect(idleStatusHtml).not.toContain("Working");
     expect(idleStatusHtml).not.toContain("Finishing");
-    expect(waitingHtml).toContain("Waiting for first context usage…");
-    expect(uninitializedHtml).toContain("Pi context not initialized");
+    // CR079: no waiting sentence ever occupies the label the Navigator scans; an unknown
+    // count degrades to a glyph while the window stays on screen.
+    expect(waitingHtml).toContain("?/272K");
+    expect(waitingHtml).not.toContain("Waiting for first context usage");
+    expect(uninitializedHtml).toContain("–/272K");
+    expect(uninitializedHtml).not.toContain(">Pi context not initialized<");
     expect(uninitializedHtml).toContain("Initialize Pi context");
-    expect(updatingHtml).toContain("5.5%/272k · updating…");
-    expect(compactedHtml).toContain("Context unknown after compaction");
-    expect(unknownWindowHtml).toContain("Context 14.9k · window unavailable");
+    expect(updatingHtml).toContain("~5.5%/272K");
+    expect(updatingHtml).not.toContain("updating…");
+    expect(compactedHtml).toContain("?/272K");
+    expect(compactedHtml).not.toContain("Context unknown after compaction");
+    expect(unknownWindowHtml).toContain("15K/?");
     expect(warningHtml).toContain('class="composer-context-warning"');
     expect(errorHtml).toContain('class="composer-context-error"');
     expect(appSource).toContain("<ComposerRuntimeStatus");

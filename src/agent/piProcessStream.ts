@@ -391,8 +391,21 @@ function mapCompactionEnd(event: PiJsonEvent, mappingState?: PiProcessMappingSta
       ...(failed ? { isError: true } : { isError: false }),
     },
   };
+  // CR079: the compaction already reports what it left behind, so the reading drops to an
+  // approximation rather than to nothing at all.
+  const estimatedAfter = typeof event.result?.estimatedTokensAfter === "number"
+    ? event.result.estimatedTokensAfter
+    : null;
   return status === "completed"
-    ? [operation, { type: "context_usage", usage: { tokens: null, contextWindow: null, percent: null } }]
+    ? [operation, {
+        type: "context_usage",
+        usage: {
+          tokens: estimatedAfter,
+          contextWindow: null,
+          percent: null,
+          ...(estimatedAfter === null ? {} : { estimated: true }),
+        },
+      }]
     : [operation];
 }
 

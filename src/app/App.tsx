@@ -49,6 +49,9 @@ import {
 import {
   contextStateForInspection,
   contextStateForLiveUsage,
+  CONTEXT_REFRESH_DELAYS_MS,
+  contextReadingNeedsRefresh,
+  hasConversationContextStats,
   hasMatchingContextStats,
   readContextStatsWithBoundedRetry,
   type PiContextState,
@@ -637,6 +640,7 @@ export function App({ model }: AppProps) {
     operation: ProjectedRuntimeOperation;
   }>();
   const [contextRefreshEpoch, setContextRefreshEpoch] = useState(0);
+  const [contextRefreshAttempt, setContextRefreshAttempt] = useState(0);
   const [agentSettingsMessage, setAgentSettingsMessage] = useState<string | undefined>();
   const [agentProfileConfigured, setAgentProfileConfigured] = useState<boolean>();
   const [piModelCatalog, setPiModelCatalog] = useState<PiModelCatalogEntry[]>([]);
@@ -958,8 +962,9 @@ export function App({ model }: AppProps) {
   const authoritativeContextStats = conversation.authoritativeContextStats;
   const contextIdentityMatches = authoritativeContextStats
     && authoritativeContextStats.piSessionId === conversation.liveIdentity.piSessionId
-    && authoritativeContextStats.generation === conversation.liveIdentity.generation
-    && authoritativeContextStats.providerModel === providerModelLabel(effectiveProviderConfig);
+    && authoritativeContextStats.generation === conversation.liveIdentity.generation;
+  const contextMeasuredBySelectedModel = Boolean(contextIdentityMatches
+    && authoritativeContextStats.providerModel === providerModelLabel(effectiveProviderConfig));
   const reportedContextUsage = contextIdentityMatches ? authoritativeContextStats.usage : undefined;
   const pendingMirrorRepair = useMemo(
     () => pendingMirrorTurnRepair(presentedConversation),
@@ -1840,13 +1845,15 @@ export function App({ model }: AppProps) {
     }
     const providerModel = providerModelLabel(effectiveProviderConfig);
     const identity = conversation.liveIdentity;
-    const hasMatchingCache = hasMatchingContextStats(
+    const hasMatchingCache = hasConversationContextStats(
       conversation.authoritativeContextStats,
       identity,
-      providerModel,
     );
+    const cachedUsageIsEstimated = conversation.authoritativeContextStats?.usage.estimated === true;
     if (hasMatchingCache) {
-      if (piContextState !== "updating") setPiContextState("available");
+      // This shortcut runs before the inspection resolves, so it must not relabel a compaction
+      // estimate as a measurement while it waits.
+      if (piContextState !== "updating") setPiContextState(cachedUsageIsEstimated ? "estimated" : "available");
     } else if (piContextState !== "unknown_after_compaction") {
       setPiContextState("checking");
     }
@@ -1866,11 +1873,11 @@ export function App({ model }: AppProps) {
       if (cancelled) return;
       const nextState = contextStateForInspection(inspection, providerModel);
       const snapshot = inspection.snapshot;
-      if (nextState !== "available" || !snapshot) {
+      if (!snapshot) {
         if (!hasMatchingCache) setPiContextState(nextState);
         return;
       }
-      setPiContextState("available");
+      setPiContextState(nextState);
       setConversation((currentConversation) => {
         if (
           currentConversation.liveIdentity.piSessionId !== identity.piSessionId
@@ -1906,6 +1913,30 @@ export function App({ model }: AppProps) {
     isStreaming,
     effectiveProviderConfig,
     contextRefreshEpoch,
+  ]);
+
+  // The budget belongs to the Conversation being read; a newly opened one must not inherit an
+  // exhausted one and stop re-reading before it has looked even once.
+  useEffect(() => {
+    setContextRefreshAttempt(0);
+  }, [conversation.id, conversation.liveIdentity.generation, conversation.liveIdentity.piSessionId]);
+
+  useEffect(() => {
+    if (!conversationLoaded || isStreaming || effectiveProviderConfig.safeTestMode) return;
+    if (!contextReadingNeedsRefresh(piContextState)) return;
+    const delay = CONTEXT_REFRESH_DELAYS_MS[contextRefreshAttempt];
+    if (delay === undefined) return;
+    const timer = setTimeout(() => {
+      setContextRefreshAttempt((attempt) => attempt + 1);
+      setContextRefreshEpoch((epoch) => epoch + 1);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [
+    contextRefreshAttempt,
+    conversationLoaded,
+    effectiveProviderConfig,
+    isStreaming,
+    piContextState,
   ]);
 
   useEffect(() => {
@@ -4304,9 +4335,21 @@ export function App({ model }: AppProps) {
           authority.sessionFile,
         );
         const reprojected = projectPiBackedConversationSurface(conversationRef.current, inspection);
-        // The cached usage described the conversation before the cut; drop it so the
-        // reading below restarts from Pi rather than showing the old number as current.
-        const next = { ...reprojected, authoritativeContextStats: undefined };
+        // CR079: the cached usage described the conversation before the cut, but the compaction
+        // reports what it left behind. Spending that estimate keeps a reading on screen at the
+        // moment the Navigator just acted on the context, instead of blanking it until the next
+        // turn reports usage.
+        const estimatedAfter = result.estimatedTokensAfter;
+        const next = {
+          ...reprojected,
+          authoritativeContextStats: estimatedAfter === null ? undefined : {
+            piSessionId: reprojected.liveIdentity.piSessionId,
+            generation: reprojected.liveIdentity.generation,
+            providerModel: providerModelLabel(effectiveProviderConfig),
+            capturedAt: new Date().toISOString(),
+            usage: { tokens: estimatedAfter, contextWindow: null, percent: null, estimated: true },
+          },
+        };
         conversationRef.current = next;
         setConversation(next);
         setPiContextState("unknown_after_compaction");
@@ -5217,6 +5260,8 @@ export function App({ model }: AppProps) {
             <div className="composer-input-footer">
               <ComposerRuntimeFooter
                 contextUsage={authoritativeContextUsage}
+                contextWindow={displayContextWindow}
+                contextApproximate={!contextMeasuredBySelectedModel}
                 activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}
                 contextState={piContextState}
                 providerModel={describeComposerModelSelection(effectiveProviderConfig, effectiveAgentProfile.thinkingLevel)}

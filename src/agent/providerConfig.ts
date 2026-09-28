@@ -115,8 +115,11 @@ export function describeComposerModelSelection(
   return `${label} · ${thinkingLevel}`;
 }
 
-// Supported-model snapshot from @earendil-works/pi-ai 0.84.2.
-// Unknown models remain honest by projecting only Pi-reported token usage.
+// Supported-model snapshot from @earendil-works/pi-ai 0.84.2, and by now a stale one: it
+// contains none of the models actually in daily use. CR079 made the live `list_pi_models`
+// catalog the authority for the window the Navigator reads, so this table is only the last
+// resort for the live stream, which has no catalog access. A missing entry is harmless there —
+// the App recomputes the window and percentage from the catalog when it renders the reading.
 const PI_MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   "openai-codex/gpt-5": 400000,
   "openai-codex/gpt-5-codex": 400000,

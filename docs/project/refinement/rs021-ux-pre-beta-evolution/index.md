@@ -39,7 +39,7 @@ Captured Change Requests, ordered by Navigator-approved daily-use impact:
 10. **CR083 — Agent Comments Continuity.** Make adjacent Agent Comments visually breathe and read as coherent continuation rather than glued text.
 11. **CR082 — Collapsed Sidebar Polish.** Improve the aesthetics and usability of the collapsed sidebar.
 12. **CR085 — Close Without Quitting.** Make the macOS red close button hide/close the window without terminating the app process.
-13. **CR079 — Deep Context Stats Analysis.** Explain and close the gap between terminal Pi context stats and Desktop's frequent Checking state.
+13. **CR079 — Always Legible Context Reading.** Keep a context percentage and window permanently on screen, marking approximations with `~` instead of replacing them with waiting sentences.
 14. **CR080 — Compaction Chapters.** Let structure emerge from compaction: name each closed segment by its own summary, make chapters navigable, and offer manual compaction from the context label.
 15. **CR092 — Float the Recenter Control Over the Conversation.** Move the CR084 control out of the header into a floating bottom-right affordance that is visible only while the surface is away from the end.
 
@@ -49,7 +49,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 
 ## Boundaries
 
-- CR081 is the current pulled focus; later CRs remain captured until explicitly pulled.
+- No CR is currently pulled as active focus; remaining CRs stay captured until explicitly pulled.
 - No app release, Beta promotion, endpoint publication, Git push or tag is authorized by this document.
 
 ## Change Requests
@@ -66,6 +66,6 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR083: Agent Comments Continuity](cr083-agent-comments-continuity.md)
 - [CR082: Collapsed Sidebar Polish](cr082-collapsed-sidebar-polish.md) — done
 - [CR085: Close Without Quitting](cr085-close-without-quitting.md)
-- [CR079: Deep Context Stats Analysis](cr079-deep-context-stats-analysis.md)
+- [CR079: Always Legible Context Reading](cr079-deep-context-stats-analysis.md)
 - [CR080: Compaction Chapters](cr080-compaction-chapters.md)
 - [CR092: Float the Recenter Control Over the Conversation](cr092-float-the-recenter-control-over-the-conversation.md) — done

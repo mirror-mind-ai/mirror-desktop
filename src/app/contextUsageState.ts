@@ -6,6 +6,7 @@ export type PiContextState =
   | "waiting"
   | "available"
   | "updating"
+  | "estimated"
   | "not_initialized"
   | "unknown_after_compaction"
   | "session_missing"
@@ -20,7 +21,7 @@ export type PiContextInspectionReason =
 export type PiContextInspection = {
   status: "missing" | "waiting" | "available";
   reason?: PiContextInspectionReason;
-  snapshot?: { tokens: number; providerModel: string };
+  snapshot?: { tokens: number; providerModel: string; estimated?: boolean };
 };
 
 export function hasMatchingContextStats(
@@ -37,8 +38,28 @@ export function hasMatchingContextStats(
   );
 }
 
+/**
+ * CR079: the Conversation's own token count, whichever model measured it. Binding the cache
+ * to the measuring model discarded a valid reading on every Model Intent switch; the measuring
+ * model now only decides whether the reading is marked as approximate.
+ */
+export function hasConversationContextStats(
+  stats: AuthoritativeContextStats | undefined,
+  identity: { piSessionId: string; generation: number },
+): stats is AuthoritativeContextStats {
+  return Boolean(
+    stats
+    && stats.piSessionId === identity.piSessionId
+    && stats.generation === identity.generation
+    && stats.usage.tokens !== null,
+  );
+}
+
 export function contextStateForLiveUsage(usage: RuntimeContextUsage): PiContextState {
-  return usage.tokens === null ? "unknown_after_compaction" : "available";
+  // An estimate left by a compaction is a reading, but not a measurement; the state keeps that
+  // distinction so the footer marks it instead of claiming precision it does not have.
+  if (usage.tokens === null) return "unknown_after_compaction";
+  return usage.estimated ? "estimated" : "available";
 }
 
 export function contextStateForInspection(
@@ -52,8 +73,25 @@ export function contextStateForInspection(
       : "waiting";
   }
   if (!inspection.snapshot) return "inspection_failed";
+  // An estimate derived without any assistant reply is not a foreign measurement; it is a
+  // reading still waiting for the model to report, and its detail says so.
+  if (inspection.snapshot.estimated) return "estimated";
   if (inspection.snapshot.providerModel !== providerModel) return "model_mismatch";
   return "available";
+}
+
+/**
+ * CR079: the bounded sub-second retry was the only thing that ever re-read the session. When
+ * it returned nothing, no timer, poll or watch ever tried again, so the reading stayed absent
+ * until a turn happened to run. These are the follow-up attempts, deliberately few: a reading
+ * that has not settled after them is waiting on the agent, not on the Desktop.
+ */
+export const CONTEXT_REFRESH_DELAYS_MS: readonly number[] = [1_500, 5_000, 15_000];
+
+export function contextReadingNeedsRefresh(state: PiContextState): boolean {
+  // A running turn reports on its own, and a Conversation with no Pi session has nothing to
+  // read; everything else can still improve with another look.
+  return !["available", "updating", "not_initialized", "session_missing"].includes(state);
 }
 
 export async function readContextStatsWithBoundedRetry(

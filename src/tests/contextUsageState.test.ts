@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  CONTEXT_REFRESH_DELAYS_MS,
+  contextReadingNeedsRefresh,
   contextStateForInspection,
   contextStateForLiveUsage,
+  hasConversationContextStats,
   hasMatchingContextStats,
   readContextStatsWithBoundedRetry,
 } from "../app/contextUsageState";
@@ -26,9 +29,34 @@ describe("context usage authority and recovery", () => {
     expect(hasMatchingContextStats(stats, { ...identity, generation: 3 }, "openai-codex/gpt-5.4")).toBe(false);
   });
 
+  // CR079: a token count is a property of the Conversation, not of the model that will read
+  // it next. Binding the cache to the measuring model discarded a valid reading on every
+  // Model Intent switch and left the Navigator with a sentence.
+  it("keeps a Conversation's own measurement across a model switch", () => {
+    expect(hasConversationContextStats(stats, identity)).toBe(true);
+    expect(hasConversationContextStats(stats, { ...identity, generation: 3 })).toBe(false);
+    expect(hasConversationContextStats(undefined, identity)).toBe(false);
+    expect(hasConversationContextStats(
+      { ...stats, usage: { tokens: null, contextWindow: null, percent: null } },
+      identity,
+    )).toBe(false);
+  });
+
+  it("separates an estimate from a measurement by another model", () => {
+    expect(contextStateForInspection({
+      status: "available",
+      snapshot: { tokens: 100, providerModel: "", estimated: true },
+    }, "openai-codex/gpt-5.4")).toBe("estimated");
+    expect(contextStateForInspection({
+      status: "available",
+      snapshot: { tokens: 100, providerModel: "other/model" },
+    }, "openai-codex/gpt-5.4")).toBe("model_mismatch");
+  });
+
   it("makes live usage immediately visible and preserves honest compaction unknown state", () => {
     expect(contextStateForLiveUsage({ tokens: 43000, contextWindow: 1050000, percent: 4.1 })).toBe("available");
     expect(contextStateForLiveUsage({ tokens: null, contextWindow: null, percent: null })).toBe("unknown_after_compaction");
+    expect(contextStateForLiveUsage({ tokens: 18000, contextWindow: null, percent: null, estimated: true })).toBe("estimated");
   });
 
   it("keeps inspection outcomes distinguishable", () => {
@@ -40,6 +68,22 @@ describe("context usage authority and recovery", () => {
       snapshot: { tokens: 100, providerModel: "other/model" },
     }, "openai-codex/gpt-5.4")).toBe("model_mismatch");
     expect(contextStateForInspection({ status: "available" }, "openai-codex/gpt-5.4")).toBe("inspection_failed");
+  });
+
+  // CR079: the bounded 300ms retry was the only thing that ever re-read the session. When it
+  // came back empty nothing rescheduled, so the reading froze until a turn happened to run.
+  it("keeps re-reading a reading that has not settled, within a bound", () => {
+    for (const state of ["checking", "waiting", "estimated", "model_mismatch", "unknown_after_compaction", "inspection_failed"] as const) {
+      expect(contextReadingNeedsRefresh(state)).toBe(true);
+    }
+    // A measured reading, a running turn and a Conversation with no Pi session have nothing
+    // to gain from another read.
+    for (const state of ["available", "updating", "not_initialized", "session_missing"] as const) {
+      expect(contextReadingNeedsRefresh(state)).toBe(false);
+    }
+    expect(CONTEXT_REFRESH_DELAYS_MS.length).toBeGreaterThan(0);
+    expect([...CONTEXT_REFRESH_DELAYS_MS]).toEqual([...CONTEXT_REFRESH_DELAYS_MS].sort((a, b) => a - b));
+    expect(CONTEXT_REFRESH_DELAYS_MS[CONTEXT_REFRESH_DELAYS_MS.length - 1]).toBeLessThanOrEqual(30_000);
   });
 
   it("retries a present file with pending usage but stops at the bounded attempt limit", async () => {
