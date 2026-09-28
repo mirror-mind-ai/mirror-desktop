@@ -28,19 +28,45 @@ const chapters: ConversationChapter[] = [
 // over Pi entries, so opening one never creates anything.
 describe("chapter index panel", () => {
   it("lists every chapter by its own name, dates and size", () => {
-    const html = renderToStaticMarkup(<ChapterIndexPanel chapters={chapters} onSelect={() => undefined} />);
+    const html = renderToStaticMarkup(<ChapterIndexPanel chapters={chapters} onSelect={() => undefined} locale="en-US" />);
     expect(html).toContain("Deliver Trusted Self-Update.");
-    expect(html).toContain("2026-09-01");
-    expect(html).toContain("2026-09-05");
     expect(html).toContain("42 turns");
     expect(html).toContain("7 turns");
-    expect(html).toContain("3 turns");
     expect(html).toContain("Current chapter");
     expect(html).toContain('aria-label="Conversation chapters"');
   });
 
+  // A reader scanning months of conversation needs a date, not a machine coordinate.
+  it("writes the dates the way a reader says them", () => {
+    const html = renderToStaticMarkup(<ChapterIndexPanel chapters={chapters} onSelect={() => undefined} locale="en-US" />);
+    expect(html.replace(/\s+/gu, " ")).toContain("Sep 1 – 5, 2026");
+    expect(html).not.toContain("2026-09-01");
+  });
+
+  // The panel is a new idea in the product, so it says what a chapter is before listing any.
+  it("explains what chapters are and where they come from", () => {
+    const html = renderToStaticMarkup(<ChapterIndexPanel chapters={chapters} onSelect={() => undefined} locale="en-US" />);
+    expect(html).toContain("Chapters");
+    expect(html).toContain("compact");
+    expect(html.indexOf("conversation-chapter-panel-intro")).toBeLessThan(html.indexOf("Deliver Trusted Self-Update."));
+  });
+
+  // The manifest counts turns from the Desktop's own reconciliation, which has nothing to
+  // say about chapters recorded before it existed. "0 turns" would describe them falsely.
+  it("omits a turn count it does not have instead of claiming zero", () => {
+    const html = renderToStaticMarkup(
+      <ChapterIndexPanel
+        chapters={[{ ...chapters[0], turnCount: 0 }]}
+        onSelect={() => undefined}
+        locale="en-US"
+      />,
+    );
+    expect(html).not.toContain("0 turns");
+    expect(html.replace(/\s+/gu, " ")).toContain("Sep 1 – 5, 2026");
+  });
+
   it("offers a jump only where the chapter's start is in the loaded transcript", () => {
-    const html = renderToStaticMarkup(<ChapterIndexPanel chapters={chapters} onSelect={() => undefined} />);
+    const html = renderToStaticMarkup(<ChapterIndexPanel chapters={chapters} onSelect={() => undefined} locale="en-US" />);
     // The middle chapter has no resolved opening, so its entry is not presented as a jump.
     expect(html.match(/<button/g)?.length).toBe(2);
     expect(html).toContain("Not in the loaded transcript");
@@ -50,7 +76,7 @@ describe("chapter index panel", () => {
   });
 
   it("says plainly when nothing has been compacted yet", () => {
-    const html = renderToStaticMarkup(<ChapterIndexPanel chapters={[]} onSelect={() => undefined} />);
+    const html = renderToStaticMarkup(<ChapterIndexPanel chapters={[]} onSelect={() => undefined} locale="en-US" />);
     expect(html).toContain("This Conversation is still one chapter.");
   });
 
@@ -65,13 +91,16 @@ describe("chapter index panel", () => {
   // opens and the Navigator sees a small jump and nothing else. The existing panels solve
   // this by being sticky, and the chapter index must ride the same contract.
   it("stays in view like the other conversation panels instead of scrolling away", () => {
-    // The panel shares the turn navigator's placement rule.
-    // Two grouped rules carry these selectors; the placement one is the later.
-    const joinsAt = cssSource.lastIndexOf(".conversation-turn-panel,\n.conversation-chapter-panel {");
-    expect(joinsAt).toBeGreaterThan(0);
-    const stickyRule = cssSource.slice(joinsAt, cssSource.indexOf("}", joinsAt));
-    expect(stickyRule).toContain("position: sticky");
-    expect(stickyRule).toContain("align-self: flex-end");
+    // The index has its own placement: it is a reading surface, not the narrow navigator
+    // column, so it gets real width. It must still be sticky, or it scrolls out of view the
+    // moment it opens.
+    const placement = cssSource.slice(
+      cssSource.lastIndexOf(".conversation-chapter-panel {"),
+      cssSource.indexOf("}", cssSource.lastIndexOf(".conversation-chapter-panel {")),
+    );
+    expect(placement).toContain("position: sticky");
+    expect(placement).not.toContain("380px");
+    expect(placement).toMatch(/max-width: min\((?:6|7|8)\d\dpx/u);
 
     // And it is exempt from the first-child spacer that pushes ordinary content down.
     const firstChildRule = cssSource.slice(
@@ -95,8 +124,8 @@ describe("chapter index panel", () => {
     expect(cssSource).toContain(".conversation-chapter-meta");
     // The muted metadata colour must be theme-aware rather than a fixed dark-theme grey.
     const metaRule = cssSource.slice(
-      cssSource.indexOf(".conversation-chapter-meta,"),
-      cssSource.indexOf("}", cssSource.indexOf(".conversation-chapter-meta,")),
+      cssSource.indexOf(".conversation-chapter-meta {"),
+      cssSource.indexOf("}", cssSource.indexOf(".conversation-chapter-meta {")),
     );
     expect(metaRule).toContain("color-mix(in srgb, currentColor");
   });

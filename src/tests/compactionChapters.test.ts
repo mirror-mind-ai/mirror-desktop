@@ -3,6 +3,7 @@ import type { ConversationSegmentManifest } from "../domain/conversationSegments
 import {
   CHAPTER_TITLE_MAX_LENGTH,
   chapterOpeningMessageIds,
+  formatChapterDateRange,
   needsChapterEvidenceRefresh,
   chapterTitleFromSummary,
   describeChapterDivider,
@@ -108,18 +109,18 @@ describe("chapter projection from a Segment manifest", () => {
 // CR080: the divider is a named moment in the transcript, not a message. Rendered from the
 // derived surface, so it appears on reload as well as live.
 describe("chapter divider presentation", () => {
-  it("names the chapter that closed and when, in the reader's own locale-independent form", () => {
-    expect(describeChapterDivider({ title: "Finish the compaction chapters.", closedAt: "2026-09-19T08:00:00Z" }))
-      .toEqual({ label: "Chapter closed", title: "Finish the compaction chapters.", closedAt: "2026-09-19" });
+  it("names the chapter that closed and when, the way a reader says the date", () => {
+    expect(describeChapterDivider({ title: "Finish the compaction chapters.", closedAt: "2026-09-19T08:00:00Z" }, "en-US"))
+      .toEqual({ label: "Chapter closed", title: "Finish the compaction chapters.", closedAt: "Sep 19, 2026" });
   });
 
   it("stays truthful when Pi recorded no time for the cut", () => {
-    expect(describeChapterDivider({ title: "Earlier work." }))
+    expect(describeChapterDivider({ title: "Earlier work." }, "en-US"))
       .toEqual({ label: "Chapter closed", title: "Earlier work.", closedAt: undefined });
   });
 
   it("does not present an unparseable timestamp as a date", () => {
-    expect(describeChapterDivider({ title: "Earlier work.", closedAt: "not-a-date" }).closedAt).toBeUndefined();
+    expect(describeChapterDivider({ title: "Earlier work.", closedAt: "not-a-date" }, "en-US").closedAt).toBeUndefined();
   });
 });
 
@@ -200,5 +201,41 @@ describe("chapter evidence staleness", () => {
   it("asks for a rewrite when nothing has been published yet", () => {
     expect(needsChapterEvidenceRefresh(undefined, 1)).toBe(true);
     expect(needsChapterEvidenceRefresh(undefined, 0)).toBe(true);
+  });
+});
+
+// CR080 follow-up: chapter dates read as machine coordinates (2026-09-20 – 2026-09-23).
+// A reader scanning months of conversation needs a date, not an identifier, and the app
+// already formats dates through Intl elsewhere.
+describe("chapter date presentation", () => {
+  // Intl separates a range with thin spaces around the dash. That glyph choice belongs to
+  // the reader's locale data, not to this contract, so the assertions read past it.
+  const phrase = (value: string) => value.replace(/\s+/gu, " ");
+
+  it("collapses a range into one readable date phrase", () => {
+    expect(phrase(formatChapterDateRange("2026-09-20T09:00:00Z", "2026-09-23T18:00:00Z", "en-US")))
+      .toBe("Sep 20 – 23, 2026");
+    expect(phrase(formatChapterDateRange("2026-08-28T09:00:00Z", "2026-09-23T18:00:00Z", "en-US")))
+      .toBe("Aug 28 – Sep 23, 2026");
+  });
+
+  it("says one date when the chapter opened and closed on the same day", () => {
+    expect(phrase(formatChapterDateRange("2026-09-23T09:00:00Z", "2026-09-23T18:00:00Z", "en-US")))
+      .toBe("Sep 23, 2026");
+  });
+
+  it("follows the reader's own locale rather than an invented format", () => {
+    expect(formatChapterDateRange("2026-09-20T09:00:00Z", "2026-09-23T18:00:00Z", "pt-BR"))
+      .toContain("set.");
+  });
+
+  it("presents what it has when a chapter is still open or half-dated", () => {
+    expect(phrase(formatChapterDateRange("2026-09-23T09:00:00Z", undefined, "en-US"))).toBe("Since Sep 23, 2026");
+    expect(phrase(formatChapterDateRange(undefined, "2026-09-23T18:00:00Z", "en-US"))).toBe("Sep 23, 2026");
+  });
+
+  it("says nothing rather than something false when Pi recorded no dates", () => {
+    expect(formatChapterDateRange(undefined, undefined, "en-US")).toBe("");
+    expect(formatChapterDateRange("not-a-date", "also-not", "en-US")).toBe("");
   });
 });

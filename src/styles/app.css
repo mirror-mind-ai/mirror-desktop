@@ -2820,8 +2820,7 @@ h3 {
   top: 0;
 }
 
-.conversation-turn-panel,
-.conversation-chapter-panel {
+.conversation-turn-panel {
   align-self: flex-end;
   border-radius: 18px;
   box-sizing: border-box;
@@ -2834,6 +2833,24 @@ h3 {
   position: sticky;
   right: 0;
   top: 0;
+}
+
+/* CR080: the chapter index is a reading surface, not the navigator column. It gets real
+   width so a chapter title reads as a sentence instead of a vertical strip of words, and it
+   stays sticky so it appears where it is opened rather than scrolling away. */
+.conversation-chapter-panel {
+  align-self: center;
+  border-radius: 20px;
+  box-sizing: border-box;
+  height: calc(100% - 32px);
+  margin-bottom: -8px;
+  max-height: calc(100% - 32px);
+  max-width: min(760px, calc(100% - 32px));
+  min-height: 360px;
+  padding: 26px 30px 22px;
+  position: sticky;
+  top: 0;
+  width: 100%;
 }
 
 .conversation-panel-close {
@@ -8190,31 +8207,47 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   margin-left: auto;
 }
 
-/* CR080: the chapter index. It rides the shared conversation-panel contract above, because
-   a panel that is an ordinary block in the chat stream is inserted above the reading and
-   scrolls out of view the moment it opens. */
-.conversation-chapter-panel ol {
-  overflow-y: auto;
+/* CR080: the chapter index. Each chapter is a numbered card: the title reads as a full
+   line, with when it ran beneath it. */
+.conversation-chapter-panel-intro {
+  border-bottom: 1px solid rgba(var(--ui-accent-rgb), 0.16);
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding-bottom: 16px;
+}
+
+.conversation-chapter-panel-intro p:not(.eyebrow) {
+  font-size: 0.82rem;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 62ch;
+}
+
+.conversation-chapter-panel ol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   list-style: none;
   margin: 0;
-  padding: 0;
+  overflow-y: auto;
+  padding: 2px 4px 2px 0;
 }
 
 .conversation-chapter-panel li > button,
 .conversation-chapter-panel li > div {
-  align-items: baseline;
-  background: transparent;
-  border: 0;
-  border-radius: 8px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
   color: inherit;
-  display: flex;
+  display: grid;
   font: inherit;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 16px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  padding: 14px 18px;
   text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
   width: 100%;
 }
 
@@ -8222,23 +8255,53 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   cursor: pointer;
 }
 
+.conversation-chapter-panel li > button:hover,
+.conversation-chapter-panel li > button:focus-visible {
+  background: rgba(var(--ui-accent-rgb), 0.1);
+  border-color: rgba(var(--ui-accent-rgb), 0.34);
+}
+
 .conversation-chapter-panel li > div {
-  opacity: 0.6;
+  opacity: 0.58;
 }
 
 .conversation-chapter-panel li.is-current > button,
 .conversation-chapter-panel li.is-current > div {
-  border: 1px solid rgba(133, 223, 210, 0.28);
+  border-color: rgba(var(--ui-accent-rgb), 0.38);
+}
+
+.conversation-chapter-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
 }
 
 .conversation-chapter-title {
-  flex: 1;
-  font-size: 13px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.conversation-chapter-meta,
-.conversation-chapter-number {
+.conversation-chapter-empty {
+  margin: 0;
+}
+
+.conversation-chapter-meta {
   color: color-mix(in srgb, currentColor 66%, transparent);
-  font-size: 11px;
+  font-size: 0.76rem;
   white-space: nowrap;
+}
+
+.conversation-chapter-number {
+  align-items: center;
+  border: 1px solid rgba(var(--ui-accent-rgb), 0.28);
+  border-radius: 999px;
+  color: color-mix(in srgb, currentColor 72%, transparent);
+  display: inline-flex;
+  font-size: 0.76rem;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
 }

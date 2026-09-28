@@ -94,18 +94,19 @@ export function projectConversationChapters(
 /**
  * The divider drawn where a chapter closed. The date is the calendar day of the cut, which
  * is what a reader scrolling through months actually needs; the exact time of a compaction
- * is machine detail.
+ * is machine detail. It is written the way the reader's locale writes a date, not as an ISO
+ * coordinate, for the same reason the index is.
  */
-export function describeChapterDivider(divider: ChapterDivider): {
+export function describeChapterDivider(divider: ChapterDivider, locale?: string): {
   label: string;
   title: string;
   closedAt?: string;
 } {
-  const parsed = divider.closedAt ? new Date(divider.closedAt) : undefined;
+  const parsed = validDate(divider.closedAt);
   return {
     label: "Chapter closed",
     title: divider.title,
-    closedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : undefined,
+    closedAt: parsed ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(parsed) : undefined,
   };
 }
 
@@ -126,4 +127,32 @@ export function needsChapterEvidenceRefresh(
   const closed = manifest.segments.filter((segment) => segment.status === "closed");
   if (closed.length !== closedChapterCount) return true;
   return closed.some((segment) => segment.summaryHead === undefined);
+}
+
+function validDate(value: string | undefined): Date | undefined {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+/**
+ * When a chapter ran, as a reader would say it. ISO coordinates are how the session records
+ * time; they are not how someone scanning months of conversation reads it. The locale is the
+ * reader's own, through the same Intl idiom the rest of the app uses, and `formatRange`
+ * collapses a span into one phrase instead of repeating the year on both sides.
+ */
+export function formatChapterDateRange(
+  openedAt: string | undefined,
+  closedAt: string | undefined,
+  locale?: string,
+): string {
+  const opened = validDate(openedAt);
+  const closed = validDate(closedAt);
+  const format = new Intl.DateTimeFormat(locale, { dateStyle: "medium" });
+  if (opened && closed) return format.formatRange(opened, closed);
+  if (closed) return format.format(closed);
+  // A chapter that has not closed is still running, and saying so is more useful than a
+  // bare date that looks like it ended there.
+  if (opened) return `Since ${format.format(opened)}`;
+  return "";
 }

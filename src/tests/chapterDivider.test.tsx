@@ -11,11 +11,13 @@ const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "u
 describe("chapter divider row", () => {
   it("names the closed chapter and the day it closed", () => {
     const html = renderToStaticMarkup(
-      <ChapterDividerRow divider={{ title: "Finish the compaction chapters.", closedAt: "2026-09-19T08:00:00Z" }} />,
+      <ChapterDividerRow divider={{ title: "Finish the compaction chapters.", closedAt: "2026-09-19T08:00:00Z" }} locale="en-US" />,
     );
     expect(html).toContain("Chapter closed");
     expect(html).toContain("Finish the compaction chapters.");
-    expect(html).toContain("2026-09-19");
+    // Written the way a reader says a date, not as an ISO coordinate.
+    expect(html).toContain("Sep 19, 2026");
+    expect(html).not.toContain("2026-09-19");
     // It is a landmark in the reading, not a message from anybody.
     expect(html).toContain('role="separator"');
     expect(html).toContain("chapter-divider");
