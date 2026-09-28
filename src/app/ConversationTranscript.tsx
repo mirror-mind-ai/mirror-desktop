@@ -22,6 +22,7 @@ import { projectAgentTurnPresentation } from "./conversationTurnPresentation";
 import type { RuntimeProjectionState } from "./runtimeActivityModel";
 import type { AssistantTurnProximity } from "./turnProximity";
 import { buildConversationTranscriptIndex } from "./conversationTranscriptModel";
+import { ChapterDividerRow } from "./ChapterDividerRow";
 import { projectResponseModelBadges, type ResponseModelBadge } from "./responseModelAttribution";
 import {
   clampConversationNavigationIndex,
@@ -267,6 +268,9 @@ export const ConversationTranscript = memo(function ConversationTranscript({
             : index.terminalEvidenceByAssistantMessageId.get(message.id)?.projection
               ?? index.reconstructedProjectionByAssistantMessageId.get(message.id)
           : undefined;
+        // CR080: derived from the Pi session on every projection, so a chapter that closed
+        // months ago still shows its divider on reload.
+        const chapterDivider = conversation.chapterDividers?.[message.id];
         return (
           <div
             key={message.id}
@@ -280,6 +284,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
             className={activeMatch?.messageId === message.id ? "conversation-message-search-current" : undefined}
             data-conversation-message-id={message.id}
           >
+            {chapterDivider ? <ChapterDividerRow divider={chapterDivider} /> : null}
             <ConversationMessageRow
               message={message}
               linkedActivity={linkedActivity}

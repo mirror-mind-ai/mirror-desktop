@@ -342,6 +342,8 @@ struct DedicatedPiTranscriptInspection {
     leaf_entry_id: Option<String>,
     active_entry_count: usize,
     compaction_count: usize,
+    // CR080: where each chapter closed on this branch, in order.
+    chapter_closures: Vec<PiChapterClosure>,
     unknown_prompt_envelope_count: usize,
     incomplete_user_entry_id: Option<String>,
     entries: Vec<DedicatedPiTranscriptEntry>,
@@ -391,6 +393,19 @@ struct PiBranchEntry {
     is_error: Option<bool>,
     provider: Option<String>,
     model: Option<String>,
+    // CR080: present on compaction entries; where the next chapter starts and what the
+    // chapter that closed was about.
+    first_kept_entry_id: Option<String>,
+    summary: Option<String>,
+}
+
+// CR080: a chapter closing, as the transcript needs it to draw a named divider.
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct PiChapterClosure {
+    first_kept_entry_id: String,
+    summary_head: Option<String>,
+    closed_at: Option<String>,
 }
 
 #[tauri::command]
@@ -4127,19 +4142,43 @@ fn project_conversation_segment_manifest(
             return Err("Pi compaction checkpoint is structurally invalid.".to_string());
         }
         let number = segments.len() + 1;
-        segments.push(json!({
+        let mut closed = json!({
             "segment": number, "segmentId": format!("segment-{}", number), "status": "closed",
             "sourceFromEntryId": source_from, "sourceThroughEntryId": through,
             "retainedTailFromEntryId": retained, "compactionEntryId": compaction_id,
-        }));
+        });
+        // CR080: chapter evidence. The summary head is what naming a chapter needs; the whole
+        // summary would not fit 255 of them in a manifest.
+        if let Some(summary) = entry.get("summary").and_then(Value::as_str) {
+            closed["summaryHead"] = Value::String(bounded_summary_head(summary));
+        }
+        if let Some(closed_at) = entry.get("timestamp").and_then(Value::as_str) {
+            closed["closedAt"] = Value::String(closed_at.to_string());
+        }
+        if let Some(opened_at) = source_from
+            .and_then(|id| positions.get(id))
+            .and_then(|position| entries[*position].get("timestamp"))
+            .and_then(Value::as_str)
+        {
+            closed["openedAt"] = Value::String(opened_at.to_string());
+        }
+        segments.push(closed);
         source_from = Some(retained);
     }
     let number = segments.len() + 1;
-    segments.push(json!({
+    let mut current = json!({
         "segment": number, "segmentId": format!("segment-{}", number), "status": "current",
         "sourceFromEntryId": source_from,
         "sourceThroughEntryId": entries.last().and_then(|entry| entry.get("id")).and_then(Value::as_str),
-    }));
+    });
+    if let Some(opened_at) = source_from
+        .and_then(|id| positions.get(id))
+        .and_then(|position| entries[*position].get("timestamp"))
+        .and_then(Value::as_str)
+    {
+        current["openedAt"] = Value::String(opened_at.to_string());
+    }
+    segments.push(current);
     for segment in &mut segments {
         let from = segment.get("sourceFromEntryId").and_then(Value::as_str).and_then(|id| positions.get(id)).copied();
         let through = segment.get("sourceThroughEntryId").and_then(Value::as_str).and_then(|id| positions.get(id)).copied();
@@ -4153,12 +4192,27 @@ fn project_conversation_segment_manifest(
             segment["firstTurnId"] = Value::String(first.0.clone());
             segment["lastTurnId"] = Value::String(last.0.clone());
         }
+        segment["turnCount"] = Value::from(included.len());
     }
     Ok(json!({
         "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
         "generation": generation, "piSessionId": pi_session_id,
         "sourceEntryCount": entries.len(), "segments": segments,
     }))
+}
+
+// CR080: bounded in UTF-16 units, because the frontend contract bounds it that way and a
+// mismatch would make a manifest this projection wrote unparseable on the other side.
+fn bounded_summary_head(summary: &str) -> String {
+    let mut head = String::new();
+    let mut units = 0usize;
+    for character in summary.chars() {
+        let width = character.len_utf16();
+        if units + width > 400 { break; }
+        units += width;
+        head.push(character);
+    }
+    head
 }
 
 fn conversation_segment_manifest_path(
@@ -4574,6 +4628,8 @@ fn project_active_pi_branch(content: &str) -> Result<Vec<PiBranchEntry>, String>
             is_error: message.and_then(|item| item.get("isError")).and_then(Value::as_bool),
             provider: message.and_then(|item| item.get("provider")).and_then(Value::as_str).map(str::to_string),
             model: message.and_then(|item| item.get("model")).and_then(Value::as_str).map(str::to_string),
+            first_kept_entry_id: value.get("firstKeptEntryId").and_then(Value::as_str).map(str::to_string),
+            summary: value.get("summary").and_then(Value::as_str).map(str::to_string),
         });
     }
     if entries.is_empty() { return Ok(Vec::new()); }
@@ -4627,6 +4683,14 @@ fn inspect_complete_pi_transcript(content: &str) -> Result<DedicatedPiTranscript
         leaf_entry_id: branch.last().map(|entry| entry.id.clone()),
         active_entry_count: branch.len(),
         compaction_count: branch.iter().filter(|entry| entry.entry_type == "compaction").count(),
+        chapter_closures: branch.iter()
+            .filter(|entry| entry.entry_type == "compaction")
+            .filter_map(|entry| Some(PiChapterClosure {
+                first_kept_entry_id: entry.first_kept_entry_id.clone()?,
+                summary_head: entry.summary.as_deref().map(bounded_summary_head),
+                closed_at: Some(entry.timestamp.clone()).filter(|stamp| !stamp.is_empty()),
+            }))
+            .collect(),
         unknown_prompt_envelope_count,
         incomplete_user_entry_id: pending_user_entry_id,
         entries: project_pi_transcript_entries(&branch),
@@ -8848,6 +8912,7 @@ mod tests {
         ensure_unique_desktop_conversation_title, load_desktop_conversation_catalog_at,
         materialize_empty_pi_session, parse_pi_compaction_response, parse_pi_session_state,
         inspect_complete_pi_transcript, project_complete_pi_transcript, project_conversation_segment_manifest,
+        PiChapterClosure,
         publish_conversation_segment_manifest_at,
         project_pi_user_entries, projection_manifest_coordinates_at,
         inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
@@ -9157,7 +9222,7 @@ mod tests {
             r#"{"type":"message","id":"user-1","parentId":null,"message":{"role":"user","content":"private"}}"#,
             r#"{"type":"message","id":"assistant-1","parentId":"user-1","message":{"role":"assistant","content":[{"type":"text","text":"private"}]}}"#,
             r#"{"type":"message","id":"user-2","parentId":"assistant-1","message":{"role":"user","content":"private"}}"#,
-            r#"{"type":"compaction","id":"compact-1","parentId":"user-2","firstKeptEntryId":"assistant-1","summary":"private"}"#,
+            r###"{"type":"compaction","id":"compact-1","parentId":"user-2","firstKeptEntryId":"assistant-1","summary":"## Goal\nClose chapter one.","timestamp":"2026-09-02T09:00:00.000Z"}"###,
             r#"{"type":"message","id":"assistant-2","parentId":"compact-1","message":{"role":"assistant","content":[]}}"#,
         ].join("\n");
         let manifest = project_conversation_segment_manifest(
@@ -9168,7 +9233,42 @@ mod tests {
         assert_eq!(manifest.pointer("/segments/1/sourceFromEntryId").and_then(Value::as_str), Some("assistant-1"));
         assert_eq!(manifest.pointer("/segments/1/status").and_then(Value::as_str), Some("current"));
         assert_eq!(manifest.pointer("/segments/0/firstTurnId").and_then(Value::as_str), Some("turn-one"));
+        // CR080: the closed Segment carries chapter evidence — the head of Pi's own summary,
+        // when it closed, and how many turns it held. Message content is still never copied.
+        assert_eq!(
+            manifest.pointer("/segments/0/summaryHead").and_then(Value::as_str),
+            Some("## Goal\nClose chapter one."),
+        );
+        assert_eq!(manifest.pointer("/segments/0/closedAt").and_then(Value::as_str), Some("2026-09-02T09:00:00.000Z"));
+        assert_eq!(manifest.pointer("/segments/0/turnCount").and_then(Value::as_u64), Some(1));
+        // The retained tail is carried into the next chapter by design, so a turn on the
+        // boundary is counted in both. That is the truth of the cut, not a miscount.
+        assert_eq!(manifest.pointer("/segments/1/turnCount").and_then(Value::as_u64), Some(1));
+        assert!(manifest.pointer("/segments/1/summaryHead").is_none());
+        assert!(manifest.pointer("/segments/1/closedAt").is_none());
         assert!(!manifest.to_string().contains("private"));
+    }
+
+    #[test]
+    fn reports_where_each_chapter_closed_so_the_transcript_can_name_the_divider() {
+        // CR080: compaction used to be invisible. The inspection now reports where the
+        // retained tail begins and what the chapter was about, bounded like the manifest.
+        let session = [
+            r#"{"type":"session","version":3,"id":"chapter-session"}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-09-18T10:00:00Z","message":{"role":"user","content":"Question"}}"#,
+            r#"{"type":"message","id":"assistant-1","parentId":"user-1","timestamp":"2026-09-18T10:00:01Z","message":{"role":"assistant","content":[{"type":"text","text":"Answer"}],"stopReason":"stop"}}"#,
+            r###"{"type":"compaction","id":"compact-1","parentId":"assistant-1","firstKeptEntryId":"assistant-1","timestamp":"2026-09-19T08:00:00Z","summary":"## Goal\nClose chapter one."}"###,
+            r#"{"type":"message","id":"user-2","parentId":"compact-1","timestamp":"2026-09-19T08:05:00Z","message":{"role":"user","content":"Next"}}"#,
+        ].join("\n");
+        let inspection = inspect_complete_pi_transcript(&session).unwrap();
+        assert_eq!(inspection.compaction_count, 1);
+        assert_eq!(inspection.chapter_closures, vec![PiChapterClosure {
+            first_kept_entry_id: "assistant-1".to_string(),
+            summary_head: Some("## Goal\nClose chapter one.".to_string()),
+            closed_at: Some("2026-09-19T08:00:00Z".to_string()),
+        }]);
+        // The compaction itself is still not a transcript entry; only the divider evidence.
+        assert!(inspection.entries.iter().all(|entry| entry.entry_id != "compact-1"));
     }
 
     #[test]
@@ -10795,6 +10895,7 @@ mod tests {
         assert_eq!(inspection.leaf_entry_id.as_deref(), Some("assistant-1"));
         assert_eq!(inspection.active_entry_count, 4);
         assert_eq!(inspection.compaction_count, 0);
+        assert!(inspection.chapter_closures.is_empty());
         assert_eq!(inspection.unknown_prompt_envelope_count, 0);
         assert_eq!(inspection.incomplete_user_entry_id, None);
         assert_eq!(inspection.entries.len(), 4);

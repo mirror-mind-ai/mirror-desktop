@@ -113,6 +113,17 @@ export type JourneyConversation = {
   // on every surface reconstruction for the same reason as the map above: Pi JSONL is the
   // authority, so storage carries no duplicate and existing Conversations gain it for free.
   responseModels?: Record<string, ResponseModelAttribution>;
+  chapterDividers?: Record<string, ChapterDivider>;
+};
+
+/**
+ * CR080: where a chapter closed, keyed by the message that opens the next one. Derived from
+ * the Pi session on every projection, like response attribution: never persisted, because
+ * the compaction entries Pi wrote are the authority.
+ */
+export type ChapterDivider = {
+  title: string;
+  closedAt?: string;
 };
 
 export type ResponseModelAttribution = {

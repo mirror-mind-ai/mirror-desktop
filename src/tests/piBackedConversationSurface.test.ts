@@ -291,3 +291,55 @@ describe("Pi-backed Conversation Surface", () => {
     expect(surface.responseModels).toBeUndefined();
   });
 });
+
+// CR080: compaction used to be invisible — the conversation simply restarted on a summary.
+// The surface now marks where a chapter closed, naming it by the Goal Pi wrote, so the
+// moment is visible in the transcript itself.
+describe("chapter dividers on the Pi-backed surface", () => {
+  const entries = [
+    { entryId: "user-1", role: "user", visibleText: "First question", timestamp: "2026-09-18T10:00:00Z" },
+    { entryId: "assistant-1", role: "assistant", visibleText: "First answer", timestamp: "2026-09-18T10:01:00Z" },
+    { entryId: "user-2", role: "user", visibleText: "Second question", timestamp: "2026-09-19T09:00:00Z" },
+    { entryId: "assistant-2", role: "assistant", visibleText: "Second answer", timestamp: "2026-09-19T09:01:00Z" },
+  ];
+
+  it("marks the message that opens the next chapter with the closed chapter's name", () => {
+    const surface = projectPiBackedConversationSurface(conversation(), {
+      ...inspection(entries),
+      chapterClosures: [{
+        firstKeptEntryId: "user-2",
+        summaryHead: "## Goal\nFinish the compaction chapters.",
+        closedAt: "2026-09-19T08:59:00Z",
+      }],
+    });
+    const opening = surface.messages.find((message) => message.content === "Second question")!;
+    expect(surface.chapterDividers).toEqual({
+      [opening.id]: { title: "Finish the compaction chapters.", closedAt: "2026-09-19T08:59:00Z" },
+    });
+  });
+
+  it("attaches the divider to the next visible message when the retained entry has none", () => {
+    const surface = projectPiBackedConversationSurface(conversation(), {
+      ...inspection(entries),
+      // Pi retained a tail whose first entry projects to nothing visible.
+      chapterClosures: [{ firstKeptEntryId: "assistant-1", summaryHead: "## Goal\nEarlier work." }],
+    });
+    const dividers = Object.entries(surface.chapterDividers ?? {});
+    expect(dividers).toHaveLength(1);
+    expect(dividers[0][1]).toEqual({ title: "Earlier work." });
+    expect(surface.messages.find((message) => message.id === dividers[0][0])?.content).toBe("First answer");
+  });
+
+  it("carries no dividers for a conversation that has never been compacted", () => {
+    const surface = projectPiBackedConversationSurface(conversation(), inspection(entries));
+    expect(surface.chapterDividers).toBeUndefined();
+  });
+
+  it("ignores a closure whose retained entry is not on the projected surface", () => {
+    const surface = projectPiBackedConversationSurface(conversation(), {
+      ...inspection(entries),
+      chapterClosures: [{ firstKeptEntryId: "entry-not-here", summaryHead: "## Goal\nOrphan." }],
+    });
+    expect(surface.chapterDividers).toBeUndefined();
+  });
+});

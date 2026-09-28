@@ -8135,3 +8135,34 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 }
 
 .voice-model-picker small { color: #9bbbc3; font-size: 0.74rem; line-height: 1.4; }
+
+/* CR080: the moment a chapter closed. A landmark in the reading — quiet, dated, and named
+   by the Goal Pi wrote — not an alert and not a message. */
+.chapter-divider {
+  align-items: baseline;
+  border-top: 1px solid rgba(133, 223, 210, 0.22);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 28px 0 18px;
+  padding-top: 10px;
+}
+
+.chapter-divider-label {
+  color: #75c9bd;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chapter-divider-title {
+  color: var(--ui-text-muted, #9fb3b0);
+  font-size: 13px;
+}
+
+.chapter-divider-date {
+  color: var(--ui-text-muted, #9fb3b0);
+  font-size: 11px;
+  margin-left: auto;
+  opacity: 0.8;
+}
