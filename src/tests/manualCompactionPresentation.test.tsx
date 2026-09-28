@@ -38,6 +38,21 @@ describe("manual compaction presentation", () => {
     expect(cssSource).toContain(".runtime-compaction");
   });
 
+  // The agent must not work hidden from the user. A compaction occupies the Journey for
+  // minutes, so it raises the Journey in the recents and turns its status indicator to
+  // Working, exactly as an admitted turn does.
+  it("surfaces a compaction as agent activity on the Journey list", () => {
+    const start = appSource.indexOf("setCompactingJourneyId(authority.journeyId);");
+    expect(start).toBeGreaterThan(-1);
+    expect(appSource.slice(start, start + 400)).toContain("recordAdmittedJourneyActivity(authority.journeyId");
+    // Both the sidebar row and the selected-Journey header derive it.
+    const derivations = appSource.split("deriveJourneyAgentStatus({").slice(1);
+    expect(derivations).toHaveLength(2);
+    for (const derivation of derivations) {
+      expect(derivation.slice(0, 220)).toContain("compacting:");
+    }
+  });
+
   // A frozen window reads as a crash. The work runs off the command thread, and the
   // controls that would disturb it are the ones that get disabled.
   it("disables the controls that would disturb a running compaction", () => {

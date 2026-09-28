@@ -15,6 +15,20 @@ describe("Journey agent status attention", () => {
     expect(deriveJourneyAgentStatus({})).toBe("idle");
   });
 
+  // CR080: a compaction is the agent working. It owns no run and writes no journal, so
+  // runtime ownership cannot speak for it, yet the Journey is occupied for minutes and the
+  // sidebar has to say so — otherwise the agent works hidden from the user.
+  it("reports a compacting Journey as working even without a run", () => {
+    expect(deriveJourneyAgentStatus({ compacting: true })).toBe("working");
+    expect(deriveJourneyAgentStatus({ compacting: false })).toBe("idle");
+  });
+
+  it("lets a compaction outrank a stale finished badge", () => {
+    const attention = { finishedAt: 1_000, acknowledgedAt: 1_000 };
+    expect(deriveJourneyAgentStatus({ finishedAttention: attention })).toBe("finished");
+    expect(deriveJourneyAgentStatus({ compacting: true, finishedAttention: attention })).toBe("working");
+  });
+
   it("uses Ready as the human label for acknowledged completion", () => {
     expect(journeyAgentStatusLabel("idle")).toBe("Idle");
     expect(journeyAgentStatusLabel("working")).toBe("Working");

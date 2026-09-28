@@ -870,6 +870,7 @@ export function App({ model }: AppProps) {
   const selectedAgentStatus = deriveJourneyAgentStatus({
     runtimePhase: selectJourneyRuntimeOwnerPhase(journeyRuntimeState, selectedJourney),
     finishedAttention: journeyFinishedAttention[selectedJourney],
+    compacting: compactingJourneyId === selectedJourney,
   });
   const {
     agentRun,
@@ -4274,6 +4275,7 @@ export function App({ model }: AppProps) {
     };
     const selectedConversationId = conversation.id;
     setCompactingJourneyId(authority.journeyId);
+    recordAdmittedJourneyActivity(authority.journeyId, new Date().toISOString());
     setCompactionOperation({
       journeyId: authority.journeyId,
       operation: {
@@ -4530,6 +4532,7 @@ export function App({ model }: AppProps) {
             const agentStatus = deriveJourneyAgentStatus({
               runtimePhase: runtimeOwnerPhase,
               finishedAttention: journeyFinishedAttention[journey.id],
+              compacting: compactingJourneyId === journey.id,
             });
             const journeyStateDescription = [
               agentStatus === "idle" ? undefined : agentStatus === "finished" ? "Agent finished" : `Agent ${agentStatus}`,

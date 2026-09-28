@@ -112,6 +112,14 @@ response needs its own parser on the `parse_pi_session_state` precedent.
   The Journey claim is still taken synchronously under the registry lock — that ordering is
   what keeps a turn and a compaction mutually exclusive — and only the process run moves to
   a blocking worker.
+- **A compaction is agent activity on the Journey list, even without a run.** Owning no run
+  and writing no journal is a correlation decision, not a reason to stay invisible: the
+  Journey is occupied for minutes, so it rises in the recents and its indicator reads
+  `Working`, exactly as an admitted turn does. Runtime ownership cannot carry this, so
+  `deriveJourneyAgentStatus` takes an explicit `compacting` input, and the start reuses
+  `recordAdmittedJourneyActivity`. Known gap: because there is no run, no `Ready` badge
+  appears when a compaction ends — the indicator drops from `Working` to `Idle` and the
+  outcome is reported only by the card inside that Journey.
 - **The compaction card belongs to the Journey being compacted.** It is state on a single
   App, so without an explicit owner it followed the reader into every Journey they opened
   and claimed each one was compacting. The in-flight claim cannot gate it either, because
