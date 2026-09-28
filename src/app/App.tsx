@@ -2120,6 +2120,62 @@ export function App({ model }: AppProps) {
     };
   }, [journeyThreadState.kind, runtimeBusy, isJourneyReloading]);
 
+  // How many chapters the Pi session itself says have closed; the manifest must agree.
+  const closedChapterCount = Object.keys(presentedConversation.chapterDividers ?? {}).length;
+
+  // CR080: the manifest is a view over the Pi session, so it is read for the selected
+  // generation and re-read after a compaction closed a chapter.
+  useEffect(() => {
+    if (journeyThreadState.kind !== "ready") {
+      setConversationSegmentManifest(undefined);
+      return;
+    }
+    const authority = {
+      journeyId: selectedJourney,
+      threadId: journeyThreadState.thread.threadId,
+      generation: journeyThreadState.activeGeneration.generation,
+      sessionId: journeyThreadState.activeGeneration.piSessionId,
+    };
+    const sessionFile = journeyThreadState.activeGeneration.piSessionFile;
+    let cancelled = false;
+    void (async () => {
+      const published = await loadConversationSegments(authority).catch(() => undefined);
+      if (cancelled) return;
+      const closedInManifest = published
+        ? published.segments.filter((segment) => segment.status === "closed").length
+        : -1;
+      // A manifest published before this Conversation's latest compaction — or before
+      // chapters existed at all — would misname or hide chapters. Segments are presentation
+      // only (CR046), so rewriting the projection from Pi is safe and it is the only way an
+      // already-compacted Conversation gets its index.
+      if (closedInManifest === closedChapterCount || !sessionFile || isStreaming) {
+        setConversationSegmentManifest(published);
+        return;
+      }
+      const refreshed = await refreshConversationSegments({ ...authority, sessionFile }).catch(() => undefined);
+      if (!cancelled) setConversationSegmentManifest(refreshed ?? published);
+    })();
+    return () => { cancelled = true; };
+  }, [
+    journeyThreadState.kind,
+    selectedJourney,
+    conversationLoaded,
+    contextRefreshEpoch,
+    closedChapterCount,
+    isStreaming,
+  ]);
+
+  const conversationChapters = useMemo(() => (
+    conversationSegmentManifest
+      ? projectConversationChapters(conversationSegmentManifest, {
+        openingMessageIds: chapterOpeningMessageIds({
+          messages,
+          ...(presentedConversation.chapterDividers ? { chapterDividers: presentedConversation.chapterDividers } : {}),
+        }),
+      })
+      : []
+  ), [conversationSegmentManifest, messages, presentedConversation.chapterDividers]);
+
   function addPendingFiles(response: FileAttachmentResponse, ownerJourneyId: string) {
     if (selectedJourneyRef.current !== ownerJourneyId) return;
     setFileAttachmentMaxFiles(response.maxFiles);
@@ -4189,62 +4245,6 @@ export function App({ model }: AppProps) {
       </main>
     );
   }
-
-  // How many chapters the Pi session itself says have closed; the manifest must agree.
-  const closedChapterCount = Object.keys(presentedConversation.chapterDividers ?? {}).length;
-
-  // CR080: the manifest is a view over the Pi session, so it is read for the selected
-  // generation and re-read after a compaction closed a chapter.
-  useEffect(() => {
-    if (journeyThreadState.kind !== "ready") {
-      setConversationSegmentManifest(undefined);
-      return;
-    }
-    const authority = {
-      journeyId: selectedJourney,
-      threadId: journeyThreadState.thread.threadId,
-      generation: journeyThreadState.activeGeneration.generation,
-      sessionId: journeyThreadState.activeGeneration.piSessionId,
-    };
-    const sessionFile = journeyThreadState.activeGeneration.piSessionFile;
-    let cancelled = false;
-    void (async () => {
-      const published = await loadConversationSegments(authority).catch(() => undefined);
-      if (cancelled) return;
-      const closedInManifest = published
-        ? published.segments.filter((segment) => segment.status === "closed").length
-        : -1;
-      // A manifest published before this Conversation's latest compaction — or before
-      // chapters existed at all — would misname or hide chapters. Segments are presentation
-      // only (CR046), so rewriting the projection from Pi is safe and it is the only way an
-      // already-compacted Conversation gets its index.
-      if (closedInManifest === closedChapterCount || !sessionFile || isStreaming) {
-        setConversationSegmentManifest(published);
-        return;
-      }
-      const refreshed = await refreshConversationSegments({ ...authority, sessionFile }).catch(() => undefined);
-      if (!cancelled) setConversationSegmentManifest(refreshed ?? published);
-    })();
-    return () => { cancelled = true; };
-  }, [
-    journeyThreadState.kind,
-    selectedJourney,
-    conversationLoaded,
-    contextRefreshEpoch,
-    closedChapterCount,
-    isStreaming,
-  ]);
-
-  const conversationChapters = useMemo(() => (
-    conversationSegmentManifest
-      ? projectConversationChapters(conversationSegmentManifest, {
-        openingMessageIds: chapterOpeningMessageIds({
-          messages,
-          ...(presentedConversation.chapterDividers ? { chapterDividers: presentedConversation.chapterDividers } : {}),
-        }),
-      })
-      : []
-  ), [conversationSegmentManifest, messages, presentedConversation.chapterDividers]);
 
   // CR080: close a chapter now. Only while the conversation is idle and sendable — the
   // native command refuses an active lease as well, so this guard is the polite layer, not
