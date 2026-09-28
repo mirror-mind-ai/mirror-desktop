@@ -24,6 +24,13 @@ type ComposerRuntimeFooterProps = {
   providerModelMenu?: ReactNode;
   providerModelMenuOpen?: boolean;
   menuWrapRef?: Ref<HTMLDivElement>;
+  /** CR080: when provided, the context label becomes a control opening this menu. */
+  onOpenContextMenu?: () => void;
+  contextMenu?: ReactNode;
+  contextMenuOpen?: boolean;
+  contextMenuWrapRef?: Ref<HTMLDivElement>;
+  /** A manual compaction is rewriting the session; the label says so instead of a number. */
+  compacting?: boolean;
 };
 
 type ComposerRuntimeStatusProps = {
@@ -61,7 +68,13 @@ export function ComposerRuntimeFooter({
   providerModelMenu,
   providerModelMenuOpen = false,
   menuWrapRef,
+  onOpenContextMenu,
+  contextMenu,
+  contextMenuOpen = false,
+  contextMenuWrapRef,
+  compacting = false,
 }: ComposerRuntimeFooterProps) {
+  const contextLabel = compacting ? "Compacting…" : formatComposerContext(contextUsage, contextState);
   // The semantic layer never hides the mechanical one: the binding rides the title for the
   // pointer and the accessible name for the keyboard, since the footer has no room for it.
   const modelLabel = activeIntentLabel ?? providerModel;
@@ -80,7 +93,24 @@ export function ComposerRuntimeFooter({
             <span className="composer-runtime-separator" aria-hidden="true">·</span>
           </>
         ) : null}
-        <span className={contextUsageTone(contextUsage)}>{formatComposerContext(contextUsage, contextState)}</span>
+        {onOpenContextMenu ? (
+          <div className="model-intent-menu-wrap" ref={contextMenuWrapRef}>
+            <button
+              type="button"
+              className={["composer-context-control", contextUsageTone(contextUsage)].filter(Boolean).join(" ")}
+              onClick={onOpenContextMenu}
+              aria-haspopup="menu"
+              aria-expanded={contextMenuOpen}
+              aria-label="Context window actions"
+              title="Context window actions"
+            >
+              {contextLabel}
+            </button>
+            {contextMenu}
+          </div>
+        ) : (
+          <span className={contextUsageTone(contextUsage)}>{contextLabel}</span>
+        )}
         {canInitializeContext && onInitializeContext ? (
           <button
             type="button"
