@@ -212,6 +212,51 @@ describe("runtime projection component", () => {
     expect(cssSource).not.toMatch(/\.composer-provider-model:hover/u);
   });
 
+  // CR080: the context label becomes the entry point for manual compaction. It stays a
+  // plain span where no menu is offered, so the footer's other consumers are untouched.
+  it("turns the context label into a menu control only when a menu is offered", () => {
+    const plain = renderToStaticMarkup(
+      <ComposerRuntimeFooter providerModel="openai-codex/gpt-5.5" contextUsage={{ tokens: 1000, contextWindow: 4000, percent: 25 }} />,
+    );
+    expect(plain).not.toContain("composer-context-control");
+
+    const withMenu = renderToStaticMarkup(
+      <ComposerRuntimeFooter
+        providerModel="openai-codex/gpt-5.5"
+        contextUsage={{ tokens: 1000, contextWindow: 4000, percent: 25 }}
+        onOpenContextMenu={() => undefined}
+        contextMenuOpen={false}
+      />,
+    );
+    expect(withMenu).toContain("composer-context-control");
+    expect(withMenu).toContain('aria-haspopup="menu"');
+    expect(withMenu).toContain('aria-expanded="false"');
+    // The usage tone still colours the control, so a full window still reads as a warning.
+    const warning = renderToStaticMarkup(
+      <ComposerRuntimeFooter
+        providerModel="openai-codex/gpt-5.5"
+        contextUsage={{ tokens: 3800, contextWindow: 4000, percent: 95 }}
+        onOpenContextMenu={() => undefined}
+      />,
+    );
+    expect(warning).toContain("composer-context-error");
+    expect(cssSource).toContain(".composer-context-control");
+    expect(cssSource).toContain(".composer-provider-model, .composer-context-control)");
+  });
+
+  it("names an in-flight compaction on the context label itself", () => {
+    const html = renderToStaticMarkup(
+      <ComposerRuntimeFooter
+        providerModel="openai-codex/gpt-5.5"
+        contextUsage={{ tokens: 1000, contextWindow: 4000, percent: 25 }}
+        onOpenContextMenu={() => undefined}
+        compacting
+      />,
+    );
+    expect(html).toContain("Compacting…");
+    expect(html).not.toContain("1,000");
+  });
+
   it("uses a fixed middle-truncated preview of the first tool argument", () => {
     const preview = summarizeOperationArgument({
       path: "/Users/alissonvale/.mirror-journeys/vida-criativa/nautilus/harness/src/app/LiveRuntimeActivity.tsx",

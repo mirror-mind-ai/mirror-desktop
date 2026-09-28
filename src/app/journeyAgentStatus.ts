@@ -65,7 +65,14 @@ export function journeyFinishedAttentionReducer(
 export function deriveJourneyAgentStatus(input: {
   runtimePhase?: JourneyRuntimeOwnerPhase;
   finishedAttention?: JourneyFinishedAttention;
+  /**
+   * CR080: a compaction is the agent working, but it owns no run and writes no journal, so
+   * runtime ownership cannot speak for it. The Journey is occupied for minutes either way,
+   * and a status that stayed idle would hide that work from the reader.
+   */
+  compacting?: boolean;
 }): JourneyAgentStatus {
+  if (input.compacting) return "working";
   if (input.runtimePhase === "running") return "working";
   if (input.runtimePhase === "finalizing") return "finishing";
   return input.finishedAttention ? "finished" : "idle";

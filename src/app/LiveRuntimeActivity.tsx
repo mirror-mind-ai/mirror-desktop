@@ -193,7 +193,7 @@ function useRuntimeDisclosure(active: boolean): {
   };
 }
 
-function RuntimeCompaction({ operation, basePath }: { operation: ProjectedRuntimeOperation; basePath?: string }) {
+export function RuntimeCompaction({ operation, basePath }: { operation: ProjectedRuntimeOperation; basePath?: string }) {
   const reason = compactionReason(operation.arguments);
   const output = operation.output === undefined
     ? undefined

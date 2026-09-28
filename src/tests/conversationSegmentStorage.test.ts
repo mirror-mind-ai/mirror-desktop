@@ -60,7 +60,10 @@ describe("Conversation Segment persistence", () => {
 
   it("publishes only after exact completed compaction evidence settles", () => {
     expect(appSource).toContain('operation.kind === "compaction" && operation.status === "completed"');
-    expect(appSource.indexOf("await refreshConversationSegments(")).toBeGreaterThan(appSource.indexOf("await saveActiveSettlementProjection("));
+    // Scoped to the settlement flow: CR080 added other legitimate call sites, and a
+    // whole-file index comparison would pin their position rather than this ordering.
+    expect(appSource.indexOf("? await refreshConversationSegments(segmentAuthority)"))
+      .toBeGreaterThan(appSource.indexOf("await saveActiveSettlementProjection("));
     expect(tauriSource).toContain("write_durable_projection_at(&path, &payload, nonce)");
     expect(tauriSource).toContain("firstKeptEntryId");
     expect(tauriSource).toContain("load_conversation_segment_projections");

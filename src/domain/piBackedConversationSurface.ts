@@ -1,10 +1,12 @@
 import type { ConversationMessage } from "../agent/piTaskPacket";
 import { normalizePiResponse } from "../agent/piResponseNormalizer";
 import type {
+  ChapterDivider,
   JourneyConversation,
   ResponseModelAttribution,
   TerminalAgentActionProjection,
 } from "./journeyConversation";
+import { chapterTitleFromSummary } from "./compactionChapters";
 import { boundReasoningBlocks } from "./reasoningBounds";
 
 export type PiConversationSurfaceEntry = {
@@ -23,9 +25,18 @@ export type PiConversationSurfaceEntry = {
   model?: string | null;
 };
 
+/** CR080: one per compaction on the active branch, in order. */
+export type PiChapterClosure = {
+  firstKeptEntryId: string;
+  // Nullable because the native inspection writes null where Pi recorded nothing.
+  summaryHead?: string | null;
+  closedAt?: string | null;
+};
+
 export type PiConversationSurfaceInspection = {
   schemaVersion: "0.1.0";
   entries: PiConversationSurfaceEntry[];
+  chapterClosures?: PiChapterClosure[];
 };
 
 type MessageBinding = { messageId: string; role: ConversationMessage["role"] };
@@ -132,6 +143,13 @@ export function projectPiBackedConversationSurface(
   const messages: ConversationMessage[] = [];
   const reconstructedAgentActions: Record<string, TerminalAgentActionProjection> = {};
   const responseModels: Record<string, ResponseModelAttribution> = {};
+  // A chapter opens at the first entry Pi retained. If that entry projects to nothing
+  // visible, the divider waits for the next message that does, so the moment is never lost.
+  const closuresByRetainedEntryId = new Map(
+    (inspection.chapterClosures ?? []).map((closure) => [closure.firstKeptEntryId, closure]),
+  );
+  const chapterDividers: Record<string, ChapterDivider> = {};
+  let pendingDivider: ChapterDivider | undefined;
   let pendingBlocks: PendingActivityBlock[] = [];
   for (const entry of inspection.entries) {
     if (!entry || typeof entry.entryId !== "string" || !entry.entryId
@@ -140,6 +158,13 @@ export function projectPiBackedConversationSurface(
       throw new Error("pi_surface_inspection_invalid");
     }
     nativeIds.add(entry.entryId);
+    const closure = closuresByRetainedEntryId.get(entry.entryId);
+    if (closure) {
+      pendingDivider = {
+        title: chapterTitleFromSummary(closure.summaryHead ?? ""),
+        ...(closure.closedAt ? { closedAt: closure.closedAt } : {}),
+      };
+    }
     if (entry.role === "assistant") {
       pendingBlocks.push(...extractActivityBlocks(entry.nativeContent));
     } else if (entry.role === "user") {
@@ -170,6 +195,11 @@ export function projectPiBackedConversationSurface(
       }
     }
 
+    if (pendingDivider) {
+      chapterDividers[id] = pendingDivider;
+      pendingDivider = undefined;
+    }
+
     messages.push({
       id,
       role,
@@ -188,6 +218,7 @@ export function projectPiBackedConversationSurface(
     messages,
     ...(Object.keys(reconstructedAgentActions).length > 0 ? { reconstructedAgentActions } : {}),
     ...(Object.keys(responseModels).length > 0 ? { responseModels } : {}),
+    ...(Object.keys(chapterDividers).length > 0 ? { chapterDividers } : {}),
   };
 }
 

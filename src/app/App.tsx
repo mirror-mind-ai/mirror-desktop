@@ -146,6 +146,17 @@ import {
 } from "./conversationSegmentStorage";
 import { partitionConversationBySegments } from "../domain/conversationSegmentProjection";
 import { decideConversationAvailability } from "../domain/conversationAvailability";
+import type { ConversationSegmentManifest } from "../domain/conversationSegments";
+import {
+  chapterOpeningMessageIds,
+  chapterTitleFromSummary,
+  needsChapterEvidenceRefresh,
+  projectConversationChapters,
+  segmentProjectionsTouchedByCompaction,
+} from "../domain/compactionChapters";
+import { compactJourneySession } from "./compactionStorage";
+import { RuntimeCompaction } from "./LiveRuntimeActivity";
+import { ComposerContextMenu } from "./ComposerContextMenu";
 import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
 import { describeMirrorAppendRejection } from "../domain/mirrorAppendRejection";
 import { deriveBlockingTurnPresentation } from "./blockingTurnPresentation";
@@ -209,6 +220,7 @@ import {
   initialRuntimeProjectionState,
   mergeRuntimeContextUsage,
   reduceRuntimeProjection,
+  type ProjectedRuntimeOperation,
 } from "./runtimeActivityModel";
 import {
   createInitialJourneyRuntimeState,
@@ -615,6 +627,16 @@ export function App({ model }: AppProps) {
   const [modelIntentsError, setModelIntentsError] = useState(false);
   const [modelIntentMenuOpen, setModelIntentMenuOpen] = useState(false);
   const modelIntentMenuRef = useRef<HTMLDivElement | null>(null);
+  // CR080: manual compaction from the context label. The in-flight Journey is occupancy;
+  // the epoch forces the context reading to run again once the session was rewritten.
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const [compactingJourneyId, setCompactingJourneyId] = useState<string>();
+  const [compactionOperation, setCompactionOperation] = useState<{
+    journeyId: string;
+    operation: ProjectedRuntimeOperation;
+  }>();
+  const [contextRefreshEpoch, setContextRefreshEpoch] = useState(0);
   const [agentSettingsMessage, setAgentSettingsMessage] = useState<string | undefined>();
   const [agentProfileConfigured, setAgentProfileConfigured] = useState<boolean>();
   const [piModelCatalog, setPiModelCatalog] = useState<PiModelCatalogEntry[]>([]);
@@ -725,6 +747,10 @@ export function App({ model }: AppProps) {
   const [closeConfirmationError, setCloseConfirmationError] = useState<string>();
   const [conversationSearchOpen, setConversationSearchOpen] = useState(false);
   const [conversationTurnNavigatorOpen, setConversationTurnNavigatorOpen] = useState(false);
+  // CR080: the chapter index, derived from the Segment manifest the compactions already wrote.
+  const [conversationChaptersOpen, setConversationChaptersOpen] = useState(false);
+  const [conversationSegmentManifest, setConversationSegmentManifest] = useState<ConversationSegmentManifest>();
+  const chapterEvidenceRepairRef = useRef<string | undefined>(undefined);
   const [conversationLoaded, setConversationLoaded] = useState(false);
   const [journeyThreadState, setJourneyThreadState] = useState<JourneyThreadDisplayState>({ kind: "loading" });
   const [startingJourneyId, setStartingJourneyId] = useState<string | undefined>();
@@ -844,6 +870,7 @@ export function App({ model }: AppProps) {
   const selectedAgentStatus = deriveJourneyAgentStatus({
     runtimePhase: selectJourneyRuntimeOwnerPhase(journeyRuntimeState, selectedJourney),
     finishedAttention: journeyFinishedAttention[selectedJourney],
+    compacting: compactingJourneyId === selectedJourney,
   });
   const {
     agentRun,
@@ -1040,6 +1067,7 @@ export function App({ model }: AppProps) {
     sameConversationExecutionActive: Boolean(runStartReservation) || selectedRuntimeBusy,
     nativeAdmission: piInvocationPresentation.allowed ? "allowed" : piInvocationPresentation.reason,
     recoveryInspectionActive: turnRecoveryBusy || isJourneyReloading,
+    compactionActive: compactingJourneyId !== undefined && compactingJourneyId === selectedJourney,
     mirrorSynchronizationPending: showConversationSyncNotice,
   });
   const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;
@@ -1079,6 +1107,7 @@ export function App({ model }: AppProps) {
       }
     : undefined;
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
+  const compactionInFlight = compactingJourneyId !== undefined && compactingJourneyId === selectedJourney;
   const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading";
   const operationalChatSelected = presentedAltitude === "operational" && presentedOperationalSurface === "chat";
   // CR092: the floating recenter control lives in a viewport wrapping the scroller, so the
@@ -1237,6 +1266,22 @@ export function App({ model }: AppProps) {
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [modelIntentMenuOpen]);
+
+  useEffect(() => {
+    if (!contextMenuOpen) return;
+    function closeOnOutsidePointer(event: MouseEvent) {
+      if (!contextMenuRef.current?.contains(event.target as Node)) setContextMenuOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setContextMenuOpen(false);
+    }
+    document.addEventListener("mousedown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [contextMenuOpen]);
 
   useEffect(() => {
     if (!journeyTreeMenuOpen) return;
@@ -1723,6 +1768,14 @@ export function App({ model }: AppProps) {
   }, [voiceNotice]);
 
   useEffect(() => {
+    if (compactionOperation?.operation.status !== "completed") return;
+    const scheduled = compactionOperation;
+    return scheduleTransientComposerNotice(() => {
+      setCompactionOperation((current) => (current === scheduled ? undefined : current));
+    });
+  }, [compactionOperation]);
+
+  useEffect(() => {
     let cancelled = false;
     loadVoiceComponentStatus()
       .then((status) => { if (!cancelled) setVoiceStatus(status); })
@@ -1852,6 +1905,7 @@ export function App({ model }: AppProps) {
     conversationLoaded,
     isStreaming,
     effectiveProviderConfig,
+    contextRefreshEpoch,
   ]);
 
   useEffect(() => {
@@ -2075,6 +2129,64 @@ export function App({ model }: AppProps) {
       unlisten?.();
     };
   }, [journeyThreadState.kind, runtimeBusy, isJourneyReloading]);
+
+  // How many chapters the Pi session itself says have closed; the manifest must agree.
+  const closedChapterCount = Object.keys(presentedConversation.chapterDividers ?? {}).length;
+
+  // CR080: the manifest is a view over the Pi session, so it is read for the selected
+  // generation and re-read after a compaction closed a chapter.
+  useEffect(() => {
+    if (journeyThreadState.kind !== "ready") {
+      setConversationSegmentManifest(undefined);
+      return;
+    }
+    const authority = {
+      journeyId: selectedJourney,
+      threadId: journeyThreadState.thread.threadId,
+      generation: journeyThreadState.activeGeneration.generation,
+      sessionId: journeyThreadState.activeGeneration.piSessionId,
+    };
+    const sessionFile = journeyThreadState.activeGeneration.piSessionFile;
+    let cancelled = false;
+    void (async () => {
+      const published = await loadConversationSegments(authority).catch(() => undefined);
+      if (cancelled) return;
+      // A manifest that missed a compaction, or that predates chapter evidence, would hide
+      // or fail to name chapters. Segments are presentation only (CR046), so rewriting the
+      // projection from Pi is safe and it is the only way an already-compacted Conversation
+      // gets its index. Attempted once per authority and chapter count, so a session whose
+      // compactions carry no summary is not rewritten on every visit.
+      const repairKey = `${authority.journeyId}:${authority.threadId}:${authority.generation}:${closedChapterCount}`;
+      if (!needsChapterEvidenceRefresh(published, closedChapterCount)
+        || !sessionFile || isStreaming
+        || chapterEvidenceRepairRef.current === repairKey) {
+        setConversationSegmentManifest(published);
+        return;
+      }
+      chapterEvidenceRepairRef.current = repairKey;
+      const refreshed = await refreshConversationSegments({ ...authority, sessionFile }).catch(() => undefined);
+      if (!cancelled) setConversationSegmentManifest(refreshed ?? published);
+    })();
+    return () => { cancelled = true; };
+  }, [
+    journeyThreadState.kind,
+    selectedJourney,
+    conversationLoaded,
+    contextRefreshEpoch,
+    closedChapterCount,
+    isStreaming,
+  ]);
+
+  const conversationChapters = useMemo(() => (
+    conversationSegmentManifest
+      ? projectConversationChapters(conversationSegmentManifest, {
+        openingMessageIds: chapterOpeningMessageIds({
+          messages,
+          ...(presentedConversation.chapterDividers ? { chapterDividers: presentedConversation.chapterDividers } : {}),
+        }),
+      })
+      : []
+  ), [conversationSegmentManifest, messages, presentedConversation.chapterDividers]);
 
   function addPendingFiles(response: FileAttachmentResponse, ownerJourneyId: string) {
     if (selectedJourneyRef.current !== ownerJourneyId) return;
@@ -3505,14 +3617,14 @@ export function App({ model }: AppProps) {
   }
 
   function requestDesktopConversationDeletion(entry: Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>) {
-    if (selectedRuntimeBusy || runStartReservation || conversationActionBusy) return;
+    if (compactionInFlight || selectedRuntimeBusy || runStartReservation || conversationActionBusy) return;
     setConversationDeleteError(undefined);
     setConversationDeleteTarget(entry);
   }
 
   async function confirmDesktopConversationDeletion() {
     const entry = conversationDeleteTarget;
-    if (!entry || selectedRuntimeBusy || runStartReservation || conversationActionBusy) return;
+    if (!entry || compactionInFlight || selectedRuntimeBusy || runStartReservation || conversationActionBusy) return;
     setConversationActionBusy(true);
     setConversationDeleteError(undefined);
     setConversationActionMessage("Deleting Desktop Conversation…");
@@ -4146,6 +4258,108 @@ export function App({ model }: AppProps) {
     );
   }
 
+  // CR080: close a chapter now. Only while the conversation is idle and sendable — the
+  // native command refuses an active lease as well, so this guard is the polite layer, not
+  // the authority. On success the surface reprojects from Pi, the Segment manifest is
+  // refreshed from the new compaction entry, and the chapter is named by its own Goal.
+  async function compactSelectedConversationNow() {
+    setContextMenuOpen(false);
+    if (journeyThreadState.kind !== "ready" || !journeyThreadState.activeGeneration.piSessionFile) return;
+    if (!conversationAvailability.canSend || compactingJourneyId) return;
+    const authority = {
+      journeyId: selectedJourney,
+      threadId: journeyThreadState.thread.threadId,
+      generation: journeyThreadState.activeGeneration.generation,
+      sessionId: journeyThreadState.activeGeneration.piSessionId,
+      sessionFile: journeyThreadState.activeGeneration.piSessionFile,
+    };
+    const selectedConversationId = conversation.id;
+    setCompactingJourneyId(authority.journeyId);
+    recordAdmittedJourneyActivity(authority.journeyId, new Date().toISOString());
+    dispatchJourneyFinishedAttention({ type: "run_started", journeyId: authority.journeyId });
+    setCompactionOperation({
+      journeyId: authority.journeyId,
+      operation: {
+        id: "manual-compaction",
+        kind: "compaction",
+        name: "Context compaction",
+        status: "running",
+        arguments: { reason: "manual" },
+      },
+    });
+    try {
+      const result = await compactJourneySession({
+        journeyId: authority.journeyId,
+        threadId: authority.threadId,
+        config: effectiveProviderConfig,
+      });
+      const stillSelected = selectedJourneyRef.current === authority.journeyId
+        && conversationRef.current.id === selectedConversationId;
+      if (stillSelected) {
+        const inspection = await inspectDedicatedPiTranscript(
+          authority.journeyId,
+          authority.threadId,
+          authority.generation,
+          authority.sessionId,
+          authority.sessionFile,
+        );
+        const reprojected = projectPiBackedConversationSurface(conversationRef.current, inspection);
+        // The cached usage described the conversation before the cut; drop it so the
+        // reading below restarts from Pi rather than showing the old number as current.
+        const next = { ...reprojected, authoritativeContextStats: undefined };
+        conversationRef.current = next;
+        setConversation(next);
+        setPiContextState("unknown_after_compaction");
+        setContextRefreshEpoch((epoch) => epoch + 1);
+      }
+      const manifest = await refreshConversationSegments(authority);
+      if (manifest && stillSelected) {
+        await publishConversationSegmentProjections(
+          authority,
+          segmentProjectionsTouchedByCompaction(
+            partitionConversationBySegments(conversationRef.current, manifest),
+          ),
+        );
+      }
+      setCompactionOperation({
+        journeyId: authority.journeyId,
+        operation: {
+          id: "manual-compaction",
+          kind: "compaction",
+          name: "Context compaction",
+          status: "completed",
+          arguments: { reason: "manual" },
+          output: `Chapter closed: ${chapterTitleFromSummary(result.summary)}`,
+          isError: false,
+        },
+      });
+      // Triggering a compaction and leaving is the normal case, so its end has to reach the
+      // Journey list. Only the successful path announces: a failure keeps its own notice and
+      // does not masquerade as Finished, exactly as a failed turn does not.
+      dispatchJourneyFinishedAttention({
+        type: "run_finished",
+        journeyId: authority.journeyId,
+        selected: selectedJourneyRef.current === authority.journeyId,
+        at: Date.now(),
+      });
+    } catch (error) {
+      setCompactionOperation({
+        journeyId: authority.journeyId,
+        operation: {
+          id: "manual-compaction",
+          kind: "compaction",
+          name: "Context compaction",
+          status: "failed",
+          arguments: { reason: "manual" },
+          output: error instanceof Error ? error.message : String(error),
+          isError: true,
+        },
+      });
+    } finally {
+      setCompactingJourneyId((current) => (current === authority.journeyId ? undefined : current));
+    }
+  }
+
   async function loadCompleteSegmentHistory() {
     if (journeyThreadState.kind !== "ready" || !journeyThreadState.activeGeneration.piSessionFile) return;
     const authority = {
@@ -4328,6 +4542,7 @@ export function App({ model }: AppProps) {
             const agentStatus = deriveJourneyAgentStatus({
               runtimePhase: runtimeOwnerPhase,
               finishedAttention: journeyFinishedAttention[journey.id],
+              compacting: compactingJourneyId === journey.id,
             });
             const journeyStateDescription = [
               agentStatus === "idle" ? undefined : agentStatus === "finished" ? "Agent finished" : `Agent ${agentStatus}`,
@@ -4581,12 +4796,32 @@ export function App({ model }: AppProps) {
                     <circle cx="4" cy="18" r="1" />
                   </svg>
                 </button>
+                <span
+                  className="chat-header-action-hint"
+                  title={conversationChapters.length === 0
+                    ? "No chapters yet. This Conversation has not been compacted, so it is still one chapter."
+                    : "Chapters"}
+                >
+                  <button
+                    className={`menu-button conversation-chapter-shortcut ${conversationChaptersOpen ? "selected" : ""}`}
+                    type="button"
+                    onClick={() => {
+                      showConversation();
+                      setConversationChaptersOpen((open) => !open);
+                    }}
+                    disabled={compactionInFlight || altitudeSwitchDisabled || conversationChapters.length === 0 || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
+                    aria-label="Navigate conversation chapters"
+                    aria-pressed={conversationChaptersOpen}
+                  >
+                    <span className="conversation-chapter-glyph" aria-hidden="true">§</span>
+                  </button>
+                </span>
                 <div className="journey-menu-wrap" ref={journeyMenuRef}>
                   <button
                     className="menu-button"
                     type="button"
                     onClick={() => setJourneyMenuOpen((open) => !open)}
-                    disabled={journeyThreadState.kind !== "ready" || selectedConversationSpace.kind === "mirror_history"}
+                    disabled={compactionInFlight || journeyThreadState.kind !== "ready" || selectedConversationSpace.kind === "mirror_history"}
                     aria-label="Journey conversation menu"
                     aria-expanded={journeyMenuOpen}
                     title="Journey menu"
@@ -4599,7 +4834,7 @@ export function App({ model }: AppProps) {
                         type="button"
                         role="menuitem"
                         onClick={requestConversationRestart}
-                        disabled={runtimeBusy || isJourneyReloading || turnRecoveryBusy || Boolean(blockingTurnJournalRecord) || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)}
+                        disabled={compactionInFlight || runtimeBusy || isJourneyReloading || turnRecoveryBusy || Boolean(blockingTurnJournalRecord) || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)}
                         title={blockingTurnJournalRecord ? "Wait until the previous message is ready." : undefined}
                       >
                         Reset agent context…
@@ -4780,6 +5015,9 @@ export function App({ model }: AppProps) {
               onLocalPathClick={handleChatLocalPath}
               searchOpen={conversationSearchOpen}
               turnNavigatorOpen={conversationTurnNavigatorOpen}
+              chaptersOpen={conversationChaptersOpen}
+              chapters={conversationChapters}
+              onChaptersOpenChange={setConversationChaptersOpen}
               onSearchOpenChange={setConversationSearchOpen}
               onTurnNavigatorOpenChange={setConversationTurnNavigatorOpen}
             />
@@ -4932,6 +5170,11 @@ export function App({ model }: AppProps) {
           {fileAttachmentError ? <p className="context-attachment-error" role="alert">{fileAttachmentError}</p> : null}
           {voiceError ? <p className="context-attachment-error voice-error" role="alert">{voiceError}</p> : null}
           {voiceNotice ? <p className="voice-notice" role="status">{voiceNotice}</p> : null}
+          {compactionOperation && compactionOperation.journeyId === selectedJourney ? (
+            <div className="compaction-notice" role="status">
+              <RuntimeCompaction operation={compactionOperation.operation} />
+            </div>
+          ) : null}
           <VoiceSessionStatus session={voiceSession} elapsedSeconds={voiceElapsedSeconds} onCancel={cancelVoiceRecording} />
           <PendingFileAttachments
             attachments={pendingFileAttachments}
@@ -4984,6 +5227,20 @@ export function App({ model }: AppProps) {
                 activeIntentLabel={activeModelIntent?.label}
                 providerModelMenuOpen={modelIntentMenuOpen}
                 menuWrapRef={modelIntentMenuRef}
+                compacting={compactionInFlight}
+                onOpenContextMenu={() => setContextMenuOpen((open) => !open)}
+                contextMenuOpen={contextMenuOpen}
+                contextMenuWrapRef={contextMenuRef}
+                contextMenu={contextMenuOpen ? (
+                  <ComposerContextMenu
+                    canCompact={conversationAvailability.canSend && !effectiveProviderConfig.safeTestMode}
+                    compacting={compactionInFlight}
+                    unavailableReason={effectiveProviderConfig.safeTestMode
+                      ? "Compaction is unavailable in safe test mode."
+                      : conversationAvailability.canSend ? undefined : "Available once the conversation is idle and ready to send."}
+                    onCompactNow={() => { void compactSelectedConversationNow(); }}
+                  />
+                ) : undefined}
                 providerModelMenu={modelIntentMenuOpen ? (
                   <ModelIntentMenu
                     intents={modelIntents}

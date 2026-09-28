@@ -22,6 +22,9 @@ import { projectAgentTurnPresentation } from "./conversationTurnPresentation";
 import type { RuntimeProjectionState } from "./runtimeActivityModel";
 import type { AssistantTurnProximity } from "./turnProximity";
 import { buildConversationTranscriptIndex } from "./conversationTranscriptModel";
+import { ChapterDividerRow } from "./ChapterDividerRow";
+import { ChapterIndexPanel } from "./ChapterIndexPanel";
+import type { ConversationChapter } from "../domain/compactionChapters";
 import { projectResponseModelBadges, type ResponseModelBadge } from "./responseModelAttribution";
 import {
   clampConversationNavigationIndex,
@@ -47,6 +50,10 @@ type ConversationTranscriptProps = {
   turnNavigatorOpen?: boolean;
   onSearchOpenChange?: (open: boolean) => void;
   onTurnNavigatorOpenChange?: (open: boolean) => void;
+  /** CR080: the chapter index, derived from the Segment manifest and the surface. */
+  chaptersOpen?: boolean;
+  chapters?: readonly ConversationChapter[];
+  onChaptersOpenChange?: (open: boolean) => void;
   /** CR091: model captured on the live run, for the answer Pi has not recorded yet. */
   liveResponseModel?: { messageId: string; label: string };
 };
@@ -155,8 +162,11 @@ export const ConversationTranscript = memo(function ConversationTranscript({
   onLocalPathClick,
   searchOpen = false,
   turnNavigatorOpen = false,
+  chaptersOpen = false,
+  chapters,
   onSearchOpenChange,
   onTurnNavigatorOpenChange,
+  onChaptersOpenChange,
   liveResponseModel,
 }: ConversationTranscriptProps) {
   const index = useMemo(() => buildConversationTranscriptIndex(conversation), [conversation]);
@@ -229,6 +239,13 @@ export const ConversationTranscript = memo(function ConversationTranscript({
           </div>
         </section>
       ) : null}
+      {chaptersOpen ? (
+        <ChapterIndexPanel
+          chapters={chapters ?? []}
+          onSelect={(messageId) => scrollToMessage(messageId)}
+          onClose={() => onChaptersOpenChange?.(false)}
+        />
+      ) : null}
       {messages.length > 0 && turnNavigatorOpen ? (
         <aside className="conversation-turn-panel" aria-label="Conversation turns">
           <button
@@ -267,6 +284,9 @@ export const ConversationTranscript = memo(function ConversationTranscript({
             : index.terminalEvidenceByAssistantMessageId.get(message.id)?.projection
               ?? index.reconstructedProjectionByAssistantMessageId.get(message.id)
           : undefined;
+        // CR080: derived from the Pi session on every projection, so a chapter that closed
+        // months ago still shows its divider on reload.
+        const chapterDivider = conversation.chapterDividers?.[message.id];
         return (
           <div
             key={message.id}
@@ -280,6 +300,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
             className={activeMatch?.messageId === message.id ? "conversation-message-search-current" : undefined}
             data-conversation-message-id={message.id}
           >
+            {chapterDivider ? <ChapterDividerRow divider={chapterDivider} /> : null}
             <ConversationMessageRow
               message={message}
               linkedActivity={linkedActivity}

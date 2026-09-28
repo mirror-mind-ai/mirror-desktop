@@ -80,7 +80,7 @@ describe("MessageContent rich rendering parser", () => {
     expect(cssSource).toMatch(/\.message-code-block-container \{[^}]*max-width: 100%/s);
     expect(cssSource).toMatch(/\.message-code-block \{[^}]*overflow: auto/s);
     expect(cssSource).toContain('.app-shell[data-application-theme="daylight"]');
-    expect(cssSource).toContain(":where(.message-copy-action, .journey-documentation-open-action button, .composer-provider-model)");
+    expect(cssSource).toContain(":where(.message-copy-action, .journey-documentation-open-action button, .composer-provider-model, .composer-context-control)");
     expect(cssSource).toContain(".message-copy-action:focus-visible");
   });
 

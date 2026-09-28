@@ -1626,7 +1626,8 @@ textarea {
 }
 
 .conversation-search-shortcut svg,
-.conversation-turn-shortcut svg {
+.conversation-turn-shortcut svg,
+.conversation-chapter-shortcut svg {
   fill: none;
   height: 18px;
   stroke: currentColor;
@@ -1636,8 +1637,30 @@ textarea {
   width: 18px;
 }
 
+
+/* CR080: a disabled control that says nothing leaves the Navigator guessing whether the
+   feature is broken or simply has nothing to show. Browsers do not surface a title on a
+   disabled button, so the hint lives on this wrapper and the button stops absorbing the
+   hover that would otherwise hide it. */
+.chat-header-action-hint {
+  display: inline-flex;
+}
+
+.chat-header-action-hint > button:disabled {
+  pointer-events: none;
+}
+
+.conversation-chapter-glyph {
+  display: inline-block;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
 .conversation-search-shortcut.selected,
-.conversation-turn-shortcut.selected {
+.conversation-turn-shortcut.selected,
+.conversation-chapter-shortcut.selected {
   background: rgba(var(--ui-accent-rgb), 0.12);
   border-color: rgba(var(--ui-accent-rgb), 0.48);
   color: #bff2eb;
@@ -1821,7 +1844,7 @@ h3 {
   scroll-padding-bottom: 24px;
 }
 
-.chat-stream > :first-child:not(.conversation-search-panel):not(.conversation-turn-panel) {
+.chat-stream > :first-child:not(.conversation-search-panel):not(.conversation-turn-panel):not(.conversation-chapter-panel) {
   margin-top: auto;
 }
 
@@ -2276,6 +2299,28 @@ h3 {
   opacity: 0.65;
 }
 
+/* CR080: the context label opens the compaction menu. Same idiom as the model control, and
+   no hover recolour (the CR091 lesson). Placed before the usage tones so a warning or error
+   tone still wins on the same element. */
+.composer-context-control {
+  background: transparent;
+  border: 0;
+  color: #75c9bd;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  pointer-events: auto;
+  text-decoration: underline;
+  text-decoration-color: rgba(117, 201, 189, 0.35);
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.composer-context-control:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
 /* CR090: the selection reaches the next message while a turn is still running. */
 .composer-provider-model-scope {
   color: var(--light-muted, #8aa3a9);
@@ -2565,6 +2610,12 @@ h3 {
   opacity: 0.72;
 }
 
+/* CR080: a manual compaction reports through the same card the automatic one uses. In the
+   composer it needs the breathing room the runtime activity list gave it. */
+.compaction-notice {
+  margin: 4px 0 2px;
+}
+
 .runtime-compaction {
   align-items: flex-start;
   background: linear-gradient(105deg, rgba(var(--ui-accent-rgb), 0.08), rgba(10, 24, 29, 0.34));
@@ -2759,14 +2810,16 @@ h3 {
 }
 
 .conversation-search-panel p,
-.conversation-turn-panel p {
+.conversation-turn-panel p,
+.conversation-chapter-panel p {
   color: color-mix(in srgb, currentColor 70%, transparent);
   font-size: 0.82rem;
   margin: 0;
 }
 
 .conversation-search-panel,
-.conversation-turn-panel {
+.conversation-turn-panel,
+.conversation-chapter-panel {
   background: color-mix(in srgb, var(--shell-middle) 88%, transparent);
   border: 1px solid rgba(var(--ui-accent-rgb), 0.2);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
@@ -2798,6 +2851,24 @@ h3 {
   position: sticky;
   right: 0;
   top: 0;
+}
+
+/* CR080: the chapter index is a reading surface, not the navigator column. It gets real
+   width so a chapter title reads as a sentence instead of a vertical strip of words, and it
+   stays sticky so it appears where it is opened rather than scrolling away. */
+.conversation-chapter-panel {
+  align-self: center;
+  border-radius: 20px;
+  box-sizing: border-box;
+  height: calc(100% - 32px);
+  margin-bottom: -8px;
+  max-height: calc(100% - 32px);
+  max-width: min(760px, calc(100% - 32px));
+  min-height: 360px;
+  padding: 26px 30px 22px;
+  position: sticky;
+  top: 0;
+  width: 100%;
 }
 
 .conversation-panel-close {
@@ -6093,7 +6164,7 @@ dd {
   [data-application-theme="daylight"],
   [data-application-theme="mist"],
   [data-application-theme="parchment"]
-) :where(.message-copy-action, .journey-documentation-open-action button, .composer-provider-model) {
+) :where(.message-copy-action, .journey-documentation-open-action button, .composer-provider-model, .composer-context-control) {
   border-color: color-mix(in srgb, var(--ui-accent) 32%, var(--light-border));
   color: var(--light-accent);
 }
@@ -6473,7 +6544,7 @@ dd {
   [data-application-theme="daylight"],
   [data-application-theme="mist"],
   [data-application-theme="parchment"]
-) :where(.conversation-search-panel, .conversation-turn-panel) {
+) :where(.conversation-search-panel, .conversation-turn-panel, .conversation-chapter-panel) {
   background: color-mix(in srgb, var(--light-surface) 92%, transparent);
   border-color: var(--light-soft-border);
   box-shadow: 0 18px 48px var(--light-shadow);
@@ -6497,6 +6568,16 @@ dd {
 ) .conversation-turn-panel ol button {
   background: var(--light-raised);
   border-color: var(--light-soft-border);
+  color: var(--light-text);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.conversation-chapter-panel li > button, .conversation-chapter-panel li > div) {
+  background: var(--light-raised);
+  border: 1px solid var(--light-soft-border);
   color: var(--light-text);
 }
 
@@ -8113,3 +8194,155 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 }
 
 .voice-model-picker small { color: #9bbbc3; font-size: 0.74rem; line-height: 1.4; }
+
+/* CR080: the moment a chapter closed. A landmark in the reading — quiet, dated, and named
+   by the Goal Pi wrote — not an alert and not a message. */
+.chapter-divider {
+  align-items: baseline;
+  border-top: 1px solid rgba(var(--ui-accent-rgb), 0.22);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 28px 0 18px;
+  padding-top: 10px;
+}
+
+.chapter-divider-label {
+  color: rgba(var(--ui-accent-rgb), 0.92);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chapter-divider-title {
+  color: color-mix(in srgb, currentColor 72%, transparent);
+  font-size: 13px;
+}
+
+.chapter-divider-date {
+  color: color-mix(in srgb, currentColor 60%, transparent);
+  font-size: 11px;
+  margin-left: auto;
+}
+
+/* CR080: the chapter index. Each chapter is a numbered card: the title reads as a full
+   line, with when it ran beneath it. */
+.conversation-chapter-panel-intro {
+  border-bottom: 1px solid rgba(var(--ui-accent-rgb), 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 16px;
+}
+
+.conversation-chapter-panel-intro p:not(.eyebrow) {
+  font-size: 0.82rem;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 62ch;
+}
+
+/* Both sections belong to one reading: scrolling down carries the reader from the recent
+   shortcuts into the full index, instead of trapping them in two independent scrollers. */
+.conversation-chapter-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+  /* Without this a flex child refuses to shrink below its content, and the list overflows
+     the panel instead of scrolling inside it. */
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 4px 2px 0;
+}
+
+.conversation-chapter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conversation-chapter-section > .eyebrow {
+  margin: 0;
+}
+
+.conversation-chapter-panel ol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.conversation-chapter-panel li > button,
+.conversation-chapter-panel li > div {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  color: inherit;
+  display: grid;
+  font: inherit;
+  gap: 16px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  padding: 14px 18px;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
+  width: 100%;
+}
+
+.conversation-chapter-panel li > button {
+  cursor: pointer;
+}
+
+.conversation-chapter-panel li > button:hover,
+.conversation-chapter-panel li > button:focus-visible {
+  background: rgba(var(--ui-accent-rgb), 0.1);
+  border-color: rgba(var(--ui-accent-rgb), 0.34);
+}
+
+.conversation-chapter-panel li > div {
+  opacity: 0.58;
+}
+
+.conversation-chapter-panel li.is-current > button,
+.conversation-chapter-panel li.is-current > div {
+  border-color: rgba(var(--ui-accent-rgb), 0.38);
+}
+
+.conversation-chapter-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.conversation-chapter-title {
+  font-size: 0.95rem;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversation-chapter-empty {
+  margin: 0;
+}
+
+.conversation-chapter-meta {
+  color: color-mix(in srgb, currentColor 66%, transparent);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.conversation-chapter-number {
+  align-items: center;
+  border: 1px solid rgba(var(--ui-accent-rgb), 0.28);
+  border-radius: 999px;
+  color: color-mix(in srgb, currentColor 72%, transparent);
+  display: inline-flex;
+  font-size: 0.76rem;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}

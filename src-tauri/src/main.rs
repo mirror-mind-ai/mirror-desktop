@@ -109,6 +109,14 @@ struct PiProcessState {
     registry: Arc<Mutex<PiProcessRegistry<RunAuthority, PiChildHandle, ProviderConfig>>>,
 }
 
+// CR080: a manual compaction rewrites the session file, so it is occupancy in its own
+// right and must never overlap a turn on the same Journey in either direction. Claimed
+// while the process registry lock is held; turn admission checks it after reserving.
+#[derive(Default)]
+struct CompactionState {
+    in_flight: Arc<Mutex<std::collections::HashSet<String>>>,
+}
+
 impl Default for PiProcessState {
     fn default() -> Self {
         Self { registry: Arc::new(Mutex::new(PiProcessRegistry::production())) }
@@ -334,6 +342,8 @@ struct DedicatedPiTranscriptInspection {
     leaf_entry_id: Option<String>,
     active_entry_count: usize,
     compaction_count: usize,
+    // CR080: where each chapter closed on this branch, in order.
+    chapter_closures: Vec<PiChapterClosure>,
     unknown_prompt_envelope_count: usize,
     incomplete_user_entry_id: Option<String>,
     entries: Vec<DedicatedPiTranscriptEntry>,
@@ -383,6 +393,19 @@ struct PiBranchEntry {
     is_error: Option<bool>,
     provider: Option<String>,
     model: Option<String>,
+    // CR080: present on compaction entries; where the next chapter starts and what the
+    // chapter that closed was about.
+    first_kept_entry_id: Option<String>,
+    summary: Option<String>,
+}
+
+// CR080: a chapter closing, as the transcript needs it to draw a named divider.
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct PiChapterClosure {
+    first_kept_entry_id: String,
+    summary_head: Option<String>,
+    closed_at: Option<String>,
 }
 
 #[tauri::command]
@@ -465,6 +488,43 @@ fn parse_pi_session_state(stdout: &[u8]) -> Result<(String, String), String> {
         return Ok((id.to_string(), file.to_string()));
     }
     Err("Pi did not return native session authority.".to_string())
+}
+
+// CR080: the chapter a manual compaction just closed, as Pi's RPC returns it.
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct PiCompactionResult {
+    summary: String,
+    first_kept_entry_id: String,
+    tokens_before: Option<u64>,
+    estimated_tokens_after: Option<u64>,
+}
+
+// CR080: parsed on the parse_pi_session_state precedent — the last matching response line
+// wins and stdout noise is ignored. Pi's own refusal reason is surfaced instead of a generic
+// failure, and an empty summary is not a compaction.
+fn parse_pi_compaction_response(stdout: &[u8]) -> Result<PiCompactionResult, String> {
+    for line in String::from_utf8_lossy(stdout).lines().rev() {
+        let Ok(value) = serde_json::from_str::<Value>(line) else { continue };
+        if value.get("type").and_then(Value::as_str) != Some("response")
+            || value.get("command").and_then(Value::as_str) != Some("compact") { continue; }
+        if value.get("success").and_then(Value::as_bool) != Some(true) {
+            let reason = value.get("error").and_then(Value::as_str).unwrap_or("no reason given");
+            return Err(format!("Pi refused to compact: {}", reason));
+        }
+        let data = value.get("data").ok_or_else(|| "Pi compaction response has no data.".to_string())?;
+        let summary = data.get("summary").and_then(Value::as_str).filter(|text| !text.trim().is_empty())
+            .ok_or_else(|| "Pi compaction response has no summary.".to_string())?;
+        let first_kept_entry_id = data.get("firstKeptEntryId").and_then(Value::as_str).filter(|id| !id.is_empty())
+            .ok_or_else(|| "Pi compaction response has no retained-tail authority.".to_string())?;
+        return Ok(PiCompactionResult {
+            summary: summary.to_string(),
+            first_kept_entry_id: first_kept_entry_id.to_string(),
+            tokens_before: data.get("tokensBefore").and_then(Value::as_u64),
+            estimated_tokens_after: data.get("estimatedTokensAfter").and_then(Value::as_u64),
+        });
+    }
+    Err("Pi did not return a compaction response.".to_string())
 }
 
 fn provision_pi_session(requested_id: &str, session_name: &str, session_dir: &Path) -> Result<(String, String), String> {
@@ -3657,6 +3717,172 @@ enum PiInvocationStartError {
     Worker(String),
 }
 
+// CR080: manual compaction while the conversation is idle. A one-shot RPC invocation on
+// the provision_pi_session precedent — but without --offline, because compaction calls the
+// model; with stdin held open until the response, because Pi aborts on EOF; and with the
+// runtime profile applied under Mirror mediation exactly as a turn does
+// so the model resolves the same way. Isolated from tools, extensions and skills: every
+// recorded summary came from Pi's default generator, so isolation does not change the
+// chapter's shape. No turn correlation and no journal record: this is not a turn.
+// CR080: the argument list for a one-shot compaction. It must resolve the same model a turn
+// would, which is why extension handling follows the turn exactly rather than simply
+// switching extensions off: providers can be registered by a global Pi extension, and
+// `--no-extensions` alone makes such a model unknown to Pi.
+fn manual_compaction_args(
+    config: &ProviderConfig,
+    session_file: &str,
+    global_extensions: &[PathBuf],
+) -> Vec<String> {
+    let mut args = remove_provider_session_args(config.args.clone());
+    args = mirror_rpc_args(args);
+    args.push("--session".to_string());
+    args.push(session_file.to_string());
+    args.retain(|arg| arg != "--approve" && arg != "--no-approve");
+    for flag in ["--no-tools", "--no-skills", "--no-prompt-templates", "--no-context-files", "--approve"] {
+        args.push(flag.to_string());
+    }
+    if config.invocation_mode == "mirror" {
+        // Same contract as a mediated turn: stop auto-discovery, then name the global
+        // extensions explicitly, so a provider registered by one still resolves.
+        args.push("--no-extensions".to_string());
+        for entry in global_extensions {
+            args.push("--extension".to_string());
+            args.push(entry.to_string_lossy().into_owned());
+        }
+    }
+    args
+}
+
+fn run_manual_compaction(
+    config: &ProviderConfig,
+    session_file: &str,
+    custom_instructions: Option<&str>,
+) -> Result<PiCompactionResult, String> {
+    let global_extensions = if config.invocation_mode == "mirror" {
+        current_user_home_directory()
+            .map(|home| resolve_global_pi_extensions(&home.join(".pi").join("agent")).entries)
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    let args = manual_compaction_args(config, session_file, &global_extensions);
+    let mut command = Command::new(&config.command);
+    command.args(args);
+    if config.invocation_mode == "mirror" {
+        active_runtime_channel()?.apply_to_command(&mut command);
+    }
+    let mut child = command
+        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("Could not start local Pi command '{}': {}", config.command, error))?;
+    let request = match custom_instructions.map(str::trim).filter(|text| !text.is_empty()) {
+        Some(instructions) => serde_json::json!({"type": "compact", "customInstructions": instructions}),
+        None => serde_json::json!({"type": "compact"}),
+    };
+    let line = format!("{}\n", serde_json::to_string(&request).map_err(|error| error.to_string())?);
+    child.stdin.as_mut().ok_or_else(|| "Pi compaction stdin is unavailable.".to_string())?
+        .write_all(line.as_bytes())
+        .map_err(|error| format!("Could not request compaction: {}", error))?;
+    // Unlike get_state, compact runs for minutes and Pi aborts it the moment stdin closes
+    // ("This operation was aborted", proven 2026-09-27 on a session copy). So stdin stays
+    // open until the compact response has been read; only then is it dropped, and stdout
+    // is drained to EOF so Pi never writes into a closed pipe on its way out.
+    let stdout = child.stdout.take().ok_or_else(|| "Pi compaction stdout is unavailable.".to_string())?;
+    let stderr = child.stderr.take();
+    let stderr_reader = std::thread::spawn(move || {
+        let mut text = String::new();
+        if let Some(mut stream) = stderr {
+            let _ = std::io::Read::read_to_string(&mut stream, &mut text);
+        }
+        text
+    });
+    let mut response_line: Option<String> = None;
+    for line in BufReader::new(stdout).lines() {
+        let Ok(line) = line else { break };
+        if response_line.is_none() && is_pi_compaction_response_line(&line) {
+            response_line = Some(line);
+            drop(child.stdin.take());
+        }
+    }
+    drop(child.stdin.take());
+    let status = child.wait().map_err(|error| format!("Could not settle compaction: {}", error))?;
+    let stderr_text = stderr_reader.join().unwrap_or_default();
+    match response_line {
+        Some(line) => parse_pi_compaction_response(line.as_bytes()),
+        None => {
+            let last = stderr_text.lines().rev().map(str::trim).find(|line| !line.is_empty());
+            match last {
+                Some(reason) if !status.success() => Err(format!("Compaction did not complete: {}", reason)),
+                _ => Err("Pi did not return a compaction response.".to_string()),
+            }
+        }
+    }
+}
+
+fn is_pi_compaction_response_line(line: &str) -> bool {
+    serde_json::from_str::<Value>(line).ok().is_some_and(|value| {
+        value.get("type").and_then(Value::as_str) == Some("response")
+            && value.get("command").and_then(Value::as_str) == Some("compact")
+    })
+}
+
+// CR080: compaction runs for minutes. Held on the command thread it froze the whole GUI,
+// which reads as a crash rather than as work in progress. The Journey claim is still taken
+// synchronously under the registry lock — that ordering is what keeps a turn and a
+// compaction mutually exclusive — and only the process run moves off the thread.
+#[tauri::command]
+async fn compact_pi_session(
+    app: AppHandle,
+    process_state: State<'_, PiProcessState>,
+    compaction_state: State<'_, CompactionState>,
+    journey_id: String,
+    thread_id: String,
+    config: ProviderConfig,
+    custom_instructions: Option<String>,
+) -> Result<PiCompactionResult, String> {
+    sanitize_journey_id(&journey_id)?;
+    if config.safe_test_mode {
+        return Err("Compaction is unavailable in safe test mode.".to_string());
+    }
+    if config.command.trim().is_empty() {
+        return Err("Provider command is required.".to_string());
+    }
+    if config.command.contains("..") {
+        return Err("Provider command must not contain parent-directory traversal.".to_string());
+    }
+    let (_session_id, session_file) = pi_session_for_active_generation(&app, &journey_id, &thread_id)?;
+    {
+        // Claim the Journey while holding the registry lock, so a turn reserving
+        // concurrently either sees the claim in its admission closure or is seen here.
+        let registry = process_state.registry.lock()
+            .map_err(|_| "Could not access the Pi process registry.".to_string())?;
+        if registry.inspect().entries.iter().any(|entry| {
+            entry.authority.journey_id == journey_id && entry.is_active_execution()
+        }) {
+            return Err("This Journey has an active Pi invocation; compact after it settles.".to_string());
+        }
+        let mut in_flight = compaction_state.in_flight.lock()
+            .map_err(|_| "Could not access the compaction registry.".to_string())?;
+        if !in_flight.insert(journey_id.clone()) {
+            return Err("A compaction is already in flight for this Journey.".to_string());
+        }
+    }
+    let in_flight_registry = compaction_state.in_flight.clone();
+    let claimed_journey = journey_id.clone();
+    let outcome = tauri::async_runtime::spawn_blocking(move || {
+        let result = run_manual_compaction(&config, &session_file, custom_instructions.as_deref());
+        // Released on the same thread that ran the process, so the claim cannot outlive it
+        // even if the awaiting side goes away.
+        if let Ok(mut in_flight) = in_flight_registry.lock() {
+            in_flight.remove(&claimed_journey);
+        }
+        result
+    })
+    .await
+    .map_err(|_| "The compaction worker stopped unexpectedly.".to_string())?;
+    outcome
+}
+
 fn pi_invocation_start_error_message(error: &PiInvocationStartError) -> String {
     match error {
         PiInvocationStartError::Admission(reason) => format!("Pi invocation admission failed: {}", reason),
@@ -3668,10 +3894,12 @@ fn pi_invocation_start_error_message(error: &PiInvocationStartError) -> String {
 fn start_pi_invocation(
     app: AppHandle,
     state: State<'_, PiProcessState>,
+    compaction_state: State<'_, CompactionState>,
     prompt: String,
     config: ProviderConfig,
     run_authority: RunAuthority,
 ) -> Result<(), String> {
+    let compaction_in_flight = compaction_state.in_flight.clone();
     if prompt.trim().is_empty() {
         return Err("Pi invocation requires a non-empty prompt packet.".to_string());
     }
@@ -3692,6 +3920,16 @@ fn start_pi_invocation(
         run_authority.clone(),
         config.clone(),
         move |target| {
+            // CR080: checked after reservation, so a compaction claimed under the registry
+            // lock is always seen here; a poisoned lock fails closed.
+            if compaction_in_flight.lock()
+                .map(|set| set.contains(&run_authority.journey_id))
+                .unwrap_or(true)
+            {
+                return Err(PiInvocationStartError::Admission(
+                    "A compaction is in flight for this Journey; send after it completes.".to_string(),
+                ));
+            }
             materialize_completed_journal_delivery_debt(&app, &run_authority.journey_id)
                 .map_err(PiInvocationStartError::Admission)?;
             admit_turn_journal(&app, &run_authority)
@@ -3946,19 +4184,43 @@ fn project_conversation_segment_manifest(
             return Err("Pi compaction checkpoint is structurally invalid.".to_string());
         }
         let number = segments.len() + 1;
-        segments.push(json!({
+        let mut closed = json!({
             "segment": number, "segmentId": format!("segment-{}", number), "status": "closed",
             "sourceFromEntryId": source_from, "sourceThroughEntryId": through,
             "retainedTailFromEntryId": retained, "compactionEntryId": compaction_id,
-        }));
+        });
+        // CR080: chapter evidence. The summary head is what naming a chapter needs; the whole
+        // summary would not fit 255 of them in a manifest.
+        if let Some(summary) = entry.get("summary").and_then(Value::as_str) {
+            closed["summaryHead"] = Value::String(bounded_summary_head(summary));
+        }
+        if let Some(closed_at) = entry.get("timestamp").and_then(Value::as_str) {
+            closed["closedAt"] = Value::String(closed_at.to_string());
+        }
+        if let Some(opened_at) = source_from
+            .and_then(|id| positions.get(id))
+            .and_then(|position| entries[*position].get("timestamp"))
+            .and_then(Value::as_str)
+        {
+            closed["openedAt"] = Value::String(opened_at.to_string());
+        }
+        segments.push(closed);
         source_from = Some(retained);
     }
     let number = segments.len() + 1;
-    segments.push(json!({
+    let mut current = json!({
         "segment": number, "segmentId": format!("segment-{}", number), "status": "current",
         "sourceFromEntryId": source_from,
         "sourceThroughEntryId": entries.last().and_then(|entry| entry.get("id")).and_then(Value::as_str),
-    }));
+    });
+    if let Some(opened_at) = source_from
+        .and_then(|id| positions.get(id))
+        .and_then(|position| entries[*position].get("timestamp"))
+        .and_then(Value::as_str)
+    {
+        current["openedAt"] = Value::String(opened_at.to_string());
+    }
+    segments.push(current);
     for segment in &mut segments {
         let from = segment.get("sourceFromEntryId").and_then(Value::as_str).and_then(|id| positions.get(id)).copied();
         let through = segment.get("sourceThroughEntryId").and_then(Value::as_str).and_then(|id| positions.get(id)).copied();
@@ -3972,12 +4234,27 @@ fn project_conversation_segment_manifest(
             segment["firstTurnId"] = Value::String(first.0.clone());
             segment["lastTurnId"] = Value::String(last.0.clone());
         }
+        segment["turnCount"] = Value::from(included.len());
     }
     Ok(json!({
         "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
         "generation": generation, "piSessionId": pi_session_id,
         "sourceEntryCount": entries.len(), "segments": segments,
     }))
+}
+
+// CR080: bounded in UTF-16 units, because the frontend contract bounds it that way and a
+// mismatch would make a manifest this projection wrote unparseable on the other side.
+fn bounded_summary_head(summary: &str) -> String {
+    let mut head = String::new();
+    let mut units = 0usize;
+    for character in summary.chars() {
+        let width = character.len_utf16();
+        if units + width > 400 { break; }
+        units += width;
+        head.push(character);
+    }
+    head
 }
 
 fn conversation_segment_manifest_path(
@@ -4393,6 +4670,8 @@ fn project_active_pi_branch(content: &str) -> Result<Vec<PiBranchEntry>, String>
             is_error: message.and_then(|item| item.get("isError")).and_then(Value::as_bool),
             provider: message.and_then(|item| item.get("provider")).and_then(Value::as_str).map(str::to_string),
             model: message.and_then(|item| item.get("model")).and_then(Value::as_str).map(str::to_string),
+            first_kept_entry_id: value.get("firstKeptEntryId").and_then(Value::as_str).map(str::to_string),
+            summary: value.get("summary").and_then(Value::as_str).map(str::to_string),
         });
     }
     if entries.is_empty() { return Ok(Vec::new()); }
@@ -4446,6 +4725,14 @@ fn inspect_complete_pi_transcript(content: &str) -> Result<DedicatedPiTranscript
         leaf_entry_id: branch.last().map(|entry| entry.id.clone()),
         active_entry_count: branch.len(),
         compaction_count: branch.iter().filter(|entry| entry.entry_type == "compaction").count(),
+        chapter_closures: branch.iter()
+            .filter(|entry| entry.entry_type == "compaction")
+            .filter_map(|entry| Some(PiChapterClosure {
+                first_kept_entry_id: entry.first_kept_entry_id.clone()?,
+                summary_head: entry.summary.as_deref().map(bounded_summary_head),
+                closed_at: Some(entry.timestamp.clone()).filter(|stamp| !stamp.is_empty()),
+            }))
+            .collect(),
         unknown_prompt_envelope_count,
         incomplete_user_entry_id: pending_user_entry_id,
         entries: project_pi_transcript_entries(&branch),
@@ -5211,6 +5498,37 @@ fn enqueue_mirror_append_item_at_with_limit(
     if items.len() >= max_items { return Err("mirror_append_outbox_full".to_string()); }
     items.push(item);
     write_mirror_append_outbox(path, outbox)
+}
+
+// CR080: the active generation's Pi session for a Journey thread, resolved through the
+// same thread authority and validation a journal record uses, so a compaction can never
+// target a session the Desktop does not own.
+fn pi_session_for_active_generation(
+    app: &AppHandle,
+    journey_id: &str,
+    thread_id: &str,
+) -> Result<(String, String), String> {
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|_| "Conversation thread authority is unavailable.".to_string())?;
+    let thread = load_conversation_thread_authority_at(&app_data_dir, journey_id, thread_id)
+        .map_err(|_| "Conversation thread authority is unavailable.".to_string())?;
+    validate_thread_runtime_channel(&thread)?;
+    let active = thread.get("activeGeneration").and_then(Value::as_u64)
+        .ok_or_else(|| "Conversation thread has no active generation.".to_string())?;
+    let generation = thread.get("generations").and_then(Value::as_array)
+        .and_then(|items| items.iter().find(|candidate| {
+            candidate.get("generation").and_then(Value::as_u64) == Some(active)
+        }))
+        .ok_or_else(|| "Conversation thread's active generation is missing.".to_string())?;
+    if generation.get("status").and_then(Value::as_str) != Some("ready") {
+        return Err("Conversation thread's active generation is not ready.".to_string());
+    }
+    let session_id = generation.get("piSessionId").and_then(Value::as_str).filter(|id| !id.is_empty())
+        .ok_or_else(|| "Conversation thread's active generation has no Pi session.".to_string())?;
+    let session_file = generation.get("piSessionFile").and_then(Value::as_str).filter(|file| !file.is_empty())
+        .ok_or_else(|| "Conversation thread's active generation has no Pi session file.".to_string())?;
+    validate_pi_session_file(app, session_file, session_id)?;
+    Ok((session_id.to_string(), session_file.to_string()))
 }
 
 fn pi_session_for_journal_record(
@@ -8503,6 +8821,7 @@ fn main() {
             Ok(())
         })
         .manage(PiProcessState::default())
+        .manage(CompactionState::default())
         .manage(JourneyProvisioningState::default())
         .manage(JourneyProjectionPersistenceState::default())
         .manage(MirrorAppendOutboxState::default())
@@ -8548,6 +8867,7 @@ fn main() {
             list_pi_models,
             load_model_intents,
             save_model_intents,
+            compact_pi_session,
             inspect_runtime_channel,
             inspect_runtime_binding_candidate,
             validate_runtime_binding,
@@ -8632,8 +8952,10 @@ mod tests {
         load_conversation_thread_authority_at,
         apply_desktop_conversation_reset, desktop_conversation_entry_from_creation,
         ensure_unique_desktop_conversation_title, load_desktop_conversation_catalog_at,
-        materialize_empty_pi_session, parse_pi_session_state,
+        manual_compaction_args, materialize_empty_pi_session, parse_pi_compaction_response, ProviderConfig,
+        parse_pi_session_state,
         inspect_complete_pi_transcript, project_complete_pi_transcript, project_conversation_segment_manifest,
+        PiChapterClosure,
         publish_conversation_segment_manifest_at,
         project_pi_user_entries, projection_manifest_coordinates_at,
         inspect_file_attachments_at, native_reveal_command, publish_refreshed_journey_registry,
@@ -8943,7 +9265,7 @@ mod tests {
             r#"{"type":"message","id":"user-1","parentId":null,"message":{"role":"user","content":"private"}}"#,
             r#"{"type":"message","id":"assistant-1","parentId":"user-1","message":{"role":"assistant","content":[{"type":"text","text":"private"}]}}"#,
             r#"{"type":"message","id":"user-2","parentId":"assistant-1","message":{"role":"user","content":"private"}}"#,
-            r#"{"type":"compaction","id":"compact-1","parentId":"user-2","firstKeptEntryId":"assistant-1","summary":"private"}"#,
+            r###"{"type":"compaction","id":"compact-1","parentId":"user-2","firstKeptEntryId":"assistant-1","summary":"## Goal\nClose chapter one.","timestamp":"2026-09-02T09:00:00.000Z"}"###,
             r#"{"type":"message","id":"assistant-2","parentId":"compact-1","message":{"role":"assistant","content":[]}}"#,
         ].join("\n");
         let manifest = project_conversation_segment_manifest(
@@ -8954,7 +9276,42 @@ mod tests {
         assert_eq!(manifest.pointer("/segments/1/sourceFromEntryId").and_then(Value::as_str), Some("assistant-1"));
         assert_eq!(manifest.pointer("/segments/1/status").and_then(Value::as_str), Some("current"));
         assert_eq!(manifest.pointer("/segments/0/firstTurnId").and_then(Value::as_str), Some("turn-one"));
+        // CR080: the closed Segment carries chapter evidence — the head of Pi's own summary,
+        // when it closed, and how many turns it held. Message content is still never copied.
+        assert_eq!(
+            manifest.pointer("/segments/0/summaryHead").and_then(Value::as_str),
+            Some("## Goal\nClose chapter one."),
+        );
+        assert_eq!(manifest.pointer("/segments/0/closedAt").and_then(Value::as_str), Some("2026-09-02T09:00:00.000Z"));
+        assert_eq!(manifest.pointer("/segments/0/turnCount").and_then(Value::as_u64), Some(1));
+        // The retained tail is carried into the next chapter by design, so a turn on the
+        // boundary is counted in both. That is the truth of the cut, not a miscount.
+        assert_eq!(manifest.pointer("/segments/1/turnCount").and_then(Value::as_u64), Some(1));
+        assert!(manifest.pointer("/segments/1/summaryHead").is_none());
+        assert!(manifest.pointer("/segments/1/closedAt").is_none());
         assert!(!manifest.to_string().contains("private"));
+    }
+
+    #[test]
+    fn reports_where_each_chapter_closed_so_the_transcript_can_name_the_divider() {
+        // CR080: compaction used to be invisible. The inspection now reports where the
+        // retained tail begins and what the chapter was about, bounded like the manifest.
+        let session = [
+            r#"{"type":"session","version":3,"id":"chapter-session"}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-09-18T10:00:00Z","message":{"role":"user","content":"Question"}}"#,
+            r#"{"type":"message","id":"assistant-1","parentId":"user-1","timestamp":"2026-09-18T10:00:01Z","message":{"role":"assistant","content":[{"type":"text","text":"Answer"}],"stopReason":"stop"}}"#,
+            r###"{"type":"compaction","id":"compact-1","parentId":"assistant-1","firstKeptEntryId":"assistant-1","timestamp":"2026-09-19T08:00:00Z","summary":"## Goal\nClose chapter one."}"###,
+            r#"{"type":"message","id":"user-2","parentId":"compact-1","timestamp":"2026-09-19T08:05:00Z","message":{"role":"user","content":"Next"}}"#,
+        ].join("\n");
+        let inspection = inspect_complete_pi_transcript(&session).unwrap();
+        assert_eq!(inspection.compaction_count, 1);
+        assert_eq!(inspection.chapter_closures, vec![PiChapterClosure {
+            first_kept_entry_id: "assistant-1".to_string(),
+            summary_head: Some("## Goal\nClose chapter one.".to_string()),
+            closed_at: Some("2026-09-19T08:00:00Z".to_string()),
+        }]);
+        // The compaction itself is still not a transcript entry; only the divider evidence.
+        assert!(inspection.entries.iter().all(|entry| entry.entry_id != "compact-1"));
     }
 
     #[test]
@@ -10367,6 +10724,71 @@ mod tests {
     }
 
     #[test]
+    fn manual_compaction_resolves_the_same_provider_a_turn_would() {
+        // CR080: compaction failed with `Unknown provider "claude-bridge"` because the
+        // provider is registered by a global Pi extension and the invocation only passed
+        // --no-extensions. A mediated turn stops auto-discovery and then names the global
+        // extensions explicitly; compaction must do exactly the same or the Navigator's own
+        // model cannot be loaded.
+        let config = ProviderConfig {
+            command: "pi".to_string(),
+            args: vec!["--print".to_string(), "--model".to_string(), "claude-bridge/claude-opus-5".to_string()],
+            use_stdin: true,
+            safe_test_mode: false,
+            invocation_mode: "mirror".to_string(),
+        };
+        let extensions = vec![PathBuf::from("/home/.pi/agent/npm/node_modules/pi-claude-bridge")];
+        let args = manual_compaction_args(&config, "/sessions/one.jsonl", &extensions);
+
+        assert!(args.windows(2).any(|pair| pair[0] == "--extension"
+            && pair[1] == "/home/.pi/agent/npm/node_modules/pi-claude-bridge"));
+        assert!(args.contains(&"--no-extensions".to_string()));
+        assert!(args.windows(2).any(|pair| pair[0] == "--session" && pair[1] == "/sessions/one.jsonl"));
+        // It is an RPC invocation that may act, and it never prints a turn.
+        assert!(args.windows(2).any(|pair| pair[0] == "--mode" && pair[1] == "rpc"));
+        assert!(!args.contains(&"--print".to_string()));
+        assert_eq!(args.iter().filter(|arg| *arg == "--approve").count(), 1);
+        // The model the Navigator chose still reaches Pi.
+        assert!(args.windows(2).any(|pair| pair[0] == "--model" && pair[1] == "claude-bridge/claude-opus-5"));
+
+        // Outside Mirror mediation the turn leaves discovery alone, and so does compaction.
+        let direct = ProviderConfig { invocation_mode: "direct".to_string(), ..config };
+        let direct_args = manual_compaction_args(&direct, "/sessions/one.jsonl", &extensions);
+        assert!(!direct_args.contains(&"--no-extensions".to_string()));
+        assert!(!direct_args.contains(&"--extension".to_string()));
+    }
+
+    #[test]
+    fn accepts_only_a_successful_native_compaction_response() {
+        // CR080: the compact response is the chapter that just closed. Parsed on the
+        // provision precedent: last matching response line wins, noise is ignored.
+        let output = br###"warning: something on stdout
+{"type":"response","command":"compact","success":true,"data":{"summary":"## Goal\nShip it","firstKeptEntryId":"abc123","tokensBefore":150000,"estimatedTokensAfter":32000,"usage":{"totalTokens":33200}}}
+"###;
+        let parsed = parse_pi_compaction_response(output).unwrap();
+        assert_eq!(parsed.summary, "## Goal\nShip it");
+        assert_eq!(parsed.first_kept_entry_id, "abc123");
+        assert_eq!(parsed.tokens_before, Some(150000));
+        assert_eq!(parsed.estimated_tokens_after, Some(32000));
+
+        // Pi's own refusal reason reaches the caller instead of a generic failure.
+        let refused = parse_pi_compaction_response(
+            br###"{"type":"response","command":"compact","success":false,"error":"Nothing to compact."}"###,
+        );
+        assert_eq!(refused.unwrap_err(), "Pi refused to compact: Nothing to compact.");
+
+        // The summary is the chapter; an empty one is not a compaction, and neither is
+        // a response for some other command or no response at all.
+        assert!(parse_pi_compaction_response(
+            br###"{"type":"response","command":"compact","success":true,"data":{"summary":"","firstKeptEntryId":"x"}}"###,
+        ).is_err());
+        assert!(parse_pi_compaction_response(
+            br###"{"type":"response","command":"get_state","success":true,"data":{"sessionId":"a","sessionFile":"b"}}"###,
+        ).is_err());
+        assert!(parse_pi_compaction_response(b"garbage").is_err());
+    }
+
+    #[test]
     fn extracts_latest_valid_context_stats_after_compaction() {
         let session = [
             r#"{"type":"session","version":3,"id":"nautilus-lab"}"#,
@@ -10551,6 +10973,7 @@ mod tests {
         assert_eq!(inspection.leaf_entry_id.as_deref(), Some("assistant-1"));
         assert_eq!(inspection.active_entry_count, 4);
         assert_eq!(inspection.compaction_count, 0);
+        assert!(inspection.chapter_closures.is_empty());
         assert_eq!(inspection.unknown_prompt_envelope_count, 0);
         assert_eq!(inspection.incomplete_user_entry_id, None);
         assert_eq!(inspection.entries.len(), 4);
