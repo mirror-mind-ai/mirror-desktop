@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.25 — Always Legible Context Reading](v0.2.0-alpha.25.md)
 - [v0.2.0-alpha.24 — Compaction Chapters](v0.2.0-alpha.24.md)
 - [v0.2.0-alpha.23 — Journey Rail and Agent Status](v0.2.0-alpha.23.md)
 - [v0.2.0-alpha.22 — Floating Recenter Control](v0.2.0-alpha.22.md)
