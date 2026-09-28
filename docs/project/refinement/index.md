@@ -66,7 +66,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 13 | [CR081](rs021-ux-pre-beta-evolution/cr081-agent-running-animation.md) | RS021 | Agent Running Animation | done | @alissonvale | `refinement/rs021-cr081-agent-running-animation` |
 | 14 | [CR083](rs021-ux-pre-beta-evolution/cr083-agent-comments-continuity.md) | RS021 | Agent Comments Continuity | captured | — | — |
 | 15 | [CR082](rs021-ux-pre-beta-evolution/cr082-collapsed-sidebar-polish.md) | RS021 | Collapsed Sidebar Polish | done | @alissonvale | `refinement/rs021-cr082-collapsed-sidebar-polish` |
-| 16 | [CR085](rs021-ux-pre-beta-evolution/cr085-close-without-quitting.md) | RS021 | Close Without Quitting | captured | — | — |
+| 16 | [CR085](rs021-ux-pre-beta-evolution/cr085-close-without-quitting.md) | RS021 | Close Without Quitting | in_progress | @alissonvale | `refinement/rs021-cr085-close-without-quitting` |
 | 17 | [CR079](rs021-ux-pre-beta-evolution/cr079-deep-context-stats-analysis.md) | RS021 | Always Legible Context Reading | done | @alissonvale | `refinement/rs021-cr079-deep-context-stats-analysis` |
 | 18 | [CR080](rs021-ux-pre-beta-evolution/cr080-compaction-chapters.md) | RS021 | Compaction Chapters | done | @alissonvale | `refinement/rs021-cr080-compaction-chapters` |
 | 19 | [CR092](rs021-ux-pre-beta-evolution/cr092-float-the-recenter-control-over-the-conversation.md) | RS021 | Float the Recenter Control Over the Conversation | done | @alissonvale | `refinement/rs021-cr092-floating-recenter-control` |

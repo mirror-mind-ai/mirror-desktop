@@ -2,9 +2,9 @@
 
 # CR085: Close Without Quitting
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr085-close-without-quitting`
 
 ## Problem
 
