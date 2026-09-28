@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   contextStateForInspection,
   contextStateForLiveUsage,
+  hasConversationContextStats,
   hasMatchingContextStats,
   readContextStatsWithBoundedRetry,
 } from "../app/contextUsageState";
@@ -24,6 +25,30 @@ describe("context usage authority and recovery", () => {
     expect(hasMatchingContextStats(stats, identity, "openai-codex/gpt-5.4")).toBe(true);
     expect(hasMatchingContextStats(stats, identity, "openai-codex/gpt-5.4-mini")).toBe(false);
     expect(hasMatchingContextStats(stats, { ...identity, generation: 3 }, "openai-codex/gpt-5.4")).toBe(false);
+  });
+
+  // CR079: a token count is a property of the Conversation, not of the model that will read
+  // it next. Binding the cache to the measuring model discarded a valid reading on every
+  // Model Intent switch and left the Navigator with a sentence.
+  it("keeps a Conversation's own measurement across a model switch", () => {
+    expect(hasConversationContextStats(stats, identity)).toBe(true);
+    expect(hasConversationContextStats(stats, { ...identity, generation: 3 })).toBe(false);
+    expect(hasConversationContextStats(undefined, identity)).toBe(false);
+    expect(hasConversationContextStats(
+      { ...stats, usage: { tokens: null, contextWindow: null, percent: null } },
+      identity,
+    )).toBe(false);
+  });
+
+  it("separates an estimate from a measurement by another model", () => {
+    expect(contextStateForInspection({
+      status: "available",
+      snapshot: { tokens: 100, providerModel: "", estimated: true },
+    }, "openai-codex/gpt-5.4")).toBe("waiting");
+    expect(contextStateForInspection({
+      status: "available",
+      snapshot: { tokens: 100, providerModel: "other/model" },
+    }, "openai-codex/gpt-5.4")).toBe("model_mismatch");
   });
 
   it("makes live usage immediately visible and preserves honest compaction unknown state", () => {

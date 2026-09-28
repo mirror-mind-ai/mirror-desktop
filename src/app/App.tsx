@@ -49,6 +49,7 @@ import {
 import {
   contextStateForInspection,
   contextStateForLiveUsage,
+  hasConversationContextStats,
   hasMatchingContextStats,
   readContextStatsWithBoundedRetry,
   type PiContextState,
@@ -958,8 +959,9 @@ export function App({ model }: AppProps) {
   const authoritativeContextStats = conversation.authoritativeContextStats;
   const contextIdentityMatches = authoritativeContextStats
     && authoritativeContextStats.piSessionId === conversation.liveIdentity.piSessionId
-    && authoritativeContextStats.generation === conversation.liveIdentity.generation
-    && authoritativeContextStats.providerModel === providerModelLabel(effectiveProviderConfig);
+    && authoritativeContextStats.generation === conversation.liveIdentity.generation;
+  const contextMeasuredBySelectedModel = Boolean(contextIdentityMatches
+    && authoritativeContextStats.providerModel === providerModelLabel(effectiveProviderConfig));
   const reportedContextUsage = contextIdentityMatches ? authoritativeContextStats.usage : undefined;
   const pendingMirrorRepair = useMemo(
     () => pendingMirrorTurnRepair(presentedConversation),
@@ -1840,10 +1842,9 @@ export function App({ model }: AppProps) {
     }
     const providerModel = providerModelLabel(effectiveProviderConfig);
     const identity = conversation.liveIdentity;
-    const hasMatchingCache = hasMatchingContextStats(
+    const hasMatchingCache = hasConversationContextStats(
       conversation.authoritativeContextStats,
       identity,
-      providerModel,
     );
     if (hasMatchingCache) {
       if (piContextState !== "updating") setPiContextState("available");
@@ -1866,11 +1867,11 @@ export function App({ model }: AppProps) {
       if (cancelled) return;
       const nextState = contextStateForInspection(inspection, providerModel);
       const snapshot = inspection.snapshot;
-      if (nextState !== "available" || !snapshot) {
+      if (!snapshot) {
         if (!hasMatchingCache) setPiContextState(nextState);
         return;
       }
-      setPiContextState("available");
+      setPiContextState(nextState);
       setConversation((currentConversation) => {
         if (
           currentConversation.liveIdentity.piSessionId !== identity.piSessionId
@@ -5217,6 +5218,8 @@ export function App({ model }: AppProps) {
             <div className="composer-input-footer">
               <ComposerRuntimeFooter
                 contextUsage={authoritativeContextUsage}
+                contextWindow={displayContextWindow}
+                contextApproximate={!contextMeasuredBySelectedModel}
                 activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}
                 contextState={piContextState}
                 providerModel={describeComposerModelSelection(effectiveProviderConfig, effectiveAgentProfile.thinkingLevel)}

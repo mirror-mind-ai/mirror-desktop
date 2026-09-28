@@ -20,7 +20,7 @@ export type PiContextInspectionReason =
 export type PiContextInspection = {
   status: "missing" | "waiting" | "available";
   reason?: PiContextInspectionReason;
-  snapshot?: { tokens: number; providerModel: string };
+  snapshot?: { tokens: number; providerModel: string; estimated?: boolean };
 };
 
 export function hasMatchingContextStats(
@@ -33,6 +33,23 @@ export function hasMatchingContextStats(
     && stats.piSessionId === identity.piSessionId
     && stats.generation === identity.generation
     && stats.providerModel === providerModel
+    && stats.usage.tokens !== null,
+  );
+}
+
+/**
+ * CR079: the Conversation's own token count, whichever model measured it. Binding the cache
+ * to the measuring model discarded a valid reading on every Model Intent switch; the measuring
+ * model now only decides whether the reading is marked as approximate.
+ */
+export function hasConversationContextStats(
+  stats: AuthoritativeContextStats | undefined,
+  identity: { piSessionId: string; generation: number },
+): stats is AuthoritativeContextStats {
+  return Boolean(
+    stats
+    && stats.piSessionId === identity.piSessionId
+    && stats.generation === identity.generation
     && stats.usage.tokens !== null,
   );
 }
@@ -52,6 +69,9 @@ export function contextStateForInspection(
       : "waiting";
   }
   if (!inspection.snapshot) return "inspection_failed";
+  // An estimate derived without any assistant reply is not a foreign measurement; it is a
+  // reading still waiting for the model to report, and its detail says so.
+  if (inspection.snapshot.estimated) return "waiting";
   if (inspection.snapshot.providerModel !== providerModel) return "model_mismatch";
   return "available";
 }
