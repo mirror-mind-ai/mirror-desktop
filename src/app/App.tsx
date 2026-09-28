@@ -150,6 +150,7 @@ import type { ConversationSegmentManifest } from "../domain/conversationSegments
 import {
   chapterOpeningMessageIds,
   chapterTitleFromSummary,
+  needsChapterEvidenceRefresh,
   projectConversationChapters,
 } from "../domain/compactionChapters";
 import { compactJourneySession } from "./compactionStorage";
@@ -743,6 +744,7 @@ export function App({ model }: AppProps) {
   // CR080: the chapter index, derived from the Segment manifest the compactions already wrote.
   const [conversationChaptersOpen, setConversationChaptersOpen] = useState(false);
   const [conversationSegmentManifest, setConversationSegmentManifest] = useState<ConversationSegmentManifest>();
+  const chapterEvidenceRepairRef = useRef<string | undefined>(undefined);
   const [conversationLoaded, setConversationLoaded] = useState(false);
   const [journeyThreadState, setJourneyThreadState] = useState<JourneyThreadDisplayState>({ kind: "loading" });
   const [startingJourneyId, setStartingJourneyId] = useState<string | undefined>();
@@ -2141,17 +2143,19 @@ export function App({ model }: AppProps) {
     void (async () => {
       const published = await loadConversationSegments(authority).catch(() => undefined);
       if (cancelled) return;
-      const closedInManifest = published
-        ? published.segments.filter((segment) => segment.status === "closed").length
-        : -1;
-      // A manifest published before this Conversation's latest compaction — or before
-      // chapters existed at all — would misname or hide chapters. Segments are presentation
-      // only (CR046), so rewriting the projection from Pi is safe and it is the only way an
-      // already-compacted Conversation gets its index.
-      if (closedInManifest === closedChapterCount || !sessionFile || isStreaming) {
+      // A manifest that missed a compaction, or that predates chapter evidence, would hide
+      // or fail to name chapters. Segments are presentation only (CR046), so rewriting the
+      // projection from Pi is safe and it is the only way an already-compacted Conversation
+      // gets its index. Attempted once per authority and chapter count, so a session whose
+      // compactions carry no summary is not rewritten on every visit.
+      const repairKey = `${authority.journeyId}:${authority.threadId}:${authority.generation}:${closedChapterCount}`;
+      if (!needsChapterEvidenceRefresh(published, closedChapterCount)
+        || !sessionFile || isStreaming
+        || chapterEvidenceRepairRef.current === repairKey) {
         setConversationSegmentManifest(published);
         return;
       }
+      chapterEvidenceRepairRef.current = repairKey;
       const refreshed = await refreshConversationSegments({ ...authority, sessionFile }).catch(() => undefined);
       if (!cancelled) setConversationSegmentManifest(refreshed ?? published);
     })();

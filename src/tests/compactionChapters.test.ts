@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { ConversationSegmentManifest } from "../domain/conversationSegments";
 import {
   CHAPTER_TITLE_MAX_LENGTH,
   chapterOpeningMessageIds,
+  needsChapterEvidenceRefresh,
   chapterTitleFromSummary,
   describeChapterDivider,
   projectConversationChapters,
@@ -158,5 +160,45 @@ describe("chapter openings in the transcript", () => {
     // A manifest refreshed after the surface would misplace every jump; better none.
     expect(projectConversationChapters(manifest, { openingMessageIds: ["m1"] })
       .map((chapter) => chapter.openingMessageId)).toEqual([undefined, undefined]);
+  });
+});
+
+// CR080 follow-up: manifests published before chapter evidence existed carry the right
+// number of closed Segments and no titles, so a count-only staleness check leaves them
+// forever "Untitled chapter". Observed across every Journey whose last compaction predates
+// this work, while a Journey that compacted afterwards showed real titles.
+describe("chapter evidence staleness", () => {
+  function manifest(segments: unknown[]) {
+    return {
+      schemaVersion: "1.0.0" as const,
+      journeyId: "mirror-desktop", threadId: "t", generation: 1, piSessionId: "s",
+      sourceEntryCount: 10, segments,
+    } as ConversationSegmentManifest;
+  }
+  const closed = (extra: Record<string, unknown> = {}) => ({
+    segment: 1, segmentId: "segment-1", status: "closed" as const,
+    compactionEntryId: "c1", retainedTailFromEntryId: "u1", ...extra,
+  });
+  const current = { segment: 2, segmentId: "segment-2", status: "current" as const };
+
+  it("asks for a rewrite when a closed chapter carries no evidence of what it was", () => {
+    expect(needsChapterEvidenceRefresh(manifest([closed(), current]), 1)).toBe(true);
+  });
+
+  it("asks for a rewrite when the manifest missed a compaction the session recorded", () => {
+    expect(needsChapterEvidenceRefresh(manifest([closed({ summaryHead: "## Goal\nOne." }), current]), 2)).toBe(true);
+  });
+
+  it("leaves a manifest alone once every closed chapter is named", () => {
+    expect(needsChapterEvidenceRefresh(manifest([closed({ summaryHead: "## Goal\nOne." }), current]), 1)).toBe(false);
+  });
+
+  it("does not rewrite a Conversation that has never been compacted", () => {
+    expect(needsChapterEvidenceRefresh(manifest([current]), 0)).toBe(false);
+  });
+
+  it("asks for a rewrite when nothing has been published yet", () => {
+    expect(needsChapterEvidenceRefresh(undefined, 1)).toBe(true);
+    expect(needsChapterEvidenceRefresh(undefined, 0)).toBe(true);
   });
 });

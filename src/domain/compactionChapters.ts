@@ -108,3 +108,22 @@ export function describeChapterDivider(divider: ChapterDivider): {
     closedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : undefined,
   };
 }
+
+/**
+ * Whether the published Segment manifest still describes this Conversation's chapters.
+ *
+ * Two ways it can be stale, and both must be checked. It can have missed a compaction the
+ * Pi session recorded, and it can carry the right chapters with no evidence of what they
+ * were — every manifest published before chapter evidence existed looks exactly like that,
+ * which is why those Conversations showed nothing but "Untitled chapter". Segments are
+ * presentation only, so rewriting the projection from Pi is always safe.
+ */
+export function needsChapterEvidenceRefresh(
+  manifest: ConversationSegmentManifest | undefined,
+  closedChapterCount: number,
+): boolean {
+  if (!manifest) return true;
+  const closed = manifest.segments.filter((segment) => segment.status === "closed");
+  if (closed.length !== closedChapterCount) return true;
+  return closed.some((segment) => segment.summaryHead === undefined);
+}
