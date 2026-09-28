@@ -2610,6 +2610,12 @@ h3 {
   opacity: 0.72;
 }
 
+/* CR080: a manual compaction reports through the same card the automatic one uses. In the
+   composer it needs the breathing room the runtime activity list gave it. */
+.compaction-notice {
+  margin: 4px 0 2px;
+}
+
 .runtime-compaction {
   align-items: flex-start;
   background: linear-gradient(105deg, rgba(var(--ui-accent-rgb), 0.08), rgba(10, 24, 29, 0.34));

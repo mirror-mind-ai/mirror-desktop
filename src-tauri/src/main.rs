@@ -3826,8 +3826,12 @@ fn is_pi_compaction_response_line(line: &str) -> bool {
     })
 }
 
+// CR080: compaction runs for minutes. Held on the command thread it froze the whole GUI,
+// which reads as a crash rather than as work in progress. The Journey claim is still taken
+// synchronously under the registry lock — that ordering is what keeps a turn and a
+// compaction mutually exclusive — and only the process run moves off the thread.
 #[tauri::command]
-fn compact_pi_session(
+async fn compact_pi_session(
     app: AppHandle,
     process_state: State<'_, PiProcessState>,
     compaction_state: State<'_, CompactionState>,
@@ -3863,10 +3867,19 @@ fn compact_pi_session(
             return Err("A compaction is already in flight for this Journey.".to_string());
         }
     }
-    let outcome = run_manual_compaction(&config, &session_file, custom_instructions.as_deref());
-    if let Ok(mut in_flight) = compaction_state.in_flight.lock() {
-        in_flight.remove(&journey_id);
-    }
+    let in_flight_registry = compaction_state.in_flight.clone();
+    let claimed_journey = journey_id.clone();
+    let outcome = tauri::async_runtime::spawn_blocking(move || {
+        let result = run_manual_compaction(&config, &session_file, custom_instructions.as_deref());
+        // Released on the same thread that ran the process, so the claim cannot outlive it
+        // even if the awaiting side goes away.
+        if let Ok(mut in_flight) = in_flight_registry.lock() {
+            in_flight.remove(&claimed_journey);
+        }
+        result
+    })
+    .await
+    .map_err(|_| "The compaction worker stopped unexpectedly.".to_string())?;
     outcome
 }
 

@@ -107,6 +107,26 @@ response needs its own parser on the `parse_pi_session_state` precedent.
   auto-discovery and then names the global extensions explicitly, and compaction follows the
   same contract. The warning `No models match pattern "claude-bridge/..."` appeared in the
   original spike's stderr and was not followed up; it was this failure announcing itself.
+- **A compaction is work, and must look like work.** Held on the Tauri command thread the
+  run froze the whole window for minutes, which reads as a crash rather than as progress.
+  The Journey claim is still taken synchronously under the registry lock — that ordering is
+  what keeps a turn and a compaction mutually exclusive — and only the process run moves to
+  a blocking worker.
+- **One way of saying the same thing.** A manual compaction reports through the same
+  `RuntimeCompaction` card an automatic one already uses, rather than a second, bespoke
+  notice. A settled success fades; a failure stays until the next attempt replaces it.
+- **Stand-down is scoped to what a compaction actually touches.** Resetting the agent
+  context, creating, switching or deleting a Conversation move the generation being
+  rewritten, so they are disabled while one runs. Model selection is not: the process
+  already spawned with its config, so a selection reaches only the next message, and an
+  earlier decision deliberately keeps that surface open during occupancy.
+- **A compaction republishes only the boundary it moved.** It closes one chapter and opens
+  the next; older Segments are already durable and unchanged. Re-deriving them from a fresh
+  Pi projection is not guaranteed to reproduce the same bytes, and the persistence layer
+  correctly rejects that as `Immutable Conversation Segment projection diverged`. Observed
+  in homologation: the manual path reprojected the whole surface from Pi and republished
+  every Segment, which the automatic path never does because it publishes the same live
+  Conversation object that wrote them.
 - **Manual compaction runs isolated and without a turn.** No `--offline` (it calls the
   model), no turn correlation, no journal record, `--no-tools --no-extensions --no-skills
   --no-prompt-templates --no-context-files --approve`, always `--mode rpc`. The runtime

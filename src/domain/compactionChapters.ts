@@ -156,3 +156,16 @@ export function formatChapterDateRange(
   if (opened) return `Since ${format.format(opened)}`;
   return "";
 }
+
+/**
+ * A compaction closes one chapter and opens the next. Every older Segment is already
+ * durable on disk and unchanged by the cut, and re-deriving it from a fresh Pi projection
+ * is not guaranteed to reproduce the same bytes — which the persistence layer correctly
+ * rejects as "Immutable Conversation Segment projection diverged". So only the boundary
+ * the compaction actually moved is republished.
+ */
+export function segmentProjectionsTouchedByCompaction<T extends { status: string }>(
+  projections: readonly T[],
+): readonly T[] {
+  return projections.length <= 2 ? projections : projections.slice(-2);
+}

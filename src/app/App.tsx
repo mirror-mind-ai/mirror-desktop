@@ -152,8 +152,10 @@ import {
   chapterTitleFromSummary,
   needsChapterEvidenceRefresh,
   projectConversationChapters,
+  segmentProjectionsTouchedByCompaction,
 } from "../domain/compactionChapters";
 import { compactJourneySession } from "./compactionStorage";
+import { RuntimeCompaction } from "./LiveRuntimeActivity";
 import { ComposerContextMenu } from "./ComposerContextMenu";
 import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
 import { describeMirrorAppendRejection } from "../domain/mirrorAppendRejection";
@@ -218,6 +220,7 @@ import {
   initialRuntimeProjectionState,
   mergeRuntimeContextUsage,
   reduceRuntimeProjection,
+  type ProjectedRuntimeOperation,
 } from "./runtimeActivityModel";
 import {
   createInitialJourneyRuntimeState,
@@ -629,7 +632,7 @@ export function App({ model }: AppProps) {
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const [compactingJourneyId, setCompactingJourneyId] = useState<string>();
-  const [compactionNotice, setCompactionNotice] = useState<string>();
+  const [compactionOperation, setCompactionOperation] = useState<ProjectedRuntimeOperation>();
   const [contextRefreshEpoch, setContextRefreshEpoch] = useState(0);
   const [agentSettingsMessage, setAgentSettingsMessage] = useState<string | undefined>();
   const [agentProfileConfigured, setAgentProfileConfigured] = useState<boolean>();
@@ -1100,6 +1103,7 @@ export function App({ model }: AppProps) {
       }
     : undefined;
   const hasInlineGrammar = Boolean(streamMissionDraft || streamWarnings.length > 0 || streamSafety || streamDiagnostics.length > 0);
+  const compactionInFlight = compactingJourneyId !== undefined && compactingJourneyId === selectedJourney;
   const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading";
   const operationalChatSelected = presentedAltitude === "operational" && presentedOperationalSurface === "chat";
   // CR092: the floating recenter control lives in a viewport wrapping the scroller, so the
@@ -1760,12 +1764,12 @@ export function App({ model }: AppProps) {
   }, [voiceNotice]);
 
   useEffect(() => {
-    if (!compactionNotice) return;
-    const scheduled = compactionNotice;
+    if (compactionOperation?.status !== "completed") return;
+    const scheduled = compactionOperation;
     return scheduleTransientComposerNotice(() => {
-      setCompactionNotice((current) => clearScheduledNotice(current, scheduled));
+      setCompactionOperation((current) => (current === scheduled ? undefined : current));
     });
-  }, [compactionNotice]);
+  }, [compactionOperation]);
 
   useEffect(() => {
     let cancelled = false;
@@ -3609,14 +3613,14 @@ export function App({ model }: AppProps) {
   }
 
   function requestDesktopConversationDeletion(entry: Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>) {
-    if (selectedRuntimeBusy || runStartReservation || conversationActionBusy) return;
+    if (compactionInFlight || selectedRuntimeBusy || runStartReservation || conversationActionBusy) return;
     setConversationDeleteError(undefined);
     setConversationDeleteTarget(entry);
   }
 
   async function confirmDesktopConversationDeletion() {
     const entry = conversationDeleteTarget;
-    if (!entry || selectedRuntimeBusy || runStartReservation || conversationActionBusy) return;
+    if (!entry || compactionInFlight || selectedRuntimeBusy || runStartReservation || conversationActionBusy) return;
     setConversationActionBusy(true);
     setConversationDeleteError(undefined);
     setConversationActionMessage("Deleting Desktop Conversation…");
@@ -4267,6 +4271,13 @@ export function App({ model }: AppProps) {
     };
     const selectedConversationId = conversation.id;
     setCompactingJourneyId(authority.journeyId);
+    setCompactionOperation({
+      id: "manual-compaction",
+      kind: "compaction",
+      name: "Context compaction",
+      status: "running",
+      arguments: { reason: "manual" },
+    });
     try {
       const result = await compactJourneySession({
         journeyId: authority.journeyId,
@@ -4296,12 +4307,30 @@ export function App({ model }: AppProps) {
       if (manifest && stillSelected) {
         await publishConversationSegmentProjections(
           authority,
-          partitionConversationBySegments(conversationRef.current, manifest),
+          segmentProjectionsTouchedByCompaction(
+            partitionConversationBySegments(conversationRef.current, manifest),
+          ),
         );
       }
-      setCompactionNotice(`Chapter closed: ${chapterTitleFromSummary(result.summary)}`);
+      setCompactionOperation({
+        id: "manual-compaction",
+        kind: "compaction",
+        name: "Context compaction",
+        status: "completed",
+        arguments: { reason: "manual" },
+        output: `Chapter closed: ${chapterTitleFromSummary(result.summary)}`,
+        isError: false,
+      });
     } catch (error) {
-      setCompactionNotice(`Compaction did not complete. ${error instanceof Error ? error.message : String(error)}`);
+      setCompactionOperation({
+        id: "manual-compaction",
+        kind: "compaction",
+        name: "Context compaction",
+        status: "failed",
+        arguments: { reason: "manual" },
+        output: error instanceof Error ? error.message : String(error),
+        isError: true,
+      });
     } finally {
       setCompactingJourneyId((current) => (current === authority.journeyId ? undefined : current));
     }
@@ -4755,7 +4784,7 @@ export function App({ model }: AppProps) {
                       showConversation();
                       setConversationChaptersOpen((open) => !open);
                     }}
-                    disabled={altitudeSwitchDisabled || conversationChapters.length === 0 || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
+                    disabled={compactionInFlight || altitudeSwitchDisabled || conversationChapters.length === 0 || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
                     aria-label="Navigate conversation chapters"
                     aria-pressed={conversationChaptersOpen}
                   >
@@ -4767,7 +4796,7 @@ export function App({ model }: AppProps) {
                     className="menu-button"
                     type="button"
                     onClick={() => setJourneyMenuOpen((open) => !open)}
-                    disabled={journeyThreadState.kind !== "ready" || selectedConversationSpace.kind === "mirror_history"}
+                    disabled={compactionInFlight || journeyThreadState.kind !== "ready" || selectedConversationSpace.kind === "mirror_history"}
                     aria-label="Journey conversation menu"
                     aria-expanded={journeyMenuOpen}
                     title="Journey menu"
@@ -4780,7 +4809,7 @@ export function App({ model }: AppProps) {
                         type="button"
                         role="menuitem"
                         onClick={requestConversationRestart}
-                        disabled={runtimeBusy || isJourneyReloading || turnRecoveryBusy || Boolean(blockingTurnJournalRecord) || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)}
+                        disabled={compactionInFlight || runtimeBusy || isJourneyReloading || turnRecoveryBusy || Boolean(blockingTurnJournalRecord) || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)}
                         title={blockingTurnJournalRecord ? "Wait until the previous message is ready." : undefined}
                       >
                         Reset agent context…
@@ -5116,7 +5145,11 @@ export function App({ model }: AppProps) {
           {fileAttachmentError ? <p className="context-attachment-error" role="alert">{fileAttachmentError}</p> : null}
           {voiceError ? <p className="context-attachment-error voice-error" role="alert">{voiceError}</p> : null}
           {voiceNotice ? <p className="voice-notice" role="status">{voiceNotice}</p> : null}
-          {compactionNotice ? <p className="voice-notice compaction-notice" role="status">{compactionNotice}</p> : null}
+          {compactionOperation ? (
+            <div className="compaction-notice" role="status">
+              <RuntimeCompaction operation={compactionOperation} />
+            </div>
+          ) : null}
           <VoiceSessionStatus session={voiceSession} elapsedSeconds={voiceElapsedSeconds} onCancel={cancelVoiceRecording} />
           <PendingFileAttachments
             attachments={pendingFileAttachments}
@@ -5169,14 +5202,14 @@ export function App({ model }: AppProps) {
                 activeIntentLabel={activeModelIntent?.label}
                 providerModelMenuOpen={modelIntentMenuOpen}
                 menuWrapRef={modelIntentMenuRef}
-                compacting={compactingJourneyId !== undefined && compactingJourneyId === selectedJourney}
+                compacting={compactionInFlight}
                 onOpenContextMenu={() => setContextMenuOpen((open) => !open)}
                 contextMenuOpen={contextMenuOpen}
                 contextMenuWrapRef={contextMenuRef}
                 contextMenu={contextMenuOpen ? (
                   <ComposerContextMenu
                     canCompact={conversationAvailability.canSend && !effectiveProviderConfig.safeTestMode}
-                    compacting={compactingJourneyId !== undefined && compactingJourneyId === selectedJourney}
+                    compacting={compactionInFlight}
                     unavailableReason={effectiveProviderConfig.safeTestMode
                       ? "Compaction is unavailable in safe test mode."
                       : conversationAvailability.canSend ? undefined : "Available once the conversation is idle and ready to send."}
