@@ -80,6 +80,20 @@ export function contextStateForInspection(
   return "available";
 }
 
+/**
+ * CR079: the bounded sub-second retry was the only thing that ever re-read the session. When
+ * it returned nothing, no timer, poll or watch ever tried again, so the reading stayed absent
+ * until a turn happened to run. These are the follow-up attempts, deliberately few: a reading
+ * that has not settled after them is waiting on the agent, not on the Desktop.
+ */
+export const CONTEXT_REFRESH_DELAYS_MS: readonly number[] = [1_500, 5_000, 15_000];
+
+export function contextReadingNeedsRefresh(state: PiContextState): boolean {
+  // A running turn reports on its own, and a Conversation with no Pi session has nothing to
+  // read; everything else can still improve with another look.
+  return !["available", "updating", "not_initialized", "session_missing"].includes(state);
+}
+
 export async function readContextStatsWithBoundedRetry(
   read: () => Promise<PiContextInspection>,
   sleep: (milliseconds: number) => Promise<void> = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),

@@ -49,6 +49,8 @@ import {
 import {
   contextStateForInspection,
   contextStateForLiveUsage,
+  CONTEXT_REFRESH_DELAYS_MS,
+  contextReadingNeedsRefresh,
   hasConversationContextStats,
   hasMatchingContextStats,
   readContextStatsWithBoundedRetry,
@@ -638,6 +640,7 @@ export function App({ model }: AppProps) {
     operation: ProjectedRuntimeOperation;
   }>();
   const [contextRefreshEpoch, setContextRefreshEpoch] = useState(0);
+  const [contextRefreshAttempt, setContextRefreshAttempt] = useState(0);
   const [agentSettingsMessage, setAgentSettingsMessage] = useState<string | undefined>();
   const [agentProfileConfigured, setAgentProfileConfigured] = useState<boolean>();
   const [piModelCatalog, setPiModelCatalog] = useState<PiModelCatalogEntry[]>([]);
@@ -1910,6 +1913,30 @@ export function App({ model }: AppProps) {
     isStreaming,
     effectiveProviderConfig,
     contextRefreshEpoch,
+  ]);
+
+  // The budget belongs to the Conversation being read; a newly opened one must not inherit an
+  // exhausted one and stop re-reading before it has looked even once.
+  useEffect(() => {
+    setContextRefreshAttempt(0);
+  }, [conversation.id, conversation.liveIdentity.generation, conversation.liveIdentity.piSessionId]);
+
+  useEffect(() => {
+    if (!conversationLoaded || isStreaming || effectiveProviderConfig.safeTestMode) return;
+    if (!contextReadingNeedsRefresh(piContextState)) return;
+    const delay = CONTEXT_REFRESH_DELAYS_MS[contextRefreshAttempt];
+    if (delay === undefined) return;
+    const timer = setTimeout(() => {
+      setContextRefreshAttempt((attempt) => attempt + 1);
+      setContextRefreshEpoch((epoch) => epoch + 1);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [
+    contextRefreshAttempt,
+    conversationLoaded,
+    effectiveProviderConfig,
+    isStreaming,
+    piContextState,
   ]);
 
   useEffect(() => {

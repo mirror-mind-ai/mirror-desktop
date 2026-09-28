@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  CONTEXT_REFRESH_DELAYS_MS,
+  contextReadingNeedsRefresh,
   contextStateForInspection,
   contextStateForLiveUsage,
   hasConversationContextStats,
@@ -66,6 +68,22 @@ describe("context usage authority and recovery", () => {
       snapshot: { tokens: 100, providerModel: "other/model" },
     }, "openai-codex/gpt-5.4")).toBe("model_mismatch");
     expect(contextStateForInspection({ status: "available" }, "openai-codex/gpt-5.4")).toBe("inspection_failed");
+  });
+
+  // CR079: the bounded 300ms retry was the only thing that ever re-read the session. When it
+  // came back empty nothing rescheduled, so the reading froze until a turn happened to run.
+  it("keeps re-reading a reading that has not settled, within a bound", () => {
+    for (const state of ["checking", "waiting", "estimated", "model_mismatch", "unknown_after_compaction", "inspection_failed"] as const) {
+      expect(contextReadingNeedsRefresh(state)).toBe(true);
+    }
+    // A measured reading, a running turn and a Conversation with no Pi session have nothing
+    // to gain from another read.
+    for (const state of ["available", "updating", "not_initialized", "session_missing"] as const) {
+      expect(contextReadingNeedsRefresh(state)).toBe(false);
+    }
+    expect(CONTEXT_REFRESH_DELAYS_MS.length).toBeGreaterThan(0);
+    expect([...CONTEXT_REFRESH_DELAYS_MS]).toEqual([...CONTEXT_REFRESH_DELAYS_MS].sort((a, b) => a - b));
+    expect(CONTEXT_REFRESH_DELAYS_MS[CONTEXT_REFRESH_DELAYS_MS.length - 1]).toBeLessThanOrEqual(30_000);
   });
 
   it("retries a present file with pending usage but stops at the bounded attempt limit", async () => {
