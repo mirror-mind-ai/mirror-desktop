@@ -68,7 +68,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 15 | [CR082](rs021-ux-pre-beta-evolution/cr082-collapsed-sidebar-polish.md) | RS021 | Collapsed Sidebar Polish | done | @alissonvale | `refinement/rs021-cr082-collapsed-sidebar-polish` |
 | 16 | [CR085](rs021-ux-pre-beta-evolution/cr085-close-without-quitting.md) | RS021 | Close Without Quitting | captured | — | — |
 | 17 | [CR079](rs021-ux-pre-beta-evolution/cr079-deep-context-stats-analysis.md) | RS021 | Deep Context Stats Analysis | captured | — | — |
-| 18 | [CR080](rs021-ux-pre-beta-evolution/cr080-manual-compaction-checkpoint.md) | RS021 | Compaction Chapters | in_progress | @alissonvale | `refinement/rs021-cr080-compaction-chapters` |
+| 18 | [CR080](rs021-ux-pre-beta-evolution/cr080-compaction-chapters.md) | RS021 | Compaction Chapters | done | @alissonvale | `refinement/rs021-cr080-compaction-chapters` |
 | 19 | [CR092](rs021-ux-pre-beta-evolution/cr092-float-the-recenter-control-over-the-conversation.md) | RS021 | Float the Recenter Control Over the Conversation | done | @alissonvale | `refinement/rs021-cr092-floating-recenter-control` |
 | 20 | [CR077](rs016-ongoing-product-improvements-and-adjustments/cr077-reconstruct-reasoning-from-pi-session-evidence.md) | RS016 | Reconstruct Reasoning from Pi Session Evidence | done | @alissonvale | `refinement/rs016-cr077-reconstruct-reasoning` |
 | 21 | [CR076](rs016-ongoing-product-improvements-and-adjustments/cr076-surface-the-thinking-process-of-every-model.md) | RS016 | Surface the Thinking Process of Every Model | done | @alissonvale | `refinement/rs016-cr076-model-agnostic-reasoning` |

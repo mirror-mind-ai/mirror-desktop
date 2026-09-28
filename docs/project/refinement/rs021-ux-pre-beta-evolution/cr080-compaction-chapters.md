@@ -2,7 +2,7 @@
 
 # CR080: Compaction Chapters
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr080-compaction-chapters`
 
