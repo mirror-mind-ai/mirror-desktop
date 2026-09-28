@@ -29,6 +29,8 @@ export type AuthoritativeContextStats = {
     tokens: number | null;
     contextWindow: number | null;
     percent: number | null;
+    /** CR079: the count is an approximation, so the reading is marked rather than withheld. */
+    estimated?: boolean;
   };
 };
 

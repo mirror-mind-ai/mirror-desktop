@@ -35,6 +35,8 @@ export type RuntimeContextUsage = {
   tokens: number | null;
   contextWindow: number | null;
   percent: number | null;
+  /** CR079: the count came from a compaction estimate, not from a model's reported usage. */
+  estimated?: boolean;
 };
 
 export type RuntimeProjectionState = {

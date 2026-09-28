@@ -7,6 +7,9 @@ describe("context reading integration", () => {
   it("hands the footer the window and the approximation separately from the usage", () => {
     expect(appSource).toContain("contextWindow={displayContextWindow}");
     expect(appSource).toContain("contextApproximate={!contextMeasuredBySelectedModel}");
+    // The cached-reading shortcut runs before inspection, so it must not relabel an estimate
+    // as a measurement while it waits.
+    expect(appSource).toContain('setPiContextState(cachedUsageIsEstimated ? "estimated" : "available")');
   });
 
   it("scopes the cached reading to the Conversation, not to the measuring model", () => {

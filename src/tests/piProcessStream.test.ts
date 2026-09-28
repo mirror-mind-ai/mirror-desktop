@@ -186,7 +186,9 @@ describe("Pi process stream adapter", () => {
           isError: false,
         },
       },
-      { type: "context_usage", usage: { tokens: null, contextWindow: null, percent: null } },
+      // CR079: the compaction reports what it left behind, so the reading becomes an
+      // approximation instead of an unknown.
+      { type: "context_usage", usage: { tokens: 18000, contextWindow: null, percent: null, estimated: true } },
     ]);
   });
 

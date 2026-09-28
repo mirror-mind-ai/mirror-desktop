@@ -1846,8 +1846,11 @@ export function App({ model }: AppProps) {
       conversation.authoritativeContextStats,
       identity,
     );
+    const cachedUsageIsEstimated = conversation.authoritativeContextStats?.usage.estimated === true;
     if (hasMatchingCache) {
-      if (piContextState !== "updating") setPiContextState("available");
+      // This shortcut runs before the inspection resolves, so it must not relabel a compaction
+      // estimate as a measurement while it waits.
+      if (piContextState !== "updating") setPiContextState(cachedUsageIsEstimated ? "estimated" : "available");
     } else if (piContextState !== "unknown_after_compaction") {
       setPiContextState("checking");
     }
@@ -4305,9 +4308,21 @@ export function App({ model }: AppProps) {
           authority.sessionFile,
         );
         const reprojected = projectPiBackedConversationSurface(conversationRef.current, inspection);
-        // The cached usage described the conversation before the cut; drop it so the
-        // reading below restarts from Pi rather than showing the old number as current.
-        const next = { ...reprojected, authoritativeContextStats: undefined };
+        // CR079: the cached usage described the conversation before the cut, but the compaction
+        // reports what it left behind. Spending that estimate keeps a reading on screen at the
+        // moment the Navigator just acted on the context, instead of blanking it until the next
+        // turn reports usage.
+        const estimatedAfter = result.estimatedTokensAfter;
+        const next = {
+          ...reprojected,
+          authoritativeContextStats: estimatedAfter === null ? undefined : {
+            piSessionId: reprojected.liveIdentity.piSessionId,
+            generation: reprojected.liveIdentity.generation,
+            providerModel: providerModelLabel(effectiveProviderConfig),
+            capturedAt: new Date().toISOString(),
+            usage: { tokens: estimatedAfter, contextWindow: null, percent: null, estimated: true },
+          },
+        };
         conversationRef.current = next;
         setConversation(next);
         setPiContextState("unknown_after_compaction");

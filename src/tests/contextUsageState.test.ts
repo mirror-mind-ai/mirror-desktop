@@ -44,7 +44,7 @@ describe("context usage authority and recovery", () => {
     expect(contextStateForInspection({
       status: "available",
       snapshot: { tokens: 100, providerModel: "", estimated: true },
-    }, "openai-codex/gpt-5.4")).toBe("waiting");
+    }, "openai-codex/gpt-5.4")).toBe("estimated");
     expect(contextStateForInspection({
       status: "available",
       snapshot: { tokens: 100, providerModel: "other/model" },
@@ -54,6 +54,7 @@ describe("context usage authority and recovery", () => {
   it("makes live usage immediately visible and preserves honest compaction unknown state", () => {
     expect(contextStateForLiveUsage({ tokens: 43000, contextWindow: 1050000, percent: 4.1 })).toBe("available");
     expect(contextStateForLiveUsage({ tokens: null, contextWindow: null, percent: null })).toBe("unknown_after_compaction");
+    expect(contextStateForLiveUsage({ tokens: 18000, contextWindow: null, percent: null, estimated: true })).toBe("estimated");
   });
 
   it("keeps inspection outcomes distinguishable", () => {

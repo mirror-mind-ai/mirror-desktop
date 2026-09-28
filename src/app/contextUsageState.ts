@@ -6,6 +6,7 @@ export type PiContextState =
   | "waiting"
   | "available"
   | "updating"
+  | "estimated"
   | "not_initialized"
   | "unknown_after_compaction"
   | "session_missing"
@@ -55,7 +56,10 @@ export function hasConversationContextStats(
 }
 
 export function contextStateForLiveUsage(usage: RuntimeContextUsage): PiContextState {
-  return usage.tokens === null ? "unknown_after_compaction" : "available";
+  // An estimate left by a compaction is a reading, but not a measurement; the state keeps that
+  // distinction so the footer marks it instead of claiming precision it does not have.
+  if (usage.tokens === null) return "unknown_after_compaction";
+  return usage.estimated ? "estimated" : "available";
 }
 
 export function contextStateForInspection(
@@ -71,7 +75,7 @@ export function contextStateForInspection(
   if (!inspection.snapshot) return "inspection_failed";
   // An estimate derived without any assistant reply is not a foreign measurement; it is a
   // reading still waiting for the model to report, and its detail says so.
-  if (inspection.snapshot.estimated) return "waiting";
+  if (inspection.snapshot.estimated) return "estimated";
   if (inspection.snapshot.providerModel !== providerModel) return "model_mismatch";
   return "available";
 }

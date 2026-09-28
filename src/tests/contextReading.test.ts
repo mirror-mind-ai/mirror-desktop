@@ -29,7 +29,7 @@ describe("context reading", () => {
   // The window is known from the model catalog even when nothing has measured the
   // Conversation yet, so the reading degrades to a glyph rather than to prose.
   it("keeps the window on screen when the token count is unknown", () => {
-    for (const state of ["checking", "waiting", "updating", "unknown_after_compaction", "model_mismatch", "inspection_failed"] as const) {
+    for (const state of ["checking", "waiting", "updating", "unknown_after_compaction", "model_mismatch", "inspection_failed", "estimated"] as const) {
       const reading = projectContextReading({ state, tokens: null, contextWindow: window272k });
       expect(reading.text).toBe("?/272K");
       expect(reading.confidence).toBe("unknown");
@@ -48,6 +48,7 @@ describe("context reading", () => {
     const states = [
       "checking", "waiting", "available", "updating", "not_initialized",
       "unknown_after_compaction", "session_missing", "model_mismatch", "inspection_failed",
+      "estimated",
     ] as const;
     for (const state of states) {
       for (const tokens of [null, 111_520]) {
@@ -66,6 +67,12 @@ describe("context reading", () => {
       .toContain("compaction");
     expect(projectContextReading({ state: "not_initialized", tokens: null, contextWindow: window272k }).detail)
       .toContain("not initialized");
+  });
+
+  it("marks an estimated reading even when nothing else is approximate", () => {
+    const reading = projectContextReading({ state: "estimated", tokens: 111_520, contextWindow: window272k });
+    expect(reading.text).toBe("~41%/272K");
+    expect(reading.detail).toContain("Approximate");
   });
 
   it("carries the tone thresholds the footer colours", () => {

@@ -72,6 +72,17 @@ describe("manual compaction presentation", () => {
     expect(failure).not.toContain("run_finished");
   });
 
+  // CR079: a manual compaction knows how much context it left behind. Clearing the reading
+  // and waiting for the next turn threw that away at the exact moment the Navigator had just
+  // acted on the context.
+  it("leaves an approximate reading from the compaction result", () => {
+    const start = appSource.indexOf("setCompactingJourneyId(authority.journeyId);");
+    const body = appSource.slice(start, appSource.indexOf("async function loadCompleteSegmentHistory"));
+    expect(body).toContain("result.estimatedTokensAfter");
+    expect(body).toContain("estimated: true");
+    expect(body).not.toContain("authoritativeContextStats: undefined");
+  });
+
   // A frozen window reads as a crash. The work runs off the command thread, and the
   // controls that would disturb it are the ones that get disabled.
   it("disables the controls that would disturb a running compaction", () => {
