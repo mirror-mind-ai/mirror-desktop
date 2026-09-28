@@ -53,6 +53,25 @@ describe("manual compaction presentation", () => {
     }
   });
 
+  // Triggering a compaction and walking away is the normal case, so its end has to reach
+  // the Journey list. The badge follows the contract turns already set: it marks a run that
+  // succeeded, and a failure is carried by its own notice instead of masquerading as Ready.
+  it("announces a finished compaction on its Journey, and never a failed one", () => {
+    const start = appSource.indexOf("setCompactingJourneyId(authority.journeyId);");
+    const body = appSource.slice(start, appSource.indexOf("async function loadCompleteSegmentHistory"));
+
+    // A stale Ready badge from an earlier turn must not survive the compaction and reappear.
+    const opening = body.slice(0, body.indexOf("try {"));
+    expect(opening).toContain('type: "run_started"');
+
+    const settled = body.slice(body.indexOf('status: "completed"'), body.indexOf("} catch (error) {"));
+    expect(settled).toContain('type: "run_finished"');
+    expect(settled).toContain("selected: selectedJourneyRef.current === authority.journeyId");
+
+    const failure = body.slice(body.indexOf("} catch (error) {"), body.indexOf("} finally {"));
+    expect(failure).not.toContain("run_finished");
+  });
+
   // A frozen window reads as a crash. The work runs off the command thread, and the
   // controls that would disturb it are the ones that get disabled.
   it("disables the controls that would disturb a running compaction", () => {

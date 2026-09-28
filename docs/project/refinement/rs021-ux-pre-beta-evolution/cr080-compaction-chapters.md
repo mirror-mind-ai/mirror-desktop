@@ -117,9 +117,15 @@ response needs its own parser on the `parse_pi_session_state` precedent.
   Journey is occupied for minutes, so it rises in the recents and its indicator reads
   `Working`, exactly as an admitted turn does. Runtime ownership cannot carry this, so
   `deriveJourneyAgentStatus` takes an explicit `compacting` input, and the start reuses
-  `recordAdmittedJourneyActivity`. Known gap: because there is no run, no `Ready` badge
-  appears when a compaction ends — the indicator drops from `Working` to `Idle` and the
-  outcome is reported only by the card inside that Journey.
+  `recordAdmittedJourneyActivity`.
+- **A finished compaction announces itself; a failed one does not pretend to.** Triggering a
+  compaction and leaving is the normal case, so the end runs the same attention lifecycle a
+  turn does: opening clears a stale `Ready` badge from an earlier run, and only the
+  successful path dispatches `run_finished`. That follows the contract already set for turns
+  — *"Failed/cancelled turns retain their existing notices and do not masquerade as
+  Finished"* — and a failed compaction is carried by its card, which by decision never
+  fades. Because an unopened Journey never acknowledges the badge, it waits there until the
+  Navigator actually arrives.
 - **The compaction card belongs to the Journey being compacted.** It is state on a single
   App, so without an explicit owner it followed the reader into every Journey they opened
   and claimed each one was compacting. The in-flight claim cannot gate it either, because

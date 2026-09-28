@@ -4276,6 +4276,7 @@ export function App({ model }: AppProps) {
     const selectedConversationId = conversation.id;
     setCompactingJourneyId(authority.journeyId);
     recordAdmittedJourneyActivity(authority.journeyId, new Date().toISOString());
+    dispatchJourneyFinishedAttention({ type: "run_started", journeyId: authority.journeyId });
     setCompactionOperation({
       journeyId: authority.journeyId,
       operation: {
@@ -4331,6 +4332,15 @@ export function App({ model }: AppProps) {
           output: `Chapter closed: ${chapterTitleFromSummary(result.summary)}`,
           isError: false,
         },
+      });
+      // Triggering a compaction and leaving is the normal case, so its end has to reach the
+      // Journey list. Only the successful path announces: a failure keeps its own notice and
+      // does not masquerade as Finished, exactly as a failed turn does not.
+      dispatchJourneyFinishedAttention({
+        type: "run_finished",
+        journeyId: authority.journeyId,
+        selected: selectedJourneyRef.current === authority.journeyId,
+        at: Date.now(),
       });
     } catch (error) {
       setCompactionOperation({
