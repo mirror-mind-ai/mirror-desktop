@@ -3724,19 +3724,48 @@ enum PiInvocationStartError {
 // so the model resolves the same way. Isolated from tools, extensions and skills: every
 // recorded summary came from Pi's default generator, so isolation does not change the
 // chapter's shape. No turn correlation and no journal record: this is not a turn.
-fn run_manual_compaction(
+// CR080: the argument list for a one-shot compaction. It must resolve the same model a turn
+// would, which is why extension handling follows the turn exactly rather than simply
+// switching extensions off: providers can be registered by a global Pi extension, and
+// `--no-extensions` alone makes such a model unknown to Pi.
+fn manual_compaction_args(
     config: &ProviderConfig,
     session_file: &str,
-    custom_instructions: Option<&str>,
-) -> Result<PiCompactionResult, String> {
+    global_extensions: &[PathBuf],
+) -> Vec<String> {
     let mut args = remove_provider_session_args(config.args.clone());
     args = mirror_rpc_args(args);
     args.push("--session".to_string());
     args.push(session_file.to_string());
     args.retain(|arg| arg != "--approve" && arg != "--no-approve");
-    for flag in ["--no-tools", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files", "--approve"] {
+    for flag in ["--no-tools", "--no-skills", "--no-prompt-templates", "--no-context-files", "--approve"] {
         args.push(flag.to_string());
     }
+    if config.invocation_mode == "mirror" {
+        // Same contract as a mediated turn: stop auto-discovery, then name the global
+        // extensions explicitly, so a provider registered by one still resolves.
+        args.push("--no-extensions".to_string());
+        for entry in global_extensions {
+            args.push("--extension".to_string());
+            args.push(entry.to_string_lossy().into_owned());
+        }
+    }
+    args
+}
+
+fn run_manual_compaction(
+    config: &ProviderConfig,
+    session_file: &str,
+    custom_instructions: Option<&str>,
+) -> Result<PiCompactionResult, String> {
+    let global_extensions = if config.invocation_mode == "mirror" {
+        current_user_home_directory()
+            .map(|home| resolve_global_pi_extensions(&home.join(".pi").join("agent")).entries)
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    let args = manual_compaction_args(config, session_file, &global_extensions);
     let mut command = Command::new(&config.command);
     command.args(args);
     if config.invocation_mode == "mirror" {
@@ -8910,7 +8939,8 @@ mod tests {
         load_conversation_thread_authority_at,
         apply_desktop_conversation_reset, desktop_conversation_entry_from_creation,
         ensure_unique_desktop_conversation_title, load_desktop_conversation_catalog_at,
-        materialize_empty_pi_session, parse_pi_compaction_response, parse_pi_session_state,
+        manual_compaction_args, materialize_empty_pi_session, parse_pi_compaction_response, ProviderConfig,
+        parse_pi_session_state,
         inspect_complete_pi_transcript, project_complete_pi_transcript, project_conversation_segment_manifest,
         PiChapterClosure,
         publish_conversation_segment_manifest_at,
@@ -10678,6 +10708,41 @@ mod tests {
 "#;
         assert_eq!(parse_pi_session_state(output).unwrap(), ("pi-one".to_string(), "/sessions/pi-one.jsonl".to_string()));
         assert!(parse_pi_session_state(br#"{"type":"response","command":"get_state","success":false}"#).is_err());
+    }
+
+    #[test]
+    fn manual_compaction_resolves_the_same_provider_a_turn_would() {
+        // CR080: compaction failed with `Unknown provider "claude-bridge"` because the
+        // provider is registered by a global Pi extension and the invocation only passed
+        // --no-extensions. A mediated turn stops auto-discovery and then names the global
+        // extensions explicitly; compaction must do exactly the same or the Navigator's own
+        // model cannot be loaded.
+        let config = ProviderConfig {
+            command: "pi".to_string(),
+            args: vec!["--print".to_string(), "--model".to_string(), "claude-bridge/claude-opus-5".to_string()],
+            use_stdin: true,
+            safe_test_mode: false,
+            invocation_mode: "mirror".to_string(),
+        };
+        let extensions = vec![PathBuf::from("/home/.pi/agent/npm/node_modules/pi-claude-bridge")];
+        let args = manual_compaction_args(&config, "/sessions/one.jsonl", &extensions);
+
+        assert!(args.windows(2).any(|pair| pair[0] == "--extension"
+            && pair[1] == "/home/.pi/agent/npm/node_modules/pi-claude-bridge"));
+        assert!(args.contains(&"--no-extensions".to_string()));
+        assert!(args.windows(2).any(|pair| pair[0] == "--session" && pair[1] == "/sessions/one.jsonl"));
+        // It is an RPC invocation that may act, and it never prints a turn.
+        assert!(args.windows(2).any(|pair| pair[0] == "--mode" && pair[1] == "rpc"));
+        assert!(!args.contains(&"--print".to_string()));
+        assert_eq!(args.iter().filter(|arg| *arg == "--approve").count(), 1);
+        // The model the Navigator chose still reaches Pi.
+        assert!(args.windows(2).any(|pair| pair[0] == "--model" && pair[1] == "claude-bridge/claude-opus-5"));
+
+        // Outside Mirror mediation the turn leaves discovery alone, and so does compaction.
+        let direct = ProviderConfig { invocation_mode: "direct".to_string(), ..config };
+        let direct_args = manual_compaction_args(&direct, "/sessions/one.jsonl", &extensions);
+        assert!(!direct_args.contains(&"--no-extensions".to_string()));
+        assert!(!direct_args.contains(&"--extension".to_string()));
     }
 
     #[test]

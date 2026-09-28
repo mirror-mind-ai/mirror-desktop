@@ -1638,6 +1638,18 @@ textarea {
 }
 
 
+/* CR080: a disabled control that says nothing leaves the Navigator guessing whether the
+   feature is broken or simply has nothing to show. Browsers do not surface a title on a
+   disabled button, so the hint lives on this wrapper and the button stops absorbing the
+   hover that would otherwise hide it. */
+.chat-header-action-hint {
+  display: inline-flex;
+}
+
+.chat-header-action-hint > button:disabled {
+  pointer-events: none;
+}
+
 .conversation-chapter-glyph {
   display: inline-block;
   font-size: 18px;

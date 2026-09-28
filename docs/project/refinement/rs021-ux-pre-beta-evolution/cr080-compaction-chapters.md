@@ -101,6 +101,12 @@ response needs its own parser on the `parse_pi_session_state` precedent.
   this; it puts the action where the number that motivates it already lives.
 - **The compaction summary is not delivered to Mirror.** Navigator decision, 2026-09-27: that
   is a conversation for Mirror's own Journey. The Desktop resolves navigation locally.
+- **Isolation stops where the model lives.** Proven in homologation: a provider can be
+  registered by a global Pi extension, so `--no-extensions` alone makes the Navigator's own
+  model unknown to Pi (`Unknown provider "claude-bridge"`). A mediated turn stops
+  auto-discovery and then names the global extensions explicitly, and compaction follows the
+  same contract. The warning `No models match pattern "claude-bridge/..."` appeared in the
+  original spike's stderr and was not followed up; it was this failure announcing itself.
 - **Manual compaction runs isolated and without a turn.** No `--offline` (it calls the
   model), no turn correlation, no journal record, `--no-tools --no-extensions --no-skills
   --no-prompt-templates --no-context-files --approve`, always `--mode rpc`. The runtime
@@ -122,6 +128,7 @@ on 2 and 3; 5 stands alone.
    customInstructions?)`: validate the provider command, refuse on active lease or in-flight
    compaction for the Journey, resolve the active generation's session through the thread
    authority (channel-validated, session file validated), build args as decided above, spawn
+   with the global Pi extensions named explicitly so the configured provider resolves, and
    with the runtime profile applied under Mirror mediation, write `{"type":"compact"}`, wait,
    parse. Returns `{ summary, firstKeptEntryId, tokensBefore?, estimatedTokensAfter? }`. A
    refusal surfaces Pi's own `error` text. Turn admission gains the in-flight refusal.

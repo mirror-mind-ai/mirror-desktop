@@ -130,6 +130,29 @@ describe("chapter index panel", () => {
     expect(metaRule).toContain("color-mix(in srgb, currentColor");
   });
 
+  // A disabled control that says nothing leaves the Navigator guessing whether the feature
+  // is broken or simply has nothing to show. A browser also will not surface a title on a
+  // disabled button, so the hint lives on a wrapper that still receives the hover.
+  it("explains on hover why the chapter button is unavailable", () => {
+    expect(appSource).toContain("conversationChapters.length === 0");
+    expect(appSource).toContain("chat-header-action-hint");
+    expect(appSource).toContain("has not been compacted");
+    // The hint is on the wrapper, not on the button the browser will not hover.
+    const wrap = appSource.slice(
+      appSource.indexOf('className="chat-header-action-hint"'),
+      appSource.indexOf("conversation-chapter-glyph"),
+    );
+    expect(wrap).toContain("title={");
+    // And the button no longer carries a title of its own that would win the hover.
+    expect(wrap).not.toContain('title="Chapters"');
+    expect(cssSource).toContain(".chat-header-action-hint");
+    const hintRule = cssSource.slice(
+      cssSource.indexOf(".chat-header-action-hint > button:disabled"),
+      cssSource.indexOf("}", cssSource.indexOf(".chat-header-action-hint > button:disabled")),
+    );
+    expect(hintRule).toContain("pointer-events: none");
+  });
+
   it("draws the chapter header icon as a visible text glyph, not a fragile SVG", () => {
     expect(appSource).toContain("conversation-chapter-glyph");
     expect(appSource).toContain("§");

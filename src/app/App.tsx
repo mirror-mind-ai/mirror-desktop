@@ -4742,20 +4742,26 @@ export function App({ model }: AppProps) {
                     <circle cx="4" cy="18" r="1" />
                   </svg>
                 </button>
-                <button
-                  className={`menu-button conversation-chapter-shortcut ${conversationChaptersOpen ? "selected" : ""}`}
-                  type="button"
-                  onClick={() => {
-                    showConversation();
-                    setConversationChaptersOpen((open) => !open);
-                  }}
-                  disabled={altitudeSwitchDisabled || conversationChapters.length === 0 || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
-                  aria-label="Navigate conversation chapters"
-                  aria-pressed={conversationChaptersOpen}
-                  title="Chapters"
+                <span
+                  className="chat-header-action-hint"
+                  title={conversationChapters.length === 0
+                    ? "No chapters yet. This Conversation has not been compacted, so it is still one chapter."
+                    : "Chapters"}
                 >
-                  <span className="conversation-chapter-glyph" aria-hidden="true">§</span>
-                </button>
+                  <button
+                    className={`menu-button conversation-chapter-shortcut ${conversationChaptersOpen ? "selected" : ""}`}
+                    type="button"
+                    onClick={() => {
+                      showConversation();
+                      setConversationChaptersOpen((open) => !open);
+                    }}
+                    disabled={altitudeSwitchDisabled || conversationChapters.length === 0 || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
+                    aria-label="Navigate conversation chapters"
+                    aria-pressed={conversationChaptersOpen}
+                  >
+                    <span className="conversation-chapter-glyph" aria-hidden="true">§</span>
+                  </button>
+                </span>
                 <div className="journey-menu-wrap" ref={journeyMenuRef}>
                   <button
                     className="menu-button"
