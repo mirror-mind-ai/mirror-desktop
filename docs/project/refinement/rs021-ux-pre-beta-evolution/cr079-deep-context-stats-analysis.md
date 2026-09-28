@@ -2,9 +2,9 @@
 
 # CR079: Deep Context Stats Analysis
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr079-deep-context-stats-analysis`
 
 ## Problem
 
