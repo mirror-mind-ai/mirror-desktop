@@ -23,6 +23,8 @@ import type { RuntimeProjectionState } from "./runtimeActivityModel";
 import type { AssistantTurnProximity } from "./turnProximity";
 import { buildConversationTranscriptIndex } from "./conversationTranscriptModel";
 import { ChapterDividerRow } from "./ChapterDividerRow";
+import { ChapterIndexPanel } from "./ChapterIndexPanel";
+import type { ConversationChapter } from "../domain/compactionChapters";
 import { projectResponseModelBadges, type ResponseModelBadge } from "./responseModelAttribution";
 import {
   clampConversationNavigationIndex,
@@ -48,6 +50,10 @@ type ConversationTranscriptProps = {
   turnNavigatorOpen?: boolean;
   onSearchOpenChange?: (open: boolean) => void;
   onTurnNavigatorOpenChange?: (open: boolean) => void;
+  /** CR080: the chapter index, derived from the Segment manifest and the surface. */
+  chaptersOpen?: boolean;
+  chapters?: readonly ConversationChapter[];
+  onChaptersOpenChange?: (open: boolean) => void;
   /** CR091: model captured on the live run, for the answer Pi has not recorded yet. */
   liveResponseModel?: { messageId: string; label: string };
 };
@@ -156,8 +162,11 @@ export const ConversationTranscript = memo(function ConversationTranscript({
   onLocalPathClick,
   searchOpen = false,
   turnNavigatorOpen = false,
+  chaptersOpen = false,
+  chapters,
   onSearchOpenChange,
   onTurnNavigatorOpenChange,
+  onChaptersOpenChange,
   liveResponseModel,
 }: ConversationTranscriptProps) {
   const index = useMemo(() => buildConversationTranscriptIndex(conversation), [conversation]);
@@ -229,6 +238,13 @@ export const ConversationTranscript = memo(function ConversationTranscript({
             <button type="button" className="secondary-button" disabled={searchMatches.length === 0} onClick={() => moveSearch(1)}>Next</button>
           </div>
         </section>
+      ) : null}
+      {chaptersOpen ? (
+        <ChapterIndexPanel
+          chapters={chapters ?? []}
+          onSelect={(messageId) => scrollToMessage(messageId)}
+          onClose={() => onChaptersOpenChange?.(false)}
+        />
       ) : null}
       {messages.length > 0 && turnNavigatorOpen ? (
         <aside className="conversation-turn-panel" aria-label="Conversation turns">

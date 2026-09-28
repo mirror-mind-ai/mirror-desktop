@@ -8166,3 +8166,63 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   margin-left: auto;
   opacity: 0.8;
 }
+
+/* CR080: the chapter index. Same panel idiom as the turn navigator, because it answers the
+   same kind of question — where am I, and where was that. */
+.conversation-chapter-panel {
+  background: var(--ui-panel, rgba(14, 26, 28, 0.96));
+  border: 1px solid rgba(133, 223, 210, 0.22);
+  border-radius: 10px;
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  position: relative;
+}
+
+.conversation-chapter-panel ol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.conversation-chapter-panel li > button,
+.conversation-chapter-panel li > div {
+  align-items: baseline;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: inherit;
+  display: flex;
+  font: inherit;
+  gap: 10px;
+  padding: 8px 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.conversation-chapter-panel li > button {
+  cursor: pointer;
+}
+
+.conversation-chapter-panel li > div {
+  opacity: 0.6;
+}
+
+.conversation-chapter-panel li.is-current > button,
+.conversation-chapter-panel li.is-current > div {
+  border: 1px solid rgba(133, 223, 210, 0.28);
+}
+
+.conversation-chapter-title {
+  flex: 1;
+  font-size: 13px;
+}
+
+.conversation-chapter-meta,
+.conversation-chapter-number {
+  color: var(--ui-text-muted, #9fb3b0);
+  font-size: 11px;
+  white-space: nowrap;
+}

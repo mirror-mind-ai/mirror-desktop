@@ -136,9 +136,17 @@ on 2 and 3; 5 stands alone.
    named in a notice.
 5. **Named divider when a chapter closes.** From the live `compaction_end` stream event and,
    on reload, from the manifest, so the moment stops being invisible.
-6. **Chapters navigable in the Journey.** Index first — every closed chapter listed by name
-   and date — then, if daily use shows the index is not enough, a dedicated read-only view
-   per chapter so no more than one chapter is ever on screen.
+6. **Chapters navigable in the Journey.** Index first — every chapter listed by name, dates
+   and turn count, selecting one moving the reading to where it starts. Whether a dedicated
+   read-only view per chapter is needed is a question for daily use; the transcript already
+   holds every chapter, because a compaction entry's parent is the pre-compaction tail and
+   the active branch therefore spans the whole history. That is also why the `Load N earlier
+   Segments` surface never had anything to load.
+
+A manifest published before a Conversation's latest compaction would misname or hide
+chapters, so the index compares the manifest's closed count against the Pi session's own and
+rewrites the projection when they disagree. Segments are presentation only, so that rewrite
+is safe — and it is the only way a Conversation compacted before this CR gets its index.
 
 ## Acceptance
 

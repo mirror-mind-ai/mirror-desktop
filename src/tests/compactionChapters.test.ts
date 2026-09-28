@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CHAPTER_TITLE_MAX_LENGTH,
+  chapterOpeningMessageIds,
   chapterTitleFromSummary,
   describeChapterDivider,
   projectConversationChapters,
@@ -117,5 +118,45 @@ describe("chapter divider presentation", () => {
 
   it("does not present an unparseable timestamp as a date", () => {
     expect(describeChapterDivider({ title: "Earlier work.", closedAt: "not-a-date" }).closedAt).toBeUndefined();
+  });
+});
+
+// CR080: navigation needs to know where each chapter starts in the transcript. The dividers
+// already mark every opening after the first, and the first chapter opens at the first
+// message, so the ordinals line up with the manifest's own chapter order.
+describe("chapter openings in the transcript", () => {
+  const messages = [
+    { id: "m1", role: "user" as const, content: "one", createdAt: "2026-09-01T10:00:00Z" },
+    { id: "m2", role: "assistant" as const, content: "two", createdAt: "2026-09-01T10:01:00Z" },
+    { id: "m3", role: "user" as const, content: "three", createdAt: "2026-09-02T10:00:00Z" },
+    { id: "m4", role: "assistant" as const, content: "four", createdAt: "2026-09-03T10:00:00Z" },
+  ];
+
+  it("orders openings by the transcript, starting at the first message", () => {
+    expect(chapterOpeningMessageIds({
+      messages,
+      chapterDividers: { m3: { title: "Chapter one." }, m4: { title: "Chapter two." } },
+    })).toEqual(["m1", "m3", "m4"]);
+  });
+
+  it("gives one opening for a conversation that was never compacted", () => {
+    expect(chapterOpeningMessageIds({ messages })).toEqual(["m1"]);
+    expect(chapterOpeningMessageIds({ messages: [] })).toEqual([]);
+  });
+
+  it("attaches openings to chapters by ordinal and leaves them absent when counts disagree", () => {
+    const manifest = {
+      schemaVersion: "1.0.0" as const,
+      journeyId: "mirror-desktop", threadId: "t", generation: 1, piSessionId: "s", sourceEntryCount: 4,
+      segments: [
+        { segment: 1, segmentId: "segment-1", status: "closed" as const, compactionEntryId: "c1", retainedTailFromEntryId: "u1", summaryHead: "## Goal\nOne." },
+        { segment: 2, segmentId: "segment-2", status: "current" as const },
+      ],
+    };
+    expect(projectConversationChapters(manifest, { openingMessageIds: ["m1", "m3"] })
+      .map((chapter) => chapter.openingMessageId)).toEqual(["m1", "m3"]);
+    // A manifest refreshed after the surface would misplace every jump; better none.
+    expect(projectConversationChapters(manifest, { openingMessageIds: ["m1"] })
+      .map((chapter) => chapter.openingMessageId)).toEqual([undefined, undefined]);
   });
 });

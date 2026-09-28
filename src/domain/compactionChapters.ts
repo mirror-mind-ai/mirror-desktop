@@ -40,7 +40,27 @@ export type ConversationChapter = {
   openedAt?: string;
   closedAt?: string;
   turnCount: number;
+  /** Where this chapter starts in the loaded transcript, when that can be resolved. */
+  openingMessageId?: string;
 };
+
+/**
+ * Where each chapter starts in the transcript. The first chapter opens at the first message;
+ * every later one opens at the message its divider marks, in transcript order. Both derive
+ * from the same ordered list of compactions, so the ordinals line up with the manifest.
+ */
+export function chapterOpeningMessageIds(input: {
+  messages: readonly { id: string }[];
+  chapterDividers?: Record<string, unknown>;
+}): string[] {
+  const first = input.messages[0];
+  if (!first) return [];
+  const openings = [first.id];
+  for (const message of input.messages) {
+    if (message.id !== first.id && input.chapterDividers?.[message.id]) openings.push(message.id);
+  }
+  return openings;
+}
 
 /**
  * Chapters as the Navigator navigates them: a view over the Segment manifest, which is
@@ -49,9 +69,15 @@ export type ConversationChapter = {
  */
 export function projectConversationChapters(
   manifest: ConversationSegmentManifest,
+  options?: { openingMessageIds?: readonly string[] },
 ): ConversationChapter[] {
   if (manifest.segments.length < 2) return [];
-  return manifest.segments.map((segment) => ({
+  // Only a one-to-one match can be trusted: a manifest refreshed after the surface would
+  // misplace every jump, and a wrong jump is worse than no jump.
+  const openings = options?.openingMessageIds?.length === manifest.segments.length
+    ? options.openingMessageIds
+    : undefined;
+  return manifest.segments.map((segment, index) => ({
     segmentId: segment.segmentId,
     number: segment.segment,
     status: segment.status,
@@ -61,6 +87,7 @@ export function projectConversationChapters(
     openedAt: segment.openedAt,
     closedAt: segment.closedAt,
     turnCount: segment.turnCount ?? 0,
+    openingMessageId: openings?.[index],
   }));
 }
 
