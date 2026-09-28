@@ -2,7 +2,7 @@
 
 # CR079: Always Legible Context Reading
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr079-deep-context-stats-analysis`
 

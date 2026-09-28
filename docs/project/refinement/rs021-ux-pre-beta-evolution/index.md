@@ -49,7 +49,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 
 ## Boundaries
 
-- CR079 is the current pulled focus; later CRs remain captured until explicitly pulled.
+- No CR is currently pulled as active focus; remaining CRs stay captured until explicitly pulled.
 - No app release, Beta promotion, endpoint publication, Git push or tag is authorized by this document.
 
 ## Change Requests
