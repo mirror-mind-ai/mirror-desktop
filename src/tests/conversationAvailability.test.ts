@@ -142,4 +142,18 @@ describe("Conversation availability contract", () => {
       recoveryActions: ["wait_for_recovery_inspection"],
     });
   });
+
+  // CR080: a manual compaction rewrites the session file, so it is occupancy in its own
+  // right. Send stays unavailable and the reason is named, rather than a silent refusal.
+  it("names an in-flight compaction and keeps Send unavailable until it completes", () => {
+    expect(decideConversationAvailability({
+      ...ready,
+      compactionActive: true,
+      mirrorSynchronizationPending: true,
+    })).toMatchObject({
+      condition: "compaction_active",
+      canSend: false,
+      recoveryActions: ["wait_for_compaction"],
+    });
+  });
 });

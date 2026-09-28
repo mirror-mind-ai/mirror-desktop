@@ -13,7 +13,8 @@ export type ConversationAvailabilityCondition =
   | "native_authority_unknown"
   | "native_capacity_full"
   | "journey_lease_occupied"
-  | "recovery_inspection";
+  | "recovery_inspection"
+  | "compaction_active";
 
 export type ConversationRecoveryAction =
   | "configure_runtime"
@@ -23,6 +24,7 @@ export type ConversationRecoveryAction =
   | "wait_for_native_capacity"
   | "wait_for_journey_lease"
   | "wait_for_recovery_inspection"
+  | "wait_for_compaction"
   | "retry_mirror_sync";
 
 export interface ConversationAvailabilityInput {
@@ -31,6 +33,8 @@ export interface ConversationAvailabilityInput {
   sameConversationExecutionActive: boolean;
   nativeAdmission: NativeConversationAdmission;
   recoveryInspectionActive: boolean;
+  /** CR080: a manual compaction is rewriting this Journey's session file. */
+  compactionActive?: boolean;
   mirrorSynchronizationPending: boolean;
 }
 
@@ -87,6 +91,11 @@ export function decideConversationAvailability(
   }
   if (input.recoveryInspectionActive) {
     return blocked("recovery_inspection", "wait_for_recovery_inspection");
+  }
+  // A compaction is occupancy: it rewrites the session, so nothing may start on it,
+  // including a new Conversation or a context reset, until it settles.
+  if (input.compactionActive) {
+    return blocked("compaction_active", "wait_for_compaction");
   }
   if (input.mirrorSynchronizationPending) {
     return {
