@@ -4750,10 +4750,7 @@ export function App({ model }: AppProps) {
                   aria-pressed={conversationChaptersOpen}
                   title="Chapters"
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 5h9a2 2 0 0 1 2 2v12H7a2 2 0 0 1-2-2z" />
-                    <path d="M16 7h3v12h-3" />
-                  </svg>
+                  <span className="conversation-chapter-glyph" aria-hidden="true">§</span>
                 </button>
                 <div className="journey-menu-wrap" ref={journeyMenuRef}>
                   <button

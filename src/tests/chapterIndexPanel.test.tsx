@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { ChapterIndexPanel } from "../app/ChapterIndexPanel";
 import type { ConversationChapter } from "../domain/compactionChapters";
 import transcriptSource from "../app/ConversationTranscript.tsx?raw";
+import appSource from "../app/App.tsx?raw";
 
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
@@ -59,13 +60,14 @@ describe("chapter index panel", () => {
     expect(cssSource).toContain(".conversation-chapter-panel");
   });
 
-  it("draws the chapter header icon with the same SVG contract as search and turns", () => {
-    const svgRule = cssSource.slice(
-      cssSource.indexOf(".conversation-search-shortcut svg"),
-      cssSource.indexOf("}", cssSource.indexOf(".conversation-search-shortcut svg")),
+  it("draws the chapter header icon as a visible text glyph, not a fragile SVG", () => {
+    expect(appSource).toContain("conversation-chapter-glyph");
+    expect(appSource).toContain("§");
+    const glyphRule = cssSource.slice(
+      cssSource.indexOf(".conversation-chapter-glyph"),
+      cssSource.indexOf("}", cssSource.indexOf(".conversation-chapter-glyph")),
     );
-    expect(svgRule).toContain(".conversation-chapter-shortcut svg");
-    expect(svgRule).toContain("stroke: currentColor");
+    expect(glyphRule).toContain("font-size");
     expect(cssSource).toContain(".conversation-chapter-shortcut.selected");
   });
 });

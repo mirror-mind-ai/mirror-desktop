@@ -1637,6 +1637,15 @@ textarea {
   width: 18px;
 }
 
+
+.conversation-chapter-glyph {
+  display: inline-block;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
 .conversation-search-shortcut.selected,
 .conversation-turn-shortcut.selected,
 .conversation-chapter-shortcut.selected {
