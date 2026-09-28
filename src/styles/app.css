@@ -1832,7 +1832,7 @@ h3 {
   scroll-padding-bottom: 24px;
 }
 
-.chat-stream > :first-child:not(.conversation-search-panel):not(.conversation-turn-panel) {
+.chat-stream > :first-child:not(.conversation-search-panel):not(.conversation-turn-panel):not(.conversation-chapter-panel) {
   margin-top: auto;
 }
 
@@ -2792,14 +2792,16 @@ h3 {
 }
 
 .conversation-search-panel p,
-.conversation-turn-panel p {
+.conversation-turn-panel p,
+.conversation-chapter-panel p {
   color: color-mix(in srgb, currentColor 70%, transparent);
   font-size: 0.82rem;
   margin: 0;
 }
 
 .conversation-search-panel,
-.conversation-turn-panel {
+.conversation-turn-panel,
+.conversation-chapter-panel {
   background: color-mix(in srgb, var(--shell-middle) 88%, transparent);
   border: 1px solid rgba(var(--ui-accent-rgb), 0.2);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
@@ -2818,7 +2820,8 @@ h3 {
   top: 0;
 }
 
-.conversation-turn-panel {
+.conversation-turn-panel,
+.conversation-chapter-panel {
   align-self: flex-end;
   border-radius: 18px;
   box-sizing: border-box;
@@ -8178,18 +8181,11 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   opacity: 0.8;
 }
 
-/* CR080: the chapter index. Same panel idiom as the turn navigator, because it answers the
-   same kind of question — where am I, and where was that. */
-.conversation-chapter-panel {
-  background: var(--ui-panel, rgba(14, 26, 28, 0.96));
-  border: 1px solid rgba(133, 223, 210, 0.22);
-  border-radius: 10px;
-  margin: 0 0 18px;
-  padding: 16px 18px;
-  position: relative;
-}
-
+/* CR080: the chapter index. It rides the shared conversation-panel contract above, because
+   a panel that is an ordinary block in the chat stream is inserted above the reading and
+   scrolls out of view the moment it opens. */
 .conversation-chapter-panel ol {
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;

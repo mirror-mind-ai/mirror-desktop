@@ -60,6 +60,27 @@ describe("chapter index panel", () => {
     expect(cssSource).toContain(".conversation-chapter-panel");
   });
 
+  // The chat stream scrolls to its end. A panel that is an ordinary block in that flow is
+  // inserted above the reading, displaces it, and lands outside the viewport — the panel
+  // opens and the Navigator sees a small jump and nothing else. The existing panels solve
+  // this by being sticky, and the chapter index must ride the same contract.
+  it("stays in view like the other conversation panels instead of scrolling away", () => {
+    // The panel shares the turn navigator's placement rule.
+    // Two grouped rules carry these selectors; the placement one is the later.
+    const joinsAt = cssSource.lastIndexOf(".conversation-turn-panel,\n.conversation-chapter-panel {");
+    expect(joinsAt).toBeGreaterThan(0);
+    const stickyRule = cssSource.slice(joinsAt, cssSource.indexOf("}", joinsAt));
+    expect(stickyRule).toContain("position: sticky");
+    expect(stickyRule).toContain("align-self: flex-end");
+
+    // And it is exempt from the first-child spacer that pushes ordinary content down.
+    const firstChildRule = cssSource.slice(
+      cssSource.indexOf(".chat-stream > :first-child"),
+      cssSource.indexOf("}", cssSource.indexOf(".chat-stream > :first-child")),
+    );
+    expect(firstChildRule).toContain(":not(.conversation-chapter-panel)");
+  });
+
   it("draws the chapter header icon as a visible text glyph, not a fragile SVG", () => {
     expect(appSource).toContain("conversation-chapter-glyph");
     expect(appSource).toContain("§");
