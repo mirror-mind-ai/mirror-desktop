@@ -58,4 +58,14 @@ describe("chapter index panel", () => {
     expect(transcriptSource).toContain("onChaptersOpenChange");
     expect(cssSource).toContain(".conversation-chapter-panel");
   });
+
+  it("draws the chapter header icon with the same SVG contract as search and turns", () => {
+    const svgRule = cssSource.slice(
+      cssSource.indexOf(".conversation-search-shortcut svg"),
+      cssSource.indexOf("}", cssSource.indexOf(".conversation-search-shortcut svg")),
+    );
+    expect(svgRule).toContain(".conversation-chapter-shortcut svg");
+    expect(svgRule).toContain("stroke: currentColor");
+    expect(cssSource).toContain(".conversation-chapter-shortcut.selected");
+  });
 });

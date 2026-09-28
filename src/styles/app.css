@@ -1626,7 +1626,8 @@ textarea {
 }
 
 .conversation-search-shortcut svg,
-.conversation-turn-shortcut svg {
+.conversation-turn-shortcut svg,
+.conversation-chapter-shortcut svg {
   fill: none;
   height: 18px;
   stroke: currentColor;
@@ -1637,7 +1638,8 @@ textarea {
 }
 
 .conversation-search-shortcut.selected,
-.conversation-turn-shortcut.selected {
+.conversation-turn-shortcut.selected,
+.conversation-chapter-shortcut.selected {
   background: rgba(var(--ui-accent-rgb), 0.12);
   border-color: rgba(var(--ui-accent-rgb), 0.48);
   color: #bff2eb;
