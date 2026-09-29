@@ -180,3 +180,44 @@ is the same class of coverage that made the first CR085 investigation land on th
 
 Phase 1 changes what is shown for cancellations already on disk, because the projection is derived
 from Pi. That retroactive effect is intended: it is the audit history returning.
+
+## Phase 1 Correction — 2026-09-29
+
+The Navigator reported Phase 1 as validated. Inspecting the validation run itself contradicted the
+report, so the report was not accepted.
+
+Run `agent-run-2026-09-29T13:00:19.340Z` performed three tool calls (`bash`, `read`, `read`), each
+narrated by its own committed comment. Projecting that real session through the production surface
+recovered only **one** of the three operations, and presented the last note as the turn's answer.
+Two defects, both inside Phase 1's approved scope:
+
+**Operations without reasoning were discarded.** `reconstructAgentActionProjection` returns nothing
+when an entry carries no `thinking` text. Only the first step of that run exposed reasoning, so the
+other two operations vanished. The guard is pre-existing and correct for completed turns, where the
+reconstruction is a convenience; for an interrupted turn the operations are the audit record.
+
+**A cancelled run's last note was presented as its answer.** CR083's structural rule — the last
+assistant message of a turn is the answer — is false when the turn was interrupted, because no
+answer was ever given. The live path already refused that promotion; the restored path did not.
+
+Both follow from deciding per entry what is really a property of the run. The projection now closes
+a run as a unit: Pi itself says whether an answer arrived, since a finished run ends with assistant
+text that calls nothing further, and the turn record then confirms the interruption. Within an
+interrupted run every operation is kept regardless of reasoning, and every comment stays a note.
+
+Matching a run to its turn record is bounded by the window between the previous entry and the run's
+own request, so no run borrows another's record. Session bookkeeping entries are excluded from that
+bound: a `system` entry written between the turn starting and the request landing had silently
+disqualified a real cancellation.
+
+### Validation
+
+- `npx vitest run`: 195 files, 1265 tests green. `tsc`, `build`, `roadmap:check`, `git diff --check`
+  clean.
+- Real-data check through the production projection, throwaway harness since removed: all four
+  cancellations that performed work recovered their operations in full — 15, 1, 3, and the
+  Navigator's own run with 3 — and that run's three comments are all marked as notes, with none
+  promoted to an answer. The fifth cancellation performed no work and correctly yields nothing.
+
+The earlier Phase 1 validation note in this document stands, but was insufficient: it verified
+recovery only for runs whose steps carried reasoning, which hid both defects above.

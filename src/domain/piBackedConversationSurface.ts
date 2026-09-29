@@ -127,19 +127,24 @@ function buildAgentActionProjection(
 // assistant text that normally anchors them, so the surface used to discard the whole record of
 // what the agent did. The turn record already says the run ended without an answer; pairing it
 // with the Pi entries restores the history without inventing anything.
+// The run opened somewhere between the entry that preceded it and its own first entry. A turn
+// record only describes this run if it started inside that window, so records belonging to other
+// runs are never borrowed.
 function selectInterruptedTurn(
   turns: readonly CorrelatedConversationTurn[],
-  firstBlockTimestamp: string,
   consumedTurnIds: Set<string>,
+  after: string | undefined,
+  until: string | undefined,
 ): CorrelatedConversationTurn | undefined {
-  let selected: CorrelatedConversationTurn | undefined;
+  if (!until) return undefined;
   for (const turn of turns) {
     if (consumedTurnIds.has(turn.turnId)) continue;
-    if (turn.pi?.state !== "failed") continue;
-    if (!turn.startedAt || turn.startedAt > firstBlockTimestamp) continue;
-    if (!selected || turn.startedAt > selected.startedAt) selected = turn;
+    if (turn.pi?.state !== "failed" || !turn.startedAt) continue;
+    if (turn.startedAt > until) continue;
+    if (after !== undefined && turn.startedAt <= after) continue;
+    return turn;
   }
-  return selected;
+  return undefined;
 }
 
 function interruptedStatusOf(turn: CorrelatedConversationTurn): TerminalAgentActionProjection["status"] {
@@ -188,31 +193,61 @@ export function projectPiBackedConversationSurface(
   // CR089: where the orphan work started, so an interrupted run can be anchored to its own entry.
   let pendingAnchor: { entryId: string; timestamp: string } | undefined;
   const consumedInterruptedTurnIds = new Set<string>();
-  const flushInterruptedTurn = () => {
-    if (!pendingAnchor || pendingBlocks.length === 0) return;
-    const turn = selectInterruptedTurn(
-      metadata.reconciliation?.turns ?? [],
-      pendingAnchor.timestamp,
-      consumedInterruptedTurnIds,
-    );
-    // Without a turn record saying the run ended without an answer, there is no evidence that this
-    // was an interruption, so nothing is claimed.
-    if (!turn) return;
-    consumedInterruptedTurnIds.add(turn.turnId);
-    const id = `pi-${pendingAnchor.entryId}`;
-    if (messageIds.has(id)) return;
-    messageIds.add(id);
-    reconstructedAgentActions[id] = buildAgentActionProjection(
-      id,
-      pendingBlocks,
-      resultsByToolCallId,
-      interruptedStatusOf(turn),
-    );
-    if (pendingDivider) {
-      chapterDividers[id] = pendingDivider;
-      pendingDivider = undefined;
+  // CR089: whether a run is interrupted is a fact about the run, not about one entry, so the
+  // decision is deferred until the run closes and every step of it is known.
+  let runMessageBlocks: Array<{ id: string; blocks: PendingActivityBlock[] }> = [];
+  let runClosedWithAnswer = false;
+  let runHadActivity = false;
+  let runAfter: string | undefined;
+  let runUntil: string | undefined;
+  let previousEntryTimestamp: string | undefined;
+  const interruptedAssistantMessageIds = new Set<string>();
+  const closeRun = () => {
+    // Pi itself says whether an answer ever came: a finished run ends with assistant text that
+    // calls nothing further. The turn record then confirms the interruption was real.
+    const turn = !runClosedWithAnswer && runHadActivity
+      ? selectInterruptedTurn(metadata.reconciliation?.turns ?? [], consumedInterruptedTurnIds, runAfter, runUntil)
+      : undefined;
+    if (turn) consumedInterruptedTurnIds.add(turn.turnId);
+
+    for (const { id, blocks } of runMessageBlocks) {
+      if (!turn) {
+        const reconstructed = reconstructAgentActionProjection(id, blocks, resultsByToolCallId);
+        if (reconstructed) reconstructedAgentActions[id] = reconstructed;
+        continue;
+      }
+      interruptedAssistantMessageIds.add(id);
+      // An interrupted run is audit material, so its operations are kept even when the provider
+      // exposed no reasoning to go with them.
+      const projection = buildAgentActionProjection(id, blocks, resultsByToolCallId, interruptedStatusOf(turn));
+      if (projection.operations.length > 0 || projection.reasoningSummaries.length > 0) {
+        reconstructedAgentActions[id] = projection;
+      }
     }
-    messages.push({ id, role: "assistant", content: "", createdAt: pendingAnchor.timestamp });
+
+    if (turn && pendingAnchor && pendingBlocks.length > 0) {
+      const id = `pi-${pendingAnchor.entryId}`;
+      if (!messageIds.has(id)) {
+        messageIds.add(id);
+        reconstructedAgentActions[id] = buildAgentActionProjection(
+          id,
+          pendingBlocks,
+          resultsByToolCallId,
+          interruptedStatusOf(turn),
+        );
+        if (pendingDivider) {
+          chapterDividers[id] = pendingDivider;
+          pendingDivider = undefined;
+        }
+        messages.push({ id, role: "assistant", content: "", createdAt: pendingAnchor.timestamp });
+      }
+    }
+
+    runMessageBlocks = [];
+    runClosedWithAnswer = false;
+    runHadActivity = false;
+    pendingBlocks = [];
+    pendingAnchor = undefined;
   };
   for (const entry of inspection.entries) {
     if (!entry || typeof entry.entryId !== "string" || !entry.entryId
@@ -230,16 +265,24 @@ export function projectPiBackedConversationSurface(
     }
     if (entry.role === "assistant") {
       const blocks = extractActivityBlocks(entry.nativeContent);
-      if (blocks.length > 0 && !pendingAnchor) {
-        pendingAnchor = { entryId: entry.entryId, timestamp: entry.timestamp };
+      if (blocks.length > 0) {
+        runHadActivity = true;
+        if (!pendingAnchor) pendingAnchor = { entryId: entry.entryId, timestamp: entry.timestamp };
       }
       pendingBlocks.push(...blocks);
+      runClosedWithAnswer = Boolean(entry.visibleText.trim())
+        && !blocks.some((block) => block.kind === "toolCall");
+    } else if (entry.role === "toolResult") {
+      runClosedWithAnswer = false;
     } else if (entry.role === "user") {
-      // The agent worked and the next request arrived without an answer in between.
-      flushInterruptedTurn();
-      pendingBlocks = [];
-      pendingAnchor = undefined;
+      // The request that follows closes whatever the agent was doing before it.
+      closeRun();
+      runAfter = previousEntryTimestamp;
+      runUntil = entry.timestamp;
     }
+    // Session bookkeeping entries sit between a run's start and its request, so they must not
+    // narrow the window used to recognise which turn the run was.
+    if (entry.role !== "system") previousEntryTimestamp = entry.timestamp;
     if ((entry.role !== "user" && entry.role !== "assistant") || !entry.visibleText.trim()) continue;
 
     const role = entry.role;
@@ -255,8 +298,7 @@ export function projectPiBackedConversationSurface(
       // Live-captured terminal evidence is authoritative and richer than a
       // session reconstruction; only messages without it are reconstructed.
       if (!metadata.terminalAgentActionEvidence?.[id]) {
-        const reconstructed = reconstructAgentActionProjection(id, pendingBlocks, resultsByToolCallId);
-        if (reconstructed) reconstructedAgentActions[id] = reconstructed;
+        runMessageBlocks.push({ id, blocks: pendingBlocks });
       }
       pendingBlocks = [];
       pendingAnchor = undefined;
@@ -285,13 +327,19 @@ export function projectPiBackedConversationSurface(
   }
 
   // A run interrupted at the very end of the session has no following request to close it.
-  flushInterruptedTurn();
+  closeRun();
 
   return {
     ...metadata,
     messages,
     ...(() => {
       const roles = projectAgentCommentRoles(messages);
+      // An interrupted run produced no answer, so none of its comments may be presented as one.
+      for (const message of messages) {
+        if (interruptedAssistantMessageIds.has(message.id) && message.content.trim()) {
+          roles[message.id] = "trail";
+        }
+      }
       return Object.keys(roles).length > 0 ? { agentCommentRoles: roles } : {};
     })(),
     ...(Object.keys(reconstructedAgentActions).length > 0 ? { reconstructedAgentActions } : {}),
