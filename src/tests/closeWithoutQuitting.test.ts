@@ -48,4 +48,23 @@ describe("CR085 close without quitting", () => {
     expect(backendSource).toContain("api.prevent_exit()");
     expect(backendSource).not.toContain("WindowEvent::CloseRequested");
   });
+
+  it("owns the macOS Quit menu item, because the predefined one terminates the process", () => {
+    expect(backendSource).toContain("DESKTOP_QUIT_MENU_ID");
+    expect(backendSource).toContain("Menu::default(app)");
+    expect(backendSource).toContain("is_predefined_quit_text");
+    expect(backendSource).toContain("submenu.remove_at(index)");
+    expect(backendSource).toContain(".on_menu_event(");
+    expect(backendSource).toContain("fn request_desktop_quit");
+  });
+
+  it("brings a hidden window back before asking, so the confirmation is never invisible", () => {
+    expect(appSource).toContain("revealWindowForQuitConfirmation");
+    expect(appSource).toContain("await appWindow.show()");
+    const quitListener = appSource.slice(
+      appSource.indexOf("listenForDesktopQuitRequest"),
+      appSource.indexOf("Could not install the quit confirmation boundary."),
+    );
+    expect(quitListener).toContain("revealWindowForQuitConfirmation");
+  });
 });

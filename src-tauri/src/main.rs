@@ -69,6 +69,10 @@ const PI_PROCESS_EVENT: &str = "nautilus-pi-process";
 // CR085: a Navigator-initiated quit is announced to the window so it can flush Composer drafts
 // and confirm before local agent work is ended.
 const DESKTOP_QUIT_REQUESTED_EVENT: &str = "mirror-desktop-quit-requested";
+// CR085: macOS `PredefinedMenuItem::quit` sends the AppKit `terminate:` selector, and tao does not
+// implement `applicationShouldTerminate:`. Cmd-Q through that item therefore never reaches
+// `RunEvent::ExitRequested` and cannot be confirmed. The app owns its own Quit item instead.
+const DESKTOP_QUIT_MENU_ID: &str = "mirror-desktop-quit";
 const RPC_SETTLEMENT_EXIT_GRACE: Duration = Duration::from_secs(5);
 
 fn rpc_settlement_exit_grace_expired(settled: bool, elapsed: Duration) -> bool {
@@ -5163,6 +5167,51 @@ fn cancel_desktop_quit(state: State<'_, DesktopQuitState>) {
     state.confirmation_requested.store(false, Ordering::SeqCst);
 }
 
+// The predefined macOS Quit item is rendered by muda as `format!("Quit {}", app_name())`, which is
+// what separates it from its siblings in the application submenu.
+fn is_predefined_quit_text(text: &str) -> bool {
+    text.starts_with("Quit ")
+}
+
+// Replaces the predefined Quit item with an owned one carrying the same label and accelerator, so
+// the whole default menu — including Edit with copy, paste and select all — is preserved.
+fn desktop_menu_with_owned_quit(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    use tauri::menu::{MenuItem, MenuItemKind};
+    let menu = tauri::menu::Menu::default(app)?;
+    for kind in menu.items()? {
+        let tauri::menu::MenuItemKind::Submenu(submenu) = kind else { continue };
+        for (index, item) in submenu.items()?.iter().enumerate() {
+            let MenuItemKind::Predefined(predefined) = item else { continue };
+            if !is_predefined_quit_text(&predefined.text()?) {
+                continue;
+            }
+            let owned = MenuItem::with_id(
+                app,
+                DESKTOP_QUIT_MENU_ID,
+                predefined.text()?,
+                true,
+                Some("CmdOrCtrl+Q"),
+            )?;
+            submenu.remove_at(index)?;
+            submenu.append(&owned)?;
+            return Ok(menu);
+        }
+    }
+    Ok(menu)
+}
+
+// Both the owned Quit menu item and a prevented `ExitRequested` converge here.
+fn request_desktop_quit(app: &AppHandle) {
+    let quit_state = app.state::<DesktopQuitState>();
+    let already_requested = quit_state.confirmation_requested.load(Ordering::SeqCst);
+    if desktop_exit_decision(None, already_requested) == DesktopExitDecision::AskWindowToConfirm {
+        quit_state.confirmation_requested.store(true, Ordering::SeqCst);
+        let _ = app.emit(DESKTOP_QUIT_REQUESTED_EVENT, ());
+        return;
+    }
+    app.exit(0);
+}
+
 fn mirror_append_outbox_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(app
         .path()
@@ -8865,6 +8914,12 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_process::init())
+        .menu(desktop_menu_with_owned_quit)
+        .on_menu_event(|app_handle, event| {
+            if event.id().as_ref() == DESKTOP_QUIT_MENU_ID {
+                request_desktop_quit(app_handle);
+            }
+        })
         .setup(|app| {
             let channel = RuntimeChannel::active();
             if channel.supports_updater() {
@@ -8998,9 +9053,8 @@ fn main() {
                 let quit_state = app_handle.state::<DesktopQuitState>();
                 let already_requested = quit_state.confirmation_requested.load(Ordering::SeqCst);
                 if desktop_exit_decision(code, already_requested) == DesktopExitDecision::AskWindowToConfirm {
-                    quit_state.confirmation_requested.store(true, Ordering::SeqCst);
                     api.prevent_exit();
-                    let _ = app_handle.emit(DESKTOP_QUIT_REQUESTED_EVENT, ());
+                    request_desktop_quit(app_handle);
                     return;
                 }
                 shutdown_pi_invocations(&app_handle.state::<PiProcessState>());
@@ -9012,10 +9066,21 @@ fn main() {
 #[cfg(test)]
 mod close_without_quitting_tests {
     use super::{
-        desktop_exit_decision, desktop_lifecycle_reopen_action, DesktopExitDecision,
-        DesktopLifecycleAction,
+        desktop_exit_decision, desktop_lifecycle_reopen_action, is_predefined_quit_text,
+        DesktopExitDecision, DesktopLifecycleAction,
     };
     use tauri::RESTART_EXIT_CODE;
+
+    #[test]
+    fn recognizes_the_macos_predefined_quit_item_without_matching_its_siblings() {
+        assert!(is_predefined_quit_text("Quit Mirror Desktop"));
+        assert!(is_predefined_quit_text("Quit Mirror Desktop Dev"));
+        assert!(!is_predefined_quit_text(""));
+        assert!(!is_predefined_quit_text("Hide Mirror Desktop"));
+        assert!(!is_predefined_quit_text("Hide Others"));
+        assert!(!is_predefined_quit_text("Services"));
+        assert!(!is_predefined_quit_text("About Mirror Desktop"));
+    }
 
     #[test]
     fn a_user_quit_asks_the_window_before_any_local_shutdown() {

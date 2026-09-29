@@ -127,6 +127,33 @@ guarantee that Quit always works.
 Side effect worth naming: Cmd-Q previously did not flush Composer drafts at all, because draft
 flushing was attached only to window close. It now does.
 
+## Second Root Cause — macOS Quit never reached the app
+
+Validation showed the close path working and Cmd-Q still quitting with no confirmation. The cause
+is a second, independent one:
+
+- muda renders the macOS Quit item as the AppKit `terminate:` selector
+  (`muda/src/platform_impl/macos/mod.rs`);
+- tao's macOS application delegate implements `applicationWillTerminate:` but **not**
+  `applicationShouldTerminate:`.
+
+So Cmd-Q through the predefined item is handled by AppKit and never produces
+`RunEvent::ExitRequested`. `prevent_exit()` was correct and simply never ran. Confirming a quit is
+impossible while the predefined item owns the accelerator.
+
+The app now owns its Quit item. `Menu::default` is still the base, so the whole standard menu —
+including Edit with undo, cut, copy, paste and select all — is preserved; only the predefined Quit
+item is removed and replaced by an owned `MenuItem` with the same label and `CmdOrCtrl+Q`. Its menu
+event and a prevented `ExitRequested` both converge on one `request_desktop_quit` path.
+
+A related defect surfaced from the same validation: after a close the window is hidden, so a
+confirmation raised there would have been invisible. The window is now shown, unminimized and
+focused before the confirmation appears.
+
+Known remaining limitation: quitting from the Dock icon's context menu also sends `terminate:` and
+cannot be intercepted without implementing `applicationShouldTerminate:`, which tao does not
+expose. Cmd-Q and the application menu Quit — the paths actually used — are covered.
+
 ## Acceptance
 
 - Red close button removes the window from view without quitting the app process.

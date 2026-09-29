@@ -1984,6 +1984,18 @@ export function App({ model }: AppProps) {
     }
   }, [composerDraftPersistence]);
 
+  // CR085: after a close the window is hidden, so a quit confirmation would be invisible.
+  const revealWindowForQuitConfirmation = useCallback(async () => {
+    const appWindow = getCurrentWindow();
+    try {
+      await appWindow.show();
+      await appWindow.unminimize();
+      await appWindow.setFocus();
+    } catch (error) {
+      console.warn("Could not reveal the window for the quit confirmation.", error);
+    }
+  }, []);
+
   const dismissQuitConfirmation = useCallback(() => {
     setCloseConfirmationOpen(false);
     void cancelDesktopQuitRequest().catch((error) => {
@@ -2013,6 +2025,7 @@ export function App({ model }: AppProps) {
     let unlisten: (() => void) | undefined;
     void listenForDesktopQuitRequest(() => {
       if (hasActiveOrFinalizingJourneyRuntime(journeyRuntimeStateRef.current)) {
+        void revealWindowForQuitConfirmation();
         setCloseConfirmationError(undefined);
         setCloseConfirmationOpen(true);
         return;
@@ -2026,7 +2039,7 @@ export function App({ model }: AppProps) {
     return () => {
       unlisten?.();
     };
-  }, [quitAfterDraftFlush]);
+  }, [quitAfterDraftFlush, revealWindowForQuitConfirmation]);
 
   useEffect(() => {
     if (!registryLoaded || !preferencesLoaded) {
