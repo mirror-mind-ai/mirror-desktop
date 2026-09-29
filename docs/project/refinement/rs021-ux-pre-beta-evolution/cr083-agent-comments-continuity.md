@@ -2,9 +2,9 @@
 
 # CR083: Agent Comments Continuity
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr083-agent-comments-continuity`
 
 ## Problem
 
