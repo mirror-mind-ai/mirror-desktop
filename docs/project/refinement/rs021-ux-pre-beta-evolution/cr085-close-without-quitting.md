@@ -2,7 +2,7 @@
 
 # CR085: Close Without Quitting
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr085-close-without-quitting`
 
@@ -154,12 +154,52 @@ Known remaining limitation: quitting from the Dock icon's context menu also send
 cannot be intercepted without implementing `applicationShouldTerminate:`, which tao does not
 expose. Cmd-Q and the application menu Quit — the paths actually used — are covered.
 
+## Validation
+
+- `npx vitest run`: 192 files, 1242 tests green.
+- `cargo test`: 212 passed, 3 ignored.
+- `tsc --noEmit -p tsconfig.json`: clean.
+- `npm run roadmap:check`: READY.
+- `git diff --check`: clean.
+
+The tests cover the connected close path (`onCloseRequested` → draft flush → `hide()`), the
+window permissions that path requires, the real-quit confirmation boundary, the owned macOS Quit
+menu item and revealing a hidden window before asking. Rust coverage pins the distinct exit
+policies, reopen restoration, the escape hatch for repeated quit, programmatic/update exits, and
+the Quit-item identification that leaves its menu siblings untouched.
+
+## Dev Homologation — 2026-09-28
+
+Validated by the Navigator on the Dev channel.
+
+- The macOS red close button hides the window without ending the app process.
+- With an agent running, Cmd-Q brings the window forward and shows the active-work confirmation
+  instead of silently ending the run.
+
+Accepted outcome: window close is now a safe visibility change; explicit Quit is the only ordinary
+path that ends local agent work, and it makes that consequence visible before proceeding.
+
+## Closure
+
+**Proportionality review: proportional.** The change corrects native-window lifecycle ownership,
+Composer draft flushing and the macOS Quit route without changing agent admission, execution,
+transcript authority, Journey state or persistence semantics.
+
+**Debt review: documented limitation.** Dock context-menu Quit still invokes AppKit `terminate:`
+directly and cannot be confirmed through Tauri without an `applicationShouldTerminate:` hook. Cmd-Q
+and the application-menu Quit are covered; expanding interception to the Dock path requires a
+separate native-runtime decision.
+
+Delivery evidence: `99bb0a6`, `10add29`, `1a9445e`.
+
+Commit, merge, publication and release remain separate Navigator decisions.
+
 ## Acceptance
 
-- Red close button removes the window from view without quitting the app process.
-- Explicit Quit still quits.
-- Active runs are not silently terminated by window close.
-- Reopening the app window restores the expected UI state.
+- [x] Red close button removes the window from view without quitting the app process.
+- [x] Explicit Quit still quits.
+- [x] Active runs are not silently terminated by window close.
+- [x] Reopening the app window restores the expected UI state.
 
 ## Exclusions
 

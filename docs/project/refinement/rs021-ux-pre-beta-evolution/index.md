@@ -17,7 +17,7 @@ Mirror Desktop feels less like an alpha harness and more like a beta-ready daily
 ## Authority Contract
 
 - Journey authority is exactly `mirror-desktop`.
-- This RS captures and orders Change Requests. CR085 is explicitly pulled as the current focus by Navigator request; later focus changes require explicit Navigator intent.
+- This RS captures and orders Change Requests. CR085 was explicitly pulled and is now done; selecting a later focus requires explicit Navigator intent.
 - Each CR must preserve Pi/Mirror transcript authority and existing Journey/run authority boundaries.
 - UX changes must not silently start, cancel, retry, send, compact, split, publish, release, or mutate Mirror data.
 - Any behavior that affects active native processes must distinguish safe preference/UI mutation from run-control mutation.
@@ -49,7 +49,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 
 ## Boundaries
 
-- CR085 is the current pulled focus; later CRs remain captured until explicitly pulled.
+- No next CR is implicitly pulled by CR085 closure; remaining CRs stay captured until explicitly pulled.
 - No app release, Beta promotion, endpoint publication, Git push or tag is authorized by this document.
 
 ## Change Requests
@@ -65,7 +65,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR081: Agent Running Animation](cr081-agent-running-animation.md) — done
 - [CR083: Agent Comments Continuity](cr083-agent-comments-continuity.md)
 - [CR082: Collapsed Sidebar Polish](cr082-collapsed-sidebar-polish.md) — done
-- [CR085: Close Without Quitting](cr085-close-without-quitting.md)
+- [CR085: Close Without Quitting](cr085-close-without-quitting.md) — done
 - [CR079: Always Legible Context Reading](cr079-deep-context-stats-analysis.md)
 - [CR080: Compaction Chapters](cr080-compaction-chapters.md)
 - [CR092: Float the Recenter Control Over the Conversation](cr092-float-the-recenter-control-over-the-conversation.md) — done
