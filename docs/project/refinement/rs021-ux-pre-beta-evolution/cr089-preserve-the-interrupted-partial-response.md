@@ -271,3 +271,34 @@ empty orphan evidence observed during characterization.
 
 Boundary kept explicit: a fragment lost before this change cannot be recovered, since Pi never held
 it and no Desktop evidence recorded it.
+
+## Phase 2 Correction — 2026-09-29
+
+The Navigator reported the fragment working. Inspecting the run showed the capture was too wide.
+
+Run `agent-run-2026-09-29T16:58:29.876Z` was cancelled after four narrated tool calls. All four
+comments were already Pi entries, yet the evidence recorded a 408-character fragment that
+reproduced them exactly. On reload that run would have shown each comment twice: once as its own
+restored message, and again inside the interrupted region. Nothing was lost in that run, so nothing
+should have been preserved.
+
+The cause was reading the fragment from the live assistant message, which accumulates every comment
+of the run rather than only the unfinished one. CR083 had already recovered the information needed
+to tell them apart: Pi closes each comment it commits, so the prose at risk is exactly what arrived
+after the last boundary. A pending boundary means the transcript is complete and there is no
+fragment.
+
+`selectInterruptedFragment` now derives the fragment from the run's comment boundaries, and the
+live cancellation path uses it. A cancellation between steps records no fragment; a cancellation
+mid-sentence records that sentence and nothing else.
+
+### Validation
+
+- `npx vitest run`: 196 files, 1273 tests green. `tsc`, `build`, `roadmap:check`, `git diff --check`
+  clean.
+- The three selection cases are covered directly: prose after the last boundary is kept, a closed
+  boundary keeps nothing, and a run with no prose keeps nothing.
+
+Local data note: the evidence stored by the 16:58 test still carries the over-wide fragment, so that
+one historical turn renders duplicated until it is replaced. This is stale Dev data rather than
+behaviour, and no released build ever wrote this field.

@@ -48,6 +48,17 @@ export function createTerminalAgentActionEvidence(input: {
   };
 }
 
+/**
+ * CR089: the prose Pi never committed, which is the only part an interruption can lose. Pi closes
+ * every comment it commits (CR083's boundary), so a pending boundary means the transcript already
+ * holds everything and preserving it here would only duplicate it.
+ */
+export function selectInterruptedFragment(projection: RuntimeProjectionState): string {
+  if (projection.agentCommentBoundaryPending) return "";
+  const comments = projection.agentComments ?? [];
+  return comments.length > 0 ? comments[comments.length - 1] : "";
+}
+
 /** CR089: an interruption that produced neither work nor prose leaves nothing worth recording. */
 export function terminalAgentActionEvidenceIsEmpty(evidence: TerminalAgentActionEvidence): boolean {
   return evidence.projection.operations.length === 0

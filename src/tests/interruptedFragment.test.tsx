@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { AgentTurn } from "../app/AgentTurn";
 import { projectAgentTurnPresentation } from "../app/conversationTurnPresentation";
-import { createTerminalAgentActionEvidence } from "../app/terminalAgentActionEvidence";
+import { createTerminalAgentActionEvidence, selectInterruptedFragment } from "../app/terminalAgentActionEvidence";
 import { initialRuntimeProjectionState } from "../app/runtimeActivityModel";
 import { projectPiBackedConversationSurface } from "../domain/piBackedConversationSurface";
 
@@ -88,6 +88,34 @@ function evidenceWithFragment(fragment: string) {
     },
   };
 }
+
+describe("CR089 interrupted fragment selection", () => {
+  it("keeps only the prose Pi never committed", () => {
+    // Pi closes each comment it commits, so anything after the last boundary is what was lost.
+    const projection = {
+      ...initialRuntimeProjectionState,
+      agentComments: ["Vou ler o primeiro arquivo.", "Vou ler o segundo.", "Estava dizendo que a rel"],
+    };
+
+    expect(selectInterruptedFragment(projection)).toBe("Estava dizendo que a rel");
+  });
+
+  it("keeps nothing when the agent was between steps and Pi had committed everything", () => {
+    // The run the Navigator cancelled after four narrated tool calls: every word was already a Pi
+    // entry, so preserving it here would duplicate the transcript.
+    const projection = {
+      ...initialRuntimeProjectionState,
+      agentComments: ["Vou identificar os arquivos.", "Vou ler o primeiro arquivo."],
+      agentCommentBoundaryPending: true as const,
+    };
+
+    expect(selectInterruptedFragment(projection)).toBe("");
+  });
+
+  it("keeps nothing when the agent had not written a word", () => {
+    expect(selectInterruptedFragment(initialRuntimeProjectionState)).toBe("");
+  });
+});
 
 describe("CR089 interrupted fragment", () => {
   it("carries the in-flight prose on the turn evidence rather than inventing a message", () => {

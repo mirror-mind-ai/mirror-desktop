@@ -39,6 +39,7 @@ import { classifyAssistantTurnProximity } from "./turnProximity";
 import {
   attachTerminalAgentActionEvidence,
   createTerminalAgentActionEvidence,
+  selectInterruptedFragment,
   terminalAgentActionEvidenceIsEmpty,
 } from "./terminalAgentActionEvidence";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
@@ -2951,10 +2952,9 @@ export function App({ model }: AppProps) {
         // interrupted turn keeps its message when it performed work, even with no words written.
         const performedWork = runRuntimeProjection.operations.length > 0
           || runRuntimeProjection.reasoningSummaries.length > 0;
-        // CR089: Pi never records the prose that was still streaming, so it is captured here as
+        // CR089: only the prose Pi never committed can be lost, so only that is captured here as
         // evidence about the turn. It never becomes transcript content.
-        const interruptedFragment = runConversation.messages
-          .find((message) => message.id === assistantMessage.id)?.content ?? "";
+        const interruptedFragment = selectInterruptedFragment(runRuntimeProjection);
         let interrupted = replaceJourneyConversationMessages(
           runConversation,
           runConversation.messages.filter(
