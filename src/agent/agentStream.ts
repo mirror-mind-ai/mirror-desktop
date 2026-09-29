@@ -39,6 +39,9 @@ export type MirrorCommitEvent = {
 
 export type AgentStreamEvent =
   | { type: "message_delta"; content: string }
+  // CR083: one run emits several agent comments, one per step. This closes the current comment so
+  // the next one cannot start inside the previous sentence.
+  | { type: "agent_comment_boundary" }
   | { type: "reasoning_summary_start" }
   | { type: "reasoning_summary_delta"; content: string }
   | { type: "reasoning_summary_end" }
@@ -102,6 +105,11 @@ export async function* mockPiAgentStream(packet: PiTaskPacket): AsyncGenerator<A
 }
 
 export function reduceStreamedAssistantMessage(current: string, event: AgentStreamEvent): string {
+  if (event.type === "agent_comment_boundary") {
+    // A paragraph break is the truthful separator: these really were distinct messages, and the
+    // persisted text and the copied text must both carry the boundary.
+    return current.trim() ? `${current.replace(/\s+$/, "")}\n\n` : current;
+  }
   if (event.type !== "message_delta") {
     return current;
   }

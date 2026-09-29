@@ -270,6 +270,11 @@ describe("ordered runtime projection", () => {
       { type: "raw_output", content: "fallback" },
     ]);
 
-    expect(state).toEqual(initialRuntimeProjectionState);
+    expect(state.operations).toEqual([]);
+    expect(state.activityOrder).toEqual([]);
+    expect(state.reasoningSummaries).toEqual([]);
+    expect(state.status).toBe(initialRuntimeProjectionState.status);
+    // CR083: assistant text is still not an operation, but it is now kept as the turn's comment.
+    expect(state.agentComments).toEqual(["answer"]);
   });
 });

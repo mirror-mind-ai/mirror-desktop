@@ -2768,8 +2768,8 @@ export function App({ model }: AppProps) {
             ),
           );
         }
-        if (event.type === "message_delta") {
-          streamedAssistantContent = `${streamedAssistantContent}${event.content}`;
+        if (event.type === "message_delta" || event.type === "agent_comment_boundary") {
+          streamedAssistantContent = reduceStreamedAssistantMessage(streamedAssistantContent, event);
           const transition = extractCertifiedModeTransition(streamedAssistantContent);
           updateRunConversation((currentConversation) => {
             const withMode = transition

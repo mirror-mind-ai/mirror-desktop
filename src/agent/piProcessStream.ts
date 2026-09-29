@@ -240,7 +240,9 @@ function mapPiJsonEventToStreamEvents(event: PiJsonEvent, options: PiProcessMapp
   const usageEvents = mapUsageToStreamEvents(usage, options.mappingState, options.contextWindow);
 
   if (event.type === "message_end" && isAssistantMessage(event.message)) {
-    return usageEvents;
+    // CR083: the end of an assistant message is where one agent comment stops. Pi already reports
+    // it; the surface used to discard everything here except usage.
+    return [...usageEvents, { type: "agent_comment_boundary" }];
   }
 
   switch (event.type) {

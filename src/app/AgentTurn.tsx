@@ -69,16 +69,32 @@ export function AgentTurn({
       <ImportedActivity events={presentation.systemSurfaces} basePath={basePath} />
     </section>
   ) : null;
+  const renderComment = (content: string) => (
+    <MessageContent
+      content={content}
+      basePath={basePath}
+      onLocalPathClick={onLocalPathClick}
+      copyCodeBlocks
+      highlightQuery={highlightQuery}
+    />
+  );
+  // CR083: notes the agent left while it was still working read as a trail, and the comment that
+  // closed the turn keeps the weight of an answer. Both stay visible; neither hides behind a click.
+  const trail = presentation.commentTrail?.length ? (
+    <ol className="agent-comment-trail" aria-label="Agent progress notes">
+      {presentation.commentTrail.map((note, index) => (
+        <li key={index} className="agent-comment-note">{renderComment(note)}</li>
+      ))}
+    </ol>
+  ) : null;
+  const closing = trail
+    ? (presentation.closingComment ? renderComment(presentation.closingComment) : null)
+    : (presentation.agentComment ? renderComment(presentation.agentComment) : null);
   const comments = presentation.agentComment ? (
     <section className="agent-turn-region agent-comments" aria-label="Agent Comments">
       <span className="runtime-region-label">Agent Comments</span>
-      <MessageContent
-        content={presentation.agentComment}
-        basePath={basePath}
-        onLocalPathClick={onLocalPathClick}
-        copyCodeBlocks
-        highlightQuery={highlightQuery}
-      />
+      {trail}
+      {closing}
     </section>
   ) : null;
 

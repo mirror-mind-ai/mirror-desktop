@@ -46,7 +46,7 @@ This exposes a second defect inside this CR's own scope: live and restored prese
 equivalent. After a reload the same run renders as several assistant turns that already breathe,
 while live it is one glued wall. Fixing only the styling would leave the divergence in place.
 
-## Proposed Direction — awaiting Navigator decision
+## Approved Direction — 2026-09-29
 
 The comments in the evidence are not one answer. They are progress narration emitted between
 tool calls (`Vou rodar os smokes públicos agora.`, `Produção está saudável na release nova.`),
@@ -74,6 +74,62 @@ Nothing is rewritten, merged or reordered, so transcript authority is preserved.
   since each comment narrates the action beside it. It is deliberately not recommended here because
   it would reverse the semantic grouping approved in RS011 (`Agent Actions` → `System Surfaces` →
   `Agent Comments`). That reversal is a Navigator decision, not a side effect of a continuity fix.
+
+## Navigator Decision — 2026-09-29
+
+The Navigator rejected collapsing the notes behind a disclosure, using the surface itself as
+evidence: an Agent Comments section that reads well open would get worse behind a click. The
+`N progress notes` disclosure is withdrawn. Nothing in the trail hides.
+
+The Navigator also named the real distinction: the glued comments were the agent's anticipations
+of what it was about to do. That intuition is adopted, but the implemented criterion is structural
+rather than linguistic. A comment is a note when more work followed it in the same turn; the
+comment that closed the turn is the answer. No text is interpreted, so nothing is guessed.
+
+Distinction is carried by visual register, not by visibility: notes form a quieter connected trail,
+and the closing comment keeps the ordinary weight of an answer.
+
+## Implementation — 2026-09-29
+
+**The boundary is recovered instead of invented.** `piProcessStream` now emits
+`agent_comment_boundary` on assistant `message_end`, the event it previously consumed only for
+usage. `reduceStreamedAssistantMessage` turns that boundary into a paragraph break, so the glue
+disappears from the rendered surface, from copied text and from the persisted content alike.
+
+**Comments become an ordered list.** `RuntimeProjectionState` keeps the run's comments in order,
+appending deltas to the open comment and starting a new one after a boundary. Assistant text is
+still never projected as an operation.
+
+**An answer must be earned by closing the turn.** `projectAgentTurnPresentation` promotes the last
+comment to `closingComment` only when the run completed. While work continues the comments stay a
+trail, and a cancelled or failed run never gains an answer it did not produce — which keeps this CR
+from silently deciding what CR089 owns.
+
+**The ordinary answer is untouched.** A single comment still renders exactly as before, so the
+common conversational turn sees no change at all.
+
+**The restored path gained the same register.** `projectPiBackedConversationSurface` marks every
+assistant message that did not close its turn as `trail`, per turn, and the transcript passes that
+role into the presentation. Reloading no longer turns notes into a row of equal answers.
+
+Deliberate boundary: restored multi-step turns remain separate messages rather than being merged
+into one, because merging would destroy per-response model attribution (CR091) and per-step
+reconstructed actions. The reading register is equivalent; the message structure intentionally is
+not.
+
+## Validation
+
+- `npx vitest run`: 194 files, 1253 tests green.
+- `npx tsc --noEmit`: clean.
+- `npm run build`: green.
+- `npm run roadmap:check`: READY.
+- `git diff --check`: clean.
+
+Two existing tests changed because the behavior changed, not to accommodate the patch: the Pi
+`message_end` mapping now also closes a comment, and the runtime projection test that asserted
+assistant text left the projection untouched now asserts what it always meant — that assistant text
+is not an operation — while recognizing that the comment is kept.
+
 
 ## Acceptance
 

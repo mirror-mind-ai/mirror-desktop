@@ -2545,6 +2545,42 @@ h3 {
   color: #85a1a7;
 }
 
+/* CR083: notes left while the agent was still working read as a quieter trail, so the comment
+   that closed the turn keeps the weight of an answer. Nothing here hides behind a disclosure. */
+.agent-comment-trail {
+  border-left: 2px solid rgba(var(--ui-accent-rgb), 0.22);
+  display: grid;
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 2px 0 2px 16px;
+}
+
+.agent-comment-note {
+  color: #85a1a7;
+  font-size: 0.94em;
+  position: relative;
+}
+
+.agent-comment-note::before {
+  background: rgba(var(--ui-accent-rgb), 0.45);
+  border-radius: 50%;
+  content: "";
+  height: 6px;
+  left: -21px;
+  position: absolute;
+  top: 0.62em;
+  width: 6px;
+}
+
+.agent-comment-note > *:first-child {
+  margin-top: 0;
+}
+
+.agent-comment-note > *:last-child {
+  margin-bottom: 0;
+}
+
 .agent-actions .live-runtime-activity {
   margin-bottom: 0;
 }
@@ -6763,6 +6799,23 @@ dd {
   .app-shell[data-application-theme="parchment"]
 ) :is(.runtime-region-label, .runtime-answer > .runtime-region-label) {
   color: var(--light-muted);
+}
+
+/* CR083: the trail must stay quieter than the answer in daylight too, without losing contrast. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .agent-comment-note {
+  color: var(--light-muted);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .agent-comment-trail {
+  border-left-color: var(--light-border);
 }
 
 :is(

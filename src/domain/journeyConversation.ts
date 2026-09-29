@@ -116,6 +116,8 @@ export type JourneyConversation = {
   // authority, so storage carries no duplicate and existing Conversations gain it for free.
   responseModels?: Record<string, ResponseModelAttribution>;
   chapterDividers?: Record<string, ChapterDivider>;
+  /** CR083: assistant messages that did not close their turn, so they read as notes. */
+  agentCommentRoles?: Record<string, "trail">;
 };
 
 /**

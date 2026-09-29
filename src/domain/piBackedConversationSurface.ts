@@ -216,10 +216,33 @@ export function projectPiBackedConversationSurface(
   return {
     ...metadata,
     messages,
+    ...(() => {
+      const roles = projectAgentCommentRoles(messages);
+      return Object.keys(roles).length > 0 ? { agentCommentRoles: roles } : {};
+    })(),
     ...(Object.keys(reconstructedAgentActions).length > 0 ? { reconstructedAgentActions } : {}),
     ...(Object.keys(responseModels).length > 0 ? { responseModels } : {}),
     ...(Object.keys(chapterDividers).length > 0 ? { chapterDividers } : {}),
   };
+}
+
+// CR083: a turn's last agent comment is the one that answered; everything the agent said before it,
+// while more work was still coming, was a note. The rule is structural, so no text is interpreted.
+function projectAgentCommentRoles(
+  messages: readonly { id: string; role: string }[],
+): Record<string, "trail"> {
+  const roles: Record<string, "trail"> = {};
+  let run: string[] = [];
+  const closeRun = () => {
+    for (const id of run.slice(0, -1)) roles[id] = "trail";
+    run = [];
+  };
+  for (const message of messages) {
+    if (message.role === "assistant") run.push(message.id);
+    else closeRun();
+  }
+  closeRun();
+  return roles;
 }
 
 function bind(bindings: Map<string, MessageBinding>, entryId: string, binding: MessageBinding): void {

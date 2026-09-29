@@ -17,16 +17,24 @@ export type AgentTurnPresentationInput = {
   createdAt: string;
   linkedActivity: ImportedConversationActivityEvent[];
   runtimeProjection?: RuntimeProjectionState;
+  /** CR083: a restored comment that did not close its turn reads as a note, not as an answer. */
+  commentRole?: "trail";
 };
 
 export type AgentTurnPresentation = {
   agentActions?: RuntimeProjectionState;
   systemSurfaces: ImportedConversationActivityEvent[];
   remainingActivity: ImportedConversationActivityEvent[];
+  /** The whole comment text of the turn, kept intact for copying. */
   agentComment: string;
+  /** CR083: comments emitted while work was still running, in order. */
+  commentTrail?: string[];
+  /** CR083: the comment that closed the turn; absent while it is still open or when it never closed. */
+  closingComment?: string;
 };
 
 export function projectAgentTurnPresentation(input: AgentTurnPresentationInput): AgentTurnPresentation {
+  const comment = stripMessageSpeakerSignature(stripMirrorModeBlocks(stripMirrorSurfaceBlocks(input.content)));
   const contentWithoutSurfaces = stripMirrorSurfaceBlocks(input.content);
   const contentWithoutSystemBlocks = stripMirrorModeBlocks(contentWithoutSurfaces);
   const renderTimeSurfaces = [
@@ -58,7 +66,39 @@ export function projectAgentTurnPresentation(input: AgentTurnPresentationInput):
     ]),
     remainingActivity,
     agentComment: stripMessageSpeakerSignature(contentWithoutSystemBlocks),
+    ...projectAgentComments(input.runtimeProjection, comment, input.commentRole),
   };
+}
+
+// CR083: an agent comment becomes the turn's answer only by closing the turn. Anything emitted
+// while more work was still coming stays a note, and an interrupted run never gains an answer it
+// did not produce.
+function projectAgentComments(
+  projection: RuntimeProjectionState | undefined,
+  restoredComment: string,
+  restoredRole: "trail" | undefined,
+): Pick<AgentTurnPresentation, "commentTrail" | "closingComment"> {
+  const comments = (projection?.agentComments ?? [])
+    .map((comment) => comment.trim())
+    .filter(Boolean);
+  if (comments.length === 0) {
+    return restoredRole === "trail" && restoredComment.trim()
+      ? { commentTrail: [restoredComment] }
+      : {};
+  }
+
+  if (projection?.status === "completed") {
+    const trail = comments.slice(0, -1);
+    return {
+      ...(trail.length > 0 ? { commentTrail: trail } : {}),
+      closingComment: comments[comments.length - 1],
+    };
+  }
+
+  const interrupted = projection?.status === "cancelled" || projection?.status === "failed";
+  // A lone comment still being written is left alone, so an ordinary answer does not first
+  // appear as a note and then reflow into an answer.
+  return interrupted || comments.length > 1 ? { commentTrail: comments } : {};
 }
 
 function hasSemanticAgentActions(projection: RuntimeProjectionState): boolean {

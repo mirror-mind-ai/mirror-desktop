@@ -4,7 +4,7 @@ import {
   reduceAgentRunFromStreamEvent,
   type AgentRunState,
 } from "../agent/agentRun";
-import type { AgentStreamEvent } from "../agent/agentStream";
+import { reduceStreamedAssistantMessage, type AgentStreamEvent } from "../agent/agentStream";
 import type { NormalizedPiResponse } from "../agent/piResponseNormalizer";
 import type { MissionDraft } from "../agent/piTaskPacket";
 import type { JourneyConversation } from "../domain/journeyConversation";
@@ -291,8 +291,11 @@ function reduceEntryFromStreamEvent(entry: JourneyRuntimeEntry, event: AgentStre
   };
   if (event.type === "run_status" && event.status === "completed") {
     next = { ...next, isStreaming: false, isFinalizingTurn: true };
-  } else if (event.type === "message_delta") {
-    next = { ...next, streamedAssistantContent: `${entry.streamedAssistantContent}${event.content}` };
+  } else if (event.type === "message_delta" || event.type === "agent_comment_boundary") {
+    next = {
+      ...next,
+      streamedAssistantContent: reduceStreamedAssistantMessage(entry.streamedAssistantContent, event),
+    };
   } else if (event.type === "diagnostic") {
     next = { ...next, diagnostics: [...entry.diagnostics, event.message] };
   } else if (event.type === "grammar_update") {

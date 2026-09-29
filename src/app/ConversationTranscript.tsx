@@ -69,6 +69,8 @@ type ConversationMessageRowProps = {
   onLocalPathClick: (path: string) => void;
   highlightQuery?: string;
   responseModel?: ResponseModelBadge;
+  /** CR083: set when this restored comment did not close its turn. */
+  commentRole?: "trail";
 };
 
 const ConversationMessageRow = memo(function ConversationMessageRow({
@@ -77,6 +79,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
   proximity,
   exactRuntimeProjection,
   steering,
+  commentRole,
   basePath,
   userAvatar,
   onLocalPathClick,
@@ -94,6 +97,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
       createdAt: message.createdAt,
       linkedActivity,
       ...(exactRuntimeProjection ? { runtimeProjection: exactRuntimeProjection } : {}),
+      ...(commentRole ? { commentRole } : {}),
     });
     return (
       <AgentTurn
@@ -307,6 +311,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
               proximity={assistantTurnProximity.get(message.id)}
               exactRuntimeProjection={exactRuntimeProjection}
               steering={steering}
+              commentRole={conversation.agentCommentRoles?.[message.id]}
               basePath={basePath}
               userAvatar={userAvatar}
               onLocalPathClick={onLocalPathClick}

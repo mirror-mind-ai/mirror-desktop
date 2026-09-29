@@ -46,6 +46,10 @@ export type RuntimeProjectionState = {
   activityOrder: RuntimeActivityReference[];
   contextUsage?: RuntimeContextUsage;
   terminalMessage?: string;
+  /** CR083: the run's agent comments in order, one per assistant message. */
+  agentComments?: string[];
+  /** CR083: the open comment was closed, so the next delta starts a new one. */
+  agentCommentBoundaryPending?: true;
 };
 
 export const initialRuntimeProjectionState: RuntimeProjectionState = {
@@ -85,6 +89,12 @@ export function reduceRuntimeProjection(
   if (event.type === "context_usage") {
     return { ...state, contextUsage: mergeRuntimeContextUsage(state.contextUsage, event.usage) };
   }
+  if (event.type === "message_delta") {
+    return appendAgentComment(state, event.content);
+  }
+  if (event.type === "agent_comment_boundary") {
+    return state.agentComments?.length ? { ...state, agentCommentBoundaryPending: true } : state;
+  }
   if (event.type === "reasoning_summary_start") {
     return startReasoningSummary(state);
   }
@@ -99,6 +109,16 @@ export function reduceRuntimeProjection(
   }
 
   return upsertRuntimeOperation(state, event.operation);
+}
+
+function appendAgentComment(state: RuntimeProjectionState, content: string): RuntimeProjectionState {
+  const comments = state.agentComments ?? [];
+  const startsNewComment = comments.length === 0 || state.agentCommentBoundaryPending;
+  const next = startsNewComment
+    ? [...comments, content]
+    : [...comments.slice(0, -1), `${comments[comments.length - 1]}${content}`];
+  const { agentCommentBoundaryPending: _closed, ...rest } = state;
+  return { ...rest, agentComments: next };
 }
 
 function upsertRuntimeOperation(

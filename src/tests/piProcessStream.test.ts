@@ -148,6 +148,8 @@ describe("Pi process stream adapter", () => {
       { contextWindow: 400000 },
     )).toEqual([
       { type: "context_usage", usage: { tokens: 54800, contextWindow: 400000, percent: 13.700000000000001 } },
+      // CR083: the same event also closes the agent comment that just ended.
+      { type: "agent_comment_boundary" },
     ]);
   });
 
