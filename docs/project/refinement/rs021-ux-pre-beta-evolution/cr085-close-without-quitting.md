@@ -62,6 +62,24 @@ APIs are runtime callbacks. Pin the policy before wiring it:
 - explicit exit remains `shutdown_pi_invocations`;
 - macOS reopen without visible windows means `show + unminimize + focus`.
 
+
+## Implementation — 2026-09-28
+
+Implemented the narrow macOS close-without-quit policy in `src-tauri/src/main.rs`:
+
+- Added a small pure lifecycle policy model, covered by Rust tests, that distinguishes window
+  close, app reopen and explicit exit.
+- `WindowEvent::CloseRequested` for the `main` window on macOS now prevents the default close and
+  hides the webview window instead.
+- macOS `RunEvent::Reopen` with no visible windows now shows, unminimizes and focuses the main
+  window so Dock/app activation restores the UI.
+- `RunEvent::ExitRequested` remains the only path that calls `shutdown_pi_invocations`, preserving
+  explicit Quit semantics.
+
+This means hiding the window no longer destroys the last window and therefore no longer triggers
+Pi-process shutdown. Running agent work remains attached to the process until the Navigator
+explicitly quits or cancels it.
+
 ## Acceptance
 
 - Red close button removes the window from view without quitting the app process.

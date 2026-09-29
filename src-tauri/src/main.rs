@@ -5111,6 +5111,34 @@ fn shutdown_pi_invocations(state: &PiProcessState) {
     });
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DesktopLifecycleAction {
+    Default,
+    HideMainWindow,
+    RevealMainWindow,
+    ShutdownPiInvocations,
+}
+
+fn desktop_lifecycle_close_requested_action(is_macos: bool, label: &str) -> DesktopLifecycleAction {
+    if is_macos && label == "main" {
+        DesktopLifecycleAction::HideMainWindow
+    } else {
+        DesktopLifecycleAction::Default
+    }
+}
+
+fn desktop_lifecycle_reopen_action(is_macos: bool, has_visible_windows: bool) -> DesktopLifecycleAction {
+    if is_macos && !has_visible_windows {
+        DesktopLifecycleAction::RevealMainWindow
+    } else {
+        DesktopLifecycleAction::Default
+    }
+}
+
+fn desktop_lifecycle_exit_requested_action() -> DesktopLifecycleAction {
+    DesktopLifecycleAction::ShutdownPiInvocations
+}
+
 fn mirror_append_outbox_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(app
         .path()
@@ -8927,11 +8955,93 @@ fn main() {
                     app_handle.exit(1);
                 }
             }
+            tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::CloseRequested { api, .. },
+                ..
+            } => {
+                if desktop_lifecycle_close_requested_action(cfg!(target_os = "macos"), &label)
+                    == DesktopLifecycleAction::HideMainWindow
+                {
+                    api.prevent_close();
+                    if let Some(window) = app_handle.get_webview_window(&label) {
+                        let _ = window.hide();
+                    }
+                }
+            }
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { has_visible_windows, .. } => {
+                if desktop_lifecycle_reopen_action(true, has_visible_windows)
+                    == DesktopLifecycleAction::RevealMainWindow
+                {
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.unminimize();
+                        let _ = window.set_focus();
+                    }
+                }
+            }
             tauri::RunEvent::ExitRequested { .. } => {
-                shutdown_pi_invocations(&app_handle.state::<PiProcessState>());
+                if desktop_lifecycle_exit_requested_action()
+                    == DesktopLifecycleAction::ShutdownPiInvocations
+                {
+                    shutdown_pi_invocations(&app_handle.state::<PiProcessState>());
+                }
             }
             _ => {}
         });
+}
+
+#[cfg(test)]
+mod close_without_quitting_tests {
+    use super::{
+        desktop_lifecycle_close_requested_action, desktop_lifecycle_exit_requested_action,
+        desktop_lifecycle_reopen_action, DesktopLifecycleAction,
+    };
+
+    #[test]
+    fn macos_main_window_close_hides_instead_of_shutting_down() {
+        assert_eq!(
+            desktop_lifecycle_close_requested_action(true, "main"),
+            DesktopLifecycleAction::HideMainWindow
+        );
+    }
+
+    #[test]
+    fn non_macos_or_secondary_window_close_keeps_the_default_close_path() {
+        assert_eq!(
+            desktop_lifecycle_close_requested_action(false, "main"),
+            DesktopLifecycleAction::Default
+        );
+        assert_eq!(
+            desktop_lifecycle_close_requested_action(true, "settings"),
+            DesktopLifecycleAction::Default
+        );
+    }
+
+    #[test]
+    fn explicit_exit_still_shuts_down_pi_invocations() {
+        assert_eq!(
+            desktop_lifecycle_exit_requested_action(),
+            DesktopLifecycleAction::ShutdownPiInvocations
+        );
+    }
+
+    #[test]
+    fn macos_reopen_restores_the_hidden_main_window_only_when_no_window_is_visible() {
+        assert_eq!(
+            desktop_lifecycle_reopen_action(true, false),
+            DesktopLifecycleAction::RevealMainWindow
+        );
+        assert_eq!(
+            desktop_lifecycle_reopen_action(true, true),
+            DesktopLifecycleAction::Default
+        );
+        assert_eq!(
+            desktop_lifecycle_reopen_action(false, false),
+            DesktopLifecycleAction::Default
+        );
+    }
 }
 
 #[cfg(test)]
