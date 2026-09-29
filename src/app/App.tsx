@@ -262,6 +262,7 @@ import {
 } from "./journeyConversationStorage";
 import { loadJourneyPreferences, saveJourneyPreferences } from "./journeyPreferenceStorage";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { cancelDesktopQuitRequest, confirmDesktopQuitRequest, listenForDesktopQuitRequest } from "./desktopQuitStorage";
 import { loadComposerDrafts, saveComposerDrafts } from "./composerDraftStorage";
 import { createComposerDraftPersistence, type ComposerDraftPersistence } from "./composerDraftPersistence";
 import {
@@ -1957,32 +1958,45 @@ export function App({ model }: AppProps) {
     [journeyRuntimeState],
   );
 
-  const closeAfterDraftFlush = useCallback(async () => {
+  // CR085: closing the window only removes it from view, so it never needs confirmation. Drafts
+  // are still flushed, because the Navigator may not bring the window back for a long time.
+  const hideWindowAfterDraftFlush = useCallback(async () => {
     const appWindow = getCurrentWindow();
+    try {
+      await composerDraftPersistence.flush();
+      await appWindow.hide();
+    } catch (error) {
+      console.warn("Could not hide the window after flushing Composer drafts.", error);
+    }
+  }, [composerDraftPersistence]);
+
+  const quitAfterDraftFlush = useCallback(async () => {
     setCloseConfirmationBusy(true);
     setCloseConfirmationError(undefined);
     try {
       await composerDraftPersistence.flush();
-      await appWindow.destroy();
+      await confirmDesktopQuitRequest();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setCloseConfirmationError(`Could not close Mirror Desktop: ${message}`);
+      setCloseConfirmationError(`Could not quit Mirror Desktop: ${message}`);
       setCloseConfirmationBusy(false);
-      console.warn("Could not close the app after flushing Composer drafts.", error);
+      console.warn("Could not quit the app after flushing Composer drafts.", error);
     }
   }, [composerDraftPersistence]);
+
+  const dismissQuitConfirmation = useCallback(() => {
+    setCloseConfirmationOpen(false);
+    void cancelDesktopQuitRequest().catch((error) => {
+      console.warn("Could not withdraw the quit request.", error);
+    });
+  }, []);
 
   useEffect(() => {
     const appWindow = getCurrentWindow();
     let unlisten: (() => void) | undefined;
     void appWindow.onCloseRequested((event) => {
       event.preventDefault();
-      if (hasActiveOrFinalizingJourneyRuntime(journeyRuntimeStateRef.current)) {
-        setCloseConfirmationError(undefined);
-        setCloseConfirmationOpen(true);
-        return;
-      }
-      void closeAfterDraftFlush();
+      void hideWindowAfterDraftFlush();
     }).then((stopListening) => {
       unlisten = stopListening;
     }).catch((error) => {
@@ -1992,7 +2006,27 @@ export function App({ model }: AppProps) {
       unlisten?.();
       composerDraftPersistence.dispose();
     };
-  }, [closeAfterDraftFlush, composerDraftPersistence]);
+  }, [hideWindowAfterDraftFlush, composerDraftPersistence]);
+
+  // CR085: quitting is the only path that ends local agent work, so it is the only path that asks.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listenForDesktopQuitRequest(() => {
+      if (hasActiveOrFinalizingJourneyRuntime(journeyRuntimeStateRef.current)) {
+        setCloseConfirmationError(undefined);
+        setCloseConfirmationOpen(true);
+        return;
+      }
+      void quitAfterDraftFlush();
+    }).then((stopListening) => {
+      unlisten = stopListening;
+    }).catch((error) => {
+      console.warn("Could not install the quit confirmation boundary.", error);
+    });
+    return () => {
+      unlisten?.();
+    };
+  }, [quitAfterDraftFlush]);
 
   useEffect(() => {
     if (!registryLoaded || !preferencesLoaded) {
@@ -5383,34 +5417,35 @@ export function App({ model }: AppProps) {
       ) : null}
 
       {closeConfirmationOpen ? (
-        <div className="settings-backdrop" role="presentation" onClick={() => !closeConfirmationBusy && setCloseConfirmationOpen(false)}>
+        <div className="settings-backdrop" role="presentation" onClick={() => !closeConfirmationBusy && dismissQuitConfirmation()}>
           <section
             className="settings-window close-confirmation-dialog danger-dialog"
             role="alertdialog"
             aria-modal="true"
-            aria-label="Confirm closing Mirror Desktop"
+            aria-label="Confirm quitting Mirror Desktop"
             onClick={(event) => event.stopPropagation()}
           >
             <header className="settings-header">
               <div>
                 <p className="eyebrow">Active agent work</p>
-                <h2>Close while agents are working?</h2>
+                <h2>Quit while agents are working?</h2>
                 <p className="settings-intro">
-                  Mirror Desktop still has {activeCloseWorkCount} active {activeCloseWorkCount === 1 ? "agent operation" : "agent operations"}. Closing now can interrupt visible work before it settles.
+                  Mirror Desktop still has {activeCloseWorkCount} active {activeCloseWorkCount === 1 ? "agent operation" : "agent operations"}. Quitting now ends that work before it settles.
                 </p>
               </div>
-              <button type="button" onClick={() => setCloseConfirmationOpen(false)} disabled={closeConfirmationBusy}>×</button>
+              <button type="button" onClick={dismissQuitConfirmation} disabled={closeConfirmationBusy}>×</button>
             </header>
             <div className="restart-assurances">
-              <p>Cancel keeps the app open and leaves active work untouched.</p>
-              <p>Close anyway flushes Composer drafts first, then closes the app.</p>
+              <p>Cancel keeps the app running and leaves active work untouched.</p>
+              <p>Quit anyway flushes Composer drafts first, then ends local agent work.</p>
+              <p>Closing the window instead only hides it and never interrupts an agent.</p>
             </div>
             {closeConfirmationError ? <p className="settings-error" role="alert">{closeConfirmationError}</p> : null}
             <div className="provider-actions">
-              <button type="button" className="danger-button" onClick={() => void closeAfterDraftFlush()} disabled={closeConfirmationBusy}>
-                {closeConfirmationBusy ? "Closing…" : "Close anyway"}
+              <button type="button" className="danger-button" onClick={() => void quitAfterDraftFlush()} disabled={closeConfirmationBusy}>
+                {closeConfirmationBusy ? "Quitting…" : "Quit anyway"}
               </button>
-              <button className="secondary-button" type="button" onClick={() => setCloseConfirmationOpen(false)} disabled={closeConfirmationBusy}>
+              <button className="secondary-button" type="button" onClick={dismissQuitConfirmation} disabled={closeConfirmationBusy}>
                 Cancel
               </button>
             </div>

@@ -66,6 +66,9 @@ use std::{
 use tauri::{path::BaseDirectory, AppHandle, Emitter, Manager, State};
 
 const PI_PROCESS_EVENT: &str = "nautilus-pi-process";
+// CR085: a Navigator-initiated quit is announced to the window so it can flush Composer drafts
+// and confirm before local agent work is ended.
+const DESKTOP_QUIT_REQUESTED_EVENT: &str = "mirror-desktop-quit-requested";
 const RPC_SETTLEMENT_EXIT_GRACE: Duration = Duration::from_secs(5);
 
 fn rpc_settlement_exit_grace_expired(settled: bool, elapsed: Duration) -> bool {
@@ -5114,17 +5117,7 @@ fn shutdown_pi_invocations(state: &PiProcessState) {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DesktopLifecycleAction {
     Default,
-    HideMainWindow,
     RevealMainWindow,
-    ShutdownPiInvocations,
-}
-
-fn desktop_lifecycle_close_requested_action(is_macos: bool, label: &str) -> DesktopLifecycleAction {
-    if is_macos && label == "main" {
-        DesktopLifecycleAction::HideMainWindow
-    } else {
-        DesktopLifecycleAction::Default
-    }
 }
 
 fn desktop_lifecycle_reopen_action(is_macos: bool, has_visible_windows: bool) -> DesktopLifecycleAction {
@@ -5135,8 +5128,39 @@ fn desktop_lifecycle_reopen_action(is_macos: bool, has_visible_windows: bool) ->
     }
 }
 
-fn desktop_lifecycle_exit_requested_action() -> DesktopLifecycleAction {
-    DesktopLifecycleAction::ShutdownPiInvocations
+// CR085: closing the window is the frontend's decision, because only the window knows the
+// Composer drafts and the visible agent work. Quitting is different: it ends local Pi work, so a
+// Navigator-initiated quit is handed back to the window once for confirmation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DesktopExitDecision {
+    Proceed,
+    AskWindowToConfirm,
+}
+
+fn desktop_exit_decision(code: Option<i32>, confirmation_already_requested: bool) -> DesktopExitDecision {
+    // A programmatic exit already carries its own authority: our own confirmed quit, the runtime
+    // channel icon failure and the verified update restart must never be intercepted.
+    if code.is_some() || confirmation_already_requested {
+        DesktopExitDecision::Proceed
+    } else {
+        DesktopExitDecision::AskWindowToConfirm
+    }
+}
+
+#[derive(Default)]
+struct DesktopQuitState {
+    confirmation_requested: AtomicBool,
+}
+
+#[tauri::command]
+fn confirm_desktop_quit(app: AppHandle, state: State<'_, DesktopQuitState>) {
+    state.confirmation_requested.store(true, Ordering::SeqCst);
+    app.exit(0);
+}
+
+#[tauri::command]
+fn cancel_desktop_quit(state: State<'_, DesktopQuitState>) {
+    state.confirmation_requested.store(false, Ordering::SeqCst);
 }
 
 fn mirror_append_outbox_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -8855,6 +8879,7 @@ fn main() {
             Ok(())
         })
         .manage(PiProcessState::default())
+        .manage(DesktopQuitState::default())
         .manage(CompactionState::default())
         .manage(JourneyProvisioningState::default())
         .manage(JourneyProjectionPersistenceState::default())
@@ -8944,6 +8969,8 @@ fn main() {
             cancel_pi_invocation,
             release_pi_invocation_lease,
             inspect_pi_invocations,
+            confirm_desktop_quit,
+            cancel_desktop_quit,
             retire_legacy_parity_state
         ])
         .build(tauri::generate_context!())
@@ -8953,20 +8980,6 @@ fn main() {
                 if let Err(error) = RuntimeChannel::active().apply_macos_dock_icon() {
                     eprintln!("Mirror Desktop runtime channel icon validation failed: {error}");
                     app_handle.exit(1);
-                }
-            }
-            tauri::RunEvent::WindowEvent {
-                label,
-                event: tauri::WindowEvent::CloseRequested { api, .. },
-                ..
-            } => {
-                if desktop_lifecycle_close_requested_action(cfg!(target_os = "macos"), &label)
-                    == DesktopLifecycleAction::HideMainWindow
-                {
-                    api.prevent_close();
-                    if let Some(window) = app_handle.get_webview_window(&label) {
-                        let _ = window.hide();
-                    }
                 }
             }
             #[cfg(target_os = "macos")]
@@ -8981,12 +8994,16 @@ fn main() {
                     }
                 }
             }
-            tauri::RunEvent::ExitRequested { .. } => {
-                if desktop_lifecycle_exit_requested_action()
-                    == DesktopLifecycleAction::ShutdownPiInvocations
-                {
-                    shutdown_pi_invocations(&app_handle.state::<PiProcessState>());
+            tauri::RunEvent::ExitRequested { code, api, .. } => {
+                let quit_state = app_handle.state::<DesktopQuitState>();
+                let already_requested = quit_state.confirmation_requested.load(Ordering::SeqCst);
+                if desktop_exit_decision(code, already_requested) == DesktopExitDecision::AskWindowToConfirm {
+                    quit_state.confirmation_requested.store(true, Ordering::SeqCst);
+                    api.prevent_exit();
+                    let _ = app_handle.emit(DESKTOP_QUIT_REQUESTED_EVENT, ());
+                    return;
                 }
+                shutdown_pi_invocations(&app_handle.state::<PiProcessState>());
             }
             _ => {}
         });
@@ -8995,35 +9012,28 @@ fn main() {
 #[cfg(test)]
 mod close_without_quitting_tests {
     use super::{
-        desktop_lifecycle_close_requested_action, desktop_lifecycle_exit_requested_action,
-        desktop_lifecycle_reopen_action, DesktopLifecycleAction,
+        desktop_exit_decision, desktop_lifecycle_reopen_action, DesktopExitDecision,
+        DesktopLifecycleAction,
     };
+    use tauri::RESTART_EXIT_CODE;
 
     #[test]
-    fn macos_main_window_close_hides_instead_of_shutting_down() {
-        assert_eq!(
-            desktop_lifecycle_close_requested_action(true, "main"),
-            DesktopLifecycleAction::HideMainWindow
-        );
+    fn a_user_quit_asks_the_window_before_any_local_shutdown() {
+        assert_eq!(desktop_exit_decision(None, false), DesktopExitDecision::AskWindowToConfirm);
     }
 
     #[test]
-    fn non_macos_or_secondary_window_close_keeps_the_default_close_path() {
-        assert_eq!(
-            desktop_lifecycle_close_requested_action(false, "main"),
-            DesktopLifecycleAction::Default
-        );
-        assert_eq!(
-            desktop_lifecycle_close_requested_action(true, "settings"),
-            DesktopLifecycleAction::Default
-        );
+    fn a_repeated_user_quit_proceeds_so_an_unresponsive_window_cannot_trap_the_app() {
+        assert_eq!(desktop_exit_decision(None, true), DesktopExitDecision::Proceed);
     }
 
     #[test]
-    fn explicit_exit_still_shuts_down_pi_invocations() {
+    fn programmatic_exit_and_update_restart_are_never_intercepted() {
+        assert_eq!(desktop_exit_decision(Some(0), false), DesktopExitDecision::Proceed);
+        assert_eq!(desktop_exit_decision(Some(1), false), DesktopExitDecision::Proceed);
         assert_eq!(
-            desktop_lifecycle_exit_requested_action(),
-            DesktopLifecycleAction::ShutdownPiInvocations
+            desktop_exit_decision(Some(RESTART_EXIT_CODE), false),
+            DesktopExitDecision::Proceed
         );
     }
 

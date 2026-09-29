@@ -18,21 +18,22 @@ describe("Composer draft integration", () => {
     expect(appSource).toContain("flushComposerDrafts");
     expect(appSource).toContain("onBlur={flushComposerDrafts}");
     expect(appSource).toContain("onCloseRequested");
-    expect(appSource).toContain("closeAfterDraftFlush");
+    expect(appSource).toContain("hideWindowAfterDraftFlush");
     expect(appSource).toContain("await composerDraftPersistence.flush()");
-    expect(appSource).toContain("await appWindow.destroy()");
+    expect(appSource).toContain("await appWindow.hide()");
     expect(appSource).not.toContain("await appWindow.close()");
     expect(desktopCapabilitySource).toContain('"core:window:allow-close"');
-    expect(desktopCapabilitySource).toContain('"core:window:allow-destroy"');
+    expect(desktopCapabilitySource).toContain('"core:window:allow-hide"');
     expect(appSource).not.toContain("saveComposerDrafts(composerDrafts)");
   });
 
-  it("guards app close while agents are active and exposes explicit confirmation", () => {
+  it("guards a real quit while agents are active and exposes explicit confirmation", () => {
     expect(appSource).toContain("hasActiveOrFinalizingJourneyRuntime(journeyRuntimeStateRef.current)");
     expect(appSource).toContain("setCloseConfirmationOpen(true)");
-    expect(appSource).toContain("Close while agents are working?");
-    expect(appSource).toContain("Close anyway");
+    expect(appSource).toContain("Quit while agents are working?");
+    expect(appSource).toContain("Quit anyway");
     expect(appSource).toContain("agent operations");
+    expect(appSource).toContain("quitAfterDraftFlush");
   });
 
   it("keeps pending attachments outside the draft storage boundary", () => {
