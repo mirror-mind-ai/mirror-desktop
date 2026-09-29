@@ -11,6 +11,8 @@ export function createTerminalAgentActionEvidence(input: {
   correlation: TurnCorrelation;
   projection: RuntimeProjectionState;
   terminalStatus?: "completed" | "cancelled" | "failed";
+  /** CR089: prose that had already arrived when the turn was interrupted. */
+  interruptedFragment?: string;
 }): TerminalAgentActionEvidence {
   const terminalStatus = input.terminalStatus ?? input.projection.status;
   if (terminalStatus === "starting" || terminalStatus === "working") {
@@ -40,7 +42,17 @@ export function createTerminalAgentActionEvidence(input: {
     turnId: input.correlation.turnId,
     assistantMessageId: input.correlation.harnessAssistantMessageId,
     projection,
+    ...(input.interruptedFragment?.trim()
+      ? { interruptedFragment: stripAnsiControlSequences(input.interruptedFragment) }
+      : {}),
   };
+}
+
+/** CR089: an interruption that produced neither work nor prose leaves nothing worth recording. */
+export function terminalAgentActionEvidenceIsEmpty(evidence: TerminalAgentActionEvidence): boolean {
+  return evidence.projection.operations.length === 0
+    && evidence.projection.reasoningSummaries.length === 0
+    && !evidence.interruptedFragment;
 }
 
 export function attachTerminalAgentActionEvidence(

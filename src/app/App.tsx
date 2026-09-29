@@ -39,6 +39,7 @@ import { classifyAssistantTurnProximity } from "./turnProximity";
 import {
   attachTerminalAgentActionEvidence,
   createTerminalAgentActionEvidence,
+  terminalAgentActionEvidenceIsEmpty,
 } from "./terminalAgentActionEvidence";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
 import {
@@ -2950,6 +2951,10 @@ export function App({ model }: AppProps) {
         // interrupted turn keeps its message when it performed work, even with no words written.
         const performedWork = runRuntimeProjection.operations.length > 0
           || runRuntimeProjection.reasoningSummaries.length > 0;
+        // CR089: Pi never records the prose that was still streaming, so it is captured here as
+        // evidence about the turn. It never becomes transcript content.
+        const interruptedFragment = runConversation.messages
+          .find((message) => message.id === assistantMessage.id)?.content ?? "";
         let interrupted = replaceJourneyConversationMessages(
           runConversation,
           runConversation.messages.filter(
@@ -2975,14 +2980,16 @@ export function App({ model }: AppProps) {
               ? { type: "cancelled", message: "Pi invocation cancelled." }
               : { type: "error", message: "Pi invocation failed." },
           );
-          interrupted = attachTerminalAgentActionEvidence(
-            interrupted,
-            createTerminalAgentActionEvidence({
-              correlation,
-              projection: runRuntimeProjection,
-              terminalStatus: runWasCancelled ? "cancelled" : "failed",
-            }),
-          );
+          const evidence = createTerminalAgentActionEvidence({
+            correlation,
+            projection: runRuntimeProjection,
+            terminalStatus: runWasCancelled ? "cancelled" : "failed",
+            interruptedFragment,
+          });
+          // An interruption that produced neither work nor prose leaves nothing to record.
+          if (!terminalAgentActionEvidenceIsEmpty(evidence)) {
+            interrupted = attachTerminalAgentActionEvidence(interrupted, evidence);
+          }
         }
         runConversation = interrupted;
         dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: runConversation });

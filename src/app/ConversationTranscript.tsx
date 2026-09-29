@@ -71,6 +71,8 @@ type ConversationMessageRowProps = {
   responseModel?: ResponseModelBadge;
   /** CR083: set when this restored comment did not close its turn. */
   commentRole?: "trail";
+  /** CR089: prose that had arrived when this turn was interrupted. */
+  interruptedFragment?: string;
 };
 
 const ConversationMessageRow = memo(function ConversationMessageRow({
@@ -80,6 +82,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
   exactRuntimeProjection,
   steering,
   commentRole,
+  interruptedFragment,
   basePath,
   userAvatar,
   onLocalPathClick,
@@ -98,6 +101,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
       linkedActivity,
       ...(exactRuntimeProjection ? { runtimeProjection: exactRuntimeProjection } : {}),
       ...(commentRole ? { commentRole } : {}),
+      ...(interruptedFragment ? { interruptedFragment } : {}),
     });
     return (
       <AgentTurn
@@ -312,6 +316,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
               exactRuntimeProjection={exactRuntimeProjection}
               steering={steering}
               commentRole={conversation.agentCommentRoles?.[message.id]}
+              interruptedFragment={conversation.interruptedFragments?.[message.id]}
               basePath={basePath}
               userAvatar={userAvatar}
               onLocalPathClick={onLocalPathClick}

@@ -19,6 +19,8 @@ export type AgentTurnPresentationInput = {
   runtimeProjection?: RuntimeProjectionState;
   /** CR083: a restored comment that did not close its turn reads as a note, not as an answer. */
   commentRole?: "trail";
+  /** CR089: prose that had arrived when the turn was interrupted, held as evidence, not content. */
+  interruptedFragment?: string;
 };
 
 export type AgentTurnPresentation = {
@@ -31,6 +33,8 @@ export type AgentTurnPresentation = {
   commentTrail?: string[];
   /** CR083: the comment that closed the turn; absent while it is still open or when it never closed. */
   closingComment?: string;
+  /** CR089: the unfinished prose of an interrupted turn, never an answer. */
+  interruptedFragment?: string;
 };
 
 export function projectAgentTurnPresentation(input: AgentTurnPresentationInput): AgentTurnPresentation {
@@ -67,6 +71,7 @@ export function projectAgentTurnPresentation(input: AgentTurnPresentationInput):
     remainingActivity,
     agentComment: stripMessageSpeakerSignature(contentWithoutSystemBlocks),
     ...projectAgentComments(input.runtimeProjection, comment, input.commentRole),
+    ...(input.interruptedFragment?.trim() ? { interruptedFragment: input.interruptedFragment } : {}),
   };
 }
 

@@ -38,7 +38,8 @@ export function AgentTurn({
   const hasContent = Boolean(
     presentation.agentActions
     || presentation.systemSurfaces.length > 0
-    || presentation.agentComment,
+    || presentation.agentComment
+    || presentation.interruptedFragment,
   );
   const [historicalDetailOpen, setHistoricalDetailOpen] = useState(false);
   const suppressedSurfaceContents = presentation.systemSurfaces
@@ -97,6 +98,14 @@ export function AgentTurn({
       {closing}
     </section>
   ) : null;
+  // CR089: what had already arrived when the Navigator interrupted the turn. It is shown as an
+  // unfinished fragment, never as an answer, because the agent never finished saying it.
+  const interrupted = presentation.interruptedFragment ? (
+    <section className="agent-turn-region agent-interrupted-fragment" aria-label="Interrupted response">
+      <span className="runtime-region-label">Interrupted</span>
+      {renderComment(presentation.interruptedFragment)}
+    </section>
+  ) : null;
 
   return (
     <div className="message-cluster">
@@ -118,6 +127,7 @@ export function AgentTurn({
           {proximity === "historical" ? (
             <>
               {comments}
+              {interrupted}
               {hasHistoricalDetail ? (
                 <details
                   className="historical-turn-disclosure"
@@ -138,6 +148,7 @@ export function AgentTurn({
               {actions}
               {surfaces}
               {comments}
+              {interrupted}
             </>
           )}
           <MessageFileAttachments attachments={message.attachments} />

@@ -73,6 +73,12 @@ export type TerminalAgentActionEvidence = {
   turnId: string;
   assistantMessageId: string;
   projection: TerminalAgentActionProjection;
+  /**
+   * CR089: the prose that was still streaming when the turn was interrupted. Pi never wrote it, so
+   * it is kept as evidence about the turn rather than as transcript content. It must never be
+   * projected into a message: Pi JSONL remains the only authority for what the transcript says.
+   */
+  interruptedFragment?: string;
 };
 
 export type SteeringStatus = "pending" | "accepted" | "applied" | "rejected" | "terminally_unconsumed";
@@ -118,6 +124,10 @@ export type JourneyConversation = {
   chapterDividers?: Record<string, ChapterDivider>;
   /** CR083: assistant messages that did not close their turn, so they read as notes. */
   agentCommentRoles?: Record<string, "trail">;
+  // CR089: the interrupted fragment of each interrupted run, keyed by the anchor message that
+  // holds its work. Derived on every reconstruction from the durable turn evidence, never stored
+  // as message content.
+  interruptedFragments?: Record<string, string>;
 };
 
 /**

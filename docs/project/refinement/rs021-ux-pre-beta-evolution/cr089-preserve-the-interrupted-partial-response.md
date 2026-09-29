@@ -221,3 +221,53 @@ disqualified a real cancellation.
 
 The earlier Phase 1 validation note in this document stands, but was insufficient: it verified
 recovery only for runs whose steps carried reasoning, which hid both defects above.
+
+## Phase 1 Homologation — 2026-09-29
+
+Run `agent-run-2026-09-29T14:29:21.505Z` was cancelled after three tool calls (`bash`, `read`,
+`read`), each narrated by its own committed comment. Every `thinking` block in that run carried an
+empty string, so it exercises precisely the defect the previous round hid: under the old guard it
+would have recovered nothing.
+
+Projected through the production surface, all three operations return, and all three comments are
+marked as notes with none promoted to an answer. Across the whole session the four cancellations
+that performed work recover 15, 1, 3 and 3 operations, the fifth performed none and correctly
+yields nothing, and completed turns are unchanged. Phase 1 is accepted.
+
+## Phase 2 Decision — 2026-09-29
+
+The Navigator chose **option C**: the interrupted prose is kept as evidence about the turn, not as
+a message.
+
+This answers the authority question by not raising it. RS018 makes Pi JSONL the transcript
+authority and Desktop projections rebuildable views of it. A Desktop-only *message* would break
+that; Desktop-only *evidence* would not, because `terminalAgentActionEvidence` has been exactly
+that for several CRs — durable, persisted, consulted on every reconstruction, and never confused
+with transcript content. No new precedent is created and no retention rule is added to the message
+projection.
+
+### Implementation
+
+`TerminalAgentActionEvidence` gained an optional `interruptedFragment`. The live cancellation path
+captures whatever prose had arrived and records it there; `ConversationMessage.content` is never
+given a word Pi did not write.
+
+On reconstruction, an interrupted run whose evidence carries a fragment gets an anchor of its own,
+placed after the last message the agent actually committed. The anchor's content stays empty and
+the fragment is exposed through a derived `interruptedFragments` map, rendered by `AgentTurn` in its
+own `Interrupted` region, visually unfinished so it can never read as an answer.
+
+An interruption that produced neither work nor prose now records nothing at all, which removes the
+empty orphan evidence observed during characterization.
+
+### Validation
+
+- `npx vitest run`: 196 files, 1270 tests green. `tsc`, `build`, `roadmap:check`, `git diff --check`
+  clean.
+- Real-data regression through the production projection, throwaway harness since removed: the nine
+  recovered operation records and the three empty anchors are unchanged, completed-turn
+  reconstructions still project, and no fragment is invented for cancellations recorded before this
+  change — those simply have none, because the prose was never captured.
+
+Boundary kept explicit: a fragment lost before this change cannot be recovered, since Pi never held
+it and no Desktop evidence recorded it.

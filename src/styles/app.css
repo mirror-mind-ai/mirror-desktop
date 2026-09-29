@@ -2545,6 +2545,24 @@ h3 {
   color: #85a1a7;
 }
 
+/* CR089: prose that never finished arriving. It reads as unfinished on purpose, so it is never
+   mistaken for an answer the agent actually gave. */
+.agent-interrupted-fragment {
+  border-left: 2px solid rgba(216, 166, 87, 0.42);
+  padding-left: 14px;
+}
+
+.agent-interrupted-fragment > .runtime-region-label {
+  color: #d8a657;
+}
+
+.agent-interrupted-fragment > *:last-child::after {
+  color: #d8a657;
+  content: " \2026 interrupted";
+  font-size: 0.82em;
+  font-style: italic;
+}
+
 /* CR083: notes left while the agent was still working read as a quieter trail, so the comment
    that closed the turn keeps the weight of an answer. Nothing here hides behind a disclosure. */
 .agent-comment-trail {
@@ -6808,6 +6826,17 @@ dd {
   .app-shell[data-application-theme="parchment"]
 ) .agent-comment-note {
   color: var(--light-muted);
+}
+
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) :is(
+  .agent-interrupted-fragment > .runtime-region-label,
+  .agent-interrupted-fragment > *:last-child::after
+) {
+  color: #9a6b12;
 }
 
 :is(

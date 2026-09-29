@@ -202,13 +202,18 @@ export function projectPiBackedConversationSurface(
   let runUntil: string | undefined;
   let previousEntryTimestamp: string | undefined;
   const interruptedAssistantMessageIds = new Set<string>();
+  const interruptedFragments: Record<string, string> = {};
+  let runUserEntryId: string | undefined;
   const closeRun = () => {
     // Pi itself says whether an answer ever came: a finished run ends with assistant text that
     // calls nothing further. The turn record then confirms the interruption was real.
-    const turn = !runClosedWithAnswer && runHadActivity
-      ? selectInterruptedTurn(metadata.reconciliation?.turns ?? [], consumedInterruptedTurnIds, runAfter, runUntil)
-      : undefined;
+    const turn = runClosedWithAnswer
+      ? undefined
+      : selectInterruptedTurn(metadata.reconciliation?.turns ?? [], consumedInterruptedTurnIds, runAfter, runUntil);
     if (turn) consumedInterruptedTurnIds.add(turn.turnId);
+    const fragment = turn?.harness.assistantMessageId
+      ? metadata.terminalAgentActionEvidence?.[turn.harness.assistantMessageId]?.interruptedFragment
+      : undefined;
 
     for (const { id, blocks } of runMessageBlocks) {
       if (!turn) {
@@ -225,24 +230,38 @@ export function projectPiBackedConversationSurface(
       }
     }
 
-    if (turn && pendingAnchor && pendingBlocks.length > 0) {
-      const id = `pi-${pendingAnchor.entryId}`;
+    // An interrupted run needs an anchor of its own when work or prose outlived its last committed
+    // message. The anchor carries no words; it only gives that evidence somewhere to live.
+    const anchorsTrailingWork = Boolean(pendingAnchor) && pendingBlocks.length > 0;
+    if (turn && (anchorsTrailingWork || fragment)) {
+      const id = anchorsTrailingWork && pendingAnchor
+        ? `pi-${pendingAnchor.entryId}`
+        : `pi-interrupted-${runUserEntryId ?? turn.turnId}`;
       if (!messageIds.has(id)) {
         messageIds.add(id);
-        reconstructedAgentActions[id] = buildAgentActionProjection(
-          id,
-          pendingBlocks,
-          resultsByToolCallId,
-          interruptedStatusOf(turn),
-        );
+        if (anchorsTrailingWork) {
+          reconstructedAgentActions[id] = buildAgentActionProjection(
+            id,
+            pendingBlocks,
+            resultsByToolCallId,
+            interruptedStatusOf(turn),
+          );
+        }
+        if (fragment) interruptedFragments[id] = fragment;
         if (pendingDivider) {
           chapterDividers[id] = pendingDivider;
           pendingDivider = undefined;
         }
-        messages.push({ id, role: "assistant", content: "", createdAt: pendingAnchor.timestamp });
+        messages.push({
+          id,
+          role: "assistant",
+          content: "",
+          createdAt: pendingAnchor?.timestamp ?? runUntil ?? metadata.createdAt,
+        });
       }
     }
 
+    runUserEntryId = undefined;
     runMessageBlocks = [];
     runClosedWithAnswer = false;
     runHadActivity = false;
@@ -279,6 +298,7 @@ export function projectPiBackedConversationSurface(
       closeRun();
       runAfter = previousEntryTimestamp;
       runUntil = entry.timestamp;
+      runUserEntryId = entry.entryId;
     }
     // Session bookkeeping entries sit between a run's start and its request, so they must not
     // narrow the window used to recognise which turn the run was.
@@ -342,6 +362,7 @@ export function projectPiBackedConversationSurface(
       }
       return Object.keys(roles).length > 0 ? { agentCommentRoles: roles } : {};
     })(),
+    ...(Object.keys(interruptedFragments).length > 0 ? { interruptedFragments } : {}),
     ...(Object.keys(reconstructedAgentActions).length > 0 ? { reconstructedAgentActions } : {}),
     ...(Object.keys(responseModels).length > 0 ? { responseModels } : {}),
     ...(Object.keys(chapterDividers).length > 0 ? { chapterDividers } : {}),
