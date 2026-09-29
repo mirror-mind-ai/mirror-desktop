@@ -2,9 +2,9 @@
 
 # CR089: Preserve the Interrupted Partial Response
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr089-preserve-interrupted-partial-response`
 
 ## Problem
 
@@ -99,3 +99,14 @@ Conversation never implies the agent finished, and never re-sends or resumes any
 
 Independent of CR086, CR087 and CR088, which are closed. It touches the same cancellation
 flow CR088 corrected, so it should land on a baseline that already contains CR088.
+
+
+## Navigator Selection — 2026-09-29
+
+After accepting CR083, the Navigator explicitly pulled CR089 as the next RS021 focus and
+authorized local investigation and implementation on the delivery branch above. The authority
+question remains open and must be decided before implementation: whether a partial interrupted
+response may exist as a narrowly marked Desktop projection despite not existing in Pi's transcript.
+
+Push, merge, publication, release, production mutation and any change to Pi JSONL authority remain
+separate Navigator decisions.

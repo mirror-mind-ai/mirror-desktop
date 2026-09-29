@@ -58,13 +58,13 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 5 | [CR086](rs021-ux-pre-beta-evolution/cr086-suppress-transient-synchronization-notices.md) | RS021 | Suppress Transient Synchronization Notices | done | @alissonvale | `refinement/rs021-cr086-suppress-transient-sync-notice` |
 | 6 | [CR087](rs021-ux-pre-beta-evolution/cr087-project-the-visible-user-request-exactly.md) | RS021 | Project the Visible User Request Exactly | done | @alissonvale | `refinement/rs021-cr087-idempotent-outbox-enqueue` |
 | 7 | [CR088](rs021-ux-pre-beta-evolution/cr088-stop-flashing-the-preserved-attempt-panel.md) | RS021 | Stop Flashing the Preserved Attempt Panel | done | @alissonvale | `refinement/rs021-cr088-preserved-attempt-panel` |
-| 8 | [CR089](rs021-ux-pre-beta-evolution/cr089-preserve-the-interrupted-partial-response.md) | RS021 | Preserve the Interrupted Partial Response | captured | — | — |
+| 8 | [CR089](rs021-ux-pre-beta-evolution/cr089-preserve-the-interrupted-partial-response.md) | RS021 | Preserve the Interrupted Partial Response | in_progress | @alissonvale | `refinement/rs021-cr089-preserve-interrupted-partial-response` |
 | 9 | [CR084](rs021-ux-pre-beta-evolution/cr084-recenter-to-conversation-end.md) | RS021 | Recenter to Conversation End | done | @alissonvale | `refinement/rs021-cr084-recenter-to-end` |
 | 10 | [CR090](rs021-ux-pre-beta-evolution/cr090-run-scoped-model-authority.md) | RS021 | Run-Scoped Model Authority | done | @alissonvale | `refinement/rs021-cr090-run-scoped-model-authority` |
 | 11 | [CR078](rs021-ux-pre-beta-evolution/cr078-model-intents.md) | RS021 | Model Intents | done | @alissonvale | `refinement/rs021-cr078-model-intents` |
 | 12 | [CR091](rs021-ux-pre-beta-evolution/cr091-attribute-each-response-to-its-model.md) | RS021 | Attribute Each Response to Its Model | done | @alissonvale | `refinement/rs021-cr091-response-model-attribution` |
 | 13 | [CR081](rs021-ux-pre-beta-evolution/cr081-agent-running-animation.md) | RS021 | Agent Running Animation | done | @alissonvale | `refinement/rs021-cr081-agent-running-animation` |
-| 14 | [CR083](rs021-ux-pre-beta-evolution/cr083-agent-comments-continuity.md) | RS021 | Agent Comments Continuity | captured | — | — |
+| 14 | [CR083](rs021-ux-pre-beta-evolution/cr083-agent-comments-continuity.md) | RS021 | Agent Comments Continuity | done | @alissonvale | `refinement/rs021-cr083-agent-comments-continuity` |
 | 15 | [CR082](rs021-ux-pre-beta-evolution/cr082-collapsed-sidebar-polish.md) | RS021 | Collapsed Sidebar Polish | done | @alissonvale | `refinement/rs021-cr082-collapsed-sidebar-polish` |
 | 16 | [CR085](rs021-ux-pre-beta-evolution/cr085-close-without-quitting.md) | RS021 | Close Without Quitting | in_progress | @alissonvale | `refinement/rs021-cr085-close-without-quitting` |
 | 17 | [CR079](rs021-ux-pre-beta-evolution/cr079-deep-context-stats-analysis.md) | RS021 | Always Legible Context Reading | done | @alissonvale | `refinement/rs021-cr079-deep-context-stats-analysis` |

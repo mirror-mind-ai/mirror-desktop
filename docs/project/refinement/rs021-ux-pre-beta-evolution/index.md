@@ -17,7 +17,7 @@ Mirror Desktop feels less like an alpha harness and more like a beta-ready daily
 ## Authority Contract
 
 - Journey authority is exactly `mirror-desktop`.
-- This RS captures and orders Change Requests. CR083 is explicitly pulled as the current focus; later focus changes require explicit Navigator intent.
+- This RS captures and orders Change Requests. CR089 is explicitly pulled as the current focus; later focus changes require explicit Navigator intent.
 - Each CR must preserve Pi/Mirror transcript authority and existing Journey/run authority boundaries.
 - UX changes must not silently start, cancel, retry, send, compact, split, publish, release, or mutate Mirror data.
 - Any behavior that affects active native processes must distinguish safe preference/UI mutation from run-control mutation.
@@ -49,7 +49,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 
 ## Boundaries
 
-- CR083 is the current pulled focus; remaining CRs stay captured until explicitly pulled.
+- CR089 is the current pulled focus; remaining CRs stay captured until explicitly pulled.
 - No app release, Beta promotion, endpoint publication, Git push or tag is authorized by this document.
 
 ## Change Requests
@@ -57,13 +57,13 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR086: Suppress Transient Synchronization Notices](cr086-suppress-transient-synchronization-notices.md)
 - [CR087: Project the Visible User Request Exactly](cr087-project-the-visible-user-request-exactly.md)
 - [CR088: Stop Flashing the Preserved Attempt Panel](cr088-stop-flashing-the-preserved-attempt-panel.md)
-- [CR089: Preserve the Interrupted Partial Response](cr089-preserve-the-interrupted-partial-response.md)
+- [CR089: Preserve the Interrupted Partial Response](cr089-preserve-the-interrupted-partial-response.md) — in progress
 - [CR084: Recenter to Conversation End](cr084-recenter-to-conversation-end.md)
 - [CR090: Run-Scoped Model Authority](cr090-run-scoped-model-authority.md)
 - [CR078: Model Intents](cr078-model-intents.md)
 - [CR091: Attribute Each Response to Its Model](cr091-attribute-each-response-to-its-model.md)
 - [CR081: Agent Running Animation](cr081-agent-running-animation.md) — done
-- [CR083: Agent Comments Continuity](cr083-agent-comments-continuity.md) — in progress
+- [CR083: Agent Comments Continuity](cr083-agent-comments-continuity.md) — done
 - [CR082: Collapsed Sidebar Polish](cr082-collapsed-sidebar-polish.md) — done
 - [CR085: Close Without Quitting](cr085-close-without-quitting.md) — done
 - [CR079: Always Legible Context Reading](cr079-deep-context-stats-analysis.md)

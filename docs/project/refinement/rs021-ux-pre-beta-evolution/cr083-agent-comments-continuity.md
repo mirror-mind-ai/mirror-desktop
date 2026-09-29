@@ -2,7 +2,7 @@
 
 # CR083: Agent Comments Continuity
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr083-agent-comments-continuity`
 
@@ -59,9 +59,10 @@ paragraph buries the answer inside the log.
    turn's comments as an ordered list instead of one string. This is a truth fix, not decoration:
    the surface stops destroying information Pi already provides.
 2. Give the last comment the weight of an answer, at full prominence.
-3. Present the preceding comments as a quieter chronological trail, each its own block, grouped
-   under one disclosure such as `N progress notes` so a long run stops flooding the reading surface.
-4. Apply the same model to the restored path, removing the live/restored divergence.
+3. Present the preceding comments as a quieter chronological trail, each its own visible block.
+   Nothing is hidden behind a disclosure; long runs remain readable through the trail's quiet visual
+   register rather than through a click.
+4. Apply the same model to the restored path, removing the live/restored reading-register divergence.
 
 Nothing is rewritten, merged or reordered, so transcript authority is preserved.
 
@@ -130,6 +131,25 @@ Two existing tests changed because the behavior changed, not to accommodate the 
 assistant text left the projection untouched now asserts what it always meant — that assistant text
 is not an operation — while recognizing that the comment is kept.
 
+
+
+## Navigator Validation — 2026-09-29
+
+The Navigator validated the Dev bundle after the implementation. A multi-step read-only turn
+produced the visible chronological trail and a distinct final answer; the notes no longer collided,
+and the ordinary single-comment turn remained unchanged. The Navigator also accepted the restored
+conversation register and the light-theme treatment. CR083 is accepted.
+
+## Closure — 2026-09-29
+
+CR083 is closed as `done`. The implementation preserves the Pi boundary, keeps copy content
+complete, leaves Agent Actions grouped in their existing semantic region, and does not manufacture
+messages or alter transcript order. No additional debt was created. The deliberate restored-path
+boundary (separate messages retained for model attribution and reconstructed actions) is recorded
+above rather than hidden as a mismatch.
+
+The next independent RS021 focus is CR089, pulled explicitly by the Navigator after this closure.
+This closure does not authorize push, merge, publication, release or any production mutation.
 
 ## Acceptance
 
