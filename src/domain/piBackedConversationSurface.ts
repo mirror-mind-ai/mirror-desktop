@@ -6,6 +6,7 @@ import type {
   ResponseModelAttribution,
   TerminalAgentActionProjection,
 } from "./journeyConversation";
+import type { CorrelatedConversationTurn } from "./conversationReconciliation";
 import { chapterTitleFromSummary } from "./compactionChapters";
 import { boundReasoningBlocks } from "./reasoningBounds";
 
@@ -75,10 +76,20 @@ function reconstructAgentActionProjection(
 ): TerminalAgentActionProjection | undefined {
   const thinkingTexts = blocks.filter((block) => block.kind === "thinking").map((block) => block.text);
   if (thinkingTexts.length === 0) return undefined;
+  return buildAgentActionProjection(messageId, blocks, resultsByToolCallId, "completed");
+}
+
+function buildAgentActionProjection(
+  messageId: string,
+  blocks: PendingActivityBlock[],
+  resultsByToolCallId: ReadonlyMap<string, boolean>,
+  status: TerminalAgentActionProjection["status"],
+): TerminalAgentActionProjection {
+  const thinkingTexts = blocks.filter((block) => block.kind === "thinking").map((block) => block.text);
   const boundedThinking = boundReasoningBlocks(thinkingTexts);
 
   const projection: TerminalAgentActionProjection = {
-    status: "completed",
+    status,
     operations: [],
     reasoningSummaries: [],
     activityOrder: [],
@@ -110,6 +121,29 @@ function reconstructAgentActionProjection(
     projection.activityOrder.push({ type: "operation", id: block.id });
   }
   return projection;
+}
+
+// CR089: a run the Navigator cancelled leaves real operations in Pi but never produces the
+// assistant text that normally anchors them, so the surface used to discard the whole record of
+// what the agent did. The turn record already says the run ended without an answer; pairing it
+// with the Pi entries restores the history without inventing anything.
+function selectInterruptedTurn(
+  turns: readonly CorrelatedConversationTurn[],
+  firstBlockTimestamp: string,
+  consumedTurnIds: Set<string>,
+): CorrelatedConversationTurn | undefined {
+  let selected: CorrelatedConversationTurn | undefined;
+  for (const turn of turns) {
+    if (consumedTurnIds.has(turn.turnId)) continue;
+    if (turn.pi?.state !== "failed") continue;
+    if (!turn.startedAt || turn.startedAt > firstBlockTimestamp) continue;
+    if (!selected || turn.startedAt > selected.startedAt) selected = turn;
+  }
+  return selected;
+}
+
+function interruptedStatusOf(turn: CorrelatedConversationTurn): TerminalAgentActionProjection["status"] {
+  return turn.pi?.failureCode?.includes("cancelled") ? "cancelled" : "failed";
 }
 
 export function projectPiBackedConversationSurface(
@@ -151,6 +185,35 @@ export function projectPiBackedConversationSurface(
   const chapterDividers: Record<string, ChapterDivider> = {};
   let pendingDivider: ChapterDivider | undefined;
   let pendingBlocks: PendingActivityBlock[] = [];
+  // CR089: where the orphan work started, so an interrupted run can be anchored to its own entry.
+  let pendingAnchor: { entryId: string; timestamp: string } | undefined;
+  const consumedInterruptedTurnIds = new Set<string>();
+  const flushInterruptedTurn = () => {
+    if (!pendingAnchor || pendingBlocks.length === 0) return;
+    const turn = selectInterruptedTurn(
+      metadata.reconciliation?.turns ?? [],
+      pendingAnchor.timestamp,
+      consumedInterruptedTurnIds,
+    );
+    // Without a turn record saying the run ended without an answer, there is no evidence that this
+    // was an interruption, so nothing is claimed.
+    if (!turn) return;
+    consumedInterruptedTurnIds.add(turn.turnId);
+    const id = `pi-${pendingAnchor.entryId}`;
+    if (messageIds.has(id)) return;
+    messageIds.add(id);
+    reconstructedAgentActions[id] = buildAgentActionProjection(
+      id,
+      pendingBlocks,
+      resultsByToolCallId,
+      interruptedStatusOf(turn),
+    );
+    if (pendingDivider) {
+      chapterDividers[id] = pendingDivider;
+      pendingDivider = undefined;
+    }
+    messages.push({ id, role: "assistant", content: "", createdAt: pendingAnchor.timestamp });
+  };
   for (const entry of inspection.entries) {
     if (!entry || typeof entry.entryId !== "string" || !entry.entryId
       || typeof entry.role !== "string" || typeof entry.visibleText !== "string"
@@ -166,9 +229,16 @@ export function projectPiBackedConversationSurface(
       };
     }
     if (entry.role === "assistant") {
-      pendingBlocks.push(...extractActivityBlocks(entry.nativeContent));
+      const blocks = extractActivityBlocks(entry.nativeContent);
+      if (blocks.length > 0 && !pendingAnchor) {
+        pendingAnchor = { entryId: entry.entryId, timestamp: entry.timestamp };
+      }
+      pendingBlocks.push(...blocks);
     } else if (entry.role === "user") {
+      // The agent worked and the next request arrived without an answer in between.
+      flushInterruptedTurn();
       pendingBlocks = [];
+      pendingAnchor = undefined;
     }
     if ((entry.role !== "user" && entry.role !== "assistant") || !entry.visibleText.trim()) continue;
 
@@ -189,6 +259,7 @@ export function projectPiBackedConversationSurface(
         if (reconstructed) reconstructedAgentActions[id] = reconstructed;
       }
       pendingBlocks = [];
+      pendingAnchor = undefined;
       // Only a complete pair is attribution; half of one would be a guess.
       if (entry.provider && entry.model) {
         responseModels[id] = { provider: entry.provider, model: entry.model };
@@ -212,6 +283,9 @@ export function projectPiBackedConversationSurface(
         : {}),
     });
   }
+
+  // A run interrupted at the very end of the session has no following request to close it.
+  flushInterruptedTurn();
 
   return {
     ...metadata,

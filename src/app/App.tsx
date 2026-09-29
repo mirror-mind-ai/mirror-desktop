@@ -2945,10 +2945,17 @@ export function App({ model }: AppProps) {
           }
         }
       } else if (runWasCancelled || runFailed) {
+        // CR089: the terminal evidence below is keyed by this message id, so dropping a silent
+        // assistant message would orphan the record of everything the agent actually did. An
+        // interrupted turn keeps its message when it performed work, even with no words written.
+        const performedWork = runRuntimeProjection.operations.length > 0
+          || runRuntimeProjection.reasoningSummaries.length > 0;
         let interrupted = replaceJourneyConversationMessages(
           runConversation,
           runConversation.messages.filter(
-            (message) => message.id !== assistantMessage.id || message.content.trim().length > 0,
+            (message) => message.id !== assistantMessage.id
+              || message.content.trim().length > 0
+              || performedWork,
           ),
         );
         if (correlation) {
