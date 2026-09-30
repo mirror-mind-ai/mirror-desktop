@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.27 — Journeys Start Reliably, Recovery Is Isolated](v0.2.0-alpha.27.md) — Existing Journeys can be started while unrelated work continues, and an ambiguous historical turn no longer blocks recovery of current delivery debt.
 - [v0.2.0-alpha.26 — Interrupted Work Stays Legible](v0.2.0-alpha.26.md)
 - [v0.2.0-alpha.25 — Always Legible Context Reading](v0.2.0-alpha.25.md)
 - [v0.2.0-alpha.24 — Compaction Chapters](v0.2.0-alpha.24.md)
