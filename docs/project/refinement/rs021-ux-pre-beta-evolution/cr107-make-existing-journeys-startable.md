@@ -2,7 +2,7 @@
 
 # CR107: Make Existing Journeys Startable
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr107-startable-journeys`
 
@@ -291,3 +291,16 @@ The Navigator's own run settled correctly during that check: journal record
 
 Which record triggered the code on this specific invocation was not traced, so that part is not
 asserted. What is established is that the debt predates CR107 and lies outside its code.
+
+That trace was completed afterwards and the underlying defect is captured as CR108.
+
+## Closure — 2026-09-30
+
+Validated by the Navigator in the Dev build, including the discriminating condition. Closure
+evidence: `npx vitest run` (201 files, 1307 tests), `tsc`, production build, `roadmap:check` and
+`git diff --check` clean; Dev artifact `0.2.0-alpha.26`, binary `ca29a476fdc0bdff`; durable proof of
+a correct first start in `journey-threads/us1-keyboard-a-0831.json` with a Pi session holding only
+its `session` entry.
+
+The recovery notice observed during validation is unrelated to this CR and is carried forward as
+CR108. No release, push, tag or publication is implied by this closure.

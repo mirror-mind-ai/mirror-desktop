@@ -89,6 +89,9 @@ const MIRROR_APPEND_CONFLICT_MAX_RECORDS: usize = 64;
 // outside provisioning. It leaves bounded provenance next to the outbox so repeated repair is
 // a readable signal rather than an archaeological finding.
 const MIRROR_APPEND_REBINDS_FILE: &str = "mirror-append-rebinds.jsonl";
+/// CR108: turns skipped by delivery recovery, so an isolated failure is recorded rather than
+/// silently absorbed by the batch that continued past it.
+const MIRROR_APPEND_RECOVERY_SKIPS_FILE: &str = "mirror-append-recovery-skips.jsonl";
 const MIRROR_APPEND_REBIND_MAX_RECORDS: usize = 64;
 const MIRROR_APPEND_MAX_ITEMS: usize = 16_384;
 const MIRROR_APPEND_MAX_FILE_BYTES: usize = 64 * 1024 * 1024;
@@ -5880,6 +5883,102 @@ fn materialize_completed_journal_delivery_debt(
     Ok(materialized)
 }
 
+/// CR108: the outcome of attempting each stale record independently. One record's verdict is
+/// not the batch's verdict: a turn whose evidence cannot be uniquely claimed must not veto the
+/// recovery of unrelated turns, nor the materialization that follows the loop.
+#[derive(Debug, Default, PartialEq)]
+struct StaleRecoveryReport {
+    recovered: usize,
+    skipped: Vec<(String, String)>,
+}
+
+impl StaleRecoveryReport {
+    fn record(&mut self, run_id: &str, outcome: Result<(), String>) {
+        match outcome {
+            Ok(()) => self.recovered += 1,
+            Err(reason) => self.skipped.push((run_id.to_string(), reason)),
+        }
+    }
+}
+
+/// Records skipped turns as diagnostic evidence. Never fails the caller: continuing past an
+/// unrecoverable turn is the point, and a failed diagnostic write must not undo that.
+fn record_stale_recovery_skips(outbox_path: &Path, journey_id: &str, report: &StaleRecoveryReport) {
+    if report.skipped.is_empty() { return; }
+    let path = outbox_path.with_file_name(MIRROR_APPEND_RECOVERY_SKIPS_FILE);
+    let mut records = read_bounded_jsonl_records(&path);
+    let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    for (run_id, reason) in &report.skipped {
+        records.push(json!({
+            "schemaVersion": "1.0.0",
+            "recordedAt": recorded_at,
+            "journeyId": journey_id,
+            "runId": run_id,
+            "reason": reason,
+            "recoveredInSameAttempt": report.recovered,
+        }));
+    }
+    let keep = records.len().saturating_sub(MIRROR_APPEND_CONFLICT_MAX_RECORDS);
+    let payload = records[keep..].iter()
+        .filter_map(|value| serde_json::to_string(value).ok())
+        .map(|line| line + "\n")
+        .collect::<String>();
+    let staged = path.with_extension("jsonl.tmp");
+    if fs::write(&staged, payload).is_ok() {
+        let _ = fs::rename(&staged, &path);
+    }
+}
+
+/// Recovers one stale journal record from preserved Pi evidence. Never invokes the agent.
+fn recover_one_stale_journal_record(
+    app: &AppHandle,
+    record: &TurnJournalRecord,
+    records: &[TurnJournalRecord],
+) -> Result<(), String> {
+    let (_, content) = pi_session_for_journal_record(app, record)?;
+    let turns = project_complete_pi_transcript(&content)
+        .map_err(|_| "mirror_append_pi_recovery_transcript_invalid".to_string())?;
+    let turn = match_unclaimed_pi_turn(record, records, &turns)?;
+    let assistant_text = bounded_utf8(&turn.assistant_text, 65_536);
+    let evidence = TurnTerminalEvidence {
+        legacy_stdout: String::new(), legacy_stderr: String::new(),
+        legacy_stdout_truncated: false, legacy_stderr_truncated: false,
+        captured_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
+        pi_execution: Some(TurnPiExecutionEvidence {
+            user_entry_id: turn.user_entry_id.clone(),
+            assistant_entry_id: turn.assistant_entry_id.clone(),
+            leaf_entry_id: turn.assistant_entry_id.clone(),
+            entry_count: turn.entry_count,
+            assistant_text_truncated: assistant_text.len() < turn.assistant_text.len(),
+            assistant_text,
+            started_at: turn.started_at.clone(),
+            committed_at: turn.committed_at.clone(),
+        }),
+        provider_failure: None,
+    };
+    let authority = record.authority.clone();
+    with_turn_journal_lock(app, &authority, |path| {
+        let current = read_turn_journal(path)?.records.into_iter()
+            .find(|candidate| candidate.authority == authority)
+            .ok_or_else(|| "turn_journal_record_missing".to_string())?;
+        if !matches!(current.phase, TurnPhase::Admitted | TurnPhase::Running)
+            || current.terminal_outcome.is_some()
+        {
+            return Err("mirror_append_pi_recovery_record_stale".to_string());
+        }
+        transition_turn(path, &authority, TurnTransitionRequest {
+            expected_revision: current.revision,
+            expected_phase: current.phase,
+            next_phase: TurnPhase::TerminalDurable,
+            receipt_id: format!("pi-delivery-recovery-{}", authority.run_id),
+            terminal_outcome: Some(TurnTerminalOutcome::Completed),
+            terminal_evidence: Some(evidence),
+            cancellation_intent: None,
+            recovery_disposition: Some(TurnRecoveryDisposition::ResumeOutbox),
+        }).map(|_| ())
+    })
+}
+
 #[tauri::command]
 fn reconcile_pi_backed_mirror_delivery_debt(
     app: AppHandle,
@@ -5910,50 +6009,15 @@ fn reconcile_pi_backed_mirror_delivery_debt(
             && record.terminal_outcome.is_none()
             && record.cancellation_intent == turn_journal::TurnCancellationIntent::None
     }).cloned().collect::<Vec<_>>();
+    // CR108: attempt every stale record, and let each one fail on its own. A record whose Pi
+    // evidence cannot be uniquely claimed stays exactly where it is, at Admitted/Running in the
+    // journal, and remains visible to later inspection. It simply no longer vetoes the rest.
+    let mut report = StaleRecoveryReport::default();
     for record in stale {
-        let (_, content) = pi_session_for_journal_record(&app, &record)?;
-        let turns = project_complete_pi_transcript(&content)
-            .map_err(|_| "mirror_append_pi_recovery_transcript_invalid".to_string())?;
-        let turn = match_unclaimed_pi_turn(&record, &records, &turns)?;
-        let assistant_text = bounded_utf8(&turn.assistant_text, 65_536);
-        let evidence = TurnTerminalEvidence {
-            legacy_stdout: String::new(), legacy_stderr: String::new(),
-            legacy_stdout_truncated: false, legacy_stderr_truncated: false,
-            captured_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
-            pi_execution: Some(TurnPiExecutionEvidence {
-                user_entry_id: turn.user_entry_id.clone(),
-                assistant_entry_id: turn.assistant_entry_id.clone(),
-                leaf_entry_id: turn.assistant_entry_id.clone(),
-                entry_count: turn.entry_count,
-                assistant_text_truncated: assistant_text.len() < turn.assistant_text.len(),
-                assistant_text,
-                started_at: turn.started_at.clone(),
-                committed_at: turn.committed_at.clone(),
-            }),
-            provider_failure: None,
-        };
-        let authority = record.authority.clone();
-        with_turn_journal_lock(&app, &authority, |path| {
-            let current = read_turn_journal(path)?.records.into_iter()
-                .find(|candidate| candidate.authority == authority)
-                .ok_or_else(|| "turn_journal_record_missing".to_string())?;
-            if !matches!(current.phase, TurnPhase::Admitted | TurnPhase::Running)
-                || current.terminal_outcome.is_some()
-            {
-                return Err("mirror_append_pi_recovery_record_stale".to_string());
-            }
-            transition_turn(path, &authority, TurnTransitionRequest {
-                expected_revision: current.revision,
-                expected_phase: current.phase,
-                next_phase: TurnPhase::TerminalDurable,
-                receipt_id: format!("pi-delivery-recovery-{}", authority.run_id),
-                terminal_outcome: Some(TurnTerminalOutcome::Completed),
-                terminal_evidence: Some(evidence),
-                cancellation_intent: None,
-                recovery_disposition: Some(TurnRecoveryDisposition::ResumeOutbox),
-            }).map(|_| ())
-        })?;
+        let outcome = recover_one_stale_journal_record(&app, &record, &records);
+        report.record(&record.authority.run_id, outcome);
     }
+    record_stale_recovery_skips(&mirror_append_outbox_path(&app)?, &journey_id, &report);
     materialize_completed_journal_delivery_debt(&app, &journey_id)?;
     let outbox_state = app.state::<MirrorAppendOutboxState>();
     let _guard = outbox_state.lock.lock()
@@ -9140,6 +9204,7 @@ mod tests {
         extract_pi_mirror_commit_events, find_registered_journey_path,
         legacy_outbox_item_matches_pi_backed_item, legacy_timestamp_compatibility_item,
         match_unclaimed_pi_turn, normalize_legacy_enqueue_item, outbox_item_matches_journal_record,
+        StaleRecoveryReport,
         run_pi_backed_mirror_append_with, should_retry_legacy_timestamp_compatibility,
         run_mirror_append_with_binding_repair_using, should_repair_journey_binding,
         mirror_append_rebinds_path, read_mirror_append_rebinds,
@@ -10413,6 +10478,65 @@ mod tests {
         let mut cancelled = record.clone();
         cancelled.cancellation_intent = TurnCancellationIntent::Requested;
         assert_eq!(match_unclaimed_pi_turn(&cancelled, &[cancelled.clone()], &turns).unwrap_err(), "mirror_append_pi_recovery_record_ineligible");
+    }
+
+    #[test]
+    fn one_unrecoverable_stale_record_does_not_block_another() {
+        // CR108: a Journey's stale set spans every generation, thread and Pi session it ever had.
+        // Twelve-day-old debt on a retired generation used to abort the whole reconciliation,
+        // so current work could never be recovered. Each record is judged on its own evidence.
+        let session = concat!(
+            "{\"type\":\"session\",\"id\":\"session-two\"}\n",
+            "{\"type\":\"message\",\"id\":\"pi-user\",\"parentId\":null,\"timestamp\":\"2026-09-30T10:00:00Z\",\"message\":{\"role\":\"user\",\"content\":\"hello\"}}\n",
+            "{\"type\":\"message\",\"id\":\"pi-assistant\",\"parentId\":\"pi-user\",\"timestamp\":\"2026-09-30T10:00:01Z\",\"message\":{\"role\":\"assistant\",\"content\":\"hi\",\"stopReason\":\"stop\"}}\n",
+        );
+        let stale_record = |run: &str, thread: &str, generation: u64, pi_session: &str, created: &str| TurnJournalRecord {
+            schema_version: "0.1.0".to_string(),
+            authority: TurnJournalAuthority {
+                schema_version: "0.1.0".to_string(), journey_id: "mirror-desktop".to_string(),
+                run_id: run.to_string(), turn_id: format!("turn-{run}"),
+                thread_id: thread.to_string(), generation,
+                pi_session_id: pi_session.to_string(),
+                mirror_conversation_id: "mirror-one".to_string(),
+                harness_user_message_id: format!("user-{run}"),
+                harness_assistant_message_id: format!("assistant-{run}"),
+            },
+            phase: TurnPhase::Running, terminal_outcome: None, terminal_evidence: None,
+            cancellation_intent: TurnCancellationIntent::None,
+            recovery_disposition: TurnRecoveryDisposition::ResumeExecution,
+            revision: 2, created_at: created.to_string(),
+            updated_at: created.to_string(), last_receipt: None,
+        };
+        // Two historical records on a retired generation, ambiguous because that session cannot
+        // uniquely claim two turns.
+        let historical_a = stale_record("run-old-a", "thread-one", 1, "session-one", "2026-09-18T18:10:32Z");
+        let historical_b = stale_record("run-old-b", "thread-one", 1, "session-one", "2026-09-18T18:42:30Z");
+        let current = stale_record("run-current", "thread-two", 2, "session-two", "2026-09-30T09:59:59Z");
+        let records = vec![historical_a.clone(), historical_b.clone(), current.clone()];
+        let turns = project_complete_pi_transcript(session).unwrap();
+
+        // The per-record verdict was already correctly scoped: the current record resolves even
+        // though unrelated ambiguous records share the journal.
+        assert_eq!(
+            match_unclaimed_pi_turn(&current, &records, &turns).unwrap().assistant_entry_id,
+            "pi-assistant",
+        );
+        assert_eq!(
+            match_unclaimed_pi_turn(&historical_a, &records, &turns).unwrap_err(),
+            "mirror_append_pi_recovery_ambiguous",
+        );
+
+        // The batch must carry both verdicts instead of adopting the first failure as its own.
+        let mut report = StaleRecoveryReport::default();
+        report.record(&historical_a.authority.run_id, Err("mirror_append_pi_recovery_ambiguous".to_string()));
+        report.record(&current.authority.run_id, Ok(()));
+        report.record(&historical_b.authority.run_id, Err("mirror_append_pi_recovery_ambiguous".to_string()));
+
+        assert_eq!(report.recovered, 1);
+        assert_eq!(report.skipped, vec![
+            ("run-old-a".to_string(), "mirror_append_pi_recovery_ambiguous".to_string()),
+            ("run-old-b".to_string(), "mirror_append_pi_recovery_ambiguous".to_string()),
+        ]);
     }
 
     #[test]

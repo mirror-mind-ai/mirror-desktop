@@ -17,7 +17,7 @@ Mirror Desktop feels less like an alpha harness and more like a beta-ready daily
 ## Authority Contract
 
 - Journey authority is exactly `mirror-desktop`.
-- This RS captures and orders Change Requests. CR089 and CR104 are closed. CR107 is the current focus; later focus changes require explicit Navigator intent.
+- This RS captures and orders Change Requests. CR089, CR104, CR107 and CR108 are closed. No remaining CR is the current focus; later focus changes require explicit Navigator intent.
 - Each CR must preserve Pi/Mirror transcript authority and existing Journey/run authority boundaries.
 - UX changes must not silently start, cancel, retry, send, compact, split, publish, release, or mutate Mirror data.
 - Any behavior that affects active native processes must distinguish safe preference/UI mutation from run-control mutation.
@@ -53,6 +53,7 @@ Captured Change Requests, ordered by Navigator-approved daily-use impact:
 24. **CR105 — Transform the Artifact Tab into an Agentic Map.** Explore a navigable agent working-field map with honest provenance.
 25. **CR106 — Use Green for Ready Completion Signals.** Make agent completion immediately legible without changing Ready semantics.
 26. **CR107 — Make Existing Journeys Startable.** Do not strand an existing Journey at an informational “has not started” surface when its Desktop conversation must be resumed, safely provisioned, or diagnosed.
+27. **CR108 — Stop One Unrecoverable Turn from Blocking Recovery.** Do not let a single unclaimable historical turn abort delivery recovery for every other turn in the Journey.
 
 ## Current Captured Priority
 
@@ -80,9 +81,9 @@ ranked here.
 9. **CR105 — Transform the Artifact Tab into an Agentic Map.** This is strategically promising but
    exploratory and broader than the observed corrective frictions above.
 
-CR104 is closed and is therefore removed from the active captured priority. CR107 was pulled ahead
-of this list by explicit Navigator intent: its diagnosis showed that an existing Journey can be
-excluded from the core Desktop loop with no visible reason.
+CR104 and CR107 are closed and are therefore removed from the active captured priority. CR108 was
+found while validating CR107 and repaired in the same session by explicit Navigator intent, so it
+never entered this ranking.
 
 ## Acceptance Horizon
 
@@ -90,7 +91,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 
 ## Boundaries
 
-- CR089 and CR104 are closed. CR107 is the current pulled focus; all other remaining CRs stay captured until explicitly pulled.
+- CR089, CR104, CR107 and CR108 are closed. No remaining CR has been pulled as the next focus; all other remaining CRs stay captured until explicitly pulled.
 - No app release, Beta promotion, endpoint publication, Git push or tag is authorized by this document.
 
 ## Change Requests
@@ -120,4 +121,5 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR104: Make Compaction Failures Actionable and Expirable](cr104-make-compaction-failures-actionable-and-expirable.md) — done
 - [CR105: Transform the Artifact Tab into an Agentic Map](cr105-transform-the-artifact-tab-into-an-agentic-map.md)
 - [CR106: Use Green for Ready Completion Signals](cr106-use-green-for-ready-completion-signals.md)
-- [CR107: Make Existing Journeys Startable](cr107-make-existing-journeys-startable.md) — in progress
+- [CR107: Make Existing Journeys Startable](cr107-make-existing-journeys-startable.md) — done
+- [CR108: Stop One Unrecoverable Turn from Blocking Recovery](cr108-stop-one-unrecoverable-turn-from-blocking-recovery.md) — done
