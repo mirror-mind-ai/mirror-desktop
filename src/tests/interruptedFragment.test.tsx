@@ -181,7 +181,8 @@ describe("CR089 interrupted fragment", () => {
     );
 
     expect(surface.interruptedFragments).toBeUndefined();
-    expect(surface.messages.map((m) => m.id)).toEqual(["pi-e1", "pi-e2"]);
+    // The request keeps its harness identity (Phase 3); only the anchor is absent.
+    expect(surface.messages.map((m) => m.id)).toEqual(["user-2026-09-29T14:29:21Z", "pi-e2"]);
   });
 
   it("presents the fragment as interrupted and never as the turn's answer", () => {

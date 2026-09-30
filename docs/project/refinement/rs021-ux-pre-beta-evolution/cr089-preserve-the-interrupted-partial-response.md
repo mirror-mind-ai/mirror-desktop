@@ -358,3 +358,52 @@ turn that lost nothing gains nothing. Phase 2 is accepted.
 
 Phase 3 remains open: the cancelled turn still loses its harness binding and returns as
 `pi-<entryId>`, visible above as `pi-c49d7d5d` in place of `user-2026-09-30T11:34:31.407Z`.
+
+## Phase 3 — Restore the Cancelled Request's Identity (2026-09-30)
+
+The characterization noted that a cancelled turn's request reappears as `pi-<entryId>`. That is not
+cosmetic. `buildConversationTranscriptIndex` keys `turnByUserMessageId` by `harness.userMessageId`,
+so a synthetic identity makes the request unable to find its own turn, and through it the steering
+evidence attached to that turn never renders.
+
+The cause is the same missing evidence as everywhere else in this CR: bindings are built from
+`turn.pi.userEntryId`, which only exists once Pi execution evidence was captured. An interrupted
+turn has none. But the turn record still names the request through `harness.userMessageId`, so the
+identity is recoverable from evidence that already exists.
+
+Identity has to be known when the message is built, which happens before the run it opened has
+finished being read. The run-to-turn matching therefore moved into a pre-pass,
+`matchInterruptedTurnsByUserEntryId`, which segments the entries by request, decides per run
+whether an answer ever arrived, and matches each interrupted run to its record inside the window
+between the preceding entry and the request. The main loop now consumes that result, which also
+removed the window bookkeeping it had been carrying.
+
+The assistant side is deliberately left unbound. The harness models one answer per turn while Pi
+recorded several messages, so there is no honest one-to-one identity to restore there.
+
+### Validation
+
+- `npx vitest run`: 197 files, 1278 tests green. `tsc`, `build`, `roadmap:check`, `git diff --check`
+  clean.
+- Real data, generation 2: both cancelled requests now carry their harness identity and resolve to
+  their own turn record — `user-2026-09-30T11:30:03.771Z` and `user-2026-09-30T11:34:31.407Z`.
+- One existing assertion changed because the behaviour changed: a test that pinned the projected
+  message ids now expects the request to keep its harness identity.
+
+### Recovery is bounded by turn-record retention
+
+Measuring generation 1 exposed a limit worth stating plainly, because it narrows a claim made
+earlier in this CR. Its reconciliation now holds seven turn records, down from twenty. The
+cancellations of 2026-09-11 and 2026-09-24, whose operations this CR recovered when it was
+characterized, no longer have records at all, so their operations and identities are once again
+unrecoverable — 10 operations recover today where 25 did a day earlier.
+
+This is the price of never claiming an interruption without evidence, and it is the correct
+trade: the alternative is inferring interruptions from Pi shape alone, which would misread runs.
+But the retroactive audit benefit recorded in Phase 1 is therefore bounded by the retention window,
+not permanent. Extending that window is a separate decision about journal retention, not about this
+CR.
+
+Correction to an earlier note in this document: the over-wide fragment stored by the 2026-09-29
+16:58 test is gone, so no historical turn renders duplicated. That evidence entry did not survive
+retention either.

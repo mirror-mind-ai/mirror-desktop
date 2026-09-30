@@ -127,16 +127,15 @@ function buildAgentActionProjection(
 // assistant text that normally anchors them, so the surface used to discard the whole record of
 // what the agent did. The turn record already says the run ended without an answer; pairing it
 // with the Pi entries restores the history without inventing anything.
-// The run opened somewhere between the entry that preceded it and its own first entry. A turn
-// record only describes this run if it started inside that window, so records belonging to other
-// runs are never borrowed.
+// The run opened somewhere between the entry that preceded it and its own request. A turn record
+// only describes this run if it started inside that window, so records belonging to other runs are
+// never borrowed.
 function selectInterruptedTurn(
   turns: readonly CorrelatedConversationTurn[],
   consumedTurnIds: Set<string>,
   after: string | undefined,
-  until: string | undefined,
+  until: string,
 ): CorrelatedConversationTurn | undefined {
-  if (!until) return undefined;
   for (const turn of turns) {
     if (consumedTurnIds.has(turn.turnId)) continue;
     if (turn.pi?.state !== "failed" || !turn.startedAt) continue;
@@ -145,6 +144,55 @@ function selectInterruptedTurn(
     return turn;
   }
   return undefined;
+}
+
+/**
+ * CR089: which interrupted turn each request belongs to, resolved before anything is projected.
+ * The identity of a cancelled request has to be known when its message is built, and that happens
+ * before the run it opened has finished being read.
+ */
+function matchInterruptedTurnsByUserEntryId(
+  entries: readonly PiConversationSurfaceEntry[],
+  turns: readonly CorrelatedConversationTurn[],
+): Map<string, CorrelatedConversationTurn> {
+  const matched = new Map<string, CorrelatedConversationTurn>();
+  const consumed = new Set<string>();
+  let userEntryId: string | undefined;
+  let after: string | undefined;
+  let until: string | undefined;
+  let closedWithAnswer = false;
+  let previousTimestamp: string | undefined;
+
+  const close = () => {
+    if (!userEntryId || !until || closedWithAnswer) return;
+    const turn = selectInterruptedTurn(turns, consumed, after, until);
+    if (!turn) return;
+    consumed.add(turn.turnId);
+    matched.set(userEntryId, turn);
+  };
+
+  for (const entry of entries) {
+    if (!entry || typeof entry.role !== "string" || typeof entry.timestamp !== "string") continue;
+    if (entry.role === "user") {
+      close();
+      userEntryId = entry.entryId;
+      after = previousTimestamp;
+      until = entry.timestamp;
+      closedWithAnswer = false;
+    } else if (entry.role === "assistant") {
+      const blocks = extractActivityBlocks(entry.nativeContent);
+      closedWithAnswer = Boolean(entry.visibleText?.trim())
+        && !blocks.some((block) => block.kind === "toolCall");
+    } else if (entry.role === "toolResult") {
+      closedWithAnswer = false;
+    }
+    // Session bookkeeping sits between a run's start and its request, so it must not narrow the
+    // window used to recognise which turn the run was.
+    if (entry.role !== "system") previousTimestamp = entry.timestamp;
+  }
+  close();
+
+  return matched;
 }
 
 function interruptedStatusOf(turn: CorrelatedConversationTurn): TerminalAgentActionProjection["status"] {
@@ -169,6 +217,21 @@ export function projectPiBackedConversationSurface(
     }
   }
 
+  // CR089: an interrupted turn has no Pi execution evidence, so it never recorded which entry was
+  // its request and its identity was lost on every reconstruction. The turn record still names the
+  // request, which is what links it back to its own steering and turn evidence.
+  const interruptedTurnByUserEntryId = matchInterruptedTurnsByUserEntryId(
+    inspection.entries,
+    metadata.reconciliation.turns,
+  );
+  for (const [entryId, turn] of interruptedTurnByUserEntryId) {
+    if (turn.harness.userMessageId) {
+      bind(bindings, entryId, { messageId: turn.harness.userMessageId, role: "user" });
+    }
+  }
+  // The assistant side is deliberately left unbound: the harness models one answer per turn while
+  // Pi recorded several messages, so there is no honest one-to-one identity to restore.
+
   const resultsByToolCallId = new Map<string, boolean>();
   for (const entry of inspection.entries) {
     if (entry && entry.role === "toolResult" && typeof entry.toolCallId === "string" && entry.toolCallId) {
@@ -192,25 +255,15 @@ export function projectPiBackedConversationSurface(
   let pendingBlocks: PendingActivityBlock[] = [];
   // CR089: where the orphan work started, so an interrupted run can be anchored to its own entry.
   let pendingAnchor: { entryId: string; timestamp: string } | undefined;
-  const consumedInterruptedTurnIds = new Set<string>();
   // CR089: whether a run is interrupted is a fact about the run, not about one entry, so the
-  // decision is deferred until the run closes and every step of it is known.
+  // decision is resolved per request rather than per entry.
   let runMessageBlocks: Array<{ id: string; blocks: PendingActivityBlock[] }> = [];
-  let runClosedWithAnswer = false;
-  let runHadActivity = false;
-  let runAfter: string | undefined;
   let runUntil: string | undefined;
-  let previousEntryTimestamp: string | undefined;
   const interruptedAssistantMessageIds = new Set<string>();
   const interruptedFragments: Record<string, string> = {};
   let runUserEntryId: string | undefined;
   const closeRun = () => {
-    // Pi itself says whether an answer ever came: a finished run ends with assistant text that
-    // calls nothing further. The turn record then confirms the interruption was real.
-    const turn = runClosedWithAnswer
-      ? undefined
-      : selectInterruptedTurn(metadata.reconciliation?.turns ?? [], consumedInterruptedTurnIds, runAfter, runUntil);
-    if (turn) consumedInterruptedTurnIds.add(turn.turnId);
+    const turn = runUserEntryId ? interruptedTurnByUserEntryId.get(runUserEntryId) : undefined;
     const fragment = turn?.harness.assistantMessageId
       ? metadata.terminalAgentActionEvidence?.[turn.harness.assistantMessageId]?.interruptedFragment
       : undefined;
@@ -263,8 +316,6 @@ export function projectPiBackedConversationSurface(
 
     runUserEntryId = undefined;
     runMessageBlocks = [];
-    runClosedWithAnswer = false;
-    runHadActivity = false;
     pendingBlocks = [];
     pendingAnchor = undefined;
   };
@@ -284,25 +335,16 @@ export function projectPiBackedConversationSurface(
     }
     if (entry.role === "assistant") {
       const blocks = extractActivityBlocks(entry.nativeContent);
-      if (blocks.length > 0) {
-        runHadActivity = true;
-        if (!pendingAnchor) pendingAnchor = { entryId: entry.entryId, timestamp: entry.timestamp };
+      if (blocks.length > 0 && !pendingAnchor) {
+        pendingAnchor = { entryId: entry.entryId, timestamp: entry.timestamp };
       }
       pendingBlocks.push(...blocks);
-      runClosedWithAnswer = Boolean(entry.visibleText.trim())
-        && !blocks.some((block) => block.kind === "toolCall");
-    } else if (entry.role === "toolResult") {
-      runClosedWithAnswer = false;
     } else if (entry.role === "user") {
       // The request that follows closes whatever the agent was doing before it.
       closeRun();
-      runAfter = previousEntryTimestamp;
       runUntil = entry.timestamp;
       runUserEntryId = entry.entryId;
     }
-    // Session bookkeeping entries sit between a run's start and its request, so they must not
-    // narrow the window used to recognise which turn the run was.
-    if (entry.role !== "system") previousEntryTimestamp = entry.timestamp;
     if ((entry.role !== "user" && entry.role !== "assistant") || !entry.visibleText.trim()) continue;
 
     const role = entry.role;
