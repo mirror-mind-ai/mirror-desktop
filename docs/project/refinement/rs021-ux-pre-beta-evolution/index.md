@@ -17,7 +17,7 @@ Mirror Desktop feels less like an alpha harness and more like a beta-ready daily
 ## Authority Contract
 
 - Journey authority is exactly `mirror-desktop`.
-- This RS captures and orders Change Requests. CR089 was explicitly pulled as the previous focus and is closed. CR104 is the current focus; later focus changes require explicit Navigator intent.
+- This RS captures and orders Change Requests. CR089 and CR104 are closed. No remaining CR is the current focus; later focus changes require explicit Navigator intent.
 - Each CR must preserve Pi/Mirror transcript authority and existing Journey/run authority boundaries.
 - UX changes must not silently start, cancel, retry, send, compact, split, publish, release, or mutate Mirror data.
 - Any behavior that affects active native processes must distinguish safe preference/UI mutation from run-control mutation.
@@ -52,6 +52,7 @@ Captured Change Requests, ordered by Navigator-approved daily-use impact:
 23. **CR104 — Make Compaction Failures Actionable and Expirable.** Do not leave a stale manual-compaction failure permanently visible.
 24. **CR105 — Transform the Artifact Tab into an Agentic Map.** Explore a navigable agent working-field map with honest provenance.
 25. **CR106 — Use Green for Ready Completion Signals.** Make agent completion immediately legible without changing Ready semantics.
+26. **CR107 — Make Existing Journeys Startable.** Do not strand an existing Journey at an informational “has not started” surface when its Desktop conversation must be resumed, safely provisioned, or diagnosed.
 
 ## Current Captured Priority
 
@@ -59,27 +60,29 @@ This is the current UX-first order for the captured work. It is deliberately not
 order: each CR still begins with empirical characterisation, and no CR is pulled merely by being
 ranked here.
 
-1. **CR104 — Make Compaction Failures Actionable and Expirable.** A permanent failure notice keeps
-   contradicting later successful work and occupies the user's attention with no exit.
-2. **CR097 — Keep a Correction Recognisable After Reload.** The Conversation can falsely present a
+1. **CR097 — Keep a Correction Recognisable After Reload.** The Conversation can falsely present a
    correction as an unanswered new request, damaging trust in the user's own history.
-3. **CR099 — Allow Safe Editing During Another Journey's Work.** A global busy guard stops ordinary
+2. **CR099 — Allow Safe Editing During Another Journey's Work.** A global busy guard stops ordinary
    work in an unrelated Journey while the agent works elsewhere.
-4. **CR098 — Allow a Journey to Be Reparented.** The Navigator cannot correct a basic hierarchy
+3. **CR098 — Allow a Journey to Be Reparented.** The Navigator cannot correct a basic hierarchy
    mistake through the form that purports to edit it.
-5. **CR100 — Make Journey Image Updates Supported.** A visible action ends in `unsupported journey
+4. **CR100 — Make Journey Image Updates Supported.** A visible action ends in `unsupported journey
    mutation`; a broken promise is more disruptive than an absent feature.
-6. **CR103 — Give the Composer Model Status a Human Register.** The footer is read continually but
+5. **CR103 — Give the Composer Model Status a Human Register.** The footer is read continually but
    currently merges state and raw provider identity into difficult operational notation.
-7. **CR102 — Make Sidebar Progress Signals Legible.** The sidebar is the daily navigation surface;
+6. **CR102 — Make Sidebar Progress Signals Legible.** The sidebar is the daily navigation surface;
    progress must be reliably readable there.
-8. **CR106 — Use Green for Ready Completion Signals.** A focused completion-colour correction that
+7. **CR106 — Use Green for Ready Completion Signals.** A focused completion-colour correction that
    should be characterised and, if compatible, delivered alongside CR102 without collapsing their
    separate acceptance contracts.
-9. **CR101 — Restore Window Geometry.** Repeated relaunch friction matters, but it does not make an
+8. **CR101 — Restore Window Geometry.** Repeated relaunch friction matters, but it does not make an
    existing action untruthful or block current work.
-10. **CR105 — Transform the Artifact Tab into an Agentic Map.** This is strategically promising but
-    exploratory and broader than the observed corrective frictions above.
+9. **CR105 — Transform the Artifact Tab into an Agentic Map.** This is strategically promising but
+   exploratory and broader than the observed corrective frictions above.
+
+CR104 is closed and is therefore removed from the active captured priority. CR107 is captured but
+not yet ranked or pulled; its observed production impact warrants characterisation before either
+decision.
 
 ## Acceptance Horizon
 
@@ -117,3 +120,4 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR104: Make Compaction Failures Actionable and Expirable](cr104-make-compaction-failures-actionable-and-expirable.md) — done
 - [CR105: Transform the Artifact Tab into an Agentic Map](cr105-transform-the-artifact-tab-into-an-agentic-map.md)
 - [CR106: Use Green for Ready Completion Signals](cr106-use-green-for-ready-completion-signals.md)
+- [CR107: Make Existing Journeys Startable](cr107-make-existing-journeys-startable.md)
