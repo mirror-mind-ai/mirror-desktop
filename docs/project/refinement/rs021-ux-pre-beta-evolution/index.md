@@ -41,7 +41,8 @@ Captured Change Requests, ordered by Navigator-approved daily-use impact:
 12. **CR085 — Close Without Quitting.** Make the macOS red close button hide/close the window without terminating the app process.
 13. **CR079 — Always Legible Context Reading.** Keep a context percentage and window permanently on screen, marking approximations with `~` instead of replacing them with waiting sentences.
 14. **CR080 — Compaction Chapters.** Let structure emerge from compaction: name each closed segment by its own summary, make chapters navigable, and offer manual compaction from the context label.
-15. **CR092 — Float the Recenter Control Over the Conversation.** Move the CR084 control out of the header into a floating bottom-right affordance that is visible only while the surface is away from the end.
+15. **CR097 — Keep a Correction Recognisable After Reload.** A correction sent during a run reads as an ordinary unanswered request once the Journey is reopened.
+16. **CR092 — Float the Recenter Control Over the Conversation.** Move the CR084 control out of the header into a floating bottom-right affordance that is visible only while the surface is away from the end.
 
 ## Acceptance Horizon
 
@@ -68,4 +69,5 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR085: Close Without Quitting](cr085-close-without-quitting.md) — done
 - [CR079: Always Legible Context Reading](cr079-deep-context-stats-analysis.md)
 - [CR080: Compaction Chapters](cr080-compaction-chapters.md)
+- [CR097: Keep a Correction Recognisable After Reload](cr097-keep-a-correction-recognisable-after-reload.md)
 - [CR092: Float the Recenter Control Over the Conversation](cr092-float-the-recenter-control-over-the-conversation.md) — done

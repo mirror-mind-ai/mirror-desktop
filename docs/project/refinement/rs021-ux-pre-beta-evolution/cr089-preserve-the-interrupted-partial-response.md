@@ -459,3 +459,26 @@ request and modelling it as one is wrong.
 This is steering presentation and steering-evidence durability, not interrupted-response
 preservation. Recorded here as the finding that produced it; it deserves its own CR rather than
 widening this one.
+
+## Reload Homologation — 2026-09-30
+
+Run `agent-run-2026-09-30T12:22:24.536Z` repeated the scenario that had failed: two narrated tool
+steps, a correction, a cancellation while the answer was being written, then leaving the Journey and
+coming back.
+
+Verified by parsing the persisted record exactly as a reload does and projecting the result:
+
+- The evidence survives the load, carrying a 603-character fragment. This is the path that used to
+  discard it.
+- The anchor `pi-interrupted-58fc2984` exists with empty content, placed after the last comment the
+  agent committed, and the fragment map points at it.
+- The request keeps its harness identity `user-2026-09-30T12:22:24.536Z` and resolves to its own
+  turn record.
+- Both comments are marked as notes, with neither promoted to an answer.
+- Operations recover with status `cancelled` for both cancelled runs in that session.
+
+All three phases are now observed surviving a real reload. The fragment of the earlier
+`agent-run-2026-09-30T11:53:49.301Z` run stays lost: its evidence was discarded before the fix
+existed, and Pi never held it. Its operations still recover, because those come from Pi.
+
+The steering finding recorded above is captured as CR097 and is not part of this CR.
