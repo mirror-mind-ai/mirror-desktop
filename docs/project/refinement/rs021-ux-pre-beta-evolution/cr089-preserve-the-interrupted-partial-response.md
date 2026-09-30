@@ -2,7 +2,7 @@
 
 # CR089: Preserve the Interrupted Partial Response
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr089-preserve-interrupted-partial-response`
 
@@ -482,3 +482,10 @@ All three phases are now observed surviving a real reload. The fragment of the e
 existed, and Pi never held it. Its operations still recover, because those come from Pi.
 
 The steering finding recorded above is captured as CR097 and is not part of this CR.
+
+## Closure
+
+CR089 is closed after all three phases were implemented and homologated. The final reload test
+confirmed that the interrupted fragment, anchor, turn identity, comments and reconstructed actions
+survive leaving and re-entering the Journey. The retention-window limitation and the two declared
+residues remain part of the result; neither is hidden as an implementation gap.
