@@ -5901,6 +5901,19 @@ impl StaleRecoveryReport {
     }
 }
 
+/// True when this skip is not already the most recent recorded verdict for that turn. Recovery
+/// is attempted repeatedly while a Journey loads, and re-recording an unchanged verdict would
+/// fill the bounded log with one fact and evict the diagnostics that matter.
+fn recovery_skip_is_new(existing: &[Value], journey_id: &str, run_id: &str, reason: &str) -> bool {
+    existing.iter().rev()
+        .find(|record| {
+            record.get("journeyId").and_then(Value::as_str) == Some(journey_id)
+                && record.get("runId").and_then(Value::as_str) == Some(run_id)
+        })
+        .and_then(|record| record.get("reason").and_then(Value::as_str))
+        .is_none_or(|previous| previous != reason)
+}
+
 /// Records skipped turns as diagnostic evidence. Never fails the caller: continuing past an
 /// unrecoverable turn is the point, and a failed diagnostic write must not undo that.
 fn record_stale_recovery_skips(outbox_path: &Path, journey_id: &str, report: &StaleRecoveryReport) {
@@ -5908,7 +5921,9 @@ fn record_stale_recovery_skips(outbox_path: &Path, journey_id: &str, report: &St
     let path = outbox_path.with_file_name(MIRROR_APPEND_RECOVERY_SKIPS_FILE);
     let mut records = read_bounded_jsonl_records(&path);
     let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let mut appended = false;
     for (run_id, reason) in &report.skipped {
+        if !recovery_skip_is_new(&records, journey_id, run_id, reason) { continue; }
         records.push(json!({
             "schemaVersion": "1.0.0",
             "recordedAt": recorded_at,
@@ -5917,7 +5932,9 @@ fn record_stale_recovery_skips(outbox_path: &Path, journey_id: &str, report: &St
             "reason": reason,
             "recoveredInSameAttempt": report.recovered,
         }));
+        appended = true;
     }
+    if !appended { return; }
     let keep = records.len().saturating_sub(MIRROR_APPEND_CONFLICT_MAX_RECORDS);
     let payload = records[keep..].iter()
         .filter_map(|value| serde_json::to_string(value).ok())
@@ -9199,7 +9216,7 @@ mod tests {
         enqueue_mirror_append_item_at_with_limit, exact_steering_authority_matches,
         mirror_append_conflict_keys, mirror_append_conflicts_path, read_mirror_append_conflicts,
         project_dedicated_user_text_and_envelope,
-        replace_legacy_outbox_item_at, MIRROR_APPEND_CONFLICT_MAX_RECORDS,
+        replace_legacy_outbox_item_at, MIRROR_APPEND_CONFLICT_MAX_RECORDS, recovery_skip_is_new,
         extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
         legacy_outbox_item_matches_pi_backed_item, legacy_timestamp_compatibility_item,
@@ -10537,6 +10554,34 @@ mod tests {
             ("run-old-a".to_string(), "mirror_append_pi_recovery_ambiguous".to_string()),
             ("run-old-b".to_string(), "mirror_append_pi_recovery_ambiguous".to_string()),
         ]);
+    }
+
+    #[test]
+    fn a_repeated_recovery_skip_is_not_new_evidence() {
+        // CR108: recovery is attempted many times in quick succession while a Journey loads.
+        // Appending the same verdict on every attempt turned a bounded diagnostic log into a
+        // tick counter that evicted real evidence, so only a change of state is recorded.
+        let existing = vec![json!({
+            "journeyId": "mirror-desktop",
+            "runId": "run-old-a",
+            "reason": "mirror_append_pi_recovery_ambiguous",
+        })];
+
+        assert!(!recovery_skip_is_new(&existing, "mirror-desktop", "run-old-a", "mirror_append_pi_recovery_ambiguous"));
+        // A different verdict for the same turn is genuinely new evidence.
+        assert!(recovery_skip_is_new(&existing, "mirror-desktop", "run-old-a", "mirror_append_pi_recovery_transcript_invalid"));
+        assert!(recovery_skip_is_new(&existing, "mirror-desktop", "run-old-b", "mirror_append_pi_recovery_ambiguous"));
+        // The same run id under another Journey is a different turn.
+        assert!(recovery_skip_is_new(&existing, "other-journey", "run-old-a", "mirror_append_pi_recovery_ambiguous"));
+        assert!(recovery_skip_is_new(&[], "mirror-desktop", "run-old-a", "mirror_append_pi_recovery_ambiguous"));
+
+        // The newest verdict for a turn wins, so a resolved-then-recurring reason is recorded.
+        let changed = vec![
+            json!({"journeyId": "mirror-desktop", "runId": "run-old-a", "reason": "mirror_append_pi_recovery_ambiguous"}),
+            json!({"journeyId": "mirror-desktop", "runId": "run-old-a", "reason": "mirror_append_pi_recovery_record_stale"}),
+        ];
+        assert!(recovery_skip_is_new(&changed, "mirror-desktop", "run-old-a", "mirror_append_pi_recovery_ambiguous"));
+        assert!(!recovery_skip_is_new(&changed, "mirror-desktop", "run-old-a", "mirror_append_pi_recovery_record_stale"));
     }
 
     #[test]

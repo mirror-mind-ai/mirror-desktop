@@ -74,9 +74,35 @@ ambiguous stays unrecovered rather than being guessed at.
 
 ## Validation
 
-- `cargo test --locked`: 214 passed, including the new
-  `one_unrecoverable_stale_record_does_not_block_another`. `npx vitest run`: 201 files, 1307 tests.
+Homologated by the Navigator in the Dev build. The previously blocked debt settled on its own once
+reconciliation stopped aborting:
+
+- Journal for `mirror-desktop` moved from `settled 23 / interrupted 9 / running 2 /
+  outbox_enqueued 1 / terminal_durable 1` to `settled 25 / interrupted 9 / running 2`.
+- Pending outbox items for the Journey: **0**. The synchronization notice is gone.
+- The two 2026-09-18 records remain at `running`, as intended: their evidence is genuinely
+  ambiguous and must not be guessed at. They are recorded in the skips log instead.
+
+### A defect in this CR's own diagnostic, found by that homologation
+
+The skips log had saturated at its 64-record bound with a single fact. Recovery was attempted **32
+times in 2.4 seconds** while the Journey loaded, and each attempt appended the same two verdicts.
+A bounded diagnostic had become a tick counter, and would have evicted every genuine diagnostic.
+
+`recovery_skip_is_new` fixes it: a verdict is appended only when it differs from the most recent
+recorded verdict for that turn, scoped by Journey. An unchanged verdict writes nothing at all, and a
+changed one is still recorded. The diagnostic now describes state rather than counting attempts.
+
+The repeated invocation itself is left alone. It converged, cleared the debt and stopped, so it is
+noise rather than a fault, and narrowing it belongs to the recovery trigger rather than to this CR.
+
+### Gates
+
+- `cargo test --locked`: 215 passed, including
+  `one_unrecoverable_stale_record_does_not_block_another` and
+  `a_repeated_recovery_skip_is_not_new_evidence`. `npx vitest run`: 201 files, 1307 tests.
   `tsc`, production build, `roadmap:check` and `git diff --check` clean.
+- Dev installed at `0.2.0-alpha.26`, binary `8c6fff713bc04aca`.
 
 ## Declared limits
 
@@ -88,3 +114,7 @@ ambiguous stays unrecovered rather than being guessed at.
   they already were, and are now also recorded to `mirror-append-recovery-skips.jsonl` beside the
   outbox, bounded like the conflicts log. Naming them on the recovery surface is a further
   improvement, in the spirit of CR104.
+- Recovery is still invoked many times during a Journey load. That is now silent in the log, but the
+  redundant work remains and could be narrowed at its trigger.
+- The Dev skips log still holds the 64 saturated entries written before the dedup fix. They are
+  harmless and will not grow, but they are not useful evidence either.
