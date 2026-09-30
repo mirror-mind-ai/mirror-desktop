@@ -260,3 +260,34 @@ working**. The previous guard removed the action there; the repair must keep it 
 check is that a genuinely blocked start now states its reason instead of disappearing.
 
 CR107 is therefore not proposed for closure on this evidence alone.
+
+## Discriminating validation — 2026-09-30
+
+The Navigator ran the check that separates the repair from the previous guard: with a run active in
+`mirror-desktop`, the other thread-less Journeys kept offering `Start this Journey`. Under the
+previous guard `runtimeBusy` was true in exactly that situation and the action was removed. The
+reported friction is therefore resolved and the repair is confirmed by the condition that produced
+it.
+
+The Navigator's own run settled correctly during that check: journal record
+`agent-run-2026-09-30T19:57:05.186Z` reached `terminal_durable` on generation 2.
+
+### An unrelated recovery notice observed during the check
+
+`mirror-desktop` presented `Conversation synchronization needs attention` with
+`mirror_append_pi_recovery_ambiguous`. It does not originate in CR107 and was not introduced by it:
+
+- CR107's implementation touches `journeyStartAvailability.ts`, `JourneyThreadState.tsx`, four spots
+  in `App.tsx`, one CSS rule and tests. It contains no settlement, outbox, journal or recovery code.
+- The two journal records still at `running` are from **2026-09-18**, on retired generation 1 and a
+  different thread, `desktop-thread-mirror-desktop-18d5cf4842b669b0`.
+- `match_unclaimed_pi_turn` fails closed with that code when the stale admitted/running set does not
+  uniquely match the unclaimed Pi turns, or is empty.
+- The pending Mirror settlement is the outbox item created `2026-09-30T11:52:52.473Z` by
+  `nautilus-harness`, about seven hours before the CR107 build was installed.
+- The same condition in this same Dev dataset is already documented in
+  `rs016.../cr062-isolated-dev-homologation-2026-09-20.md`, where two historical DEV records left at
+  `admitted/running` were corrected **only in a copied fixture**, never in the live Dev data.
+
+Which record triggered the code on this specific invocation was not traced, so that part is not
+asserted. What is established is that the debt predates CR107 and lies outside its code.
