@@ -53,6 +53,34 @@ Captured Change Requests, ordered by Navigator-approved daily-use impact:
 24. **CR105 — Transform the Artifact Tab into an Agentic Map.** Explore a navigable agent working-field map with honest provenance.
 25. **CR106 — Use Green for Ready Completion Signals.** Make agent completion immediately legible without changing Ready semantics.
 
+## Current Captured Priority
+
+This is the current UX-first order for the captured work. It is deliberately not implementation
+order: each CR still begins with empirical characterisation, and no CR is pulled merely by being
+ranked here.
+
+1. **CR104 — Make Compaction Failures Actionable and Expirable.** A permanent failure notice keeps
+   contradicting later successful work and occupies the user's attention with no exit.
+2. **CR097 — Keep a Correction Recognisable After Reload.** The Conversation can falsely present a
+   correction as an unanswered new request, damaging trust in the user's own history.
+3. **CR099 — Allow Safe Editing During Another Journey's Work.** A global busy guard stops ordinary
+   work in an unrelated Journey while the agent works elsewhere.
+4. **CR098 — Allow a Journey to Be Reparented.** The Navigator cannot correct a basic hierarchy
+   mistake through the form that purports to edit it.
+5. **CR100 — Make Journey Image Updates Supported.** A visible action ends in `unsupported journey
+   mutation`; a broken promise is more disruptive than an absent feature.
+6. **CR103 — Give the Composer Model Status a Human Register.** The footer is read continually but
+   currently merges state and raw provider identity into difficult operational notation.
+7. **CR102 — Make Sidebar Progress Signals Legible.** The sidebar is the daily navigation surface;
+   progress must be reliably readable there.
+8. **CR106 — Use Green for Ready Completion Signals.** A focused completion-colour correction that
+   should be characterised and, if compatible, delivered alongside CR102 without collapsing their
+   separate acceptance contracts.
+9. **CR101 — Restore Window Geometry.** Repeated relaunch friction matters, but it does not make an
+   existing action untruthful or block current work.
+10. **CR105 — Transform the Artifact Tab into an Agentic Map.** This is strategically promising but
+    exploratory and broader than the observed corrective frictions above.
+
 ## Acceptance Horizon
 
 RS021 is ready to close only when each CR is terminal (`done`, `parked`, `rejected`, or `promoted`) with an explicit reason and evidence. Beta promotion remains a later, separate decision; this RS only aggregates pre-beta UX evolution work.
