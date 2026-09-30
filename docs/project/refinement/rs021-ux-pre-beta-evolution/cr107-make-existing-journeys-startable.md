@@ -230,3 +230,33 @@ guard. Every other assertion in that guardrail was left intact.
   the 59 thread-less Journeys still each require an explicit first start by the Navigator.
 - The reported production case was not reproduced live with a second Journey running; the mechanism
   and its repair are pinned by unit-level tests and source assertions.
+
+## Dev homologation — 2026-09-30
+
+The Navigator started **US1 Keyboard A 0831** in the Dev build. Durable evidence confirms a complete
+and correct first start:
+
+- `journey-threads/us1-keyboard-a-0831.json` written at `2026-09-30T19:31:11.797Z`, after the
+  `ca29a476fdc0bdff` install.
+- `threadId: nautilus-thread-us1-keyboard-a-0831`, `activeGeneration: 1`, generation `status: ready`.
+- Complete `activationReceipt` with `commandAuthority: "installed"` and
+  `runtimeChannel: "development"`; Mirror conversation `d4428046`.
+- The created Pi session file holds exactly **one** entry, of type `session`. No model was invoked,
+  which is the boundary this CR declared.
+
+Dev was chosen over the Eval channel deliberately. Eval carries the production identifier
+`ai.mirrormind.desktop` and therefore writes real production state, while Dev holds 13 thread-less
+Journeys that reproduce the same `absent` shape. `vida-tecnica` itself does not exist in Dev.
+
+### What this homologation does not yet prove
+
+Starting with nothing else running does **not** discriminate the repair: under the previous guard
+`runtimeBusy` was also false in that situation, so the action was already offered and the start would
+also have succeeded. This run proves the start path is intact and provisioning is correct under the
+new guard; it does not exercise the condition that produced the reported friction.
+
+The discriminating check is to open a thread-less Journey **while another Journey is actively
+working**. The previous guard removed the action there; the repair must keep it available. A second
+check is that a genuinely blocked start now states its reason instead of disappearing.
+
+CR107 is therefore not proposed for closure on this evidence alone.
