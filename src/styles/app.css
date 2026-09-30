@@ -2670,6 +2670,21 @@ h3 {
   margin: 4px 0 2px;
 }
 
+/* CR104: a failure the Navigator has to clear needs its dismissal beside the statement it
+   clears. The card itself keeps the full width, so the control sits under it rather than
+   competing with the reason for space. */
+.compaction-notice:has(> .compaction-notice-dismiss) {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.compaction-notice-dismiss {
+  flex: 0 0 auto;
+  min-height: 26px;
+  padding: 3px 10px;
+}
+
 .runtime-compaction {
   align-items: flex-start;
   background: linear-gradient(105deg, rgba(var(--ui-accent-rgb), 0.08), rgba(10, 24, 29, 0.34));

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { RuntimeCompaction } from "../app/LiveRuntimeActivity";
 import { segmentProjectionsTouchedByCompaction } from "../domain/compactionChapters";
 import appSource from "../app/App.tsx?raw";
+import noticeSource from "../app/CompactionNotice.tsx?raw";
 
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
@@ -25,7 +26,11 @@ describe("manual compaction presentation", () => {
     expect(html).toContain("runtime-compaction");
     expect(html).toContain("manual trigger");
 
-    expect(appSource).toContain("<RuntimeCompaction");
+    // CR104: the Composer notice now owns its own dismissal, so App renders the notice and
+    // the notice still reports through the automatic compaction component rather than a
+    // second, bespoke way of saying the same thing.
+    expect(appSource).toContain("<CompactionNotice");
+    expect(noticeSource).toContain("<RuntimeCompaction");
     // A compaction occupies one Journey. The card is state on a single App, so it has to
     // carry the Journey it belongs to and be rendered only there — the outcome phases
     // outlive the in-flight claim, so the claim alone cannot gate the surface.

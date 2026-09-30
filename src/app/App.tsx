@@ -160,7 +160,8 @@ import {
   segmentProjectionsTouchedByCompaction,
 } from "../domain/compactionChapters";
 import { compactJourneySession } from "./compactionStorage";
-import { RuntimeCompaction } from "./LiveRuntimeActivity";
+import { compactionNoticeLifecycle } from "./compactionNoticeLifecycle";
+import { CompactionNotice } from "./CompactionNotice";
 import { ComposerContextMenu } from "./ComposerContextMenu";
 import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
 import { describeMirrorAppendRejection } from "../domain/mirrorAppendRejection";
@@ -1776,7 +1777,8 @@ export function App({ model }: AppProps) {
   }, [voiceNotice]);
 
   useEffect(() => {
-    if (compactionOperation?.operation.status !== "completed") return;
+    if (!compactionOperation) return;
+    if (compactionNoticeLifecycle(compactionOperation.operation.status) !== "transient") return;
     const scheduled = compactionOperation;
     return scheduleTransientComposerNotice(() => {
       setCompactionOperation((current) => (current === scheduled ? undefined : current));
@@ -5275,9 +5277,10 @@ export function App({ model }: AppProps) {
           {voiceError ? <p className="context-attachment-error voice-error" role="alert">{voiceError}</p> : null}
           {voiceNotice ? <p className="voice-notice" role="status">{voiceNotice}</p> : null}
           {compactionOperation && compactionOperation.journeyId === selectedJourney ? (
-            <div className="compaction-notice" role="status">
-              <RuntimeCompaction operation={compactionOperation.operation} />
-            </div>
+            <CompactionNotice
+              operation={compactionOperation.operation}
+              onDismiss={() => setCompactionOperation(undefined)}
+            />
           ) : null}
           <VoiceSessionStatus session={voiceSession} elapsedSeconds={voiceElapsedSeconds} onCancel={cancelVoiceRecording} />
           <PendingFileAttachments
