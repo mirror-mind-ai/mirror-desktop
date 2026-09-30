@@ -2,9 +2,13 @@
 
 # CR104: Make Compaction Failures Actionable and Expirable
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr104-actionable-compaction-failures`
+
+## Focus
+
+The Navigator explicitly pulled CR104 as the current RS021 focus on 2026-09-30.
 
 ## Friction
 

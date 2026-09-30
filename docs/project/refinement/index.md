@@ -51,7 +51,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR104](rs021-ux-pre-beta-evolution/cr104-make-compaction-failures-actionable-and-expirable.md) | RS021 | Make Compaction Failures Actionable and Expirable | captured | — | — |
+| 1 | [CR104](rs021-ux-pre-beta-evolution/cr104-make-compaction-failures-actionable-and-expirable.md) | RS021 | Make Compaction Failures Actionable and Expirable | in_progress | @alissonvale | `refinement/rs021-cr104-actionable-compaction-failures` |
 | 2 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | captured | — | — |
 | 3 | [CR099](rs021-ux-pre-beta-evolution/cr099-allow-safe-editing-during-another-journeys-work.md) | RS021 | Allow Safe Editing During Another Journey's Work | captured | — | — |
 | 4 | [CR098](rs021-ux-pre-beta-evolution/cr098-allow-a-journey-to-be-reparented.md) | RS021 | Allow a Journey to Be Reparented | captured | — | — |
