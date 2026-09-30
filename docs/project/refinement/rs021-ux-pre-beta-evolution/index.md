@@ -43,6 +43,15 @@ Captured Change Requests, ordered by Navigator-approved daily-use impact:
 14. **CR080 — Compaction Chapters.** Let structure emerge from compaction: name each closed segment by its own summary, make chapters navigable, and offer manual compaction from the context label.
 15. **CR097 — Keep a Correction Recognisable After Reload.** A correction sent during a run reads as an ordinary unanswered request once the Journey is reopened.
 16. **CR092 — Float the Recenter Control Over the Conversation.** Move the CR084 control out of the header into a floating bottom-right affordance that is visible only while the surface is away from the end.
+17. **CR098 — Allow a Journey to Be Reparented.** Let the Navigator correct a Journey's place in the hierarchy from its edit form.
+18. **CR099 — Allow Safe Editing During Another Journey's Work.** Scope edit guards to the Journey that is actually running.
+19. **CR100 — Make Journey Image Updates Supported.** Complete or truthfully withhold the Journey-image mutation the UI offers.
+20. **CR101 — Restore Window Geometry.** Reopen the app with the last usable position and dimensions.
+21. **CR102 — Make Sidebar Progress Signals Legible.** Make Journey progress readable without overloading existing sidebar signals.
+22. **CR103 — Give the Composer Model Status a Human Register.** Separate concise model identity and runtime state from raw provider notation.
+23. **CR104 — Make Compaction Failures Actionable and Expirable.** Do not leave a stale manual-compaction failure permanently visible.
+24. **CR105 — Transform the Artifact Tab into an Agentic Map.** Explore a navigable agent working-field map with honest provenance.
+25. **CR106 — Use Green for Ready Completion Signals.** Make agent completion immediately legible without changing Ready semantics.
 
 ## Acceptance Horizon
 
@@ -71,3 +80,12 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR080: Compaction Chapters](cr080-compaction-chapters.md)
 - [CR097: Keep a Correction Recognisable After Reload](cr097-keep-a-correction-recognisable-after-reload.md)
 - [CR092: Float the Recenter Control Over the Conversation](cr092-float-the-recenter-control-over-the-conversation.md) — done
+- [CR098: Allow a Journey to Be Reparented](cr098-allow-a-journey-to-be-reparented.md)
+- [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md)
+- [CR100: Make Journey Image Updates Supported](cr100-make-journey-image-updates-supported.md)
+- [CR101: Restore Window Geometry](cr101-restore-window-geometry.md)
+- [CR102: Make Sidebar Progress Signals Legible](cr102-make-sidebar-progress-signals-legible.md)
+- [CR103: Give the Composer Model Status a Human Register](cr103-give-the-composer-model-status-a-human-register.md)
+- [CR104: Make Compaction Failures Actionable and Expirable](cr104-make-compaction-failures-actionable-and-expirable.md)
+- [CR105: Transform the Artifact Tab into an Agentic Map](cr105-transform-the-artifact-tab-into-an-agentic-map.md)
+- [CR106: Use Green for Ready Completion Signals](cr106-use-green-for-ready-completion-signals.md)
