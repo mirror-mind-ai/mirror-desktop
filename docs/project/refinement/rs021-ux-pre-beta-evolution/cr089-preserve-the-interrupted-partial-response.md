@@ -332,3 +332,29 @@ message, so this is recorded rather than treated as a defect.
 
 Local data note repeated: the generation-1 evidence written by the 16:58 test on 2026-09-29 still
 carries the over-wide fragment and will render duplicated on that one historical turn.
+
+## Phase 2 Homologation — 2026-09-30
+
+Run `agent-run-2026-09-30T11:34:31.407Z` finally exercised the case the CR was opened for. The
+agent performed thirteen tool steps and was cancelled while writing its answer, not between steps.
+
+Inspected against the durable data and projected through the production surface:
+
+- The evidence stores a 1226-character fragment that begins `Não localizei um artefato chamado
+  RS018...` and stops mid-sentence at `Portanto`. It is the answer being written, not a repeat of
+  any committed comment, so the boundary-based selection kept exactly the prose Pi will never hold.
+- Reprojection creates the anchor `pi-interrupted-c49d7d5d` with empty content, positioned after
+  `pi-aa67c3e5`, the last comment the agent actually committed. The authority contract holds: no
+  message carries a word Pi did not record.
+- The fragment is exposed through the derived `interruptedFragments` map rather than as message
+  content.
+- Across both generation-2 cancellations, twenty operations are recovered and **no** assistant
+  message is presented as an answer, which is correct because neither run gave one.
+- The earlier cancellation, which lost nothing, still produces no anchor and no fragment. The two
+  runs sit side by side as the positive and negative case.
+
+Both halves of Phase 2 are therefore observed: a genuine unfinished answer survives a reload, and a
+turn that lost nothing gains nothing. Phase 2 is accepted.
+
+Phase 3 remains open: the cancelled turn still loses its harness binding and returns as
+`pi-<entryId>`, visible above as `pi-c49d7d5d` in place of `user-2026-09-30T11:34:31.407Z`.
