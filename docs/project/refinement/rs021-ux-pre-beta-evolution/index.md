@@ -55,6 +55,7 @@ Captured Change Requests, ordered by Navigator-approved daily-use impact:
 26. **CR107 — Make Existing Journeys Startable.** Do not strand an existing Journey at an informational “has not started” surface when its Desktop conversation must be resumed, safely provisioned, or diagnosed.
 27. **CR108 — Stop One Unrecoverable Turn from Blocking Recovery.** Do not let a single unclaimable historical turn abort delivery recovery for every other turn in the Journey.
 28. **CR109 — Make Conversations First-Class Workspaces.** Let the Navigator control the visible conversation working set, see where work actually belongs, and navigate or work across parent and child workspaces without selection instability.
+29. **CR110 — Make Journey Creation Recover from Registry Change.** Do not make a Navigator reload and re-enter a valid create intent before distinguishing a real registry conflict from a stale or self-caused freshness change.
 
 ## Current Captured Priority
 
@@ -84,8 +85,8 @@ ranked here.
 
 CR104 and CR107 are closed and are therefore removed from the active captured priority. CR108 was
 found while validating CR107 and repaired in the same session by explicit Navigator intent, so it
-never entered this ranking. CR109 is captured but unranked and unpulled; it requires authority and
-runtime characterisation before a priority or design is chosen.
+never entered this ranking. CR109 and CR110 are captured but unranked and unpulled; both require
+authority characterisation before a priority or design is chosen.
 
 ## Acceptance Horizon
 
@@ -126,3 +127,4 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR107: Make Existing Journeys Startable](cr107-make-existing-journeys-startable.md) — done
 - [CR108: Stop One Unrecoverable Turn from Blocking Recovery](cr108-stop-one-unrecoverable-turn-from-blocking-recovery.md) — done
 - [CR109: Make Conversations First-Class Workspaces](cr109-make-conversations-first-class-workspaces.md)
+- [CR110: Make Journey Creation Recover from Registry Change](cr110-make-journey-creation-recover-from-registry-change.md)
