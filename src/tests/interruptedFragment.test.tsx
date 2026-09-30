@@ -170,6 +170,26 @@ describe("CR089 interrupted fragment", () => {
     expect(Object.values(surface.interruptedFragments ?? {})).toEqual([FRAGMENT]);
   });
 
+  it("clears a fragment left over from an earlier projection", () => {
+    // The map is derived, so a stale entry must not outlive the anchor it pointed at.
+    const surface = projectPiBackedConversationSurface(
+      {
+        id: "c1", journeyId: "j1", title: "t",
+        createdAt: "2026-09-29T10:00:00Z", updatedAt: "2026-09-29T10:00:00Z",
+        messages: [],
+        reconciliation: { turns: [] },
+        interruptedFragments: { "pi-interrupted-gone": "órfão de uma projeção anterior" },
+      } as never,
+      {
+        schemaVersion: "0.1.0", activeEntryCount: 1, compactionCount: 0,
+        chapterClosures: [], unknownPromptEnvelopeCount: 0,
+        entries: [user("e1", "oi", "2026-09-29T10:00:01Z")], turns: [],
+      } as never,
+    );
+
+    expect(surface.interruptedFragments).toBeUndefined();
+  });
+
   it("adds nothing when the run left no fragment behind", () => {
     const surface = project(
       [

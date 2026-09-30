@@ -404,7 +404,11 @@ export function projectPiBackedConversationSurface(
       }
       return Object.keys(roles).length > 0 ? { agentCommentRoles: roles } : {};
     })(),
-    ...(Object.keys(interruptedFragments).length > 0 ? { interruptedFragments } : {}),
+    // Derived on every reconstruction, so a fragment that no longer has an anchor must be cleared
+    // rather than inherited from the previous projection.
+    ...(Object.keys(interruptedFragments).length > 0
+      ? { interruptedFragments }
+      : { interruptedFragments: undefined }),
     ...(Object.keys(reconstructedAgentActions).length > 0 ? { reconstructedAgentActions } : {}),
     ...(Object.keys(responseModels).length > 0 ? { responseModels } : {}),
     ...(Object.keys(chapterDividers).length > 0 ? { chapterDividers } : {}),

@@ -407,3 +407,55 @@ CR.
 Correction to an earlier note in this document: the over-wide fragment stored by the 2026-09-29
 16:58 test is gone, so no historical turn renders duplicated. That evidence entry did not survive
 retention either.
+
+## Phase 2 Defect Found on Reload — 2026-09-30
+
+The Navigator cancelled a turn in the `builder-mode-evolution` Journey, left it and came back. The
+interrupted fragment was gone. Read against the durable data, the fragment had been captured
+correctly and was then discarded on load.
+
+`parseTerminalAgentActionEvidenceMap` required every evidence key to name an existing assistant
+message. An interrupted turn is precisely the case that has no such message: reprojection replaces
+the harness assistant message with the Pi-derived ones, so on the next load the key matched nothing
+and the evidence was dropped. The runtime attach had always validated against the *turn record*
+instead, so the loader was stricter than the writer, and the only record of what the cancelled run
+did and said did not survive the round trip.
+
+The loader now accepts evidence whose turn record is interrupted without demanding the assistant
+message, matching the authority the runtime already uses. Evidence no turn record vouches for is
+still refused, and a non-interrupted turn still requires its message.
+
+A second, quieter fault surfaced while reading the same file: `interruptedFragments` is derived on
+every reconstruction, but the projection only replaced it when a new fragment existed, so a stale
+entry survived through `...metadata` pointing at an anchor that no longer existed. The projection
+now clears it, following the idiom already used in `conversationSegmentProjection`.
+
+### What the same data confirmed
+
+Phases 1 and 3 behaved correctly in that run. The request kept its harness identity
+(`user-2026-09-30T11:53:49.301Z`) and resolved to its own turn record, both comments were marked as
+notes with neither promoted to an answer, and both operations were recovered with status
+`cancelled`.
+
+### Validation
+
+- `npx vitest run`: 198 files, 1282 tests green. `tsc`, `build`, `roadmap:check`, `git diff --check`
+  clean.
+- The persistence test was verified to fail without the fix and pass with it, after an earlier
+  version of it passed vacuously on a fixture whose reconciliation did not parse. Fixtures are now
+  built with the domain helpers rather than by hand.
+
+## Open Finding — Steering after reload (not CR089)
+
+In the same run, the correction sent during the turn (`foca só no primeiro arquivo`) is committed by
+Pi as an ordinary user entry, so after a reload it renders as a plain new request rather than as the
+`Correction during response` surface. The conversation's `steeringEvidence` was empty by then. The
+correction therefore reads as a question the Navigator asked and nobody answered.
+
+Related: a steering entry also opens a new run segment in the interrupted-run matching, because the
+segmentation keys on user entries. It caused no visible harm here, but a correction is not a new
+request and modelling it as one is wrong.
+
+This is steering presentation and steering-evidence durability, not interrupted-response
+preservation. Recorded here as the finding that produced it; it deserves its own CR rather than
+widening this one.

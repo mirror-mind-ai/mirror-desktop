@@ -201,11 +201,17 @@ function parseTerminalAgentActionEvidenceMap(
       && item.runId === evidence.runId
       && item.harness.assistantMessageId === messageId
     ));
+    // CR089: an interrupted turn never produced the assistant message this evidence is keyed by,
+    // and reprojection replaces it with the Pi-derived ones, so requiring that message here would
+    // discard the only record of what the cancelled run did and said. The turn record vouches for
+    // it instead, which is the same authority the runtime attach already uses.
+    const interrupted = turn ? turn.pi.state === "failed" : false;
     if (!evidence || !turn
       || evidence.assistantMessageId !== messageId
       || evidence.journeyId !== authority.journeyId
       || evidence.generation !== authority.generation
-      || !authority.messages.some((message) => message.role === "assistant" && message.id === messageId)) continue;
+      || (!interrupted
+        && !authority.messages.some((message) => message.role === "assistant" && message.id === messageId))) continue;
     result[messageId] = evidence;
   }
   return Object.keys(result).length > 0 ? result : undefined;
