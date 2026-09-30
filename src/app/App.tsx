@@ -162,6 +162,7 @@ import {
 import { compactJourneySession } from "./compactionStorage";
 import { classifyCompactionRefusal, compactionNoticeLifecycle } from "./compactionNoticeLifecycle";
 import { manualCompactionAvailability } from "./manualCompactionAvailability";
+import { journeyStartAvailability } from "./journeyStartAvailability";
 import { CompactionNotice } from "./CompactionNotice";
 import { ComposerContextMenu } from "./ComposerContextMenu";
 import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
@@ -911,6 +912,12 @@ export function App({ model }: AppProps) {
   );
   const piInvocationPresentation = derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney);
   const runtimeBindingReady = runtimeChannel?.status === "validated";
+  // CR107: whether this Journey can be started, and why not when it cannot. The reason has to
+  // travel to the not-started surface, because every composer notice is hidden there.
+  const journeyStart = journeyStartAvailability({
+    runtimeBindingReady,
+    nativeAdmission: piInvocationPresentation,
+  });
   const mirrorCommitError = navigationPresentation.mirrorCommitError;
   // CR093: a bounded contract rejection has a cause the Navigator can act on. Name it above
   // the raw reason code instead of leaving only a generic persistence sentence.
@@ -3080,7 +3087,10 @@ export function App({ model }: AppProps) {
   }
 
   async function startSelectedJourney() {
-    if (runtimeBusy || journeyThreadState.kind !== "absent" || startingJourneyId) return;
+    // CR107: provisioning needs a validated binding and a free native slot for this Journey.
+    // It deliberately does not require the global absence of runs: work in an unrelated
+    // Journey is not a conflict, and treating it as one excluded most Journeys from the app.
+    if (!journeyStart.canStart || journeyThreadState.kind !== "absent" || startingJourneyId) return;
     const ownerJourneyId = selectedJourney;
     const ownerJourneyName = selectedJourneyItem.name;
     setStartingJourneyId(ownerJourneyId);
@@ -5070,7 +5080,8 @@ export function App({ model }: AppProps) {
             starting={startingJourneyId === selectedJourney}
             startingPhase={journeyStartPhase}
             error={journeyStartError}
-            onStart={journeyThreadState.kind === "absent" && !runtimeBusy && runtimeBindingReady ? () => void startSelectedJourney() : undefined}
+            onStart={journeyThreadState.kind === "absent" && journeyStart.canStart ? () => void startSelectedJourney() : undefined}
+            startUnavailableReason={journeyThreadState.kind === "absent" ? journeyStart.unavailableReason : undefined}
           />
         ) : null}
 

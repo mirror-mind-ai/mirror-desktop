@@ -167,8 +167,7 @@ The repair therefore belongs to availability and legibility, not to authority:
    transient one and must not read as permanent.
 
 Recommendation: deliver 2 first, since it converts a silent dead end into a truthful surface without
-touching any guard, then 1 and 3 as a scoping change with its own tests. Awaiting authorization
-before changing behaviour.
+touching any guard, then 1 and 3 as a scoping change with its own tests.
 
 ### Declared limits
 
@@ -179,3 +178,55 @@ before changing behaviour.
   survive a restart. A permanent block from term 2 requires `inspectPiInvocations` to keep failing.
 - Only `vida-tecnica` was inspected in depth. The 59 thread-less Journeys share the same shape, but
   each was not individually verified.
+
+## Repair — 2026-09-30
+
+Delivered on `refinement/rs021-cr107-startable-journeys`, rebased onto `main` after CR104 was
+integrated, so its diff contains only CR107.
+
+### The guard now asks what actually conflicts
+
+`journeyStartAvailability` replaces the global `runtimeBusy` term on the start path. Starting a
+Journey provisions one dedicated native pair, so it is gated on a validated runtime binding and on
+`derivePiInvocationAdmission` for the selected Journey.
+
+That admission was already the right authority and already Journey-aware, so it was reused rather
+than duplicated. It distinguishes the three cases that matter: a bounded inspection still running,
+this Journey's own native work, and genuinely exhausted global capacity. A lease in an unrelated
+Journey now only matters through real capacity accounting, which is what capacity means.
+
+Global Pi capacity therefore remains a real constraint. What was removed is the claim that *any*
+activity anywhere conflicts with provisioning a different Journey.
+
+### A withheld start now states its reason
+
+`JourneyThreadState` renders the action disabled with its reason instead of removing it, and
+`startUnavailableReason` carries that reason to the surface. This matters specifically here because
+the not-started surface is the Journey's only surface: every notice that could have explained the
+block lives in the composer, which is hidden for exactly this state.
+
+A waiting condition is styled in the muted register rather than the danger one, since none of these
+reasons is a failure.
+
+### A guardrail was deliberately changed
+
+`journeyRuntimeIntegration.test.ts` pinned the old rule, asserting the start path was gated on
+`runtimeBusy` under the heading "keeping aggregate mutations blocked". Starting a Journey is not an
+aggregate mutation, so the two assertions were replaced with ones pinning the new Journey-scoped
+guard. Every other assertion in that guardrail was left intact.
+
+### Validation
+
+- `npx vitest run`: 201 files, 1307 tests. `tsc`, production build, `roadmap:check` and
+  `git diff --check` clean.
+- Dev installed at `0.2.0-alpha.26`, binary `ca29a476fdc0bdff`.
+
+### Declared limits
+
+- Provisioning is admitted through the same capacity authority used for turns. That is deliberate
+  and conservative, but it means a full Pi capacity still defers a start that consumes a slot only
+  briefly.
+- The repair makes the start reachable and legible. It does not change what provisioning does, and
+  the 59 thread-less Journeys still each require an explicit first start by the Navigator.
+- The reported production case was not reproduced live with a second Journey running; the mechanism
+  and its repair are pinned by unit-level tests and source assertions.

@@ -11,9 +11,23 @@ type Props = {
   startingPhase?: string;
   error?: string;
   onStart?: () => void;
+  /**
+   * CR107: why starting is unavailable right now, when it is. This surface is the Journey's
+   * only surface before it starts — every composer notice is hidden here — so a withheld
+   * action must state its reason instead of disappearing.
+   */
+  startUnavailableReason?: string;
 };
 
-export function JourneyThreadState({ journeyName, state, starting = false, startingPhase, error, onStart }: Props) {
+export function JourneyThreadState({
+  journeyName,
+  state,
+  starting = false,
+  startingPhase,
+  error,
+  onStart,
+  startUnavailableReason,
+}: Props) {
   if (state.kind === "loading") {
     return <section className="journey-thread-state" role="status"><p className="eyebrow">Mirror Desktop conversation</p><h2>Checking Journey conversation…</h2></section>;
   }
@@ -53,7 +67,15 @@ export function JourneyThreadState({ journeyName, state, starting = false, start
       <h2>This Journey has not started in Mirror Desktop</h2>
       <p>{journeyName} does not yet have a dedicated Mirror Desktop conversation.</p>
       {error ? <p className="journey-thread-error">Start did not complete: {error}</p> : null}
-      {onStart ? <button type="button" className="journey-thread-start" onClick={onStart}>{error ? "Retry starting this Journey" : "Start this Journey"}</button> : null}
+      {onStart || startUnavailableReason ? (
+        <button
+          type="button"
+          className="journey-thread-start"
+          disabled={!onStart}
+          onClick={onStart}
+        >{error ? "Retry starting this Journey" : "Start this Journey"}</button>
+      ) : null}
+      {startUnavailableReason ? <p className="journey-thread-unavailable" role="status">{startUnavailableReason}</p> : null}
     </section>
   );
 }

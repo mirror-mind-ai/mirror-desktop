@@ -4948,6 +4948,15 @@ dd {
 
 .journey-thread-error { color: var(--danger, #e69a9a); }
 
+/* CR107: a withheld start states why. It is a waiting condition, not a failure, so it stays
+   in the muted register rather than the danger one. */
+.journey-thread-unavailable {
+  margin: 0.75rem auto 0;
+  max-width: 28rem;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
 .journey-thread-progress {
   position: relative;
   overflow: hidden;

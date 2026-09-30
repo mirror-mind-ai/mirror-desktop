@@ -108,8 +108,12 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain('journeyThreadState.kind !== "ready" || selectedRuntimeBusy || isJourneyReloading');
     expect(appSource).toContain("disabled={selectedRuntimeBusy || fileAttachmentBusy}");
     expect(appSource).toContain("disabled={runtimeBusy}");
-    expect(appSource).toContain('journeyThreadState.kind === "absent" && !runtimeBusy');
-    expect(appSource).toContain('if (runtimeBusy || journeyThreadState.kind !== "absent" || startingJourneyId) return');
+    // CR107: starting a Journey is deliberately no longer an aggregate mutation. It provisions
+    // one dedicated native pair, so it is gated on this Journey's own native admission rather
+    // than on the global busy flag, which had excluded most Journeys from the app entirely.
+    expect(appSource).toContain('journeyThreadState.kind === "absent" && journeyStart.canStart');
+    expect(appSource).toContain('if (!journeyStart.canStart || journeyThreadState.kind !== "absent" || startingJourneyId) return');
+    expect(appSource).toContain("nativeAdmission: piInvocationPresentation");
   });
 
   it("routes run mutations and finalization through captured identity", () => {
