@@ -2,7 +2,7 @@
 
 # CR104: Make Compaction Failures Actionable and Expirable
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr104-actionable-compaction-failures`
 
@@ -163,3 +163,11 @@ compaction followed by ordinary work, which is worse than the bug this CR set ou
 - TypeScript matches one string across the native boundary: the `Pi refused to compact:` prefix our
   own Rust constructs. It is our contract rather than Pi's prose, and it is pinned by a Rust test,
   but it is a coupling worth naming.
+
+## Closure — 2026-09-30
+
+Validated by the Navigator in the Dev build. Closure evidence: `cargo test --locked` (213 passed),
+`npx vitest run` (200 files, 1298 tests), `tsc`, production build, `roadmap:check`, and
+`git diff --check` all passed. Dev artifact `0.2.0-alpha.26` was installed and the manual
+compaction availability, benign refusal, and persistent genuine-failure paths were prepared for
+homologation. No release, push, tag, or publication is implied by this closure.

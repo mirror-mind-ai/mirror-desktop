@@ -87,7 +87,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 
 ## Boundaries
 
-- CR089 is closed. CR104 is the current pulled focus; all other remaining CRs stay captured until explicitly pulled.
+- CR089 and CR104 are closed. No remaining CR has been pulled as the next focus; later focus changes require explicit Navigator intent.
 - No app release, Beta promotion, endpoint publication, Git push or tag is authorized by this document.
 
 ## Change Requests
@@ -114,6 +114,6 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR101: Restore Window Geometry](cr101-restore-window-geometry.md)
 - [CR102: Make Sidebar Progress Signals Legible](cr102-make-sidebar-progress-signals-legible.md)
 - [CR103: Give the Composer Model Status a Human Register](cr103-give-the-composer-model-status-a-human-register.md)
-- [CR104: Make Compaction Failures Actionable and Expirable](cr104-make-compaction-failures-actionable-and-expirable.md) — in progress
+- [CR104: Make Compaction Failures Actionable and Expirable](cr104-make-compaction-failures-actionable-and-expirable.md) — done
 - [CR105: Transform the Artifact Tab into an Agentic Map](cr105-transform-the-artifact-tab-into-an-agentic-map.md)
 - [CR106: Use Green for Ready Completion Signals](cr106-use-green-for-ready-completion-signals.md)
