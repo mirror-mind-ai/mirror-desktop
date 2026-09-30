@@ -25,20 +25,28 @@ describe("compaction notice lifecycle", () => {
     // failure is a condition that is still true after unrelated work succeeds — the context
     // was not compacted, and the pressure that motivated it is now worse, not better. So a
     // timer must never be what clears it.
-    expect(compactionNoticeLifecycle("completed")).toBe("transient");
-    expect(compactionNoticeLifecycle("failed")).toBe("sticky");
-    expect(compactionNoticeLifecycle("interrupted")).toBe("sticky");
-    expect(compactionNoticeLifecycle("running")).toBe("sticky");
-    expect(compactionNoticeLifecycle("preparing")).toBe("sticky");
+    expect(compactionNoticeLifecycle({ status: "completed" })).toBe("transient");
+    expect(compactionNoticeLifecycle({ status: "failed" })).toBe("sticky");
+    expect(compactionNoticeLifecycle({ status: "interrupted" })).toBe("sticky");
+    expect(compactionNoticeLifecycle({ status: "running" })).toBe("sticky");
+    expect(compactionNoticeLifecycle({ status: "preparing" })).toBe("sticky");
+  });
+
+  it("lets a refusal that compacted nothing fade like the confirmation it is", () => {
+    // CR104: Pi refuses before calling a model when there is nothing to compact. Reporting
+    // that as `completed` would claim a chapter was closed, so the outcome is carried
+    // separately from the status and only its lifetime is shared with a success.
+    expect(compactionNoticeLifecycle({ status: "failed", nothingToDo: true })).toBe("transient");
+    expect(compactionNoticeIsDismissible({ status: "failed", nothingToDo: true })).toBe(false);
   });
 
   it("offers dismissal only for an outcome that the Navigator has to clear", () => {
     // Work still in flight must not be dismissable: hiding it would hide the agent.
-    expect(compactionNoticeIsDismissible("failed")).toBe(true);
-    expect(compactionNoticeIsDismissible("interrupted")).toBe(true);
-    expect(compactionNoticeIsDismissible("running")).toBe(false);
-    expect(compactionNoticeIsDismissible("preparing")).toBe(false);
-    expect(compactionNoticeIsDismissible("completed")).toBe(false);
+    expect(compactionNoticeIsDismissible({ status: "failed" })).toBe(true);
+    expect(compactionNoticeIsDismissible({ status: "interrupted" })).toBe(true);
+    expect(compactionNoticeIsDismissible({ status: "running" })).toBe(false);
+    expect(compactionNoticeIsDismissible({ status: "preparing" })).toBe(false);
+    expect(compactionNoticeIsDismissible({ status: "completed" })).toBe(false);
   });
 
   it("gives a failed compaction a dismiss control and announces it", () => {
@@ -67,6 +75,21 @@ describe("compaction notice lifecycle", () => {
 
     expect(html).toContain('role="status"');
     expect(html).not.toContain("compaction-notice-dismiss");
+  });
+
+  it("offers no dismissal for a refusal that had nothing to compact", () => {
+    const html = renderToStaticMarkup(
+      <CompactionNotice
+        operation={operation("failed", "Already compacted. There is nothing new to close into a chapter.")}
+        nothingToDo
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('role="status"');
+    expect(html).not.toContain("compaction-notice-dismiss");
+    // It must not claim a chapter was closed, because none was.
+    expect(html).not.toContain("Chapter closed");
   });
 
   it("derives the auto-expiry from the rule instead of hardcoding one status", () => {

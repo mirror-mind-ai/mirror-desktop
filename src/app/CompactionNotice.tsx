@@ -9,15 +9,18 @@ import type { ProjectedRuntimeOperation } from "./runtimeActivityModel";
  */
 export function CompactionNotice({
   operation,
+  nothingToDo,
   onDismiss,
 }: {
   operation: ProjectedRuntimeOperation;
+  /** A refusal that compacted nothing, which is a confirmation rather than a problem. */
+  nothingToDo?: true;
   onDismiss: () => void;
 }) {
-  const dismissible = compactionNoticeIsDismissible(operation.status);
+  const dismissible = compactionNoticeIsDismissible({ status: operation.status, nothingToDo });
 
   return (
-    <div className="compaction-notice" role={operation.status === "failed" ? "alert" : "status"}>
+    <div className="compaction-notice" role={dismissible ? "alert" : "status"}>
       <RuntimeCompaction operation={operation} />
       {dismissible ? (
         <button

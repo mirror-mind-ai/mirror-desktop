@@ -108,13 +108,58 @@ Three consequences:
 whether the leaf is a compaction entry is therefore a small, contract-level addition that mirrors
 Pi's predicate exactly, with no prose matching.
 
-## Phase 2 — Recommended, Pending Decision
+## Phase 2 — Delivered
 
-Prefer prevention over explanation. If the leaf is already a compaction, `Compact now` can be
-offered as unavailable with that reason **before** spending a model call and minutes of waiting;
-`ComposerContextMenu` already accepts an `unavailableReason` for exactly this. A refusal that still
-arrives can then be corroborated against the Desktop's own reading of the session rather than
-against Pi's wording.
+### A correction to the justification
 
-This requires extending the native inspection contract, which is shared by several surfaces, so it
-is left as an explicit decision rather than bundled into Phase 1.
+Phase 2 was pitched as avoiding "a model call and minutes of waiting." That was wrong. Reading
+`agent-session.js` line by line shows `prepareCompaction` is evaluated and thrown **before** any
+model call — the only preceding `await` resolves local summarization auth. A refusal therefore
+costs one Pi process spawn, seconds rather than minutes. Prevention is still worth having, but for
+a smaller reason: it avoids a pointless spawn and avoids alarming the Navigator about a non-problem.
+
+That correction matters because it changes which half of the work carries the weight. Recognising
+the benign outcome is the part that had to be right; preventing the click is the convenience.
+
+### What shipped
+
+`leaf_is_compaction` is now reported by `inspect_dedicated_pi_transcript`, derived exactly as Pi
+derives it — `branch.last().entry_type == "compaction"` — from the same session file. No wording is
+matched anywhere.
+
+**Recognising the benign outcome.** `classifyCompactionRefusal` calls a refusal benign only when two
+independent things agree: our own native parser reports that Pi answered an unsuccessful response,
+and a **fresh** inspection taken at the moment of the refusal confirms the branch already ends in a
+compaction. A dead process stays a failure even on an already compacted branch, because something
+really did break, and an unreadable branch confirms nothing and stays a failure too.
+
+The outcome is carried as `nothingToDo` beside the status rather than as `completed`, because the
+compaction did not happen. Reporting it as completed would have claimed a chapter was closed. It
+shares only its *lifetime* with a success: it fades, and it is not dismissable, because there is
+nothing for the Navigator to resolve.
+
+**Preventing the pointless attempt.** `manualCompactionAvailability` collects the three reasons
+compaction can be unavailable in one ordered rule, replacing an inline ternary chain, and
+`ComposerContextMenu` already accepted `unavailableReason`. An unknown branch state never forbids
+the action: letting Pi refuse costs a moment, while wrongly forbidding removes a working action.
+
+**Keeping the flag honest.** The branch state is recorded wherever the app already inspects, and
+cleared as soon as a turn is admitted for that Journey — a turn appends entries, so the branch can
+no longer end in a compaction. Without that clearing the menu would have kept refusing after a
+compaction followed by ordinary work, which is worse than the bug this CR set out to fix.
+
+### Validation
+
+- `cargo test --locked`: 213 passed. `npx vitest run`: 200 files, 1298 tests. `tsc`, `build`,
+  `roadmap:check`, `git diff --check` clean.
+- Dev installed at `0.2.0-alpha.26`, binary `0966c1121fea161f`.
+
+### Declared limits
+
+- `Nothing to compact (session too small)` is Pi's other benign refusal and is **not** recognised as
+  benign here. Its condition is Pi's own size threshold from its compaction settings, which the
+  Desktop does not read, so claiming to know it would be a guess. It remains a dismissable failure.
+- The notice is still session-local React state. Durability across restart is a separate decision.
+- TypeScript matches one string across the native boundary: the `Pi refused to compact:` prefix our
+  own Rust constructs. It is our contract rather than Pi's prose, and it is pinned by a Rust test,
+  but it is a coupling worth naming.

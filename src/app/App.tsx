@@ -160,7 +160,8 @@ import {
   segmentProjectionsTouchedByCompaction,
 } from "../domain/compactionChapters";
 import { compactJourneySession } from "./compactionStorage";
-import { compactionNoticeLifecycle } from "./compactionNoticeLifecycle";
+import { classifyCompactionRefusal, compactionNoticeLifecycle } from "./compactionNoticeLifecycle";
+import { manualCompactionAvailability } from "./manualCompactionAvailability";
 import { CompactionNotice } from "./CompactionNotice";
 import { ComposerContextMenu } from "./ComposerContextMenu";
 import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
@@ -639,9 +640,14 @@ export function App({ model }: AppProps) {
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const [compactingJourneyId, setCompactingJourneyId] = useState<string>();
+  // CR104: the branch state Pi refuses on, as the last inspection reported it. Cleared as
+  // soon as a turn is admitted, because a turn appends entries and the branch can no longer
+  // end in a compaction. Undefined means unknown, which never forbids the action.
+  const [compactedLeaf, setCompactedLeaf] = useState<{ journeyId: string; leafIsCompaction: boolean }>();
   const [compactionOperation, setCompactionOperation] = useState<{
     journeyId: string;
     operation: ProjectedRuntimeOperation;
+    nothingToDo?: true;
   }>();
   const [contextRefreshEpoch, setContextRefreshEpoch] = useState(0);
   const [contextRefreshAttempt, setContextRefreshAttempt] = useState(0);
@@ -1608,6 +1614,7 @@ export function App({ model }: AppProps) {
             classified.activeGeneration.piSessionFile,
           );
           restoredConversation = projectPiBackedConversationSurface(restoredConversation, inspection);
+          setCompactedLeaf({ journeyId: selectedJourney, leafIsCompaction: inspection.leafIsCompaction });
           setInactiveNativeAttempt(deriveInactiveNativeAttemptCandidate({
             journeyId: selectedJourney,
             threadId: classified.thread.threadId,
@@ -1778,7 +1785,10 @@ export function App({ model }: AppProps) {
 
   useEffect(() => {
     if (!compactionOperation) return;
-    if (compactionNoticeLifecycle(compactionOperation.operation.status) !== "transient") return;
+    if (compactionNoticeLifecycle({
+      status: compactionOperation.operation.status,
+      nothingToDo: compactionOperation.nothingToDo,
+    }) !== "transient") return;
     const scheduled = compactionOperation;
     return scheduleTransientComposerNotice(() => {
       setCompactionOperation((current) => (current === scheduled ? undefined : current));
@@ -2623,6 +2633,7 @@ export function App({ model }: AppProps) {
       setPiInvocationOccupancy((current) => retainExpectedPiInvocationLease(current, invocationAuthority));
     }
     setUnsentDraftNotices((current) => clearUnsentDraft(current, ownerJourneyId));
+    setCompactedLeaf((current) => (current?.journeyId === ownerJourneyId ? undefined : current));
     dispatchJourneyFinishedAttention({ type: "run_started", journeyId: ownerJourneyId });
     dispatchJourneyRuntime({
       type: "register",
@@ -4398,6 +4409,7 @@ export function App({ model }: AppProps) {
           authority.sessionFile,
         );
         const reprojected = projectPiBackedConversationSurface(conversationRef.current, inspection);
+        setCompactedLeaf({ journeyId: authority.journeyId, leafIsCompaction: inspection.leafIsCompaction });
         // CR079: the cached usage described the conversation before the cut, but the compaction
         // reports what it left behind. Spending that estimate keeps a reading on screen at the
         // moment the Navigator just acted on the context, instead of blanking it until the next
@@ -4449,6 +4461,25 @@ export function App({ model }: AppProps) {
         at: Date.now(),
       });
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // CR104: Pi refuses before calling any model when the branch already ends in a
+      // compaction. Read the branch now rather than trusting a possibly stale flag, so the
+      // refusal is corroborated against the same condition Pi used at the same moment.
+      let leafIsCompaction: boolean | undefined;
+      try {
+        const inspection = await inspectDedicatedPiTranscript(
+          authority.journeyId,
+          authority.threadId,
+          authority.generation,
+          authority.sessionId,
+          authority.sessionFile,
+        );
+        leafIsCompaction = inspection.leafIsCompaction;
+        setCompactedLeaf({ journeyId: authority.journeyId, leafIsCompaction });
+      } catch {
+        // An unreadable branch cannot confirm anything, so the refusal stays a failure.
+      }
+      const nothingToDo = classifyCompactionRefusal(message, leafIsCompaction) === "nothing_to_do";
       setCompactionOperation({
         journeyId: authority.journeyId,
         operation: {
@@ -4457,9 +4488,12 @@ export function App({ model }: AppProps) {
           name: "Context compaction",
           status: "failed",
           arguments: { reason: "manual" },
-          output: error instanceof Error ? error.message : String(error),
-          isError: true,
+          output: nothingToDo
+            ? "Already compacted. There is nothing new to close into a chapter."
+            : message,
+          isError: !nothingToDo,
         },
+        ...(nothingToDo ? { nothingToDo: true as const } : {}),
       });
     } finally {
       setCompactingJourneyId((current) => (current === authority.journeyId ? undefined : current));
@@ -5279,6 +5313,7 @@ export function App({ model }: AppProps) {
           {compactionOperation && compactionOperation.journeyId === selectedJourney ? (
             <CompactionNotice
               operation={compactionOperation.operation}
+              nothingToDo={compactionOperation.nothingToDo}
               onDismiss={() => setCompactionOperation(undefined)}
             />
           ) : null}
@@ -5342,11 +5377,14 @@ export function App({ model }: AppProps) {
                 contextMenuWrapRef={contextMenuRef}
                 contextMenu={contextMenuOpen ? (
                   <ComposerContextMenu
-                    canCompact={conversationAvailability.canSend && !effectiveProviderConfig.safeTestMode}
+                    {...manualCompactionAvailability({
+                      canSend: conversationAvailability.canSend,
+                      safeTestMode: effectiveProviderConfig.safeTestMode,
+                      leafIsCompaction: compactedLeaf?.journeyId === selectedJourney
+                        ? compactedLeaf.leafIsCompaction
+                        : undefined,
+                    })}
                     compacting={compactionInFlight}
-                    unavailableReason={effectiveProviderConfig.safeTestMode
-                      ? "Compaction is unavailable in safe test mode."
-                      : conversationAvailability.canSend ? undefined : "Available once the conversation is idle and ready to send."}
                     onCompactNow={() => { void compactSelectedConversationNow(); }}
                   />
                 ) : undefined}

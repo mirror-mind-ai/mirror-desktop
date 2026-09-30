@@ -70,6 +70,8 @@ export type DedicatedPiTranscriptInspection = {
   leafEntryId: string | null;
   activeEntryCount: number;
   compactionCount: number;
+  /** CR104: Pi refuses a manual compaction while the branch already ends in a compaction. */
+  leafIsCompaction: boolean;
   /** CR080: where each chapter closed, so the transcript can name the divider. */
   chapterClosures?: { firstKeptEntryId: string; summaryHead?: string | null; closedAt?: string | null }[];
   unknownPromptEnvelopeCount: number;

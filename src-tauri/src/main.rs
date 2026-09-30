@@ -352,6 +352,10 @@ struct DedicatedPiTranscriptInspection {
     leaf_entry_id: Option<String>,
     active_entry_count: usize,
     compaction_count: usize,
+    // CR104: Pi refuses a manual compaction when the branch already ends in a compaction
+    // entry. Its own condition is structural, so it is reported here rather than inferred
+    // from the wording of a refusal.
+    leaf_is_compaction: bool,
     // CR080: where each chapter closed on this branch, in order.
     chapter_closures: Vec<PiChapterClosure>,
     unknown_prompt_envelope_count: usize,
@@ -4735,6 +4739,7 @@ fn inspect_complete_pi_transcript(content: &str) -> Result<DedicatedPiTranscript
         leaf_entry_id: branch.last().map(|entry| entry.id.clone()),
         active_entry_count: branch.len(),
         compaction_count: branch.iter().filter(|entry| entry.entry_type == "compaction").count(),
+        leaf_is_compaction: branch.last().is_some_and(|entry| entry.entry_type == "compaction"),
         chapter_closures: branch.iter()
             .filter(|entry| entry.entry_type == "compaction")
             .filter_map(|entry| Some(PiChapterClosure {
@@ -9503,6 +9508,34 @@ mod tests {
         }]);
         // The compaction itself is still not a transcript entry; only the divider evidence.
         assert!(inspection.entries.iter().all(|entry| entry.entry_id != "compact-1"));
+    }
+
+    #[test]
+    fn reports_whether_the_branch_already_ends_in_a_compaction() {
+        // CR104: Pi refuses a manual compaction with "Already compacted" when the last entry
+        // of the active branch is a compaction entry. That predicate is structural, so the
+        // Desktop derives it from the same session file rather than matching Pi's wording.
+        let base = [
+            r#"{"type":"session","version":3,"id":"leaf-session"}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-09-30T10:00:00Z","message":{"role":"user","content":"Question"}}"#,
+            r#"{"type":"message","id":"assistant-1","parentId":"user-1","timestamp":"2026-09-30T10:00:01Z","message":{"role":"assistant","content":[{"type":"text","text":"Answer"}],"stopReason":"stop"}}"#,
+        ].join("\n");
+        let compacted = format!(
+            "{}\n{}",
+            base,
+            r###"{"type":"compaction","id":"compact-1","parentId":"assistant-1","firstKeptEntryId":"assistant-1","timestamp":"2026-09-30T10:05:00Z","summary":"## Goal\nClosed."}"###,
+        );
+        let resumed = format!(
+            "{}\n{}",
+            compacted,
+            r#"{"type":"message","id":"user-2","parentId":"compact-1","timestamp":"2026-09-30T10:06:00Z","message":{"role":"user","content":"Next"}}"#,
+        );
+
+        assert!(inspect_complete_pi_transcript(&compacted).unwrap().leaf_is_compaction);
+        // A single entry after the cut is enough for Pi to accept a compaction again, so the
+        // Desktop must stop claiming the session is already compacted at exactly that point.
+        assert!(!inspect_complete_pi_transcript(&resumed).unwrap().leaf_is_compaction);
+        assert!(!inspect_complete_pi_transcript(&base).unwrap().leaf_is_compaction);
     }
 
     #[test]

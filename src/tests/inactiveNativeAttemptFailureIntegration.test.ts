@@ -16,6 +16,7 @@ describe("failed native leaf restore integration", () => {
       leafEntryId: "assistant-error",
       activeEntryCount: 4,
       compactionCount: 0,
+      leafIsCompaction: false,
       unknownPromptEnvelopeCount: 0,
       incompleteUserEntryId: "user-admitted",
       entries: [
