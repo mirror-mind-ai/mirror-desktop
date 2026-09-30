@@ -302,3 +302,33 @@ mid-sentence records that sentence and nothing else.
 Local data note: the evidence stored by the 16:58 test still carries the over-wide fragment, so that
 one historical turn renders duplicated until it is replaced. This is stale Dev data rather than
 behaviour, and no released build ever wrote this field.
+
+## Observed Behaviour — 2026-09-30
+
+The Navigator reset the Journey context, producing generation 2 with a fresh Pi session, and
+cancelled again. Run `agent-run-2026-09-30T11:30:03.771Z` narrated and committed seven tool steps
+and was cancelled about 1.7 seconds after the last tool result, so once more between steps.
+
+Inspected against the durable data and projected through the production surface:
+
+- The stored evidence records `interruptedFragment: None`. This is the correction working: nothing
+  was lost, so nothing was preserved. The previous build would have stored all seven committed
+  comments and shown each of them twice.
+- All seven operations are recovered, each on its own restored message, with status `cancelled`.
+- All seven comments are marked as notes. None is promoted to an answer, which is correct because
+  the run never gave one.
+- Reasoning is recovered for the three steps whose provider exposed non-empty reasoning; the other
+  four carry an empty `thinking` string and correctly yield none.
+
+What this confirms is the absence of false positives: no duplication, and no fragment invented for a
+turn that lost nothing. **The mid-sentence case is still unobserved end to end.** Every cancellation
+produced since the fragment landed happened between steps, so a real unfinished sentence surviving a
+reload has not yet been seen in the app. That is the remaining validation for Phase 2.
+
+Residual, unchanged: for an interrupted turn the live evidence stays keyed to the harness assistant
+message id and becomes unreachable after reprojection, so its richer aggregate projection is unused
+while the per-message reconstruction carries the surface. The reconstruction is equal or better per
+message, so this is recorded rather than treated as a defect.
+
+Local data note repeated: the generation-1 evidence written by the 16:58 test on 2026-09-29 still
+carries the over-wide fragment and will render duplicated on that one historical turn.
