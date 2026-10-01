@@ -24,8 +24,12 @@ export function JourneyAgentStatusIndicator({ journeyName, status, placement }: 
       title={copy.title}
     >
       {status === "finished" ? (
+        /* CR106: a filled disc with the check knocked out of it. The shape, not only the colour,
+           separates completion from Working and Finishing — which matters because the accent the
+           Navigator chooses can itself be green. */
         <svg viewBox="0 0 20 20" aria-hidden="true">
-          <path d="m5.25 10.25 3 3 6.5-6.5" />
+          <circle className="journey-agent-status-disc" cx="10" cy="10" r="9" />
+          <path className="journey-agent-status-check" d="m5.75 10.4 2.7 2.7 5.8-5.8" />
         </svg>
       ) : (
         <span className="journey-agent-status-core" aria-hidden="true" />

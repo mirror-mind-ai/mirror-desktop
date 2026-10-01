@@ -4787,6 +4787,7 @@ export function App({ model }: AppProps) {
                   agentStatusLabel={!pinnedOnly && journeyListOrder === "recent" && !sidebarCompact && agentStatus !== "idle"
                     ? journeyAgentStatusLabel(agentStatus)
                     : undefined}
+                  agentStatusKind={agentStatus}
                   pinned={journey.pinned}
                 />
                 <JourneyAgentStatusIndicator journeyName={journey.name} status={agentStatus} placement="sidebar" />

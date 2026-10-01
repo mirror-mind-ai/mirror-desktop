@@ -1,9 +1,13 @@
+import type { JourneyAgentStatus } from "./journeyAgentStatus";
+
 type JourneyItemCopyProps = {
   layout: "card" | "tree";
   journeyName: string;
   description: string;
   lastWorkedLabel?: string;
   agentStatusLabel?: string;
+  /** CR106: lets the label carry the same register as its icon, so Ready reads as completion. */
+  agentStatusKind?: JourneyAgentStatus;
   pinned?: boolean;
 };
 
@@ -13,6 +17,7 @@ export function JourneyItemCopy({
   description,
   lastWorkedLabel,
   agentStatusLabel,
+  agentStatusKind,
   pinned = false,
 }: JourneyItemCopyProps) {
   const content = (
@@ -23,7 +28,7 @@ export function JourneyItemCopy({
       </strong>
       <small className="journey-context">{description}</small>
       {agentStatusLabel || lastWorkedLabel ? (
-        <small className={`journey-last-worked${agentStatusLabel ? " agent-status" : ""}`}>
+        <small className={`journey-last-worked${agentStatusLabel ? " agent-status" : ""}${agentStatusLabel && agentStatusKind ? ` ${agentStatusKind}` : ""}`}>
           {agentStatusLabel ?? lastWorkedLabel}
         </small>
       ) : null}

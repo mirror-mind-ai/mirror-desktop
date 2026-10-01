@@ -1,6 +1,13 @@
 :root {
   --ui-accent: #85dfd2;
   --ui-accent-rgb: 133, 223, 210;
+  /* CR106: completion owns a register the accent cannot claim. The accent is Navigator-chosen and
+     includes green palettes (accent-green, the Forest theme), so Ready borrowing it was exactly
+     what made completion unreadable. Measured 10.7:1 against the darkest shell surfaces. */
+  --ui-success: #3ddc84;
+  --ui-success-rgb: 61, 220, 132;
+  /* The check is knocked out of a bright disc, so its ink is dark: white would reach only 1.8:1. */
+  --ui-success-on: #07130c;
   color: #e8f4f8;
   background: #0b0d0e;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
@@ -210,6 +217,19 @@ textarea {
   --light-border: rgba(48, 42, 32, 0.18);
   --light-soft-border: rgba(48, 42, 32, 0.11);
   --light-shadow: rgba(48, 42, 32, 0.16);
+}
+
+/* CR106 light completion register. The bright disc that reads at 10.7:1 on a dark shell falls to
+   1.8:1 on white, so the light families invert the pair: a deep green disc at 5.4:1 on white with
+   the check knocked out in the surface colour. */
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) {
+  --ui-success: #0b7a3e;
+  --ui-success-rgb: 11, 122, 62;
+  --ui-success-on: #ffffff;
 }
 
 .app-shell.channel-development[data-application-theme="channel"] .journey-sidebar {
@@ -1051,6 +1071,11 @@ textarea {
   text-transform: uppercase;
 }
 
+/* CR106: the word READY belongs to the same register as its icon. */
+.journey-last-worked.agent-status.finished {
+  color: var(--ui-success);
+}
+
 .journey-item.card-node .journey-agent-status {
   align-self: start;
   grid-area: status;
@@ -1245,20 +1270,32 @@ textarea {
   color: color-mix(in srgb, var(--accent) 68%, #ffffff);
 }
 
+/* CR106: Ready is painted from the completion register, never from the accent, and the halo the
+   Navigator asked for carries the same colour outward. One arrival, not a loop: Ready is transient,
+   so a repeating signal would nag instead of inform. */
 .journey-agent-status.finished {
-  background: color-mix(in srgb, var(--accent) 17%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 62%, rgba(255, 255, 255, 0.12));
-  color: var(--accent);
+  animation: journey-agent-finished-arrival 620ms ease-out 1;
+  background: color-mix(in srgb, var(--ui-success) 15%, transparent);
+  border-color: color-mix(in srgb, var(--ui-success) 58%, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-success) 17%, transparent);
+  color: var(--ui-success);
 }
 
 .journey-agent-status.finished svg {
-  fill: none;
   height: 17px;
-  stroke: currentColor;
+  width: 17px;
+}
+
+.journey-agent-status-disc {
+  fill: var(--ui-success);
+}
+
+.journey-agent-status-check {
+  fill: none;
+  stroke: var(--ui-success-on);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2;
-  width: 17px;
+  stroke-width: 2.2;
 }
 
 .journey-agent-status.placement-header {
@@ -1309,10 +1346,23 @@ textarea {
   50% { opacity: 0.55; }
 }
 
+/* CR106: completion announces itself once — the halo swells and settles. */
+@keyframes journey-agent-finished-arrival {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ui-success) 42%, transparent);
+    transform: scale(0.82);
+  }
+  55% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--ui-success) 22%, transparent);
+    transform: scale(1.06);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .journey-agent-status.working,
   .journey-agent-status.working .journey-agent-status-core,
-  .journey-agent-status.finishing {
+  .journey-agent-status.finishing,
+  .journey-agent-status.finished {
     animation: none;
   }
 }
@@ -4816,6 +4866,12 @@ dd {
   width: 12px;
 }
 
+/* CR106: the compact badge overlaps the Journey icon, so the halo is tightened there rather than
+   crowding the tile. */
+.sidebar-compact .journey-agent-status.placement-sidebar.finished {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-success) 20%, transparent);
+}
+
 .sidebar-compact .journey-item.card-node:focus-visible,
 .sidebar-compact .journey-item.tree-node:focus-visible {
   border-color: var(--accent);
@@ -7319,10 +7375,23 @@ dd {
   [data-application-theme="daylight"],
   [data-application-theme="mist"],
   [data-application-theme="parchment"]
-) .journey-agent-status:is(.working, .finishing, .finished) {
+) .journey-agent-status:is(.working, .finishing) {
   background: color-mix(in srgb, var(--accent) 10%, var(--light-surface));
   border-color: color-mix(in srgb, var(--accent) 48%, var(--light-border));
   color: color-mix(in srgb, var(--accent) 76%, var(--light-text));
+}
+
+/* CR106 light Ready contract. The grouped rule above gave Working, Finishing and Ready one colour
+   by construction, so completion could never be read on a light theme. */
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .journey-agent-status.finished {
+  background: color-mix(in srgb, var(--ui-success) 12%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-success) 52%, var(--light-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-success) 15%, transparent);
+  color: var(--ui-success);
 }
 
 /* Channel-local user avatar contract. */
