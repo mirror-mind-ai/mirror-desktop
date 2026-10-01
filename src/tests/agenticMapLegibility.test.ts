@@ -60,17 +60,32 @@ function token(blockMarker: string, name: string): Rgb {
 
 const SHELL = parseHex("#0b0d0e");
 /**
- * The Artifacts panel is a gradient over the shell. Its tinted end is the lighter of the two,
- * so that is where a marker has the least contrast to work with and where the floor is set.
+ * The panel is a gradient over the shell. Its tinted end is the lighter of the two, so that is
+ * where a marker has the least contrast to work with and where the floor is set.
  */
 const PANEL_WORST = over(parseHex("#71e0d0"), 0.075, SHELL);
 
-const MARKER_BLOCK = ".operational-artifacts-workspace {\n  --presence-available";
+/**
+ * Both ends of the panel gradient for every light family: `--light-surface` then
+ * `--light-raised`. The darker end is where a light-theme marker is least readable.
+ */
+const LIGHT_PANELS: Record<string, Rgb[]> = {
+  daylight: [parseHex("#ffffff"), parseHex("#f0f2f5")],
+  mist: [parseHex("#ffffff"), parseHex("#edf3f8")],
+  parchment: [parseHex("#fffdf7"), parseHex("#f4eddc")],
+};
 
-describe("Agentic Map presence legibility", () => {
+const MARKER_BLOCK = ".operational-artifacts-workspace {\n  --presence-available";
+const LIGHT_MARKER_BLOCK = ") .operational-artifacts-workspace {\n  --presence-available";
+
+describe("Agentic Field presence legibility", () => {
   const available = token(MARKER_BLOCK, "--presence-available");
   const seen = token(MARKER_BLOCK, "--presence-seen");
   const present = token(MARKER_BLOCK, "--presence-present");
+
+  const lightAvailable = token(LIGHT_MARKER_BLOCK, "--presence-available");
+  const lightSeen = token(LIGHT_MARKER_BLOCK, "--presence-seen");
+  const lightPresent = token(LIGHT_MARKER_BLOCK, "--presence-present");
 
   it("each presence marker is readable against the panel it sits on", () => {
     expect(contrast(available, PANEL_WORST)).toBeGreaterThanOrEqual(4.5);
@@ -78,15 +93,51 @@ describe("Agentic Map presence legibility", () => {
     expect(contrast(present, PANEL_WORST)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("the ramp rises, so presence reads as accumulating evidence", () => {
+  it("every light family keeps all three markers readable at both ends of its panel", () => {
+    for (const [family, surfaces] of Object.entries(LIGHT_PANELS)) {
+      for (const surface of surfaces) {
+        for (const [name, colour] of [["available", lightAvailable], ["seen", lightSeen], ["present", lightPresent]] as const) {
+          expect(
+            contrast(colour, surface),
+            `${name} on ${family}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
+  });
+
+  it("the ramp runs towards the ink the theme reserves for emphasis, in both directions", () => {
+    // Dark field: evidence accumulates as light. Light field: as ink. Porting one to the other
+    // put the strongest state next to the surface, which is how the names disappeared.
     expect(relativeLuminance(available)).toBeLessThan(relativeLuminance(seen));
     expect(relativeLuminance(seen)).toBeLessThan(relativeLuminance(present));
+    expect(relativeLuminance(lightAvailable)).toBeGreaterThan(relativeLuminance(lightSeen));
+    expect(relativeLuminance(lightSeen)).toBeGreaterThan(relativeLuminance(lightPresent));
   });
 
   it("neighbouring states are perceptually separable, not merely different values", () => {
-    expect(perceptualDistance(available, seen)).toBeGreaterThan(12);
-    expect(perceptualDistance(seen, present)).toBeGreaterThan(12);
-    expect(perceptualDistance(available, present)).toBeGreaterThan(25);
+    for (const [low, mid, high] of [[available, seen, present], [lightAvailable, lightSeen, lightPresent]]) {
+      expect(perceptualDistance(low, mid)).toBeGreaterThan(12);
+      expect(perceptualDistance(mid, high)).toBeGreaterThan(12);
+      expect(perceptualDistance(low, high)).toBeGreaterThan(25);
+    }
+  });
+
+  it("only a presence marker is coloured by the presence ramp; text has its own tokens", () => {
+    const start = cssSource.indexOf(".context-presence-marker {");
+    const end = cssSource.indexOf(".artifact-tree-reloading {", start);
+    const block = cssSource.slice(start, end);
+
+    for (const rule of block.split("}")) {
+      if (!rule.includes("color: var(--presence-")) continue;
+      const selector = rule.slice(0, rule.indexOf("{")).trim();
+      // The ramp ranks evidence. Anything that is not stating presence must read as text.
+      expect(selector, `${selector} should not borrow the presence ramp`).toContain("data-presence");
+    }
+
+    for (const token of ["--map-text", "--map-text-soft", "--map-text-muted", "--map-text-subject"]) {
+      expect(block).toContain(`var(${token})`);
+    }
   });
 
   it("shape carries the state, so meaning survives with no colour at all", () => {

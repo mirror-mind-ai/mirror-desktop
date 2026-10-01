@@ -4077,13 +4077,21 @@ button:disabled {
    progression of evidence, not unrelated categories, and a ramp cannot collide with the
    Navigator-chosen accent the way CR102 and CR106 found hues do.
 
-   Measured against the Artifacts panel background (#0b0d0e under the panel gradient, worst end
+   Measured against the panel background (#0b0d0e under the panel gradient, worst end
    rgb(18.6, 28.8, 28.6)): available 5.98:1, seen 9.94:1, present 15.37:1. Perceptual distance
-   between neighbouring states is 16.5 ΔE and 16.1 ΔE, and 32.7 ΔE across the full ramp. */
+   between neighbouring states is 16.5 ΔE and 16.1 ΔE, and 32.7 ΔE across the full ramp.
+
+   Presence tokens colour markers and the presence word only. Text uses its own tokens, because
+   a ramp built to rank evidence is not a text palette: reusing it made the territory names
+   disappear on the light families, where the brightest rung is the surface itself. */
 .operational-artifacts-workspace {
   --presence-available: #8a9ba1;
   --presence-seen: #b9c7cc;
   --presence-present: #e8f4f8;
+  --map-text: #e8f4f8;
+  --map-text-soft: #b9c7cc;
+  --map-text-muted: #71868c;
+  --map-text-subject: #9fd8d0;
 }
 
 .context-presence-marker {
@@ -4130,13 +4138,13 @@ button:disabled {
 }
 
 .agentic-map-subject {
-  color: #9fd8d0;
+  color: var(--map-text-subject);
   font-size: 0.78rem;
   margin: 0;
 }
 
 .agentic-map-counts {
-  color: var(--presence-seen);
+  color: var(--map-text-soft);
   display: flex;
   flex-wrap: wrap;
   font-size: 0.74rem;
@@ -4152,7 +4160,7 @@ button:disabled {
 
 .agentic-map-blind-spot,
 .agentic-map-elsewhere {
-  color: #71868c;
+  color: var(--map-text-muted);
   font-size: 0.7rem;
   margin: 6px 0 0;
 }
@@ -4164,13 +4172,13 @@ button:disabled {
 }
 
 .agentic-map-field-state {
-  color: #71868c;
+  color: var(--map-text-muted);
   font-size: 0.74rem;
   margin: 0;
 }
 
 .agentic-map-field-state strong {
-  color: var(--presence-seen);
+  color: var(--map-text);
   display: block;
   font-size: 0.78rem;
 }
@@ -4189,7 +4197,7 @@ button:disabled {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 9px;
-  color: var(--presence-seen);
+  color: var(--map-text);
   cursor: pointer;
   display: flex;
   gap: 9px;
@@ -4210,7 +4218,7 @@ button:disabled {
 .agentic-map-territory.selected button {
   background: rgba(var(--ui-accent-rgb), 0.12);
   border-color: rgba(var(--ui-accent-rgb), 0.34);
-  color: var(--presence-present);
+  color: var(--map-text);
 }
 
 .agentic-map-territory-name {
@@ -4219,7 +4227,7 @@ button:disabled {
 }
 
 .agentic-map-territory-detail {
-  color: #71868c;
+  color: var(--map-text-muted);
   font-size: 0.7rem;
   margin-left: auto;
 }
@@ -4235,15 +4243,14 @@ button:disabled {
 
 .agentic-map-legend li {
   align-items: center;
-  color: #8a9ba1;
+  color: var(--map-text-soft);
   display: flex;
   font-size: 0.69rem;
   gap: 7px;
 }
 
 .agentic-map-legend-detail {
-  color: #71868c;
-  opacity: 0.85;
+  color: var(--map-text-muted);
 }
 
 .admission-panel {
@@ -4260,7 +4267,7 @@ button:disabled {
 
 .admission-panel-state {
   align-items: center;
-  color: var(--presence-present);
+  color: var(--map-text);
   display: flex;
   font-size: 0.8rem;
   font-weight: 620;
@@ -4285,7 +4292,7 @@ button:disabled {
 }
 
 .admission-panel-facts dt {
-  color: #71868c;
+  color: var(--map-text-muted);
   font-size: 0.65rem;
   font-weight: 680;
   letter-spacing: 0.09em;
@@ -4293,7 +4300,7 @@ button:disabled {
 }
 
 .admission-panel-facts dd {
-  color: var(--presence-seen);
+  color: var(--map-text);
   font-size: 0.78rem;
   margin: 0;
 }
@@ -4304,13 +4311,13 @@ button:disabled {
 }
 
 .agentic-map-page-subject {
-  color: #9fd8d0;
+  color: var(--map-text-subject);
   font-size: 0.76rem;
   margin: 0 0 12px;
 }
 
 .agentic-map-briefing-text {
-  color: var(--presence-seen);
+  color: var(--map-text);
   font-size: 0.84rem;
   line-height: 1.55;
   margin: 0 0 14px;
@@ -4318,7 +4325,7 @@ button:disabled {
 
 .agentic-map-page-note,
 .agentic-map-page-empty {
-  color: #71868c;
+  color: var(--map-text-muted);
   font-size: 0.72rem;
   line-height: 1.5;
   margin: 12px 0 0;
@@ -4349,7 +4356,7 @@ button:disabled {
 .agentic-map-chapter-title,
 .agentic-map-source-name,
 .agentic-map-instruction-name {
-  color: var(--presence-present);
+  color: var(--map-text);
   font-size: 0.8rem;
   font-weight: 620;
 }
@@ -4357,7 +4364,7 @@ button:disabled {
 .agentic-map-source-state {
   border: 1px solid rgba(113, 224, 208, 0.26);
   border-radius: 999px;
-  color: var(--presence-seen);
+  color: var(--map-text-soft);
   font-size: 0.66rem;
   font-weight: 680;
   letter-spacing: 0.06em;
@@ -4366,7 +4373,7 @@ button:disabled {
 }
 
 .agentic-map-source[data-state="referenced"] .agentic-map-source-state {
-  color: var(--presence-available);
+  color: var(--map-text-muted);
 }
 
 .agentic-map-chapter-moment,
@@ -4374,7 +4381,7 @@ button:disabled {
 .agentic-map-source-moment,
 .agentic-map-instruction-scope,
 .agentic-map-instruction-moment {
-  color: #71868c;
+  color: var(--map-text-muted);
   font-size: 0.7rem;
 }
 
@@ -6547,6 +6554,62 @@ dd {
 ) :where(.operational-artifacts-browser, .operational-artifact-document-viewer) {
   background: linear-gradient(160deg, var(--light-surface), var(--light-raised));
   border-color: color-mix(in srgb, var(--ui-accent) 20%, var(--light-border));
+}
+
+/* CR105 light presence register. The dark ramp rises towards light because evidence accumulates
+   as ink on a dark field; on a light field the same idea runs the other way, so the ramp inverts
+   rather than being tinted. A direct port left the brightest rung — present now — one step from
+   the surface itself, which is how the territory names vanished on Daylight.
+
+   Measured across all three light families, at both ends of the panel gradient, worst case
+   (Parchment's raised end, #f4eddc): available 5.06:1, seen 7.73:1, present 15.21:1. Perceptual
+   distance is 16.4 ΔE and 20.0 ΔE between neighbours, 36.3 ΔE across the ramp. Text follows the
+   family's own tokens so each light theme keeps its register. */
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .operational-artifacts-workspace {
+  --presence-available: #596577;
+  --presence-seen: #333f4d;
+  --presence-present: #0d1420;
+  --map-text: var(--light-text);
+  --map-text-soft: var(--light-text);
+  --map-text-muted: var(--light-muted);
+  --map-text-subject: var(--light-muted);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.agentic-map-header, .agentic-map-field) {
+  border-color: var(--light-soft-border);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .admission-panel {
+  background: var(--light-raised);
+  border-color: var(--light-soft-border);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .agentic-map-source-state {
+  border-color: var(--light-border);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) :where(.agentic-map-chapter-list li, .agentic-map-source, .agentic-map-instruction) {
+  border-bottom-color: var(--light-soft-border);
 }
 
 .app-shell:is(

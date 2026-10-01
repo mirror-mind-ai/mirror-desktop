@@ -10,7 +10,9 @@ type OperationalWorkspaceSwitcherProps = {
 
 const operationalSurfaces = [
   { id: "chat", label: "Conversation", icon: "◌", iconName: "conversation" },
-  { id: "artifacts", label: "Artifacts", icon: "▱", iconName: "artifacts" },
+  // CR105: the surface stopped being a list of artifacts and became the agent's field of
+  // perception. The id stays `artifacts` because it is persisted selection state, not a label.
+  { id: "artifacts", label: "Agent’s Field", icon: "▱", iconName: "artifacts" },
   { id: "ariad", label: "Ariad", icon: "△", iconName: "ariad" },
 ] as const satisfies readonly {
   id: OperationalSurface;

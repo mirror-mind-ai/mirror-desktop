@@ -5,7 +5,7 @@ import appSource from "../app/App.tsx?raw";
 import documentationBrowserSource from "../app/JourneyDocumentationBrowser.tsx?raw";
 
 describe("Operational Journey workspace", () => {
-  it("shows only functional Conversation and Artifacts controls", () => {
+  it("shows only functional Conversation and Agent’s Field controls", () => {
     const html = renderToStaticMarkup(
       <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} />,
     );
@@ -13,7 +13,10 @@ describe("Operational Journey workspace", () => {
     expect(html).toContain('aria-label="Operational workspace"');
     expect(html.match(/role="tab"/g)).toHaveLength(2);
     expect(html).toContain("Conversation");
-    expect(html).toContain("Artifacts");
+    // CR105: the surface is the agent's field of perception, not an artifact list. The id stays
+    // `artifacts` because it is persisted selection state.
+    expect(html).toContain("Agent\u2019s Field");
+    expect(html).not.toContain(">Artifacts<");
     expect(html).not.toContain("Ariad");
     expect(html).not.toContain(">Chat<");
     expect(html.match(/aria-selected="true"/g)).toHaveLength(1);
@@ -33,7 +36,7 @@ describe("Operational Journey workspace", () => {
     expect(html).toContain('aria-disabled="true"');
   });
 
-  it("wires Artifacts to the selected Journey documentation boundary", () => {
+  it("wires the Agent’s Field to the selected Journey documentation boundary", () => {
     expect(appSource).toContain("<JourneyDocumentationBrowser");
     expect(appSource).toContain("journeyId={selectedJourneyItem.id}");
     expect(appSource).toContain("journeyName={selectedJourneyItem.name}");

@@ -121,11 +121,11 @@ function render(overrides: Partial<Parameters<typeof JourneyDocumentationSurface
   );
 }
 
-describe("Agentic Map", () => {
+describe("Agentic Field", () => {
   it("names itself as a partial context of the active Conversation and states its blind spot", () => {
     const markup = render();
 
-    expect(markup).toContain("Agentic Map");
+    expect(markup).toContain("Agentic Field");
     expect(markup).toContain("CR105 scope");
     expect(markup).toContain("1 item evidenced present now");
     expect(markup).toContain("1 more seen in this Conversation");
@@ -177,12 +177,26 @@ describe("Agentic Map", () => {
   it("lists the four contextual territories beside the workspace", () => {
     const markup = render();
 
-    expect(markup).toContain("Agent&#x27;s field");
+    expect(markup).toContain("Context territories");
     expect(markup).toContain("Journey briefing");
     expect(markup).toContain("Active Conversation");
     expect(markup).toContain("Sources");
     expect(markup).toContain("Instructions");
     expect(markup).toContain("1 of 2 read");
+  });
+
+  // The tab is already named Agent's Field, so repeating it on the cards inside it says nothing.
+  it("names each card for what it holds rather than repeating the tab", () => {
+    const list = render();
+    const page = render({ selectedTerritory: "briefing" });
+
+    expect(list).toContain("Context territories");
+    expect(list).toContain("Workspace structure");
+    expect(page).toContain("Context detail");
+    for (const markup of [list, page]) {
+      expect(markup).not.toContain("Agent&#x27;s field");
+      expect(markup).not.toContain("Agent&#x27;s Field");
+    }
   });
 
   it("declares the briefing as available through Mirror and never as admitted", () => {

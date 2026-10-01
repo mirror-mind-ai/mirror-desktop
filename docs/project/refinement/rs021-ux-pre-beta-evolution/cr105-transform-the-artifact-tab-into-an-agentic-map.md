@@ -125,5 +125,58 @@ Conversation surface; a very long session pays that read once when the tab's aut
 - `npx tsc --noEmit`: clean.
 - `cargo test` in `src-tauri`: 231 passed, 3 ignored. No Rust change was needed.
 - `npm run roadmap:check`: READY.
-- **Not yet done:** Navigator validation on a real Conversation with at least one compaction. This
-  CR stays `in_progress` until that evidence is recorded here.
+
+## Navigator Validation (2026-10-01)
+
+Run on the development channel against the `builder-mode-evolution` Journey, whose active
+generation is the only dev Conversation carrying a compaction (43 entries, retained tail
+`f5b3d2aa` at message 27, six successful reads either side of it). Predictions were derived from
+the session file before the walkthrough, so a mismatch would have been a finding.
+
+| Step | Subject | Result |
+|---|---|---|
+| 1 | Counts and markers under compaction | Validated. Predicted 2 present now, 3 more seen, 1 of 5 reads outside the workspace, four markers on the tree |
+| 2 | Admission panel and chapter label | Validated. `Read during chapter “Understand and continue the \`builder-mode-evolution\` Journey, especially CV20 Builder Mode Evolution, current DS12 hand…”` |
+| 3 | Artifact with no evidence | Validated |
+| 4 | Conversation with no compaction | Validated |
+| 5 | The four territories | Validated |
+| 6 | Attachment: referenced against read | Validated, with two images attached and only one read |
+| 7 | Light theme and contrast | **Failed.** Several labels unreadable on the light families |
+
+### Defect found at step 7, and repaired
+
+The presence ramp was built and measured on the dark shell only, and two mistakes followed from
+that. The ramp was ported to the light families unchanged, so its strongest rung — present now,
+`#e8f4f8` — sat one step from a white surface. And the ramp was being used as a text palette, so
+the territory names, the counts, the source names and the admission panel values inherited it and
+vanished on Daylight.
+
+Both are now separated. `--presence-*` colours markers and the presence word; `--map-text*`
+colours reading, and on the light families it follows each theme's own `--light-text` and
+`--light-muted`. The ramp inverts rather than tinting, because evidence accumulates as light on a
+dark field and as ink on a light one.
+
+Light ramp, measured across all three light families at both ends of the panel gradient, worst
+case Parchment's raised end `#f4eddc`:
+
+| Marker | Token | Worst contrast | ΔE to neighbour |
+|---|---|---|---|
+| available | `#596577` | 5.06:1 | 16.4 to seen |
+| seen in this Conversation | `#333f4d` | 7.73:1 | 20.0 to present |
+| present now | `#0d1420` | 15.21:1 | 36.3 across the ramp |
+
+`src/tests/agenticMapLegibility.test.ts` now measures both registers from the shipped stylesheet,
+asserts the ramp runs towards emphasis in each direction, and fails if any rule outside a
+`data-presence` selector borrows the ramp for text.
+
+### Naming, by Navigator decision
+
+- The Operational tab is **Agent’s Field**, not Artifacts. The surface stopped being a list of
+  files. The surface id stays `artifacts` because it is persisted selection state, not a label.
+- The header reads **Agentic Field**, not Agentic Map.
+- The two cards no longer repeat the tab name. The left card is **Context territories** above
+  **Workspace structure**; the detail card is **Context detail**.
+
+### Remaining
+
+A re-check of step 7 on the light families after the repair. Everything else is validated.
