@@ -2,7 +2,7 @@
 
 # CR101: Restore Window Geometry
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr101-window-geometry`
 
