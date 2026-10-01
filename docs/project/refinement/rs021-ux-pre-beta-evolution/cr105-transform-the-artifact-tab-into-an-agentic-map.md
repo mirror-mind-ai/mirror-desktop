@@ -38,3 +38,25 @@ architecture or implementation.
 No autonomous file modification, no implicit indexing beyond existing authority, no claim that the
 map is a complete representation of the Journey, and no implementation before an explicit Explorer
 or Builder handoff establishes the map's user decisions.
+
+## Exploration Outcome (2026-10-01)
+
+The Explorer handoff that establishes the map's user decisions exists at
+[docs/project/explorations/cr105-agentic-map-of-admitted-context/](../../explorations/cr105-agentic-map-of-admitted-context/index.md).
+It resolves "map" as **a partial view of what effectively entered the agent's context**, not a
+representation of the Journey. The complete artifact tree stays as quiet relief; items the agent
+evidently read gain presence; every contextual item states how it entered.
+
+Measured constraints that bound the first slice:
+
+- The Journey briefing is not injected into Desktop turns. It is shown as available through
+  Mirror with admission not evidenced.
+- File reads are evidenced only by `read` tool calls. Shell reads are not detected and the surface
+  must say so.
+- Attachments are references until a matching `read` exists.
+- The compaction boundary (`firstKeptEntryId`) separates "seen in this Conversation" from
+  "present now".
+
+Implementation guidance, evidence inventory, slice plan and test plan are in
+[builder-orientation.md](../../explorations/cr105-agentic-map-of-admitted-context/builder-orientation.md).
+This CR remains `captured` until explicitly pulled.
