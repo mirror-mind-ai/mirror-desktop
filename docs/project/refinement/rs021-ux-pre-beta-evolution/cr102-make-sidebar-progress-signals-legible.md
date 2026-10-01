@@ -2,7 +2,7 @@
 
 # CR102: Make Sidebar Progress Signals Legible
 
-**Status:** captured
+**Status:** in_progress
 **Driver:** —
 **Delivery:** —
 
