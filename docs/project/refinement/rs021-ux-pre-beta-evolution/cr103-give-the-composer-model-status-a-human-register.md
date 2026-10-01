@@ -2,7 +2,7 @@
 
 # CR103: Give the Composer Model Status a Human Register
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr103-human-model-status`
 
@@ -164,6 +164,13 @@ The longer role words cost no legibility: `.composer-runtime-metadata` already h
   The footer and the badges therefore use different registers on purpose.
 - `deriveModelSelectionScope` keeps its logic untouched. Only the name of its result and the way it is
   read changed; no routing, selection or run authority was altered.
+
+## Closure — 2026-10-01
+
+The Navigator homologated the Dev build after checking the footer's revised human register,
+including the `with` connector between a matched Intent and its model. CR103 is closed: model
+identity remains inspectable, the live and pending configurations declare their respective turns,
+and no selection or run authority changed.
 
 ## Boundaries
 
