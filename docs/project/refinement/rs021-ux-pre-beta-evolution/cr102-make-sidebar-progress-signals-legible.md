@@ -146,6 +146,81 @@ Declared cost: one `list_turn_journal` call per Journey actually rendered in the
 on registry and selection change. That set is bounded by `visibleSidebarJourneys` — pinned, active
 and recent — not the whole registry.
 
+## Repair — 2026-10-01
+
+### Shape carries the state
+
+`JourneyAgentStatusIndicator` now renders a glyph per state: Idle an outline ring, Working a solid
+dot, Finishing a thick annulus, Ready the CR106 disc and check unchanged, Interrupted a disc with a
+bar, Failed a disc with a cross. A guardrail asserts no two states produce the same markup, which is
+what keeps colour and motion from quietly becoming the carrier again.
+
+### Two decisions changed from the direction above
+
+**Working and Finishing keep one colour register.** The direction said to split the light rule into
+two. Splitting it would have inflated a 1.15 lightness difference into something presented as
+information. They mean the same thing — the agent is busy — and their glyphs now say which phase, so
+they share the accent register deliberately. What changed instead is the weight: `76%` accent
+measured 2.29:1 at worst, under the floor; `50%` measures 3.97:1. Redundant coding is kept where the
+meaning differs in kind, across registers, rather than manufactured between two phases of one kind.
+
+**Failure is orange-red, not pink.** The first candidate measured 20 ΔE from the `rose` accent,
+which is close enough that a Navigator using rose would meet failure and ordinary activity in one
+hue. `#ff7043` sits 48 ΔE away. The guardrail measures every accent against both terminal registers,
+so this cannot regress when a palette is added.
+
+### Measuring the right thing
+
+The first version of the register guardrail used contrast ratio to ask whether two colours were
+distinct and failed a sound pair at 1.14. Contrast ratio compares lightness: a slate and a soft red
+can sit at the same luminance and still be unmistakable. The guardrail now converts to CIELAB and
+measures perceptual distance, and keeps contrast ratio for the question it does answer — whether a
+signal is visible against its own backdrop.
+
+### Registers, measured
+
+| Token | Dark | Light families |
+| --- | --- | --- |
+| `--ui-held` | `#a8b3bd`, disc 6.52:1, bar 8.54:1 | `#4b5563`, disc ≥ 6.21:1, ink 7.56:1 |
+| `--ui-danger` | `#ff7043`, disc 5.41:1, cross 7.07:1 | `#b42318`, disc ≥ 5.30:1, ink 6.57:1 |
+| Working / Finishing | unchanged accent | worst accent and family 3.97:1, was 2.29:1 |
+
+### Interruption and failure are read, never stored
+
+`deriveJourneyTurnOutcome` reads the Journey's latest journal record. A pre-terminal phase is a run
+that never settled, which is what a restart leaves behind, and `decideTurnJournalRecovery` already
+calls that an interruption — so the sidebar agrees with it rather than reporting nothing. `cancelled`
+reads as interrupted and `spawn_failed` / `process_died` as failed. Consulting only the latest record
+is what makes the signal self-clearing: a later run supersedes it with no acknowledgment state to
+keep, which the Boundaries require. An unreadable journal reports nothing, because a failed read is
+not evidence of a failed run.
+
+Live work and a fresh arrival both outrank a stored outcome, so a Journey never shows the previous
+run's failure while the agent is working or just after it finished cleanly.
+
+### The rail has a backdrop again
+
+The compact badge takes an opaque `--sidebar-surface` background, so its contrast is a known
+quantity over any custom Journey image rather than unmeasurable by construction.
+
+### Validation
+
+Gates: `tsc` clean, 207 files / 1383 TypeScript tests, `cargo test --locked` 231 passed, production
+build, `roadmap:check` READY, `git diff --check` clean.
+
+### Declared limits
+
+- A Journey whose last run failed or was interrupted shows that state in place of its last-worked
+  time until a new run settles. That is truthful, but it does occupy the line indefinitely.
+- Interruption and failure are per Journey, not per Conversation. A Journey with several threads
+  reports its latest record regardless of which thread produced it.
+- Ready still expires five seconds after it is acknowledged and does not survive a restart, by
+  CR106's decision. Only interruption and failure are durable.
+- The outcome is re-read when a visible Journey's runtime phase changes or the visible set changes.
+  A journal altered by something other than this app is not noticed until one of those happens.
+- Maximised legibility was measured against the three light families and the six accents that exist
+  today. A new accent or theme family has to clear the same floors, which the guardrails enforce.
+
 ## Boundaries
 
 No new notification ledger, no change to process or admission semantics, and no overloading of the

@@ -8,6 +8,17 @@
   --ui-success-rgb: 61, 220, 132;
   /* The check is knocked out of a bright disc, so its ink is dark: white would reach only 1.8:1. */
   --ui-success-on: #07130c;
+  /* CR102: interruption is held, not broken. The Navigator chose to stop, so it reads neutral
+     rather than alarming, and borrows neither the accent nor the danger register. Measured 6.52:1
+     against the badge, with the bar knocked out at 8.54:1. */
+  --ui-held: #a8b3bd;
+  --ui-held-on: #10161b;
+  /* Failure is the only state the app did not choose. It leans orange-red rather than pink on
+     purpose: a softer red measured only 20 ΔE from the rose accent, close enough that a Navigator
+     using rose would see failure and ordinary activity in one hue. This sits 48 ΔE away, and
+     measures 5.41:1 against the badge with the cross knocked out at 7.07:1. */
+  --ui-danger: #ff7043;
+  --ui-danger-on: #1a0808;
   color: #e8f4f8;
   background: #0b0d0e;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
@@ -230,6 +241,12 @@ textarea {
   --ui-success: #0b7a3e;
   --ui-success-rgb: 11, 122, 62;
   --ui-success-on: #ffffff;
+  /* CR102: the same inversion the success register needed. Measured 6.21:1 and 5.30:1 against the
+     badge on the worst of the three light families, with white ink at 7.56:1 and 6.57:1. */
+  --ui-held: #4b5563;
+  --ui-held-on: #ffffff;
+  --ui-danger: #b42318;
+  --ui-danger-on: #ffffff;
 }
 
 .app-shell.channel-development[data-application-theme="channel"] .journey-sidebar {
@@ -1076,6 +1093,15 @@ textarea {
   color: var(--ui-success);
 }
 
+/* CR102: the same rule for the two states that used to have no word at all. */
+.journey-last-worked.agent-status.interrupted {
+  color: var(--ui-held);
+}
+
+.journey-last-worked.agent-status.failed {
+  color: var(--ui-danger);
+}
+
 .journey-item.card-node .journey-agent-status {
   align-self: start;
   grid-area: status;
@@ -1245,11 +1271,26 @@ textarea {
   width: 28px;
 }
 
-.journey-agent-status-core {
-  background: currentColor;
-  border-radius: 999px;
-  height: 6px;
-  width: 6px;
+/* CR102: one glyph box for every state, so shape is what identifies them. */
+.journey-agent-status svg {
+  height: 17px;
+  width: 17px;
+}
+
+.journey-agent-status-ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+}
+
+.journey-agent-status-dot {
+  fill: currentColor;
+}
+
+.journey-agent-status-annulus {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 4.2;
 }
 
 .journey-agent-status.working {
@@ -1259,9 +1300,8 @@ textarea {
   color: var(--accent);
 }
 
-.journey-agent-status.working .journey-agent-status-core {
+.journey-agent-status.working .journey-agent-status-dot {
   animation: journey-agent-core-pulse 1.2s ease-in-out infinite;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .journey-agent-status.finishing {
@@ -1281,21 +1321,43 @@ textarea {
   color: var(--ui-success);
 }
 
-.journey-agent-status.finished svg {
-  height: 17px;
-  width: 17px;
-}
-
 .journey-agent-status-disc {
-  fill: var(--ui-success);
+  fill: currentColor;
 }
 
-.journey-agent-status-check {
+.journey-agent-status-check,
+.journey-agent-status-bar,
+.journey-agent-status-cross {
   fill: none;
-  stroke: var(--ui-success-on);
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2.2;
+}
+
+.journey-agent-status-check {
+  stroke: var(--ui-success-on);
+}
+
+/* CR102: interruption and failure are terminal like Ready, so they are built the same way — a disc
+   with the mark knocked out — and differ from it by register and by mark. */
+.journey-agent-status.interrupted {
+  background: color-mix(in srgb, var(--ui-held) 15%, transparent);
+  border-color: color-mix(in srgb, var(--ui-held) 52%, rgba(255, 255, 255, 0.12));
+  color: var(--ui-held);
+}
+
+.journey-agent-status-bar {
+  stroke: var(--ui-held-on);
+}
+
+.journey-agent-status.failed {
+  background: color-mix(in srgb, var(--ui-danger) 15%, transparent);
+  border-color: color-mix(in srgb, var(--ui-danger) 56%, rgba(255, 255, 255, 0.12));
+  color: var(--ui-danger);
+}
+
+.journey-agent-status-cross {
+  stroke: var(--ui-danger-on);
 }
 
 .journey-agent-status.placement-header {
@@ -1319,7 +1381,7 @@ textarea {
   width: 22px;
 }
 
-.journey-item.tree-node .journey-agent-status.finished svg {
+.journey-item.tree-node .journey-agent-status svg {
   height: 14px;
   width: 14px;
 }
@@ -1360,7 +1422,7 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .journey-agent-status.working,
-  .journey-agent-status.working .journey-agent-status-core,
+  .journey-agent-status.working .journey-agent-status-dot,
   .journey-agent-status.finishing,
   .journey-agent-status.finished {
     animation: none;
@@ -4858,7 +4920,12 @@ dd {
   box-shadow: none;
 }
 
+/* CR102: in the rail the badge sits on the Journey mark, which may be an arbitrary custom image.
+   A near-transparent background left the signal with no measurable backdrop at all, so here it
+   takes an opaque one from the sidebar surface and the contrast becomes a known quantity. */
 .sidebar-compact .journey-agent-status.placement-sidebar {
+  background: var(--sidebar-surface);
+  border-color: color-mix(in srgb, currentColor 46%, transparent);
   bottom: 1px;
   height: 17px;
   margin: 0;
@@ -4868,12 +4935,7 @@ dd {
   z-index: 2;
 }
 
-.sidebar-compact .journey-agent-status.placement-sidebar .journey-agent-status-core {
-  height: 4px;
-  width: 4px;
-}
-
-.sidebar-compact .journey-agent-status.placement-sidebar.finished svg {
+.sidebar-compact .journey-agent-status.placement-sidebar svg {
   height: 12px;
   width: 12px;
 }
@@ -7390,7 +7452,33 @@ dd {
 ) .journey-agent-status:is(.working, .finishing) {
   background: color-mix(in srgb, var(--accent) 10%, var(--light-surface));
   border-color: color-mix(in srgb, var(--accent) 48%, var(--light-border));
-  color: color-mix(in srgb, var(--accent) 76%, var(--light-text));
+  /* CR102: Working and Finishing deliberately share this register — both mean the agent is busy,
+     and their glyphs now say which phase. What had to change is the weight: at 76% accent the
+     worst accent and light family measured 2.29:1, under the 3:1 floor for a non-text element, so
+     the states reporting activity were less legible than Idle. At 50% the worst case is 3.97:1. */
+  color: color-mix(in srgb, var(--accent) 50%, var(--light-text));
+}
+
+/* CR102 light held and danger registers. Both discs are deep enough to carry white ink, matching
+   how CR106 inverted the success register for these families. */
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .journey-agent-status.interrupted {
+  background: color-mix(in srgb, var(--ui-held) 12%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-held) 52%, var(--light-border));
+  color: var(--ui-held);
+}
+
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .journey-agent-status.failed {
+  background: color-mix(in srgb, var(--ui-danger) 12%, var(--light-surface));
+  border-color: color-mix(in srgb, var(--ui-danger) 56%, var(--light-border));
+  color: var(--ui-danger);
 }
 
 /* CR106 light Ready contract. The grouped rule above gave Working, Finishing and Ready one colour

@@ -2,13 +2,28 @@ import type { JourneyRuntimeOwnerPhase } from "./journeyRuntimeState";
 
 export const JOURNEY_FINISHED_VISIBLE_MS = 5_000;
 
-export type JourneyAgentStatus = "idle" | "working" | "finishing" | "finished";
+export type JourneyAgentStatus =
+  | "idle"
+  | "working"
+  | "finishing"
+  | "finished"
+  | "interrupted"
+  | "failed";
+
+/**
+ * CR102: the two durable outcomes the sidebar used to swallow into Idle. They are kept apart
+ * because stopping is the Navigator's choice and failing is not, so they do not deserve the same
+ * register.
+ */
+export type JourneyTurnOutcome = "interrupted" | "failed";
 
 const journeyAgentStatusLabels: Record<JourneyAgentStatus, string> = {
   idle: "Idle",
   working: "Working",
   finishing: "Finishing",
   finished: "Ready",
+  interrupted: "Interrupted",
+  failed: "Failed",
 };
 
 export function journeyAgentStatusLabel(status: JourneyAgentStatus): string {
@@ -71,11 +86,17 @@ export function deriveJourneyAgentStatus(input: {
    * and a status that stayed idle would hide that work from the reader.
    */
   compacting?: boolean;
+  /**
+   * CR102: the previous run's durable outcome, read from the turn journal. It is reported last,
+   * because it describes what already happened: live work and a fresh arrival are both newer news.
+   */
+  turnOutcome?: JourneyTurnOutcome;
 }): JourneyAgentStatus {
   if (input.compacting) return "working";
   if (input.runtimePhase === "running") return "working";
   if (input.runtimePhase === "finalizing") return "finishing";
-  return input.finishedAttention ? "finished" : "idle";
+  if (input.finishedAttention) return "finished";
+  return input.turnOutcome ?? "idle";
 }
 
 export function nextFinishedAttentionDeadline(

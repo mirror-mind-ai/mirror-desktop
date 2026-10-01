@@ -41,13 +41,17 @@ describe("CR106 — Ready reads as completion", () => {
     expect(html).toContain(">Ready</span>");
   });
 
-  it("leaves Working, Finishing and Idle on their own core mark", () => {
+  // CR102 gave every state a glyph, so the quiet states are circles too. CR106's point survives
+  // intact and is what is asserted here: Ready is the only one built as a disc with a mark knocked
+  // out of it, so it is never green Working.
+  it("keeps Working, Finishing and Idle off the completion construction", () => {
     for (const status of ["idle", "working", "finishing"] as const) {
       const html = renderToStaticMarkup(
         <JourneyAgentStatusIndicator journeyName="Mirror Desktop" status={status} placement="sidebar" />,
       );
-      expect(html).toContain("journey-agent-status-core");
-      expect(html).not.toContain("<circle");
+      expect(html).not.toContain("journey-agent-status-disc");
+      expect(html).not.toContain("journey-agent-status-check");
+      expect(html).not.toContain("<path");
     }
   });
 });

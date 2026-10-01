@@ -247,6 +247,7 @@ import {
   journeyAgentStatusLabel,
   journeyFinishedAttentionReducer,
   nextFinishedAttentionDeadline,
+  type JourneyTurnOutcome,
 } from "./journeyAgentStatus";
 import { withCertifiedPersona } from "./conversationPresentation";
 import {
@@ -275,6 +276,7 @@ import {
   advanceTurnJournal,
   decideTurnJournalRecovery,
   decideTurnJournalTerminal,
+  deriveJourneyTurnOutcome,
   findBlockingTurnJournalRecord,
   findExactTurnJournalRecord,
   isTurnJournalSuccessorEligible,
@@ -833,6 +835,38 @@ export function App({ model }: AppProps) {
         : sidebarJourneys;
     return pinnedOnly ? orderPinnedJourneys(orderedJourneys, journeyPreferences.pinnedJourneyIds) : orderedJourneys;
   }, [collapsedJourneyIds, journeyListOrder, journeyPreferences.pinnedJourneyIds, journeySearch, pinnedOnly, searchResults, sidebarJourneys]);
+  /**
+   * CR102: interruption and failure for the Journeys the sidebar is actually showing. The journal
+   * is read rather than mirrored into new state, so the signal cannot drift from the authority that
+   * decides recovery, and it survives a restart because the journal does.
+   *
+   * The read is keyed by the visible Journeys and their runtime phases: when a run ends, its phase
+   * leaves `running`, the key changes, and that Journey's outcome is re-read. The cost is one
+   * `list_turn_journal` per Journey on screen — pinned, active and recent — not per Journey known.
+   */
+  const sidebarOutcomeKey = visibleSidebarJourneys
+    .map((journey) => `${journey.id}:${selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id) ?? "-"}`)
+    .join("|");
+  const [journeyTurnOutcomes, setJourneyTurnOutcomes] = useState<Record<string, JourneyTurnOutcome | undefined>>({});
+  useEffect(() => {
+    const journeyIds = sidebarOutcomeKey ? sidebarOutcomeKey.split("|").map((entry) => entry.split(":")[0]) : [];
+    if (journeyIds.length === 0) return;
+    let cancelled = false;
+    void Promise.all(journeyIds.map(async (journeyId) => {
+      try {
+        const journal = await loadTurnJournal(journeyId);
+        return [journeyId, deriveJourneyTurnOutcome(journal.records, journeyId)] as const;
+      } catch {
+        // An unreadable journal is not evidence of failure. Saying nothing is the honest answer.
+        return [journeyId, undefined] as const;
+      }
+    })).then((entries) => {
+      if (cancelled) return;
+      setJourneyTurnOutcomes(Object.fromEntries(entries));
+    });
+    return () => { cancelled = true; };
+  }, [sidebarOutcomeKey]);
+
   const selectedJourneyItem = findJourneyById(journeyRegistry, selectedJourney) ??
     sidebarJourneys[0] ?? {
       id: selectedJourney,
@@ -887,6 +921,7 @@ export function App({ model }: AppProps) {
     runtimePhase: selectJourneyRuntimeOwnerPhase(journeyRuntimeState, selectedJourney),
     finishedAttention: journeyFinishedAttention[selectedJourney],
     compacting: compactingJourneyId === selectedJourney,
+    turnOutcome: journeyTurnOutcomes[selectedJourney],
   });
   const {
     agentRun,
@@ -4705,6 +4740,7 @@ export function App({ model }: AppProps) {
               runtimePhase: runtimeOwnerPhase,
               finishedAttention: journeyFinishedAttention[journey.id],
               compacting: compactingJourneyId === journey.id,
+              turnOutcome: journeyTurnOutcomes[journey.id],
             });
             const journeyStateDescription = [
               agentStatus === "idle" ? undefined : agentStatus === "finished" ? "Agent finished" : `Agent ${agentStatus}`,

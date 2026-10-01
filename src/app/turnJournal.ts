@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { JourneySettlementAuthority } from "../domain/journeySettlementAuthority";
+import type { JourneyTurnOutcome } from "./journeyAgentStatus";
 
 export type TurnPhase = "admitted" | "running" | "terminal_durable" | "projected" | "outbox_enqueued" | "settled" | "interrupted";
 export type TurnTerminalOutcome = "completed" | "cancelled" | "spawn_failed" | "process_died";
@@ -72,6 +73,36 @@ export function providerTerminalFailureDetail(
     const failure = record.terminalEvidence?.providerFailure;
     if (!failure || !failure.message.trim()) return undefined;
     return failure.truncated ? `${failure.message}…` : failure.message;
+  }
+  return undefined;
+}
+
+/**
+ * CR102: the sidebar's interruption and failure signals, derived rather than stored. Only the
+ * Journey's latest record is consulted, which is what makes the signal self-clearing: a later run
+ * supersedes the previous outcome without any acknowledgment state to keep.
+ *
+ * A record still in a pre-terminal phase is a run that never settled, which is precisely what an
+ * app restart leaves behind. `decideTurnJournalRecovery` already calls that an interruption, so
+ * this agrees with it instead of reporting nothing.
+ */
+export function deriveJourneyTurnOutcome(
+  records: readonly TurnJournalRecord[],
+  journeyId: string,
+): JourneyTurnOutcome | undefined {
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    const record = records[index];
+    if (record.authority.journeyId !== journeyId) continue;
+    if (record.phase === "admitted" || record.phase === "running" || record.phase === "interrupted") {
+      return "interrupted";
+    }
+    if (record.terminalOutcome === "cancelled") return "interrupted";
+    if (record.terminalOutcome === "spawn_failed" || record.terminalOutcome === "process_died") {
+      return "failed";
+    }
+    // A completed run, or a durable phase carrying no outcome: nothing to report, and nothing to
+    // invent from the records behind it either.
+    return undefined;
   }
   return undefined;
 }
