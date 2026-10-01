@@ -64,32 +64,28 @@ This is the current UX-first order for the captured work. It is deliberately not
 order: each CR still begins with empirical characterisation, and no CR is pulled merely by being
 ranked here.
 
-1. **CR103 — Give the Composer Model Status a Human Register.** The footer is read continually but
-   currently merges state and raw provider identity into difficult operational notation. **Pulled.**
-2. **CR106 — Use Green for Ready Completion Signals.** A focused completion-colour correction:
-   `Ready` must become immediately legible without changing its semantics. **Done.**
-3. **CR101 — Restore Window Geometry.** Repeated relaunch friction matters, but it does not make an
-   existing action untruthful or block current work.
-4. **CR102 — Make Sidebar Progress Signals Legible.** The sidebar is the daily navigation surface;
+1. **CR101 — Restore Window Geometry.** Repeated relaunch friction matters, but it does not make an
+   existing action untruthful or block current work. **Pulled.**
+2. **CR102 — Make Sidebar Progress Signals Legible.** The sidebar is the daily navigation surface;
    progress must be reliably readable there.
-5. **CR105 — Transform the Artifact Tab into an Agentic Map.** This is strategically promising but
+3. **CR105 — Transform the Artifact Tab into an Agentic Map.** This is strategically promising but
    exploratory and broader than the observed corrective frictions above.
-6. **CR097 — Keep a Correction Recognisable After Reload.** The Conversation can falsely present a
+4. **CR097 — Keep a Correction Recognisable After Reload.** The Conversation can falsely present a
    correction as an unanswered new request, damaging trust in the user's own history.
-7. **CR099 — Allow Safe Editing During Another Journey's Work.** A global busy guard stops ordinary
+5. **CR099 — Allow Safe Editing During Another Journey's Work.** A global busy guard stops ordinary
    work in an unrelated Journey while the agent works elsewhere.
-8. **CR098 — Allow a Journey to Be Reparented.** The Navigator cannot correct a basic hierarchy
+6. **CR098 — Allow a Journey to Be Reparented.** The Navigator cannot correct a basic hierarchy
    mistake through the form that purports to edit it.
-9. **CR100 — Make Journey Image Updates Supported.** A visible action ends in `unsupported journey
+7. **CR100 — Make Journey Image Updates Supported.** A visible action ends in `unsupported journey
    mutation`; a broken promise is more disruptive than an absent feature.
 
-CR104 and CR107 are closed and are therefore removed from the active captured priority. CR108 was
-found while validating CR107 and repaired in the same session by explicit Navigator intent, so it
+CR103, CR104 and CR107 are closed and are therefore removed from the active captured priority. CR108
+was found while validating CR107 and repaired in the same session by explicit Navigator intent, so it
 never entered this ranking. CR111 was pulled ahead of this list by explicit Navigator intent and is
 now closed after Dev validation. The Navigator reprioritised the visible daily-use work on
-2026-09-30, explicitly pulled CR106, and closed it after Dev validation; CR103 is now the pulled
-focus on 2026-10-01. CR109 and CR110 remain captured but unranked and unpulled;
-each requires authority characterisation before a priority or design is chosen.
+2026-09-30, explicitly pulled CR106, and closed it after Dev validation; CR103 was homologated and
+closed on 2026-10-01, and CR101 is now the pulled focus. CR109 and CR110 remain captured but unranked
+and unpulled; each requires authority characterisation before a priority or design is chosen.
 
 ## Acceptance Horizon
 
@@ -97,7 +93,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 
 ## Boundaries
 
-- CR089, CR104, CR106, CR107, CR108 and CR111 are closed. CR103 is the current pulled focus; all other remaining CRs stay captured until explicitly pulled.
+- CR089, CR103, CR104, CR106, CR107, CR108 and CR111 are closed. CR101 is the current pulled focus; all other remaining CRs stay captured until explicitly pulled.
 - No app release, Beta promotion, endpoint publication, Git push or tag is authorized by this document.
 
 ## Change Requests
@@ -121,9 +117,9 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR098: Allow a Journey to Be Reparented](cr098-allow-a-journey-to-be-reparented.md)
 - [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md)
 - [CR100: Make Journey Image Updates Supported](cr100-make-journey-image-updates-supported.md)
-- [CR101: Restore Window Geometry](cr101-restore-window-geometry.md)
+- [CR101: Restore Window Geometry](cr101-restore-window-geometry.md) — in progress
 - [CR102: Make Sidebar Progress Signals Legible](cr102-make-sidebar-progress-signals-legible.md)
-- [CR103: Give the Composer Model Status a Human Register](cr103-give-the-composer-model-status-a-human-register.md) — in progress
+- [CR103: Give the Composer Model Status a Human Register](cr103-give-the-composer-model-status-a-human-register.md) — done
 - [CR104: Make Compaction Failures Actionable and Expirable](cr104-make-compaction-failures-actionable-and-expirable.md) — done
 - [CR105: Transform the Artifact Tab into an Agentic Map](cr105-transform-the-artifact-tab-into-an-agentic-map.md)
 - [CR106: Use Green for Ready Completion Signals](cr106-use-green-for-ready-completion-signals.md) — done

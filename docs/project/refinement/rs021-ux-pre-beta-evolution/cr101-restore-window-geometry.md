@@ -2,9 +2,15 @@
 
 # CR101: Restore Window Geometry
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr101-window-geometry`
+
+## Pull — 2026-10-01
+
+The Navigator explicitly pulled CR101 as the next item in the confirmed UX-first order after
+homologating and closing CR103. This branch is limited to CR101 characterisation and, only after
+further explicit instruction, its implementation.
 
 ## Friction
 
