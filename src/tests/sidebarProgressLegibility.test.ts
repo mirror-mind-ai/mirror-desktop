@@ -167,6 +167,27 @@ describe("sidebar progress signal construction", () => {
     expect(cssSource.slice(at, cssSource.indexOf("}", at))).toContain("background: var(--sidebar-surface)");
   });
 
+  // An absolutely positioned grid item is contained by its grid area rather than by the tile, so
+  // leaving the expanded card's `grid-area: status` in place anchored the rail badge to an implicit
+  // column outside the rail, where the list's automatic overflow clipped it. Measured on a Journey
+  // with a custom mark, 17 of the badge's 19 pixels fell outside.
+  it("releases the rail badge from the card grid so it anchors to the tile", () => {
+    const at = cssSource.indexOf(
+      ".sidebar-compact .journey-item.card-node .journey-agent-status.placement-sidebar {",
+    );
+    expect(at).toBeGreaterThan(cssSource.indexOf(".journey-item.card-node .journey-agent-status {"));
+    expect(cssSource.slice(at, cssSource.indexOf("}", at))).toContain("grid-area: auto");
+  });
+
+  // The tree layout's copy was already hidden through its `.journey-copy` wrapper, which the card
+  // layout does not render. Leaving the card copy visible gave the rail implicit columns it has no
+  // room for, and horizontal overflow it should never have.
+  it("hides the card copy in the rail, as the tree copy already was", () => {
+    expect(cssSource).toContain(".sidebar-compact .journey-item.card-node .journey-name,");
+    expect(cssSource).toContain(".sidebar-compact .journey-item.card-node .journey-context,");
+    expect(cssSource).toContain(".sidebar-compact .journey-item.card-node .journey-last-worked {");
+  });
+
   // Motion is removable by preference, so it may only ever reinforce a state that shape already
   // carries. This is what stops the Working/Finishing collapse from returning.
   it("identifies every state without animation", () => {

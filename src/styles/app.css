@@ -4920,9 +4920,28 @@ dd {
   box-shadow: none;
 }
 
-/* CR102: in the rail the badge sits on the Journey mark, which may be an arbitrary custom image.
-   A near-transparent background left the signal with no measurable backdrop at all, so here it
-   takes an opaque one from the sidebar surface and the contrast becomes a known quantity. */
+/* CR102: the expanded card's named grid areas still applied in the rail, where the template is a
+   single "icon" cell. `grid-area: name`, `context` and `status` resolved to implicit columns
+   outside the tile, so the copy and the badge were laid out past the rail and clipped by the
+   list's automatic overflow. The badge suffered worst: an absolutely positioned grid item is
+   contained by its grid area, not by the tile, so `right: 1px` anchored it to that outside column.
+   Measured on a Journey with a custom mark, 17 of the badge's 19 pixels fell outside the clip.
+
+   The rail has no column for the copy, so it is hidden here as the tree layout's already was, and
+   the badge is released from the grid so that it anchors to the tile. */
+.sidebar-compact .journey-item.card-node .journey-name,
+.sidebar-compact .journey-item.card-node .journey-context,
+.sidebar-compact .journey-item.card-node .journey-last-worked {
+  display: none;
+}
+
+.sidebar-compact .journey-item.card-node .journey-agent-status.placement-sidebar {
+  grid-area: auto;
+}
+
+/* In the rail the badge sits on the Journey mark, which may be an arbitrary custom image. A
+   near-transparent background left the signal with no measurable backdrop at all, so here it takes
+   an opaque one from the sidebar surface and the contrast becomes a known quantity. */
 .sidebar-compact .journey-agent-status.placement-sidebar {
   background: var(--sidebar-surface);
   border-color: color-mix(in srgb, currentColor 46%, transparent);
