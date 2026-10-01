@@ -17,7 +17,7 @@ Mirror Desktop feels less like an alpha harness and more like a beta-ready daily
 ## Authority Contract
 
 - Journey authority is exactly `mirror-desktop`.
-- This RS captures and orders Change Requests. CR089, CR104, CR107 and CR108 are closed. CR111 is the current focus; later focus changes require explicit Navigator intent.
+- This RS captures and orders Change Requests. CR089, CR104, CR107, CR108 and CR111 are closed. Later focus changes require explicit Navigator intent.
 - Each CR must preserve Pi/Mirror transcript authority and existing Journey/run authority boundaries.
 - UX changes must not silently start, cancel, retry, send, compact, split, publish, release, or mutate Mirror data.
 - Any behavior that affects active native processes must distinguish safe preference/UI mutation from run-control mutation.
@@ -86,9 +86,9 @@ ranked here.
 
 CR104 and CR107 are closed and are therefore removed from the active captured priority. CR108 was
 found while validating CR107 and repaired in the same session by explicit Navigator intent, so it
-never entered this ranking. CR109 and CR110 are captured but unranked and unpulled; each requires
-authority characterisation before a priority or design is chosen. CR111 was pulled ahead of this
-list by explicit Navigator intent.
+never entered this ranking. CR111 was pulled ahead of this list by explicit Navigator intent and is
+now closed after Dev validation. CR109 and CR110 remain captured but unranked and unpulled; each
+requires authority characterisation before a priority or design is chosen.
 
 ## Acceptance Horizon
 
@@ -96,7 +96,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 
 ## Boundaries
 
-- CR089, CR104, CR107 and CR108 are closed. CR111 is the current pulled focus; all other remaining CRs stay captured until explicitly pulled.
+- CR089, CR104, CR107, CR108 and CR111 are closed. All other remaining CRs stay captured until explicitly pulled.
 - No app release, Beta promotion, endpoint publication, Git push or tag is authorized by this document.
 
 ## Change Requests
@@ -130,4 +130,4 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR108: Stop One Unrecoverable Turn from Blocking Recovery](cr108-stop-one-unrecoverable-turn-from-blocking-recovery.md) — done
 - [CR109: Make Conversations First-Class Workspaces](cr109-make-conversations-first-class-workspaces.md)
 - [CR110: Make Journey Creation Recover from Registry Change](cr110-make-journey-creation-recover-from-registry-change.md)
-- [CR111: Preserve the Agent Comment Trail Across Turns](cr111-preserve-agent-comment-trail-across-turns.md) — in progress
+- [CR111: Preserve the Agent Comment Trail Across Turns](cr111-preserve-agent-comment-trail-across-turns.md) — done

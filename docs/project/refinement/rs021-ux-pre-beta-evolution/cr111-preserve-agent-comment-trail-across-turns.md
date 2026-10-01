@@ -2,7 +2,7 @@
 
 # CR111: Preserve the Agent Comment Trail Across Turns
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr111-agent-comment-trail`
 
@@ -240,6 +240,12 @@ and the divider assertion now covers both row kinds. No other assertion was chan
 - `npx vitest run`: 202 files, 1317 tests. `tsc`, production build, `roadmap:check` and
   `git diff --check` clean.
 - Dev installed at `0.2.0-alpha.27`, binary `0b54be66af4a6a2b`.
+
+### Homologation — 2026-09-30
+
+The Navigator validated the repaired surface in the Dev build: one settled agent run remains one
+coherent card and trail after a subsequent turn, with run detail collected in its single disclosure.
+CR111 is closed on that evidence.
 
 ### Declared limits
 
