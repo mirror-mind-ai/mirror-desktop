@@ -2,9 +2,15 @@
 
 # CR103: Give the Composer Model Status a Human Register
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr103-human-model-status`
+
+## Pull — 2026-10-01
+
+The Navigator pulled CR103 as the next user-perceptible candidate after validating CR106. This
+branch is limited to CR103 characterisation and, only after further explicit instruction, its
+implementation.
 
 ## Friction
 

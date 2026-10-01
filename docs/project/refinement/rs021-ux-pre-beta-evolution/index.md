@@ -64,10 +64,10 @@ This is the current UX-first order for the captured work. It is deliberately not
 order: each CR still begins with empirical characterisation, and no CR is pulled merely by being
 ranked here.
 
-1. **CR106 — Use Green for Ready Completion Signals.** A focused completion-colour correction:
-   `Ready` must become immediately legible without changing its semantics. **Pulled.**
-2. **CR103 — Give the Composer Model Status a Human Register.** The footer is read continually but
-   currently merges state and raw provider identity into difficult operational notation.
+1. **CR103 — Give the Composer Model Status a Human Register.** The footer is read continually but
+   currently merges state and raw provider identity into difficult operational notation. **Pulled.**
+2. **CR106 — Use Green for Ready Completion Signals.** A focused completion-colour correction:
+   `Ready` must become immediately legible without changing its semantics. **Done.**
 3. **CR101 — Restore Window Geometry.** Repeated relaunch friction matters, but it does not make an
    existing action untruthful or block current work.
 4. **CR102 — Make Sidebar Progress Signals Legible.** The sidebar is the daily navigation surface;
@@ -87,7 +87,8 @@ CR104 and CR107 are closed and are therefore removed from the active captured pr
 found while validating CR107 and repaired in the same session by explicit Navigator intent, so it
 never entered this ranking. CR111 was pulled ahead of this list by explicit Navigator intent and is
 now closed after Dev validation. The Navigator reprioritised the visible daily-use work on
-2026-09-30 and explicitly pulled CR106. CR109 and CR110 remain captured but unranked and unpulled;
+2026-09-30, explicitly pulled CR106, and closed it after Dev validation; CR103 is now the pulled
+focus on 2026-10-01. CR109 and CR110 remain captured but unranked and unpulled;
 each requires authority characterisation before a priority or design is chosen.
 
 ## Acceptance Horizon
@@ -96,7 +97,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 
 ## Boundaries
 
-- CR089, CR104, CR107, CR108 and CR111 are closed. CR106 is the current pulled focus; all other remaining CRs stay captured until explicitly pulled.
+- CR089, CR104, CR106, CR107, CR108 and CR111 are closed. CR103 is the current pulled focus; all other remaining CRs stay captured until explicitly pulled.
 - No app release, Beta promotion, endpoint publication, Git push or tag is authorized by this document.
 
 ## Change Requests
@@ -122,10 +123,10 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR100: Make Journey Image Updates Supported](cr100-make-journey-image-updates-supported.md)
 - [CR101: Restore Window Geometry](cr101-restore-window-geometry.md)
 - [CR102: Make Sidebar Progress Signals Legible](cr102-make-sidebar-progress-signals-legible.md)
-- [CR103: Give the Composer Model Status a Human Register](cr103-give-the-composer-model-status-a-human-register.md)
+- [CR103: Give the Composer Model Status a Human Register](cr103-give-the-composer-model-status-a-human-register.md) — in progress
 - [CR104: Make Compaction Failures Actionable and Expirable](cr104-make-compaction-failures-actionable-and-expirable.md) — done
 - [CR105: Transform the Artifact Tab into an Agentic Map](cr105-transform-the-artifact-tab-into-an-agentic-map.md)
-- [CR106: Use Green for Ready Completion Signals](cr106-use-green-for-ready-completion-signals.md)
+- [CR106: Use Green for Ready Completion Signals](cr106-use-green-for-ready-completion-signals.md) — done
 - [CR107: Make Existing Journeys Startable](cr107-make-existing-journeys-startable.md) — done
 - [CR108: Stop One Unrecoverable Turn from Blocking Recovery](cr108-stop-one-unrecoverable-turn-from-blocking-recovery.md) — done
 - [CR109: Make Conversations First-Class Workspaces](cr109-make-conversations-first-class-workspaces.md)
