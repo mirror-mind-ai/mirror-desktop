@@ -2,7 +2,7 @@
 
 # CR106: Use Green for Ready Completion Signals
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr106-ready-green`
 
@@ -130,6 +130,13 @@ the check shape all remain, so Ready is never distinguished by colour alone.
 - `npx vitest run`: 203 files, 1328 tests. `cargo test --locked`: 215 passed. `tsc`, production
   build, `roadmap:check` and `git diff --check` clean.
 - Dev installed at `0.2.0-alpha.27`, binary `04517e999459a8e6`.
+
+### Homologation — 2026-10-01
+
+The Navigator validated the Dev build across dark and light themes, including the green accent and
+compact sidebar. The filled circle, check, success register, halo and `READY` label remained legible;
+reduced motion removed the arrival animation without removing the completion signal. CR106 is closed
+on that evidence.
 
 ### Declared limits
 
