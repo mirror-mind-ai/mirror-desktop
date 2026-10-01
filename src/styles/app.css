@@ -4291,6 +4291,13 @@ button:disabled {
   gap: 2px;
 }
 
+/* The light families mute every bare `dt`, which would drop these labels to 4.44:1 on the panel's
+   raised end. One extra step of specificity keeps the house contract intact everywhere else. */
+.admission-panel .admission-panel-facts dt,
+.agentic-map-page .admission-panel-facts dt {
+  color: var(--map-text-muted);
+}
+
 .admission-panel-facts dt {
   color: var(--map-text-muted);
   font-size: 0.65rem;
@@ -6575,8 +6582,11 @@ dd {
   --presence-present: #0d1420;
   --map-text: var(--light-text);
   --map-text-soft: var(--light-text);
-  --map-text-muted: var(--light-muted);
-  --map-text-subject: var(--light-muted);
+  /* The family's own muted ink lands at 4.44:1 on the panel's raised end, and this text is small.
+     Pulling it 15% towards the family's text colour clears the floor at 5.20:1 on the worst
+     family while keeping each theme's register. */
+  --map-text-muted: color-mix(in srgb, var(--light-muted) 85%, var(--light-text));
+  --map-text-subject: color-mix(in srgb, var(--light-muted) 85%, var(--light-text));
 }
 
 .app-shell:is(
@@ -6772,7 +6782,10 @@ dd {
   [data-application-theme="daylight"],
   [data-application-theme="mist"],
   [data-application-theme="parchment"]
-) :where(button:not(.secondary-button, .settings-button, .icon-button, .menu-button, .sidebar-action-button, .theme-choice, .journey-documentation-toggle, .journey-documentation-select, .artifact-preview-layout-toggle, .journey-tree-toggle, .journey-menu button, .journey-tree-context-menu button, .journey-item-context-menu button, .artifact-context-menu button, .settings-tab-list button, .message-copy-action, .focused-conversation-entry, .focused-conversation-create, .focused-conversation-more)) {
+) :where(button:not(.secondary-button, .settings-button, .icon-button, .menu-button, .sidebar-action-button, .theme-choice, .journey-documentation-toggle, .journey-documentation-select, .artifact-preview-layout-toggle, .journey-tree-toggle, .journey-menu button, .journey-tree-context-menu button, .journey-item-context-menu button, .artifact-context-menu button, .settings-tab-list button, .agentic-map-territory button, .message-copy-action, .focused-conversation-entry, .focused-conversation-create, .focused-conversation-more)) {
+  /* White ink belongs to a filled button. A transparent text button that opts out of the fill
+     must opt out here too, or it is painted white on a white surface — which is exactly how the
+     CR105 territory names disappeared on Daylight while their counts stayed readable. */
   color: #ffffff;
 }
 

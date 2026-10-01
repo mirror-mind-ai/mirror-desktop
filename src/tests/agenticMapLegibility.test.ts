@@ -123,6 +123,37 @@ describe("Agentic Field presence legibility", () => {
     }
   });
 
+  /**
+   * Token measurement proves a colour is legible. It does not prove the colour reaches the
+   * element: the light families paint every bare `button` white unless it is named in an opt-out
+   * list, and that rule outranks a plain descendant selector. The CR105 territory names were
+   * white on white for exactly that reason while their own declaration measured 13:1. These two
+   * tests guard the cascade, not the palette.
+   */
+  it("a transparent text button in the map opts out of the light filled-button ink", () => {
+    const at = cssSource.indexOf(":where(button:not(");
+    expect(at).toBeGreaterThan(-1);
+    const optOut = cssSource.slice(at, cssSource.indexOf("))", at));
+    expect(optOut).toContain(".agentic-map-territory button");
+  });
+
+  it("every button the map introduces is declared somewhere that survives the light catch-all", () => {
+    const start = cssSource.indexOf(".context-presence-marker {");
+    const block = cssSource.slice(start, cssSource.indexOf(".artifact-tree-reloading {", start));
+    const optOutStart = cssSource.indexOf(":where(button:not(");
+    const optOut = cssSource.slice(optOutStart, cssSource.indexOf("))", optOutStart));
+
+    const buttonSelectors = [...block.matchAll(/^([^{}]*\bbutton\b[^{}]*)\{/gmu)]
+      .map((match) => match[1].trim())
+      .filter((selector) => !selector.includes(":hover") && !selector.includes(":focus"));
+
+    expect(buttonSelectors.length).toBeGreaterThan(0);
+    for (const selector of buttonSelectors) {
+      const base = selector.replace(/\.selected/gu, "").replace(/\s+/gu, " ").trim();
+      expect(optOut, `${selector} is painted white on the light families`).toContain(base);
+    }
+  });
+
   it("only a presence marker is coloured by the presence ramp; text has its own tokens", () => {
     const start = cssSource.indexOf(".context-presence-marker {");
     const end = cssSource.indexOf(".artifact-tree-reloading {", start);

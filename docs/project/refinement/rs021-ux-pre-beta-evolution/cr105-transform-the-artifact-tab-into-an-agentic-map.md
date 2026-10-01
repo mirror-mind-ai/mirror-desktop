@@ -177,6 +177,57 @@ asserts the ramp runs towards emphasis in each direction, and fails if any rule 
 - The two cards no longer repeat the tab name. The left card is **Context territories** above
   **Workspace structure**; the detail card is **Context detail**.
 
+### Second failure at step 7: the repair did not reach the element
+
+The Navigator reported the contrast unchanged after the token repair, and they were right. The
+tokens were correct and the declarations measured well; the colour never arrived.
+
+Measuring computed styles in a browser, against the real stylesheet and the component's real
+markup, found the territory names computing to `rgb(255, 255, 255)` while `--map-text` resolved
+to `#1f2937` on the same element and the rest of the rule applied. The cause is a light-family
+catch-all:
+
+```css
+.app-shell:is(…) :where(button:not(… opt-out list …)) { color: #ffffff; }
+```
+
+White ink is right for a filled button, and the list names every transparent text button that
+opts out. The territory rows were not on it, and at `(0,2,0)` the catch-all outranks
+`.agentic-map-territory button` at `(0,1,1)`. The names were painted white on white; their counts,
+which are spans rather than buttons, stayed readable. That is exactly the pattern in the
+Navigator's screenshot.
+
+The same mechanism hit the admission labels through a bare `dt` in a `:where(…)` list. One extra
+step of specificity fixes those without touching the house contract for `dt` elsewhere.
+
+### Measured after the repair
+
+Computed colours for every text and marker element of the surface, across four themes (Daylight,
+Mist, Parchment, Tide) and three states (territory list, artifact detail, Sources page), against
+both ends of the panel gradient: **12 pages, 45 element readings, none below 4.5:1**. Secondary
+text in the light families was additionally pulled 15% towards the family's own text colour,
+because the raw `--light-muted` lands at 4.44:1 on the raised end and this text is small.
+
+### What the tests were missing
+
+The legibility test measured tokens. A token test proves a colour is legible; it cannot prove the
+colour reaches the element, and the whole defect lived in that gap. Two cascade tests now guard
+it: every button the surface introduces must appear in the light catch-all's opt-out list. Both
+were confirmed to fail when the opt-out entry is removed.
+
+### Known, pre-existing, out of scope
+
+`.operational-artifacts-section-label` renders at 4.44:1 against the panel's raised end in
+Daylight. It is shared with surfaces outside CR105 and predates this work, so it is reported here
+rather than changed. Raising `--light-muted` across the three light families is a candidate for a
+separate CR.
+
 ### Remaining
 
-A re-check of step 7 on the light families after the repair. Everything else is validated.
+Navigator re-check of step 7 in the running app.
+
+## Gates (re-run 2026-10-01)
+
+- `npm test`: 210 files, 1429 tests, all passing.
+- `npx tsc --noEmit`: clean.
+- `cargo test`: unchanged, no Rust touched since the previous run.
