@@ -2,9 +2,9 @@
 
 # CR105: Transform the Artifact Tab into an Agentic Map
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr105-agentic-map`
 
 ## Friction / Opportunity
 
@@ -59,4 +59,10 @@ Measured constraints that bound the first slice:
 
 Implementation guidance, evidence inventory, slice plan and test plan are in
 [builder-orientation.md](../../explorations/cr105-agentic-map-of-admitted-context/builder-orientation.md).
-This CR remains `captured` until explicitly pulled.
+
+## Pull (2026-10-01)
+
+Pulled by explicit Navigator intent. Delivery slice and the two open design questions
+(briefing region in the first slice; turn label after compaction) are still to be confirmed with
+the Navigator before code. Implementation starts with the domain derivation in
+`src/domain/admittedContext.ts` under TDD; no GUI change until the derivation tests are green.

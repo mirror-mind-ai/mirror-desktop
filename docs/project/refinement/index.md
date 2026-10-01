@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS021
-- Change Request: CR081
+- Change Request: CR105
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -51,16 +51,16 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR104](rs021-ux-pre-beta-evolution/cr104-make-compaction-failures-actionable-and-expirable.md) | RS021 | Make Compaction Failures Actionable and Expirable | in_progress | @alissonvale | `refinement/rs021-cr104-actionable-compaction-failures` |
+| 1 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into an Agentic Map | in_progress | @alissonvale | `refinement/rs021-cr105-agentic-map` |
 | 2 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | captured | — | — |
 | 3 | [CR099](rs021-ux-pre-beta-evolution/cr099-allow-safe-editing-during-another-journeys-work.md) | RS021 | Allow Safe Editing During Another Journey's Work | captured | — | — |
 | 4 | [CR098](rs021-ux-pre-beta-evolution/cr098-allow-a-journey-to-be-reparented.md) | RS021 | Allow a Journey to Be Reparented | captured | — | — |
 | 5 | [CR100](rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) | RS021 | Make Journey Image Updates Supported | captured | — | — |
-| 6 | [CR103](rs021-ux-pre-beta-evolution/cr103-give-the-composer-model-status-a-human-register.md) | RS021 | Give the Composer Model Status a Human Register | captured | — | — |
-| 7 | [CR102](rs021-ux-pre-beta-evolution/cr102-make-sidebar-progress-signals-legible.md) | RS021 | Make Sidebar Progress Signals Legible | captured | — | — |
-| 8 | [CR106](rs021-ux-pre-beta-evolution/cr106-use-green-for-ready-completion-signals.md) | RS021 | Use Green for Ready Completion Signals | captured | — | — |
-| 9 | [CR101](rs021-ux-pre-beta-evolution/cr101-restore-window-geometry.md) | RS021 | Restore Window Geometry | captured | — | — |
-| 10 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into an Agentic Map | captured | — | — |
+| 6 | [CR104](rs021-ux-pre-beta-evolution/cr104-make-compaction-failures-actionable-and-expirable.md) | RS021 | Make Compaction Failures Actionable and Expirable | done | @alissonvale | `refinement/rs021-cr104-actionable-compaction-failures` |
+| 7 | [CR103](rs021-ux-pre-beta-evolution/cr103-give-the-composer-model-status-a-human-register.md) | RS021 | Give the Composer Model Status a Human Register | done | @alissonvale | `refinement/rs021-cr103-human-model-status` |
+| 8 | [CR102](rs021-ux-pre-beta-evolution/cr102-make-sidebar-progress-signals-legible.md) | RS021 | Make Sidebar Progress Signals Legible | done | @alissonvale | `refinement/rs021-cr102-sidebar-progress` |
+| 9 | [CR106](rs021-ux-pre-beta-evolution/cr106-use-green-for-ready-completion-signals.md) | RS021 | Use Green for Ready Completion Signals | done | @alissonvale | `refinement/rs021-cr106-ready-green` |
+| 10 | [CR101](rs021-ux-pre-beta-evolution/cr101-restore-window-geometry.md) | RS021 | Restore Window Geometry | done | @alissonvale | `refinement/rs021-cr101-window-geometry` |
 | 11 | [CR096](rs016-ongoing-product-improvements-and-adjustments/cr096-verify-the-published-download-alias.md) | RS016 | Verify the Published Download Alias | done | @alissonvale | `refinement/rs016-cr096-download-alias-verification` |
 | 12 | [CR095](rs016-ongoing-product-improvements-and-adjustments/cr095-record-each-journey-binding-repair-as-durable-evidence.md) | RS016 | Record Each Journey Binding Repair as Durable Evidence | done | @alissonvale | `refinement/rs016-cr093-cr095-journey-binding-defense` |
 | 13 | [CR093](rs016-ongoing-product-improvements-and-adjustments/cr093-defend-the-mirror-conversation-journey-binding.md) | RS016 | Defend the Mirror Conversation Journey Binding | done | @alissonvale | `refinement/rs016-cr093-cr095-journey-binding-defense` |
