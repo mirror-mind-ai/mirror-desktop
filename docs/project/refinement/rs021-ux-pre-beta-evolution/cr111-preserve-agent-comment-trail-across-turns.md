@@ -180,3 +180,72 @@ So the cluster must keep every message addressable while presenting one trail.
 
 These are presentation decisions with no single correct answer from the data, so they are named here
 rather than settled unilaterally.
+
+## Navigator decisions — 2026-09-30
+
+1. Per-message actions and surfaces are **collected into one disclosure** for the whole run.
+2. A model change **annotates a point** inside the trail rather than breaking the run.
+3. A chapter divider **breaks the run**, because it is a real boundary in the transcript.
+
+## Repair — 2026-09-30
+
+### The grouping is recovered, not invented
+
+`projectTranscriptRenderItems` applies the same structural rule `projectAgentCommentRoles` already
+walked and discarded: consecutive assistant messages are one run, any request closes it, and a
+chapter divider closes the run it falls in. A lone assistant message is a run of one, so the
+renderer has no special case.
+
+### One run is one card
+
+`AgentTurn` now renders a run. `trailParts` carries the run's earlier messages, and the closing
+message keeps the role it already had. The trail is assembled from the parts' comments followed by
+the closing message's own live trail, so the live path is unchanged and the restored path finally
+matches it.
+
+Nothing is merged that Pi recorded apart. Each part keeps its own presentation, and the card keeps
+every message individually addressable: each trail point carries its own
+`data-conversation-message-id` and registers its own element, so conversation search and the chapter
+index still reach a note inside a grouped run.
+
+One correctness detail was needed for the closing message. Its restored presentation has neither
+`commentTrail` nor `closingComment`, so the previous `trail ? closingComment : agentComment` rule
+would have dropped the answer once a trail existed. The closing prose is now the live
+`closingComment` when the projection named one, and otherwise the message's own comment.
+
+### The three decisions
+
+- **Collected detail.** Action and surface regions are built from every part of the run, counted
+  together, and rendered inside the single `Show turn details` disclosure. Each part keeps its own
+  projection rather than being flattened into one, because operation ids only resolve inside the
+  projection that recorded them.
+- **Annotated model change.** A trail point renders its model badge only where
+  `ResponseModelBadge.changed` is already true, so the existing attribution rule decides it and no
+  new classification was introduced.
+- **Divider breaks the run.** Handled in the grouping, so a divider is always carried by the first
+  message of a rendered item and still precedes every row.
+
+Copying a grouped run now yields the narration the Navigator can actually see, rather than only the
+closing message.
+
+### Two guardrails were deliberately re-anchored
+
+`chapterDivider.test.tsx` and `importedActivity.test.ts` asserted source order against the literal
+`{messages.map((message) => {`. Both behaviours still hold — the divider precedes every row kind and
+unlinked imported context still precedes the loop — so the anchors were updated to the grouped loop
+and the divider assertion now covers both row kinds. No other assertion was changed.
+
+### Validation
+
+- `npx vitest run`: 202 files, 1317 tests. `tsc`, production build, `roadmap:check` and
+  `git diff --check` clean.
+- Dev installed at `0.2.0-alpha.27`, binary `0b54be66af4a6a2b`.
+
+### Declared limits
+
+- Historical proximity still collapses detail behind the disclosure while the latest turn renders it
+  inline. That is the pre-existing CR083 behaviour named in the diagnosis and was not changed.
+- Grouping is a render-time decision derived on every projection. Nothing new is persisted, and the
+  underlying comment, turn and action evidence is untouched.
+- A run whose messages carry separate interrupted fragments renders them in order in one region. In
+  practice only the last message of a run can have been interrupted.

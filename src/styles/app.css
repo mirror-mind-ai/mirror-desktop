@@ -2580,6 +2580,19 @@ h3 {
   position: relative;
 }
 
+/* CR111: a model change is annotated at the point it happened, without breaking the run. */
+.agent-comment-note > .response-model-badge {
+  display: inline-block;
+  margin-bottom: 6px;
+}
+
+/* The grouped trail keeps each message individually reachable, so a search hit on a note is
+   marked on the note itself rather than on the whole run. */
+.agent-comment-note.conversation-message-search-current {
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px rgba(var(--ui-accent-rgb), 0.35);
+}
+
 .agent-comment-note::before {
   background: rgba(var(--ui-accent-rgb), 0.45);
   border-radius: 50%;

@@ -33,8 +33,11 @@ describe("chapter divider row", () => {
   it("is drawn above the message that opens the next chapter", () => {
     // The divider precedes the message row it belongs to, and reads from the derived
     // surface so it survives a reload.
-    const render = transcriptSource.slice(transcriptSource.indexOf("{messages.map((message) => {"));
+    // CR111 groups a run into one card and breaks that run at a divider, so the divider is
+    // carried by the first message of each rendered item and still precedes every row kind.
+    const render = transcriptSource.slice(transcriptSource.indexOf("{renderItems.map((item) => {"));
     expect(render).toContain("chapterDividers");
+    expect(render.indexOf("<ChapterDividerRow")).toBeLessThan(render.indexOf("<AgentRunRow"));
     expect(render.indexOf("<ChapterDividerRow")).toBeLessThan(render.indexOf("<ConversationMessageRow"));
     expect(cssSource).toContain(".chapter-divider {");
   });

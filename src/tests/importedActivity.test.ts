@@ -62,7 +62,7 @@ describe("imported activity rendering helpers", () => {
 
   it("places old unlinked imported context at the historical boundary before chat messages", () => {
     const boundary = transcriptSource.indexOf('<ImportedActivity events={importedActivity.unlinked} variant="summary"');
-    const messages = transcriptSource.indexOf("{messages.map((message) => {");
+    const messages = transcriptSource.indexOf("{renderItems.map((item) => {");
 
     expect(boundary).toBeGreaterThan(0);
     expect(messages).toBeGreaterThan(boundary);

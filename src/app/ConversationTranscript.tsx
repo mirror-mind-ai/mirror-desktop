@@ -1,7 +1,8 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import type { ConversationMessage } from "../agent/piTaskPacket";
 import type { JourneyConversation, SteeringEvidence } from "../domain/journeyConversation";
-import { AgentTurn } from "./AgentTurn";
+import { AgentTurn, type AgentRunTrailPart } from "./AgentTurn";
+import { projectTranscriptRenderItems } from "./agentRunGrouping";
 import {
   extractMirrorModeEventsFromContent,
   extractMirrorSurfaceEventsFromContent,
@@ -74,6 +75,77 @@ type ConversationMessageRowProps = {
   /** CR089: prose that had arrived when this turn was interrupted. */
   interruptedFragment?: string;
 };
+
+/** CR111: everything one assistant message contributes to the run it belongs to. */
+type AgentRunMessagePart = {
+  message: ConversationMessage;
+  linkedActivity: GroupedImportedActivity["unlinked"];
+  exactRuntimeProjection?: RuntimeProjectionState;
+  commentRole?: "trail";
+  interruptedFragment?: string;
+  responseModel?: ResponseModelBadge;
+};
+
+type AgentRunRowProps = {
+  parts: AgentRunMessagePart[];
+  proximity?: AssistantTurnProximity;
+  basePath?: string;
+  onLocalPathClick: (path: string) => void;
+  highlightQuery?: string;
+  registerMessageElement: (messageId: string, element: HTMLElement | null) => void;
+  activeSearchMessageId?: string;
+};
+
+/**
+ * CR111: one agent run is one card. Each message keeps its own presentation, model attribution
+ * and detail; only the reading surface is shared, so nothing is merged that Pi recorded apart.
+ */
+const AgentRunRow = memo(function AgentRunRow({
+  parts,
+  proximity,
+  basePath,
+  onLocalPathClick,
+  highlightQuery,
+  registerMessageElement,
+  activeSearchMessageId,
+}: AgentRunRowProps) {
+  const presentations = parts.map((part) => projectAgentTurnPresentation({
+    messageId: part.message.id,
+    content: part.message.content,
+    createdAt: part.message.createdAt,
+    linkedActivity: part.linkedActivity,
+    ...(part.exactRuntimeProjection ? { runtimeProjection: part.exactRuntimeProjection } : {}),
+    ...(part.commentRole ? { commentRole: part.commentRole } : {}),
+    ...(part.interruptedFragment ? { interruptedFragment: part.interruptedFragment } : {}),
+  }));
+  const closingIndex = parts.length - 1;
+  const closing = parts[closingIndex];
+  const trailParts: AgentRunTrailPart[] = parts.slice(0, closingIndex).map((part, index) => ({
+    messageId: part.message.id,
+    presentation: presentations[index],
+    ...(part.responseModel ? { model: part.responseModel } : {}),
+  }));
+  const speaker = inferMessageSpeaker({
+    ...closing.message,
+    content: stripMirrorModeBlocks(stripMirrorSurfaceBlocks(closing.message.content)),
+  });
+
+  return (
+    <AgentTurn
+      message={closing.message}
+      speaker={speaker}
+      presentation={presentations[closingIndex]}
+      {...(trailParts.length > 0 ? { trailParts } : {})}
+      proximity={proximity}
+      basePath={basePath}
+      onLocalPathClick={onLocalPathClick}
+      highlightQuery={highlightQuery}
+      {...(closing.responseModel ? { responseModel: closing.responseModel } : {})}
+      registerMessageElement={registerMessageElement}
+      {...(activeSearchMessageId ? { activeSearchMessageId } : {})}
+    />
+  );
+});
 
 const ConversationMessageRow = memo(function ConversationMessageRow({
   message,
@@ -180,7 +252,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
   const index = useMemo(() => buildConversationTranscriptIndex(conversation), [conversation]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-  const messageRefs = useRef(new Map<string, HTMLDivElement>());
+  const messageRefs = useRef(new Map<string, HTMLElement>());
   const responseModelBadges = useMemo(
     () => projectResponseModelBadges({
       messages,
@@ -193,8 +265,27 @@ export const ConversationTranscript = memo(function ConversationTranscript({
   const turnItems = useMemo(() => createConversationTurnNavigationItems(messages), [messages]);
   const activeMatch = searchMatches[clampConversationNavigationIndex(currentMatchIndex, searchMatches.length)];
 
+  const messagesById = useMemo(
+    () => new Map(messages.map((message) => [message.id, message])),
+    [messages],
+  );
+  // CR111: consecutive assistant messages are one run, so the trail they formed while live is
+  // still one trail at rest.
+  const renderItems = useMemo(
+    () => projectTranscriptRenderItems(messages, {
+      chapterDividerMessageIds: new Set(Object.keys(conversation.chapterDividers ?? {})),
+    }),
+    [messages, conversation.chapterDividers],
+  );
+
   const scrollToMessage = useCallback((messageId: string) => {
     messageRefs.current.get(messageId)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, []);
+
+  // Every grouped message stays individually reachable by search and the chapter index.
+  const registerMessageElement = useCallback((messageId: string, element: HTMLElement | null) => {
+    if (element) messageRefs.current.set(messageId, element);
+    else messageRefs.current.delete(messageId);
   }, []);
 
   const moveSearch = useCallback((direction: 1 | -1) => {
@@ -280,48 +371,78 @@ export const ConversationTranscript = memo(function ConversationTranscript({
         </aside>
       ) : null}
       <ImportedActivity events={importedActivity.unlinked} variant="summary" basePath={basePath} />
-      {messages.map((message) => {
-        const linkedActivity = importedActivity.byMessageId.get(message.id) ?? EMPTY_ACTIVITY;
+      {renderItems.map((item) => {
+        const messageIds = item.kind === "agent_run" ? item.messageIds : [item.messageId];
+        const leadId = messageIds[0];
+        // CR080: derived from the Pi session on every projection, so a chapter that closed
+        // months ago still shows its divider on reload. CR111 breaks a run at that divider, so
+        // it is always carried by the first message of the item.
+        const chapterDivider = conversation.chapterDividers?.[leadId];
+        const divider = chapterDivider ? <ChapterDividerRow divider={chapterDivider} /> : null;
+
+        if (item.kind === "agent_run") {
+          const parts: AgentRunMessagePart[] = messageIds.flatMap((messageId) => {
+            const message = messagesById.get(messageId);
+            if (!message) return [];
+            const commentRole = conversation.agentCommentRoles?.[messageId];
+            const interruptedFragment = conversation.interruptedFragments?.[messageId];
+            const responseModel = responseModelBadges[messageId];
+            return [{
+              message,
+              linkedActivity: importedActivity.byMessageId.get(messageId) ?? EMPTY_ACTIVITY,
+              ...(runtimeProjectionMessageId === messageId
+                ? { exactRuntimeProjection: runtimeProjection }
+                : (() => {
+                  const projection = index.terminalEvidenceByAssistantMessageId.get(messageId)?.projection
+                    ?? index.reconstructedProjectionByAssistantMessageId.get(messageId);
+                  return projection ? { exactRuntimeProjection: projection } : {};
+                })()),
+              ...(commentRole ? { commentRole } : {}),
+              ...(interruptedFragment ? { interruptedFragment } : {}),
+              ...(responseModel ? { responseModel } : {}),
+            }];
+          });
+          if (parts.length === 0) return null;
+          // The run's proximity is its closing message's: the run is as recent as its last word.
+          const proximity = assistantTurnProximity.get(parts[parts.length - 1].message.id);
+          return (
+            <div key={leadId}>
+              {divider}
+              <AgentRunRow
+                parts={parts}
+                proximity={proximity}
+                basePath={basePath}
+                onLocalPathClick={onLocalPathClick}
+                highlightQuery={searchOpen ? searchQuery : undefined}
+                registerMessageElement={registerMessageElement}
+                {...(activeMatch?.messageId ? { activeSearchMessageId: activeMatch.messageId } : {})}
+              />
+            </div>
+          );
+        }
+
+        const message = messagesById.get(item.messageId);
+        if (!message) return null;
         const owningAssistantMessageId = index.turnByUserMessageId.get(message.id)?.harness.assistantMessageId;
         const steering = owningAssistantMessageId
           ? index.steeringByAssistantMessageId.get(owningAssistantMessageId) ?? EMPTY_STEERING
           : EMPTY_STEERING;
-        const exactRuntimeProjection = message.role === "assistant"
-          ? runtimeProjectionMessageId === message.id
-            ? runtimeProjection
-            : index.terminalEvidenceByAssistantMessageId.get(message.id)?.projection
-              ?? index.reconstructedProjectionByAssistantMessageId.get(message.id)
-          : undefined;
-        // CR080: derived from the Pi session on every projection, so a chapter that closed
-        // months ago still shows its divider on reload.
-        const chapterDivider = conversation.chapterDividers?.[message.id];
         return (
           <div
             key={message.id}
-            ref={(element) => {
-              if (element) {
-                messageRefs.current.set(message.id, element);
-              } else {
-                messageRefs.current.delete(message.id);
-              }
-            }}
+            ref={(element) => registerMessageElement(message.id, element)}
             className={activeMatch?.messageId === message.id ? "conversation-message-search-current" : undefined}
             data-conversation-message-id={message.id}
           >
-            {chapterDivider ? <ChapterDividerRow divider={chapterDivider} /> : null}
+            {divider}
             <ConversationMessageRow
               message={message}
-              linkedActivity={linkedActivity}
-              proximity={assistantTurnProximity.get(message.id)}
-              exactRuntimeProjection={exactRuntimeProjection}
+              linkedActivity={importedActivity.byMessageId.get(message.id) ?? EMPTY_ACTIVITY}
               steering={steering}
-              commentRole={conversation.agentCommentRoles?.[message.id]}
-              interruptedFragment={conversation.interruptedFragments?.[message.id]}
               basePath={basePath}
               userAvatar={userAvatar}
               onLocalPathClick={onLocalPathClick}
               highlightQuery={searchOpen ? searchQuery : undefined}
-              responseModel={responseModelBadges[message.id]}
             />
           </div>
         );
