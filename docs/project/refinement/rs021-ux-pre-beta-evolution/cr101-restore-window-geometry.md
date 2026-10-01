@@ -148,6 +148,13 @@ build, `roadmap:check` READY, `git diff --check` clean. Dev installed at `0.2.0-
 - Per CR101's own boundaries: no cross-machine sync, no multi-window layout manager, and no
   persistence of workspace content beyond native geometry.
 
+## Closure — 2026-10-01
+
+The Navigator homologated the Dev build. CR101 is closed: after an ordinary quit the app reopens
+with the last reachable arrangement, while missing, corrupt, stale or off-screen data falls back to
+a visible default without silently destroying the stored evidence. Window geometry remains native
+state only; no frontend window permission, Journey authority or workspace content authority changed.
+
 ## Boundaries
 
 No cross-machine sync, no multi-window layout manager and no persistence of workspace content beyond
