@@ -5,7 +5,8 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { describeComposerModelSelection } from "../agent/providerConfig";
+import { describeComposerModelSelection, visibleThinkingLabel } from "../agent/providerConfig";
+import { ambiguousBareModelNames, modelDisplayName } from "../domain/modelIdentity";
 import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamEvent, type AgentStreamProvider, type TurnCorrelation } from "../agent/agentStream";
 import {
   cancelLivePiInvocation,
@@ -970,6 +971,17 @@ export function App({ model }: AppProps) {
   const usingGlobalAgentDefault = effectiveAgentProfile.modelSource === "global"
     && effectiveAgentProfile.thinkingSource === "global";
   const selectedProviderModelLabel = providerModelLabel(effectiveProviderConfig);
+  // CR103: abbreviating a name two providers claim would trade hard reading for ambiguity, so the
+  // live catalog decides which names can safely lose their provider.
+  const ambiguousModelNames = useMemo(
+    () => ambiguousBareModelNames(piModelCatalog.map(({ provider, model }) => ({ provider, model }))),
+    [piModelCatalog],
+  );
+  // Safe test mode is the one case where the provider is the mode rather than a vendor, so
+  // `safe-test/cat` keeps its qualifier instead of reading as a model called `cat`.
+  const selectedModelDisplayName = effectiveProviderConfig.safeTestMode
+    ? selectedProviderModelLabel
+    : modelDisplayName(selectedProviderModelLabel, ambiguousModelNames);
   // CR090: the live turn keeps the model it was spawned with, so a newer selection reaches
   // the next message and the footer has to say which turn it means.
   const modelSelectionScope = deriveModelSelectionScope({
@@ -5376,10 +5388,15 @@ export function App({ model }: AppProps) {
                 activeMode={conversation.certifiedMirrorMode?.mode ?? undefined}
                 contextState={piContextState}
                 providerModel={describeComposerModelSelection(effectiveProviderConfig, effectiveAgentProfile.thinkingLevel)}
+                modelDisplayName={selectedModelDisplayName}
+                thinkingLabel={visibleThinkingLabel(effectiveProviderConfig, effectiveAgentProfile.thinkingLevel)}
                 onSelectProviderModel={() => setModelIntentMenuOpen((open) => !open)}
                 providerSelectionDisabled={agentSettingsState === "saving"}
                 selectionScope={modelSelectionScope}
                 liveRunProviderModel={liveRunProviderModel}
+                liveRunModelDisplayName={liveRunProviderModel
+                  ? modelDisplayName(liveRunProviderModel, ambiguousModelNames)
+                  : undefined}
                 activeIntentLabel={activeModelIntent?.label}
                 providerModelMenuOpen={modelIntentMenuOpen}
                 menuWrapRef={modelIntentMenuRef}

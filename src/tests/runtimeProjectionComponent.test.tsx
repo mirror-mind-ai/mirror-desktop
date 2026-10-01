@@ -186,18 +186,20 @@ describe("runtime projection component", () => {
     expect(appSource).not.toContain('if ((!settingsOpen && !journeyAgentProfileOpen) || piModelCatalogState !== "idle") return;');
   });
 
-  // CR090: a model chosen while a turn runs reaches the next message, and the footer says so
+  // CR090: a model chosen while a turn runs does not reach that turn, and the footer says so
   // instead of implying the live turn changed.
-  it("marks a model selection that only reaches the next message", () => {
+  // CR103 renamed the unit: a live run emits many assistant messages and all of them keep the
+  // running child's configuration, so the selection reaches the next turn, not the next message.
+  it("marks a model selection that only reaches the next turn", () => {
     const running = renderToStaticMarkup(
       <ComposerRuntimeFooter
         providerModel="claude-bridge/claude-fable-5-1"
         liveRunProviderModel="openai-codex/gpt-5.5"
-        selectionScope="applies_to_next_message"
+        selectionScope="applies_to_next_turn"
         onSelectProviderModel={() => undefined}
       />,
     );
-    expect(running).toContain("next message");
+    expect(running).toContain("Next turn:");
     expect(running).toContain("openai-codex/gpt-5.5");
     expect(running).toContain("composer-provider-model-scope");
 
@@ -208,7 +210,7 @@ describe("runtime projection component", () => {
         onSelectProviderModel={() => undefined}
       />,
     );
-    expect(settled).not.toContain("next message");
+    expect(settled).not.toContain("Next turn:");
     expect(settled).not.toContain("composer-provider-model-scope");
     expect(cssSource).toContain(".composer-provider-model-scope");
   });

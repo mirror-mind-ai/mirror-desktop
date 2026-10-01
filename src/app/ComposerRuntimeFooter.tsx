@@ -18,7 +18,16 @@ type ComposerRuntimeFooterProps = {
   contextApproximate?: boolean;
   activeMode?: MirrorOperatingMode;
   contextState?: PiContextState;
+  /** The exact binding, including thinking. It stays reachable even though it is no longer the
+   * normal reading path. */
   providerModel: string;
+  /**
+   * CR103: the name to show for the selected model — bare where that is unambiguous, qualified
+   * where two providers claim it. Falls back to the exact binding when the caller supplies none.
+   */
+  modelDisplayName?: string;
+  /** CR103: the thinking level, shown only when no Model Intent already encodes it. */
+  thinkingLabel?: string;
   canInitializeContext?: boolean;
   initializingContext?: boolean;
   onInitializeContext?: () => void;
@@ -28,6 +37,8 @@ type ComposerRuntimeFooterProps = {
   selectionScope?: ModelSelectionScope;
   /** Model the live turn started with, shown so the difference is legible. */
   liveRunProviderModel?: string;
+  /** CR103: the running turn's model in the same abbreviated register as the selection. */
+  liveRunModelDisplayName?: string;
   /** CR078: label of the Model Intent the effective profile matches, when one does. */
   activeIntentLabel?: string;
   providerModelMenu?: ReactNode;
@@ -68,6 +79,8 @@ export function ComposerRuntimeFooter({
   activeMode,
   contextState = contextUsage ? "available" : "waiting",
   providerModel,
+  modelDisplayName,
+  thinkingLabel,
   canInitializeContext = false,
   initializingContext = false,
   onInitializeContext,
@@ -75,6 +88,7 @@ export function ComposerRuntimeFooter({
   providerSelectionDisabled = false,
   selectionScope = "applies_now",
   liveRunProviderModel,
+  liveRunModelDisplayName,
   activeIntentLabel,
   providerModelMenu,
   providerModelMenuOpen = false,
@@ -93,9 +107,12 @@ export function ComposerRuntimeFooter({
   });
   const contextLabel = compacting ? "Compacting…" : reading.text;
   const contextTone = compacting || !reading.tone ? undefined : `composer-context-${reading.tone}`;
-  // The semantic layer never hides the mechanical one: the binding rides the title for the
-  // pointer and the accessible name for the keyboard, since the footer has no room for it.
-  const modelLabel = activeIntentLabel ?? providerModel;
+  // CR103: the intent used to stand in for the model, so a Navigator reading the footer learned
+  // what they had named their configuration but never what would actually run. The intent and the
+  // model are now shown together, and the exact binding keeps riding the title for the pointer and
+  // the accessible name for the keyboard.
+  const visibleModelName = modelDisplayName ?? providerModel;
+  const nextTurnScoped = selectionScope === "applies_to_next_turn";
   const accessibleName = activeIntentLabel
     ? `Choose model — currently ${activeIntentLabel} (${providerModel})`
     : `Choose model and thinking for ${providerModel}`;
@@ -140,6 +157,21 @@ export function ComposerRuntimeFooter({
           </button>
         ) : null}
         <span className="composer-runtime-separator" aria-hidden="true">·</span>
+        {/* CR103: the running turn is named first, because while work is alive it is the fact the
+            Navigator needs; the selection that has not taken effect yet follows it. */}
+        {nextTurnScoped && liveRunProviderModel ? (
+          <>
+            <span
+              className="composer-provider-model-scope"
+              title={`The running turn continues on ${liveRunProviderModel}.`}
+            >
+              <span className="composer-model-turn-label">Current turn:</span>
+              {" "}
+              {liveRunModelDisplayName ?? liveRunProviderModel}
+            </span>
+            <span className="composer-runtime-separator" aria-hidden="true">·</span>
+          </>
+        ) : null}
         {onSelectProviderModel ? (
           <div className="model-intent-menu-wrap" ref={menuWrapRef}>
             <button
@@ -150,23 +182,32 @@ export function ComposerRuntimeFooter({
               aria-haspopup="menu"
               aria-expanded={providerModelMenuOpen}
               aria-label={accessibleName}
-              title={activeIntentLabel ? providerModel : undefined}
+              title={providerModel}
             >
-              {modelLabel}
+              {nextTurnScoped ? (
+                <>
+                  <span className="composer-model-turn-label">Next turn:</span>
+                  {" "}
+                </>
+              ) : null}
+              {activeIntentLabel ? (
+                <>
+                  {activeIntentLabel}
+                  {" "}
+                  {/* A matched intent is a model and a thinking level, so naming the level again
+                      would say nothing the intent has not already said. */}
+                  <span className="composer-model-identity">{visibleModelName}</span>
+                </>
+              ) : (
+                <>
+                  {visibleModelName}
+                  {thinkingLabel ? ` · ${thinkingLabel}` : ""}
+                </>
+              )}
             </button>
             {providerModelMenu}
           </div>
-        ) : <span>{modelLabel}</span>}
-        {selectionScope === "applies_to_next_message" ? (
-          <span
-            className="composer-provider-model-scope"
-            title={liveRunProviderModel
-              ? `The running turn continues on ${liveRunProviderModel}.`
-              : undefined}
-          >
-            next message{liveRunProviderModel ? ` · running on ${liveRunProviderModel}` : ""}
-          </span>
-        ) : null}
+        ) : <span>{activeIntentLabel ?? visibleModelName}</span>}
       </div>
     </div>
   );

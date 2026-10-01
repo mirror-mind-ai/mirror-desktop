@@ -64,7 +64,11 @@ export function thinkingOptions(
 // CR090: a model chosen while a turn is alive is a preference for the next turn. The running
 // child keeps the configuration it was spawned with, so the interface must say which turn a
 // new selection reaches instead of implying the live one changed.
-export type ModelSelectionScope = "applies_now" | "applies_to_next_message";
+//
+// CR103: the scope is a turn, not a message. A live run emits as many assistant messages as the
+// work needs, and every one of them keeps the configuration the running child was spawned with, so
+// naming the "next message" pointed at something the selection does not reach.
+export type ModelSelectionScope = "applies_now" | "applies_to_next_turn";
 
 export function deriveModelSelectionScope(input: {
   /** Model the currently running turn started with, absent when nothing is running. */
@@ -74,7 +78,7 @@ export function deriveModelSelectionScope(input: {
   if (!input.liveRunProviderModel) return "applies_now";
   return input.liveRunProviderModel === input.selectedProviderModel
     ? "applies_now"
-    : "applies_to_next_message";
+    : "applies_to_next_turn";
 }
 
 // Only a catalog entry explicitly marked unavailable yields a reason: models

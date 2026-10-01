@@ -37,10 +37,10 @@ describe("model selection scope", () => {
     })).toBe("applies_now");
   });
 
-  it("applies to the next message when the running turn uses a different model", () => {
+  it("applies to the next turn when the running turn uses a different model", () => {
     expect(deriveModelSelectionScope({
       liveRunProviderModel: "a/b",
       selectedProviderModel: "c/d",
-    })).toBe("applies_to_next_message");
+    })).toBe("applies_to_next_turn");
   });
 });

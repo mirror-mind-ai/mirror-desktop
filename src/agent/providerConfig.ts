@@ -111,8 +111,21 @@ export function describeComposerModelSelection(
   thinkingLevel: AgentThinkingLevel,
 ): string {
   const label = providerModelLabel(config);
-  if (config.safeTestMode || thinkingLevel === "pi-default") return label;
-  return `${label} · ${thinkingLevel}`;
+  const thinking = visibleThinkingLabel(config, thinkingLevel);
+  return thinking ? `${label} · ${thinking}` : label;
+}
+
+/**
+ * CR103: the thinking level when naming it adds something, absent when it is Pi's own default or
+ * when safe test mode passes no level at all. One rule, so the footer and this descriptor cannot
+ * disagree about whether a level is worth showing.
+ */
+export function visibleThinkingLabel(
+  config: AgentProviderConfig,
+  thinkingLevel: AgentThinkingLevel,
+): string | undefined {
+  if (config.safeTestMode || thinkingLevel === "pi-default") return undefined;
+  return thinkingLevel;
 }
 
 // Supported-model snapshot from @earendil-works/pi-ai 0.84.2, and by now a stale one: it

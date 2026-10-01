@@ -2375,9 +2375,21 @@ h3 {
 .composer-provider-model-scope {
   color: var(--light-muted, #8aa3a9);
   font-size: 0.82em;
-  margin-left: 0.4em;
   opacity: 0.85;
   white-space: nowrap;
+}
+
+/* CR103: the word that says which turn a model belongs to. It is quieter than the model it
+   qualifies, because the model is the answer and this is only the question it answers. */
+.composer-model-turn-label {
+  opacity: 0.72;
+  text-transform: lowercase;
+}
+
+/* CR103: the model name beside a Model Intent. The intent is what the Navigator named, the model is
+   what will run — secondary in weight, never absent. */
+.composer-model-identity {
+  opacity: 0.78;
 }
 
 .composer-runtime-separator {
