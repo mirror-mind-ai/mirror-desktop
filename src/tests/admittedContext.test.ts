@@ -105,12 +105,13 @@ describe("admitted context derivation", () => {
     ]);
 
     expect(context.presenceByRelativePath).toEqual({ "docs/architecture.md": "present_now" });
-    expect(context.reads.map((read) => read.absolutePath)).toEqual([
+    expect(context.reads.map((read) => read.path)).toEqual([
       `${JOURNEY_ROOT}/docs/architecture.md`,
       "/Users/nav/elsewhere/notes.md",
     ]);
     expect(context.reads[1].relativePath).toBeUndefined();
     expect(context.reads[0].entryMode).toBe("read_during_work");
+    expect(context.counts.placeableInWorkspace).toBe(1);
   });
 
   it("a path read through a shell command is never admitted", () => {
@@ -163,7 +164,7 @@ describe("admitted context derivation", () => {
     expect(context.presentNowDerivable).toBe(false);
     expect(context.retainedTailEntryId).toBeUndefined();
     expect(context.reads[0].presence).toBe("present_now");
-    expect(context.counts).toEqual({ presentNow: 1, seenInConversation: 0 });
+    expect(context.counts).toEqual({ presentNow: 1, seenInConversation: 0, placeableInWorkspace: 1 });
   });
 
   it("a compaction boundary separates what was seen from what is still present", () => {
@@ -188,7 +189,7 @@ describe("admitted context derivation", () => {
       "docs/old.md": "seen_in_conversation",
       "docs/new.md": "present_now",
     });
-    expect(context.counts).toEqual({ presentNow: 1, seenInConversation: 1 });
+    expect(context.counts).toEqual({ presentNow: 1, seenInConversation: 1, placeableInWorkspace: 2 });
   });
 
   it("a read before the boundary is labelled by its chapter and a read after it by its turn", () => {
@@ -225,7 +226,7 @@ describe("admitted context derivation", () => {
 
     expect(context.attachments).toEqual([
       {
-        absolutePath: `${JOURNEY_ROOT}/docs/brief.md`,
+        path: `${JOURNEY_ROOT}/docs/brief.md`,
         displayName: "brief.md",
         relativePath: "docs/brief.md",
         state: "read",
@@ -233,7 +234,7 @@ describe("admitted context derivation", () => {
         entryMode: "attached_by_navigator",
       },
       {
-        absolutePath: "/Users/nav/outside/spec.pdf",
+        path: "/Users/nav/outside/spec.pdf",
         displayName: "spec.pdf",
         relativePath: undefined,
         state: "referenced",
@@ -331,23 +332,39 @@ describe("admitted context derivation", () => {
     expect(context.reads).toHaveLength(1);
     expect(context.reads[0]).toMatchObject({
       relativePath: "docs/roadmap.md",
+      path: `${JOURNEY_ROOT}/docs/roadmap.md`,
       readCount: 2,
       firstReadAt: "2026-10-01T10:00:01Z",
       lastReadAt: "2026-10-01T10:05:01Z",
     });
   });
 
-  it("a relative read path resolves against the Journey root and an escaping path does not", () => {
+  // Measured in a production session: relative read paths came from a working directory that was
+  // not the Journey root, and the files they name do not exist inside it. Resolving them against
+  // the root would mark workspace artifacts the agent never opened.
+  it("a relative read path is admitted but never placed on the tree", () => {
     const context = readOf([
-      user("u1", "Read the fixture"),
-      toolCall("a1", "call-1", "read", { path: "docs/fixture.md" }),
+      user("u1", "Read the briefing"),
+      toolCall("a1", "call-1", "read", { path: "docs/briefing.md" }),
       toolResult("r1", "call-1", "read"),
       toolCall("a2", "call-2", "read", { path: "../outside/secret.md" }),
       toolResult("r2", "call-2", "read"),
     ]);
 
-    expect(context.presenceByRelativePath).toEqual({ "docs/fixture.md": "present_now" });
-    expect(context.reads.find((read) => read.absolutePath.includes("secret"))?.relativePath).toBeUndefined();
+    expect(context.presenceByRelativePath).toEqual({});
+    expect(context.reads.map((read) => read.path)).toEqual(["docs/briefing.md", "../outside/secret.md"]);
+    expect(context.reads.every((read) => read.relativePath === undefined)).toBe(true);
+    expect(context.counts).toEqual({ presentNow: 2, seenInConversation: 0, placeableInWorkspace: 0 });
+  });
+
+  it("an absolute path escaping the root through traversal is not placed on the tree", () => {
+    const context = readOf([
+      user("u1", "Read upwards"),
+      toolCall("a1", "call-1", "read", { path: `${JOURNEY_ROOT}/../outside/secret.md` }),
+      toolResult("r1", "call-1", "read"),
+    ]);
+
+    expect(context.presenceByRelativePath).toEqual({});
   });
 
   it("without a Journey root nothing is placed on the tree but reads are still admitted", () => {
@@ -369,7 +386,7 @@ describe("admitted context derivation", () => {
     expect(context.reads).toEqual([]);
     expect(context.attachments).toEqual([]);
     expect(context.instructions).toEqual([]);
-    expect(context.counts).toEqual({ presentNow: 0, seenInConversation: 0 });
+    expect(context.counts).toEqual({ presentNow: 0, seenInConversation: 0, placeableInWorkspace: 0 });
     expect(context.conversation.entryCount).toBe(0);
     expect(context.briefing.state).toBe("available_not_evidenced");
   });

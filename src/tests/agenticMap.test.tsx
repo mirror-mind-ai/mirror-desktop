@@ -133,6 +133,27 @@ describe("Agentic Map", () => {
     expect(markup).not.toContain("complete");
   });
 
+  it("explains admitted reads that can carry no marker instead of leaving the count unexplained", () => {
+    const withOutsideRead: AdmittedContextInspection = {
+      ...compactedInspection,
+      entries: [
+        ...compactedInspection.entries,
+        {
+          entryId: "a3",
+          role: "assistant",
+          visibleText: "",
+          timestamp: "2026-10-01T09:40:00Z",
+          nativeContent: [{ type: "toolCall", id: "call-3", name: "read", arguments: { path: "docs/elsewhere.md" } }],
+        },
+        { entryId: "r3", role: "toolResult", visibleText: "", timestamp: "2026-10-01T09:40:01Z", toolCallId: "call-3", toolName: "read", isError: false },
+      ],
+    };
+    const markup = render({ admission: admission(withOutsideRead) });
+
+    expect(markup).toContain("1 of 3 reads name material outside this workspace");
+    expect(markup).toContain("carry no marker on the tree");
+  });
+
   it("marks each file by presence with a shape and a text alternative", () => {
     const markup = render();
 

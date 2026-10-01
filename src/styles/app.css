@@ -4150,7 +4150,8 @@ button:disabled {
   opacity: 0.6;
 }
 
-.agentic-map-blind-spot {
+.agentic-map-blind-spot,
+.agentic-map-elsewhere {
   color: #71868c;
   font-size: 0.7rem;
   margin: 6px 0 0;

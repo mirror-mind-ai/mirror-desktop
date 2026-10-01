@@ -78,16 +78,27 @@ export function AgenticMapHeader({
 }
 
 function AgenticMapCounts({ context }: { context: AdmittedContext }) {
-  const { presentNow, seenInConversation } = context.counts;
+  const { presentNow, seenInConversation, placeableInWorkspace } = context.counts;
+  // A count with no marker beneath it looks like a broken surface. It is not: the agent reads
+  // material outside this workspace, and relative paths name a directory we cannot identify.
+  const elsewhere = context.reads.length - placeableInWorkspace;
+
   return (
-    <p className="agentic-map-counts">
-      <span>{`${presentNow} ${plural(presentNow, "item")} evidenced present now`}</span>
-      {context.presentNowDerivable ? (
-        <span>{`${seenInConversation} more seen in this Conversation`}</span>
-      ) : (
-        <span>This Conversation has not been compacted, so everything seen is still present.</span>
-      )}
-    </p>
+    <>
+      <p className="agentic-map-counts">
+        <span>{`${presentNow} ${plural(presentNow, "item")} evidenced present now`}</span>
+        {context.presentNowDerivable ? (
+          <span>{`${seenInConversation} more seen in this Conversation`}</span>
+        ) : (
+          <span>This Conversation has not been compacted, so everything seen is still present.</span>
+        )}
+      </p>
+      {elsewhere > 0 ? (
+        <p className="agentic-map-elsewhere">
+          {`${elsewhere} of ${context.reads.length} ${plural(context.reads.length, "read")} name material outside this workspace, so they carry no marker on the tree.`}
+        </p>
+      ) : null}
+    </>
   );
 }
 
@@ -247,7 +258,7 @@ export function AdmissionPanel({ read }: { read?: AdmittedRead }) {
         </div>
         <div>
           <dt>Source</dt>
-          <dd>{read.relativePath ?? read.absolutePath}</dd>
+          <dd>{read.relativePath ?? read.path}</dd>
         </div>
         <div>
           <dt>Authority</dt>
@@ -370,7 +381,7 @@ function sourcesPage(context: AdmittedContext): ReactNode {
         being read.
       </p>
       <ul className="agentic-map-source-list">
-        {context.attachments.map((attachment) => <SourceRow key={attachment.absolutePath} attachment={attachment} />)}
+        {context.attachments.map((attachment) => <SourceRow key={attachment.path} attachment={attachment} />)}
       </ul>
     </>
   );
@@ -382,7 +393,7 @@ function SourceRow({ attachment }: { attachment: AdmittedAttachment }) {
       <ContextPresenceMarker presence={attachment.state === "read" ? "present_now" : "available"} />
       <span className="agentic-map-source-name">{attachment.displayName}</span>
       <span className="agentic-map-source-state">{attachment.state === "read" ? "Read" : "Referenced"}</span>
-      <span className="agentic-map-source-path">{attachment.relativePath ?? attachment.absolutePath}</span>
+      <span className="agentic-map-source-path">{attachment.relativePath ?? attachment.path}</span>
       <span className="agentic-map-source-moment">{formatMoment(attachment.attachedAt)}</span>
     </li>
   );

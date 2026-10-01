@@ -17,6 +17,10 @@ import { chapterTitleFromSummary } from "./compactionChapters";
  * - The read path lives only on the assistant `toolCall` block, while `toolName` and `isError`
  *   live on the following `toolResult` entry. Admission needs both, joined by `toolCallId`.
  * - An attachment is a reference. The prompt tells the agent to decide whether to read it.
+ * - A relative read path says nothing about which directory it was relative to. Measured in a
+ *   production session: relative paths named files that do not exist in the Journey root, so the
+ *   agent's working directory was elsewhere. Such a read is still an admission, but it cannot be
+ *   placed on this workspace's tree without inventing the claim that a workspace file was opened.
  */
 
 export type PromptEnvelopeClass = "mirror_desktop" | "nautilus_harness" | "unknown" | "raw";
@@ -49,8 +53,9 @@ export type AdmissionTurnLabel = {
 };
 
 export type AdmittedRead = {
-  absolutePath: string;
-  /** Present only when the path resolves inside the Journey workspace root. */
+  /** Exactly what the tool recorded, which may be relative to an unknown directory. */
+  path: string;
+  /** Present only when `path` was absolute and inside the Journey workspace root. */
   relativePath?: string;
   presence: AdmittedPresence;
   entryMode: "read_during_work";
@@ -62,7 +67,7 @@ export type AdmittedRead = {
 };
 
 export type AdmittedAttachment = {
-  absolutePath: string;
+  path: string;
   displayName: string;
   relativePath?: string;
   /** `read` requires a successful `read` call at or after the turn that attached it. */
@@ -113,7 +118,16 @@ export type AdmittedContext = {
   instructions: AdmittedInstruction[];
   briefing: AdmittedBriefing;
   conversation: AdmittedConversation;
-  counts: { presentNow: number; seenInConversation: number };
+  counts: {
+    presentNow: number;
+    seenInConversation: number;
+    /**
+     * How many admitted reads can appear as a marker on the tree. The rest are real reads of
+     * material outside this workspace, and saying so is what keeps a count with no visible
+     * markers from looking like a broken surface.
+     */
+    placeableInWorkspace: number;
+  };
 };
 
 /** The subset of the Pi transcript inspection admission needs, as a structural contract. */
@@ -191,25 +205,24 @@ function withoutTrailingSlash(value: string): string {
 }
 
 /**
- * Where a read landed relative to the workspace tree, when it landed there at all. A path
- * outside the root is still a real admission — it just has no node to mark, and inventing one
- * would put material on the tree that the bounded workspace read never offered.
+ * Where a read landed on the workspace tree, when it landed there at all. A path outside the
+ * root, or one whose base directory is unknown, is still a real admission — it just has no node
+ * to mark, and inventing one would put material on the tree the agent never opened here.
  */
 export function resolveWorkspaceRelativePath(
   path: string,
   journeyRoot: string | undefined,
-): { absolutePath: string; relativePath?: string } {
+): { path: string; relativePath?: string } {
   const normalized = normalizeSeparators(path.trim());
   const root = journeyRoot ? withoutTrailingSlash(normalizeSeparators(journeyRoot.trim())) : undefined;
-  const absolute = isAbsolutePath(normalized) || !root ? normalized : `${root}/${normalized}`;
 
-  if (!root) return { absolutePath: absolute };
-  if (absolute !== root && !absolute.startsWith(`${root}/`)) return { absolutePath: absolute };
+  if (!root || !isAbsolutePath(normalized)) return { path: normalized };
+  if (normalized !== root && !normalized.startsWith(`${root}/`)) return { path: normalized };
 
-  const remainder = absolute === root ? "" : absolute.slice(root.length + 1);
+  const remainder = normalized === root ? "" : normalized.slice(root.length + 1);
   const safe = remainder.length > 0
     && remainder.split("/").every((part) => part.length > 0 && part !== "." && part !== "..");
-  return safe ? { absolutePath: absolute, relativePath: remainder } : { absolutePath: absolute };
+  return safe ? { path: normalized, relativePath: remainder } : { path: normalized };
 }
 
 type AttachmentReference = { absolutePath: string; displayName: string };
@@ -243,7 +256,7 @@ export function parseAttachmentReferences(promptText: string): AttachmentReferen
 }
 
 type ReadEvidence = {
-  absolutePath: string;
+  path: string;
   relativePath?: string;
   index: number;
   entryId: string;
@@ -313,6 +326,7 @@ export function deriveAdmittedContext(input: {
     counts: {
       presentNow: reads.filter((read) => read.presence === "present_now").length,
       seenInConversation: reads.filter((read) => read.presence === "seen_in_conversation").length,
+      placeableInWorkspace: reads.filter((read) => read.relativePath !== undefined).length,
     },
   };
 }
@@ -333,7 +347,7 @@ function projectReads(
       ? "present_now"
       : item.index >= retainedTailIndex ? "present_now" : "seen_in_conversation";
 
-    const existing = byPath.get(item.absolutePath);
+    const existing = byPath.get(item.path);
     if (existing) {
       existing.readCount += 1;
       existing.lastReadAt = item.timestamp;
@@ -345,8 +359,8 @@ function projectReads(
       continue;
     }
 
-    byPath.set(item.absolutePath, {
-      absolutePath: item.absolutePath,
+    byPath.set(item.path, {
+      path: item.path,
       ...(item.relativePath ? { relativePath: item.relativePath } : {}),
       presence,
       entryMode: "read_during_work",
@@ -393,9 +407,9 @@ function projectAttachments(
     if (entry.role !== "user") continue;
     for (const reference of parseAttachmentReferences(entryText(entry))) {
       const resolved = resolveWorkspaceRelativePath(reference.absolutePath, journeyRoot);
-      if (attachments.has(resolved.absolutePath)) continue;
-      attachments.set(resolved.absolutePath, {
-        absolutePath: resolved.absolutePath,
+      if (attachments.has(resolved.path)) continue;
+      attachments.set(resolved.path, {
+        path: resolved.path,
         displayName: reference.displayName,
         relativePath: resolved.relativePath,
         state: "referenced",
@@ -410,7 +424,7 @@ function projectAttachments(
     ...attachment,
     // A read that happened before the Navigator attached the file says nothing about whether
     // the agent looked at what was handed to it.
-    state: evidence.some((item) => item.absolutePath === attachment.absolutePath && item.index >= attachedIndex)
+    state: evidence.some((item) => item.path === attachment.path && item.index >= attachedIndex)
       ? "read"
       : "referenced",
   }));
