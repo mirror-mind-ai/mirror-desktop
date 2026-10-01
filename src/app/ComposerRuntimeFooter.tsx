@@ -194,9 +194,11 @@ export function ComposerRuntimeFooter({
                 <>
                   {activeIntentLabel}
                   {" "}
-                  {/* A matched intent is a model and a thinking level, so naming the level again
+                  {/* The connector makes the pair read as one phrase — "<intent> with <model>" —
+                      instead of two labels resting against each other.
+                      A matched intent is a model and a thinking level, so naming the level again
                       would say nothing the intent has not already said. */}
-                  <span className="composer-model-identity">{visibleModelName}</span>
+                  <span className="composer-model-identity">with {visibleModelName}</span>
                 </>
               ) : (
                 <>

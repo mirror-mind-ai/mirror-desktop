@@ -44,6 +44,8 @@ from the model that actually owns a run, as CR090 established.
 1. The transcript response badges (CR091) are **not** abbreviated. CR103 stays scoped to the footer.
 2. The role words are **`Current turn:` / `Next turn:`**, not `Now:` / `Next:`.
 3. The scope constant is **renamed** so the code stops contradicting the interface.
+4. The intent and the model are joined by **`with`**, so the pair reads as one phrase rather than two
+   labels resting against each other: `Implementação confiável with gpt-5.5`.
 
 ## Diagnosis — 2026-10-01
 
@@ -99,8 +101,9 @@ Safe test mode is the one case where the provider is the mode rather than a vend
 
 ### The intent and the model are shown together
 
-The `??` is gone. A matched intent is named with the model beside it in a quieter register; with no
-intent the model is the primary text. The exact binding, including thinking, now rides the `title`
+The `??` is gone. A matched intent is named with the model beside it in a quieter register, joined by
+`with` so the two form one readable phrase; with no intent the model is the primary text and no
+connector is invented. The exact binding, including thinking, now rides the `title`
 **unconditionally**, because the visible name is abbreviated in both cases.
 
 ### The thinking level stopped repeating itself
@@ -127,9 +130,9 @@ Rendered states verified directly:
 
 | State | Footer |
 | --- | --- |
-| Intent matched, idle | `■ Builder Mode · 60%/200K · Operação confiável gpt-5.6-sol` |
-| No intent | `■ Builder Mode · 60%/200K · gpt-5.6-sol · high` |
-| Live run, different model | `■ Builder Mode · 60%/200K · Current turn: gpt-5.6-sol · Next turn: Operação confiável claude-sonnet-4-5` |
+| Intent matched, idle | `■ Builder Mode · 60%/200K · Implementação confiável with gpt-5.5` |
+| No intent | `■ Builder Mode · 60%/200K · gpt-5.5 · high` |
+| Live run, different model | `■ Builder Mode · 60%/200K · Current turn: gpt-5.5 · Next turn: Implementação séria with opus-5` |
 | Safe test mode | `■ Builder Mode · 60%/200K · safe-test/cat` |
 
 ### Narrow layouts
@@ -148,9 +151,9 @@ The longer role words cost no legibility: `.composer-runtime-metadata` already h
 
 ### Validation
 
-- `npx vitest run`: 204 files, 1341 tests. `cargo test --locked`: 215 passed. `tsc`, production
+- `npx vitest run`: 204 files, 1343 tests. `cargo test --locked`: 215 passed. `tsc`, production
   build, `roadmap:check` and `git diff --check` clean.
-- Dev installed at `0.2.0-alpha.27`, binary `27d5864de1ed49f1`.
+- Dev installed at `0.2.0-alpha.27`, binary `5e1c0096879ea105`.
 
 ### Declared limits
 

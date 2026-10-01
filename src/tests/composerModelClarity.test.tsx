@@ -58,6 +58,27 @@ describe("CR103 — the intent no longer replaces the model", () => {
     expect(html).toContain("composer-model-identity");
   });
 
+  it("joins the pair into one phrase instead of two labels side by side", () => {
+    const html = renderToStaticMarkup(
+      <ComposerRuntimeFooter
+        {...base}
+        providerModel="openai-codex/gpt-5.6-sol"
+        modelDisplayName="gpt-5.6-sol"
+        activeIntentLabel="Operação confiável"
+      />,
+    );
+
+    expect(buttonText(html).replace(/<[^>]+>/g, "")).toContain("Operação confiável with gpt-5.6-sol");
+  });
+
+  it("does not invent a connector when no intent is there to connect", () => {
+    const html = renderToStaticMarkup(
+      <ComposerRuntimeFooter {...base} providerModel="openai-codex/gpt-5.6-sol" modelDisplayName="gpt-5.6-sol" />,
+    );
+
+    expect(buttonText(html)).not.toContain("with");
+  });
+
   it("drops the thinking level a matched intent already encodes, keeping it inspectable", () => {
     const html = renderToStaticMarkup(
       <ComposerRuntimeFooter
