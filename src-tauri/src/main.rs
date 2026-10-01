@@ -9,6 +9,7 @@ mod runtime_channel;
 mod turn_journal;
 mod voice_transcription;
 mod whats_new_state;
+mod window_geometry;
 
 use agent_settings::{list_pi_models, load_agent_settings, save_agent_settings};
 use model_intents::{load_model_intents, save_model_intents};
@@ -37,6 +38,10 @@ use voice_transcription::{
     voice_transcription_transcribe,
 };
 use whats_new_state::{load_whats_new_state, save_whats_new_state};
+use window_geometry::{
+    geometry_write_due, load_window_geometry_at, resolve_window_geometry, save_window_geometry_at,
+    should_record_geometry, GeometryDecision, GeometryRejection, MonitorWorkArea, WindowGeometry,
+};
 use turn_journal::{
     ProviderStderrCapture,
     admit_turn, interrupt_inactive_turn, read_turn_journal, transition_turn, TurnJournalAuthority,
@@ -63,7 +68,9 @@ use std::{
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use tauri::{path::BaseDirectory, AppHandle, Emitter, Manager, State};
+use tauri::{
+    path::BaseDirectory, AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State,
+};
 
 const PI_PROCESS_EVENT: &str = "nautilus-pi-process";
 // CR085: a Navigator-initiated quit is announced to the window so it can flush Composer drafts
@@ -5140,6 +5147,108 @@ fn desktop_lifecycle_reopen_action(is_macos: bool, has_visible_windows: bool) ->
     }
 }
 
+// CR101: window geometry is local application preference. It is held in memory while the Navigator
+// drags or resizes, and written at a bounded rate rather than on every event.
+#[derive(Default)]
+struct WindowGeometryState {
+    pending: Mutex<Option<WindowGeometry>>,
+    last_written: Mutex<Option<Instant>>,
+}
+
+/// CR101: restore the window before it is ever shown.
+///
+/// The window is configured invisible so this runs while there is nothing to see; the Navigator gets
+/// their arrangement rather than watching a default window jump into place. Showing is unconditional
+/// and separate from the decision, so no geometry problem can leave the app running with no window.
+fn apply_startup_window_geometry(window: &tauri::WebviewWindow, app_data_root: &Path) {
+    let monitors: Vec<MonitorWorkArea> = window
+        .available_monitors()
+        .map(|monitors| {
+            monitors
+                .iter()
+                .map(|monitor| {
+                    let area = monitor.work_area();
+                    MonitorWorkArea {
+                        x: i64::from(area.position.x),
+                        y: i64::from(area.position.y),
+                        width: i64::from(area.size.width),
+                        height: i64::from(area.size.height),
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    match resolve_window_geometry(load_window_geometry_at(app_data_root), &monitors) {
+        GeometryDecision::Apply(geometry) => {
+            // Size first, then position: macOS anchors a resize at the bottom-left, so placing the
+            // window before sizing it would move the top-left corner away from where it was left.
+            let _ = window.set_size(PhysicalSize::new(geometry.width as u32, geometry.height as u32));
+            let _ = window.set_position(PhysicalPosition::new(
+                geometry.x as i32,
+                geometry.y as i32,
+            ));
+        }
+        GeometryDecision::UseDefault(reason) => {
+            // A first launch is not a finding; anything else is worth reading in the log.
+            if reason != GeometryRejection::NothingStored {
+                eprintln!(
+                    "Mirror Desktop opened at the default window geometry: {}",
+                    reason.reason_code()
+                );
+            }
+        }
+    }
+}
+
+fn record_window_geometry(window: &tauri::Window) {
+    let minimized = window.is_minimized().unwrap_or(false);
+    let fullscreen = window.is_fullscreen().unwrap_or(false);
+    if !should_record_geometry(minimized, fullscreen) {
+        return;
+    }
+    let (Ok(position), Ok(size)) = (window.outer_position(), window.outer_size()) else {
+        return;
+    };
+    let geometry = WindowGeometry {
+        x: i64::from(position.x),
+        y: i64::from(position.y),
+        width: i64::from(size.width),
+        height: i64::from(size.height),
+    };
+    let app = window.app_handle().clone();
+    let state = app.state::<WindowGeometryState>();
+    {
+        let Ok(mut pending) = state.pending.lock() else { return };
+        *pending = Some(geometry);
+    }
+    let due = state
+        .last_written
+        .lock()
+        .map(|last| last.map_or(true, |at| geometry_write_due(at.elapsed())))
+        .unwrap_or(false);
+    if due {
+        flush_window_geometry(&app);
+    }
+}
+
+/// Write whatever is pending. Called on the bounded interval and once more when the app exits, so
+/// the last arrangement is never the one that is lost.
+fn flush_window_geometry(app: &AppHandle) {
+    let state = app.state::<WindowGeometryState>();
+    let pending = match state.pending.lock() {
+        Ok(mut pending) => pending.take(),
+        Err(_) => None,
+    };
+    let Some(geometry) = pending else { return };
+    if let Ok(mut last) = state.last_written.lock() {
+        *last = Some(Instant::now());
+    }
+    let Ok(app_data_root) = app.path().app_data_dir() else { return };
+    if let Err(error) = save_window_geometry_at(&app_data_root, geometry) {
+        eprintln!("Mirror Desktop could not record window geometry: {error}");
+    }
+}
+
 // CR085: closing the window is the frontend's decision, because only the window knows the
 // Composer drafts and the visible agent work. Quitting is different: it ends local Pi work, so a
 // Navigator-initiated quit is handed back to the window once for confirmation.
@@ -9006,6 +9115,12 @@ fn main() {
                 request_desktop_quit(app_handle);
             }
         })
+        // CR101: moving and resizing are the only two facts geometry is made of.
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)) {
+                record_window_geometry(window);
+            }
+        })
         .setup(|app| {
             let channel = RuntimeChannel::active();
             if channel.supports_updater() {
@@ -9025,6 +9140,7 @@ fn main() {
         .manage(JourneyProvisioningState::default())
         .manage(JourneyProjectionPersistenceState::default())
         .manage(MirrorAppendOutboxState::default())
+        .manage(WindowGeometryState::default())
         .invoke_handler(tauri::generate_handler![
             save_dedicated_journey_conversation,
             load_dedicated_journey_conversation,
@@ -9122,6 +9238,15 @@ fn main() {
                     eprintln!("Mirror Desktop runtime channel icon validation failed: {error}");
                     app_handle.exit(1);
                 }
+                // CR101: geometry is applied here rather than in `setup`, because window commands
+                // are messages to the event loop and nothing processes them until it is running.
+                // The window is configured invisible, so this happens with nothing on screen.
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    if let Ok(app_data_root) = app_handle.path().app_data_dir() {
+                        apply_startup_window_geometry(&window, &app_data_root);
+                    }
+                    let _ = window.show();
+                }
             }
             #[cfg(target_os = "macos")]
             tauri::RunEvent::Reopen { has_visible_windows, .. } => {
@@ -9136,6 +9261,9 @@ fn main() {
                 }
             }
             tauri::RunEvent::ExitRequested { code, api, .. } => {
+                // CR101: the throttle can hold a change the Navigator just made, so the last
+                // arrangement is committed before anything else about exiting is decided.
+                flush_window_geometry(app_handle);
                 let quit_state = app_handle.state::<DesktopQuitState>();
                 let already_requested = quit_state.confirmation_requested.load(Ordering::SeqCst);
                 if desktop_exit_decision(code, already_requested) == DesktopExitDecision::AskWindowToConfirm {
