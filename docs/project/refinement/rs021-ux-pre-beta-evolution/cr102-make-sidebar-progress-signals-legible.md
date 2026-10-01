@@ -2,7 +2,7 @@
 
 # CR102: Make Sidebar Progress Signals Legible
 
-**Status:** in_progress
+**Status:** done
 **Driver:** —
 **Delivery:** —
 
@@ -207,6 +207,32 @@ quantity over any custom Journey image rather than unmeasurable by construction.
 
 Gates: `tsc` clean, 207 files / 1383 TypeScript tests, `cargo test --locked` 231 passed, production
 build, `roadmap:check` READY, `git diff --check` clean.
+
+### Rail placement repair — 2026-10-01
+
+Homologation exposed that the compact rail cut off Idle and active badges; a Journey with a custom
+mark that was Working appeared to have no progress signal at all. This was measured rather than
+inferred: the list clipped at x=63 while its scroll width reached 77; an ordinary badge extended to
+x=68, and the custom-mark badge to x=80, leaving 17 of its 19 pixels outside the clip.
+
+The expanded card's named grid areas (`name`, `context`, `status`) remained active in the rail,
+whose template defines only one `icon` cell. They created implicit columns outside the tile. Because
+an absolutely positioned grid item is contained by its grid area, not the tile, the status badge's
+`right: 1px` anchored to that outside column. The card copy is now explicitly hidden in the rail (as
+the tree copy already was through its wrapper), and the badge resets to `grid-area: auto` so it is
+contained by the tile. Re-measurement: scroll width equals client width (55), and every badge spans
+x=42–61, two pixels within the clip and overlapping its Journey mark.
+
+Two guardrails preserve those structural facts. Gates after the repair: `tsc` clean, 207 files /
+1385 TypeScript tests, production build, `roadmap:check` READY, `git diff --check` clean. Dev build
+`0.2.0-alpha.27` (`10912e6cd2b051a6`) was installed with backup
+`/Applications/Mirror Desktop Dev.app.backup-20261001-113426`; production remained running and
+untouched.
+
+## Closure — 2026-10-01
+
+The Navigator validated the six-state sidebar signal, including the compact-rail placement repair.
+CR102 is closed.
 
 ### Declared limits
 
