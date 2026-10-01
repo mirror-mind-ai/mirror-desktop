@@ -2,9 +2,15 @@
 
 # CR106: Use Green for Ready Completion Signals
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr106-ready-green`
+
+## Pull — 2026-09-30
+
+The Navigator explicitly pulled CR106 after confirming the user-perceptible RS021 priority:
+CR106, CR103, CR101, CR102 and CR105. This branch is limited to CR106 diagnosis and, only after
+further explicit instruction, its implementation.
 
 ## Friction
 
