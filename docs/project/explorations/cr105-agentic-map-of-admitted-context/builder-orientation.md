@@ -3,6 +3,12 @@
 Written 2026-10-01 for the agent that will implement CR105 after it is pulled. Every code location
 below was read in the checkout on that date. Re-verify line numbers before editing; they drift.
 
+All locations were re-verified at pull time on 2026-10-01 against commit `31f1c80`. Two facts were
+corrected in the process and are already reflected below: the prompt envelope has **four** values,
+not three (`raw` exists for text with no authority header), and transcript entries already expose
+`toolName`, `toolCallId`, `isError` and `parentEntryId`, so only the read **path** has to come from
+`nativeContent`.
+
 ## Before Touching Code
 
 1. Confirm CR105 has been pulled: its status is `in_progress` in
@@ -22,24 +28,27 @@ What exists, where, and what it proves. Nothing else may be used to claim admiss
 
 | Evidence | Location | Proves | Does not prove |
 |---|---|---|---|
-| Prompt packet | `createMirrorRuntimePrompt`, `src/agent/piProcessStream.ts` (around line 72) | Authority envelope is injected every turn; attachments are passed as a JSON list of references | That the briefing was injected (it is not); that attachments were read |
+| Prompt packet | `createMirrorRuntimePrompt`, `src/agent/piProcessStream.ts` line 71; authority block from line 78 | Authority envelope is injected every turn; attachments are passed as a JSON list of references under `FILE_REFERENCES_MARKER` | That the briefing was injected (it is not); that attachments were read |
 | Pi launch flags | `src-tauri/src/main.rs` around lines 7020-7040; provisioning at 555-565 | `--no-context-files`, `--no-extensions` plus explicit global extensions | Any context-file injection |
-| Session branch entries | `inspect_dedicated_pi_transcript` and `load_dedicated_pi_transcript`, `src-tauri/src/main.rs` lines 4108-4160; struct `DedicatedPiTranscriptInspection` line 360; `DedicatedPiTranscriptTurn` line 347 | Ordered entries with `native_content`, `prompt_envelope`, `chapter_closures`, `unknown_prompt_envelope_count` | Anything about entries not on the active branch |
-| Tool call blocks | `extractActivityBlocks`, `src/domain/piBackedConversationSurface.ts` lines 49-70 | `toolCall` blocks with `name` and `arguments` | Whether the tool result was error-free unless joined with `toolResult` entries (see `resultsByToolCallId` same file) |
-| `read` tool argument shape | Sampled session `~/Library/Application Support/ai.mirrormind.desktop/pi-sessions/*.jsonl` | `{"name":"read","arguments":{"path":"<absolute path>"}}` | Reads via `bash` (`cat`, `sed`, `grep`): not derivable, must not be inferred |
+| Session branch entries | `load_dedicated_pi_transcript` line 4108 and `inspect_dedicated_pi_transcript` line 4123, `src-tauri/src/main.rs`; struct `DedicatedPiTranscriptInspection` line 360; `DedicatedPiTranscriptTurn` line 347; TS mirror in `src/app/journeyThreadStorage.ts` lines 31-80 | Ordered active-branch entries with `nativeContent`, `promptEnvelope`, `chapterClosures`, `unknownPromptEnvelopeCount`, `leafIsCompaction`, `compactionCount` | Anything about entries not on the active branch |
+| Tool call blocks | `extractActivityBlocks`, `src/domain/piBackedConversationSurface.ts` line 49; block union at line 45 | `toolCall` blocks with `name` and `arguments`, inside an assistant entry's `nativeContent` | Whether the tool result was error-free unless joined with the `toolResult` entry (see `resultsByToolCallId`, same file, line 236) |
+| Transcript entry fields | `DedicatedPiTranscriptEntry`, `src/app/journeyThreadStorage.ts` line 54 | `entryId`, `parentEntryId`, `role`, `promptEnvelope`, `timestamp`, `nativeContent`, `toolCallId`, `toolName`, `isError` | The read path. `toolName` is recorded on the `toolResult` entry, never on the assistant entry |
+| `read` tool argument shape | Sampled production session `~/Library/Application Support/ai.mirrormind.desktop/pi-sessions/*.jsonl`; fixture at `src-tauri/src/main.rs` line 11506 | `{"name":"read","arguments":{"path":"<path>"}}` on the assistant entry; `{"role":"toolResult","toolCallId":…,"toolName":"read","isError":false}` on the next | Reads via `bash` (`cat`, `sed`, `grep`): not derivable, must not be inferred |
 | Compaction boundary | `PiChapterClosure` struct line 429 and `chapter_closures` at line 4753 (Rust); `src/domain/piBackedConversationSurface.ts` line 29-31 (TS) | `firstKeptEntryId` per compaction | What the model actually retains beyond the kept tail |
-| Envelope classification | `project_dedicated_user_text_and_envelope`, `src-tauri/src/main.rs` line 4847 | `mirror_desktop`, `nautilus_harness`, `unknown` | The content of the envelope beyond its class |
+| Envelope classification | `project_dedicated_user_text_and_envelope`, `src-tauri/src/main.rs` line 4847 | Four values: `mirror_desktop`, `nautilus_harness`, `unknown` (an unrecognised `[… Journey authority]` header), `raw` (no header at all) | The content of the envelope beyond its class |
 | Attachments type | `src/domain/fileAttachments.ts` line 12, `FileAttachment` | Path and metadata the Navigator selected | That the agent opened it |
-| Journey briefing text | `journey.description` via `src/domain/journeyRegistry.ts` line 65 | What Mirror holds as the briefing | That it entered any turn |
-| Workspace tree | `list_journey_documentation_at` line 2730 and `read_journey_document_at` line 2791 (Rust); `src/app/journeyDocumentationStorage.ts` | Files, kinds, preview kinds, sizes, modified times inside the Journey root | Anything about agent perception |
-| Context token stats | `read_pi_session_context_stats` line 4090 | Token snapshot only | Entries. Do not use for admission |
+| Journey briefing text | `journey.description`, declared at `src/domain/journeyRegistry.ts` line 5 and projected at line 65 | What Mirror holds as the briefing | That it entered any turn |
+| Workspace tree | `list_journey_documentation_at` line 2730 and `read_journey_document_at` line 2791 (Rust); `src/app/journeyDocumentationStorage.ts` (24 lines, whole bridge) | Files, kinds, preview kinds, sizes, modified times inside the Journey root | Anything about agent perception |
+| Context token stats | `read_pi_session_context_stats` line 4090; TS type at `src/agent/piProcessStream.ts` line 579 | Token snapshot and a three-value status only | Entries. Do not use for admission |
 
 ## Derivation Rules
 
 Implement these as pure functions in `src/domain/`, tested in isolation before any UI.
 
-1. **Seen set.** For the active branch, collect every `toolCall` with `name === "read"` and a string
-   `arguments.path`. Resolve the path against the Journey root. Keep only paths inside the root for
+1. **Seen set.** For the active branch, collect every `toolCall` block with `name === "read"` and a
+   string `arguments.path` from assistant entries' `nativeContent`, then join it to the
+   `toolResult` entry with the same `toolCallId` and require `isError !== true`. Resolve the path
+   against the Journey root; relative paths appear in fixtures, so resolution must tolerate them. Keep only paths inside the root for
    tree marking; keep outside paths for the Sources page when they match an attachment. Record the
    entry id, turn id and timestamp of the first and last read of each path.
 2. **Present-now set.** Take the latest `chapter_closures[].firstKeptEntryId`. A path is present now
@@ -48,11 +57,14 @@ Implement these as pure functions in `src/domain/`, tested in isolation before a
 3. **Attachment state.** For each attachment in each user entry's prompt packet, state is `read` if
    a `read` call for the same resolved path exists at or after that user entry; otherwise
    `referenced`.
-4. **Instruction state.** Group user entries by `prompt_envelope`. Report each class with the count
-   of turns and first and last turn. Never surface envelope text.
+4. **Instruction state.** Group user entries by `promptEnvelope` across all four values. Report
+   each class with the count of turns and the first and last turn. `raw` means the turn carried no
+   authority header; `unknown` means it carried one Desktop does not recognise, and that is worth
+   showing as a distinct, slightly alarming state. Never surface envelope text.
 5. **Briefing state.** Always `available_not_evidenced` in this CR. Do not parse `bash` arguments
    for Mirror load commands.
-6. **Failed reads.** If the matching `toolResult` has `isError === true`, the path is not seen.
+6. **Failed reads.** If the matching `toolResult` has `isError === true`, or no `toolResult` exists
+   for the call, the path is not seen. An unanswered `read` is an attempt, not a perception.
 7. **Nothing is persisted.** Derivation runs from `inspect_dedicated_pi_transcript` output already
    loaded for the Conversation surface. If that inspection is not loaded for the active Journey,
    load it once; do not add a new Tauri command unless the existing one cannot be reused.
@@ -93,11 +105,15 @@ Write these before the code they exercise.
   outside paths for the tree.
 - A `bash` call whose command contains `cat <path>` yields no seen entry.
 - A `read` call with an error result yields no seen entry.
+- A `read` call with no matching `toolResult` yields no seen entry.
+- A `toolResult` whose `toolName` is `read` but whose call block is absent yields no seen entry,
+  because the path lives only on the call.
+- Envelope grouping distinguishes `raw` from `unknown`.
 - With no chapter closure, present-now equals seen and the legend flag is set.
 - With one closure, a read before `firstKeptEntryId` is seen but not present; a read after it is
   both.
 - An attachment with no later `read` is `referenced`; with one, it is `read`.
-- Envelope grouping reports `mirror_desktop` and `unknown` counts without text.
+- Envelope grouping reports counts per class without text.
 - The surface renders three distinct marker shapes and the disclaimer with an inspection fixture.
 - Existing browser tests stay green unchanged.
 - Accessibility: markers have text alternatives; shapes remain distinct with `forced-colors`.

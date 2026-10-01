@@ -63,7 +63,8 @@ Externally located files keep their native-open behaviour.
 
 **Instructions page.** Lists the operating envelopes applied in this Conversation by origin and
 scope, for example "Mirror Desktop Journey authority, applied on every turn". Unknown envelopes are
-named as unknown. No prompt text is displayed.
+named as unknown, and turns that carried no authority header at all are named as raw. No prompt
+text is displayed.
 
 ## Navigator Flow
 

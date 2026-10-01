@@ -47,7 +47,7 @@ No graph is built in this CR. A graph may emerge later, only from authoritative 
 | Carried by Conversation | Retained transcript tail plus compaction summaries | Chapter closures with `firstKeptEntryId` | Whole branch treated as "seen", none as "present now" |
 | Attached by Navigator | Files the Navigator selected for a turn | "Files explicitly selected by the user" JSON block in the prompt | Shown as **referenced**, never as read |
 | Read during work | Content the agent opened with a tool | `read` tool call with `arguments.path` | Not shown as read. Shell commands are **not** parsed for reads |
-| Applied as instruction | Operating frame the agent received | Envelope classification (`mirror_desktop`, `nautilus_harness`, `unknown`) | Shown as "unknown envelope" |
+| Applied as instruction | Operating frame the agent received | Envelope classification: `mirror_desktop`, `nautilus_harness`, `unknown`, `raw` | Shown by class; `raw` means no authority header, `unknown` means an unrecognised one |
 
 ## Measured Facts That Constrain the Design
 
@@ -63,7 +63,9 @@ These were verified in the checkout on 2026-10-01. They are not assumptions.
    name and arguments. In a sampled production session, `bash` dominated (1969 calls) over `read`
    (228). Reads performed through `cat`, `sed` or `grep` inside `bash` are not derivable without
    parsing shell text, which the design forbids. The map will therefore **under-report** what the
-   agent saw. This limit must be stated on the surface.
+   agent saw. This limit must be stated on the surface. The read path lives only on the assistant
+   `toolCall` block, while `toolName` and `isError` live on the following `toolResult` entry, so
+   admission requires joining the two by `toolCallId`.
 3. **Attachments are references, not admitted content.** The prompt tells the agent to "decide
    with available tools whether and how to read each file". An attachment is "read" only if a
    matching `read` call exists.
@@ -71,7 +73,8 @@ These were verified in the checkout on 2026-10-01. They are not assumptions.
    at or after the latest boundary are candidates for "present now"; earlier entries are "seen in
    this Conversation" through the summary only.
 5. **The instruction envelope is already classified.** `project_dedicated_user_text_and_envelope`
-   in `src-tauri/src/main.rs` distinguishes `mirror_desktop`, `nautilus_harness` and `unknown`.
+   in `src-tauri/src/main.rs` distinguishes four classes: `mirror_desktop`, `nautilus_harness`,
+   `unknown` and `raw`.
 
 ## GUI Sketch Agreed in Exploration
 
