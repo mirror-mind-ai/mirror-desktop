@@ -111,13 +111,32 @@ describe("canvas teaching prompt", () => {
     expect(flat(teaching)).toMatch(/tell me what you think belongs there/i);
   });
 
-  it("asks for standing instructions, and for a pointer from context that actually loads", () => {
+  it("asks for standing instructions and is honest about what reads them", () => {
     expect(flat(teaching)).toMatch(/record that practice in a file named exactly/i);
     expect(teaching).toContain(CANVAS_INSTRUCTIONS_FILE_NAME);
-    // Measured: only 22 of 71 Journey roots carry any loader of standing instructions, so a file
-    // at the root is durable on disk and inert in practice unless loaded context points at it.
-    expect(flat(teaching)).toMatch(/instructions you actually load for this Journey point at/i);
-    expect(flat(teaching)).toMatch(/tell me where you put both the file and the pointer/i);
+    expect(flat(teaching)).toMatch(/nothing loads that file automatically/i);
+    expect(flat(teaching)).toMatch(/tell me where you wrote it/i);
+  });
+
+  /**
+   * Measured: Mirror Desktop invokes Pi with `current_dir` at the Mirror root, so context files
+   * are loaded relative to that directory and never from the Journey root. Confirmed from inside
+   * a live Desktop turn for this Journey: the working directory was the Mirror root and the
+   * injected instruction file was the Mirror root's own.
+   *
+   * An earlier version of this prompt asked the agent to make "whatever context it does load"
+   * point at the instructions file. There is no such place in this runtime, so the agent would
+   * have had to invent one, and a Journey's root loader file would have been edited for nothing.
+   */
+  it("does not ask the agent to wire a pointer into context it supposedly loads", () => {
+    // Naming JOURNEY.md as a landmark for the root is fine and helps the agent find the place.
+    // Naming a loader file is not, because that is only ever a request to wire a pointer into it.
+    for (const loader of ["AGENTS.md", "CLAUDE.md", "GEMINI.md"]) {
+      expect(teaching).not.toContain(loader);
+      expect(redraw).not.toContain(loader);
+    }
+    expect(flat(teaching)).not.toMatch(/point at|pointer|context you actually load|instructions you actually load/i);
+    expect(flat(teaching)).toContain("beside JOURNEY.md");
   });
 
   it("asks for short instructions about what and when, not a specification of form", () => {

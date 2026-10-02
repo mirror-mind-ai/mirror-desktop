@@ -134,22 +134,34 @@ The tab's label is always `Canvas`. The drawing's own title is its first heading
 controls without any field anywhere. There is no `title` to declare, because there is no manifest
 to declare it in.
 
-### Why a conventional file is not yet a loaded instruction
+### What actually reads the instructions, corrected after measurement
 
-Measured across the 71 Journey roots that exist on disk: 22 carry some loader of standing
-instructions, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` or `.pi`, and 49 carry none. Both Journeys this
-work is aimed at are among the 49. `vida-economica` and `livro-lideranca-soberana` carry
-`JOURNEY.md` and no loader; `mirror-desktop` carries `AGENTS.md`.
+Nothing at the Journey root is loaded automatically. Mirror Desktop invokes Pi with `current_dir`
+at the Mirror root, so context files are resolved against that directory and never against the
+Journey root. Confirmed from inside a live Desktop turn for this Journey: the working directory was
+the Mirror root and the injected instruction file was the Mirror root's own `AGENTS.md`. The
+Journey checkout's `AGENTS.md` was never loaded.
 
-So a file at the Journey root is durable on disk and inert in practice, because nothing loads it.
-It works through the button, since the redraw prompt names the path and the app becomes the loader.
-It does not work through the path the Navigator actually uses, which is asking for a status in
-conversation.
+A real user's machine makes the same point from the other side. Someone running Mirror Desktop has
+no checkout of this repository at all, so a root loader file here could not exist for them.
 
-The teaching prompt therefore does two things: it writes `canvas-instructions.md`, and it asks the
-agent to make whatever context it does load point at that file, reporting where it put the pointer.
-The app does not dictate the location, because only the agent knows how its runtime loads standing
-instructions. Where no loader exists, `JOURNEY.md` is the natural home, and Mirror injects it.
+So the instructions file has exactly one live reader: the redraw gesture, which names the path and
+lets the agent read the file itself. The app is the loader. Beyond that, the Navigator points the
+agent at it in conversation, which is what the Navigator said from the start, that keeping the
+agent aware of when to redraw would be their job rather than the app's.
+
+The only per-Journey channel found that Mirror itself feeds is `mm-build`, which instructs the
+agent to read `<project_path>/CLAUDE.md` and project docs on load. It is weak for this purpose: it
+is `CLAUDE.md` rather than `AGENTS.md`, it happens only when Builder Mode is loaded for that
+Journey, and none of `mirror-desktop`, `vida-economica` or `livro-lideranca-soberana` carries that
+file. It is recorded here as a fact, not adopted as a mechanism.
+
+An earlier version of this section claimed the opposite, that 22 of 71 Journey roots carry a loader
+of standing instructions and that the teaching prompt should ask the agent to wire a pointer into
+whichever one it loads. That count was real and measured the wrong thing: it counted loader files
+that exist, assuming something loads them, which in this runtime nothing does. The prompt no longer
+asks for a pointer, and a test asserts it names no loader file, so the claim cannot return as a
+premise for a later decision.
 
 ### The names are free
 
@@ -227,8 +239,10 @@ drawing was made and leaves the judgement to the Navigator who asked for it.
   `COMPOSER_DRAFT_MAX_CHARS`, since `setJourneyComposerDraft` truncates silently at that bound and
   would drop the prohibitions last.
 - The teaching prompt captures intent before drawing, asks what belongs on the canvas and offers
-  its own reading of what belongs, writes the first drawing, writes `canvas-instructions.md`, asks
-  the agent to point its loaded context at that file, and reports where the pointer was placed.
+  its own reading of what belongs, writes the first drawing, writes `canvas-instructions.md`, and
+  says where it wrote it. It states plainly that nothing loads that file automatically and that the
+  redraw gesture is what reads it, so the agent is not invited to invent a loading mechanism. A
+  test asserts the prompt names no loader file.
 - The teaching prompt states that the instructions are short and about what to draw and when to
   redraw, not a specification of form. This is enforced by prompt and not by code, and the 5,884
   byte contract the same prompt family produced in `vida-economica` is the evidence for why it has
@@ -293,9 +307,9 @@ and asserts the view carries none of them, and that its JSON matches no freshnes
 
 `src/domain/journeyCanvasPrompts.ts` composes both prompts as pure functions. The teaching prompt
 captures intent before drawing, asks what belongs and offers its own reading, writes the drawing,
-writes `canvas-instructions.md`, asks the agent to point whatever context it does load at that
-file, and asks where both went. It says to keep the instructions short and about what to draw and
-when to redraw. A test asserts the word "workflow" appears nowhere in it, because naming a genre
+writes `canvas-instructions.md` and asks where it went. It states that nothing loads that file
+automatically and that the redraw gesture is what reads it. It says to keep the instructions short
+and about what to draw and when to redraw. A test asserts the word "workflow" appears nowhere in it, because naming a genre
 is the error being corrected.
 
 The redraw prompt sends the agent to `canvas-instructions.md` rather than carrying its text, and
@@ -337,9 +351,12 @@ Context keeps `artifacts` as its persisted selection state.
 ### This Journey's own artifacts
 
 The three dogfooding artifacts from `736b90b` are replaced by `canvas.md` and
-`canvas-instructions.md` at the Journey root, and `AGENTS.md` gains one line pointing at the
-instructions, which is the pointer the teaching prompt asks for. `AGENTS.md` is what this Journey
-actually loads, so the pointer is live rather than inert.
+`canvas-instructions.md` at the Journey root. Nothing else changed.
+
+A one-line pointer was briefly added to this repository's `AGENTS.md` and then reverted, because
+measurement showed it inert: Pi runs with the Mirror root as its working directory, so that file is
+never loaded during a Desktop turn, and a real user has no copy of it. It is recorded here because
+the mistake was a premise error rather than a typo, and the corrected premise is above.
 
 Verified by replaying the reader's rules against the real files: both present, neither a symlink,
 1,719 and 1,610 bytes against a one megabyte bound, both valid UTF-8, neither dotted, zero link
@@ -632,8 +649,8 @@ Gates: `npm test` 213 files, 1473 tests, all passing. `npx tsc --noEmit` clean.
   treating the canvas as derived and disposable: this Journey may ignore it in git without losing
   anything, because state never lives there. Left as is for now, to see whether it actually annoys.
 - Validate the teaching prompt in a real agent Conversation in a Journey with no canvas, checking
-  both that the drawing reflects the Journey's files and that the standing instructions survive
-  into a later session through the pointer the agent placed.
+  that the drawing reflects the Journey's files and that the written instructions are usable by the
+  redraw gesture in a later session.
 - Navigator walkthrough of the three states in the running app, including the light families, and
   specifically that a drawing made during the session appears without restarting.
 - Decide whether the index's Change Request vocabulary should gain a status for work superseded by

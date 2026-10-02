@@ -84,10 +84,9 @@ this Journey, so it survives this session. Keep it short: what to draw and when 
 standing note to yourself, not a specification of layout, and I would rather it stayed a few
 paragraphs than grew into a document.
 
-A file at the root is not enough on its own, because nothing loads it automatically. So also make
-whatever instructions you actually load for this Journey point at
-${CANVAS_INSTRUCTIONS_FILE_NAME}, in one line, wherever that place is for you. Then tell me where
-you put both the file and the pointer, so I know where to edit them later.
+Nothing loads that file automatically, so it is read when I ask for a redraw from the Canvas tab,
+which names it for you, or when I point you at it myself. Keeping you aware of when to redraw is my
+job, not the app's. Tell me where you wrote it, so I know where to edit it later.
 
 ${drawingRules}
 
