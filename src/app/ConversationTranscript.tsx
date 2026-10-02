@@ -55,6 +55,15 @@ type ConversationTranscriptProps = {
   chaptersOpen?: boolean;
   chapters?: readonly ConversationChapter[];
   onChaptersOpenChange?: (open: boolean) => void;
+  /**
+   * CR114: how many earlier chapters exist but are not loaded. Search already declared that it
+   * reads loaded content; that is only an honest statement if the surface also says when
+   * something is deliberately not loaded. The count is the Segment manifest's, which is the same
+   * boundary under its internal name.
+   */
+  earlierSegmentCount?: number;
+  onLoadEarlierHistory?: () => void;
+  earlierHistoryState?: "idle" | "loading" | "error";
   /** CR091: model captured on the live run, for the answer Pi has not recorded yet. */
   liveResponseModel?: { messageId: string; label: string };
 };
@@ -247,6 +256,9 @@ export const ConversationTranscript = memo(function ConversationTranscript({
   onSearchOpenChange,
   onTurnNavigatorOpenChange,
   onChaptersOpenChange,
+  earlierSegmentCount = 0,
+  onLoadEarlierHistory,
+  earlierHistoryState,
   liveResponseModel,
 }: ConversationTranscriptProps) {
   const index = useMemo(() => buildConversationTranscriptIndex(conversation), [conversation]);
@@ -332,6 +344,23 @@ export const ConversationTranscript = memo(function ConversationTranscript({
             />
           </label>
           <p role="status">{searchStatus}</p>
+          {earlierSegmentCount > 0 ? (
+            <p className="conversation-search-scope">
+              {earlierSegmentCount === 1
+                ? "1 earlier chapter is not loaded, so it is outside this search."
+                : `${earlierSegmentCount} earlier chapters are not loaded, so they are outside this search.`}
+              {onLoadEarlierHistory ? (
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={onLoadEarlierHistory}
+                  disabled={earlierHistoryState === "loading"}
+                >
+                  {earlierHistoryState === "loading" ? "Loading earlier history…" : "Load earlier history"}
+                </button>
+              ) : null}
+            </p>
+          ) : null}
           <div className="conversation-search-controls">
             <button type="button" className="secondary-button" disabled={searchMatches.length === 0} onClick={() => moveSearch(-1)}>Previous</button>
             <button type="button" className="secondary-button" disabled={searchMatches.length === 0} onClick={() => moveSearch(1)}>Next</button>
@@ -343,6 +372,8 @@ export const ConversationTranscript = memo(function ConversationTranscript({
           chapters={chapters ?? []}
           onSelect={(messageId) => scrollToMessage(messageId)}
           onClose={() => onChaptersOpenChange?.(false)}
+          {...(onLoadEarlierHistory ? { onLoadEarlierHistory } : {})}
+          {...(earlierHistoryState ? { earlierHistoryState } : {})}
         />
       ) : null}
       {messages.length > 0 && turnNavigatorOpen ? (

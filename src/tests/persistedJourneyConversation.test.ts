@@ -107,3 +107,58 @@ describe("generation-scoped dedicated conversation persistence", () => {
     expect(parsePersistedJourneyConversation(persisted)).toBeUndefined();
   });
 });
+
+// CR114: the type already documents these maps as derived from Pi on every reconstruction, but
+// the whole Conversation was spread into storage, so they reached disk anyway — 5.15 MB of
+// reconstructed actions in one production projection. Pi JSONL is their only authority.
+describe("derived projections stay out of durable storage", () => {
+  const derived = {
+    reconstructedAgentActions: {
+      "a": {
+        status: "completed" as const,
+        operations: [{ id: "op-1", name: "read", status: "completed" as const, output: "x".repeat(64) }],
+        reasoningSummaries: [{ id: "rs-1", content: "y".repeat(64), status: "completed" as const }],
+        activityOrder: [{ type: "operation" as const, id: "op-1" }],
+      },
+    },
+    responseModels: { "a": { provider: "anthropic", model: "claude" } },
+    chapterDividers: { "a": { title: "Chapter one", closedAt: "2026-08-26T10:30:00Z" } },
+    agentCommentRoles: { "a": "trail" as const },
+    interruptedFragments: { "a": "partial answer" },
+  };
+
+  it("omits every Pi-derived map when writing a Conversation", () => {
+    const written = createPersistedJourneyConversation({ ...conversation(), ...derived }).conversation;
+    for (const key of Object.keys(derived)) {
+      expect(written).not.toHaveProperty(key);
+    }
+  });
+
+  it("keeps live-captured and durable state that nothing else can rebuild", () => {
+    const source = conversation();
+    const written = createPersistedJourneyConversation({ ...source, ...derived }).conversation;
+    expect(written.messages).toEqual(source.messages);
+    expect(written.reconciliation).toEqual(source.reconciliation);
+    expect(written.liveIdentity).toEqual(source.liveIdentity);
+  });
+
+  it("drops derived maps already written by an earlier version instead of reloading them", () => {
+    const legacy = {
+      ...createPersistedJourneyConversation(conversation()),
+      conversation: { ...conversation(), ...derived },
+    };
+    const parsed = parsePersistedJourneyConversation(legacy);
+    expect(parsed).toBeDefined();
+    for (const key of Object.keys(derived)) {
+      expect(parsed?.conversation).not.toHaveProperty(key);
+    }
+  });
+
+  it("still round-trips a Conversation that carries derived maps in memory", () => {
+    const persisted = createPersistedJourneyConversation(
+      { ...conversation(), ...derived },
+      new Date("2026-08-26T11:00:00Z"),
+    );
+    expect(parsePersistedJourneyConversation(persisted)).toEqual(persisted);
+  });
+});

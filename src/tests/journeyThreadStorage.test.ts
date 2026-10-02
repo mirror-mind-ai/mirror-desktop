@@ -65,6 +65,8 @@ describe("Journey thread storage boundary", () => {
       journeyId: "journey-one", threadId: "thread-one", generation: 2,
       sessionId: "pi-two", sessionFile: "/app/pi-sessions/pi-two.jsonl",
       allowInactiveGeneration: false,
+      // CR114: the reading is scoped, and an unscoped caller still asks for the whole branch.
+      scope: "complete",
     });
   });
 

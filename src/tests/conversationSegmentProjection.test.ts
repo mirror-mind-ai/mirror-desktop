@@ -103,6 +103,52 @@ describe("bounded Conversation Segment projections", () => {
     expect(recovered.messages.at(-1)?.id).toBe("assistant-1200");
   });
 
+  // CR114: the partition narrowed messages, turns and terminal evidence but spread the source
+  // Conversation, so every per-message map reached every Segment at generation scope. One
+  // production Segment held 16 messages in 5.86 MB, 1,148 of whose reconstructed actions belonged
+  // to other Segments.
+  it("scopes every per-message map to the Segment that owns those messages", () => {
+    const conversation: JourneyConversation = {
+      ...fixture(),
+      reconstructedAgentActions: {
+        "assistant-1": { status: "completed", operations: [{ id: "op-1", name: "old", status: "completed" }], reasoningSummaries: [], activityOrder: [{ type: "operation", id: "op-1" }] },
+        "assistant-3": { status: "completed", operations: [{ id: "op-3", name: "new", status: "completed" }], reasoningSummaries: [], activityOrder: [{ type: "operation", id: "op-3" }] },
+      },
+      responseModels: {
+        "assistant-1": { provider: "anthropic", model: "old" },
+        "assistant-3": { provider: "anthropic", model: "new" },
+      },
+      agentCommentRoles: { "assistant-1": "trail", "assistant-3": "trail" },
+      interruptedFragments: { "assistant-1": "old fragment", "assistant-3": "new fragment" },
+      chapterDividers: { "user-2": { title: "Chapter two" } },
+    };
+    const [closed, current] = partitionConversationBySegments(conversation, manifest);
+    expect(Object.keys(closed!.conversation.reconstructedAgentActions ?? {})).toEqual(["assistant-1"]);
+    expect(Object.keys(closed!.conversation.responseModels ?? {})).toEqual(["assistant-1"]);
+    expect(Object.keys(closed!.conversation.agentCommentRoles ?? {})).toEqual(["assistant-1"]);
+    expect(Object.keys(closed!.conversation.interruptedFragments ?? {})).toEqual(["assistant-1"]);
+    expect(closed!.conversation.chapterDividers).toBeUndefined();
+    expect(Object.keys(current!.conversation.reconstructedAgentActions ?? {})).toEqual(["assistant-3"]);
+    expect(Object.keys(current!.conversation.responseModels ?? {})).toEqual(["assistant-3"]);
+    expect(Object.keys(current!.conversation.agentCommentRoles ?? {})).toEqual(["assistant-3"]);
+    expect(Object.keys(current!.conversation.interruptedFragments ?? {})).toEqual(["assistant-3"]);
+    expect(Object.keys(current!.conversation.chapterDividers ?? {})).toEqual(["user-2"]);
+  });
+
+  it("keeps a Segment's size proportional to its own messages, not the generation's", () => {
+    const conversation: JourneyConversation = {
+      ...fixture(),
+      reconstructedAgentActions: {
+        "assistant-1": { status: "completed",
+          operations: [{ id: "op-1", name: "historical", status: "completed", output: "x".repeat(4 * 1024 * 1024) }],
+          reasoningSummaries: [], activityOrder: [{ type: "operation", id: "op-1" }] },
+      },
+    };
+    const [closed, current] = partitionConversationBySegments(conversation, manifest);
+    expect(JSON.stringify(closed).length).toBeGreaterThan(4 * 1024 * 1024);
+    expect(JSON.stringify(current).length).toBeLessThan(10_000);
+  });
+
   it("rejects duplicate IDs instead of silently merging divergent Segment state", () => {
     const projections = partitionConversationBySegments(fixture(), manifest);
     projections[1]!.conversation.messages.push(projections[0]!.conversation.messages[0]!);

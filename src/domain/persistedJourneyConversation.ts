@@ -45,13 +45,35 @@ export type PersistedJourneyConversation = {
   savedAt: string;
 };
 
+/**
+ * CR114: the maps Pi is the authority for. `JourneyConversation` has always documented them as
+ * derived on every surface reconstruction, but the whole Conversation was spread into storage, so
+ * they were written anyway — one production projection carried 5.15 MB of reconstructed actions,
+ * and every Segment file inherited the same generation-wide copy. They are dropped on write and on
+ * read: a file that already holds them must not reintroduce them, because only the Pi session can
+ * say whether they are still true.
+ */
+const PI_DERIVED_CONVERSATION_KEYS = [
+  "reconstructedAgentActions",
+  "responseModels",
+  "chapterDividers",
+  "agentCommentRoles",
+  "interruptedFragments",
+] as const;
+
+export function withoutPiDerivedProjections<T extends object>(conversation: T): T {
+  const result = { ...conversation } as Record<string, unknown>;
+  for (const key of PI_DERIVED_CONVERSATION_KEYS) delete result[key];
+  return result as T;
+}
+
 export function createPersistedJourneyConversation(
   conversation: JourneyConversation,
   now: Date = new Date(),
 ): PersistedJourneyConversation {
   return {
     schemaVersion: "0.9.0",
-    conversation,
+    conversation: withoutPiDerivedProjections(conversation),
     savedAt: now.toISOString(),
   };
 }
@@ -167,7 +189,7 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
     schemaVersion: "0.9.0",
     savedAt: typeof record.savedAt === "string" ? record.savedAt : new Date(0).toISOString(),
     conversation: {
-      ...(conversationWithoutRuntimeState as unknown as JourneyConversation),
+      ...withoutPiDerivedProjections(conversationWithoutRuntimeState as unknown as JourneyConversation),
       messages: parsedMessages,
       liveIdentity,
       reconciliation,

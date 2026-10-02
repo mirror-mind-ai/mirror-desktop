@@ -75,6 +75,43 @@ describe("chapter index panel", () => {
     )).toContain('aria-label="Close chapter index"');
   });
 
+  // CR114: with the current chapter as the default working set, most chapters have no loaded
+  // opening on arrival. A dead row would present reachable history as unreachable, so the row
+  // offers the one thing that makes it reachable.
+  it("offers to load earlier history from a chapter that is not loaded yet", () => {
+    const html = renderToStaticMarkup(
+      <ChapterIndexPanel chapters={chapters} onSelect={() => undefined} onLoadEarlierHistory={() => undefined} locale="en-US" />,
+    );
+    expect(html).toContain("Load earlier history to reach chapter 2");
+    expect(html).not.toContain("Not in the loaded transcript");
+    // Every chapter is now actionable: two jumps and one load.
+    expect(html.match(/<button/g)?.length).toBe(3);
+  });
+
+  it("says it is loading and stops accepting the request while it runs", () => {
+    const html = renderToStaticMarkup(
+      <ChapterIndexPanel
+        chapters={chapters}
+        onSelect={() => undefined}
+        onLoadEarlierHistory={() => undefined}
+        earlierHistoryState="loading"
+        locale="en-US"
+      />,
+    );
+    expect(html).toContain("Loading earlier history");
+    expect(html).toContain("disabled");
+  });
+
+  it("keeps saying a chapter is not loaded when nothing can load it", () => {
+    const html = renderToStaticMarkup(<ChapterIndexPanel chapters={chapters} onSelect={() => undefined} locale="en-US" />);
+    expect(html).toContain("Not in the loaded transcript");
+  });
+
+  it("wires the panel's load request to the same route as the transcript control", () => {
+    expect(appSource).toContain("onLoadEarlierHistory");
+    expect(transcriptSource).toContain("onLoadEarlierHistory");
+  });
+
   it("says plainly when nothing has been compacted yet", () => {
     const html = renderToStaticMarkup(<ChapterIndexPanel chapters={[]} onSelect={() => undefined} locale="en-US" />);
     expect(html).toContain("This Conversation is still one chapter.");

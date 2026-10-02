@@ -13,8 +13,10 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS021
-- Change Request: none selected. CR113 and CR115 were accepted on 2026-10-02 after joint Eval
-  homologation. The captured order below is a ranking, not a selection.
+- Change Request: CR114, pulled on 2026-10-02 by explicit Navigator intent after `v0.2.0-alpha.30`
+  was published. It is `in_progress` under @alissonvale on
+  `refinement/rs021-cr114-current-segment-working-set`, with every plan decision settled and
+  implementation explicitly authorised. The captured order below is a ranking, not a selection.
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -59,7 +61,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 5 | [CR098](rs021-ux-pre-beta-evolution/cr098-allow-a-journey-to-be-reparented.md) | RS021 | Allow a Journey to Be Reparented | captured | — | — |
 | 6 | [CR100](rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) | RS021 | Make Journey Image Updates Supported | captured | — | — |
 | 7 | [CR113](rs021-ux-pre-beta-evolution/cr113-make-composer-typing-responsive-in-large-journeys.md) | RS021 | Make Composer Typing Responsive in Large Journeys | done | @alissonvale | `refinement/rs021-cr113-rs016-cr115-typing-responsiveness` |
-| 8 | [CR114](rs021-ux-pre-beta-evolution/cr114-make-the-current-segment-the-default-working-set.md) | RS021 | Make the Current Segment the Default Working Set | captured | — | — |
+| 8 | [CR114](rs021-ux-pre-beta-evolution/cr114-make-the-current-segment-the-default-working-set.md) | RS021 | Make the Current Segment the Default Working Set | in_progress | @alissonvale | `refinement/rs021-cr114-current-segment-working-set` |
 | 9 | [CR115](rs016-ongoing-product-improvements-and-adjustments/cr115-stop-the-idle-post-terminal-recovery-loop.md) | RS016 | Stop the Idle Post-Terminal Recovery Loop | done | @alissonvale | `refinement/rs021-cr113-rs016-cr115-typing-responsiveness` |
 | 10 | [CR104](rs021-ux-pre-beta-evolution/cr104-make-compaction-failures-actionable-and-expirable.md) | RS021 | Make Compaction Failures Actionable and Expirable | done | @alissonvale | `refinement/rs021-cr104-actionable-compaction-failures` |
 | 11 | [CR103](rs021-ux-pre-beta-evolution/cr103-give-the-composer-model-status-a-human-register.md) | RS021 | Give the Composer Model Status a Human Register | done | @alissonvale | `refinement/rs021-cr103-human-model-status` |

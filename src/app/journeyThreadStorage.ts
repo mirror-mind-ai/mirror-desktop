@@ -78,6 +78,22 @@ export type DedicatedPiTranscriptInspection = {
   incompleteUserEntryId: string | null;
   entries: DedicatedPiTranscriptEntry[];
   turns: DedicatedPiTranscriptTurn[];
+  /** CR114: which part of the branch `entries` carries, and what it left out. */
+  window?: PiTranscriptWindow;
+};
+
+/**
+ * CR114: `complete` is the whole active branch, which is what every reading needed before a
+ * Journey grew to dozens of chapters. `current_segment` is the tail Pi itself retained at its last
+ * compaction — the working set the agent is reasoning over.
+ */
+export type PiTranscriptScope = "complete" | "current_segment";
+
+export type PiTranscriptWindow = {
+  scope: PiTranscriptScope;
+  fromEntryId: string | null;
+  omittedEntryCount: number;
+  omittedChapterCount: number;
 };
 
 export async function inspectDedicatedPiTranscript(
@@ -87,9 +103,10 @@ export async function inspectDedicatedPiTranscript(
   sessionId: string,
   sessionFile: string,
   allowInactiveGeneration = false,
+  scope: PiTranscriptScope = "complete",
 ): Promise<DedicatedPiTranscriptInspection> {
   return invoke<DedicatedPiTranscriptInspection>("inspect_dedicated_pi_transcript", {
-    journeyId, threadId, generation, sessionId, sessionFile, allowInactiveGeneration,
+    journeyId, threadId, generation, sessionId, sessionFile, allowInactiveGeneration, scope,
   });
 }
 

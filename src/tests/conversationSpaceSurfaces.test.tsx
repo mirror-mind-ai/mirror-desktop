@@ -190,10 +190,10 @@ describe("conversation space surfaces", () => {
     expect(html).toContain("Conversation ready · Journey context is active");
     expect(html).toContain("Desktop Conversation");
     expect(html).toContain("New conversation");
-    expect(html).toContain("Current Segment empty");
-    expect(html).toContain("1 earlier Segment");
+    expect(html).toContain("Current chapter empty");
+    expect(html).toContain("1 earlier chapter");
     expect(html).toContain("Earlier history");
-    expect(html).toContain("Load 1 earlier Segment");
+    expect(html).toContain("Load 1 earlier chapter");
     expect(html).toContain("Understand where we are");
     expect(html).toContain("Think out loud");
     expect(html).toContain("Nothing is sent until you decide");
@@ -236,6 +236,6 @@ describe("conversation space surfaces", () => {
       loadedHistoricalSegmentCount={2}
     />);
     expect(loaded).toContain("128 messages loaded");
-    expect(loaded).toContain("3 Segments");
+    expect(loaded).toContain("3 chapters");
   });
 });

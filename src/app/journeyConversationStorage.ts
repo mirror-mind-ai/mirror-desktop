@@ -3,8 +3,26 @@ import {
   createPersistedJourneyConversation,
   parsePersistedJourneyConversation,
 } from "../domain/persistedJourneyConversation";
+import { preserveDurableConversationHistory } from "../domain/durableConversationHistory";
 import type { JourneyConversation } from "../domain/journeyConversation";
 import type { JourneySettlementAuthority } from "../domain/journeySettlementAuthority";
+
+/**
+ * CR114: the single seam where a bounded surface meets durable storage. Every write path hands
+ * over whatever it currently has on screen, which used to be the complete generation. Now it can
+ * be only the current chapter, so the stored record is composed rather than replaced: the surface
+ * owns the messages it loaded, and everything before them is preserved. See
+ * `preserveDurableConversationHistory` for why that ordering is the honest one.
+ */
+async function projectionForStorage(conversation: JourneyConversation): Promise<JourneyConversation> {
+  const stored = await loadDedicatedJourneyConversation(
+    conversation.journeyId,
+    conversation.liveIdentity.generation,
+    conversation.id,
+  ).catch(() => undefined);
+  const messages = preserveDurableConversationHistory(stored?.messages, conversation.messages);
+  return messages.length === conversation.messages.length ? conversation : { ...conversation, messages };
+}
 
 async function saveProjection(
   conversation: JourneyConversation,
@@ -14,10 +32,11 @@ async function saveProjection(
     outbox?: { itemId: string; conversationId: string };
   },
 ): Promise<void> {
+  const durable = await projectionForStorage(conversation);
   await invoke("save_dedicated_journey_conversation", {
     journeyId: conversation.journeyId,
     generation: conversation.liveIdentity.generation,
-    payload: JSON.stringify(createPersistedJourneyConversation(conversation)),
+    payload: JSON.stringify(createPersistedJourneyConversation(durable)),
     mode: options.mode,
     runAuthority: options.authority?.runAuthority,
     outboxItemId: options.outbox?.itemId,

@@ -37,13 +37,13 @@ export function EmptyDesktopConversation({ entry, journeyName, historicalSegment
         <div className="historical-segment-control conversation-history-action" role={historicalSegments.state === "error" ? "alert" : "status"}>
           <strong>Earlier history</strong>
           <span>{historicalSegments.state === "error"
-            ? "Earlier history could not be verified. The current Segment remains available."
-            : `${historicalSegments.count} earlier ${historicalSegments.count === 1 ? "Segment" : "Segments"} available.`}</span>
+            ? "Earlier history could not be verified. The current chapter remains available."
+            : `${historicalSegments.count} earlier ${historicalSegments.count === 1 ? "chapter" : "chapters"} available.`}</span>
           <button type="button" className="secondary-button" onClick={historicalSegments.onLoad}
             disabled={historicalSegments.disabled || historicalSegments.state === "loading"}>
             {historicalSegments.state === "loading"
-              ? "Loading earlier Segments…"
-              : `Load ${historicalSegments.count} earlier ${historicalSegments.count === 1 ? "Segment" : "Segments"}`}
+              ? "Loading earlier chapters…"
+              : `Load ${historicalSegments.count} earlier ${historicalSegments.count === 1 ? "chapter" : "chapters"}`}
           </button>
         </div>
       ) : null}

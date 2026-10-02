@@ -8,7 +8,21 @@ type ChapterIndexPanelProps = {
   chapters: readonly ConversationChapter[];
   onSelect: (messageId: string) => void;
   onClose?: () => void;
+  /**
+   * CR114: a Journey opens on its current chapter, so most chapters have no loaded opening on
+   * arrival. Their rows offer the load that makes them reachable instead of reading as dead.
+   */
+  onLoadEarlierHistory?: () => void;
+  earlierHistoryState?: "idle" | "loading" | "error";
   /** Explicit only in tests; production follows the reader's own locale. */
+  locale?: string;
+};
+
+type ChapterRowProps = {
+  chapter: ConversationChapter;
+  onSelect: (messageId: string) => void;
+  onLoadEarlierHistory?: () => void;
+  earlierHistoryState?: "idle" | "loading" | "error";
   locale?: string;
 };
 
@@ -25,12 +39,10 @@ function describeChapterScale(chapter: ConversationChapter, locale?: string): st
 function ChapterRow({
   chapter,
   onSelect,
+  onLoadEarlierHistory,
+  earlierHistoryState,
   locale,
-}: {
-  chapter: ConversationChapter;
-  onSelect: (messageId: string) => void;
-  locale?: string;
-}) {
+}: ChapterRowProps) {
   const scale = describeChapterScale(chapter, locale);
   const body = (
     <>
@@ -41,6 +53,7 @@ function ChapterRow({
       </span>
     </>
   );
+  const loading = earlierHistoryState === "loading";
   return (
     <li className={chapter.status === "current" ? "is-current" : undefined}>
       {chapter.openingMessageId ? (
@@ -48,6 +61,19 @@ function ChapterRow({
           type="button"
           onClick={() => onSelect(chapter.openingMessageId as string)}
           aria-label={`Go to chapter ${chapter.number}: ${chapter.title}`}
+        >
+          {body}
+        </button>
+      ) : onLoadEarlierHistory ? (
+        <button
+          type="button"
+          className="is-unloaded"
+          onClick={onLoadEarlierHistory}
+          disabled={loading}
+          aria-label={loading
+            ? "Loading earlier history"
+            : `Load earlier history to reach chapter ${chapter.number}: ${chapter.title}`}
+          title={loading ? "Loading earlier history…" : "Not loaded yet. Select to load earlier history."}
         >
           {body}
         </button>
@@ -61,16 +87,27 @@ function ChapterRow({
 function ChapterList({
   chapters,
   onSelect,
+  onLoadEarlierHistory,
+  earlierHistoryState,
   locale,
 }: {
   chapters: readonly ConversationChapter[];
   onSelect: (messageId: string) => void;
+  onLoadEarlierHistory?: () => void;
+  earlierHistoryState?: "idle" | "loading" | "error";
   locale?: string;
 }) {
   return (
     <ol>
       {chapters.map((chapter) => (
-        <ChapterRow key={chapter.segmentId} chapter={chapter} onSelect={onSelect} locale={locale} />
+        <ChapterRow
+          key={chapter.segmentId}
+          chapter={chapter}
+          onSelect={onSelect}
+          onLoadEarlierHistory={onLoadEarlierHistory}
+          earlierHistoryState={earlierHistoryState}
+          locale={locale}
+        />
       ))}
     </ol>
   );
@@ -79,7 +116,14 @@ function ChapterList({
 // CR080: a conversation of months read as one undifferentiated thread. This is its index —
 // every chapter the compactions already carved, named by the Goal Pi wrote. Chapters are
 // views over Pi entries: selecting one only moves the reading.
-export function ChapterIndexPanel({ chapters, onSelect, onClose, locale }: ChapterIndexPanelProps) {
+export function ChapterIndexPanel({
+  chapters,
+  onSelect,
+  onClose,
+  onLoadEarlierHistory,
+  earlierHistoryState,
+  locale,
+}: ChapterIndexPanelProps) {
   // Once the index is long enough to bury its own end, the chapters a reader reaches for
   // get a section of their own. The chronological arc stays below, where the chapter
   // metaphor belongs, and the stable numbers make an entry recognisable in both places.
@@ -112,12 +156,24 @@ export function ChapterIndexPanel({ chapters, onSelect, onClose, locale }: Chapt
           {shortcuts.length > 0 ? (
             <section className="conversation-chapter-section">
               <h3 className="eyebrow">Most recent</h3>
-              <ChapterList chapters={shortcuts} onSelect={onSelect} locale={locale} />
+              <ChapterList
+                chapters={shortcuts}
+                onSelect={onSelect}
+                onLoadEarlierHistory={onLoadEarlierHistory}
+                earlierHistoryState={earlierHistoryState}
+                locale={locale}
+              />
             </section>
           ) : null}
           <section className="conversation-chapter-section">
             {shortcuts.length > 0 ? <h3 className="eyebrow">All chapters</h3> : null}
-            <ChapterList chapters={chapters} onSelect={onSelect} locale={locale} />
+            <ChapterList
+              chapters={chapters}
+              onSelect={onSelect}
+              onLoadEarlierHistory={onLoadEarlierHistory}
+              earlierHistoryState={earlierHistoryState}
+              locale={locale}
+            />
           </section>
         </div>
       )}

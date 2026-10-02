@@ -343,3 +343,52 @@ describe("chapter dividers on the Pi-backed surface", () => {
     expect(surface.chapterDividers).toBeUndefined();
   });
 });
+
+// CR114: the projector is the same on a window as on the whole branch, so a bounded reading has to
+// produce exactly what the complete reading produced for those entries — same ids, same content,
+// same attribution. Anything else would mean the two routes disagree about history.
+describe("a bounded reading is the suffix of the complete one", () => {
+  const complete: PiConversationSurfaceInspection["entries"] = [
+    { entryId: "u1", role: "user", visibleText: "First question", timestamp: "2026-09-18T10:00:00Z" },
+    { entryId: "a1", role: "assistant", visibleText: "First answer", timestamp: "2026-09-18T10:00:01Z", provider: "anthropic", model: "old-model" },
+    { entryId: "u2", role: "user", visibleText: "Second question", timestamp: "2026-09-18T10:01:00Z" },
+    { entryId: "a2", role: "assistant", visibleText: "Second answer", timestamp: "2026-09-18T10:01:01Z", provider: "anthropic", model: "new-model" },
+    { entryId: "u3", role: "user", visibleText: "Third question", timestamp: "2026-09-18T10:02:00Z" },
+    { entryId: "a3", role: "assistant", visibleText: "Third answer", timestamp: "2026-09-18T10:02:01Z", provider: "anthropic", model: "new-model" },
+  ];
+  const closures = [{ firstKeptEntryId: "u2", summaryHead: "## Goal\nThe first chapter.", closedAt: "2026-09-18T10:00:30Z" }];
+
+  it("projects the window identically to the matching tail of the complete projection", () => {
+    const whole = projectPiBackedConversationSurface(conversation(), { ...inspection(complete), chapterClosures: closures });
+    const windowed = projectPiBackedConversationSurface(conversation(), {
+      ...inspection(complete.slice(2)),
+      chapterClosures: closures,
+    });
+    expect(windowed.messages).toEqual(whole.messages.slice(2));
+    expect(windowed.responseModels).toEqual({
+      "pi-a2": { provider: "anthropic", model: "new-model" },
+      "pi-a3": { provider: "anthropic", model: "new-model" },
+    });
+  });
+
+  it("keeps the divider that opens the loaded chapter and drops the ones before it", () => {
+    const windowed = projectPiBackedConversationSurface(conversation(), {
+      ...inspection(complete.slice(2)),
+      chapterClosures: closures,
+    });
+    // The window opens exactly at the entry Pi retained, so the chapter it opened is nameable.
+    expect(windowed.chapterDividers).toEqual({
+      "pi-u2": { title: "The first chapter.", closedAt: "2026-09-18T10:00:30Z" },
+    });
+  });
+
+  it("attributes nothing it did not read", () => {
+    const windowed = projectPiBackedConversationSurface(conversation(), {
+      ...inspection(complete.slice(4)),
+      chapterClosures: closures,
+    });
+    expect(windowed.messages.map((message) => message.id)).toEqual(["pi-u3", "pi-a3"]);
+    expect(windowed.responseModels?.["pi-a1"]).toBeUndefined();
+    expect(windowed.chapterDividers).toBeUndefined();
+  });
+});

@@ -3023,6 +3023,31 @@ h3 {
   margin: 0;
 }
 
+/* CR114: search reads loaded content, so it says when something is deliberately not loaded and
+   offers the one action that changes that. */
+.conversation-search-scope {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.conversation-search-scope .link-button {
+  background: none;
+  border: 0;
+  color: rgb(var(--ui-accent-rgb));
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.conversation-search-scope .link-button:disabled {
+  cursor: progress;
+  opacity: 0.6;
+  text-decoration: none;
+}
+
 .conversation-search-panel,
 .conversation-turn-panel,
 .conversation-chapter-panel {
@@ -9111,6 +9136,23 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 
 .conversation-chapter-panel li > div {
   opacity: 0.58;
+}
+
+/* CR114: a chapter that exists but is not loaded yet. It is reachable, so it reads as an
+   invitation rather than as the disabled rows that have nothing to offer. */
+.conversation-chapter-panel li > button.is-unloaded {
+  border-style: dashed;
+  opacity: 0.72;
+}
+
+.conversation-chapter-panel li > button.is-unloaded:hover,
+.conversation-chapter-panel li > button.is-unloaded:focus-visible {
+  opacity: 1;
+}
+
+.conversation-chapter-panel li > button.is-unloaded:disabled {
+  cursor: progress;
+  opacity: 0.5;
 }
 
 .conversation-chapter-panel li.is-current > button,

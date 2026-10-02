@@ -372,6 +372,37 @@ struct DedicatedPiTranscriptInspection {
     incomplete_user_entry_id: Option<String>,
     entries: Vec<DedicatedPiTranscriptEntry>,
     turns: Vec<DedicatedPiTranscriptTurn>,
+    // CR114: which part of the branch `entries` carries, and what it left out.
+    window: PiTranscriptWindow,
+}
+
+/**
+CR114: the working set, named. Every other reading above describes the whole active branch; this
+one describes the content actually returned, so a caller can state what is loaded without having
+to infer it from a count. `omitted_entry_count` counts projected entries, which is what `entries`
+holds, and never the compaction entries that are not transcript content.
+*/
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct PiTranscriptWindow {
+    scope: String,
+    from_entry_id: Option<String>,
+    omitted_entry_count: usize,
+    omitted_chapter_count: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PiTranscriptScope {
+    Complete,
+    CurrentSegment,
+}
+
+fn parse_pi_transcript_scope(value: Option<&str>) -> Result<PiTranscriptScope, String> {
+    match value {
+        None | Some("complete") => Ok(PiTranscriptScope::Complete),
+        Some("current_segment") => Ok(PiTranscriptScope::CurrentSegment),
+        _ => Err("Pi transcript scope is unsupported.".to_string()),
+    }
 }
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
@@ -4236,7 +4267,9 @@ fn inspect_dedicated_pi_transcript(
     session_id: String,
     session_file: String,
     allow_inactive_generation: Option<bool>,
+    scope: Option<String>,
 ) -> Result<DedicatedPiTranscriptInspection, String> {
+    let scope = parse_pi_transcript_scope(scope.as_deref())?;
     if allow_inactive_generation == Some(true) {
         validate_recorded_conversation_session_authority(
             &app, &journey_id, &thread_id, generation, &session_id, &session_file,
@@ -4251,8 +4284,9 @@ fn inspect_dedicated_pi_transcript(
     if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 256 * 1024 * 1024 {
         return Err("Dedicated Pi session JSONL exceeds its inspection bound.".to_string());
     }
-    inspect_complete_pi_transcript(
+    inspect_pi_transcript_with_scope(
         &fs::read_to_string(session_file).map_err(|_| "Dedicated Pi session JSONL is unavailable.".to_string())?,
+        scope,
     )
 }
 
@@ -4544,7 +4578,6 @@ fn publish_conversation_segment_projections(
         .cloned().unwrap_or_default();
     let mut supplied_closed_message_count = 0_u64;
     let mut supplied_current_message_count = None;
-    let mut current_payload: Option<&str> = None;
     let mut current_last_turn_id: Option<String> = None;
     for projection in &projections {
         let manifest_segment = manifest_segments.iter().find(|segment| {
@@ -4569,7 +4602,6 @@ fn publish_conversation_segment_projections(
         } else if supplied_current_message_count.replace(message_count).is_some() {
             return Err("Conversation Segment projection bundle has duplicate current state.".to_string());
         } else {
-            current_payload = Some(projection.payload.as_str());
             current_last_turn_id = conversation.pointer("/reconciliation/turns").and_then(Value::as_array)
                 .and_then(|turns| turns.last()).and_then(|turn| turn.get("turnId")).and_then(Value::as_str)
                 .map(str::to_string);
@@ -4634,15 +4666,15 @@ fn publish_conversation_segment_projections(
             &serde_json::to_vec_pretty(&receipt).map_err(|_| "Could not serialize Conversation Segment receipt.".to_string())?,
             nonce,
         ).map_err(|_| "Could not durably publish Conversation Segment receipt.".to_string())?;
-        let current_payload = current_payload
-            .ok_or_else(|| "Conversation Segment current projection is unavailable.".to_string())?;
-        let active_projection_path = conversation_projection_path(
-            &app, &journey_id, &thread_id, generation,
-        )?;
-        let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
-        write_durable_projection_at(&active_projection_path, current_payload.as_bytes(), nonce)
-            .map_err(|_| "Could not activate bounded current Conversation Segment.".to_string())?;
     }
+    // CR114: publishing Segments used to write the current Segment's payload over the active
+    // Conversation projection, to make opening read a small file. Since CR046 that file is not the
+    // transcript authority — Pi is — so the overwrite bought nothing and cost the one thing the
+    // file alone holds: the turn ledger, which it replaced with only the current Segment's turns.
+    // `refresh_conversation_segments` then read the manifest's turn attribution from that same
+    // truncated ledger, so two closed Segments in production ended up naming the same first turn.
+    // Segments are presentation pagination (CR046); durable Conversation metadata is not theirs to
+    // rewrite.
     Ok(total_message_count)
 }
 
@@ -4836,7 +4868,30 @@ fn project_pi_user_entries(content: &str) -> Result<Vec<DedicatedPiUserEntry>, S
         .collect())
 }
 
+/** The unscoped reading, kept as the baseline every scoped expectation is compared against. */
+#[cfg(test)]
 fn inspect_complete_pi_transcript(content: &str) -> Result<DedicatedPiTranscriptInspection, String> {
+    inspect_pi_transcript_with_scope(content, PiTranscriptScope::Complete)
+}
+
+/**
+CR114: the Desktop reconstructed the complete generation on every Journey open, every send
+preflight and every compaction, because this inspection always returned the whole active branch.
+The bound belongs here rather than in the frontend: the branch is read either way, but only the
+current chapter needs to cross the boundary and be rebuilt into a surface.
+
+The current chapter is not a Desktop invention. Pi records `firstKeptEntryId` on each compaction:
+the first entry it kept in its own context. A window that starts there is the working set the
+agent is reasoning over, so the Navigator sees what the agent sees, and everything earlier stays
+history on request.
+
+Structural facts stay whole — leaf, entry count, compaction count, chapter closures and turns all
+still describe the complete branch — because they say what exists, not what is loaded.
+*/
+fn inspect_pi_transcript_with_scope(
+    content: &str,
+    scope: PiTranscriptScope,
+) -> Result<DedicatedPiTranscriptInspection, String> {
     let branch = project_active_pi_branch(content)?;
     let mut pending_user_entry_id = None;
     for entry in &branch {
@@ -4852,6 +4907,34 @@ fn inspect_complete_pi_transcript(content: &str) -> Result<DedicatedPiTranscript
         .filter(|entry| entry.role.as_deref() == Some("user"))
         .filter(|entry| project_dedicated_user_text_and_envelope(&entry.text).1 == "unknown")
         .count();
+    let cut = match scope {
+        PiTranscriptScope::Complete => 0,
+        PiTranscriptScope::CurrentSegment => branch.iter().rev()
+            .find_map(|entry| if entry.entry_type == "compaction" {
+                entry.first_kept_entry_id.clone()
+            } else {
+                None
+            })
+            .and_then(|retained| branch.iter().position(|entry| entry.id == retained))
+            .unwrap_or(0),
+    };
+    let window_branch = &branch[cut..];
+    let window = PiTranscriptWindow {
+        scope: match scope {
+            PiTranscriptScope::Complete => "complete".to_string(),
+            PiTranscriptScope::CurrentSegment => "current_segment".to_string(),
+        },
+        from_entry_id: if cut > 0 { Some(branch[cut].id.clone()) } else { None },
+        omitted_entry_count: branch[..cut].iter().filter(|entry| entry.role.is_some()).count(),
+        omitted_chapter_count: branch[..cut].iter()
+            .filter(|entry| entry.entry_type == "compaction" && entry.first_kept_entry_id.is_some())
+            .count(),
+    };
+    // An inactive native attempt is recovered from this id, and the frontend refuses one it cannot
+    // find among the entries. A window that omits the request must therefore withhold the id
+    // rather than hand over a reference to something it did not return.
+    let incomplete_user_entry_id = pending_user_entry_id
+        .filter(|id: &String| window_branch.iter().any(|entry| &entry.id == id));
     Ok(DedicatedPiTranscriptInspection {
         schema_version: "0.1.0".to_string(),
         leaf_entry_id: branch.last().map(|entry| entry.id.clone()),
@@ -4867,9 +4950,10 @@ fn inspect_complete_pi_transcript(content: &str) -> Result<DedicatedPiTranscript
             }))
             .collect(),
         unknown_prompt_envelope_count,
-        incomplete_user_entry_id: pending_user_entry_id,
-        entries: project_pi_transcript_entries(&branch),
+        incomplete_user_entry_id,
+        entries: project_pi_transcript_entries(window_branch),
         turns: project_complete_pi_transcript_from_branch(&branch),
+        window,
     })
 }
 
@@ -9469,7 +9553,9 @@ mod tests {
         ensure_unique_desktop_conversation_title, load_desktop_conversation_catalog_at,
         manual_compaction_args, materialize_empty_pi_session, parse_pi_compaction_response, ProviderConfig,
         parse_pi_session_state,
-        inspect_complete_pi_transcript, project_complete_pi_transcript, project_conversation_segment_manifest,
+        inspect_complete_pi_transcript, inspect_pi_transcript_with_scope, parse_pi_transcript_scope,
+        PiTranscriptScope,
+        project_complete_pi_transcript, project_conversation_segment_manifest,
         PiChapterClosure,
         publish_conversation_segment_manifest_at,
         project_pi_user_entries, projection_manifest_coordinates_at,
@@ -9856,6 +9942,137 @@ mod tests {
         // Desktop must stop claiming the session is already compacted at exactly that point.
         assert!(!inspect_complete_pi_transcript(&resumed).unwrap().leaf_is_compaction);
         assert!(!inspect_complete_pi_transcript(&base).unwrap().leaf_is_compaction);
+    }
+
+    // CR114: opening a Journey reconstructed the complete generation every time, because the
+    // inspection always returned the whole active branch. The working set is bounded here, at its
+    // source, and the response says what it left out instead of implying it does not exist.
+    fn chaptered_session(chapters: usize) -> String {
+        let mut lines = vec![r#"{"type":"session","id":"scoped-session"}"#.to_string()];
+        let mut parent: Option<String> = None;
+        for chapter in 1..=chapters {
+            for turn in 1..=2 {
+                let user_id = format!("user-{chapter}-{turn}");
+                lines.push(json!({
+                    "type":"message", "id":user_id, "parentId":parent,
+                    "timestamp":format!("2026-09-20T{:02}:{:02}:00Z", chapter, turn),
+                    "message":{"role":"user","content":[{"type":"text","text":format!("Question {chapter}.{turn}")}]}
+                }).to_string());
+                let assistant_id = format!("assistant-{chapter}-{turn}");
+                lines.push(json!({
+                    "type":"message", "id":assistant_id, "parentId":format!("user-{chapter}-{turn}"),
+                    "timestamp":format!("2026-09-20T{:02}:{:02}:01Z", chapter, turn),
+                    "message":{"role":"assistant","content":[{"type":"text","text":format!("Answer {chapter}.{turn}")}],"stopReason":"stop"}
+                }).to_string());
+                parent = Some(assistant_id);
+            }
+            if chapter < chapters {
+                let compaction_id = format!("compaction-{chapter}");
+                lines.push(json!({
+                    "type":"compaction", "id":compaction_id, "parentId":parent,
+                    "firstKeptEntryId":format!("user-{chapter}-2"),
+                    "timestamp":format!("2026-09-20T{:02}:30:00Z", chapter),
+                    "summary":format!("## Goal\nChapter {chapter} closed.")
+                }).to_string());
+                parent = Some(format!("compaction-{chapter}"));
+            }
+        }
+        lines.join("\n")
+    }
+
+    #[test]
+    fn bounds_the_working_set_to_the_current_chapter_without_losing_structural_facts() {
+        let session = chaptered_session(4);
+        let complete = inspect_complete_pi_transcript(&session).unwrap();
+        let scoped = inspect_pi_transcript_with_scope(&session, PiTranscriptScope::CurrentSegment).unwrap();
+
+        // What exists is a fact about the branch, so every structural reading is unchanged.
+        assert_eq!(scoped.leaf_entry_id, complete.leaf_entry_id);
+        assert_eq!(scoped.active_entry_count, complete.active_entry_count);
+        assert_eq!(scoped.compaction_count, complete.compaction_count);
+        assert_eq!(scoped.leaf_is_compaction, complete.leaf_is_compaction);
+        assert_eq!(scoped.chapter_closures, complete.chapter_closures);
+        assert_eq!(scoped.turns, complete.turns);
+
+        // Only the content is bounded, and it begins exactly where Pi's own retained tail begins.
+        assert_eq!(scoped.window.scope, "current_segment");
+        assert_eq!(scoped.window.from_entry_id.as_deref(), Some("user-3-2"));
+        assert_eq!(scoped.entries.first().map(|entry| entry.entry_id.as_str()), Some("user-3-2"));
+        assert_eq!(scoped.entries.last().map(|entry| entry.entry_id.as_str()), complete.entries.last().map(|entry| entry.entry_id.as_str()));
+        assert_eq!(scoped.window.omitted_entry_count, complete.entries.len() - scoped.entries.len());
+        assert_eq!(scoped.window.omitted_chapter_count, 2);
+
+        // The window is the matching suffix of the complete branch, entry for entry.
+        let suffix = &complete.entries[complete.entries.len() - scoped.entries.len()..];
+        assert_eq!(scoped.entries, suffix);
+    }
+
+    #[test]
+    fn an_uncompacted_branch_has_one_chapter_so_both_scopes_agree() {
+        let session = chaptered_session(1);
+        let complete = inspect_complete_pi_transcript(&session).unwrap();
+        let scoped = inspect_pi_transcript_with_scope(&session, PiTranscriptScope::CurrentSegment).unwrap();
+        assert_eq!(scoped.entries, complete.entries);
+        assert_eq!(scoped.window.from_entry_id, None);
+        assert_eq!(scoped.window.omitted_entry_count, 0);
+        assert_eq!(scoped.window.omitted_chapter_count, 0);
+        assert_eq!(complete.window.scope, "complete");
+        assert_eq!(complete.window.omitted_entry_count, 0);
+    }
+
+    #[test]
+    fn a_branch_ending_in_a_compaction_still_opens_at_its_retained_tail() {
+        // CR104's condition and CR114's window meet here: the chapter just closed, so the current
+        // chapter is exactly the tail Pi kept, and nothing after it exists yet.
+        let session = format!(
+            "{}\n{}",
+            chaptered_session(2),
+            r###"{"type":"compaction","id":"compaction-2","parentId":"assistant-2-2","firstKeptEntryId":"assistant-2-2","timestamp":"2026-09-20T23:00:00Z","summary":"## Goal\nChapter 2 closed."}"###,
+        );
+        let scoped = inspect_pi_transcript_with_scope(&session, PiTranscriptScope::CurrentSegment).unwrap();
+        assert!(scoped.leaf_is_compaction);
+        assert_eq!(scoped.compaction_count, 2);
+        assert_eq!(scoped.window.from_entry_id.as_deref(), Some("assistant-2-2"));
+        assert_eq!(scoped.entries.len(), 1);
+        assert_eq!(scoped.entries[0].entry_id, "assistant-2-2");
+        assert_eq!(scoped.window.omitted_chapter_count, 1);
+    }
+
+    #[test]
+    fn an_interrupted_tail_inside_the_window_is_reported_and_one_outside_it_is_not() {
+        // The incomplete request is what an inactive native attempt is recovered from, and the
+        // frontend refuses an id it cannot find among the entries. Reporting one the window omits
+        // would hand it exactly that, so the scoped reading withholds it instead of inventing.
+        let inside = format!(
+            "{}\n{}",
+            chaptered_session(2),
+            r#"{"type":"message","id":"user-interrupted","parentId":"assistant-2-2","timestamp":"2026-09-20T23:10:00Z","message":{"role":"user","content":[{"type":"text","text":"Admitted before interruption"}]}}"#,
+        );
+        let scoped_inside = inspect_pi_transcript_with_scope(&inside, PiTranscriptScope::CurrentSegment).unwrap();
+        assert_eq!(scoped_inside.incomplete_user_entry_id.as_deref(), Some("user-interrupted"));
+
+        let outside = [
+            r#"{"type":"session","id":"scoped-session"}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-09-20T10:00:00Z","message":{"role":"user","content":[{"type":"text","text":"Question"}]}}"#,
+            r#"{"type":"message","id":"assistant-1","parentId":"user-1","timestamp":"2026-09-20T10:00:01Z","message":{"role":"assistant","content":[{"type":"text","text":"Answer"}],"stopReason":"stop"}}"#,
+            r#"{"type":"message","id":"user-2","parentId":"assistant-1","timestamp":"2026-09-20T10:01:00Z","message":{"role":"user","content":[{"type":"text","text":"Interrupted request"}]}}"#,
+            r#"{"type":"message","id":"assistant-2","parentId":"user-2","timestamp":"2026-09-20T10:01:01Z","message":{"role":"assistant","content":[{"type":"text","text":"Working"}],"stopReason":"toolUse"}}"#,
+            r###"{"type":"compaction","id":"compaction-1","parentId":"assistant-2","firstKeptEntryId":"assistant-2","timestamp":"2026-09-20T10:02:00Z","summary":"## Goal\nClosed."}"###,
+        ].join("\n");
+        let complete_outside = inspect_complete_pi_transcript(&outside).unwrap();
+        assert_eq!(complete_outside.incomplete_user_entry_id.as_deref(), Some("user-2"));
+        let scoped_outside = inspect_pi_transcript_with_scope(&outside, PiTranscriptScope::CurrentSegment).unwrap();
+        assert_eq!(scoped_outside.incomplete_user_entry_id, None);
+    }
+
+    #[test]
+    fn only_the_two_declared_scopes_are_accepted() {
+        assert_eq!(parse_pi_transcript_scope(None).unwrap(), PiTranscriptScope::Complete);
+        assert_eq!(parse_pi_transcript_scope(Some("complete")).unwrap(), PiTranscriptScope::Complete);
+        assert_eq!(parse_pi_transcript_scope(Some("current_segment")).unwrap(), PiTranscriptScope::CurrentSegment);
+        assert!(parse_pi_transcript_scope(Some("")).is_err());
+        assert!(parse_pi_transcript_scope(Some("everything")).is_err());
+        assert!(parse_pi_transcript_scope(Some("CURRENT_SEGMENT")).is_err());
     }
 
     #[test]

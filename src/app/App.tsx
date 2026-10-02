@@ -211,7 +211,7 @@ import {
   decideConversationRecoveryRoutes,
   type ConversationRecoveryRouteId,
 } from "../domain/conversationRecovery";
-import { inspectDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState } from "./journeyThreadStorage";
+import { inspectDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState, type PiTranscriptScope } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import { projectGenerationHistory } from "../domain/journeyThreadRestart";
 import {
@@ -691,6 +691,15 @@ export function App({ model }: AppProps) {
   const [historicalSegmentCount, setHistoricalSegmentCount] = useState(0);
   const [loadedHistoricalSegmentCount, setLoadedHistoricalSegmentCount] = useState(0);
   const [historicalSegmentState, setHistoricalSegmentState] = useState<"idle" | "loading" | "error">("idle");
+  // CR114: how much of the Pi branch the loaded surface covers. A Journey opens on its current
+  // chapter and widens only when the Navigator asks for earlier history, so every reprojection
+  // during the visit — send preflight, compaction, recovery — has to reproduce the same extent
+  // rather than silently growing or shrinking the transcript. It is a ref because the async paths
+  // that reproject read it long after the render that set it.
+  const loadedHistoryScopeRef = useRef<PiTranscriptScope>("current_segment");
+  // How many chapters Pi itself has closed on this branch. Counting drawn dividers would make a
+  // bounded surface look like a stale manifest on every visit.
+  const [piClosedChapterCount, setPiClosedChapterCount] = useState(0);
   const [focusedJourneyRootThreadId, setFocusedJourneyRootThreadId] = useState<string>();
   const [conversationActionBusy, setConversationActionBusy] = useState(false);
   const [conversationActionMessage, setConversationActionMessage] = useState<string>();
@@ -1642,6 +1651,8 @@ export function App({ model }: AppProps) {
     setHistoricalSegmentCount(0);
     setLoadedHistoricalSegmentCount(0);
     setHistoricalSegmentState("idle");
+    // A new Journey, Conversation or generation opens on its own current chapter.
+    loadedHistoryScopeRef.current = "current_segment";
     const loadRequest = conversationLoadCoordinatorRef.current.begin(selectedJourney);
     const requestIsCurrent = () => !cancelled
       && conversationLoadCoordinatorRef.current.isCurrent(loadRequest, selectedJourneyRef.current);
@@ -1694,15 +1705,23 @@ export function App({ model }: AppProps) {
           : createJourneyConversation({ journeyId: selectedJourney, initialMessages }));
         if (classified.kind === "ready" && classified.activeGeneration.piSessionFile
           && !restoreDecision.runtimeConversation) {
+          // CR114: the working set opens at the tail Pi retained at its last compaction — the
+          // same context the agent is reasoning over. Earlier chapters stay durable and are
+          // loaded only when the Navigator asks for them.
           const inspection = await inspectDedicatedPiTranscript(
             selectedJourney,
             classified.thread.threadId,
             classified.activeGeneration.generation,
             classified.activeGeneration.piSessionId,
             classified.activeGeneration.piSessionFile,
+            false,
+            loadedHistoryScopeRef.current,
           );
           restoredConversation = projectPiBackedConversationSurface(restoredConversation, inspection);
           setCompactedLeaf({ journeyId: selectedJourney, leafIsCompaction: inspection.leafIsCompaction });
+          setPiClosedChapterCount(inspection.compactionCount);
+          // What the reader can still reach, stated by the reading that bounded it.
+          setHistoricalSegmentCount(inspection.window?.omittedChapterCount ?? 0);
           setInactiveNativeAttempt(deriveInactiveNativeAttemptCandidate({
             journeyId: selectedJourney,
             threadId: classified.thread.threadId,
@@ -2362,7 +2381,7 @@ export function App({ model }: AppProps) {
   }, [journeyThreadState.kind, runtimeBusy, isJourneyReloading]);
 
   // How many chapters the Pi session itself says have closed; the manifest must agree.
-  const closedChapterCount = Object.keys(presentedConversation.chapterDividers ?? {}).length;
+  const closedChapterCount = piClosedChapterCount;
 
   // CR080: the manifest is a view over the Pi session, so it is read for the selected
   // generation and re-read after a compaction closed a chapter.
@@ -2705,12 +2724,16 @@ export function App({ model }: AppProps) {
         return;
       }
       try {
+        // CR114: the same extent the visit is already showing. Widening here would rebuild the
+        // whole generation on Send; narrowing would drop loaded history from under the Navigator.
         const inspection = await inspectDedicatedPiTranscript(
           selectedJourney,
           journeyThreadState.thread.threadId,
           journeyThreadState.activeGeneration.generation,
           journeyThreadState.activeGeneration.piSessionId,
           journeyThreadState.activeGeneration.piSessionFile,
+          false,
+          loadedHistoryScopeRef.current,
         );
         baseConversation = projectPiBackedConversationSurface(metadataBase, inspection);
       } catch (error) {
@@ -4597,9 +4620,14 @@ export function App({ model }: AppProps) {
           authority.generation,
           authority.sessionId,
           authority.sessionFile,
+          false,
+          loadedHistoryScopeRef.current,
         );
         const reprojected = projectPiBackedConversationSurface(conversationRef.current, inspection);
         setCompactedLeaf({ journeyId: authority.journeyId, leafIsCompaction: inspection.leafIsCompaction });
+        // The compaction that just closed a chapter moved both of these.
+        setPiClosedChapterCount(inspection.compactionCount);
+        setHistoricalSegmentCount(inspection.window?.omittedChapterCount ?? 0);
         // CR079: the cached usage described the conversation before the cut, but the compaction
         // reports what it left behind. Spending that estimate keeps a reading on screen at the
         // moment the Navigator just acted on the context, instead of blanking it until the next
@@ -4703,15 +4731,22 @@ export function App({ model }: AppProps) {
     const segmentCountBeingLoaded = historicalSegmentCount;
     setHistoricalSegmentState("loading");
     try {
+      // CR114: this is now the only reading that asks for the whole branch, which is what the
+      // control has always promised. Before the window existed it reinspected exactly what the
+      // open had already loaded, so it could never add anything.
       const inspection = await inspectDedicatedPiTranscript(
         authority.journeyId,
         authority.threadId,
         authority.generation,
         authority.sessionId,
         authority.sessionFile,
+        false,
+        "complete",
       );
       if (selectedJourneyRef.current !== authority.journeyId || conversationRef.current.id !== selectedConversationId) return;
       const complete = projectPiBackedConversationSurface(conversationRef.current, inspection);
+      // The visit keeps the wider extent, so a later reprojection does not take it away again.
+      loadedHistoryScopeRef.current = "complete";
       conversationRef.current = complete;
       setConversation(complete);
       setLoadedHistoricalSegmentCount(segmentCountBeingLoaded);
@@ -5342,13 +5377,13 @@ export function App({ model }: AppProps) {
               <div className="historical-segment-control conversation-history-action" role={historicalSegmentState === "error" ? "alert" : "status"}>
                 <strong>Earlier history</strong>
                 <span>{historicalSegmentState === "error"
-                  ? "Earlier history could not be verified. The current Segment remains available."
-                  : `${historicalSegmentCount} earlier ${historicalSegmentCount === 1 ? "Segment" : "Segments"} available.`}</span>
+                  ? "Earlier history could not be verified. The current chapter remains available."
+                  : `${historicalSegmentCount} earlier ${historicalSegmentCount === 1 ? "chapter" : "chapters"} available.`}</span>
                 <button type="button" className="secondary-button" onClick={() => void loadCompleteSegmentHistory()}
                   disabled={historicalSegmentState === "loading" || runtimeBusy}>
                   {historicalSegmentState === "loading"
-                    ? "Loading earlier Segments…"
-                    : `Load ${historicalSegmentCount} earlier ${historicalSegmentCount === 1 ? "Segment" : "Segments"}`}
+                    ? "Loading earlier chapters…"
+                    : `Load ${historicalSegmentCount} earlier ${historicalSegmentCount === 1 ? "chapter" : "chapters"}`}
                 </button>
               </div>
             ) : null}
@@ -5372,6 +5407,9 @@ export function App({ model }: AppProps) {
               onChaptersOpenChange={setConversationChaptersOpen}
               onSearchOpenChange={setConversationSearchOpen}
               onTurnNavigatorOpenChange={setConversationTurnNavigatorOpen}
+              earlierSegmentCount={historicalSegmentCount}
+              onLoadEarlierHistory={() => void loadCompleteSegmentHistory()}
+              earlierHistoryState={historicalSegmentState}
             />
 
             <div ref={chatEndRef} className="chat-scroll-anchor" aria-hidden="true" />
@@ -5881,7 +5919,7 @@ export function App({ model }: AppProps) {
               <button type="button" onClick={() => setConversationDeleteTarget(undefined)} disabled={conversationActionBusy}>×</button>
             </div>
             <div className="journey-admin-summary">
-              Permanently delete “{conversationDeleteTarget.title}”? Its local history, drafts, sessions, Segments and generated Mirror Core records will be removed. This cannot be undone.
+              Permanently delete “{conversationDeleteTarget.title}”? Its local history, drafts, sessions, chapters and generated Mirror Core records will be removed. This cannot be undone.
             </div>
             {conversationDeleteError ? <p className="settings-error" role="alert">{conversationDeleteError}</p> : null}
             <div className="settings-actions">

@@ -37,6 +37,16 @@ export function partitionConversationBySegments(
     const terminalAgentActionEvidence = Object.fromEntries(Object.entries(conversation.terminalAgentActionEvidence ?? {})
       .filter(([messageId, evidence]) => messageIds.has(messageId) && runIds.has(evidence.runId)));
     const steeringEvidence = conversation.steeringEvidence?.filter((evidence) => runIds.has(evidence.runId));
+    // CR114: a Segment describes its own Segment. These maps are keyed by message, so spreading the
+    // source Conversation copied the whole generation into every file — one production Segment held
+    // 16 messages in 5.86 MB. Scoping them keeps a Segment's size proportional to its own messages
+    // even when the caller hands over a fully projected surface.
+    const selectedMessageIds = new Set(selectedMessages.map((message) => message.id));
+    const ownedByMessage = <T>(map: Record<string, T> | undefined): Record<string, T> | undefined => {
+      if (!map) return undefined;
+      const scoped = Object.fromEntries(Object.entries(map).filter(([messageId]) => selectedMessageIds.has(messageId)));
+      return Object.keys(scoped).length ? scoped : undefined;
+    };
     return {
       segmentId: segment.segmentId,
       status: segment.status,
@@ -46,6 +56,11 @@ export function partitionConversationBySegments(
         reconciliation: { ...conversation.reconciliation, turns: selectedTurns },
         ...(Object.keys(terminalAgentActionEvidence).length ? { terminalAgentActionEvidence } : { terminalAgentActionEvidence: undefined }),
         ...(steeringEvidence?.length ? { steeringEvidence } : { steeringEvidence: undefined }),
+        reconstructedAgentActions: ownedByMessage(conversation.reconstructedAgentActions),
+        responseModels: ownedByMessage(conversation.responseModels),
+        agentCommentRoles: ownedByMessage(conversation.agentCommentRoles),
+        interruptedFragments: ownedByMessage(conversation.interruptedFragments),
+        chapterDividers: ownedByMessage(conversation.chapterDividers),
       },
     };
   });
