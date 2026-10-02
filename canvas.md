@@ -44,4 +44,4 @@ The Change Request status vocabulary has no word for work superseded by what it 
 why CR112 was rewritten in place rather than closed under a false label.
 
 The renderer's limits on this canvas are enforced by prompt rather than by product. A freer agent
-will want to link the Journey's documents, which the Context surface already knows how to open.
+will want to link the Journey's documents, which the Context Map surface already knows how to open.

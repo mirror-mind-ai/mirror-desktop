@@ -13,11 +13,11 @@ const operationalSurfaces = [
   // CR105: the surface stopped being a list of artifacts and became a partial view of what
   // effectively entered the agent's context. The id stays `artifacts` because it is persisted
   // selection state, not a label. Field and territory went back to the Nautilus method.
-  { id: "artifacts", label: "Context", icon: "▱", iconName: "artifacts" },
+  { id: "artifacts", label: "Context Map", icon: "▱", iconName: "artifacts" },
   // CR112: the drawing the Journey's agent keeps, hosted rather than computed, and deliberately
-  // not named by genre. Context answers what entered this Conversation; Canvas shows whatever the
-  // Journey decided deserves to be drawn.
-  { id: "canvas", label: "Canvas", icon: "▤", iconName: "canvas" },
+  // not named by genre. Context Map answers what entered this Conversation; Agent’s Canvas shows
+  // whatever the Journey decided deserves to be drawn.
+  { id: "canvas", label: "Agent’s Canvas", icon: "▤", iconName: "canvas" },
   { id: "ariad", label: "Ariad", icon: "△", iconName: "ariad" },
 ] as const satisfies readonly {
   id: OperationalSurface;

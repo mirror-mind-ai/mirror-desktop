@@ -6,7 +6,7 @@ import documentationBrowserSource from "../app/JourneyDocumentationBrowser.tsx?r
 import switcherSource from "../app/OperationalWorkspaceSwitcher.tsx?raw";
 
 describe("Operational Journey workspace", () => {
-  it("shows only functional Conversation, Context and Canvas controls", () => {
+  it("shows only functional Conversation, Context Map and Agent’s Canvas controls", () => {
     const html = renderToStaticMarkup(
       <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} />,
     );
@@ -16,10 +16,12 @@ describe("Operational Journey workspace", () => {
     expect(html).toContain("Conversation");
     // CR105: the surface shows what effectively entered the agent's context, not an artifact
     // list. The id stays `artifacts` because it is persisted selection state, not a label.
-    expect(html).toContain("Context");
+    expect(html).toContain("Context Map");
+    expect(html).not.toContain(">Context<");
     // CR112: Canvas hosts the drawing the Journey's agent keeps. It is a separate surface with
     // its own persisted id, not another region inside Context.
-    expect(html).toContain("Canvas");
+    expect(html).toContain("Agent’s Canvas");
+    expect(html).not.toContain(">Canvas<");
     expect(html).toContain('aria-controls="operational-canvas-panel"');
     // The genre is deliberately unnamed, which is the whole finding of the Canvas pivot.
     expect(html).not.toContain("Workflow");
