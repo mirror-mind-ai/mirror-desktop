@@ -51,7 +51,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | in_progress | @alissonvale | `refinement/rs021-cr105-agentic-map` |
+| 1 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | done | @alissonvale | `refinement/rs021-cr105-agentic-map` |
 | 2 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | captured | — | — |
 | 3 | [CR099](rs021-ux-pre-beta-evolution/cr099-allow-safe-editing-during-another-journeys-work.md) | RS021 | Allow Safe Editing During Another Journey's Work | captured | — | — |
 | 4 | [CR098](rs021-ux-pre-beta-evolution/cr098-allow-a-journey-to-be-reparented.md) | RS021 | Allow a Journey to Be Reparented | captured | — | — |

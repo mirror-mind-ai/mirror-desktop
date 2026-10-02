@@ -2,7 +2,7 @@
 
 # CR105: Transform the Artifact Tab into the Context Surface
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr105-agentic-map`
 
@@ -275,3 +275,27 @@ label.
   retired-vocabulary regression test.
 - `npx tsc --noEmit`: clean.
 - `cargo test`: not re-run, no Rust touched by the rename.
+
+
+## Closure (2026-10-01)
+
+The Navigator explicitly closed CR105 after authorising its integration into `main` and the
+subsequent separation of CR112 for the Journey-declared Workflow surface. The first
+walkthrough established that the admission surface worked, then showed that its original framing
+was conceptually wrong for the product. The later naming retirement resolves that framing without
+changing what the surface evidences.
+
+The historical "Naming, by Navigator decision" section above records the labels at the time of the
+step-7 validation. It is evidence, not current copy. The later Naming Retirement section is the
+current authority: the tab and heading read `Context`, and the visible vocabulary contains neither
+Field nor Territory.
+
+The remaining re-check under the historical step-7 section is therefore closed as part of this
+Navigator decision. Its technical evidence remains: the post-repair browser measurement covered
+12 pages, 45 readings and four themes, with none below 4.5:1; the subsequent Context rename ran
+`npm test` with 210 files and 1430 tests green and `npx tsc --noEmit` clean. The separately
+reported 4.44:1 shared section-label issue remains outside this CR.
+
+CR112 is the follow-on work. It does not extend this surface into a generic map. It gives a
+Journey-owned workflow declaration a separate Workflow tab, leaving Context to state only what
+effectively entered the agent's active Conversation.
