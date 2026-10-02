@@ -642,19 +642,77 @@ the Portuguese `ariad` description yields a 4,063 character setup prompt and the
 
 Gates: `npm test` 213 files, 1473 tests, all passing. `npx tsc --noEmit` clean.
 
+## Homologation In Eval (2026-10-02)
+
+The Navigator rebuilt and installed the Eval bundle, ran the teaching prompt from the Canvas tab
+against `vida-economica`, and homologated the result. The bundle was verified as the Canvas build
+before the run: the installed binary carries `read_journey_canvas`, `canvas.md` and
+`canvas-instructions.md` and no longer carries `read_journey_workflow` or `mirror-workflow.json`,
+and the embedded front-end bundle carries `operational-canvas-panel`, both teaching and redraw
+labels, and the corrected prompt sentence, with zero occurrences of the workflow panel, the
+`Workflow` label, or the removed pointer sentence.
+
+### The pivot's central claim, tested against its own baseline
+
+The run was deliberately made in that Journey's existing Conversation rather than a fresh one. A
+fresh Conversation was considered and rejected, because the prompt's most important prohibition is
+against drawing from conversation memory, and in a fresh Conversation there is nothing to wrongly
+draw from, so the prohibition would have been verified under the only condition in which it cannot
+fail. A loaded Conversation is also the designed condition, since the whole premise is that the
+Navigator keeps the agent aware during the work.
+
+`vida-economica` is the only Journey that could test the pivot's central claim, because it is the
+only one with a baseline: the same agent, the same material, and a prompt that previously named the
+genre. The structural difference between the two outputs is the finding.
+
+The workflow-era view opened with an eight-row table of cycle stages and declared a five-term
+vocabulary of obligation states. The canvas drops both entirely and keeps the situation: cash and
+runway, account positions, the provision already assumed at Itaú PF with its three dated entries,
+and the attentions that remain. Without the genre's name the agent drew what the Journey's
+situation is rather than what its process is, which is exactly what the pivot predicted.
+
+### The origin prohibition held, and reached past the old view
+
+Every figure in the drawing traces to a current file of that Journey. Checked by measurement, with
+that Journey's provenance preserved and nothing modified there:
+
+- The epigraph is `JOURNEY.md` line 9, close to verbatim.
+- `Pagar.me, a receber R$ 728,09` is the one figure the drawing carries that the workflow-era view
+  does not. It traces to `conciliacao-mensal/202609/saldos.md` and `conciliacao.md`, which are
+  sources rather than conversation. The agent went past the previous view to the primary files and
+  picked up something the previous view had missed.
+- Every other figure matches the earlier view, which derived from the same sources, unchanged
+  between the two runs.
+
+No figure was found that exists only in the Conversation or only in the superseded view.
+
+### The corrected prompt produced instructions with no invented loader
+
+The instructions the agent wrote are short, name the canvas as derived and never the place a fact
+is recorded, name the redraw trigger as the Navigator asking for state or the agent having just
+changed something the canvas shows, and restate the origin prohibition in the Journey's own words.
+They name no loader file and describe no pointer, which is what the corrected prompt asked for and
+what the previous version would have made the agent invent.
+
 ## Remaining
 
 - On this Journey the root is also the repository root, so `canvas.md` is versioned and will show
   in every `git status` after a redraw. That is a real dogfooding friction and an argument for
   treating the canvas as derived and disposable: this Journey may ignore it in git without losing
   anything, because state never lives there. Left as is for now, to see whether it actually annoys.
-- Validate the teaching prompt in a real agent Conversation in a Journey with no canvas, checking
-  that the drawing reflects the Journey's files and that the written instructions are usable by the
-  redraw gesture in a later session.
-- Navigator walkthrough of the three states in the running app, including the light families, and
-  specifically that a drawing made during the session appears without restarting.
+- Validation of the teaching prompt against a Journey with no canvas is done and homologated in
+  Eval, recorded above. What it did not cover: the three states walked across the four theme
+  families, and the `unavailable` state with each of its five reasons, neither of which the
+  homologation run would have encountered. Both are covered by tests rather than by eye.
+- `livro-lideranca-soberana` remains the clean case for the question `vida-economica` can no longer
+  answer, whether the agent finds rather than invents without a baseline to improve on. Not a
+  blocker for this Change Request.
 - Decide whether the index's Change Request vocabulary should gain a status for work superseded by
-  what it taught.
+  what it taught. Still open, and still the second gap this Change Request exposed in the index.
+- `mirror-workflow.json` in `vida-economica` is now dead weight, since no build reads it after the
+  pivot. It belongs to that Journey and is not touched from here. The prose contract beside it is
+  not dead weight: it is that Journey's own thinking, and the sentence this work borrowed from it
+  came from there.
 - The renderer's limits are still enforced by prompt rather than by product. A freer agent will
   want to link the Journey's documents, which Context already knows how to open. Not now, but it
   is the next wall.
