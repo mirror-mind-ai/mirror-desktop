@@ -19,9 +19,16 @@ const readyView: JourneyWorkflowViewState = {
   missingInputs: [],
 };
 
+const BRIEFING = "Livro sobre liderança soberana, escrito em português.";
+
 function render(workflow: JourneyWorkflowViewState, onCompose = () => undefined) {
   return renderToStaticMarkup(
-    <JourneyWorkflowSurface journeyName="livro-lideranca-soberana" workflow={workflow} onCompose={onCompose} />,
+    <JourneyWorkflowSurface
+      journeyName="livro-lideranca-soberana"
+      journeyBriefing={BRIEFING}
+      workflow={workflow}
+      onCompose={onCompose}
+    />,
   );
 }
 
@@ -93,6 +100,18 @@ describe("JourneyWorkflowSurface", () => {
     expect(render(readyView)).toMatch(/regenerate|re-render/i);
     expect(render({ ...readyView, status: "possibly_stale", changedInputs: ["livro/status.yml"] }))
       .toMatch(/regenerate|re-render/i);
+  });
+
+  it("carries the Journey's description into both prompts without displaying it", () => {
+    // The briefing is the language anchor for what the agent writes, and the agent cannot read it
+    // in a Desktop turn, so the app has to pass it in. It is an input to the prompt, not content
+    // for this tab: Workflow shows the view the Journey declared, nothing else.
+    expect(workflowSurfaceSource).toContain("composeWorkflowSetupPrompt(journeyName, journeyBriefing)");
+    expect(workflowSurfaceSource).toContain("composeWorkflowRerenderPrompt(journeyName, journeyBriefing)");
+
+    expect(render(readyView)).not.toContain(BRIEFING);
+    expect(render({ status: "undeclared", manifestRelativePath: "mirror-workflow.json" }))
+      .not.toContain(BRIEFING);
   });
 
   it("introduces no invocation, hidden state or side effect", () => {

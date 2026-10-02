@@ -36,6 +36,37 @@ const renderingRules = `Use only: headings of level one to three, bullet and num
 tables, fenced code, blockquotes, and inline bold, italic and code. Do not use links of any kind;
 they will render as literal text.`;
 
+/** A long description must not be able to push the prohibitions down the prompt. */
+export const WORKFLOW_BRIEFING_EXCERPT_MAX_CHARS = 600;
+
+/**
+ * These prompts are written in English, which pulls an agent towards answering in English even
+ * when every document it just read is in another language. So the language rule has to be
+ * explicit rather than implied by the material.
+ *
+ * The Journey's own description is the anchor because it is the one thing that always exists.
+ * Measured on the dev registry, 4 of 21 registered Journeys carry a `JOURNEY.md` while every
+ * Journey carries a description. CR105 measured that the briefing is never injected into a Desktop
+ * turn, so the agent cannot read it and the app has to carry it in.
+ */
+function languageRule(briefing?: string): string {
+  const trimmed = briefing?.trim();
+  if (!trimmed) {
+    return `Language. Write every artifact in the language this Journey's own documents are
+written in, not in the language of this request. Do not translate anything into English. If the
+Journey's documents are in Portuguese, so is everything you write.`;
+  }
+  const excerpt = trimmed.length > WORKFLOW_BRIEFING_EXCERPT_MAX_CHARS
+    ? `${trimmed.slice(0, WORKFLOW_BRIEFING_EXCERPT_MAX_CHARS)}…`
+    : trimmed;
+  return `Language. This Journey describes itself like this:
+
+> ${excerpt}
+
+Write every artifact in the language of that description and of this Journey's own documents, not
+in the language of this request. Do not translate anything into English.`;
+}
+
 const manifestSchema = `{
   "schemaVersion": 1,
   "title": "<short label for the tab>",
@@ -49,7 +80,7 @@ Paths must not contain any component beginning with a dot.
 The surface file must end in .md, .markdown or .txt and stay under one megabyte.
 List in "sources" every file whose change should mark the view as out of date.`;
 
-export function composeWorkflowSetupPrompt(journeyName: string): string {
+export function composeWorkflowSetupPrompt(journeyName: string, briefing?: string): string {
   return `I want this Journey, ${journeyName}, to declare its own workflow view, so Mirror Desktop
 can host it in a Workflow tab instead of guessing at it.
 
@@ -87,6 +118,8 @@ ${manifestSchema}
 
 ${manifestRules}
 
+${languageRule(briefing)}
+
 ${findingRules}
 
 If you cannot find enough to work from, do not just refuse. Describe what you did observe: the
@@ -95,7 +128,7 @@ and specifically what is missing to make a declared view possible. That descript
 in order to decide the next step.`;
 }
 
-export function composeWorkflowRerenderPrompt(journeyName: string): string {
+export function composeWorkflowRerenderPrompt(journeyName: string, briefing?: string): string {
   return `The Workflow view for this Journey, ${journeyName}, is out of date. Please regenerate it.
 
 Read ${WORKFLOW_MANIFEST_FILE_NAME} at the root of this Journey. Read the contract document it
@@ -112,5 +145,9 @@ earlier sessions, or from older copies of these documents.
 - ${renderingRules}
 - Change only the surface file, unless the contract tells you to update a state file as part of
 this work.
-- If the manifest names a path that no longer exists, report the broken path and stop.`;
+- If the manifest names a path that no longer exists, report the broken path and stop.
+- Write the view in the same language as the contract and the view you are replacing. Changing
+their language is not a regeneration, it is a rewrite I did not ask for.
+
+${languageRule(briefing)}`;
 }

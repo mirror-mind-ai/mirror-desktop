@@ -257,6 +257,40 @@ until the Navigator decides.
 
 Gates after the repair: `npm test` 213 files, 1467 tests, all passing. `npx tsc --noEmit` clean.
 
+## Language Anchor (2026-10-01)
+
+The Navigator asked whether the agent might write the workflow in English, and whether the prompt
+should name the language used in the Journey briefing. Measurement showed the risk was real and
+worse than the question assumed.
+
+The setup prompt said "in this Journey's own language" twice. The re-render prompt said **nothing
+about language at all**, and that is the prompt that runs every time a declared source changes, so
+drift would have compounded exactly where there was no rule. Both prompts are also written in
+English, which pulls an agent towards English regardless of the material it just read.
+
+The briefing is the right anchor, but not the way the question framed it. CR105 measured that the
+Journey briefing is never injected into a Desktop turn, so instructing the agent to use the
+briefing's language would point it at text it cannot read. The app holds that text and previously
+passed it only to the Context surface.
+
+The briefing is also the only anchor that always exists. Measured on the dev registry: 4 of 21
+registered Journeys carry a `JOURNEY.md`, while every Journey carries a description. An instruction
+to follow the language of the Journey's documents would therefore have had nothing to attach to in
+most Journeys.
+
+So `App.tsx` passes `selectedJourneyItem.description` to the Workflow surface, which forwards it to
+both prompt composers and never displays it. Both prompts now quote the description and state the
+rule explicitly, including a direct prohibition on translating into English. The re-render prompt
+additionally anchors to the artifacts it is replacing: changing the language of the contract or the
+view is a rewrite, not a regeneration.
+
+The quoted excerpt is bounded at `WORKFLOW_BRIEFING_EXCERPT_MAX_CHARS`, 600 characters, so a long
+description cannot push the prohibitions down the prompt. Verified against two real dev briefings:
+the Portuguese `ariad` description yields a 4,063 character setup prompt and the English
+`mirror-desktop` description yields 3,768, both far inside the composer bound.
+
+Gates: `npm test` 213 files, 1473 tests, all passing. `npx tsc --noEmit` clean.
+
 ## Remaining
 
 - Validate the setup prompt in a real `livro-lideranca-soberana` agent Conversation: that it finds

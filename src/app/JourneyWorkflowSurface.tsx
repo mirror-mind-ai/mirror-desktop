@@ -15,6 +15,12 @@ import {
  */
 type JourneyWorkflowSurfaceProps = {
   journeyName: string;
+  /**
+   * The Journey's own description, used only as the language anchor for the composed prompts.
+   * CR105 measured that the briefing never reaches a Desktop turn, so the agent cannot read it
+   * and the app has to carry it in. It is never displayed here.
+   */
+  journeyBriefing?: string;
   workflow: JourneyWorkflowViewState;
   onCompose: (message: string) => void;
 };
@@ -75,7 +81,7 @@ export function JourneyWorkflowSurface(props: JourneyWorkflowSurfaceProps) {
   );
 }
 
-function workflowBody({ journeyName, workflow, onCompose }: JourneyWorkflowSurfaceProps) {
+function workflowBody({ journeyName, journeyBriefing, workflow, onCompose }: JourneyWorkflowSurfaceProps) {
   if (workflow.status === "loading") {
     return <p className="journey-workflow-state" role="status">Reading the declared workflow…</p>;
   }
@@ -107,7 +113,7 @@ function workflowBody({ journeyName, workflow, onCompose }: JourneyWorkflowSurfa
           </p>
         </div>
         <div className="journey-workflow-actions">
-          <button type="button" className="secondary-button" onClick={() => onCompose(composeWorkflowSetupPrompt(journeyName))}>
+          <button type="button" className="secondary-button" onClick={() => onCompose(composeWorkflowSetupPrompt(journeyName, journeyBriefing))}>
             Compose the setup request
           </button>
         </div>
@@ -181,7 +187,7 @@ function workflowBody({ journeyName, workflow, onCompose }: JourneyWorkflowSurfa
       </dl>
 
       <div className="journey-workflow-actions">
-        <button type="button" className="secondary-button" onClick={() => onCompose(composeWorkflowRerenderPrompt(journeyName))}>
+        <button type="button" className="secondary-button" onClick={() => onCompose(composeWorkflowRerenderPrompt(journeyName, journeyBriefing))}>
           Compose a request to regenerate this view
         </button>
       </div>

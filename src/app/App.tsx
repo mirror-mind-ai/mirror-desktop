@@ -5157,6 +5157,8 @@ export function App({ model }: AppProps) {
         {presentedAltitude === "operational" && presentedOperationalSurface === "workflow" ? (
           <JourneyWorkflowSurface
             journeyName={selectedJourneyItem.name}
+            // Only the language anchor for the composed prompts. It is never rendered here.
+            journeyBriefing={selectedJourneyItem.description}
             workflow={journeyWorkflowView}
             // Pre-fills the composer and goes there. Nothing is sent until the Navigator decides.
             onCompose={composeWorkflowRequest}
