@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.30` · A Quiet, Responsive Composer
 
-🎯 **Foco oficial:** CR114 · `in_progress` · @alissonvale · aceita no Eval, fora de `main`
+🎯 **Foco oficial:** sem CR em andamento · CR114 aceita e fechada
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active`; Embedded TS Runtime é uma direção capturada
 
@@ -10,7 +10,7 @@
 
 | Story / Change Request | Estado | Progresso |
 | --- | --- | --- |
-| **RS021 · UX Pre-Beta Evolution** | 🔄 ativa · CR em foco: CR114 | `████████░░` 23/28 fechadas |
+| **RS021 · UX Pre-Beta Evolution** | 🔄 ativa · sem CR em foco | `████████░░` 24/28 fechadas |
 | ↳ CR105 · Context Surface → Context Map | ✅ done · entregue | `██████████` |
 | ↳ CR112 · Host a Canvas the Journey's Agent Draws | ✅ done · publicada em alpha.29 | `██████████` |
 | ↳ CR097 · Keep a Correction Recognisable After Reload | 🟡 captured · primeira na ordem capturada | `░░░░░░░░░░` |
@@ -18,7 +18,7 @@
 | ↳ CR098 · Allow a Journey to Be Reparented | 🟡 captured | `░░░░░░░░░░` |
 | ↳ CR100 · Make Journey Image Updates Supported | 🟡 captured | `░░░░░░░░░░` |
 | ↳ CR113 · Make Composer Typing Responsive in Large Journeys | ✅ done · aceita com CR115 | `██████████` |
-| ↳ **CR114 · Make the Current Segment the Default Working Set** | 🧪 in_progress · aceita, fora de `main` | `█████████░` 7/7 fatias |
+| ↳ **CR114 · Make the Current Segment the Default Working Set** | ✅ done · aceita no Eval | `██████████` |
 | ↳ 20 Change Requests anteriores | ✅ done | `██████████` |
 | **RS016 · Ongoing Product Improvements** | 🔄 ativa · sem CR aberta | `██████████` 23 done · 4 ↗️ · 1 ⛔ |
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
@@ -48,8 +48,8 @@
 | Agentic Map of Admitted Context | ↗️ explorada e entregue | CR105 ✅ · Context Map |
 | 11 explorações anteriores | 🗂️ colapsadas | status nos arquivos ainda não reconciliado; não contam como foco atual |
 
-**Próximo passo:** autorizar commit da CR114 para fechá-la como `done`. A Journey abre no capítulo
+**Próximo passo:** integrar a CR114 em `main` e preparar a próxima alpha. A Journey abre no capítulo
 atual — na sessão real, 286 entradas em vez de 7.373, com 24 capítulos anteriores sob pedido — e a
 publicação de Segments não sobrescreve mais o metadado durável, que era o que truncava o ledger de
 turnos. Na homologação o vocabulário visível foi unificado em *chapter*; Segment segue como nome
-interno do schema e dos comandos nativos. Nada foi comitado.
+interno do schema e dos comandos nativos.

@@ -2,7 +2,7 @@
 
 # CR114: Make the Current Segment the Default Working Set
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr114-current-segment-working-set`
 
@@ -420,6 +420,36 @@ assertion.
 
 Two existing expectations moved to the new register: `conversationSpaceSurfaces` and the detail
 header cases in `loadedHistoryTruthfulness`.
+
+## Closure (2026-10-02)
+
+The Navigator validated the rebuilt Eval and explicitly closed CR114 on 2026-10-02. The acceptance
+covers the current-chapter default, explicit complete-history retrieval, truthful chapter language
+and the preservation of durable authority while the visible working set is bounded.
+
+### Proportionality and debt review
+
+The correction is proportionate to the discovered authority boundary: Pi continues to own the
+transcript and the active context; the Desktop only asks Pi for the context-sized suffix, retains
+whole structural facts, and preserves every earlier durable message when a window is saved. It does
+not add virtualization, change compaction, rewrite closed legacy Segment projections, or create a
+new transcript authority.
+
+Known debt remains deliberately visible rather than hidden in this closure:
+
+- Legacy closed Segment files can retain their pre-CR114 generation-wide derived maps. They are
+  compatible and inert; the Navigator explicitly declined a repair or migration. A future disk-space
+  request must be captured separately.
+- Earlier history loads the complete generation in one explicit request. If that proves slow, an
+  incremental chapter-loading Change Request may change that behavior; it is not smuggled into this
+  delivery.
+- No instrumented Journey-open latency percentile was recorded. The accepted real-Journey reading
+  is the bounded 286-of-7,373-entry window and the Navigator's Eval homologation; performance
+  benchmarking is a future measurement, not a claim made here.
+
+The pre-homologation backup remains outside the repository at
+`~/Library/Application Support/ai.mirrormind.desktop.cr114-backup-2026-10-02`. Its retention or
+removal is a Navigator data decision and is not part of this CR.
 
 ## Expected Behavior
 
