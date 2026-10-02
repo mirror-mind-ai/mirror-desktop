@@ -1,33 +1,92 @@
-# Canvas instructions
+# Canvas instructions · Mirror Desktop
 
-Standing note about the canvas for this Journey. Mirror Desktop renders `canvas.md` in the Canvas
-tab and decides nothing about its shape, so the shape is ours.
+`canvas.md` é a visão derivada da situação deste projeto. Mirror Desktop só a renderiza: não
+interpreta o seu gênero, não acompanha arquivos e não preserva estado. As fontes abaixo são a
+autoridade; se o Canvas divergir delas, o Canvas está errado.
 
-## What to draw
+## Objetivo e forma
 
-What someone returning to this Journey needs in order to know where it stands:
+Desenhe, em uma tela, o que está acontecendo agora e suas cercanias em três visões, nesta ordem:
 
-- The current focus, from the `## Current Focus` section of `docs/project/refinement/index.md`.
-  That section is the authority on what is current. Never infer it from row order or recency.
-- The open Change Requests, in the order the canonical index lists them, which that index
-  declares intentional. Terminal statuses are `done`, `parked`, `rejected` and `promoted`.
-- Where the current delivery stands: its branch, whether its gates are green, and what it is still
-  waiting on. This comes from the Change Request document itself.
+1. `## Refinement work`
+2. `## Roadmap`
+3. `## Exploratory work`
 
-Keep it to one screen. If something is uncertain, say it is uncertain rather than drawing a
-confident version of it.
+Comece com três linhas curtas: última versão publicada, foco oficial e exploração próxima. Termine
+com `**Próximo passo:**`, sem transformar uma ordem capturada em seleção de trabalho.
 
-## When to redraw
+Cada visão usa uma tabela de três colunas. Refinement e Roadmap usam `Item | Estado | Progresso`.
+Exploratory work usa `Exploração | Estado | Destino / cercania`, pois uma exploração não tem uma
+porcentagem honesta. Use `↳` e espaço ideográfico para filhos. Barras têm dez blocos:
+`██████████` concluído e `░░░░░░░░░░` não iniciado.
 
-When the Navigator asks for the state of this Journey, and when a turn has just changed something
-the drawing shows: a status moving, the focus moving, gates going green, or a delivery closing.
-Redraw before reporting completion, not after being asked twice.
+A tabela é editorialmente expansível: abra apenas o trabalho vivo, a última entrega que o explica e
+o próximo item relevante. Colapse história distante numa linha com uma contagem. Isso não é uma
+instrução para implementar controles interativos.
 
-## Boundaries
+## Vocabulário visual
 
-Replace `canvas.md` entirely each time. It is derived and disposable, and state never lives in it.
-`docs/project/refinement/index.md` remains the only authority on status; if the drawing and the
-index disagree, the index wins and the drawing is wrong.
+- ✅ `done`, `closed` ou `Done`
+- 🔄 story `active` ou trabalho em execução
+- 🟡 `captured` ou `Planned`
+- 🧭 Exploratory Story `active`
+- 💡 direção capturada, ainda não explorada
+- ↗️ exploração promovida ou entregue a uma CR/DS
+- ⏸️ `parked`
+- ⛔ `dismissed` ou `rejected`
+- 🧪 estado presente apenas no worktree, ainda fora de `main`
+- 🗂️ grupo histórico colapsado com status não reconciliado
 
-No links, because the renderer resolves none and link syntax would show as literal text. Headings
-no deeper than level three.
+Não invente percentual, seleção, prioridade, destino ou conclusão. Se uma fonte não permite uma
+afirmação, nomeie a incerteza.
+
+## Fontes de verdade
+
+### Refinement work
+
+- `docs/project/refinement/index.md` é a autoridade de status, ordem e `## Current Focus` de
+  Refinement Stories e Change Requests.
+- O foco só vem de `## Current Focus`; ordem de tabela, recência ou uma CR recém-fechada nunca
+  selecionam trabalho.
+- Use o índice da RS apenas para enquadramento. Use o documento da CR para evidência específica
+  de entrega quando ela for mostrada.
+- Estados terminais de CR são `done`, `parked`, `rejected` e `promoted`.
+
+### Roadmap
+
+- `docs/project/roadmap/index.md` é a autoridade de Capability Values e Delivery Stories
+  integrados.
+- Uma alteração ainda não integrada em `main` pode aparecer quando estiver presente no worktree,
+  mas deve usar 🧪 e dizer explicitamente que ainda está fora de `main`.
+- Conte apenas itens cujo status é explícito. Não deduza progresso de código, commits, releases ou
+  nomes de diretório.
+
+### Exploratory work
+
+- Cada `docs/project/explorations/*/index.md` é a autoridade de sua própria exploração.
+- `active` quer dizer que o arquivo a declara ativa; não significa, sozinho, que ela é a prioridade
+  atual. Quando não houver ranking canônico, mostre somente a exploração ligada ao foco, uma
+direção ainda sem exploração e as explorações que explicam entregas recentes.
+- Só escreva um destino quando uma exploração o declara ou quando a ligação a uma CR/DS é
+  explicitamente documentada. As demais ficam agrupadas como 🗂️, com a incerteza nomeada.
+
+## Protocolo ao fim de todo turno
+
+No fim de cada turno desta Journey, antes da resposta final:
+
+1. Verifique se houve neste turno uma mudança de status, foco, seleção, ordem, entrega ou relação
+   de destino em qualquer fonte de Refinement, Roadmap ou Exploratory work.
+2. Se não houve mudança, não toque em `canvas.md` e não alegue que ele foi atualizado.
+3. Se houve, releia a fonte canônica afetada e edite somente a seção, linhas de cabeçalho ou
+   `Próximo passo` que a mudança torna incorretos. Não reescreva o Canvas inteiro por conveniência.
+4. Na resposta final, diga objetivamente qual trecho do Canvas mudou e qual fonte o justificou.
+5. Se a solicitação do Navigator mudar o modelo de visualização, atualize estas instruções na mesma
+   operação antes de redesenhar `canvas.md`.
+
+Este protocolo é por turno, não um watcher, polling ou processo em segundo plano. Ele não autoriza
+selecionar trabalho, editar as fontes, fazer commit, push, tag, release ou publicar.
+
+## Limites de renderização
+
+Não use links: o renderer mostra Markdown de link como texto literal. Use títulos até nível três.
+`canvas.md` é derivado e descartável; estado e decisões vivem somente nas fontes canônicas.

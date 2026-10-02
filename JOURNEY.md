@@ -31,3 +31,20 @@ Bundle identifiers, app-data roots, persisted files, session and conversation pr
 ## Transfer boundaries
 
 Open tasks from Nautilus Harness are not transferred automatically. Historical records remain attached to Nautilus Harness. Future work should be recreated in Mirror Desktop only when it still serves the new product boundary and carries explicit provenance.
+
+## Canvas operating procedure
+
+The Journey-root `canvas.md` is the derived, one-screen situation view for Mirror Desktop. It
+shows Refinement work, Roadmap and Exploratory work using the visual grammar and source hierarchy
+in `canvas-instructions.md`.
+
+At the end of every turn for this Journey, the agent checks whether that turn changed a status,
+focus, selection, order, delivery or documented destination in the canonical Refinement, Roadmap
+or Exploration sources. If it did, the agent updates only the affected Canvas section and names
+the update in its response. If it did not, the Canvas remains untouched. This is a turn-end
+protocol, not a background watcher or authorization to mutate source records, commit, push, tag,
+release or publish.
+
+When the Navigator changes the Canvas visualization, update `canvas-instructions.md` first and
+then redraw the relevant Canvas content. This procedure survives conversation or session restart:
+read `canvas-instructions.md` before generating or changing the Canvas.

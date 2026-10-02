@@ -64,7 +64,7 @@ describe("Operational Journey workspace", () => {
     expect(handler).not.toContain("generatePacket");
     expect(handler).not.toContain("submitActiveSteering");
 
-    expect(appSource).toContain("ref={composerInputRef}");
+    expect(appSource).toContain("textareaRef={composerInputRef}");
   });
 
   it("re-reads the canvas on gesture, so a drawing made during the session appears", () => {

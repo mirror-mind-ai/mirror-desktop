@@ -102,7 +102,7 @@ describe("Journey runtime integration guardrails", () => {
   it("allows admitted selected-Journey submission while keeping aggregate mutations blocked", () => {
     expect(appSource).toContain('const altitudeSwitchDisabled = isJourneyReloading || projectionLoadStatus === "loading"');
     expect(appSource).toContain("disabled={isJourneyReloading}");
-    expect(appSource).toContain("disabled={!draft.trim() || selectedInvocationAdmissionBlocked");
+    expect(appSource).toContain("disabled={draftBlank || selectedInvocationAdmissionBlocked");
     expect(appSource).toContain("disabled={selectedRuntimeBusy || isJourneyReloading || fileAttachmentBusy}");
     expect(appSource).toContain("if (fileAttachmentBusy || selectedRuntimeBusy || isJourneyReloading) return");
     expect(appSource).toContain('journeyThreadState.kind !== "ready" || selectedRuntimeBusy || isJourneyReloading');
@@ -143,7 +143,7 @@ describe("Journey runtime integration guardrails", () => {
   it("keeps optimistic staging in memory until exact agent-start evidence", () => {
     const generation = sourceBetween("async function generatePacket", "async function startSelectedJourney");
     const beforeProvider = sourceBetween("runStartReservationRef.current = runtimeIdentity", "for await (const event of provider(packet))");
-    expect(beforeProvider).toContain('setDraft("")');
+    expect(beforeProvider).toContain('setVisibleComposerDraft("")');
     expect(beforeProvider).not.toContain("saveAdmittedTurnProjection(stagedConversation, settlementAuthority)");
     const admitted = sourceBetween(
       'if (event.type === "run_status" && event.status === "working")',

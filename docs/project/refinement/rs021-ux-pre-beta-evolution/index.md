@@ -73,7 +73,7 @@ ranked here.
 4. **CR100 — Make Journey Image Updates Supported.** A visible action ends in `unsupported journey
    mutation`; a broken promise is more disruptive than an absent feature.
 
-CR102, CR103, CR104, CR105, CR107 and CR112 are closed and are therefore removed from the active captured priority.
+CR102, CR103, CR104, CR105, CR107, CR112 and CR113 are closed and are therefore removed from the active captured priority. CR113 was captured and then pulled on 2026-10-02 by explicit Navigator intent, after a static diagnosis of Composer typing cost. Its first Eval homologation found the independent CR115 recovery loop; the joint rebuilt Eval was accepted. CR114 descends from the same diagnosis, carries the Segment working-set scope CR113 deliberately excludes, and remains captured, unranked and unpulled.
 CR108 was found while validating CR107 and repaired in the same session by explicit Navigator intent,
 so it never entered this ranking. CR111 was pulled ahead of this list by explicit Navigator intent and
 is now closed after Dev validation. The Navigator reprioritised the visible daily-use work on
@@ -123,3 +123,5 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR109: Make Conversations First-Class Workspaces](cr109-make-conversations-first-class-workspaces.md)
 - [CR110: Make Journey Creation Recover from Registry Change](cr110-make-journey-creation-recover-from-registry-change.md)
 - [CR111: Preserve the Agent Comment Trail Across Turns](cr111-preserve-agent-comment-trail-across-turns.md) — done
+- [CR113: Make Composer Typing Responsive in Large Journeys](cr113-make-composer-typing-responsive-in-large-journeys.md) — done
+- [CR114: Make the Current Segment the Default Working Set](cr114-make-the-current-segment-the-default-working-set.md)

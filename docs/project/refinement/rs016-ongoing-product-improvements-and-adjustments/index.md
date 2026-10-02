@@ -28,6 +28,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
+- [CR115: Stop the Idle Post-Terminal Recovery Loop](cr115-stop-the-idle-post-terminal-recovery-loop.md) — done
 - [CR096: Verify the Published Download Alias](cr096-verify-the-published-download-alias.md) — done
 - [CR095: Record Each Journey Binding Repair as Durable Evidence](cr095-record-each-journey-binding-repair-as-durable-evidence.md) — done
 - [CR093: Defend the Mirror Conversation Journey Binding](cr093-defend-the-mirror-conversation-journey-binding.md) — done

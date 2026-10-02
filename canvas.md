@@ -1,47 +1,53 @@
-# Where Mirror Desktop stands
+# Mirror Desktop · visão de situação
 
-## Current focus
+📦 **Última versão publicada:** `v0.2.0-alpha.29` · Context Map e Agent's Canvas
 
-**RS021 — UX Pre-Beta Evolution**. No Change Request is selected. CR112 closed on 2026-10-02 and
-choosing the next one is an explicit project decision, not something this drawing infers.
+🎯 **Foco oficial:** nenhuma CR puxada · CR113 e CR115 aceitas em homologação conjunta
 
-## The last delivery
+🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active`; Embedded TS Runtime é uma direção capturada
 
-**CR112 — Host a Canvas the Journey's Agent Draws** is `done`, on
-`refinement/rs021-cr112-host-journey-workflow`, not yet integrated into `main`.
+## Refinement work
 
-It opened as a declared workflow and pivoted after the first prompt was validated against
-`vida-economica`: the agent produced something truthful that the genre's name made look wrong. A
-second correction followed, when a one-line pointer added to this repository's `AGENTS.md` was
-measured inert, because the app invokes the agent with the Mirror root as its working directory and
-nothing at a Journey root is loaded automatically.
+| Story / Change Request | Estado | Progresso |
+| --- | --- | --- |
+| **RS021 · UX Pre-Beta Evolution** | 🔄 ativa · próxima CR: CR097 | `████████░░` 23/28 fechadas |
+| ↳ CR105 · Context Surface → Context Map | ✅ done · entregue | `██████████` |
+| ↳ CR112 · Host a Canvas the Journey's Agent Draws | ✅ done · publicada em alpha.29 | `██████████` |
+| ↳ **CR097 · Keep a Correction Recognisable After Reload** | 🟡 captured · primeira na ordem | `░░░░░░░░░░` |
+| ↳ CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured | `░░░░░░░░░░` |
+| ↳ CR098 · Allow a Journey to Be Reparented | 🟡 captured | `░░░░░░░░░░` |
+| ↳ CR100 · Make Journey Image Updates Supported | 🟡 captured | `░░░░░░░░░░` |
+| ↳ CR113 · Make Composer Typing Responsive in Large Journeys | ✅ done · aceita com CR115 | `██████████` |
+| ↳ CR114 · Make the Current Segment the Default Working Set | 🟡 captured · unranked | `░░░░░░░░░░` |
+| ↳ 20 Change Requests anteriores | ✅ done | `██████████` |
+| **RS016 · Ongoing Product Improvements** | 🔄 ativa · sem CR aberta | `██████████` 23 done · 4 ↗️ · 1 ⛔ |
+| ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
+| RS022 · Mirror Core Debts | 🔄 ativa · registro sem CR aberta | `░░░░░░░░░░` 1 ⏸️ |
+| RS001 … RS020 | ✅ 19 Refinement Stories fechadas | `██████████` |
 
-Homologated in Eval. Every figure the agent drew in `vida-economica` traces to a current file of
-that Journey, and the drawing dropped the stage table and obligation vocabulary of the previous
-view while keeping the situation, which is what the pivot predicted.
+## Roadmap
 
-Gates on the branch: 213 test files and 1,476 front-end tests, 236 Rust tests with 3 ignored,
-`tsc` clean, `roadmap:check` READY.
+| Capability Value / Delivery Story | Estado | Progresso |
+| --- | --- | --- |
+| CV-001 … CV-007 · baseline do Desktop | ✅ concluído | `██████████` 7 CVs |
+| **CV-008 · Conversation Spaces** | 🟡 planned | `████████░░` 5/6 DS entregues |
+| ↳ DS-001 Steering · DS-002 Concurrent · DS-004 Multiple Conversations · DS-005 Voice · DS-006 Search | ✅ done | `██████████` |
+| ↳ **DS-003 · Persona Conversation Spaces** | 🟡 planned · único DS restante | `░░░░░░░░░░` |
+| **CV-009 · Trusted macOS Distribution** | 🧪 planejado no worktree · ainda fora de `main` | `░░░░░░░░░░` 0/3 DS |
+| ↳ DS-001 · Publisher and Credential Custody | 🟡 planned | `░░░░░░░░░░` |
+| ↳ DS-002 · Signed macOS Release Runner | 🟡 planned | `░░░░░░░░░░` |
+| ↳ DS-003 · Notarized Artifact Verification and Promotion | 🟡 planned | `░░░░░░░░░░` |
 
-## Open work
+## Exploratory work
 
-| ID | RS | Change | Status |
-| --- | --- | --- | --- |
-| CR097 | RS021 | Keep a Correction Recognisable After Reload | `captured` |
-| CR099 | RS021 | Allow Safe Editing During Another Journey's Work | `captured` |
-| CR098 | RS021 | Allow a Journey to Be Reparented | `captured` |
-| CR100 | RS021 | Make Journey Image Updates Supported | `captured` |
+| Exploração | Estado | Destino / cercania |
+| --- | --- | --- |
+| **Calm Composer Draft Persistence** | 🧭 `active` | handoff para uma CR futura da RS016; nenhuma CR criada |
+| **Embedded TS Runtime, Full Control** | 💡 direção capturada · ainda não explorada | horizonte para integração de Mirror TS e Pi |
+| Host the Journey's Declared Workflow | ↗️ explorada e pivotada | CR112 ✅ · Agent's Canvas |
+| Agentic Map of Admitted Context | ↗️ explorada e entregue | CR105 ✅ · Context Map |
+| 11 explorações anteriores | 🗂️ colapsadas | status nos arquivos ainda não reconciliado; não contam como foco atual |
 
-Four open Change Requests, in the order the canonical index declares intentional. CR094 is
-`parked`, which is terminal.
-
-Active Refinement Stories: **RS016** Ongoing Product Improvements and Adjustments, **RS021** UX
-Pre-Beta Evolution, **RS022** Mirror Core Debts.
-
-## Known open questions
-
-The Change Request status vocabulary has no word for work superseded by what it taught, which is
-why CR112 was rewritten in place rather than closed under a false label.
-
-The renderer's limits on this canvas are enforced by prompt rather than by product. A freer agent
-will want to link the Journey's documents, which the Context Map surface already knows how to open.
+**Próximo passo:** selecionar a próxima CR. CR113 e CR115 foram aceitas no Eval: o Composer responde
+sem o pisca-pisca de Send e New Journey; CR114 permanece o trabalho separado para abrir Journeys
+com um conjunto de trabalho menor.

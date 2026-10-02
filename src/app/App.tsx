@@ -44,6 +44,7 @@ import {
   terminalAgentActionEvidenceIsEmpty,
 } from "./terminalAgentActionEvidence";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
+import { ComposerDraftInput, type ComposerDraftHandle } from "./ComposerDraftInput";
 import {
   clearScheduledNotice,
   scheduleTransientComposerNotice,
@@ -567,8 +568,12 @@ export function App({ model }: AppProps) {
   const [journeyAdminMessage, setJourneyAdminMessage] = useState<string | undefined>();
   const [journeyAdminPendingRequest, setJourneyAdminPendingRequest] = useState<JourneyMutationRequest | null>(null);
   const [draggedJourneyId, setDraggedJourneyId] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
-  const [composerDrafts, setComposerDrafts] = useState<ComposerDraftMap>({});
+  // CR113: the visible text is owned by the Composer input, not by this root component. What the
+  // root keeps is the current value, for the send and steering boundaries that read it, and
+  // whether it is blank, for the controls whose enablement depends on that.
+  const draftRef = useRef("");
+  const composerDraftHandleRef = useRef<ComposerDraftHandle | null>(null);
+  const [draftBlank, setDraftBlank] = useState(true);
   const composerDraftsRef = useRef<ComposerDraftMap>({});
   const composerDraftPersistenceRef = useRef<ComposerDraftPersistence | null>(null);
   if (!composerDraftPersistenceRef.current) {
@@ -1552,7 +1557,6 @@ export function App({ model }: AppProps) {
 
       setLoadedJourneyRegistry(registry);
       composerDraftsRef.current = restoredDrafts;
-      setComposerDrafts(restoredDrafts);
       setJourneyPreferences({
         pinnedJourneyIds: sanitizedPreferences.pinnedJourneyIds,
         activeJourneyId: nextActiveJourney,
@@ -1566,7 +1570,7 @@ export function App({ model }: AppProps) {
       setJourneyAppearanceById(sanitizedPreferences.journeyAppearanceById);
       if (nextActiveJourney) {
         setSelectedJourney(nextActiveJourney);
-        setDraft(restoredDrafts[nextActiveJourney] ?? "");
+        setVisibleComposerDraft(restoredDrafts[nextActiveJourney] ?? "");
       }
       setComposerDraftsLoaded(true);
       setRegistryLoaded(true);
@@ -1598,7 +1602,7 @@ export function App({ model }: AppProps) {
       { type: "journey_changed" },
     );
     if (composerDraftsLoaded) {
-      setDraft(composerDrafts[selectedJourney] ?? "");
+      setVisibleComposerDraft(composerDraftsRef.current[selectedJourney] ?? "");
     }
   }, [selectedJourney, composerDraftsLoaded]);
 
@@ -1607,7 +1611,7 @@ export function App({ model }: AppProps) {
     const conversationId = selectedConversationSpace.kind === "desktop_conversation"
       ? selectedConversationSpace.conversationId
       : undefined;
-    setDraft(composerDrafts[conversationDraftKey(selectedJourney, conversationId)] ?? "");
+    setVisibleComposerDraft(composerDraftsRef.current[conversationDraftKey(selectedJourney, conversationId)] ?? "");
   }, [
     selectedJourney,
     selectedConversationSpace.kind,
@@ -2450,7 +2454,8 @@ export function App({ model }: AppProps) {
   ) {
     const next = update(composerDraftsRef.current);
     composerDraftsRef.current = next;
-    setComposerDrafts(next);
+    // CR113: the draft map is read through its ref, never rendered, so a keystroke does not need
+    // root state. Durability still comes from the coalesced write below.
     composerDraftPersistence.schedule(next);
     if (flush) {
       void composerDraftPersistence.flush().catch((error) => {
@@ -2561,7 +2566,7 @@ export function App({ model }: AppProps) {
         return updateComposerDraft(current, origin.draftKey, merged);
       }, true);
       const visibleDraftKey = currentComposerDraftKey();
-      if (visibleDraftKey === origin.draftKey) setDraft(merged);
+      if (visibleDraftKey === origin.draftKey) setVisibleComposerDraft(merged);
       setVoiceNotice(transcriptDestinationNotice(origin.draftKey, visibleDraftKey, origin.label));
     } catch (error) {
       if (voiceOriginRef.current === origin) setVoiceError(voiceErrorMessage(error));
@@ -2594,7 +2599,23 @@ export function App({ model }: AppProps) {
     }
   }
 
-  function setJourneyComposerDraft(journeyId: string, text: string, flush = false) {
+  /**
+   * CR113: the current visible text, pushed into the Composer input. Used for restore, destination
+   * change, voice transcription, Canvas prefill and clearing after a send — never for a keystroke,
+   * which the input already shows without asking this component to render.
+   */
+  function setVisibleComposerDraft(text: string) {
+    draftRef.current = text;
+    composerDraftHandleRef.current?.setText(text);
+    setDraftBlank(!text.trim());
+  }
+
+  function setJourneyComposerDraft(
+    journeyId: string,
+    text: string,
+    flush = false,
+    origin: "input" | "program" = "program",
+  ) {
     const boundedText = text.slice(0, COMPOSER_DRAFT_MAX_CHARS);
     const childEntry = selectedConversationEntry?.kind === "desktop_conversation"
       ? selectedConversationEntry
@@ -2602,7 +2623,16 @@ export function App({ model }: AppProps) {
     const draftKey = conversationDraftKey(journeyId, childEntry?.conversationId);
     const selectedAuthorityStillMatches = selectedJourneyRef.current === journeyId
       && (!childEntry || conversationRef.current.id === childEntry.threadId);
-    if (selectedAuthorityStillMatches) setDraft(boundedText);
+    if (selectedAuthorityStillMatches) {
+      if (origin === "input") {
+        // The input is already showing these characters; pushing them back would be a loop.
+        draftRef.current = boundedText;
+        // React bails out when the value is unchanged, so this renders only on a blank flip.
+        setDraftBlank(!boundedText.trim());
+      } else {
+        setVisibleComposerDraft(boundedText);
+      }
+    }
     updateComposerDrafts((current) => updateComposerDraft(current, draftKey, boundedText), flush);
   }
 
@@ -2633,7 +2663,7 @@ export function App({ model }: AppProps) {
   }
 
   async function generatePacket(mode: "mock" | "live", retryContent?: string) {
-    const content = (retryContent ?? draft).trim();
+    const content = (retryContent ?? draftRef.current).trim();
     const invocationAdmissionBlocked = mode === "live"
       ? selectedInvocationAdmissionBlocked || turnRecoveryBusy
       : selectedRuntimeBusy;
@@ -2789,7 +2819,7 @@ export function App({ model }: AppProps) {
     if (mode === "mock") {
       setJourneyComposerDraft(baseConversation.journeyId, "", true);
     } else if (selectedJourneyRef.current === ownerJourneyId) {
-      setDraft("");
+      setVisibleComposerDraft("");
     }
     setPendingFileAttachments([]);
     setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
@@ -2807,7 +2837,7 @@ export function App({ model }: AppProps) {
       updateComposerDrafts((current) => updateComposerDraft(current, ownerDraftKey, boundedText), flush);
       if (selectedJourneyRef.current === ownerJourneyId
         && conversationRef.current.id === baseConversation.id) {
-        setDraft(boundedText);
+        setVisibleComposerDraft(boundedText);
       }
     };
     let agentStartApplied = false;
@@ -3397,8 +3427,12 @@ export function App({ model }: AppProps) {
     setIsRetryingMirrorCommit(true);
     beginSyncAttempt(ownerJourneyId);
     try {
+      // CR115: convergence does not reconcile occupancy here. Its only native mutation is lease
+      // cleanup, and that path already reconciles after releasing. Reconciling unconditionally
+      // walked occupancy through `reconciling` on every pass, and this routine's own trigger
+      // watches that status — an idle Journey re-entered recovery forever, flickering every
+      // control gated on occupancy and re-rendering the root between keystrokes.
       await turnFinalizationCoordinator.convergeDelivery(ownerJourneyId, convergenceDeps);
-      await reconcilePiInvocationOccupancy();
       recordSyncAttempt(ownerJourneyId, { kind: "succeeded", at: new Date().toISOString() });
       setExactSettlementErrors((current) => Object.fromEntries(
         Object.entries(current).filter(([, error]) => error.journeyId !== ownerJourneyId),
@@ -3427,7 +3461,7 @@ export function App({ model }: AppProps) {
 
   async function submitActiveSteering() {
     const identity = selectedRuntime.identity;
-    const text = draft.trim();
+    const text = draftRef.current.trim();
     if (!selectedCanSteer || identity?.kind !== "live" || !text) return;
     if (pendingFileAttachments.length > 0) {
       setFileAttachmentError("File attachments cannot be added to a Steering message yet.");
@@ -3999,7 +4033,7 @@ export function App({ model }: AppProps) {
     setJourneyReloadStatus(undefined);
     selectedJourneyRef.current = journeyId;
     setSelectedJourney(journeyId);
-    setDraft(composerDrafts[journeyId] ?? "");
+    setVisibleComposerDraft(composerDraftsRef.current[journeyId] ?? "");
     setJourneyPreferences((preferences) => ({
       ...preferences,
       activeJourneyId: journeyId,
@@ -5511,21 +5545,20 @@ export function App({ model }: AppProps) {
           />
           <div className={`composer-input-wrap${fileDropActive ? " is-file-drop-active" : ""}`}>
             {fileDropActive ? <div className="file-drop-overlay" role="status">Drop files to attach</div> : null}
-            <textarea
-              ref={composerInputRef}
-              aria-label="Natural-language intention"
-              value={draft}
+            <ComposerDraftInput
+              handleRef={composerDraftHandleRef}
+              textareaRef={composerInputRef}
+              initialText={draftRef.current}
+              ariaLabel="Natural-language intention"
               maxLength={COMPOSER_DRAFT_MAX_CHARS}
-              onChange={(event) => setJourneyComposerDraft(selectedJourney, event.target.value)}
+              onTextChange={(text) => setJourneyComposerDraft(selectedJourney, text, false, "input")}
               onBlur={flushComposerDrafts}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  if (selectedCanSteer && draft.trim()) {
-                    void submitActiveSteering();
-                  } else if (shouldSubmitJourneyDraft(event, navigationPresentation, selectedInvocationAdmissionBlocked)) {
-                    void generatePacket("live");
-                  }
+              onEnter={(text, event) => {
+                event.preventDefault();
+                if (selectedCanSteer && text.trim()) {
+                  void submitActiveSteering();
+                } else if (shouldSubmitJourneyDraft(event, navigationPresentation, selectedInvocationAdmissionBlocked)) {
+                  void generatePacket("live");
                 }
               }}
               placeholder={selectedCanSteer
@@ -5626,7 +5659,7 @@ export function App({ model }: AppProps) {
                         className="icon-button send-button"
                         type="button"
                         onClick={() => void submitActiveSteering()}
-                        disabled={!draft.trim() || providerErrors.length > 0 || agentSettingsState !== "ready"}
+                        disabled={draftBlank || providerErrors.length > 0 || agentSettingsState !== "ready"}
                         aria-label="Steer active turn"
                         title="Steer active turn"
                       >
@@ -5639,7 +5672,7 @@ export function App({ model }: AppProps) {
                     className="icon-button send-button"
                     type="button"
                     onClick={() => void generatePacket("live")}
-                    disabled={!draft.trim() || selectedInvocationAdmissionBlocked || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(fileAttachmentError) || fileAttachmentBusy}
+                    disabled={draftBlank || selectedInvocationAdmissionBlocked || providerErrors.length > 0 || agentSettingsState !== "ready" || Boolean(fileAttachmentError) || fileAttachmentBusy}
                     aria-label="Send message"
                     title="Send message"
                   >

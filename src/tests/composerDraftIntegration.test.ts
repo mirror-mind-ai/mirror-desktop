@@ -5,8 +5,8 @@ import desktopCapabilitySource from "../../src-tauri/capabilities/default.json?r
 describe("Composer draft integration", () => {
   it("loads, restores, updates, and clears Journey-owned drafts", () => {
     expect(appSource).toContain("loadComposerDrafts()");
-    expect(appSource).toContain('setDraft(composerDrafts[journeyId] ?? "")');
-    expect(appSource).toContain("setJourneyComposerDraft(selectedJourney, event.target.value)");
+    expect(appSource).toContain('setVisibleComposerDraft(composerDraftsRef.current[journeyId] ?? "")');
+    expect(appSource).toContain('setJourneyComposerDraft(selectedJourney, text, false, "input")');
     expect(appSource).toContain('setJourneyComposerDraft(baseConversation.journeyId, "", true)');
     expect(appSource).toContain("maxLength={COMPOSER_DRAFT_MAX_CHARS}");
   });

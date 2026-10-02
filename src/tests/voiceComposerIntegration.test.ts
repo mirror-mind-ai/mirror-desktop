@@ -12,7 +12,7 @@ describe("CV-008.DS-005 voice prompt composition integration", () => {
     expect(appSource).toContain("voiceOriginRef.current = { draftKey, label: currentComposerDestinationLabel(), language: voiceLanguage }");
     expect(appSource).toContain("appendTranscriptToDraft(current[origin.draftKey] ?? \"\", transcript.text)");
     expect(appSource).toContain("updateComposerDraft(current, origin.draftKey, merged)");
-    expect(appSource).toContain("if (visibleDraftKey === origin.draftKey) setDraft(merged)");
+    expect(appSource).toContain("if (visibleDraftKey === origin.draftKey) setVisibleComposerDraft(merged)");
     expect(appSource).toContain("transcriptDestinationNotice(origin.draftKey, visibleDraftKey, origin.label)");
   });
 
