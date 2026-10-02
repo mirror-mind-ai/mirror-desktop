@@ -1,25 +1,279 @@
 [< RS021](index.md)
 
-# CR112: Host a Journey's Declared Workflow
+# CR112: Host a Canvas the Journey's Agent Draws
 
 **Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr112-host-journey-workflow`
+
+This file's slug and the delivery branch still say "workflow". They are kept as historical
+identifiers, the same decision CR105 recorded when its readable title followed the product while
+its slug, branch and internal names did not. The readable title above is the authority on what is
+being built.
 
 ## Friction / Opportunity
 
 A Journey's agent can assemble the shape of its work by reading the Journey's own material,
 while the Navigator encounters that shape one file at a time. The Context surface honestly
 shows what was evidenced in the active Conversation, but it cannot tell the Navigator what
-his Journey's work means or how it is organised. That is not a gap the app can close by
+their Journey's work means or how it is organised. That is not a gap the app can close by
 calculating a more elaborate tree. The exploration measured two real Journeys with distinct
 shapes, and full shell access still produced a confident wrong reading of `vida-economica`'s
 cadence from directory structure.
 
-The Journey must declare its own workflow. Mirror Desktop's role is to give that declaration
-a stable, honest home.
+The Journey must say this for itself, and Mirror Desktop's role is to give what it says a
+stable, honest home. This CR first read that as a workflow the Journey declares. Measurement
+against a second Journey showed the declaration had to be freer than a genre, which is what the
+pivot below records.
+
+## Pivot to Canvas (2026-10-02)
+
+The Navigator ran the setup prompt through the evaluation bundle against `vida-economica`, a
+Journey whose material belongs to it and not to this one. What came back was not a workflow view.
+It was a panel: current cycle with its declared state, eight ordered steps, consolidated financial
+position with per-account balances, provisioned future debits, open items with their next action,
+and the next resumption date.
+
+The first reading was that the agent had overshot the prompt. Measurement contradicted that.
+
+Measured in that Journey, read-only, with provenance preserved: the agent wrote a 5,884 byte
+contract, a 2,911 byte view, and a 470 byte manifest declaring seven sources. The contract
+satisfies every rule the prompt stated. It opens with a fidelity rule, names its sources of truth
+with exact paths, declares how to decide the current cycle from the folder-naming convention
+rather than from the directory tree, fixes a closed vocabulary of five obligation states and eight
+ordered stages, says where state persists and that the view must never be its only witness,
+explains how to regenerate, and even says to update the source list at the turn of the month. It
+declares the view's form in four parts. The view has exactly those four parts and fits one screen.
+
+So the prompt worked. What failed was the word. For the book, a workflow is which stage each
+chapter is in, and "workflow" seemed sufficient. For `vida-economica`, what the Journey calls its
+own situation is steps plus balances plus open items, because that is what its own
+`docs/estado-atual.md` treats as state. The prompt had named a genre, and a Journey whose
+situation does not fit that genre produced something truthful that the genre's name made look
+wrong.
+
+That is the same structural error CR105 made one layer down, now in the Journey's own voice and
+therefore harder to see. CR105 imposed a shape on a Journey that had its own. CR112 imposed a
+genre on a Journey that had its own.
+
+### The decision
+
+The tab becomes **Canvas**: the agent's drawing area, where it keeps a durable rendering of what
+is happening in a Journey. The app stops naming the genre of the drawing. It hosts a markdown file
+and renders it, and the Journey decides what deserves to be there.
+
+This is the third step of one direction. CR105 calculated and was refused. CR112 hosted a
+declaration but still named what the declaration had to be about. Canvas hosts the file and names
+nothing. At each step the app knows less about the content and hosts more.
+
+The Navigator's own practice is the proof that this is enough. In `livro-lideranca-soberana` he
+had already taught the agent to draw the workflow in the Conversation output whenever he asked for
+a project status. Canvas is that same practice with a different output channel, and keeping the
+agent aware of when to redraw stays the Navigator's job rather than becoming the app's inference.
+
+### Why the word survives measurement
+
+"Canvas" appears nowhere in the 30 documents of the Nautilus method, so it borrows no meaning the
+method has already spent and negates no term the method uses. In the product it appears only as a
+background colour token, `--light-canvas`, which is semantically compatible and carries no
+conflict in the surface vocabulary.
+
+### What survives the pivot
+
+Everything dated 2026-10-01 below describes the superseded design and is kept as a dated record,
+not as current specification. The mechanism it built mostly survives: the bounded Rust reader
+pattern, the tab with its own surface id, rendering through `ArtifactMarkdown`, the two controls
+reusing `.secondary-button`, the composer navigation repair, and the language anchor carried from
+the Journey's description.
+
+What dies with the manifest: `schemaVersion` and its unknown-version reporting, the declared
+source list, the per-path facts, the freshness derivation and the `possibly_stale` state.
+
+### A vocabulary gap this exposed
+
+The index declares nine Change Request statuses and none of them means "superseded by what it
+taught". Closing this CR as `rejected` would be false, since the work was not declined, and
+`parked` would imply it could resume as written. So the CR is rewritten in place under a new
+readable title, with the superseded contract preserved below as a dated record. The missing status
+is a gap worth naming in the index's own vocabulary rather than faking with a wrong label.
 
 ## Outcome
+
+Mirror Desktop gains a `Canvas` tab beside `Conversation` and `Context`. The tab renders a markdown
+file the Journey's own agent draws and keeps. The app assigns no meaning to its contents: not the
+genre, not the vocabulary, not the structure, not the sections.
+
+The tab exists for every Journey. Where nothing has been drawn it shows honest absence and offers a
+gesture that teaches the agent to draw and keep the canvas. Where a drawing exists it renders it and
+says when it was drawn, never whether it is current. A second gesture asks for a fresh drawing,
+which is the Navigator's reminder in the form of a control rather than a freshness claim by the app.
+
+Both gestures only pre-fill the existing composer. Neither runs an agent nor mutates a Journey.
+
+## Contract
+
+Two files, by convention, at the root of the Journey as resolved from the registry's
+`projectPath`, beside `JOURNEY.md`. No manifest, no schema, no declared sources.
+
+| File | What it is | What the app does with it |
+|---|---|---|
+| `canvas.md` | the drawing | reads its content and renders it |
+| `canvas-instructions.md` | the Journey's standing instructions to its agent about drawing | reads only whether it exists |
+
+Neither name begins with a dot, because `omitted_workspace_component` makes any dotted component
+invisible to the bounded reader. Both sit at the Journey root, which is the registry's
+`projectPath` and never a path discovered from git. For `mirror-desktop` the Journey root and the
+repository root are the same directory; for `vida-economica` and `livro-lideranca-soberana` the
+Journey root is not a repository at all.
+
+The app never reads the content of `canvas-instructions.md`. It names the path in the redraw
+prompt and the agent reads the file itself, so the instructions are never transported, never
+truncated and never interpreted by the app.
+
+The tab's label is always `Canvas`. The drawing's own title is its first heading, which the agent
+controls without any field anywhere. There is no `title` to declare, because there is no manifest
+to declare it in.
+
+### Why a conventional file is not yet a loaded instruction
+
+Measured across the 71 Journey roots that exist on disk: 22 carry some loader of standing
+instructions, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` or `.pi`, and 49 carry none. Both Journeys this
+work is aimed at are among the 49. `vida-economica` and `livro-lideranca-soberana` carry
+`JOURNEY.md` and no loader; `mirror-desktop` carries `AGENTS.md`.
+
+So a file at the Journey root is durable on disk and inert in practice, because nothing loads it.
+It works through the button, since the redraw prompt names the path and the app becomes the loader.
+It does not work through the path the Navigator actually uses, which is asking for a status in
+conversation.
+
+The teaching prompt therefore does two things: it writes `canvas-instructions.md`, and it asks the
+agent to make whatever context it does load point at that file, reporting where it put the pointer.
+The app does not dictate the location, because only the agent knows how its runtime loads standing
+instructions. Where no loader exists, `JOURNEY.md` is the natural home, and Mirror injects it.
+
+### The names are free
+
+Measured across the 71 existing Journey roots: `canvas.md`, `canvas-instructions.md` and
+`CANVAS.md` collide with nothing. For context, the most common root files are `README.md` in 35,
+`JOURNEY.md` in 30, `AGENTS.md` in 16 and `CLAUDE.md` in 14.
+
+### The drawing has to be re-read after the agent draws it
+
+The Navigator reported this from the evaluation bundle: after the agent finished writing the
+markdown, the tab did not update. Closing and reopening the app was the only way to see it.
+
+Measured cause. The loader in `App.tsx` is an effect whose dependency array is
+`[selectedJourney, registryLoaded, runtimeBindingReady]`. None of those change when an agent
+writes a file, so the declaration is read once per Journey selection and never again. The derived
+view was correct; it was derived from a stale read.
+
+The Canvas design inherits this exposure completely, and more acutely: under Canvas the whole
+point is that the agent redraws the file repeatedly during the work. A tab that only reflected the
+file as it was when the Journey was selected would be wrong most of the time.
+
+The house already answers this, and the answer is not a file watcher.
+`JourneyDocumentationBrowser` carries an explicit reload control, `artifact-tree-reload`, with its
+own in-progress state and a failure message that keeps the last good tree on screen. Disk changing
+underneath the app is treated as something the Navigator asks about, never as something the app
+polls for. That respects the no-background-scan boundary.
+
+So Canvas re-reads `canvas.md` on two gestures and on nothing else: when the Canvas tab becomes
+the selected surface, which is the Navigator saying they want to look at it, and through a reload
+control on the tab itself, following Context's precedent including keeping the last good drawing
+visible when a re-read fails. Reading one bounded file on tab selection is a gesture-driven read,
+not a scan, and the derivation stays pure in render rather than moving into the effect.
+
+## User-Facing States
+
+- **Undrawn:** no `canvas.md`. Explain that this Journey's agent has not drawn a canvas and offer
+  the teaching gesture.
+- **Drawn:** `canvas.md` is readable. Render it and say when it was drawn. Never say current, fresh
+  or up to date, because without declared sources the app cannot know and should not imply it.
+- **Unavailable:** `canvas.md` is a symlink, oversized, or not valid UTF-8. Show absence with the
+  specific reason and never render a partial substitute.
+
+Whether `canvas-instructions.md` exists is a secondary fact, not an error. A drawing without
+standing instructions is a drawing that will not be kept, so in that case the tab renders the
+drawing and still offers the teaching gesture. The two gestures are not mutually exclusive.
+
+Freshness is gone by design. The superseded design could say a declared source had changed; it
+could never say nothing relevant had changed. Canvas declares no sources, so it says only when the
+drawing was made and leaves the judgement to the Navigator who asked for it.
+
+## Acceptance
+
+- The two file names are fixed constants in one place, and the app resolves them against the
+  registry's `projectPath`, reusing `validate_document_relative_path` and the existing symlink
+  rejection.
+- A Journey with no `canvas.md` shows the undrawn state and a teaching control that only calls the
+  existing composer-prefill path. No form, invocation, hidden state, `useEffect`, local storage or
+  session storage is introduced.
+- A readable `canvas.md` renders through the existing `ArtifactMarkdown`, with the drawn-at time
+  shown and no positive freshness claim anywhere in the markup, asserted by test.
+- Selecting the Canvas surface re-reads `canvas.md`, so a drawing the agent produced during the
+  session appears without restarting the app. This is the defect the Navigator found in the
+  superseded implementation and it must not survive the pivot.
+- The tab carries a reload control following Context's `artifact-tree-reload` precedent, with its
+  own in-progress state, and a failed re-read keeps the last good drawing on screen under a named
+  error rather than replacing it with absence.
+- No file watcher, polling interval or background scan is added. Re-reads happen on Journey
+  selection, on Canvas surface selection, and on the reload control.
+- A symlinked, oversized or non-UTF-8 `canvas.md` produces a reasoned unavailable state without
+  escaping the selected Journey root.
+- The app reads only the existence of `canvas-instructions.md`, never its content, asserted from
+  the transport's own source.
+- When `canvas.md` exists and `canvas-instructions.md` does not, both gestures are offered.
+- Both prompts are pure domain functions with their own tests, bounded below half of
+  `COMPOSER_DRAFT_MAX_CHARS`, since `setJourneyComposerDraft` truncates silently at that bound and
+  would drop the prohibitions last.
+- The teaching prompt captures intent before drawing, asks what belongs on the canvas and offers
+  its own reading of what belongs, writes the first drawing, writes `canvas-instructions.md`, asks
+  the agent to point its loaded context at that file, and reports where the pointer was placed.
+- The teaching prompt states that the instructions are short and about what to draw and when to
+  redraw, not a specification of form. This is enforced by prompt and not by code, and the 5,884
+  byte contract the same prompt family produced in `vida-economica` is the evidence for why it has
+  to be said explicitly.
+- Both prompts keep the origin prohibitions intact: never from Conversation memory, never from
+  memory of earlier sessions, never from old transport files, never inferred from the shape of the
+  directory tree. These were never about workflow; they are about not fabricating fact.
+- Both prompts keep the language anchor: the Journey's description quoted inline, the instruction
+  to write in that language, and the explicit prohibition on translating into English.
+- Both prompts forbid links, because `ArtifactMarkdown` renders none and link syntax would survive
+  as literal text.
+- The redraw prompt names `canvas-instructions.md` and instructs the agent to follow it, replacing
+  `canvas.md` entirely from the Journey's current files.
+- `canvas` gets its own persisted surface id. Context keeps `artifacts` as its persisted selection
+  state and the workspace tree stays in Context.
+- The teaching prompt is validated in a real agent Conversation in a Journey that has no canvas,
+  before this CR is marked done. No unit test establishes that an agent found rather than invented.
+
+## Boundaries
+
+- No inference about what a Journey's work is, no indexing, no background scan, no new persistence
+  and no LLM call is added to Mirror Desktop.
+- The app does not edit a Journey. It renders one declared file, detects another, and pre-fills
+  text.
+- The app does not interpret, transport or display the content of `canvas-instructions.md`.
+- The app does not expose prompt or envelope text in Context or Canvas.
+- No manifest, schema version or declared source list is introduced. Their absence is the point.
+- The app makes no freshness claim and derives no staleness.
+- The three artifacts the agent wrote in `vida-economica` belong to that Journey. They are read
+  with provenance preserved and are not modified from here.
+- How a young Journey should be guided to crystallise a view remains out of scope. The book's
+  contract emerged roughly two months after its first structural data appeared, so a form, wizard
+  or template is explicitly excluded.
+- No release, push, tag, publication or production mutation is authorised by this CR.
+
+## Superseded Workflow Design (2026-10-01)
+
+Kept as a dated record of what this CR carried before the Canvas pivot. It is not current
+specification. The headings below are demoted to mark that, and they are preserved because the
+pivot's reasoning is only legible against what it replaced.
+
+<details>
+<summary>The superseded outcome, its three-artifact contract, its four states and its acceptance</summary>
+
+#### Outcome
 
 Mirror Desktop gains a `Workflow` tab beside `Conversation` and `Context`. The tab hosts a
 markdown view a Journey's own agent has rendered from a Journey-owned prose contract and its
@@ -37,7 +291,7 @@ sources of truth, form, current-chapter rule, three states, six ordered stages, 
 under `workflow_stages` and the regeneration invocation. The first delivery must show that
 existing form without asking the app to understand it.
 
-## Contract
+#### Contract
 
 A Journey declares its Workflow surface through three artifacts:
 
@@ -71,7 +325,7 @@ The Workflow contract does not live under `.mirror/projections`. Those projectio
 Mirror into a Journey. The Workflow declaration flows from a Journey up to the app, an
 opposite direction of authority.
 
-## User-Facing States
+#### User-Facing States
 
 - **Undeclared:** no `mirror-workflow.json` exists. Explain that this Journey has not declared
   a Workflow view and offer the setup prefill.
@@ -88,7 +342,7 @@ the current chapter's `capitulo.md` and a proof `manifesto.json`, whose paths va
 The tab can prove a known source changed, not that nothing relevant changed. It must never say
 "fresh" or "up to date".
 
-## Acceptance
+#### Acceptance
 
 - A Journey with no manifest shows the undeclared state and a setup control that only calls the
   existing composer-prefill path. No form, invocation, hidden state, `useEffect`, local storage
@@ -120,18 +374,8 @@ The tab can prove a known source changed, not that nothing relevant changed. It 
 - The setup prompt is validated in a real `livro-lideranca-soberana` agent Conversation before
   this CR is marked done. A unit test does not prove the agent found rather than invented.
 
-## Boundaries
 
-- No workflow inference, indexing, background scan, new persistence or LLM call is added to
-  Mirror Desktop.
-- The app does not edit a Journey. It renders declared files and pre-fills text only.
-- The app does not expose prompt or envelope text in Context or Workflow.
-- No YAML parser is added. JSON follows the existing `serde_json` dependency and the
-  `.mirror/projections/current.json` precedent.
-- The first slice does not solve how a young Journey should be guided to crystallise a workflow.
-  The book's contract emerged roughly two months after its first structural data appeared, so a
-  form, wizard or template that asks a young Journey to declare one is explicitly out of scope.
-- No release, push, tag, publication or production mutation is authorised by this CR.
+</details>
 
 ## Evidence And Design Record
 
@@ -293,9 +537,22 @@ Gates: `npm test` 213 files, 1473 tests, all passing. `npx tsc --noEmit` clean.
 
 ## Remaining
 
-- Validate the setup prompt in a real `livro-lideranca-soberana` agent Conversation: that it finds
-  the existing contract rather than inventing one, and that it writes a manifest the app accepts.
-  No unit test can establish this.
-- Validate the descriptive refusal path in a Journey that has no workflow written anywhere.
-- Navigator walkthrough of the four states in the running app, including the light families.
-- Re-check both Workflow gestures in dev after the composer navigation repair.
+- Implement the Canvas design. None of it is built yet; everything on the delivery branch
+  implements the superseded manifest design.
+- Replace this Journey's own dogfooding artifacts. `mirror-workflow.json`,
+  `docs/project/refinement/workflow-contract.md` and `docs/project/refinement/workflow-surface.md`
+  were committed in `736b90b` under the superseded design and become `canvas.md` and
+  `canvas-instructions.md` at the Journey root. On this Journey the root is also the repository
+  root, so the drawing will be versioned and will show in every `git status` after a redraw. That
+  is a real dogfooding friction and an argument for treating the canvas as derived and disposable:
+  this Journey may ignore it in git without losing anything, because state never lives there.
+- Validate the teaching prompt in a real agent Conversation in a Journey with no canvas, checking
+  both that the drawing reflects the Journey's files and that the standing instructions survive
+  into a later session through the pointer the agent placed.
+- Navigator walkthrough of the three states in the running app, including the light families, and
+  specifically that a drawing made during the session appears without restarting.
+- Decide whether the index's Change Request vocabulary should gain a status for work superseded by
+  what it taught.
+- The renderer's limits are still enforced by prompt rather than by product. A freer agent will
+  want to link the Journey's documents, which Context already knows how to open. Not now, but it
+  is the next wall.
