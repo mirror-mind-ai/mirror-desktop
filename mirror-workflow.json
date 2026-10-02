@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "title": "Refinement focus",
+  "surface": "docs/project/refinement/workflow-surface.md",
+  "contract": "docs/project/refinement/workflow-contract.md",
+  "sources": [
+    "docs/project/refinement/index.md"
+  ]
+}
