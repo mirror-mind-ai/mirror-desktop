@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import { OperationalWorkspaceSwitcher } from "../app/OperationalWorkspaceSwitcher";
 import appSource from "../app/App.tsx?raw";
 import documentationBrowserSource from "../app/JourneyDocumentationBrowser.tsx?raw";
+import switcherSource from "../app/OperationalWorkspaceSwitcher.tsx?raw";
 
 describe("Operational Journey workspace", () => {
-  it("shows only functional Conversation and Agent’s Field controls", () => {
+  it("shows only functional Conversation and Context controls", () => {
     const html = renderToStaticMarkup(
       <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} />,
     );
@@ -13,9 +14,9 @@ describe("Operational Journey workspace", () => {
     expect(html).toContain('aria-label="Operational workspace"');
     expect(html.match(/role="tab"/g)).toHaveLength(2);
     expect(html).toContain("Conversation");
-    // CR105: the surface is the agent's field of perception, not an artifact list. The id stays
-    // `artifacts` because it is persisted selection state.
-    expect(html).toContain("Agent\u2019s Field");
+    // CR105: the surface shows what effectively entered the agent's context, not an artifact
+    // list. The id stays `artifacts` because it is persisted selection state, not a label.
+    expect(html).toContain("Context");
     expect(html).not.toContain(">Artifacts<");
     expect(html).not.toContain("Ariad");
     expect(html).not.toContain(">Chat<");
@@ -36,7 +37,7 @@ describe("Operational Journey workspace", () => {
     expect(html).toContain('aria-disabled="true"');
   });
 
-  it("wires the Agent’s Field to the selected Journey documentation boundary", () => {
+  it("wires the Context surface to the selected Journey documentation boundary", () => {
     expect(appSource).toContain("<JourneyDocumentationBrowser");
     expect(appSource).toContain("journeyId={selectedJourneyItem.id}");
     expect(appSource).toContain("journeyName={selectedJourneyItem.name}");
@@ -88,6 +89,20 @@ describe("Operational Journey workspace", () => {
     expect(appSource).toContain('aria-label="Navigate active conversation turns"');
     expect(appSource).toContain("void generatePacket(\"live\")");
     expect(appSource).not.toContain("dangerouslySetInnerHTML");
+  });
+
+  // Field and territory are Nautilus method vocabulary (Agentic Field, Human Territory). The
+  // product borrowed them while the surface was being designed and gives them back here, so the
+  // concepts stay in the method and the product speaks only about what it can actually show.
+  it("keeps retired method vocabulary out of the operational surface copy", () => {
+    const switcher = renderToStaticMarkup(
+      <OperationalWorkspaceSwitcher value="artifacts" onChange={() => undefined} />,
+    );
+
+    for (const retired of ["Field", "field", "Territor", "territor"]) {
+      expect(switcher).not.toContain(retired);
+    }
+    expect(switcherSource).not.toContain("Agent\u2019s Field");
   });
 
 });

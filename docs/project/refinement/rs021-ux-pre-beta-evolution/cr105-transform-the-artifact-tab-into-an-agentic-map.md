@@ -1,6 +1,6 @@
 [< RS021](index.md)
 
-# CR105: Transform the Artifact Tab into an Agentic Map
+# CR105: Transform the Artifact Tab into the Context Surface
 
 **Status:** in_progress
 **Driver:** @alissonvale
@@ -231,3 +231,47 @@ Navigator re-check of step 7 in the running app.
 - `npm test`: 210 files, 1429 tests, all passing.
 - `npx tsc --noEmit`: clean.
 - `cargo test`: unchanged, no Rust touched since the previous run.
+
+## Naming Retirement (2026-10-01)
+
+The Navigator reported that the surface works and then declined to validate it, because seeing it
+working showed that the name and the framing came from the wrong place. Agentic Field and Human
+Territory are Nautilus method vocabulary. The product had borrowed both while the surface was being
+designed, which made the tab announce a concept broader than anything one tab can hold.
+
+Both terms go back to the method. The visible copy now reads:
+
+| Before | After |
+| --- | --- |
+| Tab label `Agent's Field` | `Context` |
+| Panel heading `Agentic Field` | `Context` |
+| Section label `Context territories` | `Admitted context` |
+| Section label `Context detail` | `Admission detail` |
+
+Admission stays, because the admission grammar is this product's own vocabulary rather than the
+method's. The surface still shows what effectively entered the agent's context, and the honest
+limits already shipped are unchanged: the shell blind spot is still stated permanently, and the
+briefing is still shown as available rather than evidenced.
+
+A regression test in `src/tests/operationalJourneyWorkspace.test.tsx` renders the switcher and
+asserts that neither `Field` nor `Territor` appears in the visible copy, in either case, so the
+retired vocabulary cannot drift back in.
+
+### Deliberately unchanged
+
+Internal identifiers keep the old names: the component file `AgenticMapField.tsx`, the
+`agentic-map-*` CSS classes, the `AgenticMapTerritory` type, the test file names, this document's
+file slug, and the branch `refinement/rs021-cr105-agentic-map`. None of them is user-visible, the
+cascade tests added for step 7 bind to the `agentic-map-territory` selector, and renaming roughly a
+hundred occurrences across a component, a stylesheet and three test files would bury a label change
+inside mechanical churn. Internal renaming is a separate, reviewable change if it is wanted at all.
+
+The surface id stays `artifacts`, which was already decided: it is persisted selection state, not a
+label.
+
+## Gates (rename 2026-10-01)
+
+- `npm test`: 210 files, 1430 tests, all passing. One test more than the previous run, the new
+  retired-vocabulary regression test.
+- `npx tsc --noEmit`: clean.
+- `cargo test`: not re-run, no Rust touched by the rename.

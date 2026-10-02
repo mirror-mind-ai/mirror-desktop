@@ -50,7 +50,7 @@ Captured Change Requests, ordered by Navigator-approved daily-use impact:
 21. **CR102 — Make Sidebar Progress Signals Legible.** Make Journey progress readable without overloading existing sidebar signals.
 22. **CR103 — Give the Composer Model Status a Human Register.** Separate concise model identity and runtime state from raw provider notation.
 23. **CR104 — Make Compaction Failures Actionable and Expirable.** Do not leave a stale manual-compaction failure permanently visible.
-24. **CR105 — Transform the Artifact Tab into an Agentic Map.** Explore a navigable agent working-field map with honest provenance.
+24. **CR105 — Transform the Artifact Tab into the Context Surface.** Explore a navigable agent working-field map with honest provenance.
 25. **CR106 — Use Green for Ready Completion Signals.** Make agent completion immediately legible without changing Ready semantics.
 26. **CR107 — Make Existing Journeys Startable.** Do not strand an existing Journey at an informational “has not started” surface when its Desktop conversation must be resumed, safely provisioned, or diagnosed.
 27. **CR108 — Stop One Unrecoverable Turn from Blocking Recovery.** Do not let a single unclaimable historical turn abort delivery recovery for every other turn in the Journey.
@@ -64,7 +64,7 @@ This is the current UX-first order for the captured work. It is deliberately not
 order: each CR still begins with empirical characterisation, and no CR is pulled merely by being
 ranked here.
 
-1. **CR105 — Transform the Artifact Tab into an Agentic Map.** This is strategically promising but
+1. **CR105 — Transform the Artifact Tab into the Context Surface.** This is strategically promising but
    exploratory and broader than the observed corrective frictions above.
 2. **CR097 — Keep a Correction Recognisable After Reload.** The Conversation can falsely present a
    correction as an unanswered new request, damaging trust in the user's own history.
@@ -117,7 +117,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR102: Make Sidebar Progress Signals Legible](cr102-make-sidebar-progress-signals-legible.md) — done
 - [CR103: Give the Composer Model Status a Human Register](cr103-give-the-composer-model-status-a-human-register.md) — done
 - [CR104: Make Compaction Failures Actionable and Expirable](cr104-make-compaction-failures-actionable-and-expirable.md) — done
-- [CR105: Transform the Artifact Tab into an Agentic Map](cr105-transform-the-artifact-tab-into-an-agentic-map.md)
+- [CR105: Transform the Artifact Tab into the Context Surface](cr105-transform-the-artifact-tab-into-an-agentic-map.md)
 - [CR106: Use Green for Ready Completion Signals](cr106-use-green-for-ready-completion-signals.md) — done
 - [CR107: Make Existing Journeys Startable](cr107-make-existing-journeys-startable.md) — done
 - [CR108: Stop One Unrecoverable Turn from Blocking Recovery](cr108-stop-one-unrecoverable-turn-from-blocking-recovery.md) — done

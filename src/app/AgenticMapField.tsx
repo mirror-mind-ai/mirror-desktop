@@ -66,7 +66,7 @@ export function AgenticMapHeader({
   return (
     <header className="agentic-map-header">
       <div className="agentic-map-title">
-        <h2>Agentic Field</h2>
+        <h2>Context</h2>
         <p className="agentic-map-subject">{subject}</p>
       </div>
       {admission.status === "ready" ? <AgenticMapCounts context={admission.context} /> : null}
@@ -134,7 +134,7 @@ export function AgentFieldRegion({
   if (admission.status === "unavailable") {
     return (
       <div className="agentic-map-field">
-        <p className="operational-artifacts-section-label">Context territories</p>
+        <p className="operational-artifacts-section-label">Admitted context</p>
         <div className="agentic-map-field-state">
           <strong>Admission evidence unavailable</strong>
           <p>{admission.reason}</p>
@@ -145,7 +145,7 @@ export function AgentFieldRegion({
   if (admission.status === "loading") {
     return (
       <div className="agentic-map-field">
-        <p className="operational-artifacts-section-label">Context territories</p>
+        <p className="operational-artifacts-section-label">Admitted context</p>
         <p className="agentic-map-field-state" role="status">Reading admission evidence…</p>
       </div>
     );
@@ -156,7 +156,7 @@ export function AgentFieldRegion({
 
   return (
     <div className="agentic-map-field">
-      <p className="operational-artifacts-section-label">Context territories</p>
+      <p className="operational-artifacts-section-label">Admitted context</p>
       <ul className="agentic-map-territories">
         <TerritoryRow
           territory="briefing"
@@ -290,7 +290,7 @@ export function TerritoryPage({
 }) {
   return (
     <article className="agentic-map-page">
-      <p className="operational-artifacts-section-label">Context detail</p>
+      <p className="operational-artifacts-section-label">Admission detail</p>
       {territory === "briefing" ? briefingPage(journeyName, journeyBriefing) : null}
       {territory === "conversation" ? conversationPage(context, conversationName) : null}
       {territory === "sources" ? sourcesPage(context) : null}

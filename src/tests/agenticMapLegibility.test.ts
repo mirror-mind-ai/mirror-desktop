@@ -78,7 +78,7 @@ const LIGHT_PANELS: Record<string, Rgb[]> = {
 const MARKER_BLOCK = ".operational-artifacts-workspace {\n  --presence-available";
 const LIGHT_MARKER_BLOCK = ") .operational-artifacts-workspace {\n  --presence-available";
 
-describe("Agentic Field presence legibility", () => {
+describe("Context presence legibility", () => {
   const available = token(MARKER_BLOCK, "--presence-available");
   const seen = token(MARKER_BLOCK, "--presence-seen");
   const present = token(MARKER_BLOCK, "--presence-present");
