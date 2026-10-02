@@ -55,7 +55,11 @@ function unavailableHeadline(reason: string): string {
 }
 
 function ComposeNotice() {
-  return <p className="journey-workflow-compose-notice">Nothing is sent until you decide.</p>;
+  return (
+    <p className="journey-workflow-compose-notice">
+      The request is written into the Conversation composer. Nothing is sent until you decide.
+    </p>
+  );
 }
 
 export function JourneyWorkflowSurface(props: JourneyWorkflowSurfaceProps) {

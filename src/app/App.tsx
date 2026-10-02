@@ -799,6 +799,7 @@ export function App({ model }: AppProps) {
   const [journeyWorkflowStatus, setJourneyWorkflowStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const chatStreamRef = useRef<HTMLElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   // CR084: mirrors the scroll position reactively so the recenter control can react to it.
   const [conversationAwayFromEnd, setConversationAwayFromEnd] = useState(false);
   const chatAutoFollowRef = useRef(true);
@@ -4287,6 +4288,24 @@ export function App({ model }: AppProps) {
     revealConversationEnd();
   }
 
+  function focusComposer() {
+    // The composer is hidden until the Conversation surface renders, so the cursor can only be
+    // placed after that paint.
+    requestAnimationFrame(() => composerInputRef.current?.focus());
+  }
+
+  /**
+   * CR112: a Workflow gesture writes a draft and nothing more. The composer is hidden on every
+   * surface except the Conversation, so pre-filling while the Navigator is still on Workflow
+   * changes nothing visible and reads as a button that failed. Moving to the composer and placing
+   * the cursor there is the opposite of sending: it is what lets the prompt be read before it is.
+   */
+  function composeWorkflowRequest(message: string) {
+    setJourneyComposerDraft(selectedJourney, message);
+    showConversation();
+    focusComposer();
+  }
+
   const developmentChannel = runtimeChannel?.channel === "development";
   const evaluationChannel = runtimeChannel?.channel === "evaluation";
   const runtimeBindingDraft: RuntimeBinding | undefined = runtimeChannel && runtimeMirrorRoot && runtimeMirrorHome && runtimeMirrorUser
@@ -5139,8 +5158,8 @@ export function App({ model }: AppProps) {
           <JourneyWorkflowSurface
             journeyName={selectedJourneyItem.name}
             workflow={journeyWorkflowView}
-            // The gesture only pre-fills the composer. Nothing is sent until the Navigator decides.
-            onCompose={(text) => setJourneyComposerDraft(selectedJourney, text)}
+            // Pre-fills the composer and goes there. Nothing is sent until the Navigator decides.
+            onCompose={composeWorkflowRequest}
           />
         ) : null}
         {presentedAltitude === "operational" && presentedOperationalSurface === "ariad" ? (
@@ -5458,6 +5477,7 @@ export function App({ model }: AppProps) {
           <div className={`composer-input-wrap${fileDropActive ? " is-file-drop-active" : ""}`}>
             {fileDropActive ? <div className="file-drop-overlay" role="status">Drop files to attach</div> : null}
             <textarea
+              ref={composerInputRef}
               aria-label="Natural-language intention"
               value={draft}
               maxLength={COMPOSER_DRAFT_MAX_CHARS}

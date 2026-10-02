@@ -229,6 +229,34 @@ Journey is its own agent's work through the setup prompt, and belongs to the Nav
 - Running dev binary verified to carry the registered `read_journey_workflow` command, and the dev
   server verified to serve the `Workflow` label and the new surface module.
 
+## Defect Found In Dev, And Repaired (2026-10-01)
+
+The Navigator reported that the regenerate control wrote the prompt but did not take them to the
+composer, so it read as a button that had not worked.
+
+Measured cause: the composer section in `App.tsx` carries
+`hidden={!operationalChatSelected || ...}`, so it does not exist on screen for any surface other
+than the Conversation. The gesture wrote the draft into state and into `composer-drafts.json`
+correctly, and every visible pixel stayed the same. The same defect applied to the setup control,
+since both call the one `onCompose`.
+
+`JourneyArrivalSurface` never had this problem and that is why the pattern looked safe when it was
+copied: that surface renders inside the Conversation panel, where the composer it fills is already
+visible a few centimetres below. Reusing its prefill contract from a different tab silently dropped
+the half of the gesture that the layout had been providing for free.
+
+Repair, in the wiring rather than the surface, so the surface stays free of side effects. A named
+`composeWorkflowRequest` in `App.tsx` writes the draft, calls the existing `showConversation()`,
+and then places the cursor through a new `composerInputRef` on the composer textarea, in a
+`requestAnimationFrame` because the textarea does not exist until the Conversation surface paints.
+
+Moving to the composer is the opposite of sending, so the boundary is unchanged, and a test asserts
+the handler contains neither `generatePacket` nor `submitActiveSteering`. The surface copy now also
+names the destination: the request is written into the Conversation composer, and nothing is sent
+until the Navigator decides.
+
+Gates after the repair: `npm test` 213 files, 1467 tests, all passing. `npx tsc --noEmit` clean.
+
 ## Remaining
 
 - Validate the setup prompt in a real `livro-lideranca-soberana` agent Conversation: that it finds
@@ -236,3 +264,4 @@ Journey is its own agent's work through the setup prompt, and belongs to the Nav
   No unit test can establish this.
 - Validate the descriptive refusal path in a Journey that has no workflow written anywhere.
 - Navigator walkthrough of the four states in the running app, including the light families.
+- Re-check both Workflow gestures in dev after the composer navigation repair.

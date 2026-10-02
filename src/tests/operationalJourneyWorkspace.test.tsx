@@ -42,6 +42,27 @@ describe("Operational Journey workspace", () => {
     expect(html).toContain('aria-disabled="true"');
   });
 
+  it("takes the Navigator to the composer after a Workflow gesture pre-fills it", () => {
+    // The composer section is hidden on every surface except the Conversation, so writing a draft
+    // while the Navigator is still looking at Workflow changes nothing they can see and reads as a
+    // button that did not work. Both Workflow gestures therefore move to the Conversation and put
+    // the cursor in the composer, so the pre-filled text is where the Navigator can read and send
+    // it. The prompt is still not sent: moving to the composer is the opposite of submitting.
+    expect(appSource).toContain("onCompose={composeWorkflowRequest}");
+
+    const handler = appSource.slice(
+      appSource.indexOf("function composeWorkflowRequest"),
+      appSource.indexOf("const developmentChannel"),
+    );
+    expect(handler).toContain("setJourneyComposerDraft(selectedJourney, message)");
+    expect(handler).toContain("showConversation()");
+    expect(handler).toContain("focusComposer()");
+    expect(handler).not.toContain("generatePacket");
+    expect(handler).not.toContain("submitActiveSteering");
+
+    expect(appSource).toContain("ref={composerInputRef}");
+  });
+
   it("wires the Context surface to the selected Journey documentation boundary", () => {
     expect(appSource).toContain("<JourneyDocumentationBrowser");
     expect(appSource).toContain("journeyId={selectedJourneyItem.id}");
