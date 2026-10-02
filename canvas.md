@@ -1,6 +1,6 @@
 # Mirror Desktop · visão de situação
 
-📦 **Última versão publicada:** `v0.2.0-alpha.29` · Context Map e Agent's Canvas
+📦 **Última versão publicada:** `v0.2.0-alpha.30` · A Quiet, Responsive Composer
 
 🎯 **Foco oficial:** nenhuma CR puxada · CR113 e CR115 aceitas em homologação conjunta
 
