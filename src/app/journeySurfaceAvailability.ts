@@ -10,6 +10,7 @@ export const journeySurfaceAvailability = Object.freeze({
   operational: {
     chat: true,
     artifacts: true,
+    workflow: true,
     ariad: false,
   },
 } as const satisfies {

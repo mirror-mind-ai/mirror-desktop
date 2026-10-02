@@ -6,25 +6,30 @@ import documentationBrowserSource from "../app/JourneyDocumentationBrowser.tsx?r
 import switcherSource from "../app/OperationalWorkspaceSwitcher.tsx?raw";
 
 describe("Operational Journey workspace", () => {
-  it("shows only functional Conversation and Context controls", () => {
+  it("shows only functional Conversation, Context and Workflow controls", () => {
     const html = renderToStaticMarkup(
       <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} />,
     );
 
     expect(html).toContain('aria-label="Operational workspace"');
-    expect(html.match(/role="tab"/g)).toHaveLength(2);
+    expect(html.match(/role="tab"/g)).toHaveLength(3);
     expect(html).toContain("Conversation");
     // CR105: the surface shows what effectively entered the agent's context, not an artifact
     // list. The id stays `artifacts` because it is persisted selection state, not a label.
     expect(html).toContain("Context");
+    // CR112: Workflow hosts what the Journey declares about its own work. It is a separate
+    // surface with its own persisted id, not another region inside Context.
+    expect(html).toContain("Workflow");
+    expect(html).toContain('aria-controls="operational-workflow-panel"');
     expect(html).not.toContain(">Artifacts<");
     expect(html).not.toContain("Ariad");
     expect(html).not.toContain(">Chat<");
     expect(html.match(/aria-selected="true"/g)).toHaveLength(1);
-    expect(html.match(/class="selector-option-icon"/g)).toHaveLength(2);
-    expect(html.match(/aria-hidden="true"/g)).toHaveLength(2);
+    expect(html.match(/class="selector-option-icon"/g)).toHaveLength(3);
+    expect(html.match(/aria-hidden="true"/g)).toHaveLength(3);
     expect(html).toContain('data-icon="conversation"');
     expect(html).toContain('data-icon="artifacts"');
+    expect(html).toContain('data-icon="workflow"');
     expect(html).not.toContain('data-icon="ariad"');
   });
 
@@ -33,7 +38,7 @@ describe("Operational Journey workspace", () => {
       <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} disabled />,
     );
 
-    expect(html.match(/disabled=""/g)).toHaveLength(2);
+    expect(html.match(/disabled=""/g)).toHaveLength(3);
     expect(html).toContain('aria-disabled="true"');
   });
 

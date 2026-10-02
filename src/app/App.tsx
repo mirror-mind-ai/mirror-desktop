@@ -220,6 +220,13 @@ import {
 import { defaultJourneyAltitude } from "./journeyAltitudePreview";
 import { normalizeJourneySurfaceSelection } from "./journeySurfaceAvailability";
 import { loadJourneyProjections } from "./journeyProjectionStorage";
+import { readJourneyWorkflow } from "./journeyWorkflowStorage";
+import { JourneyWorkflowSurface } from "./JourneyWorkflowSurface";
+import {
+  deriveJourneyWorkflowView,
+  type JourneyWorkflowDeclaration,
+  type JourneyWorkflowViewState,
+} from "../domain/journeyWorkflow";
 import {
   deriveLatestCertifiedModeTransition,
   extractCertifiedModeTransition,
@@ -786,6 +793,10 @@ export function App({ model }: AppProps) {
   const [loadedJourneyRegistry, setLoadedJourneyRegistry] = useState<JourneyRegistry>(emptyJourneyRegistry);
   const [journeyProjections, setJourneyProjections] = useState<JourneyProjectionBundle | undefined>();
   const [projectionLoadStatus, setProjectionLoadStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  // CR112: the Journey-declared Workflow manifest. The declaration is held as read and the view
+  // is derived in render, so freshness is never computed inside an effect.
+  const [journeyWorkflowDeclaration, setJourneyWorkflowDeclaration] = useState<JourneyWorkflowDeclaration>();
+  const [journeyWorkflowStatus, setJourneyWorkflowStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const chatStreamRef = useRef<HTMLElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   // CR084: mirrors the scroll position reactively so the recenter control can react to it.
@@ -1918,6 +1929,33 @@ export function App({ model }: AppProps) {
       cancelled = true;
     };
   }, [selectedJourney, registryLoaded, runtimeBindingReady]);
+
+  useEffect(() => {
+    if (!runtimeBindingReady || !selectedJourney || !registryLoaded) return;
+    let cancelled = false;
+    setJourneyWorkflowDeclaration(undefined);
+    setJourneyWorkflowStatus("loading");
+    void readJourneyWorkflow(selectedJourney)
+      .then((declaration) => {
+        if (cancelled) return;
+        setJourneyWorkflowDeclaration(declaration);
+        setJourneyWorkflowStatus("ready");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setJourneyWorkflowDeclaration(undefined);
+        setJourneyWorkflowStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedJourney, registryLoaded, runtimeBindingReady]);
+
+  const journeyWorkflowView: JourneyWorkflowViewState = journeyWorkflowDeclaration
+    ? deriveJourneyWorkflowView(journeyWorkflowDeclaration)
+    : journeyWorkflowStatus === "error"
+      ? { status: "error", message: "The Journey workspace could not be read from this machine." }
+      : { status: "loading" };
 
   useEffect(() => {
     if (!conversationLoaded || isStreaming || effectiveProviderConfig.safeTestMode) {
@@ -5095,6 +5133,14 @@ export function App({ model }: AppProps) {
               current?.journeyId === selectedJourneyItem.id && current.requestId === requestId
                 ? undefined
                 : current)}
+          />
+        ) : null}
+        {presentedAltitude === "operational" && presentedOperationalSurface === "workflow" ? (
+          <JourneyWorkflowSurface
+            journeyName={selectedJourneyItem.name}
+            workflow={journeyWorkflowView}
+            // The gesture only pre-fills the composer. Nothing is sent until the Navigator decides.
+            onCompose={(text) => setJourneyComposerDraft(selectedJourney, text)}
           />
         ) : null}
         {presentedAltitude === "operational" && presentedOperationalSurface === "ariad" ? (

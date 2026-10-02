@@ -141,3 +141,98 @@ Read its `product-design-proposal.md` and `setup-prompt-draft.md` before impleme
 The latter contains the prompt drafts and records the two questions not yet settled by product
 validation: whether setup must pause for Navigator confirmation before writing the three
 artifacts, and whether the prompt itself should follow the Journey's language.
+
+## Implementation (2026-10-01)
+
+### Rust: facts only
+
+`read_journey_workflow_at` in `src-tauri/src/main.rs` reads `mirror-workflow.json` from the Journey
+root and reports what it found. It reuses `bounded_documentation_root`,
+`validate_document_relative_path` and the same symlink rejection the document reader already
+applies, and adds no new reading capability beyond returning JSON, which the existing reader cannot
+do because `documentation_preview_kind` answers `unavailable` for every extension other than `md`,
+`markdown` and `txt`.
+
+Three transport states: `undeclared` when no manifest exists, `unavailable` with a reason when the
+manifest is a symlink, oversized, unreadable, not a JSON object, missing a required field, or
+declares a path that escapes the workspace, and `declared` otherwise. For each declared path it
+returns a fact carrying `status`, `sizeBytes` and `modifiedAt`. Only the declared surface carries
+`content`, bounded by `DOCUMENT_PREVIEW_MAX_BYTES`. The contract's text is never read, because the
+contract faces the Journey agent rather than the app.
+
+An unknown `schemaVersion` still parses and is reported as found, so deciding what the app supports
+stays a pure-domain decision with a test rather than a branch inside the file reader.
+
+### Domain: the derivation and the prompts
+
+`src/domain/journeyWorkflow.ts` validates the transport and derives the view, mirroring how
+`tacticalStale` is produced in `journeyProjections.ts`. The view is `undeclared`, `ready`,
+`possibly_stale` or `unavailable`. Both the declared contract and the declared sources count as
+freshness inputs, since the manifest names no others. The derivation fails safe: a surface without
+a modification time, a declared input that cannot be read, or any declared input newer than the
+surface all yield `possibly_stale`.
+
+The surface never claims freshness in words. A declared source list cannot prove completeness, and
+in the canonical case the contract also depends on a per-chapter `capitulo.md` and a proof
+`manifesto.json` whose paths vary, so the app can prove that a known input changed and never that
+nothing relevant did. A test asserts the rendered markup matches no positive freshness claim.
+
+`src/domain/journeyWorkflowPrompts.ts` composes both prompts as pure functions. They carry the
+manifest schema inline, fix the file name, forbid inventing or designing a workflow, forbid
+inferring state from Conversation memory, old transport files or directory shape, require a
+descriptive observation instead of a bare refusal, and restrict the view to the markdown subset
+`ArtifactMarkdown` actually renders.
+
+Measured while writing them: `ArtifactMarkdown` renders **no links at all**, since its inline
+tokens are only strong, emphasis, code and text, so link syntax would survive as literal text on
+the surface. Headings resolve to `h2` and `h3` from levels one to three only. Both prompts
+therefore forbid links explicitly. A test bounds each prompt below half of
+`COMPOSER_DRAFT_MAX_CHARS`, because `setJourneyComposerDraft` truncates silently at that bound and
+would drop the prohibitions last.
+
+### Surface and wiring
+
+`src/app/JourneyWorkflowSurface.tsx` is a single `tabpanel` section whose body branches on the
+derived view. It takes everything through props and contains no `invoke`, `useEffect`,
+`localStorage`, `sessionStorage` or `dangerouslySetInnerHTML`, asserted from its own source. Both
+controls call `onCompose`, which `App.tsx` wires to `setJourneyComposerDraft`, the same path
+`JourneyArrivalSurface` uses, and the copy repeats its promise that nothing is sent until the
+Navigator decides.
+
+Both controls carry `.secondary-button`. That class is already named in the light families'
+white-ink catch-all opt-out list and already has a measured light treatment, so a new transparent
+text button could not repeat the CR105 defect of readable ink on the dark shell and white ink on a
+white surface. A test asserts both the rendered class and the presence of `.secondary-button` in
+that opt-out list in the shipped stylesheet.
+
+The loader in `App.tsx` mirrors the projection loader beside it: the declaration is held as read
+and the view is derived in render, so no freshness is computed inside an effect.
+
+`workflow` joins `OperationalSurface` with its own id, `aria-controls` target and availability
+entry. Context keeps the `artifacts` id as persisted selection state, and the workspace tree stays
+with Context so Workflow holds only the declared view.
+
+### Deliberately not done
+
+No Journey was mutated. `livro-lideranca-soberana` has no `mirror-workflow.json` today, measured
+read-only, so the tab reports the undeclared state there. Writing the three artifacts into that
+Journey is its own agent's work through the setup prompt, and belongs to the Navigator.
+
+## Gates (2026-10-01)
+
+- `npm test`: 213 files, 1466 tests, all passing, including 13 derivation tests, 11 prompt tests
+  and 12 surface tests added by this CR.
+- `npx tsc --noEmit`: clean.
+- `cargo test` in `src-tauri`: 236 passed, 3 ignored, up from 231 with the five manifest tests
+  added by this CR.
+- `npm run roadmap:check`: READY.
+- Running dev binary verified to carry the registered `read_journey_workflow` command, and the dev
+  server verified to serve the `Workflow` label and the new surface module.
+
+## Remaining
+
+- Validate the setup prompt in a real `livro-lideranca-soberana` agent Conversation: that it finds
+  the existing contract rather than inventing one, and that it writes a manifest the app accepts.
+  No unit test can establish this.
+- Validate the descriptive refusal path in a Journey that has no workflow written anywhere.
+- Navigator walkthrough of the four states in the running app, including the light families.

@@ -12,10 +12,11 @@ describe("temporary Journey surface availability", () => {
   it("keeps one explicit re-enablement policy", () => {
     expect(journeySurfaceAvailability).toEqual({
       altitude: { operational: true, tactical: false, strategic: false },
-      operational: { chat: true, artifacts: true, ariad: false },
+      operational: { chat: true, artifacts: true, workflow: true, ariad: false },
     });
     expect(isJourneyAltitudeAvailable("operational")).toBe(true);
     expect(isOperationalSurfaceAvailable("artifacts")).toBe(true);
+    expect(isOperationalSurfaceAvailable("workflow")).toBe(true);
     expect(shouldShowJourneyAltitudeSwitcher()).toBe(false);
     expect(shouldShowJourneyAltitudeSwitcher({
       operational: true,

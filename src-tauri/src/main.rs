@@ -2833,6 +2833,224 @@ fn read_journey_document_at(journey_root: &Path, relative_path: &str) -> Result<
     })
 }
 
+/// CR112: the file a Journey writes to declare its own Workflow view. It sits at the Journey
+/// root beside JOURNEY.md and carries no leading dot, because `omitted_workspace_component`
+/// makes dotted components invisible to the bounded reader the Journey agent can also see.
+const WORKFLOW_MANIFEST_FILE_NAME: &str = "mirror-workflow.json";
+const WORKFLOW_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct JourneyWorkflowFileFact {
+    relative_path: String,
+    status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    size_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    modified_at: Option<u64>,
+}
+
+/// Facts only. Whether the rendered surface has fallen behind its declared inputs is derived by
+/// a pure function in `src/domain/journeyWorkflow.ts`, the same way `tacticalStale` is derived.
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct JourneyWorkflowDeclaration {
+    status: String,
+    manifest_relative_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    schema_version: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    surface: Option<JourneyWorkflowFileFact>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    contract: Option<JourneyWorkflowFileFact>,
+    sources: Vec<JourneyWorkflowFileFact>,
+}
+
+fn workflow_declaration(status: &str, reason: Option<&str>) -> JourneyWorkflowDeclaration {
+    JourneyWorkflowDeclaration {
+        status: status.to_string(),
+        manifest_relative_path: WORKFLOW_MANIFEST_FILE_NAME.to_string(),
+        reason: reason.map(|value| value.to_string()),
+        schema_version: None,
+        title: None,
+        surface: None,
+        contract: None,
+        sources: Vec::new(),
+    }
+}
+
+fn workflow_file_fact(relative_path: &str, status: &str) -> JourneyWorkflowFileFact {
+    JourneyWorkflowFileFact {
+        relative_path: relative_path.to_string(),
+        status: status.to_string(),
+        content: None,
+        size_bytes: None,
+        modified_at: None,
+    }
+}
+
+/// Resolves one declared path inside the Journey root, rejecting symlinks the way
+/// `read_journey_document_at` already does, and reports what it found without reading content.
+fn journey_workflow_input_fact(workspace_root: &Path, relative_path: &str) -> JourneyWorkflowFileFact {
+    let safe_relative = match validate_document_relative_path(relative_path) {
+        Ok(value) => value,
+        Err(_) => return workflow_file_fact(relative_path, "invalid_path"),
+    };
+    let candidate = workspace_root.join(&safe_relative);
+    let symlink_metadata = match fs::symlink_metadata(&candidate) {
+        Ok(value) => value,
+        Err(_) => return workflow_file_fact(relative_path, "missing"),
+    };
+    if symlink_metadata.file_type().is_symlink() {
+        return workflow_file_fact(relative_path, "symlink");
+    }
+    let canonical = match candidate.canonicalize() {
+        Ok(value) => value,
+        Err(_) => return workflow_file_fact(relative_path, "missing"),
+    };
+    if !canonical.starts_with(workspace_root) {
+        return workflow_file_fact(relative_path, "invalid_path");
+    }
+    let metadata = match canonical.metadata() {
+        Ok(value) => value,
+        Err(_) => return workflow_file_fact(relative_path, "missing"),
+    };
+    if metadata.is_dir() {
+        return workflow_file_fact(relative_path, "unsupported_type");
+    }
+    JourneyWorkflowFileFact {
+        relative_path: relative_path.to_string(),
+        status: "ready".to_string(),
+        content: None,
+        size_bytes: Some(metadata.len()),
+        modified_at: documentation_modified_at(&metadata),
+    }
+}
+
+/// The declared surface is the only artifact whose text the app renders, so it carries the same
+/// preview bounds as any other Journey document.
+fn journey_workflow_surface_fact(workspace_root: &Path, relative_path: &str) -> JourneyWorkflowFileFact {
+    let fact = journey_workflow_input_fact(workspace_root, relative_path);
+    if fact.status != "ready" {
+        return fact;
+    }
+    let candidate = match validate_document_relative_path(relative_path) {
+        Ok(safe_relative) => workspace_root.join(safe_relative),
+        Err(_) => return workflow_file_fact(relative_path, "invalid_path"),
+    };
+    if documentation_preview_kind(&candidate) == "unavailable" {
+        return JourneyWorkflowFileFact { status: "unsupported_type".to_string(), content: None, ..fact };
+    }
+    if fact.size_bytes.unwrap_or_default() > DOCUMENT_PREVIEW_MAX_BYTES {
+        return JourneyWorkflowFileFact { status: "oversized".to_string(), content: None, ..fact };
+    }
+    let bytes = match fs::read(&candidate) {
+        Ok(value) => value,
+        Err(_) => return JourneyWorkflowFileFact { status: "missing".to_string(), content: None, ..fact },
+    };
+    match String::from_utf8(bytes) {
+        Ok(content) => JourneyWorkflowFileFact { content: Some(content), ..fact },
+        Err(_) => JourneyWorkflowFileFact { status: "invalid_utf8".to_string(), content: None, ..fact },
+    }
+}
+
+/// Reads the Journey-owned Workflow manifest. A Journey that declared nothing is reported as
+/// such rather than as an error, because absence is the first state the surface must show well.
+fn read_journey_workflow_at(journey_root: &Path) -> Result<JourneyWorkflowDeclaration, String> {
+    let workspace_root = bounded_documentation_root(journey_root)?;
+    let manifest_path = workspace_root.join(WORKFLOW_MANIFEST_FILE_NAME);
+    let symlink_metadata = match fs::symlink_metadata(&manifest_path) {
+        Ok(value) => value,
+        Err(_) => return Ok(workflow_declaration("undeclared", None)),
+    };
+    if symlink_metadata.file_type().is_symlink() {
+        return Ok(workflow_declaration("unavailable", Some("manifest_symlink")));
+    }
+    if !symlink_metadata.is_file() {
+        return Ok(workflow_declaration("unavailable", Some("manifest_malformed")));
+    }
+    if symlink_metadata.len() > WORKFLOW_MANIFEST_MAX_BYTES {
+        return Ok(workflow_declaration("unavailable", Some("manifest_oversized")));
+    }
+    let bytes = match fs::read(&manifest_path) {
+        Ok(value) => value,
+        Err(_) => return Ok(workflow_declaration("unavailable", Some("manifest_unreadable"))),
+    };
+    let text = match String::from_utf8(bytes) {
+        Ok(value) => value,
+        Err(_) => return Ok(workflow_declaration("unavailable", Some("manifest_malformed"))),
+    };
+    let parsed: serde_json::Value = match serde_json::from_str(&text) {
+        Ok(value) => value,
+        Err(_) => return Ok(workflow_declaration("unavailable", Some("manifest_malformed"))),
+    };
+    let object = match parsed.as_object() {
+        Some(value) => value,
+        None => return Ok(workflow_declaration("unavailable", Some("manifest_malformed"))),
+    };
+
+    let schema_version = match object.get("schemaVersion").and_then(|value| value.as_u64()) {
+        Some(value) if value >= 1 => value,
+        _ => return Ok(workflow_declaration("unavailable", Some("manifest_malformed"))),
+    };
+    let title = match object.get("title").and_then(|value| value.as_str()) {
+        Some(value) if !value.trim().is_empty() => value.trim().to_string(),
+        _ => return Ok(workflow_declaration("unavailable", Some("manifest_malformed"))),
+    };
+    let declared_surface = match object.get("surface").and_then(|value| value.as_str()) {
+        Some(value) => value.to_string(),
+        None => return Ok(workflow_declaration("unavailable", Some("manifest_malformed"))),
+    };
+    let declared_contract = match object.get("contract").and_then(|value| value.as_str()) {
+        Some(value) => value.to_string(),
+        None => return Ok(workflow_declaration("unavailable", Some("manifest_malformed"))),
+    };
+    let declared_sources = match object.get("sources").and_then(|value| value.as_array()) {
+        Some(items) => {
+            let mut collected = Vec::with_capacity(items.len());
+            for item in items {
+                match item.as_str() {
+                    Some(value) => collected.push(value.to_string()),
+                    None => return Ok(workflow_declaration("unavailable", Some("manifest_malformed"))),
+                }
+            }
+            collected
+        }
+        None => return Ok(workflow_declaration("unavailable", Some("manifest_malformed"))),
+    };
+
+    // A declared path that escapes the workspace invalidates the whole declaration. Rendering
+    // part of it would present an incomplete view as if it were the one the Journey declared.
+    let every_declared_path = std::iter::once(declared_surface.as_str())
+        .chain(std::iter::once(declared_contract.as_str()))
+        .chain(declared_sources.iter().map(|value| value.as_str()));
+    for declared in every_declared_path {
+        if validate_document_relative_path(declared).is_err() {
+            return Ok(workflow_declaration("unavailable", Some("invalid_declared_path")));
+        }
+    }
+
+    Ok(JourneyWorkflowDeclaration {
+        status: "declared".to_string(),
+        manifest_relative_path: WORKFLOW_MANIFEST_FILE_NAME.to_string(),
+        reason: None,
+        schema_version: Some(schema_version),
+        title: Some(title),
+        surface: Some(journey_workflow_surface_fact(&workspace_root, &declared_surface)),
+        contract: Some(journey_workflow_input_fact(&workspace_root, &declared_contract)),
+        sources: declared_sources
+            .iter()
+            .map(|declared| journey_workflow_input_fact(&workspace_root, declared))
+            .collect(),
+    })
+}
+
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct FileAttachmentThumbnailTransport {
@@ -3098,6 +3316,12 @@ fn list_journey_documentation(
 fn read_journey_document(app: AppHandle, journey_id: String, relative_path: String) -> Result<JourneyDocumentContent, String> {
     let journey_root = registered_journey_root(&app, &journey_id)?;
     read_journey_document_at(&journey_root, &relative_path)
+}
+
+#[tauri::command]
+fn read_journey_workflow(app: AppHandle, journey_id: String) -> Result<JourneyWorkflowDeclaration, String> {
+    let journey_root = registered_journey_root(&app, &journey_id)?;
+    read_journey_workflow_at(&journey_root)
 }
 
 #[tauri::command]
@@ -9192,6 +9416,7 @@ fn main() {
             load_journey_projections,
             list_journey_documentation,
             read_journey_document,
+            read_journey_workflow,
             choose_file_attachments,
             inspect_file_attachments,
             inspect_local_references,
@@ -9384,6 +9609,7 @@ mod tests {
         write_durable_projection_at, JourneyProjectionPersistenceState, PiSessionContextSnapshot,
         RegistryAuthorityInspection, RunAuthority, TerminalState, TurnCorrelation, JOURNEY_REGISTRY_FILE, FILE_ATTACHMENT_MAX_FILES,
         DOCUMENT_PREVIEW_MAX_BYTES,
+        read_journey_workflow_at, WORKFLOW_MANIFEST_FILE_NAME,
     };
     use crate::turn_journal::{
         TurnCancellationIntent, TurnJournalAuthority, TurnJournalRecord, TurnPhase,
@@ -11856,6 +12082,173 @@ mod tests {
         assert!(read_journey_document_at(&directory, ".env").is_err());
         assert!(read_journey_document_at(&directory, "node_modules/package/index.js").is_err());
         assert!(read_journey_document_at(&directory, "").is_err());
+        fs::remove_file(outside).unwrap();
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn reports_a_journey_that_declared_no_workflow() {
+        let directory = test_root("workflow-undeclared");
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("JOURNEY.md"), "# Journey").unwrap();
+
+        let declaration = read_journey_workflow_at(&directory).unwrap();
+        assert_eq!(declaration.status, "undeclared");
+        assert_eq!(declaration.manifest_relative_path, WORKFLOW_MANIFEST_FILE_NAME);
+        assert!(declaration.surface.is_none());
+        assert!(declaration.reason.is_none());
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn returns_declared_workflow_facts_without_deriving_freshness() {
+        let directory = test_root("workflow-declared");
+        fs::create_dir_all(directory.join("docs")).unwrap();
+        fs::create_dir_all(directory.join("livro")).unwrap();
+        fs::write(directory.join("docs/workflow-surface.md"), "## Status\n\n| C | E |\n| --- | --- |\n").unwrap();
+        fs::write(directory.join("docs/contract.md"), "Prose contract").unwrap();
+        fs::write(directory.join("livro/status.yml"), "status: pronto").unwrap();
+        fs::write(
+            directory.join(WORKFLOW_MANIFEST_FILE_NAME),
+            r#"{"schemaVersion":1,"title":"Status do projeto","surface":"docs/workflow-surface.md","contract":"docs/contract.md","sources":["livro/status.yml","livro/missing.yml"]}"#,
+        )
+        .unwrap();
+
+        let declaration = read_journey_workflow_at(&directory).unwrap();
+        assert_eq!(declaration.status, "declared");
+        assert_eq!(declaration.schema_version, Some(1));
+        assert_eq!(declaration.title.as_deref(), Some("Status do projeto"));
+
+        let surface = declaration.surface.clone().unwrap();
+        assert_eq!(surface.status, "ready");
+        assert_eq!(surface.relative_path, "docs/workflow-surface.md");
+        assert!(surface.content.as_deref().unwrap().contains("## Status"));
+        assert!(surface.modified_at.is_some());
+
+        let contract = declaration.contract.clone().unwrap();
+        assert_eq!(contract.status, "ready");
+        // The contract faces the Journey agent, so the app carries its facts and not its text.
+        assert!(contract.content.is_none());
+
+        assert_eq!(declaration.sources.len(), 2);
+        assert_eq!(declaration.sources[0].status, "ready");
+        assert_eq!(declaration.sources[1].status, "missing");
+        assert!(declaration.sources[1].modified_at.is_none());
+
+        // Rust reports facts only; whether the view is stale is derived in the pure domain layer.
+        let json = serde_json::to_string(&declaration).unwrap();
+        assert!(!json.contains("stale"));
+        assert!(!json.contains(&directory.to_string_lossy().to_string()));
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn refuses_a_manifest_that_is_malformed_or_points_outside_the_journey() {
+        let directory = test_root("workflow-malformed");
+        fs::create_dir_all(directory.join("docs")).unwrap();
+        fs::write(directory.join("docs/workflow-surface.md"), "## Status").unwrap();
+        let manifest = directory.join(WORKFLOW_MANIFEST_FILE_NAME);
+
+        fs::write(&manifest, "not json at all").unwrap();
+        let malformed = read_journey_workflow_at(&directory).unwrap();
+        assert_eq!(malformed.status, "unavailable");
+        assert_eq!(malformed.reason.as_deref(), Some("manifest_malformed"));
+
+        fs::write(&manifest, r#"["schemaVersion"]"#).unwrap();
+        assert_eq!(read_journey_workflow_at(&directory).unwrap().reason.as_deref(), Some("manifest_malformed"));
+
+        fs::write(&manifest, r#"{"schemaVersion":1,"title":"T","surface":"docs/workflow-surface.md"}"#).unwrap();
+        assert_eq!(read_journey_workflow_at(&directory).unwrap().reason.as_deref(), Some("manifest_malformed"));
+
+        fs::write(&manifest, r#"{"schemaVersion":1,"title":"   ","surface":"docs/workflow-surface.md","contract":"docs/workflow-surface.md","sources":[]}"#).unwrap();
+        assert_eq!(read_journey_workflow_at(&directory).unwrap().reason.as_deref(), Some("manifest_malformed"));
+
+        for declared in [
+            "../outside.md",
+            "/etc/passwd",
+            ".mirror/projections/current.json",
+            "node_modules/thing.md",
+            "",
+        ] {
+            let body = format!(
+                r#"{{"schemaVersion":1,"title":"T","surface":"{}","contract":"docs/workflow-surface.md","sources":[]}}"#,
+                declared,
+            );
+            fs::write(&manifest, body).unwrap();
+            let refused = read_journey_workflow_at(&directory).unwrap();
+            assert_eq!(refused.status, "unavailable", "declared path {} must be refused", declared);
+            assert_eq!(refused.reason.as_deref(), Some("invalid_declared_path"));
+        }
+
+        // An unknown schema version still parses: the supported range is a pure-domain decision.
+        fs::write(&manifest, r#"{"schemaVersion":7,"title":"T","surface":"docs/workflow-surface.md","contract":"docs/workflow-surface.md","sources":[]}"#).unwrap();
+        let future = read_journey_workflow_at(&directory).unwrap();
+        assert_eq!(future.status, "declared");
+        assert_eq!(future.schema_version, Some(7));
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn reports_a_declared_surface_the_bounded_reader_cannot_preview() {
+        let directory = test_root("workflow-surface-kinds");
+        fs::create_dir_all(directory.join("docs")).unwrap();
+        fs::write(directory.join("docs/surface.png"), [0_u8, 1, 2]).unwrap();
+        fs::write(directory.join("docs/invalid.txt"), [0xff_u8, 0xfe]).unwrap();
+        fs::write(directory.join("docs/large.md"), vec![b'x'; DOCUMENT_PREVIEW_MAX_BYTES as usize + 1]).unwrap();
+        fs::write(directory.join("docs/contract.md"), "contract").unwrap();
+        let manifest = directory.join(WORKFLOW_MANIFEST_FILE_NAME);
+
+        for (declared, expected) in [
+            ("docs/surface.png", "unsupported_type"),
+            ("docs/invalid.txt", "invalid_utf8"),
+            ("docs/large.md", "oversized"),
+            ("docs/absent.md", "missing"),
+        ] {
+            let body = format!(
+                r#"{{"schemaVersion":1,"title":"T","surface":"{}","contract":"docs/contract.md","sources":[]}}"#,
+                declared,
+            );
+            fs::write(&manifest, body).unwrap();
+            let declaration = read_journey_workflow_at(&directory).unwrap();
+            assert_eq!(declaration.status, "declared");
+            let surface = declaration.surface.unwrap();
+            assert_eq!(surface.status, expected, "declared surface {}", declared);
+            assert!(surface.content.is_none());
+        }
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn refuses_a_symlinked_workflow_manifest_or_surface() {
+        use std::os::unix::fs::symlink;
+        let directory = test_root("workflow-symlink");
+        fs::create_dir_all(directory.join("docs")).unwrap();
+        let outside = directory.parent().unwrap().join(format!(
+            "outside-workflow-{}.md",
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(),
+        ));
+        fs::write(&outside, "outside").unwrap();
+        fs::write(directory.join("docs/contract.md"), "contract").unwrap();
+        symlink(&outside, directory.join("docs/surface.md")).unwrap();
+        let manifest = directory.join(WORKFLOW_MANIFEST_FILE_NAME);
+        fs::write(
+            &manifest,
+            r#"{"schemaVersion":1,"title":"T","surface":"docs/surface.md","contract":"docs/contract.md","sources":[]}"#,
+        )
+        .unwrap();
+
+        let declaration = read_journey_workflow_at(&directory).unwrap();
+        let surface = declaration.surface.unwrap();
+        assert_eq!(surface.status, "symlink");
+        assert!(surface.content.is_none());
+
+        fs::remove_file(&manifest).unwrap();
+        symlink(&outside, &manifest).unwrap();
+        let linked = read_journey_workflow_at(&directory).unwrap();
+        assert_eq!(linked.status, "unavailable");
+        assert_eq!(linked.reason.as_deref(), Some("manifest_symlink"));
+
         fs::remove_file(outside).unwrap();
         fs::remove_dir_all(directory).unwrap();
     }

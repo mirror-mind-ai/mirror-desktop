@@ -1,6 +1,6 @@
 import { isOperationalSurfaceAvailable } from "./journeySurfaceAvailability";
 
-export type OperationalSurface = "chat" | "artifacts" | "ariad";
+export type OperationalSurface = "chat" | "artifacts" | "workflow" | "ariad";
 
 type OperationalWorkspaceSwitcherProps = {
   value: OperationalSurface;
@@ -14,6 +14,9 @@ const operationalSurfaces = [
   // effectively entered the agent's context. The id stays `artifacts` because it is persisted
   // selection state, not a label. Field and territory went back to the Nautilus method.
   { id: "artifacts", label: "Context", icon: "▱", iconName: "artifacts" },
+  // CR112: what the Journey declares about its own work, hosted rather than computed. Context
+  // answers what entered this Conversation; Workflow answers what the Journey says its work is.
+  { id: "workflow", label: "Workflow", icon: "▤", iconName: "workflow" },
   { id: "ariad", label: "Ariad", icon: "△", iconName: "ariad" },
 ] as const satisfies readonly {
   id: OperationalSurface;
