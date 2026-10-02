@@ -220,13 +220,13 @@ import {
 import { defaultJourneyAltitude } from "./journeyAltitudePreview";
 import { normalizeJourneySurfaceSelection } from "./journeySurfaceAvailability";
 import { loadJourneyProjections } from "./journeyProjectionStorage";
-import { readJourneyWorkflow } from "./journeyWorkflowStorage";
-import { JourneyWorkflowSurface } from "./JourneyWorkflowSurface";
+import { readJourneyCanvas } from "./journeyCanvasStorage";
+import { JourneyCanvasSurface } from "./JourneyCanvasSurface";
 import {
-  deriveJourneyWorkflowView,
-  type JourneyWorkflowDeclaration,
-  type JourneyWorkflowViewState,
-} from "../domain/journeyWorkflow";
+  deriveJourneyCanvasView,
+  type JourneyCanvas,
+  type JourneyCanvasViewState,
+} from "../domain/journeyCanvas";
 import {
   deriveLatestCertifiedModeTransition,
   extractCertifiedModeTransition,
@@ -793,10 +793,17 @@ export function App({ model }: AppProps) {
   const [loadedJourneyRegistry, setLoadedJourneyRegistry] = useState<JourneyRegistry>(emptyJourneyRegistry);
   const [journeyProjections, setJourneyProjections] = useState<JourneyProjectionBundle | undefined>();
   const [projectionLoadStatus, setProjectionLoadStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  // CR112: the Journey-declared Workflow manifest. The declaration is held as read and the view
-  // is derived in render, so freshness is never computed inside an effect.
-  const [journeyWorkflowDeclaration, setJourneyWorkflowDeclaration] = useState<JourneyWorkflowDeclaration>();
-  const [journeyWorkflowStatus, setJourneyWorkflowStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  // CR112: the drawing this Journey's agent keeps. Held as read, with the view derived in render
+  // rather than in an effect. There is no freshness to derive: with no declared sources the app
+  // knows only when the drawing was made.
+  const [journeyCanvas, setJourneyCanvas] = useState<JourneyCanvas>();
+  const [journeyCanvasStatus, setJourneyCanvasStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [journeyCanvasReloading, setJourneyCanvasReloading] = useState(false);
+  /**
+   * CR112: bumping this re-reads the drawing. The app does not watch the disk, so a re-read is
+   * always a gesture: selecting the Canvas surface, or asking for a reload.
+   */
+  const [journeyCanvasReadNonce, setJourneyCanvasReadNonce] = useState(0);
   const chatStreamRef = useRef<HTMLElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1931,30 +1938,54 @@ export function App({ model }: AppProps) {
     };
   }, [selectedJourney, registryLoaded, runtimeBindingReady]);
 
+  /**
+   * CR112: the agent rewrites the drawing during the work, so reading it once per Journey
+   * selection showed a drawing that was already old. The Navigator found exactly that in the
+   * evaluation bundle: a restart was the only way to see what the agent had just written.
+   *
+   * So the read is also keyed on the selected surface and on an explicit nonce. Selecting Canvas
+   * is the Navigator saying they want to look at it, and the reload control is them asking again.
+   * No watcher and no polling: disk change is noticed by gesture, as in Context's tree reload.
+   */
+  const canvasSurfaceSelected = selectedAltitude === "operational"
+    && selectedOperationalSurface === "canvas";
+
   useEffect(() => {
     if (!runtimeBindingReady || !selectedJourney || !registryLoaded) return;
     let cancelled = false;
-    setJourneyWorkflowDeclaration(undefined);
-    setJourneyWorkflowStatus("loading");
-    void readJourneyWorkflow(selectedJourney)
-      .then((declaration) => {
+    const firstRead = journeyCanvasStatus === "idle";
+    // A re-read keeps the last good drawing on screen, so the panel does not blink through
+    // absence on its way back to the same content.
+    if (firstRead) setJourneyCanvasStatus("loading");
+    else setJourneyCanvasReloading(true);
+    void readJourneyCanvas(selectedJourney)
+      .then((canvas) => {
         if (cancelled) return;
-        setJourneyWorkflowDeclaration(declaration);
-        setJourneyWorkflowStatus("ready");
+        setJourneyCanvas(canvas);
+        setJourneyCanvasStatus("ready");
       })
       .catch(() => {
         if (cancelled) return;
-        setJourneyWorkflowDeclaration(undefined);
-        setJourneyWorkflowStatus("error");
+        setJourneyCanvas(undefined);
+        setJourneyCanvasStatus("error");
+      })
+      .finally(() => {
+        if (!cancelled) setJourneyCanvasReloading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [selectedJourney, registryLoaded, runtimeBindingReady]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedJourney, registryLoaded, runtimeBindingReady, canvasSurfaceSelected, journeyCanvasReadNonce]);
 
-  const journeyWorkflowView: JourneyWorkflowViewState = journeyWorkflowDeclaration
-    ? deriveJourneyWorkflowView(journeyWorkflowDeclaration)
-    : journeyWorkflowStatus === "error"
+  useEffect(() => {
+    setJourneyCanvas(undefined);
+    setJourneyCanvasStatus("idle");
+  }, [selectedJourney]);
+
+  const journeyCanvasView: JourneyCanvasViewState = journeyCanvas
+    ? deriveJourneyCanvasView(journeyCanvas)
+    : journeyCanvasStatus === "error"
       ? { status: "error", message: "The Journey workspace could not be read from this machine." }
       : { status: "loading" };
 
@@ -4295,12 +4326,12 @@ export function App({ model }: AppProps) {
   }
 
   /**
-   * CR112: a Workflow gesture writes a draft and nothing more. The composer is hidden on every
-   * surface except the Conversation, so pre-filling while the Navigator is still on Workflow
+   * CR112: a Canvas gesture writes a draft and nothing more. The composer is hidden on every
+   * surface except the Conversation, so pre-filling while the Navigator is still on Canvas
    * changes nothing visible and reads as a button that failed. Moving to the composer and placing
    * the cursor there is the opposite of sending: it is what lets the prompt be read before it is.
    */
-  function composeWorkflowRequest(message: string) {
+  function composeCanvasRequest(message: string) {
     setJourneyComposerDraft(selectedJourney, message);
     showConversation();
     focusComposer();
@@ -5154,14 +5185,16 @@ export function App({ model }: AppProps) {
                 : current)}
           />
         ) : null}
-        {presentedAltitude === "operational" && presentedOperationalSurface === "workflow" ? (
-          <JourneyWorkflowSurface
+        {presentedAltitude === "operational" && presentedOperationalSurface === "canvas" ? (
+          <JourneyCanvasSurface
             journeyName={selectedJourneyItem.name}
             // Only the language anchor for the composed prompts. It is never rendered here.
             journeyBriefing={selectedJourneyItem.description}
-            workflow={journeyWorkflowView}
+            canvas={journeyCanvasView}
             // Pre-fills the composer and goes there. Nothing is sent until the Navigator decides.
-            onCompose={composeWorkflowRequest}
+            onCompose={composeCanvasRequest}
+            onReload={() => setJourneyCanvasReadNonce((nonce) => nonce + 1)}
+            reloading={journeyCanvasReloading}
           />
         ) : null}
         {presentedAltitude === "operational" && presentedOperationalSurface === "ariad" ? (

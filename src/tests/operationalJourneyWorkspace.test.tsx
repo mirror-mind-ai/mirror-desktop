@@ -6,7 +6,7 @@ import documentationBrowserSource from "../app/JourneyDocumentationBrowser.tsx?r
 import switcherSource from "../app/OperationalWorkspaceSwitcher.tsx?raw";
 
 describe("Operational Journey workspace", () => {
-  it("shows only functional Conversation, Context and Workflow controls", () => {
+  it("shows only functional Conversation, Context and Canvas controls", () => {
     const html = renderToStaticMarkup(
       <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} />,
     );
@@ -17,10 +17,12 @@ describe("Operational Journey workspace", () => {
     // CR105: the surface shows what effectively entered the agent's context, not an artifact
     // list. The id stays `artifacts` because it is persisted selection state, not a label.
     expect(html).toContain("Context");
-    // CR112: Workflow hosts what the Journey declares about its own work. It is a separate
-    // surface with its own persisted id, not another region inside Context.
-    expect(html).toContain("Workflow");
-    expect(html).toContain('aria-controls="operational-workflow-panel"');
+    // CR112: Canvas hosts the drawing the Journey's agent keeps. It is a separate surface with
+    // its own persisted id, not another region inside Context.
+    expect(html).toContain("Canvas");
+    expect(html).toContain('aria-controls="operational-canvas-panel"');
+    // The genre is deliberately unnamed, which is the whole finding of the Canvas pivot.
+    expect(html).not.toContain("Workflow");
     expect(html).not.toContain(">Artifacts<");
     expect(html).not.toContain("Ariad");
     expect(html).not.toContain(">Chat<");
@@ -29,7 +31,7 @@ describe("Operational Journey workspace", () => {
     expect(html.match(/aria-hidden="true"/g)).toHaveLength(3);
     expect(html).toContain('data-icon="conversation"');
     expect(html).toContain('data-icon="artifacts"');
-    expect(html).toContain('data-icon="workflow"');
+    expect(html).toContain('data-icon="canvas"');
     expect(html).not.toContain('data-icon="ariad"');
   });
 
@@ -42,16 +44,16 @@ describe("Operational Journey workspace", () => {
     expect(html).toContain('aria-disabled="true"');
   });
 
-  it("takes the Navigator to the composer after a Workflow gesture pre-fills it", () => {
+  it("takes the Navigator to the composer after a Canvas gesture pre-fills it", () => {
     // The composer section is hidden on every surface except the Conversation, so writing a draft
-    // while the Navigator is still looking at Workflow changes nothing they can see and reads as a
-    // button that did not work. Both Workflow gestures therefore move to the Conversation and put
+    // while the Navigator is still looking at Canvas changes nothing they can see and reads as a
+    // button that did not work. Both Canvas gestures therefore move to the Conversation and put
     // the cursor in the composer, so the pre-filled text is where the Navigator can read and send
     // it. The prompt is still not sent: moving to the composer is the opposite of submitting.
-    expect(appSource).toContain("onCompose={composeWorkflowRequest}");
+    expect(appSource).toContain("onCompose={composeCanvasRequest}");
 
     const handler = appSource.slice(
-      appSource.indexOf("function composeWorkflowRequest"),
+      appSource.indexOf("function composeCanvasRequest"),
       appSource.indexOf("const developmentChannel"),
     );
     expect(handler).toContain("setJourneyComposerDraft(selectedJourney, message)");
@@ -61,6 +63,27 @@ describe("Operational Journey workspace", () => {
     expect(handler).not.toContain("submitActiveSteering");
 
     expect(appSource).toContain("ref={composerInputRef}");
+  });
+
+  it("re-reads the canvas on gesture, so a drawing made during the session appears", () => {
+    // Measured in the evaluation bundle: after the agent wrote the file the tab did not update,
+    // and restarting was the only way to see it. The loader was keyed on Journey, registry and
+    // binding, none of which change when a file is written. Selecting Canvas and asking for a
+    // reload are the two gestures that re-read it. Nothing watches or polls the disk.
+    expect(appSource).toContain("canvasSurfaceSelected");
+    expect(appSource).toContain("journeyCanvasReadNonce");
+    expect(appSource).toContain("setJourneyCanvasReadNonce((nonce) => nonce + 1)");
+
+    const loader = appSource.slice(
+      appSource.indexOf("const canvasSurfaceSelected"),
+      appSource.indexOf("const journeyCanvasView"),
+    );
+    expect(loader).toContain("canvasSurfaceSelected, journeyCanvasReadNonce]");
+    expect(loader).not.toMatch(/setInterval|setTimeout|watchImmediate|FileSystemWatcher/);
+
+    // A re-read must not blink the panel through absence on its way back to the same content.
+    expect(loader).toContain("setJourneyCanvasReloading(true)");
+    expect(appSource).toContain("reloading={journeyCanvasReloading}");
   });
 
   it("wires the Context surface to the selected Journey documentation boundary", () => {

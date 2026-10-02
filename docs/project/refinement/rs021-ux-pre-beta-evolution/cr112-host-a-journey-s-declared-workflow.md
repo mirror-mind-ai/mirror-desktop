@@ -264,6 +264,96 @@ drawing was made and leaves the judgement to the Navigator who asked for it.
   or template is explicitly excluded.
 - No release, push, tag, publication or production mutation is authorised by this CR.
 
+## Canvas Implementation (2026-10-02)
+
+### Rust: one file read, one file detected
+
+`read_journey_canvas_at` reads `canvas.md` from the Journey root and reports whether
+`canvas-instructions.md` exists. Three transport states: `undrawn`, `unavailable` with a named
+reason, `drawn` with content, size and modification time. It reuses `bounded_documentation_root`,
+the existing symlink rejection and `DOCUMENT_PREVIEW_MAX_BYTES`.
+
+The instructions file is answered by `canvas_instructions_present`, which calls
+`fs::symlink_metadata` and nothing else. Its text is never read, so it cannot be transported and
+cannot be interpreted here. A test serialises the whole transport and asserts the instruction
+text does not appear in it. A symlinked instructions file is reported absent, so the absence of
+standing instructions is never hidden by an escape route out of the Journey.
+
+Deleted with the manifest: `JourneyWorkflowDeclaration`, `JourneyWorkflowFileFact`,
+`workflow_declaration`, `workflow_file_fact`, `journey_workflow_input_fact`,
+`journey_workflow_surface_fact`, `read_journey_workflow_at` and the schema-version reporting.
+
+### Domain: no freshness to derive
+
+`src/domain/journeyCanvas.ts` validates the transport and derives the view. The derivation is now
+almost nothing, which is the point: `drawnAt` is the only temporal fact, and there is deliberately
+no companion field saying whether that moment is recent enough to trust. A test enumerates
+`stale`, `possiblyStale`, `fresh`, `current`, `changedInputs`, `missingInputs` and `sourcePaths`
+and asserts the view carries none of them, and that its JSON matches no freshness language.
+
+`src/domain/journeyCanvasPrompts.ts` composes both prompts as pure functions. The teaching prompt
+captures intent before drawing, asks what belongs and offers its own reading, writes the drawing,
+writes `canvas-instructions.md`, asks the agent to point whatever context it does load at that
+file, and asks where both went. It says to keep the instructions short and about what to draw and
+when to redraw. A test asserts the word "workflow" appears nowhere in it, because naming a genre
+is the error being corrected.
+
+The redraw prompt sends the agent to `canvas-instructions.md` rather than carrying its text, and
+tells it what to do when that file does not exist. A test asserts it makes no claim that the
+drawing is out of date, because without declared sources the app cannot know that.
+
+Both prompts keep the origin prohibitions, the language anchor with the Journey's description
+quoted inline, the prohibition on translating into English, and the prohibition on links. Phrase
+assertions run against collapsed whitespace, since a line break in prose is as insignificant as a
+space and the previous form would have failed on rewrapping and passed only by luck.
+
+### The re-read defect, repaired
+
+The loader is now keyed on `canvasSurfaceSelected` and `journeyCanvasReadNonce` in addition to
+Journey, registry and binding. Selecting Canvas re-reads the drawing; the reload control bumps the
+nonce. A re-read sets `journeyCanvasReloading` rather than clearing the drawing, so the panel does
+not blink through absence on its way back to the same content, following Context's precedent of
+keeping the last good tree on screen. A test asserts the dependency list, the absence of
+`setInterval`, `setTimeout` and any watcher, and that the in-flight path preserves the drawing.
+
+### Surface and wiring
+
+`src/app/JourneyCanvasSurface.tsx` is a single `tabpanel` taking everything through props, with no
+`invoke`, `useEffect`, `useState`, `localStorage`, `sessionStorage` or `dangerouslySetInnerHTML`,
+asserted from its own source. When a drawing exists without standing instructions it says so and
+offers both gestures, since a drawing nobody will keep is the one case where teaching still
+applies.
+
+Both action controls are `.secondary-button`. The reload control is a bare button and is **not**
+in the light catch-all's opt-out list, so the mechanism that keeps it legible is a dedicated
+light-family rule carrying higher specificity than the catch-all, which is how
+`.artifact-tree-reload` survives. It joins that same rule rather than inventing a treatment that
+would have to be measured again. A test asserts both halves: that the shared rule names both
+classes and the three light families, and that the class is absent from the opt-out list.
+
+`canvas` replaces `workflow` in `OperationalSurface` with its own panel id and availability entry.
+Context keeps `artifacts` as its persisted selection state.
+
+### This Journey's own artifacts
+
+The three dogfooding artifacts from `736b90b` are replaced by `canvas.md` and
+`canvas-instructions.md` at the Journey root, and `AGENTS.md` gains one line pointing at the
+instructions, which is the pointer the teaching prompt asks for. `AGENTS.md` is what this Journey
+actually loads, so the pointer is live rather than inert.
+
+Verified by replaying the reader's rules against the real files: both present, neither a symlink,
+1,719 and 1,610 bytes against a one megabyte bound, both valid UTF-8, neither dotted, zero link
+syntax occurrences in the drawing, headings no deeper than level two. Derived state: `drawn` with
+`instructionsPresent` true.
+
+## Canvas Gates (2026-10-02)
+
+- `npm test`: 213 files, 1,475 tests, all passing, including 11 domain tests, 18 prompt tests and
+  14 surface tests for Canvas, plus a regression guard for the re-read defect.
+- `cargo test`: 236 passed, 3 ignored.
+- `npx tsc --noEmit`: clean.
+- `npm run roadmap:check`: READY.
+
 ## Superseded Workflow Design (2026-10-01)
 
 Kept as a dated record of what this CR carried before the Canvas pivot. It is not current
@@ -537,15 +627,10 @@ Gates: `npm test` 213 files, 1473 tests, all passing. `npx tsc --noEmit` clean.
 
 ## Remaining
 
-- Implement the Canvas design. None of it is built yet; everything on the delivery branch
-  implements the superseded manifest design.
-- Replace this Journey's own dogfooding artifacts. `mirror-workflow.json`,
-  `docs/project/refinement/workflow-contract.md` and `docs/project/refinement/workflow-surface.md`
-  were committed in `736b90b` under the superseded design and become `canvas.md` and
-  `canvas-instructions.md` at the Journey root. On this Journey the root is also the repository
-  root, so the drawing will be versioned and will show in every `git status` after a redraw. That
-  is a real dogfooding friction and an argument for treating the canvas as derived and disposable:
-  this Journey may ignore it in git without losing anything, because state never lives there.
+- On this Journey the root is also the repository root, so `canvas.md` is versioned and will show
+  in every `git status` after a redraw. That is a real dogfooding friction and an argument for
+  treating the canvas as derived and disposable: this Journey may ignore it in git without losing
+  anything, because state never lives there. Left as is for now, to see whether it actually annoys.
 - Validate the teaching prompt in a real agent Conversation in a Journey with no canvas, checking
   both that the drawing reflects the Journey's files and that the standing instructions survive
   into a later session through the pointer the agent placed.

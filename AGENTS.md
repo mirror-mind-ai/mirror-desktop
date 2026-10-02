@@ -1,5 +1,6 @@
 # Mirror Desktop Repository Instructions
 
+- Keep this Journey's canvas current. `canvas-instructions.md` at the repository root is the standing note about what `canvas.md` holds and when to redraw it; Mirror Desktop renders `canvas.md` in its Canvas tab.
 - Use `uv run` for project Python commands when applicable.
 - Follow TDD for behavior changes and keep architecture/roadmap documentation aligned.
 - Use descriptive English Git commit messages that explain why the change exists.
