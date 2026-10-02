@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.31 — Work From the Current Chapter](v0.2.0-alpha.31.md) — Mirror Desktop opens a long Journey on the chapter Pi still holds in context, keeps complete history one explicit action away, and protects durable conversation metadata from Segment publication.
 - [v0.2.0-alpha.30 — A Quiet, Responsive Composer](v0.2.0-alpha.30.md) — Composer typing stays local and immediate, while idle recovery settles once instead of continuously re-rendering the Desktop.
 - [v0.2.0-alpha.29 — Context Map and Agent’s Canvas](v0.2.0-alpha.29.md) — Context Map makes admitted context inspectable, and Agent’s Canvas lets each Journey’s agent draw a truthful, reloadable view of its own situation.
 - [v0.2.0-alpha.28 — Workspace Signals Stay Legible](v0.2.0-alpha.28.md) — Window placement, model context and sidebar agent state stay legible across daily use and restart.
