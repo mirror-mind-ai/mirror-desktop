@@ -64,13 +64,16 @@ This is the current UX-first order for the captured work. It is deliberately not
 order: each CR still begins with empirical characterisation, and no CR is pulled merely by being
 ranked here.
 
-1. **CR097 — Keep a Correction Recognisable After Reload.** The Conversation can falsely present a
+1. **CR112 — Host a Journey's Declared Workflow.** The Journey declares its own workflow and the
+   app gives that declaration a stable home, without computing its form. The canonical book case
+   already has the required prose contract and provides the first validation route.
+2. **CR097 — Keep a Correction Recognisable After Reload.** The Conversation can falsely present a
    correction as an unanswered new request, damaging trust in the user's own history.
-2. **CR099 — Allow Safe Editing During Another Journey's Work.** A global busy guard stops ordinary
+3. **CR099 — Allow Safe Editing During Another Journey's Work.** A global busy guard stops ordinary
    work in an unrelated Journey while the agent works elsewhere.
-3. **CR098 — Allow a Journey to Be Reparented.** The Navigator cannot correct a basic hierarchy
+4. **CR098 — Allow a Journey to Be Reparented.** The Navigator cannot correct a basic hierarchy
    mistake through the form that purports to edit it.
-4. **CR100 — Make Journey Image Updates Supported.** A visible action ends in `unsupported journey
+5. **CR100 — Make Journey Image Updates Supported.** A visible action ends in `unsupported journey
    mutation`; a broken promise is more disruptive than an absent feature.
 
 CR102, CR103, CR104, CR105 and CR107 are closed and are therefore removed from the active captured priority.
@@ -115,6 +118,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR102: Make Sidebar Progress Signals Legible](cr102-make-sidebar-progress-signals-legible.md) — done
 - [CR103: Give the Composer Model Status a Human Register](cr103-give-the-composer-model-status-a-human-register.md) — done
 - [CR104: Make Compaction Failures Actionable and Expirable](cr104-make-compaction-failures-actionable-and-expirable.md) — done
+- [CR112: Host a Journey's Declared Workflow](cr112-host-a-journey-s-declared-workflow.md)
 - [CR105: Transform the Artifact Tab into the Context Surface](cr105-transform-the-artifact-tab-into-an-agentic-map.md) — done
 - [CR106: Use Green for Ready Completion Signals](cr106-use-green-for-ready-completion-signals.md) — done
 - [CR107: Make Existing Journeys Startable](cr107-make-existing-journeys-startable.md) — done

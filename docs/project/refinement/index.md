@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS021
-- Change Request: CR105
+- Change Request: CR112
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -51,45 +51,46 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 1 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | done | @alissonvale | `refinement/rs021-cr105-agentic-map` |
-| 2 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | captured | — | — |
-| 3 | [CR099](rs021-ux-pre-beta-evolution/cr099-allow-safe-editing-during-another-journeys-work.md) | RS021 | Allow Safe Editing During Another Journey's Work | captured | — | — |
-| 4 | [CR098](rs021-ux-pre-beta-evolution/cr098-allow-a-journey-to-be-reparented.md) | RS021 | Allow a Journey to Be Reparented | captured | — | — |
-| 5 | [CR100](rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) | RS021 | Make Journey Image Updates Supported | captured | — | — |
-| 6 | [CR104](rs021-ux-pre-beta-evolution/cr104-make-compaction-failures-actionable-and-expirable.md) | RS021 | Make Compaction Failures Actionable and Expirable | done | @alissonvale | `refinement/rs021-cr104-actionable-compaction-failures` |
-| 7 | [CR103](rs021-ux-pre-beta-evolution/cr103-give-the-composer-model-status-a-human-register.md) | RS021 | Give the Composer Model Status a Human Register | done | @alissonvale | `refinement/rs021-cr103-human-model-status` |
-| 8 | [CR102](rs021-ux-pre-beta-evolution/cr102-make-sidebar-progress-signals-legible.md) | RS021 | Make Sidebar Progress Signals Legible | done | @alissonvale | `refinement/rs021-cr102-sidebar-progress` |
-| 9 | [CR106](rs021-ux-pre-beta-evolution/cr106-use-green-for-ready-completion-signals.md) | RS021 | Use Green for Ready Completion Signals | done | @alissonvale | `refinement/rs021-cr106-ready-green` |
-| 10 | [CR101](rs021-ux-pre-beta-evolution/cr101-restore-window-geometry.md) | RS021 | Restore Window Geometry | done | @alissonvale | `refinement/rs021-cr101-window-geometry` |
-| 11 | [CR096](rs016-ongoing-product-improvements-and-adjustments/cr096-verify-the-published-download-alias.md) | RS016 | Verify the Published Download Alias | done | @alissonvale | `refinement/rs016-cr096-download-alias-verification` |
-| 12 | [CR095](rs016-ongoing-product-improvements-and-adjustments/cr095-record-each-journey-binding-repair-as-durable-evidence.md) | RS016 | Record Each Journey Binding Repair as Durable Evidence | done | @alissonvale | `refinement/rs016-cr093-cr095-journey-binding-defense` |
-| 13 | [CR093](rs016-ongoing-product-improvements-and-adjustments/cr093-defend-the-mirror-conversation-journey-binding.md) | RS016 | Defend the Mirror Conversation Journey Binding | done | @alissonvale | `refinement/rs016-cr093-cr095-journey-binding-defense` |
-| 14 | [CR094](rs022-mirror-core-debts/cr094-mirror-mode-activation-rebinds-desktop-conversation-journey.md) | RS022 | Mirror Mode Activation Rebinds a Desktop Conversation's Journey | parked | — | — |
-| 15 | [CR086](rs021-ux-pre-beta-evolution/cr086-suppress-transient-synchronization-notices.md) | RS021 | Suppress Transient Synchronization Notices | done | @alissonvale | `refinement/rs021-cr086-suppress-transient-sync-notice` |
-| 16 | [CR087](rs021-ux-pre-beta-evolution/cr087-project-the-visible-user-request-exactly.md) | RS021 | Project the Visible User Request Exactly | done | @alissonvale | `refinement/rs021-cr087-idempotent-outbox-enqueue` |
-| 17 | [CR088](rs021-ux-pre-beta-evolution/cr088-stop-flashing-the-preserved-attempt-panel.md) | RS021 | Stop Flashing the Preserved Attempt Panel | done | @alissonvale | `refinement/rs021-cr088-preserved-attempt-panel` |
-| 18 | [CR089](rs021-ux-pre-beta-evolution/cr089-preserve-the-interrupted-partial-response.md) | RS021 | Preserve the Interrupted Partial Response | done | @alissonvale | `refinement/rs021-cr089-preserve-interrupted-partial-response` |
-| 19 | [CR084](rs021-ux-pre-beta-evolution/cr084-recenter-to-conversation-end.md) | RS021 | Recenter to Conversation End | done | @alissonvale | `refinement/rs021-cr084-recenter-to-end` |
-| 20 | [CR090](rs021-ux-pre-beta-evolution/cr090-run-scoped-model-authority.md) | RS021 | Run-Scoped Model Authority | done | @alissonvale | `refinement/rs021-cr090-run-scoped-model-authority` |
-| 21 | [CR078](rs021-ux-pre-beta-evolution/cr078-model-intents.md) | RS021 | Model Intents | done | @alissonvale | `refinement/rs021-cr078-model-intents` |
-| 22 | [CR091](rs021-ux-pre-beta-evolution/cr091-attribute-each-response-to-its-model.md) | RS021 | Attribute Each Response to Its Model | done | @alissonvale | `refinement/rs021-cr091-response-model-attribution` |
-| 23 | [CR081](rs021-ux-pre-beta-evolution/cr081-agent-running-animation.md) | RS021 | Agent Running Animation | done | @alissonvale | `refinement/rs021-cr081-agent-running-animation` |
-| 24 | [CR083](rs021-ux-pre-beta-evolution/cr083-agent-comments-continuity.md) | RS021 | Agent Comments Continuity | done | @alissonvale | `refinement/rs021-cr083-agent-comments-continuity` |
-| 25 | [CR082](rs021-ux-pre-beta-evolution/cr082-collapsed-sidebar-polish.md) | RS021 | Collapsed Sidebar Polish | done | @alissonvale | `refinement/rs021-cr082-collapsed-sidebar-polish` |
-| 26 | [CR085](rs021-ux-pre-beta-evolution/cr085-close-without-quitting.md) | RS021 | Close Without Quitting | done | @alissonvale | `refinement/rs021-cr085-close-without-quitting` |
-| 27 | [CR079](rs021-ux-pre-beta-evolution/cr079-deep-context-stats-analysis.md) | RS021 | Always Legible Context Reading | done | @alissonvale | `refinement/rs021-cr079-deep-context-stats-analysis` |
-| 28 | [CR080](rs021-ux-pre-beta-evolution/cr080-compaction-chapters.md) | RS021 | Compaction Chapters | done | @alissonvale | `refinement/rs021-cr080-compaction-chapters` |
-| 29 | [CR092](rs021-ux-pre-beta-evolution/cr092-float-the-recenter-control-over-the-conversation.md) | RS021 | Float the Recenter Control Over the Conversation | done | @alissonvale | `refinement/rs021-cr092-floating-recenter-control` |
-| 30 | [CR077](rs016-ongoing-product-improvements-and-adjustments/cr077-reconstruct-reasoning-from-pi-session-evidence.md) | RS016 | Reconstruct Reasoning from Pi Session Evidence | done | @alissonvale | `refinement/rs016-cr077-reconstruct-reasoning` |
-| 31 | [CR076](rs016-ongoing-product-improvements-and-adjustments/cr076-surface-the-thinking-process-of-every-model.md) | RS016 | Surface the Thinking Process of Every Model | done | @alissonvale | `refinement/rs016-cr076-model-agnostic-reasoning` |
-| 32 | [CR075](rs016-ongoing-product-improvements-and-adjustments/cr075-serve-the-latest-release-to-every-installed-version.md) | RS016 | Serve the Latest Release to Every Installed Version | done | @alissonvale | `refinement/rs016-cr075-update-to-latest` |
-| 33 | [CR074](rs016-ongoing-product-improvements-and-adjustments/cr074-one-command-deterministic-release-deployment.md) | RS016 | One-Command Deterministic Release Deployment | done | @alissonvale | `refinement/rs016-cr074-one-command-release-deploy` |
-| 34 | [CR070](rs016-ongoing-product-improvements-and-adjustments/cr070-restore-visibility-of-pre-agent-send-rejection.md) | RS016 | Restore Visibility of Pre-Agent Send Rejection | done | @alissonvale | `refinement/rs016-cr070-unsent-notice-visibility` |
-| 35 | [CR072](rs016-ongoing-product-improvements-and-adjustments/cr072-load-navigator-approved-provider-extensions-explicitly.md) | RS016 | Load Navigator-Approved Provider Extensions Explicitly | done | @alissonvale | `refinement/rs016-cr072-global-pi-extensions` |
-| 36 | [CR071](rs016-ongoing-product-improvements-and-adjustments/cr071-stop-offering-models-the-desktop-invocation-cannot-run.md) | RS016 | Stop Offering Models the Desktop Invocation Cannot Run | done | @alissonvale | `refinement/rs016-cr071-unavailable-models` |
-| 37 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | done | @alissonvale | `refinement/rs016-cr054-provider-terminal-errors` |
-| 38 | [CR073](rs016-ongoing-product-improvements-and-adjustments/cr073-surface-stalled-provider-streams.md) | RS016 | Surface Stalled Provider Streams | dismissed | — | — |
-| 39 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | done | @alissonvale | `refinement/rs016-cr053-effective-model-clarity` |
+| 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Journey's Declared Workflow | in_progress | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
+| 2 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | done | @alissonvale | `refinement/rs021-cr105-agentic-map` |
+| 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | captured | — | — |
+| 4 | [CR099](rs021-ux-pre-beta-evolution/cr099-allow-safe-editing-during-another-journeys-work.md) | RS021 | Allow Safe Editing During Another Journey's Work | captured | — | — |
+| 5 | [CR098](rs021-ux-pre-beta-evolution/cr098-allow-a-journey-to-be-reparented.md) | RS021 | Allow a Journey to Be Reparented | captured | — | — |
+| 6 | [CR100](rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) | RS021 | Make Journey Image Updates Supported | captured | — | — |
+| 7 | [CR104](rs021-ux-pre-beta-evolution/cr104-make-compaction-failures-actionable-and-expirable.md) | RS021 | Make Compaction Failures Actionable and Expirable | done | @alissonvale | `refinement/rs021-cr104-actionable-compaction-failures` |
+| 8 | [CR103](rs021-ux-pre-beta-evolution/cr103-give-the-composer-model-status-a-human-register.md) | RS021 | Give the Composer Model Status a Human Register | done | @alissonvale | `refinement/rs021-cr103-human-model-status` |
+| 9 | [CR102](rs021-ux-pre-beta-evolution/cr102-make-sidebar-progress-signals-legible.md) | RS021 | Make Sidebar Progress Signals Legible | done | @alissonvale | `refinement/rs021-cr102-sidebar-progress` |
+| 10 | [CR106](rs021-ux-pre-beta-evolution/cr106-use-green-for-ready-completion-signals.md) | RS021 | Use Green for Ready Completion Signals | done | @alissonvale | `refinement/rs021-cr106-ready-green` |
+| 11 | [CR101](rs021-ux-pre-beta-evolution/cr101-restore-window-geometry.md) | RS021 | Restore Window Geometry | done | @alissonvale | `refinement/rs021-cr101-window-geometry` |
+| 12 | [CR096](rs016-ongoing-product-improvements-and-adjustments/cr096-verify-the-published-download-alias.md) | RS016 | Verify the Published Download Alias | done | @alissonvale | `refinement/rs016-cr096-download-alias-verification` |
+| 13 | [CR095](rs016-ongoing-product-improvements-and-adjustments/cr095-record-each-journey-binding-repair-as-durable-evidence.md) | RS016 | Record Each Journey Binding Repair as Durable Evidence | done | @alissonvale | `refinement/rs016-cr093-cr095-journey-binding-defense` |
+| 14 | [CR093](rs016-ongoing-product-improvements-and-adjustments/cr093-defend-the-mirror-conversation-journey-binding.md) | RS016 | Defend the Mirror Conversation Journey Binding | done | @alissonvale | `refinement/rs016-cr093-cr095-journey-binding-defense` |
+| 15 | [CR094](rs022-mirror-core-debts/cr094-mirror-mode-activation-rebinds-desktop-conversation-journey.md) | RS022 | Mirror Mode Activation Rebinds a Desktop Conversation's Journey | parked | — | — |
+| 16 | [CR086](rs021-ux-pre-beta-evolution/cr086-suppress-transient-synchronization-notices.md) | RS021 | Suppress Transient Synchronization Notices | done | @alissonvale | `refinement/rs021-cr086-suppress-transient-sync-notice` |
+| 17 | [CR087](rs021-ux-pre-beta-evolution/cr087-project-the-visible-user-request-exactly.md) | RS021 | Project the Visible User Request Exactly | done | @alissonvale | `refinement/rs021-cr087-idempotent-outbox-enqueue` |
+| 18 | [CR088](rs021-ux-pre-beta-evolution/cr088-stop-flashing-the-preserved-attempt-panel.md) | RS021 | Stop Flashing the Preserved Attempt Panel | done | @alissonvale | `refinement/rs021-cr088-preserved-attempt-panel` |
+| 19 | [CR089](rs021-ux-pre-beta-evolution/cr089-preserve-the-interrupted-partial-response.md) | RS021 | Preserve the Interrupted Partial Response | done | @alissonvale | `refinement/rs021-cr089-preserve-interrupted-partial-response` |
+| 20 | [CR084](rs021-ux-pre-beta-evolution/cr084-recenter-to-conversation-end.md) | RS021 | Recenter to Conversation End | done | @alissonvale | `refinement/rs021-cr084-recenter-to-end` |
+| 21 | [CR090](rs021-ux-pre-beta-evolution/cr090-run-scoped-model-authority.md) | RS021 | Run-Scoped Model Authority | done | @alissonvale | `refinement/rs021-cr090-run-scoped-model-authority` |
+| 22 | [CR078](rs021-ux-pre-beta-evolution/cr078-model-intents.md) | RS021 | Model Intents | done | @alissonvale | `refinement/rs021-cr078-model-intents` |
+| 23 | [CR091](rs021-ux-pre-beta-evolution/cr091-attribute-each-response-to-its-model.md) | RS021 | Attribute Each Response to Its Model | done | @alissonvale | `refinement/rs021-cr091-response-model-attribution` |
+| 24 | [CR081](rs021-ux-pre-beta-evolution/cr081-agent-running-animation.md) | RS021 | Agent Running Animation | done | @alissonvale | `refinement/rs021-cr081-agent-running-animation` |
+| 25 | [CR083](rs021-ux-pre-beta-evolution/cr083-agent-comments-continuity.md) | RS021 | Agent Comments Continuity | done | @alissonvale | `refinement/rs021-cr083-agent-comments-continuity` |
+| 26 | [CR082](rs021-ux-pre-beta-evolution/cr082-collapsed-sidebar-polish.md) | RS021 | Collapsed Sidebar Polish | done | @alissonvale | `refinement/rs021-cr082-collapsed-sidebar-polish` |
+| 27 | [CR085](rs021-ux-pre-beta-evolution/cr085-close-without-quitting.md) | RS021 | Close Without Quitting | done | @alissonvale | `refinement/rs021-cr085-close-without-quitting` |
+| 28 | [CR079](rs021-ux-pre-beta-evolution/cr079-deep-context-stats-analysis.md) | RS021 | Always Legible Context Reading | done | @alissonvale | `refinement/rs021-cr079-deep-context-stats-analysis` |
+| 29 | [CR080](rs021-ux-pre-beta-evolution/cr080-compaction-chapters.md) | RS021 | Compaction Chapters | done | @alissonvale | `refinement/rs021-cr080-compaction-chapters` |
+| 30 | [CR092](rs021-ux-pre-beta-evolution/cr092-float-the-recenter-control-over-the-conversation.md) | RS021 | Float the Recenter Control Over the Conversation | done | @alissonvale | `refinement/rs021-cr092-floating-recenter-control` |
+| 31 | [CR077](rs016-ongoing-product-improvements-and-adjustments/cr077-reconstruct-reasoning-from-pi-session-evidence.md) | RS016 | Reconstruct Reasoning from Pi Session Evidence | done | @alissonvale | `refinement/rs016-cr077-reconstruct-reasoning` |
+| 32 | [CR076](rs016-ongoing-product-improvements-and-adjustments/cr076-surface-the-thinking-process-of-every-model.md) | RS016 | Surface the Thinking Process of Every Model | done | @alissonvale | `refinement/rs016-cr076-model-agnostic-reasoning` |
+| 33 | [CR075](rs016-ongoing-product-improvements-and-adjustments/cr075-serve-the-latest-release-to-every-installed-version.md) | RS016 | Serve the Latest Release to Every Installed Version | done | @alissonvale | `refinement/rs016-cr075-update-to-latest` |
+| 34 | [CR074](rs016-ongoing-product-improvements-and-adjustments/cr074-one-command-deterministic-release-deployment.md) | RS016 | One-Command Deterministic Release Deployment | done | @alissonvale | `refinement/rs016-cr074-one-command-release-deploy` |
+| 35 | [CR070](rs016-ongoing-product-improvements-and-adjustments/cr070-restore-visibility-of-pre-agent-send-rejection.md) | RS016 | Restore Visibility of Pre-Agent Send Rejection | done | @alissonvale | `refinement/rs016-cr070-unsent-notice-visibility` |
+| 36 | [CR072](rs016-ongoing-product-improvements-and-adjustments/cr072-load-navigator-approved-provider-extensions-explicitly.md) | RS016 | Load Navigator-Approved Provider Extensions Explicitly | done | @alissonvale | `refinement/rs016-cr072-global-pi-extensions` |
+| 37 | [CR071](rs016-ongoing-product-improvements-and-adjustments/cr071-stop-offering-models-the-desktop-invocation-cannot-run.md) | RS016 | Stop Offering Models the Desktop Invocation Cannot Run | done | @alissonvale | `refinement/rs016-cr071-unavailable-models` |
+| 38 | [CR054](rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md) | RS016 | Surface Provider Terminal Errors in the GUI | done | @alissonvale | `refinement/rs016-cr054-provider-terminal-errors` |
+| 39 | [CR073](rs016-ongoing-product-improvements-and-adjustments/cr073-surface-stalled-provider-streams.md) | RS016 | Surface Stalled Provider Streams | dismissed | — | — |
+| 40 | [CR053](rs016-ongoing-product-improvements-and-adjustments/cr053-clarify-effective-model-in-agent-arguments-settings.md) | RS016 | Clarify Effective Model in Agent Arguments Settings | done | @alissonvale | `refinement/rs016-cr053-effective-model-clarity` |
 | — | [CR068](rs020-convergent-turn-synchronization/cr068-accept-the-frictionless-conversation-through-release-shaped-validation.md) | RS020 | Accept the Frictionless Conversation Through Release-Shaped Validation | done | @alissonvale | `refinement/rs020-cr068-release-shaped-acceptance` |
 | — | [CR069](rs016-ongoing-product-improvements-and-adjustments/cr069-stop-presenting-non-fatal-provider-warnings-as-unsent-messages.md) | RS016 | Stop Presenting Non-Fatal Provider Warnings as Unsent Messages | done | @alissonvale | `refinement/rs016-cr069-non-fatal-provider-warnings` |
 | — | [CR067](rs020-convergent-turn-synchronization/cr067-unify-recovery-into-one-idempotent-convergence-routine.md) | RS020 | Unify Recovery into One Idempotent Convergence Routine | done | @alissonvale | `refinement/rs020-cr067-unified-convergence` |
@@ -157,7 +158,6 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR004](rs003-alpha-channel-governance/cr004-define-alpha-channel-governance.md) | RS003 | Define alpha channel governance | done | — | — |
 | — | [CR002](rs002-mirror-desktop-release-notes-generation/cr002-generate-mirror-desktop-release-notes-like-mirror-core.md) | RS002 | Generate Mirror Desktop release notes like Mirror Core | done | — | — |
 | — | [CR001](rs001-signed-updater-channel-validation/cr001-configure-signed-updater-channel-before-real-self-update-validation.md) | RS001 | Configure signed updater channel before real self-update validation | done | — | — |
-
 ## Status Vocabulary
 
 Refinement Story:
