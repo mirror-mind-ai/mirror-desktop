@@ -106,6 +106,44 @@ describe("Journey persistence coordinator", () => {
     await pendingA;
   });
 
+  // CR116: the chain already recovered from a rejected predecessor. A predecessor that never
+  // settles was the gap, and it stranded the Journey for the life of the process.
+  it("abandons an operation that never settles instead of stranding the Journey", async () => {
+    const abandoned: string[] = [];
+    const coordinator = createJourneyPersistenceCoordinator({
+      boundMs: 5,
+      onAbandon: (journeyId, phase, reason) => abandoned.push(`${journeyId}:${phase}:${reason}`),
+    });
+    const { authority } = fixture();
+    const never = deferred<string>();
+
+    const stuck = run(coordinator, authority, "pre_frontier", () => never.promise);
+    await expect(stuck).rejects.toThrow(/persistence_operation_abandoned:pre_frontier/u);
+
+    const successor = run(coordinator, fixture("journey-a", "run-a2").authority, "pre_frontier",
+      async () => "settled after abandonment");
+    await expect(successor).resolves.toBe("settled after abandonment");
+
+    expect(abandoned).toEqual([
+      "journey-a:pre_frontier:persistence_operation_abandoned:pre_frontier:5",
+    ]);
+    expect(coordinator.inspect()).toEqual([]);
+    never.resolve("landed late");
+  });
+
+  it("lets a later exact retry of the abandoned phase run again", async () => {
+    const coordinator = createJourneyPersistenceCoordinator({ boundMs: 5 });
+    const { authority } = fixture();
+    const never = deferred<string>();
+
+    await expect(run(coordinator, authority, "pre_frontier", () => never.promise))
+      .rejects.toThrow(/abandoned/u);
+    // The in-flight dedup entry must not survive the abandonment, or repair could never retry.
+    await expect(run(coordinator, authority, "pre_frontier", async () => "retried"))
+      .resolves.toBe("retried");
+    never.resolve("landed late");
+  });
+
   it("releases queue bookkeeping in finally after rejection", async () => {
     const coordinator = createJourneyPersistenceCoordinator();
     const { authority } = fixture();

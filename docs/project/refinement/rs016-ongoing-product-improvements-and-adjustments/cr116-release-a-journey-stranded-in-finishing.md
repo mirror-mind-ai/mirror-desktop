@@ -2,9 +2,9 @@
 
 # CR116: Release a Journey Stranded in Finishing
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr116-stranded-finalization-recovery`
 
 Captured on 2026-10-02 from a production incident the Navigator reported while `v0.2.0-alpha.31`
 was prepared and awaiting confirmation. Pulled by explicit Navigator intent on 2026-10-02 after
@@ -287,18 +287,106 @@ both before anything is changed.
   stranded path will be proven by test rather than by reproducing the original incident in Eval.
   No claim should be made that the root operation was identified unless it actually is.
 
-## Open Decisions
+## Settled Decisions
 
-1. **What expiry does.** Reject the awaiting caller and advance the queue, treating the operation as
-   abandoned, or wait for the zombie and merely stop blocking successors. Recommendation: reject and
-   advance, because the native expectations already make a late landing fail closed, and because a
-   caller that never returns is the defect.
-2. **What the bound is.** A fixed generous timeout, or progress-based with no fixed ceiling.
-   Recommendation: a fixed generous bound first, since it is testable and the product has no
-   progress signal to observe today.
-3. **Whether stalled finalization gets its own visible state.** Recommendation: yes. `Finishing`
-   forever is the specific thing that misled the Navigator, and a truthful label is what makes the
-   repair control findable.
+Resolved on 2026-10-02: the Navigator accepted all three recommendations and authorised
+implementation. Driver and Delivery follow the established convention for this repository.
+
+1. **Expiry rejects the awaiting caller and advances the queue.** The operation is abandoned, not
+   cancelled: it keeps running detached and its outcome is discarded. Safe because the durable
+   layers already refuse a late landing.
+2. **The bound is a fixed, generous ceiling.** `PERSISTENCE_OPERATION_BOUND_MS = 120_000`. It
+   exists to catch a wait that will never end, not to police slowness, because a real Journey
+   legitimately writes multi-megabyte projections and inspects a 55 MB session.
+3. **Stalled finalization becomes legible.** Implemented through the existing surface rather than a
+   new runtime state — see the deviation recorded below.
+
+## Implementation Evidence
+
+Implemented on 2026-10-02 on `refinement/rs016-cr116-stranded-finalization-recovery`, from
+`b2f0bcd`. Every change was written test-first.
+
+### One bound, used by both queues
+
+New `src/app/boundedPersistenceOperation.ts` holds the seam: `runBoundedOperation`, the reason
+vocabulary (`abandonedOperationReason`, `isAbandonedOperationReason`), the default ceiling and an
+injectable timer so the behaviour is testable without real time.
+
+The bound stops the wait, not the work. On expiry the caller rejects with
+`persistence_operation_abandoned:<label>:<ms>`, the detached operation keeps running, and its late
+outcome — value or rejection — is absorbed so it cannot escape as an unhandled rejection. A bound
+that did not elapse can never report an abandonment: cancelling leaves the expiry permanently
+pending.
+
+`journeyPersistenceCoordinator.run` and `turnFinalizationCoordinator.serialize` both route their
+operation through it. Abandonment needed no separate unblocking mechanism: because the bounded task
+rejects, each queue's existing recovery-from-rejection is what advances it. `serialize` also gained
+a phase label, so a failure names which step stopped — `finalize_completed`,
+`finalize_interrupted` or `converge_delivery`.
+
+### The repair route now refuses on the right thing
+
+`recoverPostTerminalPersistence` previously returned on `selectedRuntimeBusy` and on
+`isJourneyRuntimeActiveOrFinalizing(ownerEntry)`. Both are true while a Journey is stranded in
+`Finishing`, so the routine declined exactly the state it exists to heal. It now refuses on
+`hasActiveNativeExecution(piInvocationOccupancy, ownerJourneyId)` — the native registry, which is
+authoritative about whether Pi is executing — and on `isJourneyRuntimeStreaming(ownerEntry)`, this
+Journey's own live run. A lease that is merely `finalizing` means the process is gone and
+bookkeeping is owed, which is when repair should run.
+
+`isJourneyRuntimeActiveOrFinalizing` is unchanged and still used for admission and cleanup, where
+refusing during finalization is correct.
+
+### Deviation from the plan, with its reason
+
+Slice 4 proposed a new runtime state for stalled finalization. Reading the code showed the surface
+already exists: a retained finalizing lease plus a settlement error renders `Conversation
+synchronization needs attention` with a `Repair synchronization` button. It never appeared because
+the operation hung instead of rejecting, and `finalization_finished` sits in a `finally` — so
+bounding alone converts the strand into the already-handled failure path: the flag clears, Send
+unblocks, the notice appears and the button now works. Only one thing was missing, a truthful
+explanation, so `describeAbandonedOperation` says that a step stopped responding, that the answer
+is preserved in the Pi session, and that repair completes the turn. Adding a parallel runtime state
+would have duplicated a working surface.
+
+Slice 2 also proposed recording the abandonment as a durable artifact. Not built: the durable fact
+is already the journal record left at its unfinished phase, and the reason reaches the Navigator
+through the settlement error and the sync-attention ledger. A new file would have stored no new
+information.
+
+### Tests
+
+- `src/tests/boundedPersistenceOperation.test.ts` — 11 cases: normal value, ordinary rejection
+  passed through unchanged, abandonment naming phase and bound, the operation surviving
+  abandonment, no unhandled late rejection, an expiry after the operation already won being
+  ignored, reason recognition, the generous default, real-timer cleanup and real-timer expiry.
+- `src/tests/strandedFinalizationRecovery.test.ts` — `convergeDelivery` runs after a hung
+  `finalizeCompletedTurn` is abandoned (this await never returned before), a second Journey stays
+  independent, and source assertions pinning the new guard and the preserved CR115 property.
+- `src/tests/journeyPersistenceCoordinator.test.ts` — two cases added: a never-settling operation
+  no longer strands successors, and the exact phase can be retried afterwards because the in-flight
+  dedup entry does not survive abandonment.
+- `src/tests/idleRecoveryLoop.test.ts` — the CR115 regression, unchanged and passing.
+
+No existing expectation needed changing.
+
+### Gates
+
+- 221 front-end test files, 1,554 tests (was 219 / 1,534).
+- `npx tsc --noEmit`, `npm run build`.
+- `cargo test`: 241 passed, 3 ignored. `cargo check --locked`: no warnings.
+- `npm run roadmap:check`, `git diff --check`.
+
+### Not Yet Validated
+
+Navigator homologation is outstanding. Eval was rebuilt and installed at
+`~/Applications/Mirror Desktop Eval.app` and was not launched.
+
+The honest limit the plan anticipated still holds: the production hang is not reproducible on
+demand, so the stranded path is proven by test rather than by reproducing the original incident.
+What Eval can show is that ordinary settlement, cancellation, sending and restart recovery are
+unchanged, and that an idle Journey stays quiet. The root operation that hung was not identified,
+and no claim is made that it was.
 
 ## Dependencies
 

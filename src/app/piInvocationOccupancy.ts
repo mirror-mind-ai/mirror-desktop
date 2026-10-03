@@ -300,6 +300,21 @@ export function hasBlockingPiInvocationOccupancy(state: PiInvocationOccupancySta
   return state.status !== "known" || state.entries.some(isActivePiInvocationLease);
 }
 
+/**
+ * CR116: whether Pi is genuinely executing for this Journey, read from the native registry rather
+ * than from a renderer flag. This is the authority post-terminal repair must respect: a lease that
+ * is merely `finalizing` means the process is gone and the Desktop still owes bookkeeping, which
+ * is precisely when repair should be allowed to run.
+ */
+export function hasActiveNativeExecution(
+  state: PiInvocationOccupancyState,
+  journeyId: string,
+): boolean {
+  return state.entries.some((entry) => (
+    entry.authority.journeyId === journeyId && isActivePiInvocationLease(entry)
+  ));
+}
+
 function sameRecoveryAuthority(
   authority: PiInvocationAuthorityInspection,
   evidence: SettlementRecoveryEvidence,

@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.31` · Work From the Current Chapter
 
-🎯 **Foco oficial:** CR116 · `planned` · sem Driver · 3 decisões abertas
+🎯 **Foco oficial:** CR116 · `in_progress` · @alissonvale · aguardando homologação
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active`; Embedded TS Runtime é uma direção capturada
 
@@ -21,7 +21,7 @@
 | ↳ **CR114 · Make the Current Segment the Default Working Set** | ✅ done · publicada em alpha.31 | `██████████` |
 | ↳ 20 Change Requests anteriores | ✅ done | `██████████` |
 | **RS016 · Ongoing Product Improvements** | 🔄 ativa · CR em foco: CR116 | `█████████░` 23 done · 4 ↗️ · 1 ⛔ |
-| ↳ **CR116 · Release a Journey Stranded in Finishing** | 🟡 planned · plano registrado | `░░░░░░░░░░` |
+| ↳ **CR116 · Release a Journey Stranded in Finishing** | 🧪 in_progress · gates verdes | `█████████░` 5/6 fatias |
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
 | RS022 · Mirror Core Debts | 🔄 ativa · registro sem CR aberta | `░░░░░░░░░░` 1 ⏸️ |
 | RS001 … RS020 | ✅ 19 Refinement Stories fechadas | `██████████` |
@@ -49,11 +49,11 @@
 | Agentic Map of Admitted Context | ↗️ explorada e entregue | CR105 ✅ · Context Map |
 | 11 explorações anteriores | 🗂️ colapsadas | status nos arquivos ainda não reconciliado; não contam como foco atual |
 
-**Próximo passo:** decidir as três questões abertas da CR116, mais Driver e Delivery, antes de
-implementar. O diagnóstico após a puxada achou uma terceira camada que a captura não tinha: a fila
-de `turnFinalizationCoordinator.serialize` é uma só por Journey e serve também a `convergeDelivery`,
-então uma finalização pendurada estaciona a própria rotina de recuperação atrás dela — consertar o
-guarda sozinho não resolveria nada.
+**Próximo passo:** homologar a CR116 no Eval. As duas filas por Journey agora têm limite de 120
+segundos: uma operação que não se resolve é abandonada, a fila anda, e o reparo passou a recusar
+pela ocupação nativa em vez do sinalizador do renderer — que uma liquidação travada deixava ligado
+para sempre. A fila de `turnFinalizationCoordinator.serialize` era a camada que a captura não tinha
+visto: ela serve também a `convergeDelivery`, então consertar o guarda sozinho não resolveria nada.
 
 A `alpha.31` saiu com a CR114: a Journey abre no capítulo atual — 286 entradas em vez de 7.373, com
 24 capítulos anteriores sob pedido — e a publicação de Segments não sobrescreve mais o metadado

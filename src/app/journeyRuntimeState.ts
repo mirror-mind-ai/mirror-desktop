@@ -203,6 +203,16 @@ export function isJourneyRuntimeActiveOrFinalizing(entry: JourneyRuntimeEntry): 
   return entry.isStreaming || entry.isFinalizingTurn || entry.agentRun.status === "running";
 }
 
+/**
+ * CR116: whether this Journey's own run is still producing. Admission and cleanup legitimately
+ * refuse while a turn is finalizing, but post-terminal *repair* must not: a settlement that
+ * stopped leaves `isFinalizingTurn` set forever, and gating repair on it made the routine refuse
+ * exactly the state it exists to heal.
+ */
+export function isJourneyRuntimeStreaming(entry: JourneyRuntimeEntry): boolean {
+  return entry.isStreaming || entry.agentRun.status === "running";
+}
+
 export type JourneyRuntimeOwnerPhase = "running" | "finalizing";
 
 export function selectJourneyRuntimeOwnerPhase(

@@ -1,4 +1,5 @@
 import type { JourneySettlementAuthority } from "./journeySettlement";
+import { runBoundedOperation, type BoundTimer } from "./boundedPersistenceOperation";
 
 export type JourneyPersistencePhase = "pre_frontier" | "post_frontier" | "interrupted" | "rollback";
 
@@ -11,7 +12,15 @@ export type JourneyPersistenceCoordinator = {
   inspect(): ReadonlyArray<{ journeyId: string; runId: string; turnId: string; phase: JourneyPersistencePhase }>;
 };
 
-export function createJourneyPersistenceCoordinator(): JourneyPersistenceCoordinator {
+export type JourneyPersistenceCoordinatorOptions = {
+  boundMs?: number;
+  timer?: BoundTimer;
+  onAbandon?: (journeyId: string, phase: JourneyPersistencePhase, reason: string) => void;
+};
+
+export function createJourneyPersistenceCoordinator(
+  options: JourneyPersistenceCoordinatorOptions = {},
+): JourneyPersistenceCoordinator {
   const tails = new Map<string, Promise<void>>();
   const inFlight = new Map<string, Promise<unknown>>();
   const visible = new Map<string, { journeyId: string; runId: string; turnId: string; phase: JourneyPersistencePhase }>();
@@ -26,7 +35,15 @@ export function createJourneyPersistenceCoordinator(): JourneyPersistenceCoordin
     if (duplicate) return duplicate as Promise<T>;
 
     const prior = tails.get(authority.journeyId) ?? Promise.resolve();
-    const task = prior.catch(() => undefined).then(operation);
+    // CR116: `prior.catch()` already let the chain survive a rejected predecessor. The bound is
+    // what lets it survive one that never settles: on expiry this task rejects, so `tail` settles
+    // and every successor for this Journey runs instead of waiting forever.
+    const task = prior.catch(() => undefined).then(() => runBoundedOperation(operation, {
+      label: phase,
+      boundMs: options.boundMs,
+      timer: options.timer,
+      onAbandon: (reason) => options.onAbandon?.(authority.journeyId, phase, reason),
+    }));
     const tail = task.then(() => undefined, () => undefined);
     inFlight.set(exactKey, task);
     visible.set(exactKey, {

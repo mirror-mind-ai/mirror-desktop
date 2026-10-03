@@ -14,9 +14,9 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 - Refinement Story: RS016
 - Change Request: CR116, pulled on 2026-10-02 by explicit Navigator intent after
-  `v0.2.0-alpha.31` was published. It is `planned`, with scope, files, acceptance, validation and
-  exclusions recorded, and three open decisions. Driver and Delivery remain undecided, and
-  implementation is not authorised. CR114 was accepted and closed earlier the same day under
+  `v0.2.0-alpha.31` was published. It is `in_progress` under @alissonvale on
+  `refinement/rs016-cr116-stranded-finalization-recovery`, with every plan decision settled and
+  implementation explicitly authorised. Navigator homologation remains outstanding. CR114 was accepted and closed earlier the same day under
   @alissonvale on `refinement/rs021-cr114-current-segment-working-set`. The captured order below is
   a ranking, not a selection.
 
@@ -56,7 +56,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | planned | — | — |
+| — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | in_progress | @alissonvale | `refinement/rs016-cr116-stranded-finalization-recovery` |
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
 | 2 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | done | @alissonvale | `refinement/rs021-cr105-agentic-map` |
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | captured | — | — |

@@ -7,6 +7,7 @@ import {
   type JourneySettlementAuthority,
 } from "./journeySettlement";
 import { journeyPersistenceCoordinator } from "./journeyPersistenceCoordinator";
+import { runBoundedOperation, type BoundTimer } from "./boundedPersistenceOperation";
 import {
   decideTurnJournalTerminal,
   hasFreshCompleteTurnJournalEvidence,
@@ -240,7 +241,15 @@ async function exactRecordAlreadySettled(
   ));
 }
 
-export function createTurnFinalizationCoordinator(): TurnFinalizationCoordinator {
+export type TurnFinalizationCoordinatorOptions = {
+  boundMs?: number;
+  timer?: BoundTimer;
+  onAbandon?: (journeyId: string, label: string, reason: string) => void;
+};
+
+export function createTurnFinalizationCoordinator(
+  options: TurnFinalizationCoordinatorOptions = {},
+): TurnFinalizationCoordinator {
   const listeners = new Set<(event: TurnFinalizationEvent) => void>();
   const queues = new Map<string, Promise<unknown>>();
   const lastPublished = new Map<string, JourneyConversation>();
@@ -262,9 +271,18 @@ export function createTurnFinalizationCoordinator(): TurnFinalizationCoordinator
     emit({ type: "presentation", authority, projection: merged, phase, ...(error ? { error } : {}) });
   }
 
-  function serialize<T>(journeyId: string, task: () => Promise<T>): Promise<T> {
+  function serialize<T>(journeyId: string, label: string, task: () => Promise<T>): Promise<T> {
     const previous = queues.get(journeyId) ?? Promise.resolve();
-    const next = previous.then(task, task);
+    // CR116: `previous.then(task, task)` already ran the successor whether the predecessor
+    // resolved or rejected. The bound covers the remaining case — a predecessor that never
+    // settles — so one hung finalization can no longer park `convergeDelivery` behind it.
+    const bounded = () => runBoundedOperation(task, {
+      label,
+      boundMs: options.boundMs,
+      timer: options.timer,
+      onAbandon: (reason) => options.onAbandon?.(journeyId, label, reason),
+    });
+    const next = previous.then(bounded, bounded);
     queues.set(journeyId, next.catch(() => undefined));
     return next;
   }
@@ -277,7 +295,7 @@ export function createTurnFinalizationCoordinator(): TurnFinalizationCoordinator
 
     finalizeCompletedTurn(input, ports) {
       const { authority, correlation } = input;
-      return serialize(authority.journeyId, async () => {
+      return serialize(authority.journeyId, "finalize_completed", async () => {
         let settled = input.projection;
         try {
           const journal = await ports.loadJournal(authority.journeyId);
@@ -336,7 +354,7 @@ export function createTurnFinalizationCoordinator(): TurnFinalizationCoordinator
 
     finalizeInterruptedTurn(input, ports) {
       const { authority } = input;
-      return serialize(authority.journeyId, async () => {
+      return serialize(authority.journeyId, "finalize_interrupted", async () => {
         const projection = await journeyPersistenceCoordinator.run(
           authority, "interrupted", () => executeInterruptedSettlement({
             projection: input.projection,
@@ -585,7 +603,7 @@ export function createTurnFinalizationCoordinator(): TurnFinalizationCoordinator
         publish(authority, settlement.projection, "settled");
         deps.onExactError(authority, undefined);
       };
-      return serialize(journeyId, async () => {
+      return serialize(journeyId, "converge_delivery", async () => {
         const failures: string[] = [];
         let settledAny = false;
         const items = await deps.reconcileDeliveryDebt(journeyId);

@@ -70,6 +70,7 @@ import {
   createUnknownPiInvocationOccupancy,
   derivePiInvocationAdmission,
   failPiInvocationReconciliation,
+  hasActiveNativeExecution,
   hasBlockingPiInvocationOccupancy,
   isActivePiInvocationLease,
   piInvocationAuthorityFromRunAuthority,
@@ -169,6 +170,7 @@ import { CompactionNotice } from "./CompactionNotice";
 import { ComposerContextMenu } from "./ComposerContextMenu";
 import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
 import { describeMirrorAppendRejection } from "../domain/mirrorAppendRejection";
+import { describeAbandonedOperation, isAbandonedOperationReason } from "./boundedPersistenceOperation";
 import { deriveBlockingTurnPresentation } from "./blockingTurnPresentation";
 import {
   beginSynchronizationAttempt,
@@ -244,6 +246,7 @@ import {
   hasActiveOrFinalizingJourneyRuntime,
   identityJourneyId,
   isJourneyRuntimeActiveOrFinalizing,
+  isJourneyRuntimeStreaming,
   journeyRuntimeReducer,
   selectJourneyRuntime,
   selectJourneyRuntimeConversation,
@@ -1003,6 +1006,11 @@ export function App({ model }: AppProps) {
   // the raw reason code instead of leaving only a generic persistence sentence.
   const mirrorCommitExplanation = mirrorCommitError
     ? describeMirrorAppendRejection(mirrorCommitError)
+      // CR116: an abandoned persistence step is not a Mirror contract rejection, and it has its
+      // own thing to say: the wait was given up, not the answer.
+      ?? (isAbandonedOperationReason(mirrorCommitError)
+        ? describeAbandonedOperation(mirrorCommitError)
+        : undefined)
     : undefined;
   const unsentDraftNotice = unsentDraftNotices[selectedJourney];
   const messages = navigationPresentation.messages;
@@ -3443,9 +3451,15 @@ export function App({ model }: AppProps) {
   }
 
   async function recoverPostTerminalPersistence(ownerJourneyId: string) {
-    if (postTerminalRecoveryRef.current || selectedRuntimeBusy || piInvocationOccupancy.status !== "known") return;
+    if (postTerminalRecoveryRef.current || piInvocationOccupancy.status !== "known") return;
+    // CR116: refuse only while Pi is really executing for this Journey. The previous guard used
+    // the renderer's active-or-finalizing flag, which a settlement that stopped leaves set
+    // forever — so the repair route declined exactly the state it exists to heal, and the
+    // Navigator had no way out but quitting. Native occupancy is the authority on whether work
+    // is live; a merely `finalizing` lease means the process is gone and bookkeeping is owed.
+    if (hasActiveNativeExecution(piInvocationOccupancy, ownerJourneyId)) return;
     const ownerEntry = journeyRuntimeStateRef.current.entries[ownerJourneyId];
-    if (ownerEntry && isJourneyRuntimeActiveOrFinalizing(ownerEntry)) return;
+    if (ownerEntry && isJourneyRuntimeStreaming(ownerEntry)) return;
     postTerminalRecoveryRef.current = true;
     setIsRetryingMirrorCommit(true);
     beginSyncAttempt(ownerJourneyId);
