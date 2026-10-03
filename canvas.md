@@ -22,6 +22,7 @@
 | ↳ 20 Change Requests anteriores | ✅ done | `██████████` |
 | **RS016 · Ongoing Product Improvements** | 🔄 ativa · CR em foco: CR117 reaberta | `█████████░` 24 done · 4 ↗️ · 1 ⛔ |
 | ↳ **CR117 · Make a Correction Legible While It Is Live** | 🧪 reaberta · guardas corrigidas · falta re-homologar | `█████████░` |
+| ↳ **CR118 · Anchor a Segment to the History It Can See** | 🟡 captured · aviso transitório, estado limpo | `░░░░░░░░░░` |
 | ↳ **CR116 · Release a Journey Stranded in Finishing** | ✅ done · homologada no Dev | `██████████` |
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
 | RS022 · Mirror Core Debts | 🔄 ativa · registro sem CR aberta | `░░░░░░░░░░` 1 ⏸️ |
@@ -49,6 +50,20 @@
 | Host the Journey's Declared Workflow | ↗️ explorada e pivotada | CR112 ✅ · Agent's Canvas |
 | Agentic Map of Admitted Context | ↗️ explorada e entregue | CR105 ✅ · Context Map |
 | 11 explorações anteriores | 🗂️ colapsadas | status nos arquivos ainda não reconciliado; não contam como foco atual |
+
+**Achado novo (CR118, capturada):** o aviso de sincronização que o Navigator viu pertence ao run
+`19:24:27Z`, o da segunda rodada de homologação — anterior ao build com o reparo das guardas. Nada
+está quebrado agora: os 43 registros do journal estão `settled/completed` e o outbox está vazio. A
+metade do Segment é fragilidade real: o `firstTurnId` é ancorado no turno mais **antigo** da sessão
+inteira, enquanto a janela carregada é limitada ao fim por desenho da CR114 — duas listas de turnos
+respondendo a mesma pergunta, livres para discordar. Com um único segmento não há degradação: o
+`firstAvailable` foi escrito para pular segmentos iniciais irresolúveis e vira `-1`.
+
+**Prova da regressão da CR117 em dado durável:** os dois registros de steering da jornada são
+exatamente as duas rodadas. Run `18:47` (transição viva quebrada, status parado em `accepted`):
+`applied` com `piUserEntryId=479a2df1`. Run `19:24` (transição viva funcionando): `delivered` com
+`piUserEntryId` nulo. Confirma o diagnóstico e por que a rodada 1 validou algo que a rodada 2
+invalidou.
 
 **Próximo passo:** re-homologar o passo terminal da CR117, que a própria correção da rodada 2 havia
 invalidado em silêncio. Mande uma correção durante um run longo e confirme a sequência completa:
