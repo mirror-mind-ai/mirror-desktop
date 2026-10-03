@@ -2,13 +2,15 @@
 
 # CR116: Release a Journey Stranded in Finishing
 
-**Status:** captured
+**Status:** planned
 **Driver:** —
 **Delivery:** —
 
 Captured on 2026-10-02 from a production incident the Navigator reported while `v0.2.0-alpha.31`
-was prepared and awaiting confirmation. Capture records the problem and the expected behavior; it
-selects nothing, assigns nothing and authorizes no implementation.
+was prepared and awaiting confirmation. Pulled by explicit Navigator intent on 2026-10-02 after
+`v0.2.0-alpha.31` was published. The plan below was recorded from a read-only diagnosis of `main`
+at `5273428`. Driver and Delivery remain open decisions, and implementation requires an explicit
+Navigator instruction; this record does not start it.
 
 ## Problem
 
@@ -162,6 +164,141 @@ quitting the application.
   diagnosis.
 - No new release, tag, publication or promotion is authorized by this capture.
 - Capture assigns no Driver, chooses no Delivery and starts no implementation.
+
+## Diagnosis (2026-10-02, after pull)
+
+Read-only inspection of `main` at `5273428`. The capture named two defects. A third layer exists,
+and it changes the remedy: **fixing the renderer guard alone would accomplish nothing.**
+
+**There are three per-Journey serialization layers, and none of them is bounded.**
+
+```text
+1  turnFinalizationCoordinator.serialize(journeyId)      finalize + interrupt + converge
+2  journeyPersistenceCoordinator.run(journeyId tail)     every persistence operation
+3  recoverPostTerminalPersistence guard                  declines while finalizing
+```
+
+Layer 1 is the one the capture missed:
+
+```js
+function serialize(journeyId, task) {
+  const previous = queues.get(journeyId) ?? Promise.resolve();
+  const next = previous.then(task, task);
+  queues.set(journeyId, next.catch(() => undefined));
+  return next;
+}
+```
+
+One queue per Journey serves `finalizeCompletedTurn`, `finalizeInterruptedTurn` **and**
+`convergeDelivery`. `previous.then(task, task)` runs the next task whether the predecessor resolved
+or rejected, so rejection is survived by design — and, exactly like layer 2's `prior.catch()`, a
+predecessor that never settles is not. A hung `finalizeCompletedTurn` therefore parks
+`convergeDelivery` behind it forever. The repair route would hang even if it were allowed to start,
+which means layer 3 is not the thing standing between the Navigator and recovery; it is merely the
+first refusal they meet.
+
+**The two layers have different blast radii.** Reading `executeCompletedSettlement`, the live
+sequence is:
+
+```text
+loadActiveEvidence        outside the persistence tail
+saveActiveProjection      inside  (pre_frontier)
+loadActiveEvidence        outside
+cleanupLease              outside
+enqueueOutbox             inside  (pre_frontier)
+deliverOutboxItem         outside
+appendAndAcknowledge      inside  (post_frontier)
+```
+
+A hang outside the tail strands the turn and, through layer 1, the Journey's finalization queue. A
+hang inside the tail additionally poisons persistence. Both present identically as `Finishing`.
+
+**Where the incident's hang sits.** The journal never left `terminal_durable` and the durable
+projection was never written, and the completed path advances `terminal_durable → outbox_enqueued`
+inside `enqueueProjectionOutbox`. That places the pending operation at `loadActiveEvidence` or
+`saveActiveProjection` — the first two steps. Both reach native commands over large files: the
+former loads the durable projection and thread authority with the Pi session coordinates attached,
+the latter writes the projection and then chains `loadConversationSegments`,
+`publishConversationSegmentProjections` and, for Desktop threads only, a catalog reconcile. The
+affected thread is `nautilus-thread-alissonvale-com`, so the catalog branch was not involved. Which
+exact command hung remains unestablished.
+
+**Abandonment is safe, and that is not an assumption.** Two existing guarantees make a bounded
+operation recoverable rather than corrupting. Journal transitions carry both `expectedRevision` and
+`expectedPhase` and are enforced natively, so a revived zombie operation cannot regress or
+double-advance a record — `stale_divergent_and_cross_authority_mutations_fail_closed` and
+`authority_free_lifecycle_save_cannot_regress_a_persisted_receipt` already pin this. Durable
+projection writes are staged and preserve the previous file on failure, pinned by
+`durable_projection_write_syncs_unique_stage_and_preserves_previous_on_failure`. Slice 0 re-verifies
+both before anything is changed.
+
+## Plan
+
+0. **Characterise all three layers.** Tests that pin today's behaviour: a never-settling operation
+   inside the persistence tail strands every later persistence call for that Journey; a
+   never-settling `finalizeCompletedTurn` parks `convergeDelivery` on the same Journey; the repair
+   route declines while `isFinalizingTurn` is set. Re-verify the two native guarantees above, so
+   the rest of the plan rests on checked ground rather than on reading.
+1. **Bound the operations.** Introduce one bounded-wait seam used by both coordinators, so a
+   persistence or finalization operation that stops progressing fails its caller instead of waiting
+   forever. The bound must be generous: this product legitimately writes multi-megabyte projections
+   and inspects a 39.7 MB session, and a bound that fires on ordinary slowness would be a worse
+   defect than the one being fixed.
+2. **Abandon instead of poisoning.** On expiry both queues must advance so successors run, relying
+   on the native expectations from slice 0 to make any late landing fail closed. Record the
+   abandonment as durable, readable evidence rather than a console line.
+3. **Make recovery reachable.** Re-base the repair route's refusal on native occupancy, which is
+   authoritative about whether Pi is actually executing, rather than on the renderer's
+   `isFinalizingTurn` belief. Preserve CR115: an idle Journey must not re-enter recovery, and the
+   trigger must not watch a status its own run mutates.
+4. **Stop showing `Finishing` for something that has stopped.** Decide whether stalled finalization
+   becomes its own runtime state, so the surface can say that finalization stopped and offer the
+   repair control, instead of displaying a label that promises imminent completion forever.
+5. **Regression.** The CR115 idle-loop test and the CR108 independence test must both hold, and a
+   new test must prove a stranded Journey returns to usable in the same session.
+6. **Validate.** Automated gates, then Eval homologation on a real Journey confirming ordinary
+   settlement, cancellation and sending are unchanged.
+
+## Files
+
+- `src/app/turnFinalizationCoordinator.ts`: `serialize`, `finalizeCompletedTurn`,
+  `finalizeInterruptedTurn`, `convergeDelivery`.
+- `src/app/journeyPersistenceCoordinator.ts`: the per-Journey tail, bound and abandonment.
+- `src/app/journeySettlement.ts`: `executeCompletedSettlement`, for which steps are bounded.
+- `src/app/App.tsx`: `recoverPostTerminalPersistence` and its guard, the effect that triggers it,
+  the repair controls, `finalizationPorts`, `saveProjectedTurnLifecycle`.
+- `src/app/journeyRuntimeState.ts`: whether stalled finalization is its own state.
+- `src/app/piInvocationOccupancy.ts`: the authoritative active-execution signal for the guard.
+- `src/app/ComposerRuntimeFooter.tsx`, `src/app/journeyAgentStatus.ts`, `src/styles/app.css`: the
+  surface for a finalization that stopped.
+- Tests: a new `strandedFinalizationRecovery`, additions to `journeyPersistenceCoordinator`,
+  `turnFinalizationCoordinator`, `journeySettlement`, `composerTurnStatus` and `journeyAgentStatus`,
+  plus `idleRecoveryLoop` as the CR115 regression.
+
+## Validation
+
+- Automated: the new and amended tests above, the complete front-end suite, `tsc`, production
+  build, `cargo test`, `cargo check --locked`, `roadmap:check`, `git diff --check`.
+- A test must demonstrate the whole chain: an operation that never settles leaves the Journey
+  usable, the failure visible, and a later successful turn unaffected.
+- Eval homologation on a real Journey: ordinary turns, cancellation, manual compaction and restart
+  recovery all unchanged, and an idle Journey quiet.
+- Honest limit to record at closure: the production hang is not reproducible on demand, so the
+  stranded path will be proven by test rather than by reproducing the original incident in Eval.
+  No claim should be made that the root operation was identified unless it actually is.
+
+## Open Decisions
+
+1. **What expiry does.** Reject the awaiting caller and advance the queue, treating the operation as
+   abandoned, or wait for the zombie and merely stop blocking successors. Recommendation: reject and
+   advance, because the native expectations already make a late landing fail closed, and because a
+   caller that never returns is the defect.
+2. **What the bound is.** A fixed generous timeout, or progress-based with no fixed ceiling.
+   Recommendation: a fixed generous bound first, since it is testable and the product has no
+   progress signal to observe today.
+3. **Whether stalled finalization gets its own visible state.** Recommendation: yes. `Finishing`
+   forever is the specific thing that misled the Navigator, and a truthful label is what makes the
+   repair control findable.
 
 ## Dependencies
 

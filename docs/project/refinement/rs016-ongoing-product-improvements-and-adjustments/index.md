@@ -28,7 +28,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
-- [CR116: Release a Journey Stranded in Finishing](cr116-release-a-journey-stranded-in-finishing.md) — captured
+- [CR116: Release a Journey Stranded in Finishing](cr116-release-a-journey-stranded-in-finishing.md) — planned
 - [CR115: Stop the Idle Post-Terminal Recovery Loop](cr115-stop-the-idle-post-terminal-recovery-loop.md) — done
 - [CR096: Verify the Published Download Alias](cr096-verify-the-published-download-alias.md) — done
 - [CR095: Record Each Journey Binding Repair as Durable Evidence](cr095-record-each-journey-binding-repair-as-durable-evidence.md) — done
@@ -58,16 +58,23 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR031 — Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md)
 - [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md)
 
-CR116 is `captured`, unassigned and deliberately unranked; prioritising it is a separate Navigator
-decision. It records a production incident on 2026-10-02 in which a Journey stayed in `Finishing`
-after its turn had completed, leaving cancellation, sending and the post-terminal repair route all
-blocked for the life of the application process. The committed answer was durable in the Pi session
-throughout, so nothing was lost; what failed was the Desktop's post-turn bookkeeping, and it had no
-in-session exit. The capture names two separable defects: the per-Journey persistence tail survives
-a rejected predecessor but not one that never settles, and carries no timeout or abandonment path;
-and the CR062 repair route declines to run precisely while a Journey is finalizing, which is the
-state it exists to repair. Which awaited operation hung was not established, and the capture records
-that openly rather than naming a cause.
+CR116 is `planned` and unassigned, pulled on 2026-10-02 by explicit Navigator intent after
+`v0.2.0-alpha.31` was published. It records a production incident the same day in which a Journey
+stayed in `Finishing` after its turn had completed, leaving cancellation, sending and the
+post-terminal repair route all blocked for the life of the application process. The committed answer
+was durable in the Pi session throughout, so nothing was lost; what failed was the Desktop's
+post-turn bookkeeping, and it had no in-session exit.
+
+The diagnosis after the pull found a third layer that the capture had missed and that changes the
+remedy: `turnFinalizationCoordinator.serialize` is one per-Journey queue shared by finalization,
+interruption and `convergeDelivery`, so a hung finalization parks the recovery routine behind it.
+Fixing the repair route's guard alone would therefore accomplish nothing. Three per-Journey
+serialization layers exist and none is bounded; each survives a rejected predecessor by design and
+none survives one that never settles. Abandonment was established as safe rather than assumed,
+because journal transitions already carry native revision and phase expectations and durable
+projection writes are already staged. Which awaited operation hung remains unestablished, and the
+record says so rather than naming a cause. Three decisions are open: what expiry does, what the
+bound is, and whether stalled finalization gets its own visible state.
 
 CR096 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr096-download-alias-verification`. It records that the blocking post-publication verification covers only the manifest URLs installed applications poll, leaving the site download alias `downloads/macos/mirror-desktop-latest.dmg` unchecked. Because staging and upload of that alias are both conditional on a DMG being supplied, a publication without one completes every stage, passes verification and prints success while the site keeps serving the previous installer. Verified by hand after v0.2.0-alpha.21, where the alias was byte-identical to the built artifact — correct, but confirmed after the fact rather than guaranteed. Implemented: verification now refuses to run without the published DMG digest, checks the alias version, its canonical target, its advertised URLs and the digest of the served bytes, and records all of it in the publication evidence. The Navigator validated it on 2026-09-26 after the new checks were run read-only against the already-published v0.2.0-alpha.21, with two negative controls confirming they block. Proportionality review concluded proportional; Debt Review concluded `follow_up`, recording that the prepare-to-publish digest hand-off is proven by reading state rather than by a run — it resolves on first use — and that GitHub Release assets stay unverified by explicit exclusion.
 

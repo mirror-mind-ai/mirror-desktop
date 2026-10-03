@@ -1,8 +1,8 @@
 # Mirror Desktop · visão de situação
 
-📦 **Última versão publicada:** `v0.2.0-alpha.30` · A Quiet, Responsive Composer
+📦 **Última versão publicada:** `v0.2.0-alpha.31` · Work From the Current Chapter
 
-🎯 **Foco oficial:** sem CR em andamento · CR114 aceita e fechada
+🎯 **Foco oficial:** CR116 · `planned` · sem Driver · 3 decisões abertas
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active`; Embedded TS Runtime é uma direção capturada
 
@@ -10,7 +10,7 @@
 
 | Story / Change Request | Estado | Progresso |
 | --- | --- | --- |
-| **RS021 · UX Pre-Beta Evolution** | 🔄 ativa · sem CR em foco | `████████░░` 24/28 fechadas |
+| **RS021 · UX Pre-Beta Evolution** | 🔄 ativa · sem CR em foco | `█████████░` 24/28 fechadas |
 | ↳ CR105 · Context Surface → Context Map | ✅ done · entregue | `██████████` |
 | ↳ CR112 · Host a Canvas the Journey's Agent Draws | ✅ done · publicada em alpha.29 | `██████████` |
 | ↳ CR097 · Keep a Correction Recognisable After Reload | 🟡 captured · primeira na ordem capturada | `░░░░░░░░░░` |
@@ -18,10 +18,10 @@
 | ↳ CR098 · Allow a Journey to Be Reparented | 🟡 captured | `░░░░░░░░░░` |
 | ↳ CR100 · Make Journey Image Updates Supported | 🟡 captured | `░░░░░░░░░░` |
 | ↳ CR113 · Make Composer Typing Responsive in Large Journeys | ✅ done · aceita com CR115 | `██████████` |
-| ↳ **CR114 · Make the Current Segment the Default Working Set** | ✅ done · aceita no Eval | `██████████` |
+| ↳ **CR114 · Make the Current Segment the Default Working Set** | ✅ done · publicada em alpha.31 | `██████████` |
 | ↳ 20 Change Requests anteriores | ✅ done | `██████████` |
-| **RS016 · Ongoing Product Improvements** | 🔄 ativa · 1 CR capturada | `█████████░` 23 done · 4 ↗️ · 1 ⛔ |
-| ↳ **CR116 · Release a Journey Stranded in Finishing** | 🟡 captured · não ranqueada | `░░░░░░░░░░` |
+| **RS016 · Ongoing Product Improvements** | 🔄 ativa · CR em foco: CR116 | `█████████░` 23 done · 4 ↗️ · 1 ⛔ |
+| ↳ **CR116 · Release a Journey Stranded in Finishing** | 🟡 planned · plano registrado | `░░░░░░░░░░` |
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
 | RS022 · Mirror Core Debts | 🔄 ativa · registro sem CR aberta | `░░░░░░░░░░` 1 ⏸️ |
 | RS001 … RS020 | ✅ 19 Refinement Stories fechadas | `██████████` |
@@ -49,12 +49,13 @@
 | Agentic Map of Admitted Context | ↗️ explorada e entregue | CR105 ✅ · Context Map |
 | 11 explorações anteriores | 🗂️ colapsadas | status nos arquivos ainda não reconciliado; não contam como foco atual |
 
-**Próximo passo:** confirmar a publicação da `v0.2.0-alpha.31`, preparada e com gates verdes. Ela
-entrega a CR114: a Journey abre no capítulo atual — na sessão real, 286 entradas em vez de 7.373,
-com 24 capítulos anteriores sob pedido — e a publicação de Segments não sobrescreve mais o metadado
-durável, que era o que truncava o ledger de turnos. O vocabulário visível foi unificado em
-*chapter*; Segment segue como nome interno do schema e dos comandos nativos.
+**Próximo passo:** decidir as três questões abertas da CR116, mais Driver e Delivery, antes de
+implementar. O diagnóstico após a puxada achou uma terceira camada que a captura não tinha: a fila
+de `turnFinalizationCoordinator.serialize` é uma só por Journey e serve também a `convergeDelivery`,
+então uma finalização pendurada estaciona a própria rotina de recuperação atrás dela — consertar o
+guarda sozinho não resolveria nada.
 
-Em paralelo, a CR116 foi capturada a partir de um incidente em produção na `alpha.30`: uma Journey
-presa em *Finishing* depois do turno concluir, sem saída dentro da sessão. É anterior à CR114 e não
-afeta esta release.
+A `alpha.31` saiu com a CR114: a Journey abre no capítulo atual — 286 entradas em vez de 7.373, com
+24 capítulos anteriores sob pedido — e a publicação de Segments não sobrescreve mais o metadado
+durável, que era o que truncava o ledger de turnos. O vocabulário visível ficou unificado em
+*chapter*; Segment segue como nome interno do schema e dos comandos nativos.
