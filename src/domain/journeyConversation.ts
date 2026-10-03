@@ -81,7 +81,19 @@ export type TerminalAgentActionEvidence = {
   interruptedFragment?: string;
 };
 
-export type SteeringStatus = "pending" | "accepted" | "applied" | "rejected" | "terminally_unconsumed";
+/**
+ * CR117: `accepted` is Pi's RPC admitting the request; `delivered` is Pi having handed the
+ * correction to the model, observed from its own steering queue; `applied` is the correction
+ * existing as a session entry, which only Pi can confirm because only Pi mints the entry id.
+ * `delivered` exists because the live signal cannot prove `applied` and must not pretend to.
+ */
+export type SteeringStatus =
+  | "pending"
+  | "accepted"
+  | "delivered"
+  | "applied"
+  | "rejected"
+  | "terminally_unconsumed";
 
 export type SteeringEvidence = {
   schemaVersion: "0.1.0";

@@ -163,6 +163,7 @@ type PiJsonEvent = {
     reason?: string;
     error?: { errorMessage?: string };
   };
+  steering?: unknown;
   toolName?: string;
   toolCallId?: string;
   args?: unknown;
@@ -250,6 +251,8 @@ function mapPiJsonEventToStreamEvents(event: PiJsonEvent, options: PiProcessMapp
       return [{ type: "run_status", status: "working" }];
     case "message_start":
       return mapJsonMessageStart(event.message);
+    case "queue_update":
+      return mapJsonSteeringQueue(event.steering);
     case "message_update":
       return [...usageEvents, ...mapJsonAssistantMessageEvent(event.assistantMessageEvent, options)];
     case "tool_execution_start":
@@ -427,6 +430,15 @@ function isAssistantMessage(message: unknown): message is {
 
 function assistantMessageUsage(message: unknown): PiJsonEvent["usage"] {
   return isAssistantMessage(message) ? message.usage : undefined;
+}
+
+/**
+ * CR117: Pi reports the steering queue as the texts still waiting. A malformed payload must not be
+ * read as an empty queue, because an empty queue is exactly what means "delivered".
+ */
+function mapJsonSteeringQueue(steering: unknown): AgentStreamEvent[] {
+  if (!Array.isArray(steering) || steering.some((item) => typeof item !== "string")) return [];
+  return [{ type: "steering_queue", queued: steering as string[] }];
 }
 
 function mapJsonMessageStart(message: unknown): AgentStreamEvent[] {

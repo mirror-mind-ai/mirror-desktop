@@ -361,6 +361,7 @@ import {
 import type { JourneyConversation, SteeringEvidence } from "../domain/journeyConversation";
 import {
   appendPendingSteering,
+  markSteeringDeliveredByQueueDeparture,
   reconcileSteeringUserEntries,
   settleUnconsumedSteering,
   transitionSteering,
@@ -3002,6 +3003,27 @@ export function App({ model }: AppProps) {
             updateRunConversation((currentConversation) =>
               applyCertifiedModeTransition(currentConversation, transition, `runtime-${event.operation.id}`),
             );
+          }
+        }
+        // CR117: Pi reports its own steering queue, and a correction that has left it is one the
+        // model has been handed. Before this, the only producer of a post-accepted status ran on
+        // the terminal `done` event, so a correction read as merely queued until the whole turn
+        // ended — exactly when the status had stopped being useful.
+        if (event.type === "steering_queue" && runAuthority) {
+          const queued = event.queued;
+          updateRunConversation((currentConversation) => {
+            try {
+              return markSteeringDeliveredByQueueDeparture(currentConversation, runAuthority, queued);
+            } catch {
+              // Authority moved on; the durable reconciliation at settlement remains the record.
+              return currentConversation;
+            }
+          });
+          const ownRunEvidence = steeringEvidenceByRunRef.current[runAuthority.runId];
+          if (ownRunEvidence) {
+            steeringEvidenceByRunRef.current[runAuthority.runId] = runConversation.steeringEvidence?.filter(
+              (item) => item.runId === runAuthority.runId,
+            ) ?? ownRunEvidence;
           }
         }
         if (event.type === "raw_output") {

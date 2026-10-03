@@ -28,7 +28,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
-- [CR117: Make a Correction Legible While It Is Live](cr117-make-a-correction-legible-while-it-is-live.md) — planned
+- [CR117: Make a Correction Legible While It Is Live](cr117-make-a-correction-legible-while-it-is-live.md) — in progress
 - [CR116: Release a Journey Stranded in Finishing](cr116-release-a-journey-stranded-in-finishing.md) — done
 - [CR115: Stop the Idle Post-Terminal Recovery Loop](cr115-stop-the-idle-post-terminal-recovery-loop.md) — done
 - [CR096: Verify the Published Download Alias](cr096-verify-the-published-download-alias.md) — done
@@ -69,7 +69,7 @@ throughout. Proportionality review concluded proportional. Debt Review is `follo
 operation that hung remains unestablished and could justify phase-level observability later, but no
 follow-up is selected.
 
-CR117 is `planned` and unassigned, captured on 2026-10-03 from two Navigator observations in daily
+CR117 is `in_progress` under @alissonvale on `refinement/rs016-cr117-live-correction-legibility`, captured on 2026-10-03 from two Navigator observations in daily
 use. It was briefly recorded as a CR116 Phase 2 and promoted to its own CR before CR116's delivered
 work was released, because one CR cannot coherently hold both a released phase and an unplanned one.
 Its diagnosis established that the status vocabulary already models `applied` and already refuses it
@@ -78,7 +78,13 @@ runs on the terminal `done` event, so a live correction stays `Correction queued
 ends. It also established that corrections are rendered in the user prompt's row, the one part of the
 turn guaranteed to be scrolled away when a correction is sent, and that the obvious way to observe
 delivery would reread the whole Pi session, which CR114 measured at 55 MB. The plan therefore
-requires a bounded or event-driven signal and rejects full-session polling. The wording must say the
+required a bounded or event-driven signal and rejected full-session polling. The slice 1 spike then
+found that Pi already emits `queue_update` carrying its own steering queue, which the Desktop was
+discarding — an event-driven signal costing no reads at all. The same spike falsified the plan's
+assumption that only call timing had to change: Pi mints a session entry id only at persistence, so
+the live signal cannot produce `applied`, and a `delivered` state was added rather than weakening
+`applied`'s exact-evidence contract. Slices 2–3 are implemented with gates green; slice 4, placement,
+is not started. The wording must say the
 correction reached the model's input, not that the model read it. CR117 shares the correction surface
 with CR097 and records an explicit boundary with it.
 

@@ -8491,8 +8491,19 @@ dd {
   white-space: pre-wrap;
 }
 
+/* CR117: delivery is real progress, so it reads as progress — but it is not application, so it
+   stops short of the applied accent. */
+.steering-message.is-delivered {
+  border-left-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
 .steering-message.is-applied {
   border-left-color: color-mix(in srgb, var(--accent) 68%, var(--border));
+}
+
+.steering-message header .steering-mark {
+  margin-right: 4px;
+  letter-spacing: -0.08em;
 }
 
 .steering-message.is-rejected,

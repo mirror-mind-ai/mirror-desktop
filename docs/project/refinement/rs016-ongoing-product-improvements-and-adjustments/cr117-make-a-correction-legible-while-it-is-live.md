@@ -2,9 +2,9 @@
 
 # CR117: Make a Correction Legible While It Is Live
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr117-live-correction-legibility`
 
 Captured on 2026-10-03 from two Navigator observations in daily use, and planned the same day from a
 read-only reading of `main` at `aa3d329`. It was first recorded as a Phase 2 inside
@@ -92,20 +92,83 @@ entered the model's input, not that the model read or obeyed it. The visible wor
 former. This follows the register CR079 and CR114 already set: mark what is known, never imply an
 observation the system cannot make.
 
+## Slice 1 Spike Result (2026-10-03)
+
+The spike was run against Pi `0.99.1` at
+`/usr/local/lib/node_modules/@earendil-works/pi-coding-agent`, read-only, plus the Desktop at
+`c04fbf3`. It settled the mechanism and **falsified one of this CR's own planning assumptions.**
+
+**An event-driven delivery signal exists, and the Desktop already throws it away.** Pi emits
+
+```js
+{ type: "queue_update", steering: [...this._steeringMessages], followUp: [...] }
+```
+
+`_steeringMessages` holds the queued correction texts (`push(text)`), and Pi splices a correction out
+of that array at the moment it hands it to the model. So a correction present in `steering[]` is
+still waiting, and a correction that has disappeared from it has been delivered. This is preference
+order 1 from the plan: live, exact about the transition, and costing zero file reads. The Desktop
+handles no `queue_update` case anywhere in `src` or `src-tauri/src` — the event is currently
+discarded.
+
+A second, weaker signal was also found and is **not** chosen: Pi emits `message_start` with
+`role: "user"` during a live run, and `mapJsonMessageStart` already receives it and discards
+anything without a `<skill>` tag. It would work, but it infers delivery from a side effect, while
+`queue_update` reports the queue directly.
+
+**The planning assumption that "only the call timing changes" is wrong.** The plan assumed the live
+signal could produce `applied`. It cannot. `transitionSteering` requires `piUserEntryId` for
+`applied`, and that identity does not exist yet when the correction is delivered:
+
+```js
+{ type: "message", id: generateId(this.byId), parentId: this.leafId, timestamp: ..., message }
+```
+
+Pi generates the entry id at **persistence** time, against the session's own id map. It is not
+carried on the in-flight message, and `queue_update` has no id field. Confirmed from Pi's source,
+not inferred from the Desktop's fixtures.
+
+**Consequence, and the decision it forces.** Weakening `applied` to accept a text match would
+destroy the guarantee that CR116-era evidence rules depend on, so that is rejected. Instead the
+lifecycle gains one intermediate state:
+
+| state | meaning | evidence | when |
+|---|---|---|---|
+| `accepted` | Pi's RPC admitted the steer request | RPC response | on send |
+| `delivered` | the correction was handed to the model | `queue_update` queue departure | live, during the run |
+| `applied` | the correction exists as a Pi session entry | exact `piUserEntryId` | at `done`, unchanged |
+
+`delivered` is what the Navigator actually asked to see, and it is also the honest ceiling for a live
+signal: it says the correction reached the model's input, which is exactly what the queue departure
+proves and no more. `applied` keeps its exact-evidence contract untouched.
+
+This makes `SteeringStatus` a persisted-type change, so slice 2 must carry schema compatibility:
+older records simply never hold `delivered`, and the `0.9.0` parser must accept it going forward.
+
 ## Plan
 
-1. **Characterise and choose the signal.** Prove the current timing with a test that a correction
+Slice 1 is complete; the remaining slices are revised by its result. Slice 4 remains a design
+decision and is deliberately not started.
+
+1. ~~**Characterise and choose the signal.**~~ Done — see the spike result above.
+
+1. **Original slice 1, for the record.** Prove the current timing with a test that a correction
    stays `accepted` for the life of the run. Then establish the cheapest truthful in-run signal, in
    this preference order: an event-driven confirmation if one can be obtained from the existing RPC
    or stream; otherwise a bounded scoped read from a known entry id; naive full-session polling is
    rejected outright. Record the measured cost of the chosen option.
-2. **Observe application during the run.** Reconcile steering evidence while the run is alive, so
-   `applied` is reached when it happens. Reuse `reconcileSteeringUserEntries` and keep its existing
-   fail-closed guarantees: exact run authority, no duplicate claim of one Pi entry, evidence
-   required for `applied`. Changing the status machine is out of scope; only the call timing changes.
-3. **Make the status legible.** Distinguish admitted from delivered in the visible label and give
-   the delivered state its own mark, worded per the truthfulness constraint. Keep every existing
-   terminal label intact.
+2. **Admit `delivered` into the lifecycle (revised by the spike).** Add the state between `accepted`
+   and `applied`, with its transitions, and accept it in the `0.9.0` parser so a persisted record
+   round-trips. It must require no Pi entry id, because none exists yet, and must not let `applied`
+   be reached without one. `terminally_unconsumed` must remain reachable from it, since a delivered
+   correction can still end a run without ever becoming a session entry.
+3. **Map `queue_update` and mark delivery live (revised by the spike).** Parse the event in
+   `piProcessStream`, emit a steering-queue stream event, and transition this run's corrections to
+   `delivered` as they leave Pi's queue. Match by exact text within the run's own evidence, which is
+   the identity Pi's queue uses and the identity `reconcileSteeringUserEntries` already matches on.
+   A `queue_update` for an unknown text must change nothing. Give `delivered` its own visible label
+   and mark, worded per the truthfulness constraint, and keep every existing terminal label intact.
+   `applied` continues to be produced only at `done`, from exact entry evidence.
 4. **Put the correction where the Navigator is looking.** Decide the placement explicitly and record
    the reasoning: render the correction with the live agent run it is correcting rather than under
    the distant prompt, and/or acknowledge it near the Composer at send time. The acceptance is
@@ -119,14 +182,61 @@ observation the system cannot make.
    during a long output, several corrections in one turn, a correction never consumed before
    cancellation, and a correction in a turn that completes.
 
+## Slices 2–3 Implementation Evidence (2026-10-03)
+
+Implemented test-first on `refinement/rs016-cr117-live-correction-legibility`. Slice 4, placement,
+is deliberately not started.
+
+`SteeringStatus` gained `delivered` between `accepted` and `applied`. Its transitions keep both ends
+open — `applied` when the session entry later confirms it, `terminally_unconsumed` when the run ends
+first, which is the ordinary cancellation case. The `0.9.0` parser accepts the new status, and older
+records simply never carry it.
+
+`markSteeringDeliveredByQueueDeparture` reads delivery from *absence*: a correction of this run no
+longer present in Pi's queue has been handed to the model. Duplicate texts are counted rather than
+matched one-to-one, and because Pi delivers in order, the copies it still holds are the most recent
+ones — so the walk is newest-first and the oldest surplus is what departed. A first implementation
+had this backwards and the duplicate-text test caught it. The function returns the same object when
+nothing departed, preserves stored order, and refuses a foreign run authority.
+
+`queue_update` is now parsed in `piProcessStream` into a `steering_queue` stream event, and applied
+to the live conversation in the run loop. A malformed payload maps to nothing, because an empty
+queue is precisely what means delivered and must never be inferred from a parse failure.
+
+Visible wording is `Correction reached the agent` with a single check, against `Correction applied`
+with a double check. Both say what the evidence establishes: the queue departure proves the
+correction entered the model's input, and nothing observes whether the model read or followed it.
+
+### Tests
+
+`src/tests/liveCorrectionDelivery.test.ts`, 14 cases: delivery on departure, no change while
+queued, only the departed correction, duplicate-text ordering, absence versus unrelated text,
+foreign-authority refusal, terminal statuses not resurrected, `applied` still reached at settlement
+with exact entry evidence, delivered-then-cancelled, refusal to reach `applied` without evidence,
+persistence round trip, and three `queue_update` mapping cases.
+
+### Gates
+
+222 files / 1,568 tests (was 221 / 1,554). `tsc --noEmit`, `npm run build`, `cargo test` 241 passed
+/ 3 ignored, `cargo check --locked`, `roadmap:check`, `git diff --check`.
+
+### Not Yet Validated
+
+No Navigator homologation yet, and no Dev build from this branch. The delivery path is proven
+against Pi's documented queue contract and by unit test, not yet by a live run with a real
+correction. Slice 4 — putting the correction where the Navigator is looking — remains open, so the
+second of the two reported problems is not yet addressed.
+
 ## Files
 
-Expected: `src/app/App.tsx` (the `done`-only reconciliation and whatever in-run cadence slice 1
-selects), `src/app/SteeringMessages.tsx` (labels and the delivered mark),
-`src/app/ConversationTranscript.tsx` and `src/app/conversationTranscriptModel.ts` (placement),
-`src/styles/app.css`. Possibly `src/agent/piProcessStream.ts` and `src-tauri/src/main.rs` if slice 1
-selects a bounded native read. `src/domain/steeringState.ts` is expected to change only if slice 1
-proves it must; its status machine is deliberately not being redesigned.
+Revised by the spike. Expected: `src/domain/journeyConversation.ts` (`SteeringStatus` gains
+`delivered`), `src/domain/steeringState.ts` (transitions and the delivery transition),
+`src/domain/persistedJourneyConversation.ts` (accept the new status in the `0.9.0` parser),
+`src/agent/agentStream.ts` and `src/agent/piProcessStream.ts` (map `queue_update`), `src/app/App.tsx`
+(apply delivery during the run), `src/app/SteeringMessages.tsx` (label and mark), `src/styles/app.css`.
+Placement work in `src/app/ConversationTranscript.tsx` and `src/app/conversationTranscriptModel.ts`
+belongs to slice 4 and is not started. No bounded native read and no `src-tauri/src/main.rs` change
+are needed, because the chosen signal is an event the Desktop already receives.
 
 Tests: `src/tests/steeringState.test.ts`, `src/tests/steeringMessages.test.tsx`, a new in-run
 reconciliation test, a placement/visibility component test, and `src/tests/interruptedTurnIdentity.test.ts`

@@ -68,6 +68,9 @@ export type AgentStreamEvent =
   | { type: "diagnostic"; message: string }
   | { type: "grammar_update"; update: PiGrammarUpdate }
   | { type: "warning"; message: string }
+  // CR117: Pi's own steering queue. A correction that is no longer listed has been handed to the
+  // model, which is the first moment it is part of what the model was given.
+  | { type: "steering_queue"; queued: string[] }
   | { type: "cancelled"; message: string }
   | { type: "done" }
   | { type: "error"; message: string };

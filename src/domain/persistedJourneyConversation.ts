@@ -279,7 +279,8 @@ function parseSteeringEvidence(
   },
 ): SteeringEvidence[] | undefined {
   if (!Array.isArray(value) || value.length > 256) return undefined;
-  const statuses = new Set(["pending", "accepted", "applied", "rejected", "terminally_unconsumed"]);
+  // CR117: `delivered` is accepted going forward. Older records simply never carry it.
+  const statuses = new Set(["pending", "accepted", "delivered", "applied", "rejected", "terminally_unconsumed"]);
   const reasons = new Set(["cancelled", "provider_failed", "process_died", "settled_without_application", "restart_without_process"]);
   const parsed = value.filter((candidate): candidate is SteeringEvidence => {
     if (!isRecord(candidate) || candidate.schemaVersion !== "0.1.0"
