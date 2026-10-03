@@ -13,14 +13,16 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS016
-- Change Request: CR116, reopened on 2026-10-03 by explicit Navigator intent to add two
-  correction-surface concerns as Phase 2: a correction never leaves its queued status, and it is
-  rendered where the Navigator cannot see it. Phase 1 — stranded finalization recovery — stays
-  delivered, Navigator-validated and merged as `4a716d7` / `aa3d329`, and is not revised. Phase 2 is
-  `planned` with scope, files, acceptance, validation and exclusions recorded; it has no Driver, no
-  Delivery and no implementation authority. CR097 is also `planned` and unassigned, and shares the
-  correction surface — the two must not be implemented blind to each other. The captured order below
-  is a ranking, not an instruction to execute.
+- Change Request: CR117, captured and planned on 2026-10-03. It covers two correction-surface
+  observations from daily use — a correction never leaves its queued status, and it is rendered
+  where the Navigator cannot see it. It was promoted out of a brief CR116 Phase 2 so that CR116's
+  delivered work could be released without a single CR holding both a released phase and an
+  unplanned one. CR117 is `planned` with scope, files, acceptance, validation and exclusions
+  recorded; it has no Driver, no Delivery and no implementation authority. CR116 is `done` under
+  @alissonvale after Dev validation on 2026-10-03. CR097 is also `planned` and shares the correction
+  surface with CR117 — the two must not be implemented blind to each other, and CR117 is the
+  recommended first of the pair because it owns the placement decision and populates the exact Pi
+  identity CR097 depends on. The captured order below is a ranking, not an instruction to execute.
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -59,7 +61,8 @@ Open work is ordered intentionally. Terminal history follows open work.
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | planned | — | — |
-| — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing (Phase 2: correction status and focus) | planned | — | — |
+| — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | planned | — | — |
+| — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | done | @alissonvale | `refinement/rs016-cr116-stranded-finalization-recovery` |
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
 | 2 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | done | @alissonvale | `refinement/rs021-cr105-agentic-map` |
 
