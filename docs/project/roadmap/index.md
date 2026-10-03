@@ -26,6 +26,7 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 | [CV-006](cv-006-versioned-macos-release/index.md) | Versioned macOS Release | A repeatable release process associates a macOS bundle, checksum and provenance with an immutable Git tag and source revision | ✅ Done |
 | [CV-007](cv-007-trusted-self-update/index.md) | Trusted Self-Update | Mirror Desktop can verify and apply an authorized compatible release while preserving application and Mirror rollback and explain what is new in the offered release | ✅ Done |
 | [CV-008](cv-008-conversation-spaces/index.md) | Conversation Spaces | Navigator can steer active work, operate more Journey turns concurrently, converse through Journey, conversation or persona destinations, search and navigate durable Conversation history and compose prompts by voice without weakening durable authority | 🟡 Planned |
+| [CV-009](cv-009-trusted-macos-distribution/index.md) | Trusted macOS Distribution | Mirror Desktop can produce a repeatable macOS release artifact signed in Software Zen's Apple developer identity, accepted by Apple notarization, stapled for offline Gatekeeper verification and connected to the existing release provenance and updater trust boundaries without exposing credentials or widening distribution implicitly | 🟡 Planned |
 
 ## Delivery Arc — Operable Agent Cockpit
 
@@ -88,6 +89,8 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 
 CV-001 through CV-007 formed the completed Mirror Desktop baseline. CV-007 has since been reopened for one incremental Delivery Story, In-App What's New, without invalidating the trusted self-update evidence completed through DS-003. CV-001 through CV-006 remain completed historical contracts.
 
+CV-009, Trusted macOS Distribution, is the other planned horizon. It closes a trust boundary the completed release and self-update work does not establish: that macOS recognizes the bundle as software signed by its accountable publisher. It is independent of CV-008 and neither is selected.
+
 CV-008, Conversation Spaces, is the planned product horizon translated from an accepted `mirror-desktop` exploration and subsequent explicit Navigator additions. It contains six independent Delivery Stories covering Steering, expanded cross-Journey concurrency, persona conversation spaces, multiple conversations per Journey, voice prompt composition and Conversation search with turn navigation. No Delivery Story is active or selected in either CV-007 or CV-008, and code order does not commit implementation priority, release intent, concurrency capacity, transcription provider or storage migration.
 
 ## Delivery Arc - Versioned macOS Release
@@ -117,6 +120,16 @@ The codes identify the six accepted product demands. Current approved sequence a
 | [CV-008.DS-003](cv-008-conversation-spaces/ds-003-persona-conversation-spaces/index.md) | Persona Conversation Spaces | Navigator can address a persona as a first-class sidebar destination backed by a stable Mirror Desktop-managed internal Journey | 🟡 Planned |
 | [CV-008.DS-005](cv-008-conversation-spaces/ds-005-voice-prompt-composition/index.md) | Voice Prompt Composition | Navigator can record a spoken prompt and place its transcription into the active composer for review and explicit sending | ✅ Done |
 | [CV-008.DS-006](cv-008-conversation-spaces/ds-006-conversation-search-and-turn-navigation/index.md) | Conversation Search and Turn Navigation | Navigator can find text in the active Conversation and jump among recognizable turns without manually traversing the full transcript | ✅ Done |
+
+## Delivery Arc - Trusted macOS Distribution
+
+Software Zen is the intended Apple Developer Program organization and responsible publisher. The three Delivery Stories move from custody to a signed bundle to a verified, deliberately promoted artifact. No external account action, credential operation or distribution promotion is authorized by their presence here.
+
+| Code | Delivery Story | Outcome | Status |
+|------|----------------|---------|--------|
+| [CV-009.DS-001](cv-009-trusted-macos-distribution/ds-001-software-zen-publisher-and-credential-custody/index.md) | Software Zen Publisher and Credential Custody | The Apple organization identity, release roles, encrypted VPS custody and personal-Mac release-runner procedure are explicit, minimal and auditable | 🟡 Planned |
+| [CV-009.DS-002](cv-009-trusted-macos-distribution/ds-002-signed-macos-release-runner/index.md) | Signed macOS Release Runner | An authorized clean revision can produce a Developer ID-signed, Hardened Runtime Mirror Desktop bundle with inspectable signing evidence | 🟡 Planned |
+| [CV-009.DS-003](cv-009-trusted-macos-distribution/ds-003-notarized-artifact-verification-and-promotion/index.md) | Notarized Artifact Verification and Promotion | A signed release candidate can be notarized, stapled, verified on a clean macOS host and deliberately admitted to the existing distribution route | 🟡 Planned |
 
 ## Boundaries
 
