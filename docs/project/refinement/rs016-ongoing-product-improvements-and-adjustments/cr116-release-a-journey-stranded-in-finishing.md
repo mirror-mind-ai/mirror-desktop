@@ -2,15 +2,15 @@
 
 # CR116: Release a Journey Stranded in Finishing
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr116-stranded-finalization-recovery`
 
 Captured on 2026-10-02 from a production incident the Navigator reported while `v0.2.0-alpha.31`
 was prepared and awaiting confirmation. Pulled by explicit Navigator intent on 2026-10-02 after
 `v0.2.0-alpha.31` was published. The plan below was recorded from a read-only diagnosis of `main`
-at `5273428`. Driver and Delivery remain open decisions, and implementation requires an explicit
-Navigator instruction; this record does not start it.
+at `5273428`. The Navigator later settled the three planned decisions, assigned Driver and
+Delivery, explicitly authorised implementation, and validated the Dev build on 2026-10-03.
 
 ## Problem
 
@@ -377,16 +377,24 @@ No existing expectation needed changing.
 - `cargo test`: 241 passed, 3 ignored. `cargo check --locked`: no warnings.
 - `npm run roadmap:check`, `git diff --check`.
 
-### Not Yet Validated
+### Navigator Validation and Closure
 
-Navigator homologation is outstanding. Eval was rebuilt and installed at
-`~/Applications/Mirror Desktop Eval.app` and was not launched.
+The Navigator validated CR116 in the Dev build on 2026-10-03. The tested build was installed at
+`/Applications/Mirror Desktop Dev.app`, replacing `0.2.0-alpha.27` with the CR116 build at
+`0.2.0-alpha.31`; it was not started by the Delivery. The Navigator's validation closes the CR.
 
-The honest limit the plan anticipated still holds: the production hang is not reproducible on
-demand, so the stranded path is proven by test rather than by reproducing the original incident.
-What Eval can show is that ordinary settlement, cancellation, sending and restart recovery are
-unchanged, and that an idle Journey stays quiet. The root operation that hung was not identified,
-and no claim is made that it was.
+**Proportionality review: proportional.** One generic, injectable bounded-operation seam resolves
+all three unbounded per-Journey layers without inventing a second repair queue, migration or new
+durable record. The visible state reuses the existing retained-lease/synchronization-attention
+surface rather than creating a redundant runtime state. The 120-second ceiling is intentionally
+narrow in purpose and generous in duration.
+
+**Debt review: follow_up.** The exact native operation that never returned in the production
+incident remains unestablished; the fix treats the observable failure mode without claiming a root
+cause it cannot prove. The bounded path is test-proven, but the original incident is not
+reproducible on demand. A future observability CR may record phase-level elapsed time or an
+abandonment diagnostic if an operational need arises; it should not tighten the bound without
+measurements from large real Journeys. No immediate follow-up is selected by this closure.
 
 ## Dependencies
 

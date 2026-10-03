@@ -2,7 +2,7 @@
 
 # CR097: Keep a Correction Recognisable After Reload
 
-**Status:** captured
+**Status:** planned
 **Driver:** —
 **Delivery:** —
 
@@ -54,6 +54,53 @@ that knows it was a correction, and it currently has no surviving evidence to sa
 segment. No incorrect output was observed from this — the affected runs still matched their own turn
 records and recovered their operations — but a correction is not a new request, and modelling it as
 one is wrong and will misbehave for a run that continues after being corrected.
+
+## Pull and Plan (2026-10-03)
+
+Pulled by explicit Navigator intent after CR116 closed. Driver and Delivery remain intentionally
+unassigned; planning is not implementation authority.
+
+The current baseline changes the first diagnostic materially: persisted `0.9.0` conversations now
+parse and write `steeringEvidence`, and CR114's Segment partition and recombination also carry it.
+The original Dev observation predates those paths. Therefore Slice 0 is a required falsification,
+not a formality: reproduce its completed and cancelled cases through the current save, unload,
+restore and restart path. If evidence already survives, record that the capture was resolved by the
+baseline and narrow the work to projection/segmentation only; do not rebuild persistence speculatively.
+
+The remaining code reading establishes a concrete second fault: `projectPiBackedConversationSurface`
+opens `runUserEntryId` on every Pi user entry, while `matchInterruptedTurnsByUserEntryId` does the
+same. Neither consults `metadata.steeringEvidence[].piUserEntryId`, even though
+`reconcileSteeringEvidence` records that exact identity. A restored correction is consequently
+projected as `pi-<entryId>` with the role `user`, and it can split CR089's interrupted-turn window.
+
+### Slices
+
+1. **Characterise current authority.** Add fixtures for accepted correction evidence with an exact
+   Pi user entry, for completed-after-correction and cancelled-after-correction histories, and prove
+   the persisted/Segment round trip before selecting a persistence change.
+2. **Bind correction identity before run matching.** Build the claimed Pi-entry set from surviving
+   `steeringEvidence`; reject duplicate or cross-run claims fail-closed. Make interrupted matching
+   skip those entries as run boundaries while retaining their chronological place.
+3. **Project the correction as a correction.** Bind a claimed Pi user entry to the correction's
+   existing evidence instead of making a plain user request, preserving Pi text, timestamp and the
+   correction's status/attachment in `ConversationTranscript`.
+4. **Preserve the ordinary case.** Prove unclaimed Pi user entries retain the existing request and
+   CR089 interrupted-turn semantics. Prove no Pi JSONL write, steering delivery, cancellation or
+   historical backfill is introduced.
+5. **Validate.** Run focused domain/component/integration tests, the full suite, type check, build,
+   native tests/check, roadmap consistency and diff check. Dev homologation must cover corrected
+   completed and cancelled turns after navigation/restart, plus an ordinary request control.
+
+### Files
+
+Expected implementation files: `src/domain/piBackedConversationSurface.ts`,
+`src/domain/conversationSegmentProjection.ts` only if Slice 1 proves a Segment-loss path,
+`src/app/conversationTranscriptModel.ts` and/or `src/app/ConversationTranscript.tsx` for the
+existing correction surface. Expected tests: `src/tests/piBackedConversationSurface.test.ts`,
+`src/tests/interruptedTurnIdentity.test.ts`, `src/tests/steeringState.test.ts`,
+`src/tests/conversationSegmentProjection.test.ts` if applicable, and a restored-surface component
+or integration test. `src/domain/persistedJourneyConversation.ts` is expressly out unless Slice 1
+proves its present `0.9.0` round trip loses evidence.
 
 ## Expected Behavior
 
