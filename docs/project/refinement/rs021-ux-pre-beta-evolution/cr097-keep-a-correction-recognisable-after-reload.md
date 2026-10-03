@@ -2,9 +2,9 @@
 
 # CR097: Keep a Correction Recognisable After Reload
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr097-restored-correction-identity`
 
 ## Problem
 
@@ -77,7 +77,10 @@ projected as `pi-<entryId>` with the role `user`, and it can split CR089's inter
 
 1. **Characterise current authority.** Add fixtures for accepted correction evidence with an exact
    Pi user entry, for completed-after-correction and cancelled-after-correction histories, and prove
-   the persisted/Segment round trip before selecting a persistence change.
+   the persisted/Segment round trip before selecting a persistence change. Record the CR117 landing:
+   done above, and it found a blocking defect in CR117's own guards that must be repaired before the
+   rest of this slice measures anything meaningful. Fixtures must now also cover a `delivered`
+   correction, which did not exist when this plan was written.
 2. **Bind correction identity before run matching.** Build the claimed Pi-entry set from surviving
    `steeringEvidence`; reject duplicate or cross-run claims fail-closed. Make interrupted matching
    skip those entries as run boundaries while retaining their chronological place.
@@ -91,6 +94,69 @@ projected as `pi-<entryId>` with the role `user`, and it can split CR089's inter
    native tests/check, roadmap consistency and diff check. Dev homologation must cover corrected
    completed and cancelled turns after navigation/restart, plus an ordinary request control.
 
+## Pulled Into Focus (2026-10-03)
+
+Pulled by explicit Navigator intent after CR117 closed and was integrated at `d092c2f`. Slice 1 was
+tasked with recording whether CR117 had landed, because that changes how often the evidence this CR
+consumes is present. It has landed — **and the recorded expectation was wrong in a way that blocks
+this CR.**
+
+### What CR117 actually did to `piUserEntryId`
+
+The boundary note below predicted that CR117 would reconcile steering during the run, populating
+`piUserEntryId` earlier and in more cases. That is not what CR117 built. Its live signal is Pi's
+`queue_update`, which carries no entry id, so it produces a new `delivered` status and deliberately
+cannot produce `applied`. `applied` — the only status that carries `piUserEntryId` — is still
+produced solely by `reconcileSteeringUserEntries`.
+
+Worse, CR117 introduced `delivered` into the domain but missed two App-level guards that decide
+whether that reconciliation runs at all. Verified by reading `main` at `d092c2f`:
+
+- `src/app/App.tsx:3053` gates the `done` reconciliation on
+  `item.status === "pending" || item.status === "accepted"`. A correction that reached `delivered`
+  fails this test, so the Pi user entries are never loaded and `applied` is never reached.
+- `src/app/App.tsx:1741` gates the entire restore/repair block on
+  `pending || accepted || terminally_unconsumed`. `delivered` fails this too, so a reload does not
+  repair it either. The inner loop at `1762` has no status filter and would have reconciled it, but
+  it is unreachable behind that gate.
+- By contrast the domain was updated correctly: `src/domain/steeringState.ts` lines 146, 169 and 199
+  all admit `delivered`. The defect is purely in the App wiring.
+
+**Consequence.** A correction that successfully reaches `delivered` — precisely the happy path CR117
+was built to produce — never acquires `piUserEntryId`. It is not merely delayed: nothing in the
+normal lifecycle recovers it. It recovers only by accident, if some *other* correction in the same
+conversation happens to sit in a repairable status and so opens the gate for every turn.
+
+So CR117 did not populate the identity this CR depends on more often. For the successful path it
+made it never populated, inverting the premise.
+
+### Why CR117's own validation missed it
+
+Homologation round 1 validated "the correction becomes `Correction applied`" while the live
+transition was broken — the status was stuck at `accepted`, which guard 1 *does* match, so
+reconciliation ran and `applied` was reached. Round 2 fixed the live transition, which made
+`delivered` happen for the first time and silently invalidated that earlier observation. Round 2 did
+not re-check the terminal status. CR117's unit tests call `reconcileSteeringUserEntries` directly
+with a `delivered` record, which passes correctly, but no test covers the App guards that decide
+whether it is called.
+
+### What this means for this CR's plan
+
+This is CR117's defect, inside CR117's scope, and it is not folded into this Delivery: keeping one
+review boundary per CR matters more here than convenience, and this CR must not be the place a
+closed CR's regression is quietly repaired. It is nonetheless **blocking**. This CR's entire
+mechanism is to recognise a restored correction by the Pi entry its evidence claims through
+`piUserEntryId`; building slices 2 to 4 on a path that never records that identity would be building
+on sand, and slice 1's falsification would measure the wrong baseline.
+
+Recommended sequence, for the Navigator to decide: repair the two guards under CR117 — reopened or
+as its own CR — with a test at the guard level rather than only at the domain level, then run
+slice 1 here against that corrected baseline.
+
+Slice 1 is otherwise unchanged and still a falsification: persisted `0.9.0` conversations now parse
+and write `steeringEvidence` and CR114's Segment paths carry it, so the original Dev observation
+predates both and must be reproduced before any persistence work is selected.
+
 ### Boundary with CR117
 
 [CR117](../rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md)
@@ -100,11 +166,14 @@ two must not be implemented blind to each other: CR117 slice 4 decides where a c
 rendered, and this CR decides what a restored correction is rendered as. Whichever lands first owns
 the placement decision and the other adopts it.
 
-The interaction is favourable rather than conflicting. CR117 reconciles steering evidence during the
-run instead of only at `done`, so `piUserEntryId` — the exact identity this CR depends on — becomes
-populated earlier and in more cases, including runs that are later cancelled. CR117 is therefore the
-recommended first of the pair, and slice 1 here should record whether it has landed, because it
-changes how often the evidence this CR needs is present at all.
+~~The interaction is favourable rather than conflicting. CR117 reconciles steering evidence during
+the run instead of only at `done`, so `piUserEntryId` — the exact identity this CR depends on —
+becomes populated earlier and in more cases, including runs that are later cancelled.~~
+
+**Superseded by what CR117 actually delivered; see "Pulled Into Focus" above.** CR117's live signal
+carries no entry id and so cannot produce `applied`. CR117 was still the right one to run first — it
+owns the placement decision this CR adopts — but its effect on `piUserEntryId` is the opposite of
+what was predicted, and that has to be repaired before this CR's slices can be correct.
 
 ### Files
 

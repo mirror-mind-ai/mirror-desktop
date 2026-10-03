@@ -106,7 +106,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR085: Close Without Quitting](cr085-close-without-quitting.md) — done
 - [CR079: Always Legible Context Reading](cr079-deep-context-stats-analysis.md)
 - [CR080: Compaction Chapters](cr080-compaction-chapters.md)
-- [CR097: Keep a Correction Recognisable After Reload](cr097-keep-a-correction-recognisable-after-reload.md)
+- [CR097: Keep a Correction Recognisable After Reload](cr097-keep-a-correction-recognisable-after-reload.md) — in progress
 - [CR092: Float the Recenter Control Over the Conversation](cr092-float-the-recenter-control-over-the-conversation.md) — done
 - [CR098: Allow a Journey to Be Reparented](cr098-allow-a-journey-to-be-reparented.md)
 - [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md)

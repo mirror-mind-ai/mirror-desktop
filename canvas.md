@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.32` · A Stranded Journey Comes Back
 
-🎯 **Foco oficial:** nenhum · CR117 fechada e integrada · CR097 é a próxima recomendada
+🎯 **Foco oficial:** CR097 · `in_progress` · @alissonvale · bloqueada por regressão da CR117
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active`; Embedded TS Runtime é uma direção capturada
 
@@ -13,7 +13,7 @@
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa · sem CR em foco | `█████████░` 24/28 fechadas |
 | ↳ CR105 · Context Surface → Context Map | ✅ done · entregue | `██████████` |
 | ↳ CR112 · Host a Canvas the Journey's Agent Draws | ✅ done · publicada em alpha.29 | `██████████` |
-| ↳ **CR097 · Keep a Correction Recognisable After Reload** | 🟡 planned · falsificar persistência antes de mudar | `██░░░░░░░░` 1/5 fatias |
+| ↳ **CR097 · Keep a Correction Recognisable After Reload** | 🧪 in_progress · ⛔ bloqueada · guardas da CR117 | `██░░░░░░░░` 1/5 fatias |
 | ↳ CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured | `░░░░░░░░░░` |
 | ↳ CR098 · Allow a Journey to Be Reparented | 🟡 captured | `░░░░░░░░░░` |
 | ↳ CR100 · Make Journey Image Updates Supported | 🟡 captured | `░░░░░░░░░░` |
@@ -21,7 +21,7 @@
 | ↳ **CR114 · Make the Current Segment the Default Working Set** | ✅ done · publicada em alpha.31 | `██████████` |
 | ↳ 20 Change Requests anteriores | ✅ done | `██████████` |
 | **RS016 · Ongoing Product Improvements** | 🔄 ativa · sem CR em foco | `█████████░` 25 done · 4 ↗️ · 1 ⛔ |
-| ↳ **CR117 · Make a Correction Legible While It Is Live** | ✅ done · homologada no Dev em 2 rodadas | `██████████` |
+| ↳ **CR117 · Make a Correction Legible While It Is Live** | ✅ done · ⚠️ regressão achada depois do fecho | `██████████` |
 | ↳ **CR116 · Release a Journey Stranded in Finishing** | ✅ done · homologada no Dev | `██████████` |
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
 | RS022 · Mirror Core Debts | 🔄 ativa · registro sem CR aberta | `░░░░░░░░░░` 1 ⏸️ |
@@ -50,29 +50,31 @@
 | Agentic Map of Admitted Context | ↗️ explorada e entregue | CR105 ✅ · Context Map |
 | 11 explorações anteriores | 🗂️ colapsadas | status nos arquivos ainda não reconciliado; não contam como foco atual |
 
-**Próximo passo:** a CR097 é a próxima recomendada, agora que a CR117 fechou. Ela herda terreno
-preparado: a colocação da correção já foi decidida e o `delivered` povoa o estado vivo, então a
-fatia 1 da CR097 deve registrar que a CR117 aterrissou antes de falsificar a persistência.
+**Próximo passo:** decidir onde reparar a regressão que a CR117 deixou, porque ela **bloqueia** a
+CR097. A CR097 foi puxada para foco e sua fatia 1 tinha instrução explícita de registrar se a CR117
+havia aterrissado. Aterrissou — e o registro inverteu a premissa.
 
-A CR117 fechou as duas queixas que a originaram. O spike achou que o Pi já emitia `queue_update`
-com a própria fila de steering e o Desktop descartava o evento — uma correção que sai da fila foi
-entregue ao modelo, sem ler arquivo nenhum, contra os 55 MB que a leitura de sessão custaria. O mesmo
-spike falsificou uma premissa do plano: o Pi só cria o id da entrada na persistência, então o sinal
-vivo não pode produzir `applied`. Em vez de enfraquecer o contrato de evidência do `applied`, entrou
-um estado `delivered`. E a correção passou a ser desenhada dentro do cartão do run que ela corrigiu,
-saindo do bloco do prompt — a única parte do turno garantidamente fora da tela quando se corrige.
+A CR097 previa que a CR117 povoaria `piUserEntryId` mais cedo e em mais casos. Não foi isso: o sinal
+vivo da CR117 é o `queue_update`, que não carrega id de entrada, então ele produz `delivered` e por
+desenho não pode produzir `applied`. Pior, a CR117 admitiu `delivered` no domínio mas deixou duas
+guardas no `App.tsx` para trás — a de `3053`, que decide a reconciliação no `done`, e a de `1741`,
+que abre todo o bloco de reparo no restore. Nenhuma das duas aceita `delivered`.
 
-A homologação levou duas rodadas. A primeira achou o status ainda preso em `queued`: a transição viva
-era escrita no valor da conversa do run e sobrescrita, na instrução seguinte, pelo ref que é a
-autoridade de steering enquanto o run vive. Era uma regra implícita no código, hoje explícita em
-`liveSteeringEvidence.ts` e presa por um teste que reproduz a armadilha.
+Resultado: uma correção que chega a `delivered` — o caminho feliz que a própria CR117 construiu —
+nunca adquire `piUserEntryId`. Não é atraso; nada no ciclo normal recupera. Só recupera por acidente,
+se outra correção da mesma conversa estiver num status que abra a guarda.
 
-Fica uma observação separada, registrada sem plano: uma correção pode **encerrar** o turno em vez de
-redirecioná-lo. Diagnosticado read-only como comportamento do modelo — o run assentou como
-`completed` e o texto final respondia à correção — e nada na CR117 alterou o que é enviado ao Pi,
-então não se resolve no transporte do Desktop. Se vira CR, é decisão do Navigator.
+Por que a validação da CR117 não pegou: na rodada 1 o status ficava preso em `accepted`, que a
+guarda **aceita** — então a reconciliação rodava e o `applied` era observado de verdade. A rodada 2
+consertou a transição viva, fez `delivered` acontecer pela primeira vez e invalidou em silêncio
+aquela observação anterior, sem que o passo 3 fosse reconferido. Os testes da CR117 chamam
+`reconcileSteeringUserEntries` direto com um registro `delivered` e passam corretamente; nenhum teste
+cobre as guardas que decidem se ela é chamada.
 
-Nada publicado carrega a CR116 nem a CR117 ainda: as duas estão validadas só no Dev.
+O reparo não foi dobrado dentro da CR097: é defeito da CR117, dentro do escopo dela, e manter uma
+fronteira de revisão por CR vale mais aqui que conveniência. Recomendo reabrir a CR117 — ou abrir CR
+própria — com teste no nível da guarda, e só então rodar a fatia 1 da CR097 contra a baseline
+corrigida.
 
 A `alpha.31` saiu com a CR114: a Journey abre no capítulo atual — 286 entradas em vez de 7.373, com
 24 capítulos anteriores sob pedido — e a publicação de Segments não sobrescreve mais o metadado

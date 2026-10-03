@@ -19,10 +19,17 @@ Refinement authority; SQLite must not be consulted or dual-written.
   Desktop had been discarding, and it is drawn in the card of the run it corrected instead of under
   a prompt scrolled out of view. Its slice 1 spike both settled the mechanism and falsified one of
   its own planning assumptions, and round 1 of homologation exposed a defect in its own wiring,
-  fixed in round 2. CR116 is `done` under @alissonvale after Dev validation on the same day. CR097
-  remains `planned` and unassigned; it is the recommended next of the correction pair, because
-  CR117 has now landed the placement decision and the Pi identity CR097 depends on, and CR097's
-  slice 1 should record that. The captured order below is a ranking, not an instruction to execute.
+  fixed in round 2. CR116 is `done` under @alissonvale after Dev validation on the same day.
+- Change Request: CR097, pulled into focus on 2026-10-03 by explicit Navigator intent. It is
+  `in_progress` under @alissonvale on `refinement/rs021-cr097-restored-correction-identity`. Pulling
+  it executed the slice 1 instruction to record CR117's landing, and that record inverted one of
+  this CR's premises: CR117's live signal carries no Pi entry id, so it cannot produce `applied`, and
+  it introduced `delivered` into the domain while missing the two App guards at `App.tsx:3053` and
+  `App.tsx:1741` that decide whether reconciliation runs. A correction that reaches `delivered` —
+  CR117's own happy path — therefore never acquires `piUserEntryId`, which is the exact identity
+  CR097 consumes. That defect belongs to CR117, is not folded into this Delivery, and blocks this
+  CR's slices 2 to 4 until repaired. The captured order below is a ranking, not an instruction to
+  execute.
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
 executes work.
@@ -60,7 +67,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | planned | — | — |
+| 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | in_progress | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-live-correction-legibility` |
 | — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | done | @alissonvale | `refinement/rs016-cr116-stranded-finalization-recovery` |
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
