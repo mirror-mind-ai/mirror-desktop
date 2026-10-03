@@ -73,7 +73,6 @@ type ConversationMessageRowProps = {
   linkedActivity: GroupedImportedActivity["unlinked"];
   proximity?: AssistantTurnProximity;
   exactRuntimeProjection?: RuntimeProjectionState;
-  steering: SteeringEvidence[];
   basePath?: string;
   userAvatar?: string;
   onLocalPathClick: (path: string) => void;
@@ -103,6 +102,8 @@ type AgentRunRowProps = {
   highlightQuery?: string;
   registerMessageElement: (messageId: string, element: HTMLElement | null) => void;
   activeSearchMessageId?: string;
+  /** CR117: corrections sent against this run, in send order, drawn inside the run's own card. */
+  corrections?: readonly SteeringEvidence[];
 };
 
 /**
@@ -117,6 +118,7 @@ const AgentRunRow = memo(function AgentRunRow({
   highlightQuery,
   registerMessageElement,
   activeSearchMessageId,
+  corrections,
 }: AgentRunRowProps) {
   const presentations = parts.map((part) => projectAgentTurnPresentation({
     messageId: part.message.id,
@@ -152,6 +154,7 @@ const AgentRunRow = memo(function AgentRunRow({
       {...(closing.responseModel ? { responseModel: closing.responseModel } : {})}
       registerMessageElement={registerMessageElement}
       {...(activeSearchMessageId ? { activeSearchMessageId } : {})}
+      {...(corrections && corrections.length > 0 ? { corrections } : {})}
     />
   );
 });
@@ -161,7 +164,6 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
   linkedActivity,
   proximity,
   exactRuntimeProjection,
-  steering,
   commentRole,
   interruptedFragment,
   basePath,
@@ -233,7 +235,6 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
           <MessageAttachmentProvenance attachments={message.attachments} />
         </article>
       ) : null}
-      <SteeringMessages evidence={steering} />
       <ImportedActivity events={messageActivity} basePath={basePath} />
     </div>
   );
@@ -436,11 +437,18 @@ export const ConversationTranscript = memo(function ConversationTranscript({
           if (parts.length === 0) return null;
           // The run's proximity is its closing message's: the run is as recent as its last word.
           const proximity = assistantTurnProximity.get(parts[parts.length - 1].message.id);
+          // CR117: a correction is recorded against the turn's own assistant message, which may be
+          // any part of a grouped run, so the run claims every correction its parts carry and
+          // presents them in send order.
+          const corrections = parts
+            .flatMap((part) => index.steeringByAssistantMessageId.get(part.message.id) ?? EMPTY_STEERING)
+            .sort((left, right) => left.sequence - right.sequence);
           return (
             <div key={leadId}>
               {divider}
               <AgentRunRow
                 parts={parts}
+                {...(corrections.length > 0 ? { corrections } : {})}
                 proximity={proximity}
                 basePath={basePath}
                 onLocalPathClick={onLocalPathClick}
@@ -454,10 +462,6 @@ export const ConversationTranscript = memo(function ConversationTranscript({
 
         const message = messagesById.get(item.messageId);
         if (!message) return null;
-        const owningAssistantMessageId = index.turnByUserMessageId.get(message.id)?.harness.assistantMessageId;
-        const steering = owningAssistantMessageId
-          ? index.steeringByAssistantMessageId.get(owningAssistantMessageId) ?? EMPTY_STEERING
-          : EMPTY_STEERING;
         return (
           <div
             key={message.id}
@@ -469,7 +473,6 @@ export const ConversationTranscript = memo(function ConversationTranscript({
             <ConversationMessageRow
               message={message}
               linkedActivity={importedActivity.byMessageId.get(message.id) ?? EMPTY_ACTIVITY}
-              steering={steering}
               basePath={basePath}
               userAvatar={userAvatar}
               onLocalPathClick={onLocalPathClick}

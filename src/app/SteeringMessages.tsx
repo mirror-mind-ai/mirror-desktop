@@ -19,10 +19,10 @@ const marks: Partial<Record<SteeringEvidence["status"], string>> = {
   applied: "✓✓",
 };
 
-export function SteeringMessages({ evidence }: { evidence: SteeringEvidence[] }) {
+export function SteeringMessages({ evidence }: { evidence: readonly SteeringEvidence[] }) {
   if (!evidence.length) return null;
   return (
-    <section className="steering-messages user-addenda" aria-label="Corrections sent during response">
+    <section className="steering-messages agent-run-corrections" aria-label="Corrections sent during response">
       {evidence.map((item) => (
         <article className={`steering-message is-${item.status}`} key={item.requestId}>
           <header>

@@ -8457,6 +8457,16 @@ dd {
   width: min(72%, 720px);
 }
 
+/* CR117: inside the agent's card the corrections are a region of that card, so they take its
+   full width and read left-aligned like every other region — not the right-hand inset they had
+   while they hung under the Navigator's prompt. */
+.steering-messages.agent-run-corrections {
+  border-top: 1px solid rgba(var(--ui-accent-rgb), 0.12);
+  margin: 0;
+  padding-top: 14px;
+  width: auto;
+}
+
 .steering-message {
   background: color-mix(in srgb, var(--accent) 5%, transparent);
   border-left: 2px solid color-mix(in srgb, var(--accent) 34%, var(--border));

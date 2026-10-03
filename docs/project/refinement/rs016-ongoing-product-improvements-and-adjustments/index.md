@@ -83,8 +83,11 @@ found that Pi already emits `queue_update` carrying its own steering queue, whic
 discarding — an event-driven signal costing no reads at all. The same spike falsified the plan's
 assumption that only call timing had to change: Pi mints a session entry id only at persistence, so
 the live signal cannot produce `applied`, and a `delivered` state was added rather than weakening
-`applied`'s exact-evidence contract. Slices 2–3 are implemented with gates green; slice 4, placement,
-is not started. The wording must say the
+`applied`'s exact-evidence contract. Slices 2–4 are implemented with gates green. Slice 4 drew the
+correction inside the card of the run it corrected and removed it from the prompt cluster; its
+chronological-position detail was deliberately not built, because the run's trail mixes timestamped
+messages with untimed note subdivisions and a spliced position would assert an order the data cannot
+support. Homologation and a Dev build remain outstanding. The wording must say the
 correction reached the model's input, not that the model read it. CR117 shares the correction surface
 with CR097 and records an explicit boundary with it.
 

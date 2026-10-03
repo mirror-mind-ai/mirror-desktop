@@ -50,8 +50,9 @@
 | Agentic Map of Admitted Context | ↗️ explorada e entregue | CR105 ✅ · Context Map |
 | 11 explorações anteriores | 🗂️ colapsadas | status nos arquivos ainda não reconciliado; não contam como foco atual |
 
-**Próximo passo:** decidir a colocação da correção na superfície — fatia 4 da CR117, a única das
-duas queixas ainda aberta. O spike encontrou que o Pi já emite `queue_update` com a própria fila de
+**Próximo passo:** build Dev e homologar a CR117 — as duas queixas estão atendidas no código. O Dev
+instalado está em `0.2.0-alpha.31`, sem CR116 nem CR117; um build só cobre as duas. A fatia 4 passou
+a desenhar a correção dentro do cartão do run que ela corrigiu e a tirou do bloco do prompt. O spike encontrou que o Pi já emite `queue_update` com a própria fila de
 steering, e o Desktop descartava esse evento: uma correção que saiu da fila foi entregue ao modelo,
 sem ler arquivo nenhum. O mesmo spike falsificou uma premissa minha — o Pi só cria o id da entrada
 na persistência, então o sinal vivo não pode produzir `applied`. Em vez de enfraquecer o contrato de

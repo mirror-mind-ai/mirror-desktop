@@ -12,6 +12,8 @@ import { MessageContent } from "./MessageContent";
 import { MessageCopyAction } from "./MessageCopyAction";
 import { MessageFileAttachments } from "./MessageFileAttachments";
 import { MessageSpeakerAvatar } from "./UserAvatar";
+import { SteeringMessages } from "./SteeringMessages";
+import type { SteeringEvidence } from "../domain/journeyConversation";
 
 /**
  * CR111: an earlier assistant message of the same run. Its comment is a point on the shared
@@ -39,9 +41,16 @@ type AgentTurnProps = {
   /** CR111: keeps each grouped message reachable by conversation search and the chapter index. */
   registerMessageElement?: (messageId: string, element: HTMLElement | null) => void;
   activeSearchMessageId?: string;
+  /**
+   * CR117: corrections the Navigator sent while this run was working, in the order they were sent.
+   * They are drawn here because they acted on this run's work — and because the prompt they used
+   * to hang under is the one part of the turn certain to be out of view by the time one is sent.
+   */
+  corrections?: readonly SteeringEvidence[];
 };
 
 const NO_TRAIL_PARTS: readonly AgentRunTrailPart[] = [];
+const NO_CORRECTIONS: readonly SteeringEvidence[] = [];
 
 export function AgentTurn({
   message,
@@ -55,13 +64,16 @@ export function AgentTurn({
   responseModel,
   registerMessageElement,
   activeSearchMessageId,
+  corrections = NO_CORRECTIONS,
 }: AgentTurnProps) {
   const hasContent = Boolean(
     trailParts.length > 0
     || presentation.agentActions
     || presentation.systemSurfaces.length > 0
     || presentation.agentComment
-    || presentation.interruptedFragment,
+    || presentation.interruptedFragment
+    // A run can be corrected before it has said anything, and the correction must still show.
+    || corrections.length > 0,
   );
   const [historicalDetailOpen, setHistoricalDetailOpen] = useState(false);
   // CR111: the run's detail, in run order. Each part keeps its own projection because operation
@@ -176,6 +188,11 @@ export function AgentTurn({
   const interruptedFragments = detailParts
     .map((part) => part.interruptedFragment)
     .filter((fragment): fragment is string => Boolean(fragment));
+  // CR117: kept out of the historical disclosure — that a correction was sent is part of what the
+  // turn was, not a detail of how it ran.
+  const sentCorrections = corrections.length > 0
+    ? <SteeringMessages evidence={corrections} />
+    : null;
   const interrupted = interruptedFragments.length > 0 ? (
     <section className="agent-turn-region agent-interrupted-fragment" aria-label="Interrupted response">
       <span className="runtime-region-label">Interrupted</span>
@@ -215,6 +232,7 @@ export function AgentTurn({
           {proximity === "historical" ? (
             <>
               {comments}
+              {sentCorrections}
               {interrupted}
               {hasHistoricalDetail ? (
                 <details
@@ -236,6 +254,7 @@ export function AgentTurn({
               {actions}
               {surfaces}
               {comments}
+              {sentCorrections}
               {interrupted}
             </>
           )}

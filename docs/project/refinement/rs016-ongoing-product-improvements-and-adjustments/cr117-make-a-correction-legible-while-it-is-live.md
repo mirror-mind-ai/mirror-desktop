@@ -169,11 +169,11 @@ decision and is deliberately not started.
    A `queue_update` for an unknown text must change nothing. Give `delivered` its own visible label
    and mark, worded per the truthfulness constraint, and keep every existing terminal label intact.
    `applied` continues to be produced only at `done`, from exact entry evidence.
-4. **Put the correction where the Navigator is looking.** Decide the placement explicitly and record
-   the reasoning: render the correction with the live agent run it is correcting rather than under
-   the distant prompt, and/or acknowledge it near the Composer at send time. The acceptance is
-   behavioural — the Navigator must see the correction and its status without scrolling — not a
-   particular layout.
+4. ~~**Put the correction where the Navigator is looking.**~~ Done — drawn in the run's own card as
+   a region after its narration, removed from the prompt cluster. The chronological-position part of
+   the agreed plan was deliberately not built; see the deviation note above. No Composer-side
+   acknowledgement was added: the run card already sits where the eye is during a run, and transient
+   notices carry precedent against them from CR086 and CR088.
 5. **Keep provenance and reload intact.** The correction must remain attached to the turn it
    corrected, with its ordering by `sequence` preserved, and the Segment partition/recombination
    behaviour of CR114 unchanged.
@@ -226,6 +226,62 @@ No Navigator homologation yet, and no Dev build from this branch. The delivery p
 against Pi's documented queue contract and by unit test, not yet by a live run with a real
 correction. Slice 4 — putting the correction where the Navigator is looking — remains open, so the
 second of the two reported problems is not yet addressed.
+
+## Slice 4 Implementation Evidence (2026-10-03)
+
+Corrections now render inside the card of the run they corrected, as a region of that card, after
+the agent's own narration. They no longer render in the originating prompt's cluster — the one part
+of the turn certain to be scrolled out of view by the time a correction is sent.
+
+`AgentTurn` gained a `corrections` prop and renders the block in both its live and historical
+branches, deliberately outside the historical detail disclosure: that a correction was sent is part
+of what the turn was, not a detail of how it ran. A run with no narration yet still draws the card
+when a correction exists, because a run can be corrected before it has said anything.
+
+`AgentRunRow` claims every correction its parts carry and presents them ordered by `sequence`. This
+matters for grouped runs: CR111 makes consecutive assistant messages one card, and a correction is
+recorded against the turn's own assistant message, which may be any part of that group.
+
+### Deviation from the agreed placement, and why
+
+The recommendation the Navigator approved said the correction would sit at its chronological
+position among the run's messages. It is instead a region at the end of the card's narration, and
+the reason is that the finer placement would be invented precision. The run's trail mixes two kinds
+of point: earlier assistant messages, which carry timestamps, and `ownTrail` notes, which are
+subdivisions of a single message's content and carry none. A correction spliced between notes that
+have no individual times would assert an order the data cannot support. The header already says
+"Correction during response", so "during" is carried in words rather than in a position that would
+be guesswork. The end-of-narration region also keeps the practical property that motivated the
+move: during a live run it sits directly below the streaming output, where the Navigator is looking.
+
+### Styling
+
+`.steering-messages.agent-run-corrections` replaces the old `user-addenda` marker, which had no
+rules of its own. Inside the card the block takes the card's full width with the same region rule
+as the others, rather than the right-hand inset it had while it hung under the Navigator's prompt.
+
+### Tests
+
+`src/tests/liveCorrectionPlacement.test.tsx`, 8 cases rendering the real transcript: the correction
+inside the assistant article, absent from the prompt cluster, several corrections in send order,
+nothing drawn for an uncorrected run, visible on a historical run ahead of the disclosure, a still
+queued correction carried, and two structural assertions.
+
+One existing assertion in `steeringMessages.test.tsx` was found **passing vacuously**: it compared
+`indexOf("<SteeringMessages …")` against a later element, and once the element was gone `indexOf`
+returned `-1`, which is below any real position. It was replaced with explicit presence and absence
+assertions.
+
+### Gates
+
+223 files / 1,576 tests. `tsc --noEmit`, `npm run build`, `cargo test` 241 passed / 3 ignored,
+`cargo check --locked`, `roadmap:check`, `git diff --check`.
+
+### Not Yet Validated
+
+Still no Navigator homologation and no Dev build. The Dev app is on `0.2.0-alpha.31`, so it carries
+neither CR116 nor CR117; one Dev build from this branch would cover both. The placement is verified
+by rendered markup, not yet by eye at real width with a long run.
 
 ## Files
 
