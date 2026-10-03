@@ -8,7 +8,8 @@
 
 ## Problem
 
-The Navigator sent a turn in Journey `mirror-desktop` on the Dev channel and saw:
+The Navigator sent a turn in Journey `mirror-desktop` on the **production** bundle at
+`v0.2.0-alpha.30` and saw:
 
 > Conversation synchronization needs attention
 > The agent is inactive, but Mirror Desktop could not complete the preserved persistence path.
@@ -20,88 +21,144 @@ The Navigator sent a turn in Journey `mirror-desktop` on the Dev channel and saw
 After the turn finished, a second notice of the same kind appeared with buttons, was visible for a
 few seconds, and disappeared. The conversation then read normally.
 
+## Provenance Correction
+
+This CR was first captured against the **Dev** store, because the first reading treated the report
+as a possible regression from the CR117 work then in flight. That was the wrong store and the wrong
+frame, and the first evidence section and its proposed mechanism were both wrong as a result. The
+Navigator corrected it: the incident is on production `alpha.30`, and CR117 had not been validated
+in Dev at the time of the report.
+
+The correction matters beyond bookkeeping. `alpha.30` predates CR114, so the discarded mechanism —
+an anchor pinned to the start of history while CR114 bounds the loaded window to its end — cannot
+apply. The real mechanism runs in the opposite direction, and is established below.
+
 ## Evidence
 
-Read-only inspection of the Dev data for Journey `mirror-desktop`, thread
-`nautilus-thread-mirror-desktop`, generation 2, on 2026-10-03. Provenance is recorded because the
-runs belong to that Journey; the behaviour is a Desktop one.
+Read-only inspection of the production store `ai.mirrormind.desktop` on 2026-10-03. The production
+application was not launched, closed or otherwise touched; it was not running during the inspection.
+Provenance is recorded because the runs belong to Journey `mirror-desktop`; the behaviour is a
+Desktop one.
 
-**Nothing is broken now.** All 43 turn-journal records are `settled` / `completed` with
-`recoveryDisposition: complete` at revision 5, and `mirror-append-outbox.json` holds zero items. The
-second notice disappearing was the recovery completing, which is the CR115/CR116 surface behaving as
-designed. The settlement half of the message — "1 exact Mirror settlement operation also needs
-attention" — is therefore already resolved and leaves nothing to repair.
+**Installed production build.** `/Applications/Mirror Desktop.app`, `0.2.0-alpha.30`, bundle
+`ai.mirrormind.desktop`. `alpha.30` delivered CR113 and CR115. CR114 shipped in `alpha.31`, CR116 in
+`alpha.32`, and CR117 has never been released.
 
-**The notice belongs to run `agent-run-2026-10-03T19:24:27.786Z`**, the second CR117 homologation
-round. It predates the build carrying CR117's guard repair, so it is not a symptom of that build.
+**The manifest.** `conversation-segments/mirror-desktop/nautilus-thread-mirror-desktop/generation-4.json`
+holds 29 segments over `sourceEntryCount: 8356`. Segments 1 to 26 carry no `firstTurnId` and
+`turnCount: 0`. The last three do carry anchors:
 
-**The Segment half is a real and still-live fragility.** `Conversation Segment turn range is
-invalid.` is thrown by `partitionConversationBySegments`
-(`src/domain/conversationSegmentProjection.ts:27`) when no segment's `firstTurnId` can be located in
-the turn list of the conversation being partitioned. The two sides of that comparison come from
-different places:
+| segment | status | turnCount | firstTurnId | lastTurnId |
+|---|---|---|---|---|
+| segment-27 | closed | 1 | `turn-agent-run-2026-10-03T00:46:07.343Z` | same |
+| segment-28 | closed | 9 | `turn-agent-run-2026-10-03T00:46:07.343Z` | `…T17:18:23.831Z` |
+| segment-29 | current | 2 | `turn-agent-run-2026-10-03T15:27:35.373Z` | `…T17:18:23.831Z` |
 
-- `refresh_conversation_segments` (`src-tauri/src/main.rs:4453`) reads turns from the **durable
-  projection file** at `conversation_projection_path`, and sets `firstTurnId` to the first turn whose
-  Pi entries fall inside the segment's entry range (`main.rs:4400`).
-- `partitionConversationBySegments` then validates that id against the **in-memory** conversation
-  passed by `App.tsx:3407`, which under CR114 is deliberately bounded to recent history.
+**The durable ledger.** `dedicated-journey-conversations/mirror-desktop/generation-4.json` is 7.7 MB
+and holds **13 turns** and 2,178 messages. Its oldest turn is `turn-agent-run-2026-10-03T15:27:35.373Z`.
+`turn-agent-run-2026-10-03T00:46:07.343Z` — the anchor of segments 27 and 28 — **is not in it.**
 
-Measured on the live data: the session holds 113 entries; the current segment's anchor `74fa610e`
-sits at position 1 and the tail at 112, so a refresh spans the whole session and resolves
-`firstTurnId` to `turn-agent-run-2026-09-30T11:52:38.069Z` — the **oldest** durable turn, 8 of the 9
-durable turns falling in range. The anchor is therefore pinned to the start of history while the
-loaded working set is bounded to its end. The further history grows, the more reliably the anchor
-falls outside the window the Desktop actually loaded.
+**Demonstrated, not inferred.** The guard from `partitionConversationBySegments`
+(`src/domain/conversationSegmentProjection.ts:21-27`) was run verbatim against those two real files:
 
-**The existing tolerance cannot help here.** `firstAvailable` was written to skip *leading*
-unresolvable segments, but this manifest has exactly one segment, so an unresolvable start makes
-`firstAvailable` `-1` and the function throws instead of degrading.
+```
+turns in durable ledger : 13
+segments in manifest    : 29
+starts                  : [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-1,-1,0]
+firstAvailable          : 0
+condition firstAvailable < 0 : false
+condition any start < 0      : true
+condition non-monotonic      : true
+=> THROWS 'Conversation Segment turn range is invalid.' : true
+   unresolvable: segment-27 firstTurnId=turn-agent-run-2026-10-03T00:46:07.343Z
+   unresolvable: segment-28 firstTurnId=turn-agent-run-2026-10-03T00:46:07.343Z
+```
 
-**The stored manifest is also stale.** `generation-2.json` still carries `sourceEntryCount: 45` and
-`turnCount: 0` with no `firstTurnId`, written on 2026-09-30, against a session that now has 113
-entries and 9 durable turns. In that stored shape it cannot throw, because an absent `firstTurnId`
-maps to `turns.length`; the throw only becomes reachable after a refresh fills the anchor in.
+Two of the three throw conditions fire. This is **deterministic**: with the manifest and ledger as
+they sit on disk, every partition of this Journey throws. It is not an intermittent or timing
+effect.
 
-**Side observation, not the defect.** One of the nine durable turns has no Pi entry inside the
-session's range at all. Worth establishing why before assuming the turn list and the session agree.
+**The settlement half.** `mirror-append-outbox.json` holds zero items, so no durable Mirror append
+debt remains. The "1 exact Mirror settlement operation also needs attention" count is assembled from
+in-memory settlement errors (`src/app/settlementDiagnostics.ts:48`) and cannot be verified from disk
+after the app closed. It is not established whether it was an independent fault or a consequence of
+the Segment throw aborting the same settlement path.
+
+**An unsettled run.** The newest turn-journal record, created `2026-10-03T21:40:01.669Z`, is still
+`phase: running` at revision 2 with `recoveryDisposition: resume_execution`, while the application
+is closed. One run is therefore mid-flight on disk and awaiting recovery on next open. The 63
+records before it are all `settled` / `completed`.
 
 ## Diagnosis
 
-Two turn lists answer the same question and are allowed to disagree. The anchor is computed against
-everything that was ever persisted and checked against what is currently loaded, so CR114's
-intentional bounding of the working set is enough to invalidate it. No code owns the invariant that
-these two lists must be comparable.
+**The ledger lost history the manifest still points at.**
 
-Not established: which turns the in-memory projection actually held at that moment. That is runtime
-state and was not recorded, so the mechanism above is consistent with every observation but was not
-reproduced on demand. The notice is transient and gone.
+`alpha.30` carries the defect `alpha.31` fixed, described in that release note: closed Segment
+publication overwrote the active durable projection with the current Segment's payload, and the
+active projection is the only durable turn ledger, so the overwrite kept shrinking it. The ledger is
+now 13 turns long for a Journey with 29 segments and 64 journal records.
+
+The stored manifest, by contrast, still holds anchors from refreshes taken while the ledger was
+longer — segments 27 and 28 were written when `turn-…00:46:07.343Z` was present. Nothing rewrote
+them when it disappeared, so the manifest references turns the ledger no longer has.
+
+**Why it recurs on an ordinary turn.** `App.tsx:3403-3407` refreshes the manifest only when a
+compaction has just settled, and otherwise calls `loadConversationSegments`, which reads the stored
+file. So the ordinary post-turn settlement path partitions against the stale manifest every time.
+
+**Why it does not heal itself.** A refresh would clear it: `project_conversation_segment_manifest`
+starts from `let mut segments = Vec::new()` (`src-tauri/src/main.rs:4330`) and rebuilds segments from
+the session's compaction entries, writing `firstTurnId` only when turns actually match
+(`main.rs:4399-4403`). Segments 27 and 28 would simply get no anchor and map to `0`. But nothing in
+the ordinary path triggers that refresh, and neither does the notice's own control: **Repair
+synchronization** calls `recoverPostTerminalPersistence`, which does not refresh the manifest. The
+one other refresh, at `App.tsx:2427`, is gated on missing chapter evidence and on a once-per-key
+ref, so it is not a general repair either.
+
+**Consequence for the upgrade.** Moving production past `alpha.31` stops the truncation that caused
+this, but does not repair a manifest and ledger that have already diverged. This Journey would be
+expected to keep throwing until a compaction settles and forces a rebuild.
+
+**Not caused by the current work.** `alpha.30` contains neither CR114, CR116 nor CR117, and the
+Segment projection code was not touched by CR117 or CR097.
+
+**Also worth noting.** The existing `firstAvailable` tolerance was written to skip *leading*
+unresolvable segments. It cannot help when the unresolvable ones sit in the middle, as here, because
+the `some(start => start < 0)` check then fires regardless.
 
 ## Proposed Scope
 
-- Decide the authority question explicitly: either the anchor is resolved against the same turn list
-  that will be partitioned, or the partition tolerates an anchor it cannot see rather than throwing.
-- Make a single-segment manifest degrade the way a multi-segment one already does, so an
-  unresolvable anchor is skipped rather than fatal.
-- Establish whether a stale manifest should be refreshed or rewritten when its
-  `sourceEntryCount` no longer matches the session.
-- Establish why one durable turn has no Pi entry in range.
+- Decide the authority question explicitly: either an anchor is always resolved against the same
+  turn list that will be partitioned, or the partition degrades for any anchor it cannot resolve
+  instead of throwing. Throwing makes a recoverable bookkeeping gap fatal to the whole settlement
+  path.
+- Give the existing repair a way to rebuild a manifest whose anchors do not resolve, so the notice's
+  own button can fix what it reports.
+- Establish whether Journeys whose ledgers were already truncated under `alpha.30` need a one-time
+  rebuild after upgrading, and whether that can be detected rather than guessed.
+- Establish whether the settlement-operation count in the same notice was independent or a
+  consequence of the throw.
 
 ## Acceptance
 
-- A Journey whose loaded history is narrower than its persisted history opens, takes a turn and
+- A Journey whose durable ledger no longer contains a segment's anchor opens, takes a turn and
   settles without a synchronization notice.
-- A manifest with one segment whose anchor is outside the loaded window degrades instead of throwing.
-- No Segment publication writes a projection narrower than the segment it claims to describe.
-- The existing CR114 chapter behaviour and CR080 chapter evidence are unchanged.
+- An unresolvable anchor degrades wherever it sits in the segment order, not only when leading.
+- **Repair synchronization** resolves the condition it names, or the notice stops offering an action
+  that cannot address it.
+- CR114's chapter behaviour, CR080's chapter evidence and CR115's idle-recovery quiet are unchanged.
 
 ## Exclusions
 
-- No change to how the working set is bounded; CR114's default stands.
-- No change to the recovery surface itself, which behaved correctly here.
 - No rewriting of Pi session files.
+- No change to how the working set is bounded; CR114's default stands.
+- No change to the recovery surface's wording or to its promise that no recovery action runs the
+  agent again.
+- No backfill of turns already lost from a truncated ledger; this CR is about tolerating the
+  divergence, not reconstructing history.
 
 ## Dependencies
 
 Shares the Segment surface with CR114 and the recovery surface with CR115 and CR116. Independent of
-CR117 and CR097: the Segment projection code was not touched by either.
+CR117 and CR097. The originating defect is the one CR114's release fixed, so this CR covers the
+residue that fix left in already-affected stores rather than the cause itself.

@@ -51,19 +51,30 @@
 | Agentic Map of Admitted Context | ↗️ explorada e entregue | CR105 ✅ · Context Map |
 | 11 explorações anteriores | 🗂️ colapsadas | status nos arquivos ainda não reconciliado; não contam como foco atual |
 
-**Achado novo (CR118, capturada):** o aviso de sincronização que o Navigator viu pertence ao run
-`19:24:27Z`, o da segunda rodada de homologação — anterior ao build com o reparo das guardas. Nada
-está quebrado agora: os 43 registros do journal estão `settled/completed` e o outbox está vazio. A
-metade do Segment é fragilidade real: o `firstTurnId` é ancorado no turno mais **antigo** da sessão
-inteira, enquanto a janela carregada é limitada ao fim por desenho da CR114 — duas listas de turnos
-respondendo a mesma pergunta, livres para discordar. Com um único segmento não há degradação: o
-`firstAvailable` foi escrito para pular segmentos iniciais irresolúveis e vira `-1`.
+**Achado novo (CR118, capturada):** o aviso de sincronização aconteceu na **produção `alpha.30`**,
+não no Dev. A primeira leitura foi contra o store do Dev, tratando o relato como possível regressão
+da CR117 em voo — store errado e enquadramento errado, e o mecanismo proposto caiu com a correção,
+porque a `alpha.30` é anterior à CR114.
 
-**Prova da regressão da CR117 em dado durável:** os dois registros de steering da jornada são
-exatamente as duas rodadas. Run `18:47` (transição viva quebrada, status parado em `accepted`):
-`applied` com `piUserEntryId=479a2df1`. Run `19:24` (transição viva funcionando): `delivered` com
-`piUserEntryId` nulo. Confirma o diagnóstico e por que a rodada 1 validou algo que a rodada 2
-invalidou.
+A causa real é oposta: o **ledger** perdeu história que o manifesto ainda aponta. A `alpha.30` carrega
+o defeito que a `alpha.31` consertou — publicação de Segment sobrescrevendo a projeção durável, que é
+o único ledger durável de turnos. Ele encolheu para 13 turnos numa jornada com 29 segmentos, enquanto
+os segmentos 27 e 28 seguem ancorados em `turn-…00:46:07.343Z`, que não está mais lá. Rodei a guarda
+real contra os dois arquivos reais: `starts = [0×26, -1, -1, 0]` → **lança deterministicamente**, em
+todo turno, não de forma intermitente. E o `firstAvailable` não socorre, porque foi escrito para
+pular segmentos irresolúveis **iniciais**, e aqui eles estão no meio.
+
+Não se cura sozinho: só o refresh reconstrói os segmentos do zero, e o turno comum usa
+`loadConversationSegments`. O botão **Repair synchronization** chama
+`recoverPostTerminalPersistence`, que não dá refresh no manifesto — ele não conserta o que anuncia.
+Subir de versão para a `alpha.32` para a causa, mas não repara um manifesto já divergente.
+
+**Prova da regressão da CR117 em dado durável (store do Dev, não relacionada à CR118):** os dois
+registros de steering da jornada no Dev são exatamente as duas rodadas de homologação. Run `18:47`
+(transição viva quebrada, status parado em `accepted`): `applied` com `piUserEntryId=479a2df1`. Run
+`19:24` (transição viva funcionando): `delivered` com `piUserEntryId` nulo. Confirma o diagnóstico e
+por que a rodada 1 validou algo que a rodada 2 invalidou. O reparo das guardas segue **sem validação
+do Navigator**.
 
 **Próximo passo:** re-homologar o passo terminal da CR117, que a própria correção da rodada 2 havia
 invalidado em silêncio. Mande uma correção durante um run longo e confirme a sequência completa:
