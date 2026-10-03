@@ -91,6 +91,21 @@ projected as `pi-<entryId>` with the role `user`, and it can split CR089's inter
    native tests/check, roadmap consistency and diff check. Dev homologation must cover corrected
    completed and cancelled turns after navigation/restart, plus an ordinary request control.
 
+### Boundary with CR116 Phase 2
+
+On 2026-10-03 CR116 was reopened with a Phase 2 covering the same surface while it is live: a
+correction's status never leaving `Correction queued`, and its placement under a prompt that is
+scrolled away. This CR covers the surface after reload. The two must not be implemented blind to
+each other: CR116 Phase 2 slice 4 decides where a correction is rendered, and this CR decides what a
+restored correction is rendered as. Whichever lands first owns the placement decision and the other
+adopts it.
+
+The interaction is favourable rather than conflicting. CR116 Phase 2 reconciles steering evidence
+during the run instead of only at `done`, so `piUserEntryId` — the exact identity this CR depends on
+— becomes populated earlier and in more cases, including runs that are later cancelled. Slice 1 here
+should therefore record whether CR116 Phase 2 has landed, because it changes how often the evidence
+this CR needs is present at all.
+
 ### Files
 
 Expected implementation files: `src/domain/piBackedConversationSurface.ts`,
