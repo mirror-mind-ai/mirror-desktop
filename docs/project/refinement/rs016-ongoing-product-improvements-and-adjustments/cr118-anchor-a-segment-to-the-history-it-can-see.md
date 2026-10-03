@@ -126,6 +126,42 @@ Segment projection code was not touched by CR117 or CR097.
 unresolvable segments. It cannot help when the unresolvable ones sit in the middle, as here, because
 the `some(start => start < 0)` check then fires regardless.
 
+## Authorized Production Repair (2026-10-03)
+
+The Navigator authorized the surgical repair rather than waiting for the durable fix. Applied with
+the production application closed, verified not running before and after.
+
+The values written were **computed, not chosen**: the native refresh rule
+(`src-tauri/src/main.rs:4391-4404`) was replicated against the real session, the real ledger and the
+real manifest, so the edit is exactly what a refresh would have produced. Only the two segments whose
+stored values differed from that computation were touched.
+
+| segment | was | now |
+|---|---|---|
+| segment-27 | `firstTurnId`/`lastTurnId` = `turn-…00:46:07.343Z`, `turnCount` 1 | no anchor, `turnCount` 0 |
+| segment-28 | `firstTurnId` = `turn-…00:46:07.343Z`, `turnCount` 9 | `firstTurnId` = `turn-…15:27:35.373Z`, `turnCount` 2 |
+
+Segment-27 legitimately loses its anchor because no surviving turn falls in its entry range at all.
+Segment-28 keeps one, but pointing at the oldest turn the ledger still has.
+
+The repair aborted-by-design unless three things held: the condition was present before, absent
+after, and the manifest still satisfied the parser's sequence, id, closed-checkpoint and `turnCount`
+constraints. A pre-existing backup would also have aborted it rather than being overwritten.
+
+Verified independently afterwards by re-running the partition guard against the file on disk:
+`starts` is now all zeroes across 29 segments and all three throw conditions are false.
+
+Backup retained at
+`conversation-segments/mirror-desktop/nautilus-thread-mirror-desktop/generation-4.json.cr118-backup-2026-10-03`,
+confirmed to still contain the stale anchors.
+
+**This repairs one Journey's state; it does not fix the defect.** The partition still treats an
+unresolvable anchor as fatal, **Repair synchronization** still cannot repair what it reports, and any
+other store truncated under `alpha.30` remains exposed. Those are this CR's work.
+
+**Noted during the repair:** the durable ledger moved from 13 turns to 15 between two readings
+minutes apart, so this state is live and a diagnosis of it is only valid for the moment it was taken.
+
 ## Proposed Scope
 
 - Decide the authority question explicitly: either an anchor is always resolved against the same

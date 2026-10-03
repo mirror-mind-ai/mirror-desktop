@@ -2,14 +2,15 @@
 
 # CR117: Make a Correction Legible While It Is Live
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr117-delivered-reconciliation-guards`
 
-> **Reopened on 2026-10-03** by explicit Navigator intent. The first closure was premature: pulling
-> CR097 found that this CR's own happy path never acquired `piUserEntryId`. See
-> "Reopening and Guard Repair" below. The earlier closure record is kept intact above it, because a
-> closure that turned out to be wrong is part of this CR's history, not something to overwrite.
+> **Reopened and closed again on 2026-10-03.** The first closure was premature: pulling CR097 found
+> that this CR's own happy path never acquired `piUserEntryId`. The Navigator reopened it, the guards
+> were repaired, and the Navigator validated the repair. Both closure records are kept — see
+> "Reopening and Guard Repair" and "Second Closure" below. A closure that turned out to be wrong is
+> part of this CR's history, not something to overwrite.
 
 Captured on 2026-10-03 from two Navigator observations in daily use, and planned the same day from a
 read-only reading of `main` at `aa3d329`. It was first recorded as a Phase 2 inside
@@ -510,12 +511,46 @@ gate text and was updated to assert the shared predicate, preserving its intent.
 225 files / 1,600 tests. `tsc --noEmit`, `npm run build`, `cargo test` 241 passed / 3 ignored,
 `cargo check --locked`, `roadmap:check`, `git diff --check`.
 
-### Not Yet Validated
+## Second Closure (2026-10-03)
 
-The repair is proven by test, not yet by eye. Homologation must re-run the step that was invalidated:
-send a correction during a long run, confirm it reaches `✓ Correction reached the agent` while the
-run is alive **and then** `✓✓ Correction applied` once the turn settles. The cancellation case should
-be re-checked too, since `delivered → terminally_unconsumed` is now the ordinary cancelled path.
+The Navigator validated the guard repair in the Dev build installed from `08d03e7`. That closes the
+CR for the second and final time.
+
+**Proportionality review: proportional.** The repair removed the duplication that caused the defect
+instead of patching the two guards where they were wrong. One constant and one predicate now answer
+"which corrections still await Pi entry evidence", so a guard can no longer disagree with the
+reconciler it guards. Two further members of the same defect class were closed while the cause was
+in view, at small cost: the persistence allowlist now derives from the transition table, which the
+compiler forces to be exhaustive, and the third status rule was named rather than left inline. No
+native change, no migration, no new durable record, and no widening of the CR's original scope.
+
+**Debt review: follow_up.** Four items stand, none selected by this closure.
+
+The only genuinely new one remains that a correction can end a turn rather than redirect it,
+observed in homologation round 2 and recorded without a plan because it is model behaviour that no
+Desktop transport change reaches. Whether it becomes a CR is the Navigator's call.
+
+Reload recognisability stays with CR097, which is now unblocked and is the recommended next work.
+Its slice 1 should record that CR117 landed *and* that its guards were repaired, since the stale
+`delivered` record this CR left in the Dev store is exactly the kind of input CR097 consumes.
+
+Chronological placement within a run remains a documented design limit rather than deferred work:
+the trail mixes timestamped messages with untimed note subdivisions, so a spliced position would
+assert an order the data cannot support.
+
+And the work is Dev-validated only. No published alpha carries it; `alpha.32` is the newest release
+and contains CR116. A release remains a separate decision.
+
+**A process lesson worth carrying out of this CR.** It was closed once on a validation that a later
+fix silently invalidated. Round 1 observed `applied` correctly, but only because the live transition
+was broken and the status sat at `accepted`, which the old guard admitted. Round 2 repaired the
+transition, made `delivered` occur for the first time, and thereby voided the earlier observation
+without anyone re-running it. A fix that changes which path the system takes invalidates every
+earlier observation of the old path, and those steps must be re-run rather than carried forward.
+The same CR also produced two defects of one shape — correct domain, wrong wiring — because its
+tests exercised domain functions directly without covering the code that decides whether they run.
+
+It was integrated to `main` by fast-forward.
 
 ## Files
 

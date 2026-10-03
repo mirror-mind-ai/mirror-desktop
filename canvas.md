@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.32` · A Stranded Journey Comes Back
 
-🎯 **Foco oficial:** CR117 reaberta · `in_progress` · @alissonvale · gates verdes · falta re-homologar
+🎯 **Foco oficial:** nenhum · CR117 fechada em definitivo · CR118 capturada, sem plano
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active`; Embedded TS Runtime é uma direção capturada
 
@@ -20,8 +20,8 @@
 | ↳ CR113 · Make Composer Typing Responsive in Large Journeys | ✅ done · aceita com CR115 | `██████████` |
 | ↳ **CR114 · Make the Current Segment the Default Working Set** | ✅ done · publicada em alpha.31 | `██████████` |
 | ↳ 20 Change Requests anteriores | ✅ done | `██████████` |
-| **RS016 · Ongoing Product Improvements** | 🔄 ativa · CR em foco: CR117 reaberta | `█████████░` 24 done · 4 ↗️ · 1 ⛔ |
-| ↳ **CR117 · Make a Correction Legible While It Is Live** | 🧪 reaberta · guardas corrigidas · falta re-homologar | `█████████░` |
+| **RS016 · Ongoing Product Improvements** | 🔄 ativa · sem CR em foco | `█████████░` 25 done · 4 ↗️ · 1 ⛔ |
+| ↳ **CR117 · Make a Correction Legible While It Is Live** | ✅ done · fechada, reaberta e fechada de novo | `██████████` |
 | ↳ **CR118 · Anchor a Segment to the History It Can See** | 🟡 captured · aviso transitório, estado limpo | `░░░░░░░░░░` |
 | ↳ **CR116 · Release a Journey Stranded in Finishing** | ✅ done · homologada no Dev | `██████████` |
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
@@ -69,39 +69,28 @@ Não se cura sozinho: só o refresh reconstrói os segmentos do zero, e o turno 
 `recoverPostTerminalPersistence`, que não dá refresh no manifesto — ele não conserta o que anuncia.
 Subir de versão para a `alpha.32` para a causa, mas não repara um manifesto já divergente.
 
-**Prova da regressão da CR117 em dado durável (store do Dev, não relacionada à CR118):** os dois
-registros de steering da jornada no Dev são exatamente as duas rodadas de homologação. Run `18:47`
-(transição viva quebrada, status parado em `accepted`): `applied` com `piUserEntryId=479a2df1`. Run
-`19:24` (transição viva funcionando): `delivered` com `piUserEntryId` nulo. Confirma o diagnóstico e
-por que a rodada 1 validou algo que a rodada 2 invalidou. O reparo das guardas segue **sem validação
-do Navigator**.
+**CR117 fechada em definitivo.** O Navigator validou o reparo das guardas. A CR foi fechada, reaberta
+e fechada de novo no mesmo dia — e o registro das duas conclusões ficou preservado, porque um
+encerramento que se mostrou errado é parte da história dela.
 
-**Próximo passo:** re-homologar o passo terminal da CR117, que a própria correção da rodada 2 havia
-invalidado em silêncio. Mande uma correção durante um run longo e confirme a sequência completa:
-`✓ Correction reached the agent` enquanto o run vive **e depois** `✓✓ Correction applied` quando o
-turno assenta. Vale reconferir o cancelamento também, porque `delivered → terminally_unconsumed`
-passou a ser o caminho cancelado ordinário.
+A lição que fica: ela foi fechada sobre uma validação que um conserto posterior invalidou em
+silêncio. A rodada 1 observou `applied` de verdade, mas só porque a transição viva estava quebrada e
+o status ficava em `accepted`, que a guarda antiga aceitava. A rodada 2 consertou a transição, fez
+`delivered` acontecer pela primeira vez e anulou aquela observação sem ninguém reconferir. **Um
+conserto que muda o caminho percorrido invalida toda observação anterior do caminho antigo.**
 
-A CR117 foi reaberta porque o fecho anterior era prematuro. Ela acrescentou `delivered` ao
-vocabulário e ensinou o reconciliador a aceitá-lo, mas a mesma lista de status estava escrita à mão
-em **quatro** lugares. Os dois de dentro do reconciliador foram atualizados; as duas guardas do
-`App.tsx` que decidem se ele é chamado ficaram para trás. Uma correção que chegava a `delivered` —
-exatamente o caminho que a CR117 existe para produzir — nunca era reconciliada e nunca ganhava
-`piUserEntryId`.
+**Próximo passo:** a CR118 é o trabalho seguinte, mas **não foi puxada para planejar** por instrução
+explícita do Navigator — segue `captured`, sem Driver e sem plano. A CR097 está desbloqueada e é a
+outra candidata; a escolha entre as duas é decisão de projeto, não leitura.
 
-Por que a homologação não pegou: na rodada 1 o `applied` foi observado de verdade, mas só porque a
-transição viva estava quebrada e o status ficava em `accepted`, que a guarda **aceita**. A rodada 2
-consertou a transição e, com isso, invalidou aquela observação sem que o passo fosse reconferido. A
-lição é geral: um conserto que muda o caminho percorrido invalida o que foi validado no caminho
-antigo.
+Produção recebeu reparo cirúrgico autorizado: as âncoras obsoletas dos segmentos 27 e 28 foram
+retiradas do manifesto da geração 4, com backup, exatamente como um refresh as escreveria. Isso para
+o lançamento determinístico hoje; a CR118 continua sendo o conserto durável, porque o botão **Repair
+synchronization** ainda não repara o que anuncia e a partição ainda trata âncora irresolúvel como
+fatal.
 
-O reparo não remendou as guardas — removeu a duplicação. `RECONCILABLE_STEERING_STATUSES` passou a
-ser a autoridade única, com `hasReconcilableSteering`, e as duas guardas consultam o predicado. De
-passagem, fechei dois outros membros da mesma classe: `STEERING_STATUSES` agora deriva da tabela de
-transições (que o compilador obriga a ser exaustiva), então um status novo não pode mais ser
-acrescentado e silenciosamente falhar em persistir.
-
-A CR097 está desbloqueada e segue atrás da CR117, que precisa fechar de novo primeiro.
+Nada publicado carrega CR116 nem CR117: a `alpha.32` é a release mais nova e traz a CR116, enquanto
+produção roda `alpha.30`. Uma `alpha.33` com CR117 e CR118 é decisão separada.
 
 A `alpha.31` saiu com a CR114: a Journey abre no capítulo atual — 286 entradas em vez de 7.373, com
 24 capítulos anteriores sob pedido — e a publicação de Segments não sobrescreve mais o metadado

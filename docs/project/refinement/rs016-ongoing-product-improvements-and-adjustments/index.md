@@ -29,7 +29,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 ## Change Requests
 
 - [CR118: Anchor a Segment to the History It Can See](cr118-anchor-a-segment-to-the-history-it-can-see.md) — captured
-- [CR117: Make a Correction Legible While It Is Live](cr117-make-a-correction-legible-while-it-is-live.md) — in progress (reopened)
+- [CR117: Make a Correction Legible While It Is Live](cr117-make-a-correction-legible-while-it-is-live.md) — done
 - [CR116: Release a Journey Stranded in Finishing](cr116-release-a-journey-stranded-in-finishing.md) — done
 - [CR115: Stop the Idle Post-Terminal Recovery Loop](cr115-stop-the-idle-post-terminal-recovery-loop.md) — done
 - [CR096: Verify the Published Download Alias](cr096-verify-the-published-download-alias.md) — done
@@ -70,7 +70,7 @@ throughout. Proportionality review concluded proportional. Debt Review is `follo
 operation that hung remains unestablished and could justify phase-level observability later, but no
 follow-up is selected.
 
-CR117 was closed and then **reopened** on 2026-10-03 by explicit Navigator intent; it is `in_progress` under @alissonvale with Delivery `refinement/rs016-cr117-delivered-reconciliation-guards`, captured the same day from two Navigator observations in daily
+CR117 was closed, **reopened** and closed again on 2026-10-03; it is `done` under @alissonvale with Delivery `refinement/rs016-cr117-delivered-reconciliation-guards`, captured the same day from two Navigator observations in daily
 use. It was briefly recorded as a CR116 Phase 2 and promoted to its own CR before CR116's delivered
 work was released, because one CR cannot coherently hold both a released phase and an unplanned one.
 Its diagnosis established that the status vocabulary already models `applied` and already refuses it
@@ -107,8 +107,10 @@ reopened and the repair removed the duplication instead of patching the guards, 
 members of the same defect class with it. Proportionality review concluded proportional. Debt Review
 was `follow_up` on four items with none selected: the turn-ending observation, reload recognisability
 which belongs to CR097, the documented limit on chronological placement, and the fact that the work
-is Dev-validated only with no published alpha carrying it. Re-homologation of the terminal step is
-now outstanding before it can close again. CR117 shares the
+is Dev-validated only with no published alpha carrying it. The Navigator validated the guard repair, which
+closed the CR a second time. Proportionality remained proportional: the repair removed the
+duplication that caused the drift rather than patching the guards, and closed two further members of
+the same defect class with it. CR117 shares the
 correction surface with CR097 and records an explicit boundary with it.
 
 CR096 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr096-download-alias-verification`. It records that the blocking post-publication verification covers only the manifest URLs installed applications poll, leaving the site download alias `downloads/macos/mirror-desktop-latest.dmg` unchecked. Because staging and upload of that alias are both conditional on a DMG being supplied, a publication without one completes every stage, passes verification and prints success while the site keeps serving the previous installer. Verified by hand after v0.2.0-alpha.21, where the alias was byte-identical to the built artifact — correct, but confirmed after the fact rather than guaranteed. Implemented: verification now refuses to run without the published DMG digest, checks the alias version, its canonical target, its advertised URLs and the digest of the served bytes, and records all of it in the publication evidence. The Navigator validated it on 2026-09-26 after the new checks were run read-only against the already-published v0.2.0-alpha.21, with two negative controls confirming they block. Proportionality review concluded proportional; Debt Review concluded `follow_up`, recording that the prepare-to-publish digest hand-off is proven by reading state rather than by a run — it resolves on first use — and that GitHub Release assets stay unverified by explicit exclusion.
