@@ -50,9 +50,12 @@
 | Agentic Map of Admitted Context | ↗️ explorada e entregue | CR105 ✅ · Context Map |
 | 11 explorações anteriores | 🗂️ colapsadas | status nos arquivos ainda não reconciliado; não contam como foco atual |
 
-**Próximo passo:** re-homologar o passo 2. A primeira homologação validou 1 e 3–6; o passo 2 falhou
-porque a transição viva era escrita na conversa do run e sobrescrita, na instrução seguinte, pelo ref
-que é a autoridade de steering durante o run. Corrigido e coberto por teste que reproduz a armadilha. O Dev
+**Próximo passo:** decidir o encerramento da CR117 — todos os passos do roteiro foram validados. O
+passo 2 falhou na primeira rodada porque a transição viva era escrita na conversa do run e
+sobrescrita, na instrução seguinte, pelo ref que é a autoridade de steering durante o run; corrigido
+e coberto por teste que reproduz a armadilha. Fica registrada uma observação separada, sem plano: uma
+correção pode encerrar o turno em vez de redirecioná-lo, o que é comportamento do modelo e não se
+resolve no transporte do Desktop. O Dev
 instalado está em `0.2.0-alpha.31`, sem CR116 nem CR117; um build só cobre as duas. A fatia 4 passou
 a desenhar a correção dentro do cartão do run que ela corrigiu e a tirou do bloco do prompt. O spike encontrou que o Pi já emite `queue_update` com a própria fila de
 steering, e o Desktop descartava esse evento: uma correção que saiu da fila foi entregue ao modelo,

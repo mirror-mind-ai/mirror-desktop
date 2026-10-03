@@ -339,6 +339,56 @@ Text matching was also checked end to end: Rust's `validate_steering_text` trims
 
 Step 2 remains unvalidated until the Navigator re-runs it against the rebuilt Dev app.
 
+## Homologation Round 2 (2026-10-03)
+
+**Step 2 is validated.** The Navigator saw the status move to `✓ Correction reached the agent`
+during the run, which is the behaviour this CR exists to produce. The ref-authority fix holds.
+
+The Navigator also reported that the agent then stopped working. Diagnosed read-only from the Dev
+journal at `ai.mirrormind.desktop.dev`; **not caused by this CR**.
+
+Run `agent-run-2026-10-03T19:24:27.786Z` reached `phase: settled`, `terminalOutcome: completed`,
+`cancellationIntent: none`, `revision 5`. It did not hang or fail. Its closing assistant text was:
+
+> Certo. Vou focar apenas em `src/app/App.tsx` e não lerei os outros dois arquivos.
+
+The model read the correction, answered it, and ended its turn instead of adjusting course and
+continuing. The run immediately before, `agent-run-2026-10-03T18:47:59` on the previous build, took
+the same correction and *did* continue — "vou iniciar a leitura de `src/app/App.tsx`, cobrindo as
+primeiras 500 linhas" — so this is nondeterministic model behaviour, not a deterministic defect.
+
+### Why this CR is not the cause
+
+The `steering_queue` path is observation only, verified by reading each reducer it reaches:
+
+- `reduceAgentRunFromStreamEvent` acts on `cancelled`, `error`, `done` and `run_status` and returns
+  the run unchanged for anything else.
+- `reduceRuntimeProjection` likewise ignores unknown event types.
+- `reduceEntryFromStreamEvent` is an `if`/`else if` chain that simply does not match.
+- `updateRunConversation` dispatches a snapshot and sets React state. It is already called on many
+  other events per run; one more call per queue update adds nothing new in kind.
+
+Nothing on this path touches the Pi process, the steer RPC, or the stream loop. Nothing in CR117
+changed what is sent to Pi: the steer text and `steer_pi_invocation` call are untouched. And the
+closing text is a semantic reply to the correction's content, which no amount of renderer activity
+produces.
+
+`steeringMode` was checked as a possible lever and is not one: it selects `"all"` against
+`"one-at-a-time"` for how many queued corrections are released per boundary, and the Desktop already
+sends `one_at_a_time_line`. It does not govern whether the model ends its turn.
+
+### Observation handed back for a decision
+
+That a correction can end a turn rather than redirect it is a real product concern, but a different
+one from legibility, and it is not fixable in the Desktop's transport. A correction arrives as an
+ordinary user message, so a short imperative reads as a complete, answerable instruction. Any
+remedy lives in how the correction is framed to the model, not in how its status is displayed.
+
+Whether that becomes its own CR is the Navigator's call; it is recorded here rather than planned.
+It also vindicates this CR's truthfulness constraint: `delivered` claims only that the correction
+entered the model's input, and this run is precisely a case where it entered and was not acted on
+as intended.
+
 ## Files
 
 Revised by the spike. Expected: `src/domain/journeyConversation.ts` (`SteeringStatus` gains
