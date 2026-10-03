@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.32` · A Stranded Journey Comes Back
 
-🎯 **Foco oficial:** nenhum · CR117 fechada em definitivo · CR118 capturada, sem plano
+🎯 **Foco oficial:** CR118 · `planned` · sem Driver · plano gravado, aguardando decisão de puxar
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active`; Embedded TS Runtime é uma direção capturada
 
@@ -22,7 +22,7 @@
 | ↳ 20 Change Requests anteriores | ✅ done | `██████████` |
 | **RS016 · Ongoing Product Improvements** | 🔄 ativa · sem CR em foco | `█████████░` 25 done · 4 ↗️ · 1 ⛔ |
 | ↳ **CR117 · Make a Correction Legible While It Is Live** | ✅ done · fechada, reaberta e fechada de novo | `██████████` |
-| ↳ **CR118 · Anchor a Segment to the History It Can See** | 🟡 captured · aviso transitório, estado limpo | `░░░░░░░░░░` |
+| ↳ **CR118 · Anchor a Segment to the History It Can See** | 📐 planned · 4 fatias · 3 decisões abertas | `█░░░░░░░░░` |
 | ↳ **CR116 · Release a Journey Stranded in Finishing** | ✅ done · homologada no Dev | `██████████` |
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
 | RS022 · Mirror Core Debts | 🔄 ativa · registro sem CR aberta | `░░░░░░░░░░` 1 ⏸️ |
@@ -79,9 +79,31 @@ o status ficava em `accepted`, que a guarda antiga aceitava. A rodada 2 conserto
 `delivered` acontecer pela primeira vez e anulou aquela observação sem ninguém reconferir. **Um
 conserto que muda o caminho percorrido invalida toda observação anterior do caminho antigo.**
 
-**Próximo passo:** a CR118 é o trabalho seguinte, mas **não foi puxada para planejar** por instrução
-explícita do Navigator — segue `captured`, sem Driver e sem plano. A CR097 está desbloqueada e é a
-outra candidata; a escolha entre as duas é decisão de projeto, não leitura.
+**CR118 planejada.** O plano saiu de leitura de código, e três achados o moldaram:
+
+1. **A única tolerância da partição é para lacuna inicial.** O `firstAvailable` pula segmentos
+   irresolúveis só até o primeiro resolvível; truncamento por prefixo cria irresolúveis no meio. A
+   fatia 1 transforma âncora irresolúvel em **corte onde quer que esteja**: ela e tudo antes são
+   omitidos, nunca republicados. Segmento fechado sem âncora passa a herdar o início do seguinte,
+   fechando um terceiro caso latente (não-monotônico) da mesma família.
+2. **Os arquivos de capítulo fechado são a história sobrevivente, e o publicador já os defende.**
+   Um fechado existente com bytes diferentes é recusado. Correto — mas significa que **a próxima
+   compactação em produção vai falhar** com `Immutable Conversation Segment projection diverged`,
+   porque os segmentos 1–27 (sem âncora → fatia vazia) seriam oferecidos sobre arquivos com conteúdo.
+   O reparo cirúrgico não causou isso nem resolve. A fatia 2 faz uma projeção fechada **vazia** nunca
+   contradizer um arquivo publicado: pula, sem erro; divergência com conteúdo continua erro.
+3. **A "1 exact Mirror settlement operation" era a mesma falha contada duas vezes** — o `catch` do
+   assentamento grava o erro em dois lugares. A fatia 3 faz uma falha gerar um aviso.
+
+Nenhum gatilho novo de refresh: a compactação já refresca no momento certo, e o botão **Repair
+synchronization** chega à partição pelo caminho existente — parando de lançar, ele passa a consertar
+o que anuncia.
+
+**Três decisões abertas para o Navigator:** D1 regra de corte (recomendada); D2 "publicar só o que
+mudou na compactação" como CR própria (recomendado, é mudança de desenho); D3 manter a fatia 3 no
+escopo (recomendado, é pequena e cai sem afetar as outras). **Validação honesta:** Dev não tem ledger
+truncado e não vou fabricar um; a prova real é observacional em produção após release — a primeira
+compactação assentar sem aviso e deixar os segmentos 1–27 byte-idênticos.
 
 Produção recebeu reparo cirúrgico autorizado: as âncoras obsoletas dos segmentos 27 e 28 foram
 retiradas do manifesto da geração 4, com backup, exatamente como um refresh as escreveria. Isso para

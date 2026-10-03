@@ -2,7 +2,7 @@
 
 # CR118: Anchor a Segment to the History It Can See
 
-**Status:** captured
+**Status:** planned
 **Driver:** —
 **Delivery:** —
 
@@ -78,11 +78,13 @@ Two of the three throw conditions fire. This is **deterministic**: with the mani
 they sit on disk, every partition of this Journey throws. It is not an intermittent or timing
 effect.
 
-**The settlement half.** `mirror-append-outbox.json` holds zero items, so no durable Mirror append
-debt remains. The "1 exact Mirror settlement operation also needs attention" count is assembled from
-in-memory settlement errors (`src/app/settlementDiagnostics.ts:48`) and cannot be verified from disk
-after the app closed. It is not established whether it was an independent fault or a consequence of
-the Segment throw aborting the same settlement path.
+**The settlement half — resolved at planning.** `mirror-append-outbox.json` holds zero items, so no
+durable Mirror append debt remains. The "1 exact Mirror settlement operation also needs attention"
+count was **the same throw counted twice**: the settlement `catch` (`src/app/App.tsx:3276-3278`)
+calls both `setExactSettlementError` and `recordSyncFailureOrDeferral` with the one error, and
+`projectSettlementNotices` (`src/app/settlementDiagnostics.ts:44-48`) then renders the sync failure
+as the Journey notice and the exact error as an "also needs attention" count. One fault, reported as
+two. Not an independent failure.
 
 **An unsettled run.** The newest turn-journal record, created `2026-10-03T21:40:01.669Z`, is still
 `phase: running` at revision 2 with `recoveryDisposition: resume_execution`, while the application
@@ -162,36 +164,146 @@ other store truncated under `alpha.30` remains exposed. Those are this CR's work
 **Noted during the repair:** the durable ledger moved from 13 turns to 15 between two readings
 minutes apart, so this state is live and a diagnosis of it is only valid for the moment it was taken.
 
-## Proposed Scope
+**Found at planning, and owed to the Navigator plainly.** The repair stops the throw on ordinary
+turns. It does not, and could not, prevent a second symptom of the same root cause at the **next
+compaction settlement**. On that path the partition hands every available Segment to the publisher,
+and closed Segments 1 to 27 — no anchor, so an empty slice — would be offered as empty projections
+over files that hold real history (segment-3 alone holds 62 messages). The native publisher rightly
+refuses to overwrite an immutable closed Segment whose bytes differ
+(`src-tauri/src/main.rs:4621-4626`), so that settlement would fail with
+`Immutable Conversation Segment projection diverged.` The repair did not cause this — Segments 1 to
+26 were already anchorless before it — and it does not fix it. The receipt confirms `segment-29` is
+the prior current, so none of the older ones is exempt. This is deduced from the publish code, not
+observed; slice 0 reproduces it in a test before anything is built on it.
 
-- Decide the authority question explicitly: either an anchor is always resolved against the same
-  turn list that will be partitioned, or the partition degrades for any anchor it cannot resolve
-  instead of throwing. Throwing makes a recoverable bookkeeping gap fatal to the whole settlement
-  path.
-- Give the existing repair a way to rebuild a manifest whose anchors do not resolve, so the notice's
-  own button can fix what it reports.
-- Establish whether Journeys whose ledgers were already truncated under `alpha.30` need a one-time
-  rebuild after upgrading, and whether that can be detected rather than guessed.
-- Establish whether the settlement-operation count in the same notice was independent or a
-  consequence of the throw.
+## Diagnosis (at planning)
+
+Three facts decide the shape of the work.
+
+**The partition's only tolerance is for a leading gap.** `firstAvailable`
+(`src/domain/conversationSegmentProjection.ts:24`) was written in `7362312` for the case where a
+manifest predates the turns the ledger starts with. It skips unresolvable Segments only until the
+first resolvable one. An unresolvable anchor after that point, which is what prefix truncation
+produces, fires `some(start < 0)` and throws. There is no test asserting that throw.
+
+**Closed Segment files are the surviving history, and the publisher already defends them.** The
+production files hold far more than the 15-turn ledger. `publish_conversation_segment_projections`
+treats a closed file that exists and was not the prior current as immutable and errors if the bytes
+differ. That protection is correct and must stay. But it means the partition must never offer an
+empty projection for a closed Segment that has a file, or the compaction path trades one throw for
+another.
+
+**Nothing refreshes a stale manifest, and nothing needs to.** The native refresh rebuilds every
+Segment from the session and is lossless, since every stored field derives from the session. It runs
+when a compaction settles, which is exactly when anchors change. **Repair synchronization** reaches
+the partition through `convergeDelivery → ports.saveProjection → saveProjectedTurnLifecycle`, so once
+the partition stops throwing, the existing repair route works without a new trigger. The chapter
+evidence refresh at `App.tsx:2427` is a different repair for a different gap and is left alone.
+
+A latent third member of the same family: a closed Segment with **no** anchor sitting between two
+anchored ones maps to `0` today, which makes `starts` non-monotonic and throws. It cannot occur under
+prefix truncation, but the rule chosen below should not leave it in place.
+
+## Plan
+
+**Slice 0 — reproduce both symptoms in tests, from production shapes.** A TypeScript test builds a
+manifest in the production shape (closed Segments without anchors, two with anchors the ledger lacks,
+a resolvable current) against a prefix-truncated ledger, and asserts the throw. A Rust test asserts
+that an empty closed projection over an existing closed file with content is refused today. Both are
+red before any change. No production data enters the repository; the fixtures are constructed.
+
+**Slice 1 — an unresolvable anchor is a cut, wherever it sits.** In `partitionConversationBySegments`,
+`firstAvailable` becomes the index after the **last** unresolvable anchor rather than the first
+resolvable one. Everything up to and including the cut is omitted from the result, exactly as leading
+gaps are omitted today, so those Segments are never republished. A closed Segment with no anchor
+after the cut inherits the next Segment's start rather than `0`, which closes the latent
+non-monotonic case and yields an empty slice. Monotonicity is still enforced among what remains, so
+genuinely corrupt order still throws. The current Segment is always returned.
+
+**Slice 2 — an empty closed projection never contradicts a published Segment.** In
+`publish_conversation_segment_projections`, a closed projection with zero messages whose file exists
+and is not the prior current is skipped: no write, hash untouched, no error. A non-empty divergence
+still errors. This is the only case where "empty" means "the ledger cannot see it" rather than "the
+content changed", and the file remains the authority. A closed Segment with zero messages and **no**
+file is still written, because `load_conversation_segment_projections` needs a file per manifest
+Segment and the receipt is written only when all are present.
+
+**Slice 3 — one fault, one notice.** In `projectSettlementNotices`, an exact settlement error whose
+message equals the Journey-level failure reason is not appended as an "also needs attention" count.
+Distinct errors still are.
+
+**Slice 4 — validation and handoff.** Gates, then the validation below.
+
+## Files
+
+- `src/domain/conversationSegmentProjection.ts` — the cut rule and the no-anchor inheritance.
+- `src/tests/conversationSegmentProjection.test.ts` — existing suite stays green; new cases added.
+- `src/tests/segmentAnchorTolerance.test.ts` — new: production-shape reproduction, cut in the
+  middle, leading (existing behaviour preserved), trailing closed, no-anchor between anchored,
+  genuine non-monotonic still throws, current always returned, omitted Segments never in output.
+- `src-tauri/src/main.rs` — `publish_conversation_segment_projections` skip rule, plus a Rust test
+  for the refused case before and the skipped case after.
+- `src/app/settlementDiagnostics.ts` and its test — the duplicate-notice rule.
+- This document, the RS016 index, the canonical index, the Canvas.
+
+Nothing in `App.tsx` is expected to change. If a change there turns out to be needed, it is a
+guard-level change and gets a guard-level test, per the CR117 lesson.
 
 ## Acceptance
 
-- A Journey whose durable ledger no longer contains a segment's anchor opens, takes a turn and
-  settles without a synchronization notice.
-- An unresolvable anchor degrades wherever it sits in the segment order, not only when leading.
-- **Repair synchronization** resolves the condition it names, or the notice stops offering an action
-  that cannot address it.
-- CR114's chapter behaviour, CR080's chapter evidence and CR115's idle-recovery quiet are unchanged.
+- A manifest whose closed Segments carry anchors the ledger no longer holds partitions without
+  throwing, wherever those Segments sit, and those Segments are absent from the result.
+- The leading-gap behaviour that `7362312` introduced is unchanged and covered.
+- A closed Segment with no anchor between two anchored Segments partitions as empty, not as a throw.
+- A manifest whose resolvable anchors are genuinely out of order still throws.
+- A compaction settlement over a prefix-truncated ledger completes: closed Segments with history
+  files are left byte-identical, the just-closed and current Segments are written, the receipt is
+  updated.
+- A non-empty closed projection that differs from its file still fails as today.
+- One settlement failure produces one notice, not a notice plus a count of itself.
+- CR114's chapter window, CR080's chapter evidence and CR115's idle quiet are unchanged: existing
+  suites green.
+
+## Validation
+
+- **Test-level:** every acceptance line above has a test, red before the slice and green after.
+- **Dev:** the Navigator's Dev store has no truncated ledger and this CR will not manufacture one
+  there. Dev homologation is limited to a smoke pass: open the Journey, take a turn, trigger a
+  compaction, confirm no synchronization notice and intact chapters.
+- **Production, after release:** the real proof is observational and honest about it. The production
+  Journey carries the repaired manifest and 27 anchorless closed Segments with history files. The
+  first compaction to settle there after upgrade must complete without a notice and leave Segments 1
+  to 27 byte-identical (their hashes in `complete.json` are the check). **Repair synchronization**
+  should also resolve the journal record left `running` at `21:40:01`. Both are recorded as evidence
+  when they happen, not assumed at closure.
 
 ## Exclusions
 
-- No rewriting of Pi session files.
-- No change to how the working set is bounded; CR114's default stands.
-- No change to the recovery surface's wording or to its promise that no recovery action runs the
-  agent again.
-- No backfill of turns already lost from a truncated ledger; this CR is about tolerating the
-  divergence, not reconstructing history.
+- No new refresh trigger for the manifest; the compaction path already refreshes at the right moment.
+- No change to the native `firstTurnId` rule or to the TypeScript mirror of it.
+- No change to "publish every available Segment on compaction". Whether that should become "publish
+  only the just-closed and current Segments" is a real design question raised by this CR and is
+  recorded as an open decision below, not taken here.
+- No backfill of turns lost from a truncated ledger; closed Segment files remain the only copy.
+- No one-time rebuild of other stores. With slices 1 and 2 the stale state is tolerated and heals on
+  the next compaction, which is the mechanism that would have been needed anyway.
+- No change to the recovery surface's wording.
+- The Dev store is not touched.
+
+## Open Decisions
+
+- **D1 — the cut rule versus resolving from entry positions.** The partition cannot re-anchor from
+  Pi entry positions because the renderer does not hold them at settlement; that is why the native
+  refresh exists. The cut rule is the honest alternative: what the ledger cannot see is left as
+  published. Recommended as planned.
+- **D2 — publish only what changed on compaction.** The cascade that truncated this ledger was
+  possible because every available Segment is republished on each compaction and the design leans on
+  byte-identical idempotence. Publishing only the just-closed and current Segments would remove that
+  exposure at the source. Recommended as its own CR after this one; it is a design change with its
+  own blast radius.
+- **D3 — whether the duplicate-notice fix belongs here.** It is small, local and was found while
+  diagnosing this incident. Recommended in scope as slice 3; it can be dropped without affecting
+  slices 1 and 2.
 
 ## Dependencies
 
