@@ -20,7 +20,8 @@
 | ↳ CR113 · Make Composer Typing Responsive in Large Journeys | ✅ done · aceita com CR115 | `██████████` |
 | ↳ **CR114 · Make the Current Segment the Default Working Set** | ✅ done · aceita no Eval | `██████████` |
 | ↳ 20 Change Requests anteriores | ✅ done | `██████████` |
-| **RS016 · Ongoing Product Improvements** | 🔄 ativa · sem CR aberta | `██████████` 23 done · 4 ↗️ · 1 ⛔ |
+| **RS016 · Ongoing Product Improvements** | 🔄 ativa · 1 CR capturada | `█████████░` 23 done · 4 ↗️ · 1 ⛔ |
+| ↳ **CR116 · Release a Journey Stranded in Finishing** | 🟡 captured · não ranqueada | `░░░░░░░░░░` |
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
 | RS022 · Mirror Core Debts | 🔄 ativa · registro sem CR aberta | `░░░░░░░░░░` 1 ⏸️ |
 | RS001 … RS020 | ✅ 19 Refinement Stories fechadas | `██████████` |
@@ -48,8 +49,12 @@
 | Agentic Map of Admitted Context | ↗️ explorada e entregue | CR105 ✅ · Context Map |
 | 11 explorações anteriores | 🗂️ colapsadas | status nos arquivos ainda não reconciliado; não contam como foco atual |
 
-**Próximo passo:** integrar a CR114 em `main` e preparar a próxima alpha. A Journey abre no capítulo
-atual — na sessão real, 286 entradas em vez de 7.373, com 24 capítulos anteriores sob pedido — e a
-publicação de Segments não sobrescreve mais o metadado durável, que era o que truncava o ledger de
-turnos. Na homologação o vocabulário visível foi unificado em *chapter*; Segment segue como nome
-interno do schema e dos comandos nativos.
+**Próximo passo:** confirmar a publicação da `v0.2.0-alpha.31`, preparada e com gates verdes. Ela
+entrega a CR114: a Journey abre no capítulo atual — na sessão real, 286 entradas em vez de 7.373,
+com 24 capítulos anteriores sob pedido — e a publicação de Segments não sobrescreve mais o metadado
+durável, que era o que truncava o ledger de turnos. O vocabulário visível foi unificado em
+*chapter*; Segment segue como nome interno do schema e dos comandos nativos.
+
+Em paralelo, a CR116 foi capturada a partir de um incidente em produção na `alpha.30`: uma Journey
+presa em *Finishing* depois do turno concluir, sem saída dentro da sessão. É anterior à CR114 e não
+afeta esta release.
