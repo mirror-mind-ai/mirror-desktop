@@ -41,7 +41,9 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("piInvocationBootstrapComplete");
     expect(appSource).toContain("selectedNativeLease?.terminalState");
     expect(appSource).not.toContain("[selectedJourney, registryLoaded, preferencesLoaded, runtimeBusy]");
-    expect(appSource).toContain("const repairableSteering = restoredConversation.steeringEvidence?.some");
+    // CR117 reopened: the gate stays, but it now asks the shared predicate instead of restating
+    // the statuses, which is how `delivered` came to be omitted from it.
+    expect(appSource).toContain("const repairableSteering = hasReconcilableSteering(restoredConversation)");
     expect(appSource).toContain("repairedConversation = reconcileSteeringUserEntries");
     expect(appSource).toContain("await saveDedicatedJourneyConversation(restoredConversation)");
   });

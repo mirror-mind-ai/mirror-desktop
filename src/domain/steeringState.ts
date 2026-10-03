@@ -15,8 +15,50 @@ const transitions: Record<SteeringStatus, SteeringStatus[]> = {
   terminally_unconsumed: ["applied"],
 };
 
+/**
+ * Every status, derived from the transition table rather than restated. `transitions` is typed
+ * `Record<SteeringStatus, …>`, so the compiler forces a new status to appear there, and anything
+ * reading this constant inherits it automatically. Persistence validates against this.
+ */
+export const STEERING_STATUSES = Object.keys(transitions) as readonly SteeringStatus[];
+
 /** Statuses whose correction is still Pi's to deliver, so a queue departure can speak about them. */
 const AWAITING_DELIVERY: SteeringStatus[] = ["pending", "accepted"];
+
+/**
+ * Statuses that can still be settled as unconsumed when a run ends without applying a correction.
+ * Distinct from reconcilability: an already settled correction must not be settled twice.
+ */
+const SETTLEABLE_AS_UNCONSUMED: readonly SteeringStatus[] = ["pending", "accepted", "delivered"];
+
+/**
+ * Statuses whose correction has no Pi entry evidence yet and could still acquire it. This is the
+ * single authority for that question: the reconciler filters on it, and the callers that decide
+ * whether to reconcile at all ask `hasReconcilableSteering` rather than restating the list.
+ *
+ * CR117 reopened because that list had been restated by hand in four places. Adding `delivered`
+ * updated the two inside the reconciler and missed the two guards in `App.tsx`, so a correction
+ * that reached `delivered` was never reconciled and never became `applied`. `applied` is excluded
+ * because it already holds its entry id, and `rejected` because Pi never admitted it.
+ */
+export const RECONCILABLE_STEERING_STATUSES: readonly SteeringStatus[] = [
+  "pending",
+  "accepted",
+  "delivered",
+  "terminally_unconsumed",
+];
+
+/**
+ * Whether any correction still awaits Pi entry evidence — for one run when `runId` is given, or
+ * anywhere in the conversation when it is not. Callers use this to decide whether loading Pi's
+ * user entries is worth doing at all.
+ */
+export function hasReconcilableSteering(conversation: JourneyConversation, runId?: string): boolean {
+  return (conversation.steeringEvidence ?? []).some((item) => (
+    (runId === undefined || item.runId === runId)
+    && RECONCILABLE_STEERING_STATUSES.includes(item.status)
+  ));
+}
 
 export function steeringAuthorityMatches(conversation: JourneyConversation, authority: RunAuthority): boolean {
   const turn = conversation.reconciliation.turns.find((item) => item.turnId === authority.turnId);
@@ -143,7 +185,7 @@ export function applyNextAcceptedSteering(
   now: Date = new Date(),
 ): JourneyConversation {
   const next = [...(conversation.steeringEvidence ?? [])]
-    .filter((item) => item.runId === authority.runId && ["pending", "accepted", "delivered", "terminally_unconsumed"].includes(item.status) && item.text === text)
+    .filter((item) => item.runId === authority.runId && RECONCILABLE_STEERING_STATUSES.includes(item.status) && item.text === text)
     .sort((left, right) => left.sequence - right.sequence)[0];
   return next
     ? transitionSteering(conversation, authority, next.requestId, "applied", now, { piUserEntryId })
@@ -166,7 +208,7 @@ export function reconcileSteeringUserEntries(
     (reconciled.steeringEvidence ?? []).flatMap((item) => item.piUserEntryId ? [item.piUserEntryId] : []),
   );
   for (const evidence of [...(reconciled.steeringEvidence ?? [])].sort((left, right) => left.sequence - right.sequence)) {
-    if (evidence.runId !== authority.runId || !["pending", "accepted", "delivered", "terminally_unconsumed"].includes(evidence.status)) continue;
+    if (evidence.runId !== authority.runId || !RECONCILABLE_STEERING_STATUSES.includes(evidence.status)) continue;
     const applied = entries.find((entry) => (
       entry.userText === evidence.text
       && entry.recordedAt >= evidence.createdAt
@@ -196,7 +238,7 @@ export function settleUnconsumedSteering(
     ...conversation,
     steeringEvidence: (conversation.steeringEvidence ?? []).map((item) => (
       item.runId === authority.runId
-        && (item.status === "pending" || item.status === "accepted" || item.status === "delivered")
+        && SETTLEABLE_AS_UNCONSUMED.includes(item.status)
         ? { ...item, status: "terminally_unconsumed", terminalReason, updatedAt: now.toISOString() }
         : item
     )),

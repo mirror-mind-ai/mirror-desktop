@@ -149,9 +149,13 @@ mechanism is to recognise a restored correction by the Pi entry its evidence cla
 `piUserEntryId`; building slices 2 to 4 on a path that never records that identity would be building
 on sand, and slice 1's falsification would measure the wrong baseline.
 
-Recommended sequence, for the Navigator to decide: repair the two guards under CR117 — reopened or
-as its own CR — with a test at the guard level rather than only at the domain level, then run
-slice 1 here against that corrected baseline.
+**Resolved.** The Navigator reopened CR117 on 2026-10-03 and the guards were repaired there, on
+`refinement/rs016-cr117-delivered-reconciliation-guards`. The duplicated status list was replaced by
+a single authority, `RECONCILABLE_STEERING_STATUSES` with `hasReconcilableSteering`, which both App
+guards now call, so a `delivered` correction is reconciled at `done` and repaired on restore. This CR
+is therefore no longer blocked, and slice 1 should falsify against that baseline rather than the one
+described above. CR117 still awaits re-homologation of its terminal step, so slice 1 must record
+whether that has happened before treating `piUserEntryId` as reliably present.
 
 Slice 1 is otherwise unchanged and still a falsification: persisted `0.9.0` conversations now parse
 and write `steeringEvidence` and CR114's Segment paths carry it, so the original Dev observation

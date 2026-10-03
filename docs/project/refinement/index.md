@@ -13,8 +13,15 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS016
-- Change Request: none selected. CR117 is `done` under @alissonvale after two rounds of Dev
-  validation on 2026-10-03, closing both correction-surface observations it was captured for: a
+- Change Request: CR117, **reopened** on 2026-10-03 by explicit Navigator intent and `in_progress`
+  under @alissonvale on `refinement/rs016-cr117-delivered-reconciliation-guards`. Its first closure
+  was premature: pulling CR097 found that a correction reaching `delivered` never acquired
+  `piUserEntryId`, because the status list was hand-written in four places and the two guards in
+  `App.tsx` that decide whether reconciliation runs were missed. The repair removes the duplication
+  rather than patching the guards, and two further members of the same defect class were closed with
+  it. Gates are green; re-homologation of the terminal step is outstanding. Its earlier closure
+  record is preserved rather than overwritten. That closure read: CR117 closed both
+  correction-surface observations it was captured for: a
   correction now reaches a `delivered` status while the run is still alive, driven by a Pi event the
   Desktop had been discarding, and it is drawn in the card of the run it corrected instead of under
   a prompt scrolled out of view. Its slice 1 spike both settled the mechanism and falsified one of
@@ -27,8 +34,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
   it introduced `delivered` into the domain while missing the two App guards at `App.tsx:3053` and
   `App.tsx:1741` that decide whether reconciliation runs. A correction that reaches `delivered` —
   CR117's own happy path — therefore never acquires `piUserEntryId`, which is the exact identity
-  CR097 consumes. That defect belongs to CR117, is not folded into this Delivery, and blocks this
-  CR's slices 2 to 4 until repaired. The captured order below is a ranking, not an instruction to
+  CR097 consumes. That defect belongs to CR117 and was repaired there after the Navigator reopened
+  it, so this CR is no longer blocked. The captured order below is a ranking, not an instruction to
   execute.
 
 Selecting a focus is an explicit project decision. Reading this file never selects or
@@ -68,7 +75,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | in_progress | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
-| — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-live-correction-legibility` |
+| — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | in_progress | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |
 | — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | done | @alissonvale | `refinement/rs016-cr116-stranded-finalization-recovery` |
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
 | 2 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | done | @alissonvale | `refinement/rs021-cr105-agentic-map` |

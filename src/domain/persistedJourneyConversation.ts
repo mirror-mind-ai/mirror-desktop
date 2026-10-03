@@ -1,4 +1,5 @@
 import { parseConversationReconciliationState } from "./conversationReconciliation";
+import { STEERING_STATUSES } from "./steeringState";
 import type { ConversationReconciliationState } from "./conversationReconciliation";
 import { normalizeConversationAttachmentProvenance } from "./contextAttachments";
 import { normalizePersistedFileAttachment } from "./fileAttachments";
@@ -279,8 +280,9 @@ function parseSteeringEvidence(
   },
 ): SteeringEvidence[] | undefined {
   if (!Array.isArray(value) || value.length > 256) return undefined;
-  // CR117: `delivered` is accepted going forward. Older records simply never carry it.
-  const statuses = new Set(["pending", "accepted", "delivered", "applied", "rejected", "terminally_unconsumed"]);
+  // CR117: derived from the status vocabulary rather than restated, so a new status cannot be
+  // added and then silently fail to persist. Older records simply never carry the newer ones.
+  const statuses = new Set<string>(STEERING_STATUSES);
   const reasons = new Set(["cancelled", "provider_failed", "process_died", "settled_without_application", "restart_without_process"]);
   const parsed = value.filter((candidate): candidate is SteeringEvidence => {
     if (!isRecord(candidate) || candidate.schemaVersion !== "0.1.0"

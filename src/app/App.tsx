@@ -361,6 +361,7 @@ import {
 import type { JourneyConversation, SteeringEvidence } from "../domain/journeyConversation";
 import {
   appendPendingSteering,
+  hasReconcilableSteering,
   reconcileSteeringUserEntries,
   settleUnconsumedSteering,
   transitionSteering,
@@ -1738,9 +1739,9 @@ export function App({ model }: AppProps) {
             piSessionId: classified.activeGeneration.piSessionId,
           }, inspection));
         }
-        const repairableSteering = restoredConversation.steeringEvidence?.some((item) => (
-          item.status === "pending" || item.status === "accepted" || item.status === "terminally_unconsumed"
-        ));
+        // CR117 reopened: this gate used to restate the statuses by hand and was missed when
+        // `delivered` was added, so a delivered correction was not repaired on restore either.
+        const repairableSteering = hasReconcilableSteering(restoredConversation);
         const steeringSessionFile = restoredConversation.liveIdentity.piSessionFile;
         const steeringMirrorConversationId = restoredConversation.liveIdentity.mirrorConversationId;
         const steeringActivationReceipt = restoredConversation.liveIdentity.activationReceiptActivatedAt;
@@ -3049,9 +3050,9 @@ export function App({ model }: AppProps) {
           }
           const decision = decideTurnJournalTerminal(journalRecord);
           runTerminal = decision === "cancelled" ? "cancelled" : decision === "failed" ? "failed" : undefined;
-          if (runAuthority && runConversation.steeringEvidence?.some((item) => (
-            item.runId === runAuthority.runId && (item.status === "pending" || item.status === "accepted")
-          ))) {
+          // CR117 reopened: omitting `delivered` here meant the correction that had actually
+          // reached the model was the one never reconciled, so it never acquired its Pi entry id.
+          if (runAuthority && hasReconcilableSteering(runConversation, runAuthority.runId)) {
             try {
               const userEntries = await loadDedicatedPiUserEntries(
                 runAuthority.journeyId,

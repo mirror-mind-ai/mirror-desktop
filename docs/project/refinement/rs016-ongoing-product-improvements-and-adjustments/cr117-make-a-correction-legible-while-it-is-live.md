@@ -2,9 +2,14 @@
 
 # CR117: Make a Correction Legible While It Is Live
 
-**Status:** done
+**Status:** in_progress
 **Driver:** @alissonvale
-**Delivery:** `refinement/rs016-cr117-live-correction-legibility`
+**Delivery:** `refinement/rs016-cr117-delivered-reconciliation-guards`
+
+> **Reopened on 2026-10-03** by explicit Navigator intent. The first closure was premature: pulling
+> CR097 found that this CR's own happy path never acquired `piUserEntryId`. See
+> "Reopening and Guard Repair" below. The earlier closure record is kept intact above it, because a
+> closure that turned out to be wrong is part of this CR's history, not something to overwrite.
 
 Captured on 2026-10-03 from two Navigator observations in daily use, and planned the same day from a
 read-only reading of `main` at `aa3d329`. It was first recorded as a Phase 2 inside
@@ -430,6 +435,87 @@ has never run against production data. A release remains a separate decision.
 
 It was integrated to `main` by fast-forward as `a15af52`, `acf03e0`, `bc9a6b8` (implementation) and
 the closure commit, after which the Delivery branch was deleted.
+
+## Reopening and Guard Repair (2026-10-03)
+
+The first closure was wrong, and the way it was wrong is worth recording precisely.
+
+### The defect
+
+This CR added `delivered` to the status vocabulary and taught the reconciler to accept it, but the
+same status list was hand-written in **four** places. Two were inside `reconcileSteeringUserEntries`
+and `applyNextAcceptedSteering` and were updated. Two were the guards in `App.tsx` that decide
+whether that reconciler is called at all, and they were missed:
+
+- `App.tsx:3053` gated the `done` reconciliation on `pending || accepted`.
+- `App.tsx:1741` gated the entire restore/repair block on `pending || accepted ||
+  terminally_unconsumed`.
+
+A correction that reached `delivered` failed both tests. So the Pi user entries were never loaded,
+`applied` was never reached, and `piUserEntryId` was never recorded — for precisely the path this CR
+exists to produce. The restore path did not recover it either, because its own gate was shut. It
+recovered only by accident, when some *other* correction in the same conversation sat in a status
+that happened to open the gate for every turn.
+
+### Why the original validation did not catch it
+
+In the order homologation ran, it could not. Round 1 observed `Correction applied` correctly — but
+only because the live transition was broken and the status sat at `accepted`, which the guard does
+admit. Round 2 repaired the live transition, made `delivered` occur for the first time, and thereby
+invalidated round 1's observation of the terminal status, which was not rechecked. The lesson is
+general: a fix that changes which path the system takes invalidates every earlier observation that
+depended on the old path, and the affected steps must be re-run rather than carried forward.
+
+The unit tests did not catch it either. They call `reconcileSteeringUserEntries` directly with a
+`delivered` record, which passes correctly, because the domain was right. Nothing tested the App
+guards that decide whether the domain function runs. This is the same gap as the ref-authority
+defect in round 1 — correct domain, wrong wiring — and the lesson was recorded then but not
+generalised.
+
+### The repair
+
+The guards were not patched in place; the duplication that caused the drift was removed.
+
+`RECONCILABLE_STEERING_STATUSES` is now the single authority for "which corrections still await Pi
+entry evidence", and `hasReconcilableSteering(conversation, runId?)` answers it for one run or for a
+whole conversation. The reconciler filters on that constant and both App guards call that predicate,
+so a guard can no longer disagree with the reconciler it guards.
+
+Two further members of the same defect class were closed while the cause was in view:
+
+- `STEERING_STATUSES` is derived from the `transitions` table with
+  `Object.keys(transitions) as readonly SteeringStatus[]`. Because `transitions` is typed
+  `Record<SteeringStatus, …>`, the compiler forces a new status to appear there, and the persistence
+  parser now validates against that derived set instead of its own hand-written allowlist. A future
+  status cannot be added and then silently fail to persist.
+- `SETTLEABLE_AS_UNCONSUMED` names the third, legitimately different rule in
+  `settleUnconsumedSteering`, which had also been inline.
+
+`AWAITING_DELIVERY`, the `transitions` table itself and the RPC admission type were left alone: they
+encode genuinely different questions, not copies of this one.
+
+### Tests
+
+`src/tests/steeringReconciliationAdmission.test.ts`, 15 cases. The regression itself is held
+directly — a `delivered` correction opens the guard and does reach `applied` with its entry id —
+alongside every status admitted and refused, run scoping, the absent-evidence case, a persistence
+round trip for every reachable status, and source assertions that neither the reconciler nor the App
+guards restate the list.
+
+One existing source-reading guardrail in `journeyRuntimeIntegration.test.ts` pinned the old inline
+gate text and was updated to assert the shared predicate, preserving its intent.
+
+### Gates
+
+225 files / 1,600 tests. `tsc --noEmit`, `npm run build`, `cargo test` 241 passed / 3 ignored,
+`cargo check --locked`, `roadmap:check`, `git diff --check`.
+
+### Not Yet Validated
+
+The repair is proven by test, not yet by eye. Homologation must re-run the step that was invalidated:
+send a correction during a long run, confirm it reaches `✓ Correction reached the agent` while the
+run is alive **and then** `✓✓ Correction applied` once the turn settles. The cancellation case should
+be re-checked too, since `delivered → terminally_unconsumed` is now the ordinary cancelled path.
 
 ## Files
 
