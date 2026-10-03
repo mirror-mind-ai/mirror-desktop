@@ -28,7 +28,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 
 ## Change Requests
 
-- [CR117: Make a Correction Legible While It Is Live](cr117-make-a-correction-legible-while-it-is-live.md) — in progress
+- [CR117: Make a Correction Legible While It Is Live](cr117-make-a-correction-legible-while-it-is-live.md) — done
 - [CR116: Release a Journey Stranded in Finishing](cr116-release-a-journey-stranded-in-finishing.md) — done
 - [CR115: Stop the Idle Post-Terminal Recovery Loop](cr115-stop-the-idle-post-terminal-recovery-loop.md) — done
 - [CR096: Verify the Published Download Alias](cr096-verify-the-published-download-alias.md) — done
@@ -69,7 +69,7 @@ throughout. Proportionality review concluded proportional. Debt Review is `follo
 operation that hung remains unestablished and could justify phase-level observability later, but no
 follow-up is selected.
 
-CR117 is `in_progress` under @alissonvale on `refinement/rs016-cr117-live-correction-legibility`, captured on 2026-10-03 from two Navigator observations in daily
+CR117 is `done` under @alissonvale with Delivery `refinement/rs016-cr117-live-correction-legibility`, captured on 2026-10-03 from two Navigator observations in daily
 use. It was briefly recorded as a CR116 Phase 2 and promoted to its own CR before CR116's delivered
 work was released, because one CR cannot coherently hold both a released phase and an unplanned one.
 Its diagnosis established that the status vocabulary already models `applied` and already refuses it
@@ -83,13 +83,25 @@ found that Pi already emits `queue_update` carrying its own steering queue, whic
 discarding — an event-driven signal costing no reads at all. The same spike falsified the plan's
 assumption that only call timing had to change: Pi mints a session entry id only at persistence, so
 the live signal cannot produce `applied`, and a `delivered` state was added rather than weakening
-`applied`'s exact-evidence contract. Slices 2–4 are implemented with gates green. Slice 4 drew the
+`applied`'s exact-evidence contract. Slice 4 drew the
 correction inside the card of the run it corrected and removed it from the prompt cluster; its
 chronological-position detail was deliberately not built, because the run's trail mixes timestamped
 messages with untimed note subdivisions and a spliced position would assert an order the data cannot
-support. Homologation and a Dev build remain outstanding. The wording must say the
-correction reached the model's input, not that the model read it. CR117 shares the correction surface
-with CR097 and records an explicit boundary with it.
+support. The wording says the correction reached the model's input, not that the model read it.
+
+Homologation took two Dev rounds. Round 1 validated the placement and every terminal case but found
+the status still stuck on queued, because the live transition was being written to the run's
+conversation value and overwritten on the next statement by the ref that is a live run's steering
+authority — an implicit rule this CR violated and then made explicit in `liveSteeringEvidence.ts`,
+held by a test that reproduces the trap. Round 2 validated the live status. Round 2 also surfaced a
+separate observation, recorded without a plan: a correction can end a turn rather than redirect it.
+That was diagnosed read-only as model behaviour — the run settled as completed and its closing text
+answered the correction — and no part of this CR changed what is sent to Pi, so it is not reachable
+by a Desktop transport change. Proportionality review concluded proportional. Debt Review is
+`follow_up`, standing on four items with none selected: the turn-ending observation, reload
+recognisability which belongs to CR097, the documented limit on chronological placement, and the
+fact that the work is Dev-validated only with no published alpha carrying it. CR117 shares the
+correction surface with CR097 and records an explicit boundary with it.
 
 CR096 is `done` with Driver `@alissonvale` and Delivery `refinement/rs016-cr096-download-alias-verification`. It records that the blocking post-publication verification covers only the manifest URLs installed applications poll, leaving the site download alias `downloads/macos/mirror-desktop-latest.dmg` unchecked. Because staging and upload of that alias are both conditional on a DMG being supplied, a publication without one completes every stage, passes verification and prints success while the site keeps serving the previous installer. Verified by hand after v0.2.0-alpha.21, where the alias was byte-identical to the built artifact — correct, but confirmed after the fact rather than guaranteed. Implemented: verification now refuses to run without the published DMG digest, checks the alias version, its canonical target, its advertised URLs and the digest of the served bytes, and records all of it in the publication evidence. The Navigator validated it on 2026-09-26 after the new checks were run read-only against the already-published v0.2.0-alpha.21, with two negative controls confirming they block. Proportionality review concluded proportional; Debt Review concluded `follow_up`, recording that the prepare-to-publish digest hand-off is proven by reading state rather than by a run — it resolves on first use — and that GitHub Release assets stay unverified by explicit exclusion.
 

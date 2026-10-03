@@ -1,8 +1,8 @@
 # Mirror Desktop · visão de situação
 
-📦 **Última versão publicada:** `v0.2.0-alpha.31` · Work From the Current Chapter
+📦 **Última versão publicada:** `v0.2.0-alpha.32` · A Stranded Journey Comes Back
 
-🎯 **Foco oficial:** CR117 · `in_progress` · @alissonvale · fatias 2–3 feitas, fatia 4 aberta
+🎯 **Foco oficial:** nenhum · CR117 fechada e integrada · CR097 é a próxima recomendada
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active`; Embedded TS Runtime é uma direção capturada
 
@@ -20,8 +20,8 @@
 | ↳ CR113 · Make Composer Typing Responsive in Large Journeys | ✅ done · aceita com CR115 | `██████████` |
 | ↳ **CR114 · Make the Current Segment the Default Working Set** | ✅ done · publicada em alpha.31 | `██████████` |
 | ↳ 20 Change Requests anteriores | ✅ done | `██████████` |
-| **RS016 · Ongoing Product Improvements** | 🔄 ativa · CR em foco: CR117 | `█████████░` 24 done · 4 ↗️ · 1 ⛔ |
-| ↳ **CR117 · Make a Correction Legible While It Is Live** | 🧪 in_progress · gates verdes · falta colocação | `█████░░░░░` 3/6 fatias |
+| **RS016 · Ongoing Product Improvements** | 🔄 ativa · sem CR em foco | `█████████░` 25 done · 4 ↗️ · 1 ⛔ |
+| ↳ **CR117 · Make a Correction Legible While It Is Live** | ✅ done · homologada no Dev em 2 rodadas | `██████████` |
 | ↳ **CR116 · Release a Journey Stranded in Finishing** | ✅ done · homologada no Dev | `██████████` |
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
 | RS022 · Mirror Core Debts | 🔄 ativa · registro sem CR aberta | `░░░░░░░░░░` 1 ⏸️ |
@@ -50,18 +50,29 @@
 | Agentic Map of Admitted Context | ↗️ explorada e entregue | CR105 ✅ · Context Map |
 | 11 explorações anteriores | 🗂️ colapsadas | status nos arquivos ainda não reconciliado; não contam como foco atual |
 
-**Próximo passo:** decidir o encerramento da CR117 — todos os passos do roteiro foram validados. O
-passo 2 falhou na primeira rodada porque a transição viva era escrita na conversa do run e
-sobrescrita, na instrução seguinte, pelo ref que é a autoridade de steering durante o run; corrigido
-e coberto por teste que reproduz a armadilha. Fica registrada uma observação separada, sem plano: uma
-correção pode encerrar o turno em vez de redirecioná-lo, o que é comportamento do modelo e não se
-resolve no transporte do Desktop. O Dev
-instalado está em `0.2.0-alpha.31`, sem CR116 nem CR117; um build só cobre as duas. A fatia 4 passou
-a desenhar a correção dentro do cartão do run que ela corrigiu e a tirou do bloco do prompt. O spike encontrou que o Pi já emite `queue_update` com a própria fila de
-steering, e o Desktop descartava esse evento: uma correção que saiu da fila foi entregue ao modelo,
-sem ler arquivo nenhum. O mesmo spike falsificou uma premissa minha — o Pi só cria o id da entrada
-na persistência, então o sinal vivo não pode produzir `applied`. Em vez de enfraquecer o contrato de
-evidência do `applied`, entrou um estado `delivered`. A CR097 continua depois da CR117.
+**Próximo passo:** a CR097 é a próxima recomendada, agora que a CR117 fechou. Ela herda terreno
+preparado: a colocação da correção já foi decidida e o `delivered` povoa o estado vivo, então a
+fatia 1 da CR097 deve registrar que a CR117 aterrissou antes de falsificar a persistência.
+
+A CR117 fechou as duas queixas que a originaram. O spike achou que o Pi já emitia `queue_update`
+com a própria fila de steering e o Desktop descartava o evento — uma correção que sai da fila foi
+entregue ao modelo, sem ler arquivo nenhum, contra os 55 MB que a leitura de sessão custaria. O mesmo
+spike falsificou uma premissa do plano: o Pi só cria o id da entrada na persistência, então o sinal
+vivo não pode produzir `applied`. Em vez de enfraquecer o contrato de evidência do `applied`, entrou
+um estado `delivered`. E a correção passou a ser desenhada dentro do cartão do run que ela corrigiu,
+saindo do bloco do prompt — a única parte do turno garantidamente fora da tela quando se corrige.
+
+A homologação levou duas rodadas. A primeira achou o status ainda preso em `queued`: a transição viva
+era escrita no valor da conversa do run e sobrescrita, na instrução seguinte, pelo ref que é a
+autoridade de steering enquanto o run vive. Era uma regra implícita no código, hoje explícita em
+`liveSteeringEvidence.ts` e presa por um teste que reproduz a armadilha.
+
+Fica uma observação separada, registrada sem plano: uma correção pode **encerrar** o turno em vez de
+redirecioná-lo. Diagnosticado read-only como comportamento do modelo — o run assentou como
+`completed` e o texto final respondia à correção — e nada na CR117 alterou o que é enviado ao Pi,
+então não se resolve no transporte do Desktop. Se vira CR, é decisão do Navigator.
+
+Nada publicado carrega a CR116 nem a CR117 ainda: as duas estão validadas só no Dev.
 
 A `alpha.31` saiu com a CR114: a Journey abre no capítulo atual — 286 entradas em vez de 7.373, com
 24 capítulos anteriores sob pedido — e a publicação de Segments não sobrescreve mais o metadado

@@ -2,7 +2,7 @@
 
 # CR117: Make a Correction Legible While It Is Live
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr117-live-correction-legibility`
 
@@ -174,13 +174,14 @@ decision and is deliberately not started.
    the agreed plan was deliberately not built; see the deviation note above. No Composer-side
    acknowledgement was added: the run card already sits where the eye is during a run, and transient
    notices carry precedent against them from CR086 and CR088.
-5. **Keep provenance and reload intact.** The correction must remain attached to the turn it
-   corrected, with its ordering by `sequence` preserved, and the Segment partition/recombination
-   behaviour of CR114 unchanged.
-6. **Validate.** Focused domain and component tests, then the full suite, type check, build, native
-   tests and check, roadmap consistency and diff check. Dev homologation must cover: a correction
-   during a long output, several corrections in one turn, a correction never consumed before
-   cancellation, and a correction in a turn that completes.
+5. ~~**Keep provenance and reload intact.**~~ Done for provenance, deferred for reload. The
+   correction stays bound to its turn's assistant message, ordering by `sequence` is preserved in
+   both the domain and the run card, and CR114's Segment behaviour is unchanged. Recognisability
+   *after* reload is CR097's gap and was deliberately not addressed here; homologation step 7
+   reproduced it exactly as predicted.
+6. ~~**Validate.**~~ Done. Full gates on every commit, and Dev homologation covering all four named
+   cases: a correction during a long output, several in one turn, one never consumed before
+   cancellation, and one in a turn that completes.
 
 ## Slices 2–3 Implementation Evidence (2026-10-03)
 
@@ -388,6 +389,47 @@ Whether that becomes its own CR is the Navigator's call; it is recorded here rat
 It also vindicates this CR's truthfulness constraint: `delivered` claims only that the correction
 entered the model's input, and this run is precisely a case where it entered and was not acted on
 as intended.
+
+### Navigator Validation and Closure
+
+The Navigator validated CR117 across two Dev homologation rounds on 2026-10-03, against builds
+installed at `/Applications/Mirror Desktop Dev.app` and started by the Navigator, not by the
+Delivery. Round 1 validated steps 1 and 3–6 and failed step 2; round 2, after the ref-authority fix,
+validated step 2. Step 7 reproduced the expected CR097 limitation and step 8 saw no strand. The
+Navigator's validation closes the CR.
+
+**Proportionality review: proportional.** The signal chosen was an event Pi already emitted and the
+Desktop was discarding, so live legibility cost no file reads, no native change, no migration and no
+new durable record — and the rejected alternative, re-reading the session, would have cost the 55 MB
+CR114 measured. The lifecycle grew by exactly one state, which was preferred over weakening
+`applied`'s exact-evidence contract to accept a text match. Placement reused CR111's existing run
+card rather than introducing a surface, and the deliberately unbuilt parts — chronological
+interleaving, a Composer-side notice — were declined on evidence rather than effort. Two homologation
+rounds were needed because of a defect in this CR's own slice 3 wiring; that cost a round but did
+not widen scope, and it converted an implicit rule into an explicit, tested one.
+
+**Debt review: follow_up.** Four items are left standing, none of them selected by this closure.
+
+First, and the only one that is genuinely new: a correction can end a turn rather than redirect it.
+Homologation round 2 caught the model answering the correction and settling instead of adjusting
+course, while the run before it on the previous build took the same correction and continued. It is
+recorded above without a plan because it is model behaviour that no Desktop transport change
+reaches; any remedy lives in how a correction is framed to the model. Whether it becomes a CR is the
+Navigator's call.
+
+Second, recognisability after reload stays open and belongs to CR097, which this CR was sequenced
+ahead of precisely because it populates `piUserEntryId` earlier and owns the placement decision
+CR097 depends on. CR097's slice 1 should now record that CR117 has landed.
+
+Third, chronological placement within a run was not built. It would require per-note timestamps that
+the trail does not carry, so the finer position would assert an order the data cannot support. This
+is a documented design limit, not deferred work.
+
+Fourth, the work is Dev-validated only. No published alpha carries it, and the `delivered` status
+has never run against production data. A release remains a separate decision.
+
+It was integrated to `main` by fast-forward as `a15af52`, `acf03e0`, `bc9a6b8` (implementation) and
+the closure commit, after which the Delivery branch was deleted.
 
 ## Files
 
