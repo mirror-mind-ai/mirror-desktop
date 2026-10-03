@@ -283,6 +283,62 @@ Still no Navigator homologation and no Dev build. The Dev app is on `0.2.0-alpha
 neither CR116 nor CR117; one Dev build from this branch would cover both. The placement is verified
 by rendered markup, not yet by eye at real width with a long run.
 
+## Homologation Round 1 (2026-10-03)
+
+The Navigator validated steps 1 and 3–6 of the validation script. **Step 2 failed**: a correction
+stayed on `Correction queued` for the whole turn, exactly the risk flagged as the one unproven
+assumption. Step 7 reproduced the expected CR097 limitation, and step 8 saw no strand.
+
+### Diagnosis
+
+The Pi side was as described. On a user `message_start`, Pi splices the matching text out of
+`_steeringMessages` and calls `_emitQueueUpdate()`, emitting `{type:"queue_update", steering,
+followUp}` to its event listeners. RPC mode subscribes with `session.subscribe((event) =>
+output(toJsonEvent(event)))`, and `toJsonEvent` passes everything through unchanged except
+`message_update`. The event does reach the Desktop, and the mapping to `steering_queue` was correct.
+
+A second `queue_update` shape exists in Pi — `{type:"queue_update", lane, queues}`, from the lane
+runtime — which carries no `steering` field. It is not what the session emits on this path, and the
+malformed-payload guard already makes it a no-op, but it is worth knowing both shapes exist.
+
+**The defect was on the Desktop side, in this CR's own slice 3 wiring.** During a live run the
+Navigator's corrections are carried by `steeringEvidenceByRunRef`, keyed on the run. The send path
+writes that ref, and `updateRunConversation` re-merges it over the conversation value on *every*
+update. Slice 3 applied the delivery transition inside `updateRunConversation`'s callback, so the
+transition was computed and then overwritten by the ref on the very next statement. The lines that
+attempted to sync the ref afterwards read the conversation *after* the overwrite, making the sync
+circular and inert.
+
+So the ref, not the conversation, is a live run's steering authority. That rule was implicit in the
+code and is now explicit and tested.
+
+### Fix
+
+The inline merge moved into `src/app/liveSteeringEvidence.ts` as `mergeLiveSteeringEvidence`, beside
+a new `applyQueueDepartureToLiveEvidence` that applies the departure to the ref's evidence and
+returns the array unchanged when nothing departed or the authority has moved on. The run loop now
+writes the ref and republishes only when something actually changed. No durable write was added per
+queue update: the record is still settled at `done`, and a write per event would be needless
+persistence traffic of the kind CR116 was about.
+
+### Tests
+
+`src/tests/liveSteeringEvidence.test.ts`, 9 cases. The first reproduces the defect directly —
+transition the conversation, merge the ref, observe the status fall back to `accepted` — so the
+trap is held by a test rather than by memory. The rest cover the ref-first path, identity
+preservation when nothing departed, a late event from a superseded run, empty and absent evidence,
+foreign-run isolation, and two source assertions that the run loop uses the extracted rule.
+
+Text matching was also checked end to end: Rust's `validate_steering_text` trims, and
+`appendPendingSteering` stores `text.trim()`, so the evidence text and Pi's queued text agree.
+
+### Gates
+
+224 files / 1,585 tests. `tsc --noEmit`, `npm run build`, `cargo test` 241 passed / 3 ignored,
+`cargo check --locked`, `roadmap:check`, `git diff --check`.
+
+Step 2 remains unvalidated until the Navigator re-runs it against the rebuilt Dev app.
+
 ## Files
 
 Revised by the spike. Expected: `src/domain/journeyConversation.ts` (`SteeringStatus` gains

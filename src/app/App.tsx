@@ -361,11 +361,11 @@ import {
 import type { JourneyConversation, SteeringEvidence } from "../domain/journeyConversation";
 import {
   appendPendingSteering,
-  markSteeringDeliveredByQueueDeparture,
   reconcileSteeringUserEntries,
   settleUnconsumedSteering,
   transitionSteering,
 } from "../domain/steeringState";
+import { applyQueueDepartureToLiveEvidence, mergeLiveSteeringEvidence } from "./liveSteeringEvidence";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { createRunAuthority, samePiProcessEventAuthority } from "../domain/runAuthority";
 import { classifyDedicatedTurnState, dedicatedTurnBlocksNewInvocation, interruptDedicatedTurn } from "../domain/dedicatedTurnCommit";
@@ -2886,16 +2886,11 @@ export function App({ model }: AppProps) {
 
     function updateRunConversation(update: (current: JourneyConversation) => JourneyConversation) {
       runConversation = update(runConversation);
-      const liveSteering = steeringEvidenceByRunRef.current[run.id ?? ""];
-      if (liveSteering) {
-        runConversation = {
-          ...runConversation,
-          steeringEvidence: [
-            ...(runConversation.steeringEvidence ?? []).filter((item) => item.runId !== run.id),
-            ...liveSteering,
-          ],
-        };
-      }
+      runConversation = mergeLiveSteeringEvidence(
+        runConversation,
+        run.id ?? "",
+        steeringEvidenceByRunRef.current[run.id ?? ""],
+      );
       dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: runConversation });
       if (
         selectedJourneyRef.current === ownerJourneyId
@@ -3009,21 +3004,23 @@ export function App({ model }: AppProps) {
         // model has been handed. Before this, the only producer of a post-accepted status ran on
         // the terminal `done` event, so a correction read as merely queued until the whole turn
         // ended — exactly when the status had stopped being useful.
+        // CR117: Pi reports its own steering queue, and a correction that has left it is one the
+        // model has been handed. The transition has to be written to the live ref, because that
+        // ref is this run's steering authority while it is alive and every run-conversation update
+        // re-merges it over whatever the conversation value holds.
         if (event.type === "steering_queue" && runAuthority) {
-          const queued = event.queued;
-          updateRunConversation((currentConversation) => {
-            try {
-              return markSteeringDeliveredByQueueDeparture(currentConversation, runAuthority, queued);
-            } catch {
-              // Authority moved on; the durable reconciliation at settlement remains the record.
-              return currentConversation;
-            }
-          });
-          const ownRunEvidence = steeringEvidenceByRunRef.current[runAuthority.runId];
-          if (ownRunEvidence) {
-            steeringEvidenceByRunRef.current[runAuthority.runId] = runConversation.steeringEvidence?.filter(
-              (item) => item.runId === runAuthority.runId,
-            ) ?? ownRunEvidence;
+          const currentLive = steeringEvidenceByRunRef.current[runAuthority.runId];
+          const nextLive = applyQueueDepartureToLiveEvidence(
+            runConversation,
+            runAuthority,
+            currentLive,
+            event.queued,
+          );
+          if (nextLive !== currentLive) {
+            steeringEvidenceByRunRef.current[runAuthority.runId] = nextLive ?? [];
+            // Republish so the merge carries the new status to the surface. The durable record is
+            // still settled at `done`; a write per queue update would be needless persistence.
+            updateRunConversation((currentConversation) => currentConversation);
           }
         }
         if (event.type === "raw_output") {
