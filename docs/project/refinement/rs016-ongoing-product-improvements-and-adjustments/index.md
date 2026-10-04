@@ -29,7 +29,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 ## Change Requests
 
 - [CR118: Anchor a Segment to the History It Can See](cr118-anchor-a-segment-to-the-history-it-can-see.md) — done
-- [CR119: Give Finishing Back to the Navigator](cr119-give-finishing-back-to-the-navigator.md) — captured
+- [CR119: Give Finishing Back to the Navigator](cr119-give-finishing-back-to-the-navigator.md) — planned
 - [CR117: Make a Correction Legible While It Is Live](cr117-make-a-correction-legible-while-it-is-live.md) — done
 - [CR116: Release a Journey Stranded in Finishing](cr116-release-a-journey-stranded-in-finishing.md) — done
 - [CR115: Stop the Idle Post-Terminal Recovery Loop](cr115-stop-the-idle-post-terminal-recovery-loop.md) — done

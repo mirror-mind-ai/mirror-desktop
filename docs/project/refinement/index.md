@@ -13,7 +13,12 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS016
-- Change Request: none selected. CR118 is `done` under @alissonvale, closed on 2026-10-04 after a
+- Change Request: CR119, selected and moved to `planned` on 2026-10-04 by explicit Navigator intent
+  after they confirmed the slow `Finishing` recurs across turns and sessions in production. No Driver
+  and no Delivery yet. Measurement across all 569 timed production records found two phenomena, not
+  one, and eliminated four candidate causes — including the strongest, a full-session read at
+  settlement, which the code disproves. The plan therefore measures per phase before reducing
+  anything. CR118 is `done` under @alissonvale, closed on 2026-10-04 after a
   Navigator-run Dev smoke pass confirmed on disk. An unresolvable anchor is now a cut wherever it
   sits, an empty closed projection defers to the file that still holds the chapter, and one
   settlement fault yields one notice. Publishing only what changed on compaction was left out and is
@@ -83,7 +88,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | in_progress | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |
 | — | [CR118](rs016-ongoing-product-improvements-and-adjustments/cr118-anchor-a-segment-to-the-history-it-can-see.md) | RS016 | Anchor a Segment to the History It Can See | done | @alissonvale | `refinement/rs016-cr118-segment-anchor-tolerance` |
-| — | [CR119](rs016-ongoing-product-improvements-and-adjustments/cr119-give-finishing-back-to-the-navigator.md) | RS016 | Give Finishing Back to the Navigator | captured | — | — |
+| — | [CR119](rs016-ongoing-product-improvements-and-adjustments/cr119-give-finishing-back-to-the-navigator.md) | RS016 | Give Finishing Back to the Navigator | planned | — | — |
 | — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | done | @alissonvale | `refinement/rs016-cr116-stranded-finalization-recovery` |
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
 | 2 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | done | @alissonvale | `refinement/rs021-cr105-agentic-map` |
