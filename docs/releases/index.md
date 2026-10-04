@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.33 — A Correction You Can Watch Arrive](v0.2.0-alpha.33.md) — A correction sent mid-turn now says when it actually reached the agent, and it is drawn in the card of the run it corrected rather than beside a prompt that has scrolled away.
 - [v0.2.0-alpha.32 — A Stranded Journey Comes Back](v0.2.0-alpha.32.md) — A Journey whose post-turn bookkeeping stops responding now returns to use inside the session, because every per-Journey persistence queue is bounded and the repair route is reachable while finalization is stranded.
 - [v0.2.0-alpha.31 — Work From the Current Chapter](v0.2.0-alpha.31.md) — Mirror Desktop opens a long Journey on the chapter Pi still holds in context, keeps complete history one explicit action away, and protects durable conversation metadata from Segment publication.
 - [v0.2.0-alpha.30 — A Quiet, Responsive Composer](v0.2.0-alpha.30.md) — Composer typing stays local and immediate, while idle recovery settles once instead of continuously re-rendering the Desktop.
