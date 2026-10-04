@@ -2,7 +2,7 @@
 
 # CR118: Anchor a Segment to the History It Can See
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr118-segment-anchor-tolerance`
 
@@ -486,12 +486,59 @@ now healthy, and `alpha.33` stops the truncation that kept re-staling it. CR118 
 defensive: its value is that the next store to reach this state degrades instead of throwing. That
 changes the closure argument and is the Navigator's call, not a detail.
 
-### Not validated
+## Closure (2026-10-04)
 
-No Navigator validation yet, and none of this is released. One further observation for the record:
-the newest journal entry is again `running` at revision 2 with `resume_execution`, now
-`agent-run-2026-10-04T11:42:25.262Z`, with the application closed. That is the second time this
-pattern has been observed and it is not addressed by this CR.
+The Navigator ran the Dev smoke pass and reported it worked normally. Confirmed on disk rather than
+taken on report.
+
+**What was actually exercised.** The turn landed in Journey `mirror-ts-core`, not `mirror-desktop` —
+provenance recorded, and it exercises the identical settlement code. Run
+`agent-run-2026-10-04T18:03:51.948Z`: `settled`, revision 5, `completed`, **2.2 s in Finishing**, no
+settlement error, empty outbox. Replaying the shipped partition against that Journey's manifest and
+ledger gives `cut=0`, `starts=[0]`, no throw, and `segment-1.json` was republished at 25 KB with the
+completion receipt updated to one hash.
+
+**What that proves, and what it does not.** Slice 1 ran on the ordinary path and behaved exactly as
+before for a healthy manifest, which is the regression risk that mattered — the partition sits on
+every turn's settlement. Slice 2 was exercised only on its `Write` branch for the current Segment;
+its `SkipPublished` branch needs a closed Segment supplied empty, which a healthy store never
+produces. Slice 3 was not exercised at all, because nothing failed. Those two gaps are covered by
+tests, not by observation, and that is the honest boundary of this homologation.
+
+**Proportionality review: proportional.** One domain function changed, one decision extracted into a
+pure Rust function so it could be tested at all, and one small rule in the diagnostics projection.
+Fourteen new tests. No new durable artifact, no migration, no new refresh trigger, no change to the
+recovery surface's wording, and no widening beyond the captured problem. The one addition the plan
+did not foresee — accumulating closed message counts only for Segments the bundle wrote or verified —
+was required to stop the receipt from erasing history it had skipped, so it belongs to the same
+change rather than being scope creep.
+
+**Debt review: follow_up.** Five items, none selected.
+
+The largest is that this CR is now **defensive**. The `alpha.33` upgrade removed the truncation that
+created the condition, and the production manifest was repaired, so the only store known to reach
+this state no longer does. Field proof therefore has not happened and may not for a long time. That
+is a real limit on what is known, not a reason to hold the work: the next store to reach this state
+degrades instead of throwing.
+
+Publishing only the just-closed and current Segments on compaction — decision D2 — stays out and is
+recommended as its own CR. It would remove at the source the republish-everything behaviour that made
+this cascade possible, and it is a design change with its own blast radius.
+
+The `boundary === 0` branch of `preserveDurableConversationHistory` infers a complete load from the
+first message identifier alone, without checking that the window covers what follows. Found while
+diagnosing this CR's aftermath, recorded without a plan, and it cannot be proven to have fired in
+production because no prior copy of the projection survives.
+
+CR119 was captured from the same session: `Finishing` is slow rather than stranded, chronically so,
+and looks identical to a hang.
+
+And the process-check error corrected above is worth carrying as method rather than incident. A guard
+that cannot fail loudly is worse than no guard: `pgrep -f` returned "not running" for everything,
+including processes `ps` listed plainly, and three findings were recorded as anomalies because of it.
+Prefer a check whose failure mode is visible.
+
+It was integrated to `main` by fast-forward.
 
 ## Dependencies
 
