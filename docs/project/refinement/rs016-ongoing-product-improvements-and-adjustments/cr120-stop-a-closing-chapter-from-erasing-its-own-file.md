@@ -2,9 +2,9 @@
 
 # CR120: Stop a Closing Chapter From Erasing Its Own File
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** planned
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr120-closing-chapter-write-guard`
 
 ## Problem
 
@@ -139,6 +139,156 @@ Capture only; nothing is selected and no decision is taken here.
   running.
 - Is the same shape present in other production Journeys? This was found in `mirror-desktop` only,
   and the other Journeys have not been inspected for it.
+
+## Diagnosis (2026-10-04)
+
+**The write instant is confirmed by the filesystem, not inferred.** `segment-30.json` was last
+written at `19:36:03` local, to the second the same time the manifest was rewritten, and the manifest
+records `segment-30` closing at `22:36:02Z`. That is the compaction instant. Its neighbour
+`segment-29.json` was last written the previous day and is 6.9 MB. So the empty file is not a slow
+drift: the chapter was overwritten at the exact moment it closed, by the publication that the
+compaction triggered.
+
+**The upstream cause is structural, not corruption.** The native refresh assigns `firstTurnId` from
+the first turn whose user *or* assistant entry falls inside the chapter's
+`[sourceFromEntryId, sourceThroughEntryId]` range (`src-tauri/src/main.rs:4478-4492`). A compaction's
+retained tail is deliberately shared between the chapter that closes and the chapter that opens, so
+one turn can legitimately be the first included turn of two adjacent chapters. Nothing in that loop
+requires anchors to be distinct.
+
+**The shape is widespread; the damage is not.** Six production Journey generations already carry a
+shared anchor — `alissonvale-com` generation 1, `flip-podcast` generation 3 (three chapters on one
+turn), `flip-website` generation 1, `mirror-desktop` generations 1 and 4, `venda-de-livros`
+generation 2. Only `mirror-desktop` generation 4 has materialised an empty closed chapter file. The
+exposure is therefore latent in several Journeys and realised in one.
+
+**Why the shared anchor becomes an empty slice.** The partition assigns each Segment the turn range
+`[start(i), start(i+1))`. When two adjacent Segments resolve to the same start, the earlier one gets
+a zero-length range. In `mirror-desktop` generation 4 that is `segment-29`, and 28 further chapters
+with no anchor at all inherit a start from the right and also yield empty ranges. Twenty-nine of
+thirty-one chapters are handed an empty slice on every settlement.
+
+**CR118's skip rule is what keeps that harmless, and it is load-bearing in production.** For a closed
+Segment with an existing file and zero supplied messages, the publisher returns `SkipPublished`. That
+is not defensive work; it runs twenty-nine times per settlement of this Journey.
+
+**The hole is one misordered condition.** In `closed_segment_publication_decision`
+(`src-tauri/src/main.rs:4647`), `was_prior_current` is tested *before* the emptiness check:
+
+```rust
+if status != "closed" || !file_exists || was_prior_current {
+    return ClosedSegmentPublication::Write;
+}
+if message_count == 0 {
+    return ClosedSegmentPublication::SkipPublished;
+}
+```
+
+A chapter that is closing is always written, and that is the one write never checked for emptiness.
+The exception has a real purpose: while a chapter is current its file is being appended to, so on
+closing its final state must be written and must not be compared for immutability against its own
+stale bytes. That purpose only needs the *non-empty* case. The test
+`the_segment_that_was_current_is_written_even_when_it_closes_empty` asserts the behaviour that caused
+this, so the fix must change a test that currently passes, deliberately and with its reason recorded.
+
+**The divergence this leaves behind.** `segment-30` is no longer the prior current — the receipt
+names `segment-31` — and its supplied slice now holds 22 messages. So the next time it enters a
+bundle the decision is `VerifyImmutable`, which byte-compares file against payload
+(`src-tauri/src/main.rs:4750-4754`). Zero messages against twenty-two cannot match. Closed chapters
+enter a bundle only when a compaction settles, so ordinary turns keep publishing only the current
+chapter and keep succeeding, and **the next compaction in this Journey is predicted to fail
+settlement**. Fixing the write rule alone does not clear that: the empty file would still diverge.
+
+## Plan
+
+**Slice 1 — move one condition, and rewrite the test that defended it.** Test-first. Reorder
+`closed_segment_publication_decision` so emptiness is judged before the prior-current exemption:
+
+```rust
+if status != "closed" || !file_exists { return Write; }
+if message_count == 0 { return SkipPublished; }
+if was_prior_current { return Write; }
+VerifyImmutable
+```
+
+Every other outcome is unchanged, which the existing cases must keep proving: a current Segment is
+always written, a closed Segment with no file is written, a closing chapter supplied non-empty is
+written over its stale file, and a closed Segment supplied non-empty with a published file is
+verified. `the_segment_that_was_current_is_written_even_when_it_closes_empty` is replaced by a case
+asserting the opposite for the empty half, carrying the reason in its name and a comment.
+
+**Slice 2 — let an empty published chapter be healed rather than defended.** In the
+`VerifyImmutable` branch the publisher already reads the file. When those bytes parse to a chapter
+with zero messages and the supplied projection has messages, write instead of failing. An empty
+published file is not history worth protecting; it is the damage. This is the exact converse of
+CR118's rule, which made an empty *projection* defer to the file that still holds the chapter.
+
+That makes the existing divergence self-clearing: at the next compaction after this ships,
+`segment-30` is supplied with its 22 messages, its file is found empty, and it is rewritten. No
+manual store repair is required, and the healing path is the system's own publication rather than a
+script.
+
+**No new read cost.** The emptiness of the published file is only consulted inside the branch that
+already reads it. The twenty-nine skipped chapters are still skipped without opening their files, so
+a settlement does not start reading a hundred megabytes to make this decision.
+
+**Slice 3 — a regression test at the shape that produced this.** A manifest where two adjacent
+Segments share one `firstTurnId`, partitioned against a real-shaped ledger, must yield an empty slice
+for the earlier chapter and must not cause its published file to be overwritten. This pins the
+end-to-end behaviour rather than only the decision function, which is the gap that let CR118 ship
+with a correct domain rule and a wrong wiring.
+
+## Files
+
+- `src-tauri/src/main.rs` — the decision function, the verify branch, and their tests.
+- `src/tests/segmentAnchorTolerance.test.ts` — the shared-anchor partition case.
+- This document, the RS016 index, the canonical index, the Canvas.
+
+## Acceptance
+
+- A closed chapter supplied empty over an existing file is never written, including when it was the
+  prior current Segment.
+- A closing chapter supplied non-empty is still written over its stale file.
+- A closed chapter whose published file holds zero messages is rewritten when the supplied projection
+  has messages, instead of failing publication.
+- A closed chapter whose published file holds messages still fails publication when the supplied
+  bytes differ.
+- Chapters skipped as already published are still skipped without their files being read.
+- Two adjacent Segments sharing one anchor yield an empty slice for the earlier one, and that does
+  not erase its file.
+- Existing frontend and native suites stay green.
+
+## Validation
+
+- Test-level: every acceptance line has a test, red before its slice.
+- Dev: Dev's manifests are small and do not carry the shared-anchor shape, so Dev can prove the
+  decision table and the suite, not the production condition.
+- Production, after release: the next compaction in `mirror-desktop` is the real validation. It is
+  predicted to fail before this ships and to heal `segment-30` after it.
+
+## Exclusions
+
+- **No change to the native refresh rule.** Making `firstTurnId` injective would alter manifest
+  generation for every Journey, and six generations already carry shared anchors that a new rule
+  would have to be reconciled against. Recommended as its own Change Request.
+- No change to the immutability guarantee for a published chapter that actually holds messages.
+- No recomputation of `historicalMessageCount` when a bundle skips published chapters. The receipt
+  stays conservative by design, which is pre-existing and not data loss.
+- No manual production store repair inside this CR. If a compaction is reached before this ships,
+  that becomes a separate authorized decision.
+
+## Open Decisions
+
+- **D1 — reorder rather than remove `was_prior_current`.** Removing it entirely would send every
+  closing chapter to `VerifyImmutable` against its own stale file and break ordinary compaction.
+  Recommended as planned.
+- **D2 — heal an empty published file (slice 2).** The alternative is to keep failing and repair the
+  store by hand. Healing is recommended: it needs no privileged action, it cannot lose a chapter that
+  has content, and the manual repairs attempted twice before both re-staled because the cause kept
+  running.
+- **D3 — whether the shared anchor itself is a defect.** It is recorded here as the upstream cause
+  and deliberately left to its own CR, since it is reachable in six generations and changing it
+  touches the authority CR118 declined to replace.
 
 ## Dependencies
 

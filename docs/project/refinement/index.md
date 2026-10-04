@@ -27,8 +27,16 @@ Refinement authority; SQLite must not be consulted or dual-written.
   regressions, 17 production turns sit with a pending harness body, that body is CR121's throw, and
   12 of 20 Journeys read `conflicted` because reason codes never clear. Content is safe in Mirror.
   Recommended as the next pull, ahead of CR120 and in place of CR121's investigation
-- Change Request: CR120 is `captured` and unplanned, found while verifying the `alpha.34` upgrade
-  rather than reported. In production `mirror-desktop`, closed chapter `segment-30` holds zero
+- Change Request: CR120, `planned` under @alissonvale with Delivery
+  `refinement/rs016-cr120-closing-chapter-write-guard`, diagnosed on 2026-10-04. The fix is one
+  misordered condition plus a healing rule, which removes the need for a manual store repair. The
+  shared-anchor cause upstream of it is recorded and left to its own CR, since six production
+  generations already carry that shape. **CR121 is `captured` and is the more serious finding**: every
+  settlement timing record written since `alpha.34` reports a failed first attempt, in three
+  Journeys, while the turns themselves complete through recovery. It was found by CR119's instrument
+  on its first production reading, and it names a blind spot in that instrument. It is a plausible but
+  unestablished explanation for the Finishing tail CR119 measured. Originally captured as: found
+  while verifying the `alpha.34` upgrade rather than reported. In production `mirror-desktop`, closed chapter `segment-30` holds zero
   messages in a 592 KB file while its manifest entry claims 13 turns and the ledger says 22
   messages. The cause is the `was_prior_current` exception in CR118's publication decision: a
   closing chapter is always written, and that is the one write not checked for emptiness. It
@@ -117,7 +125,8 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR119](rs016-ongoing-product-improvements-and-adjustments/cr119-give-finishing-back-to-the-navigator.md) | RS016 | Give Finishing Back to the Navigator | done | @alissonvale | `refinement/rs016-cr119-settlement-phase-timing` |
 | — | [CR123](rs016-ongoing-product-improvements-and-adjustments/cr123-let-a-journey-mint-its-first-publication-receipt.md) | RS016 | Let a Journey Mint Its First Publication Receipt | captured | — | — |
 | — | [CR122](rs016-ongoing-product-improvements-and-adjustments/cr122-make-the-checkpoint-count-the-same-thing-every-turn.md) | RS016 | Make the Checkpoint Count the Same Thing Every Turn | done | @alissonvale | `refinement/rs016-cr122-harness-checkpoint-identity` |
-| — | [CR120](rs016-ongoing-product-improvements-and-adjustments/cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) | RS016 | Stop a Closing Chapter From Erasing Its Own File | captured | — | — |
+| — | [CR121](rs016-ongoing-product-improvements-and-adjustments/cr121-name-the-settlement-that-fails-before-recovery-saves-it.md) | RS016 | Name the Settlement That Fails Before Recovery Saves It | captured | — | — |
+| — | [CR120](rs016-ongoing-product-improvements-and-adjustments/cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) | RS016 | Stop a Closing Chapter From Erasing Its Own File | planned | @alissonvale | `refinement/rs016-cr120-closing-chapter-write-guard` |
 | — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | done | @alissonvale | `refinement/rs016-cr116-stranded-finalization-recovery` |
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
 | 2 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | done | @alissonvale | `refinement/rs021-cr105-agentic-map` |
