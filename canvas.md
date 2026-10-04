@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.33` · A Correction You Can Watch Arrive
 
-🎯 **Foco oficial:** CR119 · `planned` · sem Driver · 4 hipóteses eliminadas, plano mede antes de consertar
+🎯 **Foco oficial:** CR119 · `in_progress` · @alissonvale · fatias 1–3 implementadas, gates verdes · falta homologar no Dev
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active`; Embedded TS Runtime é uma direção capturada
 
@@ -23,7 +23,7 @@
 | **RS016 · Ongoing Product Improvements** | 🔄 ativa · sem CR em foco | `█████████░` 26 done · 4 ↗️ · 1 ⛔ · 1 🟡 |
 | ↳ **CR117 · Make a Correction Legible While It Is Live** | ✅ done · fechada, reaberta e fechada de novo | `██████████` |
 | ↳ **CR118 · Anchor a Segment to the History It Can See** | ✅ done · homologada no Dev | `██████████` |
-| ↳ **CR119 · Give Finishing Back to the Navigator** | 📐 planned · 4 fatias · 3 decisões abertas | `█░░░░░░░░░` |
+| ↳ **CR119 · Give Finishing Back to the Navigator** | 🧪 implementada · 1.625 testes · falta homologar | `███████░░░` |
 | ↳ **CR116 · Release a Journey Stranded in Finishing** | ✅ done · homologada no Dev | `██████████` |
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
 | RS022 · Mirror Core Debts | 🔄 ativa · registro sem CR aberta | `░░░░░░░░░░` 1 ⏸️ |

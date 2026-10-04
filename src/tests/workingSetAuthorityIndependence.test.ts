@@ -48,7 +48,8 @@ describe("authority does not depend on what is loaded", () => {
   it("counts the Conversation from the published Segment total, not from loaded messages", () => {
     const lifecycle = body("saveProjectedTurnLifecycle");
     expect(lifecycle).toContain("let catalogMessageCount = projection.messages.length;");
-    expect(lifecycle).toContain("catalogMessageCount = await publishConversationSegmentProjections(");
+    // CR119 times the publish; the count still comes from its result and nothing else.
+    expect(lifecycle).toContain('catalogMessageCount = await timed("publish_segments", () => publishConversationSegmentProjections(');
     expect(lifecycle).not.toContain("conversationRef.current");
   });
 

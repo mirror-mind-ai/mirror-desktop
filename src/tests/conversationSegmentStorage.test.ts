@@ -62,8 +62,9 @@ describe("Conversation Segment persistence", () => {
     expect(appSource).toContain('operation.kind === "compaction" && operation.status === "completed"');
     // Scoped to the settlement flow: CR080 added other legitimate call sites, and a
     // whole-file index comparison would pin their position rather than this ordering.
-    expect(appSource.indexOf("? await refreshConversationSegments(segmentAuthority)"))
-      .toBeGreaterThan(appSource.indexOf("await saveActiveSettlementProjection("));
+    // CR119 wraps both calls in phase timing; the ordering guard reads through the wrapper.
+    expect(appSource.indexOf('? await timed("refresh_segments", () => refreshConversationSegments(segmentAuthority))'))
+      .toBeGreaterThan(appSource.indexOf('await timed("save_durable_projection", () => saveActiveSettlementProjection('));
     expect(tauriSource).toContain("write_durable_projection_at(&path, &payload, nonce)");
     expect(tauriSource).toContain("firstKeptEntryId");
     expect(tauriSource).toContain("load_conversation_segment_projections");

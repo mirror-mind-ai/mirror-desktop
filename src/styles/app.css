@@ -2523,6 +2523,19 @@ h3 {
   color: #91bbb5;
 }
 
+/* CR119: the phase a long Finishing is in. Quieter than the status word, because it is detail. */
+.composer-runtime-phase {
+  letter-spacing: 0.02em;
+  opacity: 0.72;
+  text-transform: none;
+}
+
+.composer-runtime-phase::before {
+  content: "\00b7";
+  margin-right: 7px;
+  opacity: 0.6;
+}
+
 .runtime-live-dot {
   animation: runtime-pulse 1.2s ease-in-out infinite;
   background: var(--ui-accent);

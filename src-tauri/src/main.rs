@@ -109,6 +109,13 @@ const COMPOSER_DRAFTS_MAX_BYTES: usize = 1024 * 1024;
 const COMPOSER_DRAFT_MAX_CHARS: usize = 51_200;
 const COMPOSER_DRAFT_MAX_JOURNEYS: usize = 256;
 const TURN_JOURNAL_DIRECTORY: &str = "turn-journal";
+/// CR119: per-Journey settlement phase timings, one record per settled turn. Kept apart from the
+/// turn journal, whose strict schema and revision expectations gate recovery; a diagnostic has no
+/// business inside the structure that governs it.
+const SETTLEMENT_TIMING_DIRECTORY: &str = "settlement-timings";
+const SETTLEMENT_TIMING_MAX_RECORDS: usize = 256;
+const SETTLEMENT_TIMING_MAX_RECORD_BYTES: usize = 32 * 1024;
+const SETTLEMENT_TIMING_MAX_FILE_BYTES: usize = 2 * 1024 * 1024;
 
 type PiRpcResponses = Arc<(Mutex<HashMap<String, RpcCommandResponse>>, Condvar)>;
 
@@ -3656,6 +3663,88 @@ fn list_turn_journal(app: AppHandle, journey_id: String) -> Result<TurnJournalDo
         .lock()
         .map_err(|_| "turn_journal_unavailable".to_string())?;
     read_turn_journal(&path)
+}
+
+fn settlement_timing_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
+    let safe_journey_id = sanitize_journey_id(journey_id)?;
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|_| "settlement_timing_unavailable".to_string())?
+        .join(SETTLEMENT_TIMING_DIRECTORY)
+        .join(format!("{}.json", safe_journey_id)))
+}
+
+/// Appends one timing record to the document, evicting oldest-first until both the record count
+/// and the encoded size fit their bounds. The record itself must name the Journey the file belongs
+/// to and stay small; a record that fails either check is refused rather than trimmed, because a
+/// trimmed measurement would be read as a true one.
+fn append_settlement_timing_record(
+    existing: Option<Value>,
+    journey_id: &str,
+    record: Value,
+) -> Result<Value, String> {
+    let object = record.as_object().ok_or_else(|| "settlement_timing_record_invalid".to_string())?;
+    if object.get("journeyId").and_then(Value::as_str) != Some(journey_id) {
+        return Err("settlement_timing_record_journey_mismatch".to_string());
+    }
+    if object.get("runId").and_then(Value::as_str).map_or(true, str::is_empty)
+        || !object.get("phases").map_or(false, Value::is_array)
+    {
+        return Err("settlement_timing_record_invalid".to_string());
+    }
+    let encoded = serde_json::to_vec(&record).map_err(|_| "settlement_timing_record_invalid".to_string())?;
+    if encoded.len() > SETTLEMENT_TIMING_MAX_RECORD_BYTES {
+        return Err("settlement_timing_record_oversized".to_string());
+    }
+    let mut records: Vec<Value> = existing
+        .as_ref()
+        .and_then(|value| value.get("records"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    records.push(record);
+    while records.len() > SETTLEMENT_TIMING_MAX_RECORDS {
+        records.remove(0);
+    }
+    loop {
+        let document = json!({
+            "schemaVersion": "0.1.0",
+            "journeyId": journey_id,
+            "records": records,
+        });
+        let size = serde_json::to_vec(&document)
+            .map_err(|_| "settlement_timing_record_invalid".to_string())?
+            .len();
+        if size <= SETTLEMENT_TIMING_MAX_FILE_BYTES || records.len() <= 1 {
+            return Ok(document);
+        }
+        records.remove(0);
+    }
+}
+
+#[tauri::command]
+fn append_settlement_timing(app: AppHandle, journey_id: String, record: Value) -> Result<(), String> {
+    let path = settlement_timing_path(&app, &journey_id)?;
+    let persistence = app.state::<JourneyProjectionPersistenceState>();
+    let stripe = persistence.stripe(&journey_id, 0);
+    let _guard = persistence.stripes[stripe]
+        .lock()
+        .map_err(|_| "settlement_timing_unavailable".to_string())?;
+    let existing = fs::read(&path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
+    let mut document = append_settlement_timing_record(existing, &journey_id, record)?;
+    document["savedAt"] = Value::String(Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true));
+    let payload = serde_json::to_vec_pretty(&document)
+        .map_err(|_| "settlement_timing_record_invalid".to_string())?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|_| "settlement_timing_unavailable".to_string())?;
+    }
+    let staged = path.with_extension("json.tmp");
+    fs::write(&staged, payload).map_err(|_| "settlement_timing_unavailable".to_string())?;
+    fs::rename(&staged, &path).map_err(|_| "settlement_timing_unavailable".to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -9444,6 +9533,7 @@ fn main() {
             open_external_url,
             start_pi_invocation,
             list_turn_journal,
+            append_settlement_timing,
             transition_turn_journal,
             interrupt_inactive_turn_journal,
             read_pi_session_context_stats,
@@ -9577,6 +9667,8 @@ mod close_without_quitting_tests {
 #[cfg(test)]
 mod tests {
     use super::{
+        append_settlement_timing_record,
+        SETTLEMENT_TIMING_MAX_FILE_BYTES, SETTLEMENT_TIMING_MAX_RECORDS,
         closed_segment_publication_decision, ClosedSegmentPublication,
         classify_pi_process_terminal, classify_rpc_process_terminal, cleanup_stale_terminal_handoffs,
         compiled_runtime_channel,
@@ -9630,6 +9722,80 @@ mod tests {
         DOCUMENT_PREVIEW_MAX_BYTES,
         read_journey_canvas_at, CANVAS_FILE_NAME, CANVAS_INSTRUCTIONS_FILE_NAME,
     };
+
+    fn timing_record(journey_id: &str, run_id: &str, padding: usize) -> serde_json::Value {
+        json!({
+            "schemaVersion": "0.1.0",
+            "journeyId": journey_id,
+            "runId": run_id,
+            "turnId": "turn-1",
+            "generation": 4,
+            "startedAt": "2026-10-04T18:00:00.000Z",
+            "finishedAt": "2026-10-04T18:05:15.300Z",
+            "totalMs": 315_300,
+            "outcome": "settled",
+            "phases": [{ "phase": "publish_segments", "depth": 1, "startedAt": "2026-10-04T18:00:00.100Z", "elapsedMs": 310_000, "outcome": "completed" }],
+            "padding": "x".repeat(padding),
+        })
+    }
+
+    #[test]
+    fn settlement_timing_append_starts_a_document_and_keeps_order() {
+        let first = append_settlement_timing_record(None, "mirror-desktop", timing_record("mirror-desktop", "run-1", 0)).unwrap();
+        assert_eq!(first["schemaVersion"], "0.1.0");
+        assert_eq!(first["journeyId"], "mirror-desktop");
+        assert_eq!(first["records"].as_array().unwrap().len(), 1);
+
+        let second = append_settlement_timing_record(Some(first), "mirror-desktop", timing_record("mirror-desktop", "run-2", 0)).unwrap();
+        let runs: Vec<&str> = second["records"].as_array().unwrap().iter().map(|r| r["runId"].as_str().unwrap()).collect();
+        assert_eq!(runs, vec!["run-1", "run-2"]);
+    }
+
+    #[test]
+    fn settlement_timing_refuses_a_record_for_another_journey_or_without_phases() {
+        assert_eq!(
+            append_settlement_timing_record(None, "mirror-desktop", timing_record("other", "run-1", 0)).unwrap_err(),
+            "settlement_timing_record_journey_mismatch"
+        );
+        let mut no_phases = timing_record("mirror-desktop", "run-1", 0);
+        no_phases["phases"] = json!("not-a-list");
+        assert_eq!(
+            append_settlement_timing_record(None, "mirror-desktop", no_phases).unwrap_err(),
+            "settlement_timing_record_invalid"
+        );
+        assert_eq!(
+            append_settlement_timing_record(None, "mirror-desktop", json!("scalar")).unwrap_err(),
+            "settlement_timing_record_invalid"
+        );
+    }
+
+    #[test]
+    fn settlement_timing_refuses_an_oversized_record_rather_than_trimming_it() {
+        let err = append_settlement_timing_record(None, "mirror-desktop", timing_record("mirror-desktop", "run-1", 40 * 1024)).unwrap_err();
+        assert_eq!(err, "settlement_timing_record_oversized");
+    }
+
+    #[test]
+    fn settlement_timing_evicts_oldest_first_by_count_and_by_size() {
+        let mut document = None;
+        for index in 0..(SETTLEMENT_TIMING_MAX_RECORDS + 3) {
+            document = Some(append_settlement_timing_record(document, "mirror-desktop", timing_record("mirror-desktop", &format!("run-{index}"), 0)).unwrap());
+        }
+        let records = document.as_ref().unwrap()["records"].as_array().unwrap();
+        assert_eq!(records.len(), SETTLEMENT_TIMING_MAX_RECORDS);
+        assert_eq!(records[0]["runId"], "run-3");
+
+        // Size bound: 20 KiB records overflow 2 MiB long before 256 of them.
+        let mut sized = None;
+        for index in 0..150 {
+            sized = Some(append_settlement_timing_record(sized, "mirror-desktop", timing_record("mirror-desktop", &format!("big-{index}"), 20 * 1024)).unwrap());
+        }
+        let sized = sized.unwrap();
+        assert!(serde_json::to_vec(&sized).unwrap().len() <= SETTLEMENT_TIMING_MAX_FILE_BYTES);
+        let kept = sized["records"].as_array().unwrap();
+        assert!(kept.len() < 150);
+        assert_eq!(kept.last().unwrap()["runId"], "big-149");
+    }
     use crate::turn_journal::{
         TurnCancellationIntent, TurnJournalAuthority, TurnJournalRecord, TurnPhase,
         TurnPiExecutionEvidence, TurnRecoveryDisposition, TurnTerminalEvidence,

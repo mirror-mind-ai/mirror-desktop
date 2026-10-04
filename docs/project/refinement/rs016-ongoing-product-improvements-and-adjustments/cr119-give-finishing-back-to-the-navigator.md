@@ -2,7 +2,9 @@
 
 # CR119: Give Finishing Back to the Navigator
 
-**Status:** planned
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr119-settlement-phase-timing`
 **Driver:** —
 **Delivery:** —
 
@@ -212,6 +214,53 @@ the floor and the episodic swing. That finding is the deliverable that makes a r
 - **D3 — whether slice 3 is enough to call this CR worthwhile.** It makes the wait legible and
   measurable but not shorter. Stated plainly so the Navigator can decide whether to widen scope now
   or keep the reduction as a follow-on.
+
+## Implementation (2026-10-04)
+
+Pulled on the Navigator's "go ahead per your recommendations": D1 as planned, D2 out as its own
+CR, the reduction kept as a follow-on. Slices 1–3 implemented test-first on the Delivery branch;
+slice 4 waits for production data by construction.
+
+**Slice 1 — `src/app/settlementPhaseTiming.ts`.** A pure collector: `time(phase, op)` records
+elapsed time per named phase with its depth, start order, and outcome, and `finish(outcome)` returns
+one record. It never writes. Phases are stored in the order they began, so an outer phase reads
+first and the steps inside it explain where its time went; only depth-0 phases partition the window,
+and the test asserts their sum equals the total. A registry keys one collector per Journey, because
+the coordinator serializes finalization per Journey, so ports that only receive a Journey id can
+still attribute their time. `timeFinalizationPorts` wraps all ten coordinator ports under their own
+names. Ten tests.
+
+**Slice 2 — one write per settled turn.** `append_settlement_timing` is a new native command writing
+`settlement-timings/<journey>.json`, kept apart from the turn journal for the reason given above. The
+pure `append_settlement_timing_record` refuses a record for another Journey, a record without phases,
+and an oversized record — refused rather than trimmed, because a trimmed measurement would be read as
+a true one — and evicts oldest-first by count (256) and by size (2 MiB). Four Rust tests. On the
+renderer side `appendSettlementTiming` swallows any failure into a console warning, so a diagnostic
+can never fail a settlement. In `App.tsx` the record is begun before `finalizeCompletedTurn` and
+ended in its `finally`, which is the one place the outcome is known; the steps inside
+`saveProjectedTurnLifecycle` — `save_durable_projection`, `refresh_segments` / `load_segments`,
+`publish_segments`, `reconcile_catalog` — are timed individually at depth 1 under `save_projection`.
+A source guard asserts exactly one call to the writer in the app.
+
+**Slice 3 — the wait names its phase.** `ComposerRuntimeStatus` accepts the current phase and when
+finalization began, and shows the phase in words (`publishing chapters`, `sending to Mirror`, …)
+only once the wait has lasted `FINISHING_PHASE_VISIBLE_AFTER_MS` (3 s, just past the production
+median of 3.9 s). With no phase supplied it renders byte-for-byte as before, which a test pins, and
+it never names a phase while `Working`. The component keeps its own one-second clock while a phase
+is being watched and takes an injected `now` under test.
+
+**Two CR114 source guards were updated, not weakened.** They pinned the exact text of the save and
+publish calls that are now wrapped in timing; the ordering they protect (save before refresh) and
+the authority they protect (the catalog count comes from the publish result) are unchanged, and the
+guards now read through the wrapper.
+
+Gates: `tsc` clean; **228 files / 1,625 tests**; `cargo test` **250 passed / 3 ignored**; `cargo
+check --locked`; build clean; roadmap READY.
+
+**Not validated.** Dev's Journeys settle in about two seconds, so Dev can show that a record is
+written with phases that sum to the window; it cannot show the long tail, and it cannot name the
+dominant phase. That answer needs production turns, and the expectation recorded in the plan stands:
+days of ordinary use.
 
 ## Dependencies
 

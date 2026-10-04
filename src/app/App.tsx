@@ -188,6 +188,13 @@ import {
   validateExactOutboxSummary,
 } from "./turnFinalizationCoordinator";
 import { createProductionFinalizationPorts } from "./turnFinalizationPorts";
+import { createSettlementTimingRegistry, timeFinalizationPorts } from "./settlementPhaseTiming";
+import { appendSettlementTiming } from "./settlementTimingStorage";
+import type { FinishingPhasePresentation } from "./ComposerRuntimeFooter";
+
+// CR119: one collector per Journey while its turn is being settled. Timing is accumulated in
+// memory and written once, after the record is complete; see settlementPhaseTiming.ts.
+const settlementTimingRegistry = createSettlementTimingRegistry();
 import {
   clearUnsentDraft,
   recordUnsentDraft,
@@ -526,6 +533,8 @@ function waitForCatalogLoadingFeedbackPaint(): Promise<void> {
 
 export function App({ model }: AppProps) {
   const [selectedJourney, setSelectedJourney] = useState(defaultJourneyPreferenceState.activeJourneyId ?? "");
+  // CR119: the settlement phase each Journey's Finishing is in, for the Composer status to name.
+  const [finishingPhases, setFinishingPhases] = useState<Record<string, FinishingPhasePresentation>>({});
   const [selectedAltitude, setSelectedAltitude] = useState(defaultJourneyAltitude);
   const [selectedOperationalSurface, setSelectedOperationalSurface] = useState<OperationalSurface>("chat");
   const presentedJourneySurface = normalizeJourneySurfaceSelection(selectedAltitude, selectedOperationalSurface);
@@ -3257,6 +3266,20 @@ export function App({ model }: AppProps) {
         dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
       } else if (correlation && settlementAuthority) {
         dispatchJourneyRuntime({ type: "finalization_started", identity: runtimeIdentity });
+        // CR119: time this settlement phase by phase. The collector is keyed by Journey because
+        // finalization is serialized per Journey; its record is written once, below, after the
+        // outcome is known, and a failure to write it is noted but never fails the turn.
+        const timing = settlementTimingRegistry.begin({
+          journeyId: ownerJourneyId,
+          runId: settlementAuthority.runId,
+          turnId: settlementAuthority.turnId,
+          generation: settlementAuthority.generation,
+        });
+        const finishingSince = Date.now();
+        const unsubscribeTiming = timing.subscribe((phase) => {
+          setFinishingPhases((current) => ({ ...current, [ownerJourneyId]: { phase, since: finishingSince } }));
+        });
+        let settlementOutcome: "settled" | "failed" = "failed";
         try {
           await turnFinalizationCoordinator.finalizeCompletedTurn({
             authority: settlementAuthority,
@@ -3270,12 +3293,25 @@ export function App({ model }: AppProps) {
               );
             },
           }, finalizationPorts);
+          settlementOutcome = "settled";
           setExactSettlementError(settlementAuthority, undefined);
           recordSyncAttempt(ownerJourneyId, { kind: "succeeded", at: new Date().toISOString() });
         } catch (error) {
           setExactSettlementError(settlementAuthority, error instanceof Error ? error.message : String(error));
           recordSyncFailureOrDeferral(ownerJourneyId, error);
         } finally {
+          unsubscribeTiming();
+          setFinishingPhases((current) => {
+            if (!(ownerJourneyId in current)) return current;
+            const { [ownerJourneyId]: _ended, ...rest } = current;
+            return rest;
+          });
+          const timingRecord = settlementTimingRegistry.end(ownerJourneyId, settlementOutcome);
+          if (timingRecord) {
+            void appendSettlementTiming(timingRecord, (reason) => {
+              console.warn(`settlement timing not recorded for ${ownerJourneyId}: ${reason}`);
+            });
+          }
           dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
           await refreshTurnJournalEvidence(ownerJourneyId);
         }
@@ -3355,11 +3391,11 @@ export function App({ model }: AppProps) {
     return desktopConversationThread(journeyId, child);
   }
 
-  const finalizationPorts = createProductionFinalizationPorts({
+  const finalizationPorts = timeFinalizationPorts(createProductionFinalizationPorts({
     loadActiveEvidence: (authority) => loadActiveSettlementEvidence(authority),
     saveProjection: (projection, authority) => saveProjectedTurnLifecycle(projection, authority),
     cleanupLease: (authority) => releaseDurablePiInvocationLease(authority),
-  });
+  }), settlementTimingRegistry);
 
   async function loadActiveSettlementEvidence(authority: JourneySettlementAuthority) {
     const [thread, persisted] = await Promise.all([
@@ -3386,7 +3422,10 @@ export function App({ model }: AppProps) {
     projection: JourneyConversation,
     authority: JourneySettlementAuthority,
   ): Promise<void> {
-    await saveActiveSettlementProjection(projection, authority);
+    const timed = <T,>(phase: string, operation: () => Promise<T>) => (
+      settlementTimingRegistry.time(authority.journeyId, phase, operation)
+    );
+    await timed("save_durable_projection", () => saveActiveSettlementProjection(projection, authority));
     let catalogMessageCount = projection.messages.length;
     const settledCompaction = Object.values(projection.terminalAgentActionEvidence ?? {}).some((evidence) => (
       evidence.runId === authority.runId
@@ -3401,27 +3440,27 @@ export function App({ model }: AppProps) {
         sessionFile: projection.liveIdentity.piSessionFile,
       };
       const manifest = settledCompaction
-        ? await refreshConversationSegments(segmentAuthority)
-        : await loadConversationSegments(segmentAuthority);
+        ? await timed("refresh_segments", () => refreshConversationSegments(segmentAuthority))
+        : await timed("load_segments", () => loadConversationSegments(segmentAuthority));
       if (manifest) {
         const availableProjections = partitionConversationBySegments(projection, manifest);
         const projectionsToPublish = settledCompaction
           ? availableProjections
           : availableProjections.slice(-1);
-        catalogMessageCount = await publishConversationSegmentProjections(
+        catalogMessageCount = await timed("publish_segments", () => publishConversationSegmentProjections(
           segmentAuthority,
           projectionsToPublish,
-        );
+        ));
       }
     }
     if (authority.threadId.startsWith("desktop-thread-")) {
-      const updatedEntry = await reconcileDesktopConversationCatalogEntry({
+      const updatedEntry = await timed("reconcile_catalog", () => reconcileDesktopConversationCatalogEntry({
         journeyId: authority.journeyId,
         threadId: authority.threadId,
         generation: authority.generation,
         updatedAt: lastItem(projection.messages)?.createdAt ?? new Date().toISOString(),
         messageCount: catalogMessageCount,
-      });
+      }));
       setConversationCatalog((current) => current.map((entry) => (
         entry.kind === "desktop_conversation" && entry.threadId === authority.threadId ? updatedEntry : entry
       )));
@@ -5474,7 +5513,7 @@ export function App({ model }: AppProps) {
           aria-label="Message composer"
           hidden={!operationalChatSelected || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
         >
-          <ComposerRuntimeStatus status={composerTurnStatus} />
+          <ComposerRuntimeStatus status={composerTurnStatus} finishingPhase={finishingPhases[selectedJourney]} />
           {!runtimeBindingReady ? <p className="provider-error" role="status">Connect and validate a Mirror installation in Runtime Settings before starting Mirror or Pi actions.</p> : null}
           {localReferenceError ? (
             <section className="dedicated-turn-notice" role="alert">

@@ -1,4 +1,5 @@
-import type { ReactNode, Ref } from "react";
+import { useEffect, useState, type ReactNode, type Ref } from "react";
+import { visibleFinishingPhase } from "./settlementPhaseTiming";
 import type { RuntimeContextUsage } from "./runtimeActivityModel";
 import type { PiContextState } from "./contextUsageState";
 import type { ComposerTurnStatus } from "./composerTurnStatus";
@@ -53,20 +54,46 @@ type ComposerRuntimeFooterProps = {
   compacting?: boolean;
 };
 
-type ComposerRuntimeStatusProps = {
-  status: ComposerTurnStatus;
+export type FinishingPhasePresentation = {
+  /** The settlement phase running now; absent between phases. */
+  phase?: string;
+  /** When this turn's finalization began, so the phase is named only once a wait is visible. */
+  since: number;
 };
 
-export function ComposerRuntimeStatus({ status }: ComposerRuntimeStatusProps) {
+type ComposerRuntimeStatusProps = {
+  status: ComposerTurnStatus;
+  /** CR119: `Finishing` names the phase it is in once a wait has visibly begun. */
+  finishingPhase?: FinishingPhasePresentation;
+  /** Test seam; the component keeps its own clock otherwise. */
+  now?: number;
+};
+
+const FINISHING_CLOCK_TICK_MS = 1_000;
+
+export function ComposerRuntimeStatus({ status, finishingPhase, now }: ComposerRuntimeStatusProps) {
+  const [tick, setTick] = useState(() => Date.now());
+  const finishing = status === "finishing";
+  const watching = finishing && finishingPhase !== undefined && now === undefined;
+  useEffect(() => {
+    if (!watching) return undefined;
+    setTick(Date.now());
+    const handle = setInterval(() => setTick(Date.now()), FINISHING_CLOCK_TICK_MS);
+    return () => clearInterval(handle);
+  }, [watching]);
+
   if (!status) {
     return null;
   }
 
-  const finishing = status === "finishing";
+  const phase = finishing && finishingPhase
+    ? visibleFinishingPhase({ phase: finishingPhase.phase, since: finishingPhase.since, now: now ?? tick })
+    : undefined;
   return (
     <div className={`composer-runtime-status${finishing ? " is-finishing" : ""}`} role="status" aria-live="polite">
       <span className="runtime-live-dot" aria-hidden="true" />
       <strong>{finishing ? "Finishing" : "Working"}</strong>
+      {phase ? <span className="composer-runtime-phase">{phase}</span> : null}
       <span className="runtime-working-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>
     </div>
   );
