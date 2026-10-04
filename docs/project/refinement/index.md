@@ -13,7 +13,14 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS016
-- Change Request: none selected. CR119 is `done` under @alissonvale, closed on 2026-10-04 after a
+- Change Request: CR120 is `captured` and unplanned, found while verifying the `alpha.34` upgrade
+  rather than reported. In production `mirror-desktop`, closed chapter `segment-30` holds zero
+  messages in a 592 KB file while its manifest entry claims 13 turns and the ledger says 22
+  messages. The cause is the `was_prior_current` exception in CR118's publication decision: a
+  closing chapter is always written, and that is the one write not checked for emptiness. It
+  predicts that the next compaction in that Journey fails settlement on an immutability divergence,
+  while ordinary turns keep succeeding. No conversation is unrecoverable. CR097 remains the
+  recommended product continuation. CR119 is `done` under @alissonvale, closed on 2026-10-04 after a
   Navigator-run Dev smoke pass verified on disk: one record per settled turn, depth-0 phases summing
   to 2,021 ms of a 2,026 ms window, and the turn journal independently agreeing. Settlement is now
   measurable per phase and `Finishing` names its phase once a wait has visibly begun. Nothing is
@@ -94,6 +101,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |
 | — | [CR118](rs016-ongoing-product-improvements-and-adjustments/cr118-anchor-a-segment-to-the-history-it-can-see.md) | RS016 | Anchor a Segment to the History It Can See | done | @alissonvale | `refinement/rs016-cr118-segment-anchor-tolerance` |
 | — | [CR119](rs016-ongoing-product-improvements-and-adjustments/cr119-give-finishing-back-to-the-navigator.md) | RS016 | Give Finishing Back to the Navigator | done | @alissonvale | `refinement/rs016-cr119-settlement-phase-timing` |
+| — | [CR120](rs016-ongoing-product-improvements-and-adjustments/cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) | RS016 | Stop a Closing Chapter From Erasing Its Own File | captured | — | — |
 | — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | done | @alissonvale | `refinement/rs016-cr116-stranded-finalization-recovery` |
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
 | 2 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | done | @alissonvale | `refinement/rs021-cr105-agentic-map` |

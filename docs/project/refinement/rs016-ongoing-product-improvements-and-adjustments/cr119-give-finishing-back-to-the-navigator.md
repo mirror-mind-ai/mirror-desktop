@@ -5,8 +5,6 @@
 **Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr119-settlement-phase-timing`
-**Driver:** —
-**Delivery:** —
 
 ## Problem
 
