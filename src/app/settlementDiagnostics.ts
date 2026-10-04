@@ -41,7 +41,12 @@ export function projectJourneySettlementErrors(
   for (const [journeyId, errors] of grouped) {
     const journeyError = projected[journeyId];
     if (journeyError) {
-      projected[journeyId] = `${journeyError} ${errors.length} exact Mirror settlement ${errors.length === 1 ? "operation" : "operations"} also need${errors.length === 1 ? "s" : ""} attention.`;
+      // CR118: the settlement `catch` records one failure both as the Journey's reason and as an
+      // exact run debt, so a single throw was announced as itself plus a count of itself. An exact
+      // debt that merely repeats the named failure adds nothing a reader can act on.
+      const additional = errors.filter((error) => error.message !== journeyError);
+      if (!additional.length) continue;
+      projected[journeyId] = `${journeyError} ${additional.length} exact Mirror settlement ${additional.length === 1 ? "operation" : "operations"} also need${additional.length === 1 ? "s" : ""} attention.`;
     } else {
       projected[journeyId] = errors.length === 1
         ? errors[0].message

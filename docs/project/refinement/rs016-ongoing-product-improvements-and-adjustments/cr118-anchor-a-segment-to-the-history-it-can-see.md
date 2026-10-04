@@ -2,9 +2,9 @@
 
 # CR118: Anchor a Segment to the History It Can See
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr118-segment-anchor-tolerance`
 
 ## Problem
 
@@ -338,6 +338,87 @@ guard-level change and gets a guard-level test, per the CR117 lesson.
 - **D3 — whether the duplicate-notice fix belongs here.** It is small, local and was found while
   diagnosing this incident. Recommended in scope as slice 3; it can be dropped without affecting
   slices 1 and 2.
+
+## Implementation Evidence (2026-10-04)
+
+Implemented on the recommended decisions: D1 as planned, D2 **out of scope** and recommended as its
+own CR, D3 kept in scope.
+
+**Slice 0 — red first.** `src/tests/segmentAnchorTolerance.test.ts` builds the production shape from
+constructed fixtures; no production data entered the repository. Six of its nine cases were red
+against the old partition, and the two that were already green are the behaviours that had to be
+preserved: the leading-gap tolerance from `7362312`, and the throw on genuinely out-of-order anchors.
+The Rust side could not be made red at runtime because the decision was inline in a `#[tauri::command]`
+taking `AppHandle`; extracting it is part of the fix, so its tests compile-fail before and pass after.
+That is stated rather than dressed up as a runtime red.
+
+**Slice 1 — the cut.** `partitionConversationBySegments` now resolves three states instead of two:
+anchored and found, anchored and gone, and unanchored. The cut is the index after the **last**
+unresolvable anchor, so an unresolvable Segment is omitted wherever it sits rather than only when
+leading. Starts are resolved **from the right**, so an unanchored Segment inherits the next one's
+start and yields an empty range; mapping it to `0` was what made `starts` non-monotonic between two
+anchored Segments and threw for what is merely an empty chapter. The cut is clamped so the current
+Segment is always returned — cutting it away would hand the caller an empty bundle, which fails
+publication and is the same settlement break under a different message. Monotonicity is still
+enforced among what remains, and an empty manifest still fails closed.
+
+**Slice 2 — the publisher defers to the file.** `closed_segment_publication_decision` is a pure
+function with four cases, extracted so the rule is testable: anything not a published closed Segment
+is written; a published closed Segment supplied **empty** is skipped, because empty means the ledger
+can no longer see that chapter rather than that its content changed; anything else is byte-compared
+as before. A skipped projection leaves the file, its hash and the historical count alone. The count
+needed a second change to stay truthful: `supplied_closed_message_count` now accumulates only for
+Segments this bundle actually wrote or verified, and `includes_all_segments` additionally requires
+that nothing was skipped. Without that, a bundle of 30 Segments where 29 were skipped would have
+recomputed `historicalMessageCount` as zero and erased 400-odd messages from the receipt.
+
+**Slice 3 — one fault, one notice.** `projectJourneySettlementErrors` drops exact debts whose message
+equals the Journey-level failure already named. Distinct debts still count.
+
+**Gates.** `tsc` clean; 226 test files / **1,611 tests** passed (from 225 / 1,600); Vite build clean;
+`cargo test` **246 passed** / 3 ignored (from 241); `cargo check --locked` clean; `roadmap:check`
+READY; diff clean.
+
+### Production re-measured, and what it changes
+
+The production store was re-read before writing this, read-only, application not running. **It had
+moved, and that is itself the finding.**
+
+| | earlier on 2026-10-03 | now |
+|---|---|---|
+| manifest segments | 29 | **30** |
+| durable ledger turns | 13, then 15 | **5** |
+| ledger messages | 2,178 | 2,203 |
+| unanchored closed Segments | 26 | **27** |
+
+A compaction settled, the manifest was refreshed to 30 Segments, and the ledger kept shrinking.
+Messages accumulate while `reconciliation.turns` is replaced, which is the overwrite's signature.
+
+**The anchor this CR's authorized repair wrote is now itself unresolvable.** Segments 28 and 29 both
+point at `turn-…15:27:35.373Z`, which the 5-turn ledger no longer holds. The repair was correct and
+bought working hours, but it could only ever be temporary: on `alpha.30` the cause keeps running, so
+the manifest re-stales itself. Nothing in the repair failed; it treated a symptom, as recorded.
+
+**Simulated against the real files, with the shipped logic replicated verbatim:**
+
+- *Current shape* — the partition no longer throws: the cut lands at 29, one Segment is offered, and
+  it is written. Slice 1 alone handles this state.
+- *Shape with anchors resolvable*, which is what a fresh refresh produces and what this store looked
+  like hours ago — the cut disappears, all 30 Segments are offered, and **29 closed Segments are
+  supplied empty over files holding real history**. Those are exactly the projections slice 2 skips.
+  Without it they would be byte-compared and the compaction would fail with
+  `Immutable Conversation Segment projection diverged.`
+
+So the two slices guard two different states of the same store, and **slice 2 is not exercised by the
+shape production is in at this moment.** It is justified by the shape production was in this morning
+and returns to on every refresh, not by a hypothetical.
+
+### Not validated
+
+No Navigator validation yet, and none of this is released. One further observation for the record:
+the newest journal entry is again `running` at revision 2 with `resume_execution`, now
+`agent-run-2026-10-04T11:42:25.262Z`, with the application closed. That is the second time this
+pattern has been observed and it is not addressed by this CR.
 
 ## Dependencies
 

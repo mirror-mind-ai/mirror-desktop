@@ -4540,6 +4540,36 @@ fn conversation_segment_projection_dir(
         .with_extension("segments"))
 }
 
+/// What a single projection in a publication bundle should do to the file that already holds the
+/// Segment, decided without touching the filesystem so the rule itself can be tested.
+#[derive(Debug, PartialEq, Eq)]
+enum ClosedSegmentPublication {
+    /// No published file yet, or this is the Segment that was current until now.
+    Write,
+    /// A published closed Segment must receive byte-identical content or nothing at all.
+    VerifyImmutable,
+    /// CR118: the supplied projection is empty only because the durable turn ledger can no longer
+    /// see this chapter, not because its content changed. The published file is the surviving copy
+    /// of that history, so it stays and the projection is dropped. Treating this as a divergence
+    /// turned a stale manifest into a failed compaction; writing it would destroy the history.
+    SkipPublished,
+}
+
+fn closed_segment_publication_decision(
+    status: &str,
+    message_count: u64,
+    file_exists: bool,
+    was_prior_current: bool,
+) -> ClosedSegmentPublication {
+    if status != "closed" || !file_exists || was_prior_current {
+        return ClosedSegmentPublication::Write;
+    }
+    if message_count == 0 {
+        return ClosedSegmentPublication::SkipPublished;
+    }
+    ClosedSegmentPublication::VerifyImmutable
+}
+
 #[tauri::command]
 fn publish_conversation_segment_projections(
     app: AppHandle,
@@ -4579,6 +4609,7 @@ fn publish_conversation_segment_projections(
     let mut supplied_closed_message_count = 0_u64;
     let mut supplied_current_message_count = None;
     let mut current_last_turn_id: Option<String> = None;
+    let mut skipped_published_closed = false;
     for projection in &projections {
         let manifest_segment = manifest_segments.iter().find(|segment| {
             segment.get("segmentId").and_then(Value::as_str) == Some(projection.segment_id.as_str())
@@ -4598,7 +4629,9 @@ fn publish_conversation_segment_projections(
         let message_count = conversation.get("messages").and_then(Value::as_array)
             .ok_or_else(|| "Conversation Segment projection messages are invalid.".to_string())?.len() as u64;
         if projection.status == "closed" {
-            supplied_closed_message_count = supplied_closed_message_count.saturating_add(message_count);
+            // Counted below, and only when this bundle actually becomes the Segment's content.
+            // A projection skipped as already published must not be added, or the receipt would
+            // report history twice.
         } else if supplied_current_message_count.replace(message_count).is_some() {
             return Err("Conversation Segment projection bundle has duplicate current state.".to_string());
         } else {
@@ -4618,16 +4651,28 @@ fn publish_conversation_segment_projections(
         let path = projection_dir.join(format!("{}.json", projection.segment_id));
         let was_prior_current = prior_receipt.as_ref().and_then(|value| value.get("currentSegmentId")).and_then(Value::as_str)
             == Some(projection.segment_id.as_str());
-        if projection.status == "closed" && path.exists() && !was_prior_current {
-            if fs::read(&path).map_err(|_| "Could not verify immutable Conversation Segment.".to_string())?
-                != projection.payload.as_bytes()
-            {
-                return Err("Immutable Conversation Segment projection diverged.".to_string());
+        match closed_segment_publication_decision(
+            &projection.status, message_count, path.exists(), was_prior_current,
+        ) {
+            ClosedSegmentPublication::SkipPublished => {
+                skipped_published_closed = true;
+                continue;
             }
-        } else {
-            let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
-            write_durable_projection_at(&path, projection.payload.as_bytes(), nonce)
-                .map_err(|_| "Could not durably publish Conversation Segment projection.".to_string())?;
+            ClosedSegmentPublication::VerifyImmutable => {
+                if fs::read(&path).map_err(|_| "Could not verify immutable Conversation Segment.".to_string())?
+                    != projection.payload.as_bytes()
+                {
+                    return Err("Immutable Conversation Segment projection diverged.".to_string());
+                }
+            }
+            ClosedSegmentPublication::Write => {
+                let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+                write_durable_projection_at(&path, projection.payload.as_bytes(), nonce)
+                    .map_err(|_| "Could not durably publish Conversation Segment projection.".to_string())?;
+            }
+        }
+        if projection.status == "closed" {
+            supplied_closed_message_count = supplied_closed_message_count.saturating_add(message_count);
         }
         hashes.retain(|item| item.get("segmentId").and_then(Value::as_str) != Some(projection.segment_id.as_str()));
         hashes.push(json!({
@@ -4641,7 +4686,10 @@ fn publish_conversation_segment_projections(
         .ok_or_else(|| "Conversation Segment projection bundle has no current state.".to_string())?;
     let prior_historical_count = prior_receipt.as_ref()
         .and_then(|value| value.get("historicalMessageCount").and_then(Value::as_u64));
-    let includes_all_segments = projections.len() == manifest_segments.len();
+    // CR118: a bundle is an authoritative recount only when it supplied every Segment *and* none of
+    // them was dropped as already published. Otherwise it is a delta over the prior receipt, which
+    // is what keeps a skipped chapter's messages in the historical total instead of erasing them.
+    let includes_all_segments = projections.len() == manifest_segments.len() && !skipped_published_closed;
     let historical_message_count = if includes_all_segments {
         supplied_closed_message_count
     } else {
@@ -9529,6 +9577,7 @@ mod close_without_quitting_tests {
 #[cfg(test)]
 mod tests {
     use super::{
+        closed_segment_publication_decision, ClosedSegmentPublication,
         classify_pi_process_terminal, classify_rpc_process_terminal, cleanup_stale_terminal_handoffs,
         compiled_runtime_channel,
         conversation_projection_path_at,
@@ -10119,6 +10168,59 @@ mod tests {
         assert_eq!(inspection.entries.first().map(|entry| entry.visible_text.as_str()), Some("Question 1"));
         assert_eq!(inspection.entries.get(99).map(|entry| entry.visible_text.as_str()), Some("Answer 50"));
         assert_eq!(inspection.entries.last().map(|entry| entry.visible_text.as_str()), Some("Admitted before interruption"));
+    }
+
+    // CR118: a Journey whose durable turn ledger was truncated from the front produces empty
+    // projections for closed chapters whose published files still hold real history. The publisher
+    // used to compare bytes and refuse, turning a stale manifest into a failed compaction.
+    #[test]
+    fn an_empty_closed_projection_defers_to_the_file_that_still_holds_the_chapter() {
+        assert_eq!(
+            closed_segment_publication_decision("closed", 0, true, false),
+            ClosedSegmentPublication::SkipPublished,
+        );
+    }
+
+    #[test]
+    fn a_closed_projection_with_content_is_still_immutable() {
+        assert_eq!(
+            closed_segment_publication_decision("closed", 9, true, false),
+            ClosedSegmentPublication::VerifyImmutable,
+        );
+    }
+
+    #[test]
+    fn an_empty_closed_segment_with_no_published_file_is_still_written() {
+        // The completion receipt requires a file per manifest Segment, and history loading reads one
+        // per Segment, so an empty chapter that was never published must still get a file.
+        assert_eq!(
+            closed_segment_publication_decision("closed", 0, false, false),
+            ClosedSegmentPublication::Write,
+        );
+    }
+
+    #[test]
+    fn the_segment_that_was_current_is_written_even_when_it_closes_empty() {
+        assert_eq!(
+            closed_segment_publication_decision("closed", 0, true, true),
+            ClosedSegmentPublication::Write,
+        );
+        assert_eq!(
+            closed_segment_publication_decision("closed", 7, true, true),
+            ClosedSegmentPublication::Write,
+        );
+    }
+
+    #[test]
+    fn the_current_segment_is_always_written() {
+        assert_eq!(
+            closed_segment_publication_decision("current", 0, true, false),
+            ClosedSegmentPublication::Write,
+        );
+        assert_eq!(
+            closed_segment_publication_decision("current", 30, true, false),
+            ClosedSegmentPublication::Write,
+        );
     }
 
     #[test]

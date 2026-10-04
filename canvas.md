@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.33` · A Correction You Can Watch Arrive
 
-🎯 **Foco oficial:** CR118 · `planned` · sem Driver · plano gravado, aguardando decisão de puxar
+🎯 **Foco oficial:** CR118 · `in_progress` · @alissonvale · implementada, gates verdes · falta homologar
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active`; Embedded TS Runtime é uma direção capturada
 
@@ -22,7 +22,7 @@
 | ↳ 20 Change Requests anteriores | ✅ done | `██████████` |
 | **RS016 · Ongoing Product Improvements** | 🔄 ativa · sem CR em foco | `█████████░` 25 done · 4 ↗️ · 1 ⛔ |
 | ↳ **CR117 · Make a Correction Legible While It Is Live** | ✅ done · fechada, reaberta e fechada de novo | `██████████` |
-| ↳ **CR118 · Anchor a Segment to the History It Can See** | 📐 planned · 4 fatias · 3 decisões abertas | `█░░░░░░░░░` |
+| ↳ **CR118 · Anchor a Segment to the History It Can See** | 🧪 implementada · 1.611 testes · falta homologar | `████████░░` |
 | ↳ **CR116 · Release a Journey Stranded in Finishing** | ✅ done · homologada no Dev | `██████████` |
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
 | RS022 · Mirror Core Debts | 🔄 ativa · registro sem CR aberta | `░░░░░░░░░░` 1 ⏸️ |
@@ -79,7 +79,9 @@ o status ficava em `accepted`, que a guarda antiga aceitava. A rodada 2 conserto
 `delivered` acontecer pela primeira vez e anulou aquela observação sem ninguém reconferir. **Um
 conserto que muda o caminho percorrido invalida toda observação anterior do caminho antigo.**
 
-**CR118 planejada.** O plano saiu de leitura de código, e três achados o moldaram:
+**CR118 implementada** (`@alissonvale`, `refinement/rs016-cr118-segment-anchor-tolerance`), nas
+decisões recomendadas: D1 como planejado, D2 fora de escopo, D3 dentro. Três achados moldaram o
+trabalho:
 
 1. **A única tolerância da partição é para lacuna inicial.** O `firstAvailable` pula segmentos
    irresolúveis só até o primeiro resolvível; truncamento por prefixo cria irresolúveis no meio. A
@@ -99,11 +101,22 @@ Nenhum gatilho novo de refresh: a compactação já refresca no momento certo, e
 synchronization** chega à partição pelo caminho existente — parando de lançar, ele passa a consertar
 o que anuncia.
 
-**Três decisões abertas para o Navigator:** D1 regra de corte (recomendada); D2 "publicar só o que
-mudou na compactação" como CR própria (recomendado, é mudança de desenho); D3 manter a fatia 3 no
-escopo (recomendado, é pequena e cai sem afetar as outras). **Validação honesta:** Dev não tem ledger
-truncado e não vou fabricar um; a prova real é observacional em produção após release — a primeira
-compactação assentar sem aviso e deixar os segmentos 1–27 byte-idênticos.
+**Produção remedida, e isso é o achado.** O ledger caiu de 15 para **5 turnos** e o manifesto subiu
+para **30 segmentos**: uma compactação assentou, o refresh reconstruiu, e o truncamento continuou. A
+âncora que meu reparo autorizado escreveu **agora é ela mesma irresolúvel** — o reparo estava certo e
+comprou horas de trabalho, mas na `alpha.30` a causa segue rodando e o manifesto volta a envelhecer.
+Nada no reparo falhou; ele tratava sintoma, como registrado.
+
+Simulei a lógica publicada contra os arquivos reais. Na forma atual a partição **não lança** (corte em
+29, um segmento oferecido). Na forma com âncoras resolvíveis — a que um refresh produz, e a que esse
+store tinha hoje de manhã — o corte desaparece, 30 segmentos são oferecidos e **29 fechados vêm
+vazios sobre arquivos com história**: exatamente o que a fatia 2 pula. Então a fatia 2 **não é
+exercitada pela forma de agora**; ela se justifica pela forma de hoje de manhã, à qual o store volta
+a cada refresh.
+
+**Falta homologar, e nada está publicado.** Outro registro: a entrada mais nova do journal está de
+novo `running` rev=2 com `resume_execution`, agora `agent-run-2026-10-04T11:42:25.262Z`, com o app
+fechado. Segunda vez que esse padrão aparece, e esta CR não o endereça.
 
 Produção recebeu reparo cirúrgico autorizado: as âncoras obsoletas dos segmentos 27 e 28 foram
 retiradas do manifesto da geração 4, com backup, exatamente como um refresh as escreveria. Isso para

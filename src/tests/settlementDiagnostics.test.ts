@@ -45,4 +45,24 @@ describe("exact settlement diagnostics", () => {
       "journey-a": "Outbox unavailable 1 exact Mirror settlement operation also needs attention.",
     });
   });
+
+  // CR118: the settlement catch records one failure in two places, so a single throw was announced
+  // as itself plus a count of itself — "Conversation Segment turn range is invalid. 1 exact Mirror
+  // settlement operation also needs attention." One fault is one notice.
+  it("does not count a failure as also needing attention when it is the failure already named", () => {
+    const errors = update({}, a, "Conversation Segment turn range is invalid.");
+    expect(projectJourneySettlementErrors(
+      { "journey-a": "Conversation Segment turn range is invalid." },
+      errors,
+    )).toEqual({ "journey-a": "Conversation Segment turn range is invalid." });
+  });
+
+  it("still counts an exact debt that differs from the journey-level failure", () => {
+    let errors: Record<string, ExactSettlementError> = {};
+    errors = update(errors, a, "Outbox unavailable");
+    errors = update(errors, b, "Something else failed");
+    expect(projectJourneySettlementErrors({ "journey-a": "Outbox unavailable" }, errors)).toEqual({
+      "journey-a": "Outbox unavailable 1 exact Mirror settlement operation also needs attention.",
+    });
+  });
 });

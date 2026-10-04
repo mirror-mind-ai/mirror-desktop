@@ -13,10 +13,12 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS016
-- Change Request: CR118, selected and moved to `planned` on 2026-10-03 by explicit Navigator intent,
-  no Driver and no Delivery yet. Its plan rests on code reading, not on the earlier Dev-store
-  evidence: an unresolvable anchor becomes a cut wherever it sits, an empty closed projection never
-  contradicts a published Segment, and one settlement fault yields one notice. CR117 is `done` under @alissonvale after being closed, **reopened**
+- Change Request: CR118, `in_progress` under @alissonvale with Delivery
+  `refinement/rs016-cr118-segment-anchor-tolerance`. Implemented on 2026-10-04 on the recommended
+  decisions: an unresolvable anchor is a cut wherever it sits, an empty closed projection defers to
+  the file that still holds the chapter, and one settlement fault yields one notice. Publishing only
+  what changed on compaction was left out and is recommended as its own CR. Gates are green; awaiting
+  Navigator validation, and nothing is released. CR117 is `done` under @alissonvale after being closed, **reopened**
   and closed again on 2026-10-03, the second closure resting on Navigator validation of the guard
   repair. Its first closure was premature: pulling CR097 found that a correction reaching `delivered` never acquired
   `piUserEntryId`, because the status list was hand-written in four places and the two guards in
@@ -79,7 +81,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 |------:|----|----|--------|--------|--------|----------|
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | in_progress | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |
-| — | [CR118](rs016-ongoing-product-improvements-and-adjustments/cr118-anchor-a-segment-to-the-history-it-can-see.md) | RS016 | Anchor a Segment to the History It Can See | planned | — | — |
+| — | [CR118](rs016-ongoing-product-improvements-and-adjustments/cr118-anchor-a-segment-to-the-history-it-can-see.md) | RS016 | Anchor a Segment to the History It Can See | in_progress | @alissonvale | `refinement/rs016-cr118-segment-anchor-tolerance` |
 | — | [CR119](rs016-ongoing-product-improvements-and-adjustments/cr119-give-finishing-back-to-the-navigator.md) | RS016 | Give Finishing Back to the Navigator | captured | — | — |
 | — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | done | @alissonvale | `refinement/rs016-cr116-stranded-finalization-recovery` |
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
