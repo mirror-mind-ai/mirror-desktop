@@ -413,6 +413,63 @@ So the two slices guard two different states of the same store, and **slice 2 is
 shape production is in at this moment.** It is justified by the shape production was in this morning
 and returns to on every refresh, not by a hypothetical.
 
+### After the Upgrade (2026-10-04, read-only)
+
+Production is on `0.2.0-alpha.33`. Read-only inspection with the application closed.
+
+**The repair survived the update.** No unresolvable anchor remains and the shipped guard returns
+`False`. The residual warned about did not occur: the pending `running` record settled cleanly
+(`agent-run-2026-10-04T14:42:20.492Z` and `…T17:08:04.460Z` are both `settled` / `complete`), and no
+notice-producing state was left behind.
+
+**The turn ledger is healthy for the first time.** It grew from 8 to 9 turns instead of shrinking,
+which is the defect `alpha.31` fixed finally taking effect on this store. More telling, turns and
+messages are now mutually coherent at 54 messages across 9 turns, roughly six per turn. Before the
+upgrade they were incoherent — 2,203 messages against 5 turns — which is what the overwrite produced
+and is itself the signature of the bug.
+
+**No conversation history was lost.** The Pi session holds 8,996 entries across 58 MB and remains the
+transcript authority. Thirty closed chapter files hold 446 messages, the largest 6.8 MB. The store is
+still 740 MB. The durable projection now begins exactly where `segment-30.json`, the current chapter,
+begins.
+
+**One thing is measured but not explained.** The durable projection's message array dropped from
+2,203 to 54 on the first turn after the upgrade. The mechanism that would produce this is the
+`boundary === 0` branch of `preserveDurableConversationHistory`, which treats "the window starts
+where the stored history starts" as a complete load and overwrites. That inference is sound for a
+coherent store, and production's stored array was not coherent. It cannot be proven, because no prior
+copy of the projection survives — there is no staging residue — so the identity of the old array's
+first message is unrecoverable.
+
+Worth naming either way: `boundary === 0` concludes "complete load" from the first identifier alone,
+without checking that the window covers what follows it. Whether that deserves its own Change Request
+is a Navigator decision; it is recorded here rather than acted on, and no history depends on it.
+
+**Unrelated but recorded:** a journal record is again pending at `running`, revision 2,
+`resume_execution`, with the application closed — `agent-run-2026-10-04T17:26:59.293Z`. That is the
+third occurrence of this pattern across three observations and nothing in this CR addresses it.
+
+**Durable confirmation of CR117's repair.** In the Dev store, the correction that had been stranded at
+`delivered` with no entry evidence is now `applied` with `piUserEntryId=0800b6a0`. Both steering
+records in that Journey are `applied`. The guard repair did reconcile it, which is what the
+Navigator's validation saw by eye and what the disk now shows independently.
+
+### Homologation Scope in Dev — Weaker Than It Looks
+
+Dev's `mirror-desktop` generation 2 carries a single-segment manifest with no anchor, nine turns and a
+clean journal. Running the shipped partition against it gives `cut=0`, `starts=[9]`, no throw — and
+the **old** partition gives the same answer. Dev therefore cannot demonstrate this CR's behaviour at
+all; it can only show that the normal path still works.
+
+So Dev homologation is a regression smoke pass, not a demonstration of the fix, and it is recorded as
+such rather than dressed up. What stands behind the fix is the test suite, the simulation run against
+the real production files in both of their shapes, and observation in the field.
+
+**And the trigger has just been removed from the only store that had it.** Production's manifest is
+now healthy, and `alpha.33` stops the truncation that kept re-staling it. CR118 is therefore
+defensive: its value is that the next store to reach this state degrades instead of throwing. That
+changes the closure argument and is the Navigator's call, not a detail.
+
 ### Not validated
 
 No Navigator validation yet, and none of this is released. One further observation for the record:

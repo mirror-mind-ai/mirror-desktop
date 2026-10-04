@@ -130,11 +130,23 @@ carrega consigo a `alpha.31`, que é o motivo real de subir: para o truncamento 
 A **CR118 não está nela**, por não ter sido homologada, e a nota diz isso.
 
 Como a `alpha.33` não tem a CR118, reparei o manifesto de produção uma segunda vez antes da
-atualização — mesmo método computado, backup novo, as duas âncoras irresolúveis retiradas. Desta vez
-o reparo tende a se sustentar, porque a causa deixa de rodar. **Ressalva honesta:** a atualização
-acontece rodando a `alpha.30` ainda, e há um registro `running`/`resume_execution` pendente que pode
-assentar na abertura e truncar o ledger uma última vez. Se isso acontecer, o aviso pode aparecer uma
-vez naquela sessão. Reiniciar na `alpha.33` encerra o mecanismo.
+atualização — mesmo método computado, backup novo, as duas âncoras irresolúveis retiradas.
+
+**Produção atualizada e verificada.** O reparo sobreviveu, nenhuma âncora irresolúvel restou, e a
+ressalva que levantei **não se materializou**: o registro pendente assentou limpo. O ledger de turnos
+**cresceu** de 8 para 9 em vez de encolher — é o conserto da `alpha.31` finalmente valendo nesse
+store. E turnos e mensagens ficaram coerentes entre si (54 em 9 turnos) onde antes eram absurdos
+(2.203 mensagens em 5 turnos), que era a própria assinatura do bug. Nenhuma história perdida: sessão
+Pi com 8.996 entradas, 30 arquivos de capítulo com 446 mensagens, store em 740 MB.
+
+**Um número medido e não explicado:** o array de mensagens da projeção caiu de 2.203 para 54 no
+primeiro turno após a atualização. O mecanismo plausível é o ramo `boundary === 0` do
+`preserveDurableConversationHistory`, que conclui "carga completa" só pelo primeiro identificador, sem
+verificar se a janela cobre o que vem depois. Não consigo provar — não há resíduo de staging, então a
+primeira mensagem do array antigo é irrecuperável. Registrei; se vira CR é decisão sua.
+
+**A CR117 ganhou confirmação em disco:** a correção que estava presa em `delivered` sem evidência
+agora é `applied` com `piUserEntryId=0800b6a0`. O reparo das guardas reconciliou de fato.
 
 A `alpha.31` saiu com a CR114: a Journey abre no capítulo atual — 286 entradas em vez de 7.373, com
 24 capítulos anteriores sob pedido — e a publicação de Segments não sobrescreve mais o metadado
