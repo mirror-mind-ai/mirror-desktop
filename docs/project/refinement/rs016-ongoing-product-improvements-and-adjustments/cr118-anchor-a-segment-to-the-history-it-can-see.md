@@ -206,9 +206,9 @@ publishes Segments under the old code and can truncate the ledger once more, re-
 just written. The notice could therefore appear once in that first session. Restarting on `alpha.33`
 ends the mechanism.
 
-**Also observed:** the ledger moved from 5 to 7 to 8 turns across readings today while the
-application was reported closed. The direction of change is not explained, and it is recorded rather
-than guessed at.
+**Also observed, and now explained:** the ledger moved from 5 to 7 to 8 turns across readings today.
+This was recorded as unexplained on the belief that the application was closed. It was running and in
+use, so the ledger was simply growing turn by turn. Nothing anomalous.
 
 ## Diagnosis (at planning)
 
@@ -415,7 +415,18 @@ and returns to on every refresh, not by a hypothetical.
 
 ### After the Upgrade (2026-10-04, read-only)
 
-Production is on `0.2.0-alpha.33`. Read-only inspection with the application closed.
+Production is on `0.2.0-alpha.33`. Read-only inspection.
+
+> **Correction.** This section first said the inspection was done "with the application closed". That
+> was wrong. The application had launched at 14:26:38 local and was running throughout. The claim came
+> from a `pgrep -f` guard that returns nothing in this environment for *any* pattern, including one
+> that matches a process `ps` lists plainly — so it reported "not running" unconditionally and proved
+> nothing. `ps` is the check that works here. The readings were read-only, so nothing was harmed, but
+> they are live snapshots of a running application, not of a quiesced store.
+>
+> The two authorized manifest repairs were nevertheless safe, and that is verifiable rather than
+> assumed: the second ran at 14:16:29, ten minutes before the application launched at 14:26:38. It was
+> safe by timing, not because the guard worked.
 
 **The repair survived the update.** No unresolvable anchor remains and the shipped guard returns
 `False`. The residual warned about did not occur: the pending `running` record settled cleanly
@@ -445,9 +456,11 @@ Worth naming either way: `boundary === 0` concludes "complete load" from the fir
 without checking that the window covers what follows it. Whether that deserves its own Change Request
 is a Navigator decision; it is recorded here rather than acted on, and no history depends on it.
 
-**Unrelated but recorded:** a journal record is again pending at `running`, revision 2,
-`resume_execution`, with the application closed — `agent-run-2026-10-04T17:26:59.293Z`. That is the
-third occurrence of this pattern across three observations and nothing in this CR addresses it.
+**The "pending `running` record" was never an anomaly.** It was recorded three times as an
+unexplained pattern. With the process check corrected, all three are explained: the application was
+running and each record was the live turn in flight. A record at `running` with `resume_execution` is
+what an in-progress turn looks like. There is nothing to address, and the earlier framing was an
+artefact of the blind guard.
 
 **Durable confirmation of CR117's repair.** In the Dev store, the correction that had been stranded at
 `delivered` with no entry evidence is now `applied` with `piUserEntryId=0800b6a0`. Both steering
@@ -463,7 +476,10 @@ all; it can only show that the normal path still works.
 
 So Dev homologation is a regression smoke pass, not a demonstration of the fix, and it is recorded as
 such rather than dressed up. What stands behind the fix is the test suite, the simulation run against
-the real production files in both of their shapes, and observation in the field.
+the real production files in both of their shapes, and observation in the field. The same correction
+applies to the Dev readings here: with the process guard blind, "Dev not running" was asserted rather
+than established. What *is* established is that no Dev process appeared in `ps` — the reliable check —
+when the build and install ran.
 
 **And the trigger has just been removed from the only store that had it.** Production's manifest is
 now healthy, and `alpha.33` stops the truncation that kept re-staling it. CR118 is therefore
