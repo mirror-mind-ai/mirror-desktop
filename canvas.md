@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.33` · A Correction You Can Watch Arrive
 
-🎯 **Foco oficial:** CR119 · `in_progress` · @alissonvale · fatias 1–3 implementadas, gates verdes · falta homologar no Dev
+🎯 **Foco oficial:** nenhum · CR119 fechada e homologada · CR097 é a próxima recomendada
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active`; Embedded TS Runtime é uma direção capturada
 
@@ -20,10 +20,10 @@
 | ↳ CR113 · Make Composer Typing Responsive in Large Journeys | ✅ done · aceita com CR115 | `██████████` |
 | ↳ **CR114 · Make the Current Segment the Default Working Set** | ✅ done · publicada em alpha.31 | `██████████` |
 | ↳ 20 Change Requests anteriores | ✅ done | `██████████` |
-| **RS016 · Ongoing Product Improvements** | 🔄 ativa · sem CR em foco | `█████████░` 26 done · 4 ↗️ · 1 ⛔ · 1 🟡 |
+| **RS016 · Ongoing Product Improvements** | 🔄 ativa · sem CR em foco | `█████████░` 27 done · 4 ↗️ · 1 ⛔ |
 | ↳ **CR117 · Make a Correction Legible While It Is Live** | ✅ done · fechada, reaberta e fechada de novo | `██████████` |
 | ↳ **CR118 · Anchor a Segment to the History It Can See** | ✅ done · homologada no Dev | `██████████` |
-| ↳ **CR119 · Give Finishing Back to the Navigator** | 🧪 implementada · 1.625 testes · falta homologar | `███████░░░` |
+| ↳ **CR119 · Give Finishing Back to the Navigator** | ✅ done · homologada no Dev | `██████████` |
 | ↳ **CR116 · Release a Journey Stranded in Finishing** | ✅ done · homologada no Dev | `██████████` |
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
 | RS022 · Mirror Core Debts | 🔄 ativa · registro sem CR aberta | `░░░░░░░░░░` 1 ⏸️ |

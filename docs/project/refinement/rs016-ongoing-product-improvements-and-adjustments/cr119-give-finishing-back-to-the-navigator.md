@@ -2,7 +2,7 @@
 
 # CR119: Give Finishing Back to the Navigator
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr119-settlement-phase-timing`
 **Driver:** —
@@ -257,10 +257,76 @@ guards now read through the wrapper.
 Gates: `tsc` clean; **228 files / 1,625 tests**; `cargo test` **250 passed / 3 ignored**; `cargo
 check --locked`; build clean; roadmap READY.
 
-**Not validated.** Dev's Journeys settle in about two seconds, so Dev can show that a record is
-written with phases that sum to the window; it cannot show the long tail, and it cannot name the
-dominant phase. That answer needs production turns, and the expectation recorded in the plan stands:
-days of ordinary use.
+## Closure (2026-10-04)
+
+The Navigator ran the Dev smoke pass. Confirmed on disk rather than taken on report, including that
+the application was running the new binary: it was restarted at 19:57:42, after the installed
+binary's 19:47:53, so the observation belongs to this build.
+
+**The instrument works.** The turn landed in Journey `mirror-ts-core` — provenance recorded, same
+settlement code — as run `agent-run-2026-10-04T22:58:39.064Z`. One record was written, exactly one,
+to `settlement-timings/mirror-ts-core.json`, naming the Journey the file belongs to, with
+`outcome: settled`, sixteen phases, and `totalMs: 2026`.
+
+Every acceptance line was checked against that record rather than assumed:
+
+- **The phases account for the window.** The depth-0 phases sum to 2,021 ms against a total of
+  2,026 ms — 5 ms unaccounted, which is the gap between phases, 0.25% of the window.
+- **Nesting is correct.** `save_projection` took 162 ms at depth 0 and contains
+  `save_durable_projection` 46 ms, `load_segments` 33 ms and `publish_segments` 82 ms at depth 1,
+  summing to 161 ms with 1 ms in the wrapper itself.
+- **Repeats are kept apart, not merged.** The settlement path really calls `load_journal` three
+  times and `advance_journal` twice, and the record shows each occurrence separately, which is what
+  makes a phase attributable rather than averaged.
+- **The timestamps agree with the arithmetic.** `finishedAt − startedAt` equals `totalMs` exactly.
+- **An independent source agrees.** The turn journal's own Finishing window for the same run is
+  2.0 s against the record's 2.026 s. The measurement does not depend on itself.
+- Outbox empty, `phase=settled`, revision 5, `completed`.
+
+**The first reading, and the honest limit on it.** `deliver_outbox_item` — the Mirror append — took
+**1,514 ms of 2,026 ms, 75% of the whole settlement**, in a Journey with twelve session entries and
+two turns. That is interesting because Mirror delivery is the one phase that scales with neither
+session size nor projection size, which is the shape the unexplained within-Journey variance has.
+It is **one fast turn in a tiny Journey** and it cannot speak for the production long tail. Naming
+it as the cause now would be the exact error this CR was built to avoid; it is recorded as the first
+data point and nothing more.
+
+**Slice 3 was not observed live.** The turn settled in 2.0 s, below the 3 s threshold, so the phase
+name was correctly withheld and the Navigator saw `Finishing` exactly as before. That is the
+acceptance criterion working, not a gap in it — but it does mean the visible path rests on tests
+rather than observation, and Dev cannot produce a wait long enough to change that.
+
+**Slice 4 is not in this closure.** The plan listed re-running the analysis on real per-phase data
+as its fourth slice, and that is deliberately left outside: this CR delivers the instrument, and the
+reading is an operational activity that needs a release and days of ordinary use. Holding the CR
+open for weeks would misreport finished work as unfinished and block the release that produces the
+data.
+
+**Proportionality review: proportional.** One new frontend module, one native command with a pure
+decision function, one surface addition, and threading through existing seams. Fourteen new frontend
+tests and four native ones. No change to the CR116 bound, no change to the turn journal's schema, no
+new persistence traffic on the per-event path, and nothing made faster — the restraint is the point.
+
+**Debt review: follow_up.** Five items, none selected.
+
+Slice 4, the production reading, is the largest and is the input to any reduction. Until it exists,
+the dominant phase is unknown and no reduction should be attempted.
+
+D2 — whether sending must stay blocked during `Finishing` — remains the change that would most
+reduce the felt cost and remains deliberately untaken. It is recommended as its own CR, informed by
+slice 4.
+
+The Mirror-delivery observation above is debt in the sense that it is suggestive and unproven, and
+it would be easy to act on too early.
+
+The three-second threshold is a guess calibrated against a 3.9 s production median. It has never
+been crossed under observation, so whether it reads as helpful or as noise is unknown.
+
+And the earlier exclusion "no new durable artifact" was revised during planning rather than quietly
+broken. The revision stands, with its reason: the turn journal's strict schema and recovery-gating
+fields make it the wrong home for a diagnostic.
+
+It was integrated to `main` by fast-forward.
 
 ## Dependencies
 
