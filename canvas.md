@@ -1,6 +1,6 @@
 # Mirror Desktop · visão de situação
 
-📦 **Última versão publicada:** `v0.2.0-alpha.32` · A Stranded Journey Comes Back
+📦 **Última versão publicada:** `v0.2.0-alpha.33` · A Correction You Can Watch Arrive
 
 🎯 **Foco oficial:** CR118 · `planned` · sem Driver · plano gravado, aguardando decisão de puxar
 
@@ -111,8 +111,17 @@ o lançamento determinístico hoje; a CR118 continua sendo o conserto durável, 
 synchronization** ainda não repara o que anuncia e a partição ainda trata âncora irresolúvel como
 fatal.
 
-Nada publicado carrega CR116 nem CR117: a `alpha.32` é a release mais nova e traz a CR116, enquanto
-produção roda `alpha.30`. Uma `alpha.33` com CR117 e CR118 é decisão separada.
+**`v0.2.0-alpha.33` publicada e verificada** — tag em `7500a65`, DMG `71a444ff…bdb5f013`, 96 URLs
+polladas conferidas, artefato remoto batendo byte a byte com o preparado. Ela entrega a **CR117** e
+carrega consigo a `alpha.31`, que é o motivo real de subir: para o truncamento do ledger na origem.
+A **CR118 não está nela**, por não ter sido homologada, e a nota diz isso.
+
+Como a `alpha.33` não tem a CR118, reparei o manifesto de produção uma segunda vez antes da
+atualização — mesmo método computado, backup novo, as duas âncoras irresolúveis retiradas. Desta vez
+o reparo tende a se sustentar, porque a causa deixa de rodar. **Ressalva honesta:** a atualização
+acontece rodando a `alpha.30` ainda, e há um registro `running`/`resume_execution` pendente que pode
+assentar na abertura e truncar o ledger uma última vez. Se isso acontecer, o aviso pode aparecer uma
+vez naquela sessão. Reiniciar na `alpha.33` encerra o mecanismo.
 
 A `alpha.31` saiu com a CR114: a Journey abre no capítulo atual — 286 entradas em vez de 7.373, com
 24 capítulos anteriores sob pedido — e a publicação de Segments não sobrescreve mais o metadado

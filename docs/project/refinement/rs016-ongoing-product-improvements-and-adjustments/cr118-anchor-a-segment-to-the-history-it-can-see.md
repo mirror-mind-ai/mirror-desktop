@@ -176,6 +176,40 @@ refuses to overwrite an immutable closed Segment whose bytes differ
 the prior current, so none of the older ones is exempt. This is deduced from the publish code, not
 observed; slice 0 reproduces it in a test before anything is built on it.
 
+## Second Authorized Production Repair (2026-10-04)
+
+`v0.2.0-alpha.33` was published and verified, carrying CR117 and, with it, the `alpha.31` fix that
+stops the ledger truncation at its source. **This CR is not in that release**, because it has not
+been validated, and the release note says so.
+
+Because the release lacks this CR, production's manifest would still have thrown: re-running the
+guard exactly as `alpha.33` ships it, against the files on disk, returned `True`. The Navigator
+authorized a second surgical repair, applied with the application closed and verified not running.
+Same computed method as the first — the native refresh rule replicated against the real session,
+ledger and manifest, only the segments whose stored values disagreed with that computation touched —
+and a new backup name, so the first backup was not overwritten.
+
+| segment | was | now |
+|---|---|---|
+| segment-28 | `firstTurnId` = `turn-…15:27:35.373Z`, `turnCount` 2 | no anchor, `turnCount` 0 |
+| segment-29 | `firstTurnId` = `turn-…15:27:35.373Z`, `turnCount` 15 | `firstTurnId` = `turn-…21:40:01.665Z`, `turnCount` 3 |
+
+Verified afterwards against the files on disk: no unresolvable anchor remains, the shipped guard
+returns `False`, the manifest still parses, and both backups are intact.
+
+**This repair is expected to hold where the first did not**, because `alpha.33` removes the overwrite
+that kept shrinking the ledger. That is a claim about the mechanism, not an observation yet.
+
+**One honest residual.** The update itself runs while the application is still `alpha.30`, and a
+journal record is pending at `running` with `resume_execution`. If that record settles on open it
+publishes Segments under the old code and can truncate the ledger once more, re-staling the anchor
+just written. The notice could therefore appear once in that first session. Restarting on `alpha.33`
+ends the mechanism.
+
+**Also observed:** the ledger moved from 5 to 7 to 8 turns across readings today while the
+application was reported closed. The direction of change is not explained, and it is recorded rather
+than guessed at.
+
 ## Diagnosis (at planning)
 
 Three facts decide the shape of the work.
