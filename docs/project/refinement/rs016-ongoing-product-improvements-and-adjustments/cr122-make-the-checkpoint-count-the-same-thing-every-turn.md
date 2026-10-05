@@ -2,7 +2,7 @@
 
 # CR122: Make the Checkpoint Count the Same Thing Every Turn
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr122-harness-checkpoint-identity`
 
@@ -264,6 +264,69 @@ blocked, until a release carries this.
   the repair pass, sections G, H, I.
 - Field: one day of ordinary use on Dev in a Journey that currently regresses, reading the
   settlement-timings file for `failed` records with `cleanup_lease` as the last phase.
+
+## Closure (2026-10-05)
+
+Closed to release the fix, with the verification boundary stated rather than implied.
+
+**What was verified, and how.** The four decisions were implemented test-first and every claim was
+checked against the real production store read-only, with the Python replay mirroring the shipped
+TypeScript semantics exactly rather than approximating them:
+
+- **24 to 28 refused harness bodies heal**, and every one of them has *both* of its messages already
+  present in the ledger's own array — 28 of 28, none partial. The heal restores a state flag that a
+  refusal withheld from a turn whose content was already stored. It invents nothing.
+- **Two Composers are released** from `projection_pending`: `alissonvale-com` and
+  `livro-lideranca-soberana`, both blocked at the time of the fix.
+- **Twelve `conflicted` Journeys resolve to zero**, becoming 9 `in_sync`, 3 `commit_failed` and
+  1 `commit_pending`. No reason code was deleted; the history is intact and the present is honest.
+- **Three unparseable ledgers become readable** — `nautilus-agentic-method`, `softwarezen`,
+  `venda-de-livros` — which is the D0 finding, and the one that mattered most.
+
+**The limit on all of it: there was no live run.** This closure rests on a read-only replay, 13 new
+guards including a wiring test through `parsePersistedJourneyConversation`, and green gates. No turn
+was settled by a build containing this change. A Dev smoke pass was the recommended next step and was
+deliberately skipped: Dev has its own data directory, so it holds none of the damaged records this
+fix is for, and the verification that actually matters is the production upgrade — where 28 stuck
+turns and 3 unparseable ledgers are waiting to be read by the new parse.
+
+**That verification is therefore owed, not optional.** After the upgrade, the heal count must read
+zero, the two Composers must be writable, and no ledger may have lost messages. If any of that fails,
+this closure was wrong.
+
+**Why it was closed before that reading.** The defect accumulates during ordinary use — 17 stuck
+turns at capture, 24 at implementation, 28 at verification, inside one session — and two Journeys
+cannot be written to until a release carries the fix. Holding the CR open would delay the release
+that both delivers the fix and produces its proof.
+
+**Proportionality review: proportional.** Four domain functions changed, one added, one no-op
+indirection removed, and one call added at the read boundary. No new artifact, no new native command,
+no schema migration, no new persistence traffic. One field was added to an existing checkpoint as
+optional precisely so that no stored record needs rewriting. The diff is small because the defect was
+a wrong comparison, not a missing capability.
+
+**Debt review: follow_up.** Five items, none selected.
+
+The **production reading** described above is the first and is owed immediately after the upgrade.
+
+The **`messageCount` field is now write-only** on the harness checkpoint: recorded, documented as
+descriptive, read by nothing. It was kept to avoid invalidating stored records. A field no one reads
+is debt, and removing it is a schema decision for later.
+
+The **Mirror checkpoint still has three producers** — previous plus two, Mirror's reported count, or
+`max(previous, 2)` — feeding the same regression guard. It is the same class of defect as the one
+this CR fixed and was deliberately left out of scope. It has not been observed failing.
+
+The **`turnFinalizationCoordinator` projection comparison** at line 156 still ranks two projections
+by `mirror.messageCount`, which has the same window-dependence shape. It guards which projection
+wins rather than whether a commit is admitted, so a wrong answer there picks a stale projection
+instead of refusing a turn. Recorded, not fixed.
+
+**Absence and emptiness remain the same value** across the load path. D0 fixed the one place it was
+known to fire, but every `catch (() => undefined)` on a read path is still a potential deletion on
+the next save, because `preserveDurableConversationHistory` reads a missing `previous` as permission
+to overwrite. This is the most dangerous item on the list and is recorded in the settlement model
+(§5b) rather than here, because it is wider than this CR.
 
 ## Relationship to open work
 
