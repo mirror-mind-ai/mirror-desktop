@@ -2,9 +2,9 @@
 
 # CR123: Let a Journey Mint Its First Publication Receipt
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr123-first-publication-receipt`
 
 ## Problem
 
@@ -128,9 +128,182 @@ divergence failure on compaction. This fails on ordinary turns and writes the ch
 It is the same **class** as both: an extent question — how many messages the history holds — with no
 single definition and a guard that treats its absence as corruption.
 
-## Candidate directions
+## Plan (2026-10-05)
 
-Not decided. Recorded for the Navigator.
+Two defects sit on top of each other and both must move, because fixing either alone leaves the
+other holding the Journey.
+
+**The refusal** is what fails the settlement: no prior receipt, so no historical count, so an error.
+**The minting gate** is why there is no prior receipt: `all_present` requires every chapter the
+*manifest* declares to have a file, and a manifest legitimately declares chapters that predate
+publication. Fix only the refusal and the expensive fallback runs on every turn forever, because no
+receipt is ever minted. Fix only the gate and the two Journeys already in the deadlock still fail on
+their next turn, because their first publication still has no prior receipt to carry.
+
+### D1 — A missing receipt is counted, not refused
+
+When there is no prior receipt, the historical count is taken from the closed chapters **already on
+disk**, excluding any this bundle itself counted, so nothing is counted twice. The arithmetic becomes
+one pure function:
+
+| `includes_all_segments` | prior receipt | historical count |
+|---|---|---|
+| true | — | the bundle's own closed total, recomputed authoritatively |
+| false | present | carried forward plus this bundle's closed total — unchanged, CR118's rule |
+| false | **absent** | **scanned from disk** plus this bundle's closed total |
+
+Zero was considered and rejected. It looks cheaper, but it would be **sticky**: on the next
+compaction `skipped_published_closed` is true for every already-published chapter, so
+`includes_all_segments` stays false and the delta path carries the wrong zero forward permanently.
+A number that can never correct itself is worse than a one-time read.
+
+The scan is bounded and never fails: it skips what it cannot read and stops at the existing 256 MB
+recovery bound, returning what it counted. The receipt is already documented as a deliberate lower
+bound, so a short count is in keeping with it; an error is not.
+
+The cost is one pass over the closed chapters, once per generation, only when no receipt exists —
+which D2 makes genuinely once.
+
+### D2 — The receipt records what was published, not what the session contains
+
+The `all_present` gate is removed. A receipt is written whenever the publication succeeded, carrying
+hashes for the chapters it has.
+
+This follows the finding already recorded in the settlement model: **the manifest projects the Pi
+session's compaction structure and is not an index of published files.** Gating a *publication*
+receipt on *session* completeness conflates those two, and that conflation is what made the gate
+unreachable.
+
+Nothing is made worse by writing it. `load_current_conversation_segment_projection` needs only the
+current chapter's hash, which is always present. `load_conversation_segment_projections` already
+fails on a missing chapter **file** before it ever consults the receipt, so the complete-history path
+is exactly as broken or healthy as it was.
+
+### Exclusions
+
+**No provenance field on the receipt.** A `historicalCountOrigin` marker was considered and dropped:
+nothing would read it, and this CR has just finished arguing that a write-only field is debt. The
+semantics are documented in the code and the settlement model instead.
+
+**`segment-1` is still never published.** Its messages stay uncounted, which is correct — they were
+never published — and the chapter stays missing, so the complete-history load stays broken for
+`livro-lideranca-soberana` and `nautilus-agentic-method`. Publishing a chapter the manifest declares
+but publication never covered is a different change, and is the one CR120's shared-anchor note is
+already circling.
+
+**No repair of existing stores.** The first ordinary turn after the release mints the receipt by
+itself. Nothing needs privileged action.
+
+### Files
+
+- `src-tauri/src/main.rs` — `receipt_historical_message_count` (new, pure),
+  `published_closed_message_count` (new, bounded scan), the counted-id set in the publish loop, the
+  removed `all_present` gate
+- `docs/architecture/settlement-durable-state-model.md` — the receipt's definition in §4 Class 2
+
+### Acceptance
+
+- A partial bundle with no prior receipt publishes, writes a receipt, and does **not** error.
+- Its historical count equals the messages of the closed chapters on disk that the bundle did not
+  itself count.
+- A chapter supplied and written in the same bundle is counted exactly once.
+- A partial bundle **with** a prior receipt behaves exactly as before — CR118's carried total.
+- A complete bundle recomputes from itself and ignores both the prior receipt and the scan.
+- A receipt is written even when a manifest segment has no file.
+- Replaying `livro-lideranca-soberana`'s shape succeeds where it currently fails.
+
+### Validation
+
+- Rust unit tests for the pure arithmetic across all five rows above.
+- A tempdir test for the scan: files counted, the supplied one excluded, an unreadable file skipped,
+  a symlink refused.
+- Field: `livro-lideranca-soberana` fails deterministically today, so the first turn after the
+  release must settle and leave a `complete.json`. CR121 ships in the same release, so if it fails
+  instead, the record will name the reason.
+
+## Implementation and closure (2026-10-05)
+
+Implemented test-first. Both decisions landed as planned, and the replay against the real store
+confirms the three outcomes that mattered.
+
+**D1 — the arithmetic is one pure function.** `receipt_historical_message_count` takes the three
+cases explicitly: a complete bundle recounts from itself, a partial bundle with a receipt carries it
+forward, and a partial bundle without one uses what the scan found. `published_closed_message_count`
+does the scan, skips anything it cannot read or stat, refuses symlinks, stops at the existing 256 MB
+recovery bound, and never returns an error. It is called **only** when there is nothing to carry, so
+the cost is one pass per generation.
+
+**D2 — the `all_present` gate is gone.** A receipt is written whenever publication succeeded. The gate
+conflated the Pi session's compaction structure with the set of published files, which is the
+distinction the settlement model had already drawn, and that conflation is what made it unreachable.
+
+**Double counting is prevented structurally.** The publish loop records each closed Segment it adds to
+its own total in `counted_closed_ids`, and the scan skips those ids. A chapter written in the same
+bundle is counted exactly once.
+
+### Verified against the production store
+
+Read-only replay of an ordinary turn for every Journey, with the shipped Rust's exact conditions:
+
+| Journey | before | prior | scanned | historical after |
+|---|---|---:|---:|---:|
+| `livro-lideranca-soberana` | **failed every turn** | none | **344** | 344 |
+| `nautilus-agentic-method` | **failed every turn** | none | 0 | 0 |
+| 12 others | ok | carried | **0** | unchanged |
+
+The two deadlocked Journeys publish. `livro-lideranca-soberana` recovers its real historical count of
+344 rather than a placeholder, which is the whole argument for scanning instead of defaulting to zero.
+`nautilus-agentic-method` reports zero because it has genuinely never published a chapter — honest, and
+no longer fatal.
+
+**The twelve healthy Journeys are bit-for-bit unchanged**: every one has a prior receipt, so the scan
+never runs and the carried total is used exactly as before. CR118's rule, which keeps a skipped
+chapter's messages in the historical total, is untouched and asserted by both a Rust unit test and a
+source guard.
+
+**Gates:** `tsc` clean, **231 test files / 1,652 tests**, `cargo test` **253 passed / 3 ignored**,
+`cargo check --locked`, build clean, roadmap READY.
+
+### The boundary
+
+**No live run.** Two Rust unit tests cover the arithmetic and the scan, five source guards cover the
+two structural changes that sit inside a Tauri command and cannot be unit-tested, and the replay
+covers the real data. But no publication has run on a build containing this.
+
+The field test is as cheap as CR121's and is the same turn:
+`livro-lideranca-soberana` fails **deterministically on every ordinary turn** today, so the first turn
+there after the release must settle and leave a `complete.json` with `historicalMessageCount: 344`.
+CR121 ships in the same release, so if it fails instead, the record will name the reason itself
+rather than costing another investigation. That reading is owed.
+
+**Proportionality review: proportional.** Two new native functions, one new constant, one set to
+prevent double counting, and one removed condition. No new artifact, no schema change, no renderer
+change, and no repair of existing stores — the first ordinary turn mints the receipt by itself.
+
+**Debt review: follow_up.** Four items, none selected.
+
+**`segment-1` is still never published** in `livro-lideranca-soberana`, and three chapters are still
+missing in `nautilus-agentic-method`. Their messages stay uncounted, which is correct because they
+were never published, but it means `load_conversation_segment_projections` — the complete-history
+path — still fails for both Journeys on the missing **file**, independently of the receipt. Publishing
+a chapter the manifest declares but publication never covered is the next change in this area.
+
+**The receipt's first value is a lower bound by construction.** It counts what is on disk, so a
+chapter that was never published is absent from the total forever unless a compaction recomputes with
+every Segment supplied and none skipped. That is the same conservative character the receipt already
+had, now with one more way to acquire it.
+
+**The scan has no provenance marker.** A receipt whose historical count came from a scan is
+indistinguishable from one that was carried. A field was considered and rejected because nothing would
+read it, which is the debt this work has repeatedly named. If a repair ever needs to know, it adds it
+then.
+
+**Nothing measures the scan.** It runs inside `publish_segments`, which CR119 times as a whole, so a
+slow first mint appears as a slow publication without saying why. Acceptable because it happens once.
+
+## Candidate directions (at capture)
+
+Superseded by the plan above; kept for the reasoning.
 
 - **A missing receipt is not a divergence.** The natural fix is a conservative fallback: with no prior
   receipt, treat the prior historical count as the sum of the closed chapters whose files exist, or

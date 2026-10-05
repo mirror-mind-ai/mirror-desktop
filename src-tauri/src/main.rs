@@ -113,6 +113,10 @@ const TURN_JOURNAL_DIRECTORY: &str = "turn-journal";
 /// turn journal, whose strict schema and revision expectations gate recovery; a diagnostic has no
 /// business inside the structure that governs it.
 const SETTLEMENT_TIMING_DIRECTORY: &str = "settlement-timings";
+/// CR123: the ceiling on the one-time scan of already-published chapters, mirroring the bound the
+/// recovery load already applies to the same files. Reaching it returns a short count rather than an
+/// error, because the receipt is a lower bound and refusing to publish is the defect being removed.
+const CONVERSATION_SEGMENT_HISTORY_MAX_BYTES: usize = 256 * 1024 * 1024;
 const SETTLEMENT_TIMING_MAX_RECORDS: usize = 256;
 const SETTLEMENT_TIMING_MAX_RECORD_BYTES: usize = 32 * 1024;
 const SETTLEMENT_TIMING_MAX_FILE_BYTES: usize = 2 * 1024 * 1024;
@@ -4659,6 +4663,68 @@ fn closed_segment_publication_decision(
     ClosedSegmentPublication::VerifyImmutable
 }
 
+/// CR123: how many messages the history holds, for the receipt about to be written.
+///
+/// Two production Journeys failed chapter publication on *every* ordinary turn because the third row
+/// below was an error instead of a number: an ordinary turn supplies one chapter of nine, so the
+/// total had to be carried from a prior receipt, and a Journey that had never managed to write one
+/// could never write one.
+///
+/// Zero was considered as the fallback and rejected. It would have been sticky: on the next
+/// compaction `skipped_published_closed` is true for every already-published chapter, so
+/// `includes_all_segments` stays false and the delta path would carry the wrong zero forward
+/// permanently. A number that cannot correct itself is worse than one pass over the files.
+fn receipt_historical_message_count(
+    includes_all_segments: bool,
+    supplied_closed_message_count: u64,
+    prior_historical_count: Option<u64>,
+    already_published_closed_count: u64,
+) -> u64 {
+    if includes_all_segments {
+        // The bundle supplied every Segment and dropped none, so it is an authoritative recount.
+        return supplied_closed_message_count;
+    }
+    // CR118: a delta over the prior receipt is what keeps a skipped chapter's messages in the
+    // historical total instead of erasing them.
+    prior_historical_count
+        .unwrap_or(already_published_closed_count)
+        .saturating_add(supplied_closed_message_count)
+}
+
+/// CR123: counts the messages of closed chapters already on disk, for the one publication in a
+/// generation's life that has no prior receipt to carry a total forward from.
+///
+/// It never fails. A chapter it cannot read or parse is skipped, and the scan stops at the same
+/// bound the recovery load uses, returning what it counted. The receipt is already a deliberate
+/// lower bound, so a short count is in keeping with it; an error is the defect being removed.
+///
+/// `counted` holds the Segments this bundle has itself added to its closed total, so a chapter that
+/// was just written is not counted twice.
+fn published_closed_message_count(
+    projection_dir: &Path,
+    manifest_segments: &[Value],
+    counted: &HashSet<String>,
+) -> u64 {
+    let mut total = 0_u64;
+    let mut bytes = 0_usize;
+    for segment in manifest_segments {
+        let Some(segment_id) = segment.get("segmentId").and_then(Value::as_str) else { continue };
+        if segment.get("status").and_then(Value::as_str) != Some("closed") { continue }
+        if counted.contains(segment_id) { continue }
+        let path = projection_dir.join(format!("{}.json", segment_id));
+        let Ok(metadata) = fs::symlink_metadata(&path) else { continue };
+        if metadata.file_type().is_symlink() || !metadata.is_file() { continue }
+        bytes = bytes.saturating_add(metadata.len() as usize);
+        if bytes > CONVERSATION_SEGMENT_HISTORY_MAX_BYTES { break }
+        let Ok(raw) = fs::read(&path) else { continue };
+        let Ok(value) = serde_json::from_slice::<Value>(&raw) else { continue };
+        if let Some(messages) = value.pointer("/conversation/messages").and_then(Value::as_array) {
+            total = total.saturating_add(messages.len() as u64);
+        }
+    }
+    total
+}
+
 #[tauri::command]
 fn publish_conversation_segment_projections(
     app: AppHandle,
@@ -4699,6 +4765,7 @@ fn publish_conversation_segment_projections(
     let mut supplied_current_message_count = None;
     let mut current_last_turn_id: Option<String> = None;
     let mut skipped_published_closed = false;
+    let mut counted_closed_ids: HashSet<String> = HashSet::new();
     for projection in &projections {
         let manifest_segment = manifest_segments.iter().find(|segment| {
             segment.get("segmentId").and_then(Value::as_str) == Some(projection.segment_id.as_str())
@@ -4762,6 +4829,8 @@ fn publish_conversation_segment_projections(
         }
         if projection.status == "closed" {
             supplied_closed_message_count = supplied_closed_message_count.saturating_add(message_count);
+            // CR123: remembered so the no-receipt scan below cannot count this chapter again.
+            counted_closed_ids.insert(projection.segment_id.clone());
         }
         hashes.retain(|item| item.get("segmentId").and_then(Value::as_str) != Some(projection.segment_id.as_str()));
         hashes.push(json!({
@@ -4769,24 +4838,35 @@ fn publish_conversation_segment_projections(
             "sha256": format!("{:x}", Sha256::digest(projection.payload.as_bytes())),
         }));
     }
-    let all_present = manifest_segments.iter().all(|segment| segment.get("segmentId").and_then(Value::as_str)
-        .is_some_and(|id| projection_dir.join(format!("{}.json", id)).is_file()));
     let current_message_count = supplied_current_message_count
         .ok_or_else(|| "Conversation Segment projection bundle has no current state.".to_string())?;
     let prior_historical_count = prior_receipt.as_ref()
         .and_then(|value| value.get("historicalMessageCount").and_then(Value::as_u64));
     // CR118: a bundle is an authoritative recount only when it supplied every Segment *and* none of
-    // them was dropped as already published. Otherwise it is a delta over the prior receipt, which
-    // is what keeps a skipped chapter's messages in the historical total instead of erasing them.
+    // them was dropped as already published. Otherwise it is a delta over the prior receipt.
     let includes_all_segments = projections.len() == manifest_segments.len() && !skipped_published_closed;
-    let historical_message_count = if includes_all_segments {
-        supplied_closed_message_count
+    // CR123: when there is no prior receipt to carry, count the closed chapters already on disk
+    // rather than refusing to publish. The scan runs only in that case, which is once per
+    // generation now that a receipt is no longer gated on the whole session being published.
+    let already_published_closed_count = if includes_all_segments || prior_historical_count.is_some() {
+        0
     } else {
-        prior_historical_count.ok_or_else(|| "Conversation Segment completion receipt is unavailable.".to_string())?
-            .saturating_add(supplied_closed_message_count)
+        published_closed_message_count(&projection_dir, manifest_segments, &counted_closed_ids)
     };
+    let historical_message_count = receipt_historical_message_count(
+        includes_all_segments,
+        supplied_closed_message_count,
+        prior_historical_count,
+        already_published_closed_count,
+    );
     let total_message_count = historical_message_count.saturating_add(current_message_count);
-    if all_present {
+    // CR123: the receipt records what was published, so it is written whenever publication
+    // succeeded. It used to be gated on every Segment the *manifest* declares having a file, which
+    // conflated two different things: the manifest projects the Pi session's compaction structure
+    // and is not an index of published files, so a Journey whose manifest declares a chapter from
+    // before publication existed could never write a receipt, and therefore failed every ordinary
+    // publication for the lack of one.
+    {
         let receipt = json!({
             "schemaVersion": "1.0.0", "journeyId": journey_id, "threadId": thread_id,
             "generation": generation, "piSessionId": session_id,
@@ -9670,6 +9750,7 @@ mod tests {
         append_settlement_timing_record,
         SETTLEMENT_TIMING_MAX_FILE_BYTES, SETTLEMENT_TIMING_MAX_RECORDS,
         closed_segment_publication_decision, ClosedSegmentPublication,
+        receipt_historical_message_count, published_closed_message_count,
         classify_pi_process_terminal, classify_rpc_process_terminal, cleanup_stale_terminal_handoffs,
         compiled_runtime_channel,
         conversation_projection_path_at,
@@ -9722,6 +9803,7 @@ mod tests {
         DOCUMENT_PREVIEW_MAX_BYTES,
         read_journey_canvas_at, CANVAS_FILE_NAME, CANVAS_INSTRUCTIONS_FILE_NAME,
     };
+    use std::collections::HashSet;
 
     fn timing_record(journey_id: &str, run_id: &str, padding: usize) -> serde_json::Value {
         json!({
@@ -9767,6 +9849,60 @@ mod tests {
             append_settlement_timing_record(None, "mirror-desktop", json!("scalar")).unwrap_err(),
             "settlement_timing_record_invalid"
         );
+    }
+
+    // CR123: the arithmetic that decides a receipt's historical total. Two production Journeys failed
+    // every ordinary publication because the absent case was an error rather than a number.
+    #[test]
+    fn receipt_historical_count_recomputes_carries_or_scans() {
+        // A complete bundle is authoritative and ignores both the prior receipt and the disk.
+        assert_eq!(receipt_historical_message_count(true, 120, Some(999), 999), 120);
+        // A partial bundle with a receipt carries it forward. CR118's rule, which must not move.
+        assert_eq!(receipt_historical_message_count(false, 12, Some(300), 0), 312);
+        // A partial bundle with no receipt counts what is already published instead of refusing.
+        assert_eq!(receipt_historical_message_count(false, 12, None, 344), 356);
+        // Nothing published and nothing to carry: the current chapter stands alone.
+        assert_eq!(receipt_historical_message_count(false, 31, None, 0), 31);
+        assert_eq!(receipt_historical_message_count(false, 0, None, 0), 0);
+    }
+
+    #[test]
+    fn published_closed_chapters_are_counted_once_and_never_fatally() {
+        let root = std::env::temp_dir().join(format!(
+            "cr123-scan-{}-{}",
+            std::process::id(),
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(),
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let chapter = |messages: usize| {
+            json!({ "conversation": { "messages": (0..messages).map(|i| json!({ "id": i })).collect::<Vec<_>>() } })
+                .to_string()
+        };
+        fs::write(root.join("segment-2.json"), chapter(88)).unwrap();
+        fs::write(root.join("segment-3.json"), chapter(68)).unwrap();
+        fs::write(root.join("segment-4.json"), "{ not json").unwrap();
+        fs::write(root.join("segment-9.json"), chapter(31)).unwrap();
+        let segments = vec![
+            // Declared by the manifest and never published: no file, so nothing to count. This is
+            // the shape that made `all_present` permanently false.
+            json!({ "segmentId": "segment-1", "status": "closed" }),
+            json!({ "segmentId": "segment-2", "status": "closed" }),
+            json!({ "segmentId": "segment-3", "status": "closed" }),
+            // Unreadable: skipped rather than fatal, because a receipt is a lower bound and an
+            // error here is exactly the failure this change exists to remove.
+            json!({ "segmentId": "segment-4", "status": "closed" }),
+            // The current chapter is never historical.
+            json!({ "segmentId": "segment-9", "status": "current" }),
+        ];
+
+        let mut counted = HashSet::new();
+        assert_eq!(published_closed_message_count(&root, &segments, &counted), 88 + 68);
+
+        // A chapter this bundle already counted must not be counted a second time.
+        counted.insert("segment-3".to_string());
+        assert_eq!(published_closed_message_count(&root, &segments, &counted), 88);
+
+        fs::remove_dir_all(&root).ok();
     }
 
     // CR121: the renderer added a `failure` object to the record so a failed settlement names its
