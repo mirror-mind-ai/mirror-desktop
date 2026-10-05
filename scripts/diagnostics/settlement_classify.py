@@ -145,3 +145,77 @@ for tp in sorted(glob.glob(f"{D}/journey-threads/*.json")):
             found += 1
             print(f"  {j} gen {g} {s.get('segmentId')}: turnCount={s.get('turnCount')}, file messages=0, size={os.path.getsize(p)} bytes")
 print(f"  total: {found}")
+
+# --------------------------------------------------------------------------------------------------
+# Sections F-I were added after the first pass. They chase the states the first pass left unexplained
+# and the finding that chase produced: a harness checkpoint fed two different quantities.
+# --------------------------------------------------------------------------------------------------
+
+def _ledgers():
+    for tp in sorted(glob.glob(f"{D}/journey-threads/*.json")):
+        j = os.path.basename(tp)[:-5]
+        th = unwrap(load(tp), "thread")
+        if not th: continue
+        g = th.get("activeGeneration")
+        c = unwrap(load(f"{D}/dedicated-journey-conversations/{j}/generation-{g}.json"), "conversation")
+        if isinstance(c, dict): yield j, g, c
+
+print()
+print("=" * 100)
+print("F. Cancelled turns that still owe Mirror (pi failed, mirror pending): phantom debt")
+print("=" * 100)
+n_f = 0
+for j, g, c in _ledgers():
+    for t in c["reconciliation"].get("turns", []):
+        if (t.get("pi") or {}).get("state") == "failed" and (t.get("mirror") or {}).get("state") == "pending":
+            n_f += 1
+            print(f"  {j:<30} {t['turnId'][-24:]}  failureCode={(t.get('pi') or {}).get('failureCode')}")
+print(f"  total: {n_f}  (recovery ignores these by design: pendingMirrorTurnRepair requires pi committed)")
+
+print()
+print("=" * 100)
+print("G. Turns stuck with a refused harness commit (pi committed, harness pending)")
+print("=" * 100)
+_mirror_db = os.path.expanduser("~/.mirror-minds/alisson-vale/memory.db")
+_db = None
+if os.path.exists(_mirror_db):
+    import sqlite3
+    try: _db = sqlite3.connect(f"file:{_mirror_db}?mode=ro", uri=True)
+    except Exception: _db = None
+n_g = 0
+for j, g, c in _ledgers():
+    conv = (c["reconciliation"].get("authority") or {}).get("mirrorConversationId")
+    tim = {r.get("turnId"): r for r in (load(f"{D}/settlement-timings/{j}.json") or {}).get("records", [])}
+    for t in c["reconciliation"].get("turns", []):
+        if t["harness"]["state"] == "pending" and t["pi"]["state"] == "committed":
+            n_g += 1
+            in_mirror = "?"
+            if _db and conv:
+                in_mirror = _db.execute("select count(*) from messages where conversation_id=? and metadata like ?",
+                                        (conv, f'%"sourceTurnId":"{t["turnId"]}"%')).fetchone()[0]
+            trec = tim.get(t["turnId"])
+            print(f"  {j:<30} {t['turnId'][-24:]}  mirror={t['mirror']['state']:<9} inMirrorDb={in_mirror!s:<3} timing={trec.get('outcome') if trec else '-'}")
+print(f"  total: {n_g}  (these can never be repaired: pendingMirrorTurnRepair requires harness committed)")
+
+print()
+print("=" * 100)
+print("H. Journeys primed to regress: harness checkpoint above the current surface, no commit since")
+print("=" * 100)
+for j, g, c in _ledgers():
+    cp = ((c["reconciliation"].get("checkpoints") or {}).get("harness") or {}).get("messageCount")
+    n = len(c.get("messages", []))
+    if cp is not None and cp > n:
+        print(f"  {j:<30} checkpoint {cp:>5} > surface {n:>5}  -> next commit with {n + 2} regresses")
+
+print()
+print("=" * 100)
+print("I. Classification census (reason codes never clear: isConflictReason() is always true)")
+print("=" * 100)
+census = {}
+for j, g, c in _ledgers():
+    r = c["reconciliation"]
+    census.setdefault(r.get("classification"), []).append((j, r.get("reasonCodes")))
+for cl, rows in sorted(census.items(), key=lambda kv: -len(kv[1])):
+    print(f"  {cl!s:<16} {len(rows)}")
+    for j, codes in rows:
+        if codes: print(f"      {j:<28} {codes}")

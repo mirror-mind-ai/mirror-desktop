@@ -1,6 +1,7 @@
 # The Settlement Model
 
-**Status:** extracted from code and verified against production, 2026-10-04
+**Status:** extracted from code and verified against production, 2026-10-04; revised the same day
+after the open questions in §8 were pursued (see §5a and §7)
 
 **Why this exists.** Six Change Requests in sequence — CR114, CR116, CR118, CR119, CR120, CR121 —
 each repaired a real defect on the settlement path and each one's diagnosis opened the next. That
@@ -132,9 +133,9 @@ Four artifacts carry a count or an extent, and **they do not mean the same thing
 
 | Where | Field | What it actually counts |
 |---|---|---|
-| A3 | `checkpoints.harness.messageCount` | all messages ever in the generation |
-| A3 | `messages[]` | only the **loaded window** — the current chapter, since CR114 |
-| A3 | `checkpoints.mirror.messageCount` | what Mirror has acknowledged |
+| A3 | `checkpoints.harness.messageCount` | **the length of whatever the surface had loaded at the last accepted commit** — full history before CR114, the current chapter since, and either one now depending on whether the Navigator has opened complete history (`commitHarnessTurn`, `src/domain/threeBodyTurnCommit.ts:287`, fed `runConversation` from `App.tsx:3287`) |
+| A3 | `messages[]` | the surface's loaded extent at the last save, merged over the stored file by `preserveDurableConversationHistory` |
+| A3 | `checkpoints.mirror.messageCount` | one of three things: the previous value plus two (`mirrorAppendOutbox.ts:182`), the count Mirror reported, or `max(previous, 2)` when Mirror reported none (`threeBodyTurnCommit.ts:212`) |
 | A3 | `checkpoints.pi.entryCount` | Pi entries seen at last settlement |
 | A5 | `sourceEntryCount` | Pi entries seen at last manifest refresh |
 | A5 | `segments[].turnCount` | turns whose entries fall in a chapter's session range |
@@ -149,8 +150,9 @@ The true relations are **inequalities**:
   it refuses to recompute the total, so the receipt is a lower bound by design.
 - `A3.messages[]` and `A3.checkpoints.harness.messageCount` are **not comparable**. Measured across
   20 Journeys: 11 equal, 4 with the array ahead by 1–3 because a turn is in flight, 2 with the
-  *checkpoint* ahead by 29 and 98 because the loaded window is bounded, 1 with no checkpoint, 2 with
-  the array ahead by 5 and 10 — explained in §5.
+  *checkpoint* ahead by 29 and 98 because the checkpoint was taken from a complete load and the array
+  from a bounded one, 1 with no checkpoint, 2 with the array ahead by 5 and 10 because they hold
+  messages of turns whose commit was refused — §5a.
 - A5 is refreshed only on compaction and A7 only on publication, so both legitimately lag A3. Three
   Journeys currently show A7's `currentLastTurnId` behind A3's last turn.
 - A5 is a projection of **A1's compaction structure**, not an index of A6. It therefore declares
@@ -183,21 +185,67 @@ manifest entry claims 13 turns, whose file is 606,306 bytes, and whose message a
 **the only one in the entire store** — 14 manifests, every closed chapter checked. This is CR120, and
 its isolation is what makes it credible as a bug rather than a misunderstanding.
 
-**Three Journeys carrying pending delivery with an empty outbox.** `mirror-desktop` (2 turns),
-`livro-lideranca-soberana` (2 turns, from 2026-10-02), `alissonvale-com` (1 turn). All three are
-classified `conflicted` with `reasonCodes: ["native_id_mismatch", "checkpoint_regression"]`, and
-`mirror-append-outbox.json` holds **zero** items. A turn marked `pending` with nothing queued to
-deliver it is either debt that recovery can still materialise from Pi entries — which is what
-`reconcilePiBackedMirrorDeliveryDebt` exists to do — or debt with no carrier. Two of these are two
-days old, which suggests recovery has not done it. That is the unexplained part of §4's message-count
-deltas: those messages belong to turns that never settled.
+**Turns marked `mirror: pending` with an empty outbox — resolved, no data at risk.** Every such turn
+in the store (4, across `flip-podcast`, `livro-lideranca-soberana`, `mirror-desktop`) has
+`pi.state: failed` with `failureCode: turn_journal_cancelled`, no journal record and no answer. They
+are cancelled sends. `interruptDedicatedTurn` marks only the `pi` body failed and leaves `mirror` at
+`pending`, so the ledger reports debt that never existed. `pendingMirrorTurnRepair` requires
+`pi.state === "committed"`, so recovery correctly ignores them. Phantom debt, not lost debt.
 
 **Journal records parked short of terminal.** `alissonvale-com` has three records at
 `terminal_durable`; `mirror-desktop` has one at `terminal_durable` and two at `running`.
 
-**The system already knows.** `checkpoint_regression` is the reconciliation classifier's own reason
-code. It is detected, written down, and nothing escalates it. The Journey keeps working, which is why
-nobody noticed.
+### 5a. The finding the open questions led to
+
+Pursuing "should `checkpoint_regression` escalate?" found the defect behind CR121, the Finishing
+tail, and the `conflicted` classification. It has three parts, each verified in code and in the
+store.
+
+**The harness checkpoint measures the surface, and CR114 made the surface's size a choice.**
+`finalizeCompletedTurn` is handed `runConversation`, the in-memory surface, and `commitHarnessTurn`
+records `messages.length` of exactly that object as the new checkpoint. Before CR114 the surface
+always held complete history. Since CR114 it holds the current chapter unless the Navigator has
+opened complete history (`loadedHistoryScopeRef`, `App.tsx:713`, reset to `current_segment` on every
+Journey switch at `:1674`). The chapter snapshots show it directly:
+
+| Journey | chapter | surface length at publish | harness checkpoint |
+|---|---|---:|---:|
+| `livro-lideranca-soberana` | segment-6 → segment-7 | 37 → 19 | 303 → 320 |
+| `mirror-desktop` | segment-29 → segment-31 | 30 → 17 | 2,192 → 2,331 |
+| `alissonvale-com` | segment-8 → segment-9 | 4 → 77 | 332 → 481 |
+
+**A regressed commit is refused, and the refusal erases the turn's own facts.**
+`observeHarnessTurnCommit` runs `checkpointRegressed(previous, messages.length)` and on regression
+returns `conflict(...)` — which appends a reason code and returns **without `replaceTurn`**. The
+turn's `harness` body stays `pending` forever, and the checkpoint never advances, so every following
+bounded-surface commit regresses too, until the Navigator opens complete history and one commit
+passes with the full length. Measured at first count: **15 turns with `pi: committed` and
+`harness: pending`** (`livro-lideranca-soberana` 9, `alissonvale-com` 4, `mirror-desktop` 2), every
+one dated 2026-10-04, the day after `alpha.31` shipped CR114. By the time the committed script ran,
+**17**: two more had been refused while this section was being written. The defect is live. Two more Journeys are primed: `venda-de-livros` (checkpoint
+122, surface 24) and `fabio-henri` (55, 26) will regress on their next completed turn.
+
+**That pending body is CR121's throw.** `createMirrorAppendOutboxItem` — step 8, the unmeasured one
+— throws `mirror_append_item_authority_invalid` when `turn.harness.state !== "committed"`
+(`src/domain/mirrorAppendOutbox.ts:107-121`). Of the 14 `failed` settlement timing records in the
+store, 8 sit on exactly these stuck turns and all 14 stop after `cleanup_lease`. The content of every
+stuck turn **is in Mirror** (two messages each, verified by `sourceTurnId` in Mirror's own database):
+recovery's Pi-backed delivery takes a different authority path and lands it, 42 seconds later. No
+conversation was lost. Four `mirror-desktop` failures sit on turns whose harness is committed *now*;
+whether it was pending at the instant of the throw cannot be read from a record that does not carry
+the error.
+
+**The classification is a ratchet by construction.** `isConflictReason()` returns `true`
+unconditionally and `clearNonConflictReasons()` returns its input (`conversationReconciliation.ts:
+401-407`). A reason code, once appended, is permanent. **12 of 20 Journeys are `conflicted`**, every
+one carrying `native_id_mismatch` from re-commits as far back as September, three also carrying
+`checkpoint_regression` since 2026-10-04. The classifier is honest about history and silent about the
+present; it cannot say "this was wrong once and is fine now".
+
+So the chain reads: one checkpoint with two meanings → a guard that compares them → a refusal that
+discards the turn's evidence → a settlement that throws on the discarded evidence → a recovery that
+quietly compensates → a classifier that remembers forever and escalates never. Six behaviours, each
+locally defensible, one defect.
 
 ---
 
@@ -220,7 +268,10 @@ recovery succeeds is indistinguishable, from the outside, from a settlement that
 
 ## 7. The structural finding
 
-**The system has rigorous identity discipline and no extent discipline.**
+**The system has rigorous identity discipline and no extent discipline.** §5a is the sharpest
+instance: `checkpoints.harness.messageCount` and `checkpoints.mirror.messageCount` each have more
+than one producer with more than one definition, and a single guard treats their disagreement as
+corruption.
 
 Identity is restated in every artifact, validated at every boundary, and holds 136 times out of 136
 in production. Extent — how many messages, how far the window reaches, which chapter holds what — is
@@ -236,7 +287,7 @@ Every defect in the chain was an extent defect:
 | CR118 | the extent of what the ledger can still see was assumed total |
 | CR119 | the extent of time each phase consumes was unrecorded |
 | CR120 | a chapter's extent was written as empty over a file that held it |
-| CR121 | the extent of a failed attempt is unrecorded, so routine failure is invisible |
+| CR121 | the extent of a failed attempt is unrecorded, so routine failure is invisible — and the failure itself is an extent guard refusing a window-length as a history-length (§5a) |
 
 Not one was an identity defect. That is the answer to whether the complexity is unmanageable: the
 part of this system that is guarded is fine, and the part that is unguarded has produced six
@@ -253,14 +304,16 @@ Recorded, not decided.
   `checkpoints.harness.messageCount` and `Σ A6.messages` are three answers to one question. The
   cheapest honest fix may be to stop storing derived counts and compute them from A6 and A1 on
   demand.
-- **Should `checkpoint_regression` escalate?** The classifier detects it and the product ignores it.
-  Either it is benign — in which case it should stop being called a regression — or it should be
-  visible.
-- **Is pending delivery with an empty outbox recoverable?** This decides whether three Journeys hold
-  recoverable debt or silently dropped debt. It is answerable by running `convergeDelivery` against
-  one of them and watching.
-- **Should steps 7 and 8 be inside the instrument?** They are the only unmeasured steps on the path
-  and the only ones currently suspected of throwing.
+- ~~Should `checkpoint_regression` escalate?~~ Answered in §5a: it is not benign and it is not a
+  regression. It is one checkpoint being fed two different quantities. Captured as **CR122**.
+- ~~Is pending delivery with an empty outbox recoverable?~~ Answered in §5: it is phantom debt from
+  cancelled sends. Nothing to recover. The cosmetic fix — a cancelled turn should not owe Mirror —
+  is folded into CR122's scope question rather than given its own CR.
+- **Should a conflict ever clear?** The ratchet is deliberate code, not an accident. Whether a
+  Journey that re-committed once in September should read `conflicted` in October is a product
+  decision. Raised in CR122, not decided here.
+- **Should steps 7 and 8 be inside the instrument?** Still yes, and the record should carry the
+  error. §5a found the throw by cross-referencing four artifacts; one field would have said it.
 - **Does the asymmetry of step 4c need to exist?** Publishing every chapter on compaction is what
   makes a rare, expensive, high-risk write path. "Publish only the just-closed and current chapters"
   was already recommended as its own CR.
@@ -280,7 +333,9 @@ python3 scripts/diagnostics/settlement_classify.py
 - `settlement_invariants.py` evaluates 16 relational claims over every Journey's active generation
   and reports which hold.
 - `settlement_classify.py` classifies each apparent violation as transient, by-design, or
-  unexplained.
+  unexplained, and (sections F–I) reports cancelled turns still owing Mirror, turns stuck with a
+  refused harness commit, Journeys primed to regress on their next turn, and the classification
+  census. Section G cross-checks stuck turns against Mirror's database when it is present.
 
 Both read the user channel's application data directory and write nothing. They inspect whichever
 store is present on the machine, so their output is a reading of that machine at that moment, not a

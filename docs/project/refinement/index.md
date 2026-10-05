@@ -13,6 +13,12 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS016
+- Change Request: CR122 is `captured`, found by pursuing an open question in the settlement model
+  (`docs/architecture/settlement-durable-state-model.md` §5a): the harness checkpoint records the
+  loaded surface's length, which CR114 made scope-dependent, so bounded commits are refused as
+  regressions, 17 production turns sit with a pending harness body, that body is CR121's throw, and
+  12 of 20 Journeys read `conflicted` because reason codes never clear. Content is safe in Mirror.
+  Recommended as the next pull, ahead of CR120 and in place of CR121's investigation
 - Change Request: CR120 is `captured` and unplanned, found while verifying the `alpha.34` upgrade
   rather than reported. In production `mirror-desktop`, closed chapter `segment-30` holds zero
   messages in a 592 KB file while its manifest entry claims 13 turns and the ledger says 22
@@ -101,6 +107,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |
 | — | [CR118](rs016-ongoing-product-improvements-and-adjustments/cr118-anchor-a-segment-to-the-history-it-can-see.md) | RS016 | Anchor a Segment to the History It Can See | done | @alissonvale | `refinement/rs016-cr118-segment-anchor-tolerance` |
 | — | [CR119](rs016-ongoing-product-improvements-and-adjustments/cr119-give-finishing-back-to-the-navigator.md) | RS016 | Give Finishing Back to the Navigator | done | @alissonvale | `refinement/rs016-cr119-settlement-phase-timing` |
+| — | [CR122](rs016-ongoing-product-improvements-and-adjustments/cr122-make-the-checkpoint-count-the-same-thing-every-turn.md) | RS016 | Make the Checkpoint Count the Same Thing Every Turn | captured | — | — |
 | — | [CR120](rs016-ongoing-product-improvements-and-adjustments/cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) | RS016 | Stop a Closing Chapter From Erasing Its Own File | captured | — | — |
 | — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | done | @alissonvale | `refinement/rs016-cr116-stranded-finalization-recovery` |
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
