@@ -1,5 +1,5 @@
 import {
-  Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState,
+  Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState,
   type CSSProperties,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -86,6 +86,12 @@ import {
   isConversationNearBottom,
   nextConversationAutoFollow,
 } from "./conversationAutoFollow";
+import {
+  conversationScrollAnchorCorrection,
+  selectConversationScrollAnchor,
+  type ConversationAnchorMeasurement,
+  type ConversationScrollAnchor,
+} from "./conversationScrollAnchor";
 import {
   createJourneySettlementAuthority,
   executeCompletedSettlement,
@@ -838,6 +844,8 @@ export function App({ model }: AppProps) {
   // CR084: mirrors the scroll position reactively so the recenter control can react to it.
   const [conversationAwayFromEnd, setConversationAwayFromEnd] = useState(false);
   const chatAutoFollowRef = useRef(true);
+  // CR125: where the reader was last known to be looking, so a settling turn cannot take it away.
+  const chatAnchorRef = useRef<ConversationScrollAnchor | undefined>(undefined);
   const journeyMenuRef = useRef<HTMLDivElement | null>(null);
   const journeyTreeButtonRef = useRef<HTMLButtonElement | null>(null);
   const journeyTreeMenuRef = useRef<HTMLDivElement | null>(null);
@@ -2359,6 +2367,43 @@ export function App({ model }: AppProps) {
     conversationRef.current = next;
     setConversation(next);
   }), []);
+
+  // Measured at the call site because only the DOM knows these numbers; every decision made from
+  // them lives in `conversationScrollAnchor.ts`.
+  function measureChatAnchors(chatStream: HTMLElement): ConversationAnchorMeasurement[] {
+    const viewportTop = chatStream.getBoundingClientRect().top;
+    return [...chatStream.querySelectorAll<HTMLElement>("[data-conversation-message-id]")].flatMap((element) => {
+      const messageId = element.dataset.conversationMessageId;
+      if (!messageId) return [];
+      const rect = element.getBoundingClientRect();
+      return [{ messageId, top: rect.top - viewportTop, bottom: rect.bottom - viewportTop }];
+    });
+  }
+
+  // CR125: WKWebView implements no scroll anchoring, so when the previous turn collapses into its
+  // summary at the instant a turn settles, the content under the reader travels upward while
+  // `scrollTop` stays put. This puts their place back, before paint — in a plain effect the reader
+  // would see the displacement and then see it undone, which is the flicker CR024 removed.
+  //
+  // It declines three readers: one following the end, who belongs to the effect below; one watching
+  // a live turn, which grows *below* them, so there is nothing to correct and nothing is measured on
+  // the streaming path; and one whose anchored message is gone, where a guess is worse than staying.
+  useLayoutEffect(() => {
+    const chatStream = chatStreamRef.current;
+    if (!chatStream || chatAutoFollowRef.current || isStreaming) return;
+    const measurements = measureChatAnchors(chatStream);
+    const anchor = chatAnchorRef.current;
+    const correction = anchor ? conversationScrollAnchorCorrection(anchor, measurements) : undefined;
+    if (correction !== undefined) {
+      chatStream.scrollTop += correction;
+      // The anchor is back at the offset it records, so it still describes the reader and needs no
+      // second measuring pass.
+      return;
+    }
+    if (!anchor || !measurements.some((measurement) => measurement.messageId === anchor.messageId)) {
+      chatAnchorRef.current = selectConversationScrollAnchor(measurements);
+    }
+  }, [messages, isStreaming]);
 
   useEffect(() => {
     const chatStream = chatStreamRef.current;
@@ -5418,6 +5463,9 @@ export function App({ model }: AppProps) {
                 chatAutoFollowRef.current,
                 { type: "scroll", metrics },
               );
+              // CR125: the reader has just said where they are, which replaces whatever the last
+              // settlement recorded.
+              chatAnchorRef.current = selectConversationScrollAnchor(measureChatAnchors(container));
               // React bails out when the value is unchanged, so this re-renders only on a flip.
               setConversationAwayFromEnd(!isConversationNearBottom(metrics));
             }}

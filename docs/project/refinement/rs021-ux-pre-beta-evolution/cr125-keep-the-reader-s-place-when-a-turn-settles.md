@@ -2,9 +2,9 @@
 
 # CR125: Keep the Reader's Place When a Turn Settles
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr125-conversation-scroll-anchor`
 
 ## Friction
 
@@ -122,6 +122,158 @@ A frame-rate capture on `Mirror Desktop Dev` of one tool-bearing turn settling, 
 two experiences above the Navigator is reporting and would measure the height the previous turn
 loses. Not required to start: the mechanism is established from the code, and the first direction
 is correct under both experiences.
+
+## Plan (2026-10-05)
+
+Direction 1 chosen by the Navigator: anchor the reader across the settlement commit. Manual scroll
+anchoring, supplying what WKWebView does not implement.
+
+### Why anchoring only the reader who is *not* following is the whole fix
+
+Checked while planning, and it narrows the work rather than leaving it partial. When the reader is
+pinned to the bottom, `scrollTop` is at its maximum. If content above collapses by 500 px, the
+scroller's maximum drops by 500 px and the browser clamps `scrollTop` down by the same 500 px — while
+the content below the collapse also moved up by exactly 500 px. The two cancel, and the content under
+the reader's eyes does not move:
+
+```text
+before   element at content y 1250, scrollTop 1200  -> 50 px below the viewport top
+after    element at content y  750, scrollTop  700  -> 50 px below the viewport top
+```
+
+The defect needs `scrollTop` to be *free* to stay still while the content moves, which happens only
+when the reader has scrolled away from the bottom. So the case the Navigator is protected in is the
+case the clamp already handles, and the case that breaks is exactly the one this CR anchors.
+
+A reader inside the 48 px tolerance is a rounding-level exception: the clamp under-compensates by
+their distance from the bottom, and follow-the-end then takes them to the end deliberately.
+
+### Slices
+
+**D1 — a pure anchoring rule.** New `src/app/conversationScrollAnchor.ts`:
+
+- `selectConversationScrollAnchor(measurements)` → the topmost message still at least partly in view
+  and its offset from the viewport top, or `undefined` when nothing is measurable.
+- `conversationScrollAnchorCorrection(anchor, measurements)` → how far that message has travelled
+  since it was recorded, or `undefined` when the message is gone or the travel is negligible.
+
+No DOM. The decisions are the testable part; measuring is three lines at the call site.
+
+**D2 — record and restore in the Conversation surface.** In `App.tsx`:
+
+- a ref holding the current anchor, recorded in the existing `onScroll` handler, which is where the
+  reader states where they are;
+- a `useLayoutEffect` on the same content dependencies as the follow effect that applies the
+  correction **before paint**, so the displacement is never shown and then undone.
+
+Guarded three ways: it does nothing while `chatAutoFollowRef` is true (follow-the-end owns that
+reader), nothing while `isStreaming` (the live turn grows *below* the reader, so there is nothing to
+correct and this keeps per-chunk measurement out of the stream), and nothing when the anchored
+message is no longer present (a guess is worse than leaving the reader where they are).
+
+`useLayoutEffect` runs before `useEffect`, so the correction lands before the follow effect, which is
+already a no-op in this branch.
+
+**D3 — pin the wiring, not only the rule.** The recurring failure in this codebase is a correct
+domain rule wired wrongly, so the guard-level tests assert the call site: that the correction is
+applied in a layout effect rather than an effect, that it is skipped while following and while
+streaming, and that the anchor is recorded on scroll.
+
+### Files
+
+- `src/app/conversationScrollAnchor.ts` (new)
+- `src/app/App.tsx` (anchor ref, `onScroll` recording, layout effect, `useLayoutEffect` import)
+- `src/tests/conversationScrollAnchor.test.ts` (new)
+
+### Acceptance
+
+- A reader scrolled away from the end keeps the same content at the same screen offset across a turn
+  settling, including the commit where the previous turn collapses to its summary.
+- A reader at the end still follows the end, with the existing behaviour and the existing smooth
+  transition.
+- Nothing about *what* is rendered changes: no proximity rule, no transcript composition, no
+  disclosure default.
+- No measurement work is added to the streaming path.
+
+### Validation
+
+- `src/tests/conversationScrollAnchor.test.ts` for the rule and the wiring.
+- Existing `conversationAutoFollow.test.ts` and `floatingRecenterControl.test.ts` must stay green
+  unchanged — if either needs editing, the follow-the-end contract was altered and that is out of
+  scope.
+- Full gates: `tsc`, vitest, `cargo test`, `cargo check --locked`, `npm run build`, `roadmap:check`.
+
+### Exclusions
+
+- **Direction 2 is not taken.** The previous turn still collapses the instant the run ends. Anchoring
+  makes the collapse harmless to the reader's position, and suppressing it would be a change to what
+  the surface says rather than to where it rests.
+- **Direction 3 is not needed**, for the reason established above: the bottom-pinned case is already
+  stable under the clamp. Recorded so it is not re-opened without new evidence.
+- **No native change**, no persistence change, no change to Journey, run or Mirror authority.
+- Anchoring is deliberately not applied to the other scrollers in the app. This is the surface that
+  changes height under a reader; a general utility would be speculative.
+
+## Implementation and closure (2026-10-05)
+
+All three slices delivered as planned, test-first.
+
+**D1.** `src/app/conversationScrollAnchor.ts` holds both decisions and no DOM.
+`selectConversationScrollAnchor` returns the topmost message whose `bottom > 0` — a message
+straddling the top edge is what the reader's eyes are on, so the recorded offset is often negative.
+`conversationScrollAnchorCorrection` returns `current.top - anchor.viewportOffset`, applied as
+`scrollTop += correction`, and returns nothing when the message is absent or the travel is under
+`ANCHOR_CORRECTION_MIN_PX = 1` — layout rounds, and a scroller fights a sub-pixel nudge.
+
+**D2.** `App.tsx` gained `chatAnchorRef`, a `measureChatAnchors` helper that reads
+`[data-conversation-message-id]` rects against the scroller's own top, a recording line in the
+existing `onScroll` handler, and a `useLayoutEffect` on `[messages, isStreaming]` placed immediately
+before the follow effect. Three declines, each for its own reason:
+
+| reader | declined because |
+|---|---|
+| following the end | follow-the-end owns them, and the clamp already keeps them stable |
+| watching a live turn | the turn grows *below* them; also keeps measuring off the streaming path |
+| anchored message gone | a guess moves them somewhere they never chose; the next scroll re-records |
+
+After a successful correction the effect returns without re-measuring: the anchor is back at the
+offset it records, so it still describes the reader, and a second layout pass would be waste.
+
+**D3.** Six guards assert the wiring, not only the rule — that the correction runs in
+`useLayoutEffect` rather than `useEffect`, that both the following and the streaming readers are
+declined, that the anchor is recorded inside the scroll handler, and that the correction reaches the
+scroller. Eight guards cover the rule, including upward travel at the measured shape of the defect
+(a 500 px collapse yielding a −500 correction) and downward travel from height added above.
+
+**The follow-the-end contract was not touched.** `conversationAutoFollow.test.ts` and
+`floatingRecenterControl.test.ts` are green with no edit, which was the planned signal that this
+change stayed where it belongs.
+
+**Gates:** `tsc` clean, **232 test files / 1,673 tests**, `cargo test` **257 passed / 3 ignored**,
+`cargo check --locked`, build clean, roadmap READY.
+
+## Closure review
+
+**Proportionality: proportional.** One new 60-line pure module, one layout effect, one line in an
+existing handler, one import. No native change, no persistence change, no renderer change, and
+nothing about *what* the transcript says. The transition that caused the report — the previous turn
+collapsing into its summary — still happens exactly as before; it simply no longer moves the reader.
+
+**Debt review: follow_up.** Two items, neither selected.
+
+**The collapse itself is unexamined as a design choice.** The instant a turn ends, the previous
+turn's entire action trail becomes one line. Anchoring makes that harmless to the reader's position,
+but whether a turn should lose its detail the moment it stops being the newest is a product question
+this CR deliberately did not answer (direction 2, not taken).
+
+**Anchoring is local to the Conversation.** Fourteen other scrollers exist. This is the one that
+changes height under a reader, so a shared utility would have been speculative; if a second surface
+needs it, the module is already pure and portable.
+
+**No field verification.** Scroll position is not durable, so this cannot be replayed against the
+store the way the settlement CRs were. It rests on 14 unit and source guards and on the mechanism
+being established from the code rather than guessed. The observable event is the Navigator reading a
+turn to its end from somewhere other than the bottom and staying there.
 
 ## Dependencies
 
