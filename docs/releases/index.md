@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.35 — A Count That Means One Thing](v0.2.0-alpha.35.md) — A turn is no longer refused because less history was on screen than last time, a Journey stops reporting a conflict it resolved weeks ago, and a stored conversation can no longer be discarded over a value the app computes itself.
 - [v0.2.0-alpha.34 — A Finish You Can See Through](v0.2.0-alpha.34.md) — A Journey tolerates a chapter anchored beyond the history its ledger can see, and a long Finishing names the step it is in while recording where its time went.
 - [v0.2.0-alpha.33 — A Correction You Can Watch Arrive](v0.2.0-alpha.33.md) — A correction sent mid-turn now says when it actually reached the agent, and it is drawn in the card of the run it corrected rather than beside a prompt that has scrolled away.
 - [v0.2.0-alpha.32 — A Stranded Journey Comes Back](v0.2.0-alpha.32.md) — A Journey whose post-turn bookkeeping stops responding now returns to use inside the session, because every per-Journey persistence queue is bounded and the repair route is reachable while finalization is stranded.
