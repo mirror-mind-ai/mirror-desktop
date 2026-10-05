@@ -62,10 +62,17 @@ describe("dedicated turn reconciliation", () => {
       userEntryId: "pi-user", assistantEntryId: "pi-assistant", leafEntryId: "pi-assistant",
       entryCount: 2, sessionFile: "/pi/one.jsonl", committedAt: "2026-08-26T10:00:02Z",
     })).toEqual(state);
-    expect(observePiTurnCommit(state, "turn-1", {
+    const contradicted = observePiTurnCommit(state, "turn-1", {
       userEntryId: "other", assistantEntryId: "pi-assistant", leafEntryId: "pi-assistant",
       entryCount: 2, sessionFile: "/pi/one.jsonl", committedAt: "2026-08-26T10:00:05Z",
-    })).toMatchObject({ classification: "conflicted", reasonCodes: ["native_id_mismatch"] });
+    });
+    // The contradiction is recorded permanently in reasonCodes, and the evidence of the commit that
+    // actually happened is not overwritten by the one that disagreed with it.
+    expect(contradicted.reasonCodes).toEqual(["native_id_mismatch"]);
+    expect(contradicted.turns[0]!.pi).toEqual(state.turns[0]!.pi);
+    // CR122: a past re-commit no longer pins the Journey to `conflicted` forever. All three bodies
+    // are committed, so the present state is in_sync and the history says what happened.
+    expect(contradicted.classification).toBe("in_sync");
   });
 
   it("parses only exact dedicated authority and Nautilus-origin turns", () => {

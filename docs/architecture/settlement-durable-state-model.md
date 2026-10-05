@@ -133,7 +133,8 @@ Four artifacts carry a count or an extent, and **they do not mean the same thing
 
 | Where | Field | What it actually counts |
 |---|---|---|
-| A3 | `checkpoints.harness.messageCount` | **the length of whatever the surface had loaded at the last accepted commit** — full history before CR114, the current chapter since, and either one now depending on whether the Navigator has opened complete history (`commitHarnessTurn`, `src/domain/threeBodyTurnCommit.ts:287`, fed `runConversation` from `App.tsx:3287`) |
+| A3 | `checkpoints.harness.committedTurnCount` | **since CR122, the authority**: the number of turns whose harness body is committed. Monotone by construction and independent of what is loaded. The regression guard reads this |
+| A3 | `checkpoints.harness.messageCount` | the length of whatever the surface had loaded at the last accepted commit — full history before CR114, the current chapter since. **Descriptive since CR122; guarded by nothing** |
 | A3 | `messages[]` | the surface's loaded extent at the last save, merged over the stored file by `preserveDurableConversationHistory` |
 | A3 | `checkpoints.mirror.messageCount` | one of three things: the previous value plus two (`mirrorAppendOutbox.ts:182`), the count Mirror reported, or `max(previous, 2)` when Mirror reported none (`threeBodyTurnCommit.ts:212`) |
 | A3 | `checkpoints.pi.entryCount` | Pi entries seen at last settlement |
@@ -199,7 +200,9 @@ are cancelled sends. `interruptDedicatedTurn` marks only the `pi` body failed an
 
 Pursuing "should `checkpoint_regression` escalate?" found the defect behind CR121, the Finishing
 tail, and the `conflicted` classification. It has three parts, each verified in code and in the
-store.
+store. It became **CR122**, now implemented on
+`refinement/rs016-cr122-harness-checkpoint-identity`; this section describes the behaviour it
+replaced.
 
 **The harness checkpoint measures the surface, and CR114 made the surface's size a choice.**
 `finalizeCompletedTurn` is handed `runConversation`, the in-memory surface, and `commitHarnessTurn`
@@ -247,6 +250,35 @@ discards the turn's evidence → a settlement that throws on the discarded evide
 quietly compensates → a classifier that remembers forever and escalates never. Six behaviours, each
 locally defensible, one defect.
 
+### 5b. The worse thing underneath it
+
+Implementing §5a's fix required changing the classification rule, which exposed something larger.
+`parseConversationReconciliationState` **validated a derived field against its stored copy** and
+rejected the record on disagreement. A rejected record reads as absent, and an absent record loses
+its durable history on the next save:
+
+```text
+parse rejects the stale derived field
+  -> parsePersistedJourneyConversation returns undefined   (persistedJourneyConversation.ts:156)
+  -> loadDedicatedJourneyConversation returns undefined    (journeyConversationStorage.ts:84)
+  -> projectionForStorage passes undefined as `previous`   (journeyConversationStorage.ts:23)
+  -> preserveDurableConversationHistory returns the window (durableConversationHistory.ts:26)
+  -> the file is overwritten with the current chapter
+```
+
+This was not hypothetical. Replaying the shipped rule against the store found **three ledgers the
+shipped build cannot parse**: `nautilus-agentic-method`, `softwarezen` and `venda-de-livros`, all
+storing `commit_pending` where the rule derives `in_sync`. `venda-de-livros` carries a harness
+checkpoint of 122 over a stored array of 24 — the signature of exactly that replacement.
+
+The rule is now: **a derived field is recomputed on read, never validated on read.** Recomputing
+cannot lose information; rejecting the record that carries it can. This is also a plausible — still
+unproven — mechanism for the 2,203 → 54 drop after the `alpha.33` upgrade, which was recorded as
+unexplained at the time.
+
+The general lesson is wider than this field: **validation belongs on inputs, derivation belongs on
+reads, and the two must not be confused in a store whose absence is interpreted as emptiness.**
+
 ---
 
 ## 6. What recovery may do
@@ -272,6 +304,12 @@ recovery succeeds is indistinguishable, from the outside, from a settlement that
 instance: `checkpoints.harness.messageCount` and `checkpoints.mirror.messageCount` each have more
 than one producer with more than one definition, and a single guard treats their disagreement as
 corruption.
+
+§5b adds a second axis that the identity/extent split does not capture: **what the store does when
+it cannot read itself.** Absence and emptiness are the same value here, so any rejection anywhere on
+the read path is a deletion somewhere on the write path. That is not an extent defect or an identity
+defect; it is a missing distinction between "no record" and "an empty record", and it is the most
+dangerous thing found while writing this document.
 
 Identity is restated in every artifact, validated at every boundary, and holds 136 times out of 136
 in production. Extent — how many messages, how far the window reaches, which chapter holds what — is
@@ -309,9 +347,12 @@ Recorded, not decided.
 - ~~Is pending delivery with an empty outbox recoverable?~~ Answered in §5: it is phantom debt from
   cancelled sends. Nothing to recover. The cosmetic fix — a cancelled turn should not owe Mirror —
   is folded into CR122's scope question rather than given its own CR.
-- **Should a conflict ever clear?** The ratchet is deliberate code, not an accident. Whether a
-  Journey that re-committed once in September should read `conflicted` in October is a product
-  decision. Raised in CR122, not decided here.
+- ~~Should a conflict ever clear?~~ Decided in CR122: only `turn_identity_mismatch` and
+  `mirror_conversation_mismatch` keep a Journey conflicted; the other two codes stay as history.
+  Twelve Journeys read `conflicted` before, zero after.
+- **Should absence and emptiness stay the same value?** §5b is fixed at the one place it was known to
+  fire. The shape remains: every `catch (() => undefined)` on a load path is a potential deletion on
+  the next save. Worth its own audit, not yet a CR.
 - **Should steps 7 and 8 be inside the instrument?** Still yes, and the record should carry the
   error. §5a found the throw by cross-referencing four artifacts; one field would have said it.
 - **Does the asymmetry of step 4c need to exist?** Publishing every chapter on compaction is what

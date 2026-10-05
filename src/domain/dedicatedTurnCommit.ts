@@ -29,10 +29,19 @@ export function interruptDedicatedTurn(
   failureCode: string,
   interruptedAt: string,
 ): JourneyConversation {
+  // CR122: a cancelled send owes Mirror nothing. Failing only the Pi body left the Mirror body
+  // `pending`, so the ledger reported delivery debt for a turn that never produced an answer, and
+  // recovery could never clear it because `pendingMirrorTurnRepair` requires a committed Pi body.
   return {
     ...conversation,
     reconciliation: markTurnBodyFailed(
-      conversation.reconciliation,
+      markTurnBodyFailed(
+        conversation.reconciliation,
+        turnId,
+        "mirror",
+        failureCode,
+        interruptedAt,
+      ),
       turnId,
       "pi",
       failureCode,

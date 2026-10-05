@@ -1,4 +1,4 @@
-import { parseConversationReconciliationState } from "./conversationReconciliation";
+import { healRefusedHarnessCommits, parseConversationReconciliationState } from "./conversationReconciliation";
 import { STEERING_STATUSES } from "./steeringState";
 import type { ConversationReconciliationState } from "./conversationReconciliation";
 import { normalizeConversationAttachmentProvenance } from "./contextAttachments";
@@ -158,7 +158,9 @@ export function parsePersistedJourneyConversation(value: unknown): PersistedJour
     return undefined;
   }
   const liveIdentity = parsedLiveIdentity;
-  const reconciliation = parsedReconciliation;
+  // CR122: this is where stored state becomes live state, so a turn whose harness commit was refused
+  // by an older build heals on the first read rather than staying stuck and blocking the Composer.
+  const reconciliation = healRefusedHarnessCommits(parsedReconciliation);
   const authoritativeContextStats = parseAuthoritativeContextStats(conversation.authoritativeContextStats);
   const certifiedMirrorMode = parseCertifiedMirrorModeState(conversation.certifiedMirrorMode);
   const terminalAgentActionEvidence = ["0.8.0", "0.9.0"].includes(String(record.schemaVersion))

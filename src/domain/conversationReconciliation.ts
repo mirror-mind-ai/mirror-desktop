@@ -22,7 +22,18 @@ export type ReconciliationReasonCode =
 export type HarnessCheckpoint = {
   lastMessageId: string;
   lastTurnId: string;
+  /**
+   * CR122: descriptive only. This is the length of the surface that happened to be loaded when the
+   * checkpoint was written, which CR114 made a function of what the Navigator had opened rather than
+   * of the conversation. Nothing guards it. Use `committedTurnCount` to compare two checkpoints.
+   */
   messageCount: number;
+  /**
+   * CR122: the number of turns whose harness body is committed. Monotone by construction, because a
+   * committed body is never uncommitted, and independent of how much history is on screen.
+   * Optional only so that records written before CR122 still parse.
+   */
+  committedTurnCount?: number;
 };
 
 export type PiCheckpoint = {
@@ -88,7 +99,9 @@ export type ConversationReconciliationState = {
   reasonCodes: ReconciliationReasonCode[];
 };
 
-type HarnessCommit = Omit<HarnessCheckpoint, "lastMessageId" | "lastTurnId"> & {
+// CR122: `committedTurnCount` is derived from the turns themselves, never supplied by the caller, so
+// a caller cannot report a count that disagrees with the bodies it is committing.
+type HarnessCommit = Omit<HarnessCheckpoint, "lastMessageId" | "lastTurnId" | "committedTurnCount"> & {
   userMessageId: string;
   assistantMessageId: string;
   committedAt: string;
@@ -155,7 +168,6 @@ export function beginNautilusTurn(
     ...state,
     turns: [...state.turns, turn],
     classifiedAt: input.startedAt,
-    reasonCodes: clearNonConflictReasons(state.reasonCodes),
   });
 }
 
@@ -233,22 +245,25 @@ export function observeHarnessTurnCommit(
   if (turn.harness.state === "committed") {
     return sameEvidence(turn.harness, evidence) ? state : conflict(state, "native_id_mismatch", commit.committedAt);
   }
-  if (checkpointRegressed(state.checkpoints.harness?.messageCount, commit.messageCount)) {
-    return conflict(state, "checkpoint_regression", commit.committedAt);
-  }
-  return classify({
+  const committedTurnCount = countCommittedHarnessTurns(state.turns, turnId);
+  const regressed = checkpointRegressed(state.checkpoints.harness?.committedTurnCount, committedTurnCount);
+  return recordCommit({
     ...state,
     ...replaceTurn(state, turnId, { ...turn, harness: evidence }),
     checkpoints: {
       ...state.checkpoints,
-      harness: {
-        lastMessageId: commit.assistantMessageId,
-        lastTurnId: turnId,
-        messageCount: commit.messageCount,
-      },
+      // CR122: a regressing commit still records its evidence, but must not pull the checkpoint back.
+      harness: regressed && state.checkpoints.harness
+        ? state.checkpoints.harness
+        : {
+          lastMessageId: commit.assistantMessageId,
+          lastTurnId: turnId,
+          messageCount: commit.messageCount,
+          committedTurnCount,
+        },
     },
     classifiedAt: commit.committedAt,
-  });
+  }, regressed ? "checkpoint_regression" : undefined);
 }
 
 export function observePiTurnCommit(
@@ -269,22 +284,22 @@ export function observePiTurnCommit(
   if (turn.pi.state === "committed") {
     return sameEvidence(turn.pi, evidence) ? state : conflict(state, "native_id_mismatch", commit.committedAt);
   }
-  if (checkpointRegressed(state.checkpoints.pi?.entryCount, commit.entryCount)) {
-    return conflict(state, "checkpoint_regression", commit.committedAt);
-  }
-  return classify({
+  const regressed = checkpointRegressed(state.checkpoints.pi?.entryCount, commit.entryCount);
+  return recordCommit({
     ...state,
     ...replaceTurn(state, turnId, { ...turn, pi: evidence }),
     checkpoints: {
       ...state.checkpoints,
-      pi: {
-        leafEntryId: commit.leafEntryId,
-        entryCount: commit.entryCount,
-        ...(commit.sessionFile ? { sessionFile: commit.sessionFile } : {}),
-      },
+      pi: regressed && state.checkpoints.pi
+        ? state.checkpoints.pi
+        : {
+          leafEntryId: commit.leafEntryId,
+          entryCount: commit.entryCount,
+          ...(commit.sessionFile ? { sessionFile: commit.sessionFile } : {}),
+        },
     },
     classifiedAt: commit.committedAt,
-  });
+  }, regressed ? "checkpoint_regression" : undefined);
 }
 
 export function observeMirrorTurnCommit(
@@ -305,23 +320,23 @@ export function observeMirrorTurnCommit(
   if (turn.mirror.state === "committed") {
     return sameEvidence(turn.mirror, evidence) ? state : conflict(state, "native_id_mismatch", commit.committedAt);
   }
-  if (checkpointRegressed(state.checkpoints.mirror?.messageCount, commit.messageCount)) {
-    return conflict(state, "checkpoint_regression", commit.committedAt);
-  }
-  return classify({
+  const regressed = checkpointRegressed(state.checkpoints.mirror?.messageCount, commit.messageCount);
+  return recordCommit({
     ...state,
     ...replaceTurn(state, turnId, { ...turn, mirror: evidence }),
     checkpoints: {
       ...state.checkpoints,
-      mirror: {
-        conversationId,
-        lastMessageId: commit.assistantMessageId,
-        messageCount: commit.messageCount,
-        ...(commit.updatedAt ? { updatedAt: commit.updatedAt } : {}),
-      },
+      mirror: regressed && state.checkpoints.mirror
+        ? state.checkpoints.mirror
+        : {
+          conversationId,
+          lastMessageId: commit.assistantMessageId,
+          messageCount: commit.messageCount,
+          ...(commit.updatedAt ? { updatedAt: commit.updatedAt } : {}),
+        },
     },
     classifiedAt: commit.committedAt,
-  });
+  }, regressed ? "checkpoint_regression" : undefined);
 }
 
 export function markTurnBodyFailed(
@@ -338,6 +353,53 @@ export function markTurnBodyFailed(
     ...state,
     ...replaceTurn(state, turnId, nextTurn),
     classifiedAt: failedAt,
+  });
+}
+
+/**
+ * CR122: commits the harness body of a turn whose commit was refused before this change.
+ *
+ * The refusal recorded the staged message ids on the body and withheld only the state, so everything
+ * needed is already on the record and nothing is invented. A turn qualifies only when Pi committed
+ * — the answer exists — and both harness ids are present. This runs where stored state becomes live
+ * state, so a ledger written by an older build heals on the first read instead of staying stuck.
+ *
+ * Left stuck forever, such a turn blocks the Composer through `classifyDedicatedTurnState`, and
+ * throws `mirror_append_item_authority_invalid` on every settlement.
+ */
+export function healRefusedHarnessCommits(
+  state: ConversationReconciliationState,
+): ConversationReconciliationState {
+  let healed = false;
+  const turns = state.turns.map((turn) => {
+    if (turn.harness.state !== "pending" || turn.pi.state !== "committed") return turn;
+    if (!isNonEmpty(turn.harness.userMessageId) || !isNonEmpty(turn.harness.assistantMessageId)) return turn;
+    healed = true;
+    const committedAt = turn.harness.committedAt ?? turn.pi.committedAt;
+    return {
+      ...turn,
+      harness: {
+        ...turn.harness,
+        state: "committed" as const,
+        ...(committedAt ? { committedAt } : {}),
+      },
+    };
+  });
+  if (!healed) return state;
+  const committedTurnCount = countCommittedHarnessTurns(turns);
+  const harness = state.checkpoints.harness;
+  return classify({
+    ...state,
+    turns,
+    checkpoints: harness
+      ? {
+        ...state.checkpoints,
+        harness: {
+          ...harness,
+          committedTurnCount: Math.max(harness.committedTurnCount ?? 0, committedTurnCount),
+        },
+      }
+      : state.checkpoints,
   });
 }
 
@@ -366,12 +428,39 @@ export function parseConversationReconciliationState(
   if (new Set(turnIds).size !== turnIds.length) return undefined;
 
   const candidate = value as unknown as ConversationReconciliationState;
-  if (deriveClassification(candidate) !== candidate.classification) return undefined;
-  return candidate;
+  // CR122: `classification` is derived, so it is recomputed here rather than validated against the
+  // stored copy. Validating it meant that any change to the derivation rule turned every stored
+  // ledger into an unparseable record — and an unparseable ledger reads as absent, which lets the
+  // next save replace the whole durable history with the loaded window. Recomputing a derived field
+  // cannot lose information; rejecting the record that carries it can.
+  return { ...candidate, classification: deriveClassification(candidate) };
 }
 
 function classify(state: ConversationReconciliationState): ConversationReconciliationState {
   return { ...state, classification: deriveClassification(state) };
+}
+
+/**
+ * CR122: records a commit that succeeded, optionally noting an anomaly observed while recording it.
+ *
+ * A refusal used to return the prior state, which discarded the evidence the turn had just
+ * established and left its body pending forever. The anomaly is worth recording; the facts are worth
+ * keeping. Both now happen.
+ */
+function recordCommit(
+  state: ConversationReconciliationState,
+  reason?: ReconciliationReasonCode,
+): ConversationReconciliationState {
+  return reason ? conflict(state, reason, state.classifiedAt) : classify(state);
+}
+
+function countCommittedHarnessTurns(
+  turns: readonly CorrelatedConversationTurn[],
+  alsoCountTurnId?: string,
+): number {
+  return turns.filter((turn) => (
+    turn.harness.state === "committed" || (alsoCountTurnId !== undefined && turn.turnId === alsoCountTurnId)
+  )).length;
 }
 
 function deriveClassification(state: ConversationReconciliationState): ReconciliationClassification {
@@ -390,20 +479,27 @@ function conflict(
   reason: ReconciliationReasonCode,
   at: string,
 ): ConversationReconciliationState {
-  return {
+  // CR122: the classification is derived here too, so an advisory reason no longer forces
+  // `conflicted` and the stored value always agrees with the rule that produced it.
+  return classify({
     ...state,
-    classification: "conflicted",
     classifiedAt: at,
     reasonCodes: [...new Set([...state.reasonCodes, reason])],
-  };
+  });
 }
 
-function clearNonConflictReasons(reasons: ReconciliationReasonCode[]): ReconciliationReasonCode[] {
-  return reasons;
-}
-
-function isConflictReason(): boolean {
-  return true;
+/**
+ * CR122: only a reason that says an artifact is bound to the wrong thing keeps a Journey conflicted.
+ *
+ * This function used to return `true` for every code, which made `reasonCodes` a ratchet: one
+ * re-commit in September left a Journey reading `conflicted` indefinitely, and twelve of twenty
+ * production Journeys were in that state. `native_id_mismatch` and `checkpoint_regression` describe
+ * something that happened, not something that is still wrong, so they stay in `reasonCodes` as
+ * history without pinning the classification. An identity or conversation binding mismatch does not
+ * resolve itself and must not auto-clear.
+ */
+function isConflictReason(reason: ReconciliationReasonCode): boolean {
+  return reason === "turn_identity_mismatch" || reason === "mirror_conversation_mismatch";
 }
 
 function findTurn(state: ConversationReconciliationState, turnId: string) {

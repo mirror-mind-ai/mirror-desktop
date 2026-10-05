@@ -2,9 +2,9 @@
 
 # CR122: Make the Checkpoint Count the Same Thing Every Turn
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr122-harness-checkpoint-identity`
 
 ## Problem
 
@@ -60,6 +60,13 @@ after `cleanup_lease`, immediately before step 8 where `createMirrorAppendOutbox
 **Two more Journeys are primed.** `venda-de-livros` (checkpoint 122, surface 24) and `fabio-henri`
 (55, 26) will regress on their next completed turn.
 
+**It is visible to the Navigator right now.** `classifyDedicatedTurnState` returns
+`projection_pending` when `pi` is committed and `harness` is not, and
+`dedicatedTurnBlocksNewInvocation` returns `true` for that state
+(`src/domain/dedicatedTurnCommit.ts:11-24`). Checked against the live store: the latest turn in
+`alissonvale-com` and in `livro-lideranca-soberana` is a refused commit, so **both Journeys block the
+Composer**. This stops being a silent accounting defect at that point.
+
 **The classifier is a ratchet.** 12 of 20 Journeys are `conflicted`. `isConflictReason()` returns
 `true` for every code and `clearNonConflictReasons()` returns its input unchanged
 (`src/domain/conversationReconciliation.ts:401-407`). Nine of the twelve carry only
@@ -88,54 +95,128 @@ CR114 bounds the surface
 Six behaviours, each locally defensible. One defect: a field with two meanings guarded as if it had
 one.
 
-## Proposed scope
+## The trap found while planning
 
-Three decisions, in dependency order. The first is the fix; the other two are what the fix exposes.
+D3 could not be implemented as recommended without first removing a landmine.
 
-**D1 — Give the harness checkpoint one definition that does not depend on what is loaded.**
-Candidates: the count of committed turns in `reconciliation.turns`, which is monotone by
-construction; or the Pi entry count already carried as `checkpoints.pi.entryCount`. Recommendation:
-committed-turn count, because it is owned by the same artifact, needs no new read, and a regression
-in it is a genuine corruption signal rather than a navigation artefact. `messages.length` must stop
-feeding the guard.
+`parseConversationReconciliationState` ends with:
 
-**D2 — A refused commit must not erase the turn's own evidence.** `conflict()` should record the
-harness body as committed *and* append the reason; classification is a judgement about the state, not
-a veto on facts the turn already established. This alone unsticks future turns and removes the step-8
-throw for this cause. The 17 existing stuck turns need a one-time pass that commits their harness body
-from the evidence already present; that pass is part of this CR, not a separate repair.
+```ts
+if (deriveClassification(candidate) !== candidate.classification) return undefined;
+```
 
-**D3 — Decide whether a conflict can clear.** Today it cannot, by code. Options: (a) keep the
-ratchet and say so in the surface; (b) recompute `classification` from the current turns on every
-successful commit, keeping `reasonCodes` as history; (c) clear a reason when its condition is no
-longer observable. Recommendation: (b). It preserves the audit trail and lets a Journey that is fine
-now say so. This is a product decision and is recorded here for the Navigator, not made.
+It **validates a derived field against the stored copy**. `persistedJourneyConversation.ts:156-159`
+turns that `undefined` into `undefined` for the entire persisted conversation, so the stored ledger
+is treated as absent. `preserveDurableConversationHistory(stored?.messages, projected)` then receives
+`undefined` for `previous` and returns the projection verbatim — **the durable history is replaced by
+the loaded window**.
 
-**Also inside scope, small:** `interruptDedicatedTurn` should mark `mirror` as `failed` alongside
-`pi`, so a cancelled send stops reading as delivery debt (4 phantom turns in the store).
+So changing the derivation rule naively would make the ledgers of the 12 `conflicted` Journeys
+unparseable and discard their durable history on the next save.
 
-**Explicitly outside scope:** the Mirror checkpoint's three producers (recorded; same class, its
-own change); CR120 (unrelated write-order defect); the content of CR121 beyond this cause (the record
-should still carry the error, and steps 7–8 should still be timed — that remains CR121's).
+**Then the trap turned out to be already sprung.** Replaying the shipped derivation against every
+stored ledger shows **three that the shipped build cannot parse right now**, because their stored
+`classification` is `commit_pending` while the rule derives `in_sync`:
+`nautilus-agentic-method`, `softwarezen`, `venda-de-livros`. Each reads as absent on every load.
+
+And the consequence is visible in one of them. `venda-de-livros` has a harness checkpoint of **122**
+over a stored array of **24** messages — the signature of a ledger that was replaced by the loaded
+window. The chain is code, not inference:
+
+```text
+parseConversationReconciliationState rejects the stale derived field   (conversationReconciliation.ts)
+  -> parsePersistedJourneyConversation returns undefined               (persistedJourneyConversation.ts:156)
+  -> loadDedicatedJourneyConversation returns undefined                (journeyConversationStorage.ts:84)
+  -> projectionForStorage passes undefined as `previous`               (journeyConversationStorage.ts:23)
+  -> preserveDurableConversationHistory returns the window verbatim    (durableConversationHistory.ts:26)
+  -> the file is overwritten with the current chapter
+```
+
+This is a mechanism for the 2,203 → 54 message drop recorded after the `alpha.33` upgrade and marked
+unprovable at the time. It is **established as a live defect in three Journeys** and offered as the
+**plausible, still unproven** explanation of that specific historical drop — no staging residue
+survives to tie it to that event.
+
+This makes a fourth decision mandatory and first in order.
+
+## Scope
+
+Four decisions, in dependency order. All four approved by the Navigator on 2026-10-04.
+
+**D0 — A derived field is recomputed on read, not validated on read.**
+`parseConversationReconciliationState` stops rejecting a record whose stored `classification`
+disagrees with the derivation, and returns the record with `classification` recomputed. `reasonCodes`
+and every turn body are preserved untouched. This is both the migration path for D3 and the removal
+of a trap in which any future change to a derivation rule silently discards stored history.
+
+**D1 — The harness checkpoint gets a quantity that does not depend on what is loaded.**
+`HarnessCheckpoint` gains `committedTurnCount`: the number of turns whose harness body is committed.
+It is monotone by construction, owned by the same artifact, and needs no new read. The regression
+guard moves to it. `messageCount` is kept — removing it would invalidate every stored record — and is
+demoted to what it has actually always been: the surface length when the checkpoint was written. It
+is documented as descriptive and is guarded by nothing.
+
+**D2 — A refused commit records the turn's evidence.** In the checkpoint-regression branch of
+`observeHarnessTurnCommit`, `observePiTurnCommit` and `observeMirrorTurnCommit`, the body evidence is
+recorded and the reason code appended, while the **existing checkpoint is kept** so a regression
+cannot pull a checkpoint backwards. The `native_id_mismatch` branches are deliberately left alone:
+there the body is already committed and overwriting it would destroy the first commit's record.
+Applying D2 to all three bodies rather than only the one with a demonstrated defect is a deliberate
+widening — leaving two of three on the old behaviour is the local reasoning this CR exists to stop.
+
+The 17 already-stuck turns are healed by `healRefusedHarnessCommits`, applied where stored state
+becomes live state (after parse, in `persistedJourneyConversation`). A turn qualifies when `pi` is
+committed, `harness` is `pending`, and both harness message ids are already staged on the body — the
+refusal recorded the ids and withheld only the state. Nothing is invented.
+
+**D3 — `isConflictReason` finally means what its name says.** Today it returns `true`
+unconditionally. It becomes true only for the codes that describe an artifact bound to the wrong
+thing — `turn_identity_mismatch` and `mirror_conversation_mismatch` — which must not auto-clear.
+`native_id_mismatch` and `checkpoint_regression` become advisory history: recorded in `reasonCodes`
+forever, no longer pinning the classification. Nine of the twelve `conflicted` Journeys carry only
+`native_id_mismatch` and will reclassify to their true present state. The no-op indirection
+`clearNonConflictReasons` is removed rather than left to imply a clearing that never happened.
+
+**Also inside scope, small:** `interruptDedicatedTurn` marks `mirror` as `failed` alongside `pi`, so
+a cancelled send stops reading as delivery debt.
+
+**Explicitly outside scope:** the Mirror checkpoint's three producers (same class, recorded, its own
+change); the `mirror` checkpoint comparison in `turnFinalizationCoordinator.ts:156`, which has the
+same window-dependence shape but guards projection choice rather than commit admission; CR120; and
+CR121's instrument work, which this CR narrows rather than absorbs.
+
+## Slices
+
+1. **D0**: parse recomputes `classification`. Guards the migration before anything else moves.
+2. **D1**: `committedTurnCount` added, written by `commitHarnessTurn`, guarded instead of
+   `messageCount`.
+3. **D2**: the regression branches record evidence; `healRefusedHarnessCommits` heals stored turns.
+4. **D3**: `isConflictReason` restricted to identity codes; `clearNonConflictReasons` removed.
+5. **Small**: `interruptDedicatedTurn` fails the `mirror` body too.
 
 ## Files expected to change
 
-- `src/domain/conversationReconciliation.ts` — `observeHarnessTurnCommit`, `conflict`,
-  `deriveClassification`, `isConflictReason`, `clearNonConflictReasons`
+- `src/domain/conversationReconciliation.ts` — `HarnessCheckpoint`, `observeHarnessTurnCommit`,
+  `observePiTurnCommit`, `observeMirrorTurnCommit`, `parseConversationReconciliationState`,
+  `deriveClassification`, `isConflictReason`, `clearNonConflictReasons` (removed),
+  `healRefusedHarnessCommits` (new)
 - `src/domain/threeBodyTurnCommit.ts` — `commitHarnessTurn`
 - `src/domain/dedicatedTurnCommit.ts` — `interruptDedicatedTurn`
-- one-time harness-body repair for already-stuck turns, run through the ordinary load path
+- `src/domain/persistedJourneyConversation.ts` — apply the heal at the read boundary
 - `src/tests/conversationReconciliation.test.ts`, `src/tests/threeBodyTurnCommit.test.ts`,
-  `src/tests/mirrorAppendOutbox.test.ts`, `src/tests/journeySettlementRecovery.test.ts` — the
-  tests that currently defend regression-as-refusal
-- `docs/architecture/settlement-durable-state-model.md` §4 Class 2 table, once the definition
-  changes
+  `src/tests/mirrorAppendOutbox.test.ts`, `src/tests/persistedJourneyConversation.test.ts` — the
+  tests that currently defend regression-as-refusal and classification-as-validated
+- `src/tests/harnessCheckpointIdentity.test.ts` (new) — the CR's own guards
+- `docs/architecture/settlement-durable-state-model.md` §4 Class 2 table and §5a
 - `scripts/diagnostics/settlement_classify.py` — sections G and H should read zero afterwards
 
 ## Acceptance
 
+- A stored ledger whose `classification` disagrees with the derivation **parses**, keeps its turns,
+  checkpoints and reason codes, and comes back with the classification recomputed.
 - A bounded-surface commit following a complete-surface commit records harness evidence and does
   **not** raise `checkpoint_regression`.
+- A genuine regression in `committedTurnCount` still raises it, and still records the evidence.
 - No turn in the production store has `pi: committed` with `harness: pending` after the repair pass;
   section G of the diagnostics reads zero.
 - A settlement whose turn committed normally does not reach `createMirrorAppendOutboxItem` with a
@@ -145,10 +226,31 @@ should still carry the error, and steps 7–8 should still be timed — that rem
 - Whatever D3 decides is visible: either the surface explains a permanent `conflicted`, or a Journey
   with no current conflict stops reading as one.
 
+## Verification against the production store
+
+Read-only replay of the implemented rules against all 20 Journeys, 2026-10-05.
+
+| Result | Count |
+|---|---|
+| Refused harness bodies healed | **24** (was 17 when the defect was captured) |
+| Composers released from `projection_pending` | **2** — `alissonvale-com`, `livro-lideranca-soberana` |
+| Journeys reading `conflicted` afterwards | **0**, from 12 |
+| Unparseable ledgers made readable | **3** |
+
+After the change the 12 `conflicted` Journeys resolve to their real present state: 9 `in_sync`,
+3 `commit_failed` (genuine interrupted turns), 1 `commit_pending`. No Journey is left reporting a
+conflict it does not have, and none of the reason codes were deleted.
+
+The heal count rising from 17 to 24 between capture and implementation is the defect accumulating
+during the work, which is the reason for implementing it ahead of CR120.
+
 ## Validation
 
 - Unit: the regression guard fed a shrinking surface and a growing turn count; a refused commit that
-  still records evidence; an interrupted turn's three bodies.
+  still records evidence; a stored record with a stale classification; a stuck turn healed from
+  staged ids; an interrupted turn's three bodies.
+- Source guard: a test asserting `parseConversationReconciliationState` has no classification
+  equality rejection, so the trap cannot be reintroduced.
 - Replay: `scripts/diagnostics/settlement_classify.py` against the production store before and after
   the repair pass, sections G, H, I.
 - Field: one day of ordinary use on Dev in a Journey that currently regresses, reading the
@@ -157,7 +259,9 @@ should still carry the error, and steps 7–8 should still be timed — that rem
 ## Relationship to open work
 
 - **CR121** keeps its instrument improvements (carry the error, time steps 7–8) and loses its
-  mystery: this CR names the throw. Recommend narrowing CR121 to the instrument.
+  mystery: this CR names the throw. CR121 was narrowed to the instrument when this CR was planned.
+- **The Composer block** means this is not only an accounting fix. Two Journeys cannot be written to
+  right now; the heal in D2 releases them.
 - **CR119 slice 4** (the production reading of the Finishing tail) should be re-read after this
   ships; a large part of the tail is predicted to be this recovery detour.
 - **CR120** is independent and unaffected.
