@@ -13,7 +13,10 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS016
-- Change Request: CR122 is `done` and awaiting its production reading, found by pursuing an open question in the settlement model
+- Change Request: CR122 is `done`. Its owed production reading is recorded in
+  `docs/update/alpha-35-production-reading-2026-10-05.md`: no conversation lost a message, the heal is
+  exact wherever the new build has read, and the settlement-success claim still waits on one ordinary
+  turn. Found by pursuing an open question in the settlement model
   (`docs/architecture/settlement-durable-state-model.md` §5a): the harness checkpoint records the
   loaded surface's length, which CR114 made scope-dependent, so bounded commits are refused as
   regressions, 17 production turns sit with a pending harness body, that body is CR121's throw, and
