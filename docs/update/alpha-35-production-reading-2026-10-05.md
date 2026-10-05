@@ -118,3 +118,86 @@ build has actually run, and the settlement-success claim is still waiting on a s
 for its 11 turns and releases its Composer. Opening `nautilus-agentic-method`, `softwarezen` and
 `venda-de-livros` normalises their stale classification. Then re-run this reading, which should show
 zero stuck turns everywhere and at least one `settled` timing record.
+
+---
+
+# Addendum — the reading completed
+
+The Navigator opened the four Journeys. Re-read immediately afterwards.
+
+## All three owed readings are now met
+
+**1. Heal count reads zero.** Across the **whole store**, zero turns remain with a committed Pi body
+and a pending harness body. Was 28.
+
+| Journey | ledger read since restart | stuck turns | classification | `committedTurnCount` |
+|---|---|---:|---|---:|
+| `alissonvale-com` | yes, 05:38:34 | **0** | `in_sync` | 47 |
+| `livro-lideranca-soberana` | yes | **0** | `commit_failed` | 159 |
+| `mirror-desktop` | yes | **0** | `commit_failed` | 23 |
+| `nautilus-agentic-method` | yes, 05:41:53 | 0 | `in_sync` | — |
+| `softwarezen` | yes, 05:41:43 | 0 | `in_sync` | — |
+| `venda-de-livros` | yes, 05:42:06 | 0 | `in_sync` | — |
+
+**2. No conversation lost a message — and the three unreadable ledgers gained some.** Not one ledger
+shrank. The three the old build could not parse were read by the new build and **grew**:
+`nautilus-agentic-method` 104 → 106, `softwarezen` 22 → 25, `venda-de-livros` 24 → 26. Had the trap
+still been live, each of those saves is where their history would have been replaced by the loaded
+window. `alissonvale-com` 510 → 511.
+
+**3. Both Composers are released.** `alissonvale-com` reads `in_sync` with no stuck turn; it was
+`projection_pending` and blocked three hours earlier.
+
+## The central claim is verified
+
+The first ordinary-path settlement on `alpha.35`, in `mirror-desktop` — one of the affected Journeys
+— **completed the entire sequence**: run `agent-run-2026-10-05T08:30:54.550Z`, `outcome: settled`,
+**17 phases, every one `completed`**, ending at `acknowledge_outbox_item`.
+
+`enqueue_outbox_item` ran for 4,492 ms and completed. That is the step that, before CR122, never
+began — every failed record stopped at `cleanup_lease`. The depth-0 phases sum to 41,600 ms against a
+total of 41,741 ms, a gap of 141 ms or 0.34%, so the instrument's arithmetic holds on a long
+settlement as well as a short one.
+
+## An unplanned reading: the tail is not one slow phase
+
+That settlement took **41.7 seconds**, and the time is spread rather than concentrated:
+`save_post_frontier_projection` 8,698 ms, `deliver_outbox_item` 8,407 ms, `enqueue_outbox_item`
+4,492 ms, `save_projection` 4,199 ms, `advance_journal` 3,892 ms, `acknowledge_outbox_item` 3,512 ms
+— and even `load_journal`, a small file read, took 1,143 ms and 805 ms on its two calls.
+
+Every durable operation is slow by roughly the same factor. That is the shape of contention or
+serialisation, not of an algorithmic cost in one place, and it is a different answer from the one
+CR119's single Dev data point suggested.
+
+**It is one observation with a real confound and must not be read as a finding.** The settlement ran
+at 05:34:54–05:35:36 local, while four Journeys were being opened in the application and this
+inspection was reading the whole store from disk. Some of that contention was self-inflicted. It is
+recorded as the first production data point for CR119's slice 4 and nothing more.
+
+## A new failure, in a new place
+
+`livro-lideranca-soberana` produced a `failed` record on this build at `08:33:47.919Z` — but inside
+`save_projection` → `publish_segments`, not after `cleanup_lease`. It is **not** CR122's failure; the
+harness commit succeeded, which is why the sequence reached publication at all.
+
+The cause is established in code, not hypothesised: an ordinary turn supplies 1 of 9 chapters, so the
+publisher must read `historicalMessageCount` from a prior receipt, and this Journey has never had
+one — because minting a receipt requires every chapter the manifest declares to have a file, and its
+`segment-1` predates publication. Deterministic and self-perpetuating. Two Journeys are in this state
+now and a third is one lost receipt away.
+
+Nothing is lost: the chapter file is written before the failing check, and recovery settled the turn
+two seconds later. Captured as
+[CR123](../project/refinement/rs016-ongoing-product-improvements-and-adjustments/cr123-let-a-journey-mint-its-first-publication-receipt.md).
+
+**And it took the same detective work as last time.** The timing record still does not carry the
+error, so naming this needed a timing record, eight file mtimes, a receipt census across twenty
+Journeys and a read of the Rust. That is CR121's open item, demonstrated twice in one day.
+
+## Verdict
+
+CR122's closure stands. All three owed readings are met, with no exception and no conversation
+damaged, and the claim the release rested on is verified on the ordinary path in an affected Journey.
+The settlement path is not yet healthy — CR120 and CR123 are both live and CR119's tail is unexplained
+— but nothing found here contradicts what was shipped.

@@ -13,6 +13,11 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS016
+- Change Request: CR123 is `captured`, found in the `alpha.35` production reading. Two Journeys fail
+  chapter publication on every ordinary turn with `Conversation Segment completion receipt is
+  unavailable.`, because minting the first receipt requires every declared chapter to have a file and
+  both declare one that predates publication. Deterministic, self-perpetuating, and loses no
+  conversation — the chapter is written before the failing check and recovery settles the turn
 - Change Request: CR122 is `done`. Its owed production reading is recorded in
   `docs/update/alpha-35-production-reading-2026-10-05.md`: no conversation lost a message, the heal is
   exact wherever the new build has read, and the settlement-success claim still waits on one ordinary
@@ -110,6 +115,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |
 | — | [CR118](rs016-ongoing-product-improvements-and-adjustments/cr118-anchor-a-segment-to-the-history-it-can-see.md) | RS016 | Anchor a Segment to the History It Can See | done | @alissonvale | `refinement/rs016-cr118-segment-anchor-tolerance` |
 | — | [CR119](rs016-ongoing-product-improvements-and-adjustments/cr119-give-finishing-back-to-the-navigator.md) | RS016 | Give Finishing Back to the Navigator | done | @alissonvale | `refinement/rs016-cr119-settlement-phase-timing` |
+| — | [CR123](rs016-ongoing-product-improvements-and-adjustments/cr123-let-a-journey-mint-its-first-publication-receipt.md) | RS016 | Let a Journey Mint Its First Publication Receipt | captured | — | — |
 | — | [CR122](rs016-ongoing-product-improvements-and-adjustments/cr122-make-the-checkpoint-count-the-same-thing-every-turn.md) | RS016 | Make the Checkpoint Count the Same Thing Every Turn | done | @alissonvale | `refinement/rs016-cr122-harness-checkpoint-identity` |
 | — | [CR120](rs016-ongoing-product-improvements-and-adjustments/cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) | RS016 | Stop a Closing Chapter From Erasing Its Own File | captured | — | — |
 | — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | done | @alissonvale | `refinement/rs016-cr116-stranded-finalization-recovery` |
