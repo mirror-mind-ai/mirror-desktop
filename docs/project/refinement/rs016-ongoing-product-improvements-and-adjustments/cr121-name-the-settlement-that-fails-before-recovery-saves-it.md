@@ -2,9 +2,9 @@
 
 # CR121: Name the Settlement That Fails Before Recovery Saves It
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** planned
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr121-settlement-failure-legibility`
 
 ## Problem
 
@@ -166,6 +166,114 @@ Capture only. Nothing is selected and no decision is taken here.
   looks identical to slow work, which is the complaint CR119 was opened for.
 - Is `emit` being allowed to carry a subscriber's throw into settlement a defect in its own right,
   independent of which subscriber it was? CR122 did not touch this.
+
+## Plan (2026-10-05)
+
+Pulled after `alpha.35`, because the gap it describes cost two full investigations in one day:
+CR122's throw and CR123's publication failure were both named by cross-referencing four artifacts to
+recover an error string the application already held in a variable and discarded.
+
+### A correction to the capture's own plan
+
+The capture proposed "time steps 7 and 8". That is the wrong framing and would have produced a
+misleading instrument. Both steps are **synchronous and pure**: `createMirrorAppendOutboxItem` builds
+an object from data already in memory, and `onLeaseReleased` publishes a presentation. Neither can be
+slow, so recording a duration for them would add two phases that explain nothing and invite a reader
+to treat them as costs.
+
+What is actually missing is **attribution**: a throw inside them lands between two timed phases, so
+the record shows every phase `completed` and the whole settlement `failed`. Wrapping them in named
+phases fixes that, and the comment at each call site says attribution rather than duration so the
+next reader does not misread it.
+
+### Slice 1 — the record carries the failure
+
+`SettlementTimingRecord` gains an optional `failure`:
+
+| field | meaning |
+|---|---|
+| `reason` | the error as the application received it, bounded |
+| `phase` | the innermost phase that failed, when the throw happened inside one |
+| `afterPhase` | the last phase that completed, when the throw happened between phases |
+
+`phase` and `afterPhase` are derived by the collector from its own phase list rather than supplied,
+so a caller cannot describe a failure that disagrees with the phases recorded alongside it. Only
+`reason` crosses the boundary, from the `catch` in `App.tsx` that already computes it for
+`setExactSettlementError`.
+
+**The reason is truncated, and that is a deliberate departure from CR119's rule.** CR119 refuses an
+oversized diagnostic rather than trimming it, because a trimmed *measurement* reads as a true one. A
+trimmed *message* does not: it is still the beginning of the right error, and a visible ellipsis says
+it was cut. Bound: 512 characters.
+
+No native change is required. `append_settlement_timing_record` validates `journeyId`, a non-empty
+`runId`, `phases` being an array, and the size ceiling; it is deliberately permissive about
+additional fields, so an older build reading a newer record ignores `failure` rather than refusing
+it.
+
+### Slice 2 — name the two steps that are not ports
+
+`TurnFinalizationPorts` gains an optional `timeStep`, supplied by `timeFinalizationPorts` from the
+registry and absent in tests that do not care:
+
+- `create_outbox_item` wraps `createMirrorAppendOutboxItem` in `enqueueProjectionOutbox`
+  (`turnFinalizationCoordinator.ts:169`) — the step CR122 proved throws.
+- `notify_lease_released` wraps `onLeaseReleased` in `cleanupLocalLease`
+  (`journeySettlement.ts:133`) — where a synchronous subscriber's throw would enter settlement.
+
+An optional port member is the existing injection seam, so the settlement path does not acquire a
+dependency on the diagnostic, and `executeCompletedSettlement` keeps working unchanged when nothing
+is injected.
+
+### Exclusions
+
+**No surface for a recovery-only settlement.** The capture asks whether a settlement that only
+succeeds through recovery should look different from slow work. It should, and it is deliberately not
+built here: CR120 and CR123 are both live and both change the failure rate, so a surface designed
+against today's failures would be designed against a moving target. Recorded as the recommended next
+CR once the failure reasons have been read for some days.
+
+**`emit` is not isolated from a throwing subscriber.** Slice 2 makes such a throw attributable, which
+is this CR's job. Whether a presentation subscriber should be able to fail a settlement at all is a
+separate design question and stays as debt.
+
+**Recovery settlements remain unmeasured.** `recoverPostTerminalPersistence` does not open a
+collector, which is why CR123's turn settled two seconds later with no record. Measuring the recovery
+path is a larger change and is not needed to read a first-attempt failure.
+
+### Files
+
+- `src/app/settlementPhaseTiming.ts` — `SettlementFailure`, `SettlementTimingRecord.failure`,
+  `finish`, `SettlementTimingRegistry.end`, `timeFinalizationPorts`, the reason bound
+- `src/app/turnFinalizationCoordinator.ts` — `TurnFinalizationPorts.timeStep`,
+  `enqueueProjectionOutbox`, the `onLeaseReleased` dependency
+- `src/app/journeySettlement.ts` — time the `onLeaseReleased` call
+- `src/app/App.tsx` — pass the error the `catch` already has into `end`
+- `src/tests/settlementPhaseTiming.test.ts` and a new
+  `src/tests/settlementFailureLegibility.test.ts`
+
+### Acceptance
+
+- A settlement that throws inside a timed phase records `failure.reason` and `failure.phase` naming
+  that phase, and the phase itself still reports `outcome: "failed"`.
+- A settlement that throws between phases records `failure.reason` and `failure.afterPhase` naming
+  the last completed phase, with no phase reporting `failed`.
+- A settled turn records no `failure` at all, and its record is byte-identical in shape to what
+  `alpha.35` wrote.
+- A reason longer than the bound is truncated with a visible marker rather than dropped or refused.
+- The two non-port steps appear as named phases, and a throw in either is attributed to it.
+- Replaying CR122's shape produces `failure.phase: "create_outbox_item"`; replaying CR123's shape
+  produces `failure.phase: "publish_segments"` with the receipt message.
+
+### Validation
+
+- Unit: the collector's derivation of `phase` and `afterPhase`; the bound; a settled record carrying
+  no failure.
+- Guard: a source assertion that `end` is called with the caught error, so the reason cannot be
+  dropped again by a refactor.
+- Field: the next ordinary failure in production should name itself without any cross-referencing.
+  `livro-lideranca-soberana` fails deterministically on every turn, so the first turn after the next
+  release is the test.
 
 ## Dependencies
 
