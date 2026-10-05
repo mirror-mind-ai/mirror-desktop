@@ -125,3 +125,4 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR111: Preserve the Agent Comment Trail Across Turns](cr111-preserve-agent-comment-trail-across-turns.md) — done
 - [CR113: Make Composer Typing Responsive in Large Journeys](cr113-make-composer-typing-responsive-in-large-journeys.md) — done
 - [CR114: Make the Current Segment the Default Working Set](cr114-make-the-current-segment-the-default-working-set.md) — done
+- [CR125: Keep the Reader's Place When a Turn Settles](cr125-keep-the-reader-s-place-when-a-turn-settles.md)

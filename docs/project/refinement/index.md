@@ -28,6 +28,13 @@ Refinement authority; SQLite must not be consulted or dual-written.
   regressions, 17 production turns sit with a pending harness body, that body is CR121's throw, and
   12 of 20 Journeys read `conflicted` because reason codes never clear. Content is safe in Mirror.
   Recommended as the next pull, ahead of CR120 and in place of CR121's investigation
+- Change Request: CR125 is `captured` from production use: the Conversation surface slides upward
+  when a turn settles. Diagnosed read-only to a mechanism rather than a guess — the previous turn
+  is reclassified `historical` the instant the run ends and collapses into a closed `<details>`
+  directly above the reader, in a WKWebView that implements no scroll anchoring and an app that
+  manages scroll only for follow-the-end. The extent-growth hypothesis was checked and ruled out.
+  Three directions recorded; the first (anchor the reader across the settlement commit) is
+  correct under both reading positions
 - Change Request: CR124 is `done`. The publish-time immutability byte-compare is replaced by a
   deferral to the published file, which is the authority for a closed chapter; integrity is still
   enforced on read by hash against the receipt. Replayed across the store, **all fourteen**
@@ -89,6 +96,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | in_progress | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
+| — | [CR125](rs021-ux-pre-beta-evolution/cr125-keep-the-reader-s-place-when-a-turn-settles.md) | RS021 | Keep the Reader's Place When a Turn Settles | captured | — | — |
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |
 | — | [CR118](rs016-ongoing-product-improvements-and-adjustments/cr118-anchor-a-segment-to-the-history-it-can-see.md) | RS016 | Anchor a Segment to the History It Can See | done | @alissonvale | `refinement/rs016-cr118-segment-anchor-tolerance` |
 | — | [CR119](rs016-ongoing-product-improvements-and-adjustments/cr119-give-finishing-back-to-the-navigator.md) | RS016 | Give Finishing Back to the Navigator | done | @alissonvale | `refinement/rs016-cr119-settlement-phase-timing` |
