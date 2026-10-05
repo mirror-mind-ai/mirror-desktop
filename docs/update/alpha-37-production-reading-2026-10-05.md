@@ -127,11 +127,93 @@ refused commit. The "zero stuck turns" claim in the `alpha.36` reading used CR12
 a turn whose harness commit was *refused*; by that measure it is still zero. The two measures should
 not have shared a word.
 
+## Second reading, 13:10 local — the settlements arrived
+
+The first reading above was taken 4 minutes after the restart and correctly reported that nothing had
+settled yet. **28 settlements** have since been recorded on `alpha.37`, so everything that was owed
+except one item is now collected.
+
+| | |
+|---|---|
+| Settlement records on `alpha.37` | **28** — 27 `settled`, 1 `failed` |
+| Phase count | **19** on all 27 settled, **11** on the failed one |
+| `totalMs` | min 1,005 · median 3,854 · max 48,546 |
+| Per Journey | `livro` 15 · `alissonvale-com` 7 · `mirror-desktop` 6 |
+
+### CR121 verified outright — the first real failure payload on a production machine
+
+This was the longest-standing owed reading, blocked since `alpha.36` because nothing had failed. One
+settlement failed, and it said why:
+
+```json
+{ "phase": "enqueue_outbox_item", "reason": "mirror_append_item_conflict" }
+```
+
+`alissonvale-com`, `2026-10-05T13:08:26.285Z`, 1,005 ms total. The phases stop exactly where the
+payload says, with `enqueue_outbox_item` at 303 ms and `outcome: failed`, after
+`notify_lease_released` and `create_outbox_item` — the two steps CR121 named — both completed at 0 ms.
+
+Before CR121 this record would have said that the settlement failed while every phase it contained
+reported success. That was the whole argument for the change, and it is now settled by evidence
+rather than by reasoning.
+
+**What the failure was.** The native conflict record (`mirror-append-conflicts.jsonl`, 6 records all
+time, 1 on `alpha.37`) names it precisely: at `site: normalize_legacy`, a **`schemaVersion` 1.0.0**
+candidate with `piUserEntryId`, `piAssistantEntryId`, `piSessionId`, `piSessionFile` and `runId` all
+`null` tried to replace an existing **1.1.0** item carrying all of them. The refusal is correct — it
+protects the richer record. That a legacy-shaped item is still being produced for a turn that already
+has a complete one is a defect of its own, and all six records share one `differingKeys` signature,
+so it is a shape rather than an accident. **Candidate CR, not captured here.**
+
+The turn recovered: the outbox is empty and no later record exists for that run, which is the
+recovery path writing no record — the instrument gap already on the board.
+
+### CR125 verified in the field, by the Navigator
+
+The Navigator confirms the Conversation **stopped sliding** when a turn settles. This was the one
+reading no file could provide, and it is the acceptance criterion met.
+
+### CR120 and CR124 still owed — no compaction has run
+
+The manifest is unchanged at 33 chapters with mtime `08:37:57`, which predates the restart.
+`segment-30` is still 606,306 bytes and 0 messages. The current chapter *was* republished on
+`alpha.37` — `segment-33.json` rewritten `10:04:55`, now 21 messages, receipt total 230 → 242 — which
+exercises the ordinary publication path but not the compaction path. The healing event remains owed
+and, per CR124's correction, needs a compaction settling with complete history loaded.
+
+### Nothing regressed
+
+| Check | Result |
+|---|---|
+| Ledgers | all **grew**: `mirror-desktop` 2,497 → 2,570, `livro` 477 → 513, `alissonvale-com` 556 → 586 |
+| Any ledger shrank | **none** |
+| Outbox | **empty** |
+| `nautilus-agentic-method` receipt | **still absent** — owed |
+
+### The CR097 baseline, captured before its fix ships
+
+CR097 is `done` but unreleased, so this store is the last measurement of the unfixed path. Nine
+corrections now exist across five Journeys — one more than at CR097's closure, `alissonvale-com`
+`13881848`, created at 13:06 and belonging to the turn whose settlement failed above.
+
+Tracing where the wrong value is *written* rather than where it is read produced
+[CR126](../project/refinement/rs016-ongoing-product-improvements-and-adjustments/cr126-stop-a-correction-from-becoming-its-own-turn.md):
+the native transcript projection treats a correction as the start of a turn. Identity is wrong in
+**9 of 9**, prose was discarded in **4 of 9**, and an answer is orphaned in **1 of 9**.
+
+**A measurement of mine was wrong and is corrected here.** The first pass reported that 5 of 9
+corrected turns lost prose, counting any assistant text between the request and the correction. That
+over-counts: the Rust rule closes a turn on `stop`, so prose that had already closed became its own
+turn and survived. Only prose accumulated *since the last `stop`* is discarded — 4 of 9, not 5 — and
+the ninth case is a different defect, an orphaned closed answer. Two consequences had been collapsed
+into one number.
+
 ## Still owed
 
-1. Any `alpha.37` settlement at all.
-2. CR125's reading, which is the Navigator's own: read a turn to its end from somewhere other than the
-   bottom and stay there.
-3. `segment-30` healing — needs a compaction while complete history is loaded.
-4. CR121's first real `failure` payload — needs any settlement to fail.
-5. A receipt for `nautilus-agentic-method` — one ordinary turn there.
+Collected in the second reading: `alpha.37` settlements (28), CR125 (the Navigator's own confirmation),
+and CR121's first real `failure` payload.
+
+1. `segment-30` healing — needs a compaction settling while complete history is loaded.
+2. A receipt for `nautilus-agentic-method` — one ordinary turn there.
+3. A settled record for a recovery-only settlement — the instrument still writes none, which is why
+   the failed turn above has no successor record.

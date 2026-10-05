@@ -28,6 +28,13 @@ Refinement authority; SQLite must not be consulted or dual-written.
   regressions, 17 production turns sit with a pending harness body, that body is CR121's throw, and
   12 of 20 Journeys read `conflicted` because reason codes never clear. Content is safe in Mirror.
   Recommended as the next pull, ahead of CR120 and in place of CR121's investigation
+- Change Request: CR126 is `captured`, found by pursuing CR097's closure debt from the write side
+  instead of the read side. The native transcript projection treats every user entry as the start
+  of a turn, so a correction replaces the request in `pending_user` and clears the prose the agent
+  had accumulated. Measured over nine real corrections: identity wrong in **9 of 9**, prose
+  discarded in **4 of 9**, an answer orphaned in **1 of 9**. It also explains the standing
+  observation that a correction can end a turn rather than redirect it — Pi answered the
+  correction as its own closed exchange. CR097 must stay until this lands
 - Change Request: CR097 is `done`. Slice 1 falsified the capture — steering evidence survives
   now, so the persistence half was resolved by the baseline — and slices 2–5 then found the
   capture's premise wrong: a corrected turn records the **correction** as its own
@@ -103,6 +110,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
+| — | [CR126](rs016-ongoing-product-improvements-and-adjustments/cr126-stop-a-correction-from-becoming-its-own-turn.md) | RS016 | Stop a Correction From Becoming Its Own Turn | captured | — | — |
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | done | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR125](rs021-ux-pre-beta-evolution/cr125-keep-the-reader-s-place-when-a-turn-settles.md) | RS021 | Keep the Reader's Place When a Turn Settles | done | @alissonvale | `refinement/rs021-cr125-conversation-scroll-anchor` |
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |
