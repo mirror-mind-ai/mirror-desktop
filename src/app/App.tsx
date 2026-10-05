@@ -3280,6 +3280,10 @@ export function App({ model }: AppProps) {
           setFinishingPhases((current) => ({ ...current, [ownerJourneyId]: { phase, since: finishingSince } }));
         });
         let settlementOutcome: "settled" | "failed" = "failed";
+        // CR121: the reason travels into the timing record. The catch below already computes it for
+        // the surface and used to drop it, which left every failed record saying only that something
+        // failed somewhere.
+        let settlementFailureReason: string | undefined;
         try {
           await turnFinalizationCoordinator.finalizeCompletedTurn({
             authority: settlementAuthority,
@@ -3297,7 +3301,8 @@ export function App({ model }: AppProps) {
           setExactSettlementError(settlementAuthority, undefined);
           recordSyncAttempt(ownerJourneyId, { kind: "succeeded", at: new Date().toISOString() });
         } catch (error) {
-          setExactSettlementError(settlementAuthority, error instanceof Error ? error.message : String(error));
+          settlementFailureReason = error instanceof Error ? error.message : String(error);
+          setExactSettlementError(settlementAuthority, settlementFailureReason);
           recordSyncFailureOrDeferral(ownerJourneyId, error);
         } finally {
           unsubscribeTiming();
@@ -3306,7 +3311,7 @@ export function App({ model }: AppProps) {
             const { [ownerJourneyId]: _ended, ...rest } = current;
             return rest;
           });
-          const timingRecord = settlementTimingRegistry.end(ownerJourneyId, settlementOutcome);
+          const timingRecord = settlementTimingRegistry.end(ownerJourneyId, settlementOutcome, settlementFailureReason);
           if (timingRecord) {
             void appendSettlementTiming(timingRecord, (reason) => {
               console.warn(`settlement timing not recorded for ${ownerJourneyId}: ${reason}`);

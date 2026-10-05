@@ -31,7 +31,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR118: Anchor a Segment to the History It Can See](cr118-anchor-a-segment-to-the-history-it-can-see.md) — done
 - [CR123: Let a Journey Mint Its First Publication Receipt](cr123-let-a-journey-mint-its-first-publication-receipt.md) — captured
 - [CR122: Make the Checkpoint Count the Same Thing Every Turn](cr122-make-the-checkpoint-count-the-same-thing-every-turn.md) — done
-- [CR121: Name the Settlement That Fails Before Recovery Saves It](cr121-name-the-settlement-that-fails-before-recovery-saves-it.md) — planned
+- [CR121: Name the Settlement That Fails Before Recovery Saves It](cr121-name-the-settlement-that-fails-before-recovery-saves-it.md) — done
 - [CR120: Stop a Closing Chapter From Erasing Its Own File](cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) — planned
 - [CR119: Give Finishing Back to the Navigator](cr119-give-finishing-back-to-the-navigator.md) — done
 - [CR117: Make a Correction Legible While It Is Live](cr117-make-a-correction-legible-while-it-is-live.md) — done

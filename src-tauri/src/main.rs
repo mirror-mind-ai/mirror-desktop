@@ -9769,6 +9769,26 @@ mod tests {
         );
     }
 
+    // CR121: the renderer added a `failure` object to the record so a failed settlement names its
+    // own cause. The claim that this needed no native change rests on this validator staying
+    // permissive about fields it does not know, which is what lets an older build read a newer
+    // record instead of refusing it. Asserted here so a later tightening has to be deliberate.
+    #[test]
+    fn settlement_timing_keeps_a_record_that_carries_fields_it_does_not_know() {
+        let mut record = timing_record("mirror-desktop", "run-1", 0);
+        record["failure"] = json!({
+            "reason": "Conversation Segment completion receipt is unavailable.",
+            "phase": "publish_segments",
+        });
+        let document = append_settlement_timing_record(None, "mirror-desktop", record).unwrap();
+        let stored = &document["records"].as_array().unwrap()[0];
+        assert_eq!(stored["failure"]["phase"], "publish_segments");
+        assert_eq!(
+            stored["failure"]["reason"],
+            "Conversation Segment completion receipt is unavailable."
+        );
+    }
+
     #[test]
     fn settlement_timing_refuses_an_oversized_record_rather_than_trimming_it() {
         let err = append_settlement_timing_record(None, "mirror-desktop", timing_record("mirror-desktop", "run-1", 40 * 1024)).unwrap_err();

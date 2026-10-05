@@ -154,7 +154,12 @@ describe("runtime projection component", () => {
     expect(appSource).toContain("Repair synchronization");
     expect(appSource).toContain("No recovery action will run the agent again.");
     expect(appSource).toContain("selectedActiveNativeLease?.authority.runId");
-    expect(coordinatorSource).toContain('onLeaseReleased: () => publish(authority, projectionAtFrontier, "frontier")');
+    // CR121: the frontier presentation is still published the moment the lease is released, and it
+    // is now wrapped in a named step so a throwing subscriber is attributed instead of landing
+    // invisibly between two timed phases. Both halves are asserted, not just the publish.
+    expect(coordinatorSource).toContain("onLeaseReleased: () => (ports.timeStep");
+    expect(coordinatorSource).toContain('"notify_lease_released",');
+    expect(coordinatorSource).toContain('publish(authority, projectionAtFrontier, "frontier")');
     // CR088: the blocking record is derived in-render from the journal plus the current
     // lease, so no event has to clear an aged copy of it.
     expect(appSource).not.toContain("setBlockingTurnJournalRecord");

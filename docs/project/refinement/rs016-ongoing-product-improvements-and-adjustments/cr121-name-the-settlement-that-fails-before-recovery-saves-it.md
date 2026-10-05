@@ -2,7 +2,7 @@
 
 # CR121: Name the Settlement That Fails Before Recovery Saves It
 
-**Status:** planned
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr121-settlement-failure-legibility`
 
@@ -274,6 +274,75 @@ path is a larger change and is not needed to read a first-attempt failure.
 - Field: the next ordinary failure in production should name itself without any cross-referencing.
   `livro-lideranca-soberana` fails deterministically on every turn, so the first turn after the next
   release is the test.
+
+## Implementation and closure (2026-10-05)
+
+Implemented test-first on `refinement/rs016-cr121-settlement-failure-legibility`.
+
+**Slice 1 — the record names its cause.** `SettlementTimingRecord` carries an optional `failure`
+with `reason`, and exactly one of `phase` or `afterPhase`. Both are derived inside the collector from
+the phases recorded beside them, so a caller cannot describe a failure that contradicts its own
+measurements; only the error string crosses the boundary, from the `catch` in `App.tsx` that already
+computed it for `setExactSettlementError` and used to drop it. The innermost failed phase is selected
+by searching the phase list from the end, because an outer phase finishes after the inner one it was
+propagating from.
+
+**Slice 2 — the two steps that are not ports now have names.** `TurnFinalizationPorts.timeStep` is
+optional and supplied by `timeFinalizationPorts`, so the settlement path acquired no dependency on
+the diagnostic and `executeCompletedSettlement` behaves exactly as before when nothing is injected.
+`create_outbox_item` wraps `createMirrorAppendOutboxItem`; `notify_lease_released` wraps the frontier
+publish. Each call site says *attribution, not duration* in a comment, because both steps are
+synchronous and a reader would otherwise take the numbers for costs.
+
+**No native change, and that claim is now defended.** `append_settlement_timing_record` validates the
+Journey, a non-empty run, `phases` being an array, and the size ceiling, and is permissive about
+fields it does not know — which is what lets an older build read a newer record instead of refusing
+it. A Rust test asserts that permissiveness so a later tightening has to be deliberate.
+
+**One existing guard was strengthened, not relaxed.** `runtimeProjectionComponent.test.tsx` anchored
+the exact source of the `onLeaseReleased` line. It now asserts both that the frontier publish still
+happens there *and* that it is wrapped in the named step, so it covers more than it did before.
+
+**Gates:** `tsc` clean, **230 test files / 1,647 tests**, `cargo test` **251 passed / 3 ignored**,
+`cargo check --locked`, build clean, roadmap READY.
+
+### The boundary
+
+**No live run stands behind this, and the field test is unusually cheap.** The record shape is
+verified by nine unit tests that replay CR122's and CR123's exact shapes, but no settlement has
+produced a `failure` on a real machine. What makes this closable is that
+`livro-lideranca-soberana` fails **deterministically on every ordinary turn** with the CR123 defect,
+so the first turn there after the next release must write
+`failure.phase: "publish_segments"` and `failure.reason:
+"Conversation Segment completion receipt is unavailable."`. If it does not, this closure was wrong.
+That reading is owed, exactly as CR122's was.
+
+**Proportionality review: proportional.** One optional field on a diagnostic record, one optional
+port member, two call sites wrapped, and an error passed to a function that was already being called.
+No new artifact, no native change, no schema migration, and nothing added to the per-event path. The
+largest single act of judgement was deleting a slice the capture asked for.
+
+**Debt review: follow_up.** Five items, none selected.
+
+The **field reading** above is first and is owed at the next release.
+
+**A recovery-only settlement still writes no record at all.** `recoverPostTerminalPersistence` does
+not open a collector, which is why CR123's turn settled two seconds after its failure with nothing
+recorded. The instrument therefore measures first attempts only, and a reader counting records will
+undercount settlements. This is the largest remaining gap and is bigger than this CR.
+
+**No surface distinguishes a recovered settlement from slow work.** Deliberately excluded: CR120 and
+CR123 are both live and both change the failure rate, so a surface built now would be built against
+a moving target. Recommended as its own CR once the reasons have been read for some days.
+
+**`emit` can still carry a subscriber's throw into settlement.** Slice 2 makes such a throw legible;
+it does not prevent it. Whether a presentation subscriber should be able to fail a settlement is a
+design question left open.
+
+**This module now holds two opposite rules about diagnostic size.** CR119 refuses an oversized
+measurement rather than trimming it; CR121 trims an oversized message rather than refusing it. Both
+are justified and both are documented at the point of decision, but a third rule in the same file
+would be a sign the module is accumulating policy rather than expressing one.
 
 ## Dependencies
 

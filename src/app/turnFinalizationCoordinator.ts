@@ -70,6 +70,12 @@ export type TurnFinalizationPorts = {
     authority: JourneySettlementAuthority,
     summary: MirrorAppendOutboxSummary,
   ): Promise<void>;
+  /**
+   * CR121: names a settlement step that is not a port, so a throw inside it is attributed instead of
+   * landing invisibly between two timed phases. Optional, because the settlement path must keep
+   * working with no diagnostic injected — the measurement does not get to be a dependency.
+   */
+  timeStep?<T>(journeyId: string, phase: string, operation: () => Promise<T> | T): Promise<T>;
 };
 
 export type ConvergenceDeps = {
@@ -167,7 +173,13 @@ export async function enqueueProjectionOutbox(
   authority: JourneySettlementAuthority,
   ports: TurnFinalizationPorts,
 ): Promise<MirrorAppendOutboxSummary> {
-  const outboxItem = createMirrorAppendOutboxItem(projection, authority);
+  // CR121/CR122: this throws `mirror_append_item_authority_invalid` when the turn's bodies are not
+  // what it needs, and it runs before the port it feeds, so until it was named every such failure
+  // read as a settlement that failed with every phase completed.
+  const outboxItem = ports.timeStep
+    ? await ports.timeStep(authority.journeyId, "create_outbox_item",
+      () => createMirrorAppendOutboxItem(projection, authority))
+    : createMirrorAppendOutboxItem(projection, authority);
   await ports.enqueueOutboxItem(outboxItem, authority);
   const journal = await ports.loadJournal(authority.journeyId);
   const journalRecord = journal.records.find((record) => record.authority.runId === authority.runId);
@@ -335,7 +347,12 @@ export function createTurnFinalizationCoordinator(
               exactAuthority, "pre_frontier", () => enqueueProjectionOutbox(projection, exactAuthority, ports),
             ),
             cleanupLease: ports.cleanupLease,
-            onLeaseReleased: () => publish(authority, projectionAtFrontier, "frontier"),
+            // CR121: `publish` notifies subscribers synchronously, so a throwing subscriber enters
+            // settlement here. Naming the step does not stop that; it makes it legible.
+            onLeaseReleased: () => (ports.timeStep
+              ? ports.timeStep(authority.journeyId, "notify_lease_released",
+                () => publish(authority, projectionAtFrontier, "frontier"))
+              : publish(authority, projectionAtFrontier, "frontier")),
             appendAndAcknowledge: (projection, summary, exactAuthority) => (
               appendAndAcknowledgeProjection(projection, exactAuthority, summary, ports)
             ),

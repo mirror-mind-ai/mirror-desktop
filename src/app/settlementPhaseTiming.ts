@@ -38,6 +38,32 @@ export type SettlementPhaseTiming = Readonly<{
   outcome: SettlementPhaseOutcome;
 }>;
 
+/**
+ * CR121: why the settlement failed, in the record that says it did.
+ *
+ * `alpha.34` and `alpha.35` wrote `outcome: "failed"` with every phase `completed` and no reason,
+ * because the throw happened between two timed phases. Naming the cause then took four artifacts, a
+ * database cross-reference and a read of the native source — twice in one day, for CR122 and CR123 —
+ * to recover an error the application already held in a variable and discarded.
+ *
+ * `phase` and `afterPhase` are derived from the phases recorded beside them rather than supplied, so
+ * a caller cannot describe a failure that contradicts its own measurements. Exactly one of them is
+ * present: `phase` when a timed phase failed, `afterPhase` when the throw fell between phases.
+ */
+export type SettlementFailure = Readonly<{
+  reason: string;
+  phase?: string;
+  afterPhase?: string;
+}>;
+
+/**
+ * CR121: an error message is truncated rather than refused, which departs from CR119's rule for
+ * measurements on purpose. CR119 refuses an oversized diagnostic because a trimmed measurement reads
+ * as a true one. A trimmed message does not: it is still the beginning of the right error, and the
+ * ellipsis says it was cut.
+ */
+export const SETTLEMENT_FAILURE_REASON_MAX_CHARS = 512;
+
 export type SettlementTimingRecord = Readonly<{
   schemaVersion: "0.1.0";
   journeyId: string;
@@ -49,6 +75,7 @@ export type SettlementTimingRecord = Readonly<{
   totalMs: number;
   outcome: SettlementOutcome;
   phases: readonly SettlementPhaseTiming[];
+  failure?: SettlementFailure;
 }>;
 
 export type SettlementTimingClock = {
@@ -67,8 +94,23 @@ export type SettlementTimingCollector = {
   /** The innermost phase running now, which is the one a reader should see named. */
   currentPhase(): string | undefined;
   subscribe(listener: (phase: string | undefined) => void): () => void;
-  finish(outcome: SettlementOutcome): SettlementTimingRecord;
+  finish(outcome: SettlementOutcome, failureReason?: string): SettlementTimingRecord;
 };
+
+function describeFailure(
+  phases: readonly SettlementPhaseTiming[],
+  reason: string,
+): SettlementFailure {
+  const bounded = reason.length > SETTLEMENT_FAILURE_REASON_MAX_CHARS
+    ? `${reason.slice(0, SETTLEMENT_FAILURE_REASON_MAX_CHARS - 1)}\u2026`
+    : reason;
+  // The innermost failure is the last one recorded, because an outer phase finishes after the inner
+  // one it was propagating from.
+  const failed = [...phases].reverse().find((phase) => phase.outcome === "failed");
+  if (failed) return { reason: bounded, phase: failed.phase };
+  const completed = [...phases].reverse().find((phase) => phase.outcome === "completed");
+  return completed ? { reason: bounded, afterPhase: completed.phase } : { reason: bounded };
+}
 
 export function createSettlementTimingCollector(
   authority: SettlementTimingAuthority,
@@ -114,7 +156,7 @@ export function createSettlementTimingCollector(
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    finish(outcome) {
+    finish(outcome, failureReason) {
       const finishedMs = clock.now();
       return {
         schemaVersion: "0.1.0",
@@ -124,6 +166,7 @@ export function createSettlementTimingCollector(
         totalMs: finishedMs - startedAtMs,
         outcome,
         phases: [...phases],
+        ...(failureReason ? { failure: describeFailure(phases, failureReason) } : {}),
       };
     },
   };
@@ -139,7 +182,11 @@ export type SettlementTimingRegistry = {
   get(journeyId: string): SettlementTimingCollector | undefined;
   /** Times the work when a collector owns the Journey; otherwise just runs it. */
   time<T>(journeyId: string, phase: string, operation: () => Promise<T>): Promise<T>;
-  end(journeyId: string, outcome: SettlementOutcome): SettlementTimingRecord | undefined;
+  end(
+    journeyId: string,
+    outcome: SettlementOutcome,
+    failureReason?: string,
+  ): SettlementTimingRecord | undefined;
 };
 
 export function createSettlementTimingRegistry(
@@ -157,11 +204,11 @@ export function createSettlementTimingRegistry(
       const collector = collectors.get(journeyId);
       return collector ? collector.time(phase, operation) : operation();
     },
-    end(journeyId, outcome) {
+    end(journeyId, outcome, failureReason) {
       const collector = collectors.get(journeyId);
       if (!collector) return undefined;
       collectors.delete(journeyId);
-      return collector.finish(outcome);
+      return collector.finish(outcome, failureReason);
     },
   };
 }
@@ -204,6 +251,12 @@ export function timeFinalizationPorts(
       authority.journeyId, "save_post_frontier_projection",
       () => ports.savePostFrontierProjection(projection, authority, summary),
     ),
+    // CR121: the two settlement steps that are not ports. Both are synchronous and cannot be slow,
+    // so this is for attribution rather than duration: without a name, a throw in either lands
+    // between two timed phases and the record reports every phase completed and the turn failed.
+    timeStep: (journeyId, phase, operation) => registry.time(
+      journeyId, phase, async () => operation(),
+    ),
   };
 }
 
@@ -230,6 +283,8 @@ const phaseDescriptions: Record<string, string> = {
   save_post_frontier_projection: "saving the receipt",
   advance_journal: "recording the turn",
   acknowledge_outbox_item: "confirming delivery",
+  create_outbox_item: "preparing the Mirror update",
+  notify_lease_released: "updating the surface",
 };
 
 export function describeSettlementPhase(phase: string): string {
