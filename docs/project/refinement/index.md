@@ -13,11 +13,12 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS016
-- Change Request: CR123 is `captured`, found in the `alpha.35` production reading. Two Journeys fail
-  chapter publication on every ordinary turn with `Conversation Segment completion receipt is
-  unavailable.`, because minting the first receipt requires every declared chapter to have a file and
-  both declare one that predates publication. Deterministic, self-perpetuating, and loses no
-  conversation — the chapter is written before the failing check and recovery settles the turn
+- Change Request: CR121 and CR123 are `done` and their field readings are recorded in
+  `docs/update/alpha-36-production-reading-2026-10-05.md`: CR123 verified outright, with
+  `livro-lideranca-soberana` writing its first receipt at `historicalMessageCount: 344`, the value
+  predicted from the store before the release. CR121 is verified in structure — both new phases
+  present, 0 ms each, which confirms deleting its timing slice was right — but its `failure`
+  payload is still unexercised, because CR123 removed the failure it was going to describe
 - Change Request: CR122 is `done`. Its owed production reading is recorded in
   `docs/update/alpha-35-production-reading-2026-10-05.md`: no conversation lost a message, the heal is
   exact wherever the new build has read, and the settlement-success claim still waits on one ordinary
