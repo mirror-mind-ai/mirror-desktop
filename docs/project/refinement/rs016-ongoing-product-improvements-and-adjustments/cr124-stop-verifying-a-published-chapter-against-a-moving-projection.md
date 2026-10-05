@@ -168,6 +168,39 @@ the three Journeys that had one. The nine chapters that diverged now defer, and 
 messages are restored by CR120's healing on the way through — which is the event that proves both
 changes at once.
 
+## Correction (2026-10-05, after the alpha.37 upgrade)
+
+**The evidence above measured the wrong input, and the severity claimed for this CR is wrong.**
+
+The replay fed `partitionConversationBySegments` the **stored ledger**. The publisher is handed the
+**loaded surface**, which CR114 bounds to the current chapter. Proof from the receipt written by the
+compaction that ran on `alpha.36`:
+
+```text
+receipt totalMessageCount    230      segment-33.json holds     9 messages
+receipt historical           221      the stored ledger      2,497 messages
+difference (current chapter)   9      the replay derived        12 messages
+```
+
+So on an ordinary compaction every closed chapter except the one that just closed is supplied empty
+and taken by CR118's `SkipPublished` rule, and `VerifyImmutable` is never reached. A compaction ran on
+`alpha.36` — still carrying the byte-compare — and **succeeded**, which this CR predicted would fail.
+
+Wrong, as written above and in the release note: that eleven of fourteen chapters diverge and that
+three Journeys fail the publication half of **every** compaction.
+
+Right, and unchanged: the byte-compare was unsound on its own terms, for a reason that never depended
+on the input. It remains reachable — a compaction settling **while complete history is loaded**, both
+conditions together, which is narrow. The divergences in the data are real under that condition. And
+there is no evidence it ever fired: the only recorded `publish_segments` failures are CR123's receipt
+error.
+
+This CR's change stays correct and harmless. Its severity was overstated, and the observable event it
+owes is narrower than claimed: `segment-30` heals only when a compaction settles with complete
+history loaded, because a non-compaction settlement publishes the current chapter alone.
+
+Full reading: [alpha-37 production reading](../../../update/alpha-37-production-reading-2026-10-05.md).
+
 ## Closure review
 
 **Proportionality: proportional.** One enum variant renamed and redocumented, one failure path
