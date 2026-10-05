@@ -28,13 +28,13 @@ Refinement authority; SQLite must not be consulted or dual-written.
   regressions, 17 production turns sit with a pending harness body, that body is CR121's throw, and
   12 of 20 Journeys read `conflicted` because reason codes never clear. Content is safe in Mirror.
   Recommended as the next pull, ahead of CR120 and in place of CR121's investigation
-- Change Request: CR124 is `captured`, found while closing CR120 by replaying the store instead of
-  trusting CR120's own prediction. The publish-time immutability byte-compare asserts an invariant
-  the system does not maintain: the chapter file is immutable while the projection is re-derived
-  from a ledger whose window and boundaries change by design, so **11 of 14** comparable closed
-  chapters diverge across three Journeys, and each will fail the publication half of its next
-  compaction. The guard is also redundant — a published chapter's integrity is already verified on
-  read by hash against the receipt. Nothing is lost; recovery settles the turn
+- Change Request: CR124 is `done`. The publish-time immutability byte-compare is replaced by a
+  deferral to the published file, which is the authority for a closed chapter; integrity is still
+  enforced on read by hash against the receipt. Replayed across the store, **all fourteen**
+  Journeys' compactions now succeed, and `mirror-desktop` heals `segment-30` on the way. The
+  tempting smaller fix — narrowing the settlement bundle like the manual path already does — was
+  rejected because it would have made CR120's healing permanently unreachable
+
 - Change Request: CR120 is `done`. Its three slices shipped and are correct — emptiness is now
   judged before the prior-current exemption, an empty published file is healed rather than
   defended, and the shared-anchor shape is pinned end to end including the native wiring. Its
@@ -95,7 +95,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR123](rs016-ongoing-product-improvements-and-adjustments/cr123-let-a-journey-mint-its-first-publication-receipt.md) | RS016 | Let a Journey Mint Its First Publication Receipt | done | @alissonvale | `refinement/rs016-cr123-first-publication-receipt` |
 | — | [CR122](rs016-ongoing-product-improvements-and-adjustments/cr122-make-the-checkpoint-count-the-same-thing-every-turn.md) | RS016 | Make the Checkpoint Count the Same Thing Every Turn | done | @alissonvale | `refinement/rs016-cr122-harness-checkpoint-identity` |
 | — | [CR121](rs016-ongoing-product-improvements-and-adjustments/cr121-name-the-settlement-that-fails-before-recovery-saves-it.md) | RS016 | Name the Settlement That Fails Before Recovery Saves It | done | @alissonvale | `refinement/rs016-cr121-settlement-failure-legibility` |
-| — | [CR124](rs016-ongoing-product-improvements-and-adjustments/cr124-stop-verifying-a-published-chapter-against-a-moving-projection.md) | RS016 | Stop Verifying a Published Chapter Against a Moving Projection | captured | — | — |
+| — | [CR124](rs016-ongoing-product-improvements-and-adjustments/cr124-stop-verifying-a-published-chapter-against-a-moving-projection.md) | RS016 | Stop Verifying a Published Chapter Against a Moving Projection | done | @alissonvale | `refinement/rs016-cr124-published-chapter-authority` |
 | — | [CR120](rs016-ongoing-product-improvements-and-adjustments/cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) | RS016 | Stop a Closing Chapter From Erasing Its Own File | done | @alissonvale | `refinement/rs016-cr120-closing-chapter-write-guard` |
 | — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | done | @alissonvale | `refinement/rs016-cr116-stranded-finalization-recovery` |
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |

@@ -4639,8 +4639,18 @@ fn conversation_segment_projection_dir(
 enum ClosedSegmentPublication {
     /// No published file yet, or this is the Segment that was current until now.
     Write,
-    /// A published closed Segment must receive byte-identical content or nothing at all.
-    VerifyImmutable,
+    /// CR124: the published file is the authority for a closed chapter, so the supplied projection
+    /// is dropped rather than compared against it. Byte equality was never an invariant the system
+    /// maintained: the file is immutable while the projection is re-derived from a ledger whose
+    /// loaded window and turn boundaries change by design — CR114 bounded the window, CR118 made an
+    /// unresolvable anchor a cut, CR122 committed harness bodies that had been refused. In
+    /// production 11 of the 14 comparable chapters diverged, in both directions, and each one
+    /// failed the publication half of its Journey's next compaction. Integrity is still enforced,
+    /// on read, by hash against the completion receipt.
+    ///
+    /// The branch still reads the file, for one reason only: to notice that it holds nothing and
+    /// heal it (CR120).
+    DeferToPublishedFile,
     /// CR118: the supplied projection is empty only because the durable turn ledger can no longer
     /// see this chapter, not because its content changed. The published file is the surviving copy
     /// of that history, so it stays and the projection is dropped. Treating this as a divergence
@@ -4672,7 +4682,7 @@ fn closed_segment_publication_decision(
     if was_prior_current {
         return ClosedSegmentPublication::Write;
     }
-    ClosedSegmentPublication::VerifyImmutable
+    ClosedSegmentPublication::DeferToPublishedFile
 }
 
 /// CR120: whether a published chapter file holds no conversation at all.
@@ -4841,24 +4851,25 @@ fn publish_conversation_segment_projections(
                 skipped_published_closed = true;
                 continue;
             }
-            ClosedSegmentPublication::VerifyImmutable => {
+            ClosedSegmentPublication::DeferToPublishedFile => {
                 let published = fs::read(&path)
-                    .map_err(|_| "Could not verify immutable Conversation Segment.".to_string())?;
-                if published != projection.payload.as_bytes() {
-                    // CR120: an empty published file is the damage, not the history, so it is healed
-                    // rather than defended. This is the exact converse of CR118's rule: there an
-                    // empty *projection* deferred to the file that still held the chapter; here a
-                    // file that holds nothing yields to the projection that does. It cannot lose a
-                    // chapter with content, because the decision above only reaches this branch when
-                    // the projection has messages, and only this branch when the file is empty.
-                    if published_chapter_is_empty(&published) {
-                        let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
-                        write_durable_projection_at(&path, projection.payload.as_bytes(), nonce)
-                            .map_err(|_| "Could not durably heal an empty Conversation Segment.".to_string())?;
-                    } else {
-                        return Err("Immutable Conversation Segment projection diverged.".to_string());
-                    }
+                    .map_err(|_| "Could not read a published Conversation Segment.".to_string())?;
+                // CR120: an empty published file is the damage, not the history, so it is healed
+                // rather than deferred to. This is the exact converse of CR118's rule: there an
+                // empty *projection* deferred to the file that still held the chapter; here a file
+                // that holds nothing yields to the projection that does. Bytes that cannot be
+                // parsed are deliberately not empty — that is a different damage, and overwriting
+                // it unexamined would be worse than leaving it alone.
+                if !published_chapter_is_empty(&published) {
+                    // CR124: the file stays, and so does the receipt entry describing it. Falling
+                    // through would record this projection's hash against a file it does not match,
+                    // which would turn a benign difference into a failed verification on read.
+                    skipped_published_closed = true;
+                    continue;
                 }
+                let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+                write_durable_projection_at(&path, projection.payload.as_bytes(), nonce)
+                    .map_err(|_| "Could not durably heal an empty Conversation Segment.".to_string())?;
             }
             ClosedSegmentPublication::Write => {
                 let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
@@ -10543,11 +10554,42 @@ mod tests {
         );
     }
 
+    // CR124: replaces `a_closed_projection_with_content_is_still_immutable`. A published closed
+    // chapter is the authority for its own history, so the publisher defers to its file instead of
+    // demanding that a freshly derived projection match it byte for byte. The projection is derived
+    // from a ledger whose window and turn boundaries change by design, so byte equality was an
+    // invariant the system never maintained: 11 of the 14 comparable chapters in production
+    // diverged, in both directions.
     #[test]
-    fn a_closed_projection_with_content_is_still_immutable() {
+    fn a_published_closed_chapter_is_deferred_to_rather_than_verified() {
         assert_eq!(
             closed_segment_publication_decision("closed", 9, true, false),
-            ClosedSegmentPublication::VerifyImmutable,
+            ClosedSegmentPublication::DeferToPublishedFile,
+        );
+    }
+
+    #[test]
+    fn deferring_still_comes_after_the_rules_that_protect_content() {
+        // Nothing about CR124 may reach a chapter that would be erased or left unwritten.
+        assert_eq!(
+            closed_segment_publication_decision("closed", 0, true, false),
+            ClosedSegmentPublication::SkipPublished,
+        );
+        assert_eq!(
+            closed_segment_publication_decision("closed", 0, true, true),
+            ClosedSegmentPublication::SkipPublished,
+        );
+        assert_eq!(
+            closed_segment_publication_decision("closed", 7, true, true),
+            ClosedSegmentPublication::Write,
+        );
+        assert_eq!(
+            closed_segment_publication_decision("closed", 7, false, false),
+            ClosedSegmentPublication::Write,
+        );
+        assert_eq!(
+            closed_segment_publication_decision("current", 0, true, false),
+            ClosedSegmentPublication::Write,
         );
     }
 

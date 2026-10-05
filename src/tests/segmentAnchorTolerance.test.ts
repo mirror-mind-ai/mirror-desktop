@@ -212,9 +212,35 @@ describe("CR120: two adjacent chapters sharing one anchor", () => {
   });
 
   it("heals an empty published file instead of refusing to publish over it", () => {
-    expect(tauriSource).toContain("if published_chapter_is_empty(&published) {");
+    expect(tauriSource).toContain("if !published_chapter_is_empty(&published) {");
     expect(tauriSource).toContain("Could not durably heal an empty Conversation Segment.");
-    // A chapter that holds messages is still immutable.
-    expect(tauriSource).toContain("Immutable Conversation Segment projection diverged.");
+  });
+
+  // CR124: the byte-compare asserted an invariant the system does not maintain. The file is
+  // immutable; the projection is re-derived from a ledger whose window and boundaries change by
+  // design. In production 11 of 14 comparable chapters diverged, in both directions.
+  it("defers to a published chapter that holds content instead of failing on it", () => {
+    expect(tauriSource).not.toContain("Immutable Conversation Segment projection diverged.");
+    expect(tauriSource).toContain("ClosedSegmentPublication::DeferToPublishedFile");
+  });
+
+  it("leaves the receipt entry alone for a chapter it defers to", () => {
+    // The safety property. The hash is pushed after the match, so falling through would record this
+    // projection's hash against a file it does not match — turning a benign difference into a
+    // failed verification on read, which is strictly worse than the failure being removed.
+    const branch = tauriSource.slice(
+      tauriSource.indexOf("ClosedSegmentPublication::DeferToPublishedFile => {"),
+      tauriSource.indexOf("ClosedSegmentPublication::Write => {"),
+    );
+    expect(branch).toContain("skipped_published_closed = true;");
+    expect(branch).toContain("continue;");
+    expect(branch.indexOf("continue;")).toBeLessThan(branch.indexOf("write_durable_projection_at"));
+  });
+
+  it("keeps enforcing a published chapter's integrity where it is read", () => {
+    // Removing the publish-time compare removes no detection: the receipt's hash is verified when a
+    // chapter is actually used, which is where corruption would matter.
+    expect(tauriSource).toContain("Conversation Segment projection failed verification.");
+    expect(tauriSource).toContain("Current Conversation Segment projection failed verification.");
   });
 });

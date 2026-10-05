@@ -111,9 +111,12 @@ describe("what a compaction republishes", () => {
   const projection = (segmentId: string, status: "closed" | "current") =>
     ({ segmentId, status, conversation: {} }) as never;
 
-  // A compaction closes one chapter and opens the next. Everything older is already
-  // durable and byte-identical on disk; republishing it from a fresh Pi projection is what
-  // produced "Immutable Conversation Segment projection diverged."
+  // A compaction closes one chapter and opens the next. Everything older is already durable on
+  // disk, and republishing it from a fresh Pi projection is what used to produce
+  // "Immutable Conversation Segment projection diverged." — removed in CR124, because the file is
+  // the authority for a published chapter. This narrowing is the manual path only: the settlement
+  // path still supplies every chapter when a compaction settles during a turn, which is why the
+  // native rule had to be the fix rather than this one.
   it("republishes only the chapter that closed and the one that opened", () => {
     const all = [projection("s1", "closed"), projection("s2", "closed"), projection("s3", "current")];
     expect(segmentProjectionsTouchedByCompaction(all)).toEqual([all[1], all[2]]);
