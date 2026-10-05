@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.37 — What Is Already There Keeps Its Place](v0.2.0-alpha.37.md) — A chapter that closes empty no longer writes nothing over its own history, three Journeys that failed to publish on every compaction can publish again, and the Conversation stops sliding away from the turn you were reading.
 - [v0.2.0-alpha.36 — A Failure That Says Its Own Name](v0.2.0-alpha.36.md) — A failed settlement records why it failed and which step it was in, and two Journeys that could not publish a chapter on any turn can finally write the receipt they were being asked to already have.
 - [v0.2.0-alpha.35 — A Count That Means One Thing](v0.2.0-alpha.35.md) — A turn is no longer refused because less history was on screen than last time, a Journey stops reporting a conflict it resolved weeks ago, and a stored conversation can no longer be discarded over a value the app computes itself.
 - [v0.2.0-alpha.34 — A Finish You Can See Through](v0.2.0-alpha.34.md) — A Journey tolerates a chapter anchored beyond the history its ledger can see, and a long Finishing names the step it is in while recording where its time went.
