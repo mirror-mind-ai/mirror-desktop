@@ -16,6 +16,8 @@ Maintainers preparing a versioned candidate should follow the [versioned macOS r
 
 The read-only self-update discovery contract lives in [docs/update/trusted-self-update.md](docs/update/trusted-self-update.md). It defines the update manifest, compatibility decision and no-mutation boundary before any download or installation work.
 
+The durable state a turn settles into is documented in [docs/architecture/settlement-durable-state-model.md](docs/architecture/settlement-durable-state-model.md). It inventories the eleven artifacts on the settlement path, the order in which a turn touches them, which relations between them are enforced invariants and which are only bounds or lags, and what recovery is permitted to do. Its claims are re-checkable with the read-only scripts in `scripts/diagnostics/`.
+
 Local voice prompt composition is documented in [docs/architecture/voice-transcription.md](docs/architecture/voice-transcription.md). It defines the optional managed `whisper.cpp` component, its Mirror-controlled manifest, the bounded native transcription boundary and the draft-authority rules that keep transcription outside Mirror Core, Pi and the network.
 
 ## Website
