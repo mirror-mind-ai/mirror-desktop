@@ -2,7 +2,7 @@
 
 # CR120: Stop a Closing Chapter From Erasing Its Own File
 
-**Status:** planned
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr120-closing-chapter-write-guard`
 
@@ -289,6 +289,98 @@ with a correct domain rule and a wrong wiring.
 - **D3 — whether the shared anchor itself is a defect.** It is recorded here as the upstream cause
   and deliberately left to its own CR, since it is reachable in six generations and changing it
   touches the authority CR118 declined to replace.
+
+## Implementation and closure (2026-10-05)
+
+All three slices landed as planned. The decision table is reordered, an empty published file is
+healed rather than defended, and the shared-anchor shape is pinned end to end.
+
+**Slice 1.** `closed_segment_publication_decision` now judges emptiness before the prior-current
+exemption. `the_segment_that_was_current_is_written_even_when_it_closes_empty` is replaced by
+`a_closing_chapter_supplied_empty_never_overwrites_its_own_file`, which asserts the opposite and
+carries the reason in its name. Its non-empty half is split into its own test, because that case is
+why the exemption exists and must keep passing.
+
+**Slice 2.** In the `VerifyImmutable` branch the publisher already holds the file's bytes, so
+`published_chapter_is_empty` costs no extra read. When the file parses to a chapter with no messages
+and the projection has some, the file is rewritten. Unreadable or unexpected bytes are deliberately
+**not** treated as empty: a corrupt file is a different damage, and healing it would overwrite
+something never examined, so publication still fails loudly there.
+
+**Slice 3.** `segmentAnchorTolerance.test.ts` gains the shared-anchor shape with four cases,
+including two that assert the **native wiring** — that emptiness is judged before the exemption, and
+that the healing branch exists. That is the half CR118 got wrong: a correct domain rule with a wrong
+native ordering.
+
+**Gates:** `tsc` clean, **231 test files / 1,656 tests**, `cargo test` **256 passed / 3 ignored**,
+`cargo check --locked`, build clean, roadmap READY.
+
+## Correction: this does not make a compaction succeed
+
+The plan's **What This Predicts** and **Recoverability** sections said the next compaction would fail
+before this shipped and would heal `segment-30` after it. The first half is right and the second is
+**incomplete**, and the difference was found by replaying the current store rather than trusting the
+prediction.
+
+What actually happens at the next compaction in `mirror-desktop`, measured:
+
+| chapter | supplied | file | decision | outcome |
+|---|---:|---:|---|---|
+| 1 – 28 | 0 | present | `SkipPublished` | untouched, CR118's rule |
+| `segment-29` | 0 | 30 msgs | `SkipPublished` | untouched |
+| `segment-30` | 22 | **0 msgs** | `VerifyImmutable` | **healed — 22 messages restored** |
+| `segment-31` | 16 | 17 msgs | `VerifyImmutable` | **diverges, publication fails** |
+
+`segment-30` is healed and stays healed: the write is atomic and happens before the loop reaches
+`segment-31`, so the content returns even though that compaction then fails. That part of the claim
+holds.
+
+But `segment-31` fails for a reason this CR does not address. Its file was written at `21:07:37`
+while it was the current chapter and held ten turns. The compaction at `21:21:38` closed it at a
+boundary that excludes the last of those, which became `segment-32`'s anchor — and the compaction
+never rewrote the file, because its publication had already aborted on `segment-30`. So the file is
+stale by exactly one turn, and a byte compare against a freshly derived projection cannot match.
+
+**This is not one chapter.** Replaying every closed chapter a compaction would supply non-empty:
+**11 of 14 diverge, across three Journeys** — `livro-lideranca-soberana` segments 2 through 8,
+`mirror-desktop` `segment-31`, `alissonvale-com` `segment-9`. In `livro` the files hold roughly twice
+the turns the ledger now supplies, matching the manifest's own `turnCount` while the partition
+supplies fewer.
+
+So the immutability byte-compare asserts an invariant the system does not maintain: the file is
+immutable, but the projection is re-derived from a ledger whose window and turn boundaries keep
+changing — by design, through CR114, CR118 and CR122. CR118's own comment already names this disease
+for the empty case, "turning a stale manifest into a failed compaction"; the non-empty case is the
+same illness untreated.
+
+Captured as [CR124](cr124-stop-verifying-a-published-chapter-against-a-moving-projection.md). It is
+not folded in here: removing or weakening an immutability guard is a decision of its own, and this
+CR's three slices are correct and worth shipping on their own.
+
+## Closure review
+
+**Proportionality: proportional.** One condition moved, one pure helper added, one branch given an
+alternative, and tests. No new artifact, no schema change, no renderer change, no repair script.
+
+**Debt review: follow_up.** Four items, none selected.
+
+**CR124 is the first and is the reason a compaction still fails.** Until it is decided,
+`mirror-desktop`, `livro-lideranca-soberana` and `alissonvale-com` will each fail the publication half
+of their next compaction. Settlement completes through recovery, as it has been doing, so nothing is
+lost and the cost is the `Finishing` detour.
+
+**The shared anchor is still the upstream cause and still unaddressed** (D3). Two chapters resolving
+to one turn is what hands the earlier one an empty slice on every settlement, and five of fourteen
+manifests carry the shape. CR118's skip rule and this CR's ordering make it harmless rather than
+absent.
+
+**No field verification.** Dev's manifests do not carry the shared-anchor shape, and the production
+test is a compaction, which cannot be scheduled. The healing of `segment-30` is the observable event
+and it is owed at the next compaction in `mirror-desktop`.
+
+**The receipt will still record the stale hash for a chapter that failed to publish**, because the
+hash is only rewritten for chapters the loop processes. That is pre-existing and consistent with the
+receipt being a lower bound rather than an authority.
 
 ## Dependencies
 

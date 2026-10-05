@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { JourneyConversation } from "../domain/journeyConversation";
 import type { ConversationSegment, ConversationSegmentManifest } from "../domain/conversationSegments";
 import { partitionConversationBySegments } from "../domain/conversationSegmentProjection";
+import tauriSource from "../../src-tauri/src/main.rs?raw";
 
 // CR118: production shape. A Journey's durable turn ledger was truncated from the front by the
 // pre-CR114 Segment publication overwrite, while its manifest kept anchors written when the ledger
@@ -153,5 +154,67 @@ describe("CR118: a Segment anchored outside the ledger it can see", () => {
       expect(projection.conversation.messages.map((message) => message.id).sort())
         .toEqual([...owned].sort());
     }
+  });
+});
+
+// CR120: the production shape that destroyed a chapter. A compaction's retained tail is deliberately
+// shared between the chapter that closes and the one that opens, and the native refresh picks
+// `firstTurnId` as the first turn whose entry falls in the chapter's range, so two adjacent chapters
+// can legitimately resolve to one turn. Nothing requires anchors to be distinct, and five of the
+// store's fourteen manifests carry the shape.
+//
+// This pins the end-to-end behaviour rather than only the decision function, because CR118 shipped a
+// correct domain rule with a wrong native wiring and that is how `segment-30` lost 22 messages.
+describe("CR120: two adjacent chapters sharing one anchor", () => {
+  it("gives the earlier chapter an empty slice and the later one the turns", () => {
+    const conversation = conversationWithTurns([1, 2, 3, 4, 5]);
+    // segment-1 and segment-2 share turn-1, exactly as production's segment-29 and segment-30 do.
+    const manifest = manifestOf(["turn-1", "turn-1", "turn-3", "turn-5"]);
+    const projections = partitionConversationBySegments(conversation, manifest);
+
+    expect(projections.map((projection) => projection.segmentId))
+      .toEqual(["segment-1", "segment-2", "segment-3", "segment-4"]);
+    // The earlier of the two is handed nothing. Its published file is the only copy of its history.
+    expect(turnIdsOf(projections[0]!.conversation)).toEqual([]);
+    expect(projections[0]!.conversation.messages).toEqual([]);
+    // The later one owns the turns up to the next anchor.
+    expect(turnIdsOf(projections[1]!.conversation)).toEqual(["turn-1", "turn-2"]);
+    expect(turnIdsOf(projections[2]!.conversation)).toEqual(["turn-3", "turn-4"]);
+    expect(turnIdsOf(projections[3]!.conversation)).toEqual(["turn-5"]);
+  });
+
+  it("is the shape that reaches the publisher on every compaction, not a rare one", () => {
+    // Two chapters sharing an anchor, and a third unanchored: the earlier chapters are offered
+    // empty while their files hold the history. CR118's skip rule is what keeps that harmless, so
+    // it is load-bearing rather than defensive.
+    const conversation = conversationWithTurns([1, 2, 3]);
+    const projections = partitionConversationBySegments(
+      conversation,
+      manifestOf([undefined, "turn-1", "turn-1", "turn-3"]),
+    );
+    expect(projections.map((projection) => turnIdsOf(projection.conversation)))
+      .toEqual([[], [], ["turn-1", "turn-2"], ["turn-3"]]);
+  });
+
+  it("makes the native publisher judge emptiness before the prior-current exemption", () => {
+    // The wiring half. An empty slice only stays harmless if the publisher refuses to write it, and
+    // the exemption for the chapter that was current must not reach a chapter supplied with nothing.
+    const decision = tauriSource.slice(
+      tauriSource.indexOf("fn closed_segment_publication_decision"),
+      tauriSource.indexOf("fn published_chapter_is_empty"),
+    );
+    expect(decision).toContain('if status != "closed" || !file_exists {');
+    expect(decision.indexOf("if message_count == 0 {"))
+      .toBeLessThan(decision.indexOf("if was_prior_current {"));
+    // and the exemption must still exist, or a chapter closing with content would be verified
+    // against the shorter file it had while current
+    expect(decision).toContain("if was_prior_current {");
+  });
+
+  it("heals an empty published file instead of refusing to publish over it", () => {
+    expect(tauriSource).toContain("if published_chapter_is_empty(&published) {");
+    expect(tauriSource).toContain("Could not durably heal an empty Conversation Segment.");
+    // A chapter that holds messages is still immutable.
+    expect(tauriSource).toContain("Immutable Conversation Segment projection diverged.");
   });
 });

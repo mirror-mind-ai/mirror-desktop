@@ -4654,13 +4654,40 @@ fn closed_segment_publication_decision(
     file_exists: bool,
     was_prior_current: bool,
 ) -> ClosedSegmentPublication {
-    if status != "closed" || !file_exists || was_prior_current {
+    // The current Segment is always written, and a closed Segment with no file must get one: the
+    // completion receipt and the history load both expect a file per manifest Segment.
+    if status != "closed" || !file_exists {
         return ClosedSegmentPublication::Write;
     }
+    // CR120: emptiness is judged before the prior-current exemption, and the order is the whole
+    // defect. CR118 established that an empty closed projection defers to the file that still holds
+    // the chapter — but `was_prior_current` was tested first, so the one closed Segment that is
+    // exempt from immutability was also exempt from that rule. In production `segment-30` closed
+    // with an empty slice while it was the prior current Segment, and wrote none over its own 22
+    // messages. The exemption exists to let a chapter closing with *content* replace the shorter
+    // file it had while current; it was never meant to authorise writing nothing.
     if message_count == 0 {
         return ClosedSegmentPublication::SkipPublished;
     }
+    if was_prior_current {
+        return ClosedSegmentPublication::Write;
+    }
     ClosedSegmentPublication::VerifyImmutable
+}
+
+/// CR120: whether a published chapter file holds no conversation at all.
+///
+/// Used only inside the branch that has already read those bytes to compare them, so recognising
+/// this costs no extra read and the chapters skipped as already published are still never opened.
+///
+/// Unreadable or unexpected bytes are deliberately **not** empty. A corrupt file is a different
+/// damage from an empty chapter, and healing it would overwrite something that was never examined,
+/// so publication keeps failing loudly for that case.
+fn published_chapter_is_empty(published: &[u8]) -> bool {
+    serde_json::from_slice::<Value>(published).ok()
+        .and_then(|value| value.pointer("/conversation/messages")
+            .and_then(Value::as_array).map(|messages| messages.is_empty()))
+        .unwrap_or(false)
 }
 
 /// CR123: how many messages the history holds, for the receipt about to be written.
@@ -4815,10 +4842,22 @@ fn publish_conversation_segment_projections(
                 continue;
             }
             ClosedSegmentPublication::VerifyImmutable => {
-                if fs::read(&path).map_err(|_| "Could not verify immutable Conversation Segment.".to_string())?
-                    != projection.payload.as_bytes()
-                {
-                    return Err("Immutable Conversation Segment projection diverged.".to_string());
+                let published = fs::read(&path)
+                    .map_err(|_| "Could not verify immutable Conversation Segment.".to_string())?;
+                if published != projection.payload.as_bytes() {
+                    // CR120: an empty published file is the damage, not the history, so it is healed
+                    // rather than defended. This is the exact converse of CR118's rule: there an
+                    // empty *projection* deferred to the file that still held the chapter; here a
+                    // file that holds nothing yields to the projection that does. It cannot lose a
+                    // chapter with content, because the decision above only reaches this branch when
+                    // the projection has messages, and only this branch when the file is empty.
+                    if published_chapter_is_empty(&published) {
+                        let nonce = persistence.staged_sequence.fetch_add(1, Ordering::Relaxed);
+                        write_durable_projection_at(&path, projection.payload.as_bytes(), nonce)
+                            .map_err(|_| "Could not durably heal an empty Conversation Segment.".to_string())?;
+                    } else {
+                        return Err("Immutable Conversation Segment projection diverged.".to_string());
+                    }
                 }
             }
             ClosedSegmentPublication::Write => {
@@ -9750,6 +9789,7 @@ mod tests {
         append_settlement_timing_record,
         SETTLEMENT_TIMING_MAX_FILE_BYTES, SETTLEMENT_TIMING_MAX_RECORDS,
         closed_segment_publication_decision, ClosedSegmentPublication,
+        published_chapter_is_empty,
         receipt_historical_message_count, published_closed_message_count,
         classify_pi_process_terminal, classify_rpc_process_terminal, cleanup_stale_terminal_handoffs,
         compiled_runtime_channel,
@@ -10521,16 +10561,49 @@ mod tests {
         );
     }
 
+    // CR120: this replaces `the_segment_that_was_current_is_written_even_when_it_closes_empty`,
+    // which asserted the behaviour that destroyed a chapter. The prior-current exemption exists so
+    // that a chapter closing with real content is written over the stale file it had while current.
+    // It was tested before emptiness, so a chapter that closed with an *empty* slice was written
+    // too — and in production `segment-30` overwrote 22 messages of its own history with none.
+    // Emptiness is now judged first, and the exemption only decides what to do with content.
     #[test]
-    fn the_segment_that_was_current_is_written_even_when_it_closes_empty() {
+    fn a_closing_chapter_supplied_empty_never_overwrites_its_own_file() {
         assert_eq!(
             closed_segment_publication_decision("closed", 0, true, true),
-            ClosedSegmentPublication::Write,
+            ClosedSegmentPublication::SkipPublished,
         );
+    }
+
+    #[test]
+    fn a_closing_chapter_supplied_with_content_is_still_written_over_its_stale_file() {
+        // The reason the exemption exists: while it was current the file held fewer turns than the
+        // chapter finally closed with, so it must be rewritten rather than verified.
         assert_eq!(
             closed_segment_publication_decision("closed", 7, true, true),
             ClosedSegmentPublication::Write,
         );
+    }
+
+    // CR120 slice 2: an empty published file is the damage, not the history. The publisher already
+    // holds those bytes in the branch that compares them, so healing costs no extra read.
+    #[test]
+    fn an_empty_published_chapter_is_recognised_so_it_can_be_healed() {
+        let empty = json!({ "conversation": { "messages": [] } }).to_string();
+        assert!(published_chapter_is_empty(empty.as_bytes()));
+        let holds = json!({ "conversation": { "messages": [{ "id": "u" }] } }).to_string();
+        assert!(!published_chapter_is_empty(holds.as_bytes()));
+    }
+
+    #[test]
+    fn a_published_chapter_that_cannot_be_read_is_not_treated_as_empty() {
+        // A corrupt file is a different damage from an empty chapter. Healing it would overwrite
+        // something unexamined, so publication must keep failing loudly instead.
+        assert!(!published_chapter_is_empty(b"{ not json"));
+        assert!(!published_chapter_is_empty(b""));
+        // A shape with no messages array at all says nothing about emptiness either.
+        assert!(!published_chapter_is_empty(json!({ "conversation": {} }).to_string().as_bytes()));
+        assert!(!published_chapter_is_empty(json!({ "messages": [] }).to_string().as_bytes()));
     }
 
     #[test]

@@ -28,49 +28,19 @@ Refinement authority; SQLite must not be consulted or dual-written.
   regressions, 17 production turns sit with a pending harness body, that body is CR121's throw, and
   12 of 20 Journeys read `conflicted` because reason codes never clear. Content is safe in Mirror.
   Recommended as the next pull, ahead of CR120 and in place of CR121's investigation
-- Change Request: CR120, `planned` under @alissonvale with Delivery
-  `refinement/rs016-cr120-closing-chapter-write-guard`, diagnosed on 2026-10-04. The fix is one
-  misordered condition plus a healing rule, which removes the need for a manual store repair. The
-  shared-anchor cause upstream of it is recorded and left to its own CR, since six production
-  generations already carry that shape. CR121 is `captured` and was **narrowed to the
-  instrument** once CR122 established its cause: it keeps carrying the error in the timing record and
-  timing the two untimed settlement steps, and no longer owns the investigation. Originally captured as: found
-  while verifying the `alpha.34` upgrade rather than reported. In production `mirror-desktop`, closed chapter `segment-30` holds zero
-  messages in a 592 KB file while its manifest entry claims 13 turns and the ledger says 22
-  messages. The cause is the `was_prior_current` exception in CR118's publication decision: a
-  closing chapter is always written, and that is the one write not checked for emptiness. It
-  predicts that the next compaction in that Journey fails settlement on an immutability divergence,
-  while ordinary turns keep succeeding. No conversation is unrecoverable. CR097 remains the
-  recommended product continuation. CR119 is `done` under @alissonvale, closed on 2026-10-04 after a
-  Navigator-run Dev smoke pass verified on disk: one record per settled turn, depth-0 phases summing
-  to 2,021 ms of a 2,026 ms window, and the turn journal independently agreeing. Settlement is now
-  measurable per phase and `Finishing` names its phase once a wait has visibly begun. Nothing is
-  reduced: the first reading puts 75% of a fast settlement in the Mirror append, but it is one turn
-  in a tiny Journey and cannot speak for the production tail. Slice 4, the production reading, is
-  deliberately outside the closure and is the input to any reduction CR, as is D2 on unblocking
-  sending. CR097 is the recommended next selection. Measurement across all 569 timed production records found two phenomena, not
-  one, and eliminated four candidate causes — including the strongest, a full-session read at
-  settlement, which the code disproves. The plan therefore measures per phase before reducing
-  anything. CR118 is `done` under @alissonvale, closed on 2026-10-04 after a
-  Navigator-run Dev smoke pass confirmed on disk. An unresolvable anchor is now a cut wherever it
-  sits, an empty closed projection defers to the file that still holds the chapter, and one
-  settlement fault yields one notice. Publishing only what changed on compaction was left out and is
-  recommended as its own CR. The work is defensive: the `alpha.33` upgrade removed the condition from
-  the only store known to reach it, so field proof has not happened. CR119 is `captured` and
-  unplanned. CR097 is the recommended next selection. CR117 is `done` under @alissonvale after being closed, **reopened**
-  and closed again on 2026-10-03, the second closure resting on Navigator validation of the guard
-  repair. Its first closure was premature: pulling CR097 found that a correction reaching `delivered` never acquired
-  `piUserEntryId`, because the status list was hand-written in four places and the two guards in
-  `App.tsx` that decide whether reconciliation runs were missed. The repair removes the duplication
-  rather than patching the guards, and two further members of the same defect class were closed with
-  it. Gates are green; re-homologation of the terminal step is outstanding. Its earlier closure
-  record is preserved rather than overwritten. That closure read: CR117 closed both
-  correction-surface observations it was captured for: a
-  correction now reaches a `delivered` status while the run is still alive, driven by a Pi event the
-  Desktop had been discarding, and it is drawn in the card of the run it corrected instead of under
-  a prompt scrolled out of view. Its slice 1 spike both settled the mechanism and falsified one of
-  its own planning assumptions, and round 1 of homologation exposed a defect in its own wiring,
-  fixed in round 2. CR116 is `done` under @alissonvale after Dev validation on the same day.
+- Change Request: CR124 is `captured`, found while closing CR120 by replaying the store instead of
+  trusting CR120's own prediction. The publish-time immutability byte-compare asserts an invariant
+  the system does not maintain: the chapter file is immutable while the projection is re-derived
+  from a ledger whose window and boundaries change by design, so **11 of 14** comparable closed
+  chapters diverge across three Journeys, and each will fail the publication half of its next
+  compaction. The guard is also redundant — a published chapter's integrity is already verified on
+  read by hash against the receipt. Nothing is lost; recovery settles the turn
+- Change Request: CR120 is `done`. Its three slices shipped and are correct — emptiness is now
+  judged before the prior-current exemption, an empty published file is healed rather than
+  defended, and the shared-anchor shape is pinned end to end including the native wiring. Its
+  closure **corrects its own prediction**: `segment-30`'s 22 messages are restored at the next
+  compaction and that compaction still fails, on `segment-31`, for the reason CR124 now carries
+
 - Change Request: CR097, pulled into focus on 2026-10-03 by explicit Navigator intent. It is
   `in_progress` under @alissonvale on `refinement/rs021-cr097-restored-correction-identity`. Pulling
   it executed the slice 1 instruction to record CR117's landing, and that record inverted one of
@@ -125,7 +95,8 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR123](rs016-ongoing-product-improvements-and-adjustments/cr123-let-a-journey-mint-its-first-publication-receipt.md) | RS016 | Let a Journey Mint Its First Publication Receipt | done | @alissonvale | `refinement/rs016-cr123-first-publication-receipt` |
 | — | [CR122](rs016-ongoing-product-improvements-and-adjustments/cr122-make-the-checkpoint-count-the-same-thing-every-turn.md) | RS016 | Make the Checkpoint Count the Same Thing Every Turn | done | @alissonvale | `refinement/rs016-cr122-harness-checkpoint-identity` |
 | — | [CR121](rs016-ongoing-product-improvements-and-adjustments/cr121-name-the-settlement-that-fails-before-recovery-saves-it.md) | RS016 | Name the Settlement That Fails Before Recovery Saves It | done | @alissonvale | `refinement/rs016-cr121-settlement-failure-legibility` |
-| — | [CR120](rs016-ongoing-product-improvements-and-adjustments/cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) | RS016 | Stop a Closing Chapter From Erasing Its Own File | planned | @alissonvale | `refinement/rs016-cr120-closing-chapter-write-guard` |
+| — | [CR124](rs016-ongoing-product-improvements-and-adjustments/cr124-stop-verifying-a-published-chapter-against-a-moving-projection.md) | RS016 | Stop Verifying a Published Chapter Against a Moving Projection | captured | — | — |
+| — | [CR120](rs016-ongoing-product-improvements-and-adjustments/cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) | RS016 | Stop a Closing Chapter From Erasing Its Own File | done | @alissonvale | `refinement/rs016-cr120-closing-chapter-write-guard` |
 | — | [CR116](rs016-ongoing-product-improvements-and-adjustments/cr116-release-a-journey-stranded-in-finishing.md) | RS016 | Release a Journey Stranded in Finishing | done | @alissonvale | `refinement/rs016-cr116-stranded-finalization-recovery` |
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
 | 2 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | done | @alissonvale | `refinement/rs021-cr105-agentic-map` |
