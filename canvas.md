@@ -24,7 +24,7 @@
 | ↳ CR115 · Stop the Idle Post-Terminal Recovery Loop | ✅ done · aceita com CR113 | `██████████` |
 | ↳ 24 Change Requests anteriores | ✅ done · 4 promovidas · 1 descartada | `██████████` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa · CR097 em voo | `████████░░` 28/34 fechadas |
-| ↳ **CR097 · Keep a Correction Recognisable After Reload** | 🧪 in_progress · desbloqueada · fatia 1 falsificada | `██░░░░░░░░` faltam fatias 2–5 |
+| ↳ **CR097 · Keep a Correction Recognisable After Reload** | ✅ done · 8 de 8 correções reais corrigidas | `██████████` |
 | ↳ **CR114 · Make the Current Segment the Default Working Set** | ✅ done · publicada em alpha.31 · **gatilho do arco, não a causa** | `██████████` |
 | ↳ CR113 · Make Composer Typing Responsive in Large Journeys | ✅ done · aceita com CR115 | `██████████` |
 | ↳ CR112 · Host a Canvas the Journey's Agent Draws | ✅ done · publicada em alpha.29 · status reconciliado | `██████████` |

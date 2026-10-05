@@ -140,6 +140,14 @@ export type JourneyConversation = {
   // holds its work. Derived on every reconstruction from the durable turn evidence, never stored
   // as message content.
   interruptedFragments?: Record<string, string>;
+  /**
+   * CR097: for a run whose answer never existed, the projected message that stands in for it, keyed
+   * by the harness assistant message the correction's evidence names. A cancelled run has no bound
+   * assistant message, so without this a restored correction has nothing to attach to. Derived on
+   * every reconstruction and never persisted — the durable record keeps naming the harness message,
+   * because rewriting it here would be saved by the next write.
+   */
+  correctionAnchors?: Record<string, string>;
 };
 
 /**

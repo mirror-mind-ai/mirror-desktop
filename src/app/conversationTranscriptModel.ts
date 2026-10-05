@@ -21,10 +21,15 @@ export function buildConversationTranscriptIndex(
   }
 
   const steeringByAssistantMessageId = new Map<string, SteeringEvidence[]>();
+  // CR097: a correction names the harness assistant message of the run it corrected. For a run that
+  // was cancelled that message never existed, so the projection says which message stands in for it
+  // and the correction is drawn there instead of nowhere.
+  const correctionAnchors = conversation.correctionAnchors ?? {};
   for (const evidence of conversation.steeringEvidence ?? []) {
-    const current = steeringByAssistantMessageId.get(evidence.assistantMessageId) ?? [];
+    const key = correctionAnchors[evidence.assistantMessageId] ?? evidence.assistantMessageId;
+    const current = steeringByAssistantMessageId.get(key) ?? [];
     current.push(evidence);
-    steeringByAssistantMessageId.set(evidence.assistantMessageId, current);
+    steeringByAssistantMessageId.set(key, current);
   }
   for (const evidence of steeringByAssistantMessageId.values()) {
     evidence.sort((left, right) => left.sequence - right.sequence);

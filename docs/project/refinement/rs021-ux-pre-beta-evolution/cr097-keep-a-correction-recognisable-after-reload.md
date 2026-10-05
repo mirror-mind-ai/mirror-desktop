@@ -2,7 +2,7 @@
 
 # CR097: Keep a Correction Recognisable After Reload
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr097-restored-correction-identity`
 
@@ -266,6 +266,118 @@ this one: a non-recursive glob missed every Pi session, and an assumed entry sha
 `content` at the top level when they live under `.message`. Each wrong version produced a confident,
 plausible, false answer — once "absent from its own session" for entries that were present. The
 numbers above are from the version checked against a raw session line.
+
+## Slices 2–5 Implemented (2026-10-05)
+
+Pulled by explicit Navigator intent after slice 1's falsification. The plan's premise was wrong in a
+way that would have shipped an inert change, and finding that out is most of this entry.
+
+### The correction was not an extra message — it was wearing the request's identity
+
+The plan expected a restored correction to be projected as an unbound `pi-<entryId>` user message
+beside the real request. Replaying the claim rule against the store refused **all eight** real
+corrections, which meant the fix would have done nothing. The reason is that every corrected turn
+records the **correction** as its own `pi.userEntryId`, not the request — verified on all eight, where
+the turn naming the correction's entry is always the correction's own turn:
+
+```text
+flip-website  correction entry 28766532
+  evidence.turnId                 turn-agent-run-2026-10-03T14:49:30.230Z
+  turn claiming it as its request turn-agent-run-2026-10-03T14:49:30.230Z   <- the same turn
+  harness.userMessageId           user-2026-10-03T14:49:30.230Z
+```
+
+Since the projection binds `turn.pi.userEntryId → turn.harness.userMessageId`, the **correction was
+being dressed in the request's harness identity** and the request was left as an anonymous
+`pi-<entryId>` message. So the symptom is sharper than reported: it is not that a correction looks
+like a new question, it is that the correction and the request **swap places**. The orphaned
+"question nobody answered" was the Navigator's own original request.
+
+Two consequences for the plan. The ambiguity rule had to be rewritten — a turn naming the entry is
+the normal state, and only *another* turn naming it is genuine ambiguity. And a slice the plan did
+not contain became necessary: the request has to take its identity back, or suppressing the
+correction would leave the turn with no request at all.
+
+### What was built
+
+**Slice 2 — a correction is not a run boundary.** `matchInterruptedTurnsByUserEntryId` takes the
+claimed set and a claimed entry no longer closes the window, while still advancing the timeline so
+the next request's window opens where it should. The main loop likewise does not `closeRun()` on a
+claimed entry, so a corrected run's operations stay one run with one turn record.
+
+**Slice 2 — a claim that cannot be trusted is refused,** and refusing falls back to exactly today's
+behaviour rather than to something new. A duplicate claim and a cross-turn claim are both dropped. The
+direction is deliberate: a correction shown as a request is wrong but visible, while honouring a bad
+claim would hide a message.
+
+**Slice 3 — the correction leaves the transcript.** Live, a correction is never a message:
+`steeringState.ts` touches `messages` nowhere, and CR117 draws corrections inside the run they
+corrected from their own evidence. A reload now restores the same thing, so the claimed entry is
+passed over. Its text, timestamp and status were already in that evidence — verified byte-identical to
+Pi's own copy in slice 1.
+
+**Slice 3 — the request takes its identity back.** When a turn's recorded request entry turns out to
+be its correction, the request is found by position instead: the nearest user entry before the turn's
+answer that is not itself a correction. For an uncorrected turn this resolves to the entry already
+bound, so the rule is uniform and only a corrected turn changes. It also handles two corrections on
+one turn, which the store does not yet contain.
+
+**Slice 3 — a cancelled run gets an anchor.** A cancelled run's assistant message is deliberately
+never bound, so a correction naming it had nothing in the transcript to attach to. The projection now
+emits `correctionAnchors`, and `buildConversationTranscriptIndex` resolves through it. The field is
+derived, cleared when absent, and added to `PI_DERIVED_CONVERSATION_KEYS` so it is never persisted —
+re-pointing the durable `assistantMessageId` instead would have been saved by the next write, which is
+the §5b shape the settlement model records.
+
+**Slice 4 — the ordinary case.** Guards prove an unclaimed entry keeps its request identity and CR089
+semantics, that no anchor appears when nothing was corrected, that the derived field is dropped on
+persistence while the steering record is kept, and that the projection mutates neither its input nor
+the durable evidence it reads.
+
+### One CR089 guard changed rather than scoped
+
+`interruptedTurnIdentity.test.ts` asserted that a cancelled turn's correction is indexed under
+`turn.harness.assistantMessageId`. That message is not among the rendered messages, and the transcript
+looks evidence up by the ids it is rendering — so the index entry existed and the correction was drawn
+nowhere. The guard asserted bookkeeping that corresponded to the correction being unreachable, so it
+now asserts the stronger thing: that the message is absent, that an anchor stands in for it, and that
+the correction is attached there. Its CR089 intent, that a cancelled turn can find its own evidence,
+is preserved and better served.
+
+### Verified against the production store
+
+Replaying the corrected rule read-only: **8 of 8 claims honoured**, where the first version honoured
+**0 of 8**. All eight are completed turns that regain their request identity and drop the correction
+from the transcript; none needs an anchor, so the cancelled-run path rests on unit tests alone.
+
+**Gates:** `tsc` clean, **233 test files / 1,689 tests**, `cargo test` **257 passed / 3 ignored**,
+`cargo check --locked`, build clean, roadmap READY.
+
+## Closure review
+
+**Proportionality: proportional**, with one honest overrun. The written slices were 2 to 5; the
+request-rebinding was not among them and was added because without it the rest is either inert or
+destructive. The alternative — shipping slices 2 to 4 as written — would have changed nothing on real
+data, which is worse than scope growth.
+
+**Debt review: follow_up.** Four items, none selected.
+
+**The upstream record is still wrong.** A corrected turn storing its correction as `pi.userEntryId` is
+the actual defect; this CR compensates for it in the projection rather than correcting it at the
+write. The compensation is uniform and tested, but the durable record still says something untrue, and
+anything else that reads `turn.pi.userEntryId` inherits it. That is the candidate next CR in this area.
+
+**The cancelled-run anchor has no production witness.** All eight real corrections sit on completed
+turns. The path is covered by three unit guards and by the rewritten CR089 guard, and the original
+evidence for this CR came from exactly that case in Dev, so it is reachable — just not present today.
+
+**Dev homologation is owed**, covering a corrected completed turn and a corrected cancelled turn after
+navigation and restart, plus an ordinary request control. Closed without it because the production
+replay is the stronger evidence for the eight real cases and the surface change is a suppression plus a
+rebinding, both fully determined by data already on disk.
+
+**Two corrections on one turn is untested in the field.** The positional rule handles it and a unit
+guard covers it, but the store holds no such turn.
 
 ## Expected Behavior
 

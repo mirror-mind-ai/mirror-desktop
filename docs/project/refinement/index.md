@@ -28,6 +28,13 @@ Refinement authority; SQLite must not be consulted or dual-written.
   regressions, 17 production turns sit with a pending harness body, that body is CR121's throw, and
   12 of 20 Journeys read `conflicted` because reason codes never clear. Content is safe in Mirror.
   Recommended as the next pull, ahead of CR120 and in place of CR121's investigation
+- Change Request: CR097 is `done`. Slice 1 falsified the capture — steering evidence survives
+  now, so the persistence half was resolved by the baseline — and slices 2–5 then found the
+  capture's premise wrong: a corrected turn records the **correction** as its own
+  `pi.userEntryId`, so the correction was wearing the request's harness identity and the request
+  was the orphaned message. The first claim rule refused all 8 real corrections and would have
+  shipped inert. Corrected, **8 of 8** are honoured: the correction leaves the transcript and the
+  request takes its identity back. The upstream wrong record is recorded as debt
 - Change Request: CR125 is `done`. Direction 1 taken: manual scroll anchoring, supplying what
   WKWebView does not implement. The reader's topmost visible message and its screen offset are
   recorded on scroll and restored in a layout effect before paint, so the previous turn
@@ -96,7 +103,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | in_progress | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
+| 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | done | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR125](rs021-ux-pre-beta-evolution/cr125-keep-the-reader-s-place-when-a-turn-settles.md) | RS021 | Keep the Reader's Place When a Turn Settles | done | @alissonvale | `refinement/rs021-cr125-conversation-scroll-anchor` |
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |
 | — | [CR118](rs016-ongoing-product-improvements-and-adjustments/cr118-anchor-a-segment-to-the-history-it-can-see.md) | RS016 | Anchor a Segment to the History It Can See | done | @alissonvale | `refinement/rs016-cr118-segment-anchor-tolerance` |

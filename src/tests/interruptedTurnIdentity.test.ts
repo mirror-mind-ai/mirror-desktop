@@ -109,7 +109,16 @@ describe("CR089 interrupted turn identity", () => {
     const request = surface.messages.find((message) => message.role === "user")!;
     const owningTurn = index.turnByUserMessageId.get(request.id);
     expect(owningTurn?.runId).toBe(`agent-run-${CANCELLED_AT}`);
-    expect(index.steeringByAssistantMessageId.get(owningTurn!.harness.assistantMessageId!)).toHaveLength(1);
+
+    // CR097 changed where this lands, and strengthened it. A cancelled run's assistant message is
+    // deliberately never bound, so it is not among the rendered messages — indexing the correction
+    // under it meant the transcript, which looks up evidence by the ids it is rendering, could
+    // never find it. The projection now says which message stands in for that run.
+    const corrected = owningTurn!.harness.assistantMessageId!;
+    expect(surface.messages.some((message) => message.id === corrected)).toBe(false);
+    const anchor = surface.correctionAnchors?.[corrected];
+    expect(surface.messages.some((message) => message.id === anchor)).toBe(true);
+    expect(index.steeringByAssistantMessageId.get(anchor!)).toHaveLength(1);
   });
 
   it("gives each of two consecutive cancellations its own identity", () => {
