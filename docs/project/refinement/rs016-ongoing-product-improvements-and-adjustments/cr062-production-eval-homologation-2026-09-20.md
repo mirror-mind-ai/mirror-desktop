@@ -1,4 +1,10 @@
+[< CR062](cr062-make-post-terminal-finalization-self-healing-and-actionable.md)
+
 # CR062 Production-backed Eval homologation — 2026-09-20
+
+**Kind:** evidence record for [CR062](cr062-make-post-terminal-finalization-self-healing-and-actionable.md) — not a Change Request, and so it
+carries no `Status` of its own.
+
 
 ## Authority and boundary
 

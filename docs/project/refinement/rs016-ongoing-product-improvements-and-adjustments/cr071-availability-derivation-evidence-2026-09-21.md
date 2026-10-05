@@ -2,6 +2,10 @@
 
 # CR071 — Availability Derivation Evidence (2026-09-21)
 
+**Kind:** evidence record for [CR071](cr071-stop-offering-models-the-desktop-invocation-cannot-run.md) — not a Change Request, and so it
+carries no `Status` of its own.
+
+
 Availability is decided by comparing two catalog reads of the same Pi
 binary. `--list-models` performs no inference and contacts no provider: it
 prints the models the loaded extension set registered. "Unavailable"

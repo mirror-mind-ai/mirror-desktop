@@ -2,7 +2,7 @@
 
 # CR112: Host a Canvas the Journey's Agent Draws
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr112-host-journey-workflow`
 
@@ -693,6 +693,22 @@ is recorded, name the redraw trigger as the Navigator asking for state or the ag
 changed something the canvas shows, and restate the origin prohibition in the Journey's own words.
 They name no loader file and describe no pointer, which is what the corrected prompt asked for and
 what the previous version would have made the agent invent.
+
+## Closure (status reconciled 2026-10-05)
+
+The work closed when it shipped; the field did not follow it. This Change Request was implemented,
+gated, repaired after a Dev defect, language-anchored and homologated in Eval — all recorded above —
+and **published in `v0.2.0-alpha.29`** as Agent's Canvas. The Refinement Workbench index has carried
+it as `done` since then, so for weeks the canonical index and this file disagreed, and a census taken
+from the files read one fewer closed Change Request than a census taken from the index.
+
+**Proportionality: proportional.** Nothing is being re-judged here. The pivot from Workflow to Canvas
+is recorded in its own section, the superseded design is kept rather than deleted, and the gates for
+both the pivot and the rename are above.
+
+**Debt review: follow_up.** The `Remaining` section below is that review and is left exactly as it
+was written. Its six items stand, and one of them — whether the index needs a status for work
+superseded by what it taught — is still the open vocabulary question this Change Request exposed.
 
 ## Remaining
 

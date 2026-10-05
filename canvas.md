@@ -27,7 +27,7 @@
 | ↳ **CR097 · Keep a Correction Recognisable After Reload** | 🧪 in_progress · **branch precisa de rebase** | `██░░░░░░░░` 1/5 fatias |
 | ↳ **CR114 · Make the Current Segment the Default Working Set** | ✅ done · publicada em alpha.31 · **gatilho do arco, não a causa** | `██████████` |
 | ↳ CR113 · Make Composer Typing Responsive in Large Journeys | ✅ done · aceita com CR115 | `██████████` |
-| ↳ CR112 · Host a Canvas the Journey's Agent Draws | ✅ done · publicada em alpha.29 · ⚠️ arquivo diz `in_progress` | `██████████` |
+| ↳ CR112 · Host a Canvas the Journey's Agent Draws | ✅ done · publicada em alpha.29 · status reconciliado | `██████████` |
 | ↳ CR105 · Context Surface → Context Map | ✅ done · entregue | `██████████` |
 | ↳ CR099 · CR098 · CR100 · CR109 · CR110 | 🟡 captured · 5 sem Driver | `░░░░░░░░░░` |
 | ↳ 22 Change Requests anteriores | ✅ done | `██████████` |
@@ -55,7 +55,8 @@
 | **Embedded TS Runtime, Full Control** | 💡 direção capturada · ainda não explorada | horizonte para integração de Mirror TS e Pi |
 | Host the Journey's Declared Workflow | ↗️ explorada e pivotada | CR112 ✅ · Agent's Canvas |
 | Agentic Map of Admitted Context | ↗️ explorada e entregue | CR105 ✅ · Context Map |
-| 12 explorações anteriores | 🗂️ colapsadas | ⚠️ 13 de 15 `index.md` sem campo `Status`; `explorations/index.md` está vazio |
+| 8 explorações superadas | ⚠️ ainda `active` | CV-003, CV-004, CV-008, DS-006, DS-007, CR112, RS018/RS019 e o app já entregues — status vive no **banco do Mirror** |
+| 3 explorações não estabelecidas | ❔ `active`, não verificadas | anexos-de-arquivos, semantic-turn-model, mirrormind-sh landing |
 
 ---
 
@@ -148,6 +149,12 @@ fantasma que a CR122 já explicou, não commits recusados.
   quase uniforme), e a da `alpha.35` tinha confundidor autoinfligido.
 - **Um turno perde o detalhe no instante em que deixa de ser o mais novo** (CR125, direção 2 não
   tomada) — pergunta de produto, não de posição.
-- **Manutenção do Workbench:** `cr112` diz `in_progress` no arquivo e `done` no índice canônico; 3
-  arquivos da RS016 sem campo `Status`; `explorations/index.md` vazio e 13 de 15 explorações sem
-  `Status`.
+- **Manutenção do Workbench: resolvida em 2026-10-05.** A CR112 ficou `done` com nota de
+  encerramento; os 3 arquivos da RS016 sem `Status` eram **registros de evidência**, não CRs, e agora
+  trazem um campo `Kind` e link para a CR-mãe, com a regra escrita no índice da RS016; a RS016 ganhou
+  o `**Status:** active` que a RS021 já tinha. **Duas das quatro eram erro de medição meu:**
+  `explorations/index.md` não existe (e nada o referencia — não é lacuna), e as explorações **têm**
+  status, como `- Status:` dentro do bloco *Durable Story*, convenção que eu não havia procurado.
+- **O que sobra é seu, não meu:** 8 explorações seguem `active` embora o que exploravam já tenha sido
+  entregue. Esse status mora como Exploratory Story no **banco do Mirror**, então mudá-lo é mutação de
+  Mirror e pede intenção explícita sua nomeando o alvo — não é arrumação de documento.

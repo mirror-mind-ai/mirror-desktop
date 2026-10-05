@@ -2,6 +2,8 @@
 
 # RS016 — Ongoing Product Improvements and Adjustments
 
+**Status:** active
+
 ## Framing
 
 A durable refinement umbrella for concrete improvements, usability adjustments and bounded corrections discovered through continued use of Mirror Desktop after the established alpha baseline.
@@ -11,6 +13,10 @@ A durable refinement umbrella for concrete improvements, usability adjustments a
 Small, coherent product and engineering adjustments can be captured as independently reviewable Change Requests without creating a new Refinement Story for every observation. Each attached CR preserves its own problem, expected behavior, scope, acceptance, evidence and closure while this RS provides continuity across ongoing product use.
 
 ## Intake Rules
+
+- Attached evidence and homologation records are named after the Change Request they belong to
+  and are **not** Change Requests. They carry a `Kind` line instead of a `Status`, so the Change
+  Request census is the list below — a count taken by globbing `cr*.md` over-reads it by three.
 
 - Every adjustment must be captured as a concrete CR before selection or implementation.
 - A CR must describe an observed problem and expected behavior; this RS is not an unstructured task list.

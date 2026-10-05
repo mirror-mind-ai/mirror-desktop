@@ -2,6 +2,10 @@
 
 # CR062 Isolated DEV Homologation — 2026-09-20
 
+**Kind:** evidence record for [CR062](cr062-make-post-terminal-finalization-self-healing-and-actionable.md) — not a Change Request, and so it
+carries no `Status` of its own.
+
+
 ## Scope and Authority
 
 The Navigator authorized isolated DEV homologation only. The rehearsal did not launch Stable or Eval, mutate production app data, repair the production turn, push, merge, publish or release.
