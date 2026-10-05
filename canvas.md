@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **CR126** · `planned` · o registro durável de um turno corrigido nomeia a correção, não o pedido · CR097 conserta a leitura, a CR126 conserta a escrita
+🎯 **Foco oficial:** **nenhuma CR aberta** · CR097 e CR126 fecham a cadeia da correção, ambas aguardando release · o registro durável de um turno corrigido nomeia a correção, não o pedido · CR097 conserta a leitura, a CR126 conserta a escrita
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 
@@ -10,8 +10,8 @@
 
 | Story / Change Request | Estado | Progresso |
 | --- | --- | --- |
-| **RS016 · Ongoing Product Improvements** | 🔄 ativa · CR126 capturada | `█████████░` 32 done · 1 🟡 · 4 ↗️ · 1 ⛔ |
-| ↳ **CR126 · Stop a Correction From Becoming Its Own Turn** | 📐 planned · 5 fatias · **Mirror guarda a correção como pedido em 7 de 7** | `█░░░░░░░░░` |
+| **RS016 · Ongoing Product Improvements** | ✅ ativa · **sem CR aberta** | `██████████` 33 done · 4 ↗️ · 1 ⛔ |
+| ↳ **CR126 · Stop a Correction From Becoming Its Own Turn** | ✅ done · 573 de 573 pares antigos re-derivam exatamente | `██████████` |
 | ↳ **CR125 · Keep the Reader's Place When a Turn Settles** | ✅ done · publicada em alpha.37 *(RS021)* | `██████████` |
 | ↳ **CR124 · Stop Verifying a Published Chapter Against a Moving Projection** | ✅ done · publicada em alpha.37 · **severidade corrigida** | `██████████` |
 | ↳ **CR120 · Stop a Closing Chapter From Erasing Its Own File** | ✅ done · publicada em alpha.37 · cura pendente de evento | `██████████` |

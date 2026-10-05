@@ -5292,6 +5292,112 @@ fn project_complete_pi_transcript_from_branch(branch: &[PiBranchEntry]) -> Vec<D
     turns
 }
 
+/// CR126: one projected turn, from the entry that asked to the entry that closed the answer,
+/// gathering every assistant text in between.
+///
+/// This is the shape both callers below need. The run-scoped projection chooses the ends from the
+/// invocation's own boundary; a compatibility lookup is handed the ends by recorded evidence.
+fn pi_turn_between(
+    branch: &[PiBranchEntry],
+    user_index: usize,
+    close_index: usize,
+) -> Option<DedicatedPiTranscriptTurn> {
+    if close_index <= user_index { return None; }
+    let user = branch.get(user_index)?;
+    let close = branch.get(close_index)?;
+    if user.role.as_deref() != Some("user") || close.role.as_deref() != Some("assistant") {
+        return None;
+    }
+    let assistant_text = branch[user_index + 1..=close_index].iter()
+        .filter(|entry| entry.role.as_deref() == Some("assistant") && !entry.text.trim().is_empty())
+        .map(|entry| entry.text.trim().to_string())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    if user.text.trim().is_empty() || assistant_text.trim().is_empty() { return None; }
+    let (user_text, user_prompt_envelope) = project_dedicated_user_text_and_envelope(&user.text);
+    Some(DedicatedPiTranscriptTurn {
+        user_entry_id: user.id.clone(),
+        assistant_entry_id: close.id.clone(),
+        user_text,
+        user_prompt_envelope,
+        assistant_text,
+        entry_count: close_index + 1,
+        started_at: user.timestamp.clone(),
+        committed_at: close.timestamp.clone(),
+    })
+}
+
+/// CR126: the run that follows a baseline leaf, as the one turn it is.
+///
+/// `project_complete_pi_transcript_from_branch` treats every user entry as the start of a turn. A
+/// correction the Navigator sends mid-run is a user entry, so it started one: it replaced the
+/// request in the projected turn and cleared the prose the agent had already produced. Measured over
+/// nine real corrections, the recorded request was the correction in 9 of 9, prose was discarded in
+/// 4, and in one case an answer the agent had already closed belonged to no turn at all. The outbox
+/// carries the projected `user_text`, so Mirror stored the correction as the user's message in 7 of
+/// 7 checked.
+///
+/// The fix needs nothing new to cross the native boundary and interprets no text. A run is one
+/// invocation and an invocation starts once, so the request is the **first** user entry after the
+/// baseline leaf and the answer is everything the agent said up to the last reply it completed. A
+/// correction is simply not the first.
+///
+/// **Defined at terminal time.** Taking the last completed reply as the end is correct precisely
+/// because the branch ends with this run when the process terminates, which is where every caller
+/// sits. Called over a session that has since grown, it would span every run that followed — so a
+/// new caller must supply its own end rather than reuse this one.
+fn project_pi_run_from_branch(
+    branch: &[PiBranchEntry],
+    baseline_leaf_entry_id: Option<&str>,
+) -> Option<DedicatedPiTranscriptTurn> {
+    let is_user = |entry: &PiBranchEntry| entry.role.as_deref() == Some("user")
+        && !entry.text.trim().is_empty();
+    let closes = |entry: &PiBranchEntry| entry.role.as_deref() == Some("assistant")
+        && matches!(entry.stop_reason.as_deref(), Some("stop" | "length"));
+    let start = match baseline_leaf_entry_id {
+        Some(leaf) => match branch.iter().position(|entry| entry.id == leaf) {
+            Some(index) => index + 1,
+            // The baseline is not on this branch, so where the run began cannot be established —
+            // a compaction rewrote the history it referred to. Falling back to the last request
+            // reproduces the behaviour every already-recorded turn was evidenced with, which is
+            // wrong for a correction but bounded. Spanning from the session's start would attribute
+            // the whole conversation to one turn.
+            None => return branch.iter().rposition(is_user)
+                .and_then(|user_index| branch[user_index + 1..].iter().position(closes)
+                    .map(|offset| user_index + 1 + offset)
+                    .and_then(|close_index| pi_turn_between(branch, user_index, close_index))),
+        },
+        None => 0,
+    };
+    let user_index = branch.get(start..)?.iter().position(is_user).map(|offset| start + offset)?;
+    let close_index = branch[user_index + 1..].iter().rposition(closes)
+        .map(|offset| user_index + 1 + offset)?;
+    pi_turn_between(branch, user_index, close_index)
+}
+
+/// CR126: the turn spanning a pair of entries that recorded evidence names.
+///
+/// This is the compatibility seam, and it needs no fallback. Handed an old pair, whose user entry is
+/// a correction, it gathers only what followed the correction and so reproduces the old projection
+/// field for field. Handed a new pair it gathers the whole run. One rule, both shapes.
+fn project_pi_turn_spanning(
+    branch: &[PiBranchEntry],
+    user_entry_id: &str,
+    assistant_entry_id: &str,
+) -> Option<DedicatedPiTranscriptTurn> {
+    let user_index = branch.iter().position(|entry| entry.id == user_entry_id)?;
+    let close_index = branch.iter().position(|entry| entry.id == assistant_entry_id)?;
+    pi_turn_between(branch, user_index, close_index)
+}
+
+/// CR126: the leaf recorded before an invocation begins. The pre-run baseline needs only this, and
+/// taking it from the run projection would span the whole session, because `None` there means "this
+/// session has no earlier run" rather than "tell me where the last one ended".
+fn latest_pi_leaf_entry_id(run_authority: &RunAuthority) -> Option<String> {
+    let content = fs::read_to_string(&run_authority.pi_session_file).ok()?;
+    project_complete_pi_transcript(&content).ok()?.pop().map(|turn| turn.assistant_entry_id)
+}
+
 fn project_dedicated_user_text(value: &str) -> String {
     project_dedicated_user_text_and_envelope(value).0
 }
@@ -5931,12 +6037,12 @@ fn create_pi_backed_mirror_append_item(
     let evidence = record.terminal_evidence.as_ref()
         .and_then(|terminal| terminal.pi_execution.as_ref())
         .ok_or_else(|| "mirror_append_pi_evidence_incomplete".to_string())?;
-    let turns = project_complete_pi_transcript(session_content)
+    // CR126: re-derived from the pair this evidence recorded rather than looked up in a list the
+    // projection happens to contain, so a turn evidenced before that change is still findable.
+    let branch = project_active_pi_branch(session_content)
         .map_err(|_| "mirror_append_pi_transcript_invalid".to_string())?;
-    let turn = turns.iter().find(|turn| {
-        turn.user_entry_id == evidence.user_entry_id
-            && turn.assistant_entry_id == evidence.assistant_entry_id
-    }).ok_or_else(|| "mirror_append_pi_turn_missing".to_string())?;
+    let turn = &project_pi_turn_spanning(&branch, &evidence.user_entry_id, &evidence.assistant_entry_id)
+        .ok_or_else(|| "mirror_append_pi_turn_missing".to_string())?;
     let assistant_matches = if evidence.assistant_text_truncated {
         turn.assistant_text.len() > evidence.assistant_text.len()
             && turn.assistant_text.starts_with(&evidence.assistant_text)
@@ -6776,14 +6882,16 @@ fn validate_outbox_generation_authority(app: &AppHandle, item: &Value) -> Result
         }
         validate_pi_session_file(app, session_file, session_id)
             .map_err(|_| "mirror_append_pi_authority_mismatch".to_string())?;
-        let turns = project_complete_pi_transcript(
+        // CR126: same re-derivation, so an item enqueued before that change still validates.
+        let branch = project_active_pi_branch(
             &fs::read_to_string(session_file)
                 .map_err(|_| "mirror_append_pi_session_unavailable".to_string())?,
         ).map_err(|_| "mirror_append_pi_session_invalid".to_string())?;
-        let turn = turns.iter().find(|candidate| {
-            item.get("piUserEntryId").and_then(Value::as_str) == Some(candidate.user_entry_id.as_str())
-                && item.get("piAssistantEntryId").and_then(Value::as_str) == Some(candidate.assistant_entry_id.as_str())
-        }).ok_or_else(|| "mirror_append_pi_turn_missing".to_string())?;
+        let turn = &project_pi_turn_spanning(
+            &branch,
+            item.get("piUserEntryId").and_then(Value::as_str).unwrap_or_default(),
+            item.get("piAssistantEntryId").and_then(Value::as_str).unwrap_or_default(),
+        ).ok_or_else(|| "mirror_append_pi_turn_missing".to_string())?;
         let messages = item.get("messages").and_then(Value::as_array)
             .ok_or_else(|| "mirror_append_item_invalid".to_string())?;
         if item.get("createdAt").and_then(Value::as_str) != Some(turn.committed_at.as_str())
@@ -7368,7 +7476,8 @@ fn terminal_pi_execution_evidence(
     baseline_leaf_entry_id: Option<&str>,
 ) -> Option<TurnPiExecutionEvidence> {
     let content = fs::read_to_string(&run_authority.pi_session_file).ok()?;
-    let turn = project_complete_pi_transcript(&content).ok()?.pop()?;
+    let branch = project_active_pi_branch(&content).ok()?;
+    let turn = project_pi_run_from_branch(&branch, baseline_leaf_entry_id)?;
     if baseline_leaf_entry_id == Some(turn.assistant_entry_id.as_str()) {
         return None;
     }
@@ -7462,8 +7571,7 @@ fn run_pi_process(
         );
         return;
     }
-    let baseline_leaf_entry_id = terminal_pi_execution_evidence(&run_authority, None)
-        .map(|evidence| evidence.leaf_entry_id);
+    let baseline_leaf_entry_id = latest_pi_leaf_entry_id(&run_authority);
     let mirror_mediated = config.invocation_mode == "mirror" && !config.safe_test_mode;
     let command = if config.safe_test_mode {
         "cat".to_string()
@@ -9829,6 +9937,7 @@ mod tests {
         inspect_complete_pi_transcript, inspect_pi_transcript_with_scope, parse_pi_transcript_scope,
         PiTranscriptScope,
         project_complete_pi_transcript, project_conversation_segment_manifest,
+        project_active_pi_branch, project_pi_turn_spanning,
         PiChapterClosure,
         publish_conversation_segment_manifest_at,
         project_pi_user_entries, projection_manifest_coordinates_at,
@@ -12071,6 +12180,164 @@ mod tests {
         assert_eq!(evidence.leaf_entry_id, "pi-assistant");
         assert!(terminal_pi_execution_evidence(&authority, Some("pi-assistant")).is_none());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    /// CR126: a session whose last run was corrected mid-flight. The agent spoke before the
+    /// correction arrived, and the correction never closed an answer of its own.
+    fn corrected_run_session() -> String {
+        [
+            json!({"type":"session","id":"session-one","timestamp":"2026-10-01T10:00:00.000Z"}).to_string(),
+            json!({"type":"message","id":"pi-user-0","parentId":null,"timestamp":"2026-10-01T10:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"earlier question"}]}}).to_string(),
+            json!({"type":"message","id":"pi-asst-0","parentId":"pi-user-0","timestamp":"2026-10-01T10:00:02.000Z","message":{"role":"assistant","content":[{"type":"text","text":"earlier answer"}],"stopReason":"stop"}}).to_string(),
+            json!({"type":"message","id":"pi-request","parentId":"pi-asst-0","timestamp":"2026-10-01T10:05:00.000Z","message":{"role":"user","content":[{"type":"text","text":"the real request"}]}}).to_string(),
+            json!({"type":"message","id":"pi-asst-1","parentId":"pi-request","timestamp":"2026-10-01T10:05:01.000Z","message":{"role":"assistant","content":[{"type":"text","text":"thinking out loud"}],"stopReason":"toolUse"}}).to_string(),
+            // A tool result and a custom entry sit on the branch too. `entry_count` indexes the
+            // whole branch, not just messages, and the matchers compare it field for field — so a
+            // re-derivation that counted only messages would be rejected as a mismatch.
+            json!({"type":"message","id":"pi-tool-1","parentId":"pi-asst-1","timestamp":"2026-10-01T10:05:01.500Z","message":{"role":"toolResult","content":[{"type":"text","text":"edited"}],"toolCallId":"call-1"}}).to_string(),
+            json!({"type":"custom","id":"pi-custom-1","parentId":"pi-tool-1","timestamp":"2026-10-01T10:05:01.700Z","customType":"nautilus_note"}).to_string(),
+            json!({"type":"message","id":"pi-correction","parentId":"pi-custom-1","timestamp":"2026-10-01T10:05:02.000Z","message":{"role":"user","content":[{"type":"text","text":"so local, no deploy"}]}}).to_string(),
+            json!({"type":"message","id":"pi-asst-2","parentId":"pi-correction","timestamp":"2026-10-01T10:05:03.000Z","message":{"role":"assistant","content":[{"type":"text","text":"done"}],"stopReason":"stop"}}).to_string(),
+        ].join("\n")
+    }
+
+    fn write_session(authority: &RunAuthority, content: &str) {
+        let path = PathBuf::from(&authority.pi_session_file);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, content).unwrap();
+    }
+
+    #[test]
+    fn a_corrected_run_names_the_request_that_opened_it() {
+        // Measured on nine real corrections before this change: the turn recorded the correction as
+        // its own request, so the Desktop's durable record, the harness message and Mirror all
+        // described the correction instead of what the Navigator asked.
+        let root = test_root("cr126-corrected-request");
+        let authority = test_run_authority(&root);
+        write_session(&authority, &corrected_run_session());
+
+        let evidence = terminal_pi_execution_evidence(&authority, Some("pi-asst-0")).unwrap();
+        assert_eq!(evidence.user_entry_id, "pi-request");
+        assert_eq!(evidence.started_at, "2026-10-01T10:05:00.000Z");
+        assert_eq!(evidence.assistant_entry_id, "pi-asst-2");
+        assert_eq!(evidence.committed_at, "2026-10-01T10:05:03.000Z");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_corrected_run_keeps_what_the_agent_said_before_the_correction() {
+        // `assistant_texts.clear()` discarded this in 4 of the 9 real cases, 55 to 427 characters.
+        let root = test_root("cr126-prose-kept");
+        let authority = test_run_authority(&root);
+        write_session(&authority, &corrected_run_session());
+
+        let evidence = terminal_pi_execution_evidence(&authority, Some("pi-asst-0")).unwrap();
+        assert_eq!(evidence.assistant_text, "thinking out loud\n\ndone");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_run_that_had_already_closed_an_answer_keeps_both() {
+        // The orphan, 1 of 9: the agent finished an answer, the correction arrived, and the agent
+        // answered again. The projection made two turns where the harness has one, and `.pop()`
+        // took the second — so the first answer belonged to no turn the Desktop recorded.
+        let root = test_root("cr126-orphan");
+        let authority = test_run_authority(&root);
+        write_session(&authority, &[
+            json!({"type":"session","id":"session-one","timestamp":"2026-10-01T10:00:00.000Z"}).to_string(),
+            json!({"type":"message","id":"pi-user-0","parentId":null,"timestamp":"2026-10-01T10:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"earlier question"}]}}).to_string(),
+            json!({"type":"message","id":"pi-asst-0","parentId":"pi-user-0","timestamp":"2026-10-01T10:00:02.000Z","message":{"role":"assistant","content":[{"type":"text","text":"earlier answer"}],"stopReason":"stop"}}).to_string(),
+            json!({"type":"message","id":"pi-request","parentId":"pi-asst-0","timestamp":"2026-10-01T10:05:00.000Z","message":{"role":"user","content":[{"type":"text","text":"the real request"}]}}).to_string(),
+            json!({"type":"message","id":"pi-asst-1","parentId":"pi-request","timestamp":"2026-10-01T10:05:01.000Z","message":{"role":"assistant","content":[{"type":"text","text":"first answer"}],"stopReason":"stop"}}).to_string(),
+            json!({"type":"message","id":"pi-correction","parentId":"pi-asst-1","timestamp":"2026-10-01T10:05:02.000Z","message":{"role":"user","content":[{"type":"text","text":"a correction"}]}}).to_string(),
+            json!({"type":"message","id":"pi-asst-2","parentId":"pi-correction","timestamp":"2026-10-01T10:05:03.000Z","message":{"role":"assistant","content":[{"type":"text","text":"second answer"}],"stopReason":"stop"}}).to_string(),
+        ].join("\n"));
+
+        let evidence = terminal_pi_execution_evidence(&authority, Some("pi-asst-0")).unwrap();
+        assert_eq!(evidence.user_entry_id, "pi-request");
+        assert_eq!(evidence.assistant_text, "first answer\n\nsecond answer");
+        assert_eq!(evidence.assistant_entry_id, "pi-asst-2");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn an_uncorrected_run_is_evidenced_exactly_as_before() {
+        // 4 of the 9 real cases produce byte-identical evidence, and every uncorrected turn must.
+        // Asserted against the old projection rather than against hand-written numbers, so the
+        // claim is identity rather than resemblance.
+        let root = test_root("cr126-uncorrected");
+        let authority = test_run_authority(&root);
+        let session = [
+            json!({"type":"session","id":"session-one","timestamp":"2026-10-01T10:00:00.000Z"}).to_string(),
+            json!({"type":"message","id":"pi-user-0","parentId":null,"timestamp":"2026-10-01T10:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"earlier question"}]}}).to_string(),
+            json!({"type":"message","id":"pi-asst-0","parentId":"pi-user-0","timestamp":"2026-10-01T10:00:02.000Z","message":{"role":"assistant","content":[{"type":"text","text":"earlier answer"}],"stopReason":"stop"}}).to_string(),
+            json!({"type":"message","id":"pi-request","parentId":"pi-asst-0","timestamp":"2026-10-01T10:05:00.000Z","message":{"role":"user","content":[{"type":"text","text":"the real request"}]}}).to_string(),
+            json!({"type":"message","id":"pi-asst-1","parentId":"pi-request","timestamp":"2026-10-01T10:05:01.000Z","message":{"role":"assistant","content":[{"type":"text","text":"the answer"}],"stopReason":"stop"}}).to_string(),
+        ].join("\n");
+        write_session(&authority, &session);
+
+        let evidence = terminal_pi_execution_evidence(&authority, Some("pi-asst-0")).unwrap();
+        let legacy = project_complete_pi_transcript(&session).unwrap().pop().unwrap();
+        assert_eq!(evidence.user_entry_id, legacy.user_entry_id);
+        assert_eq!(evidence.assistant_entry_id, legacy.assistant_entry_id);
+        assert_eq!(evidence.assistant_text, legacy.assistant_text);
+        assert_eq!(evidence.entry_count, legacy.entry_count);
+        assert_eq!(evidence.started_at, legacy.started_at);
+        assert_eq!(evidence.committed_at, legacy.committed_at);
+        assert_eq!(evidence.user_entry_id, "pi-request");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_run_that_produced_nothing_new_is_still_refused() {
+        // The baseline guard is what stops a settled session from being re-evidenced, and it is
+        // load-bearing: every call site passes the leaf recorded before the invocation began.
+        let root = test_root("cr126-nothing-new");
+        let authority = test_run_authority(&root);
+        write_session(&authority, &corrected_run_session());
+        assert!(terminal_pi_execution_evidence(&authority, Some("pi-asst-2")).is_none());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_turn_recorded_before_this_change_is_still_findable() {
+        // The compatibility that matters. Three sites match stored evidence against the session,
+        // and nine production turns carry the correction as their user entry. Re-deriving the turn
+        // that spans a recorded pair reproduces the old shape for an old pair and the new shape for
+        // a new one, so neither needs a fallback.
+        let branch = project_active_pi_branch(&corrected_run_session()).unwrap();
+
+        let legacy = project_pi_turn_spanning(&branch, "pi-correction", "pi-asst-2").unwrap();
+        assert_eq!(legacy.user_text, "so local, no deploy");
+        assert_eq!(legacy.assistant_text, "done");
+        assert_eq!(legacy.started_at, "2026-10-01T10:05:02.000Z");
+
+        let current = project_pi_turn_spanning(&branch, "pi-request", "pi-asst-2").unwrap();
+        assert_eq!(current.user_text, "the real request");
+        assert_eq!(current.assistant_text, "thinking out loud\n\ndone");
+
+        // A pair in the wrong order, or absent, is refused rather than guessed.
+        assert!(project_pi_turn_spanning(&branch, "pi-asst-2", "pi-request").is_none());
+        assert!(project_pi_turn_spanning(&branch, "pi-missing", "pi-asst-2").is_none());
+    }
+
+    #[test]
+    fn the_legacy_pair_matches_what_the_old_projection_produced() {
+        // Proof that the re-derivation is faithful rather than merely similar: for every turn the
+        // old projection produces, spanning its own pair reproduces it field for field.
+        let session = corrected_run_session();
+        let branch = project_active_pi_branch(&session).unwrap();
+        let legacy_turns = project_complete_pi_transcript(&session).unwrap();
+        assert!(!legacy_turns.is_empty());
+        for turn in &legacy_turns {
+            let spanned = project_pi_turn_spanning(&branch, &turn.user_entry_id, &turn.assistant_entry_id)
+                .expect("a turn the old projection produced must span its own pair");
+            // Field for field, and `entry_count` especially: the append builder rejects a turn whose
+            // count disagrees with recorded evidence, so this is the assertion that keeps 196 already
+            // recorded production pairs usable.
+            assert_eq!(&spanned, turn);
+            assert_eq!(spanned.entry_count, turn.entry_count);
+        }
     }
 
     #[test]

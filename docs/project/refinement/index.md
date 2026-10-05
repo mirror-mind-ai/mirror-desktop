@@ -28,14 +28,13 @@ Refinement authority; SQLite must not be consulted or dual-written.
   regressions, 17 production turns sit with a pending harness body, that body is CR121's throw, and
   12 of 20 Journeys read `conflicted` because reason codes never clear. Content is safe in Mirror.
   Recommended as the next pull, ahead of CR120 and in place of CR121's investigation
-- Change Request: CR126 is `planned`. Planning found a fourth and worse consequence: the outbox
-  item carries the projected turn's `user_text`, so **Mirror stores the correction as the turn's
-  user message — 7 of 7 checked, none is the request**. It also found that the fix needs no new
-  data channel and no text guessing: `baseline_leaf_entry_id` is already computed before every
-  invocation, so the request is the **first** user entry after it rather than the last. Replayed
-  over all nine corrections: **9 of 9** requests correct, 5 answers regain text, 4 byte-identical.
-  The delicate part is compatibility — three sites match stored evidence by entry pair, and nine
-  turns already carry the old one
+- Change Request: CR126 is `done`. A run is one invocation and an invocation starts once, so the
+  request is the **first** user entry after the baseline the native side already computes — no
+  claim crosses the boundary and no text is interpreted. D3 came out simpler than planned: one
+  re-derivation of the turn a recorded pair spans reproduces the old shape for an old pair and
+  the new shape for a new one, so no fallback was needed. Verified at scale: **573 of 573**
+  stored evidence pairs in production re-derive exactly, zero mismatches. The nine wrong records
+  and seven Mirror messages are deliberately not repaired
 
 - Change Request: CR097 is `done`. Slice 1 falsified the capture — steering evidence survives
   now, so the persistence half was resolved by the baseline — and slices 2–5 then found the
@@ -112,7 +111,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| — | [CR126](rs016-ongoing-product-improvements-and-adjustments/cr126-stop-a-correction-from-becoming-its-own-turn.md) | RS016 | Stop a Correction From Becoming Its Own Turn | planned | @alissonvale | `refinement/rs016-cr126-corrected-turn-request-identity` |
+| — | [CR126](rs016-ongoing-product-improvements-and-adjustments/cr126-stop-a-correction-from-becoming-its-own-turn.md) | RS016 | Stop a Correction From Becoming Its Own Turn | done | @alissonvale | `refinement/rs016-cr126-corrected-turn-request-identity` |
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | done | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR125](rs021-ux-pre-beta-evolution/cr125-keep-the-reader-s-place-when-a-turn-settles.md) | RS021 | Keep the Reader's Place When a Turn Settles | done | @alissonvale | `refinement/rs021-cr125-conversation-scroll-anchor` |
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |

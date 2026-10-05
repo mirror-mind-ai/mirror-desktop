@@ -2,7 +2,7 @@
 
 # CR126: Stop a Correction From Becoming Its Own Turn
 
-**Status:** planned
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr126-corrected-turn-request-identity`
 
@@ -224,6 +224,114 @@ No TypeScript behaviour change. CR097's compensation stays exactly as it is.
 - No change to CR097's projection work; it must stay until this lands and should be reviewed only
   afterwards.
 - No Pi JSONL writes. Pi's record is correct.
+
+## Implementation and closure (2026-10-05)
+
+All five slices delivered, test-first, and D3 came out simpler than planned.
+
+**D1.** `project_pi_run_from_branch(branch, baseline_leaf)` takes the first qualifying user entry
+after the baseline as the request and the last completed reply as the close, both resolved through a
+shared `pi_turn_between(branch, user_index, close_index)` that gathers every assistant text in the
+span. When the baseline is **not on the branch** — a compaction rewrote the history it referred to —
+it falls back to the previous behaviour rather than spanning from the session's start, because an
+unknown boundary should reproduce what every stored turn was evidenced with, not attribute a whole
+conversation to one turn.
+
+Its precondition is now written down rather than assumed: **it is defined at terminal time.** Taking
+the last completed reply as the end is correct only because the branch ends with this run when the
+process terminates, which is where the single caller sits. A guard asserts there is no second caller.
+
+**D2.** `terminal_pi_execution_evidence` projects the run. Its baseline guard is kept. The pre-run
+baseline at `:7465` no longer routes through that function — `None` means "this session has no earlier
+run" to the run projection and "tell me where the last one ended" to the baseline, and one function
+cannot mean both, so `latest_pi_leaf_entry_id` was split out. It is the old expression verbatim, so
+the baseline value is unchanged by construction.
+
+**D3 — simpler than planned, and no fallback.** The plan called for each matcher to try the new shape
+and fall back to the legacy one. Implementing it showed that is unnecessary: a single
+`project_pi_turn_spanning(branch, user_entry_id, assistant_entry_id)` re-derives the turn a recorded
+pair spans, and because an old pair's user entry *is* the correction, gathering what follows it
+reproduces the old projection field for field. One rule, both shapes. `create_pi_backed_mirror_append_item`
+and `validate_outbox_generation_authority` now ask "is there a turn spanning this pair?" instead of
+"is this pair in the list I just built?".
+
+**D4 — left alone, deliberately.** `project_complete_pi_transcript_from_branch` is unchanged, and so
+are `load_dedicated_pi_transcript` and the inspection's `turns`. `match_unclaimed_pi_turn` keeps the
+legacy projection: recovery spans whole sessions and has no baseline, so run boundaries are not
+derivable there at all. Guards pin all three so they are not tidied into the new rule later.
+
+**No TypeScript behaviour change.** CR097's compensation is untouched.
+
+**Gates:** `tsc` clean, **234 test files / 1,703 tests**, `cargo test` **264 passed / 3 ignored**,
+`cargo check --locked`, build clean, roadmap READY.
+
+## Verified against the production store
+
+### Compatibility, at a scale the plan did not ask for
+
+Every turn journal record in production with Pi execution evidence — **573 of them, across 20
+Journeys** — was re-derived by spanning its own recorded pair and compared field by field:
+
+| | |
+|---|---|
+| Reproduced exactly: `assistantText`, `entryCount`, `startedAt`, `committedAt` | **573** |
+| Mismatched | **0** |
+| Unresolvable | **0** |
+
+That is the property the whole CR turns on. Nine turns carry the correction as their user entry and
+564 do not, and both shapes re-derive identically.
+
+### The request moves, measured two ways
+
+The run projection was replayed over the real corrected turns, taking each run's baseline from the
+previous record's `leafEntryId` in the same session: **5 of 5 with a resolvable baseline moved off
+the correction and onto the request**, agreeing entry for entry with the independent measurement in
+the capture, which found **9 of 9** by position.
+
+### What the replay could not show
+
+**The answer's extent.** Replaying `project_pi_run_from_branch` over a stored session closes at the
+last completed reply *in the file*, and those sessions have grown by many runs since — so the replay
+spans far past the run and reports answers of 10,000 to 33,000 characters. That is the replay being
+wrong, not the change: at terminal time the branch ends with the run. The extent claim therefore rests
+on the Rust tests and on the capture's bounded replay, which measured 5 of 9 answers regaining 55 to
+700 characters and 4 of 9 byte-identical.
+
+**Two of my measurements were wrong before being right**, and both are recorded because they changed
+the numbers. The first compatibility pass reported 196 mismatches, every one of them `entry_count`
+only, with the text identical — because the script built the branch from `type: "message"` entries
+while the shipped projection includes every entry with an id except the session line, so tool results
+and custom entries shift the index. The second pass mirrored the shipped semantics and found 573 of
+573. That same discovery produced a real strengthening: the Rust fixture now carries a tool result and
+a custom entry on the branch, and asserts `entry_count` identity explicitly, because the append
+builder rejects a turn whose count disagrees with stored evidence.
+
+## Closure review
+
+**Proportionality: proportional.** Three new native functions totalling about 70 lines, one rewritten
+body, one split-out helper, two call-site swaps. No schema change, no new artifact, no TypeScript
+change, no renderer change, and the shared projection and its two surfaces untouched.
+
+**Debt review: follow_up.** Four items, none selected.
+
+**The nine recorded turns and the seven Mirror messages are not repaired.** They keep the correction
+as their request. Backfilling would mean writing invented attributions into the Mirror database, which
+is a separate decision with its own authority, and the excluded scope says so.
+
+**Recovery still cannot segment a corrected run.** `match_unclaimed_pi_turn` needs a 1:1 pairing
+between stale records and unclaimed turns, and the legacy projection yields two turns for a run that
+closed an answer before its correction — so such a run is `mirror_append_pi_recovery_ambiguous`. That
+is pre-existing, not introduced here, and it is unfixable without a baseline the recovery path does
+not have.
+
+**CR097's compensation is now partly redundant** and must not be removed before a release has carried
+this and a corrected turn has been observed reading correctly from a true record.
+
+**No field verification.** Nothing has settled on a build containing this. The observable event is the
+next corrected turn: its durable record should name the request, its answer should contain what the
+agent said before the correction, and Mirror should receive the request as the user's message. Dev
+homologation of one corrected turn is owed, because this changes what reaches Mirror and no read-only
+replay can exercise a write.
 
 ## Expected Behavior
 
