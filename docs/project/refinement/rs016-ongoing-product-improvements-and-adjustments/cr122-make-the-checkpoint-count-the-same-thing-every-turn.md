@@ -232,7 +232,7 @@ Read-only replay of the implemented rules against all 20 Journeys, 2026-10-05.
 
 | Result | Count |
 |---|---|
-| Refused harness bodies healed | **24** (was 17 when the defect was captured) |
+| Refused harness bodies healed | **28** |
 | Composers released from `projection_pending` | **2** — `alissonvale-com`, `livro-lideranca-soberana` |
 | Journeys reading `conflicted` afterwards | **0**, from 12 |
 | Unparseable ledgers made readable | **3** |
@@ -241,8 +241,17 @@ After the change the 12 `conflicted` Journeys resolve to their real present stat
 3 `commit_failed` (genuine interrupted turns), 1 `commit_pending`. No Journey is left reporting a
 conflict it does not have, and none of the reason codes were deleted.
 
-The heal count rising from 17 to 24 between capture and implementation is the defect accumulating
-during the work, which is the reason for implementing it ahead of CR120.
+**The heal does not claim storage that did not happen.** Every one of the 28 turns it would commit
+has *both* of its messages already present in the ledger's own message array — checked individually,
+28 of 28, none partial. The refusal withheld a state flag from a turn whose content was already
+stored. That is the whole safety argument for healing on read, and it is measured rather than
+assumed.
+
+**The defect is accumulating during the work on it.** The same count read three times in one session:
+**17** at capture, **24** at implementation, **28** at verification. That rate is why this was pulled
+ahead of CR120, and it is worth stating plainly that the fix only takes effect where it is installed:
+production is on `alpha.34` and will keep accumulating stuck turns, with two Journeys' Composers
+blocked, until a release carries this.
 
 ## Validation
 
