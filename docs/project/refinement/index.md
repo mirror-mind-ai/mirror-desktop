@@ -31,11 +31,9 @@ Refinement authority; SQLite must not be consulted or dual-written.
   `refinement/rs016-cr120-closing-chapter-write-guard`, diagnosed on 2026-10-04. The fix is one
   misordered condition plus a healing rule, which removes the need for a manual store repair. The
   shared-anchor cause upstream of it is recorded and left to its own CR, since six production
-  generations already carry that shape. **CR121 is `captured` and is the more serious finding**: every
-  settlement timing record written since `alpha.34` reports a failed first attempt, in three
-  Journeys, while the turns themselves complete through recovery. It was found by CR119's instrument
-  on its first production reading, and it names a blind spot in that instrument. It is a plausible but
-  unestablished explanation for the Finishing tail CR119 measured. Originally captured as: found
+  generations already carry that shape. CR121 is `captured` and was **narrowed to the
+  instrument** once CR122 established its cause: it keeps carrying the error in the timing record and
+  timing the two untimed settlement steps, and no longer owns the investigation. Originally captured as: found
   while verifying the `alpha.34` upgrade rather than reported. In production `mirror-desktop`, closed chapter `segment-30` holds zero
   messages in a 592 KB file while its manifest entry claims 13 turns and the ledger says 22
   messages. The cause is the `was_prior_current` exception in CR118's publication decision: a
