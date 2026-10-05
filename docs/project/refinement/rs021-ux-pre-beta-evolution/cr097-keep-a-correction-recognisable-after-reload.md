@@ -190,6 +190,83 @@ existing correction surface. Expected tests: `src/tests/piBackedConversationSurf
 or integration test. `src/domain/persistedJourneyConversation.ts` is expressly out unless Slice 1
 proves its present `0.9.0` round trip loses evidence.
 
+## Slice 1 Result: the falsification (2026-10-05)
+
+Read-only, against the production store on `0.2.0-alpha.37`. The slice asked whether the evidence
+this CR consumes still disappears. **It does not, and that collapses the persistence half of the
+plan.**
+
+### The steering record survives
+
+| | |
+|---|---|
+| Persisted conversations scanned | 28 |
+| Carrying a `steeringEvidence` key | **5** |
+| Steering records found | **8** |
+| Status of all 8 | `applied` |
+| Carrying `piUserEntryId` | **8 of 8** |
+| In an active generation | 7 (one is in `mirror-desktop-rescue-journey` gen 1, superseded by gen 2) |
+| Chapter projection files carrying the key | **23 of 118** |
+
+So it survives both durable storage and the Segment round trip. The original Dev observation of
+2026-09-30 — "no `steeringEvidence` key at all once the run has settled" — was true then and is
+resolved by the baseline that arrived since: `0.9.0` parse/write, CR114's Segment paths, CR117's guard
+repair, and CR122's rule that a derived field is recomputed on read rather than validated on read.
+
+Following this plan's own instruction, the work narrows to projection and segmentation.
+`src/domain/persistedJourneyConversation.ts` **stays out of scope**: slice 1 was the condition for
+touching it and it proved no loss path.
+
+### The blocking dependency is cleared
+
+CR117's two App guards were the blocker. Both now call the single authority: `App.tsx:1761` and
+`App.tsx:3109` use `hasReconcilableSteering`, backed by `RECONCILABLE_STEERING_STATUSES` in
+`src/domain/steeringState.ts:44`. CR117 also records that the Navigator validated the guard repair in
+the Dev build installed from `08d03e7`, which was the re-homologation slice 1 had to confirm before
+treating `piUserEntryId` as reliably present. All 8 records carrying it is the field confirmation.
+
+CR117 landed first, so per the boundary note it owns the placement decision and this CR adopts it.
+
+### The second fault is intact, and is now the whole job
+
+`src/domain/piBackedConversationSurface.ts` contains **zero** references to `piUserEntryId`. Reading
+it against the store:
+
+- `:346` sets `runUserEntryId = entry.entryId` for every Pi `user` entry, so a correction still opens
+  a new run segment — slice 2's target.
+- `:354` gives an unbound user entry `id = pi-${entry.entryId}` with role `user`, so a correction is
+  still projected as an ordinary request — slice 3's target.
+- `:213`/`:229` already bind a *turn's* own Pi user entry to its harness message. A correction has no
+  turn of its own, which is why nothing binds it.
+
+And the data to recognise it exists on both sides. For all 7 corrections in active generations, Pi
+holds the correction as a bare `user` entry whose text is **byte-identical** to the Desktop's own
+evidence text, 18 to 58 characters, with no Journey authority envelope:
+
+| Journey | entry | chars | Pi text |
+|---|---|---:|---|
+| `alissonvale-com` | `64af7b4a` | 43 | `Remova o link para ver programação completa` |
+| `alissonvale-com` | `00adde48` | 27 | `faça o que vc propos tambem` |
+| `amplia-website` | `9db56b45` | 58 | `só que em vez de agencia, vamos usar o termo protagonismo.` |
+| `flip-website` | `28766532` | 27 | `Altere só local, sem deploy` |
+| `livro-lideranca-soberana` | `726ad2a0` | 50 | `atualize o processo para vc nao esquecer no futuro` |
+| `livro-lideranca-soberana` | `1617772b` | 29 | `ops, é canvas-instructions.md` |
+| `livro-lideranca-soberana` | `d3085808` | 18 | `nota bibliografica` |
+
+Both halves of the link are present and durable. Only the projection does not look.
+
+### Remaining
+
+Slices **2, 3, 4 and 5**, against `src/domain/piBackedConversationSurface.ts` and the existing
+correction surface in the transcript. Seven real corrections across four Journeys are available as
+fixtures and as the Dev homologation subject, which the plan previously expected to have to stage.
+
+**Note on the reading itself.** Three successive versions of the inspection script were wrong before
+this one: a non-recursive glob missed every Pi session, and an assumed entry shape read `role` and
+`content` at the top level when they live under `.message`. Each wrong version produced a confident,
+plausible, false answer — once "absent from its own session" for entries that were present. The
+numbers above are from the version checked against a raw session line.
+
 ## Expected Behavior
 
 A correction reads as a correction wherever it is read: live, after navigating away and back, and
