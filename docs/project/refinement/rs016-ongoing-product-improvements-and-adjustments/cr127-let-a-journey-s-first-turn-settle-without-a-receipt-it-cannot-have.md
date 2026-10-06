@@ -55,6 +55,14 @@ cause does not exist. Status stays `captured`. It becomes plannable only after o
 name is persisted at the point of failure; recovery opens a collector so a rescued settlement leaves a
 phase trace; or a new Journey's first turn is observed with the failing step's error captured live.
 
+**The determinism claim is also false.** `comercial`, a Journey created 2026-10-06, settled its
+**first** turn (`agent-run-2026-10-06T13:07:52.477Z`) through all nineteen phases: `load_segments`
+18 ms `completed`, `publish_segments` 84 ms `completed`. Its second turn did the same. So "every new
+Journey's first settlement fails" does not hold — one of the two new Journeys observed on `alpha.38`
+failed, the other did not. The `mirror-mind` failure is real, unexplained, and so far singular. Its
+manifest as it exists now has every field the parser requires and would parse; what it looked like at
+`11:59:46Z` is not recoverable.
+
 The same wrong attribution was published in `docs/update/alpha-38-production-reading-2026-10-06.md`
 and is corrected there, dated.
 
