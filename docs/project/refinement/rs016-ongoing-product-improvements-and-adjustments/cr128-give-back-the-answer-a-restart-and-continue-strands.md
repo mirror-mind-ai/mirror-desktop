@@ -251,7 +251,18 @@ in the session file.
 - Which of the two blocking paths produces `Finishing` for this state is still not established.
 - The `mirror-desktop` record from 2026-10-02 is unresolved under both rules and was not examined.
 
-**Field verification owed.** The `softwarezen` answer is the witness. The record must read
+**Field verification collected (2026-10-06).** See
+`docs/update/alpha-39-field-verification-2026-10-06.md`. On `alpha.39`, 13 s and 15 s after the
+restart, record A became `interrupted` with receipt `pi-recovery-interrupted-…` and record B became
+`settled`/`completed` on turn `5c55d124`, `entryCount` 182 — exactly what the replay predicted. The
+conversation shows *"Recuperação concluída."* and Mirror `d1f94c25` received both messages. **But the
+Journey is probably still blocked**: turn B's `harness` body stayed `pending`, because
+`commitHarnessTurn` is called one line before `projectPiBackedConversationSurface` supplies the
+assistant message's content, and it refuses silently on empty content. That yields
+`projection_pending` → `Finishing`. Pre-existing in the CR108 convergence path, made reachable by this
+CR, and it will not heal because the record is `settled`. Not captured.
+
+Originally recorded as owed: the `softwarezen` answer is the witness. The record must read
 `terminal_durable` then `settled` for B and `interrupted` for A after the Journey is opened on a
 release carrying this change; the conversation must show *"Recuperação concluída."*; Mirror
 conversation `d1f94c25` must receive the pair.
