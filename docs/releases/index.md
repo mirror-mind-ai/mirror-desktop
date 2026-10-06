@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.39 — The Answer Survives the Restart](v0.2.0-alpha.39.md) — lets a turn interrupted by a machine restart and then continued finish, recovers the answer the agent produced, records an interrupted run as interrupted, and leaves a run that may still be alive undecided.
 - [v0.2.0-alpha.38 — The Request Keeps Its Name](v0.2.0-alpha.38.md) — A turn you corrected now records what you actually asked instead of the correction, keeps the work the agent had already done before you interrupted, and shows the correction attached to the answer it changed when the conversation is reloaded.
 - [v0.2.0-alpha.37 — What Is Already There Keeps Its Place](v0.2.0-alpha.37.md) — A chapter that closes empty no longer writes nothing over its own history, three Journeys that failed to publish on every compaction can publish again, and the Conversation stops sliding away from the turn you were reading.
 - [v0.2.0-alpha.36 — A Failure That Says Its Own Name](v0.2.0-alpha.36.md) — A failed settlement records why it failed and which step it was in, and two Journeys that could not publish a chapter on any turn can finally write the receipt they were being asked to already have.
