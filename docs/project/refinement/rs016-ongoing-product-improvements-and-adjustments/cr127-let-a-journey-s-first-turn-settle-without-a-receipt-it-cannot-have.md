@@ -32,7 +32,33 @@ A Journey's first settlement completes its inline path. The absence of a publica
 chapter that has never been published is read as "nothing published yet", not as a failure, and
 settlement proceeds to publish it.
 
-## First Investigation
+## Premise correction (2026-10-06, on being asked to plan this CR)
+
+**The mechanism below is wrong, and this CR cannot be planned on it.** Reading the code to plan the
+fix showed that the settlement path's `load_segments` phase (`src/app/App.tsx:3494`) invokes
+`loadConversationSegments`, whose native command is **`load_conversation_segments`** — a manifest-only
+loader. It returns `None` when the manifest is absent, validates the manifest's authority, and **never
+reads `complete.json`**. The loader this capture accused, `load_conversation_segment_projections`
+(`src-tauri/src/main.rs:5015`), does require the receipt — but it serves opening a Journey's history,
+not settlement. Two loaders were conflated.
+
+So the `mirror-mind` failure is real and recorded (`load_segments` 8 ms `failed`), but **its cause is
+not established.** The remaining candidates are the TypeScript manifest parser
+(`parseConversationSegmentManifest`) rejecting the shape of a freshly derived first manifest, or an
+authority mismatch between the manifest and the settlement's identity. Nothing recorded distinguishes
+them: CR121 names a failing settlement only in renderer state (`updateExactSettlementError` in
+`settlementDiagnostics.ts`), not durably, and no error text exists anywhere in the store.
+
+**What this CR is now.** The title's outcome may still be right — a first turn should settle inline —
+but the problem statement has to be re-derived from a cause, and the instrument that would reveal the
+cause does not exist. Status stays `captured`. It becomes plannable only after one of: the failure
+name is persisted at the point of failure; recovery opens a collector so a rescued settlement leaves a
+phase trace; or a new Journey's first turn is observed with the failing step's error captured live.
+
+The same wrong attribution was published in `docs/update/alpha-38-production-reading-2026-10-06.md`
+and is corrected there, dated.
+
+## First Investigation (superseded — retained because it was published)
 
 The ordering is in the code and is unavoidable on a first turn.
 

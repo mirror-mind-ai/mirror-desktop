@@ -50,7 +50,7 @@ The two turns after it completed all 19 phases. The cause is an ordering the cod
 a first turn:
 
 1. `save_durable_projection` writes the manifest. It is stamped `11:59:46Z` and declares `segment-1`.
-2. `load_segments` → `load_conversation_segment_projections` (`src-tauri/src/main.rs:5015`) reads the
+2. **[Corrected 2026-10-06: this attribution is wrong. `load_segments` invokes `load_conversation_segments`, a manifest-only loader that never reads `complete.json`. The 5015 loader serves Journey open, not settlement. The real cause of this 8 ms failure is not established — see CR127's premise correction.]** `load_segments` → `load_conversation_segment_projections` (`src-tauri/src/main.rs:5015`) reads the
    manifest and then **requires `complete.json`**, failing with *"Conversation Segment receipt is
    unavailable."*
 3. `complete.json` is minted only by `publish_segments`, which runs **after** `load_segments`
