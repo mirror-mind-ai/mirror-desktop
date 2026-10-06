@@ -33,9 +33,14 @@ Refinement authority; SQLite must not be consulted or dual-written.
   recovery was leaving the form to reload and retype. The form now reloads the tree itself, keeps a
   create whose parent still exists and whose id is still free, and asks for one more Confirm under a
   new request id; a real conflict names what changed. Nothing is retried on its own
-- Change Request: CR100's cause is established and recorded, status unchanged: `update_journey`,
-  which the Edit Journey dialog submits, exists in no Mirror core. Repair belongs partly to Mirror
-  core; the Workbench decision is pending
+- Change Request: CR100 is `parked` as a Mirror core debt, recorded in RS022's register. Its title
+  is inaccurate and kept for traceability: Journey images are device-local and work. What fails is the
+  Edit Journey dialog's Save changes, which submits `update_journey` — an operation no Mirror core
+  accepts, so renaming a Journey from the Desktop has never worked. Revisit trigger recorded;
+  containment is open
+- Change Request: CR130 is `captured`. Desktop-side containment for CR100: stop offering a Save that
+  cannot succeed, make the Project path change work through the two operations core already accepts,
+  and name `unsupported_operation` at the native boundary. Containment, not repair
 - Change Request: CR129 is `captured`. A settlement repaired by recovery writes no record at all:
   `recoverPostTerminalPersistence` never opens a collector, so the ledger keeps the failure and
   nothing after it. This has blocked a diagnosis twice in two days, in both directions —
@@ -152,6 +157,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | done | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR125](rs021-ux-pre-beta-evolution/cr125-keep-the-reader-s-place-when-a-turn-settles.md) | RS021 | Keep the Reader's Place When a Turn Settles | done | @alissonvale | `refinement/rs021-cr125-conversation-scroll-anchor` |
 | — | [CR110](rs021-ux-pre-beta-evolution/cr110-make-journey-creation-recover-from-registry-change.md) | RS021 | Make Journey Creation Recover from Registry Change | done | @alissonvale | `refinement/rs021-cr110-rebase-stale-create-intent` |
+| — | [CR130](rs021-ux-pre-beta-evolution/cr130-stop-offering-a-journey-edit-that-cannot-succeed.md) | RS021 | Stop Offering a Journey Edit That Cannot Succeed | captured | — | — |
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |
 | — | [CR118](rs016-ongoing-product-improvements-and-adjustments/cr118-anchor-a-segment-to-the-history-it-can-see.md) | RS016 | Anchor a Segment to the History It Can See | done | @alissonvale | `refinement/rs016-cr118-segment-anchor-tolerance` |
 | — | [CR119](rs016-ongoing-product-improvements-and-adjustments/cr119-give-finishing-back-to-the-navigator.md) | RS016 | Give Finishing Back to the Navigator | done | @alissonvale | `refinement/rs016-cr119-settlement-phase-timing` |
@@ -166,7 +172,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | 4 | [CR099](rs021-ux-pre-beta-evolution/cr099-allow-safe-editing-during-another-journeys-work.md) | RS021 | Allow Safe Editing During Another Journey's Work | captured | — | — |
 | 5 | [CR098](rs021-ux-pre-beta-evolution/cr098-allow-a-journey-to-be-reparented.md) | RS021 | Allow a Journey to Be Reparented | captured | — | — |
-| 6 | [CR100](rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) | RS021 | Make Journey Image Updates Supported | captured | — | — |
+| 6 | [CR100](rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) | RS021 | Make Journey Image Updates Supported | parked | — | — |
 | 7 | [CR113](rs021-ux-pre-beta-evolution/cr113-make-composer-typing-responsive-in-large-journeys.md) | RS021 | Make Composer Typing Responsive in Large Journeys | done | @alissonvale | `refinement/rs021-cr113-rs016-cr115-typing-responsiveness` |
 | 8 | [CR114](rs021-ux-pre-beta-evolution/cr114-make-the-current-segment-the-default-working-set.md) | RS021 | Make the Current Segment the Default Working Set | done | @alissonvale | `refinement/rs021-cr114-current-segment-working-set` |
 | 9 | [CR115](rs016-ongoing-product-improvements-and-adjustments/cr115-stop-the-idle-post-terminal-recovery-loop.md) | RS016 | Stop the Idle Post-Terminal Recovery Loop | done | @alissonvale | `refinement/rs021-cr113-rs016-cr115-typing-responsiveness` |

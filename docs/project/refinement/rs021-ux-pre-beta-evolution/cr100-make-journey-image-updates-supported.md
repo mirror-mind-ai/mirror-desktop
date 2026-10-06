@@ -2,9 +2,13 @@
 
 # CR100: Make Journey Image Updates Supported
 
-**Status:** captured
+**Status:** parked
 **Driver:** —
 **Delivery:** —
+**Debt location:** Mirror core — `memory/services/journey_admin.py` (the accepted-operation set)
+**Containment:** [CR130](cr130-stop-offering-a-journey-edit-that-cannot-succeed.md) — Desktop-side, captured
+**Revisit trigger:** a Mirror core release whose `journey mutate` accepts a metadata update operation
+**Register:** recorded in [RS022 — Mirror Core Debts](../rs022-mirror-core-debts/index.md)
 
 ## Friction
 
@@ -22,6 +26,10 @@ not offered. A supported update has a truthful success or failure surface.
 Reproduce with a disposable image and trace the request from the form through the native mutation
 contract and persisted Journey appearance. Establish whether the unsupported result is a missing
 operation, an invalid payload shape, or an authority/guard condition before designing repair.
+
+> **This CR's title is inaccurate and is kept for traceability.** Journey *images* are not the
+> defect: they are device-local and they work. The defect is the Edit Journey dialog's **Save
+> changes**, which submits an operation Mirror core does not accept. See the Cause section below.
 
 ## Cause established while planning CR110 (2026-10-06)
 
@@ -62,3 +70,24 @@ Workbench decision and is not made here.
 
 No external image fetching, no unbounded image formats or sizes, and no change to avatar or other
 appearance ownership outside the Journey image surface.
+
+## Parking (2026-10-06)
+
+Parked under RS022's intake rules, which this finding now satisfies: the observed behavior, the Mirror
+core code path that produces it, and the consequence for the Desktop are all recorded above.
+
+**Why it is parked rather than worked.** The correction has two halves with different owners. Mirror
+core must accept a Journey metadata update operation — that belongs to the Mirror repository, its own
+branches, its own gates and its own release path, and nothing in this Journey authorizes touching it.
+The Desktop half is containment only: stop offering a Save that cannot succeed. That is
+[CR130](cr130-stop-offering-a-journey-edit-that-cannot-succeed.md), captured separately and reviewed
+on its own merits, as RS022 requires.
+
+**Containment status: open.** Nothing contains it today. The Desktop still offers the button.
+
+**What retires this CR.** A Mirror core release whose `journey mutate` accepts a metadata update
+operation, after which the Desktop can submit name and description changes and CR130's containment can
+be removed. Until then the debt is live and only the correction is blocked.
+
+**Not promoted.** Promotion means handing this to the Mirror repository's own process. That has not
+happened and is not authorized here.
