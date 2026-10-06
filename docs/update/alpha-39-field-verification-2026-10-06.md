@@ -157,7 +157,8 @@ next turn worked. The harness body is committed. No fix is owed, and the orderin
 `convergePiBackedItem` is recorded as an observation rather than a defect, since no observed behaviour
 depends on it.
 
-What remains owed is unchanged and belongs to CR127's territory: **recovery opens no collector**. A
+What remains owed is **recovery opens no collector**, now captured as CR129 (not CR127's
+territory — CR127 turned out to have an established cause of its own). A
 turn that settles through recovery writes no timing record, which is exactly why the sequence in the
 Correction above could not be reconstructed. That is now the second time in two readings that this gap
 blocked a diagnosis.

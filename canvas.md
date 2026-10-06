@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **CR127 duplamente falsificada** — mecanismo errado e não determinística (`comercial` assentou o 1º turno em 19 fases) · o que é planejável é o **instrumento**: nome da falha durável + coletor na recuperação · decisão do Navegador
+🎯 **Foco oficial:** **CR127 `planned`** — a causa estava gravada pela CR121 e eu não a tinha lido: manifesto derivado em Rust, validado em TS · **CR129** `captured` — a recuperação não registra o reparo
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 
@@ -10,7 +10,7 @@
 
 | Story / Change Request | Estado | Progresso |
 | --- | --- | --- |
-| **RS016 · Ongoing Product Improvements** | 🔄 ativa · **CR128 em `alpha.39`, CR127 capturada** | `█████████░` 34 done · 1 🟡 · 4 ↗️ · 1 ⛔ |
+| **RS016 · Ongoing Product Improvements** | 🔄 ativa · **CR127 planned, CR129 capturada** | `█████████░` 34 done · 1 📋 · 1 🟡 · 4 ↗️ · 1 ⛔ |
 | ↳ **CR126 · Stop a Correction From Becoming Its Own Turn** | ✅ done · 573 de 573 pares antigos re-derivam exatamente | `██████████` |
 | ↳ **CR125 · Keep the Reader's Place When a Turn Settles** | ✅ done · publicada em alpha.37 *(RS021)* | `██████████` |
 | ↳ **CR124 · Stop Verifying a Published Chapter Against a Moving Projection** | ✅ done · publicada em alpha.37 · **severidade corrigida** | `██████████` |
