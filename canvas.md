@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** release `alpha.40` com a **CR110** · **CR100 `parked`** como débito do core Mirror (registrada na RS022), contenção **CR130** capturada · CR127 `planned`, CR129 `captured`
+🎯 **Foco oficial:** `alpha.40` **publicada e verificada** (117 manifests, 0 fora do alvo) · atualize e provoque o teste: mude um caminho via `mm-journey` no Pi, depois crie uma Journey sem recarregar · **CR130** capturada, **CR100** `parked`
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 
