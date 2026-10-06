@@ -6413,11 +6413,64 @@ fn replace_legacy_outbox_item_at(path: &Path, replacement: Value) -> Result<(), 
     write_mirror_append_outbox(path, outbox)
 }
 
-fn match_unclaimed_pi_turn<'a>(
+/// CR128: how a stale journal record relates to the Pi session it ran against.
+///
+/// A record at `Admitted`/`Running` with no terminal outcome is a run the app never saw end. The
+/// session file knows more than the journal does: it holds the request the run wrote and, if the
+/// run finished, the reply that closed it. Pairing stale records against *closed turns* could not
+/// describe a run that died before closing. One stale record and zero closed turns read as
+/// "ambiguous"; a restart followed by `continue` — two records, one closed turn spanning both —
+/// read the same way, and refused forever. Pairing against *requests* can describe both: every run
+/// that got as far as writing its prompt owns exactly one.
+#[derive(Debug)]
+enum StalePiAttribution<'a> {
+    /// The record's request was answered; this is the turn that closed it.
+    Closed(&'a DedicatedPiTranscriptTurn),
+    /// The record's request was never answered, and a later request on the same session proves
+    /// the run that owned it is over.
+    Interrupted,
+}
+
+struct UnclaimedPiRequest<'a> {
+    user: &'a PiBranchEntry,
+    closed: Option<&'a DedicatedPiTranscriptTurn>,
+}
+
+/// The requests after the claimed frontier that no terminal evidence owns, in branch order. A user
+/// entry with no visible text is not a request, which agrees with the legacy projection.
+fn project_unclaimed_pi_requests<'a>(
+    branch: &'a [PiBranchEntry],
+    turns: &'a [DedicatedPiTranscriptTurn],
+    frontier: usize,
+    claimed: &[&TurnPiExecutionEvidence],
+) -> Vec<UnclaimedPiRequest<'a>> {
+    branch.iter().enumerate()
+        .filter(|(index, entry)| {
+            index + 1 > frontier
+                && entry.role.as_deref() == Some("user")
+                && !entry.text.trim().is_empty()
+                && !claimed.iter().any(|evidence| evidence.user_entry_id == entry.id)
+        })
+        .map(|(_, entry)| UnclaimedPiRequest {
+            user: entry,
+            closed: turns.iter().find(|turn| turn.user_entry_id == entry.id),
+        })
+        .collect()
+}
+
+/// Attribute one stale record. Refuses — rather than guesses — whenever the records and the
+/// requests cannot be paired one to one in admission order with every timestamp agreeing.
+///
+/// A trailing request with no reply is *not* judged interrupted: nothing on the session proves the
+/// run is over, and another instance sharing this data directory could still be running it. It is
+/// named `request_open` and left where it is. The Navigator's next request on that session turns it
+/// into exactly the case this function can decide.
+fn attribute_stale_pi_record<'a>(
     record: &TurnJournalRecord,
     records: &[TurnJournalRecord],
+    branch: &'a [PiBranchEntry],
     turns: &'a [DedicatedPiTranscriptTurn],
-) -> Result<&'a DedicatedPiTranscriptTurn, String> {
+) -> Result<StalePiAttribution<'a>, String> {
     if !matches!(record.phase, TurnPhase::Admitted | TurnPhase::Running)
         || record.terminal_outcome.is_some()
         || record.cancellation_intent != turn_journal::TurnCancellationIntent::None
@@ -6439,33 +6492,35 @@ fn match_unclaimed_pi_turn<'a>(
             && candidate.cancellation_intent == turn_journal::TurnCancellationIntent::None
     }).collect::<Vec<_>>();
     stale.sort_by(|left, right| left.created_at.cmp(&right.created_at));
-    let mut unclaimed = turns.iter().filter(|turn| {
-        turn.entry_count > frontier
-            && !claimed.iter().any(|evidence| {
-                evidence.user_entry_id == turn.user_entry_id
-                    || evidence.assistant_entry_id == turn.assistant_entry_id
-            })
-    }).collect::<Vec<_>>();
-    unclaimed.sort_by_key(|turn| turn.entry_count);
-    if stale.len() != unclaimed.len() || stale.is_empty() {
+    let requests = project_unclaimed_pi_requests(branch, turns, frontier, &claimed);
+    if stale.len() != requests.len() || stale.is_empty() {
         return Err("mirror_append_pi_recovery_ambiguous".to_string());
     }
-    for (index, (candidate, turn)) in stale.iter().zip(unclaimed.iter()).enumerate() {
-        let admitted_at = chrono::DateTime::parse_from_rfc3339(&candidate.created_at)
-            .map_err(|_| "mirror_append_pi_recovery_timestamp_invalid".to_string())?;
-        let started_at = chrono::DateTime::parse_from_rfc3339(&turn.started_at)
-            .map_err(|_| "mirror_append_pi_recovery_timestamp_invalid".to_string())?;
-        let committed_at = chrono::DateTime::parse_from_rfc3339(&turn.committed_at)
-            .map_err(|_| "mirror_append_pi_recovery_timestamp_invalid".to_string())?;
-        if started_at < admitted_at || committed_at < started_at
-            || stale.get(index + 1).is_some_and(|next| {
-                chrono::DateTime::parse_from_rfc3339(&next.created_at)
-                    .is_ok_and(|next_admitted| committed_at > next_admitted)
-            })
-        {
+    let parse = |value: &str| chrono::DateTime::parse_from_rfc3339(value)
+        .map_err(|_| "mirror_append_pi_recovery_timestamp_invalid".to_string());
+    for (index, (candidate, request)) in stale.iter().zip(requests.iter()).enumerate() {
+        let admitted_at = parse(&candidate.created_at)?;
+        let asked_at = parse(&request.user.timestamp)?;
+        let next_admitted_at = match stale.get(index + 1) {
+            Some(next) => Some(parse(&next.created_at)?),
+            None => None,
+        };
+        if asked_at < admitted_at || next_admitted_at.is_some_and(|next| asked_at > next) {
             return Err("mirror_append_pi_recovery_frontier_mismatch".to_string());
         }
-        if candidate.authority == record.authority { return Ok(turn); }
+        if let Some(turn) = request.closed {
+            let committed_at = parse(&turn.committed_at)?;
+            if committed_at < asked_at || next_admitted_at.is_some_and(|next| committed_at > next) {
+                return Err("mirror_append_pi_recovery_frontier_mismatch".to_string());
+            }
+        }
+        if candidate.authority == record.authority {
+            return match request.closed {
+                Some(turn) => Ok(StalePiAttribution::Closed(turn)),
+                None if index + 1 < requests.len() => Ok(StalePiAttribution::Interrupted),
+                None => Err("mirror_append_pi_recovery_request_open".to_string()),
+            };
+        }
     }
     Err("mirror_append_pi_recovery_record_missing".to_string())
 }
@@ -6627,9 +6682,13 @@ fn recover_one_stale_journal_record(
     records: &[TurnJournalRecord],
 ) -> Result<(), String> {
     let (_, content) = pi_session_for_journal_record(app, record)?;
-    let turns = project_complete_pi_transcript(&content)
+    let branch = project_active_pi_branch(&content)
         .map_err(|_| "mirror_append_pi_recovery_transcript_invalid".to_string())?;
-    let turn = match_unclaimed_pi_turn(record, records, &turns)?;
+    let turns = project_complete_pi_transcript_from_branch(&branch);
+    let turn = match attribute_stale_pi_record(record, records, &branch, &turns)? {
+        StalePiAttribution::Closed(turn) => turn,
+        StalePiAttribution::Interrupted => return interrupt_stale_journal_record(app, record),
+    };
     let assistant_text = bounded_utf8(&turn.assistant_text, 65_536);
     let evidence = TurnTerminalEvidence {
         legacy_stdout: String::new(), legacy_stderr: String::new(),
@@ -6666,6 +6725,34 @@ fn recover_one_stale_journal_record(
             terminal_evidence: Some(evidence),
             cancellation_intent: None,
             recovery_disposition: Some(TurnRecoveryDisposition::ResumeOutbox),
+        }).map(|_| ())
+    })
+}
+
+/// CR128: a run that wrote its request and never closed it, on a session that has since moved on,
+/// is interrupted. The journal already permits `Admitted | Running → Interrupted` with no outcome
+/// and no evidence; until now nothing native ever took that transition. The only path that noticed
+/// a dead run lived in the renderer, and a machine restart kills the renderer with the run.
+fn interrupt_stale_journal_record(app: &AppHandle, record: &TurnJournalRecord) -> Result<(), String> {
+    let authority = record.authority.clone();
+    with_turn_journal_lock(app, &authority, |path| {
+        let current = read_turn_journal(path)?.records.into_iter()
+            .find(|candidate| candidate.authority == authority)
+            .ok_or_else(|| "turn_journal_record_missing".to_string())?;
+        if !matches!(current.phase, TurnPhase::Admitted | TurnPhase::Running)
+            || current.terminal_outcome.is_some()
+        {
+            return Err("mirror_append_pi_recovery_record_stale".to_string());
+        }
+        transition_turn(path, &authority, TurnTransitionRequest {
+            expected_revision: current.revision,
+            expected_phase: current.phase,
+            next_phase: TurnPhase::Interrupted,
+            receipt_id: format!("pi-recovery-interrupted-{}", authority.run_id),
+            terminal_outcome: None,
+            terminal_evidence: None,
+            cancellation_intent: None,
+            recovery_disposition: Some(TurnRecoveryDisposition::Interrupted),
         }).map(|_| ())
     })
 }
@@ -9922,7 +10009,7 @@ mod tests {
         extract_context_stats_from_pi_session,
         extract_pi_mirror_commit_events, find_registered_journey_path,
         legacy_outbox_item_matches_pi_backed_item, legacy_timestamp_compatibility_item,
-        match_unclaimed_pi_turn, normalize_legacy_enqueue_item, outbox_item_matches_journal_record,
+        normalize_legacy_enqueue_item, outbox_item_matches_journal_record,
         StaleRecoveryReport,
         run_pi_backed_mirror_append_with, should_retry_legacy_timestamp_compatibility,
         run_mirror_append_with_binding_repair_using, should_repair_journey_binding,
@@ -11585,19 +11672,32 @@ mod tests {
             revision: 2, created_at: "2026-08-30T09:59:59Z".to_string(),
             updated_at: "2026-08-30T10:00:00Z".to_string(), last_receipt: None,
         };
-        let turns = project_complete_pi_transcript(session).unwrap();
-        assert_eq!(match_unclaimed_pi_turn(&record, &[record.clone()], &turns).unwrap().assistant_entry_id, "pi-assistant");
-        let mut ambiguous = turns.clone();
-        ambiguous.push(super::DedicatedPiTranscriptTurn {
-            user_entry_id: "pi-user-two".to_string(), assistant_entry_id: "pi-assistant-two".to_string(),
-            user_text: "again".to_string(), user_prompt_envelope: "raw".to_string(),
-            assistant_text: "again".to_string(), entry_count: 4,
-            started_at: "2026-08-30T10:00:02Z".to_string(), committed_at: "2026-08-30T10:00:03Z".to_string(),
-        });
-        assert_eq!(match_unclaimed_pi_turn(&record, &[record.clone()], &ambiguous).unwrap_err(), "mirror_append_pi_recovery_ambiguous");
+        let branch = super::project_active_pi_branch(session).unwrap();
+        let turns = super::project_complete_pi_transcript_from_branch(&branch);
+        assert!(matches!(
+            super::attribute_stale_pi_record(&record, &[record.clone()], &branch, &turns).unwrap(),
+            super::StalePiAttribution::Closed(turn) if turn.assistant_entry_id == "pi-assistant"
+        ));
+        // CR128: ambiguity is counted in requests now. One record against two requests still refuses.
+        let two_requests = concat!(
+            "{\"type\":\"session\",\"id\":\"session-one\"}\n",
+            "{\"type\":\"message\",\"id\":\"pi-user\",\"parentId\":null,\"timestamp\":\"2026-08-30T10:00:00Z\",\"message\":{\"role\":\"user\",\"content\":\"hello\"}}\n",
+            "{\"type\":\"message\",\"id\":\"pi-assistant\",\"parentId\":\"pi-user\",\"timestamp\":\"2026-08-30T10:00:01Z\",\"message\":{\"role\":\"assistant\",\"content\":\"hi\",\"stopReason\":\"stop\"}}\n",
+            "{\"type\":\"message\",\"id\":\"pi-user-two\",\"parentId\":\"pi-assistant\",\"timestamp\":\"2026-08-30T10:00:02Z\",\"message\":{\"role\":\"user\",\"content\":\"again\"}}\n",
+            "{\"type\":\"message\",\"id\":\"pi-assistant-two\",\"parentId\":\"pi-user-two\",\"timestamp\":\"2026-08-30T10:00:03Z\",\"message\":{\"role\":\"assistant\",\"content\":\"again\",\"stopReason\":\"stop\"}}\n",
+        );
+        let ambiguous_branch = super::project_active_pi_branch(two_requests).unwrap();
+        let ambiguous_turns = super::project_complete_pi_transcript_from_branch(&ambiguous_branch);
+        assert_eq!(
+            super::attribute_stale_pi_record(&record, &[record.clone()], &ambiguous_branch, &ambiguous_turns).unwrap_err(),
+            "mirror_append_pi_recovery_ambiguous",
+        );
         let mut cancelled = record.clone();
         cancelled.cancellation_intent = TurnCancellationIntent::Requested;
-        assert_eq!(match_unclaimed_pi_turn(&cancelled, &[cancelled.clone()], &turns).unwrap_err(), "mirror_append_pi_recovery_record_ineligible");
+        assert_eq!(
+            super::attribute_stale_pi_record(&cancelled, &[cancelled.clone()], &branch, &turns).unwrap_err(),
+            "mirror_append_pi_recovery_record_ineligible",
+        );
     }
 
     #[test]
@@ -11633,16 +11733,17 @@ mod tests {
         let historical_b = stale_record("run-old-b", "thread-one", 1, "session-one", "2026-09-18T18:42:30Z");
         let current = stale_record("run-current", "thread-two", 2, "session-two", "2026-09-30T09:59:59Z");
         let records = vec![historical_a.clone(), historical_b.clone(), current.clone()];
-        let turns = project_complete_pi_transcript(session).unwrap();
+        let branch = super::project_active_pi_branch(session).unwrap();
+        let turns = super::project_complete_pi_transcript_from_branch(&branch);
 
         // The per-record verdict was already correctly scoped: the current record resolves even
         // though unrelated ambiguous records share the journal.
+        assert!(matches!(
+            super::attribute_stale_pi_record(&current, &records, &branch, &turns).unwrap(),
+            super::StalePiAttribution::Closed(turn) if turn.assistant_entry_id == "pi-assistant"
+        ));
         assert_eq!(
-            match_unclaimed_pi_turn(&current, &records, &turns).unwrap().assistant_entry_id,
-            "pi-assistant",
-        );
-        assert_eq!(
-            match_unclaimed_pi_turn(&historical_a, &records, &turns).unwrap_err(),
+            super::attribute_stale_pi_record(&historical_a, &records, &branch, &turns).unwrap_err(),
             "mirror_append_pi_recovery_ambiguous",
         );
 
@@ -11657,6 +11758,130 @@ mod tests {
             ("run-old-a".to_string(), "mirror_append_pi_recovery_ambiguous".to_string()),
             ("run-old-b".to_string(), "mirror_append_pi_recovery_ambiguous".to_string()),
         ]);
+    }
+
+    /// CR128 fixtures: a session whose first turn is settled and claimed, then the shape a machine
+    /// restart followed by `continue` leaves behind — request A with work but no reply, request B
+    /// closed by one reply.
+    fn cr128_record(run: &str, created: &str) -> TurnJournalRecord {
+        TurnJournalRecord {
+            schema_version: "0.1.0".to_string(),
+            authority: TurnJournalAuthority {
+                schema_version: "0.1.0".to_string(), journey_id: "softwarezen".to_string(),
+                run_id: run.to_string(), turn_id: format!("turn-{run}"),
+                thread_id: "thread-one".to_string(), generation: 1,
+                pi_session_id: "session-one".to_string(), mirror_conversation_id: "mirror-one".to_string(),
+                harness_user_message_id: format!("user-{run}"), harness_assistant_message_id: format!("assistant-{run}"),
+            },
+            phase: TurnPhase::Running, terminal_outcome: None, terminal_evidence: None,
+            cancellation_intent: TurnCancellationIntent::None,
+            recovery_disposition: TurnRecoveryDisposition::ResumeExecution,
+            revision: 2, created_at: created.to_string(), updated_at: created.to_string(), last_receipt: None,
+        }
+    }
+
+    fn cr128_settled_record() -> TurnJournalRecord {
+        let mut record = cr128_record("run-settled", "2026-10-06T09:59:59Z");
+        record.phase = TurnPhase::Settled;
+        record.terminal_outcome = Some(TurnTerminalOutcome::Completed);
+        record.recovery_disposition = TurnRecoveryDisposition::Complete;
+        record.revision = 5;
+        record.terminal_evidence = Some(TurnTerminalEvidence {
+            legacy_stdout: String::new(), legacy_stderr: String::new(),
+            legacy_stdout_truncated: false, legacy_stderr_truncated: false,
+            captured_at: "2026-10-06T10:00:02Z".to_string(),
+            pi_execution: Some(TurnPiExecutionEvidence {
+                user_entry_id: "pi-user-0".to_string(), assistant_entry_id: "pi-asst-0".to_string(),
+                leaf_entry_id: "pi-asst-0".to_string(), entry_count: 2,
+                assistant_text_truncated: false, assistant_text: "first".to_string(),
+                started_at: "2026-10-06T10:00:00Z".to_string(), committed_at: "2026-10-06T10:00:01Z".to_string(),
+            }),
+            provider_failure: None,
+        });
+        record
+    }
+
+    const CR128_CLAIMED_PREFIX: &str = concat!(
+        "{\"type\":\"session\",\"id\":\"session-one\"}\n",
+        "{\"type\":\"message\",\"id\":\"pi-user-0\",\"parentId\":null,\"timestamp\":\"2026-10-06T10:00:00Z\",\"message\":{\"role\":\"user\",\"content\":\"first\"}}\n",
+        "{\"type\":\"message\",\"id\":\"pi-asst-0\",\"parentId\":\"pi-user-0\",\"timestamp\":\"2026-10-06T10:00:01Z\",\"message\":{\"role\":\"assistant\",\"content\":\"first\",\"stopReason\":\"stop\"}}\n",
+    );
+    const CR128_OPEN_REQUEST_A: &str = concat!(
+        "{\"type\":\"message\",\"id\":\"pi-user-a\",\"parentId\":\"pi-asst-0\",\"timestamp\":\"2026-10-06T12:18:23Z\",\"message\":{\"role\":\"user\",\"content\":\"restore the video\"}}\n",
+        "{\"type\":\"message\",\"id\":\"pi-asst-a1\",\"parentId\":\"pi-user-a\",\"timestamp\":\"2026-10-06T12:21:17Z\",\"message\":{\"role\":\"assistant\",\"content\":\"Preparing the recovery directory\",\"stopReason\":\"toolUse\"}}\n",
+        "{\"type\":\"message\",\"id\":\"pi-tool-a1\",\"parentId\":\"pi-asst-a1\",\"timestamp\":\"2026-10-06T12:21:18Z\",\"message\":{\"role\":\"toolResult\",\"content\":\"ok\"}}\n",
+    );
+    fn cr128_closed_request_b(parent: &str) -> String {
+        format!(concat!(
+            "{{\"type\":\"message\",\"id\":\"pi-user-b\",\"parentId\":\"{parent}\",\"timestamp\":\"2026-10-06T12:34:49Z\",\"message\":{{\"role\":\"user\",\"content\":\"continue\"}}}}\n",
+            "{{\"type\":\"message\",\"id\":\"pi-asst-b\",\"parentId\":\"pi-user-b\",\"timestamp\":\"2026-10-06T12:36:07Z\",\"message\":{{\"role\":\"assistant\",\"content\":\"Recovery complete.\",\"stopReason\":\"stop\"}}}}\n",
+        ), parent = parent)
+    }
+
+    #[test]
+    fn a_restart_and_continue_closes_the_continuing_record_and_interrupts_the_first() {
+        // CR128: two stale records, one closed turn. Paired against closed turns this is 2 ≠ 1 and
+        // refused forever; paired against requests it is 2 = 2, and each record gets the verdict the
+        // session actually supports.
+        let session = format!("{CR128_CLAIMED_PREFIX}{CR128_OPEN_REQUEST_A}{}", cr128_closed_request_b("pi-tool-a1"));
+        let branch = super::project_active_pi_branch(&session).unwrap();
+        let turns = super::project_complete_pi_transcript_from_branch(&branch);
+        assert_eq!(turns.len(), 2, "the legacy projection sees one closed turn beyond the claimed one");
+        let a = cr128_record("run-a", "2026-10-06T12:18:21.331Z");
+        let b = cr128_record("run-b", "2026-10-06T12:34:47.102Z");
+        let records = vec![cr128_settled_record(), a.clone(), b.clone()];
+
+        assert!(matches!(
+            super::attribute_stale_pi_record(&a, &records, &branch, &turns).unwrap(),
+            super::StalePiAttribution::Interrupted
+        ));
+        assert!(matches!(
+            super::attribute_stale_pi_record(&b, &records, &branch, &turns).unwrap(),
+            super::StalePiAttribution::Closed(turn)
+                if turn.user_entry_id == "pi-user-b" && turn.assistant_entry_id == "pi-asst-b" && turn.entry_count == 7
+        ));
+    }
+
+    #[test]
+    fn a_trailing_open_request_is_named_not_judged() {
+        // CR128: before `continue`, the restart left one record and one unanswered request. Nothing
+        // on the session proves that run is over — another instance could still be running it — so
+        // the record is left in place under its own reason instead of being interrupted or called
+        // ambiguous.
+        let session = format!("{CR128_CLAIMED_PREFIX}{CR128_OPEN_REQUEST_A}");
+        let branch = super::project_active_pi_branch(&session).unwrap();
+        let turns = super::project_complete_pi_transcript_from_branch(&branch);
+        let a = cr128_record("run-a", "2026-10-06T12:18:21.331Z");
+        let records = vec![cr128_settled_record(), a.clone()];
+        assert_eq!(
+            super::attribute_stale_pi_record(&a, &records, &branch, &turns).unwrap_err(),
+            "mirror_append_pi_recovery_request_open",
+        );
+    }
+
+    #[test]
+    fn attribution_still_refuses_when_records_and_requests_cannot_pair() {
+        // Two records, one request: the second record never wrote its prompt. Nothing pairs.
+        let session = format!("{CR128_CLAIMED_PREFIX}{}", cr128_closed_request_b("pi-asst-0"));
+        let branch = super::project_active_pi_branch(&session).unwrap();
+        let turns = super::project_complete_pi_transcript_from_branch(&branch);
+        let a = cr128_record("run-a", "2026-10-06T12:18:21.331Z");
+        let b = cr128_record("run-b", "2026-10-06T12:34:47.102Z");
+        let records = vec![cr128_settled_record(), a.clone(), b.clone()];
+        assert_eq!(
+            super::attribute_stale_pi_record(&b, &records, &branch, &turns).unwrap_err(),
+            "mirror_append_pi_recovery_ambiguous",
+        );
+        // A request admitted after it was asked cannot belong to that record: refused, not guessed.
+        let session = format!("{CR128_CLAIMED_PREFIX}{CR128_OPEN_REQUEST_A}{}", cr128_closed_request_b("pi-tool-a1"));
+        let branch = super::project_active_pi_branch(&session).unwrap();
+        let turns = super::project_complete_pi_transcript_from_branch(&branch);
+        let late_a = cr128_record("run-a", "2026-10-06T12:18:25Z");
+        let records = vec![cr128_settled_record(), late_a.clone(), b.clone()];
+        assert_eq!(
+            super::attribute_stale_pi_record(&late_a, &records, &branch, &turns).unwrap_err(),
+            "mirror_append_pi_recovery_frontier_mismatch",
+        );
     }
 
     #[test]

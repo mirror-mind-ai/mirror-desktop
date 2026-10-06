@@ -96,9 +96,12 @@ describe("CR126: what was deliberately left alone", () => {
   it("leaves the recovery matcher on the old segmentation", () => {
     // Recovery spans whole sessions and has no baseline, so run boundaries are not derivable there.
     // Its pre-existing ambiguity for a corrected run is recorded as debt, not fixed here.
-    const site = region("fn recover_one_stale_journal_record(", "fn reconcile_pi_backed_mirror_delivery_debt(");
-    expect(site).toContain("project_complete_pi_transcript(&content)");
-    expect(site).toContain("match_unclaimed_pi_turn(record, records, &turns)");
+    // CR128 changed what recovery pairs against (requests, not closed turns) but kept it on the
+    // legacy segmentation: the turns it attributes are still the whole-session projection.
+    const site = region("fn recover_one_stale_journal_record(", "fn interrupt_stale_journal_record(");
+    expect(site).toContain("project_complete_pi_transcript_from_branch(&branch)");
+    expect(site).toContain("attribute_stale_pi_record(record, records, &branch, &turns)");
+    expect(site).not.toContain("project_pi_run_from_branch(");
   });
 
   it("leaves the shared projection and its two surfaces untouched", () => {

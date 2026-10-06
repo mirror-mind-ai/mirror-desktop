@@ -2,9 +2,9 @@
 
 # CR128: Give Back the Answer a Restart-and-Continue Strands
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr128-restart-and-continue-recovery`
 
 ## Friction
 
@@ -123,3 +123,135 @@ attribution by hand — the same thing this CR must not do in code.
 
 **Mirror's stored history is not backfilled.** The turn never reached Mirror. If the fix delivers it
 late, that is delivery; writing it into the Mirror database by another route is not in scope.
+
+## Plan (2026-10-06)
+
+### The rule
+
+The matcher was never wrong about what it could see. It paired stale journal records against
+**closed turns**, and a closed turn is the only thing the legacy projection produces. A run that died
+before closing produces no closed turn, so the one thing a restart leaves behind is invisible to it.
+
+Every run that got as far as writing its prompt owns exactly one **request** on the session: the user
+entry it wrote. Pair stale records against unclaimed requests instead, in admission order, and each
+record gets the verdict the session actually supports:
+
+- its request was answered → recover it as `TerminalDurable` with that turn, exactly as before;
+- its request was never answered **and a later request exists on the same session** → the run that
+  owned it is over, because Pi appends a new request only after the previous process ended →
+  `Interrupted`, a transition the journal has permitted from `Admitted | Running` all along and that
+  nothing native ever took;
+- its request was never answered and nothing follows it → **named, not judged**:
+  `mirror_append_pi_recovery_request_open`. Nothing on the session proves that run is over, and
+  another instance sharing the data directory could still be running it. The Navigator's next
+  request on that session turns it into the case above.
+
+Count mismatch still refuses as `ambiguous`; a request asked before its record was admitted, or a
+reply committed after the next record's admission, still refuses as `frontier_mismatch`. The refusal
+is narrowed, not removed.
+
+### Why this is not the baseline CR126 lacked
+
+CR126 established that recovery cannot derive *run boundaries* without a baseline leaf. This CR does
+not derive them. It needs only the fact that a request exists and whether a closed turn starts at
+it — both of which the legacy whole-session projection already yields. Attribution rests on recorded
+admission times and recorded entry timestamps, never on position alone.
+
+### Slices
+
+- **D1** — `attribute_stale_pi_record` replaces `match_unclaimed_pi_turn`; `project_unclaimed_pi_requests`
+  lists requests after the claimed frontier; `StalePiAttribution::{Closed, Interrupted}`.
+- **D2** — `recover_one_stale_journal_record` branches on the attribution; `interrupt_stale_journal_record`
+  takes `Admitted | Running → Interrupted` under the journal lock, re-reading the record first.
+
+### Files
+
+- `src-tauri/src/main.rs` — D1, D2, three new Rust tests, two adapted.
+- `src/tests/restartAndContinueRecovery.test.ts` — 8 wiring guards.
+- `src/tests/correctedTurnRequestIdentity.test.ts` — the CR126 guard that pinned the old matcher now
+  pins what is still true: recovery stays on the legacy segmentation and does not use the run projection.
+- `scripts/diagnostics/stale_record_attribution.py` — read-only replay of old and new rule over a store.
+
+### Acceptance, validation, exclusions
+
+As captured above, plus: the replay must show no record that the old rule resolved becoming
+unresolvable under the new one. Exclusions: the conversation ledger of the interrupted turn, the
+`Finishing` label, Mirror backfill, and any hand edit of the live journal.
+
+## Implementation and closure (2026-10-06)
+
+Both slices landed as planned. The attribution is one function with the eligibility, relatedness,
+frontier and ordering logic of the old matcher kept verbatim, and the pairing target changed from
+closed turns to requests. The interruption is one new function of fourteen lines.
+
+Rust: **267 passed / 3 ignored** (was 264). Three tests added:
+
+- `a_restart_and_continue_closes_the_continuing_record_and_interrupts_the_first` — the `softwarezen`
+  shape: a claimed first turn, request A with tool work and no reply, request B closed by one reply.
+  A → `Interrupted`, B → `Closed(pi-asst-b)` with `entry_count` 7.
+- `a_trailing_open_request_is_named_not_judged` — the state before `continue`: `request_open`.
+- `attribution_still_refuses_when_records_and_requests_cannot_pair` — 2 records / 1 request →
+  `ambiguous`; a record admitted after its request → `frontier_mismatch`.
+
+Two fixture errors were caught by the tests themselves before the rule was touched: a request whose
+parent entry did not exist in a trimmed session, and an entry count of 8 where there are 7.
+
+TypeScript: **235 files / 1,711 tests**, `tsc` clean, build clean, roadmap READY. One CR126 guard had to
+change: it asserted the old matcher's name as proof that recovery was left alone. It now asserts the
+part of that intent CR128 preserved — recovery stays on `project_complete_pi_transcript_from_branch`
+and does not call `project_pi_run_from_branch`.
+
+## Verified against the production store
+
+`scripts/diagnostics/stale_record_attribution.py`, read-only, over every turn journal in
+`ai.mirrormind.desktop` at `2026-10-06T13:09Z`:
+
+| Journey | Record | Old rule | New rule |
+|---|---|---|---|
+| `softwarezen` | `agent-run-2026-10-06T12:18:21.328Z` | ambiguous | **interrupted** |
+| `softwarezen` | `agent-run-2026-10-06T12:34:47.097Z` | ambiguous | **closed → `5c55d124`** |
+| `comercial` | `agent-run-2026-10-06T13:07:52.477Z` | ambiguous | request_open |
+| `mirror-desktop` | `agent-run-2026-10-02T02:22:26.549Z` | ambiguous | ambiguous |
+| `mirror-desktop` | `agent-run-2026-10-06T13:01:28.067Z` | ambiguous | ambiguous |
+
+Five stale records in the store; the old rule refused all five. The new rule resolves the two this CR
+is about, names one that was live at the time of the replay, and leaves two exactly where they were.
+**No record the old rule resolved becomes unresolvable** — the old rule resolved none.
+
+The `comercial` record is the reason the rule is conservative. It appeared during this work, two
+minutes before the replay, almost certainly a run in progress. Under a rule that interrupted any
+unanswered request it would have been judged dead while alive. Under this rule it is named and left.
+
+### What the replay cannot show
+
+That `5c55d124`'s 952 characters reach the conversation and Mirror. The replay proves the native
+attribution; the delivery after `TerminalDurable` is CR108's existing convergence
+(`materialize_completed_journal_delivery_debt` → `convergePiBackedItem` → settlement), which this CR
+does not touch and which the Rust tests cannot drive without an `AppHandle`. The live `softwarezen`
+record is the field verification, and it cannot occur before a release carries this change,
+production is upgraded, and the Journey is opened.
+
+## Closure review
+
+**Proportionality.** Two functions changed, one added, no renderer change, no schema change, no new
+data channel. The fix is smaller than the capture feared because the information needed was already
+in the session file.
+
+**Debt.**
+
+- The interrupted turn's conversation ledger is not touched. Turn A's `pi`, `harness` and `mirror`
+  bodies stay `pending` in the `softwarezen` projection, so its `classification` stays
+  `commit_pending` after B settles. Nothing on the surface reads that for the Composer when the thread
+  is ready — the last Nautilus turn governs — but it is the "body pending forever" that CR122 named.
+- `StaleRecoveryReport` counts an interruption as `recovered`, so `recoveredInSameAttempt` in the
+  skip log cannot distinguish the two. A field no one reads yet; recorded so it is not mistaken later.
+- `request_open` resolves only through the Navigator's next request on that session. A Journey whose
+  Navigator never continues keeps one stale record and one unanswered request indefinitely, and the
+  surface still calls that `Finishing`. The label question is open, as the capture said it would be.
+- Which of the two blocking paths produces `Finishing` for this state is still not established.
+- The `mirror-desktop` record from 2026-10-02 is unresolved under both rules and was not examined.
+
+**Field verification owed.** The `softwarezen` answer is the witness. The record must read
+`terminal_durable` then `settled` for B and `interrupted` for A after the Journey is opened on a
+release carrying this change; the conversation must show *"Recuperação concluída."*; Mirror
+conversation `d1f94c25` must receive the pair.
