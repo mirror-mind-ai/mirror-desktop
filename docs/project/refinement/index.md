@@ -28,6 +28,14 @@ Refinement authority; SQLite must not be consulted or dual-written.
   regressions, 17 production turns sit with a pending harness body, that body is CR121's throw, and
   12 of 20 Journeys read `conflicted` because reason codes never clear. Content is safe in Mirror.
   Recommended as the next pull, ahead of CR120 and in place of CR121's investigation
+- Change Request: CR110 is `done`. Mirror refuses a create when any Journey row changed since the
+  Desktop loaded its tree — the Navigator's own `mm-journey` path update is enough — and the only
+  recovery was leaving the form to reload and retype. The form now reloads the tree itself, keeps a
+  create whose parent still exists and whose id is still free, and asks for one more Confirm under a
+  new request id; a real conflict names what changed. Nothing is retried on its own
+- Change Request: CR100's cause is established and recorded, status unchanged: `update_journey`,
+  which the Edit Journey dialog submits, exists in no Mirror core. Repair belongs partly to Mirror
+  core; the Workbench decision is pending
 - Change Request: CR129 is `captured`. A settlement repaired by recovery writes no record at all:
   `recoverPostTerminalPersistence` never opens a collector, so the ledger keeps the failure and
   nothing after it. This has blocked a diagnosis twice in two days, in both directions —
@@ -143,6 +151,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR128](rs016-ongoing-product-improvements-and-adjustments/cr128-give-back-the-answer-a-restart-and-continue-strands.md) | RS016 | Give Back the Answer a Restart-and-Continue Strands | done | @alissonvale | `refinement/rs016-cr128-restart-and-continue-recovery` |
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | done | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR125](rs021-ux-pre-beta-evolution/cr125-keep-the-reader-s-place-when-a-turn-settles.md) | RS021 | Keep the Reader's Place When a Turn Settles | done | @alissonvale | `refinement/rs021-cr125-conversation-scroll-anchor` |
+| — | [CR110](rs021-ux-pre-beta-evolution/cr110-make-journey-creation-recover-from-registry-change.md) | RS021 | Make Journey Creation Recover from Registry Change | done | @alissonvale | `refinement/rs021-cr110-rebase-stale-create-intent` |
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |
 | — | [CR118](rs016-ongoing-product-improvements-and-adjustments/cr118-anchor-a-segment-to-the-history-it-can-see.md) | RS016 | Anchor a Segment to the History It Can See | done | @alissonvale | `refinement/rs016-cr118-segment-anchor-tolerance` |
 | — | [CR119](rs016-ongoing-product-improvements-and-adjustments/cr119-give-finishing-back-to-the-navigator.md) | RS016 | Give Finishing Back to the Navigator | done | @alissonvale | `refinement/rs016-cr119-settlement-phase-timing` |

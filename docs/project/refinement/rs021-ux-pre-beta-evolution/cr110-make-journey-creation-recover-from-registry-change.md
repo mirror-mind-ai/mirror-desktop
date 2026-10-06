@@ -2,9 +2,9 @@
 
 # CR110: Make Journey Creation Recover from Registry Change
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr110-rebase-stale-create-intent`
 
 ## Friction
 
@@ -61,3 +61,96 @@ Characterise the exact reported path before relaxing any registry conflict rule:
 No blind automatic retry, no last-writer-wins tree replacement, no mutation of an unrelated Journey
 and no weakening of registry provenance/version checks. This CR concerns recovering a named create
 intent; it does not authorize automatic merging of concurrent hierarchy edits.
+
+## Plan (2026-10-06)
+
+### The mechanism, established from code and the live store
+
+The Desktop builds every mutation request with `expectedSourceVersion` taken from the registry it
+loaded (`createMutationRequest`, `src/domain/journeyMutation.ts`). That registry is loaded at startup
+and refreshed only by an explicit reload, an onboarding import, or the Desktop's own successful
+mutation. Mirror's `journey mutate` recomputes `source_version` as one SHA-256 over **every** Journey
+row's `id`, `key`, `content`, `version`, `updated_at` and `metadata`
+(`memory/storage/journey_admin.py`) and refuses with `stale_source` when it differs. The native layer
+maps that code to *"Journeys changed in Mirror. Reload the tree and try again."*
+
+So any write to any Journey row in Mirror between the Desktop's load and the create refuses the
+create — including writes the create does not conflict with. The realistic trigger is the Navigator's
+own Mirror use from Pi: `set_journey_path` (`memory/services/journey.py`) rewrites a Journey's
+`content` and `updated_at`, which is exactly what `mm-journey` does when it updates a path. Nothing in
+the Desktop notices, and the next create fails.
+
+**It is self-inflicted staleness, reported as a conflict, with manual re-entry as the only recovery.**
+The conflict rule itself is right — a digest over the whole tree is the honest authority — and is not
+weakened.
+
+Live check at the time of planning: the registry file's `sourceVersion` equals Mirror's current
+digest, and no Journey row has changed since `2026-09-30`. There is no live reproduction; the failure
+needs a Mirror-side write between load and create.
+
+A failed `stale_source` leaves nothing behind: the core raises inside `BEGIN IMMEDIATE`, rolls back,
+and writes no receipt. A rebased request under a **new** `requestId` therefore cannot duplicate
+anything, and reusing the old id would be wrong — the digest would differ and the core would answer
+`idempotency_conflict`.
+
+### Slices
+
+- **D1 — recognise the refusal.** `STALE_SOURCE_MESSAGE` in the domain, equal by construction to
+  the native literal (a source guard holds them identical); `isStaleSourceError`.
+- **D2 — judge the intent, in the domain.** `rebaseCreateIntent(freshRegistry, { slug, parentId })`
+  returns `rebasable` with a recomputed position, or a `conflict` naming the one thing that changed:
+  the id is now taken, or the parent is gone.
+- **D3 — reload inside the form.** On a stale refusal, `executeJourneyMutation` reloads the tree
+  (same reconciliation as the explicit reload), then for a create judges the intent: rebasable → the
+  pending request is rebuilt from the fresh registry with a new request id and the message says one
+  more Confirm will create it; conflict → the message names it, and a vanished parent is reset to
+  Root. Other operations get the reloaded tree and *"review the form and confirm again"*. **Nothing is
+  retried on its own**: the retry is the Navigator pressing Confirm.
+
+### Files
+
+- `src/domain/journeyMutation.ts` — D1, D2.
+- `src/app/App.tsx` — D3, `rebaseJourneyAdministrationAfterStaleSource`.
+- `src/tests/staleCreateIntentRebase.test.ts` — 11 guards.
+
+### Acceptance and exclusions
+
+As captured. Excluded: any change to Mirror's digest or comparison; refreshing the registry on dialog
+open (shrinks the window, does not remove it, and adds a `uv` subprocess to every open); automatic
+retry of any kind; and the `update_journey` finding recorded under CR100.
+
+## Implementation and closure (2026-10-06)
+
+All three slices landed as planned. One domain function, one App function, no native change.
+
+The existing boundary test *"keeps mutation failures inside the open administration form"* shaped
+D3: the reload happens inside the form's own catch and never touches the tree's refresh-failure
+state. A second existing guard pins the native error mapping, which is why D1 matches the message by
+equality instead of changing it.
+
+The retry reuses the form's existing mechanism: `executeJourneyMutation` already prefers a pending
+request whose operation and payload match the form. After a rebase the pending request carries the
+fresh `sourceVersion`, a new `requestId` and the recomputed position, and the form recomputes the same
+position from the now-fresh registry, so pressing Confirm submits the rebased request without new
+wiring.
+
+Gates: `tsc` clean, **236 files / 1,722 tests** (+11), build clean, roadmap READY, native unchanged.
+
+## Closure review
+
+**Proportionality.** The capture asked for five characterisations before any change. Four were
+answered from code and the store (the exact comparison, what makes it stale, the idempotency
+coordinates, the safe-retry authority); the fifth — reproducing the failure — was not possible, the
+store having no Journey change since 2026-09-30. The fix follows the capture's acceptance exactly and
+does not touch the rule it was careful not to weaken.
+
+**Debt.**
+- The success path after a rebased Confirm is Dev-validated by tests only. Field verification needs
+  a Mirror-side Journey write between load and create, which cannot be forced from the Desktop.
+- A create whose parent was reset to Root keeps the typed name, id and description; the Navigator
+  must choose the parent again. Deliberate: choosing it silently would be guessing.
+- `appendJourneyPosition` is still evaluated in `submitJourneyAdministration` before the call, so a
+  parent that vanishes between the reload and the next Confirm throws outside the form's catch.
+  Pre-existing; narrowed, not closed.
+- The other five operations get a reload and a prompt, not a rebase. Their intents carry a Journey
+  id whose continued existence is the only thing to check, and the reloaded tree shows it.

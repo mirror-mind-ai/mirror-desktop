@@ -121,7 +121,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR107: Make Existing Journeys Startable](cr107-make-existing-journeys-startable.md) — done
 - [CR108: Stop One Unrecoverable Turn from Blocking Recovery](cr108-stop-one-unrecoverable-turn-from-blocking-recovery.md) — done
 - [CR109: Make Conversations First-Class Workspaces](cr109-make-conversations-first-class-workspaces.md)
-- [CR110: Make Journey Creation Recover from Registry Change](cr110-make-journey-creation-recover-from-registry-change.md)
+- [CR110: Make Journey Creation Recover from Registry Change](cr110-make-journey-creation-recover-from-registry-change.md) — done
 - [CR111: Preserve the Agent Comment Trail Across Turns](cr111-preserve-agent-comment-trail-across-turns.md) — done
 - [CR113: Make Composer Typing Responsive in Large Journeys](cr113-make-composer-typing-responsive-in-large-journeys.md) — done
 - [CR114: Make the Current Segment the Default Working Set](cr114-make-the-current-segment-the-default-working-set.md) — done

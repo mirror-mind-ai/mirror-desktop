@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **CR127 `planned`** — a causa estava gravada pela CR121 e eu não a tinha lido: manifesto derivado em Rust, validado em TS · **CR129** `captured` — a recuperação não registra o reparo
+🎯 **Foco oficial:** **CR110 `done`** em `main` — criar Journey já não exige sair do formulário · **CR100 tem causa**: `update_journey` não existe em nenhum core Mirror (decisão de Workbench pendente) · CR127 `planned`, CR129 `captured`
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 

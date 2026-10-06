@@ -1,4 +1,4 @@
-import type { JourneyRegistry } from "./journeyRegistry";
+import { findJourneyById, type JourneyRegistry } from "./journeyRegistry";
 
 export type JourneyMutationOperation = "create_journey" | "update_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey";
 export type JourneyMutationRequest = {
@@ -61,4 +61,48 @@ export function createMutationRequest(
     throw new Error("Reload Journeys from Mirror before administering the tree.");
   }
   return { schemaVersion: "mirror.journey-mutation@1.0", requestId, expectedSourceVersion: registry.sourceVersion, operation, payload };
+}
+
+/**
+ * CR110: the exact message the native layer returns when Mirror refuses a mutation because the
+ * Desktop's registry snapshot is older than Mirror's Journey rows. It is compared by equality, and a
+ * source guard holds it identical to the literal in `mutate_journey_registry`.
+ */
+export const STALE_SOURCE_MESSAGE = "Journeys changed in Mirror. Reload the tree and try again.";
+
+export function isStaleSourceError(error: unknown): boolean {
+  return journeyAdministrationError(error) === STALE_SOURCE_MESSAGE;
+}
+
+export type CreateIntentRebase =
+  | { kind: "rebasable"; position: number }
+  | { kind: "conflict"; reason: string; parentMissing: boolean };
+
+/**
+ * CR110: whether a create intent written against an older registry can still be applied, verbatim,
+ * against a fresh one. Mirror compares one digest over every Journey's row, so any change anywhere
+ * — a path set from Pi, a stage moved in Mirror — refuses a create that it does not actually
+ * conflict with. The things that can make the intent itself wrong are exactly two: the chosen
+ * parent is gone, or the chosen id is now taken. Everything else is a position to recompute.
+ *
+ * This decides; it never retries. The retry is the Navigator confirming the same form again.
+ */
+export function rebaseCreateIntent(
+  registry: JourneyRegistry,
+  intent: { slug: string; parentId: string | null },
+): CreateIntentRebase {
+  if (registry.schemaVersion !== "0.2.0" || !registry.sourceVersion) {
+    return { kind: "conflict", reason: "Reload Journeys from Mirror before administering the tree.", parentMissing: false };
+  }
+  if (findJourneyById(registry, intent.slug)) {
+    return { kind: "conflict", reason: `A Journey with id "${intent.slug}" now exists in Mirror. Choose another id.`, parentMissing: false };
+  }
+  if (intent.parentId && !findJourneyById(registry, intent.parentId)) {
+    return {
+      kind: "conflict",
+      reason: `The parent Journey "${intent.parentId}" no longer exists in Mirror. The parent was reset to Root; review and confirm again.`,
+      parentMissing: true,
+    };
+  }
+  return { kind: "rebasable", position: appendJourneyPosition(registry, intent.parentId ?? "") };
 }

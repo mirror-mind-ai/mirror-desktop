@@ -388,7 +388,7 @@ import {
   sanitizeJourneyPreferenceState,
   type JourneyPreferenceState,
 } from "../domain/journeyPreferencePersistence";
-import { appendJourneyPosition, createMutationRequest, journeyAdministrationError, replacementJourneyAfterDeletion, suggestJourneySlug, type JourneyMutationRequest } from "../domain/journeyMutation";
+import { appendJourneyPosition, createMutationRequest, isStaleSourceError, journeyAdministrationError, rebaseCreateIntent, replacementJourneyAfterDeletion, suggestJourneySlug, type JourneyMutationRequest } from "../domain/journeyMutation";
 import {
   agentThinkingLevels,
   createDefaultAgentSettings,
@@ -4428,9 +4428,61 @@ export function App({ model }: AppProps) {
       setJourneyAdminDialog(null); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null);
       setJourneyRegistryRefreshState("succeeded"); setJourneyRegistryRefreshMessage("Journey structure updated from Mirror.");
     } catch (error) {
+      if (isStaleSourceError(error)) {
+        await rebaseJourneyAdministrationAfterStaleSource(operation, payload);
+        return;
+      }
       const message = journeyAdministrationError(error);
       setJourneyAdminState("failed"); setJourneyAdminMessage(message);
     }
+  }
+
+  /**
+   * CR110: Mirror refused the mutation because the tree the form was built from is older than
+   * Mirror's Journey rows. That used to send the Navigator out of the form to reload the tree and
+   * type everything again. The tree is reloaded here instead, inside the form, and the intent is
+   * judged against it: a create whose parent still exists and whose id is still free is kept, with
+   * its position recomputed, and one more Confirm submits it against current authority under a new
+   * request id. A create that no longer fits names what changed. Nothing is retried on its own.
+   */
+  async function rebaseJourneyAdministrationAfterStaleSource(
+    operation: "create_journey" | "update_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey",
+    payload: Record<string, unknown>,
+  ) {
+    let refreshedRegistry: JourneyRegistry;
+    try {
+      refreshedRegistry = await refreshJourneyRegistry();
+      const reconciled = reconcileReloadedJourneyState(refreshedRegistry, {
+        selectedJourneyId: selectedJourney, pinnedJourneyIds: journeyPreferences.pinnedJourneyIds,
+        recentJourneyIds: journeyPreferences.recentJourneyIds, collapsedJourneyIds,
+      });
+      if (!reconciled) throw new Error("Mirror returned an empty Journey registry.");
+      setLoadedJourneyRegistry(refreshedRegistry);
+      setJourneyPreferences((current) => ({ ...current, activeJourneyId: reconciled.selectedJourneyId, pinnedJourneyIds: reconciled.pinnedJourneyIds, recentJourneyIds: reconciled.recentJourneyIds }));
+      if (reconciled.selectedJourneyId !== selectedJourney) setSelectedJourney(reconciled.selectedJourneyId);
+      setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
+    } catch (refreshError) {
+      setJourneyAdminState("failed"); setJourneyAdminPendingRequest(null);
+      setJourneyAdminMessage(`Journeys changed in Mirror and could not be reloaded: ${journeyAdministrationError(refreshError)}`);
+      return;
+    }
+    if (operation !== "create_journey") {
+      setJourneyAdminState("failed"); setJourneyAdminPendingRequest(null);
+      setJourneyAdminMessage("Journeys changed in Mirror. The tree was reloaded; review the form and confirm again.");
+      return;
+    }
+    const slug = typeof payload.slug === "string" ? payload.slug : "";
+    const parentId = typeof payload.parentId === "string" && payload.parentId ? payload.parentId : null;
+    const rebase = rebaseCreateIntent(refreshedRegistry, { slug, parentId });
+    if (rebase.kind === "conflict") {
+      if (rebase.parentMissing) setJourneyAdminParent("");
+      setJourneyAdminState("failed"); setJourneyAdminPendingRequest(null);
+      setJourneyAdminMessage(rebase.reason);
+      return;
+    }
+    setJourneyAdminPendingRequest(createMutationRequest(refreshedRegistry, "create_journey", { ...payload, position: rebase.position }));
+    setJourneyAdminState("failed");
+    setJourneyAdminMessage(`Journeys changed in Mirror while you were editing. "${slug}" can still be created under ${parentId ?? "Root"}; confirm again to create it.`);
   }
 
   async function submitJourneyAdministration(event: FormEvent) {

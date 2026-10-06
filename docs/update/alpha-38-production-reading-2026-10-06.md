@@ -36,7 +36,7 @@ the floor — min **119**, median **3,476**, max **5,392**. Span `17:52:28Z` →
 
 ## The one recorded failure is a new finding, and it is not a failed turn
 
-`mirror-mind` is a Journey created today. Its **first** settlement failed:
+`mirror-mind` had its first Desktop settlement today (corrected 2026-10-06: the Journey has existed in Mirror since 2026-08-27; it was not created today). That **first** settlement failed:
 
 ```
 d0 load_journal                 7ms  completed

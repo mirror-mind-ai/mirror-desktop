@@ -13,7 +13,7 @@ recovery, so the Navigator usually sees nothing — but the turn is recorded as 
 instrument reports a failure that was in fact completed, and the repair depends on a path that has
 its own refusal conditions.
 
-Observed live on `alpha.38` in the Journey `mirror-mind`, created 2026-10-06. Its first settlement:
+Observed live on `alpha.38` in the Journey `mirror-mind`, whose first Desktop settlement was 2026-10-06 (the Journey has existed in Mirror since 2026-08-27; "created" was wrong). Its first settlement:
 
 ```
 d0 load_journal                 7ms  completed
@@ -62,7 +62,7 @@ mirror-mind  2026-10-06T11:59:44.936Z  failed  119ms
 
 CR121 did exactly what it was built to do. The instrument worked and was not read.
 
-**The determinism claim is also false.** `comercial`, a Journey created 2026-10-06, settled its
+**The determinism claim is also false.** `comercial`, whose first Desktop settlement was also 2026-10-06 (in Mirror since 2026-08-10), settled its
 **first** turn (`agent-run-2026-10-06T13:07:52.477Z`) through all nineteen phases: `load_segments`
 18 ms `completed`, `publish_segments` 84 ms `completed`. Its second turn did the same. So "every new
 Journey's first settlement fails" does not hold — one of the two new Journeys observed on `alpha.38`
