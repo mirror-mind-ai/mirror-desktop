@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **CR128** `done` na branch — a recuperação já atribui o par do `softwarezen`; falta a release que a leva à produção · **CR127** `captured`
+🎯 **Foco oficial:** `alpha.39` **publicada e verificada** (114 manifests, 0 fora do alvo) · a recuperação do `softwarezen` espera **você atualizar a produção e abrir a Journey** · **CR127** `captured`
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 
@@ -10,7 +10,7 @@
 
 | Story / Change Request | Estado | Progresso |
 | --- | --- | --- |
-| **RS016 · Ongoing Product Improvements** | 🔄 ativa · **CR128 done, CR127 captured** | `█████████░` 34 done · 1 🟡 · 4 ↗️ · 1 ⛔ |
+| **RS016 · Ongoing Product Improvements** | 🔄 ativa · **CR128 em `alpha.39`, CR127 capturada** | `█████████░` 34 done · 1 🟡 · 4 ↗️ · 1 ⛔ |
 | ↳ **CR126 · Stop a Correction From Becoming Its Own Turn** | ✅ done · 573 de 573 pares antigos re-derivam exatamente | `██████████` |
 | ↳ **CR125 · Keep the Reader's Place When a Turn Settles** | ✅ done · publicada em alpha.37 *(RS021)* | `██████████` |
 | ↳ **CR124 · Stop Verifying a Published Chapter Against a Moving Projection** | ✅ done · publicada em alpha.37 · **severidade corrigida** | `██████████` |
