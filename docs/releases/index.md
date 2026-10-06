@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.40 — Your Typing Survives a Changed Tree](v0.2.0-alpha.40.md) — keeps a Journey creation alive when Mirror's tree changed underneath it, reloading the tree inside the form, naming a real conflict, and asking for one more Confirm instead of sending the Navigator out to start over.
 - [v0.2.0-alpha.39 — The Answer Survives the Restart](v0.2.0-alpha.39.md) — lets a turn interrupted by a machine restart and then continued finish, recovers the answer the agent produced, records an interrupted run as interrupted, and leaves a run that may still be alive undecided.
 - [v0.2.0-alpha.38 — The Request Keeps Its Name](v0.2.0-alpha.38.md) — A turn you corrected now records what you actually asked instead of the correction, keeps the work the agent had already done before you interrupted, and shows the correction attached to the answer it changed when the conversation is reloaded.
 - [v0.2.0-alpha.37 — What Is Already There Keeps Its Place](v0.2.0-alpha.37.md) — A chapter that closes empty no longer writes nothing over its own history, three Journeys that failed to publish on every compaction can publish again, and the Conversation stops sliding away from the turn you were reading.
