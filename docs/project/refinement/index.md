@@ -28,6 +28,17 @@ Refinement authority; SQLite must not be consulted or dual-written.
   regressions, 17 production turns sit with a pending harness body, that body is CR121's throw, and
   12 of 20 Journeys read `conflicted` because reason codes never clear. Content is safe in Mirror.
   Recommended as the next pull, ahead of CR120 and in place of CR121's investigation
+- Change Request: CR128 is `captured`. A machine restart mid-turn, then `continue`, left two journal
+  records at `running` for a single Pi turn the agent actually closed — so `match_unclaimed_pi_turn`
+  refuses with `mirror_append_pi_recovery_ambiguous` (stale 2, unclaimed 1) and the refusal is
+  permanent. A 952-character answer closed at `12:36:07Z` is in the Pi session, absent from the
+  conversation, never delivered to Mirror, and the Journey reports `Finishing` for work nobody is
+  doing. This is the debt recorded when CR126 closed, under a cause nobody anticipated
+- Change Request: CR127 is `captured`. Every newly created Journey's first settlement fails its
+  inline path: `load_segments` requires `complete.json`, which only `publish_segments` can mint, and
+  publication runs after the load. Witnessed on `alpha.38` in `mirror-mind`. The turn itself
+  completed through recovery, which is what makes the deeper finding instrumental — recovery opens no
+  collector, so a rescued settlement is indistinguishable from a failed one
 - Change Request: CR126 is `done`. A run is one invocation and an invocation starts once, so the
   request is the **first** user entry after the baseline the native side already computes — no
   claim crosses the boundary and no text is interpreted. D3 came out simpler than planned: one
@@ -112,6 +123,8 @@ Open work is ordered intentionally. Terminal history follows open work.
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
 | — | [CR126](rs016-ongoing-product-improvements-and-adjustments/cr126-stop-a-correction-from-becoming-its-own-turn.md) | RS016 | Stop a Correction From Becoming Its Own Turn | done | @alissonvale | `refinement/rs016-cr126-corrected-turn-request-identity` |
+| — | [CR127](rs016-ongoing-product-improvements-and-adjustments/cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) | RS016 | Let a Journey's First Turn Settle Without a Receipt It Cannot Have | captured | — | — |
+| — | [CR128](rs016-ongoing-product-improvements-and-adjustments/cr128-give-back-the-answer-a-restart-and-continue-strands.md) | RS016 | Give Back the Answer a Restart-and-Continue Strands | captured | — | — |
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | done | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR125](rs021-ux-pre-beta-evolution/cr125-keep-the-reader-s-place-when-a-turn-settles.md) | RS021 | Keep the Reader's Place When a Turn Settles | done | @alissonvale | `refinement/rs021-cr125-conversation-scroll-anchor` |
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |

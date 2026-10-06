@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **nenhuma CR aberta** · `alpha.38` em produção há 18 h · a verificação de campo da correção segue devida (zero correções no período)
+🎯 **Foco oficial:** **CR128** · `captured` · uma resposta concluída presa em `softwarezen` desde `12:36:07Z`, recusa de recuperação permanente — e **CR127** · `captured`
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 
@@ -10,7 +10,7 @@
 
 | Story / Change Request | Estado | Progresso |
 | --- | --- | --- |
-| **RS016 · Ongoing Product Improvements** | ✅ ativa · **sem CR aberta** | `██████████` 33 done · 4 ↗️ · 1 ⛔ |
+| **RS016 · Ongoing Product Improvements** | 🔄 ativa · **2 CRs capturadas em campo** | `█████████░` 33 done · 2 🟡 · 4 ↗️ · 1 ⛔ |
 | ↳ **CR126 · Stop a Correction From Becoming Its Own Turn** | ✅ done · 573 de 573 pares antigos re-derivam exatamente | `██████████` |
 | ↳ **CR125 · Keep the Reader's Place When a Turn Settles** | ✅ done · publicada em alpha.37 *(RS021)* | `██████████` |
 | ↳ **CR124 · Stop Verifying a Published Chapter Against a Moving Projection** | ✅ done · publicada em alpha.37 · **severidade corrigida** | `██████████` |

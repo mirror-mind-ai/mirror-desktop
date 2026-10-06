@@ -40,6 +40,8 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR121: Name the Settlement That Fails Before Recovery Saves It](cr121-name-the-settlement-that-fails-before-recovery-saves-it.md) — done
 - [CR124: Stop Verifying a Published Chapter Against a Moving Projection](cr124-stop-verifying-a-published-chapter-against-a-moving-projection.md) — done
 - [CR126: Stop a Correction From Becoming Its Own Turn](cr126-stop-a-correction-from-becoming-its-own-turn.md) — done
+- [CR127: Let a Journey's First Turn Settle Without a Receipt It Cannot Have](cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) — captured
+- [CR128: Give Back the Answer a Restart-and-Continue Strands](cr128-give-back-the-answer-a-restart-and-continue-strands.md) — captured
 - [CR120: Stop a Closing Chapter From Erasing Its Own File](cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) — done
 - [CR119: Give Finishing Back to the Navigator](cr119-give-finishing-back-to-the-navigator.md) — done
 - [CR117: Make a Correction Legible While It Is Live](cr117-make-a-correction-legible-while-it-is-live.md) — done
