@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** CR128 **verificada em campo** — a resposta do `softwarezen` voltou e o Mirror a tem · mas o corpo `harness` do turno ficou `pending` e a Journey provavelmente segue em `Finishing` · **CR127** `captured`
+🎯 **Foco oficial:** CR128 **verificada em campo e confirmada pelo uso** — `softwarezen` mostrou `Interrupted`, liberou o composer e o turno seguinte assentou · a maior dívida restante é a recuperação não abrir coletor (**CR127**)
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 

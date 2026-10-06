@@ -47,7 +47,51 @@ The settled record's evidence is the turn the replay named: `user 1d000ad3`, `as
 `sourceTurnId = turn-agent-run-2026-10-06T12:34:47.097Z`. Outbox empty. Conflict records still 6, none
 new.
 
-## The Journey is probably still stuck, for a different reason
+## Correction (2026-10-06, after the Navigator used the Journey)
+
+**The section below was wrong and is retained because it was published.** It predicted the Journey
+would still be blocked in `Finishing`. The Navigator opened `softwarezen` and reported the opposite:
+the surface showed **`Interrupted`** correctly, the Composer was **released normally**, and a new turn
+ran and settled.
+
+The store confirms it, and also falsifies the second claim — that it would never heal:
+
+| | at `14:16:00.840Z` (what was read) | at `14:51:55.682Z` (now) |
+|---|---|---|
+| turn `12:34:47Z` `harness` | `pending`, `committedAt` `None` | **`committed`**, `committedAt` `2026-10-06T12:36:07.088Z` |
+
+That timestamp identifies the writer. `commitHarnessTurn` has exactly two callers:
+`turnFinalizationCoordinator.ts:334` passes `new Date().toISOString()`, and `:547` — the convergence
+path — passes `execution.committedAt`. The stored value *is* `execution.committedAt`, the Pi assistant
+entry's own timestamp. So the convergence path did commit the harness body.
+
+**How the two readings are reconciled is not established.** The persisted projection at `14:16:00.840Z`
+carried `pending`; by `14:51:55.682Z` it carried the convergence path's committed value. Either the
+in-memory projection already held the commit and the save lagged behind it, or a later pass supplied
+it. The sequence is unobservable precisely because **recovery opens no collector** — B's settlement
+wrote no timing record, so there is no phase trace of it. Rather than choose a story, this is left
+named.
+
+What this means for the diagnosis below: the *ordering* in `convergePiBackedItem` is real and was read
+correctly from the source — `commitHarnessTurn` at `:547` does precede
+`projectPiBackedConversationSurface` at `:548`. What was wrong was concluding a user-visible
+consequence from a single persisted snapshot, and asserting permanence from an early return without
+checking whether anything else reached the same commit.
+
+**No defect is owed from this.** Nothing is captured, and nothing needs to be.
+
+### The new turn confirms the ordinary path is healthy
+
+`agent-run-2026-10-06T14:50:18.266Z` settled with **19 phases** in 2,335 ms and wrote a timing record.
+The contrast is itself the evidence for the standing gap: the recovered turn settled with **no** timing
+record at all, the ordinary turn with a full one.
+
+`classification` remains `commit_pending`, caused by turn A's three `pending` bodies. It blocks
+nothing: `classifyDedicatedTurnState` reads only the **last** Nautilus turn, which is now fully
+committed. That was the gap in the reasoning below — it read the last turn at one moment and treated
+it as permanent.
+
+## Superseded prediction: the Journey is probably still stuck, for a different reason
 
 This was **not predicted** by CR128's closure review. The review predicted turn A's bodies would stay
 `pending`, and they did. It did not predict turn B's.
@@ -88,6 +132,9 @@ the defect.
 **It will not heal.** `convergePiBackedItem` returns early for `record.phase === "settled"` (`:454`),
 the journal record is `settled`, and the outbox is empty. Nothing will attempt this turn again.
 
+> **This claim is false.** It healed. See the Correction above. The early return at `:454` is real, but
+> it was taken as proof that no path could reach the commit, which did not follow.
+
 ### Not introduced by CR128
 
 This is in the CR108-era convergence path, untouched by CR128. CR128 made it **reachable**: before it,
@@ -104,8 +151,13 @@ Whether any previously recovered turn carries the same uncommitted harness body 
 
 ## What is owed
 
-A decision on the harness-commit ordering. The apparent fix is to supply the content before judging
-the commit — either by staging the turn's messages when they are absent regardless of whether the turn
-exists, or by projecting the Pi surface before committing the harness body. Neither has been
-attempted, measured, or captured. Whether the Composer in fact still shows `Finishing` is a GUI
-observation this reading cannot make.
+**Nothing.** The question this section originally left open — whether the Composer still showed
+`Finishing` — was answered by the Navigator: it showed `Interrupted`, released the Composer, and the
+next turn worked. The harness body is committed. No fix is owed, and the ordering in
+`convergePiBackedItem` is recorded as an observation rather than a defect, since no observed behaviour
+depends on it.
+
+What remains owed is unchanged and belongs to CR127's territory: **recovery opens no collector**. A
+turn that settles through recovery writes no timing record, which is exactly why the sequence in the
+Correction above could not be reconstructed. That is now the second time in two readings that this gap
+blocked a diagnosis.

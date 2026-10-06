@@ -255,12 +255,22 @@ in the session file.
 `docs/update/alpha-39-field-verification-2026-10-06.md`. On `alpha.39`, 13 s and 15 s after the
 restart, record A became `interrupted` with receipt `pi-recovery-interrupted-…` and record B became
 `settled`/`completed` on turn `5c55d124`, `entryCount` 182 — exactly what the replay predicted. The
-conversation shows *"Recuperação concluída."* and Mirror `d1f94c25` received both messages. **But the
-Journey is probably still blocked**: turn B's `harness` body stayed `pending`, because
-`commitHarnessTurn` is called one line before `projectPiBackedConversationSurface` supplies the
-assistant message's content, and it refuses silently on empty content. That yields
-`projection_pending` → `Finishing`. Pre-existing in the CR108 convergence path, made reachable by this
-CR, and it will not heal because the record is `settled`. Not captured.
+conversation shows *"Recuperação concluída."* and Mirror `d1f94c25` received both messages.
+
+**The Navigator then used the Journey, and it behaved correctly**: `softwarezen` showed `Interrupted`,
+released the Composer, and the next turn ran and settled with 19 phases. Turn B's `harness` body is
+`committed`, carrying `execution.committedAt` (`12:36:07.088Z`) — the convergence path's own value.
+
+An intermediate reading of this CR saw that body `pending` in a snapshot taken five minutes after the
+restart, and predicted from it that the Journey would still be blocked in `Finishing` and would never
+heal. **Both predictions were wrong**, and the correction is recorded at the source in
+`docs/update/alpha-39-field-verification-2026-10-06.md`. The ordering it identified in
+`convergePiBackedItem` (`:547` before `:548`) is real, but no observed behaviour depends on it, so it
+stands as an observation and not a defect. Nothing is captured from it.
+
+The one thing that reading could not reconstruct — when the harness body committed — was unobservable
+because **recovery opens no collector**, the second time in two readings that this gap has blocked a
+diagnosis.
 
 Originally recorded as owed: the `softwarezen` answer is the witness. The record must read
 `terminal_durable` then `settled` for B and `interrupted` for A after the Journey is opened on a
