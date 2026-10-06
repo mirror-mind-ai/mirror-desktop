@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **nenhuma CR aberta** · CR097 e CR126 fecham a cadeia da correção, ambas aguardando release · o registro durável de um turno corrigido nomeia a correção, não o pedido · CR097 conserta a leitura, a CR126 conserta a escrita
+🎯 **Foco oficial:** **nenhuma CR aberta** · `alpha.38` em produção há 18 h · a verificação de campo da correção segue devida (zero correções no período)
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 
