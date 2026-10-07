@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** ⚠️ **release em espera** — o core Mirror *já implementa* `update_journey` desde 02/09, só nunca foi promovido; a CR130 está certa sobre hoje e errada sobre a causa · decisão: promover o Mirror ou manter a contenção
+🎯 **Foco oficial:** promoção do Mirror **bloqueada por autorização** (sem push ao core) — handoff pronto e validado na RS022 · logo a **CR130 é o que deve ir ao ar**: release `alpha.41`
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 

@@ -141,3 +141,87 @@ actually bound to. **Enumerate every instance before describing a contract**, th
 status census and the manifest-loader confusion already produced here.
 
 Nothing about Mirror core is changed, promoted or released by recording this.
+
+## Handoff prepared, promotion unauthorized (2026-10-07)
+
+Promotion was attempted and stopped at the authorization boundary: **the Navigator is not authorized
+to push to Mirror core.** Nothing was pushed, committed, rebased or edited in any Mirror checkout.
+This section is the handoff RS022 exists to produce, so that whoever holds that authority does not
+have to re-investigate.
+
+### Where the work actually is
+
+**Not on `main`.** The previous section said it had sat on `main` unpromoted for five weeks. That was
+wrong. `git branch -r --contains` returns nothing: the work exists only as **two local, unpushed
+commits** in one checkout, `/Users/alissonvale/.mirror-journeys/mirror-mind/mirror-dev`, on `main`:
+
+| commit | date | title |
+|---|---|---|
+| `3b55b7c7` | 2026-09-02 | Make Journey metadata edits canonical and atomic |
+| `c87825cf` | 2026-09-02 | Let canonical edits absorb legacy Journey prose |
+
+It exists nowhere else in the world. It has never been pushed, never reviewed, and had never been
+validated until now.
+
+### Scope
+
+Four files, 210 insertions, 19 deletions:
+
+- `src/memory/services/journey_admin.py` — the `update_journey` handler and allow-list entry
+- `src/memory/storage/journey_admin.py` — content updates inside the atomic boundary
+- `tests/unit/memory/services/test_journey_admin.py` — **120 lines of new tests**
+- `docs/product/architecture.md`
+
+The handler's payload predicate is `set(payload) != {"journeyId", "name", "description",
+"projectPath"}` — exactly what Mirror Desktop was already sending. It writes `display_name`, rewrites
+the identity content through `_updated_content`, and treats a null `projectPath` as a clear.
+
+### Validation performed (2026-10-07, read-only, no mutation)
+
+Run with CI's own command from `.github/workflows/tests.yml`, in the checkout holding the work:
+
+| gate | result |
+|---|---|
+| `uv run pytest tests/unit/ tests/integration/ -m "not live"` | **2,648 passed** in 153.91s |
+| `uv run ruff check src/ tests/` | All checks passed |
+| `uv run ruff format --check src/ tests/` | 378 files already formatted |
+| `tests/unit/memory/services/test_journey_admin.py` | 9 passed |
+
+The three `tests/live/` failures are `OPENROUTER_API_KEY is not configured` and are excluded by CI
+itself, which states *"API keys intentionally absent — all live tests are excluded via `-m 'not
+live'`"*. They are not a defect in this work.
+
+**So the work passes Mirror's own gates for the first time since it was written.**
+
+### What validation does not establish
+
+- **The rebase is unvalidated.** That checkout is **4 commits behind `origin/main`** — a Debt Review
+  dead-lock fix, a ruff format, a repo-hygiene commit and a Workbench capture. The gates were run
+  before rebasing, so they prove the work in isolation, not the integrated result.
+- **No review happened.** These commits have never been seen by CI or by a reviewer.
+- **No release arc exists.** `docs/process/versioning.md` requires a release to be *"closed,
+  validated, versioned, documented, tagged, and published as a GitHub Release"* before `stable` moves.
+  Only *validated* is now true.
+
+### The release this would be
+
+`stable` is at `v0.31.14` (`b2d710eb`, 2026-08-30). `origin/main` is at 2026-09-07. A release from
+`main` would therefore carry **six** commits, not two: these plus the four already on `origin/main`.
+
+By `docs/process/versioning.md`, observable behavior changing without closing an epic is a **PATCH**,
+so the target is **`v0.31.15`**, needing a narrative note at `docs/releases/v0.31.15.md`. Git tags and
+the `stable` branch are the updater contract; production then receives it through the runtime updater.
+
+### Revisit trigger, restated
+
+A Navigator-authorized Mirror core push, after which: rebase onto `origin/main`, re-run the gates,
+review, version, write the note, tag, promote `stable`, publish the GitHub Release. Then Mirror Desktop
+can restore canonical name and description editing and **CR130's containment comes out.**
+
+### Process observations, recorded not acted on
+
+- `AGENTS.md` names `/Users/alissonvale/Code/mirror-dev` for Mirror development. That checkout is at
+  `0.31.12`, head 2026-08-29, and does **not** contain this work. The work lives in a third checkout.
+  Two development checkouts at different commits is how this stayed invisible for five weeks.
+- The work was committed **directly on `main`**, not on a non-`stable` development branch as
+  `AGENTS.md` requires.

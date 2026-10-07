@@ -66,7 +66,7 @@ expected to remain open for as long as the Desktop depends on a Mirror core it d
 ## Change Requests
 
 - [CR094: Mirror Mode Activation Rebinds a Desktop Conversation's Journey](cr094-mirror-mode-activation-rebinds-desktop-conversation-journey.md) — parked
-- [CR100: Mirror core accepts no Journey metadata update operation](../rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) — parked. Documented under RS021, where it was captured; registered here because the debt is upstream. `journey mutate` accepts no metadata update, so the Desktop's Edit Journey *Save changes* can never succeed. Containment [CR130](../rs021-ux-pre-beta-evolution/cr130-stop-offering-a-journey-edit-that-cannot-succeed.md) — **open**
+- [CR100: Mirror core accepts no Journey metadata update operation](../rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) — parked. Documented under RS021, where it was captured; registered here because the debt is upstream. `journey mutate` accepts no metadata update, so the Desktop's Edit Journey *Save changes* can never succeed. Containment [CR130](../rs021-ux-pre-beta-evolution/cr130-stop-offering-a-journey-edit-that-cannot-succeed.md) — **contained**. **Handoff ready (2026-10-07):** the upstream fix is written and now validated against Mirror's own CI gates (2,648 tests, ruff clean), but exists only as two unpushed local commits in one checkout. Promotion is blocked on Navigator authorization to push Mirror core, not on engineering
 
 ## Boundaries
 
