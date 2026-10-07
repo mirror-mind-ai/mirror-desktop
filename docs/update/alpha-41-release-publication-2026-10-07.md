@@ -149,3 +149,30 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+## Assistant Note — transient SSH failure during endpoint-publish (2026-10-07)
+
+The first `publish` run reached `endpoint-publish` and **failed**:
+
+```
+ssh_dispatch_run_fatal: Connection to 51.222.160.3 port 22: Operation timed out
+scp: Connection closed
+Mirror Desktop release deployment: BLOCKED
+```
+
+It failed on the first manifest it tried to copy
+(`darwin-x86_64/0.2.0-alpha.26/latest.json`), so no manifest was written in that attempt.
+
+**It was not the host.** Diagnosed immediately afterwards: 3/3 ICMP replies with round-trip
+173–366 ms, port 22 open, and an SSH handshake that returned `up 16 days, 6:32, load average 0.37`.
+A transient network failure on a high-latency link, not an endpoint problem.
+
+`commit-preparation-evidence`, `push-main`, `tag` and `github-release` had already completed before the
+failure. The re-run reported all four `already done, skipping`, so **the tag and the GitHub release
+were created exactly once** — confirmed by `git ls-remote --tags`, which returns two refs for this
+version, the annotated tag and its dereference, and nothing else.
+
+Recorded because the generated gate line reads only `endpoint-publish: done` and would imply a clean
+first pass. This is the second transient infrastructure failure in three releases; the first was
+`bundle_dmg.sh` on alpha.39. Neither root cause is established, and two instances is not yet a pattern
+worth acting on — but it is worth counting.
