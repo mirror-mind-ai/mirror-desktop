@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** `alpha.40` **publicada e verificada** (117 manifests, 0 fora do alvo) · atualize e provoque o teste: mude um caminho via `mm-journey` no Pi, depois crie uma Journey sem recarregar · **CR130** capturada, **CR100** `parked`
+🎯 **Foco oficial:** `alpha.40` **em produção** desde `2026-10-07T00:29:17Z` (binário idêntico ao construído) · falta **provocar** a verificação da CR110: mude um caminho via `mm-journey` no Pi, depois crie uma Journey sem recarregar a árvore · **CR130** capturada, **CR100** `parked`
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 
