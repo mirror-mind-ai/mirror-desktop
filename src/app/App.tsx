@@ -388,7 +388,7 @@ import {
   sanitizeJourneyPreferenceState,
   type JourneyPreferenceState,
 } from "../domain/journeyPreferencePersistence";
-import { appendJourneyPosition, createMutationRequest, isStaleSourceError, journeyAdministrationError, rebaseCreateIntent, replacementJourneyAfterDeletion, suggestJourneySlug, type JourneyMutationRequest } from "../domain/journeyMutation";
+import { appendJourneyPosition, createMutationRequest, isStaleSourceError, journeyAdministrationError, projectPathIntent, rebaseCreateIntent, replacementJourneyAfterDeletion, suggestJourneySlug, type JourneyMutationRequest, type ProjectPathIntent } from "../domain/journeyMutation";
 import {
   agentThinkingLevels,
   createDefaultAgentSettings,
@@ -4397,7 +4397,7 @@ export function App({ model }: AppProps) {
     setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null); setJourneyItemMenu(null);
   }
 
-  async function executeJourneyMutation(operation: "create_journey" | "update_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey", payload: Record<string, unknown>) {
+  async function executeJourneyMutation(operation: "create_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey", payload: Record<string, unknown>) {
     if (runtimeBusy) return;
     setJourneyAdminState("saving"); setJourneyAdminMessage(undefined);
     try {
@@ -4446,7 +4446,7 @@ export function App({ model }: AppProps) {
    * request id. A create that no longer fits names what changed. Nothing is retried on its own.
    */
   async function rebaseJourneyAdministrationAfterStaleSource(
-    operation: "create_journey" | "update_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey",
+    operation: "create_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey",
     payload: Record<string, unknown>,
   ) {
     let refreshedRegistry: JourneyRegistry;
@@ -4495,12 +4495,35 @@ export function App({ model }: AppProps) {
         ...(journeyAdminPath.trim() ? { projectPath: journeyAdminPath.trim() } : {}),
       });
     } else if (journeyAdminDialog.mode === "edit") {
-      await executeJourneyMutation("update_journey", {
-        journeyId: journeyAdminDialog.journeyId,
-        name: journeyAdminName.trim(),
-        description: journeyAdminDescription.trim(),
-        projectPath: journeyAdminPath.trim() || null,
-      });
+      /**
+       * CR130: this branch used to submit a canonical metadata update, which Mirror's `journey mutate`
+       * contract rejects with `unsupported_operation`, so Save changes could never succeed. The project
+       * path is the one canonical field the contract can change, through two operations whose payloads
+       * it accepts exactly. Name and description are read-only in the form for the same reason, and are
+       * deliberately absent here rather than sent and refused.
+       */
+      const journeyId = journeyAdminDialog.journeyId;
+      if (!journeyId) return;
+      let intent: ProjectPathIntent;
+      try {
+        intent = projectPathIntent(journeyRegistry, journeyId, journeyAdminPath);
+      } catch (error) {
+        setJourneyAdminState("failed");
+        setJourneyAdminMessage(journeyAdministrationError(error));
+        return;
+      }
+      if (intent.kind === "unchanged") {
+        setJourneyAdminDialog(null);
+        setJourneyAdminState("idle");
+        setJourneyAdminMessage(undefined);
+        setJourneyAdminPendingRequest(null);
+        return;
+      }
+      if (intent.kind === "clear") {
+        await executeJourneyMutation("clear_project_path", { journeyId });
+      } else {
+        await executeJourneyMutation("set_project_path", { journeyId, projectPath: intent.projectPath });
+      }
     } else if (journeyAdminDialog.mode === "move") {
       await executeJourneyMutation("move_journey", { journeyId: journeyAdminDialog.journeyId, parentId: journeyAdminParent || null, position: journeyAdminPosition });
     } else {
@@ -6122,18 +6145,26 @@ export function App({ model }: AppProps) {
             </div>
             {journeyAdminDialog.mode === "create" || journeyAdminDialog.mode === "edit" ? (
               <>
-                <label>Name<input value={journeyAdminName} onChange={(event) => {
-                  const next = event.target.value;
-                  if (journeyAdminDialog.mode === "create" && (!journeyAdminSlug || journeyAdminSlug === suggestJourneySlug(journeyAdminName))) setJourneyAdminSlug(suggestJourneySlug(next));
-                  setJourneyAdminName(next);
-                }} required maxLength={160} /></label>
+                {journeyAdminDialog.mode === "create" ? (
+                  <label>Name<input value={journeyAdminName} onChange={(event) => {
+                    const next = event.target.value;
+                    if (!journeyAdminSlug || journeyAdminSlug === suggestJourneySlug(journeyAdminName)) setJourneyAdminSlug(suggestJourneySlug(next));
+                    setJourneyAdminName(next);
+                  }} required maxLength={160} /></label>
+                ) : (
+                  <label>Name<input value={journeyAdminName} readOnly aria-describedby="journey-uneditable-canonical" /></label>
+                )}
                 {journeyAdminDialog.mode === "create" ? (
                   <label>Slug<input value={journeyAdminSlug} onChange={(event) => setJourneyAdminSlug(event.target.value)} required pattern="[a-z0-9][a-z0-9-]{1,78}[a-z0-9]" /></label>
                 ) : (
-                  <label>Slug<input value={journeyAdminSlug} readOnly aria-describedby="journey-immutable-identity" /></label>
+                  <label>Slug<input value={journeyAdminSlug} readOnly aria-describedby="journey-uneditable-canonical" /></label>
                 )}
-                <label>Description<textarea value={journeyAdminDescription} onChange={(event) => setJourneyAdminDescription(event.target.value)} required minLength={20} maxLength={4000} /></label>
-                {journeyAdminDialog.mode === "edit" ? <small id="journey-immutable-identity" className="journey-admin-immutable-note">Journey ID and slug remain unchanged.</small> : null}
+                {journeyAdminDialog.mode === "create" ? (
+                  <label>Description<textarea value={journeyAdminDescription} onChange={(event) => setJourneyAdminDescription(event.target.value)} required minLength={20} maxLength={4000} /></label>
+                ) : (
+                  <label>Description<textarea value={journeyAdminDescription} readOnly aria-describedby="journey-uneditable-canonical" /></label>
+                )}
+                {journeyAdminDialog.mode === "edit" ? <small id="journey-uneditable-canonical" className="journey-admin-immutable-note">Name, description, Journey ID and slug are shown as Mirror holds them. Mirror has no canonical update operation for them yet, so they cannot be changed here.</small> : null}
               </>
             ) : null}
             {journeyAdminDialog.mode === "edit" && journeyAdminDialog.journeyId ? (
@@ -6206,7 +6237,7 @@ export function App({ model }: AppProps) {
             ) : null}
             <div className="journey-admin-summary">
               {journeyAdminDialog.mode === "create" ? `Create ${journeyAdminSlug || "this Journey"} under ${journeyAdminParent || "Root"}. It will be appended after the existing Journeys. No repository or conversation will be created.` :
-                journeyAdminDialog.mode === "edit" ? `Update canonical name, description and project path for ${journeyAdminDialog.journeyId}. Journey identity, hierarchy and conversations remain unchanged.` :
+                journeyAdminDialog.mode === "edit" ? `Update the project path for ${journeyAdminDialog.journeyId}. Name, description, Journey identity, hierarchy and conversations remain unchanged.` :
                   journeyAdminDialog.mode === "move" ? `Move ${journeyAdminDialog.journeyId} under ${journeyAdminParent || "Root"} at position ${journeyAdminPosition}.` :
                     `Permanently delete ${findJourneyById(journeyRegistry, journeyAdminDialog.journeyId ?? "")?.name ?? journeyAdminDialog.journeyId}. Project files, repositories and protected history will not be deleted.${journeyAdminDialog.journeyId === selectedJourney ? ` The active Journey will change to ${findJourneyById(journeyRegistry, replacementJourneyAfterDeletion(journeyRegistry, journeyAdminDialog.journeyId ?? "") ?? "")?.name ?? "another Journey"}.` : ""}`}
             </div>

@@ -38,9 +38,11 @@ Refinement authority; SQLite must not be consulted or dual-written.
   Edit Journey dialog's Save changes, which submits `update_journey` — an operation no Mirror core
   accepts, so renaming a Journey from the Desktop has never worked. Revisit trigger recorded;
   containment is open
-- Change Request: CR130 is `captured`. Desktop-side containment for CR100: stop offering a Save that
-  cannot succeed, make the Project path change work through the two operations core already accepts,
-  and name `unsupported_operation` at the native boundary. Containment, not repair
+- Change Request: CR130 is `done`. The Edit Journey dialog submitted an operation Mirror's
+  `journey mutate` contract never accepted, so Save changes could not succeed and had not since
+  2026-09-02. The operation is gone from the type union, the project path now changes through the two
+  operations core does accept, name and description are shown read-only with the reason, and a form
+  that changed nothing writes nothing. Three guards re-aimed, none deleted
 - Change Request: CR129 is `captured`. A settlement repaired by recovery writes no record at all:
   `recoverPostTerminalPersistence` never opens a collector, so the ledger keeps the failure and
   nothing after it. This has blocked a diagnosis twice in two days, in both directions —
@@ -157,7 +159,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | done | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR125](rs021-ux-pre-beta-evolution/cr125-keep-the-reader-s-place-when-a-turn-settles.md) | RS021 | Keep the Reader's Place When a Turn Settles | done | @alissonvale | `refinement/rs021-cr125-conversation-scroll-anchor` |
 | — | [CR110](rs021-ux-pre-beta-evolution/cr110-make-journey-creation-recover-from-registry-change.md) | RS021 | Make Journey Creation Recover from Registry Change | done | @alissonvale | `refinement/rs021-cr110-rebase-stale-create-intent` |
-| — | [CR130](rs021-ux-pre-beta-evolution/cr130-stop-offering-a-journey-edit-that-cannot-succeed.md) | RS021 | Stop Offering a Journey Edit That Cannot Succeed | captured | — | — |
+| — | [CR130](rs021-ux-pre-beta-evolution/cr130-stop-offering-a-journey-edit-that-cannot-succeed.md) | RS021 | Stop Offering a Journey Edit That Cannot Succeed | done | @alissonvale | `refinement/rs021-cr130-stop-offering-an-edit-that-cannot-succeed` |
 | — | [CR117](rs016-ongoing-product-improvements-and-adjustments/cr117-make-a-correction-legible-while-it-is-live.md) | RS016 | Make a Correction Legible While It Is Live | done | @alissonvale | `refinement/rs016-cr117-delivered-reconciliation-guards` |
 | — | [CR118](rs016-ongoing-product-improvements-and-adjustments/cr118-anchor-a-segment-to-the-history-it-can-see.md) | RS016 | Anchor a Segment to the History It Can See | done | @alissonvale | `refinement/rs016-cr118-segment-anchor-tolerance` |
 | — | [CR119](rs016-ongoing-product-improvements-and-adjustments/cr119-give-finishing-back-to-the-navigator.md) | RS016 | Give Finishing Back to the Navigator | done | @alissonvale | `refinement/rs016-cr119-settlement-phase-timing` |

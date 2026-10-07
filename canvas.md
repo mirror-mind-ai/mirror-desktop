@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **CR110 verificada em campo** — recuperou um create recusado em produção, digests reproduzem o recibo · próximo: **CR130** (contenção do *Save changes*) ou **CR127** `planned` · CR129 `captured`, CR100 `parked`
+🎯 **Foco oficial:** **CR130 `done`** — Editar Journey não oferece mais um Save impossível, e o caminho de projeto passa a funcionar · próximo: release `alpha.41` ou **CR127** `planned` · CR129 `captured`, CR100 `parked`
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 

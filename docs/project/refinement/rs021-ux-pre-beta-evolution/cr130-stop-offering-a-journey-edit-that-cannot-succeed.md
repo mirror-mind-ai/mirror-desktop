@@ -2,9 +2,9 @@
 
 # CR130: Stop Offering a Journey Edit That Cannot Succeed
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs021-cr130-stop-offering-an-edit-that-cannot-succeed`
 **Contains:** [CR100](cr100-make-journey-image-updates-supported.md) — Mirror core debt, parked
 
 ## Friction
@@ -102,3 +102,146 @@ the path change. Only the unsatisfiable submission goes.
 
 **Reversible by design.** When core gains the operation, the containment must come out cleanly — so it
 should be one guarded boundary, not scattered conditionals.
+
+## Plan (2026-10-07)
+
+Six slices. The first two make the dialog do something real, the next two make it tell the truth, and
+the last two close the holes that let the false promise exist.
+
+**D1 — A domain function decides what a path edit actually is.**
+`projectPathIntent(registry, journeyId, typedPath)` in `src/domain/journeyMutation.ts` returns
+`{ kind: "set", projectPath }`, `{ kind: "clear" }` or `{ kind: "unchanged" }`, comparing the typed
+value against the registry entry's `projectPath`. It exists because core's `exact()` predicate
+accepts only `{journeyId, projectPath}` for `set_project_path` and only `{journeyId}` for
+`clear_project_path`, so the decision cannot be a payload detail — it selects the operation.
+
+**D2 — The edit branch submits that intent instead of `update_journey`.**
+In `submitJourneyAdministration`, edit mode dispatches `set_project_path` or `clear_project_path`.
+`unchanged` closes the dialog without any mutation: a form that was opened and changed nothing must not
+write, and must not report an error either.
+
+**D3 — `update_journey` is removed from the type union.**
+Out of `JourneyMutationOperation` and out of the two inline unions in `App.tsx`. The native boundary
+pipes the request JSON to `journey mutate` without inspecting the operation name, so the type system is
+the only place that can forbid it — and after this it does, at compile time rather than at runtime.
+
+**D4 — Name and description become read-only, with one note.**
+Edit mode renders them the way it already renders the slug: `readOnly`, with an `aria-describedby`
+note. The note says Mirror has no canonical update operation for them yet, so they cannot be changed
+here. The summary line stops promising what it cannot do — it currently reads *"Update canonical name,
+description and project path"*, which is the false promise in its most explicit form.
+
+**D5 — `unsupported_operation` gets a named message.**
+At `src-tauri/src/main.rs`, beside the other mapped codes. After D3 nothing should reach it; it is
+mapped because an unmapped code reaches the Navigator as a raw identifier, and this is the exact code
+that produced this CR.
+
+**D6 — Two guards re-aimed, neither deleted.**
+`src/tests/journeyMutation.test.ts` asserts `executeJourneyMutation("update_journey"` in two places:
+once as the Edit form's canonical submission, once as a region boundary for the appearance guard. Both
+are rewritten against the new wiring. The appearance guard's intent — that device-local appearance
+never enters a canonical payload — is preserved by moving the region to the new submission.
+
+### Files
+
+- `src/domain/journeyMutation.ts` — `projectPathIntent`, union without `update_journey`
+- `src/app/App.tsx` — edit branch of `submitJourneyAdministration`, the two inline unions, the
+  read-only fields and note, the summary line
+- `src-tauri/src/main.rs` — `unsupported_operation` mapping
+- `src/tests/journeyMutation.test.ts` — two guards re-aimed
+- `src/tests/journeyEditContainment.test.ts` — new
+
+### Acceptance
+
+Carried from the capture, plus what the plan added:
+
+- No control submits `update_journey`, and the type union no longer permits constructing it.
+- Setting a path on a Journey that had none submits `set_project_path` with exactly
+  `{journeyId, projectPath}`.
+- Changing an existing path submits `set_project_path` with the new value.
+- Emptying the field submits `clear_project_path` with exactly `{journeyId}`.
+- Opening the dialog and saving with nothing changed submits no mutation and reports no error.
+- Name and description are visible, `readOnly`, and carry one note saying why.
+- The summary line does not claim name or description will be updated.
+- `unsupported_operation` maps to a named message.
+- Both existing guards assert the new wiring. Neither is deleted.
+
+### Validation
+
+`tsc`, the full vitest suite, `cargo test`, `npm run build`, `roadmap:check`. The path operations are
+guarded by digest and receipt exactly like every other mutation, so CR110's rebase path and the
+stale-source guard must still pass unchanged.
+
+### Exclusions
+
+- **No rename, no description edit.** That needs Mirror core and stays parked as CR100.
+- **Not the web server's update endpoints**, for the reason recorded in Boundaries.
+- **No Desktop-local name.** A second source of truth for canonical identity would hide the debt.
+- **The dialog stays.** It still hosts appearance and now the path.
+- **No change to the digest-and-receipt contract.** The new operations ride it as-is.
+- **Appearance stays device-local.** That Mirror also models `icon` and `color` is recorded as an
+  observation on CR100, not acted on here.
+
+## Implementation and closure (2026-10-07)
+
+All six slices landed as planned.
+
+**`projectPathIntent`** (`src/domain/journeyMutation.ts`) returns `set`, `clear` or `unchanged`,
+comparing the typed value against the loaded tree's `projectPath` after trimming both. It throws when
+the tree no longer holds the Journey, which the form catches into its own message rather than letting
+escape — the existing guard requires mutation failures to stay inside the open form.
+
+**`update_journey` is gone from the type system.** Out of `JourneyMutationOperation` and out of both
+inline unions in `App.tsx`. Because the native boundary pipes the request JSON to `journey mutate`
+without inspecting the operation name, the union is the only place that can forbid it, and it now does
+at compile time. `tsc` proved the removal reached every construction site: it failed on the three
+remaining ones until each was dealt with.
+
+**The edit branch** dispatches `set_project_path` or `clear_project_path`, and on `unchanged` closes
+the dialog with no mutation and no error.
+
+**Name, slug and description are read-only in edit mode**, following the pattern the slug already
+used, with one note: *"Name, description, Journey ID and slug are shown as Mirror holds them. Mirror
+has no canonical update operation for them yet, so they cannot be changed here."* The summary line no
+longer promises *"Update canonical name, description and project path"*.
+
+**`unsupported_operation` is mapped** at `src-tauri/src/main.rs:2340`. Nothing should reach it now; it
+is mapped because this is the exact code that produced this CR, and an unmapped code arrives as a raw
+identifier.
+
+### Three guards re-aimed, none deleted
+
+The capture expected two. `tsc` found a third.
+
+- *"builds one exact canonical metadata update without mutable identity fields"* asserted the Desktop
+  builds an `update_journey` request carrying name and description. Its surviving intent — a canonical
+  update carries exactly the Journey it names and nothing else — now runs against `set_project_path`.
+- *"offers one prefilled Edit Journey form…"* asserted the unsatisfiable submission. It now asserts
+  both path operations and the new note.
+- The appearance guard used `executeJourneyMutation("update_journey"` as a **region boundary**. Its
+  intent — device-local appearance never enters a canonical payload — is preserved by anchoring the
+  region on the edit branch itself.
+
+### Gates
+
+`tsc` clean, vitest **237 files / 1,732 tests**, `cargo test` **267 passed / 3 ignored**, build clean,
+`roadmap:check` READY. CR110's rebase path and the stale-source guard pass unchanged.
+
+## Closure review
+
+**Proportionality.** The capture asked for containment and got containment: the only new behavior is a
+path change through operations that already existed. Everything else is removal or truthful labelling.
+
+**Debt.**
+- **Name and description remain uneditable.** Parked as CR100. The note is honest but it is still a
+  dead end for the Navigator.
+- **No field verification yet.** The path change is validated by tests only; it needs a real path set,
+  changed and cleared against production.
+- **`projectPathIntent` compares trimmed strings, not canonical directories.** Core canonicalises the
+  path with `_canonical_directory`, so two spellings of the same directory read as a change and submit
+  a mutation that results in the same stored value. Harmless — it writes a receipt and the correct
+  path — but it means `unchanged` is narrower than it looks.
+- **The Edit dialog now has one canonical field and one device-local section.** Whether that still
+  deserves to be one dialog is a product question, not answered here.
+- **`icon` and `color` are canonical Mirror metadata** while Desktop appearance stays device-local —
+  two stores for one concept, recorded on CR100 as an observation and still unaddressed.

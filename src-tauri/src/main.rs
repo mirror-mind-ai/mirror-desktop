@@ -2337,6 +2337,11 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
         return Err(match code.as_deref() {
             Some("stale_source") => "Journeys changed in Mirror. Reload the tree and try again.".to_string(),
             Some("unknown_journey") => "Journey no longer exists in Mirror.".to_string(),
+            // CR130: the Desktop's operation union can no longer construct an operation Mirror
+            // refuses, so nothing should reach this arm. It is mapped because an unmapped code
+            // reaches the Navigator as a raw identifier, and this is the exact code that let Edit
+            // Journey offer a Save that could never succeed.
+            Some("unsupported_operation") => "Mirror does not support this Journey change yet. Update Mirror and try again.".to_string(),
             Some(value) if value.starts_with("journey_not_empty:") => {
                 let classes = value.trim_start_matches("journey_not_empty:").replace('_', " ");
                 format!("Journey cannot be deleted because protected records remain: {}.", classes)

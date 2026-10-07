@@ -1,6 +1,14 @@
 import { findJourneyById, type JourneyRegistry } from "./journeyRegistry";
 
-export type JourneyMutationOperation = "create_journey" | "update_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey";
+/**
+ * Exactly the operations Mirror's `journey mutate` contract accepts. There is deliberately no
+ * metadata update operation here: CR130 removed one, because Mirror rejects it with
+ * `unsupported_operation` and always did, so the Edit Journey dialog's Save could never succeed.
+ * Mirror can update a title and some metadata through its web server, but that path skips the
+ * `expectedSourceVersion` digest and the receipt ledger every mutation below rides, so it is not an
+ * option for the Desktop. The upstream ask is recorded as CR100.
+ */
+export type JourneyMutationOperation = "create_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey";
 export type JourneyMutationRequest = {
   schemaVersion: "mirror.journey-mutation@1.0";
   requestId: string;
@@ -105,4 +113,29 @@ export function rebaseCreateIntent(
     };
   }
   return { kind: "rebasable", position: appendJourneyPosition(registry, intent.parentId ?? "") };
+}
+
+export type ProjectPathIntent =
+  | { kind: "set"; projectPath: string }
+  | { kind: "clear" }
+  | { kind: "unchanged" };
+
+/**
+ * CR130: a project path edit is not one operation with a nullable field — it selects between two
+ * operations, because core's `exact()` predicate accepts `{journeyId, projectPath}` for
+ * `set_project_path` and `{journeyId}` alone for `clear_project_path`. Deciding that at the call site
+ * would bury the choice in payload assembly, so it is named here and compared against the loaded
+ * tree's own value.
+ *
+ * `unchanged` exists so that opening the dialog and saving without touching the field writes nothing.
+ * A form that changed nothing must not mutate, and must not report a failure either.
+ */
+export function projectPathIntent(registry: JourneyRegistry, journeyId: string, typedPath: string): ProjectPathIntent {
+  const journey = findJourneyById(registry, journeyId);
+  if (!journey) throw new Error("That Journey no longer exists in the loaded tree.");
+  const next = typedPath.trim();
+  const current = (journey.projectPath ?? "").trim();
+  if (next === current) return { kind: "unchanged" };
+  if (!next) return { kind: "clear" };
+  return { kind: "set", projectPath: next };
 }

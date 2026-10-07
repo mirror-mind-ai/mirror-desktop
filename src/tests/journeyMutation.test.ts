@@ -19,20 +19,23 @@ describe("Journey administration boundary", () => {
     expect(() => createMutationRequest({ ...registry, schemaVersion: "0.1.0", sourceVersion: undefined }, "clear_project_path", {})).toThrow(/Reload Journeys/);
   });
 
-  it("builds one exact canonical metadata update without mutable identity fields", () => {
-    expect(createMutationRequest(registry, "update_journey", {
+  /**
+   * Re-aimed by CR130. This asserted that the Desktop builds a canonical metadata update carrying a
+   * name and description. It was written to prove the payload excluded mutable identity fields, but
+   * what it pinned was a request Mirror rejects with `unsupported_operation` and always did. The
+   * surviving intent — that a canonical path change carries exactly the journey it names and nothing
+   * else — is asserted against the operation core actually accepts.
+   */
+  it("builds one exact canonical path update without mutable identity fields", () => {
+    expect(createMutationRequest(registry, "set_project_path", {
       journeyId: "one",
-      name: "One renamed",
-      description: "A sufficiently detailed revised Journey description.",
-      projectPath: null,
+      projectPath: "/Users/nav/code/one",
     }, "update-request-001")).toMatchObject({
-      operation: "update_journey",
+      operation: "set_project_path",
       expectedSourceVersion: "a".repeat(64),
       payload: {
         journeyId: "one",
-        name: "One renamed",
-        description: "A sufficiently detailed revised Journey description.",
-        projectPath: null,
+        projectPath: "/Users/nav/code/one",
       },
     });
   });
@@ -105,8 +108,11 @@ describe("Journey administration boundary", () => {
     expect(itemMenuSource).toContain("Edit Journey…");
     expect(appSource).toContain("onEdit={openEditJourney}");
     expect(appSource).toContain('journeyAdminDialog.mode === "edit"');
-    expect(appSource).toContain('executeJourneyMutation("update_journey"');
-    expect(appSource).toContain("Journey ID and slug remain unchanged");
+    // Re-aimed by CR130: the form submits the path operations core accepts, and names the canonical
+    // fields it cannot change instead of offering them.
+    expect(appSource).toContain('executeJourneyMutation("set_project_path"');
+    expect(appSource).toContain('executeJourneyMutation("clear_project_path"');
+    expect(appSource).toContain("Journey ID and slug are shown as Mirror holds them");
   });
 
   it("extends Edit Journey with device-local appearance without adding canonical fields", () => {
@@ -115,8 +121,10 @@ describe("Journey administration boundary", () => {
     expect(appSource).toContain("journeySystemIcons.map");
     expect(appSource).toContain("chooseJourneyCustomAppearance");
     expect(appSource).toContain("Canonical Mirror metadata remains unchanged");
+    // Re-aimed by CR130: same intent, same region, anchored on the submission that replaced the one
+    // Mirror refused. Device-local appearance must never enter a canonical payload.
     const canonicalPayload = appSource.slice(
-      appSource.indexOf('executeJourneyMutation("update_journey"'),
+      appSource.indexOf('} else if (journeyAdminDialog.mode === "edit") {'),
       appSource.indexOf('} else if (journeyAdminDialog.mode === "move")'),
     );
     expect(canonicalPayload).not.toContain("journeyAppearanceById");
