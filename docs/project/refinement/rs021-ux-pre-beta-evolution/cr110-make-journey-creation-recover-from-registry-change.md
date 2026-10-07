@@ -145,8 +145,10 @@ store having no Journey change since 2026-09-30. The fix follows the capture's a
 does not touch the rule it was careful not to weaken.
 
 **Debt.**
-- The success path after a rebased Confirm is Dev-validated by tests only. Field verification needs
-  a Mirror-side Journey write between load and create, which cannot be forced from the Desktop.
+- ~~The success path after a rebased Confirm is Dev-validated by tests only. Field verification needs
+  a Mirror-side Journey write between load and create, which cannot be forced from the Desktop.~~
+  **Resolved 2026-10-07** — the Navigator provoked exactly that write and the path ran in production.
+  See Field verification below. The two conflict branches remain Dev-validated only.
 - A create whose parent was reset to Root keeps the typed name, id and description; the Navigator
   must choose the parent again. Deliberate: choosing it silently would be guessing.
 - `appendJourneyPosition` is still evaluated in `submitJourneyAdministration` before the call, so a
@@ -154,3 +156,33 @@ does not touch the rule it was careful not to weaken.
   Pre-existing; narrowed, not closed.
 - The other five operations get a reload and a prompt, not a rebase. Their intents carry a Journey
   id whose continued existence is the only thing to check, and the reloaded tree shows it.
+
+## Field verification (2026-10-07)
+
+Collected in production on `alpha.40`. Full reading:
+[alpha-40-field-verification-2026-10-07.md](../../../update/alpha-40-field-verification-2026-10-07.md).
+
+The Navigator provoked the situation this CR could not reproduce: a `mm-journey` path update in Pi
+(`reflexo`, `2026-10-07T17:23:20.689490Z`), then a Journey creation in the Desktop without reloading
+the tree. The surface said the tree had already been edited, offered Confirm, and the Journey was
+created.
+
+The records close the chain arithmetically. The single receipt for the create (`teste`, request
+`026623a1-204b-4d70-b1ea-a2bc034e15a3`, `17:24:32.874546Z`) carries `source_version 8c616407...`,
+which reproduces exactly as the digest of the 79 live journey rows minus `teste`, and
+`result_version 1b4c7c9b...`, which reproduces as the digest of all 79 — both recomputed with Mirror
+core's own `source_version` algorithm. Because no journey row changed between 2026-09-30 and the
+`reflexo` edit, the tree digest was constant at `c645679d...` across the entire window in which the
+Desktop could have loaded it, so knowing when it loaded is unnecessary. The successful create was
+therefore submitted against a digest the Desktop did not hold when the Navigator pressed create, and
+the only path producing that is the reload-and-rebase this CR added.
+
+The refusal left no record, as designed: `stale_source` raises inside `BEGIN IMMEDIATE`, rolls back and
+writes no receipt. That is the property this CR relied on when it chose a new request id over reusing
+the refused one, and one receipt with no duplicate is what a correct run looks like. What the store
+cannot supply — that the surface named the edited tree and showed Confirm — is the Navigator's report,
+recorded as report rather than as record.
+
+**Still Dev-validated only:** both conflict branches. The id was free (`teste` had been created and
+removed back in August) and the parent existed, so neither "id taken" nor "parent vanished, reset to
+Root" was exercised.
