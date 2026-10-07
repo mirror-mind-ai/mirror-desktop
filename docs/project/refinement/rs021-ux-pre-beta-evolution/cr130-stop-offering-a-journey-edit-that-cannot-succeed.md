@@ -36,15 +36,28 @@ In summary:
 
 - `src/app/App.tsx` — the edit branch of `submitJourneyAdministration` calls
   `executeJourneyMutation("update_journey", { journeyId, name, description, projectPath })`.
-- Mirror core (`memory/services/journey_admin.py`, production `0.31.14` and the development checkout)
-  accepts exactly `create_journey`, `set_project_path`, `clear_project_path`, `move_journey`,
-  `delete_journey`. There is no metadata update operation.
+- Mirror core's `journey mutate` (`memory/services/journey_admin.py:145`, production `0.31.14` and the
+  development checkout) accepts exactly `create_journey`, `set_project_path`, `clear_project_path`,
+  `move_journey`, `delete_journey`, and fails anything else with `unsupported_operation`. There is no
+  metadata update operation **in that contract**.
+- **Corrected 2026-10-07: core is not incapable, it is unexposed.**
+  `JourneyService.update_identity_fields` updates title and status by rewriting `content`, and
+  `JourneyService.update_metadata_fields` updates `project_path`, `sync_file`, `icon`, `color` and
+  `parent_journey`. Both are reachable **only** through the Mirror web server
+  (`src/memory/web/server.py:514` and `:519`) — never through the CLI and never through
+  `journey mutate`. They write the journey row directly, bypassing both `expectedSourceVersion` and the
+  receipt ledger.
+- **Description has no update path anywhere.** `update_identity_fields` handles title and status only.
+  Description is written once, by `create_journey`, into the `## Description` section of `content`.
 - `src-tauri/src/main.rs` has no mapping for `unsupported_operation`, so it falls through to
   `Mirror rejected the Journey mutation: {value}.`
 
-**Project path is separable and already supported.** `set_project_path` and `clear_project_path` exist
-in core and the Desktop already has request builders for both. A path change — set, change or clear —
-can be made to work today without any core change. Name and description cannot.
+**Project path is separable and supported by core, but the Desktop does not wire it.**
+`set_project_path` and `clear_project_path` are in core's accepted set. ~~and the Desktop already has
+request builders for both~~ — **corrected 2026-10-07: it does not.** They appear in the
+`JourneyMutationOperation` union in `src/domain/journeyMutation.ts:3` and nowhere else; no call site
+submits either one. `createMutationRequest` is generic and can build them, so the path change can be
+made to work today without any core change, but it is new wiring rather than a reroute.
 
 **One existing guard pins the broken call** and will have to be dealt with honestly rather than
 deleted: `src/tests/journeyMutation.test.ts`, *"offers one prefilled Edit Journey form while keeping
@@ -75,6 +88,14 @@ core in any checkout.
 
 **Not a local-only rename.** Storing a Desktop-local Journey name would create a second source of
 truth for canonical identity and hide the debt instead of containing it. The registry is Mirror's.
+
+**Not the web server's update endpoints.** They exist and would make a rename work today, and the
+Desktop must still not call them. Every Journey mutation the Desktop makes goes through a contract that
+compares a digest over the whole tree and records a receipt; CR110's field verification showed that
+contract doing real work, refusing a create because the tree had moved. A writer that skips the digest
+and the receipt would be a second authority over the same rows, silently invalidating every other
+client's loaded tree and leaving no record that it did. The correct upstream ask is to add the operation
+**to the bounded contract**, not to reach around it.
 
 **Not removing the dialog.** Edit Journey still has work to do: it hosts appearance, and it will host
 the path change. Only the unsatisfiable submission goes.

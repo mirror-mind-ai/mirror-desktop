@@ -5,7 +5,7 @@
 **Status:** parked
 **Driver:** —
 **Delivery:** —
-**Debt location:** Mirror core — `memory/services/journey_admin.py` (the accepted-operation set)
+**Debt location:** Mirror core — `memory/services/journey_admin.py:145` (the `journey mutate` accepted-operation set). Not a missing capability: `JourneyService.update_identity_fields` and `update_metadata_fields` already do this work, but only through `memory/web/server.py:514`/`:519`, bypassing the digest and the receipt ledger. Description has no update path anywhere
 **Containment:** [CR130](cr130-stop-offering-a-journey-edit-that-cannot-succeed.md) — Desktop-side, captured
 **Revisit trigger:** a Mirror core release whose `journey mutate` accepts a metadata update operation
 **Register:** recorded in [RS022 — Mirror Core Debts](../rs022-mirror-core-debts/index.md)
@@ -91,3 +91,29 @@ be removed. Until then the debt is live and only the correction is blocked.
 
 **Not promoted.** Promotion means handing this to the Mirror repository's own process. That has not
 happened and is not authorized here.
+
+## Premise sharpened (2026-10-07)
+
+While planning CR130, the statement "`update_journey` exists in no Mirror core" was found accurate but
+too blunt, and the blunt version points at the wrong repair.
+
+What is true: `journey mutate` — the bounded contract the Desktop uses, which guards on a digest over
+every Journey row and records a receipt — accepts five operations and no metadata update, failing
+anything else with `unsupported_operation`.
+
+What the blunt version got wrong: **core is not incapable.** `JourneyService.update_identity_fields`
+updates title and status by rewriting `content`, and `update_metadata_fields` updates `project_path`,
+`sync_file`, `icon`, `color` and `parent_journey`. Both exist today and are reachable only through the
+Mirror web server, which writes the journey row without the digest check and without a receipt.
+
+So the upstream ask is narrower and more precise than "add the ability to rename": **expose the
+existing update through the guarded contract.** Adding `update_journey` to `journey mutate`, with the
+same `expectedSourceVersion` comparison and the same receipt, would reuse logic that is already
+written and tested rather than introduce new capability.
+
+One part remains genuinely absent rather than unexposed: **description cannot be updated by anything.**
+It is written once by `create_journey` and never again.
+
+Also corrected: `icon` and `color` are canonical Mirror metadata fields. The Desktop's Journey
+appearance is device-local, so Desktop appearance and Mirror appearance are two separate stores for the
+same concept. Recorded as an observation; not a captured defect.

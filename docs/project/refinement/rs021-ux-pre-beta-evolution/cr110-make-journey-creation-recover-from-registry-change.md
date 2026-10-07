@@ -162,9 +162,12 @@ does not touch the rule it was careful not to weaken.
 Collected in production on `alpha.40`. Full reading:
 [alpha-40-field-verification-2026-10-07.md](../../../update/alpha-40-field-verification-2026-10-07.md).
 
-The Navigator provoked the situation this CR could not reproduce: a `mm-journey` path update in Pi
+The Navigator provoked the situation this CR could not reproduce: a Mirror-side edit to a Journey row
 (`reflexo`, `2026-10-07T17:23:20.689490Z`), then a Journey creation in the Desktop without reloading
-the tree. The surface said the tree had already been edited, offered Confirm, and the Journey was
+the tree. **Which command performed that edit is not established** — it was not `mm-journey`, whose
+path update writes a different identity layer that the digest does not cover, and not `journey mutate`,
+which would have left a receipt. The verification does not depend on it; see the Correction in the
+reading. The surface said the tree had already been edited, offered Confirm, and the Journey was
 created.
 
 The records close the chain arithmetically. The single receipt for the create (`teste`, request

@@ -27,7 +27,8 @@ then a Journey creation in the Desktop without reloading the tree.
 Read-only, from the Mirror database and the Desktop's registry file.
 
 **The trigger.** `identity` row `reflexo` (layer `journey`) was updated at
-`2026-10-07T17:23:20.689490Z`. That is the `mm-journey` path edit.
+`2026-10-07T17:23:20.689490Z`. ~~That is the `mm-journey` path edit.~~ **Corrected 2026-10-07, see
+Correction below — the writer is not established, and it is not `mm-journey`.**
 
 **The successful create.** Exactly one `journey_mutation_receipts` row today:
 
@@ -99,3 +100,36 @@ mutation and is not performed here; it needs explicit Navigator intent naming th
 **CR110's field verification is collected and closed.** The mechanism was established from code and
 live digests, the fix was validated by tests, and production has now executed the recovery path once,
 end to end, with the arithmetic of both digests reproducing the receipt exactly.
+
+## Correction (2026-10-07) — the writer of the trigger is not established
+
+The sentence above attributed the `reflexo` edit to `mm-journey`. That attribution does not hold, and
+it was made from a plausible command rather than from a record — the error this project has written
+down before.
+
+`mm-journey`'s path update calls `MemoryClient.set_journey_path`, which is
+`JourneyService.set_journey_path` (`src/memory/services/journey.py:148`), and it writes
+`JOURNEY_PATH_LAYER` — layer `journey_path`, a **different identity row**. The digest covers
+`layer = 'journey'` only. So a `mm-journey` path update cannot change the digest and cannot have caused
+this refusal.
+
+What is established about the writer:
+
+- It was **not** `journey mutate`. That path writes a receipt, and there is no receipt at
+  `17:23:20Z` — only the create at `17:24:32Z`.
+- It was not `set_journey_path`, by layer.
+- The remaining writers of a `layer = 'journey'` row in core are `seed` (`src/memory/cli/seed.py:238`)
+  and the two update methods `JourneyService.update_identity_fields` (title and status, by rewriting
+  `content`) and `JourneyService.update_metadata_fields` (`project_path`, `sync_file`, `icon`, `color`,
+  `parent_journey`), which are reachable only through the Mirror web server
+  (`src/memory/web/server.py:514` and `:519`).
+
+**Which of those ran is not established**, and nothing durable records it: these writers leave no
+receipt and no log. The Navigator's report says the tree had been edited, which is consistent with all
+of them.
+
+**The verification is unaffected.** Nothing in the chain depends on *which* command wrote the row. What
+the chain needs is that a `layer = 'journey'` row changed between the Desktop's load and the create,
+and that is proved by the digests themselves: `8c616407…` is reproducibly the digest of the live rows
+minus `teste`, and it differs from the `c645679d…` that stood from 2026-09-30 until that write. The
+conclusion stands; only the name of the writer is withdrawn.
