@@ -38,6 +38,10 @@ Refinement authority; SQLite must not be consulted or dual-written.
   Edit Journey dialog's Save changes, which submits `update_journey` — an operation no Mirror core
   accepts, so renaming a Journey from the Desktop has never worked. Revisit trigger recorded;
   containment is open
+- Change Request: CR131 is `captured`. The Dev and production channels bind to different Mirror
+  checkouts exposing different `journey mutate` contracts, and both report version `0.31.14`. A Dev
+  validation of CR130 would have reported the defect as nonexistent, because in Dev the refused
+  submission succeeds. Characterisation first: version is not a contract identifier
 - Change Request: CR130 is `done`. The Edit Journey dialog submitted an operation Mirror's
   `journey mutate` contract never accepted, so Save changes could not succeed and had not since
   2026-09-02. The operation is gone from the type union, the project path now changes through the two
@@ -155,6 +159,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR126](rs016-ongoing-product-improvements-and-adjustments/cr126-stop-a-correction-from-becoming-its-own-turn.md) | RS016 | Stop a Correction From Becoming Its Own Turn | done | @alissonvale | `refinement/rs016-cr126-corrected-turn-request-identity` |
 | — | [CR127](rs016-ongoing-product-improvements-and-adjustments/cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) | RS016 | Let a Journey's First Turn Settle Without a Receipt It Cannot Have | planned | — | — |
 | — | [CR129](rs016-ongoing-product-improvements-and-adjustments/cr129-let-a-recovered-settlement-say-it-happened.md) | RS016 | Let a Recovered Settlement Say It Happened | captured | — | — |
+| — | [CR131](rs016-ongoing-product-improvements-and-adjustments/cr131-make-the-mirror-a-channel-validates-against-identifiable.md) | RS016 | Make the Mirror a Channel Validates Against Identifiable | captured | — | — |
 | — | [CR128](rs016-ongoing-product-improvements-and-adjustments/cr128-give-back-the-answer-a-restart-and-continue-strands.md) | RS016 | Give Back the Answer a Restart-and-Continue Strands | done | @alissonvale | `refinement/rs016-cr128-restart-and-continue-recovery` |
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | done | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR125](rs021-ux-pre-beta-evolution/cr125-keep-the-reader-s-place-when-a-turn-settles.md) | RS021 | Keep the Reader's Place When a Turn Settles | done | @alissonvale | `refinement/rs021-cr125-conversation-scroll-anchor` |
