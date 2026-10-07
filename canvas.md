@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **CR130 `done`** — Editar Journey não oferece mais um Save impossível, e o caminho de projeto passa a funcionar · próximo: release `alpha.41` ou **CR127** `planned` · CR129 `captured`, CR100 `parked`
+🎯 **Foco oficial:** ⚠️ **release em espera** — o core Mirror *já implementa* `update_journey` desde 02/09, só nunca foi promovido; a CR130 está certa sobre hoje e errada sobre a causa · decisão: promover o Mirror ou manter a contenção
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 

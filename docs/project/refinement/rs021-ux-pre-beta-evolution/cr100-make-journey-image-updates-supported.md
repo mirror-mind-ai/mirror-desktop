@@ -7,7 +7,7 @@
 **Delivery:** —
 **Debt location:** Mirror core — `memory/services/journey_admin.py:145` (the `journey mutate` accepted-operation set). Not a missing capability: `JourneyService.update_identity_fields` and `update_metadata_fields` already do this work, but only through `memory/web/server.py:514`/`:519`, bypassing the digest and the receipt ledger. Description has no update path anywhere
 **Containment:** [CR130](cr130-stop-offering-a-journey-edit-that-cannot-succeed.md) — Desktop-side, captured
-**Revisit trigger:** a Mirror core release whose `journey mutate` accepts a metadata update operation
+**Revisit trigger:** ~~a Mirror core release whose `journey mutate` accepts a metadata update operation~~ **— already satisfied in source, not in any release. See Premise corrected again, 2026-10-07.**
 **Register:** recorded in [RS022 — Mirror Core Debts](../rs022-mirror-core-debts/index.md)
 
 ## Friction
@@ -117,3 +117,27 @@ It is written once by `create_journey` and never again.
 Also corrected: `icon` and `color` are canonical Mirror metadata fields. The Desktop's Journey
 appearance is device-local, so Desktop appearance and Mirror appearance are two separate stores for the
 same concept. Recorded as an observation; not a captured defect.
+
+## Premise corrected again (2026-10-07)
+
+The debt is not that Mirror lacks the operation, nor that the capability exists only outside the
+guarded contract. **`update_journey` is implemented inside `journey mutate` itself**, in the Mirror
+checkout the Dev Desktop binds to (`.mirror-journeys/mirror-mind/mirror-dev`, `main`), committed
+`c87825cf` on **2026-09-02** — the same day the Desktop began sending it. Its payload predicate matches
+the Desktop's payload exactly.
+
+Production runs `stable` at head 2026-08-30, two days earlier. **The work has been written, committed
+and never promoted for five weeks.**
+
+So this is not a Mirror core capability debt. It is a **release-coordination debt**: a Desktop feature
+and its core counterpart were built as a pair and only one of them shipped. The ask upstream is not to
+implement anything — it is to promote and release what exists.
+
+The earlier readings of this remain instructive about method rather than content. The first version
+said the capability was absent; the second found it present but unexposed, through the web server; both
+were produced by reading only the checkouts that were convenient — `/Users/alissonvale/mirror` and a
+`Code/mirror-dev` that sits at 0.31.12. Neither reading enumerated the checkout the Dev Desktop is
+actually bound to. **Enumerate every instance before describing a contract**, the same lesson the
+status census and the manifest-loader confusion already produced here.
+
+Nothing about Mirror core is changed, promoted or released by recording this.

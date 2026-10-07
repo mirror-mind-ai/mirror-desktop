@@ -245,3 +245,53 @@ path change through operations that already existed. Everything else is removal 
   deserves to be one dialog is a product question, not answered here.
 - **`icon` and `color` are canonical Mirror metadata** while Desktop appearance stays device-local —
   two stores for one concept, recorded on CR100 as an observation and still unaddressed.
+
+## Finding that reframes this CR (2026-10-07, after closure, before any release)
+
+Asked whether CR130 should be validated in production or in Dev, the Dev channel's binding was read
+instead of assumed. It points at a **different Mirror checkout**, and that checkout **accepts
+`update_journey`**.
+
+| checkout | version | branch / head | `update_journey` | bound to |
+|---|---|---|---|---|
+| `/Users/alissonvale/mirror` | 0.31.14 | `stable`, 2026-08-30 | **no** | production Desktop |
+| `/Users/alissonvale/Code/mirror-dev` | 0.31.12 | — | no | — |
+| `.mirror-journeys/mirror-mind/mirror-dev` | 0.31.14 | `main`, contract committed 2026-09-02 | **yes** | Dev Desktop |
+
+The dev core's handler is complete, and its payload predicate is
+`set(payload) != {"journeyId", "name", "description", "projectPath"}` — **exactly the payload the
+Desktop was sending.** It updates `display_name`, rewrites the content through `_updated_content`, and
+handles a null `projectPath` as a clear.
+
+It was committed on **2026-09-02**, the same day the Desktop began sending the operation
+(`e164401`, *Let Journey details change without changing identity*; Mirror's `c87825cf`, *Let
+canonical edits absorb legacy Journey prose*). Complementary intent, same day.
+
+**So the Desktop's call was never wrong. It was ahead of a Mirror release that never happened.**
+Production's `stable` head is 2026-08-30, two days before the pair. The Mirror half has sat on `main`,
+unpromoted, for five weeks.
+
+### What this means for this CR
+
+**CR130 is correct about today and wrong about the cause.** Against the Mirror the Navigator actually
+runs, Save changes cannot succeed, and offering it is a lie — that part stands, and the Navigator hit
+it. But the cause is an unshipped Mirror release, not a missing capability, and the cheap repair is to
+promote and release Mirror core, not to amputate a working Desktop feature.
+
+**The containment is heavier to reverse than this CR's own Boundaries promised.** *"Reversible by
+design — one guarded boundary, not scattered conditionals"* is not what was built. The operation was
+removed from the type union, the form was rewired, the fields were made read-only and three guards
+were re-aimed. Restoring it is a real change, not a revert of one condition.
+
+**Dev validation would have falsified this CR's premise.** In Dev the original Save works. Had the
+Dev channel been used to validate, it would have reported that CR130 was unnecessary. For anything
+touching the Mirror contract, Dev is not a proxy for production — it is a preview of an unreleased
+future.
+
+### Recorded, not decided
+
+Nothing is reverted and nothing is released. CR130 is on `main` and has reached no Navigator. The
+decision — release it as a correct statement about today's Mirror, revert it in favour of shipping
+Mirror core, or reshape it to tolerate both Mirrors by reacting to `unsupported_operation` rather than
+by removing the operation — is the Navigator's, and promoting Mirror core is not authorized from this
+Journey.
