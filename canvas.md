@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **CR127 fechada** — sessão nova gerava manifest ilegível e derrubava o settlement; produtor corrigido, parser nomeia o motivo, turno não se perde mais · aberto: **CR129** e **CR131** capturadas, **CR100** travada em autorização no Mirror core
+🎯 **Foco oficial:** **CR132 capturada** — `Finishing` travou 43 min e só reiniciar o app resolveu; o caminho de interrupção existe, falta um gatilho que o Navigator alcance · aberto: **CR129**, **CR131**, **CR132** · **CR100** travada em autorização
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 
