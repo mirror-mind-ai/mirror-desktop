@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-08
 **Journey authority:** `mirror-desktop`
-**Status:** upgrade attested; both field verifications **not yet collected**
+**Status:** upgrade attested; CR127 collected with a **failed prediction**; CR132 not collected
 
 ## Upgrade attested
 
@@ -65,3 +65,27 @@ And one observation that would falsify the threshold: a legitimate settlement co
 
 - **CR126 / CR097** field verification, whose observable event is the next corrected turn.
 - **CR110's two conflict branches**, Dev-validated only.
+
+## CR127 collected — the Journey settles, the prediction failed (2026-10-08)
+
+The Navigator took one turn in `o-sentido-do-ser`. Full record in the CR. In short:
+
+**The Journey settled**, for the first time — journal `phase: settled`, `revision` 5,
+`recoveryDisposition: complete`, 17.8 s end to end; settlement `outcome: settled`, 19 phases, 1.5 s,
+with `publish_segments` completing in 86 ms and the whole Mirror outbox chain behind it.
+
+**The predicted diagnostic never fired.** The manifest was re-derived at `17:12:17Z`, thirty seconds
+before the settlement, from a Pi session that now holds 59 entries, so the null coordinates became
+real ones and there was nothing left to tolerate.
+
+**Verifying it destroyed the instance.** Zero of 178 manifests now carry a null coordinate. The trigger
+named in the debt line was a decaying artifact, and the line directly beneath it had already said that
+a refresh would heal it. Both were written in the same pass and the contradiction went unnoticed.
+
+**So D2's tolerance remains unverified in the field and now has no trigger**, since D4 guarantees no
+new instance is produced. Reachable in test, unreachable in the field.
+
+**Reading was taken at 7 minutes of uptime, not the ~20 planned.** Defensible here and stated so it is
+not mistaken for the general rule: the record being read is a single append-only entry stamped
+`17:12:47–48Z` and written once at the end of settlement, so it is a dated event rather than a
+snapshot of a system mid-startup. The earlier declines were about concluding what the app did at boot.

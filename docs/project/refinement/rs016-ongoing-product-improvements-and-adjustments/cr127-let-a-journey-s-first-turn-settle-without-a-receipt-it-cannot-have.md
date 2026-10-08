@@ -369,10 +369,12 @@ three-way result, and the settlement ordering guard was re-anchored because the 
 
 ### Debt
 
-- **Field verification is owed and now has a concrete trigger.** `o-sentido-do-ser` still holds the
+- ~~**Field verification is owed and now has a concrete trigger.** `o-sentido-do-ser` still holds the
   null-coordinate manifest. After release, a settlement on that Journey should **complete** and carry
   `conversation_segment_manifest_unreadable: coordinate_invalid (segment 1, sourceFromEntryId)` in its
-  timing record's `diagnostics`. That is a nameable, observable event rather than a wait.
+  timing record's `diagnostics`. That is a nameable, observable event rather than a wait.~~
+  **Superseded 2026-10-08: the trigger was wrong and executing it destroyed the instance. See
+  Field verification below.**
 - **The stale manifest is not repaired.** D4 stops new ones; it does not rewrite existing ones. That
   manifest heals only when a refresh rewrites it, and nothing is lost in the meantime because its
   session has zero entries — there is no conversation to chapter. No backfill was performed.
@@ -387,3 +389,81 @@ three-way result, and the settlement ordering guard was re-anchored because the 
 - **`§5b` is narrowed here, not resolved.** Absence and invalidity no longer carry opposite severities
   on this one read path. The standing finding that absence and emptiness are the same value across the
   load path is untouched.
+
+## Field verification (2026-10-08)
+
+Collected on `v0.2.0-alpha.42` in production, binary
+`6dad00b18ece928df66065d3b06200f9947e41e5dd820784b61faf5e9647f5a1`, after the Navigator took one turn
+in `o-sentido-do-ser`. Journey authority for the work remains `mirror-desktop`; the Journey read is
+named here as provenance.
+
+### The Journey settles, and it had never settled before
+
+| record | value |
+|---|---|
+| journal `phase` | `settled` |
+| journal `revision` | 5 |
+| `recoveryDisposition` | `complete` |
+| turn created | `2026-10-08T17:12:30.667Z` |
+| journal last updated | `2026-10-08T17:12:48.483Z` (17.8 s end to end) |
+| settlement `outcome` | `settled` |
+| settlement window | `17:12:47.070Z` → `17:12:48.571Z` (1.5 s, 19 phases) |
+
+`publish_segments` ran and completed in 86 ms, and the full Mirror chain ran behind it —
+`create_outbox_item`, `enqueue_outbox_item`, `advance_journal`, `deliver_outbox_item`,
+`save_post_frontier_projection`, `acknowledge_outbox_item`. This Journey was one of the five holding a
+manifest with no receipt and no chapter payloads. It now has a settlement record.
+
+### The predicted diagnostic did not appear, and the prediction was wrong
+
+`diagnostics` is **absent** from the record. The expected
+`conversation_segment_manifest_unreadable: coordinate_invalid (segment 1, sourceFromEntryId)` never
+fired, because the condition no longer existed when the settlement read it.
+
+The manifest was re-derived at **`17:12:17Z`, thirty seconds before the settlement began**, from a Pi
+session that now holds **59** entries. The defect only occurs when the session has **zero** entries,
+so the writer emitted real coordinates and the file became valid:
+
+```
+sourceFromEntryId    : "c455a245"      (was null)
+sourceThroughEntryId : "5606797e"      (was null)
+sourceEntryCount     : 59              (was 0)
+turnCount            : 3               (was 0)
+```
+
+### The verification consumed its own evidence
+
+**No manifest on this machine carries a null coordinate or a zero source count any more** — checked
+across all **178** manifests on disk. The single instance this CR identified is gone, overwritten by
+the refresh that the act of verifying provoked.
+
+The failure was foreseeable from this document. The debt line immediately below the trigger said *"that
+manifest heals only when a refresh rewrites it"*. Two adjacent debt lines, one naming an artifact as the
+trigger and the other predicting that artifact's destruction, written in the same pass, and the
+contradiction went unnoticed. **A trigger that is a decaying artifact must be read against everything
+else known about its decay.**
+
+### What this does and does not establish
+
+**Established.** `o-sentido-do-ser` settles end to end on alpha.42, publishes chapters, and reaches
+Mirror. A Journey that had no receipt now has one.
+
+**Not established, and not claimed.** That CR127's tolerance (D2) is what made this work. By the time
+`load_segments` ran, its input was valid, so the pre-CR127 strict path would very likely have accepted
+it too. One thing CR127 may have carried is the display load at ~`17:12:17Z`, which read the still-invalid
+on-disk manifest while the pre-CR127 path was strict and threw; whether that throw would have blocked
+opening the Journey cannot be determined from these records, and the artifact is now overwritten.
+
+**D2 has no remaining field trigger.** The tolerance can only be exercised against a legacy
+null-coordinate file, D4 guarantees no new one is written, and none remain. The branch is reachable in
+test and currently unreachable in the field — debt of the same family as a field with no reader.
+
+### The probe worth running next, with its uncertainty stated
+
+A brand-new Journey's first turn is the nearest available exercise of the original scenario, and it
+verifies **D4** rather than D2: the writer must omit absent coordinates instead of writing `null`.
+
+It may not reproduce the zero-entry projection at all. The Sep 30 artifact shows the manifest was
+projected while the session still had no entries even though turns existed, which implies a flush
+ordering that is not understood and was never characterised. So this is the best available probe, not
+a reliable reproduction, and it is recorded that way rather than as a plan.

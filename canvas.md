@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **v0.2.0-alpha.42 “Nothing Waits Forever” publicada e verificada** (CR127 + CR132, 124 manifestos, hashes conferidos) · falta o Navigator atualizar a produção e a verificação de campo das duas CRs
+🎯 **Foco oficial:** **alpha.42 em produção** · `o-sentido-do-ser` liquidou pela primeira vez, mas o diagnóstico previsto não disparou — o gatilho se curou antes e **não sobrou instância** para verificar a tolerância da CR127 · CR132 segue esperando um travamento real
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 
