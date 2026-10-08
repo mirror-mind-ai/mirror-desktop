@@ -116,3 +116,39 @@ because absent is what the parser wants.
 
 **Residue:** `journey-nova` is now a real Journey in Mirror, created as a probe. Left in place like
 `teste`; removal needs explicit intent naming it.
+
+## Residue removal, authorised naming both targets — one removed, one refused (2026-10-08)
+
+Executed against the production Mirror through its released runtime
+(`uv run python -m memory journey ... mutate`), not through the Desktop GUI. A consistent backup was
+taken first: `/tmp/memory-pre-journey-removal-20261008T183044Z.db`, 80 Journey rows.
+
+**`teste` removed.** `delete_journey` receipt
+`navigator-residue-removal-teste-2026-10-08`, `faab3823…` → `0f8b8b61…`. Verified arithmetically
+rather than trusted: the result digest **reproduces** over the 79 remaining `layer='journey'` rows.
+It had none of the twelve associations the guard counts.
+
+**`journey-nova` refused, and the refusal is correct.** Mirror core declines to delete a Journey that
+would orphan records — `count_journey_associations` (`src/memory/storage/identity.py:82`) counts twelve
+relations and `journey_admin.py:102` raises `journey_not_empty` if any is populated, rolling back.
+
+```
+first attempt : journey_not_empty:conversations,runtime_sessions
+confirmed now : journey_not_empty:conversations
+```
+
+The two reasons differ because the runtime session row existed during the attempt and has since gone
+with the session. **Current blocker is one Mirror conversation holding 2 messages**, the probe turn
+itself. Journey rows stayed at 79 and **no receipt was written**, consistent with the alpha.40 finding
+that a refusal leaves no record by design.
+
+### Why this was not forced
+
+There is no canonical operation to remove a Mirror conversation. `delete_journey` is the only
+destructive operation in the allow-list, so clearing the blocker would mean raw SQL against the Mirror
+database, bypassing the receipt mechanism and the digest lineage that every other change in this record
+is verified against. **Not done, and not done quietly.** Removing the Journey's conversation is a
+different target and needs intent naming it.
+
+`journey-nova` therefore remains, holding one settled turn. It is now the only such residue, `teste`
+having gone.

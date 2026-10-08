@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **CR127 verificada em campo pela D4** — `journey-nova` reproduziu o cenário exato e liquidou; o manifesto nasce na ativação com zero entradas e agora **omite** a coordenada em vez de escrever `null` · o alcance do defeito era maior do que a CR afirmava · CR132 segue esperando um travamento real
+🎯 **Foco oficial:** CR127 verificada em campo (D4) · resíduo `teste` removido com receipt e digest conferido; `journey-nova` **recusada pelo próprio Mirror** por conter 1 conversa — não forcei · próximo candidato: **CR129**, tornar legível a liquidação que só vence por recuperação
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 
