@@ -152,3 +152,43 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+## Independent verification (assistant, after the fact)
+
+Performed separately from `release_deploy.mjs`, so the publication is not attested only by the tool
+that carried it out. The deploy reported 123 polled URLs; this enumerated the manifest space from the
+three targets and all 42 versions independently, giving 127.
+
+**Manifests.** 124 of 127 serve `0.2.0-alpha.42`, each with exactly one `url` and a signature.
+
+Two deviations, both explained and neither introduced here:
+
+- **Three off-target manifests** are exactly the `0.2.0-alpha.1` path on all three targets, which
+  serves `0.2.0-alpha.2`. This is the pre-existing legacy-path debt already on record, unchanged by
+  this release.
+- **`downloads/macos/latest.json` has no `url` or `signature`**, because it is a download descriptor
+  rather than an updater manifest. It carries `version`, `dmg`, `artifact` and `releaseNotes`, and
+  points at `0.2.0-alpha.42`.
+
+**Artifacts, by hash against the prepared values.**
+
+| artifact | SHA-256 | bytes | result |
+|---|---|---|---|
+| `Mirror Desktop_0.2.0-alpha.42_x64.dmg` | `81abb495a1c8404a898e526111d63a9cae51589c842d590021e6dca4625a82ff` | 7,315,079 | matches prepared |
+| `Mirror Desktop_0.2.0-alpha.42.app.tar.gz` | `cb73e09066f388832447e3e7891c5ad3a6cb49dc9d3270519e5f60d4522ebc28` | 7,297,348 | matches prepared |
+| `downloads/macos/mirror-desktop-latest.dmg` | `81abb495…5a82ff` | — | byte-identical to the versioned DMG |
+
+The `url` every updater manifest hands out resolves to the tarball whose hash matches preparation.
+
+**Tag identity.** `git ls-remote --tags` returns **2** refs for this version, so the tag was created
+exactly once. The annotated tag dereferences to `2f941bcbcf892a18609b3f3587492b039f002044` identically
+on the remote, locally, and as the prepared candidate.
+
+**Release note.** Served at `releases/v0.2.0-alpha.42.md` with the expected digest.
+
+**Clean first pass.** Unlike alpha.41, `publish` completed without a transient failure; all seven
+stages ran once. Recorded because two of the last three releases hit transient infrastructure
+failures, which makes a clean pass worth stating rather than assuming.
+
+**Not verified here.** Whether the update actually installs. That requires the Navigator to upgrade,
+which is a separate act from publishing.

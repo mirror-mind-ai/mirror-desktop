@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **CR132 implementada** — após 60 s de `Finishing` aparece *Stop waiting*: libera o composer, grava o evento e deixa o reparo durável para a recuperação · falta release e verificação de campo
+🎯 **Foco oficial:** **v0.2.0-alpha.42 “Nothing Waits Forever” publicada e verificada** (CR127 + CR132, 124 manifestos, hashes conferidos) · falta o Navigator atualizar a produção e a verificação de campo das duas CRs
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 
