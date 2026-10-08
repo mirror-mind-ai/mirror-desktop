@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **CR132 capturada** — `Finishing` travou 43 min e só reiniciar o app resolveu; o caminho de interrupção existe, falta um gatilho que o Navigator alcance · aberto: **CR129**, **CR131**, **CR132** · **CR100** travada em autorização
+🎯 **Foco oficial:** **CR132 planejada** — `Finishing` e o Cancelar são mutuamente exclusivos por construção; o plano acrescenta um segundo ato (*parar de esperar*), não alarga o cancelamento nativo · pronta para implementar
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 

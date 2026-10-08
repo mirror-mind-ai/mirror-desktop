@@ -42,11 +42,17 @@ Refinement authority; SQLite must not be consulted or dual-written.
   clear each wrote a receipt on `agentic-ai-for-delphi-consulting`; the digest chain is unbroken back to
   alpha.40 and the final digest reproduces over 79 rows. The path operations had never run before in
   this Mirror's history
-- Change Request: CR132 is `captured`. A turn sat 43 min 29 s between creation and being marked
+- Change Request: CR132 is `planned`. A turn sat 43 min 29 s between creation and being marked
   interrupted — roughly 520x this Journey's median settlement — and the app had to be restarted to
-  regain control. The durable interrupted path already exists but nothing the Navigator can press
-  reaches it, and the occupancy guard that stops automatic recovery from acting is correct and must
-  stay. The stall itself wrote no timing record, because the collector writes only on completion
+  regain control. Planning proved the premise from the code rather than from the incident: `Finishing`
+  is displayed exactly when the run is not running, and `cancelVisible` requires it to be running, so
+  the label and a visible Cancel are mutually exclusive by construction while `sendBlocked` is true.
+  The durable interrupted path already exists and nothing the Navigator can press reaches it, so the
+  plan adds a second, differently-meaning act — stop waiting — rather than widening native
+  cancellation, which would throw because the run has already terminalized. Threshold of 60 s derived
+  from the 41,741 ms longest settlement ever recorded here. The occupancy guard that stops automatic
+  recovery from acting is correct and stays untouched, and the stall itself wrote no timing record
+  because CR119's collector writes only on completion — which D6 narrowly closes for this act alone
 - Change Request: CR127 is `done`. The root cause the plan had written off as unrecoverable was
   recovered by exercising the producer instead of chasing the lost artifact: a fresh Pi session has no
   entries, so the Rust writer emitted `null` for coordinates it did not have, and the parser correctly
@@ -176,7 +182,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR127](rs016-ongoing-product-improvements-and-adjustments/cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) | RS016 | Let a Journey's First Turn Settle Without a Receipt It Cannot Have | done | — | — |
 | — | [CR129](rs016-ongoing-product-improvements-and-adjustments/cr129-let-a-recovered-settlement-say-it-happened.md) | RS016 | Let a Recovered Settlement Say It Happened | captured | — | — |
 | — | [CR131](rs016-ongoing-product-improvements-and-adjustments/cr131-make-the-mirror-a-channel-validates-against-identifiable.md) | RS016 | Make the Mirror a Channel Validates Against Identifiable | captured | — | — |
-| — | [CR132](rs016-ongoing-product-improvements-and-adjustments/cr132-let-the-navigator-end-a-finishing-that-will-not-end.md) | RS016 | Let the Navigator End a Finishing That Will Not End | captured | — | — |
+| — | [CR132](rs016-ongoing-product-improvements-and-adjustments/cr132-let-the-navigator-end-a-finishing-that-will-not-end.md) | RS016 | Let the Navigator End a Finishing That Will Not End | planned | — | — |
 | — | [CR128](rs016-ongoing-product-improvements-and-adjustments/cr128-give-back-the-answer-a-restart-and-continue-strands.md) | RS016 | Give Back the Answer a Restart-and-Continue Strands | done | @alissonvale | `refinement/rs016-cr128-restart-and-continue-recovery` |
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | done | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR125](rs021-ux-pre-beta-evolution/cr125-keep-the-reader-s-place-when-a-turn-settles.md) | RS021 | Keep the Reader's Place When a Turn Settles | done | @alissonvale | `refinement/rs021-cr125-conversation-scroll-anchor` |

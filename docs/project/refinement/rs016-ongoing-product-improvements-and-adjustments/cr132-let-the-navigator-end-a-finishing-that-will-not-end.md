@@ -2,7 +2,7 @@
 
 # CR132: Let the Navigator End a Finishing That Will Not End
 
-**Status:** captured
+**Status:** planned
 **Driver:** —
 **Delivery:** —
 
@@ -137,3 +137,142 @@ reason this was hard to read, and is CR129's family. It is not folded into this 
 Established read-only from `turn-journal/mirror-desktop.json`, `settlement-timings/mirror-desktop.json`,
 the running process start time, and the code paths cited. The Navigator's words are quoted as report;
 every duration and phase above is from the durable record.
+
+## Plan (2026-10-08)
+
+### The premise is provable from the code, not inferred from the incident
+
+Reading the three functions that decide what the Navigator can do removes the need to attribute the
+incident at all.
+
+```ts
+// composerTurnStatus.ts
+if (isStreaming || agentRunStatus === "running") return "working";
+if (isFinalizingTurn) return "finishing";
+
+// journeyNavigationCoordinator.ts
+const cancelVisible = selectedRuntime.mode === "live"
+  && selectedRuntime.agentRun.status === "running"
+  && Boolean(selectedRuntime.identity);
+sendBlocked: isJourneyRuntimeActiveOrFinalizing(selectedRuntime),
+  // = isStreaming || isFinalizingTurn || agentRun.status === "running"
+```
+
+`Finishing` is displayed **exactly when** the run is not running and not streaming. `cancelVisible`
+**requires** the run to be running. Therefore:
+
+> **`Finishing` and a visible Cancel are mutually exclusive by construction.** Whenever the Navigator
+> sees `Finishing`, the Cancel control is provably absent — and `sendBlocked` is provably true.
+
+This is a logical gap, not a timing accident, and it holds regardless of which of yesterday's two
+turns produced the report. **Which turn the Navigator experienced as a stuck `Finishing` is still not
+established** and this plan does not depend on it.
+
+The lockout state is therefore exactly `isFinalizingTurn && !isStreaming && agentRun.status !==
+"running"`. Note that the third path into the `Finishing` label, `reconciliationBlocksInvocation`, is
+**not** in `sendBlocked`, so it does not lock the Navigator out and is not this CR's target.
+
+### Two acts, not one widened act
+
+The existing Cancel must not simply be made visible during `Finishing`.
+`cancelExactJourneyRun` (`journeyCancellation.ts:9`) throws *"Only live Pi invocations have native
+cancellation authority"* unless `identity.kind === "live"`, and `cancel_pi_invocation`
+(`main.rs:5635`) journals a cancellation, marks the registry and **kills the child process**. During
+`Finishing` the run has already terminalized; there is no child to kill and nothing to cancel.
+
+So this CR adds a **second, differently-meaning act**: the running phase keeps *cancel the run*, and
+the finishing phase gains *stop waiting for this turn to settle*. Same button position, different
+verb, different mechanism.
+
+### Slices
+
+- **D1 — name the lockout in the domain.** A pure function in `journeyNavigationCoordinator.ts`:
+  `abandonSettlementOffer({ ownerPhase, finalizingSince, now, threshold })` returning whether the act
+  is offered. It is offered only in the lockout state and only once the wait exceeds the threshold.
+  `cancelVisible` is left byte-identical.
+- **D2 — carry it through presentation.** `JourneyNavigationPresentation` gains
+  `abandonSettlementVisible`. `sendBlocked`, `cancelVisible`, `draftEditable` and `attachmentsBlocked`
+  keep their current semantics exactly.
+- **D3 — the act routes through the path that already exists.** A handler that calls
+  `turnFinalizationCoordinator.finalizeInterruptedTurn` with the live settlement authority and the same
+  three ports the run-lifecycle caller uses (`loadActiveEvidence`, `saveInterruptedProjection`,
+  `cleanupLease`). No new persistence, no new native command, and **no abort of an in-flight write**:
+  if settlement is mid-write, the interrupted path records its own outcome and
+  `recoverPostTerminalPersistence` converges later, as it does after a restart.
+- **D4 — release the composer.** Clearing `isFinalizingTurn` for the entry is what makes `sendBlocked`
+  false. This needs a runtime action in `journeyRuntimeState.ts`; the reducer must not clear it for a
+  Journey that is still streaming or running.
+- **D5 — the surface, with a confirmation that tells the truth.** The control appears in the composer
+  runtime footer region beside the `Finishing` label. The confirmation states what is kept (the partial
+  answer, per CR089), what the turn becomes (recorded as interrupted), and what may still be owed
+  (Mirror delivery, which recovery finishes). It must not promise the settlement was undone.
+- **D6 — make the abandoned wait write a record.** A stall currently writes nothing, because CR119's
+  collector only writes at `end`. This is the one case where the application *knows* the wait is over,
+  so the act calls `settlementTimingRegistry.end(journeyId, "failed", reason)` with a reason naming the
+  Navigator's act. Narrowly scoped: only this path. Stalls in general and recovery remain CR129's.
+
+### Threshold, derived rather than chosen
+
+| measurement (this Journey, 43 records) | value |
+|---|---|
+| Median settled turn | 4,976 ms |
+| Longest settlement ever recorded | 41,741 ms |
+| CR119's phase-naming delay | 3,000 ms |
+
+Offering the act at CR119's 3 s would put it in front of every healthy five-second settlement.
+`ABANDON_SETTLEMENT_OFFER_AFTER_MS` is proposed at **60,000 ms** — past every settlement this Journey
+has ever completed, with margin — and defined beside `FINISHING_PHASE_VISIBLE_AFTER_MS` so the two
+thresholds are read together. The number is falsifiable: if a legitimate settlement is later recorded
+above it, the constant moves and the record says why.
+
+### Files
+
+- `src/app/journeyNavigationCoordinator.ts` — D1, D2.
+- `src/app/settlementPhaseTiming.ts` — the threshold constant, beside CR119's.
+- `src/app/journeyRuntimeState.ts` — D4 action and reducer case.
+- `src/app/App.tsx` — D3 handler, D5 wiring and confirmation state, D6 record.
+- `src/app/ComposerRuntimeFooter.tsx` — D5 control.
+- `src/tests/journeyNavigationCoordinator.test.ts` — D1/D2 including threshold boundaries.
+- `src/tests/settlementAbandonment.test.ts` (new) — D3, D4, D6.
+- `src/tests/finishingPhaseSurface.test.tsx` — D5.
+
+### Acceptance
+
+- In the lockout state, once the wait exceeds the threshold, the act is offered.
+- It is **never** offered while the run is running or streaming — that phase keeps the native Cancel —
+  and never before the threshold.
+- Accepting it marks the turn interrupted through `finalizeInterruptedTurn`, releases the composer so
+  `sendBlocked` becomes false, and preserves the partial response.
+- It writes one settlement timing record with `outcome: "failed"` and a reason naming the act, so the
+  event that previously wrote nothing is now readable from the ledger alone.
+- It is **idempotent**: a second press neither throws nor writes a second record.
+- A settlement that completes normally during the wait still settles normally; the offer disappearing
+  must not interrupt it.
+- `hasActiveNativeExecution` and `recoverPostTerminalPersistence` are untouched, and
+  `cancelVisible`'s derivation is unchanged.
+- The orphaned `phase=running` record that a restart leaves behind is **unchanged** by this CR.
+
+### Validation
+
+- `npx tsc --noEmit`, full `vitest`, `cargo test`, `npm run build`, `npm run roadmap:check`.
+- A guard asserting `cancelVisible`'s three conditions are intact, so widening the new act can never
+  silently widen native cancellation.
+- Threshold boundary tests at just-below and just-above, with an injected clock.
+- Field verification is owed and **can be provoked**: the next time a `Finishing` passes a minute, the
+  control should appear, and after use the ledger should carry a `failed` record naming the act while
+  the composer accepts a new turn without a restart.
+
+### Exclusions
+
+- **Not a timeout.** Nothing ends a settlement on its own. The threshold only decides when to *offer*;
+  the Navigator decides.
+- **Does not widen native cancellation.** `cancel_pi_invocation` stays reachable only while the run is
+  live.
+- **Does not loosen the occupancy guard.** CR115's and CR116's `hasActiveNativeExecution` refusal is
+  untouched; this CR adds an explicit act instead of a braver heuristic.
+- **Does not abort persistence.** No in-flight durable write is cancelled or rolled back.
+- **Does not diagnose the stall.** Why a settlement hangs is unknown and stays unknown; this makes the
+  consequence survivable, not the cause understood. D6 is what will eventually supply the evidence.
+- **Does not resolve the trailing `phase=running` orphan**, and does not touch
+  `reconciliationBlocksInvocation`, which renders the same label but does not block sending.
+- **Not CR129.** Recovery still writes nothing; only this new act writes its own record.
