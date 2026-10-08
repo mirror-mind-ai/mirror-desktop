@@ -293,11 +293,17 @@ rejection: coordinate_invalid (segment 1, sourceFromEntryId)
 ```
 
 `o-sentido-do-ser` is one of the **five Journeys holding a manifest with no receipt and no chapter
-files**. This explains **one** of the five and no more. The other two with the same symptom,
-`mirror-mind-website` (51 entries, 2 turns) and `vida-consultiva` (25 entries, 1 turn), carry healthy
-manifests with real coordinates that parse; **their cause remains unestablished.** The remaining two,
-`nautilus-agentic-method` and `nova-acropole`, do have receipts and payloads, so the roadmap's
-grouping of five was already too broad.
+files**. ~~This explains **one** of the five and no more.~~
+
+**Corrected 2026-10-08 by field verification.** The scope was understated. The zero-entry projection
+happens at generation activation on every newly created Journey, so the exposure was never one
+artifact — it was every new Journey's first turn. See *D4 verified in the field* below.
+
+The other two with the same symptom, `mirror-mind-website` (51 entries, 2 turns) and
+`vida-consultiva` (25 entries, 1 turn), carry healthy manifests with real coordinates that parse;
+**their cause remains unestablished.** The remaining two, `nautilus-agentic-method` and
+`nova-acropole`, do have receipts and payloads, so the roadmap's grouping of five was already too
+broad.
 
 **Whether `mirror-mind`'s original failure was this instance is still not established** and is not
 claimed. Its manifest parses now and the bytes are gone. What is established is that the mechanism
@@ -380,7 +386,10 @@ three-way result, and the settlement ordering guard was re-anchored because the 
   session has zero entries — there is no conversation to chapter. No backfill was performed.
 - **The two unexplained manifest-only Journeys remain unexplained.** `mirror-mind-website` and
   `vida-consultiva` parse cleanly and still have no receipt and no payloads. A candidate CR, not
-  captured here.
+  captured here. **Amended 2026-10-08:** they parse cleanly *now*. Having watched a refresh erase
+  `o-sentido-do-ser`'s evidence, the honest statement is that their manifests may have been
+  null-coordinate files at the time their settlements failed and been rewritten since. That is a
+  possibility, not a claim, and it is unfalsifiable from the surviving artifacts.
 - **`diagnostics` has one producer and no reader.** Nothing on the surface or in the diagnostics
   scripts reads the field yet, which by this project's own rule makes it debt until something does.
 - **The three derivations are still three.** D3 proves the Rust writer and the TypeScript parser agree
@@ -467,3 +476,63 @@ It may not reproduce the zero-entry projection at all. The Sep 30 artifact shows
 projected while the session still had no entries even though turns existed, which implies a flush
 ordering that is not understood and was never characterised. So this is the best available probe, not
 a reliable reproduction, and it is recorded that way rather than as a plan.
+
+### D4 verified in the field, and the scope was larger than this CR claimed (2026-10-08)
+
+The Navigator created a Journey named `Journey nova` (`journey-nova`) and took one turn. This is the
+probe recorded above as *"the best available probe, not a reliable reproduction"*. **It reproduced
+exactly.**
+
+**The zero-entry projection happens at generation activation, before any turn exists.** The manifest
+was written at `18:05:22.894Z`, the same instant as the conversation's `createdAt` and ten seconds
+after the Journey was created at `18:05:12.130Z`. The first turn was not created until
+`18:05:44.610Z`, twenty-two seconds later.
+
+```
+conversation-segments/journey-nova/nautilus-thread-journey-nova/generation-1.json
+{
+  "generation": 1,
+  "journeyId": "journey-nova",
+  "piSessionId": "nautilus-journey-nova-g1-18dca00b1bb960e8",
+  "schemaVersion": "1.0.0",
+  "segments": [ { "segment": 1, "segmentId": "segment-1", "status": "current", "turnCount": 0 } ],
+  "sourceEntryCount": 0,
+  "threadId": "nautilus-thread-journey-nova"
+}
+```
+
+**`sourceFromEntryId` and `sourceThroughEntryId` are absent, not `null`.** That is precisely what D4
+changed, observed in production on the exact input that used to produce the defect.
+
+**The turn settled.** Journal `phase: settled`, `revision` 5, `recoveryDisposition: complete`,
+`18:05:44.610Z` → `18:05:50.527Z`. Settlement `outcome: settled`, 19 phases all `completed`,
+`18:05:49.222Z` → `18:05:50.613Z` (1.39 s), with `load_segments` at 2 ms and `publish_segments`
+completing in 79 ms. `failure` and `diagnostics` are both absent — correctly, because an absent
+coordinate is valid and there was nothing to tolerate or report.
+
+**This settles the flush ordering this document said was not understood.** The earlier note called the
+Sep 30 artifact's ordering *"a flush ordering that is not understood and was never characterised."* It
+is now characterised: the manifest is projected when the generation is activated, when the Pi session
+file holds only its `session` header, and the turns arrive afterwards. `o-sentido-do-ser`'s artifact is
+the same event, followed by three turns that never triggered a re-derivation.
+
+**So the scope was understated, and the correction matters.** The claim *"this explains one of the five
+and no more"* was wrong about exposure. Pre-CR127, **every newly created Journey's first turn met a
+null-coordinate manifest**, because the writer emitted `null` at activation and the parser rejected it,
+which threw inside `load_segments`, failed `save_projection` and failed the settlement.
+
+The basis for each link, so this is traceable rather than asserted: the activation-time zero-entry
+projection is observed directly above; the old writer's `null` is established by the Rust code path and
+by D4's guard; the old parser's rejection is established by this CR's verdict-preservation replay, where
+the baseline parser refused this exact shape; and the rejection-to-failure chain is this CR's root cause.
+
+What tempers it: a Journey escaped if something re-derived the manifest between activation and
+settlement. Nothing did here — the manifest's mtime stayed at `18:05:22` while settlement ran at
+`18:05:49`.
+
+**D2 still has no field trigger.** The file `journey-nova` produced is *valid*, because absent
+coordinates are what the parser wants. The tolerance path can only be reached by a legacy `null` file,
+and none exist. Unchanged by this verification.
+
+**Residue.** `journey-nova` now exists in Mirror as a real Journey, created as a probe. Like `teste`, it
+is left in place; removal would need explicit intent naming it.

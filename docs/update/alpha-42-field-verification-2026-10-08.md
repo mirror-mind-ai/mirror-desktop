@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-08
 **Journey authority:** `mirror-desktop`
-**Status:** upgrade attested; CR127 collected with a **failed prediction**; CR132 not collected
+**Status:** upgrade attested; **CR127 verified via D4** after the first prediction failed; CR132 not collected
 
 ## Upgrade attested
 
@@ -89,3 +89,30 @@ new instance is produced. Reachable in test, unreachable in the field.
 not mistaken for the general rule: the record being read is a single append-only entry stamped
 `17:12:47–48Z` and written once at the end of settlement, so it is a dated event rather than a
 snapshot of a system mid-startup. The earlier declines were about concluding what the app did at boot.
+
+## CR127 verified — D4, on a reproduction of the original scenario (2026-10-08)
+
+The Navigator created `journey-nova` and took one turn. The probe recorded above as *"the best
+available probe, not a reliable reproduction"* **reproduced exactly**. Full record in the CR.
+
+**The manifest is written at generation activation, before any turn exists** — `18:05:22.894Z`, with
+the Journey created at `18:05:12.130Z` and the first turn not created until `18:05:44.610Z`. The Pi
+session held only its header, so `sourceEntryCount` is 0 and `turnCount` is 0: the exact input that
+produced the original defect.
+
+**`sourceFromEntryId` and `sourceThroughEntryId` are absent, not `null`.** That is D4, observed in
+production on the input that used to break.
+
+**The turn settled** — journal `phase: settled`, `revision` 5, `recoveryDisposition: complete`;
+settlement `outcome: settled`, 19 phases all completed in 1.39 s, `publish_segments` at 79 ms, with
+`failure` and `diagnostics` both correctly absent.
+
+**The flush ordering is now characterised**, which the previous entry said was not understood. And the
+CR's own claim that the defect *"explains one of the five and no more"* was an understatement: pre-CR127
+every newly created Journey's first turn met a null-coordinate manifest. Corrected at its source.
+
+**D2's tolerance still has no field trigger**, unchanged — the file this probe produced is valid,
+because absent is what the parser wants.
+
+**Residue:** `journey-nova` is now a real Journey in Mirror, created as a probe. Left in place like
+`teste`; removal needs explicit intent naming it.
