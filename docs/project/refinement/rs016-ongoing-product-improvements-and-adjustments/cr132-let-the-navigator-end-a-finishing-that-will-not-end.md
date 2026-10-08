@@ -2,9 +2,9 @@
 
 # CR132: Let the Navigator End a Finishing That Will Not End
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr132-end-a-finishing-that-will-not-end`
 
 ## Friction
 
@@ -276,3 +276,99 @@ above it, the constant moves and the record says why.
 - **Does not resolve the trailing `phase=running` orphan**, and does not touch
   `reconciliationBlocksInvocation`, which renders the same label but does not block sending.
 - **Not CR129.** Recovery still writes nothing; only this new act writes its own record.
+
+## Implementation and closure (2026-10-08)
+
+### The lockout's real root, found while wiring it
+
+CR116 made `recoverPostTerminalPersistence` able to repair a settlement that stopped **during**
+finalization, by refusing only on native occupancy rather than on a renderer flag. That fixed the
+durable side and left the surface behind:
+
+**Nothing clears `isFinalizingTurn` except the settlement block's own `finally`** (`App.tsx:3369`),
+and that `finally` never runs when the settlement's `await` never returns. So the durable state could
+already be fully repaired by recovery while the composer stayed locked **forever**, with
+`sendBlocked` true and `cancelVisible` false.
+
+That is why restarting the app was the only exit, and it is why the fix is small: the flag is stale by
+construction in exactly the state this act addresses.
+
+### Two corrections to the plan, forced by reading the code
+
+**1. The act does not route through `finalizeInterruptedTurn`.** The plan said it would. Reading the
+settlement block showed why it must not: the hung settlement's promise may still resolve, and
+advancing the journal to `interrupted` underneath it would turn a late success into a loud failure.
+Repair stays with `recoverPostTerminalPersistence`, which was built for exactly this and is kicked
+immediately rather than waited for. This also removed the double-write race the plan had not seen.
+
+**2. The offer is withheld while native execution is active, which the plan did not require.**
+`derivePiInvocationAdmission` and `hasActiveNativeExecution` share one predicate,
+`isActivePiInvocationLease`. So an active lease means **both** that the composer is blocked by
+occupancy **and** that CR115's and CR116's repair route must refuse. Two consequences:
+
+- Offering the exit there would achieve nothing unless it released the lease — and releasing a lease
+  while Pi may really be executing is precisely what CR115 and CR116 exist to prevent.
+- Withholding it confines the act to the state where the flag is stale and recovery is already free.
+
+This answered the plan's open question *"what happens to the live Pi process?"* with **nothing, by
+construction**: no lease is released, no process is signalled, and the plan's `cleanupLease` step was
+dropped.
+
+**3. D1 and D2 moved out of `journeyNavigationCoordinator.ts`** into a new `settlementAbandonment.ts`.
+Not touching the coordinator is a stronger guarantee that `cancelVisible` did not change than any
+assertion about it — and the assertion is there too.
+
+### What shipped
+
+- **`src/app/settlementAbandonment.ts`** — `settlementAbandonmentOffer` and
+  `ABANDON_SETTLEMENT_OFFER_AFTER_MS = 60_000`. The offer requires owner phase `finalizing`, known
+  occupancy, no active native execution, and a wait past the threshold. Each refusal names itself
+  (`not_finishing`, `occupancy_unknown`, `native_execution_active`, `too_soon`).
+- **The act** (`abandonSettlementWait`) ends the timing collector with `outcome: "failed"` and reason
+  `settlement_wait_abandoned_by_navigator`, clears the finishing-phase entry, dispatches
+  `finalization_finished` — which is what releases `sendBlocked` — and kicks recovery. It writes no
+  turn record, releases no lease, cancels no invocation.
+- **The surface** — a notice naming how long the wait has run, and a confirmation that states what is
+  kept, what is still owed, and that the turn will be recorded as one that did not finish settling. It
+  does not claim the settlement was undone.
+- **A stall finally leaves a trace.** This is the one moment the application knows the wait is over,
+  so the event that previously wrote nothing now produces a record.
+
+### Validation
+
+| gate | result |
+|---|---|
+| `npx tsc --noEmit` | clean |
+| `vitest` | **240 files / 1,769 tests** (from 239 / 1,755) |
+| `cargo test` | 269 passed, 3 ignored |
+| `npm run build` | clean |
+| `npm run roadmap:check` | READY |
+
+`settlementAbandonment.test.ts` carries 14 guards, including the threshold at its exact boundary, the
+refusal while native execution is active, a reducer-level proof that `Finishing` has
+`cancelVisible: false` with `sendBlocked: true` and that clearing the flag releases the composer, and
+a guard that the act does not reach `finalizeInterruptedTurn`, `releaseDurablePiInvocationLease` or
+`cancelLivePiInvocation`.
+
+**One guard re-aimed, not deleted.** CR119's write-once assertion counted exactly one
+`appendSettlementTiming(` call site; there are now two. The invariant it protects — never writing from
+inside a phase — is intact, and the stronger property is now proved behaviourally instead of by
+counting: `registry.end` deletes the collector, so the settlement's own `finally` and the Navigator's
+act cannot both produce a record for one turn, whichever arrives first.
+
+### Debt
+
+- **No field verification yet**, with a provocable trigger: the next `Finishing` that passes 60 s
+  should show the control, and after use the ledger should carry a `failed` record whose reason is
+  `settlement_wait_abandoned_by_navigator` while the composer accepts a new turn with no restart.
+- **The hung promise is still pending after the act.** Nothing cancels it. If it later resolves its
+  writes are correct — that is the turn settling — and its `finally` becomes a no-op. Nothing has been
+  observed to go wrong here, and nothing proves it cannot.
+- **A hung-but-live Pi has no exit, and the surface says nothing.** When the lease is genuinely
+  active, the offer is withheld and no control appears, so the Navigator sees the same silence as
+  before. Refusing is correct; being silent about refusing is not. A candidate CR.
+- **The threshold is measured on one Journey.** 60,000 ms was derived from `mirror-desktop`'s 43
+  records. Other Journeys' settlements were not measured.
+- **The trailing `phase=running` orphan is untouched**, as the plan excluded.
+- **Why settlements hang is still unknown.** This makes the consequence survivable, not the cause
+  understood — and the record it now writes is what may eventually explain it.

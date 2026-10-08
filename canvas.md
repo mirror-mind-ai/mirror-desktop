@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **CR132 planejada** — `Finishing` e o Cancelar são mutuamente exclusivos por construção; o plano acrescenta um segundo ato (*parar de esperar*), não alarga o cancelamento nativo · pronta para implementar
+🎯 **Foco oficial:** **CR132 implementada** — após 60 s de `Finishing` aparece *Stop waiting*: libera o composer, grava o evento e deixa o reparo durável para a recuperação · falta release e verificação de campo
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 

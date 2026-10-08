@@ -55,9 +55,14 @@ describe("Finishing names its phase", () => {
     for (const phase of ["save_durable_projection", "refresh_segments", "load_segments", "publish_segments", "reconcile_catalog"]) {
       expect(appSource).toContain(`"${phase}"`);
     }
-    // One write per settled turn, after the record is complete, and only from the end of the
-    // completed-turn finalization — not from any phase.
-    expect(appSource.match(/appendSettlementTiming\(/g)?.length).toBe(1);
+    // One write per settled turn, after the record is complete — never from inside a phase.
+    //
+    // CR132 re-aimed the count from 1 to 2. The second call site is the Navigator ending a wait
+    // that will not end, which is also after the record is complete and also outside every phase.
+    // The two cannot both write for one turn: `registry.end` deletes the collector, so whichever
+    // runs first produces the record and the other receives `undefined`. That mutual exclusion is
+    // guarded behaviourally in `settlementAbandonment.test.ts` rather than by counting here.
+    expect(appSource.match(/appendSettlementTiming\(/g)?.length).toBe(2);
     expect(appSource).toContain("finishingPhase={");
   });
 });

@@ -196,11 +196,20 @@ import {
 import { createProductionFinalizationPorts } from "./turnFinalizationPorts";
 import { createSettlementTimingRegistry, timeFinalizationPorts } from "./settlementPhaseTiming";
 import { appendSettlementTiming } from "./settlementTimingStorage";
+import { settlementAbandonmentOffer } from "./settlementAbandonment";
 import type { FinishingPhasePresentation } from "./ComposerRuntimeFooter";
 
 // CR119: one collector per Journey while its turn is being settled. Timing is accumulated in
 // memory and written once, after the record is complete; see settlementPhaseTiming.ts.
 const settlementTimingRegistry = createSettlementTimingRegistry();
+
+/**
+ * CR132: a stall writes no timing record, because the collector is only written at `end` and a
+ * settlement whose `await` never returns never reaches its own `finally`. When the Navigator stops
+ * waiting, the application finally knows the wait is over, so this is the one moment the event can
+ * be recorded at all.
+ */
+const ABANDONED_SETTLEMENT_REASON = "settlement_wait_abandoned_by_navigator";
 import {
   clearUnsentDraft,
   recordUnsentDraft,
@@ -818,6 +827,7 @@ export function App({ model }: AppProps) {
   const [journeyReloadStatus, setJourneyReloadStatus] = useState<string | undefined>();
   const [isJourneyReloading, setIsJourneyReloading] = useState(false);
   const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false);
+  const [abandonSettlementConfirmOpen, setAbandonSettlementConfirmOpen] = useState(false);
   const [turnRecoveryBusy, setTurnRecoveryBusy] = useState(false);
   const [turnRecoveryError, setTurnRecoveryError] = useState<string>();
   const [turnRecoveryNotice, setTurnRecoveryNotice] = useState<string>();
@@ -1185,6 +1195,23 @@ export function App({ model }: AppProps) {
     isFinalizingTurn,
     reconciliationBlocksInvocation,
     mirrorRepairPending: durableSyncAttention,
+  });
+  // CR132: while a wait is visibly running, the offer to end it has to be re-evaluated on a clock
+  // rather than only when some other state changes, or a Journey that is doing nothing would never
+  // cross the threshold on screen.
+  const [finishingTick, setFinishingTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (composerTurnStatus !== "finishing") return undefined;
+    setFinishingTick(Date.now());
+    const handle = setInterval(() => setFinishingTick(Date.now()), 1_000);
+    return () => clearInterval(handle);
+  }, [composerTurnStatus]);
+  const abandonSettlementOffer = settlementAbandonmentOffer({
+    ownerPhase: selectJourneyRuntimeOwnerPhase(journeyRuntimeState, selectedJourney),
+    nativeExecutionActive: hasActiveNativeExecution(piInvocationOccupancy, selectedJourney),
+    occupancyKnown: piInvocationOccupancy.status === "known",
+    finishingSince: finishingPhases[selectedJourney]?.since,
+    now: finishingTick,
   });
   const showBlockingTurnRecoveryNotice = Boolean(blockingTurnJournalRecord)
     && !isStreaming
@@ -3701,6 +3728,35 @@ export function App({ model }: AppProps) {
     }
   }
 
+  /**
+   * CR132: ends the wait, not the work.
+   *
+   * It deliberately does not route through `finalizeInterruptedTurn`. The hung settlement's promise
+   * may still resolve, and advancing the journal to `interrupted` underneath it would turn a late
+   * success into a loud failure. The durable side belongs to `recoverPostTerminalPersistence`,
+   * which is built for a settlement that stopped and — because this act is only offered when no
+   * native lease is active — is already free to converge.
+   */
+  async function abandonSettlementWait() {
+    const abandoning = selectedRuntime.identity;
+    if (!abandonSettlementOffer.offered || !abandoning) return;
+    const journeyId = selectedJourney;
+    setAbandonSettlementConfirmOpen(false);
+    const timingRecord = settlementTimingRegistry.end(journeyId, "failed", ABANDONED_SETTLEMENT_REASON);
+    if (timingRecord) {
+      void appendSettlementTiming(timingRecord, (reason) => {
+        console.warn(`settlement timing not recorded for ${journeyId}: ${reason}`);
+      });
+    }
+    setFinishingPhases((current) => {
+      if (!(journeyId in current)) return current;
+      const { [journeyId]: _ended, ...rest } = current;
+      return rest;
+    });
+    dispatchJourneyRuntime({ type: "finalization_finished", identity: abandoning });
+    void recoverPostTerminalPersistence(journeyId);
+  }
+
   function requestConversationRestart() {
     if (runtimeBusy || isJourneyReloading || turnRecoveryBusy || journeyThreadState.kind !== "ready" || blockingTurnJournalRecord || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)) return;
     setJourneyMenuOpen(false);
@@ -5662,6 +5718,16 @@ export function App({ model }: AppProps) {
           hidden={!operationalChatSelected || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
         >
           <ComposerRuntimeStatus status={composerTurnStatus} finishingPhase={finishingPhases[selectedJourney]} />
+          {abandonSettlementOffer.offered ? (
+            <section className="dedicated-turn-notice" role="status" aria-label="Finishing is taking unusually long">
+              <strong>Still finishing after {Math.round(abandonSettlementOffer.waitedMs / 1000)}s</strong>
+              <p>
+                Your answer is saved. You can stop waiting and send a new message — anything still
+                owed to Mirror is completed in the background.
+              </p>
+              <button type="button" onClick={() => setAbandonSettlementConfirmOpen(true)}>Stop waiting</button>
+            </section>
+          ) : null}
           {!runtimeBindingReady ? <p className="provider-error" role="status">Connect and validate a Mirror installation in Runtime Settings before starting Mirror or Pi actions.</p> : null}
           {localReferenceError ? (
             <section className="dedicated-turn-notice" role="alert">
@@ -5997,6 +6063,37 @@ export function App({ model }: AppProps) {
         </div>
       ) : null}
 
+      {abandonSettlementConfirmOpen ? (
+        <div className="settings-backdrop" role="presentation" onClick={() => setAbandonSettlementConfirmOpen(false)}>
+          <section
+            className="settings-window"
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Confirm stopping the wait"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="settings-header">
+              <div>
+                <p className="eyebrow">Finishing</p>
+                <h2>Stop waiting for this turn?</h2>
+                <p className="settings-intro">
+                  This releases the composer so you can send a new message. It does not undo anything
+                  that was already saved, and it does not stop work that is still running.
+                </p>
+              </div>
+            </header>
+            <div className="restart-assurances">
+              <p>The answer and your message are already stored and stay exactly as they are.</p>
+              <p>If this turn still owes Mirror an update, recovery completes it in the background.</p>
+              <p>This turn will be recorded as one that did not finish settling, so the delay leaves a trace.</p>
+            </div>
+            <footer className="settings-footer">
+              <button type="button" onClick={() => setAbandonSettlementConfirmOpen(false)}>Keep waiting</button>
+              <button className="primary-button" type="button" onClick={() => void abandonSettlementWait()}>Stop waiting</button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
       {restartConfirmationOpen && journeyThreadState.kind === "ready" ? (
         <div className="settings-backdrop" role="presentation" onClick={() => !isJourneyReloading && setRestartConfirmationOpen(false)}>
           <section
