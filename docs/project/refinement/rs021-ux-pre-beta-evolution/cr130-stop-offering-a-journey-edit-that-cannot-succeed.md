@@ -235,8 +235,8 @@ path change through operations that already existed. Everything else is removal 
 **Debt.**
 - **Name and description remain uneditable.** Parked as CR100. The note is honest but it is still a
   dead end for the Navigator.
-- **No field verification yet.** The path change is validated by tests only; it needs a real path set,
-  changed and cleared against production.
+- ~~**No field verification yet.** The path change is validated by tests only; it needs a real path set,
+  changed and cleared against production.~~ **Resolved 2026-10-08** — see Field verification below.
 - **`projectPathIntent` compares trimmed strings, not canonical directories.** Core canonicalises the
   path with `_canonical_directory`, so two spellings of the same directory read as a change and submit
   a mutation that results in the same stored value. Harmless — it writes a receipt and the correct
@@ -295,3 +295,53 @@ decision — release it as a correct statement about today's Mirror, revert it i
 Mirror core, or reshape it to tolerate both Mirrors by reacting to `unsupported_operation` rather than
 by removing the operation — is the Navigator's, and promoting Mirror core is not authorized from this
 Journey.
+
+## Field verification and final closure (2026-10-08)
+
+Collected. The Navigator upgraded production and reported *"Atualizei a versão e testei. Tudo
+funcionou."* The durable record agrees, and goes further than the report.
+
+Production runs `0.2.0-alpha.41` with binary SHA-256
+`aaaef35730c216e11635583145f7c0aa6515afe6e659d0adfb0160a863d569bb`, identical to the built candidate.
+The ledger records three receipts on `agentic-ai-for-delphi-consulting` inside 49 seconds —
+`set_project_path` (`b2b60fa4`), `set_project_path` (`66492f96`), `clear_project_path` (`d38b8d2b`) —
+**set, changed, cleared**, each with its own `requestId`, each `source_version` equal to the previous
+`result_version` with no gap back to alpha.40's verified create, and the final digest `4b69b3e506c0…`
+reproduces exactly over the 79 live journey rows.
+
+Three things the verification established that the report could not:
+
+- **The operations had never run before.** All-time census: `set_project_path` 2, `clear_project_path`
+  1 — every one from that day. This independently confirms the 2026-10-07 correction that the Desktop
+  had never built these requests; they existed only in a type union with no call site.
+- **The clear removed the key rather than emptying it.** `project_path` is absent from the metadata,
+  and absent from the registry entry, while 75 other Journeys in the same registry carry a
+  `projectPath`. Against §5b, where absence and emptiness collapsing is the heaviest open debt, core
+  distinguishes them correctly here.
+- **CR110's refresh carried CR130's new operations.** The registry's `sourceVersion` equals the final
+  digest, synced 18 ms after the receipt. The two changes compose, over operations CR110 never saw.
+
+What stays unverifiable is written down rather than implied: the read-only fields are Navigator report
+and not record; `unchanged` cannot be field-verified because its correct behavior is the absence of a
+receipt; the `unsupported_operation` mapping is now unreachable from the Desktop by design; and the
+two intermediate path strings are unrecoverable, though two distinct resulting digests prove the second
+set genuinely changed the value. Full evidence:
+[alpha-41 field verification](../../../update/alpha-41-field-verification-2026-10-08.md).
+
+### Proportionality, in both directions
+
+The delivered behavior is proportionate: one canonical field wired, one operation removed from the type
+system, four fields made read-only with a stated reason. This CR's own **Boundaries** claim was not —
+it promised *"reversible by design — one guarded boundary, not scattered conditionals"*, and that is
+not what was built. The overstatement is kept rather than edited, because it was the basis on which the
+work was accepted. Reversal when Mirror core lands will be real work, and
+[CR100](cr100-make-journey-image-updates-supported.md) holds the validated handoff so it will not need
+re-investigation.
+
+Remaining debt is carried deliberately: name and description are still a dead end for the Navigator
+(parked as CR100, blocked on authorization to push Mirror core, not on engineering);
+`projectPathIntent` compares trimmed strings so `unchanged` is narrower than it looks; the dialog mixes
+one canonical field with a device-local section; and Desktop appearance and Mirror's `icon`/`color` are
+two stores for one concept. None blocks use of what shipped.
+
+**No residue.** The exercised Journey ends with no `project_path`, the state it started in.

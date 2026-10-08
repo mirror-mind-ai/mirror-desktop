@@ -38,6 +38,10 @@ Refinement authority; SQLite must not be consulted or dual-written.
   Edit Journey dialog's Save changes, which submits `update_journey` — an operation no Mirror core
   accepts, so renaming a Journey from the Desktop has never worked. Revisit trigger recorded;
   containment is open
+- Change Request: CR130 is `done` and **field-verified in production** (2026-10-08). Set, change and
+  clear each wrote a receipt on `agentic-ai-for-delphi-consulting`; the digest chain is unbroken back to
+  alpha.40 and the final digest reproduces over 79 rows. The path operations had never run before in
+  this Mirror's history
 - Change Request: CR131 is `captured`. The Dev and production channels bind to different Mirror
   checkouts exposing different `journey mutate` contracts, and both report version `0.31.14`. A Dev
   validation of CR130 would have reported the defect as nonexistent, because in Dev the refused

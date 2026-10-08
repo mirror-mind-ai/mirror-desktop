@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** `alpha.41` **publicada e verificada** (120 manifests, 0 fora do alvo) · atualize e teste o caminho de projeto: definir, mudar e limpar · **CR131** capturada, handoff do Mirror pronto na CR100
+🎯 **Foco oficial:** **CR130 fechada e verificada em campo** — definir, mudar e limpar gravaram recibos em produção · aberto: **CR127** (precisa Driver), **CR129** e **CR131** capturadas, **CR100** parada aguardando autorização no Mirror core
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 
