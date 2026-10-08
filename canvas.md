@@ -2,7 +2,7 @@
 
 📦 **Última versão publicada:** `v0.2.0-alpha.37` · What Is Already There Keeps Its Place · em produção
 
-🎯 **Foco oficial:** **CR130 fechada e verificada em campo** — definir, mudar e limpar gravaram recibos em produção · aberto: **CR127** (precisa Driver), **CR129** e **CR131** capturadas, **CR100** parada aguardando autorização no Mirror core
+🎯 **Foco oficial:** **CR127 fechada** — sessão nova gerava manifest ilegível e derrubava o settlement; produtor corrigido, parser nomeia o motivo, turno não se perde mais · aberto: **CR129** e **CR131** capturadas, **CR100** travada em autorização no Mirror core
 
 🧭 **Exploração próxima:** Calm Composer Draft Persistence segue `active` e **não foi consumida** pela CR113; Embedded TS Runtime é direção capturada
 

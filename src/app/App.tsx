@@ -2463,7 +2463,11 @@ export function App({ model }: AppProps) {
     const sessionFile = journeyThreadState.activeGeneration.piSessionFile;
     let cancelled = false;
     void (async () => {
-      const published = await loadConversationSegments(authority).catch(() => undefined);
+      // CR127: the display path already treated both an absent and an unreadable manifest as
+      // "no chapters to show", through the catch below. It still does; the difference is that
+      // settlement no longer disagrees with it.
+      const loaded = await loadConversationSegments(authority).catch(() => undefined);
+      const published = loaded?.kind === "manifest" ? loaded.manifest : undefined;
       if (cancelled) return;
       // A manifest that missed a compaction, or that predates chapter evidence, would hide
       // or fail to name chapters. Segments are presentation only (CR046), so rewriting the
@@ -3489,9 +3493,25 @@ export function App({ model }: AppProps) {
         sessionId: authority.piSessionId,
         sessionFile: projection.liveIdentity.piSessionFile,
       };
-      const manifest = settledCompaction
-        ? await timed("refresh_segments", () => refreshConversationSegments(segmentAuthority))
-        : await timed("load_segments", () => loadConversationSegments(segmentAuthority));
+      // CR127: a stored manifest this renderer cannot parse is a diagnostic, not a reason to
+      // abandon a turn that is already durable. Publication is skipped exactly as it is when no
+      // manifest exists, the reason is recorded on the settlement record, and the turn settles.
+      // A refresh still throws, because that path just derived the manifest and a compaction's
+      // publication is not optional.
+      let manifest: ConversationSegmentManifest | undefined;
+      if (settledCompaction) {
+        manifest = await timed("refresh_segments", () => refreshConversationSegments(segmentAuthority));
+      } else {
+        const loaded = await timed("load_segments", () => loadConversationSegments(segmentAuthority));
+        if (loaded.kind === "unreadable") {
+          settlementTimingRegistry.note(
+            authority.journeyId,
+            "load_segments",
+            `conversation_segment_manifest_unreadable: ${loaded.reason}`,
+          );
+        }
+        manifest = loaded.kind === "manifest" ? loaded.manifest : undefined;
+      }
       if (manifest) {
         const availableProjections = partitionConversationBySegments(projection, manifest);
         const projectionsToPublish = settledCompaction

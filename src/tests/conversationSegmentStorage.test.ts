@@ -27,7 +27,9 @@ describe("Conversation Segment persistence", () => {
   it("publishes and loads only exact generation-scoped manifests", async () => {
     invoke.mockResolvedValueOnce(manifest).mockResolvedValueOnce(manifest);
     await expect(refreshConversationSegments(authority)).resolves.toEqual(manifest);
-    await expect(loadConversationSegments(authority)).resolves.toEqual(manifest);
+    // CR127: a load now reports which of absent, readable and unreadable it met, because the
+    // caller decides severity. The generation-scoped authority this guards is unchanged.
+    await expect(loadConversationSegments(authority)).resolves.toEqual({ kind: "manifest", manifest });
     expect(invoke).toHaveBeenNthCalledWith(1, "refresh_conversation_segments", authority);
     expect(invoke).toHaveBeenNthCalledWith(2, "load_conversation_segments", {
       journeyId: authority.journeyId, threadId: authority.threadId,
@@ -63,7 +65,10 @@ describe("Conversation Segment persistence", () => {
     // Scoped to the settlement flow: CR080 added other legitimate call sites, and a
     // whole-file index comparison would pin their position rather than this ordering.
     // CR119 wraps both calls in phase timing; the ordering guard reads through the wrapper.
-    expect(appSource.indexOf('? await timed("refresh_segments", () => refreshConversationSegments(segmentAuthority))'))
+    // CR127 re-aimed the anchor: the ternary became a branch so an unreadable manifest could be
+    // tolerated on the load side without loosening the refresh side. The ordering is what is
+    // guarded, and it is unchanged.
+    expect(appSource.indexOf('manifest = await timed("refresh_segments", () => refreshConversationSegments(segmentAuthority));'))
       .toBeGreaterThan(appSource.indexOf('await timed("save_durable_projection", () => saveActiveSettlementProjection('));
     expect(tauriSource).toContain("write_durable_projection_at(&path, &payload, nonce)");
     expect(tauriSource).toContain("firstKeptEntryId");

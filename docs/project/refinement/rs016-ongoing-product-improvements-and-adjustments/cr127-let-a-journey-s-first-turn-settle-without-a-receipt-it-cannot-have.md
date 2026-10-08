@@ -2,9 +2,9 @@
 
 # CR127: Let a Journey's First Turn Settle Without a Receipt It Cannot Have
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr127-let-a-first-turn-settle-without-a-receipt-it-cannot-have`
 
 ## Friction
 
@@ -249,3 +249,141 @@ and to decide whether this rejection should end a settlement at all.
 - **Not the recovery collector.** That `recoverPostTerminalPersistence` (`App.tsx:3562`) opens no
   collector is confirmed again and is captured separately.
 - **No repair of the `mirror-mind` manifest.** It parses now.
+
+## Implementation and closure (2026-10-08)
+
+### The plan's central premise was wrong, and the slice it doubted is what disproved it
+
+The plan stated that the exact predicate was **not recoverable** — the `mirror-mind` manifest had
+since been rewritten, so the bytes as of `11:59:46Z` were gone — and concluded that *"the fix cannot
+be 'repair the predicate that fired'"*.
+
+That conclusion was correct about the **artifact** and wrong about the **producer**. The bytes were
+unrecoverable; the rule that generated them was not. D3 was described as *"the slice most likely to
+find the real predicate"*, and it found it on the first run.
+
+The method that worked is worth keeping: rather than trying to recover a lost output, exercise the
+**writer** across its input space and ask the **parser** to accept each result.
+
+### Root cause, established and proven in both languages
+
+`active_pi_session_entries` returns an **empty** vector for a Pi session whose only line is the
+`session` header — the state of a Journey that has never produced a turn. With no entries,
+`project_conversation_segment_manifest` had nothing to name as the chapter's first or last entry, and
+`json!({ "sourceFromEntryId": source_from, ... })` serialized `Option::None` to **`null`** rather than
+omitting the key.
+
+The parser's coordinate check is `if (segment[key] !== undefined)`. Since `null !== undefined`, it
+entered the branch, found `typeof null === "object"`, and rejected the manifest — which threw inside
+`load_segments`, failed `save_projection`, and failed the settlement.
+
+**The parser was right and the writer was wrong.** Absent is the contract for a coordinate that does
+not exist; `null` was never part of it.
+
+### The defect was still live in production, in a Journey the roadmap already lists as blocked
+
+A read-only replay over all **23** manifests in the production store found exactly **one** the parser
+refuses today:
+
+```
+o-sentido-do-ser/nautilus-thread-o-sentido-do-ser/generation-1.json   (mtime Sep 30 10:01)
+rejection: coordinate_invalid (segment 1, sourceFromEntryId)
+{"segment":1,"segmentId":"segment-1","sourceFromEntryId":null,
+ "sourceThroughEntryId":null,"status":"current","turnCount":0}   sourceEntryCount: 0
+```
+
+`o-sentido-do-ser` is one of the **five Journeys holding a manifest with no receipt and no chapter
+files**. This explains **one** of the five and no more. The other two with the same symptom,
+`mirror-mind-website` (51 entries, 2 turns) and `vida-consultiva` (25 entries, 1 turn), carry healthy
+manifests with real coordinates that parse; **their cause remains unestablished.** The remaining two,
+`nautilus-agentic-method` and `nova-acropole`, do have receipts and payloads, so the roadmap's
+grouping of five was already too broad.
+
+**Whether `mirror-mind`'s original failure was this instance is still not established** and is not
+claimed. Its manifest parses now and the bytes are gone. What is established is that the mechanism
+exists, produces exactly the recorded reason, and was present in the store.
+
+### Slices
+
+- **D1 — the parser names its predicate.** `parseConversationSegmentManifest` returns
+  `{ ok: true, manifest }` or `{ ok: false, rejection }` where the rejection carries one of twelve
+  stable reasons plus the authority field or segment key that failed and the 1-based segment number.
+  `describeConversationSegmentManifestRejection` renders it as one bounded line a record can hold.
+  **What the parser accepts is unchanged** — every predicate was preserved, only decomposed so each
+  can name itself.
+- **D2 — the call site decides severity.** `loadConversationSegments` returns
+  `absent | manifest | unreadable` instead of returning `undefined` for one and throwing for another.
+  In settlement, `unreadable` now skips publication exactly as `absent` always has, records the reason,
+  and **the turn settles**. `refreshConversationSegments` deliberately still throws, with the predicate
+  in the message: that path has just derived the manifest, so an unreadable one is a live
+  producer/parser disagreement at its most diagnosable, and a settled compaction's publication is the
+  one case where skipping would lose a closed chapter.
+- **D3 — cross-language conformance.** A Rust golden-file test emits the writer's own output for five
+  representative sessions (`fresh_session_no_entries`, `messages_without_compaction`, `one_compaction`,
+  `two_compactions`, `compaction_with_chapter_evidence`) to
+  `src/tests/fixtures/conversationSegmentManifests.json`; `cargo test` fails when the committed fixture
+  is stale, and regeneration is deliberate (`CR127_WRITE_FIXTURE=1`). A vitest then asserts the parser
+  accepts every one. The parser is now tested against **real producer output** rather than against JSON
+  a test author believed the producer emits.
+- **D4 — the producer stops emitting `null`** (not in the plan; added because D3 recovered the
+  predicate the plan had written off). `set_optional_entry_id` omits a coordinate the projection does
+  not have. Only `sourceFromEntryId` and `sourceThroughEntryId` could ever be null; the other four
+  coordinates come from `?`-checked values or are set inside an `if let`.
+
+### A new place to record a tolerated defect
+
+Making an unreadable manifest non-fatal created a gap: `failure` can only describe a settlement that
+ended badly, so a settlement that meets something wrong, handles it and completes had **nowhere to say
+what it met**. `SettlementDiagnostic { phase, reason }` and an optional `diagnostics` array on
+`SettlementTimingRecord` are that place. The field is omitted entirely when nothing was met, reasons
+are bounded by CR121's rule, `registry.note` drops a note when no collector owns the Journey exactly as
+`registry.time` falls through, and the module's never-writes constraint is untouched — still one write
+per turn, after the work.
+
+### Validation
+
+| gate | result |
+|---|---|
+| `npx tsc --noEmit` | clean |
+| `vitest` | **239 files / 1,755 tests** (from 237 / 1,732) |
+| `cargo test` | **269 passed**, 3 ignored (from 267) |
+| `npm run build` | clean |
+| `npm run roadmap:check` | READY |
+
+**Verdict-preservation replay (the acceptance that mattered).** Both parsers — the committed one from
+`2b34ec9` and the new one — were bundled from real source and run over all 23 production manifests:
+
+```
+identical verdict : 23      DIVERGED : 0
+  accepted by both : 22
+  rejected by both : 1      (o-sentido-do-ser, coordinate_invalid)
+authority mismatch refused by both : true
+```
+
+No manifest that parsed before stops parsing, and none that was rejected becomes accepted. The one
+pre-existing rejection is unchanged in verdict and merely gains a name.
+
+Two guards were **re-aimed, not deleted**: the generation-scoped load assertion now expects the
+three-way result, and the settlement ordering guard was re-anchored because the ternary became a branch
+— the ordering it guards is unchanged.
+
+### Debt
+
+- **Field verification is owed and now has a concrete trigger.** `o-sentido-do-ser` still holds the
+  null-coordinate manifest. After release, a settlement on that Journey should **complete** and carry
+  `conversation_segment_manifest_unreadable: coordinate_invalid (segment 1, sourceFromEntryId)` in its
+  timing record's `diagnostics`. That is a nameable, observable event rather than a wait.
+- **The stale manifest is not repaired.** D4 stops new ones; it does not rewrite existing ones. That
+  manifest heals only when a refresh rewrites it, and nothing is lost in the meantime because its
+  session has zero entries — there is no conversation to chapter. No backfill was performed.
+- **The two unexplained manifest-only Journeys remain unexplained.** `mirror-mind-website` and
+  `vida-consultiva` parse cleanly and still have no receipt and no payloads. A candidate CR, not
+  captured here.
+- **`diagnostics` has one producer and no reader.** Nothing on the surface or in the diagnostics
+  scripts reads the field yet, which by this project's own rule makes it debt until something does.
+- **The three derivations are still three.** D3 proves the Rust writer and the TypeScript parser agree
+  on five representative shapes, not that they agree in general, and `deriveConversationSegmentManifest`
+  was not brought into the comparison.
+- **`§5b` is narrowed here, not resolved.** Absence and invalidity no longer carry opposite severities
+  on this one read path. The standing finding that absence and emptiness are the same value across the
+  load path is untouched.

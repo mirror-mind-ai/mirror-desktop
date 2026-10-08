@@ -64,6 +64,22 @@ export type SettlementFailure = Readonly<{
  */
 export const SETTLEMENT_FAILURE_REASON_MAX_CHARS = 512;
 
+/**
+ * CR127: a defect the settlement tolerated rather than failed on.
+ *
+ * `failure` can only describe a settlement that ended badly. A settlement that meets something
+ * wrong, handles it and completes has `outcome: "settled"` and nowhere to say what it met — which
+ * is how an unreadable chapter manifest would become invisible the moment it stopped being fatal.
+ * A diagnostic is that place: it never changes the outcome and never fails a settlement.
+ *
+ * Bounded like a failure reason and for the same reason (CR121): a trimmed message is still the
+ * beginning of the right one, where a trimmed measurement would read as a true measurement.
+ */
+export type SettlementDiagnostic = Readonly<{
+  phase: string;
+  reason: string;
+}>;
+
 export type SettlementTimingRecord = Readonly<{
   schemaVersion: "0.1.0";
   journeyId: string;
@@ -76,6 +92,7 @@ export type SettlementTimingRecord = Readonly<{
   outcome: SettlementOutcome;
   phases: readonly SettlementPhaseTiming[];
   failure?: SettlementFailure;
+  diagnostics?: readonly SettlementDiagnostic[];
 }>;
 
 export type SettlementTimingClock = {
@@ -94,16 +111,22 @@ export type SettlementTimingCollector = {
   /** The innermost phase running now, which is the one a reader should see named. */
   currentPhase(): string | undefined;
   subscribe(listener: (phase: string | undefined) => void): () => void;
+  /** CR127: records a tolerated defect without touching the outcome. */
+  note(phase: string, reason: string): void;
   finish(outcome: SettlementOutcome, failureReason?: string): SettlementTimingRecord;
 };
+
+function boundedReason(reason: string): string {
+  return reason.length > SETTLEMENT_FAILURE_REASON_MAX_CHARS
+    ? `${reason.slice(0, SETTLEMENT_FAILURE_REASON_MAX_CHARS - 1)}\u2026`
+    : reason;
+}
 
 function describeFailure(
   phases: readonly SettlementPhaseTiming[],
   reason: string,
 ): SettlementFailure {
-  const bounded = reason.length > SETTLEMENT_FAILURE_REASON_MAX_CHARS
-    ? `${reason.slice(0, SETTLEMENT_FAILURE_REASON_MAX_CHARS - 1)}\u2026`
-    : reason;
+  const bounded = boundedReason(reason);
   // The innermost failure is the last one recorded, because an outer phase finishes after the inner
   // one it was propagating from.
   const failed = [...phases].reverse().find((phase) => phase.outcome === "failed");
@@ -119,6 +142,7 @@ export function createSettlementTimingCollector(
   const startedAtMs = clock.now();
   const startedAt = clock.iso();
   const phases: SettlementPhaseTiming[] = [];
+  const diagnostics: SettlementDiagnostic[] = [];
   const stack: string[] = [];
   const listeners = new Set<(phase: string | undefined) => void>();
 
@@ -156,6 +180,9 @@ export function createSettlementTimingCollector(
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    note(phase, reason) {
+      diagnostics.push({ phase, reason: boundedReason(reason) });
+    },
     finish(outcome, failureReason) {
       const finishedMs = clock.now();
       return {
@@ -167,6 +194,7 @@ export function createSettlementTimingCollector(
         outcome,
         phases: [...phases],
         ...(failureReason ? { failure: describeFailure(phases, failureReason) } : {}),
+        ...(diagnostics.length > 0 ? { diagnostics: [...diagnostics] } : {}),
       };
     },
   };
@@ -182,6 +210,8 @@ export type SettlementTimingRegistry = {
   get(journeyId: string): SettlementTimingCollector | undefined;
   /** Times the work when a collector owns the Journey; otherwise just runs it. */
   time<T>(journeyId: string, phase: string, operation: () => Promise<T>): Promise<T>;
+  /** CR127: records a tolerated defect when a collector owns the Journey; otherwise drops it. */
+  note(journeyId: string, phase: string, reason: string): void;
   end(
     journeyId: string,
     outcome: SettlementOutcome,
@@ -203,6 +233,9 @@ export function createSettlementTimingRegistry(
     time(journeyId, phase, operation) {
       const collector = collectors.get(journeyId);
       return collector ? collector.time(phase, operation) : operation();
+    },
+    note(journeyId, phase, reason) {
+      collectors.get(journeyId)?.note(phase, reason);
     },
     end(journeyId, outcome, failureReason) {
       const collector = collectors.get(journeyId);

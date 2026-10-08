@@ -4450,9 +4450,10 @@ fn project_conversation_segment_manifest(
         let number = segments.len() + 1;
         let mut closed = json!({
             "segment": number, "segmentId": format!("segment-{}", number), "status": "closed",
-            "sourceFromEntryId": source_from, "sourceThroughEntryId": through,
+            "sourceThroughEntryId": through,
             "retainedTailFromEntryId": retained, "compactionEntryId": compaction_id,
         });
+        set_optional_entry_id(&mut closed, "sourceFromEntryId", source_from);
         // CR080: chapter evidence. The summary head is what naming a chapter needs; the whole
         // summary would not fit 255 of them in a manifest.
         if let Some(summary) = entry.get("summary").and_then(Value::as_str) {
@@ -4474,9 +4475,12 @@ fn project_conversation_segment_manifest(
     let number = segments.len() + 1;
     let mut current = json!({
         "segment": number, "segmentId": format!("segment-{}", number), "status": "current",
-        "sourceFromEntryId": source_from,
-        "sourceThroughEntryId": entries.last().and_then(|entry| entry.get("id")).and_then(Value::as_str),
     });
+    set_optional_entry_id(&mut current, "sourceFromEntryId", source_from);
+    set_optional_entry_id(
+        &mut current, "sourceThroughEntryId",
+        entries.last().and_then(|entry| entry.get("id")).and_then(Value::as_str),
+    );
     if let Some(opened_at) = source_from
         .and_then(|id| positions.get(id))
         .and_then(|position| entries[*position].get("timestamp"))
@@ -4509,6 +4513,17 @@ fn project_conversation_segment_manifest(
 
 // CR080: bounded in UTF-16 units, because the frontend contract bounds it that way and a
 // mismatch would make a manifest this projection wrote unparseable on the other side.
+/// CR127: a coordinate the projection does not have is omitted, never written as `null`. The
+/// renderer's manifest parser accepts an absent optional coordinate and rejects a present
+/// non-string one, so emitting `null` made a manifest this writer produced unreadable to the
+/// side that consumes it — which failed the first settlement of a Journey whose Pi session was
+/// still empty.
+fn set_optional_entry_id(target: &mut Value, key: &str, value: Option<&str>) {
+    if let Some(id) = value {
+        target[key] = Value::String(id.to_string());
+    }
+}
+
 fn bounded_summary_head(summary: &str) -> String {
     let mut head = String::new();
     let mut units = 0usize;
@@ -10515,6 +10530,148 @@ mod tests {
         assert!(manifest.pointer("/segments/1/summaryHead").is_none());
         assert!(manifest.pointer("/segments/1/closedAt").is_none());
         assert!(!manifest.to_string().contains("private"));
+    }
+
+    /// CR127: a fresh Pi session has no active entries, so the writer had nothing to name as the
+    /// chapter's first or last entry and emitted `null` for both. The renderer's parser treats a
+    /// present-but-non-string coordinate as invalid, rejects the whole manifest, and the settlement
+    /// that read it failed. Absent is the contract for "no coordinate"; null was never part of it.
+    #[test]
+    fn never_writes_a_null_coordinate_the_renderer_cannot_parse() {
+        let fresh = r#"{"type":"session","version":3,"id":"session-fresh"}"#.to_string();
+        let messages_only = [
+            r#"{"type":"session","version":3,"id":"session-two"}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"message":{"role":"user","content":"x"}}"#,
+        ].join("\n");
+        let one_compaction = [
+            r#"{"type":"session","version":3,"id":"session-three"}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"message":{"role":"user","content":"x"}}"#,
+            r#"{"type":"message","id":"assistant-1","parentId":"user-1","message":{"role":"assistant","content":[]}}"#,
+            r#"{"type":"compaction","id":"compact-1","parentId":"assistant-1","firstKeptEntryId":"assistant-1"}"#,
+            r#"{"type":"message","id":"user-2","parentId":"compact-1","message":{"role":"user","content":"y"}}"#,
+        ].join("\n");
+        for (name, content) in [
+            ("fresh", fresh.as_str()),
+            ("messages_only", messages_only.as_str()),
+            ("one_compaction", one_compaction.as_str()),
+        ] {
+            let manifest = project_conversation_segment_manifest(
+                content, "journey-one", "thread-one", 1,
+                content.lines().next().map(|_| "session-one").unwrap(), &[],
+            ).unwrap();
+            let segments = manifest.get("segments").and_then(Value::as_array).unwrap().clone();
+            for segment in segments {
+                for key in [
+                    "sourceFromEntryId", "sourceThroughEntryId", "retainedTailFromEntryId",
+                    "compactionEntryId", "firstTurnId", "lastTurnId",
+                ] {
+                    assert!(
+                        segment.get(key) != Some(&Value::Null),
+                        "{name}: {key} is null; the renderer rejects a non-string coordinate",
+                    );
+                }
+            }
+        }
+    }
+
+    /// CR127 D3: the manifest is derived here and validated in TypeScript by two independently
+    /// written rule sets, and nothing reconciled them. This emits the producer's own output for
+    /// the renderer's parser to be tested against, so the conformance test exercises real writer
+    /// output rather than JSON a test author believed the writer produces.
+    ///
+    /// Golden file. `cargo test` asserts the committed fixture is current; regenerate deliberately
+    /// with `CR127_WRITE_FIXTURE=1 cargo test emits_the_manifest_conformance_fixture`.
+    #[test]
+    fn emits_the_manifest_conformance_fixture() {
+        let turns = [(
+            "turn-one".to_string(), "user-1".to_string(), "assistant-1".to_string(),
+        )];
+        let cases: Vec<(&str, String, &[(String, String, String)])> = vec![
+            (
+                "fresh_session_no_entries",
+                r#"{"type":"session","version":3,"id":"session-one"}"#.to_string(),
+                &[],
+            ),
+            (
+                "messages_without_compaction",
+                [
+                    r#"{"type":"session","version":3,"id":"session-one"}"#,
+                    r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-10-01T09:00:00.000Z","message":{"role":"user","content":"x"}}"#,
+                    r#"{"type":"message","id":"assistant-1","parentId":"user-1","timestamp":"2026-10-01T09:00:01.000Z","message":{"role":"assistant","content":[]}}"#,
+                ].join("\n"),
+                &turns,
+            ),
+            (
+                "one_compaction",
+                [
+                    r#"{"type":"session","version":3,"id":"session-one"}"#,
+                    r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-10-01T09:00:00.000Z","message":{"role":"user","content":"x"}}"#,
+                    r#"{"type":"message","id":"assistant-1","parentId":"user-1","timestamp":"2026-10-01T09:00:01.000Z","message":{"role":"assistant","content":[]}}"#,
+                    r#"{"type":"compaction","id":"compact-1","parentId":"assistant-1","firstKeptEntryId":"assistant-1","timestamp":"2026-10-01T10:00:00.000Z"}"#,
+                    r#"{"type":"message","id":"user-2","parentId":"compact-1","timestamp":"2026-10-01T10:05:00.000Z","message":{"role":"user","content":"y"}}"#,
+                ].join("\n"),
+                &turns,
+            ),
+            (
+                "two_compactions",
+                [
+                    r#"{"type":"session","version":3,"id":"session-one"}"#,
+                    r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-10-01T09:00:00.000Z","message":{"role":"user","content":"x"}}"#,
+                    r#"{"type":"message","id":"assistant-1","parentId":"user-1","timestamp":"2026-10-01T09:00:01.000Z","message":{"role":"assistant","content":[]}}"#,
+                    r#"{"type":"compaction","id":"compact-1","parentId":"assistant-1","firstKeptEntryId":"assistant-1","timestamp":"2026-10-01T10:00:00.000Z"}"#,
+                    r#"{"type":"message","id":"user-2","parentId":"compact-1","timestamp":"2026-10-01T10:05:00.000Z","message":{"role":"user","content":"y"}}"#,
+                    r#"{"type":"compaction","id":"compact-2","parentId":"user-2","firstKeptEntryId":"user-2","timestamp":"2026-10-01T11:00:00.000Z"}"#,
+                    r#"{"type":"message","id":"assistant-2","parentId":"compact-2","timestamp":"2026-10-01T11:05:00.000Z","message":{"role":"assistant","content":[]}}"#,
+                ].join("\n"),
+                &turns,
+            ),
+            (
+                "compaction_with_chapter_evidence",
+                [
+                    r#"{"type":"session","version":3,"id":"session-one"}"#,
+                    r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-10-01T09:00:00.000Z","message":{"role":"user","content":"x"}}"#,
+                    r#"{"type":"message","id":"assistant-1","parentId":"user-1","timestamp":"2026-10-01T09:00:01.000Z","message":{"role":"assistant","content":[]}}"#,
+                    r###"{"type":"compaction","id":"compact-1","parentId":"assistant-1","firstKeptEntryId":"assistant-1","timestamp":"2026-10-01T10:00:00.000Z","summary":"## Goal\nClose chapter one."}"###,
+                    r#"{"type":"message","id":"user-2","parentId":"compact-1","timestamp":"2026-10-01T10:05:00.000Z","message":{"role":"user","content":"y"}}"#,
+                ].join("\n"),
+                &turns,
+            ),
+        ];
+        let emitted: Vec<Value> = cases.iter().map(|(name, content, turns)| {
+            let manifest = project_conversation_segment_manifest(
+                content, "journey-one", "thread-one", 1, "session-one", turns,
+            ).unwrap();
+            json!({
+                "name": name,
+                "authority": {
+                    "journeyId": "journey-one", "threadId": "thread-one",
+                    "generation": 1, "piSessionId": "session-one",
+                },
+                "manifest": manifest,
+            })
+        }).collect();
+        let document = json!({
+            "note": "Emitted by project_conversation_segment_manifest. Do not edit by hand; see CR127.",
+            "cases": emitted,
+        });
+        let mut rendered = serde_json::to_string_pretty(&document).unwrap();
+        rendered.push('\n');
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../src/tests/fixtures/conversationSegmentManifests.json");
+        if std::env::var("CR127_WRITE_FIXTURE").is_ok() {
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, &rendered).unwrap();
+            return;
+        }
+        let committed = fs::read_to_string(&path).expect(
+            "the CR127 conformance fixture is missing; regenerate with CR127_WRITE_FIXTURE=1",
+        );
+        assert_eq!(
+            committed, rendered,
+            "the committed CR127 conformance fixture is stale: the writer's output changed. \
+             Regenerate with CR127_WRITE_FIXTURE=1 and let the TypeScript conformance test \
+             re-check the parser against it.",
+        );
     }
 
     #[test]

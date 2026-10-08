@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import {
+  describeConversationSegmentManifestRejection,
   parseConversationSegmentManifest,
   type ConversationSegmentManifest,
 } from "../domain/conversationSegments";
@@ -18,6 +19,14 @@ type SegmentAuthority = {
   sessionFile: string;
 };
 
+/**
+ * CR127: a refresh stays strict on purpose, where a load does not.
+ *
+ * This path has just derived the manifest from the Pi session, so a manifest it cannot read is a
+ * live disagreement between the producer and this parser — the most diagnosable moment there is,
+ * and the one occasion where publication is not optional, because a settled compaction is what
+ * closes a chapter. The reason is named now rather than discarded, which is what CR127 changed.
+ */
 export async function refreshConversationSegments(authority: SegmentAuthority): Promise<ConversationSegmentManifest> {
   const value = await invoke<unknown>("refresh_conversation_segments", authority);
   const parsed = parseConversationSegmentManifest(value, {
@@ -26,8 +35,12 @@ export async function refreshConversationSegments(authority: SegmentAuthority): 
     generation: authority.generation,
     piSessionId: authority.sessionId,
   });
-  if (!parsed) throw new Error("Conversation Segment authority is invalid.");
-  return parsed;
+  if (!parsed.ok) {
+    throw new Error(
+      `Conversation Segment authority is invalid: ${describeConversationSegmentManifestRejection(parsed.rejection)}`,
+    );
+  }
+  return parsed.manifest;
 }
 
 export async function publishConversationSegmentProjections(
@@ -83,22 +96,37 @@ export async function loadCompleteConversationSegmentHistory(
   return combineConversationSegmentProjections(projections);
 }
 
+/**
+ * CR127: the three outcomes a stored manifest can have, kept apart.
+ *
+ * `absent` and `unreadable` used to be one value apart and opposite in severity: a missing manifest
+ * returned `null` and settlement continued, while an unreadable one threw and failed the whole
+ * settlement. That is §5b inverted — the benign case and the invalid case meeting on the same read
+ * path with the harsher consequence on the one that is only a diagnostic. Naming all three lets the
+ * caller decide severity without the parser losing any strictness.
+ */
+export type LoadedConversationSegments =
+  | Readonly<{ kind: "absent" }>
+  | Readonly<{ kind: "manifest"; manifest: ConversationSegmentManifest }>
+  | Readonly<{ kind: "unreadable"; reason: string }>;
+
 export async function loadConversationSegments(
   authority: Omit<SegmentAuthority, "sessionFile">,
-): Promise<ConversationSegmentManifest | undefined> {
+): Promise<LoadedConversationSegments> {
   const value = await invoke<unknown | null>("load_conversation_segments", {
     journeyId: authority.journeyId,
     threadId: authority.threadId,
     generation: authority.generation,
     sessionId: authority.sessionId,
   });
-  if (value === null) return undefined;
+  if (value === null) return { kind: "absent" };
   const parsed = parseConversationSegmentManifest(value, {
     journeyId: authority.journeyId,
     threadId: authority.threadId,
     generation: authority.generation,
     piSessionId: authority.sessionId,
   });
-  if (!parsed) throw new Error("Conversation Segment authority is invalid.");
-  return parsed;
+  return parsed.ok
+    ? { kind: "manifest", manifest: parsed.manifest }
+    : { kind: "unreadable", reason: describeConversationSegmentManifestRejection(parsed.rejection) };
 }

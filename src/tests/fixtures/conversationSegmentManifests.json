@@ -1,0 +1,205 @@
+{
+  "cases": [
+    {
+      "authority": {
+        "generation": 1,
+        "journeyId": "journey-one",
+        "piSessionId": "session-one",
+        "threadId": "thread-one"
+      },
+      "manifest": {
+        "generation": 1,
+        "journeyId": "journey-one",
+        "piSessionId": "session-one",
+        "schemaVersion": "1.0.0",
+        "segments": [
+          {
+            "segment": 1,
+            "segmentId": "segment-1",
+            "status": "current",
+            "turnCount": 0
+          }
+        ],
+        "sourceEntryCount": 0,
+        "threadId": "thread-one"
+      },
+      "name": "fresh_session_no_entries"
+    },
+    {
+      "authority": {
+        "generation": 1,
+        "journeyId": "journey-one",
+        "piSessionId": "session-one",
+        "threadId": "thread-one"
+      },
+      "manifest": {
+        "generation": 1,
+        "journeyId": "journey-one",
+        "piSessionId": "session-one",
+        "schemaVersion": "1.0.0",
+        "segments": [
+          {
+            "firstTurnId": "turn-one",
+            "lastTurnId": "turn-one",
+            "openedAt": "2026-10-01T09:00:00.000Z",
+            "segment": 1,
+            "segmentId": "segment-1",
+            "sourceFromEntryId": "user-1",
+            "sourceThroughEntryId": "assistant-1",
+            "status": "current",
+            "turnCount": 1
+          }
+        ],
+        "sourceEntryCount": 2,
+        "threadId": "thread-one"
+      },
+      "name": "messages_without_compaction"
+    },
+    {
+      "authority": {
+        "generation": 1,
+        "journeyId": "journey-one",
+        "piSessionId": "session-one",
+        "threadId": "thread-one"
+      },
+      "manifest": {
+        "generation": 1,
+        "journeyId": "journey-one",
+        "piSessionId": "session-one",
+        "schemaVersion": "1.0.0",
+        "segments": [
+          {
+            "closedAt": "2026-10-01T10:00:00.000Z",
+            "compactionEntryId": "compact-1",
+            "firstTurnId": "turn-one",
+            "lastTurnId": "turn-one",
+            "openedAt": "2026-10-01T09:00:00.000Z",
+            "retainedTailFromEntryId": "assistant-1",
+            "segment": 1,
+            "segmentId": "segment-1",
+            "sourceFromEntryId": "user-1",
+            "sourceThroughEntryId": "assistant-1",
+            "status": "closed",
+            "turnCount": 1
+          },
+          {
+            "firstTurnId": "turn-one",
+            "lastTurnId": "turn-one",
+            "openedAt": "2026-10-01T09:00:01.000Z",
+            "segment": 2,
+            "segmentId": "segment-2",
+            "sourceFromEntryId": "assistant-1",
+            "sourceThroughEntryId": "user-2",
+            "status": "current",
+            "turnCount": 1
+          }
+        ],
+        "sourceEntryCount": 4,
+        "threadId": "thread-one"
+      },
+      "name": "one_compaction"
+    },
+    {
+      "authority": {
+        "generation": 1,
+        "journeyId": "journey-one",
+        "piSessionId": "session-one",
+        "threadId": "thread-one"
+      },
+      "manifest": {
+        "generation": 1,
+        "journeyId": "journey-one",
+        "piSessionId": "session-one",
+        "schemaVersion": "1.0.0",
+        "segments": [
+          {
+            "closedAt": "2026-10-01T10:00:00.000Z",
+            "compactionEntryId": "compact-1",
+            "firstTurnId": "turn-one",
+            "lastTurnId": "turn-one",
+            "openedAt": "2026-10-01T09:00:00.000Z",
+            "retainedTailFromEntryId": "assistant-1",
+            "segment": 1,
+            "segmentId": "segment-1",
+            "sourceFromEntryId": "user-1",
+            "sourceThroughEntryId": "assistant-1",
+            "status": "closed",
+            "turnCount": 1
+          },
+          {
+            "closedAt": "2026-10-01T11:00:00.000Z",
+            "compactionEntryId": "compact-2",
+            "firstTurnId": "turn-one",
+            "lastTurnId": "turn-one",
+            "openedAt": "2026-10-01T09:00:01.000Z",
+            "retainedTailFromEntryId": "user-2",
+            "segment": 2,
+            "segmentId": "segment-2",
+            "sourceFromEntryId": "assistant-1",
+            "sourceThroughEntryId": "user-2",
+            "status": "closed",
+            "turnCount": 1
+          },
+          {
+            "openedAt": "2026-10-01T10:05:00.000Z",
+            "segment": 3,
+            "segmentId": "segment-3",
+            "sourceFromEntryId": "user-2",
+            "sourceThroughEntryId": "assistant-2",
+            "status": "current",
+            "turnCount": 0
+          }
+        ],
+        "sourceEntryCount": 6,
+        "threadId": "thread-one"
+      },
+      "name": "two_compactions"
+    },
+    {
+      "authority": {
+        "generation": 1,
+        "journeyId": "journey-one",
+        "piSessionId": "session-one",
+        "threadId": "thread-one"
+      },
+      "manifest": {
+        "generation": 1,
+        "journeyId": "journey-one",
+        "piSessionId": "session-one",
+        "schemaVersion": "1.0.0",
+        "segments": [
+          {
+            "closedAt": "2026-10-01T10:00:00.000Z",
+            "compactionEntryId": "compact-1",
+            "firstTurnId": "turn-one",
+            "lastTurnId": "turn-one",
+            "openedAt": "2026-10-01T09:00:00.000Z",
+            "retainedTailFromEntryId": "assistant-1",
+            "segment": 1,
+            "segmentId": "segment-1",
+            "sourceFromEntryId": "user-1",
+            "sourceThroughEntryId": "assistant-1",
+            "status": "closed",
+            "summaryHead": "## Goal\nClose chapter one.",
+            "turnCount": 1
+          },
+          {
+            "firstTurnId": "turn-one",
+            "lastTurnId": "turn-one",
+            "openedAt": "2026-10-01T09:00:01.000Z",
+            "segment": 2,
+            "segmentId": "segment-2",
+            "sourceFromEntryId": "assistant-1",
+            "sourceThroughEntryId": "user-2",
+            "status": "current",
+            "turnCount": 1
+          }
+        ],
+        "sourceEntryCount": 4,
+        "threadId": "thread-one"
+      },
+      "name": "compaction_with_chapter_evidence"
+    }
+  ],
+  "note": "Emitted by project_conversation_segment_manifest. Do not edit by hand; see CR127."
+}

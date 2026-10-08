@@ -40,7 +40,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR121: Name the Settlement That Fails Before Recovery Saves It](cr121-name-the-settlement-that-fails-before-recovery-saves-it.md) — done
 - [CR124: Stop Verifying a Published Chapter Against a Moving Projection](cr124-stop-verifying-a-published-chapter-against-a-moving-projection.md) — done
 - [CR126: Stop a Correction From Becoming Its Own Turn](cr126-stop-a-correction-from-becoming-its-own-turn.md) — done
-- [CR127: Let a Journey's First Turn Settle Without a Receipt It Cannot Have](cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) — planned
+- [CR127: Let a Journey's First Turn Settle Without a Receipt It Cannot Have](cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) — done
 - [CR128: Give Back the Answer a Restart-and-Continue Strands](cr128-give-back-the-answer-a-restart-and-continue-strands.md) — done
 - [CR129: Let a Recovered Settlement Say It Happened](cr129-let-a-recovered-settlement-say-it-happened.md) — captured
 - [CR131: Make the Mirror a Channel Validates Against Identifiable](cr131-make-the-mirror-a-channel-validates-against-identifiable.md) — captured

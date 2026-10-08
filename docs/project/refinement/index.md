@@ -42,6 +42,13 @@ Refinement authority; SQLite must not be consulted or dual-written.
   clear each wrote a receipt on `agentic-ai-for-delphi-consulting`; the digest chain is unbroken back to
   alpha.40 and the final digest reproduces over 79 rows. The path operations had never run before in
   this Mirror's history
+- Change Request: CR127 is `done`. The root cause the plan had written off as unrecoverable was
+  recovered by exercising the producer instead of chasing the lost artifact: a fresh Pi session has no
+  entries, so the Rust writer emitted `null` for coordinates it did not have, and the parser correctly
+  refused it. The writer now omits them, the parser names its predicate, an unreadable manifest no
+  longer abandons a settled turn, and a cross-language golden-file test pins the two derivations
+  together. One production manifest still carried the defect and it belongs to `o-sentido-do-ser`,
+  which explains one of the five manifest-only Journeys and not the others
 - Change Request: CR131 is `captured`. The Dev and production channels bind to different Mirror
   checkouts exposing different `journey mutate` contracts, and both report version `0.31.14`. A Dev
   validation of CR130 would have reported the defect as nonexistent, because in Dev the refused
@@ -161,7 +168,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
 | — | [CR126](rs016-ongoing-product-improvements-and-adjustments/cr126-stop-a-correction-from-becoming-its-own-turn.md) | RS016 | Stop a Correction From Becoming Its Own Turn | done | @alissonvale | `refinement/rs016-cr126-corrected-turn-request-identity` |
-| — | [CR127](rs016-ongoing-product-improvements-and-adjustments/cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) | RS016 | Let a Journey's First Turn Settle Without a Receipt It Cannot Have | planned | — | — |
+| — | [CR127](rs016-ongoing-product-improvements-and-adjustments/cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) | RS016 | Let a Journey's First Turn Settle Without a Receipt It Cannot Have | done | — | — |
 | — | [CR129](rs016-ongoing-product-improvements-and-adjustments/cr129-let-a-recovered-settlement-say-it-happened.md) | RS016 | Let a Recovered Settlement Say It Happened | captured | — | — |
 | — | [CR131](rs016-ongoing-product-improvements-and-adjustments/cr131-make-the-mirror-a-channel-validates-against-identifiable.md) | RS016 | Make the Mirror a Channel Validates Against Identifiable | captured | — | — |
 | — | [CR128](rs016-ongoing-product-improvements-and-adjustments/cr128-give-back-the-answer-a-restart-and-continue-strands.md) | RS016 | Give Back the Answer a Restart-and-Continue Strands | done | @alissonvale | `refinement/rs016-cr128-restart-and-continue-recovery` |
