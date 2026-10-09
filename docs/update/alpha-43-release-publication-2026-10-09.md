@@ -155,3 +155,30 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+## Independent Verification (2026-10-09)
+
+Performed after publication, deliberately without using the tool that published, because a publisher reporting its own success is one source rather than two.
+
+**The published artifact is the artifact that was built.** The stable alias `downloads/macos/mirror-desktop-latest.dmg` was fetched over HTTPS and hashed: `5c1c7a6f7e490033e91a3b7b7ff3bc21ab725227c675b16e6935fac2b66cabf8`, 7,310,826 bytes, **byte-for-byte identical** to the preparation hash. The download descriptor at `downloads/macos/latest.json` reports `0.2.0-alpha.43`.
+
+**42 of 43 per-version updater manifests serve alpha.43.** Each `darwin/0.2.0-alpha.<n>/latest.json` for n in 1..43 was polled directly, and each was checked for `url` and `signature` at the top level, which is the shape the updater requires.
+
+**One deviation, explained and pre-existing.** `darwin/0.2.0-alpha.1/latest.json` still serves `0.2.0-alpha.2`. This is the known legacy manifest path recorded before this release and unchanged by it; an installation of alpha.1 would be offered alpha.2 rather than alpha.43. Not caused here, and still not repaired.
+
+### Two instrument errors recorded, because both looked like publication failures
+
+Verification initially reported the DMG missing and every manifest unparseable. Both were the measuring instrument, not the publication.
+
+1. The base URL was guessed as `updates.mirrormind.ai`. The real endpoint is **`updates.mirrormind.sh`**, read from the publication evidence rather than from memory.
+2. `darwin/latest.json` was polled as though a single current manifest existed. It does not, by design: manifests are keyed by the **installed** version, so that path is correctly absent.
+
+This is the standing rule holding under its own weight — when a measurement disagrees with expectation, suspect the instrument before reporting a divergence.
+
+### Transient failure, recorded
+
+The first `publish` run failed at `endpoint-publish` with an SSH connection timeout to `51.222.160.3`, after `push-main`, `tag` and `github-release` had already succeeded. The endpoint was then confirmed reachable by `ping` and `ssh`, and the re-run resumed from stage state and completed. The same transient has been recorded for previous releases.
+
+### Boundary
+
+Production remains on **alpha.42** (`6dad00b18ece928df66065d3b06200f9947e41e5dd820784b61faf5e9647f5a1`) and was running throughout. Publishing a release and upgrading the installed application are separate acts, and the second was not authorized in this turn.

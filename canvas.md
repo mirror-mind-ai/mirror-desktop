@@ -25,6 +25,9 @@
 
 | CR | Story | Release | Estado |
 | --- | --- | --- | --- |
+| CR135 · Let the Navigator Hide a Conversation Without Deleting It | RS023 | alpha.43 | ✅ campo verificado |
+| CR134 · Name the Owner of Running Work Without Hiding That It Runs | RS023 | alpha.43 | ✅ campo verificado |
+| CR133 · Stop a Disclosure From Selecting a Journey | RS023 | alpha.43 | ✅ campo verificado |
 | CR132 · Let the Navigator End a Finishing That Will Not End | RS016 | alpha.42 | ✅ done · campo devido |
 | CR127 · Let a Journey's First Turn Settle Without a Receipt It Cannot Have | RS016 | alpha.42 | ✅ done · campo verificado |
 | CR130 · Stop Offering a Journey Edit That Cannot Succeed | RS021 | alpha.41 | ✅ done · campo verificado |
