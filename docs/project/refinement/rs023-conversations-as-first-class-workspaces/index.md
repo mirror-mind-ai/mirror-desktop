@@ -50,7 +50,9 @@ Ordered slices. CR135 is independent and may be taken at any point; CR136 is gat
 1. **CR133** separates expansion from selection, which is the fix for the reported instability: the Navigator stops losing access to work in flight.
 2. **CR134** derives the owner of the active run from `identity.authority` and makes every status surface say whose work it is, while keeping the Journey row as the carrier that cannot be configured into silence. Legible ownership is what de-risks CR136.
 3. **CR135** gives the Navigator a reversible hide and reveal, distinct from the existing truncation cap, preserving provenance.
-4. **CR136** admits concurrent work inside one Journey. **Gate: not started before CR133, CR134 and CR135 are in the field.** It carries its own First Investigation, and if that investigation shows it to be Story-sized it is promoted in turn — the mechanism that produced this Story.
+4. **CR136** admits concurrent work inside one Journey. **Gate: not started before CR133, CR134 and CR135 are in the field.**
+
+   **Open question about this gate, recorded 2026-10-09 rather than resolved.** CR133, CR134 and CR135 are all field-verified on the Dev channel, and this project has consistently used *field-verified* for a Navigator run of the real app. By the letter of the gate it is satisfied. By its stated purpose it may not be: the gate exists because legible ownership is what de-risks CR136, and none of the three has been released, so the Navigator is not yet living with them. Resolving this is a Workbench decision. The reading that follows the purpose would release them first and open the gate after. It carries its own First Investigation, and if that investigation shows it to be Story-sized it is promoted in turn — the mechanism that produced this Story.
 
 ## Acceptance Horizon
 

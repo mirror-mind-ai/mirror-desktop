@@ -124,9 +124,34 @@ A scripted edit added the new props to three call sites after asserting it match
 - `src-tauri/` **zero diff**; `cargo test` **269 passed / 3 ignored**, unchanged.
 - `npm run build` and `npm run tauri:build:dev` clean. Dev binary `ef0707fdd9cacc7c35a3ef069314501237fd1e027bd84126f123c785ab6fe74e`, installed to `/Applications/Mirror Desktop Dev.app` and hash-matched; previous bundle kept at `/tmp/mirror-desktop-dev-backup-20261009-114834.app`. Production untouched.
 
-### Owed
+### Field-verified (2026-10-09)
 
-Field validation. Unlike CR134's, this one **does** leave durable evidence: the Dev preference file must carry `hiddenConversationIdsByJourneyId` with the composite key of whatever is hidden, so the closure can rest on a file rather than on an attestation.
+The Navigator ran the script on the hash-matched Dev build (`ef0707fdd9cacc7c35a3ef069314501237fd1e027bd84126f123c785ab6fe74e`) and reported it validated. **This closure rests on files, as promised.**
+
+**The preference file gained the key, and it is composite.** `journey-preferences.json` (`savedAt 2026-10-09T15:05:15.171Z`) now carries:
+
+```json
+"hiddenConversationIdsByJourneyId": {
+  "mirror-desktop": ["desktop_conversation:desktop-conversation-handoff-recovery-dd3ab18ea755dbd6"]
+}
+```
+
+The key was **absent** from the same file before the run, so its appearance is the run's own trace. The `desktop_conversation:` prefix is the composite identity this CR's investigation named as its most load-bearing detail, written by the application rather than asserted by a test.
+
+**Hiding is not deleting, proved on the durable record.** `conversation-spaces/mirror-desktop/catalog.json` still holds **all three** entries, including the hidden one. The conversation was put away, not removed.
+
+**Nothing else moved.** Alongside the new key the file still carries three pins, `applicationTheme: channel`, the three Journeys CR133's run expanded — including `soul-mode` — and the full recents list. The departure that lets a bad hidden map degrade on its own was never exercised, but the neighbours it exists to protect are demonstrably intact.
+
+**Acceptance item 6 was exercised, and the turn journal corroborates it.** The Dev journal holds a `settled` record at `2026-10-09T15:04:16.579Z` whose `authority.threadId` is `desktop-thread-handoff-recovery-dd3ab18ea755dbd6` — the hidden conversation's own thread. So a turn genuinely ran inside the conversation that the preference file records as hidden.
+
+### The limit of that evidence
+
+The records establish that a turn ran in that conversation and that the conversation is hidden. They **cannot** establish the ordering, because the preference file retains only its latest `savedAt`. That the Journey row carried the nested locus mark *while* the conversation was hidden and the sidebar compact is therefore attested, not durable. The same asymmetry CR134 recorded applies here to one step out of seven.
+
+### One divergence noticed and not explained
+
+The catalog on disk reports `messageCount: 0` for the hidden conversation despite the settled turn at 15:04. The sibling entry's count did move (10 to 16) after CR134's run, so the file is written on catalog load rather than on settlement and is simply stale by one turn. That reading is **plausible and unverified**, and it is recorded rather than smoothed over because a hidden conversation's catalog entry may be refreshed less often than any other — the Navigator opens that section rarely. Not a CR135 defect; a candidate observation.
+
 
 ## Boundaries
 
