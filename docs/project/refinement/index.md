@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS023
-- Change Request: CR133 is the next pull. RS023 was promoted from CR109 on 2026-10-08, after the
+- Change Request: CR133 is `planned` (2026-10-08): investigation recorded, plan with scope, files, guards, validation and exclusions written; awaiting Driver and Delivery to move to `in_progress`. RS023 was promoted from CR109 on 2026-10-08, after the
   Navigator prioritised it as the last fragile point of the app. The characterisation recorded in
   the Story showed its four symptoms are not one change: `expandJourneyConversations` selects before
   it expands, one `Record<journeyId, Entry>` serves a Journey and its conversations alike, the
@@ -193,7 +193,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | captured | — | — |
+| — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | planned | — | — |
 | — | [CR134](rs023-conversations-as-first-class-workspaces/cr134-name-the-owner-of-running-work-without-hiding-that-it-runs.md) | RS023 | Name the Owner of Running Work Without Hiding That It Runs | captured | — | — |
 | — | [CR135](rs023-conversations-as-first-class-workspaces/cr135-let-the-navigator-hide-a-conversation-without-deleting-it.md) | RS023 | Let the Navigator Hide a Conversation Without Deleting It | captured | — | — |
 | — | [CR136](rs023-conversations-as-first-class-workspaces/cr136-admit-concurrent-work-inside-one-journey.md) | RS023 | Admit Concurrent Work Inside One Journey | captured | — | — |
@@ -202,10 +202,10 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR108](rs021-ux-pre-beta-evolution/cr108-stop-one-unrecoverable-turn-from-blocking-recovery.md) | RS021 | Stop One Unrecoverable Turn from Blocking Recovery | done | @alissonvale | `refinement/rs021-cr107-startable-journeys` |
 | — | [CR111](rs021-ux-pre-beta-evolution/cr111-preserve-agent-comment-trail-across-turns.md) | RS021 | Preserve the Agent Comment Trail Across Turns | done | @alissonvale | `refinement/rs021-cr111-agent-comment-trail` |
 | — | [CR126](rs016-ongoing-product-improvements-and-adjustments/cr126-stop-a-correction-from-becoming-its-own-turn.md) | RS016 | Stop a Correction From Becoming Its Own Turn | done | @alissonvale | `refinement/rs016-cr126-corrected-turn-request-identity` |
-| — | [CR127](rs016-ongoing-product-improvements-and-adjustments/cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) | RS016 | Let a Journey's First Turn Settle Without a Receipt It Cannot Have | done | — | — |
+| — | [CR127](rs016-ongoing-product-improvements-and-adjustments/cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) | RS016 | Let a Journey's First Turn Settle Without a Receipt It Cannot Have | done | @alissonvale | `refinement/rs016-cr127-let-a-first-turn-settle-without-a-receipt-it-cannot-have` |
 | — | [CR129](rs016-ongoing-product-improvements-and-adjustments/cr129-let-a-recovered-settlement-say-it-happened.md) | RS016 | Let a Recovered Settlement Say It Happened | captured | — | — |
 | — | [CR131](rs016-ongoing-product-improvements-and-adjustments/cr131-make-the-mirror-a-channel-validates-against-identifiable.md) | RS016 | Make the Mirror a Channel Validates Against Identifiable | captured | — | — |
-| — | [CR132](rs016-ongoing-product-improvements-and-adjustments/cr132-let-the-navigator-end-a-finishing-that-will-not-end.md) | RS016 | Let the Navigator End a Finishing That Will Not End | done | — | — |
+| — | [CR132](rs016-ongoing-product-improvements-and-adjustments/cr132-let-the-navigator-end-a-finishing-that-will-not-end.md) | RS016 | Let the Navigator End a Finishing That Will Not End | done | @alissonvale | `refinement/rs016-cr132-end-a-finishing-that-will-not-end` |
 | — | [CR128](rs016-ongoing-product-improvements-and-adjustments/cr128-give-back-the-answer-a-restart-and-continue-strands.md) | RS016 | Give Back the Answer a Restart-and-Continue Strands | done | @alissonvale | `refinement/rs016-cr128-restart-and-continue-recovery` |
 | 3 | [CR097](rs021-ux-pre-beta-evolution/cr097-keep-a-correction-recognisable-after-reload.md) | RS021 | Keep a Correction Recognisable After Reload | done | @alissonvale | `refinement/rs021-cr097-restored-correction-identity` |
 | — | [CR125](rs021-ux-pre-beta-evolution/cr125-keep-the-reader-s-place-when-a-turn-settles.md) | RS021 | Keep the Reader's Place When a Turn Settles | done | @alissonvale | `refinement/rs021-cr125-conversation-scroll-anchor` |
