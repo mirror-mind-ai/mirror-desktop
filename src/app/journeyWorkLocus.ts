@@ -28,11 +28,16 @@ export type JourneyWorkPresentation = {
 /**
  * Two sources, because neither alone answers the question.
  *
- * The runtime entry is this window's live truth, but it is in-memory only: it describes runs this
- * window started and its map is empty after a relaunch. The native registry inspection covers
- * every Journey and survives a relaunch, and its authority already carries the thread. So the
- * runtime phase leads where it exists and the registry fills every gap — which is what stops a
- * Journey whose Pi process is still alive from reading as idle after the window reopened.
+ * The runtime entry is this window's live truth, but it is narrow: `identity` is optional, its
+ * `mock` variant carries no workspace coordinate, and the map is only ever written by the send
+ * path. The native registry inspection covers every Journey in the session and its authority
+ * always carries the thread, so it is the reliable carrier of *who owns the work*.
+ *
+ * Both sources live and die with the process: the registry is constructed fresh on every start
+ * (`main.rs:148`) and the shutdown hook kills every child (`main.rs:5712`). Neither survives a
+ * relaunch, and an earlier version of this comment claimed the registry did — see CR134's
+ * Correction of 2026-10-09. The union is therefore a correct fallback for a runtime entry that is
+ * absent or carries no coordinate, with no demonstrated production trigger of its own.
  */
 export function deriveJourneyWorkLocus(input: {
   occupancy: PiInvocationOccupancyState;

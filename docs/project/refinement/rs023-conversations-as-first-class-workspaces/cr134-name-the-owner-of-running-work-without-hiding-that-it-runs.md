@@ -54,15 +54,15 @@ When `live` and present, `RunAuthority` does carry the full workspace coordinate
 
 ### 2. The right source is the occupancy inspection, which already carries the workspace
 
-`piInvocationOccupancy` is the native registry's own inspection, reconciled through `inspectPiInvocations()` (`App.tsx:1331`–`:1349`). It covers **every** Journey, it **survives a reload** because it is read from the registry rather than from renderer state, and every entry carries `PiInvocationAuthorityInspection` with `journeyId, runId, turnId, threadId, generation, piSessionId, mirrorConversationId` and both harness message ids (`piInvocationOccupancy.ts:3`–`:13`). `leasePhase` is `"reserved" | "running" | "finalizing"` (`:17`), which maps onto `JourneyRuntimeOwnerPhase` without loss.
+`piInvocationOccupancy` is the native registry's own inspection, reconciled through `inspectPiInvocations()` (`App.tsx:1331`–`:1349`). It covers **every** Journey in the session, ~~it **survives a reload** because it is read from the registry rather than from renderer state,~~ **(superseded 2026-10-09 — see the second Correction; it does not outlive the process)** and every entry carries `PiInvocationAuthorityInspection` with `journeyId, runId, turnId, threadId, generation, piSessionId, mirrorConversationId` and both harness message ids (`piInvocationOccupancy.ts:3`–`:13`). `leasePhase` is `"reserved" | "running" | "finalizing"` (`:17`), which maps onto `JourneyRuntimeOwnerPhase` without loss.
 
 RS023's Framing warns that the inspection carrying `threadId` invites the false conclusion that native authority is already per-workspace. That trap is about **CR136**, which wants to admit two runs. CR134 only wants to *name* the owner of the one run there is, and for that the inspection is exactly the right instrument.
 
-### 3. A visibility hole already exists, and no invisibility route is needed to reach it
+### 3. ~~A visibility hole already exists, and no invisibility route is needed to reach it~~ — WITHDRAWN 2026-10-09
 
 The sidebar row derives its status from four inputs and **none of them is occupancy** (`App.tsx:5235`–`:5240`): `runtimePhase` from `selectJourneyRuntimeOwnerPhase`, `finishedAttention`, `compacting`, `turnOutcome`. `selectJourneyRuntimeOwnerPhase` reads only `state.entries[journeyId]` (`journeyRuntimeState.ts:218`–`:226`), and after a reload that map is empty.
 
-**Therefore: after a relaunch, a Journey with a live native Pi run reads `Idle` in the sidebar.** `deriveJourneyAgentStatus({})` returning `"idle"` is pinned by an existing test (`journeyAgentStatus.test.ts:15`), so this is the designed behaviour of a function that is simply not being told.
+~~**Therefore: after a relaunch, a Journey with a live native Pi run reads `Idle` in the sidebar.**~~ **This is false. See the second Correction below.** `deriveJourneyAgentStatus({})` returning `"idle"` is pinned by an existing test (`journeyAgentStatus.test.ts:15`), so this is the designed behaviour of a function that is simply not being told.
 
 The disagreement between surfaces is sharper than the hole itself. `runtimeBusy` includes `hasBlockingPiInvocationOccupancy` (`App.tsx:1048`–`:1050`), which is **global** — true if *any* lease anywhere is active (`piInvocationOccupancy.ts:299`–`:301`). So after a reload with a run live in Journey A while the Navigator is in Journey B:
 
@@ -72,7 +72,7 @@ The disagreement between surfaces is sharper than the hole itself. `runtimeBusy`
 | B's Composer | busy | yes, but it cannot say which Journey |
 | admission for B | `same_journey_occupied` / `global_capacity_reached` | correct, and never surfaced as a name |
 
-**The only surface that knows cannot say which Journey; the only surface that names a Journey does not know.** The refusal is correct and the surface is silent — the same shape as the debt CR132 recorded. This is reachable with no compact sidebar, no collapsed disclosure and no hidden conversation: a relaunch is enough.
+**The only surface that knows cannot say which Journey; the only surface that names a Journey does not know.** The refusal is correct and the surface is silent — the same shape as the debt CR132 recorded. ~~This is reachable with no compact sidebar, no collapsed disclosure and no hidden conversation: a relaunch is enough.~~ The row of this table about A is withdrawn; the row about B's Composer being busy without naming a Journey stands.
 
 This raises the CR's standing rather than widening it: sourcing status from occupancy is what the locus distinction needs **anyway**, and it closes this hole as a consequence rather than as an extra.
 
@@ -141,7 +141,7 @@ Re-aimed: `journeyAgentStatus.test.ts` is expected to pass **unmodified**; if it
 ### Validation
 
 1. `tsc` and `npm test` green; `cargo test` unchanged; zero `src-tauri/` diff.
-2. Dev build, then: start a turn, quit mid-run, relaunch — **the Journey must not read Idle while its process lives.** This is the field proof of finding 3 and it is provocable on demand, unlike CR132's.
+2. ~~Dev build, then: start a turn, quit mid-run, relaunch — **the Journey must not read Idle while its process lives.** This is the field proof of finding 3 and it is provocable on demand, unlike CR132's.~~ **Withdrawn 2026-10-09: a relaunch leaves no live process to see.**
 3. Dev: run a turn inside a conversation, collapse the sidebar, confirm the Journey row still shows work running inside; activate the indicator and land on the owning conversation.
 4. `npm run roadmap:check` READY.
 
@@ -203,7 +203,7 @@ The Dev bundle was **not installed**: `Mirror Desktop Dev` was running (pid 4787
 
 Three field checks, and unlike CR132's these are **provocable on demand**:
 
-1. Start a turn, quit mid-run, relaunch — the Journey must not read `Idle` while its process lives. This is the field proof of finding 3.
+1. ~~Start a turn, quit mid-run, relaunch — the Journey must not read `Idle` while its process lives.~~ **Withdrawn 2026-10-09.** A clean quit kills every child and the registry dies with the process, so `Idle` after a relaunch is correct and there is nothing to provoke.
 2. Run a turn inside a conversation and collapse the sidebar — the Journey row must still show work running inside.
 3. Activate the indicator and land on the owning conversation.
 
@@ -226,6 +226,37 @@ The Navigator rejected this CR's original framing before any work began, and the
 The original acceptance criterion — that a parent Journey must not read `Working` merely because a child is working — treated the Journey signal as a falsehood to remove. It is instead the only carrier that survives every way a conversation can become invisible, and removing it would have produced exactly the blind spot the Navigator named. The criterion is struck through above rather than deleted, because it was this CR's premise and the correction is the useful part of the record.
 
 What changed: the CR now carries a visibility invariant alongside the attribution one, the Journey indicator is extended rather than demoted, and reachability from the signal to the owning conversation became an acceptance criterion rather than an afterthought. The scope grew, and the growth is real work, not restatement.
+
+
+## Correction (2026-10-09) — the relaunch finding was wrong
+
+While writing this CR's validation script I checked whether its own field proof was provocable, and it is not, because the claim behind it is false. Stated plainly: **finding 3 was wrong, and it was wrong in the commit, the index and the Canvas before it was caught.**
+
+Three facts settle it, all read rather than inferred:
+
+- `inspect_pi_invocations` returns `state.registry.lock().inspect()` and touches no disk (`main.rs:5706`–`:5710`).
+- `PiProcessState::default()` constructs `PiProcessRegistry::production()` — an empty registry — and it is registered with `.manage(PiProcessState::default())` at startup (`main.rs:148`–`:152`, `:9811`). Every launch begins with no leases.
+- `shutdown_pi_invocations` kills every running child on the exit path (`main.rs:5712`–`:5719`, single caller `:9950`).
+
+So a clean `⌘Q` kills every Pi child and the registry dies with the process. **After a relaunch there is no live run and no lease, and a Journey reading `Idle` is correct.** The occupancy inspection survives a *renderer* reload, which is a thing this application never does; it does not survive a relaunch. I generalised from "read from native state" to "durable", and those are not the same property.
+
+### What stands
+
+- **Finding 1 is unaffected.** `identity` is optional, the `mock` variant carries no workspace coordinate, and the runtime map is only written by the send path. The registry inspection remains the reliable carrier of *which workspace owns the work*, which is this CR's actual subject.
+- **Half of finding 3's table stands**: `hasBlockingPiInvocationOccupancy` is global, so another Journey's Composer reads busy without being able to name the Journey. D6 names it for the selected Journey.
+- **Every acceptance criterion stands.** None of them referenced a relaunch. Attribution, the visibility invariant, the topology and the reachability route are all delivered and unaffected, so this CR stays `done`.
+
+### What this costs
+
+The union of the two sources (D3) was justified by a hole that does not exist. It is **retained** because it is a correct fallback for a runtime entry that is absent or carries no coordinate, and because removing it would be a larger change than keeping it — but it is now recorded as having **no demonstrated production trigger**, the same honest category as CR127's D2. If a within-session trigger is ever demonstrated, it belongs here.
+
+### A real hole this CR does not close, stated as a candidate rather than a claim
+
+If the shutdown hook does not run — a force quit, a crash — children would be orphaned while the next launch starts with an empty registry. **Both** sources would then be blind to a live Pi process. Whether that path is reachable is **unverified**; the only established facts are that the hook is the sole killer and that the registry is always fresh. It is a candidate CR, not a finding.
+
+### How this was caught
+
+By asking whether the field check I had written was provocable, before asking the Navigator to run it. A validation step that cannot fail is not a validation step, and writing one is what exposed the error.
 
 ## Boundaries
 

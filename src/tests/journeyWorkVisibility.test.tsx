@@ -136,7 +136,7 @@ describe("CR134: the carrier survives every way a conversation can disappear", (
   });
 });
 
-describe("CR134: status is sourced from something a relaunch does not erase", () => {
+describe("CR134: status is sourced from the carrier that always has the workspace", () => {
   it("derives both status surfaces from the registry-backed locus", () => {
     expect(appSource).toContain("const selectedJourneyWork = deriveJourneyWorkLocus({");
     expect(appSource).toContain("const journeyWork = deriveJourneyWorkLocus({");

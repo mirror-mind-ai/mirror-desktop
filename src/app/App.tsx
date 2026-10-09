@@ -1036,9 +1036,10 @@ export function App({ model }: AppProps) {
     mirrorCommitErrors: projectedMirrorCommitErrors,
   });
   const selectedRuntime = navigationPresentation.selectedRuntime;
-  // CR134: the runtime map is in-memory and empty after a relaunch, so it cannot be the only
-  // source. The native registry inspection covers every Journey, survives a relaunch, and its
-  // authority carries the thread that says which workspace owns the work.
+  // CR134: the runtime entry can be present with no workspace coordinate — `identity` is optional
+  // and its `mock` variant carries none — so the native registry inspection is the reliable
+  // carrier of which workspace owns the work. Both sources are per-process; see CR134's
+  // Correction of 2026-10-09.
   const selectedJourneyWork = deriveJourneyWorkLocus({
     occupancy: piInvocationOccupancy,
     journeyId: selectedJourney,

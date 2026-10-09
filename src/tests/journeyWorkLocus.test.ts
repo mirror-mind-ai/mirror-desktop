@@ -80,8 +80,10 @@ describe("CR134: whose work is running", () => {
     });
   });
 
-  // The whole point of finding 3: the registry survives a relaunch and the runtime map does not.
-  it("sees work that this window did not start, with no runtime entry at all", () => {
+  // The registry is the carrier when the runtime map has no entry for the Journey. It does not
+  // outlive the process — see CR134's Correction of 2026-10-09 — so this is a within-session
+  // fallback, not a post-relaunch recovery.
+  it("sees work the runtime map has no entry for", () => {
     const work = deriveJourneyWorkLocus({ ...here, occupancy: occupancy([lease({ threadId: CHILD_THREAD })]) });
     expect(work?.phase).toBe("running");
     expect(work?.locus).toBe("inside");
