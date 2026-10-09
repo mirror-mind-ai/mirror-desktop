@@ -54,6 +54,8 @@ Ordered slices. CR135 is independent and may be taken at any point; CR136 is gat
 
    **Open question about this gate, recorded 2026-10-09 rather than resolved.** CR133, CR134 and CR135 are all field-verified on the Dev channel, and this project has consistently used *field-verified* for a Navigator run of the real app. By the letter of the gate it is satisfied. By its stated purpose it may not be: the gate exists because legible ownership is what de-risks CR136, and none of the three has been released, so the Navigator is not yet living with them. Resolving this is a Workbench decision. The reading that follows the purpose would release them first and open the gate after. It carries its own First Investigation, and if that investigation shows it to be Story-sized it is promoted in turn — the mechanism that produced this Story.
 
+   **Resolved 2026-10-09.** Production moved to `v0.2.0-alpha.43`, closing the gate on both readings. The investigation measured the work as Story-sized and CR136 was promoted to [RS024](../rs024-concurrent-work-inside-one-journey/index.md). This Story's remaining open item is CR137.
+
 ## Acceptance Horizon
 
 RS023 is complete only when:
@@ -76,5 +78,5 @@ RS023 is complete only when:
 - [CR133: Stop a Disclosure From Selecting a Journey](cr133-stop-a-disclosure-from-selecting-a-journey.md)
 - [CR134: Name the Owner of Running Work Without Hiding That It Runs](cr134-name-the-owner-of-running-work-without-hiding-that-it-runs.md)
 - [CR135: Let the Navigator Hide a Conversation Without Deleting It](cr135-let-the-navigator-hide-a-conversation-without-deleting-it.md)
-- [CR136: Admit Concurrent Work Inside One Journey](cr136-admit-concurrent-work-inside-one-journey.md)
+- [CR136: Admit Concurrent Work Inside One Journey](cr136-admit-concurrent-work-inside-one-journey.md) — promoted to [RS024](../rs024-concurrent-work-inside-one-journey/index.md)
 - [CR137: Bring the Navigator Back to the Conversation They Left](cr137-bring-the-navigator-back-to-the-conversation-they-left.md) — found by field-validating CR133

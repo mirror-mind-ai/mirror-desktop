@@ -2,9 +2,11 @@
 
 # CR136: Admit Concurrent Work Inside One Journey
 
-**Status:** captured
+**Status:** promoted
 **Driver:** —
-**Delivery:** —
+**Delivery:** `RS024 / CR138–CR140`
+
+> **Promoted 2026-10-09.** The gate opened on both readings once production ran `v0.2.0-alpha.43`, and the First Investigation recorded below measured the work as Story-sized: the blocking constraint is a wire-contract parser that forbids two entries per Journey and fails closed into an app-wide Composer lockout, the TypeScript runtime state is a second per-Journey index across seven production files, and the native registry has three consumers rather than one. It became [RS024: Concurrent Work Inside One Journey](../rs024-concurrent-work-inside-one-journey/index.md), whose CRs are [CR138](../rs024-concurrent-work-inside-one-journey/cr138-let-the-inspection-carry-two-workspaces-in-one-journey.md), [CR139](../rs024-concurrent-work-inside-one-journey/cr139-key-the-native-registry-by-workspace.md) and [CR140](../rs024-concurrent-work-inside-one-journey/cr140-name-the-constraint-that-refuses-concurrent-work.md), ordered so the renderer can carry two workspaces before the native side admits them. The Navigator took the three decisions the investigation left open: promotion, a per-Journey share of three, and keeping the turn/compaction exclusion per Journey. This document is kept whole as the record of why.
 
 **Gate:** not started before CR133, CR134 and CR135 are in the field.
 

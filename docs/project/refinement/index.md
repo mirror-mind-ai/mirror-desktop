@@ -12,16 +12,8 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: RS023
-- Change Request: CR135 is `done` and **field-verified** (2026-10-09), closed on files: the Dev preference file gained the composite hidden key, and the catalog still holds all three entries, so hiding demonstrably is not deleting. CR136's gate is open on both readings, since alpha.43 shipped the three predecessors and production runs it. CR136's First Investigation is complete (2026-10-09) and measures the work as Story-sized: the blocking constraint is a wire-contract parser that forbids two entries per Journey and fails closed into an app-wide Composer lockout, and the TypeScript runtime state is a second per-Journey index across 7 production files. Promotion, the per-Journey share and the coarse compaction exclusion are the Navigator's three open decisions. Hiding filters the render and never the catalog, so CR134's route still reaches a hidden conversation. The Journey workspace is not a catalog entry and so stays unhideable, which is what keeps the Story's visibility invariant safe. CR136 remains gated; CR137 is independent. CR134 is `done` and **field-verified** (2026-10-09): both locus branches were exercised, and the Dev turn journal corroborates the sequence with two distinct thread ids, though the glyph itself is attested rather than durable. Its investigation claim that the native registry survives a relaunch was **wrong and is corrected in the CR, dated 2026-10-09**: both sources are per-process, the shutdown hook kills every child, and a Journey reading `Idle` after a relaunch is correct. The attribution, visibility and reachability work stands. CR135 is the next pull, and it is independent of CR136's gate. CR133 is `done` and **field-verified** (2026-10-09): all six Dev scenarios passed, and the Dev preference file carries the expanded set the run wrote. The run also produced CR137, captured rather than folded in. RS023 was promoted from CR109 on 2026-10-08, after the
-  Navigator prioritised it as the last fragile point of the app. The characterisation recorded in
-  the Story showed its four symptoms are not one change: `expandJourneyConversations` selects before
-  it expands, one `Record<journeyId, Entry>` serves a Journey and its conversations alike, the
-  sidebar's *Show N more* is the app's truncation cap rather than a Navigator choice, and the Rust
-  registry indexes `entries` by `journey_id`. The first three are renderer and preference work,
-  independently releasable; the fourth is an authority change in Rust, so CR136 is gated behind the
-  other three reaching the field. CR133 goes first because it is the fix for the reported
-  instability — losing access to work in flight
+- Refinement Story: RS024
+- Change Request: CR136 was **promoted into RS024** on 2026-10-09. Its gate opened on both readings once production ran `v0.2.0-alpha.43` (installed binary identical by hash to the published DMG's), and its First Investigation measured the work as Story-sized: the blocking constraint is a wire-contract parser that forbids two entries per Journey and fails closed into an app-wide Composer lockout; the TypeScript runtime state is a second per-Journey index across 7 production files; and the native registry has three consumers, not one. The Navigator adopted the three recommendations: promotion, a per-Journey share of three, and keeping the turn/compaction exclusion per Journey as deliberate contention. RS024 is ordered so the renderer can carry two workspaces before the native side admits them — CR138 (renderer, no field trigger by construction) → CR139 (Rust registry, gated on CR138 merged) → CR140 (refusal legibility, gated on CR139 merged). CR138 is the next pull. RS023 stays active for CR137, which is independent. CR133, CR134 and CR135 are `done`, released in alpha.43 and field-verified; their records live in their CRs
 - Note: this index orders open work intentionally, but the numeric Order column has collisions
   (Order 1 and 4 are held by terminal and open rows alike), so CR133–CR136 carry `—` like every CR
   added since CR126 and their priority is recorded here instead. Reconciling that column is an open
@@ -186,6 +178,7 @@ executes work.
 | 21 | [RS021](rs021-ux-pre-beta-evolution/index.md) | UX Pre-Beta Evolution | active |
 | 22 | [RS022](rs022-mirror-core-debts/index.md) | Mirror Core Debts | active |
 | 23 | [RS023](rs023-conversations-as-first-class-workspaces/index.md) | Conversations as First-Class Workspaces | active |
+| 24 | [RS024](rs024-concurrent-work-inside-one-journey/index.md) | Concurrent Work Inside One Journey | active |
 
 ## Change Requests
 
@@ -193,10 +186,13 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
+| — | [CR138](rs024-concurrent-work-inside-one-journey/cr138-let-the-inspection-carry-two-workspaces-in-one-journey.md) | RS024 | Let the Inspection Carry Two Workspaces in One Journey | captured | — | — |
+| — | [CR139](rs024-concurrent-work-inside-one-journey/cr139-key-the-native-registry-by-workspace.md) | RS024 | Key the Native Registry by Workspace | captured | — | — |
+| — | [CR140](rs024-concurrent-work-inside-one-journey/cr140-name-the-constraint-that-refuses-concurrent-work.md) | RS024 | Name the Constraint That Refuses Concurrent Work | captured | — | — |
 | — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | done | @alissonvale | `refinement/rs023-cr133-stop-a-disclosure-from-selecting-a-journey` |
 | — | [CR134](rs023-conversations-as-first-class-workspaces/cr134-name-the-owner-of-running-work-without-hiding-that-it-runs.md) | RS023 | Name the Owner of Running Work Without Hiding That It Runs | done | @alissonvale | `refinement/rs023-cr134-name-the-owner-of-running-work` |
 | — | [CR135](rs023-conversations-as-first-class-workspaces/cr135-let-the-navigator-hide-a-conversation-without-deleting-it.md) | RS023 | Let the Navigator Hide a Conversation Without Deleting It | done | @alissonvale | `refinement/rs023-cr135-let-the-navigator-hide-a-conversation` |
-| — | [CR136](rs023-conversations-as-first-class-workspaces/cr136-admit-concurrent-work-inside-one-journey.md) | RS023 | Admit Concurrent Work Inside One Journey | captured | — | — |
+| — | [CR136](rs023-conversations-as-first-class-workspaces/cr136-admit-concurrent-work-inside-one-journey.md) | RS023 | Admit Concurrent Work Inside One Journey | promoted | — | `RS024 / CR138–CR140` |
 | — | [CR137](rs023-conversations-as-first-class-workspaces/cr137-bring-the-navigator-back-to-the-conversation-they-left.md) | RS023 | Bring the Navigator Back to the Conversation They Left | captured | — | — |
 | — | [CR109](rs021-ux-pre-beta-evolution/cr109-make-conversations-first-class-workspaces.md) | RS021 | Make Conversations First-Class Workspaces | promoted | — | `RS023 / CR133–CR136` |
 | — | [CR107](rs021-ux-pre-beta-evolution/cr107-make-existing-journeys-startable.md) | RS021 | Make Existing Journeys Startable | done | @alissonvale | `refinement/rs021-cr107-startable-journeys` |

@@ -4,11 +4,15 @@
 
 | Item | Estado | Progresso |
 | --- | --- | --- |
-| **RS023 · Conversations as First-Class Workspaces** | 🔄 ativa · 🎯 foco · promovida da CR109 | `░░░░░░░░░░` 0 ✅ · 4 🟡 · de 4 |
+| **RS024 · Concurrent Work Inside One Journey** | 🔄 ativa · 🎯 foco · promovida da CR136 | `░░░░░░░░░░` 0 ✅ · 3 🟡 · de 3 |
+| ↳　CR138 · Let the Inspection Carry Two Workspaces in One Journey | 🟡 captured · próxima · sem gatilho de campo por construção | `░░░░░░░░░░` |
+| ↳　CR139 · Key the Native Registry by Workspace | 🟡 captured · portão: CR138 merged · cota 3 | `░░░░░░░░░░` |
+| ↳　CR140 · Name the Constraint That Refuses Concurrent Work | 🟡 captured · portão: CR139 merged | `░░░░░░░░░░` |
+| **RS023 · Conversations as First-Class Workspaces** | 🔄 ativa · promovida da CR109 | `██████░░░░` 3 ✅ · 1 🟡 · 1 ↗️ · de 5 |
 | ↳　CR133 · Stop a Disclosure From Selecting a Journey | ✅ done · campo verificado (6/6 cenários) | `██████████` |
 | ↳　CR134 · Name the Owner of Running Work Without Hiding That It Runs | ✅ campo verificado (4/4) · 1 achado corrigido | `██████████` |
 | ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | ✅ campo verificado (7/7) · fechada sobre arquivo | `██████████` |
-| ↳　CR136 · Admit Concurrent Work Inside One Journey | 🟡 investigada · Story-sized · aguarda 3 decisões | `　　　　　　　　　　` |
+| ↳　CR136 · Admit Concurrent Work Inside One Journey | ↗️ promoted → RS024 / CR138–CR140 | `　　　　　　　　　　` |
 | ↳　CR137 · Bring the Navigator Back to the Conversation They Left | 🟡 captured · sem Driver · achado no campo da CR133 | `░░░░░░░░░░` |
 | **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 36 ✅ · 2 🟡 · 4 ↗️ · 1 ⛔ · de 43 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · sem Driver | `░░░░░░░░░░` |
