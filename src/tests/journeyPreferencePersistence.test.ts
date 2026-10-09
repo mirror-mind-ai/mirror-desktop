@@ -18,6 +18,7 @@ describe("Journey preference persistence", () => {
           recentJourneyIds: ["amplia"],
           journeyListOrder: "tree",
           expandedConversationJourneyIds: [],
+          hiddenConversationIdsByJourneyId: { nautilus: ["desktop_conversation:one"] },
           sidebarCompact: true,
           lastWorkedAtByJourneyId: { nautilus: "2026-08-23T09:00:00.000Z" },
           applicationTheme: "violet",
@@ -39,6 +40,7 @@ describe("Journey preference persistence", () => {
         journeyAppearanceById: { nautilus: { kind: "system", icon: "book" } },
         voiceLanguage: "auto",
         expandedConversationJourneyIds: [],
+        hiddenConversationIdsByJourneyId: { nautilus: ["desktop_conversation:one"] },
       },
       savedAt: "2026-08-23T10:00:00.000Z",
     });
@@ -101,6 +103,10 @@ describe("Journey preference persistence", () => {
           recentJourneyIds: ["amplia", "missing", "amplia", "mirror-dev"],
           journeyListOrder: "tree",
           expandedConversationJourneyIds: [],
+          hiddenConversationIdsByJourneyId: {
+            amplia: ["mirror_history:keep"],
+            missing: ["desktop_conversation:gone"],
+          },
           sidebarCompact: true,
           lastWorkedAtByJourneyId: {
             amplia: "2026-08-23T09:00:00.000Z",
@@ -127,6 +133,8 @@ describe("Journey preference persistence", () => {
       // Sanitization prunes missing Journeys; it must not reset unrelated settings.
       voiceLanguage: "pt",
       expandedConversationJourneyIds: [],
+      // CR135: a departed Journey loses its hidden set, and a surviving one keeps its own.
+      hiddenConversationIdsByJourneyId: { amplia: ["mirror_history:keep"] },
     });
   });
 });

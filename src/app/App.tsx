@@ -341,6 +341,14 @@ import {
   DEFAULT_FOCUSED_SIDEBAR_WIDTH,
 } from "../domain/conversationSpaces";
 import {
+  EMPTY_HIDDEN_CONVERSATIONS,
+  forgetConversationVisibility,
+  hideConversation,
+  revealAllConversations,
+  revealConversation,
+  type HiddenConversationsByJourney,
+} from "../domain/conversationVisibility";
+import {
   EMPTY_JOURNEY_CONVERSATION_CATALOGS,
   beginJourneyCatalogLoad,
   completeJourneyCatalogLoad,
@@ -734,6 +742,9 @@ export function App({ model }: AppProps) {
     reduceConversationExpansion,
     EMPTY_CONVERSATION_EXPANSION,
   );
+  // CR135: the Navigator's working set for each Journey's conversation list. Presentation only:
+  // it filters what the list renders and never what the catalog holds.
+  const [hiddenConversations, setHiddenConversations] = useState<HiddenConversationsByJourney>(EMPTY_HIDDEN_CONVERSATIONS);
   const [conversationSelection, dispatchConversationSelection] = useReducer(
     reduceConversationSelection,
     { kind: "journey_workspace", journeyId: "" } as ConversationSpaceSelection,
@@ -1685,6 +1696,7 @@ export function App({ model }: AppProps) {
       setJourneyListOrder(sanitizedPreferences.journeyListOrder);
       setSidebarCompact(sanitizedPreferences.sidebarCompact);
       dispatchConversationExpansion({ type: "restore", journeyIds: sanitizedPreferences.expandedConversationJourneyIds });
+      setHiddenConversations(sanitizedPreferences.hiddenConversationIdsByJourneyId);
       setLastWorkedAtByJourneyId(sanitizedPreferences.lastWorkedAtByJourneyId);
       setApplicationTheme(sanitizedPreferences.applicationTheme);
       setVoiceLanguage(sanitizedPreferences.voiceLanguage);
@@ -2339,8 +2351,9 @@ export function App({ model }: AppProps) {
       journeyAppearanceById,
       voiceLanguage,
       expandedConversationJourneyIds: [...expandedConversationJourneyIds],
+      hiddenConversationIdsByJourneyId: hiddenConversations,
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, registryLoaded, preferencesLoaded]);
 
   // CR133: disclosures restored from the preference file load their catalogs one after
   // another. Reopening with many groups expanded must not start many catalog subprocesses
@@ -4254,6 +4267,20 @@ export function App({ model }: AppProps) {
     }
   }
 
+  // CR135: hiding is never gated on availability or on runtime busyness. It mutates no
+  // transcript, no authority and no Mirror record, so there is nothing for it to damage.
+  function hideConversationFromList(journeyId: string, entry: ConversationCatalogEntry) {
+    setHiddenConversations((current) => hideConversation(current, journeyId, entry));
+  }
+
+  function revealConversationInList(journeyId: string, entry: ConversationCatalogEntry) {
+    setHiddenConversations((current) => revealConversation(current, journeyId, entry));
+  }
+
+  function revealAllConversationsInList(journeyId: string) {
+    setHiddenConversations((current) => revealAllConversations(current, journeyId));
+  }
+
   function requestDesktopConversationDeletion(entry: Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>) {
     if (compactionInFlight || selectedRuntimeBusy || runStartReservation || conversationActionBusy) return;
     setConversationDeleteError(undefined);
@@ -4274,6 +4301,9 @@ export function App({ model }: AppProps) {
         delete next[conversationDraftKey(selectedJourney, entry.conversationId)];
         return next;
       }, true);
+      // CR135: a deleted conversation must not leave its visibility choice behind, or a later
+      // conversation could inherit it through a reused identifier.
+      setHiddenConversations((current) => forgetConversationVisibility(current, selectedJourney, entry));
       dispatchConversationSelection({ type: "select_root", journeyId: selectedJourney });
       setConversationActionMessage("Desktop Conversation deleted.");
       setConversationDeleteTarget(undefined);
@@ -5489,6 +5519,10 @@ export function App({ model }: AppProps) {
                   onOpenMirrorTerminal={(entry) => void openSelectedMirrorHistoryInTerminal(entry)}
                   onRenameConversation={requestConversationRename}
                   onDeleteDesktop={requestDesktopConversationDeletion}
+                  hiddenConversations={hiddenConversations}
+                  onHideConversation={(entry) => hideConversationFromList(journey.id, entry)}
+                  onRevealConversation={(entry) => revealConversationInList(journey.id, entry)}
+                  onRevealAllConversations={() => revealAllConversationsInList(journey.id)}
                 />
               ) : null}
               </Fragment>

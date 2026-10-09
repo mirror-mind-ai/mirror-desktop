@@ -11,6 +11,10 @@ describe("conversation space surfaces", () => {
     const html = renderToStaticMarkup(<FocusedConversationSidebar
       journeyId="mirror-desktop"
       journeyName="Mirror Desktop"
+      hiddenConversations={{}}
+      onHideConversation={vi.fn()}
+      onRevealConversation={vi.fn()}
+      onRevealAllConversations={vi.fn()}
       selected={{ kind: "journey_workspace", journeyId: "mirror-desktop" }}
       entries={[{
         kind: "desktop_conversation",
@@ -69,6 +73,10 @@ describe("conversation space surfaces", () => {
     const html = renderToStaticMarkup(<FocusedConversationSidebar
       journeyId="mirror-desktop"
       journeyName="Mirror Desktop"
+      hiddenConversations={{}}
+      onHideConversation={vi.fn()}
+      onRevealConversation={vi.fn()}
+      onRevealAllConversations={vi.fn()}
       selected={{ kind: "journey_workspace", journeyId: "mirror-desktop" }}
       entries={entries}
       status="ready"
@@ -132,12 +140,17 @@ describe("conversation space surfaces", () => {
       onOpenTerminal={vi.fn()}
       onRename={vi.fn()}
       onDeleteDesktop={vi.fn()}
+      onHide={vi.fn()}
+      onReveal={vi.fn()}
       onDismiss={vi.fn()}
     />);
-    expect(html.match(/role="menuitem"/g)).toHaveLength(3);
+    // CR135 admitted a fourth item deliberately. This count is load-bearing: it is what forces
+    // a new menu item to be a decision rather than drift.
+    expect(html.match(/role="menuitem"/g)).toHaveLength(4);
     expect(html).toContain("Continue in new Desktop Conversation");
     expect(html).toContain("Continue with recalled context in Terminal");
     expect(html).toContain("Rename in Mirror");
+    expect(html).toContain("Hide from List");
   });
 
   it("offers destructive deletion only for a Desktop child", () => {
@@ -158,11 +171,17 @@ describe("conversation space surfaces", () => {
         },
       }}
       x={20} y={30} returnFocusTo={null}
-      onContinue={vi.fn()} onOpenTerminal={vi.fn()} onRename={vi.fn()} onDeleteDesktop={vi.fn()} onDismiss={vi.fn()}
+      onContinue={vi.fn()} onOpenTerminal={vi.fn()} onRename={vi.fn()} onDeleteDesktop={vi.fn()} onHide={vi.fn()} onReveal={vi.fn()} onDismiss={vi.fn()}
     />);
-    expect(html.match(/role="menuitem"/g)).toHaveLength(2);
+    expect(html.match(/role="menuitem"/g)).toHaveLength(3);
     expect(html).toContain("Rename Conversation…");
     expect(html).toContain("Delete Conversation…");
+    // CR135: hiding sits next to deletion here, so the separator and the wording that names
+    // reversibility are both part of the contract rather than styling.
+    expect(html).toContain("Hide from List (can be revealed)");
+    expect(html).toContain('role="separator"');
+    expect(html.indexOf("Hide from List")).toBeLessThan(html.indexOf('role="separator"'));
+    expect(html.indexOf('role="separator"')).toBeLessThan(html.indexOf("Delete Conversation"));
     expect(html).not.toContain("Rename in Mirror");
   });
 

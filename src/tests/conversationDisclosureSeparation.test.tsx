@@ -32,6 +32,10 @@ function group(props: {
     selected={props.selected}
     entries={props.entries}
     status={props.status ?? "ready"}
+    hiddenConversations={{}}
+    onHideConversation={vi.fn()}
+    onRevealConversation={vi.fn()}
+    onRevealAllConversations={vi.fn()}
     onCreateConversation={vi.fn()}
     onSelectEntry={vi.fn()}
     onContinueMirror={vi.fn()}

@@ -2,9 +2,9 @@
 
 # CR135: Let the Navigator Hide a Conversation Without Deleting It
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs023-cr135-let-the-navigator-hide-a-conversation`
 
 ## Friction
 
@@ -21,7 +21,7 @@ The working set of the conversation list is the Navigator's choice. Hiding is ex
 1. Inventory the conversation catalog: `journey_workspace`, `desktop_conversation` and `mirror_history` entries, their source and provenance, their lifecycle and their persistence coordinates. Establish which states may be hidden safely without deleting or mutating their authority.
 2. Decide the relationship between a Navigator hide and the existing truncation cap. They are different mechanisms and must not be conflated; determine whether the cap should remain at all once hiding exists.
 3. Determine where visibility is persisted and what happens to a hidden conversation that later receives work, a correction, or a Mirror-side change — including whether it must reveal itself.
-4. Compare a current Desktop conversation, a parent Journey workspace and a Mirror Core history entry in the reveal surface, and confirm provenance survives for each.
+4. ~~Compare a current Desktop conversation, a parent Journey workspace and a Mirror Core history entry in the reveal surface, and confirm provenance survives for each.~~ **Superseded 2026-10-09**, Navigator approved: the Journey workspace is not a catalog entry and must not become hideable, because CR134 built the guaranteed carrier of running work on that row. The comparison stands for the two kinds that exist.
 
 ## Acceptance
 
@@ -84,6 +84,49 @@ The risk is adjacency: in the Desktop branch, Hide would sit next to Delete, and
 1. **Driver and Delivery.** Proposed `@alissonvale` and `refinement/rs023-cr135-let-the-navigator-hide-a-conversation`.
 2. **The acceptance line about a "parent Journey workspace" in the reveal surface.** It contradicts the Story's visibility invariant and cannot be implemented without breaking CR134's carrier. Proposed: strike it through, dated, retaining the text — the convention CR134 used.
 3. **Where the reveal surface lives.** Proposed: a footer control in each group, next to *Show N more* but visually distinct. Putting the two counts side by side keeps the conflation risk visible instead of hiding it in a separate panel.
+
+
+## Delivery Record (2026-10-09)
+
+Decisions 1 and 3 accepted as proposed; decision 2 accepted, so the acceptance line naming a parent Journey workspace is struck above rather than implemented.
+
+### Delivered
+
+- **D1** `src/domain/conversationVisibility.ts` (new): composite `conversationVisibilityKey`, `hideConversation` / `revealConversation` / `revealAllConversations` / `forgetConversationVisibility`, `partitionConversationVisibility`, and the parse and sanitize pair. A new module rather than an edit to `conversationSpaces.ts`, whose strongest guarantee is that its existing derivations did not move.
+- **D2** `hiddenConversationIdsByJourneyId` persisted in `journey-preferences.json`. An unreadable map **degrades to empty while pins, theme and recents survive**, following CR133's deliberate departure. A departed Journey loses its hidden set through `sanitizeHiddenConversations`.
+- **D3** the sidebar partitions before capping. The cap now counts the **visible** set only, so *Show N more* can no longer fold in a choice the Navigator made. The hidden set has its own disclosure with its own count, and the heading keeps reporting the factual total.
+- **D4** *Hide from List (can be revealed)* / *Reveal in List* in both kind branches of the existing context menu, which was already keyboard reachable. In the Desktop branch a `role="separator"` stands between it and *Delete Conversation…*, and the guard asserts that order rather than trusting it.
+- **D5** six guard groups across two new files, plus the deliberate admissions described below.
+
+### What the writing changed
+
+**The reassurance moved because a test failed.** The sentence *"Hidden only from this list. Nothing was deleted."* was first written inside the opened hidden section, where `renderToStaticMarkup` cannot reach it. The failure was the useful part: the doubt this CR exists to remove — *did I delete it?* — arrives **before** the section is opened. The closed control now carries it too.
+
+**Reconciliation at the four runtime sites was dropped from the plan, deliberately.** The plan said to follow the sibling fields into `reconcileReloadedJourneyState`. It is not needed and it was not done: a stale `expandedConversationJourneyIds` entry would try to *load a catalog* for a Journey that no longer exists, whereas a stale hidden key is consulted only when rendering that Journey's list — and that Journey has no list. `sanitizeJourneyPreferenceState` already prunes it on load. Doing it anyway would have churned five pinned reconcile literals for no behavioural gain. Recorded as a reduction rather than left to be discovered as an omission.
+
+**A stale key is inert by design, and bounded rather than pruned.** A conversation deleted outside this app leaves its key behind. Pruning against the catalog was rejected: catalogs are capped at `MAX_CONVERSATION_CATALOG_ENTRIES`, so pruning on load would silently reveal anything beyond the cap. Instead the map is bounded at 256 Journeys and 256 keys per Journey, and deletion inside the app forgets the key through `forgetConversationVisibility`.
+
+### Three guards that were load-bearing
+
+Each of these refused the change until it was made deliberately, which is the point of having them.
+
+1. `journeyManagementGuardrails.test.ts` enumerates the persisted key set, so the new preference had to be admitted by hand — the same guard that caught CR133's one new field.
+2. `conversationSpaceSurfaces.test.tsx` counts `role="menuitem"`. Both counts moved by exactly one, and the Desktop count now also pins the separator's position between *Hide* and *Delete*.
+3. `journeyPreferencePersistence.test.ts`'s sanitize case now proves a departed Journey loses its hidden set while a surviving one keeps its own.
+
+### A mistake worth recording
+
+A scripted edit added the new props to three call sites after asserting it matched exactly three occurrences of `journeyName="Mirror Desktop"`. The count was right and **one of the three was the wrong component** — `EmptyDesktopConversation`, not the sidebar. `tsc` caught it immediately. The lesson is the one CR133 already wrote down and this turn repeated: **anchor on content, not on a count.** The repair was anchored on `historicalSegments`, which exists in only one of them.
+
+### Verified
+
+- `tsc --noEmit` clean; `npm test` **247 files / 1859 tests**, from 244 / 1822 at the branch point.
+- `src-tauri/` **zero diff**; `cargo test` **269 passed / 3 ignored**, unchanged.
+- `npm run build` and `npm run tauri:build:dev` clean. Dev binary `ef0707fdd9cacc7c35a3ef069314501237fd1e027bd84126f123c785ab6fe74e`, installed to `/Applications/Mirror Desktop Dev.app` and hash-matched; previous bundle kept at `/tmp/mirror-desktop-dev-backup-20261009-114834.app`. Production untouched.
+
+### Owed
+
+Field validation. Unlike CR134's, this one **does** leave durable evidence: the Dev preference file must carry `hiddenConversationIdsByJourneyId` with the composite key of whatever is hidden, so the closure can rest on a file rather than on an attestation.
 
 ## Boundaries
 
