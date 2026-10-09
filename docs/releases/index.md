@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.43 — Where the Work Is](v0.2.0-alpha.43.md) — stops expanding a Journey's conversations from moving you somewhere you did not ask to go, makes a running turn say which conversation owns it and take you there, and lets you put a conversation away without deleting it.
 - [v0.2.0-alpha.42 — Nothing Waits Forever](v0.2.0-alpha.42.md) — lets a Journey's first turn finish even when its chapter file is unreadable, and gives a `Finishing` that runs past a minute a way out, releasing the composer and recording a stuck wait that previously left no trace at all.
 - [v0.2.0-alpha.41 — The Form Stops Promising What It Cannot Do](v0.2.0-alpha.41.md) — stops Edit Journey offering a Save that Mirror never accepted, makes the project path change actually work through the operations Mirror does accept, and shows name and description read-only with the reason instead of failing on Save.
 - [v0.2.0-alpha.40 — Your Typing Survives a Changed Tree](v0.2.0-alpha.40.md) — keeps a Journey creation alive when Mirror's tree changed underneath it, reloading the tree inside the form, naming a real conflict, and asking for one more Confirm instead of sending the Navigator out to start over.
