@@ -5,10 +5,11 @@
 | Item | Estado | Progresso |
 | --- | --- | --- |
 | **RS023 · Conversations as First-Class Workspaces** | 🔄 ativa · 🎯 foco · promovida da CR109 | `░░░░░░░░░░` 0 ✅ · 4 🟡 · de 4 |
-| ↳　CR133 · Stop a Disclosure From Selecting a Journey | ✅ done · portões verdes · campo devido | `██████████` |
+| ↳　CR133 · Stop a Disclosure From Selecting a Journey | ✅ done · campo verificado (6/6 cenários) | `██████████` |
 | ↳　CR134 · Name the Owner of Running Work Without Hiding That It Runs | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR136 · Admit Concurrent Work Inside One Journey | 🟡 captured · sem Driver · portão: só após CR133–CR135 em campo | `░░░░░░░░░░` |
+| ↳　CR137 · Bring the Navigator Back to the Conversation They Left | 🟡 captured · sem Driver · achado no campo da CR133 | `░░░░░░░░░░` |
 | **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 36 ✅ · 2 🟡 · 4 ↗️ · 1 ⛔ · de 43 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |

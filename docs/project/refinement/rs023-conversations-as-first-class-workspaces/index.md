@@ -75,3 +75,4 @@ RS023 is complete only when:
 - [CR134: Name the Owner of Running Work Without Hiding That It Runs](cr134-name-the-owner-of-running-work-without-hiding-that-it-runs.md)
 - [CR135: Let the Navigator Hide a Conversation Without Deleting It](cr135-let-the-navigator-hide-a-conversation-without-deleting-it.md)
 - [CR136: Admit Concurrent Work Inside One Journey](cr136-admit-concurrent-work-inside-one-journey.md)
+- [CR137: Bring the Navigator Back to the Conversation They Left](cr137-bring-the-navigator-back-to-the-conversation-they-left.md) — found by field-validating CR133

@@ -177,9 +177,15 @@ Re-aimed, never deleted: `conversationSpaces.test.ts`'s two focus tests; `conver
 
 New: `conversationExpansionSeparation.test.ts` (16) over reducer disjointness, per-Journey catalogs, request supersession and persistence; `conversationDisclosureSeparation.test.tsx` (9) over several open groups, selection ownership, read-only disclosure, keyboard separation and the thread-coordinate equivalence.
 
-### Owed
+### Field-verified (2026-10-09)
 
-The interactive field sequence — expand A, select X, select B, expand B, click A's disclosure, then quit and relaunch — is a GUI action and belongs to the Navigator. The Dev bundle is built and ready. Everything provable without the GUI is proved above.
+The Navigator ran the full sequence on the Dev channel and **all six scenarios passed**: a disclosure does not select; Enter on a disclosure expands without selecting; changing Journey collapses nothing; a conversation in a non-selected Journey opens in one act; expansion survives a relaunch; and an unstarted Journey reports itself without being started.
+
+Installing the build was part of the verification rather than a formality. `/Applications/Mirror Desktop Dev.app` held **alpha.33 from 2026-10-04**, nine releases behind, so the Navigator would have exercised the old code. It was replaced with this session's bundle and the installed binary's SHA-256 was matched against the build before the run: `483dfba79cb3ce5a8cb4fe8eff3714685094b5ebc43ce7b4ae2aa096a55cb266`. The previous bundle was retained at `/tmp/mirror-desktop-dev-backup-20261009-095253.app`.
+
+The run left durable evidence rather than only an attestation: the Dev preference file now carries `expandedConversationJourneyIds = ['mirror-desktop', 'builder-mode-evolution', 'soul-mode']` — the exact three Journeys the script named, including the unstarted one from scenario 6. D5 is confirmed by the artifact it wrote.
+
+One finding came out of the run and is **not** this CR's scope: the active selection was a conversation at `⌘Q` and the app reopened on the Journey workspace. Captured as [CR137](cr137-bring-the-navigator-back-to-the-conversation-they-left.md). It is not a regression — before this CR the initial focus derived to the same Journey workspace — but this CR made it visible, because a restored group now shows the conversation while the main surface shows the Journey. The exclusion recorded in the plan above anticipated it; the field gave it evidence.
 
 ## Acceptance
 
