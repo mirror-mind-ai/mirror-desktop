@@ -197,7 +197,29 @@ Five source-shape guards broke because the indicator call sites became multi-lin
 - `src-tauri/` **zero diff**; `cargo test` **269 passed / 3 ignored**, unchanged.
 - `npm run build` and `npm run tauri:build:dev` clean on the first pass. Dev binary `aee740dc607fd36b348552cc94b3c9ef40fcea94c70f4507199517ad7c1b7eb1`.
 
-### Owed
+### Field-verified (2026-10-09)
+
+The Navigator ran the four-step script on the Dev channel (binary `aee740dc607fd36b348552cc94b3c9ef40fcea94c70f4507199517ad7c1b7eb1`, installed and hash-matched before the run) and reported it validated: the nested mark appears when a conversation owns the work and the plain mark when the Journey's own workspace does; the badge keeps the nested mark with the sidebar compact; activating it lands on the owning conversation, including from compact and from an unexpanded Journey; and Enter on the badge routes rather than merely selecting the Journey.
+
+**Durable corroboration, and its exact limit.** The Dev turn journal for `mirror-desktop` holds six records from the run, all `settled`, and their authorities alternate exactly as the script asked:
+
+| time (UTC) | `authority.threadId` | locus exercised |
+| --- | --- | --- |
+| 14:15:37, 14:15:53 | `desktop-thread-mirror-desktop-18d5` | `inside` |
+| 14:16:12, 14:17:15 | `nautilus-thread-mirror-desktop` | `here` |
+| 14:18:12, 14:18:39 | `desktop-thread-mirror-desktop-18d5` | `inside` |
+
+So **both locus branches were genuinely exercised**, in the order the script named, against two real and distinct thread ids — which is the very contract the derivation rests on (`parseConversationCatalog` seeds `seenThreads` with the root thread and rejects reuse).
+
+What this evidence does **not** establish is what the glyph looked like. Locus is derived per render and persisted nowhere, so the topological distinction and the compact-size legibility rest on the Navigator's attestation. CR133 closed on a file the run had written; this CR cannot, and recording that asymmetry is better than implying an equivalence. The precondition is proved durably; the rendering is attested.
+
+### Not verified, and not verifiable
+
+D6's refusal sentence was not exercised, because it cannot be: the condition and the surface that shows it are mutually exclusive, as recorded above.
+
+### Withdrawn
+
+### Withdrawn from this verification
 
 The Dev bundle was **not installed**: `Mirror Desktop Dev` was running (pid 47871) and replacing a live bundle is not something to do under a running process. Installation waits for the Navigator to quit it.
 
