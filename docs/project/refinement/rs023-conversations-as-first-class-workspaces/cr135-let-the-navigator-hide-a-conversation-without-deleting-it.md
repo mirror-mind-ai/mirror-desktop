@@ -30,7 +30,7 @@ The working set of the conversation list is the Navigator's choice. Hiding is ex
 - Old Desktop conversations and Mirror Core history remain distinguishable by provenance in any visibility or reveal surface.
 - A hidden conversation is never represented as deleted, and an imported Mirror record is never represented as a Desktop one.
 - Reload preserves visibility choices.
-- A hidden conversation that owns active work is reachable; the Navigator cannot lose a running turn by hiding it.
+- A hidden conversation that owns active work is reachable, and hiding it never removes the only indication that work is running — CR134's Journey-row carrier must still show it. Hiding is the third way a conversation can become invisible, after a compact sidebar and an unexpanded Journey, and it is the only one the Navigator chooses deliberately.
 
 ## Boundaries
 

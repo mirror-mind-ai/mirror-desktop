@@ -194,7 +194,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
 | — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | captured | — | — |
-| — | [CR134](rs023-conversations-as-first-class-workspaces/cr134-name-the-workspace-that-owns-the-work.md) | RS023 | Name the Workspace That Owns the Work | captured | — | — |
+| — | [CR134](rs023-conversations-as-first-class-workspaces/cr134-name-the-owner-of-running-work-without-hiding-that-it-runs.md) | RS023 | Name the Owner of Running Work Without Hiding That It Runs | captured | — | — |
 | — | [CR135](rs023-conversations-as-first-class-workspaces/cr135-let-the-navigator-hide-a-conversation-without-deleting-it.md) | RS023 | Let the Navigator Hide a Conversation Without Deleting It | captured | — | — |
 | — | [CR136](rs023-conversations-as-first-class-workspaces/cr136-admit-concurrent-work-inside-one-journey.md) | RS023 | Admit Concurrent Work Inside One Journey | captured | — | — |
 | — | [CR109](rs021-ux-pre-beta-evolution/cr109-make-conversations-first-class-workspaces.md) | RS021 | Make Conversations First-Class Workspaces | promoted | — | `RS023 / CR133–CR136` |

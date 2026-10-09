@@ -40,6 +40,7 @@ A Journey is a durable container and a conversation is a first-class workspace w
 - Runtime ownership stays keyed by Journey for CR133, CR134 and CR135. Only CR136 may change that key, and it must change the Rust registry and the TypeScript reducer together or neither.
 - No fabricated concurrency. Distinct visual workspaces may run together only where native process capacity and exact Journey/thread/generation authority admit them; a genuine shared constraint must still refuse, naming itself precisely.
 - A refusal may become narrower but never silent. CR132 left a named gap — a refusal the surface does not explain — and nothing here may widen it.
+- Running work is never representable only on a surface the Navigator can hide, collapse or leave unexpanded. The Journey row is the guaranteed carrier: `sidebar-compact` already hides the conversation sidebar outright while keeping the Journey status, and CR135 adds a third way for a conversation to become invisible. No CR here may move the running-work signal into a surface that can be removed.
 - No Mirror Core change.
 
 ## Work Shape
@@ -47,7 +48,7 @@ A Journey is a durable container and a conversation is a first-class workspace w
 Ordered slices. CR135 is independent and may be taken at any point; CR136 is gated.
 
 1. **CR133** separates expansion from selection, which is the fix for the reported instability: the Navigator stops losing access to work in flight.
-2. **CR134** derives the owner of the active run from `identity.authority` and makes every status surface name the workspace that owns it, or an explicit aggregate. Legible ownership is what de-risks CR136.
+2. **CR134** derives the owner of the active run from `identity.authority` and makes every status surface say whose work it is, while keeping the Journey row as the carrier that cannot be configured into silence. Legible ownership is what de-risks CR136.
 3. **CR135** gives the Navigator a reversible hide and reveal, distinct from the existing truncation cap, preserving provenance.
 4. **CR136** admits concurrent work inside one Journey. **Gate: not started before CR133, CR134 and CR135 are in the field.** It carries its own First Investigation, and if that investigation shows it to be Story-sized it is promoted in turn — the mechanism that produced this Story.
 
@@ -56,7 +57,7 @@ Ordered slices. CR135 is independent and may be taken at any point; CR136 is gat
 RS023 is complete only when:
 
 - expanding or collapsing a Journey's conversations never changes selected Journey, selected conversation, Composer target, loaded transcript or run ownership, and changing Journey never collapses a group containing active work;
-- no status surface reads `Working` for a workspace that does not own the work, and any aggregate is explicitly aggregate;
+- every status surface says whose work is running, no surface presents another workspace's work as its own, and no combination of compact sidebar, unexpanded Journey and hidden conversation can leave running work unindicated;
 - a conversation can be hidden and revealed reversibly, with `desktop_conversation` and `mirror_history` provenance preserved in the reveal surface, and no durable record altered;
 - reload preserves expansion and visibility choices without fabricating a run owner or losing access to an active native process;
 - either concurrent work inside one Journey is admitted where native authority permits, or CR136 records why it must not be, with the refusal named on the surface.
@@ -71,6 +72,6 @@ RS023 is complete only when:
 ## Change Requests
 
 - [CR133: Stop a Disclosure From Selecting a Journey](cr133-stop-a-disclosure-from-selecting-a-journey.md)
-- [CR134: Name the Workspace That Owns the Work](cr134-name-the-workspace-that-owns-the-work.md)
+- [CR134: Name the Owner of Running Work Without Hiding That It Runs](cr134-name-the-owner-of-running-work-without-hiding-that-it-runs.md)
 - [CR135: Let the Navigator Hide a Conversation Without Deleting It](cr135-let-the-navigator-hide-a-conversation-without-deleting-it.md)
 - [CR136: Admit Concurrent Work Inside One Journey](cr136-admit-concurrent-work-inside-one-journey.md)
