@@ -1,9 +1,15 @@
 import type { PiInvocationAdmission } from "./piInvocationOccupancy";
+import type { JourneyWorkLocus } from "./journeyWorkLocus";
 
 export type JourneyStartConditions = {
   runtimeBindingReady: boolean;
   /** Native capacity authority for the selected Journey, which is already Journey-aware. */
   nativeAdmission: PiInvocationAdmission;
+  /**
+   * CR134: whether the Journey's own workspace or a conversation inside it holds the lease. The
+   * refusal was already honest that the Journey is occupied; this lets it say where.
+   */
+  occupiedLocus?: JourneyWorkLocus;
 };
 
 export type JourneyStartAvailability = {
@@ -26,6 +32,7 @@ export type JourneyStartAvailability = {
 export function journeyStartAvailability({
   runtimeBindingReady,
   nativeAdmission,
+  occupiedLocus,
 }: JourneyStartConditions): JourneyStartAvailability {
   if (!runtimeBindingReady) {
     return {
@@ -35,17 +42,25 @@ export function journeyStartAvailability({
     };
   }
   if (nativeAdmission.allowed) return { canStart: true };
-  return { canStart: false, ...startRefusal(nativeAdmission.reason) };
+  return { canStart: false, ...startRefusal(nativeAdmission.reason, occupiedLocus) };
 }
 
-function startRefusal(reason: Exclude<PiInvocationAdmission, { allowed: true }>["reason"]) {
+function startRefusal(
+  reason: Exclude<PiInvocationAdmission, { allowed: true }>["reason"],
+  occupiedLocus?: JourneyWorkLocus,
+) {
   switch (reason) {
     case "inspection_unknown":
       // Bounded and self-resolving. Naming it as waiting keeps a transient check from
       // reading like a permanent refusal.
       return { unavailableReason: "Checking native operation occupancy before starting.", waiting: true };
     case "same_journey_occupied":
-      return { unavailableReason: "This Journey already has native work in progress.", waiting: true };
+      return {
+        unavailableReason: occupiedLocus === "inside"
+          ? "A conversation in this Journey already has native work in progress."
+          : "This Journey already has native work in progress.",
+        waiting: true,
+      };
     case "global_capacity_reached":
       return { unavailableReason: "All native Pi slots are in use. Starting becomes available once one is free.", waiting: true };
   }

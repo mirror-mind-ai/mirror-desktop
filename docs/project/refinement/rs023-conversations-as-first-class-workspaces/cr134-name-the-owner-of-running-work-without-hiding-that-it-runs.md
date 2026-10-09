@@ -2,9 +2,9 @@
 
 # CR134: Name the Owner of Running Work Without Hiding That It Runs
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs023-cr134-name-the-owner-of-running-work`
 
 ## Friction
 
@@ -163,6 +163,51 @@ Re-aimed: `journeyAgentStatus.test.ts` is expected to pass **unmodified**; if it
 1. Driver and Delivery. Proposed: `@alissonvale`, `refinement/rs023-cr134-name-the-owner-of-running-work`.
 2. **Does D3 belong to this CR?** Sourcing status from occupancy closes the post-reload `Idle` hole, which is beyond this CR's literal text but is the same invariant and the same data. My recommendation is yes, because the alternative is to build the locus derivation on a source that is empty after every relaunch. If you prefer, D3 becomes its own CR and CR134 ships locus only — honest, but it leaves the larger hole open and the locus signal unavailable precisely when it matters most.
 3. **Should the indicator become interactive** (D5), or should reachability be delivered through an existing control instead? Making a status element a button changes the sidebar row's interaction model.
+
+
+## Delivery Record (2026-10-09)
+
+The Navigator accepted D3 into this CR and delegated decision 3. **Decision taken: the sidebar indicator becomes a control**, but only for `placement="sidebar"` and only when `locus === "inside"`. The acceptance criterion written above requires the route to start at the Journey's indicator, and a signal that leads nowhere fails it. The header stays a plain signal, because inside a Journey the conversation list is already one surface away.
+
+### Delivered
+
+- **D1** `src/app/journeyWorkLocus.ts` (new): `deriveJourneyWorkLocus` unions the two sources — the runtime phase leads where it exists, the registry inspection fills every gap — and resolves `here | inside | unknown` by comparing the owning `threadId` against the Journey's root thread. Returning `undefined` when nothing is running keeps *no work* and *work of unknown ownership* from collapsing into one value.
+- **D2** root-thread resolution bounded by `journeyIdsNeedingRootThread`, taking the id from CR133's catalog when a disclosure is already open and otherwise reading the thread file. At most four Journeys can be occupied, so at most four lookups exist.
+- **D3** both status surfaces now read `journeyWork?.phase`. **`deriveJourneyAgentStatus` and its eight tests were not touched** — the plan named needing to edit them as the signal of overreach, and the signal held.
+- **D4** the indicator takes an optional `locus`, and `inside` adds one topological operation: the mark drawn smaller inside a containing contour at the badge's outer extent, the same spatial register CR102 gave the terminal disc. Absent `locus` renders byte-identically to before.
+- **D5** `navigateToJourneyWorkOwner` selects the owning Journey and its conversation in one act. `expandJourneyConversations` now returns the entries it loaded, which is what lets the route resolve a thread to a conversation without reading state that has not committed yet. **The route never dispatches expansion** — proved by guard — which is precisely what makes it work with the sidebar compact, the Journey unexpanded, or the conversation hidden by CR135.
+- **D6** the start refusal names the owner: *"A conversation in this Journey already has native work in progress."*
+
+### What the writing corrected
+
+**D6 was smaller than planned, and the plan overstated the defect.** `decideConversationAvailability` already returned `blocked("journey_lease_occupied", …)` rather than a false `Ready`, so acceptance item 6 was substantially met before this CR. Only the naming was missing. Recorded rather than quietly delivered as if the whole criterion had been open.
+
+**A clarification this CR owes its own acceptance.** The criterion says `unknown` must never read as `here`. Visually, `here` and `unknown` render identically, and that is correct rather than a compromise: the plain glyph asserts only *work is running in this Journey*, which is true in both cases, and **only `inside` adds a claim**. The absence of the contour is not an ownership claim. The `aria-label` follows the same rule — the *"in a conversation"* phrase appears only for `inside`.
+
+**Two instrument findings, both the same class as CR133's.**
+
+1. `conversationSpaceIntegration`'s `expandPath` slice ran from one function declaration to *the next function the test happened to know about*. This CR inserted `navigateToJourneyWorkOwner` between them, so the guard began reading a neighbour's body as if it were the expand path's — and since the neighbour legitimately calls `selectJourney`, CR133's guard reported a violation that did not exist. Replaced with extraction to the function's own closing brace, which is insertion-proof.
+2. Importing `app.css` with `?raw` yields an **empty string** in this config; the suite's idiom is `readFileSync` with a deliberate `@ts-expect-error`, because there is no `@types/node` on purpose. The emptiness surfaced only because these guards assert presence. **A negative assertion over an empty string passes vacuously** — had the CSS guards been written as `not.toContain`, they would all have passed while reading nothing.
+
+Five source-shape guards broke because the indicator call sites became multi-line. Each was re-aimed field by field rather than re-formatted into the new shape, so they now pin intent instead of layout.
+
+### Verified
+
+- `tsc --noEmit` clean; `npm test` **244 files / 1822 tests**, from 242 / 1794 at the branch point.
+- `src-tauri/` **zero diff**; `cargo test` **269 passed / 3 ignored**, unchanged.
+- `npm run build` and `npm run tauri:build:dev` clean on the first pass. Dev binary `aee740dc607fd36b348552cc94b3c9ef40fcea94c70f4507199517ad7c1b7eb1`.
+
+### Owed
+
+The Dev bundle was **not installed**: `Mirror Desktop Dev` was running (pid 47871) and replacing a live bundle is not something to do under a running process. Installation waits for the Navigator to quit it.
+
+Three field checks, and unlike CR132's these are **provocable on demand**:
+
+1. Start a turn, quit mid-run, relaunch — the Journey must not read `Idle` while its process lives. This is the field proof of finding 3.
+2. Run a turn inside a conversation and collapse the sidebar — the Journey row must still show work running inside.
+3. Activate the indicator and land on the owning conversation.
+
+The compact-sidebar legibility of the nesting contour at 12px is a judgement only the field can settle; the stroke and radii were chosen generously for it, and a guard pins the stroke floor.
 
 ## Acceptance
 

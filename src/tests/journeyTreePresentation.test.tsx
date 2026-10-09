@@ -43,7 +43,9 @@ describe("Journey tree presentation", () => {
     expect(appSource).toContain('journey.depth > 0 ? "is-nested" : "is-root"');
     expect(appSource).not.toContain('runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : ""');
     expect(appSource).toContain("<JourneyTreeIcon />");
-    expect(appSource).toContain('<JourneyAgentStatusIndicator journeyName={journey.name} status={agentStatus} placement="sidebar" />');
+    expect(appSource).toContain("journeyName={journey.name}");
+    expect(appSource).toContain("status={agentStatus}");
+    expect(appSource).toContain('placement="sidebar"');
     expect(appSource).toContain("--journey-depth");
     expect(appSource).toContain("journey-tree-toggle");
     expect(appSource).toContain('collapsed ? "›" : "▾"');

@@ -44,20 +44,22 @@ describe("Journey conversation-space integration", () => {
   // another Journey collapsed the open disclosure and discarded its catalog. It now pins the
   // opposite, so the behaviour cannot come back.
   it("keeps every other Journey's disclosure and catalog when the selected Journey changes", () => {
-    const switchPath = appSource.slice(
-      appSource.indexOf("function selectJourney("),
-      appSource.indexOf("function openJourneyTreeMenu("),
-    );
+    // The slice ends at the function's own closing brace rather than at the next function this
+    // test happens to know about. CR134 inserted a function between them and made the old
+    // anchor read a neighbour's body as if it were this one's.
+    const bodyOf = (declaration: string) => {
+      const start = appSource.indexOf(declaration);
+      expect(start).toBeGreaterThan(-1);
+      return appSource.slice(start, appSource.indexOf("\n  }\n", start) + 4);
+    };
+    const switchPath = bodyOf("function selectJourney(");
     expect(switchPath).not.toContain('type: "collapse"');
     expect(switchPath).not.toContain("setConversationCatalog");
     expect(switchPath).not.toContain("setConversationCatalogs");
     expect(switchPath).not.toContain("RootThreadId");
 
     // Disclosure is structural visibility: it must not select, and must not start anything.
-    const expandPath = appSource.slice(
-      appSource.indexOf("async function expandJourneyConversations("),
-      appSource.indexOf("function requestBlankDesktopConversation("),
-    );
+    const expandPath = bodyOf("async function expandJourneyConversations(");
     expect(expandPath).not.toContain("selectJourney(");
     expect(expandPath).not.toContain("journey_selected");
     expect(expandPath).toContain("dispatchConversationExpansion({ type: \"expand\", journeyId: ownerJourneyId })");

@@ -1293,6 +1293,33 @@ textarea {
   stroke-width: 4.2;
 }
 
+/* CR134: the containing contour that reads as nested. It sits at the badge's outer extent, the
+   same spatial register CR102 gave the terminal disc, so the vocabulary stays consistent: an
+   inner mark plus an outer boundary means the work belongs to a conversation inside the Journey.
+   Stroke and radii are deliberately generous because this has to survive the compact sidebar,
+   where the glyph renders at 12px. */
+.journey-agent-status-container {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
+.journey-agent-status-annulus.is-nested {
+  stroke-width: 2.6;
+}
+
+/* The control form keeps the badge's geometry and gains only a focus affordance, so the signal
+   does not change shape when it becomes reachable. */
+button.journey-agent-status {
+  cursor: pointer;
+  padding: 0;
+}
+
+button.journey-agent-status:focus-visible {
+  outline: 2px solid color-mix(in srgb, currentColor 70%, transparent);
+  outline-offset: 2px;
+}
+
 .journey-agent-status.working {
   animation: journey-agent-working 1.6s ease-in-out infinite;
   background: color-mix(in srgb, var(--accent) 13%, transparent);

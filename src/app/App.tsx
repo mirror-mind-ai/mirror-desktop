@@ -350,6 +350,12 @@ import {
   type JourneyConversationCatalogs,
 } from "./conversationCatalogState";
 import {
+  deriveJourneyWorkLocus,
+  journeyIdsNeedingRootThread,
+  resolveJourneyRootThreadId,
+  type JourneyWorkOwner,
+} from "./journeyWorkLocus";
+import {
   createJourneyConversation,
   createDedicatedJourneyConversation,
   restoreDedicatedJourneyConversation,
@@ -736,6 +742,10 @@ export function App({ model }: AppProps) {
     EMPTY_JOURNEY_CONVERSATION_CATALOGS,
   );
   const conversationCatalogRequestRef = useRef(0);
+  // CR134: the root thread of each Journey the registry says is busy, so a status can say whether
+  // the work is the Journey's own workspace or a conversation inside it. Bounded by the process
+  // limit: locus only matters where work exists, and at most four Journeys can be occupied.
+  const [journeyRootThreadIds, setJourneyRootThreadIds] = useState<Record<string, string | undefined>>({});
   const selectedJourneyCatalog = journeyCatalogState(conversationCatalogs, selectedJourney);
   const conversationCatalog = selectedJourneyCatalog.entries;
   const conversationCatalogStatus = selectedJourneyCatalog.status;
@@ -1026,8 +1036,20 @@ export function App({ model }: AppProps) {
     mirrorCommitErrors: projectedMirrorCommitErrors,
   });
   const selectedRuntime = navigationPresentation.selectedRuntime;
-  const selectedAgentStatus = deriveJourneyAgentStatus({
+  // CR134: the runtime map is in-memory and empty after a relaunch, so it cannot be the only
+  // source. The native registry inspection covers every Journey, survives a relaunch, and its
+  // authority carries the thread that says which workspace owns the work.
+  const selectedJourneyWork = deriveJourneyWorkLocus({
+    occupancy: piInvocationOccupancy,
+    journeyId: selectedJourney,
+    journeyRootThreadId: resolveJourneyRootThreadId(
+      journeyRootThreadIds, selectedJourneyCatalog.rootThreadId, selectedJourney,
+    ),
     runtimePhase: selectJourneyRuntimeOwnerPhase(journeyRuntimeState, selectedJourney),
+    runtimeIdentity: journeyRuntimeState.entries[selectedJourney]?.identity,
+  });
+  const selectedAgentStatus = deriveJourneyAgentStatus({
+    runtimePhase: selectedJourneyWork?.phase,
     finishedAttention: journeyFinishedAttention[selectedJourney],
     compacting: compactingJourneyId === selectedJourney,
     turnOutcome: journeyTurnOutcomes[selectedJourney],
@@ -1062,6 +1084,7 @@ export function App({ model }: AppProps) {
   const journeyStart = journeyStartAvailability({
     runtimeBindingReady,
     nativeAdmission: piInvocationPresentation,
+    occupiedLocus: selectedJourneyWork?.locus,
   });
   const mirrorCommitError = navigationPresentation.mirrorCommitError;
   // CR093: a bounded contract rejection has a cause the Navigator can act on. Name it above
@@ -2334,6 +2357,33 @@ export function App({ model }: AppProps) {
       }
     })();
   }, [registryLoaded, preferencesLoaded, expandedConversationJourneyIds]);
+
+  // CR134: resolve the root thread only for Journeys the registry reports busy, reusing CR133's
+  // read-only thread read. An unresolved root leaves the locus `unknown`, which still shows that
+  // work is running — it only withholds the claim about which workspace owns it.
+  useEffect(() => {
+    const pending = journeyIdsNeedingRootThread(piInvocationOccupancy, journeyRootThreadIds);
+    if (pending.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      for (const journeyId of pending) {
+        const fromCatalog = journeyCatalogState(conversationCatalogs, journeyId).rootThreadId;
+        if (fromCatalog) {
+          if (!cancelled) setJourneyRootThreadIds((current) => ({ ...current, [journeyId]: fromCatalog }));
+          continue;
+        }
+        try {
+          const thread = await loadNautilusJourneyThread(journeyId);
+          if (!cancelled && thread) {
+            setJourneyRootThreadIds((current) => ({ ...current, [journeyId]: thread.threadId }));
+          }
+        } catch {
+          // Leaving it unresolved is the correct outcome: the work still shows, unattributed.
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [piInvocationOccupancy, conversationCatalogs, journeyRootThreadIds]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setRelativeTimeNow(Date.now()), 60_000);
@@ -4047,8 +4097,10 @@ export function App({ model }: AppProps) {
     setProviderSafeTestMode(defaultPiProviderConfig.safeTestMode);
   }
 
-  async function expandJourneyConversations(ownerJourneyId: string) {
-    if (!ownerJourneyId) return;
+  async function expandJourneyConversations(
+    ownerJourneyId: string,
+  ): Promise<ConversationCatalogEntry[] | undefined> {
+    if (!ownerJourneyId) return undefined;
     // CR133: revealing what is inside a Journey is not going there. This used to call
     // selectJourney first, so a disclosure moved the transcript, the Composer target and run
     // ownership for what the Navigator meant as a look. Reading a non-selected Journey's
@@ -4074,18 +4126,52 @@ export function App({ model }: AppProps) {
         managedMirrorConversationIds,
         limit: 50,
       });
-      if (!expandedConversationJourneyIdsRef.current.has(ownerJourneyId)) return;
+      if (!expandedConversationJourneyIdsRef.current.has(ownerJourneyId)) return undefined;
+      const entries = [...desktopEntries, ...mirrorEntries]
+        .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
       setConversationCatalogs((current) => completeJourneyCatalogLoad(current, ownerJourneyId, requestId, {
-        entries: [...desktopEntries, ...mirrorEntries]
-          .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)),
+        entries,
         rootThreadId: rootThread.threadId,
       }));
+      return entries;
     } catch (error) {
-      if (!expandedConversationJourneyIdsRef.current.has(ownerJourneyId)) return;
+      if (!expandedConversationJourneyIdsRef.current.has(ownerJourneyId)) return undefined;
       setConversationCatalogs((current) => failJourneyCatalogLoad(
         current, ownerJourneyId, requestId, error instanceof Error ? error.message : String(error),
       ));
+      return undefined;
     }
+  }
+
+  /**
+   * CR134: the route from the signal to the work. Because CR133 separated selection from
+   * expansion, reaching the owning conversation does not need its list to be visible — which is
+   * what makes this work with the sidebar compact, the Journey unexpanded, or the conversation
+   * hidden. The owner's thread is resolved to a Desktop conversation through the same read-only
+   * catalog path; when it cannot be resolved, landing on the Journey is the honest fallback,
+   * because that is where the work is attributed.
+   */
+  async function navigateToJourneyWorkOwner(owner: JourneyWorkOwner) {
+    selectJourney(owner.journeyId, "pointer");
+    const loaded = journeyCatalogState(conversationCatalogs, owner.journeyId);
+    const rootThreadId = resolveJourneyRootThreadId(journeyRootThreadIds, loaded.rootThreadId, owner.journeyId);
+    if (rootThreadId && owner.threadId === rootThreadId) {
+      dispatchConversationSelection({ type: "select_root", journeyId: owner.journeyId });
+      return;
+    }
+    const entries = loaded.status === "ready"
+      ? loaded.entries
+      : await expandJourneyConversations(owner.journeyId);
+    const match = entries?.find((entry) => (
+      entry.kind === "desktop_conversation" && entry.threadId === owner.threadId
+    ));
+    if (match) {
+      dispatchConversationSelection({
+        type: "select_desktop", journeyId: owner.journeyId, conversationId: match.conversationId,
+      });
+      return;
+    }
+    dispatchConversationSelection({ type: "select_root", journeyId: owner.journeyId });
   }
 
   function requestBlankDesktopConversation() {
@@ -5231,9 +5317,18 @@ export function App({ model }: AppProps) {
             const appearance = journeyAppearanceById[journey.id];
             const hasChildren = (journey.children?.length ?? 0) > 0;
             const collapsed = collapsedJourneyIds.has(journey.id);
-            const runtimeOwnerPhase = selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id);
+            const journeyWork = deriveJourneyWorkLocus({
+              occupancy: piInvocationOccupancy,
+              journeyId: journey.id,
+              journeyRootThreadId: resolveJourneyRootThreadId(
+                journeyRootThreadIds, journeyCatalogState(conversationCatalogs, journey.id).rootThreadId, journey.id,
+              ),
+              runtimePhase: selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id),
+              runtimeIdentity: journeyRuntimeState.entries[journey.id]?.identity,
+            });
+            const journeyWorkOwner = journeyWork?.owner;
             const agentStatus = deriveJourneyAgentStatus({
-              runtimePhase: runtimeOwnerPhase,
+              runtimePhase: journeyWork?.phase,
               finishedAttention: journeyFinishedAttention[journey.id],
               compacting: compactingJourneyId === journey.id,
               turnOutcome: journeyTurnOutcomes[journey.id],
@@ -5331,7 +5426,15 @@ export function App({ model }: AppProps) {
                   agentStatusKind={agentStatus}
                   pinned={journey.pinned}
                 />
-                <JourneyAgentStatusIndicator journeyName={journey.name} status={agentStatus} placement="sidebar" />
+                <JourneyAgentStatusIndicator
+                  journeyName={journey.name}
+                  status={agentStatus}
+                  placement="sidebar"
+                  locus={journeyWork?.locus}
+                  onNavigateToOwner={journeyWorkOwner
+                    ? () => void navigateToJourneyWorkOwner(journeyWorkOwner)
+                    : undefined}
+                />
                 <button
                   className="journey-conversation-toggle"
                   type="button"
@@ -5451,7 +5554,12 @@ export function App({ model }: AppProps) {
                   <p className="eyebrow">Active journey</p>
                   <div className="active-journey-name-row">
                     <h1>{selectedJourneyItem.name}</h1>
-                    <JourneyAgentStatusIndicator journeyName={selectedJourneyItem.name} status={selectedAgentStatus} placement="header" />
+                    <JourneyAgentStatusIndicator
+                      journeyName={selectedJourneyItem.name}
+                      status={selectedAgentStatus}
+                      placement="header"
+                      locus={selectedJourneyWork?.locus}
+                    />
                   </div>
                   {operationalChatSelected && messages.length > 0 && selectedConversationEntry?.kind === "desktop_conversation" ? (
                     <div className="active-conversation-context" aria-label={`Active Desktop Conversation: ${selectedConversationEntry.title}`}>

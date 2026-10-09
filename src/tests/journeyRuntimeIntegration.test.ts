@@ -52,7 +52,9 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id)");
     expect(appSource).toContain("deriveJourneyAgentStatus({");
     expect(appSource).toContain("<JourneyItemCopy");
-    expect(appSource).toContain('<JourneyAgentStatusIndicator journeyName={journey.name} status={agentStatus} placement="sidebar" />');
+    expect(appSource).toContain("journeyName={journey.name}");
+    expect(appSource).toContain("status={agentStatus}");
+    expect(appSource).toContain('placement="sidebar"');
     expect(appSource).not.toContain("runtimePhase={runtimeOwnerPhase}");
     expect(appSource).not.toContain("className={`journey-pin");
     expect(appSource).toContain("const mirrorCommitError = navigationPresentation.mirrorCommitError");

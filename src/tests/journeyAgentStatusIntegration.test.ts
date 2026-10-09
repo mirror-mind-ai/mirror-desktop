@@ -33,8 +33,14 @@ describe("Journey agent status integration", () => {
   });
 
   it("uses one shared status in the sidebar and beside the active Journey name", () => {
-    expect(appSource).toContain('<JourneyAgentStatusIndicator journeyName={journey.name} status={agentStatus} placement="sidebar" />');
-    expect(appSource).toContain('<JourneyAgentStatusIndicator journeyName={selectedJourneyItem.name} status={selectedAgentStatus} placement="header" />');
+    expect(appSource).toContain("journeyName={journey.name}");
+    expect(appSource).toContain("status={agentStatus}");
+    expect(appSource).toContain('placement="sidebar"');
+    expect(appSource).toContain("journeyName={selectedJourneyItem.name}");
+    expect(appSource).toContain("status={selectedAgentStatus}");
+    // CR134: the header reports locus but is not a route — inside a Journey the conversation
+    // list is already one surface away.
+    expect(appSource).toContain("locus={selectedJourneyWork?.locus}");
     const heading = between('className="active-journey-name-row"', "{operationalChatSelected");
     expect(heading).toContain("<h1>{selectedJourneyItem.name}</h1>");
     expect(heading).toContain('placement="header"');

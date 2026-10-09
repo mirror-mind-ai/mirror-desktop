@@ -1,9 +1,21 @@
 import { journeyAgentStatusLabel, type JourneyAgentStatus as Status } from "./journeyAgentStatus";
+import type { JourneyWorkLocus } from "./journeyWorkLocus";
 
 type JourneyAgentStatusIndicatorProps = {
   journeyName: string;
   status: Status;
   placement: "sidebar" | "header";
+  /**
+   * CR134: whose work this is. Absent renders exactly as before, so a surface that has not been
+   * taught the distinction is unaffected.
+   */
+  locus?: JourneyWorkLocus;
+  /**
+   * CR134: present only when the owning work lives in a conversation and can be reached. The
+   * Journey row is the one carrier no sidebar configuration can remove, so it has to lead
+   * somewhere rather than only report.
+   */
+  onNavigateToOwner?: () => void;
 };
 
 const statusCopy: Record<Status, { label: string; title: string }> = {
@@ -14,6 +26,11 @@ const statusCopy: Record<Status, { label: string; title: string }> = {
   interrupted: { label: "agent was interrupted", title: "Agent interrupted" },
   failed: { label: "agent failed", title: "Agent failed" },
 };
+
+/** Locus only qualifies live work; the terminal states describe what already happened. */
+function locusApplies(status: Status, locus?: JourneyWorkLocus): locus is "inside" {
+  return locus === "inside" && (status === "working" || status === "finishing");
+}
 
 /**
  * CR102: every state owns a shape, so the glyph alone identifies it.
@@ -27,8 +44,14 @@ const statusCopy: Record<Status, { label: string; title: string }> = {
  * The quiet states stay small and centred; the terminal ones fill the badge with a disc and knock
  * the mark out of it, because those are the ones asking to be noticed. The Ready glyph is CR106's,
  * unchanged.
+ *
+ * CR134 adds one operation rather than new states: when the work belongs to a conversation inside
+ * the Journey, the status mark is drawn smaller and enclosed in a containing contour, so it reads
+ * as nested. The contour sits at the badge's outer extent, the same spatial register CR102 gave
+ * the terminal disc, and its absence is not a claim of ownership — it only means no `inside`
+ * claim is being made.
  */
-function StatusGlyph({ status }: { status: Status }) {
+function StatusGlyph({ status, nested }: { status: Status; nested: boolean }) {
   if (status === "idle") {
     return (
       <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -39,7 +62,8 @@ function StatusGlyph({ status }: { status: Status }) {
   if (status === "working") {
     return (
       <svg viewBox="0 0 20 20" aria-hidden="true">
-        <circle className="journey-agent-status-dot" cx="10" cy="10" r="5" />
+        {nested ? <circle className="journey-agent-status-container" cx="10" cy="10" r="8.4" /> : null}
+        <circle className="journey-agent-status-dot" cx="10" cy="10" r={nested ? "3" : "5"} />
       </svg>
     );
   }
@@ -47,7 +71,13 @@ function StatusGlyph({ status }: { status: Status }) {
     /* A thick band with a hollow centre: the same register as Working, a different topology. */
     return (
       <svg viewBox="0 0 20 20" aria-hidden="true">
-        <circle className="journey-agent-status-annulus" cx="10" cy="10" r="5" />
+        {nested ? <circle className="journey-agent-status-container" cx="10" cy="10" r="8.4" /> : null}
+        <circle
+          className={`journey-agent-status-annulus${nested ? " is-nested" : ""}`}
+          cx="10"
+          cy="10"
+          r={nested ? "3.1" : "5"}
+        />
       </svg>
     );
   }
@@ -79,18 +109,58 @@ function StatusGlyph({ status }: { status: Status }) {
   );
 }
 
-export function JourneyAgentStatusIndicator({ journeyName, status, placement }: JourneyAgentStatusIndicatorProps) {
+export function JourneyAgentStatusIndicator({
+  journeyName,
+  status,
+  placement,
+  locus,
+  onNavigateToOwner,
+}: JourneyAgentStatusIndicatorProps) {
   const copy = statusCopy[status];
   const label = journeyAgentStatusLabel(status);
+  const nested = locusApplies(status, locus);
+  const className = `journey-agent-status ${status} placement-${placement}${nested ? " locus-inside" : ""}`;
+  const glyph = <StatusGlyph status={status} nested={nested} />;
+  const text = placement === "header"
+    ? <span className="journey-agent-status-label" aria-hidden="true">{label}</span>
+    : null;
+
+  // Only the sidebar needs the route: in the header the Navigator is already inside the Journey
+  // and its conversation list is one surface away.
+  if (nested && onNavigateToOwner && placement === "sidebar") {
+    return (
+      <button
+        type="button"
+        className={className}
+        // A control's accessible name describes what activating it does. The state still reaches
+        // assistive technology through the selected workspace's own header indicator.
+        aria-label={`Go to the conversation working in ${journeyName}`}
+        title={`${copy.title} in a conversation — go to it`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onNavigateToOwner();
+        }}
+        onKeyDown={(event) => {
+          // CR133 found that the row above handles Enter and Space and calls preventDefault,
+          // which both selects the Journey and suppresses this control's native activation.
+          if (event.key === "Enter" || event.key === " ") event.stopPropagation();
+        }}
+      >
+        {glyph}
+        {text}
+      </button>
+    );
+  }
+
   return (
     <span
-      className={`journey-agent-status ${status} placement-${placement}`}
+      className={className}
       role="status"
-      aria-label={`${journeyName} ${copy.label}`}
-      title={copy.title}
+      aria-label={`${journeyName} ${copy.label}${nested ? " in a conversation" : ""}`}
+      title={nested ? `${copy.title} in a conversation` : copy.title}
     >
-      <StatusGlyph status={status} />
-      {placement === "header" ? <span className="journey-agent-status-label" aria-hidden="true">{label}</span> : null}
+      {glyph}
+      {text}
     </span>
   );
 }

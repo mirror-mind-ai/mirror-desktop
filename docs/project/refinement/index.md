@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS023
-- Change Request: CR134 is `planned` (2026-10-09); its investigation found that status is derived from a source that is empty after every relaunch, so a Journey with a live native run reads `Idle`. CR133 is `done` and **field-verified** (2026-10-09): all six Dev scenarios passed, and the Dev preference file carries the expanded set the run wrote. The run also produced CR137, captured rather than folded in. CR134 is the next pull, and it is cheap because the owner is already in `entry.identity.authority`. RS023 was promoted from CR109 on 2026-10-08, after the
+- Change Request: CR134 is `done` (2026-10-09), gates green; its three field checks are owed and are provocable on demand. Status now unions the runtime phase with the native registry inspection, which closes the post-relaunch `Idle` hole. CR135 is the next pull, and it is independent of CR136's gate. CR133 is `done` and **field-verified** (2026-10-09): all six Dev scenarios passed, and the Dev preference file carries the expanded set the run wrote. The run also produced CR137, captured rather than folded in. CR134 is the next pull, and it is cheap because the owner is already in `entry.identity.authority`. RS023 was promoted from CR109 on 2026-10-08, after the
   Navigator prioritised it as the last fragile point of the app. The characterisation recorded in
   the Story showed its four symptoms are not one change: `expandJourneyConversations` selects before
   it expands, one `Record<journeyId, Entry>` serves a Journey and its conversations alike, the
@@ -194,7 +194,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
 | — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | done | @alissonvale | `refinement/rs023-cr133-stop-a-disclosure-from-selecting-a-journey` |
-| — | [CR134](rs023-conversations-as-first-class-workspaces/cr134-name-the-owner-of-running-work-without-hiding-that-it-runs.md) | RS023 | Name the Owner of Running Work Without Hiding That It Runs | planned | — | — |
+| — | [CR134](rs023-conversations-as-first-class-workspaces/cr134-name-the-owner-of-running-work-without-hiding-that-it-runs.md) | RS023 | Name the Owner of Running Work Without Hiding That It Runs | done | @alissonvale | `refinement/rs023-cr134-name-the-owner-of-running-work` |
 | — | [CR135](rs023-conversations-as-first-class-workspaces/cr135-let-the-navigator-hide-a-conversation-without-deleting-it.md) | RS023 | Let the Navigator Hide a Conversation Without Deleting It | captured | — | — |
 | — | [CR136](rs023-conversations-as-first-class-workspaces/cr136-admit-concurrent-work-inside-one-journey.md) | RS023 | Admit Concurrent Work Inside One Journey | captured | — | — |
 | — | [CR137](rs023-conversations-as-first-class-workspaces/cr137-bring-the-navigator-back-to-the-conversation-they-left.md) | RS023 | Bring the Navigator Back to the Conversation They Left | captured | — | — |

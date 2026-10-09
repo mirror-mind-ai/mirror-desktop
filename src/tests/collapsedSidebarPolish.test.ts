@@ -56,7 +56,8 @@ describe("collapsed sidebar polish", () => {
     expect(appSource).toContain('appearance?.kind === "custom" ? "has-custom-appearance" : ""');
     expect(appSource).toContain('journey.pinned ? "is-pinned" : ""');
     expect(appSource).toContain("deriveJourneyAgentStatus({");
-    expect(appSource).toContain('status={agentStatus} placement="sidebar"');
+    expect(appSource).toContain("status={agentStatus}");
+    expect(appSource).toContain('placement="sidebar"');
     expect(appSource).not.toContain("runtimeOwnerPhase ? `has-runtime runtime-${runtimeOwnerPhase}` : \"\"");
     expect(cssSource).toContain(".sidebar-compact .journey-item.card-node.selected,");
     expect(cssSource).toContain(".sidebar-compact .journey-item.card-node.has-custom-appearance.selected");
