@@ -254,6 +254,14 @@ The union of the two sources (D3) was justified by a hole that does not exist. I
 
 If the shutdown hook does not run — a force quit, a crash — children would be orphaned while the next launch starts with an empty registry. **Both** sources would then be blind to a live Pi process. Whether that path is reachable is **unverified**; the only established facts are that the hook is the sole killer and that the registry is always fresh. It is a candidate CR, not a finding.
 
+### D6's new sentence is unreachable in the field
+
+The same exercise found a second overstatement, in the same CR. `journeyStartAvailability`'s refusal text reaches the surface only through `startUnavailableReason`, which is rendered when `journeyThreadState.kind === "absent"` (`App.tsx:5765`–`:5766`) — a Journey with no thread. **A Journey with no thread cannot hold a lease**, so `same_journey_occupied` cannot co-occur with the one surface that shows the sentence. D6's *"A conversation in this Journey already has native work in progress."* is therefore covered by unit guards and has no field trigger, exactly like CR127's D2.
+
+Acceptance criterion 6 is nonetheless met, and was met before this CR: `decideConversationAvailability` already returns `blocked("journey_lease_occupied", …)` rather than a false `Ready`. D6 was only the naming refinement, and it landed on a surface the condition cannot reach.
+
+Recommendation, not folded in: re-aim the locus-aware sentence onto the surface where an occupied *started* Journey is actually read — the conversation availability path — and leave the not-started refusal alone. That is a small follow-up and it is the Navigator's call whether it is worth its own CR.
+
 ### How this was caught
 
 By asking whether the field check I had written was provocable, before asking the Navigator to run it. A validation step that cannot fail is not a validation step, and writing one is what exposed the error.
