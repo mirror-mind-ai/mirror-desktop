@@ -9,7 +9,14 @@ import {
   type PiInvocationLeaseInspection,
   type PiInvocationOccupancyState,
 } from "../app/piInvocationOccupancy";
+import { journeyWorkspace } from "../app/journeyWorkspaceKey";
 import appSource from "../app/App.tsx?raw";
+
+// CR138: admission takes a workspace. The sentences under test are Journey-grained and stay
+// so, because the native admission grain is still the Journey.
+function workspaceOf(journeyId: string) {
+  return journeyWorkspace(journeyId, `${journeyId}-thread`);
+}
 
 function lease(journeyId: string): PiInvocationLeaseInspection {
   return {
@@ -54,14 +61,14 @@ describe("CR107 — starting a Journey that has not started yet", () => {
     // The defect this CR repairs: a global busy flag made every not-started Journey
     // unstartable while any other Journey worked. Native admission is Journey-aware, so a
     // lease elsewhere only matters through real capacity.
-    const elsewhere = derivePiInvocationAdmission(occupancy([lease("mirror-desktop")]), "vida-tecnica");
+    const elsewhere = derivePiInvocationAdmission(occupancy([lease("mirror-desktop")]), workspaceOf("vida-tecnica"));
 
     expect(elsewhere.allowed).toBe(true);
     expect(journeyStartAvailability({ ...ready, nativeAdmission: elsewhere })).toEqual({ canStart: true });
   });
 
   it("still waits when native capacity is genuinely exhausted", () => {
-    const full = derivePiInvocationAdmission(occupancy([lease("mirror-desktop")], 1), "vida-tecnica");
+    const full = derivePiInvocationAdmission(occupancy([lease("mirror-desktop")], 1), workspaceOf("vida-tecnica"));
 
     expect(full).toEqual({ allowed: false, reason: "global_capacity_reached" });
     expect(journeyStartAvailability({ ...ready, nativeAdmission: full })).toEqual({
@@ -72,7 +79,7 @@ describe("CR107 — starting a Journey that has not started yet", () => {
   });
 
   it("names a bounded inspection as waiting rather than as a refusal", () => {
-    const unknown = derivePiInvocationAdmission(createUnknownPiInvocationOccupancy(), "vida-tecnica");
+    const unknown = derivePiInvocationAdmission(createUnknownPiInvocationOccupancy(), workspaceOf("vida-tecnica"));
 
     expect(unknown).toEqual({ allowed: false, reason: "inspection_unknown" });
     expect(journeyStartAvailability({ ...ready, nativeAdmission: unknown })).toEqual({
@@ -92,7 +99,7 @@ describe("CR107 — starting a Journey that has not started yet", () => {
   });
 
   it("reports this Journey's own native work rather than a generic refusal", () => {
-    const same = derivePiInvocationAdmission(occupancy([lease("vida-tecnica")]), "vida-tecnica");
+    const same = derivePiInvocationAdmission(occupancy([lease("vida-tecnica")]), workspaceOf("vida-tecnica"));
 
     expect(same).toEqual({ allowed: false, reason: "same_journey_occupied" });
     expect(journeyStartAvailability({ ...ready, nativeAdmission: same }).unavailableReason)

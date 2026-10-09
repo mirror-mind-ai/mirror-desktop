@@ -2,9 +2,9 @@
 
 # CR138: Let the Inspection Carry Two Workspaces in One Journey
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs024-cr138-let-the-inspection-carry-two-workspaces`
 
 ## Friction
 
@@ -129,6 +129,57 @@ Renderer only. Introduce the workspace grain into occupancy parsing and runtime 
 - No narrowing of the turn/compaction exclusion.
 - No change to CR133's expansion, CR135's visibility, or CR137.
 - The two-workspace locus rule above is provisional and is CR140's to confirm on the surface.
+
+## Delivery Record (2026-10-09)
+
+Delivered on `refinement/rs024-cr138-let-the-inspection-carry-two-workspaces`, Driver `@alissonvale`.
+
+### Shipped shape
+
+- **New** `src/app/journeyWorkspaceKey.ts` — `JourneyWorkspace { journeyId, threadId: string | null }`, `runtimeWorkspaceKey` (`` `${journeyId}|${threadId ?? ""}` ``), `journeyWorkspace`, `workspaceOfAuthority`, `sameJourneyWorkspace`, `NATIVE_ADMISSION_GRAIN = "journey"`. `workspaceOfAuthority` is typed structurally on `{ journeyId, threadId }` because three unrelated authority records carry those coordinates and none should depend on this module.
+- `piInvocationOccupancy.ts` — uniqueness over workspace keys instead of Journey ids; `compareByWorkspace` so sibling order is stable; `derivePiInvocationAdmission(state, workspace, grain = NATIVE_ADMISSION_GRAIN)`; `hasActiveNativeExecution(state, workspace)` plus `hasActiveNativeExecutionInJourney(state, journeyId)`; `retainExpectedPiInvocationLease` filtering by workspace key; `same_workspace_occupied` added to the admission reason union.
+- `journeyRuntimeState.ts` — `entries` keyed by `runtimeWorkspaceKey`; the entry carries its own `workspace` and `workspaceKey`, which is what makes the internal write path correct by construction; `patch`/`append_warning`/`reset` take a `workspace`; `selectJourneyRuntimeEntries`; `selectJourneyRuntimeConversationInJourney`; `selectJourneyRuntimeOwnerPhase` returns `{ phase, identity }` as a Journey aggregate preferring `finalizing`; `identityWorkspace`; quarantine reason `serial_capacity_rejected` → `same_workspace_occupied`.
+- `journeyStartAvailability.ts` — a sentence for the new reason, unreachable today and written so it cannot fall through to silence when CR139 flips the grain.
+- `conversationAvailability.ts` — `same_workspace_occupied` typed and routed to the same `journey_lease_occupied` condition, because the two refusals differ in *whose* lease is in the way, not in the route out.
+- `App.tsx` — `selectedThreadId` hoisted and `selectedWorkspace` derived from it, with `selectedWorkspaceRef` for the effects; admission and the settlement exit ask about the workspace; post-terminal repair asks about the Journey; 15 dispatch sites addressed by workspace; the Journey list computes its phase once per row.
+
+### The admission grain held the line
+
+Nothing the Navigator can see changed. Under `NATIVE_ADMISSION_GRAIN = "journey"`, a sibling workspace is refused with today's `same_journey_occupied` and today's sentence — **including when the selected workspace is itself the one running**, where the sharper reason was tempting. A test asserts that explicitly and a second asserts the sharper reason only under the workspace grain.
+
+**One of the plan's own tests had to be corrected before it could pass.** It expected `same_workspace_occupied` for the Navigator's own workspace at the Journey grain, which contradicted the plan's contract two sections earlier. The test was wrong, not the contract.
+
+### A conflict inside the plan, found during delivery and resolved by preserving behaviour
+
+The plan said two things that cannot both hold: *re-key the runtime `entries` Record*, and *change nothing field-visible*. They conflict because re-keying decides **which surface sees a live stream**. Today one entry serves a Journey and its conversations alike, so a run started in a conversation is visible from the Journey root. Keying by workspace alone silently ends that.
+
+It was resolved in favour of the contract. `selectJourneyRuntime` looks up the exact workspace and, finding nothing, falls back to the Journey's single live entry. While the native registry admits one run per Journey there can only be one, so this reproduces today's behaviour exactly. **The fallback retires itself**: once two workspaces can run it finds two, declines to guess, and leaves the surface empty rather than showing a sibling's work — which is CR140's decision to make, not a default to inherit silently.
+
+Recorded as a reduction rather than left to be discovered: the arguably-better behaviour (the stream follows its owning workspace) was available and deliberately not taken here.
+
+### What the guards caught that review had missed
+
+- **A real defect.** `App.tsx` read `entries[authority.journeyId]` in the settlement-projection subscription — a site the plan's own table had enumerated and the implementation had skipped. The source guard failed and named it.
+- **Two suites that were asserting nothing.** `journeySettlement.test.ts` and `targetedJourneyInterruption.test.ts` compared `JSON.stringify(state.entries["journey-b"])` before and after. Keyed by Journey id those reads returned `undefined` on both sides and the comparison passed vacuously. They are now keyed by workspace and load-bearing again. This is the third vacuous assertion found in three CRs.
+- **A broken helper in a new guard.** `bodyOf()` slices from the first `{` after a signature, which for a function declaring an object return type is the *type's* brace, so it measured the type instead of the code. Fixed by preferring `") {"`.
+
+### One reclassification, pinned rather than absorbed
+
+`journeyRuntimeState.test.ts` rejects eight divergent authority fields. A divergent `threadId` now names a different workspace, so there is no run registered there and the rejection is `unknown_run` rather than `authority_mismatch`. The property the guard protects — the stale event never reaches the entry — holds for all eight. The expected reason is pinned **per field**, so the reclassification stays visible instead of being hidden behind a permissive matcher.
+
+### Tests
+
+New: `workspaceGrainedOccupancy.test.ts` (17), `workspaceGrainedRuntime.test.ts` (9), `settlementAbandonmentWorkspaceGrain.test.ts` (5), `runtimeWorkspaceKeying.test.ts` (10). Re-aimed, none deleted: `piInvocationOccupancy`, `journeyRuntimeState`, `journeyStartAvailability`, `postTerminalContinuityMatrix`, `strandedFinalizationRecovery`, `conversationDisclosureSeparation`, `journeyRuntimeIntegration`, `journeySettlement`, `targetedJourneyInterruption`.
+
+CR132's shared-predicate property was re-derived behaviourally, not argued: with a sibling executing, the exit for another workspace is offered, and the test keeps the Journey aggregate in the suite to show what it would have withheld.
+
+### Gates
+
+`npx tsc --noEmit` exit 0, read directly. **251 test files / 1,900 tests, all passing** (from 247/1,859). `git diff -- src-tauri/` is **0 lines**; `cargo test` 269 passed / 3 ignored, unchanged. `npm run build` and `npm run tauri:build:dev` clean. `roadmap:check` READY.
+
+### No field verification is owed
+
+Stated at planning and unchanged: Rust emits at most one entry per Journey until CR139, so no sequence the Navigator can perform exercises this change. Closed on tests by construction.
 
 ## Acceptance
 

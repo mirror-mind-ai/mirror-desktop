@@ -9,11 +9,23 @@ import {
   selectJourneyRuntimeOwnerPhase,
   type JourneyRunIdentity,
 } from "../app/journeyRuntimeState";
+import { journeyWorkspace, runtimeWorkspaceKey } from "../app/journeyWorkspaceKey";
 import { createDedicatedJourneyConversation, type JourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { createRunAuthority } from "../domain/runAuthority";
 import { stageCorrelatedTurn } from "../domain/threeBodyTurnCommit";
 import { readyThread } from "./fixtures/readyThread";
+
+// CR138: the runtime state is keyed by workspace. `readyThread` names its thread after the
+// Journey, so these fixtures have exactly one workspace per Journey — which is what the
+// native registry still enforces, so every verdict in this file is unchanged.
+function ws(journeyId: string) {
+  return journeyWorkspace(journeyId, `thread-${journeyId}`);
+}
+
+function entryKey(journeyId: string) {
+  return runtimeWorkspaceKey(ws(journeyId));
+}
 
 function identity(journeyId: string, runId = `run-${journeyId}`): JourneyRunIdentity {
   const thread = readyThread(journeyId);
@@ -70,21 +82,21 @@ describe("Journey-keyed frontend runtime state", () => {
   it("records the model the run started with and keeps it across the run", () => {
     const owner = identity("journey-a");
     let state = register(createInitialJourneyRuntimeState(), owner);
-    expect(selectJourneyRuntime(state, "journey-a").providerModel).toBe("claude-bridge/claude-opus-5");
+    expect(selectJourneyRuntime(state, ws("journey-a")).providerModel).toBe("claude-bridge/claude-opus-5");
     state = journeyRuntimeReducer(state, { type: "stream_started", identity: owner });
     state = journeyRuntimeReducer(state, {
       type: "stream_event", identity: owner, event: { type: "run_status", status: "completed" },
     });
     state = journeyRuntimeReducer(state, { type: "stream_finished", identity: owner });
     state = journeyRuntimeReducer(state, { type: "finalization_started", identity: owner });
-    expect(selectJourneyRuntime(state, "journey-a").providerModel).toBe("claude-bridge/claude-opus-5");
+    expect(selectJourneyRuntime(state, ws("journey-a")).providerModel).toBe("claude-bridge/claude-opus-5");
     // Cleanup is a no-op while finalization is still open, so the record survives until the
     // run is genuinely retired.
     state = journeyRuntimeReducer(state, { type: "cleanup", identity: owner });
-    expect(selectJourneyRuntime(state, "journey-a").providerModel).toBe("claude-bridge/claude-opus-5");
+    expect(selectJourneyRuntime(state, ws("journey-a")).providerModel).toBe("claude-bridge/claude-opus-5");
     state = journeyRuntimeReducer(state, { type: "finalization_finished", identity: owner });
     state = journeyRuntimeReducer(state, { type: "cleanup", identity: owner });
-    expect(selectJourneyRuntime(state, "journey-a").providerModel).toBeUndefined();
+    expect(selectJourneyRuntime(state, ws("journey-a")).providerModel).toBeUndefined();
   });
 
   it("routes stream presentation to the captured Journey independently of selection", () => {
@@ -96,14 +108,14 @@ describe("Journey-keyed frontend runtime state", () => {
     state = journeyRuntimeReducer(state, { type: "stream_event", identity: owner, event: { type: "diagnostic", message: "diagnostic-a" } });
     state = journeyRuntimeReducer(state, { type: "stream_event", identity: owner, event: { type: "context_usage", usage: { tokens: 10, contextWindow: 100, percent: 10 } } });
 
-    expect(selectJourneyRuntime(state, "journey-a")).toMatchObject({
+    expect(selectJourneyRuntime(state, ws("journey-a"))).toMatchObject({
       isStreaming: true,
       warnings: ["warning-a"],
       diagnostics: ["diagnostic-a"],
       streamedAssistantContent: "A",
       runtimeProjection: { contextUsage: { tokens: 10, contextWindow: 100, percent: 10 } },
     });
-    expect(selectJourneyRuntime(state, "journey-b")).toMatchObject({ isStreaming: false, warnings: [], diagnostics: [] });
+    expect(selectJourneyRuntime(state, ws("journey-b"))).toMatchObject({ isStreaming: false, warnings: [], diagnostics: [] });
     expect(hasActiveOrFinalizingJourneyRuntime(state)).toBe(true);
   });
 
@@ -116,8 +128,8 @@ describe("Journey-keyed frontend runtime state", () => {
     state = register(state, replacement);
     state = journeyRuntimeReducer(state, { type: "stream_event", identity: first, event: { type: "diagnostic", message: "private stale output" } });
 
-    expect(selectJourneyRuntime(state, "journey-a").identity).toEqual(replacement);
-    expect(selectJourneyRuntime(state, "journey-a").diagnostics).toEqual([]);
+    expect(selectJourneyRuntime(state, ws("journey-a")).identity).toEqual(replacement);
+    expect(selectJourneyRuntime(state, ws("journey-a")).diagnostics).toEqual([]);
     expect(state.quarantine).toEqual([expect.objectContaining({ journeyId: "journey-a", runId: "run-a1", reason: "authority_mismatch" })]);
     expect(JSON.stringify(state.quarantine)).not.toContain("private stale output");
   });
@@ -131,7 +143,7 @@ describe("Journey-keyed frontend runtime state", () => {
     };
     let state = register(createInitialJourneyRuntimeState(), current);
     state = journeyRuntimeReducer(state, { type: "stream_event", identity: stale, event: { type: "diagnostic", message: "stale" } });
-    expect(selectJourneyRuntime(state, "journey-a").diagnostics).toEqual([]);
+    expect(selectJourneyRuntime(state, ws("journey-a")).diagnostics).toEqual([]);
     expect(state.quarantine.at(-1)).toMatchObject({ journeyId: "journey-b", reason: "unknown_run" });
   });
 
@@ -153,8 +165,14 @@ describe("Journey-keyed frontend runtime state", () => {
     };
     let state = register(createInitialJourneyRuntimeState(), current);
     state = journeyRuntimeReducer(state, { type: "stream_event", identity: stale, event: { type: "warning", message: "stale" } });
-    expect(selectJourneyRuntime(state, "journey-a").warnings).toEqual([]);
-    expect(state.quarantine.at(-1)?.reason).toBe("authority_mismatch");
+    expect(selectJourneyRuntime(state, ws("journey-a")).warnings).toEqual([]);
+    // CR138: a divergent threadId now names a *different workspace*, so no run is registered
+    // there at all and the rejection is `unknown_run` rather than `authority_mismatch`. The
+    // property this guard protects is the assertion above — the stale event never reaches the
+    // entry — and that holds for all eight fields. The reason is pinned per field so the
+    // reclassification stays visible instead of being absorbed by a permissive matcher.
+    expect(state.quarantine.at(-1)?.reason)
+      .toBe(field === "threadId" ? "unknown_run" : "authority_mismatch");
   });
 
   it("bounds quarantine metadata without retaining rejected payloads", () => {
@@ -178,16 +196,18 @@ describe("Journey-keyed frontend runtime state", () => {
     const duplicate = identity("journey-a", "run-a2");
     let state = register(createInitialJourneyRuntimeState(), first);
     state = register(state, second);
-    expect(state.entries["journey-a"]?.identity).toEqual(first);
-    expect(state.entries["journey-b"]?.identity).toEqual(second);
+    expect(state.entries[entryKey("journey-a")]?.identity).toEqual(first);
+    expect(state.entries[entryKey("journey-b")]?.identity).toEqual(second);
 
     const rejected = register(state, duplicate);
-    expect(rejected.entries["journey-a"]?.identity).toEqual(first);
-    expect(rejected.entries["journey-b"]?.identity).toEqual(second);
+    expect(rejected.entries[entryKey("journey-a")]?.identity).toEqual(first);
+    expect(rejected.entries[entryKey("journey-b")]?.identity).toEqual(second);
     expect(rejected.quarantine.at(-1)).toMatchObject({
       journeyId: "journey-a",
       runId: "run-a2",
-      reason: "serial_capacity_rejected",
+      // CR138: the refusal is no longer about a Journey's serial capacity but about one
+      // workspace already holding a run. Same verdict, truthful name.
+      reason: "same_workspace_occupied",
     });
   });
 
@@ -217,19 +237,21 @@ describe("Journey-keyed frontend runtime state", () => {
       event: { type: "done" },
     });
 
+    // CR138: the key is the workspace, so the shape of these keys changes while the property
+    // under test — four independent owners, no sibling mutation — does not.
     expect(Object.keys(state.entries).sort()).toEqual([
-      "journey-a",
-      "journey-b",
-      "journey-c",
-      "journey-d",
+      entryKey("journey-a"),
+      entryKey("journey-b"),
+      entryKey("journey-c"),
+      entryKey("journey-d"),
     ]);
-    expect(state.entries["journey-a"]?.agentRun.status).toBe("completed");
-    expect(state.entries["journey-b"]?.warnings).toEqual(["B only"]);
-    expect(state.entries["journey-c"]?.agentRun.status).toBe("cancelled");
-    expect(state.entries["journey-d"]?.streamedAssistantContent).toBe("D only");
-    expect(state.entries["journey-a"]?.warnings).toEqual([]);
-    expect(state.entries["journey-b"]?.streamedAssistantContent).toBe("");
-    expect(state.entries["journey-d"]?.warnings).toEqual([]);
+    expect(state.entries[entryKey("journey-a")]?.agentRun.status).toBe("completed");
+    expect(state.entries[entryKey("journey-b")]?.warnings).toEqual(["B only"]);
+    expect(state.entries[entryKey("journey-c")]?.agentRun.status).toBe("cancelled");
+    expect(state.entries[entryKey("journey-d")]?.streamedAssistantContent).toBe("D only");
+    expect(state.entries[entryKey("journey-a")]?.warnings).toEqual([]);
+    expect(state.entries[entryKey("journey-b")]?.streamedAssistantContent).toBe("");
+    expect(state.entries[entryKey("journey-d")]?.warnings).toEqual([]);
   });
 
   it("enters finalizing immediately when Pi reports terminal agent settlement", () => {
@@ -241,10 +263,10 @@ describe("Journey-keyed frontend runtime state", () => {
       event: { type: "run_status", status: "completed" },
     });
 
-    expect(state.entries["journey-a"]?.agentRun.status).toBe("completed");
-    expect(state.entries["journey-a"]?.isStreaming).toBe(false);
-    expect(state.entries["journey-a"]?.isFinalizingTurn).toBe(true);
-    expect(selectJourneyRuntimeOwnerPhase(state, "journey-a")).toBe("finalizing");
+    expect(state.entries[entryKey("journey-a")]?.agentRun.status).toBe("completed");
+    expect(state.entries[entryKey("journey-a")]?.isStreaming).toBe(false);
+    expect(state.entries[entryKey("journey-a")]?.isFinalizingTurn).toBe(true);
+    expect(selectJourneyRuntimeOwnerPhase(state, "journey-a")?.phase).toBe("finalizing");
   });
 
   it("routes interleaved events to two active Journey owners", () => {
@@ -263,10 +285,10 @@ describe("Journey-keyed frontend runtime state", () => {
       event: { type: "warning", message: "A only" },
     });
 
-    expect(state.entries["journey-a"]?.warnings).toEqual(["A only"]);
-    expect(state.entries["journey-a"]?.streamedAssistantContent).toBe("");
-    expect(state.entries["journey-b"]?.warnings).toEqual([]);
-    expect(state.entries["journey-b"]?.streamedAssistantContent).toBe("B only");
+    expect(state.entries[entryKey("journey-a")]?.warnings).toEqual(["A only"]);
+    expect(state.entries[entryKey("journey-a")]?.streamedAssistantContent).toBe("");
+    expect(state.entries[entryKey("journey-b")]?.warnings).toEqual([]);
+    expect(state.entries[entryKey("journey-b")]?.streamedAssistantContent).toBe("B only");
   });
 
   it("requires authority-matching cleanup and preserves active or finalizing entries", () => {
@@ -279,14 +301,14 @@ describe("Journey-keyed frontend runtime state", () => {
     state = journeyRuntimeReducer(state, { type: "stream_finished", identity: first });
     state = register(state, replacement);
     const afterStaleCleanup = journeyRuntimeReducer(state, { type: "cleanup", identity: first });
-    expect(afterStaleCleanup.entries["journey-a"]?.identity).toEqual(replacement);
+    expect(afterStaleCleanup.entries[entryKey("journey-a")]?.identity).toEqual(replacement);
   });
 
   it("keeps cancellation requested while the native route remains streaming", () => {
     const owner = identity("journey-a");
     let state = register(createInitialJourneyRuntimeState(), owner);
     state = journeyRuntimeReducer(state, { type: "cancel_requested", identity: owner, message: "Pi invocation cancelled." });
-    expect(selectJourneyRuntime(state, "journey-a")).toMatchObject({
+    expect(selectJourneyRuntime(state, ws("journey-a"))).toMatchObject({
       isStreaming: true,
       agentRun: { status: "cancelled" },
       runtimeProjection: { status: "cancelled" },
@@ -298,16 +320,16 @@ describe("Journey-keyed frontend runtime state", () => {
   it("derives running and finalizing sidebar state only for the owning Journey", () => {
     const owner = identity("journey-a");
     let state = register(createInitialJourneyRuntimeState(), owner);
-    expect(selectJourneyRuntimeOwnerPhase(state, "journey-a")).toBe("running");
-    expect(selectJourneyRuntimeOwnerPhase(state, "journey-b")).toBeUndefined();
+    expect(selectJourneyRuntimeOwnerPhase(state, "journey-a")?.phase).toBe("running");
+    expect(selectJourneyRuntimeOwnerPhase(state, "journey-b")?.phase).toBeUndefined();
 
     state = journeyRuntimeReducer(state, { type: "stream_event", identity: owner, event: { type: "done" } });
     state = journeyRuntimeReducer(state, { type: "stream_finished", identity: owner });
     state = journeyRuntimeReducer(state, { type: "finalization_started", identity: owner });
-    expect(selectJourneyRuntimeOwnerPhase(state, "journey-a")).toBe("finalizing");
+    expect(selectJourneyRuntimeOwnerPhase(state, "journey-a")?.phase).toBe("finalizing");
     state = journeyRuntimeReducer(state, { type: "finalization_finished", identity: owner });
-    expect(selectJourneyRuntimeOwnerPhase(state, "journey-a")).toBeUndefined();
-    expect(selectJourneyRuntimeConversation(state, "journey-a", 1)).toBeUndefined();
+    expect(selectJourneyRuntimeOwnerPhase(state, "journey-a")?.phase).toBeUndefined();
+    expect(selectJourneyRuntimeConversation(state, ws("journey-a"), 1)).toBeUndefined();
   });
 
   it("keeps an identity-bound owner conversation snapshot across presentation changes", () => {
@@ -317,12 +339,12 @@ describe("Journey-keyed frontend runtime state", () => {
     let state = register(createInitialJourneyRuntimeState(), owner, initial);
     state = journeyRuntimeReducer(state, { type: "conversation_snapshot", identity: owner, conversation: updated });
 
-    expect(selectJourneyRuntimeConversation(state, "journey-a", initial.liveIdentity.generation)).toEqual(updated);
-    expect(selectJourneyRuntimeConversation(state, "journey-b", initial.liveIdentity.generation)).toBeUndefined();
+    expect(selectJourneyRuntimeConversation(state, ws("journey-a"), initial.liveIdentity.generation)).toEqual(updated);
+    expect(selectJourneyRuntimeConversation(state, ws("journey-b"), initial.liveIdentity.generation)).toBeUndefined();
 
     const stale = identity("journey-a", "stale-run");
     state = journeyRuntimeReducer(state, { type: "conversation_snapshot", identity: stale, conversation: initial });
-    expect(selectJourneyRuntimeConversation(state, "journey-a", initial.liveIdentity.generation)).toEqual(updated);
+    expect(selectJourneyRuntimeConversation(state, ws("journey-a"), initial.liveIdentity.generation)).toEqual(updated);
     expect(state.quarantine.at(-1)?.reason).toBe("authority_mismatch");
   });
 
@@ -338,7 +360,7 @@ describe("Journey-keyed frontend runtime state", () => {
       conversation: foreign,
     });
 
-    expect(selectJourneyRuntimeConversation(state, "journey-a", 1)).toEqual(original);
+    expect(selectJourneyRuntimeConversation(state, ws("journey-a"), 1)).toEqual(original);
     expect(state.quarantine.at(-1)).toMatchObject({
       journeyId: "journey-a",
       runId: "run-a1",
@@ -363,7 +385,7 @@ describe("Journey-keyed frontend runtime state", () => {
     };
     let state = register(createInitialJourneyRuntimeState(), owner, original);
     state = journeyRuntimeReducer(state, { type: "conversation_snapshot", identity: owner, conversation: divergent });
-    expect(selectJourneyRuntimeConversation(state, "journey-a", 1)).toEqual(original);
+    expect(selectJourneyRuntimeConversation(state, ws("journey-a"), 1)).toEqual(original);
     expect(state.quarantine.at(-1)?.reason).toBe("authority_mismatch");
   });
 
@@ -383,13 +405,13 @@ describe("Journey-keyed frontend runtime state", () => {
       identity: owner,
       conversation: wrongGeneration,
     });
-    expect(selectJourneyRuntimeConversation(state, "journey-a", 1)).not.toEqual(wrongGeneration);
+    expect(selectJourneyRuntimeConversation(state, ws("journey-a"), 1)).not.toEqual(wrongGeneration);
     expect(state.quarantine.at(-1)?.reason).toBe("authority_mismatch");
   });
 
   it("keeps mock identity keyed without live authority", () => {
     const mock: JourneyRunIdentity = { kind: "mock", journeyId: "journey-mock", runId: "mock-1" };
     const state = register(createInitialJourneyRuntimeState(), mock);
-    expect(selectJourneyRuntime(state, "journey-mock").identity).toEqual(mock);
+    expect(selectJourneyRuntime(state, journeyWorkspace("journey-mock", null)).identity).toEqual(mock);
   });
 });

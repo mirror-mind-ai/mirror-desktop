@@ -71,6 +71,7 @@ import {
   derivePiInvocationAdmission,
   failPiInvocationReconciliation,
   hasActiveNativeExecution,
+  hasActiveNativeExecutionInJourney,
   hasBlockingPiInvocationOccupancy,
   isActivePiInvocationLease,
   piInvocationAuthorityFromRunAuthority,
@@ -197,6 +198,9 @@ import { createProductionFinalizationPorts } from "./turnFinalizationPorts";
 import { createSettlementTimingRegistry, timeFinalizationPorts } from "./settlementPhaseTiming";
 import { appendSettlementTiming } from "./settlementTimingStorage";
 import { settlementAbandonmentOffer } from "./settlementAbandonment";
+import {
+  journeyWorkspace, runtimeWorkspaceKey, workspaceOfAuthority, type JourneyWorkspace,
+} from "./journeyWorkspaceKey";
 import type { FinishingPhasePresentation } from "./ComposerRuntimeFooter";
 
 // CR119: one collector per Journey while its turn is being settled. Timing is accumulated in
@@ -270,8 +274,10 @@ import {
   isJourneyRuntimeActiveOrFinalizing,
   isJourneyRuntimeStreaming,
   journeyRuntimeReducer,
+  identityWorkspace,
   selectJourneyRuntime,
-  selectJourneyRuntimeConversation,
+  selectJourneyRuntimeConversationInJourney,
+  selectJourneyRuntimeEntries,
   selectJourneyRuntimeOwnerPhase,
   type JourneyRunIdentity,
 } from "./journeyRuntimeState";
@@ -918,6 +924,9 @@ export function App({ model }: AppProps) {
   const artifactNavigationSequenceRef = useRef(0);
   const conversationRef = useRef<JourneyConversation>(conversation);
   const selectedJourneyRef = useRef(selectedJourney);
+  // CR138: the selected workspace as the effects see it. Assigned where the workspace is derived,
+  // below, because it depends on the selected conversation entry and the Journey's root thread.
+  const selectedWorkspaceRef = useRef<JourneyWorkspace>(journeyWorkspace(selectedJourney, null));
   // CR133: an in-flight catalog load is abandoned when its own disclosure closes, never
   // because the Navigator went to another Journey.
   const expandedConversationJourneyIdsRef = useRef(expandedConversationJourneyIds);
@@ -966,7 +975,7 @@ export function App({ model }: AppProps) {
    * `list_turn_journal` per Journey on screen — pinned, active and recent — not per Journey known.
    */
   const sidebarOutcomeKey = visibleSidebarJourneys
-    .map((journey) => `${journey.id}:${selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id) ?? "-"}`)
+    .map((journey) => `${journey.id}:${selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id)?.phase ?? "-"}`)
     .join("|");
   const [journeyTurnOutcomes, setJourneyTurnOutcomes] = useState<Record<string, JourneyTurnOutcome | undefined>>({});
   useEffect(() => {
@@ -1037,13 +1046,19 @@ export function App({ model }: AppProps) {
     mirrorCommitErrors,
     syncAttention.attention ? exactSettlementErrors : {},
   );
+  // CR138: the workspace the Navigator is looking at — the Journey plus the thread of the selected
+  // conversation, or the Journey's root thread when the Journey workspace itself is selected. Every
+  // runtime and occupancy question about "here" is asked about this, not about the Journey alone.
+  const selectedThreadId = selectedConversationEntry?.kind === "desktop_conversation"
+    ? selectedConversationEntry.threadId
+    : selectedJourneyCatalog.rootThreadId;
+  const selectedWorkspace = journeyWorkspace(selectedJourney, selectedThreadId ?? null);
+  selectedWorkspaceRef.current = selectedWorkspace;
   const navigationPresentation = deriveJourneyNavigationPresentation({
     runtimeState: journeyRuntimeState,
     selectedJourneyId: selectedJourney,
     loadedConversation: conversation,
-    selectedThreadId: selectedConversationEntry?.kind === "desktop_conversation"
-      ? selectedConversationEntry.threadId
-      : selectedJourneyCatalog.rootThreadId,
+    selectedThreadId,
     mirrorCommitErrors: projectedMirrorCommitErrors,
   });
   const selectedRuntime = navigationPresentation.selectedRuntime;
@@ -1051,14 +1066,23 @@ export function App({ model }: AppProps) {
   // and its `mock` variant carries none — so the native registry inspection is the reliable
   // carrier of which workspace owns the work. Both sources are per-process; see CR134's
   // Correction of 2026-10-09.
+  // CR138: with two workspaces live in one Journey the aggregate has to choose whose work it is
+  // reporting. The selected workspace's own run wins when it is live, because that is the work the
+  // Navigator is looking at; otherwise the aggregate's choice stands, so the Journey row still says
+  // that something is running inside it. CR140 owns confirming this on the surface.
+  const selectedJourneyRuntimePhase = selectJourneyRuntimeOwnerPhase(journeyRuntimeState, selectedJourney);
+  const selectedWorkspaceRuntime = selectJourneyRuntime(journeyRuntimeState, selectedWorkspace);
+  const selectedJourneyRuntimeIdentity = isJourneyRuntimeActiveOrFinalizing(selectedWorkspaceRuntime)
+    ? selectedWorkspaceRuntime.identity
+    : selectedJourneyRuntimePhase?.identity;
   const selectedJourneyWork = deriveJourneyWorkLocus({
     occupancy: piInvocationOccupancy,
     journeyId: selectedJourney,
     journeyRootThreadId: resolveJourneyRootThreadId(
       journeyRootThreadIds, selectedJourneyCatalog.rootThreadId, selectedJourney,
     ),
-    runtimePhase: selectJourneyRuntimeOwnerPhase(journeyRuntimeState, selectedJourney),
-    runtimeIdentity: journeyRuntimeState.entries[selectedJourney]?.identity,
+    runtimePhase: selectedJourneyRuntimePhase?.phase,
+    runtimeIdentity: selectedJourneyRuntimeIdentity,
   });
   const selectedAgentStatus = deriveJourneyAgentStatus({
     runtimePhase: selectedJourneyWork?.phase,
@@ -1089,7 +1113,7 @@ export function App({ model }: AppProps) {
   const showTransientStreamWarning = Boolean(
     terminalStreamWarningKey && terminalStreamWarningKey !== dismissedStreamWarningKey,
   );
-  const piInvocationPresentation = derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney);
+  const piInvocationPresentation = derivePiInvocationAdmission(piInvocationOccupancy, selectedWorkspace);
   const runtimeBindingReady = runtimeChannel?.status === "validated";
   // CR107: whether this Journey can be started, and why not when it cannot. The reason has to
   // travel to the not-started surface, because every composer notice is hidden there.
@@ -1275,8 +1299,10 @@ export function App({ model }: AppProps) {
     return () => clearInterval(handle);
   }, [composerTurnStatus]);
   const abandonSettlementOffer = settlementAbandonmentOffer({
-    ownerPhase: selectJourneyRuntimeOwnerPhase(journeyRuntimeState, selectedJourney),
-    nativeExecutionActive: hasActiveNativeExecution(piInvocationOccupancy, selectedJourney),
+    ownerPhase: selectedJourneyRuntimePhase?.phase,
+    // CR138: the workspace form, never the Journey aggregate. A sibling conversation executing must
+    // not withhold this workspace's exit from a settlement that will not end.
+    nativeExecutionActive: hasActiveNativeExecution(piInvocationOccupancy, selectedWorkspace),
     occupancyKnown: piInvocationOccupancy.status === "known",
     finishingSince: finishingPhases[selectedJourney]?.since,
     now: finishingTick,
@@ -1407,7 +1433,7 @@ export function App({ model }: AppProps) {
     void piProcessEventDispatcher.mount().catch((error) => {
       dispatchJourneyRuntime({
         type: "append_warning",
-        journeyId: selectedJourneyRef.current,
+        workspace: selectedWorkspaceRef.current,
         message: `Could not attach to the Pi process event stream: ${error instanceof Error ? error.message : String(error)}`,
       });
     });
@@ -1452,14 +1478,14 @@ export function App({ model }: AppProps) {
       }).catch(() => {
         dispatchJourneyRuntime({
           type: "append_warning",
-          journeyId: recoveredAuthority.journeyId,
+          workspace: workspaceOfAuthority(recoveredAuthority),
           message: "settlement_route_rehydration_failed",
         });
       });
     } catch {
       dispatchJourneyRuntime({
         type: "append_warning",
-        journeyId: selectedActiveNativeLease.authority.journeyId,
+        workspace: workspaceOfAuthority(selectedActiveNativeLease.authority),
         message: "settlement_authority_mismatch",
       });
     }
@@ -2486,7 +2512,9 @@ export function App({ model }: AppProps) {
       return;
     }
     const authority = event.authority;
-    const entryIdentity = journeyRuntimeStateRef.current.entries[authority.journeyId]?.identity;
+    // CR138: the settlement event carries the thread, so the entry is addressed by workspace.
+    const entryIdentity = journeyRuntimeStateRef.current
+      .entries[runtimeWorkspaceKey(workspaceOfAuthority(authority))]?.identity;
     if (entryIdentity?.kind === "live"
       && entryIdentity.authority.runId === authority.runId
       && entryIdentity.authority.generation === authority.generation) {
@@ -2909,14 +2937,14 @@ export function App({ model }: AppProps) {
       if (preflightBlocked) {
         const message = "Live invocation stopped because Journey conversation authority changed or is still being inspected. Reconcile the selected Journey and try again.";
         setUnsentDraftNotices((current) => recordUnsentDraft(current, selectedJourney, message));
-        dispatchJourneyRuntime({ type: "append_warning", journeyId: selectedJourney, message });
+        dispatchJourneyRuntime({ type: "append_warning", workspace: selectedWorkspace, message });
         return;
       }
       const modelRejection = unavailableModelReason(piModelCatalog, effectiveAgentProfile.model);
       if (modelRejection) {
         const message = `Live invocation stopped: ${modelRejection}`;
         setUnsentDraftNotices((current) => recordUnsentDraft(current, selectedJourney, message));
-        dispatchJourneyRuntime({ type: "append_warning", journeyId: selectedJourney, message });
+        dispatchJourneyRuntime({ type: "append_warning", workspace: selectedWorkspace, message });
         return;
       }
       const durableMetadata = await loadDedicatedJourneyConversation(
@@ -2931,7 +2959,7 @@ export function App({ model }: AppProps) {
         || !journeyThreadState.activeGeneration.piSessionFile) {
         const message = "Live invocation stopped because exact Conversation metadata or Pi session authority changed.";
         setUnsentDraftNotices((current) => recordUnsentDraft(current, selectedJourney, message));
-        dispatchJourneyRuntime({ type: "append_warning", journeyId: selectedJourney, message });
+        dispatchJourneyRuntime({ type: "append_warning", workspace: selectedWorkspace, message });
         return;
       }
       try {
@@ -2950,7 +2978,7 @@ export function App({ model }: AppProps) {
       } catch (error) {
         const message = `Live invocation stopped because the Pi transcript could not be inspected: ${error instanceof Error ? error.message : String(error)}`;
         setUnsentDraftNotices((current) => recordUnsentDraft(current, selectedJourney, message));
-        dispatchJourneyRuntime({ type: "append_warning", journeyId: selectedJourney, message });
+        dispatchJourneyRuntime({ type: "append_warning", workspace: selectedWorkspace, message });
         return;
       }
     }
@@ -2999,7 +3027,7 @@ export function App({ model }: AppProps) {
     } catch (error) {
       const message = `Live invocation stopped because run authority could not be built: ${error instanceof Error ? error.message : String(error)}`;
       setUnsentDraftNotices((current) => recordUnsentDraft(current, selectedJourney, message));
-      dispatchJourneyRuntime({ type: "append_warning", journeyId: selectedJourney, message });
+      dispatchJourneyRuntime({ type: "append_warning", workspace: selectedWorkspace, message });
       return;
     }
     const settlementAuthority = runAuthority
@@ -3288,7 +3316,7 @@ export function App({ model }: AppProps) {
           );
           dispatchJourneyRuntime({
             type: "patch",
-            journeyId: ownerJourneyId,
+            workspace: identityWorkspace(runtimeIdentity),
             identity: runtimeIdentity,
             patch: {
               missionDraft: normalized.missionDraft,
@@ -3359,7 +3387,9 @@ export function App({ model }: AppProps) {
                   dispatchJourneyRuntime({ type: "cleanup", identity: runtimeIdentity });
                   const message = `Message returned to the composer: ${resolveUnsentReason(preAgentProviderWarnings, preAgentFailureMessage)}`;
                   setUnsentDraftNotices((current) => recordUnsentDraft(current, ownerJourneyId, message));
-                  dispatchJourneyRuntime({ type: "append_warning", journeyId: ownerJourneyId, message });
+                  dispatchJourneyRuntime({
+                    type: "append_warning", workspace: identityWorkspace(runtimeIdentity), message,
+                  });
                 },
               });
             }
@@ -3371,7 +3401,7 @@ export function App({ model }: AppProps) {
             const rollbackMessage = `Message returned to the composer after rollback failed: ${resolveUnsentReason(preAgentProviderWarnings, error instanceof Error ? error.message : String(error))}`;
             setUnsentDraftNotices((current) => recordUnsentDraft(current, ownerJourneyId, rollbackMessage));
             dispatchJourneyRuntime({
-              type: "append_warning", journeyId: ownerJourneyId, identity: runtimeIdentity,
+              type: "append_warning", workspace: identityWorkspace(runtimeIdentity), identity: runtimeIdentity,
               message: rollbackMessage,
             });
           }
@@ -3450,7 +3480,7 @@ export function App({ model }: AppProps) {
             }
           } catch (error) {
             dispatchJourneyRuntime({
-              type: "append_warning", journeyId: ownerJourneyId, identity: runtimeIdentity,
+              type: "append_warning", workspace: identityWorkspace(runtimeIdentity), identity: runtimeIdentity,
               message: error instanceof Error ? error.message : String(error),
             });
           }
@@ -3729,9 +3759,12 @@ export function App({ model }: AppProps) {
     // forever — so the repair route declined exactly the state it exists to heal, and the
     // Navigator had no way out but quitting. Native occupancy is the authority on whether work
     // is live; a merely `finalizing` lease means the process is gone and bookkeeping is owed.
-    if (hasActiveNativeExecution(piInvocationOccupancy, ownerJourneyId)) return;
-    const ownerEntry = journeyRuntimeStateRef.current.entries[ownerJourneyId];
-    if (ownerEntry && isJourneyRuntimeStreaming(ownerEntry)) return;
+    // CR138: Journey-grained deliberately. This repair touches the Journey's durable bookkeeping,
+    // so any workspace in it that is still executing must hold it off, not only the one that
+    // stalled.
+    if (hasActiveNativeExecutionInJourney(piInvocationOccupancy, ownerJourneyId)) return;
+    if (selectJourneyRuntimeEntries(journeyRuntimeStateRef.current, ownerJourneyId)
+      .some(isJourneyRuntimeStreaming)) return;
     postTerminalRecoveryRef.current = true;
     setIsRetryingMirrorCommit(true);
     beginSyncAttempt(ownerJourneyId);
@@ -3788,7 +3821,7 @@ export function App({ model }: AppProps) {
     } catch (error) {
       dispatchJourneyRuntime({
         type: "append_warning",
-        journeyId: identity.authority.journeyId,
+        workspace: identityWorkspace(identity),
         identity,
         message: `Steering was not staged: ${error instanceof Error ? error.message : String(error)}`,
       });
@@ -3815,7 +3848,7 @@ export function App({ model }: AppProps) {
       await saveDedicatedJourneyConversation(rejected).catch(() => undefined);
       dispatchJourneyRuntime({
         type: "append_warning",
-        journeyId: identity.authority.journeyId,
+        workspace: identityWorkspace(identity),
         identity,
         message: `Steering was rejected: ${error instanceof Error ? error.message : String(error)}`,
       });
@@ -3937,7 +3970,7 @@ export function App({ model }: AppProps) {
       setFileAttachmentMaxFiles(MAX_FILE_ATTACHMENTS);
       setFileAttachmentError(undefined);
       setFileDropActive(false);
-      dispatchJourneyRuntime({ type: "reset", journeyId: ownerJourneyId });
+      dispatchJourneyRuntime({ type: "reset", workspace: selectedWorkspace });
       setPiContextState("not_initialized");
       setJourneyPreferences((preferences) => markJourneyRecent(preferences, ownerJourneyId));
       setRestartConfirmationOpen(false);
@@ -4402,9 +4435,10 @@ export function App({ model }: AppProps) {
     // opened, and no longer discards its loaded catalog. Both are per-Journey state now.
     setInactiveNativeAttempt(undefined);
 
-    const runtimeEntry = selectJourneyRuntime(journeyRuntimeState, journeyId);
+    // CR138: Journey-grained — the target Journey's thread is not resolved yet at this point.
+    const runtimeEntry = selectJourneyRuntime(journeyRuntimeState, journeyWorkspace(journeyId, null));
     const runtimeSnapshot = runtimeEntry.conversationSnapshot
-      ? selectJourneyRuntimeConversation(
+      ? selectJourneyRuntimeConversationInJourney(
           journeyRuntimeState,
           journeyId,
           runtimeEntry.conversationSnapshot.liveIdentity.generation,
@@ -5348,14 +5382,15 @@ export function App({ model }: AppProps) {
             const appearance = journeyAppearanceById[journey.id];
             const hasChildren = (journey.children?.length ?? 0) > 0;
             const collapsed = collapsedJourneyIds.has(journey.id);
+            const journeyRuntimePhase = selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id);
             const journeyWork = deriveJourneyWorkLocus({
               occupancy: piInvocationOccupancy,
               journeyId: journey.id,
               journeyRootThreadId: resolveJourneyRootThreadId(
                 journeyRootThreadIds, journeyCatalogState(conversationCatalogs, journey.id).rootThreadId, journey.id,
               ),
-              runtimePhase: selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id),
-              runtimeIdentity: journeyRuntimeState.entries[journey.id]?.identity,
+              runtimePhase: journeyRuntimePhase?.phase,
+              runtimeIdentity: journeyRuntimePhase?.identity,
             });
             const journeyWorkOwner = journeyWork?.owner;
             const agentStatus = deriveJourneyAgentStatus({

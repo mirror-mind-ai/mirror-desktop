@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+// CR138: these reads were addressed by Journey id. Keyed by workspace they assert again;
+// left as they were, `JSON.stringify(undefined)` on both sides would have passed vacuously.
+import { journeyWorkspace, runtimeWorkspaceKey } from "../app/journeyWorkspaceKey";
 import { startAgentRun } from "../agent/agentRun";
 import { cancelExactJourneyRun } from "../app/journeyCancellation";
 import {
@@ -135,7 +138,7 @@ describe("targeted concurrent Journey interruption", () => {
       identity: b,
       event: { type: "message_delta", content: "B remains alive" },
     });
-    const bBefore = JSON.stringify(state.entries["journey-b"]);
+    const bBefore = JSON.stringify(state.entries[runtimeWorkspaceKey(journeyWorkspace("journey-b", "thread-journey-b"))]);
 
     state = journeyRuntimeReducer(state, {
       type: "cancel_requested",
@@ -154,8 +157,8 @@ describe("targeted concurrent Journey interruption", () => {
     });
     state = journeyRuntimeReducer(state, { type: "stream_finished", identity: a });
 
-    expect(state.entries["journey-a"]?.agentRun.status).toBe("cancelled");
-    expect(state.entries["journey-a"]?.runtimeProjection.status).toBe("cancelled");
-    expect(JSON.stringify(state.entries["journey-b"])).toBe(bBefore);
+    expect(state.entries[runtimeWorkspaceKey(journeyWorkspace("journey-a", "thread-journey-a"))]?.agentRun.status).toBe("cancelled");
+    expect(state.entries[runtimeWorkspaceKey(journeyWorkspace("journey-a", "thread-journey-a"))]?.runtimeProjection.status).toBe("cancelled");
+    expect(JSON.stringify(state.entries[runtimeWorkspaceKey(journeyWorkspace("journey-b", "thread-journey-b"))])).toBe(bBefore);
   });
 });

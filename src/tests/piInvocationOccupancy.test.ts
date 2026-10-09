@@ -13,6 +13,9 @@ import {
   type PiInvocationAuthorityInspection,
   type PiInvocationRegistryInspection,
 } from "../app/piInvocationOccupancy";
+// CR138: admission is asked about a workspace. These verdicts are Journey-grained and stay
+// Journey-grained, because `NATIVE_ADMISSION_GRAIN` is still "journey".
+import { journeyWorkspace } from "../app/journeyWorkspaceKey";
 
 const authority: PiInvocationAuthorityInspection = {
   schemaVersion: "0.1.0",
@@ -107,7 +110,7 @@ describe("native Pi invocation occupancy", () => {
     const finalized = applyPiInvocationInspection(beginPiInvocationReconciliation(createUnknownPiInvocationOccupancy(), 1), 1, inspection());
     expect(finalized.entries[0]?.leasePhase).toBe("finalizing");
     expect(hasBlockingPiInvocationOccupancy(finalized)).toBe(false);
-    expect(derivePiInvocationAdmission(finalized, "journey-a")).toEqual({
+    expect(derivePiInvocationAdmission(finalized, journeyWorkspace("journey-a", "thread-a"))).toEqual({
       allowed: true,
       reason: null,
     });
@@ -130,12 +133,12 @@ describe("native Pi invocation occupancy", () => {
     );
     expect(finalized.status).toBe("known");
     expect(hasBlockingPiInvocationOccupancy(finalized)).toBe(false);
-    expect(derivePiInvocationAdmission(finalized, "journey-a")).toEqual({ allowed: true, reason: null });
+    expect(derivePiInvocationAdmission(finalized, journeyWorkspace("journey-a", "thread-a"))).toEqual({ allowed: true, reason: null });
   });
 
   it("derives same-Journey occupancy and global capacity only from open process entries", () => {
     const unknown = createUnknownPiInvocationOccupancy();
-    expect(derivePiInvocationAdmission(unknown, "journey-b")).toEqual({
+    expect(derivePiInvocationAdmission(unknown, journeyWorkspace("journey-b", "thread-b"))).toEqual({
       allowed: false,
       reason: "inspection_unknown",
     });
@@ -145,11 +148,11 @@ describe("native Pi invocation occupancy", () => {
       1,
       inspection({ limit: 2 }),
     );
-    expect(derivePiInvocationAdmission(limitTwoWithFinalizationDebt, "journey-a")).toEqual({
+    expect(derivePiInvocationAdmission(limitTwoWithFinalizationDebt, journeyWorkspace("journey-a", "thread-a"))).toEqual({
       allowed: true,
       reason: null,
     });
-    expect(derivePiInvocationAdmission(limitTwoWithFinalizationDebt, "journey-b")).toEqual({
+    expect(derivePiInvocationAdmission(limitTwoWithFinalizationDebt, journeyWorkspace("journey-b", "thread-b"))).toEqual({
       allowed: true,
       reason: null,
     });
@@ -166,11 +169,11 @@ describe("native Pi invocation occupancy", () => {
       harnessAssistantMessageId: "assistant-b1",
     };
     const oneActive = retainExpectedPiInvocationLease(limitTwoWithFinalizationDebt, authorityB);
-    expect(derivePiInvocationAdmission(oneActive, "journey-b")).toEqual({
+    expect(derivePiInvocationAdmission(oneActive, journeyWorkspace("journey-b", "thread-b"))).toEqual({
       allowed: false,
       reason: "same_journey_occupied",
     });
-    expect(derivePiInvocationAdmission(oneActive, "journey-c")).toEqual({
+    expect(derivePiInvocationAdmission(oneActive, journeyWorkspace("journey-c", "thread-c"))).toEqual({
       allowed: true,
       reason: null,
     });
@@ -182,7 +185,7 @@ describe("native Pi invocation occupancy", () => {
       1,
       inspection(),
     );
-    expect(derivePiInvocationAdmission(limitOne, "journey-b")).toEqual({
+    expect(derivePiInvocationAdmission(limitOne, journeyWorkspace("journey-b", "thread-b"))).toEqual({
       allowed: true,
       reason: null,
     });

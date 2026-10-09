@@ -133,7 +133,10 @@ describe("CR133: selection and visibility are separately operable", () => {
   // before, now read from the selected Journey's own catalog rather than a global singleton.
   it("derives the selected thread coordinate from the selected Journey's catalog", () => {
     expect(appSource).toContain("const selectedJourneyCatalog = journeyCatalogState(conversationCatalogs, selectedJourney);");
-    expect(appSource).toContain("      : selectedJourneyCatalog.rootThreadId,");
+    // CR138: the same coordinate, now hoisted into `selectedThreadId` because the selected
+    // workspace is derived from it as well as passed to the navigation presentation.
+    expect(appSource).toContain("    : selectedJourneyCatalog.rootThreadId;");
+    expect(appSource).toContain("selectedThreadId,");
     expect(appSource).toContain("const selectedConversationSpace = resolveSelectedConversationSpace(conversationSelection, selectedJourney);");
   });
 

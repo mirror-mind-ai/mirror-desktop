@@ -2,6 +2,12 @@ export type NativeConversationAdmission =
   | "allowed"
   | "inspection_unknown"
   | "same_journey_occupied"
+  /**
+   * CR138: the workspace-grained refusal. Unreachable while the native admission grain is the
+   * Journey, and typed now so that flipping the grain cannot make a real refusal fall through the
+   * availability chain unnamed.
+   */
+  | "same_workspace_occupied"
   | "global_capacity_reached";
 
 export type ConversationAvailabilityCondition =
@@ -80,7 +86,11 @@ export function decideConversationAvailability(
   if (input.nativeAdmission === "inspection_unknown") {
     return blocked("native_authority_unknown", "inspect_native_authority");
   }
-  if (input.nativeAdmission === "same_journey_occupied") {
+  if (input.nativeAdmission === "same_journey_occupied"
+    || input.nativeAdmission === "same_workspace_occupied") {
+    // CR138: both refusals mean "wait for the lease that is in the way". They differ in *whose*
+    // lease it is, which is a sentence on the surface rather than a different route out, so the
+    // availability condition stays the same one. CR140 decides how the surface distinguishes them.
     return blocked("journey_lease_occupied", "wait_for_journey_lease");
   }
   if (input.nativeAdmission === "global_capacity_reached") {

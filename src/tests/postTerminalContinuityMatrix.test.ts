@@ -8,6 +8,7 @@ import {
   releaseAndReinspectPiInvocationLease,
   type PiInvocationRegistryInspection,
 } from "../app/piInvocationOccupancy";
+import { journeyWorkspace, workspaceOfAuthority } from "../app/journeyWorkspaceKey";
 import {
   projectJourneySettlementErrors,
   updateExactSettlementError,
@@ -29,7 +30,9 @@ const coordinates = POST_TERMINAL_OUTCOMES.flatMap((outcome) => (
   POST_TERMINAL_FRONTIERS.map((frontier) => [outcome, frontier] as const)
 ));
 
-function availability(nativeAdmission: "allowed" | "inspection_unknown" | "same_journey_occupied" | "global_capacity_reached", mirrorSynchronizationPending = false) {
+// CR138: the matrix is over the native refusals, and it gains the workspace-grained one so
+// that a reason the admission type can now produce cannot silently escape this matrix.
+function availability(nativeAdmission: "allowed" | "inspection_unknown" | "same_journey_occupied" | "same_workspace_occupied" | "global_capacity_reached", mirrorSynchronizationPending = false) {
   return decideConversationAvailability({
     runtimeBindingReady: true,
     conversationAuthorityReady: true,
@@ -44,7 +47,7 @@ describe("RS019 composed post-terminal continuity matrix", () => {
   it.each(coordinates)("keeps %s/%s debt non-blocking after exact native terminalization", (outcome, frontier) => {
     const old = rehearsalAuthority("journey-a", `old-${outcome}-${frontier}`);
     const occupancy = knownOccupancy([terminalLease(old, outcome)]);
-    const admission = derivePiInvocationAdmission(occupancy, old.journeyId);
+    const admission = derivePiInvocationAdmission(occupancy, workspaceOfAuthority(old));
     const providerCalls = 1;
 
     expect(hasBlockingPiInvocationOccupancy(occupancy)).toBe(false);
@@ -60,7 +63,7 @@ describe("RS019 composed post-terminal continuity matrix", () => {
 
     const successor = activeLease(rehearsalAuthority("journey-a", `successor-${outcome}-${frontier}`));
     const withSuccessor = knownOccupancy([successor]);
-    expect(derivePiInvocationAdmission(withSuccessor, "journey-a")).toEqual({
+    expect(derivePiInvocationAdmission(withSuccessor, journeyWorkspace("journey-a", "thread-journey-a"))).toEqual({
       allowed: false,
       reason: "same_journey_occupied",
     });
@@ -105,7 +108,7 @@ describe("RS019 composed post-terminal continuity matrix", () => {
     );
 
     expect(reconciled.entries).toEqual([activeLease(successor)]);
-    expect(derivePiInvocationAdmission(reconciled, "journey-a")).toEqual({
+    expect(derivePiInvocationAdmission(reconciled, journeyWorkspace("journey-a", "thread-journey-a"))).toEqual({
       allowed: false,
       reason: "same_journey_occupied",
     });
@@ -118,8 +121,8 @@ describe("RS019 composed post-terminal continuity matrix", () => {
       activeLease(rehearsalAuthority("journey-c", "run-c")),
     ], 4);
     expect(mixed.processCapacityInUse).toBe(1);
-    expect(derivePiInvocationAdmission(mixed, "journey-d")).toEqual({ allowed: true, reason: null });
-    expect(derivePiInvocationAdmission(mixed, "journey-c")).toEqual({
+    expect(derivePiInvocationAdmission(mixed, journeyWorkspace("journey-d", "thread-journey-d"))).toEqual({ allowed: true, reason: null });
+    expect(derivePiInvocationAdmission(mixed, journeyWorkspace("journey-c", "thread-journey-c"))).toEqual({
       allowed: false,
       reason: "same_journey_occupied",
     });
@@ -127,7 +130,7 @@ describe("RS019 composed post-terminal continuity matrix", () => {
     const full = knownOccupancy(["a", "b", "c", "d"].map((suffix) => (
       activeLease(rehearsalAuthority(`journey-${suffix}`, `run-${suffix}`))
     )), 4);
-    expect(derivePiInvocationAdmission(full, "journey-e")).toEqual({
+    expect(derivePiInvocationAdmission(full, journeyWorkspace("journey-e", "thread-journey-e"))).toEqual({
       allowed: false,
       reason: "global_capacity_reached",
     });
@@ -155,7 +158,7 @@ describe("RS019 composed post-terminal continuity matrix", () => {
 
   it("retains fail-closed behavior for unknown native authority", () => {
     const unknown = createUnknownPiInvocationOccupancy();
-    expect(derivePiInvocationAdmission(unknown, "journey-a")).toEqual({
+    expect(derivePiInvocationAdmission(unknown, journeyWorkspace("journey-a", "thread-journey-a"))).toEqual({
       allowed: false,
       reason: "inspection_unknown",
     });

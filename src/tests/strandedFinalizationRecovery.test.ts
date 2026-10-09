@@ -109,12 +109,16 @@ describe("CR116 — the repair route is reachable while finalization is stranded
   });
 
   it("refuses on native execution, which is the authority on whether Pi is working", () => {
-    expect(recovery).toContain("hasActiveNativeExecution(piInvocationOccupancy, ownerJourneyId)");
+    // CR138: re-aimed to the Journey-grained predicate. The behaviour this pins is unchanged —
+    // repair refuses while Pi is really executing — and it is now explicitly Journey-wide,
+    // because the repair touches the Journey's durable bookkeeping, not one workspace's.
+    expect(recovery).toContain("hasActiveNativeExecutionInJourney(piInvocationOccupancy, ownerJourneyId)");
     expect(recovery).toContain('piInvocationOccupancy.status !== "known"');
   });
 
   it("still refuses while this Journey's own run is streaming", () => {
-    expect(recovery).toContain("isJourneyRuntimeStreaming(ownerEntry)");
+    expect(recovery).toContain("selectJourneyRuntimeEntries(journeyRuntimeStateRef.current, ownerJourneyId)");
+    expect(recovery).toContain(".some(isJourneyRuntimeStreaming)");
   });
 
   it("keeps the CR115 property that convergence does not reconcile occupancy", () => {

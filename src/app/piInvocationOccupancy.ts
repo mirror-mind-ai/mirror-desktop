@@ -1,4 +1,11 @@
 import type { RunAuthority } from "../domain/runAuthority";
+import {
+  NATIVE_ADMISSION_GRAIN,
+  runtimeWorkspaceKey,
+  sameJourneyWorkspace,
+  workspaceOfAuthority,
+  type JourneyWorkspace,
+} from "./journeyWorkspaceKey";
 
 export interface PiInvocationAuthorityInspection {
   schemaVersion: "0.1.0";
@@ -45,7 +52,16 @@ export interface PiInvocationOccupancyState {
 
 export type PiInvocationAdmission =
   | { allowed: true; reason: null }
-  | { allowed: false; reason: "inspection_unknown" | "same_journey_occupied" | "global_capacity_reached" };
+  | {
+    allowed: false;
+    reason:
+      | "inspection_unknown"
+      /** CR138: the Journey-grained refusal, returned while the native registry is keyed by Journey. */
+      | "same_journey_occupied"
+      /** CR138: the workspace-grained refusal, reachable once the native grain is the workspace. */
+      | "same_workspace_occupied"
+      | "global_capacity_reached";
+  };
 
 export type SettlementRecoveryEvidence = PiInvocationAuthorityInspection;
 
@@ -176,9 +192,12 @@ export function validatePiInvocationRegistryInspection(
     return false;
   }
   const entries = value.entries as PiInvocationLeaseInspection[];
-  const journeys = new Set(entries.map((entry) => entry.authority.journeyId));
+  // CR138: one run per *workspace*, not one per Journey. The previous rule made two entries in one
+  // Journey invalid as a whole, which degraded the state to `unknown` and read as app-wide
+  // blocking — a lockout rather than concurrency. A workspace may still hold only one run.
+  const workspaces = new Set(entries.map((entry) => runtimeWorkspaceKey(workspaceOfAuthority(entry.authority))));
   const runs = new Set(entries.map((entry) => entry.authority.runId));
-  if (journeys.size !== entries.length || runs.size !== entries.length) return false;
+  if (workspaces.size !== entries.length || runs.size !== entries.length) return false;
   const capacityEntries = entries.filter((entry) => entry.processCapacityState !== "released").length;
   return capacityEntries === value.processCapacityInUse;
 }
@@ -228,9 +247,21 @@ export function applyPiInvocationInspection(
     requestId: null,
     limit: inspection.limit as 1 | 2 | 4,
     processCapacityInUse: inspection.processCapacityInUse,
-    entries: [...inspection.entries].sort((left, right) => left.authority.journeyId.localeCompare(right.authority.journeyId)),
+    entries: [...inspection.entries].sort(compareByWorkspace),
     diagnostic: null,
   };
+}
+
+/**
+ * CR138: ordering by Journey alone left two sibling workspaces in whatever order the native side
+ * happened to emit them, so the thread breaks the tie.
+ */
+function compareByWorkspace(
+  left: PiInvocationLeaseInspection,
+  right: PiInvocationLeaseInspection,
+): number {
+  return left.authority.journeyId.localeCompare(right.authority.journeyId)
+    || left.authority.threadId.localeCompare(right.authority.threadId);
 }
 
 export function failPiInvocationReconciliation(
@@ -255,7 +286,12 @@ export function retainExpectedPiInvocationLease(
   state: PiInvocationOccupancyState,
   authority: PiInvocationAuthorityInspection,
 ): PiInvocationOccupancyState {
-  const otherEntries = state.entries.filter((entry) => entry.authority.journeyId !== authority.journeyId);
+  // CR138: filtering by Journey here would erase a sibling workspace's lease while retaining this
+  // one. The lease being replaced is this workspace's own.
+  const retainedKey = runtimeWorkspaceKey(workspaceOfAuthority(authority));
+  const otherEntries = state.entries.filter((entry) => (
+    runtimeWorkspaceKey(workspaceOfAuthority(entry.authority)) !== retainedKey
+  ));
   const expectedEntry: PiInvocationLeaseInspection = {
     authority,
     leasePhase: "reserved",
@@ -263,8 +299,7 @@ export function retainExpectedPiInvocationLease(
     cancellationState: "none",
     terminalState: "open",
   };
-  const entries = [...otherEntries, expectedEntry]
-    .sort((left, right) => left.authority.journeyId.localeCompare(right.authority.journeyId));
+  const entries = [...otherEntries, expectedEntry].sort(compareByWorkspace);
   return {
     ...state,
     entries,
@@ -278,17 +313,29 @@ export function isActivePiInvocationLease(entry: PiInvocationLeaseInspection): b
     && (entry.processCapacityState === "reserved" || entry.processCapacityState === "running");
 }
 
+/**
+ * CR138: admission is asked about a workspace, but *answered* at the grain the native registry
+ * actually enforces. While `NATIVE_ADMISSION_GRAIN` is `"journey"` a sibling workspace is refused
+ * exactly as today, with today's reason, because the Rust registry would refuse the reservation
+ * anyway and the Navigator would receive the raw native error instead of this sentence.
+ *
+ * CR139 flips the constant; passing `grain` explicitly is for tests that need the other side.
+ */
 export function derivePiInvocationAdmission(
   state: PiInvocationOccupancyState,
-  journeyId: string,
+  workspace: JourneyWorkspace,
+  grain: "journey" | "workspace" = NATIVE_ADMISSION_GRAIN,
 ): PiInvocationAdmission {
   if (state.status !== "known" || state.limit === null || state.processCapacityInUse === null) {
     return { allowed: false, reason: "inspection_unknown" };
   }
-  if (state.entries.some((entry) => (
-    entry.authority.journeyId === journeyId && isActivePiInvocationLease(entry)
-  ))) {
-    return { allowed: false, reason: "same_journey_occupied" };
+  const active = state.entries.filter(isActivePiInvocationLease);
+  if (grain === "journey") {
+    if (active.some((entry) => entry.authority.journeyId === workspace.journeyId)) {
+      return { allowed: false, reason: "same_journey_occupied" };
+    }
+  } else if (active.some((entry) => sameJourneyWorkspace(workspaceOfAuthority(entry.authority), workspace))) {
+    return { allowed: false, reason: "same_workspace_occupied" };
   }
   if (state.processCapacityInUse >= state.limit) {
     return { allowed: false, reason: "global_capacity_reached" };
@@ -307,6 +354,21 @@ export function hasBlockingPiInvocationOccupancy(state: PiInvocationOccupancySta
  * is precisely when repair should be allowed to run.
  */
 export function hasActiveNativeExecution(
+  state: PiInvocationOccupancyState,
+  workspace: JourneyWorkspace,
+): boolean {
+  return state.entries.some((entry) => (
+    sameJourneyWorkspace(workspaceOfAuthority(entry.authority), workspace)
+    && isActivePiInvocationLease(entry)
+  ));
+}
+
+/**
+ * CR138: the same question asked of a whole Journey. CR134's status surfaces legitimately need
+ * this — the Journey row reports that work runs *somewhere inside* it — while a repair or an exit
+ * aimed at one workspace must use the workspace form, or a sibling's run would withhold it.
+ */
+export function hasActiveNativeExecutionInJourney(
   state: PiInvocationOccupancyState,
   journeyId: string,
 ): boolean {

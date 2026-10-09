@@ -3,10 +3,11 @@ import {
   hasActiveOrFinalizingJourneyRuntime,
   isJourneyRuntimeActiveOrFinalizing,
   selectJourneyRuntime,
-  selectJourneyRuntimeConversation,
+  selectJourneyRuntimeConversationInJourney,
   type JourneyRuntimeEntry,
   type JourneyRuntimeState,
 } from "./journeyRuntimeState";
+import { journeyWorkspace } from "./journeyWorkspaceKey";
 
 export type JourneyNavigationIntent = "pointer" | "keyboard-enter" | "keyboard-space" | "other";
 
@@ -98,7 +99,9 @@ export function resolveJourneyConversationRestore(
   generation: number,
   threadId?: string,
 ): { runtimeConversation?: JourneyConversation; allowPersistedRecovery: boolean } {
-  const selected = selectJourneyRuntimeConversation(state, journeyId, generation);
+  // CR138: Journey-grained on purpose — the thread filter below is this function's own job, and
+  // `threadId` is optional, so it cannot name a workspace before it has resolved one.
+  const selected = selectJourneyRuntimeConversationInJourney(state, journeyId, generation);
   const runtimeConversation = !threadId || selected?.id === threadId ? selected : undefined;
   return { runtimeConversation, allowPersistedRecovery: !runtimeConversation };
 }
@@ -110,11 +113,14 @@ export function deriveJourneyNavigationPresentation(input: {
   selectedThreadId?: string;
   mirrorCommitErrors?: Record<string, string | undefined>;
 }): JourneyNavigationPresentation {
-  const selectedRuntime = selectJourneyRuntime(input.runtimeState, input.selectedJourneyId);
+  const selectedRuntime = selectJourneyRuntime(
+    input.runtimeState,
+    journeyWorkspace(input.selectedJourneyId, input.selectedThreadId ?? null),
+  );
   const generation = selectedRuntime.conversationSnapshot?.liveIdentity.generation;
   const selectedRuntimeConversation = generation === undefined
     ? undefined
-    : selectJourneyRuntimeConversation(input.runtimeState, input.selectedJourneyId, generation);
+    : selectJourneyRuntimeConversationInJourney(input.runtimeState, input.selectedJourneyId, generation);
   const runtimeConversation = !input.selectedThreadId || selectedRuntimeConversation?.id === input.selectedThreadId
     ? selectedRuntimeConversation
     : undefined;

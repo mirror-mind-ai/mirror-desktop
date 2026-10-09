@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+// CR138: these reads were addressed by Journey id. Keyed by workspace they assert again;
+// left as they were, `JSON.stringify(undefined)` on both sides would have passed vacuously.
+import { journeyWorkspace, runtimeWorkspaceKey } from "../app/journeyWorkspaceKey";
 import { startAgentRun } from "../agent/agentRun";
 import {
   createJourneySettlementAuthority,
@@ -346,8 +349,8 @@ describe("interrupted and rejected reservation boundaries", () => {
         conversationSnapshot: candidate.projection,
       });
     }
-    const aBefore = JSON.stringify(runtime.entries["journey-a"]);
-    const bBefore = JSON.stringify(runtime.entries["journey-b"]);
+    const aBefore = JSON.stringify(runtime.entries[runtimeWorkspaceKey(journeyWorkspace("journey-a", "thread-journey-a"))]);
+    const bBefore = JSON.stringify(runtime.entries[runtimeWorkspaceKey(journeyWorkspace("journey-b", "thread-journey-b"))]);
     runtime = journeyRuntimeReducer(runtime, {
       type: "stream_event",
       identity: c.identity,
@@ -365,9 +368,9 @@ describe("interrupted and rejected reservation boundaries", () => {
       },
     });
 
-    expect(JSON.stringify(runtime.entries["journey-a"])).toBe(aBefore);
-    expect(JSON.stringify(runtime.entries["journey-b"])).toBe(bBefore);
-    expect(runtime.entries["journey-c"]).toBeUndefined();
+    expect(JSON.stringify(runtime.entries[runtimeWorkspaceKey(journeyWorkspace("journey-a", "thread-journey-a"))])).toBe(aBefore);
+    expect(JSON.stringify(runtime.entries[runtimeWorkspaceKey(journeyWorkspace("journey-b", "thread-journey-b"))])).toBe(bBefore);
+    expect(runtime.entries[runtimeWorkspaceKey(journeyWorkspace("journey-c", "thread-journey-c"))]).toBeUndefined();
     expect(runtime.quarantine).toEqual([]);
     expect(c.base.reconciliation.turns).toEqual([]);
     expect(c.base.messages).toEqual([]);
@@ -400,7 +403,7 @@ describe("interrupted and rejected reservation boundaries", () => {
     })).rejects.toThrow("rollback_reinspection_failed");
 
     expect(cleanupCalls).toBe(0);
-    expect(runtime.entries["journey-c"]?.warnings).toContain("capacity_reached");
-    expect(runtime.entries["journey-c"]?.conversationSnapshot?.reconciliation.turns).toHaveLength(1);
+    expect(runtime.entries[runtimeWorkspaceKey(journeyWorkspace("journey-c", "thread-journey-c"))]?.warnings).toContain("capacity_reached");
+    expect(runtime.entries[runtimeWorkspaceKey(journeyWorkspace("journey-c", "thread-journey-c"))]?.conversationSnapshot?.reconciliation.turns).toHaveLength(1);
   });
 });

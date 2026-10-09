@@ -24,7 +24,8 @@ describe("Journey runtime integration guardrails", () => {
     expect(selection).not.toContain("runtimeBusy");
     expect(selection).not.toContain("dispatchJourneyRuntime");
     expect(appSource).toContain("draggable={journeyListOrder === \"tree\" && !runtimeBusy}");
-    expect(appSource).toContain("derivePiInvocationAdmission(piInvocationOccupancy, selectedJourney)");
+    // CR138: admission is asked about the selected workspace, not the selected Journey.
+    expect(appSource).toContain("derivePiInvocationAdmission(piInvocationOccupancy, selectedWorkspace)");
     expect(appSource).toContain("|| invocationAdmissionBlocked || runStartReservationRef.current");
     expect(appSource).not.toContain("liveInvocationPreflightRef");
     expect(appSource).not.toContain("|| reconciliationBlocksInvocation ||");

@@ -61,6 +61,14 @@ function startRefusal(
           : "This Journey already has native work in progress.",
         waiting: true,
       };
+    // CR138: unreachable while `NATIVE_ADMISSION_GRAIN` is `"journey"`, and written now so the
+    // sharper reason has a sentence waiting for it rather than falling through to silence when
+    // CR139 flips the grain.
+    case "same_workspace_occupied":
+      return {
+        unavailableReason: "This conversation already has native work in progress.",
+        waiting: true,
+      };
     case "global_capacity_reached":
       return { unavailableReason: "All native Pi slots are in use. Starting becomes available once one is free.", waiting: true };
   }

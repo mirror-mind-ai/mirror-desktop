@@ -14,6 +14,12 @@ import {
   reduceRuntimeProjection,
   type RuntimeProjectionState,
 } from "./runtimeActivityModel";
+import {
+  journeyWorkspace,
+  runtimeWorkspaceKey,
+  workspaceOfAuthority,
+  type JourneyWorkspace,
+} from "./journeyWorkspaceKey";
 
 const QUARANTINE_LIMIT = 20;
 
@@ -23,6 +29,13 @@ export type JourneyRunIdentity =
 
 export type JourneyRuntimeEntry = {
   journeyId: string;
+  /**
+   * CR138: the key this entry is stored under. Carrying it on the entry is what makes the internal
+   * `replaceEntry` correct by construction — it can no longer re-derive a Journey-grained key and
+   * silently overwrite a sibling workspace.
+   */
+  workspaceKey: string;
+  workspace: JourneyWorkspace;
   identity?: JourneyRunIdentity;
   agentRun: AgentRunState;
   isStreaming: boolean;
@@ -43,10 +56,16 @@ export type JourneyRuntimeEntry = {
 export type JourneyRuntimeQuarantineItem = {
   journeyId: string;
   runId: string;
-  reason: "authority_mismatch" | "unknown_run" | "serial_capacity_rejected";
+  /**
+   * CR138: `serial_capacity_rejected` described the Journey grain truthfully and would describe
+   * the workspace grain falsely — the refusal is no longer about a Journey's serial capacity but
+   * about one workspace already holding a run.
+   */
+  reason: "authority_mismatch" | "unknown_run" | "same_workspace_occupied";
 };
 
 export type JourneyRuntimeState = {
+  /** CR138: keyed by `runtimeWorkspaceKey`, not by Journey id. */
   entries: Record<string, JourneyRuntimeEntry>;
   quarantine: JourneyRuntimeQuarantineItem[];
 };
@@ -74,18 +93,20 @@ export type JourneyRuntimeAction =
   | { type: "cancel_requested"; identity: JourneyRunIdentity; message: string }
   | { type: "finalization_started"; identity: JourneyRunIdentity }
   | { type: "finalization_finished"; identity: JourneyRunIdentity }
-  | { type: "patch"; journeyId: string; identity?: JourneyRunIdentity; patch: RuntimePatch }
-  | { type: "append_warning"; journeyId: string; identity?: JourneyRunIdentity; message: string }
-  | { type: "reset"; journeyId: string }
+  | { type: "patch"; workspace: JourneyWorkspace; identity?: JourneyRunIdentity; patch: RuntimePatch }
+  | { type: "append_warning"; workspace: JourneyWorkspace; identity?: JourneyRunIdentity; message: string }
+  | { type: "reset"; workspace: JourneyWorkspace }
   | { type: "cleanup"; identity: JourneyRunIdentity };
 
 export function createInitialJourneyRuntimeState(): JourneyRuntimeState {
   return { entries: {}, quarantine: [] };
 }
 
-export function createEmptyJourneyRuntime(journeyId: string): JourneyRuntimeEntry {
+export function createEmptyJourneyRuntime(workspace: JourneyWorkspace): JourneyRuntimeEntry {
   return {
-    journeyId,
+    journeyId: workspace.journeyId,
+    workspace,
+    workspaceKey: runtimeWorkspaceKey(workspace),
     agentRun: initialAgentRunState,
     isStreaming: false,
     isFinalizingTurn: false,
@@ -101,17 +122,18 @@ export function journeyRuntimeReducer(
   action: JourneyRuntimeAction,
 ): JourneyRuntimeState {
   if (action.type === "register") {
-    const journeyId = identityJourneyId(action.identity);
-    const existing = state.entries[journeyId];
+    const workspace = identityWorkspace(action.identity);
+    const workspaceKey = runtimeWorkspaceKey(workspace);
+    const existing = state.entries[workspaceKey];
     if (existing && isJourneyRuntimeActiveOrFinalizing(existing)) {
-      return quarantine(state, action.identity, "serial_capacity_rejected");
+      return quarantine(state, action.identity, "same_workspace_occupied");
     }
     return {
       ...state,
       entries: {
         ...state.entries,
-        [journeyId]: {
-          ...createEmptyJourneyRuntime(journeyId),
+        [workspaceKey]: {
+          ...createEmptyJourneyRuntime(workspace),
           identity: action.identity,
           agentRun: action.run,
           isStreaming: true,
@@ -127,7 +149,8 @@ export function journeyRuntimeReducer(
   }
 
   if (action.type === "patch" || action.type === "append_warning") {
-    const current = state.entries[action.journeyId] ?? createEmptyJourneyRuntime(action.journeyId);
+    const current = state.entries[runtimeWorkspaceKey(action.workspace)]
+      ?? createEmptyJourneyRuntime(action.workspace);
     if (action.identity && !sameJourneyRunIdentity(current.identity, action.identity)) {
       return quarantine(state, action.identity, current.identity ? "authority_mismatch" : "unknown_run");
     }
@@ -137,17 +160,18 @@ export function journeyRuntimeReducer(
   }
 
   if (action.type === "reset") {
-    const current = state.entries[action.journeyId];
+    const resetKey = runtimeWorkspaceKey(action.workspace);
+    const current = state.entries[resetKey];
     if (!current) return state;
     if (current.isStreaming || current.isFinalizingTurn || current.agentRun.status === "running") return state;
     const entries = { ...state.entries };
-    delete entries[action.journeyId];
+    delete entries[resetKey];
     return { ...state, entries };
   }
 
   const identity = action.identity;
-  const journeyId = identityJourneyId(identity);
-  const current = state.entries[journeyId];
+  const workspaceKey = runtimeWorkspaceKey(identityWorkspace(identity));
+  const current = state.entries[workspaceKey];
   if (!current) return quarantine(state, identity, "unknown_run");
   if (!sameJourneyRunIdentity(current.identity, identity)) {
     return quarantine(state, identity, "authority_mismatch");
@@ -184,15 +208,46 @@ export function journeyRuntimeReducer(
   if (action.type === "cleanup") {
     if (current.isStreaming || current.isFinalizingTurn || current.agentRun.status === "running") return state;
     const entries = { ...state.entries };
-    delete entries[journeyId];
+    delete entries[workspaceKey];
     return { ...state, entries };
   }
 
   return replaceEntry(state, reduceEntryFromStreamEvent(current, action.event));
 }
 
-export function selectJourneyRuntime(state: JourneyRuntimeState, journeyId: string): JourneyRuntimeEntry {
-  return state.entries[journeyId] ?? createEmptyJourneyRuntime(journeyId);
+/**
+ * CR138: the runtime entry for one workspace.
+ *
+ * The fallback is deliberate and temporary. Re-keying the entries changes *which surface sees a
+ * live stream*: today a run registered anywhere in a Journey is visible from that Journey's root,
+ * because one entry served the Journey and its conversations alike. Keying by workspace alone
+ * would silently end that, and CR138's contract is that nothing changes in the field. While the
+ * native registry admits at most one run per Journey there can be only one live entry, so falling
+ * back to it reproduces today's behaviour exactly.
+ *
+ * It retires itself. Once two workspaces can run, the fallback finds two and declines to guess,
+ * leaving the surface empty rather than showing a sibling's work — and CR140 owns the decision
+ * about what that surface should say.
+ */
+export function selectJourneyRuntime(
+  state: JourneyRuntimeState,
+  workspace: JourneyWorkspace,
+): JourneyRuntimeEntry {
+  const exact = state.entries[runtimeWorkspaceKey(workspace)];
+  if (exact) return exact;
+  const live = selectJourneyRuntimeEntries(state, workspace.journeyId)
+    .filter(isJourneyRuntimeActiveOrFinalizing);
+  return live.length === 1 ? live[0] : createEmptyJourneyRuntime(workspace);
+}
+
+/** CR138: every workspace entry belonging to one Journey, for the aggregates that need them all. */
+export function selectJourneyRuntimeEntries(
+  state: JourneyRuntimeState,
+  journeyId: string,
+): JourneyRuntimeEntry[] {
+  return Object.values(state.entries)
+    .filter((entry) => entry.journeyId === journeyId)
+    .sort((left, right) => left.workspaceKey.localeCompare(right.workspaceKey));
 }
 
 export function hasActiveOrFinalizingJourneyRuntime(state: JourneyRuntimeState): boolean {
@@ -215,22 +270,56 @@ export function isJourneyRuntimeStreaming(entry: JourneyRuntimeEntry): boolean {
 
 export type JourneyRuntimeOwnerPhase = "running" | "finalizing";
 
+/**
+ * CR138: a Journey-level aggregate, which is what CR134's status surfaces need — the Journey row
+ * must report that work runs somewhere inside it even when that workspace is not selected. With
+ * two live workspaces it also names *which* one it is reporting, so the surface is never left to
+ * guess an owner.
+ *
+ * `finalizing` wins over `running` because a settlement that will not end is the state the
+ * Navigator needs to see; CR132's exit is attached to it.
+ */
 export function selectJourneyRuntimeOwnerPhase(
   state: JourneyRuntimeState,
   journeyId: string,
-): JourneyRuntimeOwnerPhase | undefined {
-  const entry = state.entries[journeyId];
-  if (!entry) return undefined;
-  if (entry.isFinalizingTurn) return "finalizing";
-  return entry.isStreaming || entry.agentRun.status === "running" ? "running" : undefined;
+): { phase: JourneyRuntimeOwnerPhase; identity?: JourneyRunIdentity } | undefined {
+  const entries = selectJourneyRuntimeEntries(state, journeyId);
+  const finalizing = entries.find((entry) => entry.isFinalizingTurn);
+  if (finalizing) return { phase: "finalizing", identity: finalizing.identity };
+  const running = entries.find((entry) => entry.isStreaming || entry.agentRun.status === "running");
+  return running ? { phase: "running", identity: running.identity } : undefined;
 }
 
 export function selectJourneyRuntimeConversation(
   state: JourneyRuntimeState,
+  workspace: JourneyWorkspace,
+  generation: number,
+): JourneyConversation | undefined {
+  return conversationOfEntry(state.entries[runtimeWorkspaceKey(workspace)], generation);
+}
+
+/**
+ * CR138: the same question asked of a Journey rather than a workspace. Navigation restore and the
+ * selected-surface presentation both look a Journey up and then filter by thread themselves, so
+ * they need the Journey form; asking for a workspace would require them to know the thread before
+ * they have resolved it.
+ */
+export function selectJourneyRuntimeConversationInJourney(
+  state: JourneyRuntimeState,
   journeyId: string,
   generation: number,
 ): JourneyConversation | undefined {
-  const entry = state.entries[journeyId];
+  for (const entry of selectJourneyRuntimeEntries(state, journeyId)) {
+    const found = conversationOfEntry(entry, generation);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+function conversationOfEntry(
+  entry: JourneyRuntimeEntry | undefined,
+  generation: number,
+): JourneyConversation | undefined {
   const snapshot = entry?.conversationSnapshot;
   if (!entry?.identity || !snapshot || !isJourneyRuntimeActiveOrFinalizing(entry)
     || snapshot.liveIdentity.generation !== generation) return undefined;
@@ -239,6 +328,16 @@ export function selectJourneyRuntimeConversation(
 
 export function identityJourneyId(identity: JourneyRunIdentity): string {
   return identity.kind === "live" ? identity.authority.journeyId : identity.journeyId;
+}
+
+/**
+ * CR138: a mock identity carries no thread, so it keys to its Journey alone. A mock and a live run
+ * never share a session, so the Journey-only key cannot collide with a real workspace key.
+ */
+export function identityWorkspace(identity: JourneyRunIdentity): JourneyWorkspace {
+  return identity.kind === "live"
+    ? workspaceOfAuthority(identity.authority)
+    : journeyWorkspace(identity.journeyId, null);
 }
 
 export function identityRunId(identity: JourneyRunIdentity): string {
@@ -317,7 +416,7 @@ function reduceEntryFromStreamEvent(entry: JourneyRuntimeEntry, event: AgentStre
 }
 
 function replaceEntry(state: JourneyRuntimeState, entry: JourneyRuntimeEntry): JourneyRuntimeState {
-  return { ...state, entries: { ...state.entries, [entry.journeyId]: entry } };
+  return { ...state, entries: { ...state.entries, [entry.workspaceKey]: entry } };
 }
 
 function quarantine(
