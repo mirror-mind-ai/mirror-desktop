@@ -12,7 +12,24 @@ Refinement authority; SQLite must not be consulted or dual-written.
 
 ## Current Focus
 
-- Refinement Story: RS016
+- Refinement Story: RS023
+- Change Request: CR133 is the next pull. RS023 was promoted from CR109 on 2026-10-08, after the
+  Navigator prioritised it as the last fragile point of the app. The characterisation recorded in
+  the Story showed its four symptoms are not one change: `expandJourneyConversations` selects before
+  it expands, one `Record<journeyId, Entry>` serves a Journey and its conversations alike, the
+  sidebar's *Show N more* is the app's truncation cap rather than a Navigator choice, and the Rust
+  registry indexes `entries` by `journey_id`. The first three are renderer and preference work,
+  independently releasable; the fourth is an authority change in Rust, so CR136 is gated behind the
+  other three reaching the field. CR133 goes first because it is the fix for the reported
+  instability — losing access to work in flight
+- Note: this index orders open work intentionally, but the numeric Order column has collisions
+  (Order 1 and 4 are held by terminal and open rows alike), so CR133–CR136 carry `—` like every CR
+  added since CR126 and their priority is recorded here instead. Reconciling that column is an open
+  Workbench decision, not a correction this entry made
+- Note: CR107, CR108 and CR111 had documents and no index row at all, the same gap CR109 had. All
+  three are `done` and were already listed in RS021's own index with Driver and Delivery, so their
+  rows were added as a factual repair rather than a scope decision. `npm run roadmap:check` did not
+  catch any of the four, because `scripts/roadmap_consistency.mjs` never reads CR documents
 - Change Request: CR121 and CR123 are `done` and their field readings are recorded in
   `docs/update/alpha-36-production-reading-2026-10-05.md`: CR123 verified outright, with
   `livro-lideranca-soberana` writing its first receipt at `historicalMessageCount: 344`, the value
@@ -168,6 +185,7 @@ executes work.
 | 20 | [RS020](rs020-convergent-turn-synchronization/index.md) | Convergent Turn Synchronization | closed |
 | 21 | [RS021](rs021-ux-pre-beta-evolution/index.md) | UX Pre-Beta Evolution | active |
 | 22 | [RS022](rs022-mirror-core-debts/index.md) | Mirror Core Debts | active |
+| 23 | [RS023](rs023-conversations-as-first-class-workspaces/index.md) | Conversations as First-Class Workspaces | active |
 
 ## Change Requests
 
@@ -175,6 +193,14 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
+| — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | captured | — | — |
+| — | [CR134](rs023-conversations-as-first-class-workspaces/cr134-name-the-workspace-that-owns-the-work.md) | RS023 | Name the Workspace That Owns the Work | captured | — | — |
+| — | [CR135](rs023-conversations-as-first-class-workspaces/cr135-let-the-navigator-hide-a-conversation-without-deleting-it.md) | RS023 | Let the Navigator Hide a Conversation Without Deleting It | captured | — | — |
+| — | [CR136](rs023-conversations-as-first-class-workspaces/cr136-admit-concurrent-work-inside-one-journey.md) | RS023 | Admit Concurrent Work Inside One Journey | captured | — | — |
+| — | [CR109](rs021-ux-pre-beta-evolution/cr109-make-conversations-first-class-workspaces.md) | RS021 | Make Conversations First-Class Workspaces | promoted | — | `RS023 / CR133–CR136` |
+| — | [CR107](rs021-ux-pre-beta-evolution/cr107-make-existing-journeys-startable.md) | RS021 | Make Existing Journeys Startable | done | @alissonvale | `refinement/rs021-cr107-startable-journeys` |
+| — | [CR108](rs021-ux-pre-beta-evolution/cr108-stop-one-unrecoverable-turn-from-blocking-recovery.md) | RS021 | Stop One Unrecoverable Turn from Blocking Recovery | done | @alissonvale | `refinement/rs021-cr107-startable-journeys` |
+| — | [CR111](rs021-ux-pre-beta-evolution/cr111-preserve-agent-comment-trail-across-turns.md) | RS021 | Preserve the Agent Comment Trail Across Turns | done | @alissonvale | `refinement/rs021-cr111-agent-comment-trail` |
 | — | [CR126](rs016-ongoing-product-improvements-and-adjustments/cr126-stop-a-correction-from-becoming-its-own-turn.md) | RS016 | Stop a Correction From Becoming Its Own Turn | done | @alissonvale | `refinement/rs016-cr126-corrected-turn-request-identity` |
 | — | [CR127](rs016-ongoing-product-improvements-and-adjustments/cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) | RS016 | Let a Journey's First Turn Settle Without a Receipt It Cannot Have | done | — | — |
 | — | [CR129](rs016-ongoing-product-improvements-and-adjustments/cr129-let-a-recovered-settlement-say-it-happened.md) | RS016 | Let a Recovered Settlement Say It Happened | captured | — | — |

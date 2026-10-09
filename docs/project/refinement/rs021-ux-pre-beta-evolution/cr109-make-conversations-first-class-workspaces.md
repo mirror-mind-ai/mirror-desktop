@@ -2,9 +2,11 @@
 
 # CR109: Make Conversations First-Class Workspaces
 
-**Status:** captured
+**Status:** promoted
 **Driver:** —
-**Delivery:** —
+**Delivery:** `RS023 / CR133–CR136`
+
+> **Promoted 2026-10-08.** The Navigator prioritised this CR as the last fragile point of the app, and the characterisation recorded below showed that its four symptoms are not one change: three are renderer and preference work, independently releasable, with no authority change, while the fourth is an authority change in Rust. It became [RS023: Conversations as First-Class Workspaces](../rs023-conversations-as-first-class-workspaces/index.md), whose CRs are [CR133](../rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md), [CR134](../rs023-conversations-as-first-class-workspaces/cr134-name-the-workspace-that-owns-the-work.md), [CR135](../rs023-conversations-as-first-class-workspaces/cr135-let-the-navigator-hide-a-conversation-without-deleting-it.md) and [CR136](../rs023-conversations-as-first-class-workspaces/cr136-admit-concurrent-work-inside-one-journey.md). The Framing and the verified characterisation now live in the Story, which is where an outcome spanning several releases belongs. This document is kept whole as the record of why the promotion happened.
 
 ## Friction
 

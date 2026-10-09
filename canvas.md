@@ -4,13 +4,17 @@
 
 | Item | Estado | Progresso |
 | --- | --- | --- |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa · 🎯 foco | `████████░░` 36 ✅ · 2 🟡 · 4 ↗️ · 1 ⛔ · de 43 |
+| **RS023 · Conversations as First-Class Workspaces** | 🔄 ativa · 🎯 foco · promovida da CR109 | `░░░░░░░░░░` 0 ✅ · 4 🟡 · de 4 |
+| ↳　CR133 · Stop a Disclosure From Selecting a Journey | 🟡 captured · sem Driver · próxima puxada | `░░░░░░░░░░` |
+| ↳　CR134 · Name the Workspace That Owns the Work | 🟡 captured · sem Driver | `░░░░░░░░░░` |
+| ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | 🟡 captured · sem Driver | `░░░░░░░░░░` |
+| ↳　CR136 · Admit Concurrent Work Inside One Journey | 🟡 captured · sem Driver · portão: só após CR133–CR135 em campo | `░░░░░░░░░░` |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 36 ✅ · 2 🟡 · 4 ↗️ · 1 ⛔ · de 43 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
-| **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 28 ✅ · 3 🟡 · 1 ⏸️ · de 32 |
+| **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |
-| ↳　CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · sem Driver | `░░░░░░░░░░` |
-| ↳　CR109 · Make Conversations First-Class Workspaces | 🟡 captured · sem Driver · ⚠️ sem linha no índice canônico | `░░░░░░░░░░` |
+| ↳　CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · sem Driver · pode sobrepor CR133/CR134 | `░░░░░░░░░░` |
 | ↳　CR100 · Make Journey Image Updates Supported | ⏸️ parked · contenção em alpha.41 · aguarda Mirror core | `░░░░░░░░░░` |
 | **RS022 · Mirror Core Debts** | 🔄 ativa | `░░░░░░░░░░` 1 ⏸️ · de 1 |
 | ↳　CR094 · Mirror Mode Activation Rebinds a Desktop Conversation's Journey | ⏸️ parked | `░░░░░░░░░░` |
