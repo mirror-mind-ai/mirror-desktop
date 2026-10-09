@@ -332,11 +332,23 @@ import {
   createAgentHandoffPrompt,
   conversationDraftKey,
   desktopConversationThread,
-  reduceConversationFocus,
+  reduceConversationExpansion,
+  reduceConversationSelection,
+  resolveSelectedConversationSpace,
+  EMPTY_CONVERSATION_EXPANSION,
   type ConversationCatalogEntry,
-  type ConversationFocusState,
+  type ConversationSpaceSelection,
   DEFAULT_FOCUSED_SIDEBAR_WIDTH,
 } from "../domain/conversationSpaces";
+import {
+  EMPTY_JOURNEY_CONVERSATION_CATALOGS,
+  beginJourneyCatalogLoad,
+  completeJourneyCatalogLoad,
+  failJourneyCatalogLoad,
+  journeyCatalogState,
+  updateJourneyCatalogEntries,
+  type JourneyConversationCatalogs,
+} from "./conversationCatalogState";
 import {
   createJourneyConversation,
   createDedicatedJourneyConversation,
@@ -710,13 +722,33 @@ export function App({ model }: AppProps) {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
   const [reviewedUpdate, setReviewedUpdate] = useState<SelfUpdateCheckResult & { status: "available" }>();
   const [whatsNewState, setWhatsNewState] = useState<ResolvedWhatsNewState>();
-  const [conversationFocus, dispatchConversationFocus] = useReducer(
-    reduceConversationFocus,
-    { kind: "all_journeys" } as ConversationFocusState,
+  // CR133: structural visibility and selection are two states reduced by two functions, so
+  // opening a disclosure cannot move the Navigator and moving cannot close a disclosure.
+  const [expandedConversationJourneyIds, dispatchConversationExpansion] = useReducer(
+    reduceConversationExpansion,
+    EMPTY_CONVERSATION_EXPANSION,
   );
-  const [conversationCatalog, setConversationCatalog] = useState<ConversationCatalogEntry[]>([]);
-  const [conversationCatalogStatus, setConversationCatalogStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [conversationCatalogError, setConversationCatalogError] = useState<string>();
+  const [conversationSelection, dispatchConversationSelection] = useReducer(
+    reduceConversationSelection,
+    { kind: "journey_workspace", journeyId: "" } as ConversationSpaceSelection,
+  );
+  const [conversationCatalogs, setConversationCatalogs] = useState<JourneyConversationCatalogs>(
+    EMPTY_JOURNEY_CONVERSATION_CATALOGS,
+  );
+  const conversationCatalogRequestRef = useRef(0);
+  const selectedJourneyCatalog = journeyCatalogState(conversationCatalogs, selectedJourney);
+  const conversationCatalog = selectedJourneyCatalog.entries;
+  const conversationCatalogStatus = selectedJourneyCatalog.status;
+  const conversationCatalogError = selectedJourneyCatalog.error;
+  function updateConversationCatalogFor(
+    journeyId: string,
+    updater: (entries: ConversationCatalogEntry[]) => ConversationCatalogEntry[],
+  ) {
+    setConversationCatalogs((current) => updateJourneyCatalogEntries(current, journeyId, updater));
+  }
+  function setConversationCatalog(updater: (entries: ConversationCatalogEntry[]) => ConversationCatalogEntry[]) {
+    updateConversationCatalogFor(selectedJourneyRef.current, updater);
+  }
   const [historicalSegmentCount, setHistoricalSegmentCount] = useState(0);
   const [loadedHistoricalSegmentCount, setLoadedHistoricalSegmentCount] = useState(0);
   const [historicalSegmentState, setHistoricalSegmentState] = useState<"idle" | "loading" | "error">("idle");
@@ -729,7 +761,6 @@ export function App({ model }: AppProps) {
   // How many chapters Pi itself has closed on this branch. Counting drawn dividers would make a
   // bounded surface look like a stale manifest on every visit.
   const [piClosedChapterCount, setPiClosedChapterCount] = useState(0);
-  const [focusedJourneyRootThreadId, setFocusedJourneyRootThreadId] = useState<string>();
   const [conversationActionBusy, setConversationActionBusy] = useState(false);
   const [conversationActionMessage, setConversationActionMessage] = useState<string>();
   const [conversationCreateOpen, setConversationCreateOpen] = useState(false);
@@ -866,6 +897,9 @@ export function App({ model }: AppProps) {
   const artifactNavigationSequenceRef = useRef(0);
   const conversationRef = useRef<JourneyConversation>(conversation);
   const selectedJourneyRef = useRef(selectedJourney);
+  // CR133: an in-flight catalog load is abandoned when its own disclosure closes, never
+  // because the Navigator went to another Journey.
+  const expandedConversationJourneyIdsRef = useRef(expandedConversationJourneyIds);
   const journeyRuntimeStateRef = useRef(journeyRuntimeState);
   const conversationLoadCoordinatorRef = useRef(createJourneyConversationLoadCoordinator());
   const runStartReservationRef = useRef<JourneyRunIdentity | undefined>(undefined);
@@ -873,6 +907,7 @@ export function App({ model }: AppProps) {
   const steeringEvidenceByRunRef = useRef<Record<string, SteeringEvidence[]>>({});
   conversationRef.current = conversation;
   selectedJourneyRef.current = selectedJourney;
+  expandedConversationJourneyIdsRef.current = expandedConversationJourneyIds;
   journeyRuntimeStateRef.current = journeyRuntimeState;
   journeyListPresentationRef.current = { order: journeyListOrder, pinnedOnly };
 
@@ -953,9 +988,7 @@ export function App({ model }: AppProps) {
       sessionFile: journeyThreadState.activeGeneration.piSessionFile,
     }
     : undefined;
-  const selectedConversationSpace = conversationFocus.kind === "focused_journey" && conversationFocus.journeyId === selectedJourney
-    ? conversationFocus.selection
-    : { kind: "journey_workspace" as const, journeyId: selectedJourney };
+  const selectedConversationSpace = resolveSelectedConversationSpace(conversationSelection, selectedJourney);
   const selectedConversationEntry = selectedConversationSpace.kind === "journey_workspace"
     ? undefined
     : conversationCatalog.find((entry) => entry.kind === selectedConversationSpace.kind
@@ -989,7 +1022,7 @@ export function App({ model }: AppProps) {
     loadedConversation: conversation,
     selectedThreadId: selectedConversationEntry?.kind === "desktop_conversation"
       ? selectedConversationEntry.threadId
-      : conversationFocus.kind === "focused_journey" ? focusedJourneyRootThreadId : undefined,
+      : selectedJourneyCatalog.rootThreadId,
     mirrorCommitErrors: projectedMirrorCommitErrors,
   });
   const selectedRuntime = navigationPresentation.selectedRuntime;
@@ -1627,6 +1660,7 @@ export function App({ model }: AppProps) {
       });
       setJourneyListOrder(sanitizedPreferences.journeyListOrder);
       setSidebarCompact(sanitizedPreferences.sidebarCompact);
+      dispatchConversationExpansion({ type: "restore", journeyIds: sanitizedPreferences.expandedConversationJourneyIds });
       setLastWorkedAtByJourneyId(sanitizedPreferences.lastWorkedAtByJourneyId);
       setApplicationTheme(sanitizedPreferences.applicationTheme);
       setVoiceLanguage(sanitizedPreferences.voiceLanguage);
@@ -2280,8 +2314,26 @@ export function App({ model }: AppProps) {
       applicationTheme,
       journeyAppearanceById,
       voiceLanguage,
+      expandedConversationJourneyIds: [...expandedConversationJourneyIds],
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, registryLoaded, preferencesLoaded]);
+
+  // CR133: disclosures restored from the preference file load their catalogs one after
+  // another. Reopening with many groups expanded must not start many catalog subprocesses
+  // at once; each group renders its own honest loading state until its turn arrives.
+  const restoredConversationCatalogsRef = useRef(false);
+  useEffect(() => {
+    if (!registryLoaded || !preferencesLoaded || restoredConversationCatalogsRef.current) return;
+    if (expandedConversationJourneyIds.size === 0) return;
+    restoredConversationCatalogsRef.current = true;
+    const restored = [...expandedConversationJourneyIds];
+    void (async () => {
+      for (const journeyId of restored) {
+        if (!expandedConversationJourneyIdsRef.current.has(journeyId)) continue;
+        await expandJourneyConversations(journeyId);
+      }
+    })();
+  }, [registryLoaded, preferencesLoaded, expandedConversationJourneyIds]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setRelativeTimeNow(Date.now()), 60_000);
@@ -3558,7 +3610,7 @@ export function App({ model }: AppProps) {
         updatedAt: lastItem(projection.messages)?.createdAt ?? new Date().toISOString(),
         messageCount: catalogMessageCount,
       }));
-      setConversationCatalog((current) => current.map((entry) => (
+      updateConversationCatalogFor(authority.journeyId, (current) => current.map((entry) => (
         entry.kind === "desktop_conversation" && entry.threadId === authority.threadId ? updatedEntry : entry
       )));
     }
@@ -3791,7 +3843,7 @@ export function App({ model }: AppProps) {
       const thread = childEntry
         ? await restartDesktopConversation({ journeyId: ownerJourneyId, conversationId: childEntry.conversationId })
             .then((updated) => {
-              setConversationCatalog((current) => current.map((entry) => entry.conversationId === updated.conversationId ? updated : entry));
+              updateConversationCatalogFor(ownerJourneyId, (current) => current.map((entry) => entry.conversationId === updated.conversationId ? updated : entry));
               return desktopConversationThread(ownerJourneyId, updated);
             })
         : await restartNautilusJourneyThread(ownerJourneyId, selectedJourneyItem.name, (phase) => {
@@ -3997,21 +4049,18 @@ export function App({ model }: AppProps) {
 
   async function expandJourneyConversations(ownerJourneyId: string) {
     if (!ownerJourneyId) return;
-    if (ownerJourneyId !== selectedJourney) {
-      selectJourney(ownerJourneyId, "pointer");
-      dispatchJourneySearch({ type: "journey_selected", intent: "pointer" });
-    }
-    dispatchConversationFocus({ type: "expand", journeyId: ownerJourneyId });
-    setConversationCatalogStatus("loading");
-    setConversationCatalogError(undefined);
+    // CR133: revealing what is inside a Journey is not going there. This used to call
+    // selectJourney first, so a disclosure moved the transcript, the Composer target and run
+    // ownership for what the Navigator meant as a look. Reading a non-selected Journey's
+    // thread is read-only: load_journey_thread reads a file and provisions nothing.
+    dispatchConversationExpansion({ type: "expand", journeyId: ownerJourneyId });
+    const requestId = (conversationCatalogRequestRef.current += 1);
+    setConversationCatalogs((current) => beginJourneyCatalogLoad(current, ownerJourneyId, requestId));
     setConversationActionMessage(undefined);
     await waitForCatalogLoadingFeedbackPaint();
     try {
-      const rootThread = ownerJourneyId === selectedJourney && journeyThreadState.kind === "ready"
-        ? journeyThreadState.thread
-        : await loadNautilusJourneyThread(ownerJourneyId);
+      const rootThread = await loadNautilusJourneyThread(ownerJourneyId);
       if (!rootThread) throw new Error("Start this Journey before creating additional conversations.");
-      setFocusedJourneyRootThreadId(rootThread.threadId);
       const desktopEntries = await loadDesktopConversationCatalog(ownerJourneyId);
       const managedMirrorConversationIds = [
         ...rootThread.generations.map((generation) => generation.mirrorConversationId),
@@ -4025,14 +4074,17 @@ export function App({ model }: AppProps) {
         managedMirrorConversationIds,
         limit: 50,
       });
-      if (selectedJourneyRef.current !== ownerJourneyId) return;
-      setConversationCatalog([...desktopEntries, ...mirrorEntries]
-        .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)));
-      setConversationCatalogStatus("ready");
+      if (!expandedConversationJourneyIdsRef.current.has(ownerJourneyId)) return;
+      setConversationCatalogs((current) => completeJourneyCatalogLoad(current, ownerJourneyId, requestId, {
+        entries: [...desktopEntries, ...mirrorEntries]
+          .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)),
+        rootThreadId: rootThread.threadId,
+      }));
     } catch (error) {
-      if (selectedJourneyRef.current !== ownerJourneyId) return;
-      setConversationCatalogStatus("error");
-      setConversationCatalogError(error instanceof Error ? error.message : String(error));
+      if (!expandedConversationJourneyIdsRef.current.has(ownerJourneyId)) return;
+      setConversationCatalogs((current) => failJourneyCatalogLoad(
+        current, ownerJourneyId, requestId, error instanceof Error ? error.message : String(error),
+      ));
     }
   }
 
@@ -4059,7 +4111,7 @@ export function App({ model }: AppProps) {
         title,
       });
       setConversationCatalog((current) => [created, ...current]);
-      dispatchConversationFocus({ type: "select_desktop", journeyId: selectedJourney, conversationId: created.conversationId });
+      dispatchConversationSelection({ type: "select_desktop", journeyId: selectedJourney, conversationId: created.conversationId });
       setConversationCreateOpen(false);
       setConversationActionMessage(undefined);
     } catch (error) {
@@ -4092,7 +4144,7 @@ export function App({ model }: AppProps) {
       updateComposerDrafts((current) => updateComposerDraft(
         current, conversationDraftKey(selectedJourney, created.conversationId), prompt,
       ));
-      dispatchConversationFocus({ type: "select_desktop", journeyId: selectedJourney, conversationId: created.conversationId });
+      dispatchConversationSelection({ type: "select_desktop", journeyId: selectedJourney, conversationId: created.conversationId });
       setConversationActionMessage(undefined);
     } catch (error) {
       setConversationActionMessage(error instanceof Error ? error.message : String(error));
@@ -4135,7 +4187,7 @@ export function App({ model }: AppProps) {
         delete next[conversationDraftKey(selectedJourney, entry.conversationId)];
         return next;
       }, true);
-      dispatchConversationFocus({ type: "select_root", journeyId: selectedJourney });
+      dispatchConversationSelection({ type: "select_root", journeyId: selectedJourney });
       setConversationActionMessage("Desktop Conversation deleted.");
       setConversationDeleteTarget(undefined);
     } catch (error) {
@@ -4229,12 +4281,8 @@ export function App({ model }: AppProps) {
   function selectJourney(journeyId: string, intent: JourneyNavigationIntent = "pointer") {
     journeyId = resolveJourneySelection(selectedJourney, journeyId, intent);
     if (journeyId === selectedJourney) return;
-    if (conversationFocus.kind === "focused_journey") {
-      dispatchConversationFocus({ type: "collapse", journeyId: conversationFocus.journeyId });
-    }
-    setConversationCatalog([]);
-    setFocusedJourneyRootThreadId(undefined);
-    setConversationCatalogStatus("idle");
+    // CR133: going to another Journey no longer collapses the disclosure the Navigator
+    // opened, and no longer discards its loaded catalog. Both are per-Journey state now.
     setInactiveNativeAttempt(undefined);
 
     const runtimeEntry = selectJourneyRuntime(journeyRuntimeState, journeyId);
@@ -4288,6 +4336,7 @@ export function App({ model }: AppProps) {
         pinnedJourneyIds: journeyPreferences.pinnedJourneyIds,
         recentJourneyIds: journeyPreferences.recentJourneyIds,
         collapsedJourneyIds,
+        expandedConversationJourneyIds,
       });
       if (!reconciled) {
         throw new Error("Mirror returned an empty Journey registry.");
@@ -4302,6 +4351,7 @@ export function App({ model }: AppProps) {
       }));
       if (selectionChanged) setSelectedJourney(reconciled.selectedJourneyId);
       setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
+      dispatchConversationExpansion({ type: "restore", journeyIds: [...reconciled.expandedConversationJourneyIds] });
       setJourneyRegistryRefreshState("succeeded");
       setJourneyRegistryRefreshMessage("Journey tree reloaded.");
     } catch (error) {
@@ -4488,7 +4538,7 @@ export function App({ model }: AppProps) {
       const result = await mutateJourneyRegistry(selectedJourney, request, replacementJourneyId);
       const reconciled = reconcileReloadedJourneyState(result.registry, {
         selectedJourneyId: selectedAfterMutation, pinnedJourneyIds: journeyPreferences.pinnedJourneyIds,
-        recentJourneyIds: journeyPreferences.recentJourneyIds, collapsedJourneyIds,
+        recentJourneyIds: journeyPreferences.recentJourneyIds, collapsedJourneyIds, expandedConversationJourneyIds,
       });
       if (!reconciled) throw new Error("Verified Journey authority no longer contains the active Journey.");
       setLoadedJourneyRegistry(result.registry);
@@ -4501,6 +4551,7 @@ export function App({ model }: AppProps) {
       if (selectedAfterMutation !== selectedJourney) setSelectedJourney(selectedAfterMutation);
       setJourneyPreferences((current) => ({ ...current, activeJourneyId: selectedAfterMutation, pinnedJourneyIds: reconciled.pinnedJourneyIds, recentJourneyIds: reconciled.recentJourneyIds }));
       setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
+      dispatchConversationExpansion({ type: "restore", journeyIds: [...reconciled.expandedConversationJourneyIds] });
       setJourneyAdminDialog(null); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null);
       setJourneyRegistryRefreshState("succeeded"); setJourneyRegistryRefreshMessage("Journey structure updated from Mirror.");
     } catch (error) {
@@ -4530,13 +4581,14 @@ export function App({ model }: AppProps) {
       refreshedRegistry = await refreshJourneyRegistry();
       const reconciled = reconcileReloadedJourneyState(refreshedRegistry, {
         selectedJourneyId: selectedJourney, pinnedJourneyIds: journeyPreferences.pinnedJourneyIds,
-        recentJourneyIds: journeyPreferences.recentJourneyIds, collapsedJourneyIds,
+        recentJourneyIds: journeyPreferences.recentJourneyIds, collapsedJourneyIds, expandedConversationJourneyIds,
       });
       if (!reconciled) throw new Error("Mirror returned an empty Journey registry.");
       setLoadedJourneyRegistry(refreshedRegistry);
       setJourneyPreferences((current) => ({ ...current, activeJourneyId: reconciled.selectedJourneyId, pinnedJourneyIds: reconciled.pinnedJourneyIds, recentJourneyIds: reconciled.recentJourneyIds }));
       if (reconciled.selectedJourneyId !== selectedJourney) setSelectedJourney(reconciled.selectedJourneyId);
       setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
+      dispatchConversationExpansion({ type: "restore", journeyIds: [...reconciled.expandedConversationJourneyIds] });
     } catch (refreshError) {
       setJourneyAdminState("failed"); setJourneyAdminPendingRequest(null);
       setJourneyAdminMessage(`Journeys changed in Mirror and could not be reloaded: ${journeyAdministrationError(refreshError)}`);
@@ -4691,6 +4743,7 @@ export function App({ model }: AppProps) {
         pinnedJourneyIds: journeyPreferences.pinnedJourneyIds,
         recentJourneyIds: journeyPreferences.recentJourneyIds,
         collapsedJourneyIds,
+        expandedConversationJourneyIds,
       });
       if (!reconciled) {
         setLoadedJourneyRegistry(refreshedRegistry);
@@ -4707,6 +4760,7 @@ export function App({ model }: AppProps) {
         recentJourneyIds: reconciled.recentJourneyIds,
       }));
       setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
+      dispatchConversationExpansion({ type: "restore", journeyIds: [...reconciled.expandedConversationJourneyIds] });
       setRuntimeOnboardingState("ready");
       setRuntimeOnboardingEditing(false);
       setRuntimeOnboardingMessage(undefined);
@@ -5033,7 +5087,7 @@ export function App({ model }: AppProps) {
 
   return (
     <main
-      className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${conversationFocus.kind === "focused_journey" && conversationCatalogStatus === "loading" ? "conversation-catalog-loading" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
+      className={`app-shell altitude-${presentedAltitude} channel-${runtimeChannel?.channel ?? "checking"} ${sidebarCompact ? "sidebar-compact" : ""} ${isJourneyReloading ? "is-busy" : ""}`}
       data-runtime-channel={runtimeChannel?.channel}
       data-application-theme={applicationTheme}
       style={{
@@ -5188,8 +5242,9 @@ export function App({ model }: AppProps) {
               agentStatus === "idle" ? undefined : agentStatus === "finished" ? "Agent finished" : `Agent ${agentStatus}`,
               journey.pinned ? "Pinned" : undefined,
             ].filter(Boolean).join(", ");
-            const conversationsExpanded = conversationFocus.kind === "focused_journey"
-              && conversationFocus.journeyId === journey.id;
+            const conversationsExpanded = expandedConversationJourneyIds.has(journey.id);
+            const journeyCatalog = journeyCatalogState(conversationCatalogs, journey.id);
+            const journeyIsSelected = journey.id === selectedJourney;
             return (
               <Fragment key={journey.id}>
               <div
@@ -5218,9 +5273,7 @@ export function App({ model }: AppProps) {
                   openJourneyItemMenu(journey.id, event.currentTarget, event.clientX, event.clientY);
                 }}
                 onClick={() => {
-                  if (conversationsExpanded) {
-                    dispatchConversationFocus({ type: "select_root", journeyId: journey.id });
-                  }
+                  dispatchConversationSelection({ type: "select_root", journeyId: journey.id });
                   selectJourney(journey.id, "pointer");
                   dispatchJourneySearch({ type: "journey_selected", intent: "pointer" });
                 }}
@@ -5232,9 +5285,7 @@ export function App({ model }: AppProps) {
                   } else if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
                     const intent = event.key === "Enter" ? "keyboard-enter" : "keyboard-space";
-                    if (conversationsExpanded) {
-                      dispatchConversationFocus({ type: "select_root", journeyId: journey.id });
-                    }
+                    dispatchConversationSelection({ type: "select_root", journeyId: journey.id });
                     selectJourney(journey.id, intent);
                     dispatchJourneySearch({ type: "journey_selected", intent });
                   }
@@ -5287,15 +5338,22 @@ export function App({ model }: AppProps) {
                   onClick={(event) => {
                     event.stopPropagation();
                     if (conversationsExpanded) {
-                      dispatchConversationFocus({ type: "collapse", journeyId: journey.id });
+                      dispatchConversationExpansion({ type: "collapse", journeyId: journey.id });
                       setConversationActionMessage(undefined);
                     } else {
                       void expandJourneyConversations(journey.id);
                     }
                   }}
+                  onKeyDown={(event) => {
+                    // CR133: the row above handles Enter and Space and calls preventDefault,
+                    // which both selected the Journey and suppressed this button's own native
+                    // activation. Keyboard expansion therefore moved the Navigator and did
+                    // not expand. Stopping here is what makes the two separately operable.
+                    if (event.key === "Enter" || event.key === " ") event.stopPropagation();
+                  }}
                   aria-label={`${conversationsExpanded ? "Collapse" : "Expand"} conversations for ${journey.name}`}
                   aria-expanded={conversationsExpanded}
-                  aria-busy={conversationsExpanded && conversationCatalogStatus === "loading"}
+                  aria-busy={conversationsExpanded && journeyCatalog.status === "loading"}
                   title={`${conversationsExpanded ? "Collapse" : "Expand"} conversations`}
                 >
                   <span aria-hidden="true">{conversationsExpanded ? "⌃" : "⌄"}</span>
@@ -5306,18 +5364,23 @@ export function App({ model }: AppProps) {
                   journeyId={journey.id}
                   journeyName={journey.name}
                   accent={visual.accent}
-                  selected={selectedConversationSpace}
-                  entries={conversationCatalog}
-                  status={conversationCatalogStatus === "idle" ? "loading" : conversationCatalogStatus}
-                  error={conversationCatalogError}
-                  busy={conversationActionBusy || selectedRuntimeBusy || Boolean(runStartReservation)}
-                  actionMessage={conversationActionMessage}
+                  selected={journeyIsSelected ? selectedConversationSpace : undefined}
+                  entries={journeyCatalog.entries}
+                  status={journeyCatalog.status === "idle" ? "loading" : journeyCatalog.status}
+                  error={journeyCatalog.error}
+                  busy={journeyIsSelected && (conversationActionBusy || selectedRuntimeBusy || Boolean(runStartReservation))}
+                  actionMessage={journeyIsSelected ? conversationActionMessage : undefined}
                   onCreateConversation={requestBlankDesktopConversation}
-                  onSelectEntry={(entry) => dispatchConversationFocus({
-                    type: entry.kind === "desktop_conversation" ? "select_desktop" : "select_mirror",
-                    journeyId: journey.id,
-                    conversationId: entry.conversationId,
-                  })}
+                  onSelectEntry={(entry) => {
+                    // CR133: clicking a conversation is navigation by design, and is the one
+                    // list gesture that may select a Journey. The disclosure no longer does.
+                    if (!journeyIsSelected) selectJourney(journey.id, "pointer");
+                    dispatchConversationSelection({
+                      type: entry.kind === "desktop_conversation" ? "select_desktop" : "select_mirror",
+                      journeyId: journey.id,
+                      conversationId: entry.conversationId,
+                    });
+                  }}
                   onContinueMirror={(entry) => void createConversationFromMirrorHistory(entry)}
                   onOpenMirrorTerminal={(entry) => void openSelectedMirrorHistoryInTerminal(entry)}
                   onRenameConversation={requestConversationRename}

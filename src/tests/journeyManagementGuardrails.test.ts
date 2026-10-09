@@ -12,6 +12,7 @@ describe("Journey management guardrails", () => {
       activeJourneyId: "nautilus-harness",
       recentJourneyIds: ["amplia"],
       journeyListOrder: "tree",
+      expandedConversationJourneyIds: [],
       sidebarCompact: true,
       lastWorkedAtByJourneyId: { nautilus: "2026-09-02T15:00:00.000Z" },
       applicationTheme: "tide",
@@ -22,6 +23,7 @@ describe("Journey management guardrails", () => {
     expect(Object.keys(persisted.preferences).sort()).toEqual([
       "activeJourneyId",
       "applicationTheme",
+      "expandedConversationJourneyIds",
       "journeyAppearanceById",
       "journeyListOrder",
       "lastWorkedAtByJourneyId",

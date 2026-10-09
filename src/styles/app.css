@@ -8637,8 +8637,11 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   cursor: not-allowed;
 }
 
-.app-shell.conversation-catalog-loading .journey-sidebar,
-.app-shell.conversation-catalog-loading .journey-sidebar * {
+/* CR133: a loading disclosure shows progress on its own group. A shell-wide busy cursor
+   would contradict this release's point, which is that one group loading must not stop the
+   Navigator from working anywhere else in the sidebar. */
+.focused-conversation-sidebar.is-loading,
+.focused-conversation-sidebar.is-loading * {
   cursor: progress !important;
 }
 

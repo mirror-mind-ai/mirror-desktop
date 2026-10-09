@@ -10,7 +10,10 @@ import {
   conversationDraftKey,
   desktopConversationThread,
   parseConversationCatalog,
-  reduceConversationFocus,
+  reduceConversationExpansion,
+  reduceConversationSelection,
+  resolveSelectedConversationSpace,
+  EMPTY_CONVERSATION_EXPANSION,
 } from "../domain/conversationSpaces";
 
 function desktopAuthority(threadId = "thread-child-1") {
@@ -175,32 +178,34 @@ describe("conversation spaces", () => {
     expect(catalog?.entries[0].kind === "desktop_conversation" && catalog.entries[0].authority.generations).toHaveLength(2);
   });
 
-  it("focuses one Journey and returns to its root when collapsed", () => {
-    const initial = { kind: "all_journeys" as const };
-    const focused = reduceConversationFocus(initial, { type: "expand", journeyId: "mirror-desktop" });
-    expect(focused).toEqual({
-      kind: "focused_journey",
-      journeyId: "mirror-desktop",
-      selection: { kind: "journey_workspace", journeyId: "mirror-desktop" },
+  // Re-aimed by CR133. This used to pin `expand` writing a selection and `collapse` writing
+  // a `returnTo` nobody read, which is the fused behaviour the CR removes. It now pins the
+  // opposite: a disclosure moves nothing.
+  it("opens a disclosure without moving the Navigator, and closes it without losing the selection", () => {
+    const selection = reduceConversationSelection(createJourneyWorkspaceSelection("mirror-desktop"), {
+      type: "select_desktop", journeyId: "mirror-desktop", conversationId: "child-conversation-1",
     });
-    const selected = reduceConversationFocus(focused, { type: "select_desktop", journeyId: "mirror-desktop", conversationId: "child-conversation-1" });
-    expect(selected.kind === "focused_journey" && selected.selection.kind).toBe("desktop_conversation");
-    expect(reduceConversationFocus(selected, { type: "collapse", journeyId: "mirror-desktop" })).toEqual({
-      kind: "all_journeys",
-      returnTo: { kind: "journey_workspace", journeyId: "mirror-desktop" },
-    });
+    expect(selection).toEqual({ kind: "desktop_conversation", journeyId: "mirror-desktop", conversationId: "child-conversation-1" });
+
+    let expansion = reduceConversationExpansion(EMPTY_CONVERSATION_EXPANSION, { type: "expand", journeyId: "mirror-desktop" });
+    expect([...expansion]).toEqual(["mirror-desktop"]);
+    expansion = reduceConversationExpansion(expansion, { type: "collapse", journeyId: "mirror-desktop" });
+    expect([...expansion]).toEqual([]);
+
+    // The selection survived both, because expansion cannot reach it.
+    expect(selection).toEqual({ kind: "desktop_conversation", journeyId: "mirror-desktop", conversationId: "child-conversation-1" });
   });
 
-  it("rejects focus actions for a different Journey", () => {
-    const focused = reduceConversationFocus({
-      kind: "focused_journey",
-      journeyId: "mirror-desktop",
-      selection: { kind: "journey_workspace", journeyId: "mirror-desktop" },
-    }, { type: "select_mirror", journeyId: "other", conversationId: "source" });
-    expect(focused).toEqual({
-      kind: "focused_journey",
-      journeyId: "mirror-desktop",
-      selection: { kind: "journey_workspace", journeyId: "mirror-desktop" },
+  // Re-aimed by CR133: the guard still holds, but it is enforced where the value is read
+  // rather than inside the reducer, so selecting inside a Journey the Navigator has not gone
+  // to yet stays expressible.
+  it("ignores a selection that belongs to a different Journey", () => {
+    const selection = reduceConversationSelection(createJourneyWorkspaceSelection("mirror-desktop"), {
+      type: "select_mirror", journeyId: "other-journey", conversationId: "source-id",
+    });
+    expect(selection).toEqual({ kind: "mirror_history", journeyId: "other-journey", conversationId: "source-id" });
+    expect(resolveSelectedConversationSpace(selection, "mirror-desktop")).toEqual({
+      kind: "journey_workspace", journeyId: "mirror-desktop",
     });
   });
 

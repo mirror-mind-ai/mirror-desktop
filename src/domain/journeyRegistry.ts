@@ -75,6 +75,9 @@ export type ReloadedJourneyState = {
   pinnedJourneyIds: string[];
   recentJourneyIds: string[];
   collapsedJourneyIds: Set<string>;
+  // CR133: expanded conversation disclosures are reconciled against the reloaded registry
+  // exactly like collapsed tree nodes, so a Journey that disappeared stops being expanded.
+  expandedConversationJourneyIds: ReadonlySet<string>;
 };
 
 export function reconcileReloadedJourneyState(
@@ -90,6 +93,7 @@ export function reconcileReloadedJourneyState(
     pinnedJourneyIds: current.pinnedJourneyIds.filter((id) => ids.has(id)),
     recentJourneyIds: current.recentJourneyIds.filter((id) => ids.has(id)),
     collapsedJourneyIds: new Set([...current.collapsedJourneyIds].filter((id) => ids.has(id))),
+    expandedConversationJourneyIds: new Set([...current.expandedConversationJourneyIds].filter((id) => ids.has(id))),
   };
 }
 

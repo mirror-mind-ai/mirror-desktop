@@ -86,16 +86,27 @@ export type ConversationCatalog = {
   entries: ConversationCatalogEntry[];
 };
 
-export type ConversationFocusState =
-  | { kind: "all_journeys"; returnTo?: JourneyWorkspaceSelection }
-  | { kind: "focused_journey"; journeyId: string; selection: ConversationSpaceSelection };
+// CR133: revealing what is inside a Journey is structural visibility; going there is
+// selection. One value used to carry both, so expanding always reset the selection and
+// selecting always collapsed the previous disclosure. They are two states now, reduced by
+// two functions over disjoint action vocabularies, so neither can reach the other.
+export type ConversationExpansionState = ReadonlySet<string>;
 
-export type ConversationFocusAction =
+export const EMPTY_CONVERSATION_EXPANSION: ConversationExpansionState = new Set<string>();
+
+export type ConversationExpansionAction =
   | { type: "expand"; journeyId: string }
   | { type: "collapse"; journeyId: string }
+  | { type: "restore"; journeyIds: readonly string[] };
+
+export type ConversationSelectionAction =
   | { type: "select_root"; journeyId: string }
   | { type: "select_desktop"; journeyId: string; conversationId: string }
   | { type: "select_mirror"; journeyId: string; conversationId: string };
+
+export const conversationExpansionActionTypes = ["expand", "collapse", "restore"] as const;
+
+export const conversationSelectionActionTypes = ["select_root", "select_desktop", "select_mirror"] as const;
 
 export type ConversationSpaceAction =
   | "open"
@@ -159,36 +170,66 @@ export function parseConversationCatalog(
   }
 }
 
-export function reduceConversationFocus(
-  state: ConversationFocusState,
-  action: ConversationFocusAction,
-): ConversationFocusState {
-  if (action.type === "expand") {
-    try {
-      return { kind: "focused_journey", journeyId: action.journeyId, selection: createJourneyWorkspaceSelection(action.journeyId) };
-    } catch {
-      return state;
+export function reduceConversationExpansion(
+  state: ConversationExpansionState,
+  action: ConversationExpansionAction,
+): ConversationExpansionState {
+  if (action.type === "restore") {
+    // A persisted set outlives the registry that produced it, so an id that no longer
+    // parses is dropped rather than thrown: a cosmetic preference must not fail a restore.
+    const restored = new Set<string>();
+    for (const journeyId of action.journeyIds) {
+      try {
+        assertJourneyId(journeyId);
+        restored.add(journeyId);
+      } catch {
+        continue;
+      }
     }
-  }
-  if (state.kind !== "focused_journey" || state.journeyId !== action.journeyId) return state;
-  if (action.type === "collapse") {
-    return { kind: "all_journeys", returnTo: createJourneyWorkspaceSelection(state.journeyId) };
-  }
-  if (action.type === "select_root") {
-    return { ...state, selection: createJourneyWorkspaceSelection(state.journeyId) };
+    return restored;
   }
   try {
-    if (action.type === "select_mirror") assertMirrorIdentifier(action.conversationId);
-    else assertIdentifier(action.conversationId);
-    return {
-      ...state,
-      selection: action.type === "select_desktop"
-        ? { kind: "desktop_conversation", journeyId: state.journeyId, conversationId: action.conversationId }
-        : { kind: "mirror_history", journeyId: state.journeyId, conversationId: action.conversationId },
-    };
+    assertJourneyId(action.journeyId);
   } catch {
     return state;
   }
+  if (action.type === "expand") {
+    if (state.has(action.journeyId)) return state;
+    return new Set([...state, action.journeyId]);
+  }
+  if (!state.has(action.journeyId)) return state;
+  const collapsed = new Set(state);
+  collapsed.delete(action.journeyId);
+  return collapsed;
+}
+
+export function reduceConversationSelection(
+  state: ConversationSpaceSelection,
+  action: ConversationSelectionAction,
+): ConversationSpaceSelection {
+  try {
+    if (action.type === "select_root") return createJourneyWorkspaceSelection(action.journeyId);
+    assertJourneyId(action.journeyId);
+    if (action.type === "select_mirror") assertMirrorIdentifier(action.conversationId);
+    else assertIdentifier(action.conversationId);
+    return action.type === "select_desktop"
+      ? { kind: "desktop_conversation", journeyId: action.journeyId, conversationId: action.conversationId }
+      : { kind: "mirror_history", journeyId: action.journeyId, conversationId: action.conversationId };
+  } catch {
+    return state;
+  }
+}
+
+// A selection is only meaningful for the Journey that owns it. The guard that used to sit
+// inside the reducer lives here instead, at the one place the value is read, so selecting
+// inside a Journey the Navigator has not gone to yet stays expressible.
+export function resolveSelectedConversationSpace(
+  selection: ConversationSpaceSelection,
+  selectedJourneyId: string,
+): ConversationSpaceSelection {
+  return selection.journeyId === selectedJourneyId
+    ? selection
+    : { kind: "journey_workspace", journeyId: selectedJourneyId };
 }
 
 export function desktopConversationThread(

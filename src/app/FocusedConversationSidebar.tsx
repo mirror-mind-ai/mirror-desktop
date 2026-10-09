@@ -11,7 +11,10 @@ type Props = {
   journeyId: string;
   journeyName: string;
   accent?: string;
-  selected: ConversationSpaceSelection;
+  // CR133: several groups can be open at once, and only the selected Journey's group has a
+  // selected entry. An absent selection means this group belongs to a Journey the Navigator
+  // is looking at rather than working in.
+  selected?: ConversationSpaceSelection;
   entries: ConversationCatalogEntry[];
   status: "loading" | "ready" | "error";
   error?: string;
@@ -32,7 +35,10 @@ export function FocusedConversationSidebar(props: Props) {
   const visibleEntries = showAll ? props.entries : props.entries.slice(0, INITIAL_VISIBLE_CONVERSATIONS);
   const hiddenCount = Math.max(0, props.entries.length - visibleEntries.length);
 
-  return <section className={`focused-conversation-sidebar${props.accent ? ` accent-${props.accent}` : ""}`} aria-label={`${props.journeyName} conversations`}>
+  return <section
+    className={`focused-conversation-sidebar${props.accent ? ` accent-${props.accent}` : ""}${props.status === "loading" ? " is-loading" : ""}`}
+    aria-label={`${props.journeyName} conversations`}
+  >
     <div className="focused-conversation-heading">
       <span className="focused-conversation-heading-copy">
         <strong>Conversations</strong>
@@ -55,7 +61,10 @@ export function FocusedConversationSidebar(props: Props) {
     {props.actionMessage ? <p className="focused-conversation-status" role="status">{props.actionMessage}</p> : null}
     <div className="focused-conversation-list">
       {visibleEntries.map((entry) => {
-        const selected = props.selected.kind === entry.kind && props.selected.conversationId === entry.conversationId;
+        const selection = props.selected;
+        const selected = selection !== undefined
+          && selection.kind === entry.kind
+          && selection.conversationId === entry.conversationId;
         const metadata = entry.kind === "desktop_conversation"
           ? `Desktop · ${entry.messageCount ? `${entry.messageCount} messages` : "Not started"}`
           : `Mirror · ${entry.messageCount} messages · ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(entry.updatedAt))}`;

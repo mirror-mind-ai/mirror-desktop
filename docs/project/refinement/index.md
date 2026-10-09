@@ -13,7 +13,7 @@ Refinement authority; SQLite must not be consulted or dual-written.
 ## Current Focus
 
 - Refinement Story: RS023
-- Change Request: CR133 is `planned` (2026-10-08): investigation recorded, plan with scope, files, guards, validation and exclusions written; awaiting Driver and Delivery to move to `in_progress`. RS023 was promoted from CR109 on 2026-10-08, after the
+- Change Request: CR133 is `done` (2026-10-09), gates green and the Dev bundle built; its interactive field sequence is owed and belongs to the Navigator. CR134 is the next pull, and it is cheap because the owner is already in `entry.identity.authority`. RS023 was promoted from CR109 on 2026-10-08, after the
   Navigator prioritised it as the last fragile point of the app. The characterisation recorded in
   the Story showed its four symptoms are not one change: `expandJourneyConversations` selects before
   it expands, one `Record<journeyId, Entry>` serves a Journey and its conversations alike, the
@@ -193,7 +193,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | Order | ID | RS | Change | Status | Driver | Delivery |
 |------:|----|----|--------|--------|--------|----------|
-| — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | planned | — | — |
+| — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | done | @alissonvale | `refinement/rs023-cr133-stop-a-disclosure-from-selecting-a-journey` |
 | — | [CR134](rs023-conversations-as-first-class-workspaces/cr134-name-the-owner-of-running-work-without-hiding-that-it-runs.md) | RS023 | Name the Owner of Running Work Without Hiding That It Runs | captured | — | — |
 | — | [CR135](rs023-conversations-as-first-class-workspaces/cr135-let-the-navigator-hide-a-conversation-without-deleting-it.md) | RS023 | Let the Navigator Hide a Conversation Without Deleting It | captured | — | — |
 | — | [CR136](rs023-conversations-as-first-class-workspaces/cr136-admit-concurrent-work-inside-one-journey.md) | RS023 | Admit Concurrent Work Inside One Journey | captured | — | — |

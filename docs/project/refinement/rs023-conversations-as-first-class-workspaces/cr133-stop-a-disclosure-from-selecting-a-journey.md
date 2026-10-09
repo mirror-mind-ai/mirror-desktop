@@ -2,9 +2,9 @@
 
 # CR133: Stop a Disclosure From Selecting a Journey
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs023-cr133-stop-a-disclosure-from-selecting-a-journey`
 
 ## Friction
 
@@ -140,6 +140,46 @@ Acceptance item 3 (changing selection never collapses unrelated groups) and the 
 1. Driver and Delivery. Proposed: `@alissonvale`, `refinement/rs023-cr133-stop-a-disclosure-from-selecting-a-journey`.
 2. Confirm the exclusion of per-Journey selection memory from this CR.
 3. Confirm the stated departure in D5: an invalid expansion field drops to empty rather than discarding the preferences file.
+
+
+## Delivery Record (2026-10-09)
+
+The Navigator confirmed all three decisions by accepting the recommendations: Driver and Delivery as proposed, per-Journey selection memory excluded, and D5's stated departure.
+
+### Delivered
+
+- **D1** `conversationSpaces.ts`: `ConversationFocusState` and `reduceConversationFocus` replaced by `reduceConversationExpansion` over a `ReadonlySet<string>` and `reduceConversationSelection` over a `ConversationSpaceSelection`, with disjoint action vocabularies (`expand | collapse | restore` against `select_root | select_desktop | select_mirror`). `returnTo` removed; nothing read it. `resolveSelectedConversationSpace` now holds, at the one place the value is read, the guard that used to sit in the reducer.
+- **D2** new `src/app/conversationCatalogState.ts`: entries, status, error and `rootThreadId` keyed by Journey, with a `requestId` so a superseded load is discarded on its own terms. `App.tsx` keeps `conversationCatalog`, `conversationCatalogStatus` and `conversationCatalogError` as derived values for the selected Journey, so the eight read sites were not touched.
+- **D3** `expandJourneyConversations` no longer calls `selectJourney` or dispatches `journey_selected`. The root thread always comes from `loadNautilusJourneyThread(ownerJourneyId)`. The abort guard is now `expandedConversationJourneyIdsRef`, not `selectedJourneyRef`.
+- **D4** `selectJourney` no longer collapses a disclosure or clears a catalog. Several groups render at once, each from its own catalog slice. Clicking an entry in a non-selected Journey selects that Journey and the entry in one act.
+- **D5** `expandedConversationJourneyIds` persisted in `journey-preferences.json`, reconciled against the reloaded registry at all four `reconcileReloadedJourneyState` call sites, and restored catalogs load sequentially.
+
+### Three things found while implementing
+
+1. **The keyboard path was broken in both directions, worse than the plan predicted.** The journey row's `onKeyDown` handles Enter and Space and calls `preventDefault()`. The disclosure button stopped propagation on *click* only, so a keydown bubbled to the row: pressing Enter on a disclosure selected the Journey **and** the row's `preventDefault()` suppressed the button's own native activation, so it did not expand at all. Acceptance item 2 was failing in a way neither the CR nor the plan had named. Fixed by stopping Enter and Space at the button.
+2. **Two catalog writers already knew their owner.** The settlement-side entry refresh and the restart path carry `authority.journeyId` and `ownerJourneyId`. Under the old singleton they wrote whichever catalog was loaded; they now target the owning Journey explicitly through `updateConversationCatalogFor`. Keeping the compatibility shim for them would have introduced a cross-Journey write that did not exist as a *reported* defect but would have become one.
+3. **`actionMessage` and `busy` are singletons and would have appeared in every open group.** Both are now passed only to the selected Journey's group — a defect D4 would have introduced rather than one it inherited.
+
+The shell-wide `conversation-catalog-loading` cursor rule was moved onto the loading group (`.focused-conversation-sidebar.is-loading`). A progress cursor over the whole sidebar would contradict this CR's own outcome, which is that one group loading must not stop the Navigator working elsewhere.
+
+One note on instruments: the read-only guard over the expand path initially failed on the word `provision` inside a *comment* this CR had just written. It was re-expressed over call shapes with comments stripped, because a guard about what code calls must not read prose.
+
+### Verified
+
+- `tsc --noEmit` clean; `npm test` **242 files / 1794 tests** passed, from 240 / 1769 at the branch point.
+- `src-tauri/` has a **zero diff**; `cargo test` **269 passed / 3 ignored**, unchanged.
+- `scripts/mirror_conversation_catalog.py` was **read**: its `catalog` branch calls only `conversations.list_recent` and `conversations.find_by_id_prefix`. The script's single write, `conversations.update_title`, is in the `rename` branch, which the disclosure path never reaches. The read-only claim is established by reading, not by grep.
+- `npm run build` and `npm run tauri:build:dev` both clean on the first pass.
+
+### Guards
+
+Re-aimed, never deleted: `conversationSpaces.test.ts`'s two focus tests; `conversationSpaceIntegration.test.ts:5` (loading feedback is per group) and `:40`, which pinned the *mechanism* of symptom 2 and now pins its opposite; `journeyManagementGuardrails.test.ts`'s persisted key set, which correctly forced this CR's one new persisted field to be admitted deliberately.
+
+New: `conversationExpansionSeparation.test.ts` (16) over reducer disjointness, per-Journey catalogs, request supersession and persistence; `conversationDisclosureSeparation.test.tsx` (9) over several open groups, selection ownership, read-only disclosure, keyboard separation and the thread-coordinate equivalence.
+
+### Owed
+
+The interactive field sequence — expand A, select X, select B, expand B, click A's disclosure, then quit and relaunch — is a GUI action and belongs to the Navigator. The Dev bundle is built and ready. Everything provable without the GUI is proved above.
 
 ## Acceptance
 

@@ -16,6 +16,10 @@ export type PersistedJourneyPreferences = {
     applicationTheme: ApplicationTheme;
     journeyAppearanceById: JourneyAppearanceById;
     voiceLanguage: VoiceLanguage;
+    // CR133: which Journeys have their conversation disclosure open. Expansion is structural
+    // visibility the Navigator chose, so it has to survive a relaunch; before this it was
+    // runtime-only state and every reload started collapsed.
+    expandedConversationJourneyIds: string[];
   };
   savedAt: string;
 };
@@ -32,6 +36,7 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   applicationTheme: "channel",
   journeyAppearanceById: {},
   voiceLanguage: defaultVoiceLanguage,
+  expandedConversationJourneyIds: [],
 };
 
 export function createPersistedJourneyPreferences(
@@ -69,6 +74,10 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
   const journeyAppearanceById = preferences.journeyAppearanceById === undefined
     ? {}
     : parseJourneyAppearanceById(preferences.journeyAppearanceById);
+  // A deliberate departure from the sibling fields below, which discard the whole file when
+  // they are invalid. Expansion is cosmetic renderer state and must never be able to reset
+  // the Navigator's pins, theme or recents, so a bad value degrades to empty on its own.
+  const expandedConversationJourneyIds = parseStringArray(preferences.expandedConversationJourneyIds) ?? [];
   const voiceLanguage = preferences.voiceLanguage === undefined
     ? defaultVoiceLanguage
     : parseVoiceLanguage(preferences.voiceLanguage);
@@ -97,6 +106,7 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       applicationTheme,
       journeyAppearanceById,
       voiceLanguage,
+      expandedConversationJourneyIds,
     },
     savedAt: record.savedAt,
   };
@@ -121,6 +131,7 @@ export function sanitizeJourneyPreferenceState(
     applicationTheme: preferences.applicationTheme,
     journeyAppearanceById: sanitizeJourneyAppearanceById(preferences.journeyAppearanceById, registry),
     voiceLanguage: preferences.voiceLanguage,
+    expandedConversationJourneyIds: uniqueExistingJourneyIds(preferences.expandedConversationJourneyIds, registry),
   };
 }
 
