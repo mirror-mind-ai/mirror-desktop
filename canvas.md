@@ -8,7 +8,7 @@
 | ↳　CR138 · Let the Inspection Carry Two Workspaces in One Journey | ✅ done · campo não aplicável por construção | `██████████` |
 | ↳　CR139 · Key the Native Registry by Workspace | ✅ done · cota 3 · diff zero no renderer | `██████████` |
 | ↳　CR140 · Name the Constraint that Refuses Concurrent Work | ✅ done · grão revertido após o campo · frases unificadas | `██████████` |
-| ↳　CR141 · Key the Pi Event Route by Workspace | 🟡 captured · 4ª fatia · rota de eventos por Journey · colhe o campo | `░░░░░░░░░░` |
+| ↳　CR141 · Key the Pi Event Route by Workspace | 🟡 planned · 4ª fatia · 2º defeito achado em App.tsx:1252 · entrega em 2 estágios | `░░░░░░░░░░` |
 | **RS023 · Conversations as First-Class Workspaces** | 🔄 ativa · promovida da CR109 | `██████░░░░` 3 ✅ · 1 🟡 · 1 ↗️ · de 5 |
 | ↳　CR133 · Stop a Disclosure From Selecting a Journey | ✅ done · campo verificado (6/6 cenários) | `██████████` |
 | ↳　CR134 · Name the Owner of Running Work Without Hiding That It Runs | ✅ campo verificado (4/4) · 1 achado corrigido | `██████████` |
