@@ -76,6 +76,72 @@ says what it is waiting for.
    settlement"* is reachable here. A throw inside the stream handler would explain both the missing
    settlement and the stuck display.
 
+## Pre-Restart Baseline, Measured While the Session Was Still Live (2026-10-10 15:34 local)
+
+The Navigator confirmed the Dev app had not been restarted, so investigation item 2's experiment is
+still available and its "before" is recorded here rather than remembered.
+
+**The stuck state is static, not slow.** Measured 56 minutes after the turn completed:
+
+- the Dev process is the same one (pid 25964, launched 14:35:04, no restart);
+- `turn-journal/mirror-desktop.json` mtime is still `14:38:42` — unchanged;
+- `settlement-timings/mirror-desktop.json` mtime is still `14:37:30`, D0-CAL's;
+- **no file anywhere in the Dev data directory was written in the preceding 40 minutes**;
+- `terminal-handoffs/` is empty.
+
+Nothing is retrying. This is not a settlement in progress.
+
+### The exact record the restart will or will not recover
+
+| Field | Value |
+|---|---|
+| `phase` | `terminal_durable` |
+| `terminalOutcome` | `completed` |
+| `recoveryDisposition` | **`resume_projection`** |
+| `revision` | 3 |
+| `createdAt` → `updatedAt` | `17:38:10.509Z` → `17:38:42.472Z` |
+| `authority.runId` | `agent-run-2026-10-10T17:38:10.504Z` |
+| `authority.threadId` | `desktop-thread-mirror-desktop-18d5cf4842b669b0` |
+| `authority.generation` | 1 |
+| `piExecution.startedAt` → `committedAt` | `17:38:12.994Z` → `17:38:42.447Z` |
+| `piExecution.assistantText` | **17,806 bytes, `assistantTextTruncated: false`** |
+| `piExecution.entryCount` | 27 |
+
+Journal aggregate before the restart: **52 records of 64** — 39 `settled`, 10 `interrupted`, 2
+`running` (the pre-existing September orphans), 1 `terminal_durable` (this turn).
+
+**The whole answer is durable and untruncated.** Recovery is therefore possible in principle, and
+the restart decides whether it happens. That bounds this CR: it may be a lost-content defect or a
+lying-surface defect, and the experiment distinguishes them.
+
+### The experiment, with its prediction and its falsifier
+
+- **Prediction:** on the next launch the recovery path reads a `terminal_durable` record carrying
+  `resume_projection`, projects the 17,806 bytes into the thread's conversation, writes a
+  settlement-timings record, and advances the journal phase past `terminal_durable`.
+- **Falsifier:** after the restart the conversation still carries no content from this run, or the
+  record remains `terminal_durable`.
+
+If the prediction holds, this CR narrows sharply: the content was never at risk, and the defects are
+(a) the in-session projection never running and (b) the surface reporting `working` for a turn whose
+journal phase is terminal. If the falsifier holds, a completed answer is unreachable from every
+surface the Navigator has, and this CR is severe.
+
+### Which binary ran, established without relying on `ps`
+
+The install check reported no Dev process at `14:14:20`, and the process now running began at
+`14:35:04`. That ordering is corroborated independently by the failure itself: the Navigator
+received the dispatcher's route error, which can only happen if admission *allowed* the sibling.
+The pre-CR140 binary refused at the renderer's pre-check and never reached `register`. So the code
+that produced these observations carried CR140's grain flip, whatever `ps` did or did not see.
+
+### Still unread, and only readable from the GUI
+
+`piProcessEventDispatcher.quarantine()` is in-memory. A `unknown_route` or `authority_mismatch`
+entry bearing this run's authority would name the mechanism directly, and it is lost on restart.
+Reading it needs the developer console, which is the Navigator's action; it is listed as
+investigation item 4 and is **not** a precondition for the restart experiment.
+
 ## Acceptance
 
 - The mechanism is named, with evidence, before any change.
