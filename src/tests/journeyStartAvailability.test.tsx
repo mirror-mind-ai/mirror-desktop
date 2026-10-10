@@ -44,6 +44,7 @@ function occupancy(entries: PiInvocationLeaseInspection[], limit: 1 | 2 | 4 = 2)
     status: "known",
     requestId: 1,
     limit,
+    journeyWorkspaceShare: 3,
     processCapacityInUse: entries.length,
     entries,
     diagnostic: null,
@@ -73,7 +74,11 @@ describe("CR107 — starting a Journey that has not started yet", () => {
     expect(full).toEqual({ allowed: false, reason: "global_capacity_reached" });
     expect(journeyStartAvailability({ ...ready, nativeAdmission: full })).toEqual({
       canStart: false,
-      unavailableReason: "All native Pi slots are in use. Starting becomes available once one is free.",
+      // CR140: one sentence now serves both surfaces, so the not-started one gained the clause the
+      // Composer's capacity notice always carried. A widening, deliberately: the claim about where
+      // capacity authority lives is true on both surfaces, and two sentence sets for one refusal
+      // is how they drifted apart in the first place.
+      unavailableReason: "All native Pi slots are in use. Starting becomes available once one is free. Native admission remains the atomic capacity authority.",
       waiting: true,
     });
   });
@@ -98,12 +103,25 @@ describe("CR107 — starting a Journey that has not started yet", () => {
     });
   });
 
-  it("reports this Journey's own native work rather than a generic refusal", () => {
+  // CR140: `workspaceOf` and `lease` share a thread, so this is the Journey's own workspace asking
+  // about itself. The verdict is unchanged and the reason sharpened from the Journey to the
+  // workspace, which is the whole point of RS024: a sibling would now be admitted.
+  it("reports this workspace's own native work rather than a generic refusal", () => {
     const same = derivePiInvocationAdmission(occupancy([lease("vida-tecnica")]), workspaceOf("vida-tecnica"));
 
-    expect(same).toEqual({ allowed: false, reason: "same_journey_occupied" });
+    expect(same).toEqual({ allowed: false, reason: "same_workspace_occupied" });
     expect(journeyStartAvailability({ ...ready, nativeAdmission: same }).unavailableReason)
-      .toBe("This Journey already has native work in progress.");
+      .toBe("This conversation already has native work in progress.");
+  });
+
+  it("admits a sibling workspace in the same Journey, which it used to refuse", () => {
+    const sibling = derivePiInvocationAdmission(
+      occupancy([lease("vida-tecnica")]),
+      journeyWorkspace("vida-tecnica", "vida-tecnica-other-thread"),
+    );
+
+    expect(sibling).toEqual({ allowed: true, reason: null });
+    expect(journeyStartAvailability({ ...ready, nativeAdmission: sibling })).toEqual({ canStart: true });
   });
 });
 
@@ -112,7 +130,7 @@ describe("CR107 — the not-started surface never withholds the action silently"
     const html = renderToStaticMarkup(createElement(JourneyThreadState, {
       journeyName: "Vida Técnica",
       state: { kind: "absent" },
-      startUnavailableReason: "All native Pi slots are in use. Starting becomes available once one is free.",
+      startUnavailableReason: "All native Pi slots are in use. Starting becomes available once one is free. Native admission remains the atomic capacity authority.",
     }));
 
     expect(html).toContain("This Journey has not started in Mirror Desktop");

@@ -159,24 +159,64 @@ describe("CR134: status is sourced from the carrier that always has the workspac
   });
 });
 
-describe("CR134: a non-owner workspace is told where the work is", () => {
-  const admission = { allowed: false, reason: "same_journey_occupied" } as const;
+/**
+ * CR134 gave this refusal a locus so it could say whether the Journey's own workspace or a
+ * conversation inside it held the lease. CR140 retired the locus here and kept the property:
+ * with a share of three, *several* workspaces can hold the Journey's work and one locus value
+ * cannot name them, so the refusal carries the occupants and names each. The sentences changed;
+ * the guarantee this suite exists to protect — a non-owner workspace is told where the work is —
+ * did not, and is asserted below on the replacement.
+ */
+describe("CR140: a workspace refused by its Journey's share is told which work is in the way", () => {
+  const admission = { allowed: false, reason: "journey_share_exceeded" } as const;
+  const root = "nautilus-thread-journey-a";
+
+  function startWith(occupants: readonly string[], titles: Record<string, string> = {}) {
+    return journeyStartAvailability({
+      runtimeBindingReady: true,
+      nativeAdmission: admission,
+      refusalContext: {
+        occupants: occupants.map((threadId) => ({ threadId })),
+        rootThreadId: root,
+        conversationTitleOfThread: (threadId) => titles[threadId],
+      },
+    });
+  }
 
   it("names the conversation rather than only the Journey", () => {
-    expect(journeyStartAvailability({ runtimeBindingReady: true, nativeAdmission: admission, occupiedLocus: "inside" }))
-      .toMatchObject({ canStart: false, unavailableReason: "A conversation in this Journey already has native work in progress.", waiting: true });
+    expect(startWith(["desktop-thread-b"], { "desktop-thread-b": "Journey card" }))
+      .toMatchObject({
+        canStart: false,
+        unavailableReason: "This Journey is already running as much work as it can at once — \u201cJourney card\u201d."
+          + " Send becomes available when one of them finishes.",
+        waiting: true,
+      });
   });
 
-  it("keeps the Journey-level sentence when the Journey's own workspace owns it", () => {
-    for (const locus of ["here", "unknown", undefined] as const) {
-      expect(journeyStartAvailability({ runtimeBindingReady: true, nativeAdmission: admission, occupiedLocus: locus }).unavailableReason)
-        .toBe("This Journey already has native work in progress.");
-    }
+  it("names the Journey's own workspace as itself rather than as a conversation", () => {
+    expect(startWith([root]).unavailableReason)
+      .toContain("this Journey's own workspace");
+  });
+
+  it("names every occupant when the whole share is spent", () => {
+    const sentence = startWith([root, "desktop-thread-b", "desktop-thread-c"], {
+      "desktop-thread-b": "Journey card",
+      "desktop-thread-c": "Release notes",
+    }).unavailableReason;
+    expect(sentence).toContain("this Journey's own workspace, \u201cJourney card\u201d and \u201cRelease notes\u201d");
+  });
+
+  it("stays specific about the constraint when no occupant can be named", () => {
+    const sentence = journeyStartAvailability({
+      runtimeBindingReady: true, nativeAdmission: admission,
+    }).unavailableReason;
+    expect(sentence).toBe("This Journey is already running as much work as it can at once."
+      + " Send becomes available when one of them finishes.");
   });
 
   it("never reports an occupied Journey as startable", () => {
-    for (const locus of ["here", "inside", "unknown", undefined] as const) {
-      expect(journeyStartAvailability({ runtimeBindingReady: true, nativeAdmission: admission, occupiedLocus: locus }).canStart).toBe(false);
+    for (const occupants of [[], [root], [root, "desktop-thread-b"]]) {
+      expect(startWith(occupants).canStart).toBe(false);
     }
   });
 });

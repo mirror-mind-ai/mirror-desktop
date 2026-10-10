@@ -46,9 +46,17 @@ export function deriveJourneyWorkLocus(input: {
   runtimePhase?: JourneyRuntimeOwnerPhase;
   runtimeIdentity?: JourneyRunIdentity;
 }): JourneyWorkPresentation | undefined {
-  const lease = input.occupancy.entries.find((entry) => (
+  // CR140: with a share of three, several open leases can belong to one Journey, and this used to
+  // take whichever came first. After CR139 sorted the inspection by `(journeyId, threadId)`, first
+  // means alphabetical — a `desktop-thread-…` conversation outranks the `nautilus-thread-…` root,
+  // so the Journey row would have reported `inside` while the Journey's own workspace was working.
+  // The Journey's own workspace wins when it holds a lease; that is a rule, not an order.
+  const open = input.occupancy.entries.filter((entry) => (
     entry.authority.journeyId === input.journeyId && entry.terminalState === "open"
   ));
+  const lease = (input.journeyRootThreadId
+    && open.find((entry) => entry.authority.threadId === input.journeyRootThreadId))
+    || open[0];
   const leasePhase = lease
     ? isActivePiInvocationLease(lease) ? "running" : lease.leasePhase === "finalizing" ? "finalizing" : undefined
     : undefined;

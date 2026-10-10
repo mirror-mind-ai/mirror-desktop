@@ -82,6 +82,9 @@ export function knownOccupancy(
   const inspection: PiInvocationRegistryInspection = {
     schemaVersion: "0.1.0",
     limit,
+    // CR140: the share the registry reports. Three is the production constant, so these verdicts
+    // are measured against the bound production enforces rather than an invented one.
+    journeyWorkspaceShare: 3,
     processCapacityInUse: entries.filter((entry) => entry.processCapacityState !== "released").length,
     entries,
   };

@@ -115,6 +115,44 @@ describe("CR138: the runtime state is keyed by workspace", () => {
     expect(selectJourneyRuntime(state, journeyWorkspace("mirror-desktop", null)).identity).toEqual(mock);
   });
 
+  /**
+   * CR138 left the Journey fallback provisional and said CR140 would decide it. CR140 measured
+   * instead of reading: `selectJourney` (`App.tsx:4462`) passes `threadId: null` because the
+   * target Journey's thread is not resolved when a Journey is selected, and the selected workspace
+   * carries null before its catalog loads. The fallback has real callers, so it stays — bounded by
+   * the rule below.
+   */
+  it("answers for the Journey when one workspace is live and the caller has no thread", () => {
+    const state = register(createInitialJourneyRuntimeState(), childOwner);
+    expect(selectJourneyRuntime(state, journeyWorkspace("mirror-desktop", null)).identity)
+      .toEqual(childOwner);
+  });
+
+  it("declines to guess when two workspaces are live, rather than showing a sibling's stream", () => {
+    let state = register(createInitialJourneyRuntimeState(), rootOwner);
+    state = register(state, childOwner);
+    state = journeyRuntimeReducer(state, {
+      type: "stream_event",
+      identity: childOwner,
+      event: { type: "message_delta", content: "child says" },
+    });
+
+    const ambiguous = selectJourneyRuntime(state, journeyWorkspace("mirror-desktop", null));
+    expect(ambiguous.identity).toBeUndefined();
+    // The decisive part: an empty surface, never a sibling's content on a surface that did not
+    // ask for it. Both entries are still intact and addressable by their own keys.
+    expect(ambiguous.streamedAssistantContent).toBe("");
+    expect(Object.keys(state.entries)).toHaveLength(2);
+  });
+
+  it("keeps the exact key winning over the fallback whenever the caller knows its thread", () => {
+    let state = register(createInitialJourneyRuntimeState(), rootOwner);
+    state = register(state, childOwner);
+    if (rootOwner.kind !== "live" || childOwner.kind !== "live") throw new Error("fixture");
+    expect(selectJourneyRuntime(state, workspaceOfAuthority(rootOwner.authority)).identity).toEqual(rootOwner);
+    expect(selectJourneyRuntime(state, workspaceOfAuthority(childOwner.authority)).identity).toEqual(childOwner);
+  });
+
   it("routes a stream event to its own workspace and leaves the sibling untouched", () => {
     let state = register(createInitialJourneyRuntimeState(), rootOwner);
     state = register(state, childOwner);

@@ -2,9 +2,9 @@
 
 # CR140: Name the Constraint That Refuses Concurrent Work
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress — delivered on files, field verification owed
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs024-cr140-name-the-constraint-that-refuses-concurrent-work`
 
 **Gate: not started before CR139 is merged.** The reasons this CR surfaces do not exist until the registry returns them.
 
@@ -263,6 +263,116 @@ writes nothing.
 No change to native admission, the share, the registry key or the compaction exclusion. The
 inspection reports one more field. `runtimeBusy` is not narrowed — CR099. No change to CR132's
 abandonment affordance. No change to CR135's visibility.
+
+## Delivery Record (2026-10-10)
+
+Delivered on `refinement/rs024-cr140-name-the-constraint-that-refuses-concurrent-work`, Driver
+`@alissonvale`. RS024's third and final slice.
+
+### The characterisation passed, which is how the defect was proved
+
+Written first and against unchanged code, `admissionRefusalLegibility.test.ts` asserted the
+opposite of what the repair should produce: that the started Composer explained exactly one of its
+four possible refusals, by an allow-list of reasons rather than a search for an absence; that
+`same_journey_occupied` reached a decision, disabled Send, and then said nothing; that
+`conversationAvailability.condition` was computed and rendered nowhere; and that no single place
+mapped a reason to a sentence. **It passed.** The same file now asks the same questions of the
+repair, and the inversion is the record that the gap was real rather than argued.
+
+The native layer was never the problem, and the plan said so after reading the route: a rejected
+`start_pi_invocation` carries its sentence verbatim into the refused workspace's warnings through
+`piProcessStream.ts:662` and `journeyRuntimeState.ts:412`, already workspace-local since CR138.
+Pinned rather than built — a new case walks all five native refusal sentences, including CR139's
+journal-full one, through the raw route and asserts each arrives unparsed and unrelabelled.
+
+### Shipped shape
+
+**New `src/app/admissionRefusal.ts`** — `describeAdmissionRefusal(reason, context)` returning
+`{ title, sentence, waiting }`, total by `switch` so a new reason cannot compile without words.
+Both surfaces read it: `journeyStartAvailability`'s private `startRefusal` is gone, and the
+Composer's JSX no longer tests a reason at all. The share refusal names its occupants — the
+Journey's own workspace as itself, a conversation by CR133's catalog title, an unnamed thread by
+its id, which is not a nice name but is a true one.
+
+**The inspection reports the share.** `PiInvocationRegistryInspection` gained
+`journey_workspace_share`, emitted from `PER_JOURNEY_PI_WORKSPACE_SHARE`, and the renderer refuses
+in the registry's own order: duplicate workspace, then the Journey's share, then global capacity.
+
+**The grain is flipped and gone.** `NATIVE_ADMISSION_GRAIN` is removed, and with it
+`same_journey_occupied` — by CR139's rule that a reason no code path can reach is debt, not safety.
+The decision survives as prose at the constant's old site so the retirement is discoverable where
+it was declared.
+
+**The locus is a rule, not an order.** `deriveJourneyWorkLocus` took the first open lease; after
+CR139 sorted the inspection by `(journeyId, threadId)`, *first* meant alphabetical, so a
+`desktop-thread-…` conversation outranked a `nautilus-thread-…` root and the Journey row would have
+said `inside` while the Journey's own workspace was working. The Journey's own workspace now wins
+when it holds a lease. A test asserts both insertion orders agree, which they did not before.
+
+### Three corrections to my own plan, found by building it
+
+**The share must not be validated against `limit`.** The plan said `1..=limit`. That is wrong:
+`reserve` compares against the constant first and capacity second, so a registry smaller than the
+share is a legitimate configuration where capacity refuses. Clamping would have made the pre-check
+claim a share was spent where the registry would have said capacity was. Validated on its own
+terms, `1..=16`, and a test pins the small-registry case to `global_capacity_reached`.
+
+**An `as never` cast hid a required key from the compiler.** `tsc` was clean while
+`convergentTurnWorld.ts` produced an inspection without `journeyWorkspaceShare`, and only the
+runtime validator caught it — as `mirror_outbox_native_lease_inspection_invalid` across seven
+CR064 tests, which reads as a Mirror delivery failure rather than as a stale fixture. The validator
+was right and the fixture was stale. Worth keeping on the record: **a cast that silences the
+compiler moves the failure to a place where it describes the wrong thing.**
+
+**Two of my asserts were wrong about my own writing.** Twice a script asserted that a retired
+identifier was absent, and twice the new explanatory comment *mentioning* the retirement tripped
+it. Nothing was damaged — the read-assert-write ordering stopped before any write — and the fix was
+to assert against code with comments stripped rather than against the raw text. **A guard that
+checks for a name must say whether it means the name or its use.**
+
+### The widening, named rather than discovered
+
+One sentence now serves both surfaces, so the not-started surface gained the clause the Composer's
+capacity notice always carried — *"Native admission remains the atomic capacity authority."* A
+deliberate widening: the claim is true on both, and two sentence sets for one refusal is how they
+drifted apart in the first place. Recorded here rather than left to be found in a diff.
+
+### The reach that was NOT narrowed, and why
+
+Finding 3 corrected this CR's own Friction before delivery began, and delivery held to it.
+`runtimeBusy` has two global sources — `hasBlockingPiInvocationOccupancy` and
+`hasActiveOrFinalizingJourneyRuntime` — and it gates Journey administration, restart, file drop and
+attachments, not Send. Narrowing one would have changed nothing. Untouched here; the finding is
+appended to **CR099**, which owns it.
+
+### Guards re-aimed, none deleted
+
+Eleven suites: `runtimeWorkspaceKeying` (the grain guard now pins that the switch is gone and the
+refusal order is the registry's), `workspaceGrainedOccupancy` (every Journey-grain verdict moved to
+the workspace grain, plus the share, the finalizing exclusion, the reported bound and the
+small-registry case), `postTerminalContinuityMatrix` (30 cases reclassified — same workspace, so
+the verdict holds and the reason sharpens; one case gained the sibling that is now *admitted*, the
+behaviour change the sharper reason would otherwise have hidden), `journeyStartAvailability`,
+`journeyWorkVisibility` (CR134's D6 sentences retired and the property they protected re-asserted
+on the replacement), `conversationAvailability`, `journeyRuntimeIntegration`, `piInvocationOccupancy`,
+`settlementAbandonmentWorkspaceGrain`, `piInvocationInspectionConformance` (CR139's deliberately
+open seam closed, re-aimed from *refuses a sibling* to *admits a sibling*), and the two shared
+fixtures.
+
+### Gates
+
+`cargo test` **285 passed / 3 ignored** (from 283). Renderer **253 files / 1,928 tests** (from
+252 / 1,906). `tsc --noEmit` exit 0, read directly. `npm run build` and `npm run tauri:build:dev`
+clean. `roadmap:check` READY. Diff: 29 files, +593 / −193 plus two new files.
+
+### Field verification
+
+**Owed, and provocable for the first time** — by CR138, CR139 and this CR together. The sequence is
+in the plan's Field Verification section, D1 through D5. D1 leaves a durable artifact: two
+`turn-journal/` records for one `journey_id` with distinct `thread_id` and overlapping
+`created_at`–`updated_at` windows. D2 through D5 are attested, and the refusal sentences have no
+durable artifact by construction, because a refusal writes nothing. This CR is not closed until D1
+is read from disk.
 
 ## Acceptance
 

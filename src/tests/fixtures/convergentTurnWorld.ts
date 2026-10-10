@@ -209,6 +209,12 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
     inspectNativeOccupancy: async () => ({
       schemaVersion: "0.1.0",
       limit: 2,
+      // CR140: the registry reports the share and the validator requires it. The `as never` below
+      // hid the missing key from the compiler, and only the runtime validator caught it — as
+      // `mirror_outbox_native_lease_inspection_invalid`, which reads as a Mirror failure rather
+      // than as a stale fixture. Left as a cast because the surrounding dependency type is wider
+      // than this literal, but the keys are now complete.
+      journeyWorkspaceShare: 3,
       processCapacityInUse: 0,
       entries: [],
     } as never),

@@ -73,6 +73,7 @@ import {
   hasActiveNativeExecution,
   hasActiveNativeExecutionInJourney,
   hasBlockingPiInvocationOccupancy,
+  liveWorkspacesInJourney,
   isActivePiInvocationLease,
   piInvocationAuthorityFromRunAuthority,
   releaseAndReinspectPiInvocationLease,
@@ -173,6 +174,7 @@ import { compactJourneySession } from "./compactionStorage";
 import { classifyCompactionRefusal, compactionNoticeLifecycle } from "./compactionNoticeLifecycle";
 import { manualCompactionAvailability } from "./manualCompactionAvailability";
 import { journeyStartAvailability } from "./journeyStartAvailability";
+import { describeAdmissionRefusal } from "./admissionRefusal";
 import { CompactionNotice } from "./CompactionNotice";
 import { ComposerContextMenu } from "./ComposerContextMenu";
 import { deriveDurableSynchronizationDebt } from "../domain/durableSynchronizationStatus";
@@ -1066,21 +1068,23 @@ export function App({ model }: AppProps) {
   // and its `mock` variant carries none — so the native registry inspection is the reliable
   // carrier of which workspace owns the work. Both sources are per-process; see CR134's
   // Correction of 2026-10-09.
-  // CR138: with two workspaces live in one Journey the aggregate has to choose whose work it is
-  // reporting. The selected workspace's own run wins when it is live, because that is the work the
-  // Navigator is looking at; otherwise the aggregate's choice stands, so the Journey row still says
-  // that something is running inside it. CR140 owns confirming this on the surface.
+  // CR138 left this provisional and CR140 confirms it: the selected workspace's own run wins when
+  // it is live, because that is the work the Navigator is looking at; otherwise the Journey's
+  // aggregate stands, so the Journey row still reports that something runs inside it. What CR140
+  // replaced is the *aggregate's* tie-break, which used to be whichever entry sorted first — see
+  // `deriveJourneyWorkLocus`.
   const selectedJourneyRuntimePhase = selectJourneyRuntimeOwnerPhase(journeyRuntimeState, selectedJourney);
   const selectedWorkspaceRuntime = selectJourneyRuntime(journeyRuntimeState, selectedWorkspace);
   const selectedJourneyRuntimeIdentity = isJourneyRuntimeActiveOrFinalizing(selectedWorkspaceRuntime)
     ? selectedWorkspaceRuntime.identity
     : selectedJourneyRuntimePhase?.identity;
+  const selectedJourneyRootThreadId = resolveJourneyRootThreadId(
+    journeyRootThreadIds, selectedJourneyCatalog.rootThreadId, selectedJourney,
+  );
   const selectedJourneyWork = deriveJourneyWorkLocus({
     occupancy: piInvocationOccupancy,
     journeyId: selectedJourney,
-    journeyRootThreadId: resolveJourneyRootThreadId(
-      journeyRootThreadIds, selectedJourneyCatalog.rootThreadId, selectedJourney,
-    ),
+    journeyRootThreadId: selectedJourneyRootThreadId,
     runtimePhase: selectedJourneyRuntimePhase?.phase,
     runtimeIdentity: selectedJourneyRuntimeIdentity,
   });
@@ -1117,11 +1121,30 @@ export function App({ model }: AppProps) {
   const runtimeBindingReady = runtimeChannel?.status === "validated";
   // CR107: whether this Journey can be started, and why not when it cannot. The reason has to
   // travel to the not-started surface, because every composer notice is hidden there.
+  // CR140: who holds this Journey's share, so a refusal can name them instead of saying the
+  // Journey is busy. The catalog lookup is CR133's per-Journey one and is only consulted for the
+  // threads the inspection already reports, so it is bounded by the process limit.
+  const admissionRefusalContext = {
+    occupants: liveWorkspacesInJourney(piInvocationOccupancy, selectedJourney)
+      .map((authority) => ({ threadId: authority.threadId })),
+    rootThreadId: selectedJourneyRootThreadId,
+    conversationTitleOfThread: (threadId: string) => conversationCatalog.find(
+      (entry) => entry.kind === "desktop_conversation" && entry.threadId === threadId,
+    )?.title,
+  };
   const journeyStart = journeyStartAvailability({
     runtimeBindingReady,
     nativeAdmission: piInvocationPresentation,
-    occupiedLocus: selectedJourneyWork?.locus,
+    refusalContext: admissionRefusalContext,
   });
+  // CR140: the one sentence for a refusal the Navigator meets on a *started* Journey's Composer.
+  // Before this, only `inspection_unknown` and `global_capacity_reached` had a notice, so an
+  // occupied Journey disabled Send in silence. `inspection_unknown` keeps its own notice because
+  // it is delayed by `useDelayedVisibility` rather than shown immediately.
+  const admissionRefusal = piInvocationPresentation.allowed
+    || piInvocationPresentation.reason === "inspection_unknown"
+    ? undefined
+    : describeAdmissionRefusal(piInvocationPresentation.reason, admissionRefusalContext);
   const mirrorCommitError = navigationPresentation.mirrorCommitError;
   // CR093: a bounded contract rejection has a cause the Navigator can act on. Name it above
   // the raw reason code instead of leaving only a generic persistence sentence.
@@ -6019,10 +6042,10 @@ export function App({ model }: AppProps) {
               <p>{piInvocationOccupancy.diagnostic ?? "Operational actions remain blocked until bounded native inspection completes."}</p>
             </section>
           ) : null}
-          {piInvocationPresentation.reason === "global_capacity_reached" && !selectedRuntimeBusy ? (
+          {admissionRefusal && !selectedRuntimeBusy ? (
             <section className="dedicated-turn-notice" role="status">
-              <strong>Global Pi capacity occupied</strong>
-              <p>You can keep drafting, but Send remains unavailable until a Journey slot is free. Native admission remains the atomic capacity authority.</p>
+              <strong>{admissionRefusal.title}</strong>
+              <p>You can keep drafting, but Send remains unavailable. {admissionRefusal.sentence}</p>
             </section>
           ) : null}
           {showInactiveNativeAttemptNotice ? <InterruptedNativeAttemptNotice providerFailure={interruptedProviderFailure} /> : null}

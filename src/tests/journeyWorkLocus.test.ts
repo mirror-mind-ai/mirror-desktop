@@ -35,7 +35,7 @@ function lease(over: {
 }
 
 function occupancy(entries: PiInvocationLeaseInspection[], status: PiInvocationOccupancyState["status"] = "known"): PiInvocationOccupancyState {
-  return { status, requestId: 1, limit: 4, processCapacityInUse: entries.length, entries, diagnostic: null };
+  return { status, requestId: 1, limit: 4, journeyWorkspaceShare: 3, processCapacityInUse: entries.length, entries, diagnostic: null };
 }
 
 function liveIdentity(threadId: string): JourneyRunIdentity {
@@ -70,6 +70,47 @@ describe("CR134: whose work is running", () => {
       locus: "here",
       owner: { threadId: ROOT_THREAD, generation: 2, mirrorConversationId: "mirror-conv-1" },
     });
+  });
+
+  /**
+   * CR140. With a share of three, several open leases belong to one Journey, and this used to take
+   * whichever the inspection listed first. CR139 sorted the inspection by `(journeyId, threadId)`,
+   * so "first" became alphabetical: a `desktop-thread-…` conversation outranks a
+   * `nautilus-thread-…` root, and the Journey row would have reported `inside` while the Journey's
+   * own workspace was working. RS023 makes the Journey row the guaranteed carrier of running work,
+   * so this had to become a rule rather than an ordering accident.
+   */
+  it("attributes the Journey's own workspace to itself even when a conversation also runs", () => {
+    const both = occupancy([
+      lease({ threadId: CHILD_THREAD }),
+      lease({ threadId: ROOT_THREAD }),
+    ]);
+    expect(deriveJourneyWorkLocus({ ...here, occupancy: both })).toMatchObject({
+      phase: "running",
+      locus: "here",
+      owner: { threadId: ROOT_THREAD },
+    });
+  });
+
+  it("reports inside when siblings run and the Journey's own workspace does not", () => {
+    const siblings = occupancy([
+      lease({ threadId: CHILD_THREAD }),
+      lease({ threadId: "desktop-thread-second" }),
+    ]);
+    expect(deriveJourneyWorkLocus({ ...here, occupancy: siblings })).toMatchObject({
+      phase: "running",
+      locus: "inside",
+    });
+  });
+
+  it("does not let a sort order decide the locus", () => {
+    // The two orders must agree. Before CR140 they did not: whichever lease came first won, and
+    // after CR139's sort that was always the alphabetically smaller thread.
+    const rootFirst = occupancy([lease({ threadId: ROOT_THREAD }), lease({ threadId: CHILD_THREAD })]);
+    const childFirst = occupancy([lease({ threadId: CHILD_THREAD }), lease({ threadId: ROOT_THREAD })]);
+    expect(deriveJourneyWorkLocus({ ...here, occupancy: rootFirst })?.locus)
+      .toBe(deriveJourneyWorkLocus({ ...here, occupancy: childFirst })?.locus);
+    expect(deriveJourneyWorkLocus({ ...here, occupancy: childFirst })?.locus).toBe("here");
   });
 
   it("attributes work on another thread to a conversation inside the Journey", () => {

@@ -39,14 +39,12 @@ export function sameJourneyWorkspace(left: JourneyWorkspace, right: JourneyWorks
   return left.journeyId === right.journeyId && left.threadId === right.threadId;
 }
 
-/**
- * CR138 is renderer-only preparedness. The native registry still indexes by `journey_id` and still
- * refuses a second same-Journey reservation, so while this constant reads `"journey"` the
- * renderer's own admission must keep refusing a sibling workspace exactly as it does today —
- * otherwise the Navigator would lose a specific refusal sentence and receive the raw native error
- * instead, a legibility regression inside a change that must alter nothing in the field.
- *
- * CR139 flips this to `"workspace"` in the same change that re-keys the Rust registry. A guard
- * asserts the current value, so flipping it is a visible decision rather than a side effect.
+/*
+ * CR138 declared `NATIVE_ADMISSION_GRAIN` here to pin an intermediate state: the renderer carried
+ * two workspaces while the Rust registry still admitted one run per Journey, and the constant made
+ * advancing that a visible one-line decision instead of a side effect. CR139 re-keyed the registry
+ * and CR140 flipped and then **removed** the constant, because with the native grain at the
+ * workspace the `"journey"` branch and its `same_journey_occupied` reason became unreachable, and
+ * an unreachable refusal is debt rather than safety. The decision is kept here as a record; the
+ * switch is not, so nothing can be silently flipped back to a grain the registry no longer uses.
  */
-export const NATIVE_ADMISSION_GRAIN: "journey" | "workspace" = "journey";

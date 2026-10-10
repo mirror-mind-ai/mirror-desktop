@@ -96,6 +96,7 @@ describe("persisted settlement restart recovery", () => {
     const inspection = {
       schemaVersion: "0.1.0" as const,
       limit: 2 as const,
+      journeyWorkspaceShare: 3,
       processCapacityInUse: 0,
       entries: [exactLease],
     };

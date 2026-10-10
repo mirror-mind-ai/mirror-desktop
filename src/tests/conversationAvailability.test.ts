@@ -118,10 +118,14 @@ describe("Conversation availability contract", () => {
     });
   });
 
-  it("blocks Journey-local actions when another surface in the Journey owns the lease", () => {
+  // CR140: re-aimed from `same_journey_occupied`, which the workspace grain made unreachable, to
+  // the refusal that now means "work elsewhere in this Journey is in the way" — the share being
+  // spent. The condition and the route out are deliberately the same: what changed is that the
+  // surface now has a sentence for it.
+  it("blocks Journey-local actions when this Journey's share of concurrent work is spent", () => {
     expect(decideConversationAvailability({
       ...ready,
-      nativeAdmission: "same_journey_occupied",
+      nativeAdmission: "journey_share_exceeded",
     })).toMatchObject({
       condition: "journey_lease_occupied",
       canSend: false,

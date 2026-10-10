@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import appSource from "../app/App.tsx?raw";
+import refusalSource from "../app/admissionRefusal.ts?raw";
 import streamSource from "../agent/piProcessStream.ts?raw";
 import mockSource from "../agent/agentStream.ts?raw";
 import cancellationSource from "../app/journeyCancellation.ts?raw";
@@ -88,10 +89,14 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).not.toContain("derivePiInvocationCapacityPresentation");
     expect(appSource).not.toContain("ConcurrentTurnCapacityNotice");
     expect(appSource).not.toContain("Concurrent turns:");
-    expect(appSource).toContain("Global Pi capacity occupied");
+    // CR140: the sentences moved out of App.tsx into `describeAdmissionRefusal`, which both the
+    // started Composer and the not-started surface now read. The claims this guard protects are
+    // unchanged and are asserted where they now live.
+    expect(refusalSource).toContain("Global Pi capacity occupied");
+    expect(refusalSource).toContain("Native admission remains the atomic capacity authority");
+    expect(appSource).toContain("{admissionRefusal.title}");
     expect(appSource).toContain('nativeAdmission: piInvocationPresentation.allowed ? "allowed" : piInvocationPresentation.reason');
     expect(appSource).toContain("const selectedInvocationAdmissionBlocked = !conversationAvailability.canSend;");
-    expect(appSource).toContain("Native admission remains the atomic capacity authority");
   });
 
   it("keeps an active Desktop Conversation title visible while its transcript scrolls", () => {

@@ -193,3 +193,22 @@ Stated at planning and unchanged: Rust emits at most one entry per Journey until
 ## Boundaries
 
 No Rust change. No change to what the native side emits. No per-Journey share computed in the renderer. No change to CR133's expansion, CR134's locus semantics or CR135's visibility beyond re-keying the entries they read.
+
+## Provisional Decisions Resolved by CR140 (2026-10-10)
+
+Both temporaries this CR introduced on purpose have been decided.
+
+**`NATIVE_ADMISSION_GRAIN`** was flipped to `"workspace"` and then **removed**, together with the
+`same_journey_occupied` reason it kept alive. It did its job: it held an intermediate state safely
+through CR139 and made advancing it a visible one-line decision rather than a side effect.
+
+**`selectJourneyRuntime`'s Journey fallback** was kept, and the decision was made by measurement
+rather than reading. It has a real caller: `selectJourney` (`App.tsx:4462`) asks about a Journey
+whose thread is not yet resolved, passing `threadId: null`, and the selected workspace carries null
+before its catalog loads. The bound this CR predicted holds and is now tested: with two live
+entries it declines to guess and returns an empty surface rather than a sibling's stream.
+
+**The two-workspace locus rule** was confirmed in its first half — the selected workspace's own run
+wins when live — and its second half was overruled. The aggregate's tie-break had been "whichever
+entry comes first", which after CR139's sort meant alphabetical; it is now a rule: the Journey's own
+workspace wins when it holds a lease.

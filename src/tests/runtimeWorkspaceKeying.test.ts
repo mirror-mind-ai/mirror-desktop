@@ -3,7 +3,7 @@ import appSource from "../app/App.tsx?raw";
 import runtimeStateSource from "../app/journeyRuntimeState.ts?raw";
 import occupancySource from "../app/piInvocationOccupancy.ts?raw";
 import workspaceKeySource from "../app/journeyWorkspaceKey.ts?raw";
-import { NATIVE_ADMISSION_GRAIN, runtimeWorkspaceKey } from "../app/journeyWorkspaceKey";
+import { runtimeWorkspaceKey } from "../app/journeyWorkspaceKey";
 
 /** A source guard asserting what the code calls must not be fooled by prose in a comment. */
 function withoutComments(source: string): string {
@@ -32,28 +32,37 @@ function bodyOf(source: string, signature: string): string {
   throw new Error(`unbalanced body for ${signature}`);
 }
 
-describe("CR138: the admission grain is pinned and flipping it is a visible decision", () => {
-  /**
-   * CR139 flips this constant in the same change that re-keys the Rust registry. Until then the
-   * renderer must refuse a sibling workspace exactly as it does today, or the Navigator loses a
-   * specific refusal sentence and receives the raw native error instead.
-   */
-  it("declares the journey grain while the native registry is keyed by journey", () => {
-    expect(NATIVE_ADMISSION_GRAIN).toBe("journey");
-    expect(withoutComments(workspaceKeySource))
-      .toContain('export const NATIVE_ADMISSION_GRAIN: "journey" | "workspace" = "journey"');
+/**
+ * CR138 pinned an intermediate grain here so that advancing it would be a visible one-line
+ * decision. CR139 re-keyed the registry and CR140 took that decision, so this suite now guards the
+ * opposite property: the switch is gone, and the admission order is the registry's own.
+ *
+ * Re-aimed rather than deleted. A guard that pinned a true intermediate state still has work to do
+ * once the state advances — it keeps the advance from being quietly reversed.
+ */
+describe("CR140: the admission grain is retired and the refusal order mirrors the registry", () => {
+  it("no longer declares a grain switch that could be flipped back", () => {
+    const stripped = withoutComments(workspaceKeySource);
+    expect(stripped).not.toContain("NATIVE_ADMISSION_GRAIN");
+    // The decision survives as prose, so the retirement is discoverable where it was declared.
+    expect(workspaceKeySource).toContain("CR140 flipped and then **removed** the constant");
   });
 
-  it("keeps the admission default reading the declared constant rather than a literal", () => {
+  it("refuses in the registry's order: workspace, then the Journey's share, then capacity", () => {
     const stripped = withoutComments(occupancySource);
     const declaration = stripped.slice(
       stripped.indexOf("export function derivePiInvocationAdmission"),
-      stripped.indexOf("export function hasBlockingPiInvocationOccupancy"),
+      stripped.indexOf("export function liveWorkspacesInJourney"),
     );
-    // The default lives in the signature, which is the point: a caller that does not care
-    // about the grain cannot accidentally hard-code one.
-    expect(declaration).toContain('grain: "journey" | "workspace" = NATIVE_ADMISSION_GRAIN');
-    expect(declaration).toContain('if (grain === "journey")');
+    expect(declaration).not.toContain("grain");
+    expect(declaration).not.toContain("same_journey_occupied");
+    const order = (["same_workspace_occupied", "journey_share_exceeded", "global_capacity_reached"] as const)
+      .map((reason) => declaration.indexOf(reason));
+    expect(order.every((index) => index > -1)).toBe(true);
+    expect(order).toEqual([...order].sort((left, right) => left - right));
+    // The share is read from the inspection, never assumed, which is why the order can be trusted
+    // to match the native one even if the constant moves.
+    expect(declaration).toContain("state.journeyWorkspaceShare");
   });
 });
 
@@ -138,12 +147,19 @@ describe("CR138: the refusal reason tells the truth about its grain", () => {
     expect(stripped).toContain("same_workspace_occupied");
   });
 
-  it("offers a sentence for the workspace refusal without removing the Journey one", () => {
-    const availability = withoutComments(
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      occupancySource,
-    );
+  /**
+   * CR138 pinned that adding the workspace refusal did not remove the Journey one, because at that
+   * point the Journey reason was the one the field actually met. CR140 removed it — with the native
+   * grain at the workspace, no code path can produce it, and an unreachable refusal is debt rather
+   * than safety. Re-aimed to that decision: the sharper reasons exist and the dead one is gone.
+   */
+  it("replaces the Journey refusal with the two reasons that can actually be reached", () => {
+    const availability = withoutComments(occupancySource);
     expect(availability).toContain("same_workspace_occupied");
-    expect(availability).toContain("same_journey_occupied");
+    expect(availability).toContain("journey_share_exceeded");
+    expect(availability).not.toContain("same_journey_occupied");
+    // The share refusal is derived from the reported bound, not from a literal three.
+    expect(availability).toContain("journeyWorkspaceShare");
+    expect(availability).not.toMatch(/liveInJourney\.length >= 3/);
   });
 });

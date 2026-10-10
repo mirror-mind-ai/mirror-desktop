@@ -8,9 +8,10 @@ import {
   hasActiveNativeExecution,
   hasActiveNativeExecutionInJourney,
   hasBlockingPiInvocationOccupancy,
+  liveWorkspacesInJourney,
   validatePiInvocationRegistryInspection,
 } from "../app/piInvocationOccupancy";
-import { journeyWorkspace, NATIVE_ADMISSION_GRAIN } from "../app/journeyWorkspaceKey";
+import { journeyWorkspace } from "../app/journeyWorkspaceKey";
 
 // CR139: the Rust registry and this validator are two independently written rule sets over the
 // same bytes. The fixture is emitted by `PiProcessRegistry::inspect` itself (regenerate with
@@ -81,22 +82,42 @@ describe("CR139: the re-keyed registry's own output satisfies the renderer's val
     ]);
   });
 
-  // The native side now admits a sibling; the renderer still refuses one, by the grain constant
-  // CR138 pinned. This is the seam CR140 opens, and it is asserted here so that the two halves of
-  // RS024's "together or neither" invariant are visibly out of step on purpose rather than by
-  // oversight.
-  it("still refuses a sibling in the renderer while the admission grain says journey", () => {
-    expect(NATIVE_ADMISSION_GRAIN).toBe("journey");
+  // CR139 left this seam deliberately open: the native side admitted a sibling the renderer still
+  // refused, so RS024's "together or neither" invariant was visibly out of step by ordering rather
+  // than by oversight. CR140 closes it, and the assertion is re-aimed to the closure.
+  it("admits a sibling workspace, closing the seam CR139 left open on purpose", () => {
     const state = applied();
     const free = journeyWorkspace("mirror-desktop", "desktop-thread-not-yet-started");
-    expect(derivePiInvocationAdmission(state, free)).toEqual({
-      allowed: false,
-      reason: "same_journey_occupied",
-    });
-    // Under the grain CR140 will set, the same state admits it.
-    expect(derivePiInvocationAdmission(state, free, "workspace")).toEqual({
-      allowed: true,
-      reason: null,
-    });
+    // Two of this Journey's three slots are live in the fixture, so the third is admitted...
+    expect(derivePiInvocationAdmission(state, free)).toEqual({ allowed: true, reason: null });
+    // ...and the share travels in the inspection rather than being assumed on this side.
+    expect(state.journeyWorkspaceShare).toBe(3);
+    expect(state.limit).toBe(4);
+  });
+
+  it("refuses this Journey's fourth workspace by the share, with the real registry's numbers", () => {
+    const state = applied();
+    const occupied = {
+      ...state,
+      entries: [...state.entries, {
+        ...state.entries[1],
+        authority: {
+          ...state.entries[1].authority,
+          threadId: "desktop-thread-third",
+          runId: "run-third",
+        },
+      }],
+    };
+    expect(derivePiInvocationAdmission(occupied, journeyWorkspace("mirror-desktop", "desktop-thread-fourth")))
+      .toEqual({ allowed: false, reason: "journey_share_exceeded" });
+  });
+
+  it("names the three occupants from the fixture's own authorities", () => {
+    const state = applied();
+    expect(liveWorkspacesInJourney(state, "mirror-desktop").map((authority) => authority.threadId))
+      .toEqual(["desktop-thread-mirror-desktop-18d5cf4842", "nautilus-thread-mirror-desktop"]);
+    // The reserved-but-unattached entry in another Journey is live too, and is not this Journey's.
+    expect(liveWorkspacesInJourney(state, "ariad").map((authority) => authority.threadId))
+      .toEqual(["nautilus-thread-ariad"]);
   });
 });

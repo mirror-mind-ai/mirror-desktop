@@ -3557,6 +3557,20 @@ fn with_turn_journal_lock<T>(
     operation(&turn_journal_path(app, &authority.journey_id)?)
 }
 
+/// CR140: `turn_journal_full` is a stable code, and the Navigator met it raw as *"Pi invocation
+/// admission failed: turn_journal_full"*. CR139 created the condition it now reports — a full
+/// journal refuses rather than pruning a live sibling workspace's record — and recorded this
+/// legibility as debt for this CR. The code is kept inside the sentence, because it is what a
+/// diagnostic search matches on.
+fn describe_turn_journal_admission_failure(reason: String) -> String {
+    if reason == "turn_journal_full" {
+        return "This Journey's turn journal is full and no finished turn can be retired yet; \
+                it makes room when a running turn in this Journey finishes (turn_journal_full)."
+            .to_string();
+    }
+    reason
+}
+
 fn admit_turn_journal(app: &AppHandle, run_authority: &RunAuthority) -> Result<TurnJournalRecord, String> {
     let authority = journal_authority(run_authority);
     with_turn_journal_lock(app, &authority, |path| admit_turn(path, authority.clone(), None))
@@ -4196,6 +4210,7 @@ fn start_pi_invocation(
             materialize_completed_journal_delivery_debt(&app, &run_authority.journey_id)
                 .map_err(PiInvocationStartError::Admission)?;
             admit_turn_journal(&app, &run_authority)
+                .map_err(describe_turn_journal_admission_failure)
                 .map_err(PiInvocationStartError::Admission)?;
             let target = target.clone();
             thread::Builder::new()
@@ -10037,7 +10052,7 @@ mod tests {
         conversation_projection_path_at,
         rpc_settlement_exit_grace_expired,
         create_pi_backed_mirror_append_item, dedicated_native_names,
-        is_completed_delivery_candidate,
+        is_completed_delivery_candidate, describe_turn_journal_admission_failure,
         enqueue_mirror_append_item_at_with_limit, exact_steering_authority_matches,
         mirror_append_conflict_keys, mirror_append_conflicts_path, read_mirror_append_conflicts,
         project_dedicated_user_text_and_envelope,
@@ -10563,6 +10578,23 @@ mod tests {
         assert!(!is_completed_delivery_candidate(&journal_record(
             "run-settled", "thread-live", TurnPhase::Settled, Some(TurnTerminalOutcome::Completed),
         )));
+    }
+
+    // CR140: the one admission refusal that reached the Navigator as a bare code.
+    #[test]
+    fn a_full_turn_journal_refuses_with_a_sentence_rather_than_a_bare_code() {
+        let described = describe_turn_journal_admission_failure("turn_journal_full".to_string());
+        assert!(described.contains("turn journal is full"));
+        assert!(described.contains("when a running turn in this Journey finishes"));
+        // The code stays inside the sentence: it is what a diagnostic search matches on, and
+        // CR139's refusal is the condition that produces it.
+        assert!(described.contains("turn_journal_full"));
+        assert_ne!(described, "turn_journal_full");
+        // Every other reason passes through untouched, so this cannot become a place that
+        // rewrites failures it does not understand.
+        for other in ["turn_journal_unreadable", "some_future_code", ""] {
+            assert_eq!(describe_turn_journal_admission_failure(other.to_string()), other);
+        }
     }
 
     // CR139 item 5. The turn/compaction mutual exclusion stays per Journey in both directions, and

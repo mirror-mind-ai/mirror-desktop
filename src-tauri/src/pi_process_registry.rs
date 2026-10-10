@@ -211,6 +211,15 @@ impl PiInvocationLeaseInspection {
 pub struct PiInvocationRegistryInspection {
     pub schema_version: String,
     pub limit: usize,
+    /// CR140: the per-Journey share, reported rather than assumed.
+    ///
+    /// The renderer refuses a turn before Send so the Navigator learns the constraint without
+    /// losing a draft, and to name the share it has to know it. Hardcoding the number in
+    /// TypeScript would be two sources of truth for one bound, drifting silently the first time
+    /// this constant moves. Reported raw, not clamped to `limit`: `reserve` compares against the
+    /// constant and only then against capacity, so a clamped value would make the pre-check
+    /// refuse by the share where the registry refuses by capacity.
+    pub journey_workspace_share: usize,
     pub process_capacity_in_use: usize,
     pub entries: Vec<PiInvocationLeaseInspection>,
 }
@@ -548,6 +557,7 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
         PiInvocationRegistryInspection {
             schema_version: "0.1.0".to_string(),
             limit: self.limit,
+            journey_workspace_share: PER_JOURNEY_PI_WORKSPACE_SHARE,
             process_capacity_in_use: self.process_capacity_in_use,
             entries,
         }
@@ -1805,6 +1815,26 @@ mod tests {
              Regenerate with CR139_WRITE_FIXTURE=1 and let the TypeScript conformance test \
              re-check the validator against it.",
         );
+    }
+
+    // CR140: the renderer refuses before Send and has to name the share, so the share travels in
+    // the inspection rather than being assumed on the other side of the boundary.
+    #[test]
+    fn inspection_reports_the_per_journey_share_so_the_renderer_need_not_assume_it() {
+        let registry = PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production();
+        let inspection = registry.inspect();
+        assert_eq!(inspection.journey_workspace_share, PER_JOURNEY_PI_WORKSPACE_SHARE);
+        assert_eq!(inspection.limit, PRODUCTION_PI_PROCESS_LIMIT);
+
+        // Reported raw rather than clamped to `limit`, because `reserve` compares against the
+        // constant first and capacity second. A registry too small to hold the share still reports
+        // it, so the renderer reproduces that order and refuses by capacity where the registry
+        // would, instead of claiming a share was spent.
+        let small = PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(2).unwrap();
+        let small_inspection = small.inspect();
+        assert_eq!(small_inspection.limit, 2);
+        assert_eq!(small_inspection.journey_workspace_share, PER_JOURNEY_PI_WORKSPACE_SHARE);
+        assert!(small_inspection.journey_workspace_share > small_inspection.limit);
     }
 
     #[test]

@@ -235,6 +235,14 @@ export function selectJourneyRuntime(
 ): JourneyRuntimeEntry {
   const exact = state.entries[runtimeWorkspaceKey(workspace)];
   if (exact) return exact;
+  // CR140 measured what CR138 left provisional. The fallback is reachable by a real caller:
+  // `selectJourney` (`App.tsx:4462`) asks about a Journey it has not yet resolved a thread for,
+  // passing `threadId: null`, so the exact key cannot match an entry written under a real thread.
+  // The same holds for the selected workspace before its catalog loads.
+  //
+  // With one live entry it answers for the Journey, as it always did. With two it declines rather
+  // than guessing: showing a sibling's stream on a surface that did not ask for it would be worse
+  // than showing nothing, and the caller above only needs a snapshot to carry forward.
   const live = selectJourneyRuntimeEntries(state, workspace.journeyId)
     .filter(isJourneyRuntimeActiveOrFinalizing);
   return live.length === 1 ? live[0] : createEmptyJourneyRuntime(workspace);

@@ -291,3 +291,19 @@ By asking whether the field check I had written was provocable, before asking th
 ## Boundaries
 
 No change to how runtime is keyed, no change to admission or occupancy, and no new concurrency — this CR makes ownership legible, not parallel. No change to transcript authority. It must not present an occupied Journey as available, and it must not reduce the visibility of running work on any surface, in any sidebar or visibility configuration.
+
+## D6 Retired by CR140 (2026-10-10)
+
+D6's sentence — *"A conversation in this Journey already has native work in progress."* — was
+recorded here as unreachable in the field by construction and unit-guarded only. CR140 retired it.
+
+With a per-Journey share of three, the refusal it belonged to (`same_journey_occupied`) can be
+produced by no code path, and *several* workspaces can hold the Journey's work at once, which a
+single locus value cannot name. The replacement names each occupant instead: *"This Journey is
+already running as much work as it can at once — this Journey's own workspace, “Journey card” and
+“Release notes”. Send becomes available when one of them finishes."*
+
+The guard was re-aimed, not deleted: `journeyWorkVisibility.test.tsx` still asserts the property
+this CR established — a non-owner workspace is told where the work is — on the sentence that
+replaced it. The locus derivation itself survives and is what the Journey row reads; CR140 only
+changed how the aggregate breaks a tie between siblings.

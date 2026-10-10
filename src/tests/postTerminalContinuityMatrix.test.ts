@@ -13,7 +13,10 @@ import {
   projectJourneySettlementErrors,
   updateExactSettlementError,
 } from "../app/settlementDiagnostics";
-import { decideConversationAvailability } from "../domain/conversationAvailability";
+import {
+  decideConversationAvailability,
+  type NativeConversationAdmission,
+} from "../domain/conversationAvailability";
 import { projectPiBackedConversationSurface } from "../domain/piBackedConversationSurface";
 import {
   POST_TERMINAL_FRONTIERS,
@@ -30,9 +33,11 @@ const coordinates = POST_TERMINAL_OUTCOMES.flatMap((outcome) => (
   POST_TERMINAL_FRONTIERS.map((frontier) => [outcome, frontier] as const)
 ));
 
-// CR138: the matrix is over the native refusals, and it gains the workspace-grained one so
-// that a reason the admission type can now produce cannot silently escape this matrix.
-function availability(nativeAdmission: "allowed" | "inspection_unknown" | "same_journey_occupied" | "same_workspace_occupied" | "global_capacity_reached", mirrorSynchronizationPending = false) {
+// CR138 widened this matrix to the workspace-grained refusal so a reason the admission type can
+// produce cannot silently escape it. CR140 re-aims it: `same_journey_occupied` is gone, because
+// the native grain is the workspace and nothing can produce it, and `journey_share_exceeded`
+// takes its place in the matrix.
+function availability(nativeAdmission: NativeConversationAdmission, mirrorSynchronizationPending = false) {
   return decideConversationAvailability({
     runtimeBindingReady: true,
     conversationAuthorityReady: true,
@@ -63,9 +68,13 @@ describe("RS019 composed post-terminal continuity matrix", () => {
 
     const successor = activeLease(rehearsalAuthority("journey-a", `successor-${outcome}-${frontier}`));
     const withSuccessor = knownOccupancy([successor]);
+    // CR140 reclassification, pinned rather than absorbed: this asks about the *same* workspace
+    // the successor runs in, so the refusal sharpens from the Journey to the workspace. The
+    // verdict this matrix exists to protect — a successor's lease refuses a new turn here — is
+    // unchanged.
     expect(derivePiInvocationAdmission(withSuccessor, journeyWorkspace("journey-a", "thread-journey-a"))).toEqual({
       allowed: false,
-      reason: "same_journey_occupied",
+      reason: "same_workspace_occupied",
     });
     expect(providerCalls).toBe(1);
   });
@@ -93,6 +102,7 @@ describe("RS019 composed post-terminal continuity matrix", () => {
     const fresh: PiInvocationRegistryInspection = {
       schemaVersion: "0.1.0",
       limit: 2,
+      journeyWorkspaceShare: 3,
       processCapacityInUse: 1,
       entries: [activeLease(successor)],
     };
@@ -110,7 +120,7 @@ describe("RS019 composed post-terminal continuity matrix", () => {
     expect(reconciled.entries).toEqual([activeLease(successor)]);
     expect(derivePiInvocationAdmission(reconciled, journeyWorkspace("journey-a", "thread-journey-a"))).toEqual({
       allowed: false,
-      reason: "same_journey_occupied",
+      reason: "same_workspace_occupied",
     });
   });
 
@@ -124,8 +134,12 @@ describe("RS019 composed post-terminal continuity matrix", () => {
     expect(derivePiInvocationAdmission(mixed, journeyWorkspace("journey-d", "thread-journey-d"))).toEqual({ allowed: true, reason: null });
     expect(derivePiInvocationAdmission(mixed, journeyWorkspace("journey-c", "thread-journey-c"))).toEqual({
       allowed: false,
-      reason: "same_journey_occupied",
+      reason: "same_workspace_occupied",
     });
+    // CR140: a *sibling* workspace in the same Journey is now admitted, which is the behaviour
+    // change this matrix would otherwise have hidden behind the sharper reason above.
+    expect(derivePiInvocationAdmission(mixed, journeyWorkspace("journey-c", "thread-sibling")))
+      .toEqual({ allowed: true, reason: null });
 
     const full = knownOccupancy(["a", "b", "c", "d"].map((suffix) => (
       activeLease(rehearsalAuthority(`journey-${suffix}`, `run-${suffix}`))

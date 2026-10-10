@@ -43,6 +43,7 @@ const siblingExecuting = applyPiInvocationInspection(
   {
     schemaVersion: "0.1.0",
     limit: 4,
+    journeyWorkspaceShare: 3,
     processCapacityInUse: 1,
     entries: [running("thread-sibling", "run-sibling")],
   } as PiInvocationRegistryInspection,
@@ -85,9 +86,10 @@ describe("CR138: CR132's shared predicate still agrees, at the workspace grain",
 
   it("agrees with admission about the workspace it was asked about", () => {
     const executing = journeyWorkspace("mirror-desktop", "thread-sibling");
-    expect(derivePiInvocationAdmission(siblingExecuting, executing, "workspace").allowed)
+    // CR140: the explicit grain argument is gone; admission is workspace-grained by default now.
+    expect(derivePiInvocationAdmission(siblingExecuting, executing).allowed)
       .toBe(!hasActiveNativeExecution(siblingExecuting, executing));
-    expect(derivePiInvocationAdmission(siblingExecuting, abandoning, "workspace").allowed)
+    expect(derivePiInvocationAdmission(siblingExecuting, abandoning).allowed)
       .toBe(!hasActiveNativeExecution(siblingExecuting, abandoning));
   });
 

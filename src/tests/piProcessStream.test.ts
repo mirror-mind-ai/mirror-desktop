@@ -581,6 +581,49 @@ describe("Pi process stream adapter", () => {
     ]);
   });
 
+  /**
+   * CR140: the four refusals the native registry can return reach the Navigator as written. This
+   * matters because the renderer's pre-check refuses most of them first; when it does not — a
+   * race, or a reason the pre-check cannot compute — the raw route is the only thing speaking, and
+   * it must not generalise. No parsing, no relabelling, no classification by substring.
+   */
+  it("carries every native admission refusal through verbatim", async () => {
+    const sentences = [
+      "This conversation already has an active or finalizing Pi invocation.",
+      "This Journey is already running as much work as it can at once.",
+      "The global Pi process capacity is occupied.",
+      "Pi invocation admission failed: A compaction is in flight for this Journey; send after it completes.",
+      "Pi invocation admission failed: This Journey's turn journal is full and no finished turn can be"
+        + " retired yet; it makes room when a running turn in this Journey finishes (turn_journal_full).",
+    ];
+
+    for (const sentence of sentences) {
+      const packet = createMissionExtractionPacket({
+        currentState,
+        conversation: [{ id: "msg-refusal", role: "user", content: "test", createdAt: "2026-08-21T00:00:00.000Z" }],
+      });
+      let aborted = false;
+      const dispatcher = {
+        register: vi.fn(async () => ({
+          isClosed: () => aborted,
+          abortBeforeInvocation: () => { aborted = true; },
+        })),
+      };
+      const invokeCommand = vi.fn(async () => { throw new Error(sentence); });
+      const events = [];
+
+      for await (const event of livePiAgentStream(
+        packet, defaultPiProviderConfig, testRunAuthority(), { dispatcher, invokeCommand },
+      )) events.push(event);
+
+      expect(aborted).toBe(true);
+      expect(events).toEqual([
+        { type: "error", message: `Could not invoke local Pi: ${sentence}` },
+        { type: "done" },
+      ]);
+    }
+  });
+
   it("does not invoke when authority-route registration fails", async () => {
     const packet = createMissionExtractionPacket({
       currentState,

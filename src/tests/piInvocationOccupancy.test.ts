@@ -33,6 +33,7 @@ const authority: PiInvocationAuthorityInspection = {
 const inspection = (overrides: Partial<PiInvocationRegistryInspection> = {}): PiInvocationRegistryInspection => ({
   schemaVersion: "0.1.0",
   limit: 1,
+  journeyWorkspaceShare: 3,
   processCapacityInUse: 0,
   entries: [{
     authority,
@@ -171,7 +172,7 @@ describe("native Pi invocation occupancy", () => {
     const oneActive = retainExpectedPiInvocationLease(limitTwoWithFinalizationDebt, authorityB);
     expect(derivePiInvocationAdmission(oneActive, journeyWorkspace("journey-b", "thread-b"))).toEqual({
       allowed: false,
-      reason: "same_journey_occupied",
+      reason: "same_workspace_occupied",
     });
     expect(derivePiInvocationAdmission(oneActive, journeyWorkspace("journey-c", "thread-c"))).toEqual({
       allowed: true,

@@ -1,6 +1,5 @@
 import type { RunAuthority } from "../domain/runAuthority";
 import {
-  NATIVE_ADMISSION_GRAIN,
   runtimeWorkspaceKey,
   sameJourneyWorkspace,
   workspaceOfAuthority,
@@ -31,6 +30,13 @@ export interface PiInvocationLeaseInspection {
 export interface PiInvocationRegistryInspection {
   schemaVersion: "0.1.0";
   limit: number;
+  /**
+   * CR140: how many live invocations one Journey may hold, reported by the registry rather than
+   * assumed here. Hardcoding it would be two sources of truth for one bound. Not clamped to
+   * `limit`, because the native `reserve` compares against this constant first and against
+   * capacity second, and this side has to reproduce that order to name the same cause.
+   */
+  journeyWorkspaceShare: number;
   processCapacityInUse: number;
   entries: PiInvocationLeaseInspection[];
 }
@@ -45,6 +51,8 @@ export interface PiInvocationOccupancyState {
   status: "unknown" | "reconciling" | "known";
   requestId: number | null;
   limit: 1 | 2 | 4 | null;
+  /** CR140: null until an inspection is known, like every other reported bound. */
+  journeyWorkspaceShare: number | null;
   processCapacityInUse: number | null;
   entries: PiInvocationLeaseInspection[];
   diagnostic: string | null;
@@ -56,10 +64,14 @@ export type PiInvocationAdmission =
     allowed: false;
     reason:
       | "inspection_unknown"
-      /** CR138: the Journey-grained refusal, returned while the native registry is keyed by Journey. */
-      | "same_journey_occupied"
-      /** CR138: the workspace-grained refusal, reachable once the native grain is the workspace. */
+      /** The workspace the Navigator is in already has a run. CR138 added it; CR140 made it reachable. */
       | "same_workspace_occupied"
+      /**
+       * CR140: this Journey holds its whole share of live invocations while global capacity is
+       * not yet spent. Distinct from `global_capacity_reached` because the two clear differently:
+       * one needs a turn in *this* Journey to finish, the other a turn anywhere.
+       */
+      | "journey_share_exceeded"
       | "global_capacity_reached";
   };
 
@@ -87,6 +99,7 @@ export function createUnknownPiInvocationOccupancy(): PiInvocationOccupancyState
     status: "unknown",
     requestId: null,
     limit: null,
+    journeyWorkspaceShare: null,
     processCapacityInUse: null,
     entries: [],
     diagnostic: null,
@@ -119,7 +132,15 @@ const ENTRY_KEYS = [
   "cancellationState",
   "terminalState",
 ] as const;
-const INSPECTION_KEYS = ["schemaVersion", "limit", "processCapacityInUse", "entries"] as const;
+const INSPECTION_KEYS = [
+  "schemaVersion",
+  "limit",
+  "journeyWorkspaceShare",
+  "processCapacityInUse",
+  "entries",
+] as const;
+/** Mirrors `MAX_PI_PROCESS_LIMIT` in `pi_process_registry.rs`; the share cannot exceed it. */
+const MAX_REPORTED_JOURNEY_SHARE = 16;
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-]*$/;
 const MAX_AUTHORITY_FIELD_LENGTH = 512;
 
@@ -183,6 +204,11 @@ export function validatePiInvocationRegistryInspection(
   if (!isRecord(value) || !hasExactKeys(value, INSPECTION_KEYS)) return false;
   if (value.schemaVersion !== "0.1.0"
     || (value.limit !== 1 && value.limit !== 2 && value.limit !== 4)
+    // CR140: bounded on its own terms, NOT by `limit`. A registry smaller than the share is a
+    // legitimate configuration — the share is a constant and capacity is what refuses first there.
+    || !Number.isSafeInteger(value.journeyWorkspaceShare)
+    || Number(value.journeyWorkspaceShare) < 1
+    || Number(value.journeyWorkspaceShare) > MAX_REPORTED_JOURNEY_SHARE
     || !Number.isSafeInteger(value.processCapacityInUse)
     || Number(value.processCapacityInUse) < 0
     || Number(value.processCapacityInUse) > Number(value.limit)
@@ -237,6 +263,7 @@ export function applyPiInvocationInspection(
       status: "unknown",
       requestId: null,
       limit: state.limit,
+      journeyWorkspaceShare: state.journeyWorkspaceShare,
       processCapacityInUse: state.processCapacityInUse,
       entries: state.entries,
       diagnostic: "Native Pi invocation occupancy inspection was invalid.",
@@ -246,6 +273,7 @@ export function applyPiInvocationInspection(
     status: "known",
     requestId: null,
     limit: inspection.limit as 1 | 2 | 4,
+    journeyWorkspaceShare: inspection.journeyWorkspaceShare,
     processCapacityInUse: inspection.processCapacityInUse,
     entries: [...inspection.entries].sort(compareByWorkspace),
     diagnostic: null,
@@ -276,6 +304,7 @@ export function failPiInvocationReconciliation(
     status: "unknown",
     requestId: null,
     limit: state.limit,
+    journeyWorkspaceShare: state.journeyWorkspaceShare,
     processCapacityInUse: state.processCapacityInUse,
     entries: state.entries,
     diagnostic,
@@ -314,33 +343,57 @@ export function isActivePiInvocationLease(entry: PiInvocationLeaseInspection): b
 }
 
 /**
- * CR138: admission is asked about a workspace, but *answered* at the grain the native registry
- * actually enforces. While `NATIVE_ADMISSION_GRAIN` is `"journey"` a sibling workspace is refused
- * exactly as today, with today's reason, because the Rust registry would refuse the reservation
- * anyway and the Navigator would receive the raw native error instead of this sentence.
+ * Admission as the Navigator meets it: asked before Send, so a refusal costs no draft.
  *
- * CR139 flips the constant; passing `grain` explicitly is for tests that need the other side.
+ * CR138 asked the question about a workspace while answering at the Journey grain, because the
+ * native registry was keyed by Journey and the renderer had to refuse whatever the registry would.
+ * CR139 re-keyed the registry; this now answers at the workspace grain, and the grain constant
+ * that pinned the intermediate state is gone — CR140 retired it rather than leaving a switch
+ * nobody will flip back.
+ *
+ * The refusal order is the registry's own, so this pre-check never names a cause the registry
+ * would not have named.
  */
 export function derivePiInvocationAdmission(
   state: PiInvocationOccupancyState,
   workspace: JourneyWorkspace,
-  grain: "journey" | "workspace" = NATIVE_ADMISSION_GRAIN,
 ): PiInvocationAdmission {
-  if (state.status !== "known" || state.limit === null || state.processCapacityInUse === null) {
+  if (state.status !== "known"
+    || state.limit === null
+    || state.journeyWorkspaceShare === null
+    || state.processCapacityInUse === null) {
     return { allowed: false, reason: "inspection_unknown" };
   }
   const active = state.entries.filter(isActivePiInvocationLease);
-  if (grain === "journey") {
-    if (active.some((entry) => entry.authority.journeyId === workspace.journeyId)) {
-      return { allowed: false, reason: "same_journey_occupied" };
-    }
-  } else if (active.some((entry) => sameJourneyWorkspace(workspaceOfAuthority(entry.authority), workspace))) {
+  if (active.some((entry) => sameJourneyWorkspace(workspaceOfAuthority(entry.authority), workspace))) {
     return { allowed: false, reason: "same_workspace_occupied" };
+  }
+  // CR140: this order mirrors `PiProcessRegistry::reserve` exactly — duplicate workspace, then the
+  // Journey's share, then global capacity. Reordering it would make this pre-check refuse by a
+  // cause the registry would not have named, which is the failure shape this whole Story exists
+  // to remove.
+  const liveInJourney = active.filter((entry) => entry.authority.journeyId === workspace.journeyId);
+  if (liveInJourney.length >= state.journeyWorkspaceShare) {
+    return { allowed: false, reason: "journey_share_exceeded" };
   }
   if (state.processCapacityInUse >= state.limit) {
     return { allowed: false, reason: "global_capacity_reached" };
   }
   return { allowed: true, reason: null };
+}
+
+/**
+ * CR140: the workspaces whose live runs are occupying this Journey's share, in inspection order,
+ * so a refusal can name them instead of saying the Journey is busy. A finalizing lease is excluded
+ * for the same reason the share excludes it: the process is gone and the slot is already released.
+ */
+export function liveWorkspacesInJourney(
+  state: PiInvocationOccupancyState,
+  journeyId: string,
+): PiInvocationAuthorityInspection[] {
+  return state.entries
+    .filter((entry) => entry.authority.journeyId === journeyId && isActivePiInvocationLease(entry))
+    .map((entry) => entry.authority);
 }
 
 export function hasBlockingPiInvocationOccupancy(state: PiInvocationOccupancyState): boolean {
