@@ -97,6 +97,37 @@ related standing observation and a different change. This CR is about the durabl
 **Not CR127.** CR127 is now planned on an established cause and does not depend on this. The two share
 a witness, not a fix.
 
+## Field Evidence Arrived Unprompted (2026-10-10)
+
+This CR was captured on reasoning: a settlement that only succeeds through recovery writes no
+record. It now has a measured instance, dated, from the Dev channel.
+
+A turn completed natively at `17:38:42` and its renderer-side settlement never ran. The journal held
+`phase: terminal_durable`, `terminalOutcome: completed`, `recoveryDisposition: resume_projection`
+for seventy minutes. On the next launch, at `18:46:09`, recovery projected the answer and advanced
+the record to `phase: settled`, revision 5.
+
+**And `settlement-timings/mirror-desktop.json` was not touched.** Its mtime stayed at `14:37:30`
+and its newest entry remained the preceding turn's. So the ledger shows the Journey's last
+settlement as the turn *before* this one, and a reader reconstructing the session from timings
+would conclude this turn never settled — while the journal says it did.
+
+This was predicted as part of a CR142 experiment and the prediction **failed on exactly this
+point**, which is why it belongs here as evidence rather than as an assumption: the recovery was
+expected to write a timing record, and it did not.
+
+Consequences this sharpens for planning:
+
+- the ledger undercounts settlements by exactly the ones that needed recovery, so any rate derived
+  from it is biased toward the healthy path;
+- CR132's threshold was derived from timings, and timings are blind to this class;
+- a recovered settlement and a settlement that never happened are **indistinguishable in the
+  ledger**, which is the distinction CR142 needs and cannot get from it today.
+
+Run for reference: `agent-run-2026-10-10T17:38:10.504Z`, thread
+`desktop-thread-mirror-desktop-18d5cf4842b669b0`. Full context in
+`docs/update/rs024-field-verification-baseline-2026-10-10.md`.
+
 ## Neighbour recorded 2026-10-10 — CR142
 
 A Dev field attempt produced the sharper case of this CR's silence. A turn executed, the native side

@@ -16,9 +16,9 @@
 | ↳　CR136 · Admit Concurrent Work Inside One Journey | ↗️ promoted → RS024 / CR138–CR140 | `　　　　　　　　　　` |
 | ↳　CR137 · Bring the Navigator Back to the Conversation They Left | 🟡 captured · sem Driver · achado no campo da CR133 | `░░░░░░░░░░` |
 | **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 36 ✅ · 2 🟡 · 4 ↗️ · 1 ⛔ · de 43 |
-| ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · sem Driver | `░░░░░░░░░░` |
+| ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
-| ↳　CR142 · Stop Losing a Turn the Journal Already Answered | 🟡 captured · resposta só no journal · mecanismo não estabelecido | `░░░░░░░░░░` |
+| ↳　CR142 · Stop Losing a Turn the Journal Already Answered | 🟡 captured · nada perdido · 70 min de resposta invisível | `░░░░░░░░░░` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · sem Driver · pode sobrepor CR133/CR134 | `░░░░░░░░░░` |

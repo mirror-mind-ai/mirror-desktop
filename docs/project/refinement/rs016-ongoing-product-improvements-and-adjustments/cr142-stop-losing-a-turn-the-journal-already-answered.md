@@ -142,6 +142,63 @@ entry bearing this run's authority would name the mechanism directly, and it is 
 Reading it needs the developer console, which is the Navigator's action; it is listed as
 investigation item 4 and is **not** a precondition for the restart experiment.
 
+## Experiment Result — the restart recovered it (2026-10-10 18:46)
+
+The Navigator restarted the Dev app at `18:46:01`. **The content was never at risk**, so this CR
+takes the narrow branch its baseline predicted.
+
+| | Before restart | After restart |
+|---|---|---|
+| Journal phase | `terminal_durable`, revision 3 | **`settled`, revision 5**, `updatedAt 21:46:09.693Z` |
+| Journal census | 39 settled, 1 terminal_durable | **40 settled, 0 terminal_durable** |
+| Thread conversation | 18 messages, no D1A content | **20 messages**, carrying the prompt and the full answer |
+| Surface | *"Working…"* for ~70 minutes | **IDLE** |
+
+Recovery ran within about eight seconds of launch and did exactly what
+`recoveryDisposition: resume_projection` promises. The 17,806 bytes were projected intact.
+
+### Half of the stated prediction failed, and the failure is the finding
+
+The prediction said recovery would project the content, advance the phase, **and write a
+settlement-timings record**. The first two held. The third did not:
+`settlement-timings/mirror-desktop.json` is still stamped `14:37:30` and its last entry is still
+the calibration turn. **A settlement that succeeded through recovery left no record of having
+happened** — which is precisely what **CR129** was captured for, now demonstrated with dated
+evidence rather than argued. Recorded there.
+
+### What remains defective, now much narrower
+
+1. **The in-session projection never ran, and nothing retried.** The turn sat `terminal_durable`
+   for seventy minutes with no file written in the final forty. Only a process restart moved it.
+2. **The surface claimed `working` the whole time** for a turn whose journal said `completed`. This
+   is the sharpest remaining part: the answer existed, durably, and the Navigator had no way to
+   know. A surface that says *working* when the record says *finished* is worse than a surface that
+   says nothing, because it directs the Navigator to wait.
+3. **Recovery did not clear the composer draft.** `composer-drafts.json` still holds the D1A prompt
+   under its per-conversation key — the drafts are correctly workspace-scoped, and the draft is
+   cleared only when a turn commits, which in-session it never did. After recovery the same prompt
+   sits in the composer one Send away from being asked a second time, with its answer already above
+   it in the transcript. Not data loss; a duplication trap the recovery path leaves behind.
+
+### The mechanism is now unrecoverable for this instance
+
+Investigation item 4 asked for `piProcessEventDispatcher.quarantine()`. **The release build offers
+no developer console**, so that reading was never available and is now gone with the process. The
+in-session failure's mechanism stays unestablished for this occurrence, and a reproduction is the
+only remaining route to it.
+
+That gap is worth naming on its own: an in-process diagnostic that only exists in memory, in a
+build with no console, cannot be read when it matters. Whether that becomes its own CR is the
+Navigator's call; it is not folded in here.
+
+### Scope, revised
+
+This CR is no longer *"stop losing a turn"* — nothing was lost. Its subject is the seventy minutes
+in which a completed answer was durable and invisible, and the surface pointed away from it. The
+title is kept so the record of what was feared remains legible; the Outcome and Acceptance below
+are the ones that still apply, and the first Acceptance line — naming the mechanism before any
+change — is now harder and still required.
+
 ## Acceptance
 
 - The mechanism is named, with evidence, before any change.

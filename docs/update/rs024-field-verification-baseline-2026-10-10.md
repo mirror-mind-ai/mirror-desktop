@@ -377,7 +377,57 @@ with the surface claiming work is still running. That belongs with CR129, which 
 settlements that succeed without saying so, and is now the sharper case — a settlement that did not
 happen at all and says nothing.
 
+## Restart Experiment, and What the Field Settled (2026-10-10 18:46)
+
+The Dev app was restarted at `18:46:01`. The experiment recorded in CR142 ran, and three things
+were settled by measurement.
+
+**The turn was recovered, intact.** Journal `terminal_durable` revision 3 → **`settled` revision
+5** at `21:46:09.693Z`, about eight seconds after launch; the thread's conversation went from 18 to
+**20 messages**, carrying the prompt and the full 17,806-byte answer; the surface went from
+*"Working…"* to **IDLE**. Nothing was lost, and `resume_projection` did what it promises.
+
+**Half the prediction failed, and that half is CR129's evidence.** Recovery was predicted to write
+a settlement-timings record. It did not — the file's mtime is still `14:37:30` and its newest entry
+is still the calibration turn. A settlement that succeeded through recovery left no trace of having
+happened, which is CR129's captured subject, now measured. Recorded in CR129 with the run id.
+
+**The developer console does not exist in this build**, so the dispatcher's in-memory
+`quarantine()` was never readable and is gone with the process. The in-session failure's mechanism
+stays unestablished for this occurrence.
+
+### Where RS024's field verification actually stands
+
+| Step | Status |
+|---|---|
+| D0 calibration | collected — 18.4 s execution, settled normally |
+| D1A | ran; its settlement stalled and recovered only on restart |
+| **D1B** | **refused by the per-Journey event route — CR141** |
+| D2–D5 | **not reached** |
+
+**D1's durable claim was not collected.** There is one marked record, not two with intersecting
+`piExecution` windows. The field evidence owed by CR138, CR139 and CR140 remains owed, and CR141
+is where it is collected — unchanged, and now with a measured reason rather than a predicted one.
+
+### What the attempt produced instead
+
+A field run that collects none of its planned evidence is not a wasted run. This one produced:
+
+- **CR141**, the slice RS024 was missing, found only because the grain was flipped and the system
+  was asked to actually do the thing;
+- **CR142**, narrowed by its own experiment from *a lost turn* to *seventy minutes of a durable
+  answer being invisible while the surface pointed away from it*;
+- **CR129's first measured instance**, arriving unprompted;
+- a correction to CR140's Finding 3 and the revert of its grain flip.
+
+Four findings, none of which the plan predicted. Recorded because the plan not predicting them is
+the point: the sequence was built to be run, and running it is what produced them.
+
 ## Status
 
-Baseline recorded; the run is the Navigator's, since opening a Journey and sending a turn are GUI
-actions. CR140 and RS024 stay open until D1 is read from disk and appended below.
+The D1–D5 sequence did **not** complete and RS024's field evidence is **not** collected. It is
+owed by CR138, CR139 and CR140, and CR141 is the slice that can provoke it, because CR141 is what
+removes the per-Journey event route that stopped D1B.
+
+The Dev app is installed, hash-verified and on the current build. The baseline and the restart
+reading above are the durable record of the attempt.
