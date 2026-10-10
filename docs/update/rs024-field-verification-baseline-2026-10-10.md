@@ -281,6 +281,102 @@ Two observations are available in the stuck state and are worth more than resumi
 Restarting the app destroys the native registry and both observations, so the state was left
 untouched pending the Navigator's reading.
 
+## The Navigator's Reading, and What It Proves (2026-10-10)
+
+The two observations settled it, and neither matched the four candidate screens I offered. Both
+hypotheses in the section above are **withdrawn**: it was not `turnRecoveryBusy`, and not CR132.
+
+### What D1B actually showed
+
+> Message was not sent
+> Message returned to the composer: Could not attach to the Pi process event stream: Pi process
+> route already active for Journey mirror-desktop.
+
+That string is thrown at `piProcessEventDispatcher.ts:169`, inside `register`, which
+`livePiAgentStream` calls at `piProcessStream.ts:642` — **before** `start_pi_invocation` at `:662`.
+So neither CR139's native admission nor CR140's pre-check ever ran. They both said yes.
+
+**`routes` is a `Map` keyed by `authority.journeyId`: one event route per Journey.** It is
+per-Journey in seven places — `register` (`:168`, `:174`), `rehydrate` (`:187`, `:196`), the
+route-handle close (`:97`, `:157`), `rememberClosedAuthority` (`:68`, which replaces by Journey),
+and decisively **`deliver` (`:81`)**, where an arriving event finds its route by
+`routes.get(event.authority.journeyId)`. Re-keying `register` alone would not help; delivery itself
+would still find one route per Journey.
+
+That the error appeared at all proves the Navigator's timing was right: a route was still open, so
+A was genuinely streaming when B was attempted. The D1 step was executed correctly.
+
+### The scope gap, stated plainly
+
+**RS024's Desired Outcome is not achieved.** Two workspaces in one Journey still cannot run
+concurrently. CR138, CR139 and CR140 are each correct and each necessary, and together they are
+**not sufficient**, because the Pi event transport is keyed by Journey.
+
+`git log` over `src/agent/piProcessEventDispatcher.ts` shows **zero commits** from CR138, CR139 or
+CR140. The per-Journey route is pre-existing and was never in this Story's scope. Every First
+Investigation surveyed the *admission* path — the Rust registry, its three consumers, the TS runtime
+state, the validator, the turn journal, the compaction exclusion, the journal reconciliation — and
+none of them surveyed the *event transport* path. CR136's "three registry consumers" enumerated
+consumers of the registry, not of the event stream. That is the gap.
+
+### The regression CR140 did cause
+
+Before CR140, `derivePiInvocationAdmission` refused B at the Journey grain, Send was disabled, and
+the Navigator read *"This Journey already has native work in progress."* After CR140, Send is
+offered, the send proceeds, and the Navigator receives a raw internal error naming an event route.
+
+**CR140's own Acceptance criterion — "No existing refusal becomes silent or less specific" — now
+fails.** The refusal did not go silent; it became *less legible*, and it reads like a malfunction
+rather than a constraint. By this CR's own standard that is a defect, and it is mine: the grain flip
+was premature, because it moved the refusal from a layer that explains itself to a layer that
+throws.
+
+### Observation 1, and the turn that is not where the Navigator can see it
+
+The Journey card showing only *"Working…"* is **not** CR132's abandonment offer failing.
+`settlementAbandonmentOffer` requires `ownerPhase === "finalizing"`; the surface reads `working`,
+so the renderer still believes the turn is *running*, and the offer correctly declines with
+`not_finishing`. CR132 remains unexercised.
+
+What the disk shows, after one corrected instrument — the messages live under
+`conversation.messages`, not `messages`, and an earlier read of `0 messages` was my error:
+
+| Layer | State |
+|---|---|
+| Pi session JSONL | written |
+| Turn journal | `terminal_durable`, `terminalOutcome: completed`, `assistantText: "RS024-D1A 1. Falhas de rede…"` |
+| `settlement-timings` | **no record for D1A** |
+| A's dedicated conversation | 18 messages, last from a prior validation, **no D1A content** |
+| A's segments | **no D1A content** |
+| Surface | *"Working…"*, indefinitely |
+
+So the turn executed, the native side captured its answer, and **the only durable copy of that
+answer is the turn journal's terminal evidence.** It is not in the conversation, not in a segment,
+and not in a settlement record. The renderer appears never to have received the completion.
+
+**The mechanism is unestablished, and I will not claim it was or was not caused by my change
+without evidence.** What is established is that B's `register` threw before mutating any route, so
+no code path I can read connects B's refusal to A's loss. It may be independent; it may not.
+
+### Recommendation, which is the Navigator's call
+
+Keep everything CR140 did except the grain flip, and capture the missing slice.
+
+The shared refusal sentences, the reported share, the locus rule and the retired D6 wording are all
+improvements that stand on their own. The grain flip is the one piece that makes the system *worse*
+than before, because it trades a legible refusal for a raw error against a transport that cannot
+honour it. Restoring the renderer's per-Journey refusal returns the Navigator to a clean sentence
+and costs nothing that was working.
+
+Then RS024 needs a **fourth slice**: key the Pi process event route by workspace. The event
+authority already carries `thread_id`, so it is mechanically possible, and it is a prerequisite for
+the Story's Desired Outcome rather than an improvement to it.
+
+The second owed capture is the lost turn: a completed answer that exists only in the turn journal,
+with the surface claiming work is still running. That belongs with CR129, which was captured for
+settlements that succeed without saying so, and is now the sharper case — a settlement that did not
+happen at all and says nothing.
+
 ## Status
 
 Baseline recorded; the run is the Navigator's, since opening a Journey and sending a turn are GUI
