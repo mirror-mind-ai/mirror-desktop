@@ -68,9 +68,17 @@ Pi event route by workspace, and the field produced the claim: `turn-journal` re
 12.8 s, and **all three for 5.5 s**, exercising the share of three in full. The evidence owed by
 CR138, CR139 and CR140 is collected with it.
 
-**One gap the Story created and did not close**: with three turns able to run inside one Journey,
-no surface says *which* conversation is running. Captured as **CR143**, and it is the Navigator's
-call whether it belongs to this Story or to RS016.
+**The Navigator admitted CR143 to this Story on 2026-10-10**, to be delivered before the release.
+So the horizon gains a fifth row:
+
+- **a Navigator scanning the conversation list can tell which conversations are working**, without
+  opening them, including when a working conversation is hidden or below the visible cap.
+
+The three rows above remain reached; the Story's scope grew by decision, not because an earlier
+reading was wrong. The concurrency this Story set out to allow works and is field-verified — what
+is now owed is saying so on the surface, a gap that exists *because* the Story succeeded. While one
+turn per Journey was possible, *the Journey is working* was a complete statement and CR134's
+Journey-level grain was right.
 
 ## Boundaries
 
@@ -86,4 +94,4 @@ call whether it belongs to this Story or to RS016.
 - [CR139: Key the Native Registry by Workspace](cr139-key-the-native-registry-by-workspace.md) — gated on CR138 merged
 - [CR140: Name the Constraint That Refuses Concurrent Work](cr140-name-the-constraint-that-refuses-concurrent-work.md) — gated on CR139 merged
 - [CR141: Key the Pi Event Route by Workspace](cr141-key-the-pi-event-route-by-workspace.md) — gated on CR140 merged · **done**
-- [CR143: Say Which Conversation Is Working](cr143-say-which-conversation-is-working.md) — captured, reported from the field; Story membership undecided
+- [CR143: Say Which Conversation Is Working](cr143-say-which-conversation-is-working.md) — **planned**, reported from the field; **admitted to this Story by the Navigator on 2026-10-10**, to be delivered before the release
