@@ -106,6 +106,108 @@ concurrency, two turns whose windows intersect are. D2 adds a third, on
 construction: a refused reservation writes no receipt and no journal record. This is said before
 the run rather than discovered at closure.
 
+## The prompts, and why they are shaped this way
+
+The sequence has a timing requirement the table above does not express: **the first turn must still
+be running when the second and third start.** The most recent Dev turn before this run executed in
+**3.5 seconds** (`startedAt 15:04:18.868` → `committedAt 15:04:22.401`), which leaves no window to
+click into another conversation at all. So the prompts are deliberately long, and ordered longest
+first, so each one outlives the turns started after it.
+
+Two constraints shape the text itself.
+
+**Attribution must come from something recorded.** `terminalEvidence.piExecution.assistantText` is
+in the journal, so each prompt instructs the model to begin its reply with a unique marker —
+`RS024-D1A`, `RS024-D1B`, `RS024-D2ROOT`. The marker must be first, because `assistantText` is
+truncated. Without it, the only way to match a durable record to a turn would be its position in
+time, which is exactly the inference this verification exists to avoid.
+
+**Dev runs in `invocationMode: "mirror"` against the `mirror-dev` checkout** (`openai-codex` /
+`gpt-5.6-luna`, `pi-default`). Every prompt therefore forbids reading files, running commands and
+writing to disk, and asks for purely generated text. This reduces tool use; it cannot guarantee
+zero, and that limit is stated rather than assumed away.
+
+### D0 — calibration, recommended
+
+Measures whether a long prompt actually runs long enough before the sequence depends on it. Costs
+one journal record (51 of 64). In "New conversation":
+
+```
+RS024-D0-CAL — comece a primeira linha da resposta exatamente com RS024-D0-CAL e nada antes dela.
+
+Não leia arquivos, não rode comandos, não escreva nada em disco. Responda apenas do seu próprio conhecimento.
+
+Escreva 150 afirmações numeradas, de uma frase cada, sobre por que concorrência é difícil em sistemas de software. Não repita nenhuma afirmação.
+```
+
+Under ~40 s, raise the counts below. Over ~40 s, proceed as written.
+
+### D1 — two workspaces running at once
+
+In "Pensar sobre uma nova feature: journey card":
+
+```
+RS024-D1A — comece a primeira linha da resposta exatamente com RS024-D1A e nada antes dela.
+
+Não leia arquivos, não rode comandos, não escreva nada em disco. Responda apenas do seu próprio conhecimento.
+
+Escreva 250 afirmações numeradas, de uma frase cada, sobre falhas de projeto em sistemas distribuídos. Não repita nenhuma afirmação.
+```
+
+Then, **without waiting**, in "New conversation":
+
+```
+RS024-D1B — comece a primeira linha da resposta exatamente com RS024-D1B e nada antes dela.
+
+Não leia arquivos, não rode comandos, não escreva nada em disco. Responda apenas do seu próprio conhecimento.
+
+Escreva 200 afirmações numeradas, de uma frase cada, sobre armadilhas de cache. Não repita nenhuma afirmação.
+```
+
+### D2 — the third slot, the Journey's own workspace
+
+With both running, leave every conversation and send from the Journey's own Composer:
+
+```
+RS024-D2ROOT — comece a primeira linha da resposta exatamente com RS024-D2ROOT e nada antes dela.
+
+Não leia arquivos, não rode comandos, não escreva nada em disco. Responda apenas do seu próprio conhecimento.
+
+Escreva 150 afirmações numeradas, de uma frase cada, sobre por que nomes importam em código. Não repita nenhuma afirmação.
+```
+
+### D3 and D4 — the refusals
+
+Nothing is sent. Create a fourth conversation, try to send, and read the notice; then return to
+"journey card" and try again. The expected strings, from `admissionRefusal.ts`:
+
+| | Title | Sentence |
+|---|---|---|
+| D3 | *This Journey is running all it can at once* | *This Journey is already running as much work as it can at once — <occupants>. Send becomes available when one of them finishes.* |
+| D4 | *This conversation is already working* | *This conversation already has native work in progress.* |
+
+Both are prefixed on screen by *"You can keep drafting, but Send remains unavailable."*
+
+D3 is where the `rootThreadId` prediction is tested: the root occupant should read *"this Journey's
+own workspace"*, and `nautilus-thread-mirror-desktop` would mean the deliberate id fallback
+engaged.
+
+### Divergences that are findings rather than failures
+
+- **D1-B refused** — the grain did not flip. A defect, and the run stops.
+- **A finished before B was sent** — no overlap, so no evidence. Repeat D1 with larger counts; two
+  sequential turns are not evidence of concurrency.
+- **`turn_journal_full` appears** — capture it rather than retrying past it. Unplanned evidence of
+  CR139's fail-closed refusal reaching the Navigator through CR140's sentence.
+- **"Global Pi capacity occupied"** — the global limit of four, not the share of three, meaning
+  another Journey holds a slot.
+
+### What closes this
+
+Read from disk afterwards: records in `turn-journal/mirror-desktop.json` whose `assistantText`
+begins with each marker, and whether their `piExecution.startedAt`–`committedAt` windows
+**intersect**. The intersection is the claim.
+
 ## Status
 
 Baseline recorded; the run is the Navigator's, since opening a Journey and sending a turn are GUI
