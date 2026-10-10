@@ -423,6 +423,71 @@ A field run that collects none of its planned evidence is not a wasted run. This
 Four findings, none of which the plan predicted. Recorded because the plan not predicting them is
 the point: the sequence was built to be run, and running it is what produced them.
 
+## Second Attempt — Instrument and Baseline After CR141 Stage A (2026-10-10 20:01)
+
+### Instrument
+
+| | |
+|---|---|
+| Dev binary now installed | **`f6a02acd2cd54ade10ffa26fed235d3fbdd394deb28e1eda42cacf29643d9234`** |
+| Replaced | `61d6af14911513e0…` (alpha.43 + CR138/CR139/CR140) |
+| Backup, hash-verified **before** the original was removed | `/tmp/mirror-desktop-dev-backup-20261010-200122.app` |
+| Dev running at both checks | no — the Navigator closed it |
+| Production | **untouched**, `e8eda1258071f969…`, running (pid 45016, restarted 18:42 local) |
+
+Both apps still report `0.2.0-alpha.43`. **Only the hash distinguishes them**, as on every previous
+install.
+
+### Baseline, measured before the run
+
+`turn-journal/mirror-desktop.json`: **52 records of 64** — 40 `settled`, 10 `interrupted`, 2
+`running` (the September orphans, untouched). Last `updatedAt` `21:46:09.693Z`, which is D1A's
+recovery from the first attempt. Per thread: 36 `nautilus-thread-mirror-desktop`, 11
+`…18d5cf4842b669b0`, 3 `…18d58ef5a20a4938`, 1 `…18d591ec0de7a738`, 1 handoff-recovery.
+
+`settlement-timings/mirror-desktop.json`: **8 records**, newest still D0-CAL's
+`agent-run-2026-10-10T17:37:07.367Z` — the gap CR129 now owns.
+
+Catalog unchanged: three `desktop_conversation` entries, **`rootThreadId` still `null`**. Outbox
+empty.
+
+**Twelve journal slots remain and the sequence costs about seven.** If `turn_journal_full` appears
+it is captured as unplanned evidence of CR139's fail-closed refusal reaching the Navigator through
+CR140's sentence — not retried past.
+
+### What changes in the expectations
+
+| Step | First attempt | Now |
+|---|---|---|
+| **D1B** | **refused** by the event route, after Send | **admitted** — this is the pivot the whole Story turns on |
+| D2 | never reached | third of three admitted; locus flips to `here` |
+| D3 | never reached | share refusal, now reachable for real because three can actually run |
+| D4 | never reached | *"This conversation is already working"* |
+| D5 | never reached | Send returns without a reload |
+
+The sentence *"Could not attach to the Pi process event stream: Pi process route already active
+for Journey mirror-desktop."* **must not appear.** Its absence is the first thing to read.
+
+### A new observation CR141 made checkable, costing no extra turn
+
+While D1A and D1B are both running, **click between the two conversations**. Each must show *its
+own* turn: its own streaming text, its own *"Working…"*, its own Stop. Before CR141, `App.tsx`
+selected the native lease by Journey and returned whichever thread sorted first, so the second
+conversation would have shown the first one's state — and, worse, silently skipped its own
+rehydration. This is `selectWorkspaceNativeLease` in the field, and it is observable for free
+inside D1.
+
+### Limits, stated before the run rather than after
+
+- **The dispatcher's quarantine cannot be read.** The release build offers no developer console.
+  If an event is misrouted, the symptom is visible and the diagnostic is not.
+- **D2–D5 have no durable artifact by construction.** A refused reservation writes no receipt and
+  no journal record, so those steps close on attestation and say so.
+- **A second settlement-timings record is expected unless a turn settles through recovery**, in
+  which case CR129's gap applies and is recorded there rather than debited to this run.
+- **If D1A stalls again at `terminal_durable`**, that is CR142 reproducing. It is recorded, not
+  fixed here, and this time the pre-restart state is read before anything is restarted.
+
 ## Status
 
 The D1–D5 sequence did **not** complete and RS024's field evidence is **not** collected. It is
