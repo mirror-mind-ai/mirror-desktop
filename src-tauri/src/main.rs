@@ -335,6 +335,7 @@ struct PiProcessEventAuthority {
 
 impl RegistryAuthority for RunAuthority {
     fn journey_id(&self) -> &str { &self.journey_id }
+    fn thread_id(&self) -> &str { &self.thread_id }
     fn run_id(&self) -> &str { &self.run_id }
 
     fn inspection_identity(&self) -> RegistryAuthorityInspection {
@@ -3910,7 +3911,8 @@ async fn suggest_desktop_conversation_title(
         .map_err(|_| "Could not reserve Pi title suggestion occupancy.".to_string())?
         .reserve(suggestion_authority, config.clone())
         .map_err(|error| match error {
-            ReserveError::DuplicateJourney => "This Journey already has an active or finalizing Pi invocation.".to_string(),
+            ReserveError::DuplicateWorkspace => "This conversation already has an active or finalizing Pi invocation.".to_string(),
+            ReserveError::JourneyShareExceeded => "This Journey is already running as much work as it can at once.".to_string(),
             ReserveError::CapacityReached => "The global Pi process capacity is occupied.".to_string(),
         })?;
     let mut model_args = Vec::new();
@@ -4216,7 +4218,8 @@ fn start_pi_invocation(
             Err("Could not reserve the Pi process registry.".to_string())
         }
         Err(ReserveThenStartError::Reservation(error)) => Err(match error {
-            ReserveError::DuplicateJourney => "This Journey already has an active or finalizing Pi invocation.".to_string(),
+            ReserveError::DuplicateWorkspace => "This conversation already has an active or finalizing Pi invocation.".to_string(),
+            ReserveError::JourneyShareExceeded => "This Journey is already running as much work as it can at once.".to_string(),
             ReserveError::CapacityReached => "The global Pi process capacity is occupied.".to_string(),
         }),
         Err(ReserveThenStartError::Start { target, error, first_terminal }) => {
@@ -5578,8 +5581,12 @@ fn steer_pi_invocation(
     let child_handle = {
         let registry = state.registry.lock()
             .map_err(|_| "Could not access the Pi process registry.".to_string())?;
+        // CR139: matching on the Journey alone was correct only while a Journey held one entry.
+        // With siblings it would find whichever one sorts first and then refuse the Steering with a
+        // sentence that is false about the turn being steered.
         let inspection = registry.inspect().entries.into_iter()
-            .find(|entry| entry.authority.journey_id == target.journey_id)
+            .find(|entry| entry.authority.journey_id == target.journey_id
+                && entry.authority.run_id == target.run_id)
             .ok_or_else(|| "The targeted Pi invocation does not exist.".to_string())?;
         if !exact_steering_authority_matches(&inspection.authority, &request.run_authority) {
             return Err("Steering authority does not match the exact active turn.".to_string());
@@ -6545,6 +6552,15 @@ fn attribute_stale_pi_record<'a>(
     Err("mirror_append_pi_recovery_record_missing".to_string())
 }
 
+/// CR139: this reconciliation is Journey-wide and runs inside the admission closure, so with a
+/// per-Journey share of three it now runs while sibling workspaces are live. It cannot touch them,
+/// and the reason is in this predicate rather than in a comment: a streaming turn has no terminal
+/// outcome and is in none of these phases, so it is never a candidate.
+fn is_completed_delivery_candidate(record: &TurnJournalRecord) -> bool {
+    record.terminal_outcome == Some(TurnTerminalOutcome::Completed)
+        && matches!(record.phase, TurnPhase::TerminalDurable | TurnPhase::Projected | TurnPhase::OutboxEnqueued)
+}
+
 fn materialize_completed_journal_delivery_debt(
     app: &AppHandle,
     journey_id: &str,
@@ -6562,10 +6578,9 @@ fn materialize_completed_journal_delivery_debt(
         harness_assistant_message_id: "delivery-reconciliation-probe".to_string(),
     };
     let records = with_turn_journal_lock(app, &probe, |path| Ok(read_turn_journal(path)?.records))?;
-    let candidates = records.into_iter().filter(|record| {
-        record.terminal_outcome == Some(TurnTerminalOutcome::Completed)
-            && matches!(record.phase, TurnPhase::TerminalDurable | TurnPhase::Projected | TurnPhase::OutboxEnqueued)
-    }).collect::<Vec<_>>();
+    let candidates = records.into_iter()
+        .filter(is_completed_delivery_candidate)
+        .collect::<Vec<_>>();
     let mut materialized = 0;
     for record in candidates {
         let outbox_state = app.state::<MirrorAppendOutboxState>();
@@ -10022,6 +10037,7 @@ mod tests {
         conversation_projection_path_at,
         rpc_settlement_exit_grace_expired,
         create_pi_backed_mirror_append_item, dedicated_native_names,
+        is_completed_delivery_candidate,
         enqueue_mirror_append_item_at_with_limit, exact_steering_authority_matches,
         mirror_append_conflict_keys, mirror_append_conflicts_path, read_mirror_append_conflicts,
         project_dedicated_user_text_and_envelope,
@@ -10496,6 +10512,80 @@ mod tests {
         assert!(projection.ends_with("threads/desktop-thread-one/generation-1.json"));
         assert!(load_conversation_thread_authority_at(&root, "another-journey", "desktop-thread-one").is_err());
         let _ = fs::remove_dir_all(root);
+    }
+
+    /// CR139 source guard. Read at compile time so the assertion is about the shipped code.
+    const MAIN_SOURCE: &str = include_str!("main.rs");
+
+    fn journal_record(run: &str, thread: &str, phase: TurnPhase, outcome: Option<TurnTerminalOutcome>) -> TurnJournalRecord {
+        TurnJournalRecord {
+            schema_version: "0.1.0".to_string(),
+            authority: TurnJournalAuthority {
+                schema_version: "0.1.0".to_string(), journey_id: "journey-a".to_string(),
+                run_id: run.to_string(), turn_id: format!("turn-{run}"),
+                thread_id: thread.to_string(), generation: 1,
+                pi_session_id: format!("pi-{thread}"), mirror_conversation_id: format!("mirror-{thread}"),
+                harness_user_message_id: format!("user-{run}"),
+                harness_assistant_message_id: format!("assistant-{run}"),
+            },
+            phase,
+            terminal_outcome: outcome,
+            terminal_evidence: None,
+            cancellation_intent: TurnCancellationIntent::None,
+            recovery_disposition: TurnRecoveryDisposition::ResumeProjection,
+            revision: 2, created_at: "2026-10-10T10:00:00.000Z".to_string(),
+            updated_at: "2026-10-10T10:00:01.000Z".to_string(), last_receipt: None,
+        }
+    }
+
+    // CR139 item 6: the Journey-wide delivery reconciliation runs beside live sibling workspaces
+    // once a Journey holds a share of three. It must not treat them as delivery debt.
+    #[test]
+    fn journey_wide_delivery_reconciliation_never_claims_a_live_sibling_workspace() {
+        for phase in [TurnPhase::Admitted, TurnPhase::Running] {
+            let live = journal_record("run-live", "thread-live", phase, None);
+            assert!(
+                !is_completed_delivery_candidate(&live),
+                "a sibling workspace in {:?} was treated as completed delivery debt", phase,
+            );
+        }
+        // A cancelled or dead sibling is not debt either: the outcome must be Completed.
+        for outcome in [TurnTerminalOutcome::Cancelled, TurnTerminalOutcome::ProcessDied] {
+            let ended = journal_record("run-ended", "thread-ended", TurnPhase::TerminalDurable, Some(outcome));
+            assert!(!is_completed_delivery_candidate(&ended));
+        }
+        // What it does claim, unchanged: this Journey's own completed-but-undelivered turns, in
+        // any workspace, which is why the reconciliation stays Journey-wide.
+        for phase in [TurnPhase::TerminalDurable, TurnPhase::Projected, TurnPhase::OutboxEnqueued] {
+            let owed = journal_record("run-owed", "thread-other", phase, Some(TurnTerminalOutcome::Completed));
+            assert!(is_completed_delivery_candidate(&owed));
+        }
+        assert!(!is_completed_delivery_candidate(&journal_record(
+            "run-settled", "thread-live", TurnPhase::Settled, Some(TurnTerminalOutcome::Completed),
+        )));
+    }
+
+    // CR139 item 5. The turn/compaction mutual exclusion stays per Journey in both directions, and
+    // that is DELIBERATELY COARSER than the per-thread session file a compaction actually rewrites:
+    // compacting one conversation blocks a turn in a sibling workspace, and vice versa. The cost is
+    // contention, never a wrong result. Narrowing it to the thread is a separate decision, and this
+    // guard exists so that decision cannot be taken silently.
+    #[test]
+    fn compaction_and_turn_exclusion_stays_journey_wide_by_deliberate_choice() {
+        let compaction = MAIN_SOURCE
+            .split_once("async fn compact_pi_session").expect("compaction command").1;
+        let claim = compaction.split_once("in_flight.insert").expect("compaction claim").0;
+        // Compaction refuses while ANY workspace in the Journey is executing: the scan compares the
+        // Journey, not the thread.
+        assert!(claim.contains("entry.authority.journey_id == journey_id && entry.is_active_execution()"));
+        assert!(!claim.contains("entry.authority.thread_id == thread_id"));
+
+        let admission = MAIN_SOURCE
+            .split_once("fn start_pi_invocation").expect("turn command").1;
+        let closure = admission.split_once("materialize_completed_journal_delivery_debt").expect("closure").0;
+        // The turn refuses while the Journey compacts, keyed by Journey on the same side.
+        assert!(closure.contains("set.contains(&run_authority.journey_id)"));
+        assert!(!closure.contains("thread_id"));
     }
 
     #[test]

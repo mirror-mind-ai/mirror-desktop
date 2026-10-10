@@ -1,0 +1,64 @@
+{
+  "inspection": {
+    "entries": [
+      {
+        "authority": {
+          "generation": 1,
+          "harnessAssistantMessageId": "assistant-run-ariad",
+          "harnessUserMessageId": "user-run-ariad",
+          "journeyId": "ariad",
+          "mirrorConversationId": "mirror-nautilus-thread-ariad",
+          "piSessionId": "pi-nautilus-thread-ariad",
+          "runId": "run-ariad",
+          "schemaVersion": "0.1.0",
+          "threadId": "nautilus-thread-ariad",
+          "turnId": "turn-run-ariad"
+        },
+        "cancellationState": "none",
+        "leasePhase": "reserved",
+        "processCapacityState": "reserved",
+        "terminalState": "open"
+      },
+      {
+        "authority": {
+          "generation": 1,
+          "harnessAssistantMessageId": "assistant-run-conversation",
+          "harnessUserMessageId": "user-run-conversation",
+          "journeyId": "mirror-desktop",
+          "mirrorConversationId": "mirror-desktop-thread-mirror-desktop-18d5cf4842",
+          "piSessionId": "pi-desktop-thread-mirror-desktop-18d5cf4842",
+          "runId": "run-conversation",
+          "schemaVersion": "0.1.0",
+          "threadId": "desktop-thread-mirror-desktop-18d5cf4842",
+          "turnId": "turn-run-conversation"
+        },
+        "cancellationState": "none",
+        "leasePhase": "running",
+        "processCapacityState": "running",
+        "terminalState": "open"
+      },
+      {
+        "authority": {
+          "generation": 1,
+          "harnessAssistantMessageId": "assistant-run-root",
+          "harnessUserMessageId": "user-run-root",
+          "journeyId": "mirror-desktop",
+          "mirrorConversationId": "mirror-nautilus-thread-mirror-desktop",
+          "piSessionId": "pi-nautilus-thread-mirror-desktop",
+          "runId": "run-root",
+          "schemaVersion": "0.1.0",
+          "threadId": "nautilus-thread-mirror-desktop",
+          "turnId": "turn-run-root"
+        },
+        "cancellationState": "none",
+        "leasePhase": "running",
+        "processCapacityState": "running",
+        "terminalState": "open"
+      }
+    ],
+    "limit": 4,
+    "processCapacityInUse": 3,
+    "schemaVersion": "0.1.0"
+  },
+  "note": "Emitted by PiProcessRegistry::inspect with two sibling workspaces in one Journey. Do not edit by hand; see CR139. Regenerate with CR139_WRITE_FIXTURE=1."
+}

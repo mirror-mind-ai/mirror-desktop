@@ -4,14 +4,31 @@ use std::sync::{Arc, Mutex};
 
 // CV-008.DS-002: four is the deliberately bounded supported concurrency horizon.
 pub const PRODUCTION_PI_PROCESS_LIMIT: usize = 4;
+/// CR139: how many live Pi invocations one Journey may hold at once.
+///
+/// Three, derived from the three consumers that can occupy a slot: the Navigator's Journey
+/// workspace, a conversation workspace, and a background title suggestion. The alternative — two,
+/// with title suggestions excluded — was rejected because excluding them requires the registry to
+/// classify a run by kind, and a kind read from a `run_id` prefix is exactly the inference this
+/// project avoids. Falsifiable: a fourth consumer reopens the number.
+pub const PER_JOURNEY_PI_WORKSPACE_SHARE: usize = 3;
 const MAX_PI_PROCESS_LIMIT: usize = 16;
 // Shutdown drains every child admitted by the production registry, without an independent bound.
 const MAX_BOUNDED_CHILD_CONTROLS: usize = PRODUCTION_PI_PROCESS_LIMIT;
 
 pub trait RegistryAuthority: Clone {
     fn journey_id(&self) -> &str;
+    /// CR139: the second half of the admission key. A workspace is a Journey plus a thread.
+    fn thread_id(&self) -> &str;
     fn run_id(&self) -> &str;
     fn inspection_identity(&self) -> RegistryAuthorityInspection;
+}
+
+/// The registry's map key. `|` cannot appear in an identifier, so no pair of distinct coordinates
+/// can collide into one key — the same separator and the same reasoning as the renderer's
+/// `runtimeWorkspaceKey`.
+fn workspace_key(journey_id: &str, thread_id: &str) -> String {
+    format!("{journey_id}|{thread_id}")
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -79,7 +96,11 @@ impl RunTarget {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReserveError {
-    DuplicateJourney,
+    /// This exact workspace already holds an active or finalizing invocation.
+    DuplicateWorkspace,
+    /// The workspace is free, but the Journey is already running its full share.
+    JourneyShareExceeded,
+    /// The global process capacity is occupied, regardless of Journey.
     CapacityReached,
 }
 
@@ -266,30 +287,38 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
         provider_snapshot: P,
     ) -> Result<RunTarget, ReserveError> {
         let journey_id = authority.journey_id().to_string();
-        let existing_is_terminal_finalization = self.entries.get(&journey_id)
+        let key = workspace_key(&journey_id, authority.thread_id());
+        let existing_is_terminal_finalization = self.entries.get(&key)
             .map(Self::is_terminal_finalization);
         if existing_is_terminal_finalization == Some(false) {
-            return Err(ReserveError::DuplicateJourney);
+            return Err(ReserveError::DuplicateWorkspace);
+        }
+        // The share is checked before global capacity, so a Journey that has filled its own share
+        // is told that rather than being handed the global reason, which would be true of the
+        // system and false about the cause. A finalizing entry holds no capacity and so counts
+        // toward nothing: a corpse must not be able to refuse a live workspace.
+        if self.live_entries_in_journey(&journey_id) >= PER_JOURNEY_PI_WORKSPACE_SHARE {
+            return Err(ReserveError::JourneyShareExceeded);
         }
         if self.process_capacity_in_use >= self.limit {
             return Err(ReserveError::CapacityReached);
         }
         if existing_is_terminal_finalization == Some(true) {
-            self.retire_finalizing_journey(&journey_id);
+            self.retire_finalizing_workspace(&key);
         }
         while self.entries.len() >= self.limit {
-            let retireable_journey = self.entries.iter()
+            let retireable = self.entries.iter()
                 .filter(|(_, entry)| Self::is_terminal_finalization(entry))
-                .map(|(journey_id, _)| journey_id.clone())
+                .map(|(key, _)| key.clone())
                 .min();
-            let Some(retireable_journey) = retireable_journey else {
+            let Some(retireable) = retireable else {
                 return Err(ReserveError::CapacityReached);
             };
-            self.retire_finalizing_journey(&retireable_journey);
+            self.retire_finalizing_workspace(&retireable);
         }
         let target = RunTarget::new(&journey_id, authority.run_id());
         self.entries.insert(
-            journey_id,
+            key,
             RegistryEntry {
                 authority,
                 _provider_snapshot: provider_snapshot,
@@ -370,12 +399,12 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
         if terminal == TerminalState::Open {
             return TerminalizeOutcome::Duplicate;
         }
-        let Some(entry) = self.entries.get_mut(&target.journey_id) else {
+        let Ok(key) = self.resolve_key(target) else {
             return TerminalizeOutcome::Stale;
         };
-        if entry.authority.run_id() != target.run_id {
+        let Some(entry) = self.entries.get_mut(&key) else {
             return TerminalizeOutcome::Stale;
-        }
+        };
         if entry.terminal_state != TerminalState::Open {
             return TerminalizeOutcome::Duplicate;
         }
@@ -390,26 +419,52 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
     }
 
     pub fn release_lease(&mut self, target: &RunTarget) -> Result<ReleaseOutcome, TargetError> {
-        let Some(entry) = self.entries.get(&target.journey_id) else {
-            return if self.was_released(target) {
-                Ok(ReleaseOutcome::AlreadyReleased)
-            } else {
-                Err(TargetError::Missing)
-            };
+        let key = match self.resolve_key(target) {
+            Ok(key) => key,
+            Err(error) => {
+                return if self.was_released(target) {
+                    Ok(ReleaseOutcome::AlreadyReleased)
+                } else {
+                    Err(error)
+                };
+            }
         };
-        if entry.authority.run_id() != target.run_id {
-            return if self.was_released(target) {
-                Ok(ReleaseOutcome::AlreadyReleased)
-            } else {
-                Err(TargetError::Stale)
-            };
-        }
+        let entry = self.entries.get(&key).ok_or(TargetError::Missing)?;
         if !Self::is_terminal_finalization(entry) {
             return Err(TargetError::NotFinalizing);
         }
-        self.entries.remove(&target.journey_id);
+        self.entries.remove(&key);
         self.remember_released(target.clone());
         Ok(ReleaseOutcome::Released)
+    }
+
+    fn live_entries_in_journey(&self, journey_id: &str) -> usize {
+        self.entries.values()
+            .filter(|entry| entry.authority.journey_id() == journey_id)
+            .filter(|entry| !Self::is_terminal_finalization(entry))
+            .count()
+    }
+
+    /// CR139: `RunTarget` deliberately stays `(journey_id, run_id)` — that pair is already unique,
+    /// because a `run_id` is minted per turn, and two Tauri commands receive exactly those two
+    /// coordinates from the renderer. Only the map key changed, so resolution scans the values
+    /// instead of hashing. The map is bounded by `limit`, so this walks at most four records under
+    /// a lock already held.
+    ///
+    /// `Missing` and `Stale` keep their current meanings: a Journey that holds some entry but not
+    /// this run is stale, and a Journey that holds nothing is missing.
+    fn resolve_key(&self, target: &RunTarget) -> Result<String, TargetError> {
+        let mut journey_seen = false;
+        for (key, entry) in self.entries.iter() {
+            if entry.authority.journey_id() != target.journey_id {
+                continue;
+            }
+            journey_seen = true;
+            if entry.authority.run_id() == target.run_id {
+                return Ok(key.clone());
+            }
+        }
+        Err(if journey_seen { TargetError::Stale } else { TargetError::Missing })
     }
 
     fn is_terminal_finalization(entry: &RegistryEntry<A, C, P>) -> bool {
@@ -418,14 +473,14 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
             && entry.terminal_state != TerminalState::Open
     }
 
-    fn retire_finalizing_journey(&mut self, journey_id: &str) -> bool {
-        let target = self.entries.get(journey_id).and_then(|entry| {
+    fn retire_finalizing_workspace(&mut self, key: &str) -> bool {
+        let target = self.entries.get(key).and_then(|entry| {
             Self::is_terminal_finalization(entry).then(|| {
                 RunTarget::new(entry.authority.journey_id(), entry.authority.run_id())
             })
         });
         let Some(target) = target else { return false; };
-        self.entries.remove(journey_id);
+        self.entries.remove(key);
         self.remember_released(target);
         true
     }
@@ -462,7 +517,11 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
                 ))
             })
             .collect::<Vec<_>>();
-        children.sort_by(|(left, _), (right, _)| left.journey_id.cmp(&right.journey_id));
+        // CR139: a Journey can hold siblings, so ordering by Journey alone leaves their order to
+        // `HashMap` iteration. Shutdown must drain the same sequence every time.
+        children.sort_by(|(left, _), (right, _)| {
+            left.journey_id.cmp(&right.journey_id).then_with(|| left.run_id.cmp(&right.run_id))
+        });
         children.truncate(self.limit);
         children
     }
@@ -479,7 +538,12 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
                 terminal_state: entry.terminal_state,
             })
             .collect::<Vec<_>>();
-        entries.sort_by(|left, right| left.authority.journey_id.cmp(&right.authority.journey_id));
+        // CR139: siblings must come out in a stable order, or the renderer's entry sequence would
+        // vary between inspections of an unchanged registry.
+        entries.sort_by(|left, right| {
+            left.authority.journey_id.cmp(&right.authority.journey_id)
+                .then_with(|| left.authority.thread_id.cmp(&right.authority.thread_id))
+        });
         entries.truncate(self.limit);
         PiInvocationRegistryInspection {
             schema_version: "0.1.0".to_string(),
@@ -490,28 +554,16 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
     }
 
     fn matching_entry(&self, target: &RunTarget) -> Result<&RegistryEntry<A, C, P>, TargetError> {
-        let entry = self
-            .entries
-            .get(&target.journey_id)
-            .ok_or(TargetError::Missing)?;
-        if entry.authority.run_id() != target.run_id {
-            return Err(TargetError::Stale);
-        }
-        Ok(entry)
+        let key = self.resolve_key(target)?;
+        self.entries.get(&key).ok_or(TargetError::Missing)
     }
 
     fn matching_entry_mut(
         &mut self,
         target: &RunTarget,
     ) -> Result<&mut RegistryEntry<A, C, P>, TargetError> {
-        let entry = self
-            .entries
-            .get_mut(&target.journey_id)
-            .ok_or(TargetError::Missing)?;
-        if entry.authority.run_id() != target.run_id {
-            return Err(TargetError::Stale);
-        }
-        Ok(entry)
+        let key = self.resolve_key(target)?;
+        self.entries.get_mut(&key).ok_or(TargetError::Missing)
     }
 }
 
@@ -528,6 +580,7 @@ mod tests {
     #[derive(Clone, Debug, PartialEq, Eq)]
     struct FakeAuthority {
         journey_id: String,
+        thread_id: String,
         run_id: String,
         private_session_file: String,
     }
@@ -535,6 +588,9 @@ mod tests {
     impl RegistryAuthority for FakeAuthority {
         fn journey_id(&self) -> &str {
             &self.journey_id
+        }
+        fn thread_id(&self) -> &str {
+            &self.thread_id
         }
         fn run_id(&self) -> &str {
             &self.run_id
@@ -545,10 +601,13 @@ mod tests {
                 journey_id: self.journey_id.clone(),
                 run_id: self.run_id.clone(),
                 turn_id: format!("turn-{}", self.run_id),
-                thread_id: format!("thread-{}", self.journey_id),
+                thread_id: self.thread_id.clone(),
                 generation: 1,
-                pi_session_id: format!("pi-{}", self.journey_id),
-                mirror_conversation_id: format!("mirror-{}", self.journey_id),
+                // CR139: a Pi session and a Mirror conversation belong to a thread, not to a
+                // Journey. Deriving them from the Journey made sibling workspaces collide in the
+                // fixture, which would have been an unfaithful sample of what the renderer parses.
+                pi_session_id: format!("pi-{}", self.thread_id),
+                mirror_conversation_id: format!("mirror-{}", self.thread_id),
                 harness_user_message_id: format!("user-{}", self.run_id),
                 harness_assistant_message_id: format!("assistant-{}", self.run_id),
             }
@@ -572,13 +631,249 @@ mod tests {
         secret: String,
     }
 
+    /// Keeps `thread-{journey}` so every pre-existing case stays in one workspace per Journey and
+    /// its verdict is unchanged by the re-key.
     fn authority(journey: &str, run: &str) -> FakeAuthority {
+        workspace_authority(journey, &format!("thread-{journey}"), run)
+    }
+
+    fn workspace_authority(journey: &str, thread: &str, run: &str) -> FakeAuthority {
         FakeAuthority {
             journey_id: journey.into(),
+            thread_id: thread.into(),
             run_id: run.into(),
-            private_session_file: format!("/private/{journey}/{run}.jsonl"),
+            private_session_file: format!("/private/{journey}/{thread}/{run}.jsonl"),
         }
     }
+
+    fn provider() -> FakeProvider {
+        FakeProvider { secret: "provider-secret".into() }
+    }
+
+    fn journey_ids(inspection: &PiInvocationRegistryInspection) -> Vec<&str> {
+        inspection.entries.iter().map(|entry| entry.authority.journey_id.as_str()).collect()
+    }
+
+    fn workspace_pairs(inspection: &PiInvocationRegistryInspection) -> Vec<(&str, &str)> {
+        inspection.entries.iter()
+            .map(|entry| (entry.authority.journey_id.as_str(), entry.authority.thread_id.as_str()))
+            .collect()
+    }
+
+    // ---- CR139: workspace-grained admission -------------------------------------------------
+
+    #[test]
+    fn two_workspaces_in_one_journey_reserve_run_and_retire_independently() {
+        let mut registry =
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production();
+        let root = registry.reserve(workspace_authority("a", "thread-root", "run-root"), provider()).unwrap();
+        let chat = registry.reserve(workspace_authority("a", "thread-chat", "run-chat"), provider()).unwrap();
+        registry.attach_child(&root, FakeChild::default()).unwrap();
+        registry.attach_child(&chat, FakeChild::default()).unwrap();
+        assert_eq!(registry.inspect().process_capacity_in_use, 2);
+        assert_eq!(registry.inspect().entries.len(), 2);
+
+        // Retiring one workspace leaves the other's handle and bytes untouched.
+        let chat_before = registry.inspect().entries.into_iter()
+            .find(|entry| entry.authority.thread_id == "thread-chat").unwrap();
+        let chat_child = registry.child_handle(&chat).unwrap();
+        assert_eq!(registry.terminalize(&root, TerminalState::Completed), TerminalizeOutcome::First);
+        assert_eq!(registry.release_lease(&root), Ok(ReleaseOutcome::Released));
+        let chat_after = registry.inspect().entries.into_iter()
+            .find(|entry| entry.authority.thread_id == "thread-chat").unwrap();
+        assert_eq!(chat_after, chat_before);
+        assert!(Arc::ptr_eq(&registry.child_handle(&chat).unwrap().state, &chat_child.state));
+        assert_eq!(registry.inspect().process_capacity_in_use, 1);
+    }
+
+    #[test]
+    fn the_same_workspace_twice_is_refused_by_its_own_name() {
+        let mut registry =
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production();
+        registry.reserve(workspace_authority("a", "thread-root", "run-1"), provider()).unwrap();
+        assert_eq!(
+            registry.reserve(workspace_authority("a", "thread-root", "run-2"), provider()),
+            Err(ReserveError::DuplicateWorkspace),
+        );
+        // A different workspace in the same Journey is admitted, which is the whole point.
+        assert!(registry.reserve(workspace_authority("a", "thread-chat", "run-3"), provider()).is_ok());
+    }
+
+    #[test]
+    fn a_fourth_live_workspace_in_one_journey_is_refused_by_the_share_not_by_capacity() {
+        let mut registry =
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production();
+        for index in 0..PER_JOURNEY_PI_WORKSPACE_SHARE {
+            registry.reserve(
+                workspace_authority("a", &format!("thread-{index}"), &format!("run-{index}")),
+                provider(),
+            ).unwrap();
+        }
+        // Global capacity is 4 and only 3 are in use, so a generic `CapacityReached` here would be
+        // a refusal with no resource behind it.
+        assert_eq!(registry.inspect().process_capacity_in_use, 3);
+        assert_eq!(
+            registry.reserve(workspace_authority("a", "thread-overflow", "run-overflow"), provider()),
+            Err(ReserveError::JourneyShareExceeded),
+        );
+        // Another Journey still gets the fourth global slot.
+        assert!(registry.reserve(workspace_authority("b", "thread-root", "run-b"), provider()).is_ok());
+        assert_eq!(
+            registry.reserve(workspace_authority("c", "thread-root", "run-c"), provider()),
+            Err(ReserveError::CapacityReached),
+        );
+    }
+
+    #[test]
+    fn a_finalizing_sibling_counts_toward_neither_the_share_nor_capacity() {
+        let mut registry =
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production();
+        let dead = registry.reserve(workspace_authority("a", "thread-dead", "run-dead"), provider()).unwrap();
+        registry.attach_child(&dead, FakeChild::default()).unwrap();
+        registry.reserve(workspace_authority("a", "thread-one", "run-one"), provider()).unwrap();
+        registry.reserve(workspace_authority("a", "thread-two", "run-two"), provider()).unwrap();
+        assert_eq!(
+            registry.reserve(workspace_authority("a", "thread-three", "run-three"), provider()),
+            Err(ReserveError::JourneyShareExceeded),
+        );
+        // Terminalizing leaves a finalizing entry that holds no capacity. A corpse must not be able
+        // to refuse the Journey's third workspace.
+        assert_eq!(registry.terminalize(&dead, TerminalState::Completed), TerminalizeOutcome::First);
+        assert_eq!(registry.inspect().process_capacity_in_use, 2);
+        assert!(registry.reserve(workspace_authority("a", "thread-three", "run-three"), provider()).is_ok());
+    }
+
+    #[test]
+    fn a_successor_retires_only_its_own_workspace_finalizing_lease() {
+        let mut registry =
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production();
+        let first = registry.reserve(workspace_authority("a", "thread-root", "run-1"), provider()).unwrap();
+        let sibling = registry.reserve(workspace_authority("a", "thread-chat", "run-chat"), provider()).unwrap();
+        registry.attach_child(&first, FakeChild::default()).unwrap();
+        registry.attach_child(&sibling, FakeChild::default()).unwrap();
+        assert_eq!(registry.terminalize(&first, TerminalState::Completed), TerminalizeOutcome::First);
+        assert_eq!(registry.terminalize(&sibling, TerminalState::Completed), TerminalizeOutcome::First);
+
+        // CR116's semantics, narrowed: the successor replaces its own workspace's finalizing lease
+        // and leaves the sibling's alone to be released on its own terms.
+        let successor = registry.reserve(workspace_authority("a", "thread-root", "run-2"), provider()).unwrap();
+        assert_eq!(registry.release_lease(&first), Ok(ReleaseOutcome::AlreadyReleased));
+        let inspection = registry.inspect();
+        assert_eq!(workspace_pairs(&inspection), vec![("a", "thread-chat"), ("a", "thread-root")]);
+        assert_eq!(
+            inspection.entries.iter()
+                .find(|entry| entry.authority.thread_id == "thread-root").unwrap().authority.run_id,
+            successor.run_id,
+        );
+        assert_eq!(registry.release_lease(&sibling), Ok(ReleaseOutcome::Released));
+    }
+
+    #[test]
+    fn sibling_workspaces_share_released_memory_exactly_as_distinct_journeys_do() {
+        // The share makes `reserve`'s eviction loop an ordinary path rather than an edge case, and
+        // `released_targets` is what turns a late release into `AlreadyReleased` instead of
+        // `Missing`. The plan said to measure whether the bound of `limit * 2` was still enough
+        // rather than widening it on suspicion.
+        //
+        // Measured answer: the bound is unchanged by the re-key. Churning past it forgets the
+        // oldest target, but it forgets *identically* across three sibling workspaces and across
+        // three distinct Journeys, because the number of live workspaces is still bounded by
+        // `limit` — each live entry consumes one capacity unit. The retention window is therefore
+        // a pre-existing property, not a consequence of CR139, and widening it here would have
+        // been a cap no measurement supports. This test pins the equivalence so an asymmetry
+        // between the two grains cannot appear unnoticed.
+        fn churn(rounds: usize, same_journey: bool) -> usize {
+            let mut registry =
+                PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production();
+            let mut settled = Vec::new();
+            for round in 0..rounds {
+                for slot in 0..PER_JOURNEY_PI_WORKSPACE_SHARE {
+                    let authority = if same_journey {
+                        workspace_authority("a", &format!("thread-{slot}"), &format!("run-{round}-{slot}"))
+                    } else {
+                        workspace_authority(&format!("j{slot}"), "thread-root", &format!("run-{round}-{slot}"))
+                    };
+                    let target = registry.reserve(authority, provider()).unwrap();
+                    registry.attach_child(&target, FakeChild::default()).unwrap();
+                    assert_eq!(registry.terminalize(&target, TerminalState::Completed), TerminalizeOutcome::First);
+                    assert_eq!(registry.release_lease(&target), Ok(ReleaseOutcome::Released));
+                    settled.push(target);
+                }
+            }
+            settled.iter()
+                .filter(|target| registry.release_lease(target) != Ok(ReleaseOutcome::AlreadyReleased))
+                .count()
+        }
+
+        // Within the window, every settled target still answers `AlreadyReleased`.
+        assert_eq!(churn(2, true), 0);
+        assert_eq!(churn(2, false), 0);
+        // Past the window, sibling workspaces and distinct Journeys forget the same amount.
+        assert_eq!(churn(3, true), churn(3, false));
+        assert!(churn(3, true) > 0, "the probe must stay past the retention window to be meaningful");
+    }
+
+    #[test]
+    fn inspection_orders_siblings_by_workspace_so_the_renderer_sees_a_stable_sequence() {
+        let mut registry =
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production();
+        // Inserted in an order that a Journey-only sort would leave ambiguous between siblings.
+        registry.reserve(workspace_authority("b", "thread-zeta", "run-bz"), provider()).unwrap();
+        registry.reserve(workspace_authority("a", "thread-zeta", "run-az"), provider()).unwrap();
+        registry.reserve(workspace_authority("a", "thread-alpha", "run-aa"), provider()).unwrap();
+        let first = registry.inspect();
+        assert_eq!(workspace_pairs(&first), vec![
+            ("a", "thread-alpha"),
+            ("a", "thread-zeta"),
+            ("b", "thread-zeta"),
+        ]);
+        // Stable across calls, which a `HashMap` iteration order would not be.
+        for _ in 0..8 {
+            assert_eq!(workspace_pairs(&registry.inspect()), workspace_pairs(&first));
+        }
+        assert_eq!(journey_ids(&first), vec!["a", "a", "b"]);
+    }
+
+    #[test]
+    fn a_target_resolves_by_run_without_the_thread_so_the_ipc_boundary_is_unchanged() {
+        // `RunTarget` stays `(journey_id, run_id)`: the renderer cancels and releases with exactly
+        // the two coordinates it already sends.
+        let mut registry =
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production();
+        let root = registry.reserve(workspace_authority("a", "thread-root", "run-root"), provider()).unwrap();
+        let chat = registry.reserve(workspace_authority("a", "thread-chat", "run-chat"), provider()).unwrap();
+        assert_eq!(root, RunTarget::new("a", "run-root"));
+        registry.attach_child(&root, FakeChild::default()).unwrap();
+        registry.attach_child(&chat, FakeChild::default()).unwrap();
+        assert_eq!(registry.request_cancel(&RunTarget::new("a", "run-chat")), Ok(CancelOutcome::RequestedRunning));
+        assert_eq!(registry.cancellation_requested(&root), Ok(false));
+        assert_eq!(registry.cancellation_requested(&chat), Ok(true));
+
+        // The Missing/Stale distinction is preserved: a known Journey with an unknown run is stale,
+        // an unknown Journey is missing.
+        assert_eq!(registry.request_cancel(&RunTarget::new("a", "run-ghost")), Err(TargetError::Stale));
+        assert_eq!(registry.request_cancel(&RunTarget::new("ghost", "run-ghost")), Err(TargetError::Missing));
+    }
+
+    #[test]
+    fn shutdown_drains_sibling_workspaces_in_a_stable_workspace_order() {
+        let mut registry =
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production();
+        for (journey, thread, run) in [
+            ("b", "thread-root", "run-b"),
+            ("a", "thread-zeta", "run-az"),
+            ("a", "thread-alpha", "run-aa"),
+        ] {
+            let target = registry.reserve(workspace_authority(journey, thread, run), provider()).unwrap();
+            registry.attach_child(&target, FakeChild::default()).unwrap();
+        }
+        let handles = registry.running_child_handles();
+        assert_eq!(
+            handles.iter().map(|(target, _)| target.run_id.as_str()).collect::<Vec<_>>(),
+            vec!["run-aa", "run-az", "run-b"],
+        );
+    }
+
 
     #[test]
     fn production_limit_is_exactly_four_after_expanded_concurrency_and_invalid_limits_fail() {
@@ -802,7 +1097,7 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_journey_and_global_capacity_fail_closed() {
+    fn duplicate_workspace_and_global_capacity_fail_closed() {
         let mut registry =
             PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(1).unwrap();
         registry
@@ -813,6 +1108,9 @@ mod tests {
                 },
             )
             .unwrap();
+        // CR139: `authority` keeps both runs in `thread-a`, so this is the same workspace and the
+        // refusal is named for the workspace. The verdict — a second run here never starts — is
+        // unchanged.
         assert_eq!(
             registry.reserve(
                 authority("a", "a2"),
@@ -820,7 +1118,7 @@ mod tests {
                     secret: "two".into()
                 }
             ),
-            Err(ReserveError::DuplicateJourney)
+            Err(ReserveError::DuplicateWorkspace)
         );
         assert_eq!(
             registry.reserve(
@@ -1447,6 +1745,65 @@ mod tests {
         assert_eq!(
             handles.iter().map(|(target, _)| target.journey_id.as_str()).collect::<Vec<_>>(),
             vec!["b", "c", "d"],
+        );
+    }
+
+    // CR139 item 7. The Rust registry and the renderer's validator are two independently written
+    // rule sets that must agree on the same bytes. This emits a real inspection carrying two
+    // sibling workspaces in one Journey, and `piInvocationInspectionConformance.test.ts` parses the
+    // committed file and asserts it reaches `known` — not `unknown`, which is what the pre-CR138
+    // validator produced for exactly this payload and which disabled the Composer app-wide.
+    #[test]
+    fn publishes_a_real_two_workspace_inspection_for_the_renderer_validator() {
+        let mut registry =
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production();
+        let root = registry.reserve(
+            workspace_authority("mirror-desktop", "nautilus-thread-mirror-desktop", "run-root"),
+            provider(),
+        ).unwrap();
+        let conversation = registry.reserve(
+            workspace_authority("mirror-desktop", "desktop-thread-mirror-desktop-18d5cf4842", "run-conversation"),
+            provider(),
+        ).unwrap();
+        let elsewhere = registry.reserve(
+            workspace_authority("ariad", "nautilus-thread-ariad", "run-ariad"),
+            provider(),
+        ).unwrap();
+        registry.attach_child(&root, FakeChild::default()).unwrap();
+        registry.attach_child(&conversation, FakeChild::default()).unwrap();
+        // Left reserved-but-unattached on purpose, so the fixture carries more than one phase.
+        let _ = elsewhere;
+
+        let inspection = registry.inspect();
+        assert_eq!(inspection.entries.len(), 3);
+        assert_eq!(
+            workspace_pairs(&inspection),
+            vec![
+                ("ariad", "nautilus-thread-ariad"),
+                ("mirror-desktop", "desktop-thread-mirror-desktop-18d5cf4842"),
+                ("mirror-desktop", "nautilus-thread-mirror-desktop"),
+            ],
+        );
+        let mut rendered = serde_json::to_string_pretty(&serde_json::json!({
+            "note": "Emitted by PiProcessRegistry::inspect with two sibling workspaces in one Journey. Do not edit by hand; see CR139. Regenerate with CR139_WRITE_FIXTURE=1.",
+            "inspection": inspection,
+        })).unwrap();
+        rendered.push('\n');
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../src/tests/fixtures/piInvocationTwoWorkspaceInspection.json");
+        if std::env::var("CR139_WRITE_FIXTURE").is_ok() {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, &rendered).unwrap();
+            return;
+        }
+        let committed = std::fs::read_to_string(&path).expect(
+            "the CR139 conformance fixture is missing; regenerate with CR139_WRITE_FIXTURE=1",
+        );
+        assert_eq!(
+            committed, rendered,
+            "the committed CR139 inspection fixture is stale: the registry's output changed. \
+             Regenerate with CR139_WRITE_FIXTURE=1 and let the TypeScript conformance test \
+             re-check the validator against it.",
         );
     }
 

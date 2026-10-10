@@ -310,20 +310,43 @@ fn retention_priority(phase: TurnPhase) -> u8 {
     }
 }
 
-fn can_prune_retained_record(record: &TurnJournalRecord, permit_unfinished_pruning: bool) -> bool {
+/// Which unfinished records a write may reclaim to make room.
+///
+/// This used to be a bare `bool`, justified by the premise that native admission held the Journey's
+/// only Pi lease, so every pre-existing record was inactive in this process. CR139 gives a Journey a
+/// share of three live workspaces and that premise stops being true: an unfinished record may belong
+/// to a sibling that is streaming right now, and it is the one record still being written to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum UnfinishedPruning<'a> {
+    /// No unfinished record may be reclaimed.
+    Forbidden,
+    /// Only unfinished records in this exact workspace may be reclaimed. Reclaiming a sibling's
+    /// record would delete live state; refusing the arriving turn instead fails closed.
+    SameWorkspaceOnly {
+        journey_id: &'a str,
+        thread_id: &'a str,
+    },
+}
+
+fn can_prune_retained_record(record: &TurnJournalRecord, unfinished: UnfinishedPruning<'_>) -> bool {
     match record.phase {
         TurnPhase::Settled | TurnPhase::Interrupted | TurnPhase::OutboxEnqueued => true,
         TurnPhase::Projected | TurnPhase::TerminalDurable => {
             record.terminal_outcome != Some(TurnTerminalOutcome::Completed)
         }
-        TurnPhase::Admitted | TurnPhase::Running => permit_unfinished_pruning,
+        TurnPhase::Admitted | TurnPhase::Running => match unfinished {
+            UnfinishedPruning::Forbidden => false,
+            UnfinishedPruning::SameWorkspaceOnly { journey_id, thread_id } => {
+                record.authority.journey_id == journey_id && record.authority.thread_id == thread_id
+            }
+        },
     }
 }
 
 fn compact_turn_journal_for_write(
     document: &mut TurnJournalDocument,
     protected_run_id: &str,
-    permit_unfinished_pruning: bool,
+    unfinished: UnfinishedPruning<'_>,
 ) -> Result<(), String> {
     loop {
         let bytes = serde_json::to_vec_pretty(document)
@@ -333,7 +356,7 @@ fn compact_turn_journal_for_write(
         }
         let candidate = document.records.iter().enumerate()
             .filter(|(_, record)| record.authority.run_id != protected_run_id)
-            .filter(|(_, record)| can_prune_retained_record(record, permit_unfinished_pruning))
+            .filter(|(_, record)| can_prune_retained_record(record, unfinished))
             .min_by_key(|(_, record)| (
                 retention_priority(record.phase),
                 record.created_at.as_str(),
@@ -349,10 +372,10 @@ fn write_turn_journal(
     path: &Path,
     document: &mut TurnJournalDocument,
     protected_run_id: &str,
-    permit_unfinished_pruning: bool,
+    unfinished: UnfinishedPruning<'_>,
 ) -> Result<(), String> {
     document.saved_at = now();
-    compact_turn_journal_for_write(document, protected_run_id, permit_unfinished_pruning)?;
+    compact_turn_journal_for_write(document, protected_run_id, unfinished)?;
     let bytes =
         serde_json::to_vec_pretty(document).map_err(|_| "turn_journal_invalid".to_string())?;
     let parent = path
@@ -424,6 +447,8 @@ pub fn admit_turn(
         };
     }
     let protected_run_id = authority.run_id.clone();
+    let protected_journey_id = authority.journey_id.clone();
+    let protected_thread_id = authority.thread_id.clone();
     let timestamp = admitted_at.unwrap_or_else(now);
     let record = TurnJournalRecord {
         schema_version: JOURNAL_SCHEMA_VERSION.to_string(),
@@ -444,9 +469,14 @@ pub fn admit_turn(
             .cmp(&right.created_at)
             .then_with(|| left.authority.run_id.cmp(&right.authority.run_id))
     });
-    // Native admission reserves the only Journey lease before this call, proving
-    // every pre-existing journal record is inactive in this process.
-    write_turn_journal(path, &mut document, &protected_run_id, true)?;
+    // CR139: a Journey may now hold several live workspaces, so an unfinished record is no longer
+    // proof of inactivity. Only this workspace's own unfinished records may be reclaimed; a sibling
+    // that is streaming keeps its record and the arriving turn is refused with `turn_journal_full`
+    // instead.
+    write_turn_journal(path, &mut document, &protected_run_id, UnfinishedPruning::SameWorkspaceOnly {
+        journey_id: &protected_journey_id,
+        thread_id: &protected_thread_id,
+    })?;
     Ok(record)
 }
 
@@ -653,7 +683,7 @@ fn transition_turn_with_policy(
     record.updated_at = now();
     record.last_receipt = Some(receipt);
     let result = record.clone();
-    write_turn_journal(path, &mut document, &authority.run_id, false)?;
+    write_turn_journal(path, &mut document, &authority.run_id, UnfinishedPruning::Forbidden)?;
     Ok(result)
 }
 
@@ -752,6 +782,15 @@ mod tests {
         }
     }
 
+    /// CR139: `authority(run, journey)` puts every record in one workspace, `thread-{journey}`,
+    /// so this reproduces exactly what the old `permit_unfinished_pruning = true` meant.
+    fn same_workspace(journey: &'static str) -> UnfinishedPruning<'static> {
+        UnfinishedPruning::SameWorkspaceOnly {
+            journey_id: journey,
+            thread_id: if journey == "journey-a" { "thread-journey-a" } else { "thread-unknown" },
+        }
+    }
+
     fn transition(
         expected_revision: u64,
         from: TurnPhase,
@@ -793,6 +832,119 @@ mod tests {
             cancellation_intent: None,
             recovery_disposition: None,
         }
+    }
+
+    /// CR139 characterisation. Two workspaces in one Journey differ by `thread_id` and by nothing
+    /// else that the journal keys on, so these build the authority the registry will soon admit.
+    fn workspace_authority(journey: &str, thread: &str, run: &str) -> TurnJournalAuthority {
+        TurnJournalAuthority {
+            schema_version: "0.1.0".to_string(),
+            journey_id: journey.to_string(),
+            run_id: run.to_string(),
+            turn_id: format!("turn-{}", run),
+            thread_id: thread.to_string(),
+            generation: 1,
+            pi_session_id: format!("pi-{}", thread),
+            mirror_conversation_id: format!("mirror-{}", thread),
+            harness_user_message_id: format!("user-{}", run),
+            harness_assistant_message_id: format!("assistant-{}", run),
+        }
+    }
+
+    /// Drives a record to `Projected` + `Completed`, which `can_prune_retained_record` refuses to
+    /// prune. Used to fill the journal with records that cannot be reclaimed.
+    fn settle_to_projected(path: &std::path::Path, auth: &TurnJournalAuthority, created_at: &str) {
+        admit_turn(path, auth.clone(), Some(created_at.to_string())).unwrap();
+        transition_turn(path, auth, transition(1, TurnPhase::Admitted, TurnPhase::Running, "r-run")).unwrap();
+        transition_turn(path, auth, transition(2, TurnPhase::Running, TurnPhase::TerminalDurable, "r-term")).unwrap();
+        transition_turn(path, auth, transition(3, TurnPhase::TerminalDurable, TurnPhase::Projected, "r-proj")).unwrap();
+    }
+
+    // CR139 item 1, run against unchanged code before the registry is re-keyed: the durable layer
+    // resolves by full authority, so two workspaces in one Journey must journal, run and settle
+    // independently with their own revisions, in interleaved order.
+    #[test]
+    fn two_workspaces_in_one_journey_journal_and_settle_independently() {
+        let root = root("cr139-two-workspaces");
+        let path = root.join("turn-journal.json");
+        let left = workspace_authority("journey-a", "thread-root", "run-left");
+        let right = workspace_authority("journey-a", "thread-conversation", "run-right");
+
+        admit_turn(&path, left.clone(), Some("2026-10-10T10:00:00.000Z".to_string())).unwrap();
+        admit_turn(&path, right.clone(), Some("2026-10-10T10:00:01.000Z".to_string())).unwrap();
+        // Interleaved on purpose: the right workspace overtakes the left one mid-lifecycle.
+        transition_turn(&path, &left, transition(1, TurnPhase::Admitted, TurnPhase::Running, "l-run")).unwrap();
+        transition_turn(&path, &right, transition(1, TurnPhase::Admitted, TurnPhase::Running, "r-run")).unwrap();
+        transition_turn(&path, &right, transition(2, TurnPhase::Running, TurnPhase::TerminalDurable, "r-term")).unwrap();
+        let left_terminal = transition_turn(
+            &path, &left, transition(2, TurnPhase::Running, TurnPhase::TerminalDurable, "l-term"),
+        ).unwrap();
+        let right_projected = transition_turn(
+            &path, &right, transition(3, TurnPhase::TerminalDurable, TurnPhase::Projected, "r-proj"),
+        ).unwrap();
+
+        assert_eq!(left_terminal.revision, 3);
+        assert_eq!(right_projected.revision, 4);
+        let records = read_turn_journal(&path).unwrap().records;
+        assert_eq!(records.len(), 2);
+        let stored_left = records.iter().find(|r| r.authority.run_id == "run-left").unwrap();
+        let stored_right = records.iter().find(|r| r.authority.run_id == "run-right").unwrap();
+        assert_eq!(stored_left.authority.thread_id, "thread-root");
+        assert_eq!(stored_right.authority.thread_id, "thread-conversation");
+        assert_eq!(stored_left.phase, TurnPhase::TerminalDurable);
+        assert_eq!(stored_right.phase, TurnPhase::Projected);
+        assert_eq!(stored_left.revision, 3);
+        assert_eq!(stored_right.revision, 4);
+        // Neither record's receipt leaked into the other.
+        assert_eq!(stored_left.last_receipt.as_ref().unwrap().receipt_id, "l-term");
+        assert_eq!(stored_right.last_receipt.as_ref().unwrap().receipt_id, "r-proj");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    // CR139: `admit_turn` writes with `permit_unfinished_pruning = true`, justified by the premise
+    // that native admission holds the Journey's only lease, so every pre-existing record is
+    // inactive. A per-Journey share of three makes that premise false, and a full journal then
+    // reclaims a *live* sibling's record — the one record that is still being written to.
+    #[test]
+    fn admitting_a_workspace_refuses_rather_than_pruning_a_live_sibling() {
+        let root = root("cr139-live-sibling");
+        let path = root.join("turn-journal.json");
+        // Fill the journal with records that cannot be reclaimed, leaving the live sibling as the
+        // only prunable candidate.
+        for index in 0..(JOURNAL_MAX_RECORDS - 1) {
+            let auth = workspace_authority("journey-a", "thread-old", &format!("run-old-{index:03}"));
+            settle_to_projected(&path, &auth, &format!("2026-10-01T10:{:02}:{:02}.000Z", index / 60, index % 60));
+        }
+        let live = workspace_authority("journey-a", "thread-live", "run-live");
+        admit_turn(&path, live.clone(), Some("2026-10-10T10:00:00.000Z".to_string())).unwrap();
+        transition_turn(&path, &live, transition(1, TurnPhase::Admitted, TurnPhase::Running, "live-run")).unwrap();
+        assert_eq!(read_turn_journal(&path).unwrap().records.len(), JOURNAL_MAX_RECORDS);
+
+        let arriving = workspace_authority("journey-a", "thread-arriving", "run-arriving");
+        assert_eq!(
+            admit_turn(&path, arriving, Some("2026-10-10T10:00:02.000Z".to_string())).unwrap_err(),
+            "turn_journal_full",
+            "the arriving turn must be refused, not admitted by reclaiming a live record",
+        );
+
+        let records = read_turn_journal(&path).unwrap().records;
+        let live_record = records.iter().find(|r| r.authority.run_id == "run-live");
+        assert!(
+            live_record.is_some(),
+            "a streaming sibling workspace's record was reclaimed to make room for an arriving turn",
+        );
+        assert_eq!(live_record.unwrap().phase, TurnPhase::Running);
+        assert_eq!(records.len(), JOURNAL_MAX_RECORDS);
+
+        // The same workspace's own unfinished record is still reclaimable, which is what the old
+        // `permit_unfinished_pruning = true` was actually for. Verdict preserved at the new grain.
+        let same_workspace = workspace_authority("journey-a", "thread-live", "run-live-successor");
+        let admitted = admit_turn(&path, same_workspace, Some("2026-10-10T10:00:03.000Z".to_string()));
+        assert!(admitted.is_ok(), "a workspace must still be able to reclaim its own unfinished record");
+        let records = read_turn_journal(&path).unwrap().records;
+        assert!(!records.iter().any(|r| r.authority.run_id == "run-live"));
+        assert!(records.iter().any(|r| r.authority.run_id == "run-live-successor"));
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -1023,7 +1175,7 @@ mod tests {
         let mut journal = empty_document();
         journal.records = vec![historical.clone(), protected];
 
-        compact_turn_journal_for_write(&mut journal, "run-current", false).unwrap();
+        compact_turn_journal_for_write(&mut journal, "run-current", UnfinishedPruning::Forbidden).unwrap();
         assert_eq!(journal.records.len(), 1);
         assert_eq!(journal.records[0].authority.run_id, "run-current");
 
@@ -1033,7 +1185,7 @@ mod tests {
             compact_turn_journal_for_write(
                 &mut oversized_protected,
                 "run-historical",
-                false,
+                UnfinishedPruning::Forbidden,
             ).unwrap_err(),
             "turn_journal_full",
         );
@@ -1076,7 +1228,7 @@ mod tests {
         };
         journal.records.push(protected);
 
-        compact_turn_journal_for_write(&mut journal, "run-current", true).unwrap();
+        compact_turn_journal_for_write(&mut journal, "run-current", same_workspace("journey-a")).unwrap();
         assert_eq!(journal.records.len(), JOURNAL_MAX_RECORDS);
         assert!(journal.records.iter().any(|record| record.authority.run_id == "run-current"));
         assert!(!journal.records.iter().any(|record| record.authority.run_id == "delivered-000"));
@@ -1112,7 +1264,7 @@ mod tests {
         }).collect();
 
         assert_eq!(
-            compact_turn_journal_for_write(&mut journal, "run-064", true).unwrap_err(),
+            compact_turn_journal_for_write(&mut journal, "run-064", same_workspace("journey-a")).unwrap_err(),
             "turn_journal_full",
         );
         assert_eq!(journal.records.len(), JOURNAL_MAX_RECORDS + 1);
@@ -1136,7 +1288,7 @@ mod tests {
         journal.records.push(extra);
 
         assert_eq!(
-            compact_turn_journal_for_write(&mut journal, "run-000", false).unwrap_err(),
+            compact_turn_journal_for_write(&mut journal, "run-000", UnfinishedPruning::Forbidden).unwrap_err(),
             "turn_journal_full",
         );
         assert_eq!(journal.records.len(), JOURNAL_MAX_RECORDS + 1);
@@ -1256,7 +1408,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .assistant_text_truncated = true;
-        write_turn_journal(&path, &mut document, &auth.run_id, false).unwrap();
+        write_turn_journal(&path, &mut document, &auth.run_id, UnfinishedPruning::Forbidden).unwrap();
         let stale = read_turn_journal(&path).unwrap().records.remove(0);
         assert!(!is_successor_eligible(&stale));
         assert!(admit_turn(&path, authority("run-2", "journey-a"), None).is_ok());

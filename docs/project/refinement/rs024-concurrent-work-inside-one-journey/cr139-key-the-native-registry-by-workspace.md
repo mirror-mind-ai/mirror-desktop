@@ -2,9 +2,9 @@
 
 # CR139: Key the Native Registry by Workspace
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs024-cr139-key-the-native-registry-by-workspace`
 
 **Gate: not started before CR138 is merged.** Re-keying the registry while the renderer's validator still forbids two entries per Journey produces an app-wide Composer lockout as its first observable effect (CR136, Finding 1).
 
@@ -194,6 +194,119 @@ in CR140 the Navigator can start a turn in a Journey workspace while a conversat
 runs. In CR139 alone the renderer still refuses the sibling, so the native change is **not** field-
 observable, and the honest sequence is: close CR139 on tests, and collect the field evidence named in
 this CR's Acceptance as part of CR140. Said up front rather than discovered at closure.
+
+## Delivery Record (2026-10-10)
+
+Delivered on `refinement/rs024-cr139-key-the-native-registry-by-workspace`, Driver `@alissonvale`.
+
+### The characterisation found a real defect before the key moved, which is what it was for
+
+Item 1 asked for a durability characterisation against **unchanged** code. Written first, it split
+into two tests with opposite verdicts, and the split is the finding.
+
+The first passed immediately: two authorities in one Journey with distinct `thread_id`s journal,
+run and settle independently, interleaved, each keeping its own revision and its own receipt. The
+durable layer really was already shaped for concurrency.
+
+The second **failed against unchanged code**, and it had to. `admit_turn` writes with
+`permit_unfinished_pruning = true`, justified in a comment by the premise that *"Native admission
+reserves the only Journey lease before this call, proving every pre-existing journal record is
+inactive in this process."* A per-Journey share of three makes that premise false. With the journal
+at its 64-record limit and every other record unprunable, admitting a turn in one workspace
+**reclaimed a sibling workspace's live `Running` record** — deleting the one record still being
+written to. Reachable, not theoretical: `JOURNAL_MAX_RECORDS` is 64 and production journals already
+hold real history.
+
+Fixed by replacing the bare `bool` with a policy that says what it now means:
+
+```rust
+enum UnfinishedPruning<'a> {
+    Forbidden,
+    SameWorkspaceOnly { journey_id: &'a str, thread_id: &'a str },
+}
+```
+
+A workspace may still reclaim **its own** unfinished record, which is what the flag was actually
+for; a sibling's is protected and the arriving turn is refused with `turn_journal_full` instead.
+**Failing closed with a legible error beats destroying live state.** All five pre-existing pruning
+call sites were re-aimed and none deleted: every record in those suites is built by
+`authority(run, journey)` whose thread is `thread-{journey}`, so `SameWorkspaceOnly` reproduces the
+old `true` exactly and `Forbidden` the old `false`. Verdicts identical.
+
+**Debt, named not fixed:** `turn_journal_full` reaches the Navigator as *"Pi invocation admission
+failed: turn_journal_full"*. That is an existing path, not a new one, and refusal legibility is
+CR140's subject — this refusal belongs on its list.
+
+### My own measurement refuted my own concern
+
+The plan said the `released_targets` bound of `limit * 2` = 8 must be **measured**, not widened on
+suspicion, because the share makes `reserve`'s eviction loop an ordinary path. The test I wrote for
+it failed: churning three workspaces three times forgot the oldest target.
+
+Rather than widen the bound, I measured the old grain with a throwaway probe. **Three distinct
+Journeys churned three times forget exactly as many — one.** The number of live workspaces is still
+bounded by `limit`, because each live entry consumes one capacity unit, so the retention window per
+slot did not change. My test had demanded three generations, which the bound never provided at
+either grain. **The test was wrong, not the bound**, and widening it would have been a cap no
+measurement supports. The test now pins the *equivalence* between the two grains, so an asymmetry
+cannot appear unnoticed, and the retention window is left as the pre-existing property it is.
+
+### Shipped shape
+
+`pi_process_registry.rs` — `RegistryAuthority` gains `thread_id()`; `workspace_key` joins the pair
+with `|`; `entries` keyed by workspace; `PER_JOURNEY_PI_WORKSPACE_SHARE = 3` with its derivation and
+its falsifier in a comment; `ReserveError::DuplicateWorkspace` and `JourneyShareExceeded` added and
+`DuplicateJourney` **removed** rather than kept as a reason nothing can produce;
+`live_entries_in_journey` counting live entries only; `resolve_key` resolving a `RunTarget` by
+`(journey_id, run_id)` with `Missing` and `Stale` preserved by construction;
+`retire_finalizing_journey` → `retire_finalizing_workspace`; both snapshots sorted by
+`(journey_id, thread_id)` so sibling order is stable rather than left to `HashMap` iteration.
+
+The share is checked **before** global capacity, so a Journey that has filled its own share is told
+that rather than handed the global reason, which would be true of the system and false about the
+cause.
+
+`main.rs` — `thread_id()` on the production impl; both error maps gain the two new sentences;
+`is_completed_delivery_candidate` extracted and named so item 6 could be tested instead of reasoned
+about; and the Steering resolution fixed, per Finding 2 of the plan.
+
+**`RunTarget` did not change, and neither did the renderer.** `git diff -- src/app src/domain
+src/styles src/fixtures` is **0 lines**. The only renderer additions are a test and the golden
+fixture it reads.
+
+### The golden fixture separates two causes that were conflated
+
+Item 7 is a fixture emitted by `PiProcessRegistry::inspect` itself — two sibling workspaces in one
+Journey plus one elsewhere — read by `piInvocationInspectionConformance.test.ts`. Neither side can
+drift into agreement with a hand-written sample.
+
+Writing it corrected two of my own assumptions. The fake authority derived `piSessionId` and
+`mirrorConversationId` from the **Journey**, so the two siblings collided; a Pi session belongs to a
+thread, and an unfaithful sample would have hidden any future uniqueness rule. And I expected
+`hasBlockingPiInvocationOccupancy` to be `false` on this payload. It is `true` — it blocks on an
+active lease in **any** Journey. That expectation was wrong and the truth is worth more: the test now
+shows that the validator no longer degrades this payload to `unknown` (the lockout CR138 removed)
+while the remaining app-wide block is this predicate's reach. **CR136's Finding 1 conflated those two
+causes; real bytes now separate them.** Deliberately not narrowed here — it is CR140's question.
+
+The conformance test also asserts the seam is open on purpose: `NATIVE_ADMISSION_GRAIN` is still
+`"journey"`, so the native side admits a sibling the renderer refuses, and the same state admits it
+under the `"workspace"` grain. RS024's "together or neither" invariant is visibly out of step **by
+ordering**, not by oversight.
+
+### Gates
+
+`cargo test` **283 passed / 3 ignored**, up from 269: two journal characterisation tests, ten
+registry and conformance tests, one re-aimed. Renderer suite **252 files / 1,906 tests**, up from
+251 / 1,900 by exactly the six new conformance tests, with every pre-existing verdict unchanged.
+`npx tsc --noEmit` exit 0, read directly. `npm run build` and `npm run tauri:build:dev` clean.
+`roadmap:check` READY.
+
+### Field verification
+
+Owed and **not provocable in this slice**, as the plan said up front: while the renderer refuses a
+sibling, nothing the Navigator can do exercises the native change. Closed on tests; the field
+evidence this CR's Acceptance names is collected in CR140, which flips the grain.
 
 ## Acceptance
 
