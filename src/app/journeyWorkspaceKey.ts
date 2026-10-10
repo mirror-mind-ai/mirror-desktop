@@ -57,7 +57,16 @@ export function sameJourneyWorkspace(left: JourneyWorkspace, right: JourneyWorks
  * sentence, rather than letting the send proceed into a raw transport exception — which is strictly
  * worse than the behaviour CR140 set out to improve.
  *
- * **CR141 keys the event route by workspace and flips this.** A guard asserts the current value,
- * so flipping it stays a visible one-line decision rather than a side effect.
+ * **CR141 keyed the event route by workspace and flipped this on 2026-10-10.** The dispatcher's
+ * `routes` map, its closed-route memory and its quarantine are all keyed by workspace now, so a
+ * sibling's `register` no longer finds this workspace's route and the transport no longer refuses
+ * what admission allows.
+ *
+ * The constant survives the flip on purpose. CR140 flipped and removed in one step, and the field
+ * refuted it in one attempt with nothing left to revert but a reconstruction. While this reads
+ * `"workspace"`, `same_journey_occupied` stays reachable through the `grain` parameter and
+ * reverting is one line. **It is removed only once the field produces D1's durable claim** — two
+ * `turn-journal` records for one Journey with distinct `thread_id` and intersecting `piExecution`
+ * windows. A guard asserts the current value, so each move stays a visible one-line decision.
  */
-export const PI_EVENT_TRANSPORT_GRAIN: "journey" | "workspace" = "journey";
+export const PI_EVENT_TRANSPORT_GRAIN: "journey" | "workspace" = "workspace";

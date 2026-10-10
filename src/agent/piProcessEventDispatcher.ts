@@ -4,6 +4,7 @@ import {
   type PiProcessEventAuthority,
   type RunAuthority,
 } from "../domain/runAuthority";
+import { runtimeWorkspaceKey, workspaceOfAuthority } from "../app/journeyWorkspaceKey";
 
 export const PI_PROCESS_EVENT = "nautilus-pi-process";
 
@@ -37,8 +38,26 @@ export type PiProcessEventDispatcher = {
   dispose(): Promise<void>;
   register(authority: RunAuthority, handler: (event: PiProcessEvent) => void): Promise<PiProcessEventRoute>;
   rehydrate(authority: RunAuthority, handler: (event: PiProcessEvent) => void): Promise<PiProcessEventRoute>;
-  quarantine(): ReadonlyArray<{ journeyId?: string; runId?: string; reason: string }>;
+  quarantine(): ReadonlyArray<{ journeyId?: string; threadId?: string; runId?: string; reason: string }>;
 };
+
+/**
+ * CR141: the route key. A Pi process event belongs to a workspace, not to a Journey, and keying
+ * this map by `journeyId` is what refused a sibling's send inside `register` before admission was
+ * ever consulted — the defect CR138, CR139 and CR140 each left untouched because every First
+ * Investigation surveyed admission and none surveyed the transport.
+ *
+ * Structural on purpose: `RunAuthority` and `PiProcessEventAuthority` are two different records
+ * that both carry the two coordinates, and `thread_id` is required on every event of every kind
+ * (`main.rs:323`), emitted through the single `emit()` at `main.rs:8228`.
+ */
+function routeKey(authority: { readonly journeyId: string; readonly threadId: string }): string {
+  return runtimeWorkspaceKey(workspaceOfAuthority(authority));
+}
+
+function describeWorkspace(authority: { readonly journeyId: string; readonly threadId: string }): string {
+  return `${authority.journeyId}/${authority.threadId}`;
+}
 
 const QUARANTINE_LIMIT = 20;
 const CLOSED_ROUTE_LIMIT = 20;
@@ -48,7 +67,7 @@ export function createPiProcessEventDispatcher(
 ): PiProcessEventDispatcher {
   const listen = dependencies.listen ?? (tauriListen as Listen);
   const routes = new Map<string, Route>();
-  const rejected: Array<{ journeyId?: string; runId?: string; reason: string }> = [];
+  const rejected: Array<{ journeyId?: string; threadId?: string; runId?: string; reason: string }> = [];
   const closedAuthorities: PiProcessEventAuthority[] = [];
   let unlisten: (() => void) | undefined;
   let mounting: Promise<void> | undefined;
@@ -56,7 +75,12 @@ export function createPiProcessEventDispatcher(
   let lifecycle = 0;
 
   function reject(event: PiProcessEvent, reason: string) {
-    rejected.push({ journeyId: event.authority?.journeyId, runId: event.authority?.runId, reason });
+    rejected.push({
+      journeyId: event.authority?.journeyId,
+      threadId: event.authority?.threadId,
+      runId: event.authority?.runId,
+      reason,
+    });
     if (rejected.length > QUARANTINE_LIMIT) rejected.splice(0, rejected.length - QUARANTINE_LIMIT);
   }
 
@@ -65,7 +89,12 @@ export function createPiProcessEventDispatcher(
   }
 
   function rememberClosedAuthority(authority: PiProcessEventAuthority) {
-    const existing = closedAuthorities.findIndex((closed) => closed.journeyId === authority.journeyId);
+    // CR141: deduped by workspace, not by Journey. This list is what stops a closed route from
+    // being resurrected by a late `rehydrate` (`dafd3c9`, 2026-09-01). Replacing by Journey once
+    // siblings can run would let one workspace's closure evict another's, reopening exactly the
+    // resurrection that commit prevents.
+    const key = routeKey(authority);
+    const existing = closedAuthorities.findIndex((closed) => routeKey(closed) === key);
     if (existing >= 0) closedAuthorities.splice(existing, 1);
     closedAuthorities.push(authority);
     if (closedAuthorities.length > CLOSED_ROUTE_LIMIT) {
@@ -78,7 +107,7 @@ export function createPiProcessEventDispatcher(
       reject(event, "missing_authority");
       return;
     }
-    const route = routes.get(event.authority.journeyId);
+    const route = routes.get(routeKey(event.authority));
     if (!route || route.closed) {
       reject(event, "unknown_route");
       return;
@@ -94,7 +123,8 @@ export function createPiProcessEventDispatcher(
       if (event.kind === "done") {
         rememberClosedAuthority(event.authority);
         route.closed = true;
-        if (routes.get(route.authority.journeyId) === route) routes.delete(route.authority.journeyId);
+        const key = routeKey(route.authority);
+        if (routes.get(key) === route) routes.delete(key);
       }
     }
   }
@@ -154,7 +184,8 @@ export function createPiProcessEventDispatcher(
         if (route.closed) return;
         route.closed = true;
         rememberClosedAuthority(route.authority.eventAuthority);
-        if (routes.get(route.authority.journeyId) === route) routes.delete(route.authority.journeyId);
+        const key = routeKey(route.authority);
+        if (routes.get(key) === route) routes.delete(key);
       },
     };
   }
@@ -165,13 +196,15 @@ export function createPiProcessEventDispatcher(
   ): Promise<PiProcessEventRoute> {
     await mount();
     if (!unlisten) throw new Error("Pi process event dispatcher is not mounted.");
-    const current = routes.get(authority.journeyId);
-    if (current && !current.closed) throw new Error(`Pi process route already active for Journey ${authority.journeyId}.`);
+    const current = routes.get(routeKey(authority));
+    if (current && !current.closed) {
+      throw new Error(`Pi process route already active for workspace ${describeWorkspace(authority)}.`);
+    }
     if (wasClosedInCurrentLifecycle(authority)) {
-      throw new Error(`Pi process route already closed for Journey ${authority.journeyId}.`);
+      throw new Error(`Pi process route already closed for workspace ${describeWorkspace(authority)}.`);
     }
     const route: Route = { authority, handler, closed: false };
-    routes.set(authority.journeyId, route);
+    routes.set(routeKey(authority), route);
     return routeHandle(route);
   }
 
@@ -184,16 +217,16 @@ export function createPiProcessEventDispatcher(
     if (wasClosedInCurrentLifecycle(authority)) {
       return routeHandle({ authority, handler, closed: true });
     }
-    const current = routes.get(authority.journeyId);
+    const current = routes.get(routeKey(authority));
     if (current && !current.closed) {
       if (!samePiProcessEventAuthority(current.authority.eventAuthority, authority)) {
-        throw new Error(`Pi process route authority mismatch for Journey ${authority.journeyId}.`);
+        throw new Error(`Pi process route authority mismatch for workspace ${describeWorkspace(authority)}.`);
       }
       current.handler = handler;
       return routeHandle(current);
     }
     const route: Route = { authority, handler, closed: false };
-    routes.set(authority.journeyId, route);
+    routes.set(routeKey(authority), route);
     return routeHandle(route);
   }
 

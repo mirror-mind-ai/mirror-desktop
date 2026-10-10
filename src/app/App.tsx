@@ -78,6 +78,7 @@ import {
   piInvocationAuthorityFromRunAuthority,
   releaseAndReinspectPiInvocationLease,
   resolveExactSettlementRecovery,
+  selectWorkspaceNativeLease,
   shouldRehydratePiProcessRoute,
   retainExpectedPiInvocationLease,
   validatePiInvocationRegistryInspection,
@@ -1249,9 +1250,10 @@ export function App({ model }: AppProps) {
   const exactRetainedSettlementRecovery = pendingSettlementRecoveryEvidence
     ? resolveExactSettlementRecovery(piInvocationOccupancy, selectedJourney, pendingSettlementRecoveryEvidence)
     : null;
-  const selectedNativeLease = piInvocationOccupancy.entries.find((entry) => (
-    entry.authority.journeyId === selectedJourney
-  ));
+  // CR141: the selected workspace's own lease. Asking this by Journey returned a sibling's lease
+  // once two workspaces could run, which hid this workspace's blocking record and skipped its
+  // rehydration — see `selectWorkspaceNativeLease`.
+  const selectedNativeLease = selectWorkspaceNativeLease(piInvocationOccupancy, selectedWorkspace);
   const selectedActiveNativeLease = selectedNativeLease && isActivePiInvocationLease(selectedNativeLease)
     ? selectedNativeLease
     : undefined;

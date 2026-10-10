@@ -7,6 +7,7 @@ import {
   hasActiveNativeExecution,
   hasActiveNativeExecutionInJourney,
   retainExpectedPiInvocationLease,
+  selectWorkspaceNativeLease,
   validatePiInvocationRegistryInspection,
   type PiInvocationAuthorityInspection,
   type PiInvocationLeaseInspection,
@@ -222,5 +223,46 @@ describe("CR138: retaining an expected lease must not erase a sibling", () => {
     expect(retained.entries).toHaveLength(1);
     expect(retained.entries[0].authority.runId).toBe("run-9");
     expect(retained.entries[0].leasePhase).toBe("reserved");
+  });
+});
+
+/**
+ * CR141. `App.tsx` selected the native lease with
+ * `entries.find((entry) => entry.authority.journeyId === selectedJourney)`. Once two workspaces
+ * could run, that returned whichever sorted first regardless of which conversation was selected —
+ * and the consequence was silence, not noise: `findBlockingTurnJournalRecord` only matches a
+ * record whose `runId` equals the active lease's, so the selected workspace's own blocking record
+ * was hidden and its rehydration never ran.
+ */
+describe("CR141: the selected workspace's lease is its own", () => {
+  it("returns each sibling's own lease rather than whichever sorts first", () => {
+    const state = known([running("thread-A", "run-1"), running("thread-B", "run-2")]);
+    const a = selectWorkspaceNativeLease(state, journeyWorkspace("mirror-desktop", "thread-A"));
+    const b = selectWorkspaceNativeLease(state, journeyWorkspace("mirror-desktop", "thread-B"));
+
+    expect(a?.authority.runId).toBe("run-1");
+    expect(b?.authority.runId).toBe("run-2");
+    expect(selectWorkspaceNativeLease(state, journeyWorkspace("mirror-desktop", "thread-C"))).toBeUndefined();
+  });
+
+  it("answers an unresolved root thread from a single live entry", () => {
+    const state = known([running("thread-A", "run-1")]);
+    expect(selectWorkspaceNativeLease(state, journeyWorkspace("mirror-desktop", null))?.authority.runId)
+      .toBe("run-1");
+  });
+
+  it("declines to guess for an unresolved root thread when two are live", () => {
+    const state = known([running("thread-A", "run-1"), running("thread-B", "run-2")]);
+    expect(selectWorkspaceNativeLease(state, journeyWorkspace("mirror-desktop", null))).toBeUndefined();
+  });
+
+  it("keeps a finalizing lease for its own workspace but never lends it to a sibling", () => {
+    // The exact match answers in any phase, because a retained `finalizing` lease is exactly what
+    // the retained-lease notice asks about. The fallback counts only live entries.
+    const state = known([finalizing("thread-A", "run-1"), running("thread-B", "run-2")]);
+    expect(selectWorkspaceNativeLease(state, journeyWorkspace("mirror-desktop", "thread-A"))?.leasePhase)
+      .toBe("finalizing");
+    expect(selectWorkspaceNativeLease(state, journeyWorkspace("mirror-desktop", null))?.authority.runId)
+      .toBe("run-2");
   });
 });

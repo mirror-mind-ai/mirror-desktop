@@ -115,31 +115,37 @@ describe("CR107 — starting a Journey that has not started yet", () => {
   });
 
   /**
-   * CR140 flipped the grain so a sibling was admitted, and the field refused it one layer lower,
-   * inside `piProcessEventDispatcher.register`, after Send had already been accepted. The refusal
-   * is back here, where it can be a sentence instead of an exception. Re-aimed, not deleted: the
-   * workspace-grain behaviour the registry really enforces is still asserted, explicitly.
+   * Twice re-aimed, never deleted. CR140 flipped the grain and the field refused the sibling one
+   * layer lower, inside `piProcessEventDispatcher.register`, after Send had been accepted — so the
+   * refusal came back here as a sentence. **CR141 re-keyed the transport**, so the sibling is
+   * admitted for real: the registry allows it, the pre-check allows it, and the route it will be
+   * delivered on is its own.
    */
-  it("refuses a sibling workspace with a sentence rather than letting the transport throw", () => {
+  it("admits a sibling workspace now that the event route is keyed by workspace", () => {
     const sibling = derivePiInvocationAdmission(
       occupancy([lease("vida-tecnica")]),
       journeyWorkspace("vida-tecnica", "vida-tecnica-other-thread"),
+    );
+
+    expect(sibling).toEqual({ allowed: true, reason: null });
+    expect(journeyStartAvailability({ ...ready, nativeAdmission: sibling })).toEqual({ canStart: true });
+  });
+
+  /**
+   * Kept until the field produces D1's durable claim. While this passes, reverting CR141's flip is
+   * one line and the sentence the Navigator would see is still asserted — which is precisely what
+   * CR140 did not have when its flip was refuted.
+   */
+  it("still refuses that sibling with a sentence at the journey grain, which stays revertible", () => {
+    const sibling = derivePiInvocationAdmission(
+      occupancy([lease("vida-tecnica")]),
+      journeyWorkspace("vida-tecnica", "vida-tecnica-other-thread"),
+      "journey",
     );
 
     expect(sibling).toEqual({ allowed: false, reason: "same_journey_occupied" });
     expect(journeyStartAvailability({ ...ready, nativeAdmission: sibling }).unavailableReason)
       .toContain("This Journey already has native work in progress");
-  });
-
-  it("would admit that sibling at the workspace grain CR141 unlocks", () => {
-    const sibling = derivePiInvocationAdmission(
-      occupancy([lease("vida-tecnica")]),
-      journeyWorkspace("vida-tecnica", "vida-tecnica-other-thread"),
-      "workspace",
-    );
-
-    expect(sibling).toEqual({ allowed: true, reason: null });
-    expect(journeyStartAvailability({ ...ready, nativeAdmission: sibling })).toEqual({ canStart: true });
   });
 });
 

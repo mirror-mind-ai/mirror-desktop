@@ -433,6 +433,42 @@ export function hasActiveNativeExecution(
  * this — the Journey row reports that work runs *somewhere inside* it — while a repair or an exit
  * aimed at one workspace must use the workspace form, or a sibling's run would withhold it.
  */
+/**
+ * CR141: the lease of one workspace, asked for by that workspace.
+ *
+ * `App.tsx` found this by `entry.authority.journeyId === selectedJourney`, which with two live
+ * siblings returned whichever sorted first — alphabetical by `thread_id` after CR139's sort —
+ * regardless of which conversation the Navigator was looking at. The consequence was measured, not
+ * assumed: `findBlockingTurnJournalRecord` only matches a record whose `runId` equals the active
+ * lease's, so a sibling's lease **hides** the selected workspace's own blocking record, its
+ * rehydration silently never runs, and availability reports a lease active on a surface whose
+ * lease belongs to somebody else. Silence and wrong presentation, deterministically, from one
+ * `find`.
+ *
+ * The exact workspace answers whenever its thread is resolved, in any phase, because a caller
+ * asking about a retained `finalizing` lease needs it as much as one asking about a running turn.
+ *
+ * The `null` thread rule is taken from `selectJourneyRuntime` by name rather than invented: a
+ * Journey whose root thread is not yet resolved (the Dev catalog carries `rootThreadId: null`
+ * today) is answered by exactly one live entry, and declined when there are two, because guessing
+ * between siblings is the defect this function exists to remove. Returning nothing whenever the
+ * thread is unresolved would instead blank the surface of every Journey with one running turn
+ * while its catalog loads.
+ */
+export function selectWorkspaceNativeLease(
+  state: PiInvocationOccupancyState,
+  workspace: JourneyWorkspace,
+): PiInvocationLeaseInspection | undefined {
+  const exact = state.entries.find((entry) => (
+    sameJourneyWorkspace(workspaceOfAuthority(entry.authority), workspace)
+  ));
+  if (exact || workspace.threadId !== null) return exact;
+  const live = state.entries.filter((entry) => (
+    entry.authority.journeyId === workspace.journeyId && isActivePiInvocationLease(entry)
+  ));
+  return live.length === 1 ? live[0] : undefined;
+}
+
 export function hasActiveNativeExecutionInJourney(
   state: PiInvocationOccupancyState,
   journeyId: string,

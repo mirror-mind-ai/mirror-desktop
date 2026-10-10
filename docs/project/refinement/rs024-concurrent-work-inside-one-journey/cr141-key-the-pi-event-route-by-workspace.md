@@ -2,9 +2,9 @@
 
 # CR141: Key the Pi Event Route by Workspace
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress — Stage A delivered on files, Stage B and field verification owed
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs024-cr141-key-the-pi-event-route-by-workspace`
 
 **This is the slice RS024 was missing.** CR138, CR139 and CR140 are each delivered and each
 correct, and the Story's Desired Outcome is still not achieved, because the layer that actually
@@ -283,6 +283,64 @@ reproduces them.
    Journey surface during the catalog load for every Journey with one running turn.
 3. **The key helper is imported from `app/`**, matching the existing direction, rather than moved
    to `domain/` inside a slice whose subject is routing.
+
+## Delivery Record — Stage A (2026-10-10)
+
+Delivered on files. **Stage B and the field remain owed**, by design.
+
+Diff: 11 files, +362/−61. **`src-tauri` diff is 0 lines**, so the slice is reviewable as one
+language's change, as CR139 was in the other direction.
+
+### The transport
+
+All seven sites in `piProcessEventDispatcher.ts` are keyed by
+`routeKey(authority) = runtimeWorkspaceKey(workspaceOfAuthority(authority))`, structural over both
+`RunAuthority` and `PiProcessEventAuthority`. `rememberClosedAuthority` dedupes by workspace, as
+item 2 required. Both `register` sentences and `rehydrate`'s mismatch sentence name the workspace
+as `<journey>/<thread>`, so the backstop can no longer read as a Journey-wide lockout. `reject` and
+`quarantine()` carry `threadId`.
+
+**The five same-workspace cases passed unchanged.** `git diff` on
+`piProcessEventDispatcher.test.ts` removes **zero lines** — the plan's stopping condition, met.
+
+### The second defect, fixed where it was found
+
+`App.tsx:1252` now calls `selectWorkspaceNativeLease(piInvocationOccupancy, selectedWorkspace)`.
+The exact workspace answers in any phase; an unresolved root thread is answered by exactly one live
+entry and declined when two are live. Four unit tests pin it, including that a `finalizing` lease
+is returned to its own workspace and never lent to a sibling.
+
+### The grain flipped, and stayed
+
+`PI_EVENT_TRANSPORT_GRAIN` is `"workspace"`. **The constant was not removed**, which is the whole
+difference from CR140: `same_journey_occupied` stays reachable through the `grain` parameter, three
+re-aimed suites assert the journey-grain sentence beside the new workspace-grain admission, and
+reverting is one line. Stage B removes it once D1's durable claim exists.
+
+### Two findings from building it
+
+1. **My own guard's regex was wrong, in a way that still looked right.** The non-greedy
+   `routes\.(get|set|delete)\([^;]*?[,)]` stops at the *inner* parenthesis and reports
+   `routes.get(routeKey(authority)` — truncated, and plausible enough to pass review. One level of
+   balanced nesting is matched explicitly instead, and the reason is written at the guard. This is
+   the second time a guard's own helper has been the defect.
+2. **The fixture change would have moved all 53 existing callers.** Deriving `piSessionId` from the
+   thread, as CR139 corrected in the Rust fake, changes the default case too, because the default
+   thread is itself derived from the Journey. The plan claimed existing callers were unaffected, so
+   the fixture was written to make that true — `identity = threadId ?? journeyId` — rather than the
+   claim being quietly dropped.
+
+### Gates
+
+`tsc` 0 errors; renderer **253 files / 1,943 tests** (from 1,931); `cargo test` **285 passed / 3
+ignored**, unchanged; `npm run build` and `npm run tauri:build:dev` clean; `roadmap:check` READY;
+native diff 0 lines.
+
+### What is owed
+
+Stage B, and the field. The D0–D5 sequence in
+`docs/update/rs024-field-verification-baseline-2026-10-10.md` carries the evidence owed by CR138,
+CR139 and CR140, and D1's durable claim gates Stage B.
 
 ## Acceptance
 

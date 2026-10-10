@@ -85,19 +85,21 @@ describe("CR139: the re-keyed registry's own output satisfies the renderer's val
   /**
    * CR139 left a seam open on purpose: the registry admitted a sibling the renderer refused. CR140
    * tried to close it and the field showed the seam was in a third place — the event dispatcher,
-   * keyed by Journey. So the registry's output says three slots are available while the renderer
-   * still refuses the second, and that disagreement is now asserted rather than hidden, because it
-   * is the exact distance CR141 has to travel.
+   * keyed by Journey. **CR141 closed that one**, so the two independently written rule sets now
+   * agree on this payload: the registry reports a third slot and the renderer takes it.
+   *
+   * This case is the measure of the distance travelled. It asserted the disagreement while the
+   * disagreement was real, and asserts the agreement now, against the same generated fixture.
    */
-  it("reports three available slots while the renderer still refuses the second", () => {
+  it("reports three available slots and the renderer now admits the second", () => {
     const state = applied();
     const free = journeyWorkspace("mirror-desktop", "desktop-thread-not-yet-started");
-    // The registry's own numbers: a share of three, two live, so it would admit a third.
+    // The registry's own numbers: a share of three, two live, so it admits a third.
     expect(state.journeyWorkspaceShare).toBe(3);
     expect(state.limit).toBe(4);
-    expect(derivePiInvocationAdmission(state, free, "workspace")).toEqual({ allowed: true, reason: null });
-    // And the renderer refuses it anyway, with a sentence, because the transport cannot carry it.
-    expect(derivePiInvocationAdmission(state, free)).toEqual({
+    expect(derivePiInvocationAdmission(state, free)).toEqual({ allowed: true, reason: null });
+    // And the revertible journey grain still refuses it with a reason that has a sentence.
+    expect(derivePiInvocationAdmission(state, free, "journey")).toEqual({
       allowed: false,
       reason: "same_journey_occupied",
     });
@@ -116,7 +118,7 @@ describe("CR139: the re-keyed registry's own output satisfies the renderer's val
         },
       }],
     };
-    expect(derivePiInvocationAdmission(occupied, journeyWorkspace("mirror-desktop", "desktop-thread-fourth"), "workspace"))
+    expect(derivePiInvocationAdmission(occupied, journeyWorkspace("mirror-desktop", "desktop-thread-fourth")))
       .toEqual({ allowed: false, reason: "journey_share_exceeded" });
   });
 

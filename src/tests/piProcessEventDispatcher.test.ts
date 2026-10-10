@@ -15,6 +15,17 @@ function authority(runId = "run-1", journeyId = "journey-one") {
   );
 }
 
+/** CR141: two authorities in one Journey on different threads — the shape the field refused. */
+function sibling(runId: string, threadId: string) {
+  const thread = readyThread("journey-shared", threadId);
+  const conversation = createDedicatedJourneyConversation({ thread, initialMessages: [] });
+  return createRunAuthority(
+    createDedicatedTurnAuthority(thread, runId, `turn-${runId}`, `user-${runId}`, `assistant-${runId}`),
+    conversation.liveIdentity,
+    thread.generations[0],
+  );
+}
+
 function listenerFixture() {
   let handler: ((event: { payload: PiProcessEvent }) => void) | undefined;
   const unlisten = vi.fn();
@@ -216,5 +227,96 @@ describe("central Pi process event dispatcher", () => {
       listen: vi.fn(async () => { throw new Error("listen failed"); }),
     });
     await expect(dispatcher.register(authority(), vi.fn())).rejects.toThrow("listen failed");
+  });
+});
+
+/**
+ * CR141. The route map was keyed by `journeyId`, so a second workspace in one Journey threw
+ * inside `register` — before `start_pi_invocation`, and after Send had been accepted. These cases
+ * are the sibling twins of the two-Journey case above: same Journey, different threads.
+ *
+ * The five same-workspace cases above must keep passing unchanged. They are all same-thread
+ * through the fixture, and needing to edit one of them would mean the key is wrong.
+ */
+describe("CR141: two workspaces in one Journey route independently", () => {
+  it("delivers each workspace only its own events and closes them independently", async () => {
+    const fixture = listenerFixture();
+    const dispatcher = createPiProcessEventDispatcher({ listen: fixture.listen });
+    const first = sibling("run-a", "thread-one");
+    const second = sibling("run-b", "thread-two");
+    const receivedA = vi.fn();
+    const receivedB = vi.fn();
+    const routeA = await dispatcher.register(first, receivedA);
+    const routeB = await dispatcher.register(second, receivedB);
+
+    expect(first.journeyId).toBe(second.journeyId);
+    fixture.emit({ kind: "stdout", content: "two only", authority: second.eventAuthority });
+    fixture.emit({ kind: "stderr", content: "one only", authority: first.eventAuthority });
+    expect(receivedA).toHaveBeenCalledTimes(1);
+    expect(receivedA).toHaveBeenCalledWith(expect.objectContaining({ content: "one only" }));
+    expect(receivedB).toHaveBeenCalledTimes(1);
+    expect(receivedB).toHaveBeenCalledWith(expect.objectContaining({ content: "two only" }));
+
+    fixture.emit({ kind: "done", content: "one done", authority: first.eventAuthority });
+    expect(routeA.isClosed()).toBe(true);
+    expect(routeB.isClosed()).toBe(false);
+    fixture.emit({ kind: "stdout", content: "two later", authority: second.eventAuthority });
+    expect(receivedB).toHaveBeenCalledTimes(2);
+    expect(fixture.listen).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a second route for the same workspace while admitting the sibling", async () => {
+    const fixture = listenerFixture();
+    const dispatcher = createPiProcessEventDispatcher({ listen: fixture.listen });
+    await dispatcher.register(sibling("run-a", "thread-one"), vi.fn());
+
+    // The backstop behind `same_workspace_occupied`, which admission refuses first with a
+    // sentence. It names both coordinates, so it can no longer read as a Journey-wide lockout.
+    await expect(dispatcher.register(sibling("run-a2", "thread-one"), vi.fn()))
+      .rejects.toThrow("Pi process route already active for workspace journey-shared/thread-one.");
+    expect((await dispatcher.register(sibling("run-b", "thread-two"), vi.fn())).isClosed()).toBe(false);
+  });
+
+  it("does not raise an authority mismatch when a sibling rehydrates", async () => {
+    const fixture = listenerFixture();
+    const dispatcher = createPiProcessEventDispatcher({ listen: fixture.listen });
+    await dispatcher.register(sibling("run-a", "thread-one"), vi.fn());
+
+    const recovered = vi.fn();
+    const route = await dispatcher.rehydrate(sibling("run-b", "thread-two"), recovered);
+    expect(route.isClosed()).toBe(false);
+    fixture.emit({ kind: "stdout", content: "to the sibling", authority: sibling("run-b", "thread-two").eventAuthority });
+    expect(recovered).toHaveBeenCalledTimes(1);
+  });
+
+  it("remembers closure per workspace, so a sibling cannot evict it", async () => {
+    const fixture = listenerFixture();
+    const dispatcher = createPiProcessEventDispatcher({ listen: fixture.listen });
+    const closing = sibling("run-a", "thread-one");
+    await dispatcher.register(closing, vi.fn());
+    fixture.emit({ kind: "done", content: "done", authority: closing.eventAuthority });
+
+    // CLOSED_ROUTE_LIMIT aside, the list used to replace by Journey. A sibling closing after this
+    // one would have forgotten it, and the late rehydrate below would resurrect a terminal route.
+    const later = sibling("run-b", "thread-two");
+    await dispatcher.register(later, vi.fn());
+    fixture.emit({ kind: "done", content: "done", authority: later.eventAuthority });
+
+    expect((await dispatcher.rehydrate(closing, vi.fn())).isClosed()).toBe(true);
+    await expect(dispatcher.register(closing, vi.fn())).rejects.toThrow("already closed for workspace");
+  });
+
+  it("quarantines by workspace and still quarantines an event with no authority", async () => {
+    const fixture = listenerFixture();
+    const dispatcher = createPiProcessEventDispatcher({ listen: fixture.listen });
+    await dispatcher.register(sibling("run-a", "thread-one"), vi.fn());
+
+    fixture.emit({ kind: "stdout", content: "orphan", authority: sibling("run-x", "thread-unrouted").eventAuthority });
+    fixture.emit({ kind: "stdout", content: "no authority" });
+
+    expect(dispatcher.quarantine()).toEqual([
+      { journeyId: "journey-shared", threadId: "thread-unrouted", runId: "run-x", reason: "unknown_route" },
+      { journeyId: undefined, threadId: undefined, runId: undefined, reason: "missing_authority" },
+    ]);
   });
 });
