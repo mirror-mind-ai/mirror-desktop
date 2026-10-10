@@ -20,9 +20,6 @@ import {
 const REASONS: readonly AdmissionRefusalReason[] = [
   "inspection_unknown",
   "same_workspace_occupied",
-  // Restored after the field attempt: the Pi event transport carries one route per Journey, so a
-  // sibling is refused here with a sentence rather than throwing after Send. See CR141.
-  "same_journey_occupied",
   "journey_share_exceeded",
   "global_capacity_reached",
 ];
@@ -113,10 +110,14 @@ describe("CR140: the started Composer explains the refusal it is enforcing", () 
       appSource.indexOf("const admissionRefusal ="),
     );
     expect(startAvailability).toContain("refusalContext: admissionRefusalContext");
-    // The not-started surface no longer writes its own sentences: the sentence it used to own
-    // lives in the shared module, which is what makes the two surfaces agree.
+    // The not-started surface no longer writes its own sentences: they live in the shared module,
+    // which is what makes the two surfaces agree. CR141 Stage B retired the Journey-occupied
+    // sentence along with its reason, so the property is pinned on the refusal that remains —
+    // and on the retired sentence being gone from *both* places rather than moved back.
     expect(appSource).not.toContain("This Journey already has native work in progress");
-    expect(refusalSource).toContain("This Journey already has native work in progress");
+    expect(refusalSource).not.toContain("This Journey already has native work in progress");
+    expect(appSource).not.toContain("This Journey is already running as much work as it can");
+    expect(refusalSource).toContain("This Journey is already running as much work as it can at once");
   });
 
   it("routes the share refusal to the same availability condition as the workspace one", () => {

@@ -109,25 +109,28 @@ describe("CR138: the inspection carries two workspaces in one Journey", () => {
 describe("CR140: admission answers at the workspace grain the registry enforces", () => {
   it("admits a sibling workspace, which is the concurrency RS024 set out to allow", () => {
     const state = known([running("thread-A", "run-1")]);
-    const admission = derivePiInvocationAdmission(state, journeyWorkspace("mirror-desktop", "thread-B"), "workspace");
+    const admission = derivePiInvocationAdmission(state, journeyWorkspace("mirror-desktop", "thread-B"));
     expect(admission).toEqual({ allowed: true, reason: null });
   });
 
-  it("refuses that same sibling at the transport grain, with the Journey's reason", () => {
-    // The production default, asserted beside the line above so the two grains are read together
-    // and the distance between them cannot be mistaken for an accident.
-    const state = known([running("thread-A", "run-1")]);
-    expect(derivePiInvocationAdmission(state, journeyWorkspace("mirror-desktop", "thread-B"), "journey"))
-      .toEqual({ allowed: false, reason: "same_journey_occupied" });
+  /**
+   * CR141 Stage B retired the companion case that asserted the Journey-grain refusal beside this
+   * one. Its property is re-asserted rather than dropped: the sibling is admitted, and the only
+   * thing that now refuses inside a Journey is the share.
+   */
+  it("refuses a sibling only once the Journey's whole share is live", () => {
+    const state = known([running("thread-A", "run-1"), running("thread-B", "run-2"), running("thread-C", "run-3")]);
+    expect(derivePiInvocationAdmission(state, journeyWorkspace("mirror-desktop", "thread-D")))
+      .toEqual({ allowed: false, reason: "journey_share_exceeded" });
   });
 
   it("names the workspace, not the Journey, for the workspace that is already running", () => {
     const state = known([running("thread-A", "run-1")]);
-    // True at either grain: the workspace check runs first, so the sharper reason always wins.
-    for (const grain of ["workspace", "journey"] as const) {
-      expect(derivePiInvocationAdmission(state, journeyWorkspace("mirror-desktop", "thread-A"), grain))
-        .toEqual({ allowed: false, reason: "same_workspace_occupied" });
-    }
+    // The workspace check runs first, so the sharper reason always wins. CR141 Stage B removed
+    // the second grain this looped over; the property it was checking — that the workspace reason
+    // is not swallowed by a coarser one — is what the assertion below still holds.
+    expect(derivePiInvocationAdmission(state, journeyWorkspace("mirror-desktop", "thread-A")))
+      .toEqual({ allowed: false, reason: "same_workspace_occupied" });
   });
 
   it("refuses the fourth workspace by the Journey's share while capacity is still free", () => {
@@ -137,10 +140,10 @@ describe("CR140: admission answers at the workspace grain the registry enforces"
     expect(state.processCapacityInUse).toBe(3);
     expect(state.limit).toBe(4);
     // Capacity is NOT spent, so the refusal must not borrow capacity's reason.
-    expect(derivePiInvocationAdmission(state, journeyWorkspace("mirror-desktop", "thread-D"), "workspace"))
+    expect(derivePiInvocationAdmission(state, journeyWorkspace("mirror-desktop", "thread-D")))
       .toEqual({ allowed: false, reason: "journey_share_exceeded" });
     // And another Journey is still admitted, because the share is per Journey.
-    expect(derivePiInvocationAdmission(state, journeyWorkspace("atlas", "thread-Z"), "workspace"))
+    expect(derivePiInvocationAdmission(state, journeyWorkspace("atlas", "thread-Z")))
       .toEqual({ allowed: true, reason: null });
   });
 
@@ -148,16 +151,16 @@ describe("CR140: admission answers at the workspace grain the registry enforces"
     const state = known([
       running("thread-A", "run-1"), running("thread-B", "run-2"), finalizing("thread-C", "run-3"),
     ], 4);
-    expect(derivePiInvocationAdmission(state, journeyWorkspace("mirror-desktop", "thread-D"), "workspace"))
+    expect(derivePiInvocationAdmission(state, journeyWorkspace("mirror-desktop", "thread-D")))
       .toEqual({ allowed: true, reason: null });
   });
 
   it("reads the share from the inspection rather than assuming three", () => {
     const two = known([running("thread-A", "run-1"), running("thread-B", "run-2")], 4, 2);
-    expect(derivePiInvocationAdmission(two, journeyWorkspace("mirror-desktop", "thread-C"), "workspace"))
+    expect(derivePiInvocationAdmission(two, journeyWorkspace("mirror-desktop", "thread-C")))
       .toEqual({ allowed: false, reason: "journey_share_exceeded" });
     const four = known([running("thread-A", "run-1"), running("thread-B", "run-2")], 4, 4);
-    expect(derivePiInvocationAdmission(four, journeyWorkspace("mirror-desktop", "thread-C"), "workspace"))
+    expect(derivePiInvocationAdmission(four, journeyWorkspace("mirror-desktop", "thread-C")))
       .toEqual({ allowed: true, reason: null });
   });
 
@@ -166,7 +169,7 @@ describe("CR140: admission answers at the workspace grain the registry enforces"
     // unspent, then refuses on capacity. The pre-check must reach the same conclusion, or it would
     // claim a share was exhausted that the registry would say was not.
     const state = known([running("thread-A", "run-1"), running("thread-B", "run-2")], 2, 3);
-    expect(derivePiInvocationAdmission(state, journeyWorkspace("mirror-desktop", "thread-C"), "workspace"))
+    expect(derivePiInvocationAdmission(state, journeyWorkspace("mirror-desktop", "thread-C")))
       .toEqual({ allowed: false, reason: "global_capacity_reached" });
   });
 

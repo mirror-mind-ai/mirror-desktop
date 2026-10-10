@@ -61,9 +61,16 @@ RS024 is complete only when:
 - every refusal the native side can return is distinguishable on the surface, and no refusal degrades to a generic busy state when a specific reason exists;
 - **two concurrent turns in one Journey each receive their own Pi process events**, and the D1–D5 field sequence runs to completion.
 
-**Measured 2026-10-10: this horizon is NOT reached.** CR138, CR139 and CR140 are delivered and the
-second row above fails in the field — the Pi event route is keyed by Journey. CR141 is the slice
-that closes it, and the field evidence owed by all three earlier slices is collected there.
+**Measured 2026-10-10: this horizon is REACHED.** ~~this horizon is NOT reached~~ — the earlier
+reading stood while CR141 was open and is kept struck through rather than deleted. CR141 keyed the
+Pi event route by workspace, and the field produced the claim: `turn-journal` records for
+`mirror-desktop` on three distinct threads with intersecting `piExecution` windows — D1A × D1B for
+12.8 s, and **all three for 5.5 s**, exercising the share of three in full. The evidence owed by
+CR138, CR139 and CR140 is collected with it.
+
+**One gap the Story created and did not close**: with three turns able to run inside one Journey,
+no surface says *which* conversation is running. Captured as **CR143**, and it is the Navigator's
+call whether it belongs to this Story or to RS016.
 
 ## Boundaries
 
@@ -78,4 +85,5 @@ that closes it, and the field evidence owed by all three earlier slices is colle
 - [CR138: Let the Inspection Carry Two Workspaces in One Journey](cr138-let-the-inspection-carry-two-workspaces-in-one-journey.md)
 - [CR139: Key the Native Registry by Workspace](cr139-key-the-native-registry-by-workspace.md) — gated on CR138 merged
 - [CR140: Name the Constraint That Refuses Concurrent Work](cr140-name-the-constraint-that-refuses-concurrent-work.md) — gated on CR139 merged
-- [CR141: Key the Pi Event Route by Workspace](cr141-key-the-pi-event-route-by-workspace.md) — gated on CR140 merged
+- [CR141: Key the Pi Event Route by Workspace](cr141-key-the-pi-event-route-by-workspace.md) — gated on CR140 merged · **done**
+- [CR143: Say Which Conversation Is Working](cr143-say-which-conversation-is-working.md) — captured, reported from the field; Story membership undecided

@@ -488,11 +488,72 @@ inside D1.
 - **If D1A stalls again at `terminal_durable`**, that is CR142 reproducing. It is recorded, not
   fixed here, and this time the pre-restart state is read before anything is restarted.
 
+## Field Verification PASSED — the durable claim is collected (2026-10-10, 23:09–23:12 UTC)
+
+The Navigator ran the sequence on `f6a02acd…` and reported it worked. The claim is read from the
+journal rather than from that report, and it is stronger than the minimum RS024 asked for.
+
+### The records
+
+| Marker | Thread | Pi execution |
+|---|---|---|
+| `RS024-D0-CAL` | `…18d58ef5a20a4938` | `23:09:20.126` → `23:10:02.469` |
+| `RS024-D1A` | `…18d5cf4842b669b0` | `23:10:27.544` → `23:10:46.186` |
+| `RS024-D1B` | `…18d58ef5a20a4938` | `23:10:33.389` → `23:10:54.805` |
+| `RS024-D1A` | `…18d5cf4842b669b0` | `23:11:29.724` → `23:11:47.883` |
+| `RS024-D1B` | `…18d58ef5a20a4938` | `23:11:34.070` → `23:12:36.170` |
+| `RS024-D2ROOT` | `nautilus-thread-mirror-desktop` | `23:11:42.347` → `23:11:59.894` |
+
+All six `settled`. Journal 52 → 58 of 64; no `terminal_durable`; the two September `running`
+orphans untouched.
+
+### The intersections, which are the claim
+
+- **D1A × D1B, 12.8 s** — distinct threads, one Journey. This is RS024's Desired Outcome, durable.
+- **D1A × D1B, 13.8 s** on the second round.
+- **D1A × D2ROOT, 5.5 s**; **D1B × D2ROOT, 17.5 s**.
+- **All three intersect for 5.5 s** (`23:11:42.347` → `23:11:47.883`): two Desktop conversations
+  and the Journey's own root thread executing simultaneously. **The share of three is exercised in
+  full**, which the sequence hoped for and did not require.
+
+Two separate turns are not evidence of concurrency; turns whose execution windows intersect are.
+That was written before the run, and it is what the record shows.
+
+### A correction to this document's own earlier claim
+
+An earlier section said *"D2 through D5 are attested"*. That conflated two things. **D2 is an
+admission and wrote a journal record, so it is durable** — the `RS024-D2ROOT` row above. Only D3
+and D4, which are *refusals*, have no durable artifact, because a refused reservation writes
+nothing. D5 is observational. The sentence was wrong when written and is corrected here rather
+than quietly re-scoped.
+
+### Everything else the run settled
+
+- **The transport sentence did not appear.** *"Could not attach to the Pi process event stream"*
+  was the first thing to look for and it is absent, by the Navigator's report and by the six
+  settled records that could not exist if `register` had thrown.
+- **`settlement-timings` went 8 → 14.** Six turns, six records, all `settled`. **No CR129 instance
+  this time**, and no recovery was needed.
+- **CR142 did not reproduce.** No record stalled at `terminal_durable`.
+- **D3/D4/D5 attested.** The Navigator reports the refusals and the recovery behaved as specified.
+  These close on attestation, as stated in advance.
+
+### What the run found that the plan did not predict
+
+The Navigator's one report of a gap: **there is no indicator showing which conversation is
+running.** Confirmed in source — `FocusedConversationSidebar` takes a single `busy` for the whole
+group, used by the New button, and its entries carry no execution state; CR134's
+`JourneyAgentStatusIndicator` is per Journey and rendered outside the list. Captured as **CR143**.
+
+This is a gap that **only exists because concurrency now works.** While one turn per Journey was
+possible, *the Journey is working* was a complete statement. Three can run now, and the list cannot
+say which.
+
 ## Status
 
-The D1–D5 sequence did **not** complete and RS024's field evidence is **not** collected. It is
-owed by CR138, CR139 and CR140, and CR141 is the slice that can provoke it, because CR141 is what
-removes the per-Journey event route that stopped D1B.
+**Collected.** RS024's Acceptance Horizon is reached: two concurrent turns in one Journey each
+received their own Pi process events, and the durable claim — intersecting `piExecution` windows
+on distinct threads for one `journey_id` — is in `turn-journal/mirror-desktop.json`.
 
-The Dev app is installed, hash-verified and on the current build. The baseline and the restart
-reading above are the durable record of the attempt.
+This closes the field evidence owed by **CR138**, **CR139**, **CR140** and **CR141**, which was
+pooled here deliberately because none of the first three could provoke it alone.

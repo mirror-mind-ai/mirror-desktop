@@ -98,11 +98,6 @@ describe("CR139: the re-keyed registry's own output satisfies the renderer's val
     expect(state.journeyWorkspaceShare).toBe(3);
     expect(state.limit).toBe(4);
     expect(derivePiInvocationAdmission(state, free)).toEqual({ allowed: true, reason: null });
-    // And the revertible journey grain still refuses it with a reason that has a sentence.
-    expect(derivePiInvocationAdmission(state, free, "journey")).toEqual({
-      allowed: false,
-      reason: "same_journey_occupied",
-    });
   });
 
   it("refuses this Journey's fourth workspace by the share, with the real registry's numbers", () => {

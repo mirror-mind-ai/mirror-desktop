@@ -137,12 +137,10 @@ describe("RS019 composed post-terminal continuity matrix", () => {
       reason: "same_workspace_occupied",
     });
     // CR141 keyed the Pi event route by workspace, so the sibling is admitted for real rather
-    // than admitted here and thrown at by the transport. The journey grain is kept beside it while
-    // the flip is still revertible, so the sentence the Navigator would see stays asserted.
+    // than admitted here and thrown at by the transport. Field-confirmed 2026-10-10: three turns
+    // in one Journey executed with intersecting windows before Stage B removed the alternative.
     expect(derivePiInvocationAdmission(mixed, journeyWorkspace("journey-c", "thread-sibling")))
       .toEqual({ allowed: true, reason: null });
-    expect(derivePiInvocationAdmission(mixed, journeyWorkspace("journey-c", "thread-sibling"), "journey"))
-      .toEqual({ allowed: false, reason: "same_journey_occupied" });
 
     const full = knownOccupancy(["a", "b", "c", "d"].map((suffix) => (
       activeLease(rehearsalAuthority(`journey-${suffix}`, `run-${suffix}`))

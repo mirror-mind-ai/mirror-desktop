@@ -40,33 +40,23 @@ export function sameJourneyWorkspace(left: JourneyWorkspace, right: JourneyWorks
 }
 
 /**
- * The grain at which concurrent work is actually possible, which is **not** the grain at which it
- * is admitted.
+ * CR141 Stage B retired `PI_EVENT_TRANSPORT_GRAIN` on 2026-10-10. Its decision is kept here as
+ * prose, because the constant's history is the most expensive thing this Story learned.
  *
- * CR138 declared this as `NATIVE_ADMISSION_GRAIN` to pin an intermediate state while the Rust
- * registry still held one run per Journey. CR139 re-keyed the registry, CR140 flipped the constant
- * to `"workspace"` and removed it — and the field refuted that in one attempt. A second turn in the
- * same Journey was admitted by the renderer and by the registry, and then **threw** inside
- * `piProcessEventDispatcher.register`: *"Pi process route already active for Journey
- * mirror-desktop."* The dispatcher's `routes` map is keyed by `journeyId`, including in `deliver`,
- * where an arriving event finds its route by Journey alone.
+ * CR138 declared it as `NATIVE_ADMISSION_GRAIN` to pin an intermediate state while the Rust
+ * registry still held one run per Journey. CR139 re-keyed the registry. CR140 flipped the constant
+ * to `"workspace"` **and removed it in the same step** — and the field refuted that in one attempt:
+ * a sibling was admitted by the renderer and by the registry, then threw inside
+ * `piProcessEventDispatcher.register`, because the dispatcher's `routes` map was keyed by
+ * `journeyId`. With the constant gone there was nothing to revert but a reconstruction.
  *
- * So the binding constraint was never admission. CR140 restored this constant under a name that
- * says what actually limits concurrency, because a refusal that names the registry would now be
- * false. While it reads `"journey"` the renderer refuses a sibling workspace *before* Send, with a
- * sentence, rather than letting the send proceed into a raw transport exception — which is strictly
- * worse than the behaviour CR140 set out to improve.
+ * So the binding constraint was never admission. CR141 keyed the event route by workspace, flipped
+ * the constant **and left it standing**, and only removed it once the field produced the claim:
+ * `turn-journal` records for `mirror-desktop` on three distinct threads with intersecting
+ * `piExecution` windows, measured 2026-10-10 at 23:11 — two overlapping for 13.8 s and all three
+ * for 5.5 s.
  *
- * **CR141 keyed the event route by workspace and flipped this on 2026-10-10.** The dispatcher's
- * `routes` map, its closed-route memory and its quarantine are all keyed by workspace now, so a
- * sibling's `register` no longer finds this workspace's route and the transport no longer refuses
- * what admission allows.
- *
- * The constant survives the flip on purpose. CR140 flipped and removed in one step, and the field
- * refuted it in one attempt with nothing left to revert but a reconstruction. While this reads
- * `"workspace"`, `same_journey_occupied` stays reachable through the `grain` parameter and
- * reverting is one line. **It is removed only once the field produces D1's durable claim** — two
- * `turn-journal` records for one Journey with distinct `thread_id` and intersecting `piExecution`
- * windows. A guard asserts the current value, so each move stays a visible one-line decision.
+ * The rule the sequence paid for: **pin an intermediate state with a constant, flip it as one
+ * visible decision, and retire it on evidence rather than on the argument that it ought to be
+ * unreachable.** Removing it a step early cost this Story one field attempt and one regression.
  */
-export const PI_EVENT_TRANSPORT_GRAIN: "journey" | "workspace" = "workspace";

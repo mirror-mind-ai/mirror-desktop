@@ -2,8 +2,6 @@ export type NativeConversationAdmission =
   | "allowed"
   | "inspection_unknown"
   | "same_workspace_occupied"
-  /** CR140, restored: work elsewhere in this Journey holds the single per-Journey event route. */
-  | "same_journey_occupied"
   /** CR140: the Journey holds its whole share of live invocations; global capacity may be free. */
   | "journey_share_exceeded"
   | "global_capacity_reached";
@@ -85,7 +83,6 @@ export function decideConversationAvailability(
     return blocked("native_authority_unknown", "inspect_native_authority");
   }
   if (input.nativeAdmission === "same_workspace_occupied"
-    || input.nativeAdmission === "same_journey_occupied"
     || input.nativeAdmission === "journey_share_exceeded") {
     // CR138 kept these on one condition because both mean "wait for the lease in the way" and
     // neither offers a different route out. CR140 confirmed that and put the distinction where it

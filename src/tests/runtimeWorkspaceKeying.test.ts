@@ -4,7 +4,7 @@ import runtimeStateSource from "../app/journeyRuntimeState.ts?raw";
 import occupancySource from "../app/piInvocationOccupancy.ts?raw";
 import workspaceKeySource from "../app/journeyWorkspaceKey.ts?raw";
 import dispatcherSource from "../agent/piProcessEventDispatcher.ts?raw";
-import { PI_EVENT_TRANSPORT_GRAIN, runtimeWorkspaceKey } from "../app/journeyWorkspaceKey";
+import { runtimeWorkspaceKey } from "../app/journeyWorkspaceKey";
 
 /** A source guard asserting what the code calls must not be fooled by prose in a comment. */
 function withoutComments(source: string): string {
@@ -35,54 +35,55 @@ function bodyOf(source: string, signature: string): string {
 
 /**
  * CR138 pinned an intermediate grain here so advancing it would be a visible one-line decision.
- * CR139 re-keyed the registry, CR140 flipped it, and **the field refuted the flip**: the Pi event
- * dispatcher threw for a second route in one Journey, and it threw *after* Send. The constant came
- * back under a name that says what actually limits concurrency. **CR141 re-keyed that transport
- * and flipped the constant** — and, unlike CR140, left it standing, so the move is still one line
- * to revert until the field produces D1's durable claim.
+ * CR139 re-keyed the registry. CR140 flipped the constant **and removed it in one step** — and the
+ * field refuted that in one attempt, leaving nothing to revert but a reconstruction. CR141 re-keyed
+ * the transport, flipped the constant **and left it standing**, then retired it in Stage B once the
+ * field produced the claim it was waiting for.
  *
- * Three times re-aimed, never deleted. A guard that pins a true intermediate state keeps earning
- * its place every time the state moves.
+ * Re-aimed a fourth time, never deleted. The guard outlives the constant it was written for,
+ * because what it protects is that the grain cannot be re-introduced silently in either direction.
  */
-describe("CR141: the transport is keyed by workspace, and the flip stays a visible decision", () => {
-  it("declares the workspace grain now that the event route is keyed by workspace", () => {
-    expect(PI_EVENT_TRANSPORT_GRAIN).toBe("workspace");
+describe("CR141: the grain constant is retired, and its decision cannot be silently undone", () => {
+  it("keeps the constant gone and the history readable", () => {
     const stripped = withoutComments(workspaceKeySource);
-    expect(stripped).toContain('export const PI_EVENT_TRANSPORT_GRAIN: "journey" | "workspace" = "workspace"');
-    // The constant names the transport, not the registry: a refusal blaming the registry would be
-    // false now that the registry admits three.
+    expect(stripped).not.toContain("PI_EVENT_TRANSPORT_GRAIN");
     expect(stripped).not.toContain("NATIVE_ADMISSION_GRAIN");
+    // Retired with its decision kept as prose, including what removing it a step early cost.
+    expect(workspaceKeySource).toContain("CR141 Stage B retired");
+    expect(workspaceKeySource).toContain("retire it on evidence");
     expect(workspaceKeySource).toContain("piProcessEventDispatcher");
-    // The flip is only honest if the dispatcher really stopped keying by Journey. The guard below
-    // asserts that directly against the dispatcher's own source.
-    expect(withoutComments(dispatcherSource)).not.toContain("routes.get(authority.journeyId)");
   });
 
-  it("keeps the admission default reading the declared constant rather than a literal", () => {
+  it("leaves admission with no grain to choose and no dead reason to return", () => {
     const stripped = withoutComments(occupancySource);
     const declaration = stripped.slice(
       stripped.indexOf("export function derivePiInvocationAdmission"),
       stripped.indexOf("export function liveWorkspacesInJourney"),
     );
-    expect(declaration).toContain('grain: "journey" | "workspace" = PI_EVENT_TRANSPORT_GRAIN');
-    expect(declaration).toContain('if (grain === "journey")');
-    // Both reasons stay reachable: the Journey's in production, the share's at the other grain.
-    expect(declaration).toContain("same_journey_occupied");
+    expect(declaration).not.toContain("grain");
+    expect(declaration).not.toContain("same_journey_occupied");
     expect(declaration).toContain("journey_share_exceeded");
     // The share is read from the reported bound, never assumed.
     expect(declaration).toContain("state.journeyWorkspaceShare");
   });
 
-  it("refuses the workspace before the Journey, so the sharper reason still wins", () => {
+  it("refuses the workspace before the share, so the sharper reason still wins", () => {
     const stripped = withoutComments(occupancySource);
     const declaration = stripped.slice(
       stripped.indexOf("export function derivePiInvocationAdmission"),
       stripped.indexOf("export function liveWorkspacesInJourney"),
     );
-    const order = (["same_workspace_occupied", "same_journey_occupied", "global_capacity_reached"] as const)
+    const order = (["same_workspace_occupied", "journey_share_exceeded", "global_capacity_reached"] as const)
       .map((reason) => declaration.indexOf(reason));
     expect(order.every((index) => index > -1)).toBe(true);
     expect(order).toEqual([...order].sort((left, right) => left - right));
+  });
+
+  it("keeps the dispatcher honest, which is what the flip actually rested on", () => {
+    const stripped = withoutComments(dispatcherSource);
+    expect(stripped).not.toContain("routes.get(authority.journeyId)");
+    expect(stripped).not.toContain("already active for Journey");
+    expect(stripped).toContain("already active for workspace");
   });
 });
 
@@ -173,9 +174,9 @@ describe("CR138: the refusal reason tells the truth about its grain", () => {
    * grain at the workspace, no code path can produce it, and an unreachable refusal is debt rather
    * than safety. Re-aimed to that decision: the sharper reasons exist and the dead one is gone.
    */
-  it("offers a sentence for every reason it can return, at either grain", () => {
+  it("offers a sentence for every reason it can return", () => {
     const availability = withoutComments(occupancySource);
-    for (const reason of ["same_workspace_occupied", "same_journey_occupied", "journey_share_exceeded"]) {
+    for (const reason of ["same_workspace_occupied", "journey_share_exceeded"]) {
       expect(availability).toContain(reason);
     }
     // The share refusal is derived from the reported bound, not from a literal three.

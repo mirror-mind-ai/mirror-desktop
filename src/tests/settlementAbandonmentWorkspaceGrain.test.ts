@@ -86,12 +86,12 @@ describe("CR138: CR132's shared predicate still agrees, at the workspace grain",
 
   it("agrees with admission about the workspace it was asked about", () => {
     const executing = journeyWorkspace("mirror-desktop", "thread-sibling");
-    // CR140, after the field attempt: the default grain is the transport's, which is the Journey,
-    // so the workspace question is asked explicitly here. This suite is about the *predicate*
+    // CR141 Stage B: the grain parameter is gone and the default *is* the workspace, so the
+    // question no longer has to be asked explicitly. This suite is still about the *predicate*
     // agreeing at the workspace grain, which is what CR132's exit depends on.
-    expect(derivePiInvocationAdmission(siblingExecuting, executing, "workspace").allowed)
+    expect(derivePiInvocationAdmission(siblingExecuting, executing).allowed)
       .toBe(!hasActiveNativeExecution(siblingExecuting, executing));
-    expect(derivePiInvocationAdmission(siblingExecuting, abandoning, "workspace").allowed)
+    expect(derivePiInvocationAdmission(siblingExecuting, abandoning).allowed)
       .toBe(!hasActiveNativeExecution(siblingExecuting, abandoning));
   });
 

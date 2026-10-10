@@ -18,17 +18,20 @@ function workspaceOf(journeyId: string) {
   return journeyWorkspace(journeyId, `${journeyId}-thread`);
 }
 
-function lease(journeyId: string): PiInvocationLeaseInspection {
+// CR141: an optional thread so a test can fill a Journey's share with siblings. A caller passing
+// one argument keeps the exact identity it had, as `readyThread` does for the same reason.
+function lease(journeyId: string, thread?: string): PiInvocationLeaseInspection {
+  const identity = thread ? `${journeyId}-${thread}` : journeyId;
   return {
     authority: {
       schemaVersion: "0.1.0",
       journeyId,
-      runId: `${journeyId}-run`,
-      turnId: `${journeyId}-turn`,
-      threadId: `${journeyId}-thread`,
+      runId: `${identity}-run`,
+      turnId: `${identity}-turn`,
+      threadId: `${identity}-thread`,
       generation: 1,
-      piSessionId: `${journeyId}-session`,
-      mirrorConversationId: `${journeyId}-conversation`,
+      piSessionId: `${identity}-session`,
+      mirrorConversationId: `${identity}-conversation`,
       harnessUserMessageId: `${journeyId}-user`,
       harnessAssistantMessageId: `${journeyId}-assistant`,
     },
@@ -132,20 +135,20 @@ describe("CR107 — starting a Journey that has not started yet", () => {
   });
 
   /**
-   * Kept until the field produces D1's durable claim. While this passes, reverting CR141's flip is
-   * one line and the sentence the Navigator would see is still asserted — which is precisely what
-   * CR140 did not have when its flip was refuted.
+   * CR141 Stage B retired the companion case holding the Journey-grain sentence: the field
+   * produced the claim it was waiting for on 2026-10-10, so the alternative it protected is gone.
+   * Its property — that a refusal inside a Journey still arrives as a sentence rather than as a
+   * transport exception — is re-asserted here on the refusal that remains.
    */
-  it("still refuses that sibling with a sentence at the journey grain, which stays revertible", () => {
-    const sibling = derivePiInvocationAdmission(
-      occupancy([lease("vida-tecnica")]),
-      journeyWorkspace("vida-tecnica", "vida-tecnica-other-thread"),
-      "journey",
+  it("still refuses with a sentence once the Journey's whole share is live", () => {
+    const full = derivePiInvocationAdmission(
+      occupancy([lease("vida-tecnica"), lease("vida-tecnica", "t2"), lease("vida-tecnica", "t3")]),
+      journeyWorkspace("vida-tecnica", "vida-tecnica-fourth-thread"),
     );
 
-    expect(sibling).toEqual({ allowed: false, reason: "same_journey_occupied" });
-    expect(journeyStartAvailability({ ...ready, nativeAdmission: sibling }).unavailableReason)
-      .toContain("This Journey already has native work in progress");
+    expect(full).toEqual({ allowed: false, reason: "journey_share_exceeded" });
+    expect(journeyStartAvailability({ ...ready, nativeAdmission: full }).unavailableReason)
+      .toContain("This Journey is already running as much work as it can at once");
   });
 });
 

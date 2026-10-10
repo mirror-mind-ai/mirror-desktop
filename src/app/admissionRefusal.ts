@@ -53,15 +53,6 @@ export function describeAdmissionRefusal(
         sentence: "This conversation already has native work in progress.",
         waiting: true,
       };
-    // Restored after the field attempt. The pre-CR140 sentence was *"This Journey already has
-    // native work in progress."*; this keeps that meaning and adds what CR140 brought, which is
-    // naming the work that is in the way. More specific than what it replaces, not less.
-    case "same_journey_occupied":
-      return {
-        title: "This Journey is already working",
-        sentence: describeJourneyOccupied(context),
-        waiting: true,
-      };
     case "journey_share_exceeded":
       return {
         title: "This Journey is running all it can at once",
@@ -76,17 +67,6 @@ export function describeAdmissionRefusal(
         waiting: true,
       };
   }
-}
-
-/**
- * One run per Journey, because the Pi event transport carries one route per Journey. Singular
- * phrasing, because at this grain exactly one workspace can be in the way.
- */
-function describeJourneyOccupied(context: AdmissionRefusalContext): string {
-  const named = describeOccupants(context);
-  const opening = "This Journey already has native work in progress";
-  const closing = "Send becomes available when it finishes.";
-  return named ? `${opening} — ${named}. ${closing}` : `${opening}. ${closing}`;
 }
 
 /**

@@ -1,6 +1,5 @@
 import type { RunAuthority } from "../domain/runAuthority";
 import {
-  PI_EVENT_TRANSPORT_GRAIN,
   runtimeWorkspaceKey,
   sameJourneyWorkspace,
   workspaceOfAuthority,
@@ -65,12 +64,6 @@ export type PiInvocationAdmission =
     allowed: false;
     reason:
       | "inspection_unknown"
-      /**
-       * CR140, restored after the field: work elsewhere in this Journey is in the way, because the
-       * Pi event transport carries one route per Journey. Removed when the constraint was believed
-       * to be the registry's; reinstated when the dispatcher proved to be the real bound.
-       */
-      | "same_journey_occupied"
       /** The workspace the Navigator is in already has a run. CR138 added it; CR140 made it reachable. */
       | "same_workspace_occupied"
       /**
@@ -364,7 +357,6 @@ export function isActivePiInvocationLease(entry: PiInvocationLeaseInspection): b
 export function derivePiInvocationAdmission(
   state: PiInvocationOccupancyState,
   workspace: JourneyWorkspace,
-  grain: "journey" | "workspace" = PI_EVENT_TRANSPORT_GRAIN,
 ): PiInvocationAdmission {
   if (state.status !== "known"
     || state.limit === null
@@ -377,15 +369,15 @@ export function derivePiInvocationAdmission(
     return { allowed: false, reason: "same_workspace_occupied" };
   }
   const liveInJourney = active.filter((entry) => entry.authority.journeyId === workspace.journeyId);
-  // CR140, after the field attempt. At the `"journey"` grain a sibling is refused here with a
-  // sentence, because the event transport would otherwise throw *after* Send and the Navigator
-  // would lose the draft to an internal error. This refusal is deliberately coarser than what the
-  // registry enforces, and the gap is CR141's to close.
-  if (grain === "journey") {
-    if (liveInJourney.length > 0) return { allowed: false, reason: "same_journey_occupied" };
-  } else if (liveInJourney.length >= state.journeyWorkspaceShare) {
-    // The registry's own order — duplicate workspace, then the Journey's share, then global
-    // capacity — so this pre-check never names a cause `reserve` would not have named.
+  // The registry's own order — duplicate workspace, then the Journey's share, then global
+  // capacity — so this pre-check never names a cause `reserve` would not have named.
+  //
+  // CR141 Stage B retired the `grain` parameter and the `same_journey_occupied` refusal that sat
+  // here. It existed because the Pi event transport carried one route per Journey and would throw
+  // *after* Send; the transport is keyed by workspace now, and the field confirmed three turns
+  // running at once in one Journey before the reason was removed, rather than on the argument that
+  // it ought to be unreachable.
+  if (liveInJourney.length >= state.journeyWorkspaceShare) {
     return { allowed: false, reason: "journey_share_exceeded" };
   }
   if (state.processCapacityInUse >= state.limit) {

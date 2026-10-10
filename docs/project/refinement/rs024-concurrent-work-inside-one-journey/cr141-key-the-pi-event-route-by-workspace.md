@@ -2,7 +2,7 @@
 
 # CR141: Key the Pi Event Route by Workspace
 
-**Status:** in_progress — Stage A delivered on files, Stage B and field verification owed
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs024-cr141-key-the-pi-event-route-by-workspace`
 
@@ -341,6 +341,58 @@ native diff 0 lines.
 Stage B, and the field. The D0–D5 sequence in
 `docs/update/rs024-field-verification-baseline-2026-10-10.md` carries the evidence owed by CR138,
 CR139 and CR140, and D1's durable claim gates Stage B.
+
+## Delivery Record — Stage B and Field Verification (2026-10-10)
+
+**CR141 is `done`, and RS024's Acceptance Horizon is reached.**
+
+### The field, which is what Stage B was gated on
+
+Six marked records, all `settled`, in `turn-journal/mirror-desktop.json` between `23:09` and
+`23:12`. The claim: **D1A × D1B intersect for 12.8 s on distinct threads in one Journey**, and
+again for 13.8 s on a second round. Beyond the claim, **all three workspaces intersect for 5.5 s**
+— two Desktop conversations and the Journey's root — so the share of three is exercised in full.
+`settlement-timings` went 8 → 14 with six `settled` records; no recovery, no CR129 instance, no
+`terminal_durable` stall. The transport sentence did not appear. Full reading in
+`docs/update/rs024-field-verification-baseline-2026-10-10.md`.
+
+This evidence was owed by **CR138, CR139 and CR140** as well, each of which closed on tests with
+no field trigger by construction. It is collected here, as planned when the debt was named.
+
+### Stage B
+
+`PI_EVENT_TRANSPORT_GRAIN` is removed, its decision kept as prose with the cost recorded:
+**removing it a step early cost this Story one field attempt and one regression.** The `grain`
+parameter, the `if (grain === "journey")` branch and `same_journey_occupied` are gone from
+`derivePiInvocationAdmission`, both unions, `describeAdmissionRefusal`'s `switch`,
+`describeJourneyOccupied` and `conversationAvailability`. The reason is retired **on evidence**,
+not on the argument that it ought to be unreachable — which is the difference CR140 paid for.
+
+Eight suites re-aimed a third time, none deleted. Each retired case had its property re-asserted on
+the refusal that remains rather than dropped: `journeyStartAvailability` now pins that a refusal
+inside a Journey still arrives as a sentence, on `journey_share_exceeded`; `workspaceGrainedOccupancy`
+pins that the share is the only thing left refusing inside a Journey; `admissionRefusalLegibility`
+pins that the retired sentence is gone from **both** places rather than moved back. The grain guard
+is re-aimed a fourth time, at the retirement, and gained a direct assertion against the
+dispatcher's own source — the thing the flip actually rested on.
+
+### Two findings, both from my own guards
+
+1. **An absence assert tripped on its own assertion's string literal.** The fourth occurrence of
+   this trap, and a new trigger: stripping comments is not enough when the guard must *contain*
+   the name it asserts is gone. The helper now strips string literals too, and the distinction is
+   written at it — **an absence check must say whether it means the name or its use.**
+2. **An absence assert on a name caught an orphan.** Removing the `same_journey_occupied` case left
+   `describeJourneyOccupied` defined and uncalled; the assert refused the write. Nothing was
+   damaged — read-assert-write contained it, as it has every previous time.
+
+Also: the arity assert on `, "workspace")` found 7 where the plan assumed 8, because one case
+*looped over both grains* rather than passing one. It needed rewriting, not an argument removed.
+
+### Gates
+
+`tsc` 0; renderer **253 files / 1,944 tests**; `cargo test` **285 passed / 3 ignored**, unchanged;
+`npm run build` clean; `roadmap:check` READY; **`src-tauri` diff 0 lines** across both stages.
 
 ## Acceptance
 
