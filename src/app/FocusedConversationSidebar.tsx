@@ -6,6 +6,11 @@ import {
   type HiddenConversationsByJourney,
 } from "../domain/conversationVisibility";
 import { ConversationEntryContextMenu } from "./ConversationEntryContextMenu";
+import {
+  describeHiddenWork,
+  summariseConversationWork,
+  type ConversationWorkByThread,
+} from "./conversationWorkIndicator";
 
 type MirrorEntry = Extract<ConversationCatalogEntry, { kind: "mirror_history" }>;
 type DesktopEntry = Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>;
@@ -33,6 +38,14 @@ type Props = {
   onDeleteDesktop: (entry: DesktopEntry) => void;
   // CR135: the Navigator's own working set. This filters what is rendered and never what the
   // catalog holds, which is why CR134's route can still reach a hidden conversation.
+  // CR143: which of *this group's* conversations are working, keyed by thread. Derived from the
+  // group's own `journeyId` at the call site, never from the selected Journey, because several
+  // groups can be open at once (CR133) and a mark on the wrong group is worse than no mark.
+  //
+  // Distinct from `busy` above, which is a property of the create action in the selected Journey
+  // and renders the word `Working…` on the New button. Two signals, two grains, two meanings —
+  // which is why the per-entry one is a glyph and not that word.
+  work?: ConversationWorkByThread;
   hiddenConversations: HiddenConversationsByJourney;
   onHideConversation: (entry: ConversationCatalogEntry) => void;
   onRevealConversation: (entry: ConversationCatalogEntry) => void;
@@ -55,9 +68,16 @@ export function FocusedConversationSidebar(props: Props) {
   });
   const visibleEntries = showAll ? partition.visible : partition.visible.slice(0, INITIAL_VISIBLE_CONVERSATIONS);
   const cappedCount = Math.max(0, partition.visible.length - visibleEntries.length);
+  // CR143: a conversation can be concealed two ways — the Navigator's hiding, and the app's own
+  // cap. Only one of them was the Navigator's choice, and both hide that work is running, so each
+  // closed control carries the count for its own partition and for nothing else.
+  const work = props.work ?? new Map();
+  const cappedWork = describeHiddenWork(summariseConversationWork(work, partition.visible.slice(visibleEntries.length)));
+  const hiddenWork = describeHiddenWork(summariseConversationWork(work, partition.hidden));
 
   function renderEntry(entry: ConversationCatalogEntry) {
     const selection = props.selected;
+    const work = entry.kind === "desktop_conversation" ? props.work?.get(entry.threadId) : undefined;
     const selected = selection !== undefined
       && selection.kind === entry.kind
       && selection.conversationId === entry.conversationId;
@@ -97,6 +117,16 @@ export function FocusedConversationSidebar(props: Props) {
     >
       <span className="focused-conversation-icon" aria-hidden="true">{entry.kind === "desktop_conversation" ? "◆" : "◇"}</span>
       <span><span className="focused-conversation-title">{entry.title}</span><small>{hidden ? `${metadata} · Hidden` : metadata}</small></span>
+      {/*
+        CR143: the mark sits outside the metadata line on purpose. That line can read `Not started`,
+        which describes a conversation with no messages and is *not* the same as not running; the
+        two must not be read as one register. CR102's rule applies — the state carries text, so it
+        survives a greyscale display and a reduced-motion preference rather than resting on colour.
+      */}
+      {work ? <span
+        className={`focused-conversation-work ${work}`}
+        role="status"
+      >{work === "working" ? "Working" : "Finishing"}</span> : null}
     </button>;
   }
 
@@ -129,7 +159,7 @@ export function FocusedConversationSidebar(props: Props) {
     </div>
     {cappedCount > 0 ? (
       <button className="focused-conversation-more" type="button" onClick={() => setShowAll(true)}>
-        Show {cappedCount} more
+        Show {cappedCount} more{cappedWork ? <span className="focused-conversation-more-work"> · {cappedWork}</span> : null}
       </button>
     ) : showAll && partition.visible.length > INITIAL_VISIBLE_CONVERSATIONS ? (
       <button className="focused-conversation-more" type="button" onClick={() => setShowAll(false)}>Show less</button>
@@ -140,13 +170,20 @@ export function FocusedConversationSidebar(props: Props) {
         type="button"
         onClick={() => setShowHidden((open) => !open)}
         aria-expanded={showHidden}
-        aria-label={`${partition.hidden.length} hidden conversations in ${props.journeyName}`}
+        aria-label={hiddenWork
+          ? `${partition.hidden.length} hidden conversations in ${props.journeyName}, ${hiddenWork}`
+          : `${partition.hidden.length} hidden conversations in ${props.journeyName}`}
         // The doubt this CR exists to remove arrives before the section is opened, so the
-        // reassurance has to be reachable in the closed state too, not only inside it.
-        title="Hidden only from this list. Nothing was deleted."
+        // reassurance has to be reachable in the closed state too, not only inside it. CR143 adds
+        // the converse for the same reason: hiding must not hide *that work runs*, which is CR134's
+        // rule, so the count is on the closed control rather than only inside the opened section.
+        title={hiddenWork
+          ? "Hidden only from this list. Nothing was deleted. Some hidden conversations are working."
+          : "Hidden only from this list. Nothing was deleted."}
       >
         <span aria-hidden="true">{showHidden ? "⌄" : "›"}</span>
         <span>{partition.hidden.length} hidden</span>
+        {hiddenWork ? <span className="focused-conversation-hidden-work"> · {hiddenWork}</span> : null}
       </button>
       {showHidden ? <div className="focused-conversation-hidden-body">
         <p className="focused-conversation-hidden-note">

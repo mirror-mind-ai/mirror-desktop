@@ -8852,6 +8852,48 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 .focused-conversation-reveal-all:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--text); outline: none; }
 /* A hidden conversation that is selected is still shown, and says so rather than passing as an
    ordinary member of the working set. */
+/* CR143: which conversation is working, in a list that could only say the Journey was.
+ *
+ * On CR102's rule rather than beside it: the state carries its own word, so it survives greyscale,
+ * a reduced-motion preference and a colour-blind reading. The accent tint and the pulse are the
+ * same registers the Journey indicator uses for the same two states, so one grain reads as a
+ * smaller version of the other rather than as a different vocabulary.
+ *
+ * It sits in its own grid column, away from the metadata line, because that line can read
+ * `Not started` — which means no messages, not *not running*, and the two must not blur. */
+.focused-conversation-entry { grid-template-columns: 16px minmax(0, 1fr) auto; }
+
+.focused-conversation-work {
+  align-self: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, rgba(255, 255, 255, 0.12));
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.focused-conversation-work.working {
+  animation: journey-agent-working 1.6s ease-in-out infinite;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
+.focused-conversation-work.finishing {
+  animation: journey-agent-finishing 2s ease-in-out infinite;
+  border-color: color-mix(in srgb, var(--accent) 34%, rgba(255, 255, 255, 0.12));
+  color: color-mix(in srgb, var(--accent) 68%, #ffffff);
+}
+
+/* The two closed controls that can conceal running work: the Navigator's own hiding, and the
+ * app's cap. Only the first was ever a choice they made. */
+.focused-conversation-hidden-work,
+.focused-conversation-more-work {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .focused-conversation-entry.is-hidden { opacity: 0.74; }
 .focused-conversation-entry.is-hidden.selected { opacity: 1; }
 

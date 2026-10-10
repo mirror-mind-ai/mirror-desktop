@@ -147,6 +147,7 @@ import { JourneyThreadState, type JourneyThreadDisplayState } from "./JourneyThr
 import { JourneyArrivalSurface } from "./JourneyArrivalSurface";
 import { EmptyDesktopConversation } from "./EmptyDesktopConversation";
 import { FocusedConversationSidebar } from "./FocusedConversationSidebar";
+import { deriveConversationWork } from "./conversationWorkIndicator";
 import { FocusedSidebarResizeHandle } from "./FocusedSidebarResizeHandle";
 import { loadFocusedSidebarWidth, saveFocusedSidebarWidth } from "./focusedSidebarWidthStorage";
 import { MirrorHistoryActionSurface } from "./MirrorHistoryActionSurface";
@@ -5563,6 +5564,12 @@ export function App({ model }: AppProps) {
                   status={journeyCatalog.status === "idle" ? "loading" : journeyCatalog.status}
                   error={journeyCatalog.error}
                   busy={journeyIsSelected && (conversationActionBusy || selectedRuntimeBusy || Boolean(runStartReservation))}
+                  // CR143: derived from *this group's* Journey, never from the selected one, so a
+                  // mark cannot land on the wrong group when several disclosures are open (CR133).
+                  // Called directly rather than memoised, like `deriveJourneyWorkLocus` eleven
+                  // lines above: this is inside the Journey map, where a hook cannot run, and the
+                  // scan is bounded by the registry's limit of four live leases.
+                  work={deriveConversationWork(piInvocationOccupancy, journey.id)}
                   actionMessage={journeyIsSelected ? conversationActionMessage : undefined}
                   onCreateConversation={requestBlankDesktopConversation}
                   onSelectEntry={(entry) => {

@@ -9,7 +9,7 @@
 | ↳　CR139 · Key the Native Registry by Workspace | ✅ done · cota 3 · diff zero no renderer | `██████████` |
 | ↳　CR140 · Name the Constraint that Refuses Concurrent Work | ✅ done · grão revertido após o campo · frases unificadas | `██████████` |
 | ↳　CR141 · Key the Pi Event Route by Workspace | ✅ done · campo PASSOU · 3 turnos simultâneos · grão aposentado | `██████████` |
-| ↳　CR143 · Say Which Conversation Is Working | 🟡 planned · admitida na RS024 · antes da release · lista não diz qual roda | `░░░░░░░░░░` |
+| ↳　CR143 · Say Which Conversation Is Working | 🟡 in_progress · entregue em arquivos · campo devido · oculta e capada também anunciam | `███████░░░` |
 | **RS023 · Conversations as First-Class Workspaces** | 🔄 ativa · promovida da CR109 | `██████░░░░` 3 ✅ · 1 🟡 · 1 ↗️ · de 5 |
 | ↳　CR133 · Stop a Disclosure From Selecting a Journey | ✅ done · campo verificado (6/6 cenários) | `██████████` |
 | ↳　CR134 · Name the Owner of Running Work Without Hiding That It Runs | ✅ campo verificado (4/4) · 1 achado corrigido | `██████████` |

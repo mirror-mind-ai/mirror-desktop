@@ -2,9 +2,9 @@
 
 # CR143: Say Which Conversation Is Working
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress — delivered on files, field verification owed
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs024-cr143-say-which-conversation-is-working`
 
 **Reported by the Navigator from the field**, 2026-10-10, immediately after RS024's verification
 passed: *"a única falta que senti foi de algum indicador que o agente estava rodando no contexto de
@@ -209,6 +209,81 @@ they have no thread that can hold a lease.
 3. **Hidden and capped conversations are announced from their closed controls** — treating the two
    mechanisms as one defect, which widens the reported scope and is the main thing to overrule if
    it is unwanted.
+
+## Delivery Record (2026-10-10)
+
+Delivered on files. **Field verification owed**, and provocable by the D1 prompts already written.
+
+Diff: 5 files, +90/−4, one new module. **`src-tauri` diff 0 lines.**
+
+### The finding that changed the design, caught by a test
+
+The plan said to read open leases in this Journey, mirroring `deriveJourneyWorkLocus`. The first
+version did exactly that, and the characterisation failed against it.
+
+`validatePiInvocationRegistryInspection` (`:170`–`:172`) requires `reserved` and `running` to carry
+`terminalState: "open"`, and requires `finalizing` to carry `processCapacityState: "released"` **and
+`terminalState !== "open"`**. So filtering on `terminalState === "open"` first makes the
+`finalizing` branch **unreachable**, and the `finishing` state would never have appeared. I would
+have shipped a state that cannot occur, copied from the neighbour I said I was mirroring.
+
+Two consequences:
+
+1. **The derivation is total over two shapes.** Every lease a valid inspection can carry is either
+   active or finalizing; there is no third shape, and a finished lease is not marked terminal but
+   removed by `retire_finalizing_workspace`. So the function is a two-way classification with no
+   filter at all, which is simpler than planned and says more.
+2. **`deriveJourneyWorkLocus` has the same dead branch.** `lease.leasePhase === "finalizing"` sits
+   downstream of a `terminalState === "open"` filter and can never be true. Pre-existing, benign in
+   practice because `runtimePhase` normally supplies the phase, and **not repaired here** —
+   recorded as a neighbouring defect rather than folded in.
+
+### Two corrections to the plan, found by building it
+
+- **"Memoised per Journey" was impossible.** The call site is inside the Journey `.map`, where a
+  hook cannot run. It is called directly, exactly like `deriveJourneyWorkLocus` eleven lines above,
+  and the scan is bounded by the registry's limit of four live leases. The plan's word was wrong,
+  not the placement.
+- The plan listed `NO_CONVERSATION_WORK` and a summary type; `describeHiddenWork` was added because
+  both closed controls needed the same sentence and writing it twice is how two surfaces come to
+  disagree — the lesson CR140 paid for.
+
+### What shipped
+
+- **New `src/app/conversationWorkIndicator.ts`**: `deriveConversationWork(occupancy, journeyId)` →
+  `ReadonlyMap<threadId, "working" | "finishing">`; `summariseConversationWork(work, entries)`
+  counting a *subset*, which is what keeps the hidden count from borrowing a visible one;
+  `describeHiddenWork`.
+- **`FocusedConversationSidebar`**: a `work` prop; a per-entry mark in its own grid column, away
+  from the metadata line because that line can read `Not started`, which means *no messages* and
+  not *not running*; counts appended to the hidden toggle **and** to *"Show N more"*, with the
+  hidden toggle's `aria-label` and `title` both carrying it so the closed state says it.
+- **`App.tsx`**: one wiring point, keyed on `journey.id`.
+- **`src/styles/app.css`**: the mark on CR102's registers, reusing the same two animations the
+  Journey indicator uses for the same two states, so one grain reads as a smaller version of the
+  other rather than as a new vocabulary.
+
+### Tests — 19 new, in `conversationWorkVisibility.test.tsx`
+
+Derivation: two siblings both reported; a settling conversation distinguished from an idle one; a
+finalizing lease reported however its run ended; another Journey's work never reported; **marks
+survive a reconciliation** rather than blinking off; an unread occupancy marks nothing; a subset
+count never borrows from another partition; a Mirror-history entry is never counted.
+
+Surface: two entries marked at once, per entry and never per group; **byte-identical output when
+nothing is working**; the mark carries text, not colour alone; **a working hidden conversation
+announced on the closed toggle**; **a working capped conversation announced on "Show N more"**, with
+its own mark correctly absent because the entry is off screen — which is the whole reason the
+control has to carry it; and both controls left alone when their own partition is quiet.
+
+Guards: the work input is derived from the group's `journey.id` and never `selectedJourney`;
+`renderEntry` reads `props.work` and never `props.busy`, so the per-entry mark cannot be driven by
+the New button's group-level `Working…`.
+
+### Gates
+
+`tsc` 0; renderer **254 files / 1,963 tests** (from 1,944); `cargo test` **285 passed / 3 ignored**,
+unchanged; `npm run build` clean; `roadmap:check` READY; **native diff 0 lines**.
 
 ## Acceptance
 
