@@ -114,10 +114,28 @@ describe("CR107 — starting a Journey that has not started yet", () => {
       .toBe("This conversation already has native work in progress.");
   });
 
-  it("admits a sibling workspace in the same Journey, which it used to refuse", () => {
+  /**
+   * CR140 flipped the grain so a sibling was admitted, and the field refused it one layer lower,
+   * inside `piProcessEventDispatcher.register`, after Send had already been accepted. The refusal
+   * is back here, where it can be a sentence instead of an exception. Re-aimed, not deleted: the
+   * workspace-grain behaviour the registry really enforces is still asserted, explicitly.
+   */
+  it("refuses a sibling workspace with a sentence rather than letting the transport throw", () => {
     const sibling = derivePiInvocationAdmission(
       occupancy([lease("vida-tecnica")]),
       journeyWorkspace("vida-tecnica", "vida-tecnica-other-thread"),
+    );
+
+    expect(sibling).toEqual({ allowed: false, reason: "same_journey_occupied" });
+    expect(journeyStartAvailability({ ...ready, nativeAdmission: sibling }).unavailableReason)
+      .toContain("This Journey already has native work in progress");
+  });
+
+  it("would admit that sibling at the workspace grain CR141 unlocks", () => {
+    const sibling = derivePiInvocationAdmission(
+      occupancy([lease("vida-tecnica")]),
+      journeyWorkspace("vida-tecnica", "vida-tecnica-other-thread"),
+      "workspace",
     );
 
     expect(sibling).toEqual({ allowed: true, reason: null });

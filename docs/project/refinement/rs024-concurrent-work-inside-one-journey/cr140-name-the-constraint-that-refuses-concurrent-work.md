@@ -2,7 +2,7 @@
 
 # CR140: Name the Constraint That Refuses Concurrent Work
 
-**Status:** in_progress — delivered on files, field verification owed
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs024-cr140-name-the-constraint-that-refuses-concurrent-work`
 
@@ -389,6 +389,64 @@ in the plan's Field Verification section, D1 through D5. D1 leaves a durable art
 `created_at`–`updated_at` windows. D2 through D5 are attested, and the refusal sentences have no
 durable artifact by construction, because a refusal writes nothing. This CR is not closed until D1
 is read from disk.
+
+## Grain Reverted After the Field, and CR140 Closed (2026-10-10)
+
+The grain flip was reverted. Everything else this CR delivered stands.
+
+### What the field proved
+
+With all three slices installed and hash-verified, a sibling send was admitted by the registry and
+by this CR's pre-check, and then **threw** in `piProcessEventDispatcher.register`: *"Pi process
+route already active for Journey mirror-desktop."* The dispatcher's `routes` map is keyed by
+`journeyId` in seven places, decisively in `deliver`. `register` runs at `piProcessStream.ts:642`,
+before `start_pi_invocation` at `:662`, so admission was never the binding constraint.
+
+**This CR's own Acceptance criterion — "No existing refusal becomes silent or less specific" —
+failed.** Before the flip the Navigator read a sentence and Send was disabled; after it, Send was
+offered and they received a raw internal error about an event route. Not silent, but less legible,
+and reading as a malfunction rather than a constraint. By this CR's standard that is a defect, and
+it was mine: the flip moved the refusal from a layer that explains itself to a layer that throws.
+
+### What was reverted, and what was not
+
+Reverted: the grain. The constant is back, **renamed `PI_EVENT_TRANSPORT_GRAIN`** and documented
+against the dispatcher rather than the registry, because a refusal blaming the registry would now be
+false — the registry admits three. `same_journey_occupied` is reinstated, and it is reachable again,
+so it is not the dead reason CR139's rule required removing.
+
+Kept, because each stands on its own:
+
+- `describeAdmissionRefusal` as the single source of both surfaces' words — and the restored
+  Journey refusal now **names the occupant**, so it is *more* specific than the sentence it
+  replaced, not merely restored;
+- `journeyWorkspaceShare` reported by the inspection instead of assumed;
+- the root-first locus rule;
+- `turn_journal_full`'s sentence;
+- the shared-sentence source guard and the totality `switch`, which **caught the revert**: removing
+  the reason's sentence would not compile.
+
+### Status
+
+**`done` on files.** The field criterion in Acceptance cannot be collected while the transport
+refuses a sibling, so by this project's rule it is named to the later slice that collects it:
+**CR141**. That makes three consecutive slices closing on tests with their field evidence pooled
+into CR141 — stated plainly rather than left to accumulate quietly.
+
+Two captures came out of the same attempt: **CR141** for the per-Journey event route, and
+**CR142** for a completed turn whose answer exists only in the turn journal.
+
+### Guards re-aimed a second time, none deleted
+
+`runtimeWorkspaceKeying` (the grain guard now pins the transport's bound and asserts the constant
+names the dispatcher), `workspaceGrainedOccupancy` (every case asks the workspace question
+explicitly and one new case asserts the transport grain beside it, so the distance between the two
+is read together), `journeyStartAvailability`, `piInvocationInspectionConformance` (now asserts the
+registry reports three available slots **while** the renderer refuses the second — the exact
+distance CR141 must travel), `postTerminalContinuityMatrix`, `settlementAbandonmentWorkspaceGrain`,
+`admissionRefusalLegibility`, `conversationAvailability`.
+
+Gates: renderer **253 files / 1,931 tests**, `tsc --noEmit` exit 0, `cargo test` unchanged at 285.
 
 ## Acceptance
 

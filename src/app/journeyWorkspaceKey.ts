@@ -39,12 +39,25 @@ export function sameJourneyWorkspace(left: JourneyWorkspace, right: JourneyWorks
   return left.journeyId === right.journeyId && left.threadId === right.threadId;
 }
 
-/*
- * CR138 declared `NATIVE_ADMISSION_GRAIN` here to pin an intermediate state: the renderer carried
- * two workspaces while the Rust registry still admitted one run per Journey, and the constant made
- * advancing that a visible one-line decision instead of a side effect. CR139 re-keyed the registry
- * and CR140 flipped and then **removed** the constant, because with the native grain at the
- * workspace the `"journey"` branch and its `same_journey_occupied` reason became unreachable, and
- * an unreachable refusal is debt rather than safety. The decision is kept here as a record; the
- * switch is not, so nothing can be silently flipped back to a grain the registry no longer uses.
+/**
+ * The grain at which concurrent work is actually possible, which is **not** the grain at which it
+ * is admitted.
+ *
+ * CR138 declared this as `NATIVE_ADMISSION_GRAIN` to pin an intermediate state while the Rust
+ * registry still held one run per Journey. CR139 re-keyed the registry, CR140 flipped the constant
+ * to `"workspace"` and removed it — and the field refuted that in one attempt. A second turn in the
+ * same Journey was admitted by the renderer and by the registry, and then **threw** inside
+ * `piProcessEventDispatcher.register`: *"Pi process route already active for Journey
+ * mirror-desktop."* The dispatcher's `routes` map is keyed by `journeyId`, including in `deliver`,
+ * where an arriving event finds its route by Journey alone.
+ *
+ * So the binding constraint was never admission. CR140 restored this constant under a name that
+ * says what actually limits concurrency, because a refusal that names the registry would now be
+ * false. While it reads `"journey"` the renderer refuses a sibling workspace *before* Send, with a
+ * sentence, rather than letting the send proceed into a raw transport exception — which is strictly
+ * worse than the behaviour CR140 set out to improve.
+ *
+ * **CR141 keys the event route by workspace and flips this.** A guard asserts the current value,
+ * so flipping it stays a visible one-line decision rather than a side effect.
  */
+export const PI_EVENT_TRANSPORT_GRAIN: "journey" | "workspace" = "journey";

@@ -4,10 +4,11 @@
 
 | Item | Estado | Progresso |
 | --- | --- | --- |
-| **RS024 · Concurrent Work Inside One Journey** | 🔄 ativa · 🎯 foco · promovida da CR136 | `███████░░░` 2 ✅ · 1 🟡 · de 3 |
+| **RS024 · Concurrent Work Inside One Journey** | 🔄 ativa · 🎯 foco · ⚠️ campo refutou 3 fatias como suficientes | `███████░░░` 3 ✅ · 1 🟡 · de 4 |
 | ↳　CR138 · Let the Inspection Carry Two Workspaces in One Journey | ✅ done · campo não aplicável por construção | `██████████` |
 | ↳　CR139 · Key the Native Registry by Workspace | ✅ done · cota 3 · diff zero no renderer | `██████████` |
-| ↳　CR140 · Name the Constraint that Refuses Concurrent Work | 🟡 planned · recusa silenciosa já existe hoje · colhe o campo da RS024 | `░░░░░░░░░░` |
+| ↳　CR140 · Name the Constraint that Refuses Concurrent Work | ✅ done · grão revertido após o campo · frases unificadas | `██████████` |
+| ↳　CR141 · Key the Pi Event Route by Workspace | 🟡 captured · 4ª fatia · rota de eventos por Journey · colhe o campo | `░░░░░░░░░░` |
 | **RS023 · Conversations as First-Class Workspaces** | 🔄 ativa · promovida da CR109 | `██████░░░░` 3 ✅ · 1 🟡 · 1 ↗️ · de 5 |
 | ↳　CR133 · Stop a Disclosure From Selecting a Journey | ✅ done · campo verificado (6/6 cenários) | `██████████` |
 | ↳　CR134 · Name the Owner of Running Work Without Hiding That It Runs | ✅ campo verificado (4/4) · 1 achado corrigido | `██████████` |
@@ -17,6 +18,7 @@
 | **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 36 ✅ · 2 🟡 · 4 ↗️ · 1 ⛔ · de 43 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
+| ↳　CR142 · Stop Losing a Turn the Journal Already Answered | 🟡 captured · resposta só no journal · mecanismo não estabelecido | `░░░░░░░░░░` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · sem Driver · pode sobrepor CR133/CR134 | `░░░░░░░░░░` |

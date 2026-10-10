@@ -82,17 +82,25 @@ describe("CR139: the re-keyed registry's own output satisfies the renderer's val
     ]);
   });
 
-  // CR139 left this seam deliberately open: the native side admitted a sibling the renderer still
-  // refused, so RS024's "together or neither" invariant was visibly out of step by ordering rather
-  // than by oversight. CR140 closes it, and the assertion is re-aimed to the closure.
-  it("admits a sibling workspace, closing the seam CR139 left open on purpose", () => {
+  /**
+   * CR139 left a seam open on purpose: the registry admitted a sibling the renderer refused. CR140
+   * tried to close it and the field showed the seam was in a third place — the event dispatcher,
+   * keyed by Journey. So the registry's output says three slots are available while the renderer
+   * still refuses the second, and that disagreement is now asserted rather than hidden, because it
+   * is the exact distance CR141 has to travel.
+   */
+  it("reports three available slots while the renderer still refuses the second", () => {
     const state = applied();
     const free = journeyWorkspace("mirror-desktop", "desktop-thread-not-yet-started");
-    // Two of this Journey's three slots are live in the fixture, so the third is admitted...
-    expect(derivePiInvocationAdmission(state, free)).toEqual({ allowed: true, reason: null });
-    // ...and the share travels in the inspection rather than being assumed on this side.
+    // The registry's own numbers: a share of three, two live, so it would admit a third.
     expect(state.journeyWorkspaceShare).toBe(3);
     expect(state.limit).toBe(4);
+    expect(derivePiInvocationAdmission(state, free, "workspace")).toEqual({ allowed: true, reason: null });
+    // And the renderer refuses it anyway, with a sentence, because the transport cannot carry it.
+    expect(derivePiInvocationAdmission(state, free)).toEqual({
+      allowed: false,
+      reason: "same_journey_occupied",
+    });
   });
 
   it("refuses this Journey's fourth workspace by the share, with the real registry's numbers", () => {
@@ -108,7 +116,7 @@ describe("CR139: the re-keyed registry's own output satisfies the renderer's val
         },
       }],
     };
-    expect(derivePiInvocationAdmission(occupied, journeyWorkspace("mirror-desktop", "desktop-thread-fourth")))
+    expect(derivePiInvocationAdmission(occupied, journeyWorkspace("mirror-desktop", "desktop-thread-fourth"), "workspace"))
       .toEqual({ allowed: false, reason: "journey_share_exceeded" });
   });
 

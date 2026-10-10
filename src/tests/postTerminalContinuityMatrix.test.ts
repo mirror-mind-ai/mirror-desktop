@@ -136,9 +136,12 @@ describe("RS019 composed post-terminal continuity matrix", () => {
       allowed: false,
       reason: "same_workspace_occupied",
     });
-    // CR140: a *sibling* workspace in the same Journey is now admitted, which is the behaviour
-    // change this matrix would otherwise have hidden behind the sharper reason above.
+    // CR140, after the field attempt: a sibling is refused again, because the Pi event transport
+    // carries one route per Journey. The reason is the Journey's, and it is a sentence rather than
+    // an exception thrown after Send. At the grain CR141 unlocks, the same state admits it.
     expect(derivePiInvocationAdmission(mixed, journeyWorkspace("journey-c", "thread-sibling")))
+      .toEqual({ allowed: false, reason: "same_journey_occupied" });
+    expect(derivePiInvocationAdmission(mixed, journeyWorkspace("journey-c", "thread-sibling"), "workspace"))
       .toEqual({ allowed: true, reason: null });
 
     const full = knownOccupancy(["a", "b", "c", "d"].map((suffix) => (

@@ -44,6 +44,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR128: Give Back the Answer a Restart-and-Continue Strands](cr128-give-back-the-answer-a-restart-and-continue-strands.md) — done
 - [CR129: Let a Recovered Settlement Say It Happened](cr129-let-a-recovered-settlement-say-it-happened.md) — captured
 - [CR131: Make the Mirror a Channel Validates Against Identifiable](cr131-make-the-mirror-a-channel-validates-against-identifiable.md) — captured
+- [CR142: Stop Losing a Turn the Journal Already Answered](cr142-stop-losing-a-turn-the-journal-already-answered.md) — captured
 - [CR132: Let the Navigator End a Finishing That Will Not End](cr132-let-the-navigator-end-a-finishing-that-will-not-end.md) — done
 - [CR120: Stop a Closing Chapter From Erasing Its Own File](cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) — done
 - [CR119: Give Finishing Back to the Navigator](cr119-give-finishing-back-to-the-navigator.md) — done
