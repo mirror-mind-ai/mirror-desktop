@@ -7,7 +7,7 @@
 | **RS024 · Concurrent Work Inside One Journey** | 🔄 ativa · 🎯 foco · promovida da CR136 | `███████░░░` 2 ✅ · 1 🟡 · de 3 |
 | ↳　CR138 · Let the Inspection Carry Two Workspaces in One Journey | ✅ done · campo não aplicável por construção | `██████████` |
 | ↳　CR139 · Key the Native Registry by Workspace | ✅ done · cota 3 · diff zero no renderer | `██████████` |
-| ↳　CR140 · Name the Constraint that Refuses Concurrent Work | 🟡 captured · próxima · portão satisfeito · vira o grão | `░░░░░░░░░░` |
+| ↳　CR140 · Name the Constraint that Refuses Concurrent Work | 🟡 planned · recusa silenciosa já existe hoje · colhe o campo da RS024 | `░░░░░░░░░░` |
 | **RS023 · Conversations as First-Class Workspaces** | 🔄 ativa · promovida da CR109 | `██████░░░░` 3 ✅ · 1 🟡 · 1 ↗️ · de 5 |
 | ↳　CR133 · Stop a Disclosure From Selecting a Journey | ✅ done · campo verificado (6/6 cenários) | `██████████` |
 | ↳　CR134 · Name the Owner of Running Work Without Hiding That It Runs | ✅ campo verificado (4/4) · 1 achado corrigido | `██████████` |

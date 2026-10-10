@@ -34,3 +34,14 @@ mutation boundary independently of the UI.
 
 No loosening of run cancellation, process admission, delete safety or exact-Journey authority. This
 CR is about cross-Journey scope, not permission to mutate an actively executing Journey.
+
+## Finding appended from CR140 (2026-10-10)
+
+The app-wide block this CR exists to narrow is `runtimeBusy` at `App.tsx:1106`–`:1108`, and it has
+**two** global sources, not one: `hasBlockingPiInvocationOccupancy` (an active lease in any Journey
+in the native registry) and `navigationPresentation.runtimeBusy`, which is
+`hasActiveOrFinalizingJourneyRuntime(runtimeState)` (an entry in any workspace in the renderer's
+runtime map). Narrowing either alone changes nothing. What `runtimeBusy` gates is file drop,
+conversation restart, reload tree, create and edit Journey, appearance and attachments — not Send,
+which is already workspace-scoped through `conversationAvailability`. CR140 deliberately left this
+reach untouched; it is this CR's to plan against both predicates.
