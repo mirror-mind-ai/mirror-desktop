@@ -208,6 +208,79 @@ Read from disk afterwards: records in `turn-journal/mirror-desktop.json` whose `
 begins with each marker, and whether their `piExecution.startedAt`–`committedAt` windows
 **intersect**. The intersection is the claim.
 
+## Observed Run — D0 and D1A, and where it stopped (2026-10-10, 17:37–17:39 UTC)
+
+The run stopped at D1B, which was refused. The Navigator asked whether they were in the right
+bundle. They were, and the refusal turned out to be a different finding than the one the step table
+anticipated.
+
+### Proven
+
+**The instrument was correct.** The Dev app was running (pid 25964, launched 14:35 local) from
+`/Applications/Mirror Desktop Dev.app` with binary `61d6af14911513e0f6a68068e33fa5e050ee8e8ad4d099fadfe257989add6de5`
+— the bundle installed and hash-verified above. Both markers landed in the **Dev** journal, not
+production's. Worth keeping: **both apps report `0.2.0-alpha.43`**, and only the hash distinguishes
+them, which is why identity is proved by hash and not by the version string.
+
+**D0-CAL calibrated usefully.** Pi execution `17:37:09.898 → 17:37:28.265`, 18.4 s, `settled`,
+`totalMs: 2351`. The long prompt did lengthen the turn from the 3.5 s baseline.
+
+**D1A ran and then stopped settling.** Pi execution `17:38:12.994 → 17:38:42.447`, 29.5 s, and the
+record is stuck:
+
+- `phase: terminal_durable`, `terminalOutcome: completed`, `revision: 3`
+- the journal file has not been written since `17:38:42.472`
+- `settlement-timings/mirror-desktop.json` holds **no record for D1A**; its last entry is D0-CAL
+
+So the turn executed to completion and its settlement never finished. This is a live instance of
+the hang CR132 was built for and CR129 was captured for, arriving unprompted.
+
+**Send has a global gate this CR did not enumerate.** `turnRecoveryBusy` (`App.tsx:891`) is a single
+`useState(false)`, not per workspace. It feeds `recoveryInspectionActive`
+(`App.tsx:1353`) into `decideConversationAvailability`, which returns
+`blocked("recovery_inspection", "wait_for_recovery_inspection")` and therefore `canSend: false` for
+**whichever** workspace is selected. A grep for `recovery_inspection` outside the domain module and
+its tests returns nothing: like `journey_lease_occupied` before this CR, the condition is computed
+and never rendered.
+
+### A correction to this CR's own Finding 3, at its source
+
+Finding 3 said `runtimeBusy`'s two global sources do not gate Send, and that Send was "already
+workspace-scoped through `conversationAvailability`". The first half holds. **The second half was
+incomplete**: `conversationAvailability` is workspace-scoped in its *admission* input and global in
+its `recoveryInspectionActive` input. Enumerating two global predicates and stopping there was the
+error — there is a third, it reaches Send, and it is silent when it fires.
+
+This does not change what CR140 shipped, and it is not a defect CR140 introduced. It changes what
+CR140 may claim: **the Acceptance criterion that no refusal degrades to silence is met for every
+refusal the admission type can produce, and is not met for `recovery_inspection`.** Stated here
+rather than discovered at closure.
+
+### Hypothesis, explicitly not yet fact
+
+That `turnRecoveryBusy` is what refused D1B. The stuck settlement is measured and the global
+mechanism is read from source, but the causal link needs the one observation only the Navigator
+has: whether the screen showed nothing (consistent with `recovery_inspection`), a share sentence
+(which would instead mean the share logic misfired), *"Finalizing turn…"* (the retained lease), or
+*"Wait until the previous message is ready."* (the blocking journal record).
+
+### Consequences for the sequence
+
+D1's durable claim is **not yet collected**: there is one marked record, not two with intersecting
+Pi execution windows. The sequence cannot continue past a stuck settlement, because the gate above
+refuses every workspace regardless of grain.
+
+Two observations are available in the stuck state and are worth more than resuming:
+
+1. **CR132's abandonment offer**, owed since alpha.42 and never provocable because a hang cannot be
+   scheduled. A settlement stuck past `ABANDON_SETTLEMENT_OFFER_AFTER_MS = 60_000` should present
+   *Stop waiting* naming the elapsed wait. Present means CR132's field evidence; absent means a
+   CR132 defect, which is worth more than the rest of this script.
+2. **Why a settlement hangs**, which CR132's own record lists as still unknown.
+
+Restarting the app destroys the native registry and both observations, so the state was left
+untouched pending the Navigator's reading.
+
 ## Status
 
 Baseline recorded; the run is the Navigator's, since opening a Journey and sending a turn are GUI

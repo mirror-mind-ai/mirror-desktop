@@ -337,6 +337,22 @@ capacity notice always carried — *"Native admission remains the atomic capacit
 deliberate widening: the claim is true on both, and two sentence sets for one refusal is how they
 drifted apart in the first place. Recorded here rather than left to be found in a diff.
 
+### Correction to Finding 3 (2026-10-10, after the first field attempt)
+
+Finding 3 claimed Send was "already workspace-scoped through `conversationAvailability`". ~~That
+half of the finding stands.~~ **It does not.** `conversationAvailability` is workspace-scoped in its
+admission input and **global** in `recoveryInspectionActive`, which comes from `turnRecoveryBusy`
+(`App.tsx:891`), a single `useState`. When it is true, Send is refused for whichever workspace is
+selected, and `recovery_inspection` has no surface at all — computed and never rendered, exactly
+like `journey_lease_occupied` before this CR.
+
+Enumerating `runtimeBusy`'s two global predicates and concluding that Send was workspace-scoped was
+the error; there is a third, it reaches Send, and it is silent. This changes no shipped code and is
+not a defect this CR introduced, but it bounds what this CR may claim: the Acceptance criterion
+that no refusal becomes silent **is met for every refusal `PiInvocationAdmission` can produce, and
+is not met for `recovery_inspection`**. See
+`docs/update/rs024-field-verification-baseline-2026-10-10.md`.
+
 ### The reach that was NOT narrowed, and why
 
 Finding 3 corrected this CR's own Friction before delivery began, and delivery held to it.
