@@ -549,6 +549,66 @@ This is a gap that **only exists because concurrency now works.** While one turn
 possible, *the Journey is working* was a complete statement. Three can run now, and the list cannot
 say which.
 
+## Third Attempt — CR143's Observation (2026-10-10 21:02)
+
+### Instrument
+
+| | |
+|---|---|
+| Dev binary now installed | **`55a6e958b9a35e68ff01f82213a0ed58c9db32c0001f21250373ff53f6c0d2bd`** |
+| Replaced | `f6a02acd2cd54ade…` (CR141) |
+| Backup, hash-verified **before** the original was removed | `/tmp/mirror-desktop-dev-backup-20261010-210201.app` |
+| Production | **untouched**, `e8eda1258071f969…`, running (pid 45016) |
+
+A note on the build: CR143's gates ran `npm run build`, which is the frontend only, so the bundle
+on disk was still CR141's and both hashes read `f6a02acd…`. `npm run tauri:build:dev` was run
+before installing. **Checking the hash is what caught it**, which is why the hash is checked.
+
+### Baseline
+
+Journal **58 of 64** — 46 `settled`, 10 `interrupted`, 2 `running` (the September orphans).
+`settlement-timings` 14. Catalog: three conversations, `rootThreadId` still `null`, **nothing
+hidden**.
+
+**Six journal slots remain.** D1 costs two. If `turn_journal_full` appears it is captured as
+evidence rather than retried past. One thing to watch rather than aim for: D1A runs on the
+journey-card thread, which is where both September `running` orphans live, so CR139's
+`SameWorkspaceOnly` pruning may finally reclaim them if the journal needs room — correct behaviour,
+and the first time it would be observed.
+
+### What is durable and what is attested, said before the run
+
+**CR143 renders; it writes nothing.** There is no durable artifact for a mark on a list, so this
+closes on attestation — stated in advance, as the refusal sentences were.
+
+What *is* durable is the precondition: two journal records with intersecting `piExecution` windows
+prove the two conversations really were working at the moment the marks were read. Without that the
+observation would be of two sequential turns, which is not what the mark claims. So the durable
+record carries the premise and the Navigator carries the conclusion.
+
+### The sequence, and which parts are worth provoking
+
+| | Check | Worth running |
+|---|---|---|
+| **1** | D1A then D1B without waiting — **both conversations marked in the list at once** | **Yes.** The core claim, and cheap |
+| **2** | Each mark clears as its turn ends | **Yes**, free — same run |
+| **3** | A mark reads *Finishing* during settlement | **Watch for it.** Settlement measured 1.9–3.0 s in the last run, so it is brief and may be missed. Not a failure if unseen |
+| **4** | Hide a working conversation → the closed `N hidden` toggle says `· 1 working` | **Yes.** Three gestures, no extra turn: start D1B, go to A, right-click B → Hide |
+| **5** | A working conversation below the cap → `Show N more · 1 working` | **No.** Needs more than six conversations and there are three. Covered by unit tests; provoking it costs four throwaway conversations for a rendering path the tests already pin |
+
+Check 5 is named and declined deliberately rather than left unmentioned: asking whether a check is
+worth provoking is part of the capture, and this one is not.
+
+### Divergences that would be findings
+
+- **Only one conversation marked** while the journal shows intersecting windows — the mark is
+  reading the wrong source. A defect, and the run stops.
+- **A mark on the wrong group** with two Journey disclosures open — the wiring took the selected
+  Journey rather than the group's.
+- **The hidden toggle silent** while a hidden conversation works — CR134's rule broken at the new
+  grain.
+- **`turn_journal_full`** — captured, not retried past.
+
 ## Status
 
 **Collected.** RS024's Acceptance Horizon is reached: two concurrent turns in one Journey each
