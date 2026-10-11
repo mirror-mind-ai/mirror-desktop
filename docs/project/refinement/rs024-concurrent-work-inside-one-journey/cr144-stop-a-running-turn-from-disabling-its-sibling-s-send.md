@@ -71,7 +71,7 @@ agreement, so drifting apart again fails a test rather than a field run.
 - The conversation that *is* running still blocks its own Send. ✅
 - A caller with no thread still receives the Journey's single live entry. ✅
 - Both workspace selectors fall back only on an unresolved thread, asserted against source. ✅
-- **Field: a cold D1 — no calibration turn in either conversation — admits the second send.** Owed.
+- **Field: a cold D1 — no calibration turn in either conversation — admits the second send.** ✅ 2026-10-11
 
 ## Delivery Record (2026-10-10)
 
@@ -87,6 +87,22 @@ This was delivered rather than captured and queued. The reasoning: RS024's own c
 was failing, the Navigator had asked for the Story to be finished before the release, and they were
 blocked mid-verification. Treating it as completing committed work rather than new scope is **my
 call, not theirs** — if it should have been a separate decision, this is one commit to revert.
+
+## Field Verification (2026-10-11 02:28 UTC)
+
+**Closed on the durable record.** The cold run that this CR exists to make possible:
+
+| Marker | Thread | Pi execution |
+|---|---|---|
+| `RS024-D1A` | `…18d5cf4842b669b0` | `02:28:14.535` → `02:28:30.686` |
+| `RS024-D1B` | `…18d58ef5a20a4938` | `02:28:21.470` → `02:28:39.009` |
+
+**Three new journal records and none is a calibration turn**, so D1A was the session's first and
+D1B's conversation held no runtime entry when its Send was pressed, seven seconds into D1A. That
+is the exact state that disabled Send on 2026-10-10 at 23:08. The windows intersect for **9.2 s**.
+
+The precondition is proven by the *absence* of a record rather than by the Navigator's memory of
+what they did, which is what makes it a measurement.
 
 ## Boundaries
 

@@ -66,8 +66,10 @@ RS024 is complete only when:
 concurrently and that evidence stands; what did not follow is that the state was reachable from a
 cold list. `selectJourneyRuntime` handed a never-run conversation its live sibling's runtime
 entry, so Send never enabled, and the first field run only passed because its calibration turn
-happened to have run in the conversation the second turn used. **CR144 fixed it**; the horizon is
-reached again on the same evidence plus a cold run, which is owed. Kept struck through rather
+happened to have run in the conversation the second turn used. **CR144 fixed it**, and the cold run
+PASSED on 2026-10-11: D1A and D1B intersecting for 9.2 s on distinct threads, with **no
+calibration turn in the session**, so the second conversation had no runtime entry when its Send
+enabled. **The horizon is reached, and this time the evidence supports the claim made of it.** Kept struck through rather
 than rewritten, because a claim that was wrong once is worth being able to see.
 
 **Originally measured 2026-10-10:** ~~this horizon is NOT reached~~ — the earlier
@@ -103,5 +105,5 @@ Journey-level grain was right.
 - [CR139: Key the Native Registry by Workspace](cr139-key-the-native-registry-by-workspace.md) — gated on CR138 merged
 - [CR140: Name the Constraint That Refuses Concurrent Work](cr140-name-the-constraint-that-refuses-concurrent-work.md) — gated on CR139 merged
 - [CR141: Key the Pi Event Route by Workspace](cr141-key-the-pi-event-route-by-workspace.md) — gated on CR140 merged · **done**
-- [CR143: Say Which Conversation Is Working](cr143-say-which-conversation-is-working.md) — **in_progress**, reported from the field; **admitted to this Story by the Navigator on 2026-10-10**, to be delivered before the release
+- [CR143: Say Which Conversation Is Working](cr143-say-which-conversation-is-working.md) — **done**, reported from the field; **admitted to this Story by the Navigator on 2026-10-10** and delivered before the release
 - [CR144: Stop a Running Turn from Disabling Its Sibling's Send](cr144-stop-a-running-turn-from-disabling-its-sibling-s-send.md) — **done**, found by CR143's own field run; the defect that made this Story's outcome unreachable

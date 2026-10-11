@@ -2,7 +2,7 @@
 
 # CR143: Say Which Conversation Is Working
 
-**Status:** in_progress — delivered on files, field verification owed
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs024-cr143-say-which-conversation-is-working`
 
@@ -284,6 +284,28 @@ the New button's group-level `Working…`.
 
 `tsc` 0; renderer **254 files / 1,963 tests** (from 1,944); `cargo test` **285 passed / 3 ignored**,
 unchanged; `npm run build` clean; `roadmap:check` READY; **native diff 0 lines**.
+
+## Field Verification (2026-10-11 02:28 UTC)
+
+**Closed, with one check named as uncollected.**
+
+Run on the cold sequence, which is also CR144's. Durable premise from
+`turn-journal/mirror-desktop.json`: D1A and D1B executed with **intersecting windows, 9.2 s, on
+distinct threads** — so the two conversations really were working when the marks were read, which
+is the fact a mark on a list cannot establish about itself.
+
+**Attested** by the Navigator: both conversations carried the mark at once, and each cleared as its
+turn ended. These render and write nothing; that was stated before the run rather than discovered
+at closure.
+
+**Uncollected**: the hidden conversation's closed toggle.
+`hiddenConversationIdsByJourneyId` is empty for `mirror-desktop`, so the optional step either was
+not run or was reverted. The Navigator's report was a blanket *"funcionou tudo"* and did not
+enumerate steps, so this is recorded as uncollected rather than read into that word. It is pinned
+by two component tests and is cheap to collect the next time a working conversation is hidden.
+
+`Finishing` was not reported and is not owed: settlement measured 1.6–2.2 s in this run, which is
+below what a Navigator can reliably catch.
 
 ## Acceptance
 

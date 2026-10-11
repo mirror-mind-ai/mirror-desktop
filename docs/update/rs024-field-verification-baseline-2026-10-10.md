@@ -694,14 +694,67 @@ No developer console in a release build, so the dispatcher's quarantine stays un
 refusal writes nothing, so any refusal sentence has no durable artifact. And `turn_journal_full`,
 if it appears with five slots left, is captured as evidence rather than retried past.
 
+
+## The Cold Run PASSED (2026-10-11 02:28 UTC / 23:28 local)
+
+Run on `b9578018ee45b720…`, the CR144 build. The Navigator reported *"funcionou tudo."* Read from
+disk rather than taken from the report.
+
+### The claim, and the proof that it was cold
+
+| Marker | Thread | Pi execution |
+|---|---|---|
+| `RS024-D1A` | `…18d5cf4842b669b0` | `02:28:14.535` → `02:28:30.686` |
+| `RS024-D1B` | `…18d58ef5a20a4938` | `02:28:21.470` → `02:28:39.009` |
+| `RS024-D1B` (a third turn, sequential) | `…18d58ef5a20a4938` | `02:29:04.345` → `02:29:19.787` |
+
+**D1A × D1B intersect for 9.2 s on distinct threads.**
+
+**Three new records and none of them is a calibration turn**, so D1A was the session's first turn
+and D1B's conversation held no runtime entry when its Send was pressed — seven seconds into D1A's
+execution. That is precisely the state that disabled Send on 2026-10-10 at 23:08, and it is why
+this run, unlike the second one, tests what RS024 claims.
+
+Journal 59 → 62 of 64, all three `settled`. `settlement-timings` 15 → 18, three records, all
+`settled`: **no recovery was needed and CR129 gained no second instance.** Nothing stalled at
+`terminal_durable`, so CR142 did not reproduce.
+
+### Where the durable record stops and attestation begins
+
+**Durable**: the intersecting windows, which carry CR144's criterion and the premise under
+CR143's marks.
+
+**Attested**: that both conversations showed the mark at once and that each cleared. These render
+and write nothing, as stated before the third attempt.
+
+**Not evidenced, and not claimed**: the optional hidden-conversation check.
+`hiddenConversationIdsByJourneyId` is **empty** for `mirror-desktop`, so either the step was not
+run or it was run and reverted. The Navigator's report was a blanket one and did not enumerate the
+steps, so this one is recorded as uncollected rather than folded into *"tudo"*. It remains covered
+by unit tests and is cheap to collect whenever a conversation is next hidden while working.
+
+### One operational note
+
+**Two journal slots remain** (62 of 64). The next field run on this Dev profile should expect
+`turn_journal_full` to be reachable, which would be CR139's fail-closed refusal arriving through
+CR140's sentence — evidence worth capturing, and worth knowing about in advance rather than
+meeting as a surprise.
+
 ## Status
 
-**Partially collected, and one claim withdrawn.**
+**Collected, on the fourth attempt.**
 
-Durable and standing: three turns in one Journey executed with intersecting `piExecution` windows
-on distinct threads, in `turn-journal/mirror-desktop.json` at 23:09–23:12. That closes the
-transport and registry evidence owed by **CR138**, **CR139**, **CR140** and **CR141**.
+RS024's Acceptance Horizon is reached and this time the evidence supports the claim that was made
+of it: a conversation that had never run in the session had its Send enabled while a sibling
+executed, and the two executions intersect in the durable record.
 
-**Owed**: a cold D1, with no calibration turn in either conversation, proving the second send is
-admitted from a list where neither conversation has run. That carries **CR144**'s field criterion
-and **CR143**'s together.
+This closes the field evidence owed by **CR138**, **CR139**, **CR140**, **CR141**, **CR143** and
+**CR144**. One optional CR143 check — the hidden conversation's closed toggle — is recorded above
+as uncollected rather than assumed.
+
+**What the four attempts cost, and what they bought.** The first found CR141, the slice four
+investigations had missed. The second produced the durable concurrency evidence and a false
+conclusion. The third found CR144 by failing. The fourth is the one that proves what the first
+three were each said to prove. **A verification that cannot fail is not a verification**, and this
+sequence failed three times before it passed — which is the argument for running sequences rather
+than reasoning about them.
