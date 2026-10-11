@@ -148,6 +148,11 @@ import { JourneyArrivalSurface } from "./JourneyArrivalSurface";
 import { EmptyDesktopConversation } from "./EmptyDesktopConversation";
 import { FocusedConversationSidebar } from "./FocusedConversationSidebar";
 import { deriveConversationWork } from "./conversationWorkIndicator";
+import {
+  deriveStrandedTurn,
+  describeStrandedTurn,
+  STRANDED_TURN_POLL_MS,
+} from "./strandedTurn";
 import { FocusedSidebarResizeHandle } from "./FocusedSidebarResizeHandle";
 import { loadFocusedSidebarWidth, saveFocusedSidebarWidth } from "./focusedSidebarWidthStorage";
 import { MirrorHistoryActionSurface } from "./MirrorHistoryActionSurface";
@@ -683,6 +688,9 @@ export function App({ model }: AppProps) {
   const [exactSettlementErrors, setExactSettlementErrors] = useState<Record<string, ExactSettlementError>>({});
   const [mirrorOutboxItems, setMirrorOutboxItems] = useState<MirrorAppendOutboxSummary[]>([]);
   const [journeyTurnJournalRecords, setJourneyTurnJournalRecords] = useState<TurnJournalRecord[]>([]);
+  // CR142: advanced only by the poll below, so the stranded predicate is evaluated against a
+  // clock that moves exactly when the journal has just been re-read and never between.
+  const [strandedTurnTick, setStrandedTurnTick] = useState(() => Date.now());
   const [unsentDraftNotices, setUnsentDraftNotices] = useState<UnsentDraftNotices>({});
   // CV-008.DS-005 — voice prompt composition. Recording and transcription are
   // Desktop-local; the destination draft key is captured at recording start.
@@ -1333,6 +1341,22 @@ export function App({ model }: AppProps) {
     finishingSince: finishingPhases[selectedJourney]?.since,
     now: finishingTick,
   });
+  // CR142: the renderer's belief, checked against the durable record rather than against itself.
+  const believedRun = selectedRuntime.identity?.kind === "live"
+    ? {
+      journeyId: selectedRuntime.identity.authority.journeyId,
+      threadId: selectedRuntime.identity.authority.threadId,
+      generation: selectedRuntime.identity.authority.generation,
+      runId: selectedRuntime.identity.authority.runId,
+    }
+    : undefined;
+  const strandedTurn = deriveStrandedTurn({
+    journalRecords: journeyTurnJournalRecords,
+    believedRun,
+    believedStreaming: isStreaming,
+    now: strandedTurnTick,
+  });
+  const strandedTurnNotice = strandedTurn.stranded ? describeStrandedTurn(strandedTurn.record) : undefined;
   const showBlockingTurnRecoveryNotice = Boolean(blockingTurnJournalRecord)
     && !isStreaming
     && (!blockingTurnAwaitingNativeLease || composerTurnStatus !== "finishing");
@@ -2455,6 +2479,40 @@ export function App({ model }: AppProps) {
     const interval = window.setInterval(() => setRelativeTimeNow(Date.now()), 60_000);
     return () => window.clearInterval(interval);
   }, []);
+
+  // CR142: the one place the renderer can ask the journal about a turn it believes is live.
+  //
+  // Every other path that would notice is downstream of the `done` event — `reconcilePiInvocationOccupancy`
+  // runs on mount, in the rehydrate handler on `done`, and inside the send and settlement paths —
+  // so when that event is lost the renderer's view freezes and nothing looks again. This is the
+  // only trigger that is not downstream of it.
+  //
+  // Gated on `isStreaming`, which is what keeps CR115's idle post-terminal loop closed: an idle
+  // Journey has no streaming turn, so this interval never starts there. It also reads only, and
+  // never touches occupancy, which is what CR115 found was causing the flicker.
+  useEffect(() => {
+    if (!isStreaming || journeyThreadState.kind !== "ready") return;
+    const ownerJourneyId = selectedJourney;
+    let cancelled = false;
+    const poll = () => {
+      void loadTurnJournal(ownerJourneyId)
+        .then((journal) => {
+          if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
+          setJourneyTurnJournalRecords(journal.records);
+          setStrandedTurnTick(Date.now());
+        })
+        .catch(() => {
+          // A journal that cannot be read says nothing about the turn. Staying quiet is correct:
+          // the alternative is a notice derived from a failed read.
+        });
+    };
+    const interval = window.setInterval(poll, STRANDED_TURN_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [isStreaming, journeyThreadState, selectedJourney]);
+
 
   useEffect(() => {
     if (!conversationLoaded || journeyThreadState.kind !== "ready" || runtimeBusy) return;
@@ -6030,6 +6088,34 @@ export function App({ model }: AppProps) {
             <section className="dedicated-turn-notice" role="status">
               <strong>Conversation ready</strong>
               <p>{turnRecoveryNotice}</p>
+            </section>
+          ) : null}
+          {strandedTurnNotice ? (
+            <section className="dedicated-turn-notice" role="alert">
+              <strong>{strandedTurnNotice.title}</strong>
+              <p>{strandedTurnNotice.sentence}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  // The recovery that already exists and that a restart runs automatically. It is
+                  // offered rather than taken: doing it unasked would be the braver heuristic this
+                  // programme has repeatedly declined.
+                  void recoverPostTerminalPersistence(selectedJourney);
+                  // CR142's third recorded defect: recovery projects the answer and leaves the
+                  // prompt sitting in the Composer, one Send away from asking it a second time.
+                  updateComposerDrafts((current) => updateComposerDraft(
+                    current,
+                    conversationDraftKey(
+                      selectedJourney,
+                      selectedConversationEntry?.kind === "desktop_conversation"
+                        ? selectedConversationEntry.conversationId
+                        : undefined,
+                    ),
+                    "",
+                  ), true);
+                  setVisibleComposerDraft("");
+                }}
+              >Recover this turn</button>
             </section>
           ) : null}
           {showBlockingTurnRecoveryNotice ? (

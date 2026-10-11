@@ -2,9 +2,9 @@
 
 # CR142: Stop Losing a Turn the Journal Already Answered
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress - delivered on files, the negative field check owed
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr142-stop-losing-a-turn-the-journal-already-answered`
 
 ## Friction
 
@@ -62,7 +62,13 @@ says what it is waiting for.
 
 ## First Investigation
 
-1. Establish the mechanism before proposing anything. The question is whether the renderer received
+1. ~~Establish the mechanism before proposing anything.~~ **Replaced 2026-10-11 with the Navigator's
+   agreement.** The mechanism of the loss cannot be named: both remaining candidates - a `deliver`
+   rejection into an in-memory quarantine a release build cannot read, and a dropped
+   fire-and-forget `app.emit` - are silent by construction. The requirement is now that the
+   mechanism be **recorded as unestablished with its candidates named**, and that the repair not
+   depend on which one it was. Superseded text kept rather than deleted.
+   Original: establish the mechanism before proposing anything. The question is whether the renderer received
    the stream's terminal events at all: the conversation has no user message from this turn either,
    which suggests nothing was persisted after the pre-send write.
 2. Establish whether the journal's `recoveryDisposition: ResumeProjection` recovers this on the
@@ -350,6 +356,80 @@ Keeping it would block a repair that does not need it.
 The recommendation is to replace it with: *the mechanism of the loss is recorded as unestablished,
 with its two candidates named, and the repair is required not to depend on which one it was.*
 **Changing a CR's own acceptance is a Workbench decision**, so it is recommended here and not made.
+
+## Delivery Record (2026-10-11)
+
+Delivered on files. Diff: 3 files, +330/-1, one new module. **`src-tauri` diff 0 lines.**
+
+### One correction to the plan, found by building it
+
+Decision 2 said there would be **no time bound**, because the journal gives a definite answer
+where CR132 needed an opinion. That was almost right and not quite: the native side writes
+`terminal_durable` and *then* emits `done`, so there is a legitimate window in which the journal is
+terminal and the renderer is streaming at the same time. Without a grace, the predicate would call
+a healthy settlement a defect.
+
+`STRANDED_SETTLEMENT_GRACE_MS = 10_000` exists for that, and it is not the same kind of number as
+CR132's threshold. CR132 encodes a judgement — *this wait is too long*. This encodes a fact —
+*this is not an in-flight transition* — derived from the seven settlements measured on 2026-10-10
+and 2026-10-11 (1.6 s to 3.0 s), set at more than three times the slowest, with its falsifier
+written at the constant. The distinction is recorded rather than letting one number quietly stand
+in for the other.
+
+### What shipped
+
+- **New `src/app/strandedTurn.ts`**: `deriveStrandedTurn` returning either `stranded` with the
+  record or a **named reason**, total by construction so a state it does not yet consider surfaces
+  as a reason instead of a silent `false`. Plus `describeStrandedTurn`, `STRANDED_TURN_POLL_MS`
+  and the grace constant.
+- **`App.tsx`**, four wiring points: a tick advanced only by the poll; the derivation beside the
+  other notice predicates; the poll effect; and the notice with its action.
+- **The poll is the only trigger in the renderer that is not downstream of the lost `done`.** It is
+  gated on `isStreaming`, reads one file, and touches occupancy not at all — which is what keeps
+  CR115's loop closed, since that loop ran on an idle Journey and reconciled occupancy every pass.
+- **The action reuses `recoverPostTerminalPersistence`**, already the handler behind two buttons
+  and the path a restart takes, and additionally clears the composer draft — CR142's third
+  recorded defect, where recovery left the answered prompt one Send away from being asked twice.
+
+### The sentence says the turn is not lost
+
+*"The agent finished this turn and the answer is saved, but this conversation never received it.
+Nothing is lost."* The one observed instance recovered intact, and the answer was durable the whole
+time. A sentence implying loss would be false, and a test asserts it.
+
+### Tests — 13 new, in `strandedTurnVisibility.test.ts`
+
+The negative cases are the ones that matter and they outnumber the positive. A long turn the
+journal agrees is running raises nothing; an idle Journey raises nothing; a healthy settlement
+inside the grace raises nothing; an unreadable timestamp is treated as in flight rather than as
+stranded; a sibling's terminal record, a previous generation and a previous run never strand this
+turn. Telling a Navigator that a working turn is stranded would be worse than the defect.
+
+Source guards pin what the prose claims: the poll is gated on `isStreaming`, calls
+`loadTurnJournal` and mentions neither `reconcilePiInvocationOccupancy` nor `listMirrorOutbox`;
+the interval is a named constant; the notice offers the recovery rather than running it.
+
+**Verified by removal**: deleting the `isStreaming` gate makes a test fail, so the guard holds a
+real property rather than describing one.
+
+### A finding from my own test helper
+
+The helper read `input.run === undefined ? believedRun : input.run`, which cannot tell *absent*
+from *deliberately undefined* — so the case asserting silence without a live run authority was
+asking the opposite question, and the production code was fine all along. Fixed with `in`. The
+second time in this programme that a test's own helper, not the code, was the defect.
+
+### Gates
+
+`tsc` 0; renderer **255 files / 1,981 tests** (from 1,968); `cargo test` **285 passed / 3
+ignored**, unchanged; `npm run build` clean; `roadmap:check` READY; **native diff 0 lines**.
+
+### Field
+
+**Not provocable on demand**, as the plan said: the trigger is a lost `done` with no known cause.
+What is provocable is the negative, and it is the one worth running — a deliberately long turn,
+several minutes, confirming the notice stays quiet. A false positive here would be worse than the
+defect it repairs.
 
 ## Acceptance
 
