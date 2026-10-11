@@ -2,7 +2,7 @@
 
 # CR145: Let a Finished Pi Release the Turn It Completed
 
-**Status:** in_progress — delivered on files, field check owed
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr145-let-a-finished-pi-release-the-turn-it-completed`
 
@@ -286,3 +286,30 @@ the premise they read, not the readers.
   and this is said plainly rather than counted.
 - **Why terminalization never ran** in the first place is still unestablished. This slice makes the
   consequence recoverable; it does not explain the cause.
+
+
+---
+
+## Closed (2026-10-11)
+
+Closed on the negative half, with the positive half recorded as **unprovocable** rather than
+counted as passed.
+
+**Collected:** the negative check. A healthy 74-second turn showed no offer at any point, and the
+measurement CR145 added — a `try_wait` on every occupancy inspection, which runs throughout a live
+turn — **did not disturb the healthy path**: 20 settlement phases, zero non-completed, including
+`cleanup_lease` and `notify_lease_released`. A regression would have shown here.
+
+**Not collected, and it cannot be:** the offer appears only when a child exits without its lease
+terminalizing. The cause of that is still unestablished, so the state cannot be provoked on demand.
+The positive half is **tested and not field-verified** — 17 tests, 8 negatives against 1 positive
+on the predicate — and closing on that is a deliberate judgement, not an oversight.
+
+**The argument for closing anyway:** waiting for a defect to recur in order to close its repair
+means the repair never closes while the mitigation sits unreleased. The Navigator made that call on
+2026-10-11.
+
+**What this CR does not do**, restated so it is not lost: it does not explain why terminalization
+never ran, and it does not heal the durable record of a turn already stranded. The three journal
+slots lost to this defect were reclaimed by hand, with the app closed, and that remains the only
+remedy for a record already written.

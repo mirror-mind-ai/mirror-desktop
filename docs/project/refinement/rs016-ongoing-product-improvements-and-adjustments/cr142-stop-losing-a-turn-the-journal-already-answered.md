@@ -2,7 +2,7 @@
 
 # CR142: Stop Losing a Turn the Journal Already Answered
 
-**Status:** in_progress - delivered on files, the negative field check owed
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr142-stop-losing-a-turn-the-journal-already-answered`
 
@@ -443,3 +443,29 @@ defect it repairs.
 
 No repair of this instance until the mechanism is established. The per-Journey event route is
 **CR141**. CR129 stays separate.
+
+
+---
+
+## Closed (2026-10-11)
+
+The one thing owed was the negative field check, and it was collected — on the **second** attempt.
+
+**The first attempt did not run the check; it found CR145 instead.** That is recorded above and not
+smoothed over: the notice correctly stayed silent because `deriveStrandedTurn` returned
+`journal_agrees`, and the journal was wrong in the same direction as the renderer. The predicate
+was right; its oracle was not.
+
+**The second attempt collected it.** Run `agent-run-2026-10-11T20:01:56.147Z`, a 74-second turn
+producing 1,201 lines, with the notice absent throughout and the turn reaching `settled` rev 5 with
+complete terminal evidence. Measured in
+[the joint field check](../../../update/cr145-and-cr142-negative-field-check-2026-10-11.md).
+
+**Where attestation begins:** the disk cannot prove a notice did not render. It proves the turn
+settled healthily, which is the state in which the predicate returns `journal_agrees`. For a visual
+absence the Navigator's observation is the only possible instrument.
+
+**The limitation found by its own validation stands and is not closed by this.** When the journal is
+wrong, this predicate is silent — correctly, and uselessly. CR145 is the repair for that case, and
+the two now cover the two halves: a turn the journal already answered, and a turn whose Pi already
+exited.
