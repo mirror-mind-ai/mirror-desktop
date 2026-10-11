@@ -250,18 +250,27 @@ And this is not the first time. The journal holds **three** `running` records:
 one of 64 slots permanently. Three are already gone, and `cleanup_stale_terminal_handoffs` has had
 23 days of launches to reclaim the first two and has not.
 
-**2. The recovery duplicated the turn.** The conversation now holds **four** messages:
+**2. The recovery stored the turn twice — but did not display it twice.** Corrected after the
+Navigator scrolled up and saw a correct transcript, twice, including after another restart. I had
+asserted a screen symptom from a file reading, and `ConversationTranscript` filters neither empty
+nor duplicate messages, so four stored would have rendered as four. **The screen is right and the
+store is wrong**, which is the dangerous polarity: nothing prompts a repair. The conversation file
+holds **four** messages:
 
 | # | Role | Size |
 |---|---|---|
 | 1 | user | 353 chars — the prompt |
 | 2 | assistant | **0 chars — the empty placeholder, still there** |
-| 3 | user | 353 chars — **the same prompt again** |
+| 3 | user | 353 chars — **the same prompt again**, identical hash |
 | 4 | assistant | 65,474 chars — the answer |
 
-Recovery appended a fresh user/assistant pair from the Pi session instead of completing the
-placeholder that was waiting for it. The transcript durably reads: ask, silence, ask the same
-thing again, answer. Captured as **CR146**.
+The Navigator sees messages 1 and 4 and nothing else.
+
+Messages 1 and 3 share a content hash. The ids name their origin: the first pair is the renderer's,
+written at admission; `pi-f50e7acb` and `pi-491588d7` match entries in the Pi session file. No
+binding joined them, because `reconciliation.turns[0].pi` is `{state: "pending"}` — the turn never
+committed, so the evidence that would have matched the Pi entries to the waiting placeholder was
+never written. Captured as **CR146**, whose question is why stored and displayed diverge.
 
 **3. No settlement timing was recorded.** `settlement-timings` is still 18 records with mtime
 `23:29:22`. This is **CR129's second measured instance** — a recovered settlement leaves no trace
