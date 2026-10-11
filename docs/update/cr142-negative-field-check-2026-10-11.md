@@ -184,6 +184,38 @@ session file and in the renderer's memory.
 back is unestablished: the journal's `recoveryDisposition` is **`resume_execution`**, not
 `resume_projection`, so the recovery that rescued CR142's turn is not the one that would run here.
 
+### Pre-Restart Baseline (2026-10-11 10:35 local)
+
+Recorded before the restart experiment, so the "before" is on disk rather than in memory of a
+conversation.
+
+- Turn journal: **63 of 64** records; the run `agent-run-2026-10-11T12:43:58.174Z` at
+  **`running`, revision 2**, `terminalOutcome: null`, `terminalEvidence: null`,
+  `recoveryDisposition: resume_execution`, `updatedAt 12:43:58.223Z`.
+- `settlement-timings`: **18 records**, newest from the night before. None for this run.
+- Dedicated conversation: **2 messages** — the prompt and an **empty** assistant message.
+- Pi session file: 145,838 bytes, the answer intact at 65,474 characters, `stopReason: "stop"`.
+- Native registry: **holds a live lease**, established through CR143's `WORKING` mark.
+- Dev process: pid 96616, launched 09:41:50.
+
+**The answer was extracted to `/tmp/RS024-CR142-LONG-resposta-completa.txt`** so that nothing about
+the experiment can cost it.
+
+### The prediction, and its falsifier
+
+`recoveryDisposition` is `resume_execution`, not `resume_projection`. The path that rescued CR142's
+turn is **not** the one that will run.
+
+- **Prediction**: the restart does *not* bring the answer into the conversation. The conversation
+  keeps its empty assistant message, and the journal either stays `running` or is reconciled to
+  `interrupted` once the registry is rebuilt and finds no child.
+- **Falsifier**: the answer appears in the conversation after the restart, which would mean a
+  recovery path reads the Pi session file and this defect is narrower than it looks.
+
+Either outcome is worth the restart. The first says the turn is genuinely unrecoverable in-app and
+CR145 must repair the release path; the second says the content route exists and only the status
+does not.
+
 ### One operational note
 
 The journal is now at **63 of 64**. One slot remains.
