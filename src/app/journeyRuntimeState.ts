@@ -235,11 +235,22 @@ export function selectJourneyRuntime(
 ): JourneyRuntimeEntry {
   const exact = state.entries[runtimeWorkspaceKey(workspace)];
   if (exact) return exact;
-  // CR140 measured what CR138 left provisional. The fallback is reachable by a real caller:
-  // `selectJourney` (`App.tsx:4462`) asks about a Journey it has not yet resolved a thread for,
-  // passing `threadId: null`, so the exact key cannot match an entry written under a real thread.
-  // The same holds for the selected workspace before its catalog loads.
+  // CR144: a caller that knows its thread gets its own workspace's answer, and the honest answer
+  // for a thread with no entry is an empty runtime.
   //
+  // This is the line CR140 did not draw. Its fallback ran whenever the exact key missed, including
+  // when the thread was known and simply had not run yet in this session — and a conversation that
+  // has never run is exactly the one a Navigator opens to start a second turn. With one sibling
+  // live, that conversation was handed **the sibling's entry**, so `sendBlocked` read true and Send
+  // never enabled. RS024's whole outcome was unreachable from a cold list.
+  //
+  // CR140's own measured callers both pass `null`: `selectJourney` (`App.tsx:4462`) asks about a
+  // Journey whose thread is unresolved, and the selected workspace carries `null` before its
+  // catalog loads. So narrowing to those callers removes the defect and changes nothing they do.
+  //
+  // CR141 drew this same line in `selectWorkspaceNativeLease` and this function was left behind;
+  // the two now agree, which is what a shared rule is for.
+  if (workspace.threadId !== null) return createEmptyJourneyRuntime(workspace);
   // With one live entry it answers for the Journey, as it always did. With two it declines rather
   // than guessing: showing a sibling's stream on a surface that did not ask for it would be worse
   // than showing nothing, and the caller above only needs a snapshot to carry forward.

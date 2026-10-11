@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { startAgentRun } from "../agent/agentRun";
 import {
   createInitialJourneyRuntimeState,
+  isJourneyRuntimeActiveOrFinalizing,
   journeyRuntimeReducer,
   selectJourneyRuntime,
   selectJourneyRuntimeEntries,
@@ -10,6 +11,9 @@ import {
   type JourneyRuntimeState,
 } from "../app/journeyRuntimeState";
 import { journeyWorkspace, runtimeWorkspaceKey, workspaceOfAuthority } from "../app/journeyWorkspaceKey";
+import { deriveJourneyNavigationPresentation } from "../app/journeyNavigationCoordinator";
+import runtimeStateSource from "../app/journeyRuntimeState.ts?raw";
+import occupancySource from "../app/piInvocationOccupancy.ts?raw";
 import { createDedicatedJourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { createRunAuthority } from "../domain/runAuthority";
@@ -220,5 +224,92 @@ describe("CR138: the Journey remains answerable as an aggregate", () => {
     state = register(state, liveIdentity("atlas", "root", "run-atlas"));
     expect(selectJourneyRuntimeEntries(state, "mirror-desktop")).toHaveLength(2);
     expect(selectJourneyRuntimeEntries(state, "atlas")).toHaveLength(1);
+  });
+});
+
+/**
+ * CR144. RS024's Desired Outcome was unreachable from the Navigator's hands, and the field found
+ * it one run after the field had reported success.
+ *
+ * `selectJourneyRuntime` fell back to the Journey whenever its exact key missed — including when
+ * the caller knew its thread and that thread simply had not run yet in this session. A conversation
+ * that has never run is precisely the one a Navigator opens to start a second turn, so it was
+ * handed the live sibling's entry, `sendBlocked` read true, and Send never enabled.
+ *
+ * The first field run passed because its calibration turn happened to run in the same conversation
+ * the second turn used, leaving an entry under that key so the fallback never ran. The ordering was
+ * written for timing and satisfied a precondition nobody had named.
+ *
+ * None of the 1,963 tests in the suite failed when this was fixed, because the CR140 case that
+ * bounds the fallback — "keeps the exact key winning whenever the caller knows its thread" — uses
+ * two threads that both have entries. It tested the half that cannot misfire.
+ */
+describe("CR144: a conversation that has not run yet answers for itself", () => {
+  it("gives a known thread with no entry an empty runtime, not its live sibling's", () => {
+    const state = register(createInitialJourneyRuntimeState(), rootOwner);
+    const quiet = selectJourneyRuntime(state, journeyWorkspace("mirror-desktop", "thread-mirror-desktop-child"));
+
+    expect(quiet.workspace.threadId).toBe("thread-mirror-desktop-child");
+    expect(quiet.identity).toBeUndefined();
+    expect(isJourneyRuntimeActiveOrFinalizing(quiet)).toBe(false);
+    // The sibling is untouched and still addressable by its own key.
+    if (rootOwner.kind !== "live") throw new Error("fixture");
+    expect(selectJourneyRuntime(state, workspaceOfAuthority(rootOwner.authority)).identity).toEqual(rootOwner);
+  });
+
+  /**
+   * The Navigator's own report, as a test: with one turn running, selecting the other conversation
+   * must not report that conversation as busy. This is the predicate `conversationAvailability`
+   * reads as `sameConversationExecutionActive`, which is what disabled Send.
+   */
+  it("does not block Send on a sibling conversation while another runs", () => {
+    const state = register(createInitialJourneyRuntimeState(), rootOwner);
+    const presentation = deriveJourneyNavigationPresentation({
+      runtimeState: state,
+      selectedJourneyId: "mirror-desktop",
+      selectedThreadId: "thread-mirror-desktop-child",
+    });
+
+    expect(presentation.sendBlocked).toBe(false);
+    expect(presentation.selectedRuntime.workspace.threadId).toBe("thread-mirror-desktop-child");
+  });
+
+  it("still blocks Send on the conversation that is actually running", () => {
+    const state = register(createInitialJourneyRuntimeState(), rootOwner);
+    if (rootOwner.kind !== "live") throw new Error("fixture");
+    const presentation = deriveJourneyNavigationPresentation({
+      runtimeState: state,
+      selectedJourneyId: "mirror-desktop",
+      selectedThreadId: rootOwner.authority.threadId,
+    });
+
+    expect(presentation.sendBlocked).toBe(true);
+  });
+
+  /** CR140's measured callers pass `null`, and they keep exactly the answer they had. */
+  it("keeps answering for the Journey when the caller genuinely has no thread", () => {
+    const state = register(createInitialJourneyRuntimeState(), childOwner);
+    expect(selectJourneyRuntime(state, journeyWorkspace("mirror-desktop", null)).identity).toEqual(childOwner);
+  });
+
+  /**
+   * CR141 drew this line in `selectWorkspaceNativeLease` and `selectJourneyRuntime` was left
+   * behind, which is how two functions answering the same question came to disagree. The guard
+   * pins the agreement rather than the prose, so drifting apart again fails here.
+   */
+  it("keeps both workspace selectors falling back only on an unresolved thread", () => {
+    const strip = (source: string) => source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    const runtime = strip(runtimeStateSource).slice(
+      strip(runtimeStateSource).indexOf("export function selectJourneyRuntime("),
+      strip(runtimeStateSource).indexOf("export function selectJourneyRuntimeEntries"),
+    );
+    const lease = strip(occupancySource).slice(
+      strip(occupancySource).indexOf("export function selectWorkspaceNativeLease"),
+      strip(occupancySource).indexOf("export function hasActiveNativeExecutionInJourney"),
+    );
+    expect(runtime).toContain("workspace.threadId !== null");
+    expect(lease).toContain("workspace.threadId !== null");
   });
 });

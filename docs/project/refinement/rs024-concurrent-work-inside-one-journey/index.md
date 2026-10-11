@@ -61,7 +61,16 @@ RS024 is complete only when:
 - every refusal the native side can return is distinguishable on the surface, and no refusal degrades to a generic busy state when a specific reason exists;
 - **two concurrent turns in one Journey each receive their own Pi process events**, and the D1–D5 field sequence runs to completion.
 
-**Measured 2026-10-10: this horizon is REACHED.** ~~this horizon is NOT reached~~ — the earlier
+**Corrected 2026-10-10, after a second field run: ~~this horizon is REACHED~~ — the claim was**
+**true of the system and false of the Navigator's hands.** The three turns did execute
+concurrently and that evidence stands; what did not follow is that the state was reachable from a
+cold list. `selectJourneyRuntime` handed a never-run conversation its live sibling's runtime
+entry, so Send never enabled, and the first field run only passed because its calibration turn
+happened to have run in the conversation the second turn used. **CR144 fixed it**; the horizon is
+reached again on the same evidence plus a cold run, which is owed. Kept struck through rather
+than rewritten, because a claim that was wrong once is worth being able to see.
+
+**Originally measured 2026-10-10:** ~~this horizon is NOT reached~~ — the earlier
 reading stood while CR141 was open and is kept struck through rather than deleted. CR141 keyed the
 Pi event route by workspace, and the field produced the claim: `turn-journal` records for
 `mirror-desktop` on three distinct threads with intersecting `piExecution` windows — D1A × D1B for
@@ -94,4 +103,5 @@ Journey-level grain was right.
 - [CR139: Key the Native Registry by Workspace](cr139-key-the-native-registry-by-workspace.md) — gated on CR138 merged
 - [CR140: Name the Constraint That Refuses Concurrent Work](cr140-name-the-constraint-that-refuses-concurrent-work.md) — gated on CR139 merged
 - [CR141: Key the Pi Event Route by Workspace](cr141-key-the-pi-event-route-by-workspace.md) — gated on CR140 merged · **done**
-- [CR143: Say Which Conversation Is Working](cr143-say-which-conversation-is-working.md) — **planned**, reported from the field; **admitted to this Story by the Navigator on 2026-10-10**, to be delivered before the release
+- [CR143: Say Which Conversation Is Working](cr143-say-which-conversation-is-working.md) — **in_progress**, reported from the field; **admitted to this Story by the Navigator on 2026-10-10**, to be delivered before the release
+- [CR144: Stop a Running Turn from Disabling Its Sibling's Send](cr144-stop-a-running-turn-from-disabling-its-sibling-s-send.md) — **done**, found by CR143's own field run; the defect that made this Story's outcome unreachable

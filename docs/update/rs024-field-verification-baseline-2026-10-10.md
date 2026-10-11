@@ -609,11 +609,49 @@ worth provoking is part of the capture, and this one is not.
   grain.
 - **`turn_journal_full`** — captured, not retried past.
 
+## The Third Run, and the Correction It Forced (2026-10-10 23:08)
+
+CR143's mark worked. The second send did not: *"o app não me deixou mandar o D1B enquanto o D1A não
+terminou (o botão de enviar não habilitou)."* One journal record, D1A, Pi execution
+`02:08:27.965Z` → `02:08:51.468Z`, 23.5 s. D1B never started.
+
+**The second run passed by an accident of ordering written into this very document.** D0-CAL exists
+here to measure execution time, and it runs in *"New conversation"* — the conversation D1B uses. It
+left a runtime entry under that thread's key, so `selectJourneyRuntime`'s exact lookup matched and
+its Journey fallback never ran. Without that turn, a never-run conversation is handed the live
+sibling's runtime entry, `sendBlocked` reads true and Send stays disabled.
+
+Proved by throwaway probe in both directions before anything was changed:
+
+| Ordering | Runtime entries | `sendBlocked` on the sibling |
+|---|---|---|
+| Cold | `["mirror-desktop\|thread-A"]` | **`true`** |
+| Warm, after a calibration turn in the sibling | `["…thread-B", "…thread-A"]` | `false` |
+
+**What the second run proved stands.** Three turns did execute with intersecting windows; the
+registry, journal and event transport genuinely carry concurrent work. What did not follow is that
+a Navigator could reach that state, and that is what the Acceptance Horizon was written on. Fixed
+as **CR144**, and corrected at RS024's own source with the superseded claim struck through.
+
+**The lesson is about the instrument, not the system: a calibration step can satisfy a precondition
+the sequence does not name.** D0-CAL was added for timing and silently warmed the exact key the
+test depended on. A verification should be built so it does not depend on facts it cannot
+establish — and this one depended on one it did not know it had.
+
+### The sequence is amended
+
+**D0-CAL must not run in either conversation D1 uses.** Run it in a third conversation, or skip it
+now that the 18–29 s execution time is measured across three runs. A cold D1 — neither conversation
+having run in the session — is the only ordering that tests what the Story claims.
+
 ## Status
 
-**Collected.** RS024's Acceptance Horizon is reached: two concurrent turns in one Journey each
-received their own Pi process events, and the durable claim — intersecting `piExecution` windows
-on distinct threads for one `journey_id` — is in `turn-journal/mirror-desktop.json`.
+**Partially collected, and one claim withdrawn.**
 
-This closes the field evidence owed by **CR138**, **CR139**, **CR140** and **CR141**, which was
-pooled here deliberately because none of the first three could provoke it alone.
+Durable and standing: three turns in one Journey executed with intersecting `piExecution` windows
+on distinct threads, in `turn-journal/mirror-desktop.json` at 23:09–23:12. That closes the
+transport and registry evidence owed by **CR138**, **CR139**, **CR140** and **CR141**.
+
+**Owed**: a cold D1, with no calibration turn in either conversation, proving the second send is
+admitted from a list where neither conversation has run. That carries **CR144**'s field criterion
+and **CR143**'s together.
