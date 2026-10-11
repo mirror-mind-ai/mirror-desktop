@@ -63,7 +63,21 @@ the only remedy — a manual act requiring the app to be closed.
 
 Recorded as an argument for CR145's priority rather than as a solution.
 
-## Owed
+## ~~Owed~~ — Confirmed (2026-10-11 15:33)
 
-**The app accepting the edited file is not yet verified.** Parsing is validated in Python against
-the shape; the Rust parser's verdict requires a launch, which is the Navigator's act.
+The Navigator launched the Dev app and it opened normally. The durable record says more than the
+attestation does.
+
+| | |
+|---|---|
+| Dev app | pid 7143, launched `15:33:17` |
+| Journal SHA-256 | `b642c5a583a4f0406f947453117f138150820198a18d06c0b396c2cf731fbc49` — **unchanged** |
+| Size | 293,838 bytes — unchanged |
+| `mtime` | **still `15:30:16`**, the moment of the edit |
+| Records | 60; `settled` 50, `interrupted` 10 |
+
+**The file was not rewritten.** The Rust parser read the edited journal, accepted it, and had
+nothing to repair — which is a stronger result than the app merely starting. A launch that
+rewrote the file would have left a later `mtime` and a different hash.
+
+**Reclamation complete and verified. 4 free slots of 64.**
