@@ -2,8 +2,8 @@
 
 # CR145: Let a Finished Pi Release the Turn It Completed
 
-**Status:** captured
-**Driver:** —
+**Status:** planned
+**Driver:** @alissonvale
 **Delivery:** —
 
 **Found on 2026-10-11 by CR142's own field check**, which was looking for a false positive and met
@@ -113,3 +113,113 @@ ago.
 Item 2 of the First Investigation is also partly answered: the restart derived `interrupted` in
 memory without writing it, so the renderer *can* tell the turn is over once the registry is
 rebuilt empty. It has the conclusion and no way to record it.
+
+
+---
+
+## Plan (2026-10-11) — and a correction to what I recommended
+
+### The slice I recommended is refuted by the code
+
+I recommended a renderer-only first slice: narrow CR132's `!nativeExecutionActive` guard so the
+*Stop waiting* offer becomes reachable. **That does not work, and the module says so in its own
+comment** (`settlementAbandonment.ts:16`–`:22`): offering there *"would either do nothing or
+require releasing a lease while Pi may really be executing."*
+
+It is right. `hasActiveNativeExecution` and `derivePiInvocationAdmission` share one predicate,
+`isActivePiInvocationLease`. With the lease live, clearing `isFinalizingTurn` leaves `sendBlocked`
+true through `same_workspace_occupied`. The Navigator would get a different label and the same
+cage.
+
+**So the first slice is not renderer-only and is not as cheap as I said.** Recorded as a
+correction rather than quietly replaced.
+
+### First Investigation, answered against source
+
+**1. Ordering.** `fail_pi_process_before_completion` (`main.rs:7671`) establishes the house
+pattern: `terminalize_pi_process` → `emit(Error)` → `adopt_terminal_journal` → `Ok` → `emit(Done)`.
+Terminalization comes **first**. The run loop polls `child.try_wait()` (`main.rs:8058`) and
+branches on `Ok(Some(status))`. **A live lease therefore proves terminalization never ran.** Why
+it did not is still open and needs the full loop read.
+
+**2. Did the renderer receive `done`?** Strong inference, not a fact: the journal write precedes
+`emit(Done)` in the pattern above, and **no journal write happened**. If the completion path keeps
+that ordering, no `Done` was emitted, the renderer's `for await` is still open, and the `Finishing`
+on screen came from Pi's own `agent_end`. That would make this **CR142's mechanism with a different
+display** — which is the merge item 2 was told to watch for. Confirm before relying on it.
+
+**3. Narrowing CR132's guard.** Refuted above as a standalone act.
+
+**4. The Pi session file as a second source.** Available and **unnecessary**. There is a better one.
+
+### The finding that replaces the plan: the route already exists
+
+| | |
+|---|---|
+| `release_pi_invocation_lease` | Tauri command, `main.rs:5707` |
+| `releasePiInvocationLease` | renderer wrapper, `piProcessStream.ts:584` |
+| `releaseDurablePiInvocationLease` | `App.tsx:1462` — releases **and re-inspects** occupancy |
+| `child.try_wait()` | already used in the run loop, `main.rs:8058` |
+| registry | keeps `child: Option<C>`, with `child_handle()` and `running_child_handles()` |
+
+**Nothing needs to be built to release a stale lease. The renderer can already do it.** What is
+missing is not the mechanism but the *permission* — nothing offers that route here, because every
+surface defers to the lease.
+
+And the truthful gate already exists too. `try_wait` is a **measurement**: the OS either has a
+child or it does not. That is not a heuristic, not a timer, and not a guess about how long a turn
+should take.
+
+### Scope
+
+**Slice 1 — let the registry be asked whether its children are alive.**
+
+1. **Native.** Report per-entry child liveness in `inspect_pi_invocations`, derived from
+   `try_wait()` on the held handle: a new field distinguishing *handle present and still running*
+   from *handle present and exited* from *no handle*. Read-only — **this slice does not terminalize
+   anything**, so a wrong reading cannot destroy a live run.
+2. **Renderer.** Gate the existing `releaseDurablePiInvocationLease` offer on a **measured exited**
+   child, and say so in the sentence. The Navigator acts; the app does not decide for them.
+3. **Nothing else changes.** CR132's guard, `derivePiInvocationAdmission`, CR115/CR116's route and
+   the composer are all left exactly as they are — because once the lease is released they work
+   as designed.
+
+**The reason this is the right shape**: every refusal in this incident was correct given a false
+premise. The repair corrects the premise and touches no refusal.
+
+### Files
+
+- `src-tauri/src/pi_process_registry.rs` — liveness in the inspection shape
+- `src-tauri/src/main.rs` — `inspect_pi_invocations`
+- `src/app/piInvocationOccupancy.ts` — parse the new field, strictly
+- `src/app/App.tsx` — the offer and its wiring
+- the golden fixture `piInvocationTwoWorkspaceInspection.json` and the conformance test that pins
+  the two rule sets together
+
+### Acceptance
+
+1. A workspace whose child has exited is distinguishable, in the inspection, from one whose child
+   is running — **by measurement, not elapsed time**.
+2. With a measurably-exited child, the Navigator is offered the release, the sentence names the
+   conversation, and taking it re-inspects so the surfaces update without a restart.
+3. With a **running** child, nothing is offered and nothing changes. This is the half that can
+   break and it gets a test.
+4. An inspection from an older build with no liveness field is accepted and offers nothing —
+   absence is absence, never a licence to release.
+5. `src-tauri` tests stay green; the renderer parses strictly and the golden fixture is regenerated
+   by the producer.
+
+### Validation
+
+TDD on the renderer predicate, with the negative cases outnumbering the positive. A Rust test for
+the liveness read. **A field check that exists to fail**: a healthy long turn must never be offered
+a release. The journal slots freed by the reclamation make that runnable again.
+
+### Exclusions
+
+- **Not** the native repair of why terminalization never ran. That stays open, and item 2 may merge
+  it into CR142 instead.
+- **Not** the journal's immortal `running` records. CR139's `Forbidden` pruning is a separate
+  decision and reclaiming dead slots is currently a manual act.
+- **Not** CR146's stored-versus-displayed divergence.
+- **Not** any automatic release. The app measures; the Navigator decides.

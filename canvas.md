@@ -21,7 +21,7 @@
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR142 · Stop Losing a Turn the Journal Already Answered | 🟡 in_progress · entregue em arquivos · campo negativo devido | `███████░░░` |
-| ↳　CR145 · Let a Finished Pi Release the Turn It Completed | 🟡 captured · reinício traz a resposta · journal nunca sara · 3 instâncias | `░░░░░░░░░░` |
+| ↳　CR145 · Let a Finished Pi Release the Turn It Completed | 🟡 planned · medir se o filho morreu · a rota de release já existe | `██░░░░░░░░` |
 | ↳　CR146 · Stop a Recovered Turn from Being Stored Twice | 🟡 captured · o arquivo diverge da tela · tela está certa | `░░░░░░░░░░` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |
