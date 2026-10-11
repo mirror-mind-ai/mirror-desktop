@@ -13,6 +13,7 @@ import {
   inspectPiInvocations,
   livePiAgentStream,
   readJourneyPiContextStats,
+  reapExitedPiChild,
   releasePiInvocationLease,
   steerLivePiInvocation,
 } from "../agent/piProcessStream";
@@ -153,6 +154,7 @@ import {
   describeStrandedTurn,
   STRANDED_TURN_POLL_MS,
 } from "./strandedTurn";
+import { deriveDeadChildRelease, describeDeadChildRelease } from "./deadChildRelease";
 import { FocusedSidebarResizeHandle } from "./FocusedSidebarResizeHandle";
 import { loadFocusedSidebarWidth, saveFocusedSidebarWidth } from "./focusedSidebarWidthStorage";
 import { MirrorHistoryActionSurface } from "./MirrorHistoryActionSurface";
@@ -898,6 +900,8 @@ export function App({ model }: AppProps) {
   const [isJourneyReloading, setIsJourneyReloading] = useState(false);
   const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false);
   const [abandonSettlementConfirmOpen, setAbandonSettlementConfirmOpen] = useState(false);
+  const [releaseDeadChildConfirmOpen, setReleaseDeadChildConfirmOpen] = useState(false);
+  const [releasingDeadChild, setReleasingDeadChild] = useState(false);
   const [turnRecoveryBusy, setTurnRecoveryBusy] = useState(false);
   const [turnRecoveryError, setTurnRecoveryError] = useState<string>();
   const [turnRecoveryNotice, setTurnRecoveryNotice] = useState<string>();
@@ -1357,6 +1361,10 @@ export function App({ model }: AppProps) {
     now: strandedTurnTick,
   });
   const strandedTurnNotice = strandedTurn.stranded ? describeStrandedTurn(strandedTurn.record) : undefined;
+  // CR145: one measured fact — the OS says this workspace's child exited while its lease still says
+  // running. Read from the native inspection, never from elapsed time or the renderer's belief.
+  const deadChildRelease = deriveDeadChildRelease(piInvocationOccupancy, selectedWorkspace);
+  const deadChildReleaseNotice = deadChildRelease.offered ? describeDeadChildRelease() : undefined;
   const showBlockingTurnRecoveryNotice = Boolean(blockingTurnJournalRecord)
     && !isStreaming
     && (!blockingTurnAwaitingNativeLease || composerTurnStatus !== "finishing");
@@ -3990,6 +3998,29 @@ export function App({ model }: AppProps) {
     void recoverPostTerminalPersistence(journeyId);
   }
 
+  // CR145: the Navigator takes the house terminal path for a child the OS reports exited. The
+  // native side measures again under its own lock and refuses a running child, so a stale offer
+  // cannot kill anything. On success it emits the `done` the renderer has been waiting for; the
+  // registry is then re-read so every surface updates from measurement rather than belief.
+  async function releaseDeadChild() {
+    if (!deadChildRelease.offered || releasingDeadChild) return;
+    const { journeyId, runId } = deadChildRelease.entry.authority;
+    setReleaseDeadChildConfirmOpen(false);
+    setReleasingDeadChild(true);
+    try {
+      const reap = await reapExitedPiChild(journeyId, runId);
+      if (reap.status !== "reaped") {
+        console.warn(`dead child release declined for ${journeyId}/${runId}: ${reap.status}`);
+      }
+    } catch (error) {
+      console.warn(`dead child release failed for ${journeyId}/${runId}: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      await reconcilePiInvocationOccupancy();
+      await refreshTurnJournalEvidence(journeyId);
+      setReleasingDeadChild(false);
+    }
+  }
+
   function requestConversationRestart() {
     if (runtimeBusy || isJourneyReloading || turnRecoveryBusy || journeyThreadState.kind !== "ready" || blockingTurnJournalRecord || dedicatedTurnBlocksNewInvocation(dedicatedTurnState)) return;
     setJourneyMenuOpen(false);
@@ -6059,6 +6090,15 @@ export function App({ model }: AppProps) {
               <button type="button" onClick={() => setAbandonSettlementConfirmOpen(true)}>Stop waiting</button>
             </section>
           ) : null}
+          {deadChildReleaseNotice ? (
+            <section className="dedicated-turn-notice" role="alert" aria-label="This turn's process has already ended">
+              <strong>{deadChildReleaseNotice.title}</strong>
+              <p>{deadChildReleaseNotice.sentence}</p>
+              <button type="button" disabled={releasingDeadChild} onClick={() => setReleaseDeadChildConfirmOpen(true)}>
+                {deadChildReleaseNotice.action}
+              </button>
+            </section>
+          ) : null}
           {!runtimeBindingReady ? <p className="provider-error" role="status">Connect and validate a Mirror installation in Runtime Settings before starting Mirror or Pi actions.</p> : null}
           {localReferenceError ? (
             <section className="dedicated-turn-notice" role="alert">
@@ -6449,6 +6489,37 @@ export function App({ model }: AppProps) {
             <footer className="settings-footer">
               <button type="button" onClick={() => setAbandonSettlementConfirmOpen(false)}>Keep waiting</button>
               <button className="primary-button" type="button" onClick={() => void abandonSettlementWait()}>Stop waiting</button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+      {releaseDeadChildConfirmOpen && deadChildRelease.offered ? (
+        <div className="settings-backdrop" role="presentation" onClick={() => setReleaseDeadChildConfirmOpen(false)}>
+          <section
+            className="settings-window"
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Confirm releasing this turn"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="settings-header">
+              <div>
+                <p className="eyebrow">Finishing</p>
+                <h2>Release this turn?</h2>
+                <p className="settings-intro">
+                  Pi has already exited for this conversation. Releasing runs the same finish every
+                  turn runs, and then the conversation stops reading as working.
+                </p>
+              </div>
+            </header>
+            <div className="restart-assurances">
+              <p>The answer and your message stay exactly as they are.</p>
+              <p>The app checks again that the process has ended before releasing; a process still running is left alone.</p>
+              <p>Nothing running in another conversation is touched.</p>
+            </div>
+            <footer className="settings-footer">
+              <button type="button" onClick={() => setReleaseDeadChildConfirmOpen(false)}>Not now</button>
+              <button className="primary-button" type="button" onClick={() => void releaseDeadChild()}>Release this turn</button>
             </footer>
           </section>
         </div>

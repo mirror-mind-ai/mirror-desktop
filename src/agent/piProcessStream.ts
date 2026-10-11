@@ -10,6 +10,7 @@ import {
 import { stripAnsiControlSequences } from "./terminalText";
 import { samePiProcessEventAuthority, type RunAuthority } from "../domain/runAuthority";
 import type {
+  PiExitedChildReap,
   PiInvocationLeaseRelease,
   PiInvocationRegistryInspection,
 } from "../app/piInvocationOccupancy";
@@ -586,6 +587,15 @@ export async function releasePiInvocationLease(
   runId: string,
 ): Promise<PiInvocationLeaseRelease> {
   return invoke<PiInvocationLeaseRelease>("release_pi_invocation_lease", { journeyId, runId });
+}
+
+/**
+ * CR145: run the house terminal path for a child the OS reports exited but whose lease is still
+ * `running`. The native side measures again under its own lock and refuses a child that is still
+ * running; this never kills anything.
+ */
+export async function reapExitedPiChild(journeyId: string, runId: string): Promise<PiExitedChildReap> {
+  return invoke<PiExitedChildReap>("reap_exited_pi_child", { journeyId, runId });
 }
 
 export type PiSessionContextInspection = {

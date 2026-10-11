@@ -19,12 +19,29 @@ export interface PiInvocationAuthorityInspection {
   harnessAssistantMessageId: string;
 }
 
+/**
+ * CR145: what the operating system says about the child a lease holds, as distinct from what the
+ * registry believes. `exited` is the only value that licenses anything; `unknown` and `absent`
+ * license nothing, and so does the field being missing altogether (an older native build).
+ */
+export type PiChildLiveness = "running" | "exited" | "absent" | "unknown";
+
 export interface PiInvocationLeaseInspection {
   authority: PiInvocationAuthorityInspection;
   leasePhase: "reserved" | "running" | "finalizing";
   processCapacityState: "reserved" | "running" | "released";
   cancellationState: "none" | "requested";
   terminalState: "open" | "completed" | "cancelled" | "spawn_failed" | "process_died";
+  /** Absent from inspections produced before CR145. Absence is absence, never a licence. */
+  childLiveness?: PiChildLiveness;
+}
+
+/** CR145: the result of `reap_exited_pi_child`. */
+export interface PiExitedChildReap {
+  journeyId: string;
+  runId: string;
+  status: "reaped" | "child_still_running" | "already_terminal";
+  exitStatus: string | null;
 }
 
 export interface PiInvocationRegistryInspection {
@@ -132,6 +149,10 @@ const ENTRY_KEYS = [
   "cancellationState",
   "terminalState",
 ] as const;
+// CR145: an inspection from a native build that measures carries one more key. Both shapes are
+// exact in their own right; what is never accepted is a partial or an extra key beyond this one.
+const ENTRY_KEYS_MEASURED = [...ENTRY_KEYS, "childLiveness"] as const;
+const CHILD_LIVENESS_VALUES: readonly PiChildLiveness[] = ["running", "exited", "absent", "unknown"];
 const INSPECTION_KEYS = [
   "schemaVersion",
   "limit",
@@ -179,7 +200,12 @@ function validAuthority(value: unknown): value is PiInvocationAuthorityInspectio
 }
 
 function validEntry(value: unknown): value is PiInvocationLeaseInspection {
-  if (!isRecord(value) || !hasExactKeys(value, ENTRY_KEYS) || !validAuthority(value.authority)) return false;
+  if (!isRecord(value) || !validAuthority(value.authority)) return false;
+  if (hasExactKeys(value, ENTRY_KEYS_MEASURED)) {
+    if (!(CHILD_LIVENESS_VALUES as unknown[]).includes(value.childLiveness)) return false;
+  } else if (!hasExactKeys(value, ENTRY_KEYS)) {
+    return false;
+  }
   const leasePhase = value.leasePhase;
   const processState = value.processCapacityState;
   const cancellation = value.cancellationState;

@@ -21,7 +21,7 @@ use pi_global_extensions::resolve_global_pi_extensions;
 use pi_process_registry::{
     control_bounded_child_handles, control_child_handle, join_before_continuation,
     reserve_then_start, AttachOutcome,
-    CancelOutcome, ChildControlError, PiInvocationRegistryInspection, PiProcessRegistry,
+    CancelOutcome, ChildControlError, ChildLiveness, PiInvocationRegistryInspection, PiProcessRegistry,
     RegistryAuthority, RegistryAuthorityInspection, ReleaseOutcome, ReserveError,
     ReserveThenStartError, RunTarget, TargetError, TerminalState, TerminalizeOutcome,
 };
@@ -5724,11 +5724,118 @@ fn release_pi_invocation_lease(
     })
 }
 
+/// CR145: what the OS says about a held child, measured without waiting. `try_lock` because the
+/// caller holds the registry lock and a measurement must never block behind the run loop;
+/// `try_wait` because `std::process::Child` caches the exit status, so reading it here does not
+/// steal it from the loop's own `try_wait`. Anything short of an answer is `Unknown`, never a guess.
+fn measure_child_liveness(handle: &PiChildHandle) -> ChildLiveness {
+    let Ok(mut process) = handle.try_lock() else {
+        return ChildLiveness::Unknown;
+    };
+    match process.child.try_wait() {
+        Ok(Some(_)) => ChildLiveness::Exited,
+        Ok(None) => ChildLiveness::Running,
+        Err(_) => ChildLiveness::Unknown,
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PiExitedChildReap {
+    journey_id: String,
+    run_id: String,
+    /// `reaped` | `child_still_running` | `already_terminal`
+    status: String,
+    exit_status: Option<String>,
+}
+
+/// CR145: run the house terminal path for a child the OS reports exited but whose lease is still
+/// `running` — the shape the 2026-10-11 incident left for 45 minutes. The measurement and the
+/// terminalization happen under one registry lock, so a lease cannot become live between them;
+/// a child that is still running is refused, not killed. After the lock the sequence is exactly
+/// the one every normal exit takes: explain, adopt the journal, emit `Done` — which is the event
+/// the renderer has been waiting for all along.
+#[tauri::command]
+fn reap_exited_pi_child(
+    app: AppHandle,
+    state: State<'_, PiProcessState>,
+    journey_id: String,
+    run_id: String,
+) -> Result<PiExitedChildReap, String> {
+    let target = RunTarget::new(journey_id, run_id);
+    let refused = |status: &str| PiExitedChildReap {
+        journey_id: target.journey_id.clone(),
+        run_id: target.run_id.clone(),
+        status: status.to_string(),
+        exit_status: None,
+    };
+    let (authority, exit_status) = {
+        let mut registry = state.registry.lock()
+            .map_err(|_| "Could not access the Pi process registry.".to_string())?;
+        let authority = registry.inspect().entries.into_iter()
+            .find(|entry| entry.authority.journey_id == target.journey_id && entry.authority.run_id == target.run_id)
+            .map(|entry| PiProcessEventAuthority {
+                schema_version: entry.authority.schema_version,
+                journey_id: entry.authority.journey_id,
+                run_id: entry.authority.run_id,
+                turn_id: entry.authority.turn_id,
+                thread_id: entry.authority.thread_id,
+                generation: entry.authority.generation,
+                pi_session_id: entry.authority.pi_session_id,
+                mirror_conversation_id: entry.authority.mirror_conversation_id,
+                harness_user_message_id: entry.authority.harness_user_message_id,
+                harness_assistant_message_id: entry.authority.harness_assistant_message_id,
+            })
+            .ok_or_else(|| "The targeted Pi invocation does not exist or was replaced.".to_string())?;
+        let child_handle = match registry.child_handle(&target) {
+            Ok(handle) => handle,
+            Err(TargetError::NotRunning) => return Ok(refused("already_terminal")),
+            Err(error) => return Err(target_error_message(error)),
+        };
+        let status = {
+            let Ok(mut process) = child_handle.try_lock() else {
+                return Err("Could not access the targeted Pi child process.".to_string());
+            };
+            match process.child.try_wait() {
+                Ok(Some(status)) => status,
+                Ok(None) => return Ok(refused("child_still_running")),
+                Err(error) => return Err(format!("Could not measure the Pi child process: {}", error)),
+            }
+        };
+        if registry.terminalize(&target, TerminalState::ProcessDied) != TerminalizeOutcome::First {
+            return Ok(refused("already_terminal"));
+        }
+        (authority, status.to_string())
+    };
+    emit(
+        &app,
+        &authority,
+        PiProcessEventKind::Error,
+        format!("Pi command exited with status {} and its lease was never released; reaped at the Navigator's request.", exit_status),
+    );
+    match adopt_terminal_journal(&app, &authority, TerminalState::ProcessDied, empty_terminal_evidence()) {
+        Ok(()) => emit(&app, &authority, PiProcessEventKind::Done, "Pi invocation finished.".to_string()),
+        Err(error) => emit(
+            &app,
+            &authority,
+            PiProcessEventKind::Error,
+            format!("Terminal turn evidence was not durable; native lease retained: {}", error),
+        ),
+    }
+    Ok(PiExitedChildReap {
+        journey_id: target.journey_id,
+        run_id: target.run_id,
+        status: "reaped".to_string(),
+        exit_status: Some(exit_status),
+    })
+}
+
 #[tauri::command]
 fn inspect_pi_invocations(state: State<'_, PiProcessState>) -> Result<PiInvocationRegistryInspection, String> {
     Ok(state.registry.lock()
         .map_err(|_| "Could not inspect the Pi process registry.".to_string())?
-        .inspect())
+        // CR145: the one caller that measures. Every other `.inspect()` only reads phases.
+        .inspect_measured(measure_child_liveness))
 }
 
 fn shutdown_pi_invocations(state: &PiProcessState) {
@@ -9931,6 +10038,7 @@ fn main() {
             steer_pi_invocation,
             cancel_pi_invocation,
             release_pi_invocation_lease,
+            reap_exited_pi_child,
             inspect_pi_invocations,
             confirm_desktop_quit,
             cancel_desktop_quit,

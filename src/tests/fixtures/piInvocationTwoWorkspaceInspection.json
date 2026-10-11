@@ -15,6 +15,7 @@
           "turnId": "turn-run-ariad"
         },
         "cancellationState": "none",
+        "childLiveness": "absent",
         "leasePhase": "reserved",
         "processCapacityState": "reserved",
         "terminalState": "open"
@@ -33,6 +34,7 @@
           "turnId": "turn-run-conversation"
         },
         "cancellationState": "none",
+        "childLiveness": "unknown",
         "leasePhase": "running",
         "processCapacityState": "running",
         "terminalState": "open"
@@ -51,6 +53,7 @@
           "turnId": "turn-run-root"
         },
         "cancellationState": "none",
+        "childLiveness": "unknown",
         "leasePhase": "running",
         "processCapacityState": "running",
         "terminalState": "open"

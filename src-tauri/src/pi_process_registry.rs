@@ -188,6 +188,25 @@ pub fn join_before_continuation<J>(
     continuation();
 }
 
+/// CR145: what the operating system says about the child a lease holds, as distinct from what
+/// the registry believes. The incident of 2026-10-11 held a `running` lease for 45 minutes after
+/// its child had exited, because the terminal path never ran; every surface deferred to the lease
+/// and the Navigator's only exit was a restart. The registry cannot measure this itself — it is
+/// generic over the child type — so the caller supplies the measurement through
+/// `inspect_measured`, and an unmeasured inspection says `Unknown` rather than guessing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChildLiveness {
+    /// The handle is held and the OS reports the process has not exited.
+    Running,
+    /// The handle is held and the OS reports the process has exited.
+    Exited,
+    /// No handle: reserved and not yet spawned, or already terminalized.
+    Absent,
+    /// A handle is held but was not or could not be measured. Never a licence to act.
+    Unknown,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PiInvocationLeaseInspection {
@@ -196,6 +215,7 @@ pub struct PiInvocationLeaseInspection {
     pub process_capacity_state: ProcessCapacityState,
     pub cancellation_state: CancellationState,
     pub terminal_state: TerminalState,
+    pub child_liveness: ChildLiveness,
 }
 
 impl PiInvocationLeaseInspection {
@@ -535,7 +555,19 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
         children
     }
 
+    /// Unmeasured: every held handle reports `Unknown`. Callers that only read phases keep using
+    /// this; only the Tauri inspection command measures, through `inspect_measured`.
     pub fn inspect(&self) -> PiInvocationRegistryInspection {
+        self.inspect_measured(|_| ChildLiveness::Unknown)
+    }
+
+    /// CR145: `measure` is applied to each held handle; entries without one report `Absent`. The
+    /// closure runs under the registry lock, so it must not block — the production measurement
+    /// uses `try_lock` and `try_wait` for that reason.
+    pub fn inspect_measured(
+        &self,
+        measure: impl Fn(&C) -> ChildLiveness,
+    ) -> PiInvocationRegistryInspection {
         let mut entries = self
             .entries
             .values()
@@ -545,6 +577,7 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
                 process_capacity_state: entry.process_capacity_state,
                 cancellation_state: entry.cancellation_state,
                 terminal_state: entry.terminal_state,
+                child_liveness: entry.child.as_ref().map(&measure).unwrap_or(ChildLiveness::Absent),
             })
             .collect::<Vec<_>>();
         // CR139: siblings must come out in a stable order, or the renderer's entry sequence would
@@ -1814,6 +1847,47 @@ mod tests {
             "the committed CR139 inspection fixture is stale: the registry's output changed. \
              Regenerate with CR139_WRITE_FIXTURE=1 and let the TypeScript conformance test \
              re-check the validator against it.",
+        );
+    }
+
+    // CR145: the registry cannot know whether a child is alive, so it must not pretend to. An
+    // unmeasured inspection says Unknown for every held handle and Absent for none — never Running,
+    // never Exited. The measured form reports exactly what the closure measured, per handle.
+    #[test]
+    fn inspection_reports_child_liveness_only_as_measured_and_never_guesses() {
+        let mut registry = PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::production();
+        let spawned = registry.reserve(authority("mirror-desktop", "run-spawned"), provider()).unwrap();
+        let reserved_only = registry.reserve(authority("ariad", "run-reserved"), provider()).unwrap();
+        registry.attach_child(&spawned, FakeChild::default()).unwrap();
+        let _ = reserved_only;
+
+        let liveness = |inspection: &PiInvocationRegistryInspection, run: &str| {
+            inspection.entries.iter()
+                .find(|entry| entry.authority.run_id == run)
+                .map(|entry| entry.child_liveness)
+                .expect("entry present")
+        };
+
+        let unmeasured = registry.inspect();
+        assert_eq!(liveness(&unmeasured, "run-spawned"), ChildLiveness::Unknown);
+        assert_eq!(liveness(&unmeasured, "run-reserved"), ChildLiveness::Absent);
+
+        let measured_dead = registry.inspect_measured(|_| ChildLiveness::Exited);
+        assert_eq!(liveness(&measured_dead, "run-spawned"), ChildLiveness::Exited);
+        // No handle, nothing to measure: the closure is not consulted and Absent stands.
+        assert_eq!(liveness(&measured_dead, "run-reserved"), ChildLiveness::Absent);
+
+        let measured_alive = registry.inspect_measured(|_| ChildLiveness::Running);
+        assert_eq!(liveness(&measured_alive, "run-spawned"), ChildLiveness::Running);
+
+        // Terminalization drops the handle, so a finished lease reports Absent even when measured.
+        assert_eq!(registry.terminalize(&spawned, TerminalState::Completed), TerminalizeOutcome::First);
+        let after = registry.inspect_measured(|_| ChildLiveness::Running);
+        assert_eq!(liveness(&after, "run-spawned"), ChildLiveness::Absent);
+        assert_eq!(
+            serde_json::to_value(ChildLiveness::Exited).unwrap(),
+            serde_json::json!("exited"),
+            "the renderer parses this spelling strictly",
         );
     }
 
