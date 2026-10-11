@@ -219,7 +219,7 @@ a release. The journal slots freed by the reclamation make that runnable again.
 
 - **Not** the native repair of why terminalization never ran. That stays open, and item 2 may merge
   it into CR142 instead.
-- **Not** the journal's immortal `running` records. CR139's `Forbidden` pruning is a separate
+- **Not** the journal's immortal `running` records. Three were reclaimed manually on 2026-10-11 with the app closed — see [the reclamation record](../../../update/dev-journal-slot-reclamation-2026-10-11.md) — which restored field capacity to 4 of 64 and is **not** a repair: until this CR ships, every recurrence consumes another slot permanently. CR139's `Forbidden` pruning is a separate
   decision and reclaiming dead slots is currently a manual act.
 - **Not** CR146's stored-versus-displayed divergence.
 - **Not** any automatic release. The app measures; the Navigator decides.
