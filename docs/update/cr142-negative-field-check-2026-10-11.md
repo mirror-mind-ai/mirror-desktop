@@ -74,16 +74,21 @@ here because the state was preserved rather than restarted past.
 | Renderer | **stuck in `finishing`**, reported by the Navigator |
 | Elapsed with nothing written | 8 minutes at the time of reading |
 
-### Pi produced thinking and no answer
+### ~~Pi produced thinking and no answer~~ — WRONG, corrected 2026-10-11
 
-The session file's three `message` entries end with an assistant message at `12:45:32.381Z` whose
-only content is **thinking** — *"Planning precise 1200-statement generation"*, *"Designing exact
-first-line tag plus 1200 unique assertions"*. There is no assistant text at all. The 145 KB is
-almost entirely the encrypted reasoning signature.
+**This section was false and the error was mine.** I printed the first 700 characters of the last
+JSON line, saw a `thinking` element, and concluded there was no answer. `message.content` is an
+**array**: element 0 is the thinking block with its 6,690-byte encrypted signature, and element 1
+is `type: "text"` with **65,474 characters** — the complete answer, beginning `RS024-CR142-LONG\n1.`
+and ending `1200. Uma boa decisão de projeto torna a ação correta mais clara.` The message carries
+`stopReason: "stop"` and a full usage record.
 
-So the model planned a 1200-item answer and the process ended before producing one. **The answer
-does not exist**, which separates this sharply from CR142, where the answer was complete and
-durable the whole time.
+**Pi completed cleanly and produced everything that was asked.** The superseded text is kept
+struck through above rather than deleted, because the conclusion it supported — that this was a
+different defect from CR142 — was reached partly on a false premise.
+
+Suspect the instrument before reporting a result. A truncated read of a structured field is not a
+reading of the field.
 
 ### What the renderer did manage
 
@@ -91,6 +96,36 @@ The dedicated conversation holds **two messages**: the prompt, and an **empty** 
 The composer draft was cleared at `12:44:00.131Z`. Both are what `saveAdmittedTurnProjection` and
 `persistOwnerComposerDraft("", true)` do on `run_status: working`, so the renderer got that far and
 no further.
+
+### What the screen established that the disk could not
+
+The Navigator's screenshot answers the question the disk left open, and it does so through a
+surface built three CRs ago.
+
+**The full answer is on screen** — items 1188 to 1200 are visible, the transcript is complete.
+**The Journey header reads `FINISHING`** and the composer reads `Finishing …`. And **the
+conversation's CR143 mark reads `WORKING`**.
+
+That last one is a measurement, not a decoration. `deriveConversationWork` maps
+`isActivePiInvocationLease(entry)` to `working` and everything else to `finishing`. The mark
+therefore says the native registry still holds a **live, non-terminalized lease** for this
+workspace — for a child process that exited forty-five minutes ago.
+
+From which the prediction below follows as established rather than guessed:
+`hasActiveNativeExecution` is true, so `settlementAbandonmentOffer` declines with
+`native_execution_active`. **That is why no *Stop waiting* appeared.** CR132's escape hatch is
+disabled by exactly the failure it exists to rescue, and the proof came from CR143's mark.
+
+Two surfaces disagree on this screen — the conversation says `WORKING`, the Journey says
+`FINISHING` — and the disagreement is the evidence.
+
+### A question of mine that could not have informed anything
+
+I asked whether Send was enabled in another conversation, expecting it to distinguish *registry
+still holds the lease* from *registry released it*. **It cannot.** CR139 gave each Journey a share
+of three, so one held lease leaves two free and Send is enabled either way. The answer was
+`enabled`, and it means nothing. Recorded because a question that cannot discriminate is worse
+than no question: it invites a conclusion.
 
 ### The sharpest part, stated as a reading and not as a conclusion
 
@@ -121,6 +156,33 @@ CR142's predicate correctly returns `journal_agrees` and correctly says nothing.
 
 The state is preserved. A restart would destroy the native registry and with it the only remaining
 way to establish whether the lease is still held.
+
+### What this costs CR142, said plainly
+
+**CR142's repair does not cover this case, and the check meant to validate it is what revealed
+that.**
+
+CR142 appeals to the turn journal as the durable truth: the renderer believes one thing, the
+journal knows better, so ask the journal. Here **the journal is wrong too** — it says `running`
+for a process that exited cleanly — so `deriveStrandedTurn` correctly returns `journal_agrees` and
+correctly stays silent. The predicate is right and the oracle it consults is not.
+
+What does know: the Pi session file, which carries `stopReason: "stop"`, and the absence of any
+child process. Neither is something the renderer reads today.
+
+So CR142 remains correct for the case it was built for and is **blind to this one**. That is a
+limitation of work shipped yesterday, found by its own validation, and it is recorded here rather
+than discovered later.
+
+### The answer is safe on disk, but not where the conversation keeps it
+
+The dedicated conversation holds the prompt and an **empty** assistant message: the renderer has
+not committed the turn, because it never left finalizing. The 65,474 characters live in the Pi
+session file and in the renderer's memory.
+
+**A restart would lose the on-screen copy and keep the Pi one.** Whether the app can project it
+back is unestablished: the journal's `recoveryDisposition` is **`resume_execution`**, not
+`resume_projection`, so the recovery that rescued CR142's turn is not the one that would run here.
 
 ### One operational note
 
