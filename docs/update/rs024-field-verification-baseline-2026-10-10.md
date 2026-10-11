@@ -644,6 +644,56 @@ establish — and this one depended on one it did not know it had.
 now that the 18–29 s execution time is measured across three runs. A cold D1 — neither conversation
 having run in the session — is the only ordering that tests what the Story claims.
 
+## Fourth Attempt — the Cold Run (2026-10-10 23:24)
+
+### Instrument
+
+| | |
+|---|---|
+| Dev binary now installed | **`b9578018ee45b720d55c617f5771b037b57c34ba5be57062b895ea151c1e8f34`** |
+| Replaced | `55a6e958b9a35e68…` (CR143) |
+| Backup, hash-verified **before** the original was removed | `/tmp/mirror-desktop-dev-backup-20261010-232447.app` |
+| Production | **untouched**, `e8eda1258071f969…`, running (pid 45016) |
+
+### Baseline
+
+Journal **59 of 64** — 47 `settled`, 10 `interrupted`, 2 `running` (the September orphans).
+`settlement-timings` 15. Three conversations, `rootThreadId` still `null`, nothing hidden.
+**Five journal slots remain**; a cold D1 costs two.
+
+### The run is cold by construction, and that is the point
+
+The runtime state lives in memory and is built fresh by `createInitialJourneyRuntimeState()` on
+every launch. The app has just been replaced, so the next launch starts with **no runtime entries
+at all**. If D1A is the session's first turn, D1B's conversation has no entry of its own — which
+is exactly the state that disabled Send, and exactly the state CR144 fixes.
+
+**So D0-CAL is dropped, not moved.** It was in the sequence to measure execution time, and that is
+now measured three times (18.4 s, 23.5 s, and 29.5 s), so it buys nothing and costs the very
+precondition this run exists to avoid. Running it in a third conversation would also work; dropping
+it is simpler and leaves two journal slots spare.
+
+This is the amendment the previous run forced, applied rather than noted.
+
+### What this run decides
+
+| | Check | Belongs to |
+|---|---|---|
+| **1** | **D1B's Send enables while D1A runs** — no calibration turn anywhere in the session | **CR144**, and RS024's Desired Outcome from the Navigator's hands |
+| **2** | Both conversations marked **Working** in the list at once | **CR143** |
+| **3** | Each mark clears as its turn ends | CR143 |
+| **4** | Hide the running sibling → closed `N hidden` toggle reads `· 1 working` | CR143 |
+| **5** | Two journal records, distinct `threadId`, intersecting `piExecution` windows | The durable premise under 1 and 2 |
+
+Check 1 is the one that was false yesterday and is the reason this run exists. Checks 2–4 close on
+attestation, as stated before the third attempt; check 5 is durable and is read from disk.
+
+### Limits, unchanged and restated
+
+No developer console in a release build, so the dispatcher's quarantine stays unreadable. A
+refusal writes nothing, so any refusal sentence has no durable artifact. And `turn_journal_full`,
+if it appears with five slots left, is captured as evidence rather than retried past.
+
 ## Status
 
 **Partially collected, and one claim withdrawn.**
