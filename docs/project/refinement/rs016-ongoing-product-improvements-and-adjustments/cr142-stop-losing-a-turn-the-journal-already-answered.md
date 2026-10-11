@@ -2,7 +2,7 @@
 
 # CR142: Stop Losing a Turn the Journal Already Answered
 
-**Status:** captured
+**Status:** planned
 **Driver:** —
 **Delivery:** —
 
@@ -198,6 +198,158 @@ in which a completed answer was durable and invisible, and the surface pointed a
 title is kept so the record of what was feared remains legible; the Outcome and Acceptance below
 are the ones that still apply, and the first Acceptance line — naming the mechanism before any
 change — is now harder and still required.
+
+## Investigation Findings and Plan (2026-10-11)
+
+All five items answered. **One is refuted**, one is unanswerable and says so, and the finding that
+replaces them is stronger than any of them: *everything that would notice is triggered by the very
+event that went missing.*
+
+### Item 1 — the mechanism of the loss is not establishable, and the code says why
+
+The renderer's own path is sound, which removes it from the candidate list. `case "done"` returns
+a constant (`piProcessStream.ts:149`) and cannot throw; `queue.push` resolves a promise and cannot
+throw; `close()` runs immediately after the push that precedes it. **A `done` that reaches the
+handler always closes the queue.**
+
+So the loss happened before the handler, and only two paths remain:
+
+- `deliver` rejected it as `unknown_route` or `authority_mismatch`, recording the reason in an
+  **in-memory** quarantine that a release build offers no way to read;
+- the native `emit` never arrived. `main.rs:8229` is `let _ = app.emit(...)` — fire and forget,
+  with no acknowledgement and no trace on either side.
+
+**Both candidates are silent by construction.** The mechanism is therefore not establishable from
+this incident or from the code, and chasing it further would be chasing something neither the
+record nor the source can reach.
+
+### Item 5 — REFUTED
+
+The CR121 debt *"`emit` can carry a synchronous subscriber's throw into settlement"* was carried
+here as a plausible cause. It is not one. `deliver` does wrap the handler in `try`/`finally` with
+**no `catch`**, so a throw does escape — but for the `done` event there is nothing that can throw,
+per item 1. Removed from this CR's candidates and recorded as refuted rather than left to be
+re-suggested later.
+
+### Items 2 and 3
+
+Item 2 was answered by the restart experiment: recovery works, the content was never at risk.
+
+Item 3 is answered in principle rather than by reproduction. The suppression below is independent
+of *why* the `done` was lost and of whether a sibling was involved, so a single workspace reaches
+it the moment any `done` goes missing. No reproduction was produced, and none is needed for the
+repair, because the repair does not depend on the cause.
+
+Item 4 is dead: the quarantine died with the process and is unreadable in a release build anyway.
+
+### The finding — four surfaces, one false belief, and no way to challenge it
+
+Measured by probe against the real predicates, not read:
+
+| Predicate | In the stuck state | Why it is silent |
+|---|---|---|
+| `isTurnJournalSuccessorEligible(terminal_durable)` | **false** | so the record *is* eligible to be found as blocking |
+| `findBlockingTurnJournalRecord(…, activeNativeRunId)` | **found** | when a native run is active |
+| `findBlockingTurnJournalRecord(…, undefined)` | **not found** | and a finished turn has no *active* lease, so this is the case that applies |
+| `showBlockingTurnRecoveryNotice` | suppressed | requires `!isStreaming`, and the turn is streaming forever |
+| `retainedLeaseWithoutRecovery` | suppressed | requires `!selectedRuntimeBusy`, likewise |
+| `settlementAbandonmentOffer` (CR132) | `not_finishing` | requires `ownerPhase === "finalizing"`; the renderer never leaves `running` |
+
+**And none of them is ever re-evaluated.** `reconcilePiInvocationOccupancy` has exactly four
+callers: once on mount, inside the **rehydrate handler on `done`**, and twice inside the send and
+settlement paths. The journal-reloading effect (`App.tsx:1992`) depends on
+`selectedNativeLease?.leasePhase` and `?.terminalState`, which only change when occupancy is
+reconciled.
+
+So in the stuck state the renderer's view of the world is **frozen**, and every path that could
+unfreeze it is downstream of the event that was lost. That is not a silent surface; it is a system
+that has stopped looking. It matches the field measurement exactly — no file written in the final
+forty minutes, nothing retrying.
+
+### What this makes the repair
+
+Not finding the lost event. **Giving the renderer a way to ask a question it currently cannot ask.**
+
+The journal is durable and already correct. The disagreement is unambiguous and needs no judgement:
+the journal says `terminal_durable` while the renderer says streaming. A genuinely long turn reads
+`running`, not `terminal_durable`, so there is no honest case where both are true at once.
+
+## Scope
+
+- **New `src/app/strandedTurn.ts`** — a pure predicate, preferred over editing a widely-depended-on
+  module for the seventh time in this programme:
+  `deriveStrandedTurn({ journalRecords, threadId, generation, runId, believedStreaming })` →
+  `{ stranded: true, record } | { stranded: false, reason }`, with `reason` total by `switch` so a
+  future state cannot fall through silently. `stranded` requires **all** of: the renderer believes
+  the turn is streaming; a journal record for this thread, generation and run whose phase is
+  terminal with a `completed` outcome; and no successor record.
+- **`App.tsx`** — a bounded re-read of the journal **only while a turn is believed to be
+  streaming**, a notice, and an action. Four wiring points, no change to the send path.
+- **The action reuses what exists**: `recoverPostTerminalPersistence(journeyId)`, already the
+  handler behind two existing buttons and the automatic path a restart takes. It additionally
+  clears the composer draft for that workspace, because the recovery currently leaves the answered
+  prompt sitting there one Send away from being asked twice — the third defect in this CR's record.
+- **No change** to the dispatcher, the transport, admission, the registry or CR132's offer.
+
+## Tests
+
+- `deriveStrandedTurn`: stranded when the journal is terminal and the renderer streams; **not**
+  stranded when the journal says `running` (the long-turn case, which is the false positive that
+  matters); not stranded when the renderer is idle (the CR115 case); not stranded when a successor
+  record exists; a sibling workspace's terminal record never strands this one.
+- A guard that the re-read cannot run while no turn is believed streaming, asserted against `App.tsx`
+  source, because that condition is the whole reason CR115's loop stays closed.
+- A component test that the notice names what is waiting and offers the recovery, and that it does
+  not appear in any of the negative cases above.
+- A regression test that the existing `showBlockingTurnRecoveryNotice` and CR132's offer are
+  unchanged — this CR adds a surface, it does not widen theirs.
+
+## Validation
+
+`tsc` 0; `vitest` green; `cargo test` 285 unchanged with **0 native diff lines**; both builds;
+`roadmap:check` READY.
+
+**Field: this is not provocable on demand.** The trigger is a lost `done`, which has happened once
+in the record and has no known cause. What *is* provocable is the negative: a long turn must never
+raise the notice. That is worth running deliberately — a four-minute prompt, confirming the surface
+stays quiet — because a false positive here would be worse than the defect, telling the Navigator a
+running turn is stranded.
+
+## Exclusions
+
+**The cause is not pursued.** Both remaining candidates are silent by construction, and the repair
+does not depend on which one it was.
+
+**The quarantine is not made durable.** A release build with no console cannot report an in-memory
+diagnostic, and that gap is real — but it is a diagnostics CR, not this one, and it is already
+noted alongside the console gap.
+
+**CR129 is untouched.** A settlement that succeeds through recovery still writes no timing record.
+
+**No automatic settlement.** See decision 3.
+
+## Three decisions written so they can be overruled rather than discovered
+
+1. **A bounded re-read of the journal, gated on a turn being believed streaming.** That gate is
+   what keeps CR115's idle loop closed: an idle Journey has no streaming turn, so the read cannot
+   fire. The interval is a number this plan does not yet fix; it should be large enough to cost
+   nothing and small enough that the Navigator does not sit in front of a lie.
+2. **No time threshold for the judgement**, unlike CR132. CR132 needed one because *waiting too
+   long* is an opinion. Here the journal gives a definite answer, so the only question is when to
+   ask it — and a threshold would add a delay without adding certainty.
+3. **An affordance, not automatic recovery.** `recoverPostTerminalPersistence` is already a button
+   in two places; this adds a third in the one state where the Navigator currently has none. Doing
+   it automatically would be the braver heuristic this programme has repeatedly declined.
+
+## A recommendation about this CR's own Acceptance
+
+This CR's first Acceptance line requires naming the mechanism before any change. **That line cannot
+be satisfied** — item 1 establishes that both remaining candidates are silent by construction.
+Keeping it would block a repair that does not need it.
+
+The recommendation is to replace it with: *the mechanism of the loss is recorded as unestablished,
+with its two candidates named, and the repair is required not to depend on which one it was.*
+**Changing a CR's own acceptance is a Workbench decision**, so it is recommended here and not made.
 
 ## Acceptance
 
