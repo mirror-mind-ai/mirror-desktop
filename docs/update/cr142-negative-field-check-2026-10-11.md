@@ -216,6 +216,61 @@ Either outcome is worth the restart. The first says the turn is genuinely unreco
 CR145 must repair the release path; the second says the content route exists and only the status
 does not.
 
+### Restart Outcome (2026-10-11 11:08 local) — the prediction was REFUTED
+
+The Dev app was closed and relaunched at `11:08:13`. **The answer came back.** The prediction
+written beforehand said it would not, and the falsifier named exactly this. It is recorded as a
+refutation rather than quietly adjusted.
+
+**What the restart fixed.** The dedicated conversation gained the full 65,474-character answer at
+`11:08:25`, twelve seconds after launch — projected from the Pi session file without re-running
+anything, since the journal did not gain a record. The Journey header moved off `FINISHING`.
+
+**So the content route exists.** CR145 is much narrower than it looked: the Desktop can already
+recover the text of a turn whose process vanished. What it cannot do is *release the turn while
+running*. That reduces the defect from "the answer is unrecoverable" to "the only way out is a
+restart, and the durable record never heals."
+
+### Three things the restart did not fix
+
+**1. The journal record is still `running`, and always will be.** Phase `running`, revision 2,
+`updatedAt 12:43:58.223Z`, `terminalEvidence: null`. The file's mtime is **unchanged at
+09:43:58** — the restart wrote nothing to it. The `interrupted` the Navigator sees is derived in
+memory at mount; **nothing durable was corrected.**
+
+And this is not the first time. The journal holds **three** `running` records:
+
+| Created | Thread | |
+|---|---|---|
+| `2026-09-18T18:10:32` | `…18d5cf4842b669b0` | 23 days old |
+| `2026-09-18T18:42:30` | `…18d5cf4842b669b0` | 23 days old, same conversation, 32 minutes later |
+| `2026-10-11T12:43:58` | `…18dd7a36acc7f288` | today |
+
+**This defect has happened at least three times and has never once healed.** Each instance holds
+one of 64 slots permanently. Three are already gone, and `cleanup_stale_terminal_handoffs` has had
+23 days of launches to reclaim the first two and has not.
+
+**2. The recovery duplicated the turn.** The conversation now holds **four** messages:
+
+| # | Role | Size |
+|---|---|---|
+| 1 | user | 353 chars — the prompt |
+| 2 | assistant | **0 chars — the empty placeholder, still there** |
+| 3 | user | 353 chars — **the same prompt again** |
+| 4 | assistant | 65,474 chars — the answer |
+
+Recovery appended a fresh user/assistant pair from the Pi session instead of completing the
+placeholder that was waiting for it. The transcript durably reads: ask, silence, ask the same
+thing again, answer. Captured as **CR146**.
+
+**3. No settlement timing was recorded.** `settlement-timings` is still 18 records with mtime
+`23:29:22`. This is **CR129's second measured instance** — a recovered settlement leaves no trace
+in the ledger — and it strengthens what CR129 already says: the ledger systematically undercounts
+exactly the settlements that needed recovery.
+
+Also unchanged and stale: the catalog still reports **`messageCount: 0`** for a thread that now
+holds four messages, and the segment file is 364 bytes from `09:43:26`.
+
 ### One operational note
 
 The journal is now at **63 of 64**. One slot remains.

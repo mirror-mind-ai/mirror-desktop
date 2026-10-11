@@ -90,3 +90,26 @@ it does not, something the Navigator can reach still does.
 No change to admission, the share, the event route or CR143's marks. CR142's repair stays as
 shipped: it is correct for its case, and widening it to a case where the journal itself is wrong
 is a different decision, which item 2 may settle by merging these instead.
+
+## Narrowed by the restart experiment (2026-10-11)
+
+The restart **refuted** the prediction that the answer was unrecoverable. It came back in twelve
+seconds, projected from the Pi session file. **The content route already exists.**
+
+What remains is precisely two things, and they are what this CR is now about:
+
+1. **The turn cannot be released while the app runs.** The only exit is a restart, and CR132's
+   offer — the designed exit — is suppressed by the stale lease.
+2. **The durable record never heals.** The journal record stays `running` forever. Three
+   instances exist, two of them 23 days old on thread `…18d5cf4842b669b0`, and every launch since
+   has left them alone. Each permanently consumes one of 64 slots.
+
+Item 2 raises a question the original capture did not: **is a `running` record that outlives its
+process ever reclaimable?** `JOURNAL_MAX_RECORDS` is a hard bound and `UnfinishedPruning` is
+`Forbidden` by CR139's fail-closed rule, which was the right call for live work and makes dead
+work immortal. The ledger will reach `turn_journal_full` with slots held by turns that ended weeks
+ago.
+
+Item 2 of the First Investigation is also partly answered: the restart derived `interrupted` in
+memory without writing it, so the renderer *can* tell the turn is over once the registry is
+rebuilt empty. It has the conclusion and no way to record it.
