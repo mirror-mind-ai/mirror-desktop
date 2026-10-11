@@ -54,6 +54,74 @@ must read the journal, find `running`, and return `journal_agrees`.
 - **`turn_journal_full`** — captured, not retried past.
 - **The `Working` mark disappears while the turn runs** — CR143 regressing, free to observe.
 
-## Result
+## Result — the check did not run, and a different defect appeared
 
-Owed.
+**The negative check is NOT collected.** The turn never became the long healthy turn it needed to
+be, so nothing was learned about false positives. What happened instead is new and is recorded
+here because the state was preserved rather than restarted past.
+
+### What the durable record says
+
+| | |
+|---|---|
+| Conversation | **"New Conversation"**, `desktop-thread-mirror-desktop-18dd7a36acc7f288`, created for this run |
+| Run | `agent-run-2026-10-11T12:43:58.174Z` |
+| Journal phase | **`running`, revision 2, `terminalOutcome: null`, `terminalEvidence: null`** |
+| Journal `updatedAt` | `12:43:58.223Z` — written at admission and **never again** |
+| Pi session file | 145,838 bytes, **6 lines**, last written `12:45:32.381Z` |
+| Pi child process | **gone** — the Dev app (pid 96616) has no children |
+| `settlement-timings` | **no record**, file untouched since last night |
+| Renderer | **stuck in `finishing`**, reported by the Navigator |
+| Elapsed with nothing written | 8 minutes at the time of reading |
+
+### Pi produced thinking and no answer
+
+The session file's three `message` entries end with an assistant message at `12:45:32.381Z` whose
+only content is **thinking** — *"Planning precise 1200-statement generation"*, *"Designing exact
+first-line tag plus 1200 unique assertions"*. There is no assistant text at all. The 145 KB is
+almost entirely the encrypted reasoning signature.
+
+So the model planned a 1200-item answer and the process ended before producing one. **The answer
+does not exist**, which separates this sharply from CR142, where the answer was complete and
+durable the whole time.
+
+### What the renderer did manage
+
+The dedicated conversation holds **two messages**: the prompt, and an **empty** assistant message.
+The composer draft was cleared at `12:44:00.131Z`. Both are what `saveAdmittedTurnProjection` and
+`persistOwnerComposerDraft("", true)` do on `run_status: working`, so the renderer got that far and
+no further.
+
+### The sharpest part, stated as a reading and not as a conclusion
+
+The renderer reaching `finishing` means it received a terminal stream event, because the queue only
+closes on `done`. The native side therefore emitted one. But the journal never left `running` and
+carries no terminal evidence, so whatever the native side wrote before emitting did not land.
+
+And **CR132's escape is very likely suppressed by this same gap**. `settlementAbandonmentOffer`
+requires `!nativeExecutionActive`, which reads the native registry — and if the registry still
+believes the child is running, as the journal does, the offer declines with
+`native_execution_active`. The escape hatch for *a finishing that will not end* would then be
+disabled by exactly the failure it exists to rescue. **This is a prediction, not a measurement**:
+it is confirmed or refuted by whether a *Stop waiting* option is on screen, which only the
+Navigator can see.
+
+### Relation to what is already on the books
+
+This is an instance of the long-standing **orphaned-Pi candidate** — *"if the shutdown hook does
+not run, both status sources go blind to a live child"* — with the polarity reversed. The child is
+**dead** and both sources are blind to its death. The recorded debt *"a hung-but-live Pi has no
+exit and the surface says nothing"* is the same family.
+
+It is **not** CR142: there the journal was terminal and the renderer streaming, and the answer
+existed. Here the journal is `running`, the renderer is finalizing, and there is no answer.
+CR142's predicate correctly returns `journal_agrees` and correctly says nothing.
+
+### Not restarted
+
+The state is preserved. A restart would destroy the native registry and with it the only remaining
+way to establish whether the lease is still held.
+
+### One operational note
+
+The journal is now at **63 of 64**. One slot remains.
