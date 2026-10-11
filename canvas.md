@@ -33,6 +33,12 @@
 
 | CR | Story | Release | Estado |
 | --- | --- | --- | --- |
+| CR144 · Stop a Running Turn from Disabling Its Sibling's Send | RS024 | alpha.44 | ✅ campo verificado |
+| CR143 · Say Which Conversation Is Working | RS024 | alpha.44 | ✅ campo verificado |
+| CR141 · Key the Pi Event Route by Workspace | RS024 | alpha.44 | ✅ campo verificado |
+| CR140 · Name the Constraint That Refuses Concurrent Work | RS024 | alpha.44 | ✅ campo verificado |
+| CR139 · Key the Native Registry by Workspace | RS024 | alpha.44 | ✅ campo verificado |
+| CR138 · Let the Inspection Carry Two Workspaces in One Journey | RS024 | alpha.44 | ✅ campo verificado |
 | CR135 · Let the Navigator Hide a Conversation Without Deleting It | RS023 | alpha.43 | ✅ campo verificado |
 | CR134 · Name the Owner of Running Work Without Hiding That It Runs | RS023 | alpha.43 | ✅ campo verificado |
 | CR133 · Stop a Disclosure From Selecting a Journey | RS023 | alpha.43 | ✅ campo verificado |
