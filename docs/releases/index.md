@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.45 — Two Ways Out](v0.2.0-alpha.45.md) — stops a turn that has already finished from reading as if it were still working, and lets a conversation whose Pi has already exited be released without quitting the app.
 - [v0.2.0-alpha.44 — Two Conversations at Once](v0.2.0-alpha.44.md) — lets one Journey work in two conversations at the same time, marks which conversations are working including when they are hidden or folded away, and stops a conversation that has not run yet from having its Send held shut by a busy sibling.
 - [v0.2.0-alpha.43 — Where the Work Is](v0.2.0-alpha.43.md) — stops expanding a Journey's conversations from moving you somewhere you did not ask to go, makes a running turn say which conversation owns it and take you there, and lets you put a conversation away without deleting it.
 - [v0.2.0-alpha.42 — Nothing Waits Forever](v0.2.0-alpha.42.md) — lets a Journey's first turn finish even when its chapter file is unreadable, and gives a `Finishing` that runs past a minute a way out, releasing the composer and recording a stuck wait that previously left no trace at all.
