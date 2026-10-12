@@ -368,3 +368,53 @@ wrong.
 fallback. But then restoring silently does not work for a Journey whose list was left closed, which
 is arbitrary from the Navigator's side — *"we put you back where you were, unless you had tidied the
 sidebar."* Cheapest and worst.
+
+
+---
+
+## Experiment C — the recheck, after the read-only slice
+
+**Build:** `0.2.0-alpha.45` + CR137 slices 1 and 2
+**Binary SHA-256:** `9af289a4c8691f0fee21c76d7bca9c856d56d4bc0df321d7ba7a76387b5e2e56`
+**Installed:** 10:17:06 local, over `7529e05d…` (slice 1 only)
+**Backup retained:** `/tmp/Mirror Desktop Dev-20261012-101706.app` (`7529e05d…`), hash-verified
+against the installed app before it was removed, `ps` re-checked immediately before the copy.
+Production (`45b9add5…`, pid 28603) untouched.
+
+Same protocol as Experiment B, unchanged on purpose: no clicks on the relaunch, both reads with the
+app closed, and a pause where the pre-state is confirmed before anything depends on it.
+
+### Starting point, read at 10:17 with the app closed
+
+| | |
+|---|---|
+| `mirror-desktop` disclosure | **open** — left that way by Experiment B's restore, which is the defect |
+| Stored coordinate | `{desktop_conversation, …18d5cf4842b669b0}` |
+| Hidden under `mirror-desktop` | 2 |
+| Turn journal / timings | 61 / 19 |
+| Draft | `Sadas`, still on its conversation key |
+
+The disclosure being open is why Part 1 has to run again: the collapsed pre-state is the whole
+experiment, and Experiment B consumed it.
+
+### Prediction
+
+**The conversation restores and the disclosure stays collapsed.** That combination was impossible
+before slice 2 — Experiment B established that the restore worked *and* reopened the group, so this
+is the one outcome that distinguishes the fix from both the defect and from Outcome 2's "restoring
+silently does not work for a collapsed Journey."
+
+Concretely, after the no-click relaunch:
+
+- on screen: inside the conversation, transcript normal, `Sadas` in the composer, and
+  `mirror-desktop`'s conversation list **closed**;
+- on disk: `expandedConversationJourneyIds` **without** `mirror-desktop`, the coordinate unchanged,
+  journal **61** and timings **19**.
+
+**Falsifiers.** The disclosure open again — slice 2 did not take. Landing on the Journey workspace —
+the read-only load abandons when it should not, which would be the `stillWanted` predicate wrong in
+the other direction. Journal or ledger moving — the restore started something.
+
+### Result
+
+_(pending)_
