@@ -292,6 +292,27 @@ guard precisely so a paint — and therefore the ref assignment — happens firs
 **In all three outcomes the journal stays at 61 and the ledger at 19.** A restore that starts or
 provisions anything would move one of them.
 
+### Pre-state confirmed at 08:56:09, app closed — the setup took
+
+The pause did its job. Read with no process running, one minute after the Navigator's quit write
+(prefs mtime 08:55:08):
+
+| Precondition | Measured | |
+|---|---|---|
+| `mirror-desktop` disclosure collapsed | absent from `expandedConversationJourneyIds` | ✅ |
+| Coordinate still stored | `{desktop_conversation, …18d5cf4842b669b0}` | ✅ |
+| Turn journal | 61 | ✅ |
+| Settlement timings | 19 | ✅ |
+
+**The setup gesture is itself a field confirmation of CR133's first acceptance line.** Collapsing
+the disclosure while inside the conversation left the stored coordinate pointing at that same
+conversation — so *"expanding or collapsing a Journey's conversation disclosure never changes
+selected conversation"* held, measured rather than attested. That line has been asserted since
+alpha.43 and this is the first durable evidence for it that I have read.
+
+It also means the two states really are independent in the direction CR133 cares about. The open
+question is only the reverse direction, which CR137 introduced.
+
 ### Result
 
-_(pending)_
+_(pending Part 2 — the no-click relaunch)_
