@@ -313,6 +313,58 @@ alpha.43 and this is the first durable evidence for it that I have read.
 It also means the two states really are independent in the direction CR133 cares about. The open
 question is only the reverse direction, which CR137 introduced.
 
-### Result
+### Result — Outcome 1. The conflict is ESTABLISHED
 
-_(pending Part 2 — the no-click relaunch)_
+Measured with the app closed at both ends, and with **zero clicks** in between.
+
+| | Pre-state 08:55:08 | Post-state 09:00:16 |
+|---|---|---|
+| `mirror-desktop` disclosure | **collapsed** | **open**, position 5 of 5 — appended |
+| Stored coordinate | `…18d5cf4842b669b0` | unchanged |
+| Turn journal / timings | 61 / 19 | 61 / 19 |
+
+Navigator, before quitting and before touching anything: *"A lista de conversas está aberta e estou
+dentro da conversa. Vejo a conversa de forma normal e no composer aparece 'Sadas'."*
+
+**No click occurred, so no click can explain it.** The restore reopened a disclosure the Navigator
+had deliberately closed, and persisted that. CR133's acceptance — *"Reload preserves expansion
+choices"* — fails because of CR137.
+
+Two things are confirmed alongside it. The restore **does** work for a collapsed Journey, which
+Outcome 2 would have denied, so the only defect here is the side effect and not the feature. And
+nothing ran: journal and ledger both unmoved, which is the field counterpart of the allow-list
+guard.
+
+### My recommendation is reversed, and the reason it was wrong
+
+I recommended **keeping** this behaviour and qualifying CR133's criterion, resting the argument on
+CR135's stated principle that *"the list would [not] deny the existence of the conversation the
+transcript is showing."*
+
+**That precedent does not fit, and I stretched it.** CR135's case is a list that is **open** and
+filters the selected entry out of it — a set actively presented as complete while excluding what the
+transcript shows. CR137's case is a list that is **closed**, which asserts nothing about any
+conversation, and the Journey row is still visible and still carries the work, because CR134 built
+that row as the guaranteed carrier precisely so the disclosure would not have to be open.
+
+With the precedent removed, what remains is one-sided: the Navigator performed a deliberate gesture
+and the app undid it on the next launch, against a criterion that is written down and shipped.
+
+### Recommended: a read-only catalog load
+
+**Option B.** Give `expandJourneyConversations` a disclose flag. With it false, skip the `expand`
+dispatch and abandon on a different condition — the restore already guards on
+`selectedJourneyRef.current !== journeyId`, which is the equivalent of CR133's "abandon when this
+load stops being the one we want." CR133's sequential restore and CR134's route both keep today's
+behaviour, pinned by test.
+
+Cost, stated plainly: a parameter on a function two other call sites depend on, and a second
+abandonment rule beside CR133's. Contained, reviewable, and it delivers CR137's promise in full.
+
+**Option A — keep and qualify CR133.** Loses the argument above. Rejected on the grounds I had
+wrong.
+
+**Option C — restore only when the catalog is already loaded.** One line: delete the expand
+fallback. But then restoring silently does not work for a Journey whose list was left closed, which
+is arbitrary from the Navigator's side — *"we put you back where you were, unless you had tidied the
+sidebar."* Cheapest and worst.

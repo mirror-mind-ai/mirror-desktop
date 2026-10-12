@@ -317,3 +317,26 @@ it. One direct observation settles it.
 2. Make the catalog load read-only. Not free: `expandJourneyConversations` abandons its result
    unless the Journey is expanded, so the abandonment guard must be relaxed too, in a function
    CR133's sequential restore and CR134's route both use.
+
+
+### Experiment B settled it (2026-10-12): the conflict is established
+
+Rerun with the app closed at both ends and **zero clicks** in between. Pre-state: disclosure
+collapsed, coordinate stored. Post-state: disclosure **open and persisted**, conversation restored,
+journal and ledger unmoved. The Navigator confirmed the screen before touching anything. No click
+occurred, so the restore is the only available cause, and CR133's *"Reload preserves expansion
+choices"* fails because of this CR.
+
+It also establishes that **the restore works for a collapsed Journey** — the failure is confined to
+the side effect.
+
+**My earlier recommendation is reversed.** I argued for keeping the behaviour on CR135's principle
+that the list must not deny the existence of the conversation the transcript is showing. That
+precedent does not fit: CR135's list is *open* and filters the entry out, while a *closed* list
+asserts nothing and the Journey row still carries the work by CR134's design. What remains is a
+deliberate gesture undone by the app against a shipped criterion.
+
+**Recommended slice:** give `expandJourneyConversations` a disclose flag; with it false, skip the
+`expand` dispatch and abandon on the restore's existing Journey guard instead of on disclosure
+state. The other two call sites keep today's behaviour, pinned by test. Awaiting the Navigator's
+go-ahead.
