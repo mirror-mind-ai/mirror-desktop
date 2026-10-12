@@ -103,10 +103,11 @@ Navigator's report: *"(a) sim e sim; (b) no workspace; (c) não, mostrou tudo ce
 **Acceptance line 4 was satisfied with no code**, as the investigation predicted: the draft returned
 because the visible draft is already derived from the selection.
 
-**The refusal is self-erasing, and the record shows it.** After the hidden conversation was refused
-and the Navigator landed on the workspace, the remember effect recorded *workspace* — which deletes
-the key. That is truthful, since they really are at the workspace, but it means a conversation
-refused for being hidden is also forgotten. Harmless here; worth knowing.
+~~**The refusal is self-erasing, and the record shows it.** After the hidden conversation was
+refused and the Navigator landed on the workspace, the remember effect recorded *workspace* — which
+deletes the key.~~ **Superseded 2026-10-12** — see the correction at the end. The behaviour follows
+from the code, but **the record never showed it**: the post-step-6 state had already been overwritten
+before I read it.
 
 ### An instrument error of mine, corrected
 
@@ -116,7 +117,11 @@ mismatch with my own prediction on that basis. **The mismatch was my snapshot, n
 re-reading showed the file exactly as predicted. A snapshot taken during startup is not a
 measurement of startup's outcome.
 
-### The regression the check found — CR137 breaks a line of CR133's acceptance
+### A regression INDICATED, not established — CR137 may break a line of CR133's acceptance
+
+**Heading corrected 2026-10-12.** It read *"The regression the check found — CR137 breaks a line of
+CR133's acceptance."* That claim is not earned; the discriminating evidence is missing. See the
+correction at the end. What follows is the indication and the argument, both of which stand.
 
 `expandedConversationJourneyIds` tells a story the Navigator did not report:
 
@@ -153,3 +158,68 @@ superseded text struck through.
 another CR's shipped acceptance is a Workbench decision. **CR137 stays `in_progress` until that
 decision is made**, because closing it would mean closing a slice that breaks a criterion still
 written as unqualified.
+
+
+---
+
+## Correction (2026-10-12) — the field was still moving while I measured it
+
+After this check was written and committed, the Navigator said: *"Depois que eu mandei o turno aqui,
+eu percebi que não tinha validado sua sugestão de teste opcional. Aí fui fazer isso enquanto vc
+preparava sua resposta nesse turno."*
+
+They ran the **optional** gesture — collapse the disclosure, quit, relaunch — concurrently with my
+reading. Four things in this document have to change, and one of them is a finding I did not earn.
+
+### 1. My process error, which caused the rest
+
+I wrote a prediction for the optional step and **never asked for a report on it**. So I inferred
+from disk what I should have received as an observation. Every confusion below follows from that one
+omission: a specified experiment with no specified report is an experiment whose result I have to
+guess at.
+
+### 2. The instrument error was worse than I said
+
+I wrote that I had read the file *mid-startup*. The mechanism is right and the framing is too
+flattering. **The Navigator was operating the app while I read it.** My two reads straddled their
+actions, and I treated successive reads of a live, concurrently-mutated target as one consistent
+observation. That is the general trap, and "don't snapshot during startup" is only its narrowest
+instance.
+
+### 3. The self-erasing refusal was never measured
+
+I claimed *"the record shows it."* It does not. The state after step 6 — the hidden conversation
+refused, the coordinate deleted — had already been overwritten by the optional relaunch before my
+first read. The behaviour still follows from the code, which is why the claim is retained rather
+than withdrawn, but it is **inference, not measurement**, and it was published as the latter.
+
+### 4. The regression is INDICATED, and I cannot discriminate the cause
+
+The expansion evidence is real: `mirror-desktop` was absent from
+`expandedConversationJourneyIds` at the previous shutdown and is present now, **appended last**. But
+the Navigator was in the app at that moment, so **a human click on the disclosure explains it
+exactly as well as the restore does**, and an appended position is the signature of a fresh `expand`
+dispatch from *either* source.
+
+What the disk can and cannot settle:
+
+- **It cannot settle it by write count.** The save effect fires on every dependency change and
+  `mtime` records only the last write, so one timestamp cannot distinguish one cause from another.
+- **No preferences write occurred after 08:28:32** (only `window-geometry.json`). So whatever
+  reopened the group did so within ~8 seconds of launch — comfortably reachable by a human click.
+- **One chain is suggestive but not decisive.** That conversation's `generation-1.json` was written
+  in the *same second*, 08:28:32, which is the conversation-load effect running for the restored
+  selection; and with the group collapsed no catalog would have been loaded, so a *restore* could
+  only have succeeded by calling `expandJourneyConversations` itself. But a Navigator who clicked
+  the disclosure open and then clicked the conversation produces the identical trace.
+
+**So the finding is downgraded.** The argument for which way to resolve it — CR135's principle that
+the list must not deny the existence of the conversation the transcript is showing — is untouched
+and still stands on its own merits. What is missing is whether CR137 actually causes the reopening.
+
+**One question settles it, and the Navigator's eyes are the only instrument:** on the relaunch after
+collapsing the group, was `mirror-desktop`'s conversation list **already open**, and were they
+**already inside** the conversation, *before clicking anything*?
+
+**CR137 stays `in_progress` either way** — on the pending CR133 decision if the regression is real,
+and on confirming the optional observation if it is not.

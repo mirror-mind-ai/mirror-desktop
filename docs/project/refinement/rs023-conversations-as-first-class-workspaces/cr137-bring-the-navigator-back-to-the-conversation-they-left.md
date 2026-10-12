@@ -290,19 +290,21 @@ Dev already carries **two hidden conversations** under `mirror-desktop`, so the 
 data behind it: select one of those, relaunch, and land on the Journey workspace instead.
 
 
-### Field verification collected (2026-10-12) — passed, and found one regression
+### Field verification collected (2026-10-12) — passed; one regression indicated, not established
 
 All five acceptance lines met, **in both directions**, measured in
 [the field check](../../../update/cr137-field-verification-2026-10-12.md). The positive case
 restored the conversation *and* its saved draft; the hidden case landed on the Journey workspace;
 nothing ran.
 
-**And the check found that this CR breaks a line of CR133's acceptance.** The Navigator had
-collapsed `mirror-desktop`'s disclosure; the restore reopened and persisted it, which is
-`expandedConversationJourneyIds` losing a choice across a reload — exactly what CR133's *"Reload
-preserves expansion choices"* forbids. The deviation was named in the Exclusions above as something
-to veto; the field turned it from a prediction into a measurement, and raised it from deviation to
-conflict with a shipped criterion.
+~~**And the check found that this CR breaks a line of CR133's acceptance.**~~ **Corrected
+2026-10-12:** the Navigator was running the optional gesture *while* I read the disk, so the
+reopening of `mirror-desktop`'s collapsed disclosure is **indicated and not established** — a human
+click on the disclosure explains the same trace exactly as well as the restore does, and no write
+after 08:28:32 narrows it. The underlying conflict, if the restore is the cause, is real: CR133's
+*"Reload preserves expansion choices"* would be failing. **The deviation was mine to measure and I
+inferred it instead**, because I specified an optional experiment without specifying a report for
+it. One direct observation settles it.
 
 **This CR therefore stays `in_progress`.** Two routes, with a recommendation:
 
