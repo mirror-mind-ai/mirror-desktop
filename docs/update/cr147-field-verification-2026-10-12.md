@@ -129,6 +129,51 @@ the app.
 
 ---
 
-## Result
+## Result — PASSED, every prediction met
 
-*To be completed after the run.*
+Collected 2026-10-12 15:03 local. The Navigator confirmed the answer arrived, the composer was
+released, no error-shaped notice appeared, and the turn did not feel slower. **The disk was read
+only after `ps` showed the Dev app was not running** — production pid 63424 was the only Mirror
+Desktop process alive, so the quit was established by measurement rather than by asking again.
+
+| Prediction | Result |
+|---|---|
+| Settles normally | OK — `terminalOutcome: completed`, `phase: settled`, revision 5 |
+| Journal 61 to **62**, new record `settled`, `running` **0** | OK — 62 records: `settled` 52, `interrupted` 10, **`running` 0** |
+| Timings 19 to **20**, every phase completed | OK — 20 records; the new one has **20 phases, zero non-completed** |
+| `native-panics.jsonl` **absent** | OK — **absent** |
+| No `Error` naming a stopped run loop, unreadable registry or retained lease | OK — `providerFailure: null`; nothing on screen |
+
+Run `agent-run-2026-10-12T18:03:28.563Z`, turn `turn-agent-run-2026-10-12T18:03:28.563Z`.
+
+### The fifth falsifier has a number, not an impression
+
+`catch_unwind` wrapping the whole run loop was the one change with a plausible cost, and *felt fine*
+is not a measurement. **Settlement took 2,312 ms** — the ninth measured settlement in this Journey,
+against a prior eight of 1.6, 1.9, 2.2, 2.3, 2.3, 2.5, 2.9 and 3.0 s. It lands in the middle of its
+own distribution, so the wrap is not detectable in the only number that could have shown it.
+
+Pi execution was **~4.6 s** (admission 18:03:28.568 to settlement start 18:03:33.129). Recorded but
+**not comparable** to the fourteen durations measured before it, which ranged 15.4 s to 94 s for
+substantive turns; this prompt asked for one sentence. A fast number from a small task is not
+evidence about speed.
+
+### The contrast the healthy record draws with the broken one
+
+The new record reached **revision 5**. The 2026-10-11 incident froze at **revision 2**, and the
+`sandbox-pet-store` record found in the pre-state is also frozen at revision 2. A healthy turn
+advances three revisions past where both failures stopped, which is a compact way of seeing that
+those turns died early in the sequence rather than near its end — the same reading the
+45-millisecond freeze gave independently.
+
+### What this does and does not establish
+
+**Established:** nothing about a healthy turn changed. That is acceptance line 3, and it was the
+line most at risk, because slice 2 wrapped the body every healthy turn runs through and slice 3
+installed a process-global hook.
+
+**Not established, by construction:** that a real panic is caught, reported and traced. No panic
+occurred and none could be staged. That half rests on the injected panic and the poisoned mutex in
+the suite, and on the wiring guards — and the honest statement is that the field cannot reach it.
+The first time this machinery is exercised for real will be the first real test of it, and when that
+happens `native-panics.jsonl` is what will say so.

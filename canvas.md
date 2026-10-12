@@ -23,7 +23,7 @@
 | ↳　CR142 · Stop Losing a Turn the Journal Already Answered | ✅ done · campo negativo coletado na 2ª tentativa | `██████████` |
 | ↳　CR145 · Let a Finished Pi Release the Turn It Completed | ✅ done · ceifa medida sob um lock · metade positiva improvocável | `██████████` |
 | ↳　CR146 · Stop a Recovered Turn from Being Stored Twice | 🟡 captured · o arquivo diverge da tela · tela está certa | `░░░░░░░░░░` |
-| ↳　CR147 · Stop a Run-Loop Thread from Dying in Silence | 🔄 in_progress · 3 fatias entregues · 16 controles · campo negativo pendente | `░░░░░░░░░░` |
+| ↳　CR147 · Stop a Run-Loop Thread from Dying in Silence | ✅ done · campo negativo coletado · mecanismo original segue indeterminado | `░░░░░░░░░░` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · sem Driver · pode sobrepor CR133/CR134 | `░░░░░░░░░░` |

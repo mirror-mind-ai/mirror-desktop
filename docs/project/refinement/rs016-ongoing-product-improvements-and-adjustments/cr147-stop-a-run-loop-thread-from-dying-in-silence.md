@@ -2,7 +2,7 @@
 
 # CR147: Stop a Run-Loop Thread from Dying in Silence
 
-**Status:** in_progress
+**Status:** done
 **Driver:** Navigator (plan approved 2026-10-12, with the recommended acceptance amendment)
 **Delivery:** `refinement/rs016-cr147-stop-a-run-loop-thread-from-dying-in-silence`
 
@@ -322,3 +322,53 @@ meant to detect is what hid it from me.
 - **The positive half is not field-verifiable.** A panic cannot be staged in the field on demand, so
   the field check is the negative half only — a healthy turn still settling and no trace file
   appearing.
+
+## Closed (2026-10-12)
+
+CR147 is `done`. The negative field half was collected and
+[passed](../../../update/cr147-field-verification-2026-10-12.md) on a healthy turn: journal 61 to 62
+with `running` still 0, timings 19 to 20 with 20 phases and none non-completed,
+**`native-panics.jsonl` absent**, and settlement at **2,312 ms** — the ninth measurement in this
+Journey against a prior distribution of 1.6–3.0 s. `catch_unwind` around the whole run loop is not
+detectable in the only number that could have shown it, which answers the one falsifier that was
+about cost rather than correctness.
+
+**What CR145 could not explain, this CR repaired without ever establishing which mechanism caused
+the original incident.** That is worth stating plainly rather than letting the closure imply more.
+Hypothesis A, an isolated panic, and hypothesis B, a poisoned registry mutex, are both now real
+defects and both are repaired, and the discriminator between them — did the *next* turn in the same
+process work — still needs a recurrence nobody can schedule. The difference is that a recurrence
+will now leave a record instead of a silence.
+
+**The capture's hypothesis was right about the shape and wrong about the line.** `main.rs:8014` is
+the stderr reader, whose handle is retained and joined. The unguarded host was the worker thread at
+`:4216`, whose `JoinHandle` is discarded by `.map(|_| ())`. The wrong coordinate is kept struck
+through, because a hypothesis with a wrong line number is the kind of thing that gets fixed at the
+wrong line.
+
+**Two things found while doing the work, not planned for.** Hypothesis B turned out to be
+confirmable by reading rather than merely possible, which promoted it from a candidate to the first
+slice. And scoping a baseline reading per file turned up a fourth instance of the shape in
+`sandbox-pet-store`, frozen 45 ms after creation rather than after a long answer — which located
+that failure at the *start* of the run loop and justified wrapping the whole body rather than only
+the exit path.
+
+Proportionality review: proportional. Three slices, 28 new cargo tests, **zero TypeScript diff**,
+and no new `TerminalState` variant — that contract spans 8 files and 29 sites across two languages,
+and widening it for a path seen four times in two months would have been the disproportionate
+choice. The one measurement the repair makes is one the operating system already answers.
+
+Debt review:
+
+- **`native-panics.jsonl` has no reader and no rotation.** Each record is bounded, so one panic
+  cannot write unboundedly, but a loop of panics would accumulate. A field nobody reads is debt by
+  this project's own standard, and it is recorded as such rather than waved past.
+- **The dispatcher's in-memory-only quarantine is not subsumed**, confirmed by reading: it concerns
+  events that arrived and were rejected, where CR147 concerns events that never arrive. The durable
+  native trace is a sink it could write to, which is a renderer change with its own acceptance.
+- **The reader threads' panics are still swallowed** by `let _ = handle.join()`. They do not strand
+  a turn, so it is a lesser silence, named and left.
+- **The 2026-09-29 `sandbox-pet-store` record is left in place.** A manual reclamation is not a
+  repair.
+
+**Unreleased.** All three slices merged after the `v0.2.0-alpha.46` tag.
