@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.47 — Nothing Fails Quietly](v0.2.0-alpha.47.md) — closes the two ways a turn could end without telling you: the thread that owns it can no longer die without a trace, one internal fault can no longer silence every turn after it, and a recovered answer now lands in the space the question was already holding instead of beside it.
 - [v0.2.0-alpha.46 — Where You Left Off](v0.2.0-alpha.46.md) — puts you back in the conversation you were last working in, with the message you had half-written still in the box, degrading quietly to the Journey workspace when that conversation is hidden or gone, and without reopening a conversation list you had collapsed.
 - [v0.2.0-alpha.45 — Two Ways Out](v0.2.0-alpha.45.md) — stops a turn that has already finished from reading as if it were still working, and lets a conversation whose Pi has already exited be released without quitting the app.
 - [v0.2.0-alpha.44 — Two Conversations at Once](v0.2.0-alpha.44.md) — lets one Journey work in two conversations at the same time, marks which conversations are working including when they are hidden or folded away, and stops a conversation that has not run yet from having its Send held shut by a busy sibling.
