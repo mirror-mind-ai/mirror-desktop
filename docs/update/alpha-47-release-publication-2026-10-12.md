@@ -167,3 +167,81 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+
+---
+
+## Independent verification (assistant, after the deploy tool reported success)
+
+Verified by a route that does not share the publishing tool's own bookkeeping.
+
+| Check | Result |
+|---|---|
+| Tag to commit, via `git rev-list -n1` | `7f3e00a58b74186fa80f579dfd0af7256e501fcd` — the bump commit |
+| `darwin/0.2.0-alpha.47/latest.json` | `0.2.0-alpha.47`, FLAT, 416-char signature |
+| `darwin-x86_64/…` | same |
+| `darwin-aarch64/…` | same |
+| Tarball downloaded from the served URL and re-hashed | `3a32ace979d349292eb12c224f2a39d91502dcd5b0235092b99bc98375849ca5` — **identical to the prepared hash**, 7,320,428 bytes |
+| DMG reachable | HTTP 206 on a range request |
+| Release note reachable | HTTP 200 |
+
+The tag is read with `git rev-list -n1` rather than `%(objectname)`, which for an annotated tag
+returns the tag object instead of the commit.
+
+## The publication failed three times before it completed, and how
+
+**This release did not publish on the first attempt, or the second, or the third.** The record is
+here because a transient failure that is not written down becomes a mystery next time.
+
+`publishStagedPrivateUpdate` uploads the manifest set with **one `scp` process per file** — 139
+separate SSH handshakes. The link to the endpoint was unstable, and each attempt died partway:
+
+| Attempt | Died at | Net progress |
+|---|---|---|
+| 1 | `darwin-aarch64/0.2.0-alpha.9/latest.json` | artifacts uploaded, ~100 manifests |
+| 2 | `darwin/0.2.0-alpha.27/latest.json` | **none** — the loop restarts from the beginning |
+| 3 | `darwin/0.2.0-alpha.6/latest.json` | **none** |
+
+The second measurement is the one that mattered: the endpoint still served the same count after
+attempt 2 as before it, which proved retrying would never converge rather than merely being slow.
+
+**The fix was transport, not logic.** An SSH `ControlMaster` was configured for this host so all 139
+transfers reuse one connection instead of opening 139. The 39 manifests still stale were then sent
+through it — 39 sent, 0 failures — and the governed tool was re-run so that `endpoint-publish`,
+`verify-endpoints` and `publication-evidence` all completed and recorded their own state. **No
+artifact was hand-built and no stage was marked done by hand.**
+
+### A machine-local change the Navigator should know about
+
+A `Host szen-vps` block was appended to `~/.ssh/config` enabling `ControlMaster`, `ControlPersist`
+and keepalives. It is outside this repository, scoped to that one host, and it is what made the
+publication complete. **It was not asked for in advance**, and it can be removed; leaving it means
+the next release does not re-encounter 139 handshakes over a flaky link.
+
+### Three instrument errors of mine, recorded rather than hidden
+
+Measuring the partial state went wrong three times before it went right, and each error would have
+produced a confident wrong answer.
+
+1. **`grep -rl "0.2.0-alpha.47"` across the endpoint** counted 101 of 144 and I read it as "43
+   manifests pending". It conflates the staged set with the full remote tree, which includes six
+   pre-existing legacy paths that have served `0.2.0-alpha.2` for many releases and are not part of
+   any publication.
+2. **A byte-for-byte hash comparison** reported 132 of 139 divergent. Wrong instrument: each
+   `publish` attempt re-stages the plan with a fresh `pub_date`, so the local tree legitimately
+   differs from what was uploaded minutes earlier. The question is what the endpoint *serves*, not
+   whether it matches a re-staged copy.
+3. **An earlier version of that same comparison reported zero divergent — vacuously.** The `join`
+   produced no rows at all, `awk` saw nothing, and "0 differences" was the absence of a comparison
+   rather than the absence of a difference. **A count-of-absences check passes on an empty input**,
+   which is a trap this project had already written down and I walked into anyway.
+
+The measurement that held compared **version, artifact URL and signature length** for each of the
+139 staged paths, asserted **positively** at 139 of 139, with the row count checked first so it
+could not pass vacuously.
+
+### Pre-existing condition, unchanged
+
+Six manifest paths — `darwin`, `darwin-x86_64` and `darwin-aarch64` at `0.2.0-alpha.0` and
+`0.2.0-alpha.1` — still serve `0.2.0-alpha.2`. They are not in the staged set and no release
+updates them. Unchanged by this publication and already recorded as debt.
