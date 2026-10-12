@@ -338,8 +338,18 @@ describe("CR137: the restore is wired where it cannot disagree with the transcri
     return withoutComments(appSource.slice(start, end));
   })();
 
+  const catalogLoader = (() => {
+    const start = appSource.indexOf("async function expandJourneyConversations(");
+    const end = appSource.indexOf("* CR134: the route from the signal to the work");
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    return withoutComments(appSource.slice(start, end));
+  })();
+
   it("loads the catalog before it dispatches, because the transcript is derived from it", () => {
-    const awaited = restoreRegion.indexOf("await expandJourneyConversations(journeyId)");
+    // The needle pins the read-only mode as well as the ordering, because a disclosing load here
+    // is what the field caught reopening a group the Navigator had collapsed.
+    const awaited = restoreRegion.indexOf("await expandJourneyConversations(journeyId, { disclose: false })");
     const dispatched = restoreRegion.indexOf("dispatchConversationSelection(");
     expect(awaited).toBeGreaterThan(-1);
     expect(dispatched).toBeGreaterThan(awaited);
@@ -388,6 +398,63 @@ describe("CR137: the restore is wired where it cannot disagree with the transcri
    * conversation on purpose, because that is where running work is. If a filter appears here, the
    * two CRs have been collapsed into one policy and this slice has grown past its scope.
    */
+  it("opens the disclosure only when the caller asked for it", () => {
+    expect(catalogLoader).toContain(
+      "if (disclose) dispatchConversationExpansion({ type: \"expand\", journeyId: ownerJourneyId });",
+    );
+    // Exactly one dispatch, so a second unconditional one cannot be added beside the guarded one.
+    expect(catalogLoader.match(/dispatchConversationExpansion\(/g)).toHaveLength(1);
+  });
+
+  /**
+   * CR133 abandons a disclosing load when its own disclosure closes, and its suite pins that the
+   * abort is the disclosure's own and never the selection's. A read-only load has no disclosure to
+   * close, so it abandons on nothing: inventing a second rule here would contradict CR133's rather
+   * than extend it, and CR137's restore already declines on its own Journey guard.
+   *
+   * This is the shape of the slice's first draft being wrong. That draft abandoned a read-only
+   * load when the selected Journey changed, which violates CR133's stated intent, and CR133's
+   * suite caught it only narrowly — the forbidden literal was `!==` and the draft used `===`.
+   */
+  it("abandons a read-only load on nothing, because its caller decides relevance", () => {
+    expect(catalogLoader).toContain(
+      "const stillWanted = () => !disclose || expandedConversationJourneyIdsRef.current.has(ownerJourneyId);",
+    );
+    expect(catalogLoader.match(/if \(!stillWanted\(\)\) return undefined;/g)).toHaveLength(2);
+    // The disclosure set is readable only through the predicate, so neither guard can bypass it.
+    expect(catalogLoader.match(/expandedConversationJourneyIdsRef/g)).toHaveLength(1);
+    // And the selected Journey is not readable here at all, in either comparison direction.
+    expect(catalogLoader).not.toContain("selectedJourneyRef");
+  });
+
+  /**
+   * A read-only load still has to publish into the catalog state. `selectedConversationEntry` is
+   * derived from it, and without that entry the conversation-load effect falls back to the
+   * Journey's root thread — the transcript disagreeing with the selection, which is the defect
+   * CR137 exists to remove.
+   */
+  it("publishes the catalog in both modes", () => {
+    const start = catalogLoader.indexOf("try {");
+    const end = catalogLoader.indexOf("return entries;");
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const publishing = catalogLoader.slice(start, end);
+    expect(publishing).toContain("completeJourneyCatalogLoad(");
+    expect(publishing).not.toContain("disclose");
+  });
+
+  it("leaves the three disclosing callers disclosing, and opts out exactly once", () => {
+    const source = withoutComments(appSource);
+    expect(source.match(/disclose: false/g)).toHaveLength(1);
+    for (const caller of [
+      "await expandJourneyConversations(journeyId);",
+      "await expandJourneyConversations(owner.journeyId);",
+      "void expandJourneyConversations(journey.id);",
+    ]) {
+      expect(source).toContain(caller);
+    }
+  });
+
   it("leaves CR134's route reaching a hidden conversation", () => {
     const start = appSource.indexOf("async function navigateToJourneyWorkOwner(owner: JourneyWorkOwner) {");
     const end = appSource.indexOf("function requestBlankDesktopConversation()");

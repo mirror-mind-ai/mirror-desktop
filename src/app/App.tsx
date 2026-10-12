@@ -2490,9 +2490,11 @@ export function App({ model }: AppProps) {
   // dispatching against an empty catalog would show the Journey's transcript beneath a conversation
   // selection, which is the two-surfaces-disagree defect this CR exists to remove.
   //
-  // `expandJourneyConversations` is reused because it is read-only and already resolves a cold
-  // catalog, the same reason CR134's route calls it. It does open the Journey's disclosure as a
-  // consequence, which is state CR133 owns and is recorded as a deliberate deviation.
+  // `expandJourneyConversations` is reused because it already resolves a cold catalog, the same
+  // reason CR134's route calls it — but in `disclose: false` mode. It originally ran in disclosing
+  // mode, and the field proved that reopened and persisted a group the Navigator had deliberately
+  // collapsed, which is CR133's "reload preserves expansion choices" failing. Restoring where
+  // someone was must not cost them a choice they made about what they wanted to see.
   const restoredConversationSelectionRef = useRef(false);
   useEffect(() => {
     if (!registryLoaded || !preferencesLoaded || restoredConversationSelectionRef.current) return;
@@ -2505,7 +2507,7 @@ export function App({ model }: AppProps) {
       const loaded = journeyCatalogState(conversationCatalogs, journeyId);
       const entries = loaded.status === "ready"
         ? loaded.entries
-        : await expandJourneyConversations(journeyId);
+        : await expandJourneyConversations(journeyId, { disclose: false });
       if (selectedJourneyRef.current !== journeyId) return;
       // The Navigator navigating during startup outranks anything stored. Only a selection still
       // sitting where startup left it may be replaced.
@@ -4328,15 +4330,40 @@ export function App({ model }: AppProps) {
     setProviderSafeTestMode(defaultPiProviderConfig.safeTestMode);
   }
 
+  /**
+   * CR137: `disclose` defaults to true, so the three callers that mean "open this list" are
+   * unchanged and the diff shows only the one caller that opts out.
+   *
+   * The read-only mode exists because restoring a selection needs this Journey's entries and must
+   * not pay for them with the Navigator's disclosure state. The field established that it does:
+   * with the group collapsed, the restore reopened it and persisted that, which is CR133's
+   * *"reload preserves expansion choices"* failing. Publishing into `conversationCatalogs` is not
+   * optional even in read-only mode — `selectedConversationEntry` is derived from it, and without
+   * that entry the conversation-load effect falls back to the Journey's root thread, which is the
+   * two-surfaces-disagree defect CR137 exists to remove.
+   */
   async function expandJourneyConversations(
     ownerJourneyId: string,
+    options: { disclose?: boolean } = {},
   ): Promise<ConversationCatalogEntry[] | undefined> {
     if (!ownerJourneyId) return undefined;
+    const disclose = options.disclose !== false;
     // CR133: revealing what is inside a Journey is not going there. This used to call
     // selectJourney first, so a disclosure moved the transcript, the Composer target and run
     // ownership for what the Navigator meant as a look. Reading a non-selected Journey's
     // thread is read-only: load_journey_thread reads a file and provisions nothing.
-    dispatchConversationExpansion({ type: "expand", journeyId: ownerJourneyId });
+    if (disclose) dispatchConversationExpansion({ type: "expand", journeyId: ownerJourneyId });
+    // CR133's rule: a disclosing load is abandoned when its own disclosure closes, never because
+    // the Navigator went to another Journey. A read-only load has no disclosure to close, and
+    // inventing a second abandonment rule here would contradict that rule rather than extend it —
+    // so it always completes, and the caller that asked for it decides whether the answer still
+    // matters. CR137's restore already declines on its own Journey guard.
+    //
+    // An earlier draft of this slice abandoned a read-only load when the selected Journey changed.
+    // CR133's own suite caught it, and only narrowly: its guard forbids one comparison direction
+    // and the draft happened to use the other. The guard has been re-aimed to forbid reading the
+    // selected Journey here at all.
+    const stillWanted = () => !disclose || expandedConversationJourneyIdsRef.current.has(ownerJourneyId);
     const requestId = (conversationCatalogRequestRef.current += 1);
     setConversationCatalogs((current) => beginJourneyCatalogLoad(current, ownerJourneyId, requestId));
     setConversationActionMessage(undefined);
@@ -4357,7 +4384,7 @@ export function App({ model }: AppProps) {
         managedMirrorConversationIds,
         limit: 50,
       });
-      if (!expandedConversationJourneyIdsRef.current.has(ownerJourneyId)) return undefined;
+      if (!stillWanted()) return undefined;
       const entries = [...desktopEntries, ...mirrorEntries]
         .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
       setConversationCatalogs((current) => completeJourneyCatalogLoad(current, ownerJourneyId, requestId, {
@@ -4366,7 +4393,7 @@ export function App({ model }: AppProps) {
       }));
       return entries;
     } catch (error) {
-      if (!expandedConversationJourneyIdsRef.current.has(ownerJourneyId)) return undefined;
+      if (!stillWanted()) return undefined;
       setConversationCatalogs((current) => failJourneyCatalogLoad(
         current, ownerJourneyId, requestId, error instanceof Error ? error.message : String(error),
       ));

@@ -184,8 +184,11 @@ Unchanged from the capture, with one line now satisfied by construction rather t
 ## Exclusions
 
 - **No in-session restore on Journey switch.** The map makes it possible; this CR does not do it.
-- No change to expansion as a *feature* — but the restore does open the restored Journey's
-  disclosure as a consequence of reusing the catalog route, named above as a deviation.
+- ~~No change to expansion as a *feature* — but the restore does open the restored Journey's
+  disclosure as a consequence of reusing the catalog route, named above as a deviation.~~
+  **Removed 2026-10-12:** the field established the deviation was a conflict with CR133's shipped
+  acceptance, and the second slice removed it. The restore now loads the catalog without opening
+  anything, so expansion is untouched in both directions.
 - No change to run admission, occupancy or runtime keying, per the original Boundaries.
 - The `activeJourneyId` behaviour is untouched: this restores *where in a Journey*, not *which
   Journey*.
@@ -340,3 +343,51 @@ deliberate gesture undone by the app against a shipped criterion.
 `expand` dispatch and abandon on the restore's existing Journey guard instead of on disclosure
 state. The other two call sites keep today's behaviour, pinned by test. Awaiting the Navigator's
 go-ahead.
+
+
+### Second slice delivered on files (2026-10-12) — the read-only catalog load
+
+Option B, authorised after Experiment B established the conflict. Field verification of the fix is
+owed.
+
+`expandJourneyConversations` takes `options: { disclose?: boolean }`, defaulting to **true** so the
+three callers that mean *"open this list"* have a **zero diff** and the change shows only the one
+caller that opts out. The restore passes `{ disclose: false }`.
+
+**A first draft of this slice was wrong, and CR133's own suite caught it.** That draft gave the
+read-only mode its own abandonment rule — abandon when the selected Journey changes — which
+directly contradicts the rule CR133 states in prose: *"an in-flight catalog load is abandoned when
+its own disclosure closes, never because the Navigator went to another Journey."* I had read that
+comment, written a second rule beside it anyway, and the full suite failed.
+
+**And it caught it only narrowly.** CR133's guard forbade the literal
+`selectedJourneyRef.current !== ownerJourneyId`; my draft wrote `=== `. The assertion expressed the
+right intent and a reversed comparison walked past it. The guard is **re-aimed and strengthened**:
+reading the selected Journey anywhere in that function is now forbidden outright, so neither
+direction nor a future spelling can slip through. That is the second time in this CR that a guard
+had to be re-aimed rather than deleted, and the first time one of mine was saved by somebody else's.
+
+The corrected design is simpler than the draft: a read-only load abandons on **nothing**. Inventing
+a second rule would contradict CR133's rather than extend it, and the restore already declines on
+its own Journey guard — so the loader publishes what it read and the caller decides whether the
+answer still matters. `const stillWanted = () => !disclose || expandedConversationJourneyIdsRef…`
+
+**Publishing into `conversationCatalogs` is not optional in read-only mode**, and a test pins it:
+`selectedConversationEntry` is derived from that state, and without the entry the conversation-load
+effect falls back to the Journey's root thread — the transcript disagreeing with the selection,
+which is the defect this CR exists to remove.
+
+**Gates:** TypeScript **257 files / 2,033 tests** (+4); `cargo test` **286 passed / 3 ignored,
+unchanged**; **native diff zero**; `tsc` clean; `npm run tauri:build:dev` clean. Diff: **3 files,
+112 insertions, 10 deletions**, of which the production change is 41 lines in one function and one
+call site.
+
+**Four control runs**, because a guard that cannot fail is not a guard: reverting the restore to
+disclosing mode fails 2 tests; making the `expand` dispatch unconditional fails 1; reverting the
+read-only guard to read disclosure state fails 1; and re-injecting the rejected first draft now
+fails **both** suites, where before the re-aiming it failed only one.
+
+**Owed:** rerun Experiment B. Same protocol — collapse the disclosure from inside the conversation,
+quit, pause for the pre-state read, relaunch without clicking. **Predicted: the conversation
+restores and the disclosure stays collapsed.** That is the only outcome that was impossible before
+this slice.

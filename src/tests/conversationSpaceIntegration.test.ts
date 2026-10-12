@@ -65,8 +65,16 @@ describe("Journey conversation-space integration", () => {
     expect(expandPath).toContain("dispatchConversationExpansion({ type: \"expand\", journeyId: ownerJourneyId })");
     expect(expandPath).toContain("await loadNautilusJourneyThread(ownerJourneyId)");
     // The abort guard is the disclosure's own, never the selection's.
-    expect(expandPath).toContain("!expandedConversationJourneyIdsRef.current.has(ownerJourneyId)");
-    expect(expandPath).not.toContain("selectedJourneyRef.current !== ownerJourneyId");
+    //
+    // Re-aimed again by CR137, which moved the expression behind a predicate so a read-only load
+    // could opt out of disclosing. The property is unchanged and the assertion is now stronger:
+    // CR137's first draft abandoned a read-only load when the selected Journey changed, and the
+    // old literal missed it because it forbade `!==` while the draft used `===`. Reading the
+    // selected Journey anywhere in this function is now forbidden outright, so neither direction
+    // nor any future spelling can slip past.
+    expect(expandPath).toContain("expandedConversationJourneyIdsRef.current.has(ownerJourneyId)");
+    expect(expandPath).toContain("if (!stillWanted()) return undefined;");
+    expect(expandPath).not.toContain("selectedJourneyRef");
   });
 
   it("loads child thread authority into the existing transcript and composer lifecycle", () => {
