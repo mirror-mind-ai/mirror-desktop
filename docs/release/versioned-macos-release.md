@@ -1,6 +1,6 @@
 # Versioned macOS Release Candidate
 
-This is the manual release-candidate route for Mirror Desktop. It creates a reviewable release identity before any publication, signing, notarization or self-update authority exists.
+This is the manual release-candidate route for Mirror Desktop. It creates a reviewable release identity before any publication, signing, notarization or self-update authority exists. The publisher identity and secret-custody boundary for a future signed release is defined in [macOS Publisher and Credential Custody](macos-publisher-and-credential-custody.md).
 
 ## Authority
 
@@ -98,4 +98,4 @@ Rollback means pointing consumers to an earlier trusted version and checksum. It
 
 ## Boundaries
 
-This process does not implement in-app update discovery, automatic installation, public access widening, app-store distribution, Windows or Linux packaging. Signing and notarization remain explicit future decisions unless separately added to the release plan.
+This process does not implement in-app update discovery, automatic installation, public access widening, app-store distribution, Windows or Linux packaging. Signing and notarization remain explicit future decisions unless separately added to the release plan. When they are authorized, follow [macOS Publisher and Credential Custody](macos-publisher-and-credential-custody.md); updater signing does not replace Apple application signing or notarization.
