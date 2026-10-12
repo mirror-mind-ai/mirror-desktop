@@ -22,7 +22,7 @@
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR142 · Stop Losing a Turn the Journal Already Answered | ✅ done · campo negativo coletado na 2ª tentativa | `██████████` |
 | ↳　CR145 · Let a Finished Pi Release the Turn It Completed | ✅ done · ceifa medida sob um lock · metade positiva improvocável | `██████████` |
-| ↳　CR146 · Stop a Recovered Turn from Being Stored Twice | 🟡 planned · 2 fatias · consequência da CR147 · nenhuma rota de ligação | `░░░░░░░░░░` |
+| ↳　CR146 · Stop a Recovered Turn from Being Stored Twice | 🔄 in_progress · 2 fatias entregues · 9 controles · ceifa da CR145 reduzida | `░░░░░░░░░░` |
 | ↳　CR147 · Stop a Run-Loop Thread from Dying in Silence | ✅ done · campo negativo coletado · mecanismo original segue indeterminado | `░░░░░░░░░░` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |

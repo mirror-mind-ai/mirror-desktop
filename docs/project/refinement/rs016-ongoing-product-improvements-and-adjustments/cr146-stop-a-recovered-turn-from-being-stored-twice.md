@@ -5,9 +5,9 @@
 *Renamed 2026-10-11. The original title, ~~Stop Recovery from Asking the Question Twice~~, asserted a
 symptom the Navigator does not have.*
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** Navigator (plan approved 2026-10-12, both slices)
+**Delivery:** `refinement/rs016-cr146-stop-a-recovered-turn-from-being-stored-twice`
 
 Found on 2026-10-11 by the restart experiment in CR145, which recovered an answer and damaged the
 transcript doing it.
@@ -266,3 +266,83 @@ still stores exactly two messages under harness ids.
 **Exclusions.** No mutation of the existing four-message record. No renderer surface for the
 divergence. No change to CR089's route. The catalog `messageCount` staleness stays its own debt. The
 save that persisted the union stays unidentified, and the repair does not depend on identifying it.
+
+## Delivered (2026-10-12)
+
+| Slice | Commit | What it removed |
+|---|---|---|
+| 1 | `29513e9` | A completed-but-uncommitted turn having no binding route, so the projection minted a second identity for messages the harness already held a place for |
+| 2 | `55e8be3` | A recovered turn reaching the renderer with no `piExecution`, so the repair that already exists could never run |
+
+**Slice 1.** A third binding route in `piBackedConversationSurface.ts`, the mirror image of
+CR089's: it closes a run that ended with exactly one answer, and it binds **both** sides. CR089
+refuses the answer for a reason that does not apply here — an interrupted run has no honest
+one-to-one identity, because the harness models one answer per turn while Pi recorded several — and
+a run that produced one answer has exactly one. CR089's route is pinned by **not changing**, and its
+tests pass untouched.
+
+The route runs last and **yields rather than contests**. `bind` throws on a contradictory claim and
+a projection that throws takes the whole transcript with it, so a turn that already named either
+entry, or already owns either message, wins and the uncommitted turn simply goes unidentified.
+Being unidentified is the status quo; throwing would be worse than the defect.
+
+One test is the point of the slice rather than a check on it: **a union by id of the held place and
+the projection now collapses to the pair, where before it produced four.** That is what makes the
+still-unidentified save harmless — the repair makes the two producers agree on identity instead of
+hunting which one concatenated.
+
+**Slice 2.** CR147's unwind path and the `ProcessDied` branch of normal completion now attempt
+`terminal_pi_execution_evidence`, whose own `None` is the refusal, so nothing is invented. The
+`ProcessDied` branch keeps the provider-failure evidence it already carried.
+
+The baseline is the whole safety argument. `latest_pi_leaf_entry_id` is the session leaf as it stood
+**before this turn ran**, and it is the only thing standing between a recovered turn and the
+*previous* turn's answer. The existing test for that guard already said so in prose — *"every call
+site passes the leaf recorded before the invocation began"* — and this slice turns that sentence
+into an executable rule over every production call site, asserted **positively** rather than by
+forbidding one spelling. It is read once in the guard and shared with the body and the unwind path,
+so one turn has one baseline rather than two readings of a file that moves underneath them.
+
+### A reduction from the approved plan, recorded as one
+
+**CR145's reap is excluded.** The plan named three sites; two are delivered. The reap cannot pass a
+sound baseline: the leaf it could read has already been overwritten by this turn's own answer, and
+`PiProcessEventAuthority` carries no session file because the registry inspection redacts it on
+purpose. Passing `None` there would risk attributing an older run's answer to this turn, which is
+**a fabrication and worse than the defect this CR removes**. Making it sound needs a durable
+baseline the journal does not record, and that is a separate decision rather than something to
+improvise here.
+
+### Acceptance
+
+| Line | How it was established |
+|---|---|
+| One user and one assistant message for a completed-but-uncommitted turn, under the harness's own ids | Slice 1's route, with seven tests including the union-by-id collapse |
+| The answer in the place that was held for it | The projection now emits `assistant-1` carrying the answer, not a second `pi-` message |
+| CR089's interrupted-run behaviour unchanged | Its tests pass untouched; a control run accepting any `pi.state` fails them |
+| No existing record mutated | Forward-only; nothing writes to the 2026-10-11 file |
+
+### Validation
+
+`tsc --noEmit` exit 0; vitest **2,033 to 2,040**, 257 files unchanged; `cargo test` **314 to 317**,
+3 ignored unchanged; `npm run tauri:build:dev` clean. **Nine control runs**, five on slice 1 and
+four on slice 2, each confirming a specific guard can fail.
+
+**Two failures on the way are kept rather than tidied away.** The new baseline rule first flagged a
+call inside the test module that passes `None` deliberately, to characterise the no-baseline case —
+a correct call the rule must not forbid — so the scan is now scoped to production source. And
+**CR147's wiring guard failed because my own test's end anchor named `run_pi_process_unguarded`,
+which that guard counts.** The anchor now ends on the function's own closing brace. A guard catching
+a test is a guard working, and it is the second time this week one of mine was caught by another
+CR's.
+
+### Limits
+
+- **The save that persisted the union is still unidentified**, and the repair deliberately does not
+  depend on identifying it.
+- **No field verification is possible by construction.** Provoking the shape requires a turn that
+  completes while its harness fails to commit, which is CR147's defect, now repaired. The honest
+  check is the negative half: a healthy turn still stores exactly two messages under harness ids.
+- **The baseline rule's production scope ends at the main test module**, so the inline test modules
+  above it fall inside the scanned range. A deliberate `None` added in one of those would trip it.
+  The site-count assertion would catch the addition either way.
