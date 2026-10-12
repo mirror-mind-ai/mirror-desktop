@@ -164,3 +164,30 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+
+---
+
+## Independent verification (assistant, after the deploy tool reported success)
+
+Verified by a route that does not share the publishing tool's own bookkeeping: the served manifests
+were fetched over HTTP and the tarball was downloaded from the URL the manifest names and re-hashed.
+
+| Check | Result |
+|---|---|
+| Tag → commit, via `git rev-list -n1` | `ea8c4c02e995df955b27b7124e369a25b11e8784` — the bump commit |
+| `darwin/0.2.0-alpha.46/latest.json` | `0.2.0-alpha.46`, FLAT, 416-char signature |
+| `darwin-x86_64/…` | same |
+| `darwin-aarch64/…` | same |
+| Tarball downloaded from the served URL | `122ef32c9ee97bb8893d54eb5157a67a3a1bf3eb05a680a682b65058a10ee146` — **identical to the prepared hash**, 7,322,188 bytes |
+| DMG reachable | HTTP 206 on a range request |
+
+**An instrument error of mine is recorded rather than hidden.** My first verification attempt
+fetched `darwin/x86_64/latest.json` and reported a divergence. The path is
+`<base>/<target>/<version>/latest.json` with targets `darwin`, `darwin-x86_64` and `darwin-aarch64`,
+so the URL I built does not exist and the server returned 404 — the "divergence" was my own
+malformed request, not a publication fault. The 404 was checked before the result was believed,
+which is the only reason it took one minute rather than becoming a false alarm about a good release.
+
+The tag is read with `git rev-list -n1` rather than `%(objectname)`, which for an annotated tag
+returns the tag object instead of the commit.
