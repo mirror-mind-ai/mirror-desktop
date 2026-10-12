@@ -1,6 +1,7 @@
 mod agent_settings;
 mod journey_appearance;
 mod model_intents;
+mod native_panic_trace;
 mod pi_global_extensions;
 mod pi_process_registry;
 mod pi_rpc;
@@ -17,6 +18,10 @@ use model_intents::{load_model_intents, save_model_intents};
 use journey_appearance::{
     import_journey_custom_image, import_user_avatar, load_journey_custom_image,
     load_user_avatar, remove_journey_custom_image, remove_user_avatar,
+};
+use native_panic_trace::{
+    clear_panic_turn_context, install_panic_trace_hook, native_panic_trace_path,
+    set_panic_turn_context, PanicTurnContext,
 };
 use pi_global_extensions::resolve_global_pi_extensions;
 use pi_process_registry::{
@@ -7836,6 +7841,15 @@ fn run_pi_process(
     run_authority: RunAuthority,
     authority: PiProcessEventAuthority,
 ) {
+    // CR147: the hook cannot be handed the turn's authority — it runs process-wide for
+    // every panic — so the thread announces which turn it is running. Set before the
+    // guard and cleared after it, so a panic anywhere in the body is attributable and a
+    // later panic on this thread cannot inherit a finished turn's name.
+    set_panic_turn_context(PanicTurnContext {
+        journey_id: authority.journey_id.clone(),
+        run_id: authority.run_id.clone(),
+        turn_id: authority.turn_id.clone(),
+    });
     let unwind_app = app.clone();
     let unwind_registry = registry.clone();
     let unwind_target = target.clone();
@@ -7862,6 +7876,7 @@ fn run_pi_process(
             )
         },
     );
+    clear_panic_turn_context();
 }
 
 /// CR147: finish or report a turn whose run loop panicked.
@@ -10133,6 +10148,14 @@ fn main() {
             channel
                 .validate_app_identity(&app.config().identifier, &app_data_root)
                 .map_err(std::io::Error::other)?;
+            // CR147: installed after the channel has validated that this data directory
+            // belongs to this app, so a trace can never be written into another
+            // channel's directory. Chained to the previous hook rather than replacing
+            // it, so nothing is removed on the chance some environment does capture
+            // the default hook's stderr.
+            install_panic_trace_hook(native_panic_trace_path(&app_data_root), || {
+                Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
+            });
             Ok(())
         })
         .manage(PiProcessState::default())
