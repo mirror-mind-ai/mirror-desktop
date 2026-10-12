@@ -321,6 +321,19 @@ function matchUncommittedTurnsByEntryPair(
  * `pi.state` must be `pending`: `committed` is already bound by its own evidence and `failed`
  * belongs to CR089. Both harness ids must exist, because binding one side and inventing the other
  * would replace a duplicated turn with a half-identified one.
+ *
+ * A *live* turn is also `pending`, from admission until commit, so this route can fire mid-run if
+ * a projection happens then. That is allowed rather than excluded, because what it produces is
+ * what the commit was about to produce anyway: the harness's own ids carrying Pi's text.
+ *
+ * The case worth naming is an agentic run with several assistant entries. A mid-run projection
+ * binds the last answer-shaped entry so far, so the content would be partial until the stream or
+ * the commit replaces it. A projection mid-run is rare — compaction is refused while a turn runs,
+ * and a launch restore implies a restart, which means the turn was stranded rather than live — so
+ * the reachable case is the Navigator loading full history during a run.
+ *
+ * This function cannot know which turn is streaming, and the repair if the field ever shows this
+ * is to *tell* it which one, not to guess. Guessing is what produced the defect it removes.
  */
 function selectUncommittedTurn(
   turns: readonly CorrelatedConversationTurn[],

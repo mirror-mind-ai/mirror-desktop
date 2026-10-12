@@ -343,6 +343,16 @@ CR's.
 - **No field verification is possible by construction.** Provoking the shape requires a turn that
   completes while its harness fails to commit, which is CR147's defect, now repaired. The honest
   check is the negative half: a healthy turn still stores exactly two messages under harness ids.
+- **The new route can fire on a live turn, which I decided during implementation and failed to
+  record until afterwards.** A healthy turn is `pi.state === "pending"` from admission until
+  commit, so a projection running mid-run will bind its entries. That is allowed, because it
+  produces what the commit was about to produce anyway — the harness's own ids carrying Pi's text.
+  The case worth naming is an agentic run with several assistant entries, where a mid-run
+  projection binds the last answer-shaped entry so far and the content is partial until the stream
+  or the commit replaces it. A projection mid-run is rare: compaction is refused while a turn runs,
+  and a launch restore implies a restart, so the turn was stranded rather than live. The reachable
+  case is loading full history during a run. **The negative field check is the only instrument that
+  can show this**, which is why it is worth collecting before release rather than after.
 - **The baseline rule's production scope ends at the main test module**, so the inline test modules
   above it fall inside the scanned range. A deliberate `None` added in one of those would trip it.
   The site-count assertion would catch the addition either way.
