@@ -432,6 +432,40 @@ stating because it is the inverse of Experiment B's starting point and makes the
 comparable: same coordinate, same hidden set, same draft, same ledgers, and the one variable that
 differs is the build.
 
-### Result
+### Result — PASSED. The outcome that was impossible before slice 2
 
-_(pending Part 2 — the no-click relaunch)_
+Navigator's screenshot, taken after the no-click relaunch and before quitting.
+
+**On screen:** `ACTIVE JOURNEY — Mirror Desktop · IDLE`, and beneath it
+`DESKTOP CONVERSATION — Pensar sobre uma nova feature: journey card`. The transcript shows items
+235–249 of that conversation's numbered list. The composer carries **`Sadas`**. And
+`Mirror Desktop`'s own conversation list is **closed** — its card shows the collapsed chevron, while
+the expanded `CONVERSATIONS 9` block below belongs to **Mirror TS Core**, which is a legitimate
+CR133 restoration, since `mirror-ts-core` is in the persisted expansion set.
+
+**On disk**, read with the app closed:
+
+| | Pre-state 10:36:54 | Post-state 10:39:03 |
+|---|---|---|
+| `mirror-desktop` disclosure | collapsed | **still collapsed** |
+| `expandedConversationJourneyIds` | 4 Journeys | **byte-identical** |
+| Stored coordinate | `…18d5cf4842b669b0` | unchanged |
+| Turn journal / timings | 61 / 19 | 61 / 19 |
+| Draft | `Sadas` | `Sadas` |
+
+**This is the combination that could not occur before slice 2.** Experiment B established both that
+the restore works for a collapsed Journey *and* that it reopened the group; so restoring while the
+group stays closed separates the fix from the defect and from the outcome where restoring silently
+fails for a collapsed Journey. The only variable that changed between Experiment B and Experiment C
+is the build: same coordinate, same hidden set, same draft, same ledgers, same collapsed starting
+point.
+
+**CR133's acceptance is intact again.** *"Reload preserves expansion choices"* holds: the expansion
+set came back exactly as it was left, including the three unrelated Journeys.
+
+**Nothing ran.** Journal 61, ledger 19, the field counterpart of the allow-list guard.
+
+### CR137 is complete
+
+Five acceptance lines, verified in both directions across three experiments; one regression found by
+the field, repaired, and re-verified by rerunning the experiment that found it.

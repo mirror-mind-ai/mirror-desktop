@@ -2,7 +2,7 @@
 
 # CR137: Bring the Navigator Back to the Conversation They Left
 
-**Status:** in_progress — delivered on files, field verification owed
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs023-cr137-bring-the-navigator-back-to-the-conversation-they-left`
 
@@ -391,3 +391,34 @@ fails **both** suites, where before the re-aiming it failed only one.
 quit, pause for the pre-state read, relaunch without clicking. **Predicted: the conversation
 restores and the disclosure stays collapsed.** That is the only outcome that was impossible before
 this slice.
+
+
+---
+
+## Closed (2026-10-12)
+
+Field-verified in both directions, across three experiments, with the regression this CR introduced
+found by the field and repaired before closing.
+
+| Acceptance | How it was established |
+|---|---|
+| A relaunch restores the workspace left, sidebar and main surface agreeing | Experiment A positive case, and again in C |
+| A coordinate that cannot be opened degrades without an error state | Experiment A's first launch (`no_memory`) and the hidden case (`conversation_hidden`) |
+| Restoring never starts, provisions, restarts or activates anything | journal and settlement ledger unmoved across all three runs, plus the allow-list source guard with its own control run |
+| The visible draft matches the restored selection | `Sadas` returned in A and C — and it needed **no code**, because the draft was already derived from the selection |
+| A hidden conversation is never silently restored | Experiment A, refused with `conversation_hidden` |
+
+**What this CR cost beyond its own scope**, recorded because it is the honest total: it broke
+CR133's *"Reload preserves expansion choices"* and that was not caught by review, by tests, or by
+the first field run. It was caught by a *specified experiment whose report I had forgotten to
+specify*, which is why the first attempt could not distinguish the restore from a human click. The
+second attempt was redesigned so no recollection was load-bearing, and it settled the question in
+one run.
+
+**Two guards were re-aimed rather than deleted**, and one of them was somebody else's catching me:
+CR133's suite rejected this slice's first draft, which had invented a second abandonment rule beside
+the one CR133 states in prose two lines above it. It caught the draft only because of a literal
+match, and narrowly — the forbidden spelling was `!==` and the draft used `===`. That guard now
+forbids reading the selected Journey in that function at all.
+
+**Unreleased.** CR137's two slices are merged into `main` after the `v0.2.0-alpha.45` tag.
