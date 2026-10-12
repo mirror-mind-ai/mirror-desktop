@@ -79,6 +79,48 @@ closed. The disk half is mine, read only after `ps` confirms the app is gone.
 
 ---
 
-## Result
+## Result — PASSED, all seven predictions met
 
-*To be completed after the run.*
+Collected 2026-10-12 16:07 local. The Navigator opened the Dev app, sent the turn, closed it, and
+reported everything worked. **The disk was read only after `ps` showed production's pid 85557 was
+the only Mirror Desktop process alive**, so the quit was established by measurement.
+
+| Prediction | Result |
+|---|---|
+| Settles normally | OK — `phase: settled`, revision 5, `terminalOutcome: completed` |
+| Journal 62 to **63** | OK — `settled` 53, `interrupted` 10, **`running` 0** |
+| Timings 20 to **21**, every phase completed | OK — **20 phases, zero non-completed**, 2,577 ms |
+| Conversation 30 to **exactly 32** messages | OK — 32 |
+| New pair under **harness identities** | OK — `user-2026-10-12T19:06:51.163Z` and `assistant-2026-10-12T19:06:51.163Z`; prefixes now 15 `user-`, 15 `assistant-`, **2 `pi-`** |
+| The two `pi-` messages **byte-identical**, the two `pending` turns unmoved | OK — both `pi-e41dbb8d` (123 chars) and `pi-9cfbcfb7` (114 chars) unchanged in role, length, `createdAt` and content hash; both turns still `pending` with their harness messages still absent |
+| `native-panics.jsonl` absent | OK — absent |
+
+Run `agent-run-2026-10-12T19:06:51.163Z`. The new turn's `pi` body is `committed` with
+`userEntryId: 952f939b` and `assistantEntryId: f91dcffd`; its `harness` body is `committed` too.
+
+Settlement at 2,577 ms is the tenth measurement in this Journey, against a prior nine spanning
+1.6 s to 3.0 s. Inside its own distribution.
+
+### What this run exercised, and what it did not
+
+This is the part worth being exact about, because a passing check is easy to over-read.
+
+**Exercised and established: slice 1's route ran on real data and correctly declined.** The launch
+restore projects the conversation, so the new route was evaluated against the two `pending` turns
+that live in this file — and it refused both, because neither run closed with an answer. That is
+the behaviour the unrecorded scoping decision made worth checking, and the two messages the
+Navigator can see are byte-identical afterwards. **The most important falsifier was the one aimed at
+their own data, and it held.**
+
+**Not exercised: slice 1's positive route.** No completed-but-uncommitted turn existed, and one
+cannot be staged without reproducing CR147's defect. That half rests on the seven tests.
+
+**Not exercised at all: slice 2.** A healthy turn terminalizes through the `Completed` path, which
+already carried `piExecution` before this CR. The committed evidence visible above is that
+pre-existing path, **not** proof that slice 2 works. Slice 2 only runs on an unwind or a
+`ProcessDied` terminal, and neither occurred. Its evidence is its wiring guards and the reader's own
+existing tests.
+
+So the honest summary: the negative half is established on real data, including the one way slice 1
+could have damaged something, and the positive halves of both slices remain test-only by
+construction.

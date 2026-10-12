@@ -5,7 +5,7 @@
 *Renamed 2026-10-11. The original title, ~~Stop Recovery from Asking the Question Twice~~, asserted a
 symptom the Navigator does not have.*
 
-**Status:** in_progress
+**Status:** done
 **Driver:** Navigator (plan approved 2026-10-12, both slices)
 **Delivery:** `refinement/rs016-cr146-stop-a-recovered-turn-from-being-stored-twice`
 
@@ -356,3 +356,49 @@ CR's.
 - **The baseline rule's production scope ends at the main test module**, so the inline test modules
   above it fall inside the scanned range. A deliberate `None` added in one of those would trip it.
   The site-count assertion would catch the addition either way.
+
+## Closed (2026-10-12)
+
+CR146 is `done`. The negative field half was collected and
+[passed on all seven predictions](../../../update/cr146-field-verification-2026-10-12.md), including
+the one that mattered most: **the two `pi-` messages in the Navigator's own working conversation are
+byte-identical afterwards**, and the two `pending` turns they belong to did not move. Slice 1's route
+was evaluated against them by the launch restore and correctly declined, because neither run closed
+with an answer.
+
+**What the run did not establish is written down rather than rounded up.** Slice 1's positive route
+was not exercised — no completed-but-uncommitted turn existed, and staging one requires reproducing
+CR147's defect. **Slice 2 was not exercised at all:** a healthy turn terminalizes through the
+`Completed` path, which already carried `piExecution`, so the committed evidence on the new turn is
+that pre-existing path and not proof of this CR's change. Both positive halves rest on tests and
+wiring guards, by construction.
+
+**The defect's producer is still unidentified, and the repair was designed not to need it.** That
+was the useful decision of this CR: instead of hunting which save concatenated the two sets, make
+the two producers agree on identity, after which any union keyed on id collapses to the pair. The
+union test is the proof — it produced four before the route and two after.
+
+**A scoping decision of mine went unrecorded until after delivery**, and the correction is part of
+the record rather than a quiet edit. Slice 1's route fires on a turn whose `pi.state` is `pending`,
+and a healthy turn is `pending` from admission until commit. I allowed that deliberately and wrote
+nothing down; it is now in the code and in the limits, along with the one case that could bite — an
+agentic run where a mid-run projection binds a partial answer. **The field check became worth
+running because of that omission, not in spite of it.**
+
+Proportionality review: proportional. One new binding route in one domain module, two evidence
+attempts in Rust bounded by a reader that already refuses, 7 new TypeScript tests and 3 new cargo
+tests, and nine control runs. No durable schema changed and no existing record mutated.
+
+Debt review:
+
+- **CR145's reap is still excluded**, recorded above as a reduction from the approved plan. It
+  cannot pass a sound baseline, and passing `None` would be a fabrication.
+- **CR148 is captured** — the third sub-shape found in the same baseline: an unanswered turn whose
+  harness pair is absent and whose request sits under a native identity, which neither this CR's
+  route nor CR089's recognises.
+- **The identity-blind union in `merge_post_frontier_receipt_into_persisted` is still uncaptured.**
+  Slice 1 makes it correct for this shape; it remains a union keyed on an identity other failures
+  can lose. Recommended for capture and not minted, because it is a Workbench decision.
+- **The catalog `messageCount` staleness** stays its own item. Unchanged by this CR.
+
+**Unreleased.** Both slices merged after the `v0.2.0-alpha.46` tag.
