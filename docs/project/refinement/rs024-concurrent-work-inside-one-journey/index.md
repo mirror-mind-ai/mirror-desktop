@@ -102,8 +102,8 @@ Journey-level grain was right.
 ## Change Requests
 
 - [CR138: Let the Inspection Carry Two Workspaces in One Journey](cr138-let-the-inspection-carry-two-workspaces-in-one-journey.md)
-- [CR139: Key the Native Registry by Workspace](cr139-key-the-native-registry-by-workspace.md) — gated on CR138 merged
-- [CR140: Name the Constraint That Refuses Concurrent Work](cr140-name-the-constraint-that-refuses-concurrent-work.md) — gated on CR139 merged
+- [CR139: Key the Native Registry by Workspace](cr139-key-the-native-registry-by-workspace.md) — gated on CR138 merged · **done**
+- [CR140: Name the Constraint That Refuses Concurrent Work](cr140-name-the-constraint-that-refuses-concurrent-work.md) — gated on CR139 merged · **done**
 - [CR141: Key the Pi Event Route by Workspace](cr141-key-the-pi-event-route-by-workspace.md) — gated on CR140 merged · **done**
 - [CR143: Say Which Conversation Is Working](cr143-say-which-conversation-is-working.md) — **done**, reported from the field; **admitted to this Story by the Navigator on 2026-10-10** and delivered before the release
 - [CR144: Stop a Running Turn from Disabling Its Sibling's Send](cr144-stop-a-running-turn-from-disabling-its-sibling-s-send.md) — **done**, found by CR143's own field run; the defect that made this Story's outcome unreachable

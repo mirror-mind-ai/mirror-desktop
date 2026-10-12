@@ -46,9 +46,17 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR131: Make the Mirror a Channel Validates Against Identifiable](cr131-make-the-mirror-a-channel-validates-against-identifiable.md) — captured
 - [CR142: Stop Losing a Turn the Journal Already Answered](cr142-stop-losing-a-turn-the-journal-already-answered.md) — done
 - [CR145: Let a Finished Pi Release the Turn It Completed](cr145-let-a-finished-pi-release-the-turn-it-completed.md) — done
-- [CR146: Stop a Recovered Turn from Being Stored Twice](cr146-stop-a-recovered-turn-from-being-stored-twice.md) — captured
+- [CR146: Stop a Recovered Turn from Being Stored Twice](cr146-stop-a-recovered-turn-from-being-stored-twice.md) — done
 - [CR147: Stop a Run-Loop Thread from Dying in Silence](cr147-stop-a-run-loop-thread-from-dying-in-silence.md) — done
 - [CR148: Give an Unanswered Turn Back Its Own Identity](cr148-give-an-unanswered-turn-back-its-own-identity.md) — captured
+- [CR149: Keep the Composer Responsive While a Turn Is Finishing](cr149-keep-the-composer-responsive-while-a-turn-is-finishing.md) — captured · intake 2026-10-12, prioridade 1 de 8
+- [CR150: Keep a Compaction Result Until the Navigator Is Done With It](cr150-keep-a-compaction-result-until-the-navigator-is-done-with-it.md) — captured · intake 2026-10-12, prioridade 2 de 8
+- [CR151: Let a Finished Turn Announce Itself](cr151-let-a-finished-turn-announce-itself.md) — captured · intake 2026-10-12, prioridade 3 de 8
+- [CR152: Let the Navigator Hide Every Conversation but One](cr152-let-the-navigator-hide-every-conversation-but-one.md) — captured · intake 2026-10-12, prioridade 4 de 8
+- [CR153: Let the Navigator See Only Desktop Conversations](cr153-let-the-navigator-see-only-desktop-conversations.md) — captured · intake 2026-10-12, prioridade 5 de 8
+- [CR154: Persist a Model Choice at the Conversation It Was Made In](cr154-persist-a-model-choice-at-the-conversation-it-was-made-in.md) — captured · intake 2026-10-12, prioridade 6 de 8
+- [CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease](cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) — captured · intake 2026-10-12, prioridade 7 de 8
+- [CR156: Simplify the Context Map](cr156-simplify-the-context-map.md) — captured · intake 2026-10-12, prioridade 8 de 8
 - [CR132: Let the Navigator End a Finishing That Will Not End](cr132-let-the-navigator-end-a-finishing-that-will-not-end.md) — done
 - [CR120: Stop a Closing Chapter From Erasing Its Own File](cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) — done
 - [CR119: Give Finishing Back to the Navigator](cr119-give-finishing-back-to-the-navigator.md) — done

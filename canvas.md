@@ -17,14 +17,22 @@
 | ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | ✅ campo verificado (7/7) · fechada sobre arquivo | `██████████` |
 | ↳　CR136 · Admit Concurrent Work Inside One Journey | ↗️ promoted → RS024 / CR138–CR140 | `　　　　　　　　　　` |
 | ↳　CR137 · Bring the Navigator Back to the Conversation They Left | ✅ done · campo verificado nas duas direções · regressão achada e reparada | `██████████` |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 36 ✅ · 2 🟡 · 4 ↗️ · 1 ⛔ · de 43 |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `███████░░░` 40 ✅ · 11 🟡 · 4 ↗️ · 1 ⛔ · de 56 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR142 · Stop Losing a Turn the Journal Already Answered | ✅ done · campo negativo coletado na 2ª tentativa | `██████████` |
 | ↳　CR145 · Let a Finished Pi Release the Turn It Completed | ✅ done · ceifa medida sob um lock · metade positiva improvocável | `██████████` |
-| ↳　CR146 · Stop a Recovered Turn from Being Stored Twice | ✅ done · campo negativo nos dados reais · metades positivas só em teste | `░░░░░░░░░░` |
-| ↳　CR147 · Stop a Run-Loop Thread from Dying in Silence | ✅ done · campo negativo coletado · mecanismo original segue indeterminado | `░░░░░░░░░░` |
+| ↳　CR146 · Stop a Recovered Turn from Being Stored Twice | ✅ done · campo negativo nos dados reais · metades positivas só em teste | `██████████` |
+| ↳　CR147 · Stop a Run-Loop Thread from Dying in Silence | ✅ done · campo negativo coletado · mecanismo original segue indeterminado | `██████████` |
 | ↳　CR148 · Give an Unanswered Turn Back Its Own Identity | 🟡 captured · achada na linha de base da CR146 · turno pendente sem par | `░░░░░░░░░░` |
+| ↳　CR149 · Keep the Composer Responsive While a Turn Is Finishing | 🟡 captured · prioridade 1 · tick de 1 Hz na raiz do App como hipótese, não causa estabelecida | `░░░░░░░░░░` |
+| ↳　CR150 · Keep a Compaction Result Until the Navigator Is Done With It | 🟡 captured · prioridade 2 · reverte escolha deliberada da CR104 · decisão de Workbench | `░░░░░░░░░░` |
+| ↳　CR151 · Let a Finished Turn Announce Itself | 🟡 captured · prioridade 3 · capacidade nova · nenhum áudio existe no app | `░░░░░░░░░░` |
+| ↳　CR152 · Let the Navigator Hide Every Conversation but One | 🟡 captured · prioridade 4 · simétrica de revealAllConversations | `░░░░░░░░░░` |
+| ↳　CR153 · Let the Navigator See Only Desktop Conversations | 🟡 captured · prioridade 5 · filtro de visão, não ocultação durável | `░░░░░░░░░░` |
+| ↳　CR154 · Persist a Model Choice at the Conversation It Was Made In | 🟡 captured · prioridade 6 · o grão de conversa não existe · lacuna aberta por RS023/RS024 | `░░░░░░░░░░` |
+| ↳　CR155 · Give the Navigator an Exit From a Finishing That Holds a Live Lease | 🟡 captured · prioridade 7 · a dívida que a CR132 nomeou, chegando do campo | `░░░░░░░░░░` |
+| ↳　CR156 · Simplify the Context Map | 🟡 captured · prioridade 8 · recua parte da CR105 · critério ainda não estabelecido | `░░░░░░░░░░` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · sem Driver · pode sobrepor CR133/CR134 | `░░░░░░░░░░` |
