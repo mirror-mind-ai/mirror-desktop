@@ -2,9 +2,9 @@
 
 # CR147: Stop a Run-Loop Thread from Dying in Silence
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** Navigator (plan approved 2026-10-12, with the recommended acceptance amendment)
+**Delivery:** `refinement/rs016-cr147-stop-a-run-loop-thread-from-dying-in-silence`
 
 ## Friction
 
@@ -229,3 +229,96 @@ cannot provoke it, which the closure will say rather than round up.
 live child. No renderer surface for `native-panics.jsonl` and no rotation of it. The reader threads'
 swallowed join stays as noted. The hung-but-live Pi stays out, as CR145 refused it. The dispatcher
 quarantine stays its own capture. Admission, occupancy, the share and CR145's reap do not change.
+
+## Delivered (2026-10-12)
+
+Three slices, in the planned order, each with its own commit and its own control runs.
+
+| Slice | Commit | What it removed |
+|---|---|---|
+| 1 | `3017bc9` | A poisoned registry reported as a duplicate, so every later turn ended in silence |
+| 2 | `6f6679f` | A run-loop panic unwinding a thread nothing observes |
+| 3 | `157a610` | A panic leaving no durable trace that names its turn |
+
+**Slice 1.** `TerminalizeAttempt { First, NotFirst, RegistryUnavailable }` and a pure
+`terminalize_attempt` mapping a lock result to it, generic over the guard and the lock error so it
+is characterised against a really poisoned `Mutex` — a thread panics while holding the lock — rather
+than against a stand-in. `RegistryUnavailable` proceeds to terminal work, and the justification was
+verified rather than assumed: `adopt_terminal_journal` returns `Ok(())` when the record is already
+terminal with the same outcome and `turn_journal_terminal_conflict` otherwise, so proceeding where
+another thread already finished is a no-op rather than a double write. Both callers now emit an
+`Error` naming the unreadable registry and its possibly-retained lease. The same one-line silence in
+`reserve_then_start`'s spawn-failure path was fixed through the same helper, keeping its `bool` field
+rather than widening the error enum.
+
+**Slice 2.** `run_loop_guard.rs`, Tauri-free, holding `guard_run_loop` on
+`catch_unwind(AssertUnwindSafe(..))` with a bounded payload description.
+`run_pi_process_unguarded` is the old body and **the diff proves it rather than asserting it**:
+`main.rs` removes exactly two lines in that slice, both imports, and everything else is a pure
+insertion hunk. `unwind_disposition` is a pure mapping from a measured child to what may truthfully
+be done, and the measurement and the terminalization happen under one registry lock, per CR145's
+rule.
+
+**Slice 3.** `native_panic_trace.rs` with a pure record renderer, a thread-local turn context, and a
+chained hook appending to `native-panics.jsonl` in the app data directory. Installed after the
+channel validates that the directory belongs to this app, so a trace cannot be written into another
+channel's directory.
+
+### What the unwind path may claim, and what it refuses to
+
+| Measurement | What it does |
+|---|---|
+| Child exited | Terminalizes `process_died`, adopts the journal, emits `Error` then `Done` |
+| Child running | Reports and **leaves the lease and handle**, for CR145's release once the OS says the process is gone |
+| Already handed back | Reports the panic; nothing is owed |
+| Unmeasurable, or registry unreadable | Reports that nothing could be established, and claims nothing about a lease |
+
+**The panic's text is deliberately not written into the journal's `provider_failure`.** The renderer
+presents that field as the terminal cause and the field's own comment reserves it for the provider's
+error-shaped output. A panic here is this application's failure, not Pi's, and attributing it to Pi
+on the Navigator's screen would be worse than saying less. The panic travels in the emitted `Error`
+live and in `native-panics.jsonl` durably.
+
+### Acceptance
+
+| Line | How it was established |
+|---|---|
+| A run-loop thread that ends without terminalizing leaves a durable trace that names the turn | `native-panics.jsonl`, with the turn carried by a thread-local because the hook cannot be given an argument. Pinned by test and by a wiring guard |
+| ~~A panic on that path does not leave a turn stranded in `running` with a live lease~~ **→ replaced, see below** | — |
+| **A panic on that path does not leave a turn stranded *silently*: the renderer is told, the journal is terminalized when the child has exited, and the lease is left for CR145 to release when it has not** | `unwind_disposition` and its four tests; the wiring guard asserting the unwind path measures, never kills, and never invents provider evidence |
+| Nothing changes about how a healthy turn terminalizes, settles or emits | `run_pi_process_unguarded` byte-identical by a pure-insertion diff; `NotFirst` behaviour unchanged; 2,033 TypeScript tests and 3 ignored cargo tests unchanged |
+| The repair does not depend on reproducing the original 2026-10-11 failure | Every behaviour is provoked by an injected panic or a poisoned mutex. Nothing waits on a recurrence |
+
+**The second line was replaced with the Navigator's approval**, because it could not be met
+truthfully: when the child is still executing, reporting `process_died` is a lie and killing it is a
+mutation this CR has no authority for. Retained struck through rather than deleted.
+
+### Validation
+
+`tsc --noEmit` exit 0; vitest **257 files / 2,033 tests, unchanged**; `cargo test` **286 → 314
+passed, 3 ignored unchanged**; `npm run tauri:build:dev` clean; **TypeScript diff zero for the whole
+CR**, as the plan predicted.
+
+**Sixteen control runs**, each confirming a specific guard can fail: slice 1 four, slice 2 seven,
+slice 3 five. The one that matters most is the exact regression shape — the spawn site calling
+`run_pi_process_unguarded` directly — which the wiring guard caught.
+
+**Three mistakes of mine in the controls are recorded rather than tidied away.** One control
+initially passed when it should have failed, because my test filter did not match the test's name;
+it failed correctly once filtered. Two others produced no output at all because my sabotage did not
+compile, so they tested the compiler instead of the guard, and were redone in a form that compiles
+and violates. **A control that does not compile is not a control**, and the same silence it was
+meant to detect is what hid it from me.
+
+### Limits, stated rather than assumed
+
+- **The 2026-10-11 incident is still not attributed to A or B.** Both are now defects and both are
+  repaired, but which one happened is unestablished, and the discriminator still needs a recurrence.
+  What changed is that a recurrence will now leave a record.
+- **`run_pi_process` cannot be called from a test**, so the wiring is pinned against the source
+  rather than executed. The catching, the disposition and the record shape are all executed.
+- **`native-panics.jsonl` has no renderer and no rotation**, both excluded on purpose. Each record
+  is bounded, so one panic cannot write unboundedly, but a loop of panics would still accumulate.
+- **The positive half is not field-verifiable.** A panic cannot be staged in the field on demand, so
+  the field check is the negative half only — a healthy turn still settling and no trace file
+  appearing.
