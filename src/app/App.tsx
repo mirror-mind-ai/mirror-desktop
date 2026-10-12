@@ -512,6 +512,7 @@ import { loadModelIntents, saveModelIntents } from "./modelIntentsStorage";
 import { createEmptyModelIntents, matchModelIntent, type ModelIntent, type ModelIntents } from "../domain/modelIntents";
 import { SelfUpdatePanel } from "./SelfUpdatePanel";
 import { SelfUpdateNotification } from "./SelfUpdateNotification";
+import { SettlementAbandonmentNotice } from "./SettlementAbandonmentNotice";
 import { currentMirrorDesktopVersion, type SelfUpdateCheckResult } from "./selfUpdateStorage";
 import { loadResolvedWhatsNewState, saveWhatsNewState } from "./whatsNewStorage";
 import { acknowledgeWhatsNew, resolveWhatsNewState, type ResolvedWhatsNewState } from "../domain/whatsNewState";
@@ -1342,25 +1343,17 @@ export function App({ model }: AppProps) {
     reconciliationBlocksInvocation,
     mirrorRepairPending: durableSyncAttention,
   });
-  // CR132: while a wait is visibly running, the offer to end it has to be re-evaluated on a clock
-  // rather than only when some other state changes, or a Journey that is doing nothing would never
-  // cross the threshold on screen.
-  const [finishingTick, setFinishingTick] = useState(() => Date.now());
-  useEffect(() => {
-    if (composerTurnStatus !== "finishing") return undefined;
-    setFinishingTick(Date.now());
-    const handle = setInterval(() => setFinishingTick(Date.now()), 1_000);
-    return () => clearInterval(handle);
-  }, [composerTurnStatus]);
-  const abandonSettlementOffer = settlementAbandonmentOffer({
+  // CR149: the clock CR132 kept here moved into `SettlementAbandonmentNotice`, which is the only
+  // place a per-second value is drawn. These four inputs change rarely, so passing them down costs
+  // nothing, and the App root no longer advances state once per second while the Navigator types.
+  // CR138: the workspace form, never the Journey aggregate. A sibling conversation executing must
+  // not withhold this workspace's exit from a settlement that will not end.
+  const abandonSettlementInputs = {
     ownerPhase: selectedJourneyRuntimePhase?.phase,
-    // CR138: the workspace form, never the Journey aggregate. A sibling conversation executing must
-    // not withhold this workspace's exit from a settlement that will not end.
     nativeExecutionActive: hasActiveNativeExecution(piInvocationOccupancy, selectedWorkspace),
     occupancyKnown: piInvocationOccupancy.status === "known",
     finishingSince: finishingPhases[selectedJourney]?.since,
-    now: finishingTick,
-  });
+  };
   // CR142: the renderer's belief, checked against the durable record rather than against itself.
   const believedRun = selectedRuntime.identity?.kind === "live"
     ? {
@@ -4051,7 +4044,9 @@ export function App({ model }: AppProps) {
    */
   async function abandonSettlementWait() {
     const abandoning = selectedRuntime.identity;
-    if (!abandonSettlementOffer.offered || !abandoning) return;
+    // CR149: evaluated against the clock at the moment of the act rather than against whatever the
+    // last render believed. Previously this read a value that could be a full second stale.
+    if (!settlementAbandonmentOffer({ ...abandonSettlementInputs, now: Date.now() }).offered || !abandoning) return;
     const journeyId = selectedJourney;
     setAbandonSettlementConfirmOpen(false);
     const timingRecord = settlementTimingRegistry.end(journeyId, "failed", ABANDONED_SETTLEMENT_REASON);
@@ -6180,16 +6175,10 @@ export function App({ model }: AppProps) {
           hidden={!operationalChatSelected || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
         >
           <ComposerRuntimeStatus status={composerTurnStatus} finishingPhase={finishingPhases[selectedJourney]} />
-          {abandonSettlementOffer.offered ? (
-            <section className="dedicated-turn-notice" role="status" aria-label="Finishing is taking unusually long">
-              <strong>Still finishing after {Math.round(abandonSettlementOffer.waitedMs / 1000)}s</strong>
-              <p>
-                Your answer is saved. You can stop waiting and send a new message — anything still
-                owed to Mirror is completed in the background.
-              </p>
-              <button type="button" onClick={() => setAbandonSettlementConfirmOpen(true)}>Stop waiting</button>
-            </section>
-          ) : null}
+          <SettlementAbandonmentNotice
+            {...abandonSettlementInputs}
+            onStopWaiting={() => setAbandonSettlementConfirmOpen(true)}
+          />
           {deadChildReleaseNotice ? (
             <section className="dedicated-turn-notice" role="alert" aria-label="This turn's process has already ended">
               <strong>{deadChildReleaseNotice.title}</strong>

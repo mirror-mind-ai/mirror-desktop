@@ -192,3 +192,92 @@ decision stays where CR132 put it.
 - Does not touch the other two root clocks.
 - **Does not claim to have fixed the typing lag.** It removes a mechanism that could plausibly cause
   it; the field decides.
+
+
+---
+
+## Implementation (2026-10-12)
+
+### What shipped
+
+- **`src/app/SettlementAbandonmentNotice.tsx`** — new. Owns a 1 Hz `setInterval`, calls
+  `settlementAbandonmentOffer` itself, renders the notice. Clock runs only while
+  `ownerPhase === "finalizing"` and no test `now` was supplied, so a Journey that is not finalizing
+  does not keep a clock running to be told it has no offer.
+- **`App.tsx`** — `finishingTick`, its effect and the render-time offer are gone. The four slow
+  inputs became one `abandonSettlementInputs` object with exactly two consumers: the component, and
+  the act's guard. The act now evaluates `settlementAbandonmentOffer({ ...inputs, now: Date.now() })`
+  at the instant it runs.
+- **`src/app/settlementAbandonment.ts` — unchanged.** Verified by the diff producing no hunk for it,
+  not by claiming it.
+
+The `App.tsx` diff is **15 insertions against 26 deletions**: a net removal, which is the arithmetic
+that matches the intent.
+
+**During `Finishing`, the App root no longer advances any per-second state.**
+
+### Two of my own errors, kept rather than tidied
+
+**1. A root clock twice as fast as the one I removed was in my own earlier reading and forgotten by
+the time I wrote the assertion.** The interval-pinning test expected two remaining root clocks and
+failed against three: there is a **500 ms** one at `App.tsx:2137`. The test was the defect, not the
+code. It is now pinned at three, and the 500 ms one is out of scope for a stated reason — it is
+gated on `voiceSession`, so it runs only while the Navigator is recording voice, which is not a
+state in which they are typing into the Composer. A second test asserts that gate, because *the gate
+is the entire justification*: ungated, it would be a worse instance of this CR's own defect.
+
+**2. `ownerPhase="active"` is not a variant.** `JourneyRuntimeOwnerPhase` is exactly
+`"running" | "finalizing"`. **`vitest` passed it and `tsc` caught it** — the test ran green while
+being type-invalid, which is worth recording as a property of this suite rather than as a one-off.
+
+### CR138's guard caught this change, and was strengthened rather than relaxed
+
+`runtimeWorkspaceKeying.test.ts` asserts the settlement exit consults the **workspace** form of the
+occupancy predicate and never the Journey aggregate. It sliced 600 characters forward from the first
+`settlementAbandonmentOffer({` call site, because the predicate was written inline there. Moving the
+inputs out of the root moved the predicate out of that window, and the guard failed.
+
+**The invariant was never violated** — `hasActiveNativeExecution(piInvocationOccupancy,
+selectedWorkspace)` is still the only predicate the exit consults. So the guard was re-aimed onto the
+single `abandonSettlementInputs` definition, and in doing so it got **stronger**: it now also
+requires that *every* `settlementAbandonmentOffer(` call in `App.tsx` spreads those inputs. Before,
+a second call site could have built its own inputs with the Journey aggregate and the guard would
+never have looked at it. Control 6 below proves exactly that gap is now closed.
+
+### Validation
+
+| gate | result |
+|---|---|
+| `npx tsc --noEmit` | clean |
+| `vitest` | **258 files / 2,054 tests** (from 257 / 2,040) |
+| `cargo test` | 317 passed, 3 ignored |
+| `npm run build` | clean |
+| `npm run roadmap:check` | READY |
+
+**CR132's 14 guards in `settlementAbandonment.test.ts` passed unmodified**, which was the plan's
+stated signal to stop. They were not touched.
+
+### Six controls
+
+A guard that cannot fail is not a guard. Each sabotage was applied, the named test confirmed failing,
+and the file restored.
+
+| # | sabotage | caught by |
+|---|---|---|
+| 1 | re-introduce a 1 s root clock | the root-clock guard **and** the interval pin (2 failures) |
+| 2 | revert the act's guard to a render-time read | the call-time guard |
+| 3 | add a brand-new 250 ms root clock | the interval pin |
+| 4 | let the component import the threshold and decide itself | the domain-authority guard |
+| 5 | consult the Journey aggregate in the exit's inputs | CR138's re-aimed guard |
+| 6 | add a second call site building its own inputs | CR138's re-aimed guard — **which the original could not catch** |
+
+### Debt
+
+- **The performance claim is unproven and stays unproven until the field says otherwise.** This
+  removed a mechanism that could plausibly cause the lag. It did not measure the lag, because typing
+  in the application is the Navigator's act. The field check is owed and its falsifier is written
+  before the build is handed over.
+- **The 500 ms root clock is left in place**, justified by its `voiceSession` gate and by nothing
+  else. If voice capture ever runs ungated, that justification expires.
+- **`strandedTurnTick` (15 s) and `relativeTimeNow` (60 s) are untouched** and are the next
+  candidates if the field check fails.

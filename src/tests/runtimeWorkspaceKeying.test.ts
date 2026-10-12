@@ -135,14 +135,32 @@ describe("CR138: the Journey aggregate and the workspace form are both reachable
     expect(stripped).toContain("export function hasActiveNativeExecutionInJourney(");
   });
 
+  /**
+    * Re-aimed by CR149, not relaxed. This guard used to slice forward from the first
+    * `settlementAbandonmentOffer({` call site, because the predicate was written inline there.
+    * CR149 moved the clock out of the App root, which moved those inputs into a single
+    * `abandonSettlementInputs` object with two consumers — the notice component and the act.
+    *
+    * The invariant is unchanged and the new anchor makes it **stronger**: there is now exactly one
+    * place the exit's inputs are built, so the last expectation can require that *every* call
+    * spreads it. Before, a second call site could have constructed its own inputs with the Journey
+    * aggregate and this guard would not have looked at it.
+    */
   it("gives the settlement exit the workspace form, never the Journey aggregate", () => {
     const stripped = withoutComments(appSource);
-    const call = stripped.slice(
-      stripped.indexOf("settlementAbandonmentOffer({"),
-      stripped.indexOf("settlementAbandonmentOffer({") + 600,
+    const definition = "const abandonSettlementInputs = {";
+    expect(stripped.split(definition).length - 1).toBe(1);
+    const inputs = stripped.slice(
+      stripped.indexOf(definition),
+      stripped.indexOf("};", stripped.indexOf(definition)),
     );
-    expect(call).toContain("hasActiveNativeExecution(");
-    expect(call).not.toContain("hasActiveNativeExecutionInJourney(");
+    expect(inputs).toContain("hasActiveNativeExecution(");
+    expect(inputs).toContain("selectedWorkspace");
+    expect(inputs).not.toContain("hasActiveNativeExecutionInJourney(");
+
+    const calls = [...stripped.matchAll(/settlementAbandonmentOffer\(\{([^}]*)/g)].map((m) => m[1]);
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) expect(call).toContain("...abandonSettlementInputs");
   });
 
   /**
