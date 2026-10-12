@@ -288,3 +288,30 @@ nothing can itself fail, which is the only reason to trust it.
 Unlike CR145, this one can be provoked. Select a conversation, `⌘Q`, relaunch, and land back in it.
 Dev already carries **two hidden conversations** under `mirror-desktop`, so the refusal path has real
 data behind it: select one of those, relaunch, and land on the Journey workspace instead.
+
+
+### Field verification collected (2026-10-12) — passed, and found one regression
+
+All five acceptance lines met, **in both directions**, measured in
+[the field check](../../../update/cr137-field-verification-2026-10-12.md). The positive case
+restored the conversation *and* its saved draft; the hidden case landed on the Journey workspace;
+nothing ran.
+
+**And the check found that this CR breaks a line of CR133's acceptance.** The Navigator had
+collapsed `mirror-desktop`'s disclosure; the restore reopened and persisted it, which is
+`expandedConversationJourneyIds` losing a choice across a reload — exactly what CR133's *"Reload
+preserves expansion choices"* forbids. The deviation was named in the Exclusions above as something
+to veto; the field turned it from a prediction into a measurement, and raised it from deviation to
+conflict with a shipped criterion.
+
+**This CR therefore stays `in_progress`.** Two routes, with a recommendation:
+
+1. **Recommended — keep the behaviour, qualify CR133's criterion at its source.** CR135 already
+   renders a hidden conversation when it is selected, so that *"the list would [not] deny the
+   existence of the conversation the transcript is showing."* A collapsed group holding the selected
+   conversation hides it entirely, which is the same defect family. By CR135's own principle the
+   disclosure *should* open. This needs CR133's acceptance line amended, dated, superseded text
+   struck through — a Workbench decision, so it is recommended and not taken.
+2. Make the catalog load read-only. Not free: `expandJourneyConversations` abandons its result
+   unless the Journey is expanded, so the abandonment guard must be relaxed too, in a function
+   CR133's sequential restore and CR134's route both use.

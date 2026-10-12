@@ -86,6 +86,70 @@ To see it: collapse `mirror-desktop`'s conversation group while staying inside a
 relaunch. The group should come back **open**. That is the recorded deviation, not a defect, and
 seeing it is the point of naming it.
 
-## Result
+## Result — all five acceptance lines met, in both directions, and one regression found
 
-_(pending the Navigator's run)_
+Navigator's report: *"(a) sim e sim; (b) no workspace; (c) não, mostrou tudo certo."*
+
+### Against the prediction
+
+| Predicted | Measured | |
+|---|---|---|
+| 1. First launch degrades to the Journey workspace | Confirmed. The key then **appeared** in the file | ✅ |
+| 2. Restores the conversation, with `Sadas` in the composer | Confirmed by the Navigator; the stored coordinate is `desktop-conversation-mirror-desktop-18d5cf4842b669b0` and **that conversation's `generation-1.json` was written at 08:28:32**, this launch | ✅ |
+| 3. A hidden conversation lands on the Journey workspace | Confirmed — `conversation_hidden` | ✅ |
+| 4. Nothing runs | Journal **61**, timings **19**, both unmoved. Draft `Sadas` still on disk | ✅ |
+| 5. No surface disagreement | *"mostrou tudo certo"* | ✅ |
+
+**Acceptance line 4 was satisfied with no code**, as the investigation predicted: the draft returned
+because the visible draft is already derived from the selection.
+
+**The refusal is self-erasing, and the record shows it.** After the hidden conversation was refused
+and the Navigator landed on the workspace, the remember effect recorded *workspace* — which deletes
+the key. That is truthful, since they really are at the workspace, but it means a conversation
+refused for being hidden is also forgotten. Harmless here; worth knowing.
+
+### An instrument error of mine, corrected
+
+I first read `journey-preferences.json` **mid-startup** and got the previous launch's write
+(mtime 08:28:04) while the current launch's write (08:28:32) had not yet landed. I reported a
+mismatch with my own prediction on that basis. **The mismatch was my snapshot, not the behaviour**;
+re-reading showed the file exactly as predicted. A snapshot taken during startup is not a
+measurement of startup's outcome.
+
+### The regression the check found — CR137 breaks a line of CR133's acceptance
+
+`expandedConversationJourneyIds` tells a story the Navigator did not report:
+
+- baseline: `[builder-mode-evolution, soul-mode, **mirror-desktop**, mirror-ts-core, us1-rerun-…]`
+- at the previous shutdown (08:28:04): **`mirror-desktop` absent** — the group had been collapsed
+- now (08:28:32): present again, **appended last** — the position of a fresh `expand`, not a
+  restored order
+
+So the group was collapsed, and **the restore reopened it and persisted that**. This is the
+deviation recorded in CR137's exclusions as *"a deviation to be vetoed"* — observed in the field,
+with evidence rather than as a prediction.
+
+It is more than a deviation. **CR133's acceptance says: *"Reload preserves expansion choices***
+*without fabricating a run owner and without losing access to an active native process."* A
+collapsed group coming back open is that line failing. CR137's own field check found CR137 limited
+by work shipped earlier in the same Story — the third time in this session that a slice's validation
+has met a defect in the slice itself.
+
+**The straightforward repair is not available.** `expandJourneyConversations` cannot simply skip the
+`expand` dispatch, because it abandons its own result unless the Journey *is* expanded
+(`if (!expandedConversationJourneyIdsRef.current.has(ownerJourneyId)) return undefined`, on both the
+success and failure paths). A read-only variant has to relax that guard too, in a function CR133's
+sequential restore and CR134's route both depend on.
+
+**And there is an argument that the behaviour is right and the criterion needs the exception.**
+CR135's `partitionConversationVisibility` already renders a hidden conversation when it is selected,
+for a stated reason: otherwise *"the list would deny the existence of the conversation the transcript
+is showing."* A collapsed group holding the selected conversation hides it from the list completely
+— the same family of defect, by a different mechanism. By that principle, opening the disclosure is
+the correct behaviour and CR133's line needs an exception written into it, dated, with the
+superseded text struck through.
+
+**Recommended, not done:** keep the behaviour and correct CR133's acceptance at its source. Amending
+another CR's shipped acceptance is a Workbench decision. **CR137 stays `in_progress` until that
+decision is made**, because closing it would mean closing a slice that breaks a criterion still
+written as unqualified.
