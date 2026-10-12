@@ -4,6 +4,7 @@ mod model_intents;
 mod pi_global_extensions;
 mod pi_process_registry;
 mod pi_rpc;
+mod run_loop_guard;
 mod runtime_binding;
 mod runtime_channel;
 mod turn_journal;
@@ -24,9 +25,10 @@ use pi_process_registry::{
     reserve_then_start, AttachOutcome,
     CancelOutcome, ChildControlError, ChildLiveness, PiInvocationRegistryInspection, PiProcessRegistry,
     RegistryAuthority, RegistryAuthorityInspection, ReleaseOutcome, ReserveError,
-    ReserveThenStartError, RunTarget, TargetError, TerminalState, TerminalizeAttempt,
-    TerminalizeOutcome,
+    unwind_disposition, ReserveThenStartError, RunTarget, TargetError, TerminalState,
+    TerminalizeAttempt, TerminalizeOutcome, UnwindDisposition,
 };
+use run_loop_guard::{guard_run_loop, UnwindReport};
 use pi_rpc::{
     observe_line as observe_pi_rpc_line, one_at_a_time_line, prompt_line, steer_line,
     RpcCommandResponse, RpcObservation,
@@ -7815,7 +7817,167 @@ fn fail_pi_process_before_completion(
     }
 }
 
+/// CR147: the run loop, with the silence removed from its most dangerous failure.
+///
+/// The worker thread's `JoinHandle` is discarded at the spawn site, so a panic anywhere
+/// in the body unwinds the thread and nothing anywhere says it happened — no console in
+/// a release build, no journal advance, and a lease left held. Wrapping the body means
+/// the unwind lands back here on a normal stack, with every handle still in scope, where
+/// the same explain-adopt-emit sequence every explicit failure path runs is available.
+///
+/// The body is `run_pi_process_unguarded` and is deliberately unchanged: needing to edit
+/// it to make this work would mean the wrapping is not actually a wrapping.
 fn run_pi_process(
+    app: AppHandle,
+    registry: Arc<Mutex<PiProcessRegistry<RunAuthority, PiChildHandle, ProviderConfig>>>,
+    target: RunTarget,
+    prompt: String,
+    config: ProviderConfig,
+    run_authority: RunAuthority,
+    authority: PiProcessEventAuthority,
+) {
+    let unwind_app = app.clone();
+    let unwind_registry = registry.clone();
+    let unwind_target = target.clone();
+    let unwind_authority = authority.clone();
+    guard_run_loop(
+        || {
+            run_pi_process_unguarded(
+                app,
+                registry,
+                target,
+                prompt,
+                config,
+                run_authority,
+                authority,
+            )
+        },
+        |report| {
+            fail_pi_process_after_unwind(
+                &unwind_app,
+                &unwind_registry,
+                &unwind_target,
+                &unwind_authority,
+                report,
+            )
+        },
+    );
+}
+
+/// CR147: finish or report a turn whose run loop panicked.
+///
+/// It measures before it claims anything, and the measurement and the terminalization
+/// happen under one registry lock, so the lease cannot become live between them — the
+/// rule CR145 established for exactly this shape. A child that is still running is
+/// reported and left with its lease, never killed and never relabelled: that state is
+/// what CR145's measured release was written for, and it becomes reachable the moment
+/// the OS says the process is gone.
+///
+/// The panic's own text is not written into the journal's `provider_failure`, which the
+/// renderer presents as the terminal cause and whose own comment reserves it for the
+/// provider's error-shaped output. A panic here is this application's failure, not Pi's,
+/// and attributing it to Pi on the Navigator's screen would be worse than saying less.
+fn fail_pi_process_after_unwind(
+    app: &AppHandle,
+    registry: &Arc<Mutex<PiProcessRegistry<RunAuthority, PiChildHandle, ProviderConfig>>>,
+    target: &RunTarget,
+    authority: &PiProcessEventAuthority,
+    report: UnwindReport,
+) {
+    let detail = if report.truncated {
+        format!("{} […]", report.payload)
+    } else {
+        report.payload.clone()
+    };
+    let (disposition, terminalized) = {
+        let Ok(mut registry) = registry.lock() else {
+            emit(
+                app,
+                authority,
+                PiProcessEventKind::Error,
+                format!(
+                    "The Pi run loop stopped unexpectedly and the registry could not be read, so this turn's state could not be established: {}",
+                    detail
+                ),
+            );
+            return;
+        };
+        let measured = registry
+            .child_handle(target)
+            .map(|handle| measure_child_liveness(&handle));
+        let disposition = unwind_disposition(measured);
+        let terminalized = disposition == UnwindDisposition::Terminalize
+            && registry.terminalize(target, TerminalState::ProcessDied)
+                == TerminalizeOutcome::First;
+        (disposition, terminalized)
+    };
+    match disposition {
+        UnwindDisposition::Terminalize => {
+            emit(
+                app,
+                authority,
+                PiProcessEventKind::Error,
+                format!(
+                    "The Pi run loop stopped unexpectedly after its process had already exited; the turn was finished from the durable record: {}",
+                    detail
+                ),
+            );
+            if terminalized {
+                match adopt_terminal_journal(
+                    app,
+                    authority,
+                    TerminalState::ProcessDied,
+                    empty_terminal_evidence(),
+                ) {
+                    Ok(()) => emit(
+                        app,
+                        authority,
+                        PiProcessEventKind::Done,
+                        "Pi invocation finished.".to_string(),
+                    ),
+                    Err(error) => emit(
+                        app,
+                        authority,
+                        PiProcessEventKind::Error,
+                        format!(
+                            "Terminal turn evidence was not durable; native lease retained: {}",
+                            error
+                        ),
+                    ),
+                }
+            }
+        }
+        UnwindDisposition::LeaveToRelease => emit(
+            app,
+            authority,
+            PiProcessEventKind::Error,
+            format!(
+                "The Pi run loop stopped unexpectedly while its process was still running; the turn can be released once that process exits: {}",
+                detail
+            ),
+        ),
+        UnwindDisposition::AlreadyTerminal => emit(
+            app,
+            authority,
+            PiProcessEventKind::Error,
+            format!(
+                "The Pi run loop stopped unexpectedly after this turn had already been handed back: {}",
+                detail
+            ),
+        ),
+        UnwindDisposition::Unmeasured => emit(
+            app,
+            authority,
+            PiProcessEventKind::Error,
+            format!(
+                "The Pi run loop stopped unexpectedly and this turn's state could not be established: {}",
+                detail
+            ),
+        ),
+    }
+}
+
+fn run_pi_process_unguarded(
     app: AppHandle,
     registry: Arc<Mutex<PiProcessRegistry<RunAuthority, PiChildHandle, ProviderConfig>>>,
     target: RunTarget,

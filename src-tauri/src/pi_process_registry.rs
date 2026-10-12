@@ -165,6 +165,42 @@ impl TerminalizeAttempt {
     }
 }
 
+/// CR147: what a run loop's unwind path may truthfully do about the turn it abandoned.
+///
+/// The panic itself says nothing about the child. Claiming `process_died` for a process
+/// that is still executing would be a lie, and killing it is a mutation CR147 has no
+/// authority for, so the only honest options are to finish a turn whose child has
+/// demonstrably exited, or to report and leave the rest to CR145's release.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UnwindDisposition {
+    /// The child has exited: the turn can be finished exactly as a normal exit is.
+    Terminalize,
+    /// The child is still running: report, retain the lease, and leave the exit to
+    /// CR145's measured release once the OS says the process is gone.
+    LeaveToRelease,
+    /// The turn was already handed back before the panic; nothing is owed.
+    AlreadyTerminal,
+    /// Nothing could be established — the child was not measurable, or the registry has
+    /// no entry for this turn at all. `ChildLiveness::Unknown` is never a licence to act,
+    /// and this variant deliberately claims nothing about a lease, because in the
+    /// no-entry case there is none to claim.
+    Unmeasured,
+}
+
+/// CR147: decide the unwind disposition from a measured child.
+pub fn unwind_disposition(child: Result<ChildLiveness, TargetError>) -> UnwindDisposition {
+    match child {
+        Ok(ChildLiveness::Exited) => UnwindDisposition::Terminalize,
+        Ok(ChildLiveness::Running) => UnwindDisposition::LeaveToRelease,
+        Ok(ChildLiveness::Absent) => UnwindDisposition::AlreadyTerminal,
+        Ok(ChildLiveness::Unknown) => UnwindDisposition::Unmeasured,
+        Err(TargetError::NotRunning) => UnwindDisposition::AlreadyTerminal,
+        Err(TargetError::Missing) | Err(TargetError::Stale) | Err(TargetError::NotFinalizing) => {
+            UnwindDisposition::Unmeasured
+        }
+    }
+}
+
 /// CR147: map a registry lock result to what the terminalization established.
 ///
 /// Generic over the guard and the lock error so it can be characterised against a
@@ -2086,6 +2122,58 @@ mod tests {
                 .terminalize(&target, TerminalState::Completed)),
             TerminalizeAttempt::NotFirst,
             "the second terminalization of the same turn is a duplicate, not an unreadable registry"
+        );
+    }
+
+    // CR147: the unwind disposition must never claim more than the measurement.
+
+    #[test]
+    fn only_an_exited_child_lets_an_unwind_finish_its_turn() {
+        assert_eq!(
+            unwind_disposition(Ok(ChildLiveness::Exited)),
+            UnwindDisposition::Terminalize
+        );
+        for measured in [ChildLiveness::Running, ChildLiveness::Unknown] {
+            assert_ne!(
+                unwind_disposition(Ok(measured)),
+                UnwindDisposition::Terminalize,
+                "{measured:?} must not authorise terminalizing a turn"
+            );
+        }
+    }
+
+    #[test]
+    fn a_running_child_is_left_to_the_measured_release() {
+        assert_eq!(
+            unwind_disposition(Ok(ChildLiveness::Running)),
+            UnwindDisposition::LeaveToRelease
+        );
+    }
+
+    #[test]
+    fn an_unmeasurable_child_is_not_mistaken_for_a_finished_turn() {
+        assert_eq!(
+            unwind_disposition(Ok(ChildLiveness::Unknown)),
+            UnwindDisposition::Unmeasured
+        );
+        for error in [TargetError::Missing, TargetError::Stale, TargetError::NotFinalizing] {
+            assert_eq!(
+                unwind_disposition(Err(error)),
+                UnwindDisposition::Unmeasured,
+                "{error:?} establishes nothing, so nothing may be claimed"
+            );
+        }
+    }
+
+    #[test]
+    fn a_turn_already_handed_back_owes_nothing() {
+        assert_eq!(
+            unwind_disposition(Ok(ChildLiveness::Absent)),
+            UnwindDisposition::AlreadyTerminal
+        );
+        assert_eq!(
+            unwind_disposition(Err(TargetError::NotRunning)),
+            UnwindDisposition::AlreadyTerminal
         );
     }
 }
