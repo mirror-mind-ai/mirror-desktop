@@ -415,6 +415,23 @@ Concretely, after the no-click relaunch:
 the read-only load abandons when it should not, which would be the `stillWanted` predicate wrong in
 the other direction. Journal or ledger moving — the restore started something.
 
+### Pre-state confirmed at 10:37:48, app closed — the setup took
+
+Read with no process running, one minute after the Navigator's quit write (prefs mtime 10:36:54).
+
+| Precondition | Measured | |
+|---|---|---|
+| `mirror-desktop` disclosure collapsed | absent from `expandedConversationJourneyIds` | ✅ |
+| Coordinate still stored | `{desktop_conversation, …18d5cf4842b669b0}` | ✅ |
+| Turn journal | 61 | ✅ |
+| Settlement timings | 19 | ✅ |
+| Draft | `Sadas` | ✅ |
+
+**The disclosure was open when this build was installed and is collapsed now**, which is worth
+stating because it is the inverse of Experiment B's starting point and makes the two runs
+comparable: same coordinate, same hidden set, same draft, same ledgers, and the one variable that
+differs is the build.
+
 ### Result
 
-_(pending)_
+_(pending Part 2 — the no-click relaunch)_
