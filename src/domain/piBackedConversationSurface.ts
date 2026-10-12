@@ -250,6 +250,95 @@ function matchInterruptedTurnsByUserEntryId(
   return matched;
 }
 
+/**
+ * CR146: which *completed but uncommitted* run belongs to which turn.
+ *
+ * A turn whose Pi run finished while its harness never committed has no binding route at all.
+ * `turn.pi.userEntryId` is only written on commit, and CR089's route covers the opposite case
+ * deliberately — a run that closed *without* an answer, on a turn whose `pi.state` is `failed`.
+ * This pair falls between them, so the projection mints `pi-` identities for the two messages the
+ * harness is already holding a place for, and anything that later unions the two sets keeps both.
+ *
+ * Measured 2026-10-11: one question and one answer stored as four messages, under two identities.
+ *
+ * Both sides are bound here, unlike CR089's user-only route. CR089 refuses the answer because an
+ * interrupted run has no honest one-to-one identity — the harness models one answer per turn while
+ * Pi recorded several. A run that closed with an answer has exactly one, so the identity exists.
+ */
+function matchUncommittedTurnsByEntryPair(
+  entries: readonly PiConversationSurfaceEntry[],
+  turns: readonly CorrelatedConversationTurn[],
+  claimedCorrections: ReadonlyMap<string, SteeringEvidence>,
+): Map<string, { turn: CorrelatedConversationTurn; assistantEntryId: string }> {
+  const matched = new Map<string, { turn: CorrelatedConversationTurn; assistantEntryId: string }>();
+  const consumed = new Set<string>();
+  let userEntryId: string | undefined;
+  let after: string | undefined;
+  let until: string | undefined;
+  let answerEntryId: string | undefined;
+  let previousTimestamp: string | undefined;
+
+  const close = () => {
+    // The mirror image of CR089's condition: that route closes a run that ended without an
+    // answer, this one closes a run that ended with exactly one.
+    if (!userEntryId || !until || !answerEntryId) return;
+    const turn = selectUncommittedTurn(turns, consumed, after, until);
+    if (!turn) return;
+    consumed.add(turn.turnId);
+    matched.set(userEntryId, { turn, assistantEntryId: answerEntryId });
+  };
+
+  for (const entry of entries) {
+    if (!entry || typeof entry.role !== "string" || typeof entry.timestamp !== "string") continue;
+    if (entry.role === "user" && !claimedCorrections.has(entry.entryId)) {
+      close();
+      userEntryId = entry.entryId;
+      after = previousTimestamp;
+      until = entry.timestamp;
+      answerEntryId = undefined;
+    } else if (entry.role === "user") {
+      // CR097: a correction belongs to the run it corrected and never opens a new one.
+    } else if (entry.role === "assistant") {
+      const blocks = extractActivityBlocks(entry.nativeContent);
+      // An assistant entry that carries a tool call is the agent working, not answering. The last
+      // one that answers is the run's answer, so a later one replaces an earlier one.
+      answerEntryId = entry.visibleText?.trim() && !blocks.some((block) => block.kind === "toolCall")
+        ? entry.entryId
+        : answerEntryId;
+    } else if (entry.role === "toolResult") {
+      answerEntryId = undefined;
+    }
+    if (entry.role !== "system") previousTimestamp = entry.timestamp;
+  }
+  close();
+
+  return matched;
+}
+
+/**
+ * CR146: an uncommitted turn whose run window contains this request.
+ *
+ * `pi.state` must be `pending`: `committed` is already bound by its own evidence and `failed`
+ * belongs to CR089. Both harness ids must exist, because binding one side and inventing the other
+ * would replace a duplicated turn with a half-identified one.
+ */
+function selectUncommittedTurn(
+  turns: readonly CorrelatedConversationTurn[],
+  consumedTurnIds: Set<string>,
+  after: string | undefined,
+  until: string,
+): CorrelatedConversationTurn | undefined {
+  for (const turn of turns) {
+    if (consumedTurnIds.has(turn.turnId)) continue;
+    if (turn.pi?.state !== "pending" || !turn.startedAt) continue;
+    if (!turn.harness?.userMessageId || !turn.harness?.assistantMessageId) continue;
+    if (turn.startedAt > until) continue;
+    if (after !== undefined && turn.startedAt <= after) continue;
+    return turn;
+  }
+  return undefined;
+}
+
 function interruptedStatusOf(turn: CorrelatedConversationTurn): TerminalAgentActionProjection["status"] {
   return turn.pi?.failureCode?.includes("cancelled") ? "cancelled" : "failed";
 }
@@ -310,6 +399,28 @@ export function projectPiBackedConversationSurface(
   }
   // The assistant side is deliberately left unbound: the harness models one answer per turn while
   // Pi recorded several messages, so there is no honest one-to-one identity to restore.
+
+  // CR146: last, and yielding to everything above it. A turn that completed in Pi without
+  // committing in the harness is identified only if no established route already claimed either
+  // entry or either message. `bind` throws on a contradictory claim, and a projection that throws
+  // takes the whole transcript with it, so this route never contests — it declines.
+  const uncommittedTurnByUserEntryId = matchUncommittedTurnsByEntryPair(
+    inspection.entries,
+    metadata.reconciliation.turns,
+    claimedCorrections,
+  );
+  const boundMessageIds = new Set([...bindings.values()].map((binding) => binding.messageId));
+  for (const [entryId, { turn, assistantEntryId }] of uncommittedTurnByUserEntryId) {
+    const userMessageId = turn.harness.userMessageId;
+    const assistantMessageId = turn.harness.assistantMessageId;
+    if (!userMessageId || !assistantMessageId) continue;
+    if (bindings.has(entryId) || bindings.has(assistantEntryId)) continue;
+    if (boundMessageIds.has(userMessageId) || boundMessageIds.has(assistantMessageId)) continue;
+    bind(bindings, entryId, { messageId: userMessageId, role: "user" });
+    bind(bindings, assistantEntryId, { messageId: assistantMessageId, role: "assistant" });
+    boundMessageIds.add(userMessageId);
+    boundMessageIds.add(assistantMessageId);
+  }
 
   const resultsByToolCallId = new Map<string, boolean>();
   for (const entry of inspection.entries) {

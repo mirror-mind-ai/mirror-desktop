@@ -392,3 +392,106 @@ describe("a bounded reading is the suffix of the complete one", () => {
     expect(windowed.chapterDividers).toBeUndefined();
   });
 });
+
+describe("CR146: a turn that completed in Pi but never committed in the harness", () => {
+  //
+  // Measured on 2026-10-11: the stored conversation held four messages — the admission pair and
+  // the projected pair — for one turn that produced one question and one answer. The screen was
+  // correct because it renders the projection; the store was not, because the two pairs carried
+  // two different identities for the same two messages.
+
+  function uncommittedTurn(overrides: Record<string, unknown> = {}) {
+    return {
+      turnId: "turn-1",
+      runId: "run-1",
+      origin: "nautilus" as const,
+      startedAt: "2026-09-18T10:00:30Z",
+      harness: { state: "pending" as const, userMessageId: "user-1", assistantMessageId: "assistant-1" },
+      pi: { state: "pending" as const },
+      mirror: { state: "pending" as const },
+      ...overrides,
+    };
+  }
+
+  function heldPlace(turns: ReturnType<typeof uncommittedTurn>[]): JourneyConversation {
+    const base = conversation();
+    return {
+      ...base,
+      messages: [
+        { id: "user-1", role: "user", content: "Question", createdAt: "2026-09-18T10:00:30Z" },
+        { id: "assistant-1", role: "assistant", content: "", createdAt: "2026-09-18T10:00:30Z" },
+      ],
+      reconciliation: { ...base.reconciliation, turns: turns as never },
+    };
+  }
+
+  const completedRun = inspection([
+    { entryId: "pi-u", role: "user", visibleText: "Question", timestamp: "2026-09-18T10:00:32Z" },
+    { entryId: "pi-a", role: "assistant", visibleText: "Answer", timestamp: "2026-09-18T10:01:40Z" },
+  ]);
+
+  it("CR146: a completed but uncommitted turn keeps the identities its place was held under", () => {
+    const result = projectPiBackedConversationSurface(heldPlace([uncommittedTurn()]), completedRun);
+
+    expect(result.messages).toEqual([
+      { id: "user-1", role: "user", content: "Question", createdAt: "2026-09-18T10:00:32Z" },
+      { id: "assistant-1", role: "assistant", content: "Answer", createdAt: "2026-09-18T10:01:40Z" },
+    ]);
+  });
+
+  it("CR146: a union by id of the held place and the projection cannot duplicate the turn", () => {
+    // This is what makes the still-unidentified save that produced the four-message file
+    // harmless: with one identity per message, any union keyed on id collapses to the pair.
+    const held = heldPlace([uncommittedTurn()]);
+    const projected = projectPiBackedConversationSurface(held, completedRun);
+
+    const union = [...projected.messages];
+    for (const message of held.messages) {
+      if (!union.some((candidate) => candidate.id === message.id)) union.push(message);
+    }
+
+    expect(union.map((message) => message.id)).toEqual(["user-1", "assistant-1"]);
+  });
+
+  it("CR146: binds the answer too, which CR089's interrupted route deliberately does not", () => {
+    const result = projectPiBackedConversationSurface(heldPlace([uncommittedTurn()]), completedRun);
+    const assistant = result.messages.find((message) => message.role === "assistant");
+    expect(assistant?.id).toBe("assistant-1");
+    expect(assistant?.content).toBe("Answer");
+  });
+
+  it("CR146: a run that produced no answer is left to CR089 and keeps native identities", () => {
+    const result = projectPiBackedConversationSurface(heldPlace([uncommittedTurn()]), inspection([
+      { entryId: "pi-u", role: "user", visibleText: "Question", timestamp: "2026-09-18T10:00:32Z" },
+    ]));
+    expect(result.messages.map((message) => message.id)).toEqual(["pi-pi-u"]);
+  });
+
+  it("CR146: a turn whose Pi body already committed is still bound by its own evidence", () => {
+    const committed = uncommittedTurn({
+      pi: { state: "committed", userEntryId: "pi-u", assistantEntryId: "pi-a" },
+      harness: { state: "committed", userMessageId: "user-1", assistantMessageId: "assistant-1" },
+    });
+    const result = projectPiBackedConversationSurface(heldPlace([committed]), completedRun);
+    expect(result.messages.map((message) => message.id)).toEqual(["user-1", "assistant-1"]);
+  });
+
+  it("CR146: yields to a binding another turn already owns rather than throwing a conflict", () => {
+    // bind() throws on a contradictory claim, so the new route must never contest one. A turn
+    // that already named this entry wins, and the uncommitted turn simply goes unidentified.
+    const owner = uncommittedTurn({
+      turnId: "turn-owner",
+      startedAt: "2026-09-18T10:00:00Z",
+      pi: { state: "committed", userEntryId: "pi-u", assistantEntryId: "pi-a" },
+      harness: { state: "committed", userMessageId: "other-user", assistantMessageId: "other-assistant" },
+    });
+    const result = projectPiBackedConversationSurface(heldPlace([owner, uncommittedTurn()]), completedRun);
+    expect(result.messages.map((message) => message.id)).toEqual(["other-user", "other-assistant"]);
+  });
+
+  it("CR146: a turn that started after its request entry is not claimed by it", () => {
+    const late = uncommittedTurn({ startedAt: "2026-09-18T10:05:00Z" });
+    const result = projectPiBackedConversationSurface(heldPlace([late]), completedRun);
+    expect(result.messages.map((message) => message.id)).toEqual(["pi-pi-u", "pi-pi-a"]);
+  });
+});
