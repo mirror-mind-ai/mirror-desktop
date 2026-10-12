@@ -223,3 +223,75 @@ collapsing the group, was `mirror-desktop`'s conversation list **already open**,
 
 **CR137 stays `in_progress` either way** — on the pending CR133 decision if the regression is real,
 and on confirming the optional observation if it is not.
+
+
+---
+
+## Experiment B — designed so it does not depend on anyone's memory
+
+The Navigator's answer to the discriminating question was *"eu não lembro, melhor refazer esse
+teste"*, which is the right call. Rather than ask the question again, the experiment is redesigned
+so that **no human recollection is load-bearing**.
+
+### The design change that settles it
+
+**The Navigator clicks nothing on the relaunch.** If the disclosure is open after a launch in which
+no click occurred, no click can explain it. Their visual observation becomes corroboration rather
+than the sole instrument, which is the inverse of Experiment A.
+
+**And both reads happen with the app closed.** Experiment A's confusion came from my reading a live
+target while the Navigator was still operating it. A closed app cannot move under the instrument.
+
+### My process error, fixed in the protocol rather than promised against
+
+Experiment A specified an optional gesture and **no report for it**, so I inferred from disk what I
+should have received as an observation. Here the report is specified before the run, in the same
+breath as the gesture, and the protocol has an explicit pause where I read the pre-state and confirm
+the setup actually took.
+
+### Why Experiment A could not have revealed this, and a correction to my own reasoning
+
+I first thought the positive case *"never exercised the expand path."* **That is wrong.** The
+restore effect reads `conversationCatalogs` from its closure on its single run, and at that moment
+the map is empty — CR133's sequential restore is async and has not completed any Journey yet. So
+`expandJourneyConversations("mirror-desktop")` **was** called in Experiment A.
+
+The precise statement is narrower: what was never exercised is **`expand` against a *collapsed*
+group**, where the dispatch is not idempotent. In Experiment A the group was already open, so the
+expand changed nothing and persisted nothing. That is exactly why the run could not reveal the
+conflict, and why the collapsed pre-state is the whole point here.
+
+### Starting point, read at 08:46:24 with the app closed
+
+| | |
+|---|---|
+| `lastConversationSelectionByJourneyId` | `{mirror-desktop: {desktop_conversation, …18d5cf4842b669b0}}` |
+| `mirror-desktop` disclosure | **expanded**, position 5 of 5 |
+| Hidden under `mirror-desktop` | 2 |
+| Turn journal / timings | 61 / 19 |
+
+### Prediction — three outcomes, each meaning something different
+
+**Outcome 1, predicted: disclosure open, and inside the conversation, with zero clicks.** The restore
+awaits `expandJourneyConversations`, which dispatches `expand` before loading; against a collapsed
+group that is a real change and it persists. **This establishes the conflict with CR133's *"Reload
+preserves expansion choices."***
+
+**Outcome 2: disclosure still collapsed, landed on the Journey workspace.** The restore refused with
+`catalog_unavailable`. No conflict with CR133 — but then **restoring silently does not work for a
+collapsed Journey**, which is a worse defect than the one being investigated and would be a new
+finding against CR137's own first acceptance line.
+
+**Outcome 3: disclosure open, but landed on the Journey workspace.** The expand dispatched and the
+catalog result was abandoned anyway — `expandJourneyConversations` returns `undefined` when its own
+guard finds the Journey not expanded, and the ref it reads is assigned during render. This is the
+worst case: both defects at once, and a bug in my slice rather than a conflict with CR133. Judged
+unlikely, because `await waitForCatalogLoadingFeedbackPaint()` sits between the dispatch and the
+guard precisely so a paint — and therefore the ref assignment — happens first.
+
+**In all three outcomes the journal stays at 61 and the ledger at 19.** A restore that starts or
+provisions anything would move one of them.
+
+### Result
+
+_(pending)_
