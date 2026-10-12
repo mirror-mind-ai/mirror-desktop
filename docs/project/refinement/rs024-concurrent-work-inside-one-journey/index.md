@@ -2,7 +2,7 @@
 
 # RS024: Concurrent Work Inside One Journey
 
-**Status:** active
+**Status:** closed
 
 ## Framing
 
@@ -107,3 +107,40 @@ Journey-level grain was right.
 - [CR141: Key the Pi Event Route by Workspace](cr141-key-the-pi-event-route-by-workspace.md) — gated on CR140 merged · **done**
 - [CR143: Say Which Conversation Is Working](cr143-say-which-conversation-is-working.md) — **done**, reported from the field; **admitted to this Story by the Navigator on 2026-10-10** and delivered before the release
 - [CR144: Stop a Running Turn from Disabling Its Sibling's Send](cr144-stop-a-running-turn-from-disabling-its-sibling-s-send.md) — **done**, found by CR143's own field run; the defect that made this Story's outcome unreachable
+
+
+## Closure
+
+RS024 is closed on 2026-10-11, when its Acceptance Horizon was reached on a cold field run. **The
+status fields were not updated at the time and said `active` until 2026-10-12**; this section
+records the closure that was already decided rather than making a new decision. The drift is worth
+naming because `roadmap:check` validated the two status fields *against each other* and both were
+stale, so agreeing with each other is not the same as being right.
+
+Delivered: inspection and runtime state carrying two workspaces in one Journey (CR138); the native
+registry keyed by workspace (CR139); refusals distinguishable on the surface instead of degrading
+to a generic busy state (CR140); the Pi event route keyed by workspace (CR141); runtime indication
+on the conversation list, admitted to this Story by the Navigator mid-flight (CR143); and the cold
+list fix that the second field run turned up (CR144).
+
+The horizon's own history is the Story's most useful record, and it is kept struck through rather
+than rewritten. It was declared reached on 2026-10-10 and that claim was **true of the system and
+false of the Navigator's hands**: three turns did execute concurrently, but the state was not
+reachable from a cold list, because `selectJourneyRuntime` handed a never-run conversation its live
+sibling's runtime entry. The first field run passed only because its calibration turn had happened
+to run in the conversation the second turn used. CR144 removed that, and the cold run of 2026-10-11
+passed with D1A and D1B intersecting for 9.2 s on distinct threads with **no calibration turn in
+the session**.
+
+Proportionality review: proportional. The ordering was chosen so the authority-touching change in
+Rust came last and gated, and the renderer could carry two workspaces before the native side was
+allowed to admit them — which is why re-keying the registry produced concurrency rather than a
+lockout.
+
+Debt review: three candidates recorded and not folded in — the dead `finalizing` branch in
+`deriveJourneyWorkLocus`, `selectedRuntimeBusy` disabling the New button, and the in-memory-only
+dispatcher quarantine in a console-less release build, which CR147 may subsume. One uncollected
+check remains: a working hidden conversation's closed toggle.
+
+Released in `v0.2.0-alpha.44` "Two Conversations at Once", published, verified and installed in
+production.

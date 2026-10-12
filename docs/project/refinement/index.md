@@ -177,8 +177,8 @@ executes work.
 | 20 | [RS020](rs020-convergent-turn-synchronization/index.md) | Convergent Turn Synchronization | closed |
 | 21 | [RS021](rs021-ux-pre-beta-evolution/index.md) | UX Pre-Beta Evolution | active |
 | 22 | [RS022](rs022-mirror-core-debts/index.md) | Mirror Core Debts | active |
-| 23 | [RS023](rs023-conversations-as-first-class-workspaces/index.md) | Conversations as First-Class Workspaces | active |
-| 24 | [RS024](rs024-concurrent-work-inside-one-journey/index.md) | Concurrent Work Inside One Journey | active |
+| 23 | [RS023](rs023-conversations-as-first-class-workspaces/index.md) | Conversations as First-Class Workspaces | closed |
+| 24 | [RS024](rs024-concurrent-work-inside-one-journey/index.md) | Concurrent Work Inside One Journey | closed |
 
 ## Change Requests
 

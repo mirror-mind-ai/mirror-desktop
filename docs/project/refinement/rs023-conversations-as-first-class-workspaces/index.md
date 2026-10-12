@@ -2,7 +2,7 @@
 
 # RS023: Conversations as First-Class Workspaces
 
-**Status:** active
+**Status:** closed
 
 ## Framing
 
@@ -80,3 +80,42 @@ RS023 is complete only when:
 - [CR135: Let the Navigator Hide a Conversation Without Deleting It](cr135-let-the-navigator-hide-a-conversation-without-deleting-it.md)
 - [CR136: Admit Concurrent Work Inside One Journey](cr136-admit-concurrent-work-inside-one-journey.md) — promoted to [RS024](../rs024-concurrent-work-inside-one-journey/index.md)
 - [CR137: Bring the Navigator Back to the Conversation They Left](cr137-bring-the-navigator-back-to-the-conversation-they-left.md) — found by field-validating CR133
+
+
+## Closure
+
+RS023 is closed on 2026-10-12 with explicit Navigator authorization.
+
+The Story was prioritised as *the last fragile point of the app and the part that cannot yet be
+considered stable*. Its framing held: one notion of *where I am* carried three unrelated concerns,
+and separating them is what the five CRs did.
+
+Delivered: a disclosure that discloses and nothing else (CR133); runtime status that names the
+owner of running work without a parent impersonating a child or hiding that work runs (CR134); a
+reversible hide that preserves provenance and alters no durable record (CR135); the concurrency
+slice promoted whole into RS024 rather than forced onto this Story's Delivery branches (CR136); and
+a relaunch that returns the Navigator to the conversation they left (CR137).
+
+All five horizon rows are satisfied. The fourth — *reload preserves expansion and visibility
+choices* — is the one worth naming, because **CR137 broke it and then repaired it**. Restoring a
+selection reopened a disclosure the Navigator had deliberately collapsed, which is this Story's own
+criterion failing by this Story's own hand. It was established by a field experiment redesigned so
+no recollection was load-bearing, repaired by a read-only catalog load, and re-verified by rerunning
+the experiment that found it.
+
+**The recurring lesson of this Story is that validating shipped work finds more work.** CR137 exists
+because CR133 was field-validated. CR137's regression exists because CR137 was field-validated.
+Neither was found by review or by tests. Both were found by someone opening the app and looking.
+
+Proportionality review: proportional. Four CRs are renderer and preference work; the fifth was
+promoted rather than squeezed in, which is the decision that kept the daily-use fixes from waiting
+behind an authority change in Rust. Two new domain modules were added rather than widening existing
+ones, and no durable schema was altered beyond one preference field.
+
+Debt review: two items recorded and deliberately not folded in. Whether the per-Journey selection
+map should also be honoured on an in-session Journey switch, excluded because
+`resolveSelectedConversationSpace`'s degrade-on-mismatch is a design CR133 chose on purpose. And
+whether `collapsedJourneyIds` should be persisted, which predates this Story.
+
+Release state at closure: CR133, CR134 and CR135 shipped in `v0.2.0-alpha.43`. **CR137 is merged
+and unreleased.** Push, merge, packaging, publication and installation remain separately governed.

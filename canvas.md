@@ -11,7 +11,7 @@
 | ↳　CR141 · Key the Pi Event Route by Workspace | ✅ done · campo PASSOU · 3 turnos simultâneos · grão aposentado | `██████████` |
 | ↳　CR143 · Say Which Conversation Is Working | ✅ done · campo verificado · marca por conversa | `██████████` |
 | ↳　CR144 · Stop a Running Turn from Disabling Its Sibling's Send | ✅ done · campo achou · horizonte da RS024 era inalcançável | `██████████` |
-| **RS023 · Conversations as First-Class Workspaces** | 🔄 ativa · promovida da CR109 | `██████░░░░` 3 ✅ · 1 🟡 · 1 ↗️ · de 5 |
+| **RS023 · Conversations as First-Class Workspaces** | ✅ concluída · o último ponto frágil do app | `██████████` 4 ✅ · 1 ↗️ · de 5 |
 | ↳　CR133 · Stop a Disclosure From Selecting a Journey | ✅ done · campo verificado (6/6 cenários) | `██████████` |
 | ↳　CR134 · Name the Owner of Running Work Without Hiding That It Runs | ✅ campo verificado (4/4) · 1 achado corrigido | `██████████` |
 | ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | ✅ campo verificado (7/7) · fechada sobre arquivo | `██████████` |
