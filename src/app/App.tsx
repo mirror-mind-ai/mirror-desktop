@@ -366,6 +366,13 @@ import {
   type HiddenConversationsByJourney,
 } from "../domain/conversationVisibility";
 import {
+  EMPTY_CONVERSATION_SELECTION_MEMORY,
+  forgetConversationSelection,
+  rememberConversationSelection,
+  resolveRestoredConversationSelection,
+  type LastConversationSelectionByJourney,
+} from "../domain/conversationSelectionMemory";
+import {
   EMPTY_JOURNEY_CONVERSATION_CATALOGS,
   beginJourneyCatalogLoad,
   completeJourneyCatalogLoad,
@@ -765,10 +772,19 @@ export function App({ model }: AppProps) {
   // CR135: the Navigator's working set for each Journey's conversation list. Presentation only:
   // it filters what the list renders and never what the catalog holds.
   const [hiddenConversations, setHiddenConversations] = useState<HiddenConversationsByJourney>(EMPTY_HIDDEN_CONVERSATIONS);
+  // CR137: where inside each Journey the Navigator last was. Navigation state only, like the two
+  // above it: it decides where a relaunch lands and never who owns work.
+  const [lastConversationSelection, setLastConversationSelection] = useState<LastConversationSelectionByJourney>(
+    EMPTY_CONVERSATION_SELECTION_MEMORY,
+  );
   const [conversationSelection, dispatchConversationSelection] = useReducer(
     reduceConversationSelection,
     { kind: "journey_workspace", journeyId: "" } as ConversationSpaceSelection,
   );
+  // CR137: read inside the restore's async tail, to tell "still where startup left it" from "the
+  // Navigator has already navigated". Restoring must never overwrite a choice they just made.
+  const conversationSelectionRef = useRef(conversationSelection);
+  conversationSelectionRef.current = conversationSelection;
   const [conversationCatalogs, setConversationCatalogs] = useState<JourneyConversationCatalogs>(
     EMPTY_JOURNEY_CONVERSATION_CATALOGS,
   );
@@ -1781,6 +1797,7 @@ export function App({ model }: AppProps) {
       setSidebarCompact(sanitizedPreferences.sidebarCompact);
       dispatchConversationExpansion({ type: "restore", journeyIds: sanitizedPreferences.expandedConversationJourneyIds });
       setHiddenConversations(sanitizedPreferences.hiddenConversationIdsByJourneyId);
+      setLastConversationSelection(sanitizedPreferences.lastConversationSelectionByJourneyId);
       setLastWorkedAtByJourneyId(sanitizedPreferences.lastWorkedAtByJourneyId);
       setApplicationTheme(sanitizedPreferences.applicationTheme);
       setVoiceLanguage(sanitizedPreferences.voiceLanguage);
@@ -2436,8 +2453,9 @@ export function App({ model }: AppProps) {
       voiceLanguage,
       expandedConversationJourneyIds: [...expandedConversationJourneyIds],
       hiddenConversationIdsByJourneyId: hiddenConversations,
+      lastConversationSelectionByJourneyId: lastConversationSelection,
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, registryLoaded, preferencesLoaded]);
 
   // CR133: disclosures restored from the preference file load their catalogs one after
   // another. Reopening with many groups expanded must not start many catalog subprocesses
@@ -2455,6 +2473,57 @@ export function App({ model }: AppProps) {
       }
     })();
   }, [registryLoaded, preferencesLoaded, expandedConversationJourneyIds]);
+
+  // CR137: remember where the Navigator is, per Journey. Derived from the *resolved* selection, so
+  // it records where they actually are rather than a coordinate belonging to another Journey, and
+  // selecting a Journey workspace deletes the key rather than storing a third spelling of it.
+  useEffect(() => {
+    if (!registryLoaded || !preferencesLoaded) return;
+    setLastConversationSelection((current) => rememberConversationSelection(current, selectedConversationSpace));
+  }, [selectedConversationSpace, registryLoaded, preferencesLoaded]);
+
+  // CR137: put the Navigator back inside the Journey they left, exactly once per launch.
+  //
+  // The catalog has to be loaded *before* the selection is dispatched, and that ordering is
+  // load-bearing rather than tidy. `selectedConversationEntry` is derived from the catalog, and the
+  // conversation-load effect falls back to the Journey's root thread when that entry is missing — so
+  // dispatching against an empty catalog would show the Journey's transcript beneath a conversation
+  // selection, which is the two-surfaces-disagree defect this CR exists to remove.
+  //
+  // `expandJourneyConversations` is reused because it is read-only and already resolves a cold
+  // catalog, the same reason CR134's route calls it. It does open the Journey's disclosure as a
+  // consequence, which is state CR133 owns and is recorded as a deliberate deviation.
+  const restoredConversationSelectionRef = useRef(false);
+  useEffect(() => {
+    if (!registryLoaded || !preferencesLoaded || restoredConversationSelectionRef.current) return;
+    const journeyId = selectedJourney;
+    if (!journeyId) return;
+    restoredConversationSelectionRef.current = true;
+    const memory = lastConversationSelection;
+    if (!memory[journeyId]) return;
+    void (async () => {
+      const loaded = journeyCatalogState(conversationCatalogs, journeyId);
+      const entries = loaded.status === "ready"
+        ? loaded.entries
+        : await expandJourneyConversations(journeyId);
+      if (selectedJourneyRef.current !== journeyId) return;
+      // The Navigator navigating during startup outranks anything stored. Only a selection still
+      // sitting where startup left it may be replaced.
+      if (conversationSelectionRef.current.kind !== "journey_workspace") return;
+      const resolved = resolveRestoredConversationSelection({
+        memory,
+        journeyId,
+        entries,
+        hidden: hiddenConversations,
+      });
+      // Every refusal lands on the Journey workspace, which is already where the reducer starts,
+      // so a degrade is the absence of a dispatch rather than a correction after one.
+      if (!resolved.restored) return;
+      dispatchConversationSelection(resolved.selection.kind === "desktop_conversation"
+        ? { type: "select_desktop", journeyId, conversationId: resolved.selection.conversationId }
+        : { type: "select_mirror", journeyId, conversationId: resolved.selection.conversationId });
+    })();
+  }, [registryLoaded, preferencesLoaded, selectedJourney, lastConversationSelection, conversationCatalogs, hiddenConversations]);
 
   // CR134: resolve the root thread only for Journeys the registry reports busy, reusing CR133's
   // read-only thread read. An unresolved root leaves the locus `unknown`, which still shows that
@@ -4452,6 +4521,10 @@ export function App({ model }: AppProps) {
       // CR135: a deleted conversation must not leave its visibility choice behind, or a later
       // conversation could inherit it through a reused identifier.
       setHiddenConversations((current) => forgetConversationVisibility(current, selectedJourney, entry));
+      // CR137, the same hygiene for the same reason. This is not the correctness barrier — a
+      // coordinate naming a conversation the catalog no longer holds is refused as
+      // `conversation_missing` on restore — it is about not accumulating dead coordinates on disk.
+      setLastConversationSelection((current) => forgetConversationSelection(current, selectedJourney, entry));
       dispatchConversationSelection({ type: "select_root", journeyId: selectedJourney });
       setConversationActionMessage("Desktop Conversation deleted.");
       setConversationDeleteTarget(undefined);

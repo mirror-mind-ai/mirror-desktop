@@ -12,6 +12,12 @@ import {
   sanitizeHiddenConversations,
   type HiddenConversationsByJourney,
 } from "./conversationVisibility";
+import {
+  EMPTY_CONVERSATION_SELECTION_MEMORY,
+  parseConversationSelectionMemory,
+  sanitizeConversationSelectionMemory,
+  type LastConversationSelectionByJourney,
+} from "./conversationSelectionMemory";
 
 export type PersistedJourneyPreferences = {
   schemaVersion: "0.1.0";
@@ -30,6 +36,11 @@ export type PersistedJourneyPreferences = {
     // The composite key matters: the catalog has two kinds and a bare conversation id could put
     // away a Desktop entry and a Mirror entry in one act.
     hiddenConversationIdsByJourneyId: HiddenConversationsByJourney;
+    // CR137: where inside each Journey the Navigator last was, so a relaunch returns them there
+    // instead of to the Journey's own workspace. Keyed per Journey because one global value is
+    // destroyed by the first Journey switch; absent means the Journey workspace, so there is no
+    // third spelling of the default.
+    lastConversationSelectionByJourneyId: LastConversationSelectionByJourney;
   };
   savedAt: string;
 };
@@ -48,6 +59,7 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   voiceLanguage: defaultVoiceLanguage,
   expandedConversationJourneyIds: [],
   hiddenConversationIdsByJourneyId: EMPTY_HIDDEN_CONVERSATIONS,
+  lastConversationSelectionByJourneyId: EMPTY_CONVERSATION_SELECTION_MEMORY,
 };
 
 export function createPersistedJourneyPreferences(
@@ -94,6 +106,11 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
   const hiddenConversationIdsByJourneyId = preferences.hiddenConversationIdsByJourneyId === undefined
     ? EMPTY_HIDDEN_CONVERSATIONS
     : parseHiddenConversations(preferences.hiddenConversationIdsByJourneyId) ?? EMPTY_HIDDEN_CONVERSATIONS;
+  // CR137 follows the same departure: where the Navigator last stood is navigation state, and a
+  // bad value must not be able to cost them their pins, theme or recents.
+  const lastConversationSelectionByJourneyId = preferences.lastConversationSelectionByJourneyId === undefined
+    ? EMPTY_CONVERSATION_SELECTION_MEMORY
+    : parseConversationSelectionMemory(preferences.lastConversationSelectionByJourneyId) ?? EMPTY_CONVERSATION_SELECTION_MEMORY;
   const voiceLanguage = preferences.voiceLanguage === undefined
     ? defaultVoiceLanguage
     : parseVoiceLanguage(preferences.voiceLanguage);
@@ -124,6 +141,7 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       voiceLanguage,
       expandedConversationJourneyIds,
       hiddenConversationIdsByJourneyId,
+      lastConversationSelectionByJourneyId,
     },
     savedAt: record.savedAt,
   };
@@ -150,6 +168,7 @@ export function sanitizeJourneyPreferenceState(
     voiceLanguage: preferences.voiceLanguage,
     expandedConversationJourneyIds: uniqueExistingJourneyIds(preferences.expandedConversationJourneyIds, registry),
     hiddenConversationIdsByJourneyId: sanitizeHiddenConversations(preferences.hiddenConversationIdsByJourneyId, registry),
+    lastConversationSelectionByJourneyId: sanitizeConversationSelectionMemory(preferences.lastConversationSelectionByJourneyId, registry),
   };
 }
 

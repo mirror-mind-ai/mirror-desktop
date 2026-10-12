@@ -19,6 +19,11 @@ describe("Journey management guardrails", () => {
       applicationTheme: "tide",
       journeyAppearanceById: { nautilus: { kind: "custom" } },
       voiceLanguage: "auto",
+      // CR137: a conversation coordinate is navigation state, and this test is the declaration
+      // point for anything the preference file is allowed to carry.
+      lastConversationSelectionByJourneyId: {
+        nautilus: { kind: "desktop_conversation", conversationId: "desktop-conversation-nautilus-1" },
+      },
     });
 
     expect(Object.keys(persisted.preferences).sort()).toEqual([
@@ -28,6 +33,7 @@ describe("Journey management guardrails", () => {
       "hiddenConversationIdsByJourneyId",
       "journeyAppearanceById",
       "journeyListOrder",
+      "lastConversationSelectionByJourneyId",
       "lastWorkedAtByJourneyId",
       "pinnedJourneyIds",
       "recentJourneyIds",

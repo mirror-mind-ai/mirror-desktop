@@ -2,9 +2,9 @@
 
 # CR137: Bring the Navigator Back to the Conversation They Left
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress — delivered on files, field verification owed
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs023-cr137-bring-the-navigator-back-to-the-conversation-they-left`
 
 ## Friction
 
@@ -195,3 +195,96 @@ Unchanged from the capture, with one line now satisfied by construction rather t
   harmless here because `sanitizeJourneyPreferenceState` filters against the registry it came from,
   and **it is deliberately not minted as a CR** — recording it costs a sentence and a numbered row
   would not earn its keep.
+
+
+---
+
+## Delivered on files (2026-10-12)
+
+Field verification owed. The slice came out **smaller than planned**, and three of the plan's own
+items were refuted by reading before any of them was built.
+
+### Three corrections to the plan, recorded rather than quietly replaced
+
+**1. No new reducer action was needed.** The plan said to add a `restore` action to the selection
+reducer, mirroring CR133's `conversationExpansionActionTypes` entry. Expansion needed one because it
+restores a **set** in one shot; selection restores a **single value** the existing vocabulary
+already expresses, so the restore dispatches `select_desktop` or `select_mirror`, and a degrade
+dispatches *nothing at all* — the reducer already starts at a Journey workspace, so refusing is the
+absence of a dispatch rather than a correction after one. **`conversationSpaces.ts` has a zero
+diff.**
+
+**2. CR134's route was not parameterised, and it has a zero diff too.** The plan said to make the
+hidden-conversation policy an argument of the shared route. Reading showed the two routes match on
+**different keys** — CR134 resolves a `threadId`, CR137 a `conversationId` — so the shared surface
+is only the catalog load. CR137 therefore reuses `expandJourneyConversations` alone and brings its
+own resolver. CR134 is pinned by *not changing*, which is a stronger guarantee than a test over a
+refactor: the suite asserts its route body contains no hidden check of any kind, so a filter
+appearing there fails the build.
+
+**3. An earlier reading of my own was wrong, and the correction made the ordering load-bearing.** I
+had reported that nothing loads a transcript from the selection — I had grepped the wrong names. The
+conversation-load effect **is** keyed on the selection (`selectedConversationSpace.conversationId`
+is in its dependency array), and inside it `selectedConversationEntry` is derived from the
+**catalog**, falling back to `loadNautilusJourneyThread(selectedJourney)` when that entry is
+missing. So dispatching a conversation selection before its catalog exists would show the
+**Journey's** transcript beneath a **conversation** selection — manufacturing exactly the
+two-surfaces-disagree defect this CR exists to remove. The catalog-before-dispatch ordering is
+therefore a correctness requirement, not tidiness, and it has its own test asserting the two source
+positions in order.
+
+### What was built
+
+**New module `src/domain/conversationSelectionMemory.ts`.** The tenth time a new module was
+preferred to editing a widely-depended-on one.
+
+- `ConversationSelectionCoordinate` is `(kind, conversationId)` — the pair the codebase already
+  treats as an entry's identity and the pair `conversationVisibilityKey` is built from.
+- **Absence means the Journey workspace.** Selecting the workspace *deletes* the key rather than
+  storing a third kind, which is CR135's idiom in `revealConversation` for CR135's reason.
+- `resolveRestoredConversationSelection` names every refusal — `no_memory`, `catalog_unavailable`,
+  `conversation_missing`, `conversation_hidden` — and every one of them lands on the Journey
+  workspace.
+- `parseConversationSelectionMemory` degrades a malformed value to empty rather than discarding the
+  preference file, following CR133's and CR135's deliberate departure for the same reason: losing
+  where the Navigator stood must never cost them their pins, theme or recents.
+
+**`journeyPreferencePersistence.ts`**: `lastConversationSelectionByJourneyId` added to the type,
+default, parse and sanitize. The type is **required**, not optional, so a save path cannot silently
+omit it; absence is handled where it actually occurs, on the disk read.
+
+**`App.tsx`**, six points: the import; the state beside `hiddenConversations`; a
+`conversationSelectionRef` so the restore's async tail can tell *"still where startup left it"* from
+*"the Navigator has already navigated"*; the restore from sanitized preferences; the new field in
+the save effect; `forgetConversationSelection` beside CR135's forget on deletion; and the two
+effects — one remembering from the **resolved** selection, one restoring once per launch.
+
+**The hidden policy is the one place this diverges from CR134 on purpose**, and the reason is in the
+module: CR134 reaches a hidden conversation because work is really running there and the Navigator
+asked to be taken to it. Nobody asked for this one, so CR135 wins here and CR134 keeps winning
+there.
+
+### What the acceptance cost
+
+Acceptance line 4 — *the visible composer draft matches the restored selection* — needed **no code**,
+as the plan's investigation established: the visible draft is already derived from the selection by a
+total effect that runs after the Journey-keyed one. A test pins it so a later change cannot quietly
+break it.
+
+### Gates
+
+TypeScript **257 files / 2,029 tests** (+1 file, +31 tests — 12 on the resolver of which 9 are
+refusals, 8 on remembering, 6 on parsing and sanitizing, 6 on the wiring); `cargo test` **286 passed
+/ 3 ignored, unchanged**; **native diff zero**; `conversationSpaces.ts` **diff zero**;
+`tsc --noEmit` clean; `npm run tauri:build:dev` clean on the first pass. Diff: **2 new files, 4
+modified, 114 insertions, 1 deletion**.
+
+**One control run**: injecting `requestConversationRestart()` into the restore region makes the
+allow-list guard fail, and removing it makes it pass again. The guard that proves the restore starts
+nothing can itself fail, which is the only reason to trust it.
+
+### Field verification owed — and provocable in both directions
+
+Unlike CR145, this one can be provoked. Select a conversation, `⌘Q`, relaunch, and land back in it.
+Dev already carries **two hidden conversations** under `mirror-desktop`, so the refusal path has real
+data behind it: select one of those, relaunch, and land on the Journey workspace instead.

@@ -24,6 +24,9 @@ describe("Journey preference persistence", () => {
           applicationTheme: "violet",
           journeyAppearanceById: { nautilus: { kind: "system", icon: "book" } },
           voiceLanguage: "auto",
+          lastConversationSelectionByJourneyId: {
+            nautilus: { kind: "desktop_conversation", conversationId: "desktop-conversation-nautilus-1" },
+          },
         },
         new Date("2026-08-23T10:00:00.000Z"),
       ),
@@ -41,6 +44,9 @@ describe("Journey preference persistence", () => {
         voiceLanguage: "auto",
         expandedConversationJourneyIds: [],
         hiddenConversationIdsByJourneyId: { nautilus: ["desktop_conversation:one"] },
+        lastConversationSelectionByJourneyId: {
+          nautilus: { kind: "desktop_conversation", conversationId: "desktop-conversation-nautilus-1" },
+        },
       },
       savedAt: "2026-08-23T10:00:00.000Z",
     });
@@ -118,6 +124,10 @@ describe("Journey preference persistence", () => {
             missing: { kind: "custom" },
           },
           voiceLanguage: "pt",
+          lastConversationSelectionByJourneyId: {
+            amplia: { kind: "desktop_conversation", conversationId: "desktop-conversation-amplia-1" },
+            missing: { kind: "mirror_history", conversationId: "mirror-gone" },
+          },
         },
         fixtureJourneyRegistry,
       ),
@@ -135,6 +145,11 @@ describe("Journey preference persistence", () => {
       expandedConversationJourneyIds: [],
       // CR135: a departed Journey loses its hidden set, and a surviving one keeps its own.
       hiddenConversationIdsByJourneyId: { amplia: ["mirror_history:keep"] },
+      // CR137, the same rule for where the Navigator last stood: a Journey that no longer exists
+      // cannot be returned to, and pruning it must not disturb the Journey that does.
+      lastConversationSelectionByJourneyId: {
+        amplia: { kind: "desktop_conversation", conversationId: "desktop-conversation-amplia-1" },
+      },
     });
   });
 });
