@@ -16,13 +16,14 @@
 | ↳　CR134 · Name the Owner of Running Work Without Hiding That It Runs | ✅ campo verificado (4/4) · 1 achado corrigido | `██████████` |
 | ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | ✅ campo verificado (7/7) · fechada sobre arquivo | `██████████` |
 | ↳　CR136 · Admit Concurrent Work Inside One Journey | ↗️ promoted → RS024 / CR138–CR140 | `　　　　　　　　　　` |
-| ↳　CR137 · Bring the Navigator Back to the Conversation They Left | 🟡 captured · sem Driver · achado no campo da CR133 | `░░░░░░░░░░` |
+| ↳　CR137 · Bring the Navigator Back to the Conversation They Left | 🟡 planned · rota já existe na CR134 · draft órfão confirmado em produção | `███░░░░░░░` |
 | **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 36 ✅ · 2 🟡 · 4 ↗️ · 1 ⛔ · de 43 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR142 · Stop Losing a Turn the Journal Already Answered | ✅ done · campo negativo coletado na 2ª tentativa | `██████████` |
 | ↳　CR145 · Let a Finished Pi Release the Turn It Completed | ✅ done · ceifa medida sob um lock · metade positiva improvocável | `██████████` |
 | ↳　CR146 · Stop a Recovered Turn from Being Stored Twice | 🟡 captured · o arquivo diverge da tela · tela está certa | `░░░░░░░░░░` |
+| ↳　CR147 · Stop a Run-Loop Thread from Dying in Silence | 🟡 captured · a causa-raiz da CR145 · hipótese testável por panic injetado | `░░░░░░░░░░` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · sem Driver · pode sobrepor CR133/CR134 | `░░░░░░░░░░` |
@@ -35,6 +36,8 @@
 
 | CR | Story | Release | Estado |
 | --- | --- | --- | --- |
+| CR145 · Let a Finished Pi Release the Turn It Completed | RS016 | alpha.45 | ✅ done · metade positiva improvocável |
+| CR142 · Stop Losing a Turn the Journal Already Answered | RS016 | alpha.45 | ✅ campo negativo verificado |
 | CR144 · Stop a Running Turn from Disabling Its Sibling's Send | RS024 | alpha.44 | ✅ campo verificado |
 | CR143 · Say Which Conversation Is Working | RS024 | alpha.44 | ✅ campo verificado |
 | CR141 · Key the Pi Event Route by Workspace | RS024 | alpha.44 | ✅ campo verificado |
