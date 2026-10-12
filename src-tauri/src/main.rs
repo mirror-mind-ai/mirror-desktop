@@ -7850,10 +7850,17 @@ fn run_pi_process(
         run_id: authority.run_id.clone(),
         turn_id: authority.turn_id.clone(),
     });
+    // CR146: read once, here, because this is the only moment the baseline is knowable. It is
+    // the session leaf as it stood *before* this turn ran, which is what lets a recovered turn's
+    // evidence be attributed to this turn rather than to the last one that happens to be in the
+    // branch. By the time anything downstream asks, this turn's own answer has replaced it.
+    let baseline_leaf_entry_id = latest_pi_leaf_entry_id(&run_authority);
     let unwind_app = app.clone();
     let unwind_registry = registry.clone();
     let unwind_target = target.clone();
     let unwind_authority = authority.clone();
+    let unwind_run_authority = run_authority.clone();
+    let unwind_baseline = baseline_leaf_entry_id.clone();
     guard_run_loop(
         || {
             run_pi_process_unguarded(
@@ -7864,6 +7871,7 @@ fn run_pi_process(
                 config,
                 run_authority,
                 authority,
+                baseline_leaf_entry_id,
             )
         },
         |report| {
@@ -7872,6 +7880,8 @@ fn run_pi_process(
                 &unwind_registry,
                 &unwind_target,
                 &unwind_authority,
+                &unwind_run_authority,
+                unwind_baseline.as_deref(),
                 report,
             )
         },
@@ -7897,6 +7907,8 @@ fn fail_pi_process_after_unwind(
     registry: &Arc<Mutex<PiProcessRegistry<RunAuthority, PiChildHandle, ProviderConfig>>>,
     target: &RunTarget,
     authority: &PiProcessEventAuthority,
+    run_authority: &RunAuthority,
+    baseline_leaf_entry_id: Option<&str>,
     report: UnwindReport,
 ) {
     let detail = if report.truncated {
@@ -7938,11 +7950,21 @@ fn fail_pi_process_after_unwind(
                 ),
             );
             if terminalized {
+                // CR146: a recovered turn can only fill the place held for it if its evidence
+                // names the Pi entries. Without this the journal advances with no `piExecution`,
+                // the renderer's recovery refuses with `turn_journal_completed_evidence_missing`,
+                // the turn's `pi` body stays pending, and the projection mints a second identity
+                // for messages the harness is already holding. The attempt is bounded by the
+                // reader's own refusal: it returns `None` when the session holds no complete
+                // user-and-assistant pair past the baseline, so nothing is invented here.
+                let mut evidence = empty_terminal_evidence();
+                evidence.pi_execution =
+                    terminal_pi_execution_evidence(run_authority, baseline_leaf_entry_id);
                 match adopt_terminal_journal(
                     app,
                     authority,
                     TerminalState::ProcessDied,
-                    empty_terminal_evidence(),
+                    evidence,
                 ) {
                     Ok(()) => emit(
                         app,
@@ -8000,6 +8022,9 @@ fn run_pi_process_unguarded(
     config: ProviderConfig,
     run_authority: RunAuthority,
     authority: PiProcessEventAuthority,
+    // CR146: read by the guard before this body runs, and shared with the unwind path, so one
+    // turn has one baseline rather than two readings of a file that moves underneath them.
+    baseline_leaf_entry_id: Option<String>,
 ) {
     if let Err(error) = transition_running_journal(&app, &authority) {
         fail_pi_process_before_completion(
@@ -8011,7 +8036,6 @@ fn run_pi_process_unguarded(
         );
         return;
     }
-    let baseline_leaf_entry_id = latest_pi_leaf_entry_id(&run_authority);
     let mirror_mediated = config.invocation_mode == "mirror" && !config.safe_test_mode;
     let command = if config.safe_test_mode {
         "cat".to_string()
@@ -8456,7 +8480,14 @@ fn run_pi_process_unguarded(
                         baseline_leaf_entry_id.as_deref(),
                     );
                 }
+                // CR146: a process that died after producing a complete answer still has one,
+                // and the turn that owns it still needs its entries named. Same bound as above:
+                // the reader declines when the session holds no complete pair past the baseline.
                 if terminal_state == TerminalState::ProcessDied {
+                    evidence.pi_execution = terminal_pi_execution_evidence(
+                        &run_authority,
+                        baseline_leaf_entry_id.as_deref(),
+                    );
                     evidence.provider_failure = provider_stderr_capture
                         .lock()
                         .ok()
@@ -14293,5 +14324,99 @@ mod tests {
         }).to_string();
         assert!(validate_composer_drafts_payload(&oversized).is_err());
         assert!(validate_composer_drafts_payload("{bad-json").is_err());
+    }
+
+    // CR146 wiring guard. The run loop needs an `AppHandle` and cannot be called from a test, so
+    // the two sites that give a recovered turn its evidence are pinned against the source.
+
+    const CR146_MAIN_SOURCE: &str = include_str!("main.rs");
+
+    fn cr146_region(start_anchor: &str, end_anchor: &str) -> &'static str {
+        let start = CR146_MAIN_SOURCE
+            .find(start_anchor)
+            .unwrap_or_else(|| panic!("start anchor not found: {start_anchor}"));
+        let end = CR146_MAIN_SOURCE[start..]
+            .find(end_anchor)
+            .unwrap_or_else(|| panic!("end anchor not found: {end_anchor}"))
+            + start;
+        &CR146_MAIN_SOURCE[start..end]
+    }
+
+    #[test]
+    fn every_execution_evidence_reading_passes_a_baseline() {
+        // The reader's baseline guard is the only thing standing between a recovered turn and
+        // the *previous* turn's answer, and a call site passing `None` would defeat it in
+        // silence. Asserted positively over every site rather than by forbidding one spelling:
+        // a rule pinned on a single literal is one rephrasing away from useless.
+        // Scoped to production source. The guard's first run flagged a call in this very test
+        // module that passes `None` on purpose, to characterise the no-baseline case — a correct
+        // call the rule must not forbid. The rule is about the run loop, not about its tests.
+        let tests_begin = CR146_MAIN_SOURCE
+            .find("\n#[cfg(test)]\nmod tests {")
+            .expect("the test module boundary moved");
+        let production = &CR146_MAIN_SOURCE[..tests_begin];
+        let needle = "terminal_pi_execution_evidence(";
+        let mut sites = 0;
+        let mut cursor = 0;
+        while let Some(offset) = production[cursor..].find(needle) {
+            let open = cursor + offset;
+            let is_declaration = production[..open].ends_with("fn ");
+            cursor = open + needle.len();
+            if is_declaration {
+                continue;
+            }
+            // A window rather than brace matching: every call here is well under this length,
+            // and matching braces by hand is what this project stopped doing.
+            let window_end = (cursor + 150).min(production.len());
+            let window = &production[cursor..window_end];
+            assert!(
+                window.contains("baseline_leaf_entry_id"),
+                "an execution-evidence reading passes no baseline: {window}"
+            );
+            sites += 1;
+        }
+        assert_eq!(
+            sites, 5,
+            "the number of places that read execution evidence changed; each one needs a baseline"
+        );
+    }
+
+    #[test]
+    fn a_turn_recovered_from_an_unwind_carries_the_entries_its_answer_lives_under() {
+        // Ends on the function's own closing brace at column zero rather than on the next
+        // declaration's name: naming it here would add a third textual occurrence of it and trip
+        // CR147's guard, which counts them. That guard caught this on the first run.
+        let unwind = cr146_region("fn fail_pi_process_after_unwind(", "\n}\n");
+        let evidence = unwind
+            .find("terminal_pi_execution_evidence(")
+            .expect("an unwound turn adopts its journal with no execution evidence");
+        let adopt = unwind
+            .find("adopt_terminal_journal(")
+            .expect("the unwind path no longer adopts a terminal journal");
+        assert!(
+            evidence < adopt,
+            "the evidence must be built before the journal is adopted, or the record is written \
+             without it and the renderer's recovery refuses for the reason this CR removes"
+        );
+        assert!(
+            !unwind.contains("TerminalState::ProcessDied,\n                    empty_terminal_evidence(),"),
+            "an unwound turn must not adopt an empty terminal evidence"
+        );
+    }
+
+    #[test]
+    fn a_process_that_died_with_an_answer_still_records_the_answer() {
+        let completion = cr146_region(
+            "                if terminal_state == TerminalState::ProcessDied {",
+            "                match adopt_terminal_journal(&app, &authority, terminal_state, evidence)",
+        );
+        assert!(
+            completion.contains("evidence.pi_execution = terminal_pi_execution_evidence("),
+            "a died process with a complete answer leaves its turn unable to be recovered"
+        );
+        assert!(
+            completion.contains("evidence.provider_failure"),
+            "the provider failure evidence this branch already carried must stay"
+        );
     }
 }
