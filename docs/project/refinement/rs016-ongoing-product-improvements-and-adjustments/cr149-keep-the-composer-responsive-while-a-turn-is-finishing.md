@@ -2,9 +2,9 @@
 
 # CR149: Keep the Composer Responsive While a Turn Is Finishing
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** planned
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs016-cr149-keep-the-composer-responsive-while-finishing`
 **Navigator priority:** 1 of 8 (intake 2026-10-12)
 
 ## Friction
@@ -90,3 +90,105 @@ occupancy guard.
 
 `App.tsx:1348`–`:1362` and `ComposerRuntimeFooter.tsx:81` read from source on 2026-10-12. The
 symptom and its phase binding are the Navigator's report. No latency measurement exists yet.
+
+
+---
+
+## Plan (2026-10-12)
+
+### What the tick actually serves
+
+`finishingTick` feeds exactly one call, `settlementAbandonmentOffer` at `App.tsx:1355`, and that
+result has exactly three consumers:
+
+| site | what it reads | needs a per-second value? |
+|---|---|---|
+| `:4054`, inside `abandonSettlementWait()` | `.offered`, as a guard | **no** — it is read when the act runs, not when the tree renders |
+| `:6183` | `.offered`, to render the notice at all | **no** — it changes once, when the threshold is crossed |
+| `:6185` | `Math.round(waitedMs / 1000)` | **yes** |
+
+So **one span of text** needs a clock, and the application re-renders from its root once per second
+to produce it.
+
+### The repair removes the root clock entirely
+
+Three moves, none of which touch the domain function:
+
+1. **The act's guard moves to the instant of the act.** `abandonSettlementWait()` computes the offer
+   with `Date.now()` instead of reading a render-time value. This is **strictly more correct than
+   today**, where the guard can be up to a second stale — it is not merely a relocation.
+2. **A new component owns the clock.** It receives the four slow inputs, keeps its own 1 Hz
+   `setInterval`, calls `settlementAbandonmentOffer` itself, and renders the notice. This is exactly
+   the pattern `ComposerRuntimeStatus` already uses in `ComposerRuntimeFooter.tsx:74`–`:84`, with the
+   same `now?` test seam, so the house already has one of these to copy.
+3. **`finishingTick` and its `setInterval` are deleted** from the App root.
+
+The result: during `Finishing`, **no state in the App root advances on a per-second clock.** The
+clock survives only in the component that draws a second counter.
+
+### This ships on structural grounds, not on the performance claim
+
+A root-level state change once per second, to evaluate one threshold and draw one text span, is wrong
+whether or not it is the measured cause of the Navigator's typing lag. **That matters because I cannot
+measure the lag.** Typing in the application is the Navigator's act, so:
+
+- **The before-state is their report**, which is why it is quoted verbatim in the Friction above.
+- **The after-state is a field check with a falsifier written before the build is handed over**: if
+  typing during `Finishing` is still slow, the hypothesis in this document was wrong, the structural
+  repair still stands, and CR149 needs a second pass against a different cause. **That outcome is the
+  finding, not a failure** — and it is the reason the hypothesis was labelled as one rather than
+  asserted.
+
+### The other root clocks, named and left
+
+Two more root-level clocks exist and are deliberately out of scope, so this survey is not mistaken
+for an exhaustive one:
+
+| clock | interval | relative frequency |
+|---|---|---|
+| `finishingTick` (`:1348`) | 1,000 ms | the subject of this CR |
+| `strandedTurnTick` (`:702`, polled at `:2588`) | `STRANDED_TURN_POLL_MS = 15_000` | 1/15th |
+| `relativeTimeNow` (`:632`, `:2558`) | 60,000 ms | 1/60th |
+
+If the field check fails, these are the next candidates — which is a better reason to leave them
+than to touch them now.
+
+### Files
+
+- `src/app/SettlementAbandonmentNotice.tsx` — **new**. The component and its clock.
+- `src/app/App.tsx` — delete the tick, move the guard to call time, render the component.
+- `src/tests/settlementAbandonment.test.ts` — the source guard and the call-time guard.
+- `src/tests/settlementAbandonmentNotice.test.tsx` — **new**. The component's own behaviour.
+
+`src/app/settlementAbandonment.ts` is **not** in this list, and that absence is the point: the
+decision stays where CR132 put it.
+
+### Acceptance
+
+- While `Finishing`, the App root holds no state advanced by a sub-minute clock. Asserted as a
+  **source guard**, so re-adding one is caught rather than noticed.
+- The notice still appears only once the threshold is crossed, and still names the wait in seconds,
+  advancing every second.
+- `settlementAbandonment.ts` is **unchanged**, verified by the diff rather than claimed.
+- The act's guard is evaluated against the clock at the moment of the act.
+- The act remains idempotent, still writes exactly one timing record, and still refuses while native
+  execution is active.
+- `cancelVisible` and `sendBlocked` derivations are untouched.
+- CR132's 14 existing guards in `settlementAbandonment.test.ts` pass unmodified. **Needing to edit
+  them is the signal to stop.**
+
+### Validation
+
+- `npx tsc --noEmit`, full `vitest`, `cargo test`, `npm run build`, `npm run roadmap:check`.
+- **A control for the source guard**: re-introduce a root-level per-second clock and confirm the
+  guard fails. A guard that cannot fail is not a guard.
+- **A control for the call-time guard**: a test proving the act refuses when the threshold has not
+  been reached at the moment it is called, even if a stale render said otherwise.
+
+### Exclusions
+
+- Does not change `ABANDON_SETTLEMENT_OFFER_AFTER_MS`, the four refusal reasons, or what the act does.
+- Does not touch `ComposerRuntimeStatus`'s own clock, which is already local and already correct.
+- Does not touch the other two root clocks.
+- **Does not claim to have fixed the typing lag.** It removes a mechanism that could plausibly cause
+  it; the field decides.

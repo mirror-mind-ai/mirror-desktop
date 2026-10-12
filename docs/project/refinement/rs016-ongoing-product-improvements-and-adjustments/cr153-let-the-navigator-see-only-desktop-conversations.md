@@ -49,8 +49,11 @@ and a newly arriving non-desktop entry stays filtered without the Navigator acti
 
 ## First Investigation
 
-- **Does it mean all three excluded, or only `mirror_history`?** The Navigator's words name what to
-  keep rather than what to drop. `journey_workspace` is the ambiguous one and only they can settle it.
+- ~~**Does it mean all three excluded, or only `mirror_history`?**~~ **Answered by the Navigator
+  (2026-10-12): only `mirror_history` is excluded.** `journey_workspace` stays visible. So the filter
+  hides exactly one kind, which makes the label *"show only desktop conversations"* narrower than it
+  reads — it keeps the Journey's own workspace entry too. **The label should say what it does**, or
+  the Navigator will eventually wonder why a non-desktop entry is still there.
 - **Where does the preference live?** `journey-preferences.json` already persists per-Journey
   selection state and would make the filter per-Journey; a global filter would need a different home.
   Per-Journey and global are different products — one is *this Journey is noisy*, the other is *I

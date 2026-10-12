@@ -55,8 +55,11 @@ place by removed — and the removals are named, because removing a view is a re
 
 ## First Investigation
 
-- **The Navigator names it.** Which parts they read, which they ignore, and which actively get in
-  the way. One sentence per item is enough and nothing below this can be decided without it.
+- **The Navigator names it — deferred to selection (2026-10-12).** Asked up front, the answer was
+  *"São várias coisas. Melhor definirmos o escopo no pull da CR."* That is the right call and is
+  recorded rather than treated as an unanswered question: the scope is set when this CR is pulled,
+  not now. **This CR must not be selected before that conversation happens**, because every slice
+  below depends on it.
 - **Is it a density problem or a performance problem?** *"Simplificação"* can mean both, and this
   session has an open CR about a surface feeling slow for a mechanical reason
   ([CR149](cr149-keep-the-composer-responsive-while-a-turn-is-finishing.md)). If the Context Map is

@@ -34,17 +34,24 @@ Settings. Off must be genuinely silent.
 
 ## First Investigation
 
-- **Which moment is "terminar"?** The application has several, and they are not the same instant. The
-  provider's answer arriving, the run terminalizing, and settlement completing can be seconds apart —
-  `Finishing` exists precisely because the last one is visible. A sound at terminalization announces
-  an answer the Navigator can read; a sound at settlement announces durability they cannot see.
-  **The answer arriving is the likely intent, and it is not the last event.**
+- ~~**Which moment is "terminar"?** […] **The answer arriving is the likely intent, and it is not the
+  last event.**~~ **Answered by the Navigator (2026-10-12): when settlement ends.** *"Imaginei que
+  seria uma das coisas que o Finishing faz (notifica)."* My guess above was wrong and is kept struck
+  through: I assumed they wanted the answer's arrival, and they want the turn genuinely finished.
+  That makes the sound a **completion of the `Finishing` phase**, which is a better fit than I
+  proposed — the phase already exists, already knows when it ends, and already owns a surface. It
+  also means the sound can arrive seconds after the text is readable, which is deliberate.
+- **Where exactly does `Finishing` end?** It ends in several ways, and they are not one site: the
+  settlement block's own `finally`, CR132's abandonment act, and recovery converging later. A sound
+  on each would announce the same turn more than once.
 - **Every turn, or only one the Navigator is not watching?** A sound on a turn completing while the
   window is focused and the Navigator is reading the stream is noise. Whether window focus gates it
   changes the design, and gating on focus is the kind of heuristic that is wrong at the worst moment.
-- **What about a turn that ends badly?** A failure, a cancellation and an interrupted turn all end.
-  Whether they share the sound, get a different one, or stay silent is a product decision — and a
-  cheerful completion sound for a failure would be a lie.
+- ~~**What about a turn that ends badly?**~~ **Answered (2026-10-12): a failure may sound
+  different.** So there are at least two sounds, which settles that a single asset or a single tone
+  is not enough. Still open within that answer: whether a **cancellation** the Navigator themselves
+  performed should sound at all — they already know it happened, and announcing their own act back to
+  them is noise rather than information.
 - **Which turns, when several run at once?** RS024 made concurrent work inside one Journey real. A
   sound per finishing turn is correct and may also be three sounds at once.
 - **Does it need a file?** A short tone can be synthesised with `AudioContext` and no asset, which

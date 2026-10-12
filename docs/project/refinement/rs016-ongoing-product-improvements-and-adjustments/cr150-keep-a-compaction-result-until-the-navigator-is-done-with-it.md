@@ -49,6 +49,12 @@ its lifecycle rule is deliberate, documented and tested. **Recommended, not take
 from `transient` to a dismissal contract of its own, and record inside CR104 that its success case was
 superseded by field use, struck through rather than deleted.
 
+### Granted (2026-10-12)
+
+The Navigator approved the reversal. CR104's success case is superseded, and its document must record
+that as a supersession — struck through beside the replacement, never deleted — so the reasoning that
+produced `transient` stays readable next to the use that refuted it.
+
 ## Outcome
 
 A compaction that completes stays on the Composer surface until the Navigator closes it or sends the
