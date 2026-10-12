@@ -20,10 +20,12 @@ use journey_appearance::{
 use pi_global_extensions::resolve_global_pi_extensions;
 use pi_process_registry::{
     control_bounded_child_handles, control_child_handle, join_before_continuation,
+    terminalize_attempt,
     reserve_then_start, AttachOutcome,
     CancelOutcome, ChildControlError, ChildLiveness, PiInvocationRegistryInspection, PiProcessRegistry,
     RegistryAuthority, RegistryAuthorityInspection, ReleaseOutcome, ReserveError,
-    ReserveThenStartError, RunTarget, TargetError, TerminalState, TerminalizeOutcome,
+    ReserveThenStartError, RunTarget, TargetError, TerminalState, TerminalizeAttempt,
+    TerminalizeOutcome,
 };
 use pi_rpc::{
     observe_line as observe_pi_rpc_line, one_at_a_time_line, prompt_line, steer_line,
@@ -7691,6 +7693,14 @@ fn mirror_runtime_skill_paths() -> Result<Vec<PathBuf>, String> {
     Ok(paths)
 }
 
+/// CR147: said on the surface instead of being folded into a duplicate's silence. Both
+/// messages name the retained lease, because that is what the Navigator can act on through
+/// CR145's release once the child has exited.
+const UNREADABLE_REGISTRY_WHILE_FAILING: &str =
+    "The Pi process registry could not be read while failing this turn; its native lease may still be held.";
+const UNREADABLE_REGISTRY_WHILE_FINISHING: &str =
+    "The Pi process registry could not be read while finishing this turn; its native lease may still be held.";
+
 fn empty_terminal_evidence() -> TurnTerminalEvidence {
     TurnTerminalEvidence {
         legacy_stdout: String::new(),
@@ -7769,10 +7779,10 @@ fn terminalize_pi_process(
     registry: &Arc<Mutex<PiProcessRegistry<RunAuthority, PiChildHandle, ProviderConfig>>>,
     target: &RunTarget,
     terminal: TerminalState,
-) -> bool {
-    registry.lock()
-        .map(|mut registry| registry.terminalize(target, terminal) == TerminalizeOutcome::First)
-        .unwrap_or(false)
+) -> TerminalizeAttempt {
+    terminalize_attempt(registry.lock(), |mut registry| {
+        registry.terminalize(target, terminal)
+    })
 }
 
 fn fail_pi_process_before_completion(
@@ -7782,7 +7792,16 @@ fn fail_pi_process_before_completion(
     authority: &PiProcessEventAuthority,
     message: String,
 ) {
-    if terminalize_pi_process(registry, target, TerminalState::SpawnFailed) {
+    let attempt = terminalize_pi_process(registry, target, TerminalState::SpawnFailed);
+    if attempt.proceeds_to_terminal_work() {
+        if attempt == TerminalizeAttempt::RegistryUnavailable {
+            emit(
+                app,
+                authority,
+                PiProcessEventKind::Error,
+                UNREADABLE_REGISTRY_WHILE_FAILING.to_string(),
+            );
+        }
         emit(app, authority, PiProcessEventKind::Error, message);
         match adopt_terminal_journal(app, authority, TerminalState::SpawnFailed, empty_terminal_evidence()) {
             Ok(()) => emit(app, authority, PiProcessEventKind::Done, "Pi invocation finished.".to_string()),
@@ -8210,8 +8229,17 @@ fn run_pi_process(
             Err(error) => break (TerminalState::ProcessDied, Some(error)),
         }
     };
-    let first_terminal = terminalize_pi_process(&registry, &target, terminal_state);
+    let terminal_attempt = terminalize_pi_process(&registry, &target, terminal_state);
+    let first_terminal = terminal_attempt.proceeds_to_terminal_work();
     if first_terminal {
+        if terminal_attempt == TerminalizeAttempt::RegistryUnavailable {
+            emit(
+                &app,
+                &authority,
+                PiProcessEventKind::Error,
+                UNREADABLE_REGISTRY_WHILE_FINISHING.to_string(),
+            );
+        }
         if let Some(error) = terminal_error {
             emit(&app, &authority, PiProcessEventKind::Error, error);
         }

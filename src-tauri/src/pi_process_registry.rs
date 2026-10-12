@@ -132,6 +132,58 @@ pub enum TerminalizeOutcome {
     Stale,
 }
 
+/// CR147: what a terminalization attempt actually established, including the case
+/// `TerminalizeOutcome` has no way to express — that the registry could not be read at all.
+///
+/// A poisoned registry mutex used to be folded into `false` by the caller, which every
+/// caller then treated exactly as a duplicate: no error emitted, no terminal journal
+/// record adopted, no `Done`. Since a `std::sync::Mutex` stays poisoned for the life of
+/// the process, one panic while holding this lock made every later turn end in silence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TerminalizeAttempt {
+    First,
+    NotFirst,
+    RegistryUnavailable,
+}
+
+impl TerminalizeAttempt {
+    /// Whether the caller should go on to emit, adopt a terminal journal record, and
+    /// emit `Done`.
+    ///
+    /// `RegistryUnavailable` proceeds on purpose. The attempt established nothing, so
+    /// the only alternative is the silence this CR exists to remove, and the work it
+    /// proceeds to does not need the registry: `adopt_terminal_journal` is file-based,
+    /// and it returns `Ok(())` when the record is already terminal with the same
+    /// outcome, so proceeding where someone else already finished is a no-op rather
+    /// than a double write. A genuinely conflicting outcome is reported as
+    /// `turn_journal_terminal_conflict` instead of being written.
+    pub fn proceeds_to_terminal_work(self) -> bool {
+        matches!(
+            self,
+            TerminalizeAttempt::First | TerminalizeAttempt::RegistryUnavailable
+        )
+    }
+}
+
+/// CR147: map a registry lock result to what the terminalization established.
+///
+/// Generic over the guard and the lock error so it can be characterised against a
+/// really poisoned `Mutex` rather than against a hand-made stand-in for one.
+pub fn terminalize_attempt<G, E>(
+    locked: Result<G, E>,
+    terminalize: impl FnOnce(G) -> TerminalizeOutcome,
+) -> TerminalizeAttempt {
+    match locked {
+        Err(_) => TerminalizeAttempt::RegistryUnavailable,
+        Ok(guard) => match terminalize(guard) {
+            TerminalizeOutcome::First => TerminalizeAttempt::First,
+            TerminalizeOutcome::Duplicate | TerminalizeOutcome::Stale => {
+                TerminalizeAttempt::NotFirst
+            }
+        },
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReleaseOutcome {
     Released,
@@ -277,13 +329,11 @@ where
         .reserve(authority, provider_snapshot)
         .map_err(ReserveThenStartError::Reservation)?;
     if let Err(error) = start(&target) {
-        let first_terminal = registry
-            .lock()
-            .map(|mut registry| {
-                registry.terminalize(&target, TerminalState::SpawnFailed)
-                    == TerminalizeOutcome::First
-            })
-            .unwrap_or(false);
+        // CR147: an unreadable registry proceeds rather than passing for a duplicate.
+        let first_terminal = terminalize_attempt(registry.lock(), |mut registry| {
+            registry.terminalize(&target, TerminalState::SpawnFailed)
+        })
+        .proceeds_to_terminal_work();
         return Err(ReserveThenStartError::Start {
             target,
             error,
@@ -1956,5 +2006,86 @@ mod tests {
             assert!(!serialized.contains(private), "inspection leaked {private}");
         }
         assert!(inspection.entries.len() <= inspection.limit);
+    }
+
+    // CR147: a poisoned registry mutex must be distinguishable from a duplicate.
+
+    fn poisoned_mutex() -> Arc<Mutex<u8>> {
+        let lock = Arc::new(Mutex::new(0u8));
+        let poisoner = lock.clone();
+        let _ = thread::spawn(move || {
+            let _guard = poisoner.lock().unwrap();
+            panic!("CR147 test poisons the mutex on purpose");
+        })
+        .join();
+        assert!(lock.lock().is_err(), "the mutex was expected to be poisoned");
+        lock
+    }
+
+    #[test]
+    fn a_poisoned_lock_is_reported_as_unavailable_and_never_runs_the_terminalization() {
+        let lock = poisoned_mutex();
+        let ran = Arc::new(AtomicUsize::new(0));
+        let observer = ran.clone();
+        let attempt = terminalize_attempt(lock.lock(), |_guard| {
+            observer.fetch_add(1, Ordering::SeqCst);
+            TerminalizeOutcome::First
+        });
+        assert_eq!(attempt, TerminalizeAttempt::RegistryUnavailable);
+        assert_eq!(
+            ran.load(Ordering::SeqCst),
+            0,
+            "a terminalization must not run against a lock that could not be taken"
+        );
+    }
+
+    #[test]
+    fn an_unreadable_registry_proceeds_to_terminal_work_while_a_duplicate_does_not() {
+        assert!(TerminalizeAttempt::First.proceeds_to_terminal_work());
+        assert!(
+            TerminalizeAttempt::RegistryUnavailable.proceeds_to_terminal_work(),
+            "an attempt that established nothing must not be treated as a duplicate, \
+             because the alternative is the silence CR147 removes"
+        );
+        assert!(!TerminalizeAttempt::NotFirst.proceeds_to_terminal_work());
+    }
+
+    #[test]
+    fn a_readable_registry_maps_every_terminalize_outcome() {
+        let healthy = Mutex::new(0u8);
+        for (outcome, expected) in [
+            (TerminalizeOutcome::First, TerminalizeAttempt::First),
+            (TerminalizeOutcome::Duplicate, TerminalizeAttempt::NotFirst),
+            (TerminalizeOutcome::Stale, TerminalizeAttempt::NotFirst),
+        ] {
+            assert_eq!(
+                terminalize_attempt(healthy.lock(), |_guard| outcome),
+                expected,
+                "{outcome:?} mapped wrongly"
+            );
+        }
+    }
+
+    #[test]
+    fn the_real_registry_terminalizes_once_through_the_attempt_mapping() {
+        let registry = Mutex::new(
+            PiProcessRegistry::<FakeAuthority, FakeChild, FakeProvider>::new(2).unwrap(),
+        );
+        let target = registry
+            .lock()
+            .unwrap()
+            .reserve(authority("journey", "run"), provider())
+            .expect("reserve");
+        assert_eq!(
+            terminalize_attempt(registry.lock(), |mut guard| guard
+                .terminalize(&target, TerminalState::Completed)),
+            TerminalizeAttempt::First
+        );
+        assert_eq!(
+            terminalize_attempt(registry.lock(), |mut guard| guard
+                .terminalize(&target, TerminalState::Completed)),
+            TerminalizeAttempt::NotFirst,
+            "the second terminalization of the same turn is a duplicate, not an unreadable registry"
+        );
     }
 }
