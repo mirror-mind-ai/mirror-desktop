@@ -33,6 +33,10 @@ already-satisfied result, or an incorrectly classified provider response before 
 - The message accurately distinguishes a failure from an already-satisfied compaction outcome.
 - A durable failure has an explicit dismiss, retry or recovery path appropriate to its state.
 - A stale notice does not survive unrelated successful turns without a reason to remain visible.
+  **Note (CR150, 2026-10-13):** this acceptance was always on CR150's side. What Phase 1 got wrong
+  was the *mechanism* — it gave a success a timer instead of giving it this criterion — so a success
+  vanished before any turn, and a failure survived every turn. CR150 implements the criterion as
+  written here. The criterion stands; only the timer is withdrawn.
 - The surface remains truthful after reload and does not erase evidence needed for diagnosis.
 
 ## Boundaries
@@ -65,7 +69,13 @@ marker. Withholding `run_finished` on failure is deliberate — a failure must n
 The reported friction is that the notice could not be cleared, and that is fully addressable without
 resolving the classification question. A compaction outcome has two lifetimes, not one:
 
-- A success is a confirmation. It has done its job once read, so it may still fade.
+- ~~A success is a confirmation. It has done its job once read, so it may still fade.~~
+  **Superseded by [CR150](../rs016-ongoing-product-improvements-and-adjustments/cr150-keep-a-compaction-result-until-the-navigator-is-done-with-it.md) on 2026-10-13, by field use.**
+  A success is not only a confirmation that something happened; it is a *measurement of how much
+  context was reclaimed*, which the Navigator reads to decide what to do next. A confirmation can
+  fade. A measurement the next decision depends on cannot. The reasoning above is kept rather than
+  deleted because it was sound about confirmations and wrong only about which kind of thing this is.
+  A success is now `until-next-turn`: the Navigator closes it, or their next turn does.
 - A failure is a statement that remains true afterwards. The context was **not** compacted, and the
   pressure that motivated the request is now worse rather than better. A timer must not clear it,
   and neither may an unrelated turn succeeding — that is precisely what made the old notice look

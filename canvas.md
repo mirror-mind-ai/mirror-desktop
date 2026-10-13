@@ -26,7 +26,7 @@
 | ↳　CR147 · Stop a Run-Loop Thread from Dying in Silence | ✅ done · campo negativo coletado · mecanismo original segue indeterminado | `██████████` |
 | ↳　CR148 · Give an Unanswered Turn Back Its Own Identity | 🟡 captured · achada na linha de base da CR146 · turno pendente sem par | `░░░░░░░░░░` |
 | ↳　CR149 · Keep the Composer Responsive While a Turn Is Finishing | ✅ done · **resolvido no campo** · causa: settlement rodava na main thread nativa · 69/90 comandos movidos para workers sob lock de serialização · duração do settlement inalterada (percentis 52–86 de 240), o congelamento era a thread, não o tempo · 5 refutações antes — o erro estava no instrumento | `██████████` |
-| ↳　CR150 · Keep a Compaction Result Until the Navigator Is Done With It | 🟡 captured · prioridade 2 · reverte escolha deliberada da CR104 · decisão de Workbench | `░░░░░░░░░░` |
+| ↳　CR150 · Keep a Compaction Result Until the Navigator Is Done With It | 🔵 in_progress · ciclo de vida agora tem 3 valores · sucesso vira `until-next-turn` · falha intocada · 4 controles passaram · aguardando campo | `███████░░░` |
 | ↳　CR151 · Let a Finished Turn Announce Itself | 🟡 captured · prioridade 3 · capacidade nova · nenhum áudio existe no app | `░░░░░░░░░░` |
 | ↳　CR152 · Let the Navigator Hide Every Conversation but One | 🟡 captured · prioridade 4 · simétrica de revealAllConversations | `░░░░░░░░░░` |
 | ↳　CR153 · Let the Navigator See Only Desktop Conversations | 🟡 captured · prioridade 5 · filtro de visão, não ocultação durável | `░░░░░░░░░░` |

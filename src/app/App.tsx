@@ -180,7 +180,7 @@ import {
   segmentProjectionsTouchedByCompaction,
 } from "../domain/compactionChapters";
 import { compactJourneySession } from "./compactionStorage";
-import { classifyCompactionRefusal, compactionNoticeLifecycle } from "./compactionNoticeLifecycle";
+import { classifyCompactionRefusal, clearCompactionNoticeOnNewTurn, compactionNoticeLifecycle } from "./compactionNoticeLifecycle";
 import { manualCompactionAvailability } from "./manualCompactionAvailability";
 import { journeyStartAvailability } from "./journeyStartAvailability";
 import { describeAdmissionRefusal } from "./admissionRefusal";
@@ -3225,6 +3225,11 @@ export function App({ model }: AppProps) {
     }
     setUnsentDraftNotices((current) => clearUnsentDraft(current, ownerJourneyId));
     setCompactedLeaf((current) => (current?.journeyId === ownerJourneyId ? undefined : current));
+    // CR150: the Navigator named their next turn as a dismissal for a compaction result they are
+    // done with. This is the admission site rather than `run_started`, which also fires for the
+    // compaction's own run two lines before it sets this notice. The reducer decides which
+    // outcomes a turn may clear, so a failure still survives it.
+    setCompactionOperation((current) => clearCompactionNoticeOnNewTurn(current, ownerJourneyId));
     dispatchJourneyFinishedAttention({ type: "run_started", journeyId: ownerJourneyId });
     dispatchJourneyRuntime({
       type: "register",

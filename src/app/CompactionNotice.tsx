@@ -1,4 +1,4 @@
-import { compactionNoticeIsDismissible } from "./compactionNoticeLifecycle";
+import { compactionNoticeIsAssertive, compactionNoticeIsDismissible } from "./compactionNoticeLifecycle";
 import { RuntimeCompaction } from "./LiveRuntimeActivity";
 import type { ProjectedRuntimeOperation } from "./runtimeActivityModel";
 
@@ -17,10 +17,13 @@ export function CompactionNotice({
   nothingToDo?: true;
   onDismiss: () => void;
 }) {
-  const dismissible = compactionNoticeIsDismissible({ status: operation.status, nothingToDo });
+  // CR150: two questions, not one. A success is dismissable and must still be announced politely;
+  // reading dismissibility for the role would have made good news interrupt a screen reader.
+  const state = { status: operation.status, nothingToDo };
+  const dismissible = compactionNoticeIsDismissible(state);
 
   return (
-    <div className="compaction-notice" role={dismissible ? "alert" : "status"}>
+    <div className="compaction-notice" role={compactionNoticeIsAssertive(state) ? "alert" : "status"}>
       <RuntimeCompaction operation={operation} />
       {dismissible ? (
         <button
