@@ -1016,3 +1016,48 @@ repairs at unmeasured causes and that is exactly the habit to break.
 Deliberately left out: any further work in the renderer. The alternative — a sixth renderer repair —
 has a known outcome, because the field has now said five times that the renderer is not the thread
 that is blocked.
+
+
+---
+
+## The cause, measured (2026-10-13)
+
+`sample` on the Eval main thread for 180 s, correlated with the settlement ledger. Full record:
+[cr149-main-thread-measurement-2026-10-13.md](../../../update/cr149-main-thread-measurement-2026-10-13.md).
+
+**The settlement runs on the application's main thread.** 1,450 of 16,284 main-thread samples
+(14.5 s) are inside `WebKit::WebPageProxy::startURLSchemeTask` → wry's URL-scheme handler →
+`tauri::webview::Webview::on_message`, and **1,342 of those 1,366 are the generated command
+closures**. The ledger's record inside the window — `19:07:27.887Z`, **5,984 ms**, phases accounting
+for 99.9% — maps one-to-one onto the commands the sample caught. The two instruments measure the
+same work from opposite sides.
+
+Six seconds of main-thread blocking per settlement, in blocks of 100–1,600 ms. One main thread per
+process serves every window, which is why a `Finishing` in one Journey freezes all the others and
+why typed characters queue and arrive together.
+
+**Two of my predictions were corrected by the measurement**: the entry point is the custom URL
+scheme, not `didReceiveScriptMessage` (zero samples); and the dominant cost is the Mirror outbox
+path at 54.0%, not the projection saves at 26.0%.
+
+### The slice this authorises
+
+Convert the settlement commands to `#[tauri::command(async)]`. The macro's `body_async` evaluates
+argument expressions **inside** the spawned block, so the attribute moves the megabyte-scale JSON
+deserialisation off the main thread together with the body. No body changes. 80 of 91 commands are
+sync; the 11 already-async ones establish the idiom.
+
+**The first implementation step is not the attribute — it is verifying concurrency safety.** The main
+thread was an accidental global mutex over every sync command. The hot commands already take
+`State<'_, MirrorAppendOutboxState>` and already lock, and all return `Result` as the macro requires
+for reference inputs, but that is necessary rather than sufficient and must be checked per command
+before anything is converted.
+
+### Deliberately not in this slice
+
+- **The payload size.** Three projection saves and a load of an 11.5 MB file per settlement is a
+  design cost that survives the thread move; it will still cost the renderer a `JSON.stringify` and
+  the IPC a marshal each time. Its own CR, and the measurement says it is the second repair, not the
+  first.
+- **Any further renderer work.** The field has now said five times that the renderer is not the
+  blocked thread.
