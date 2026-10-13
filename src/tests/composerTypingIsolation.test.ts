@@ -3,6 +3,17 @@ import appSource from "../app/App.tsx?raw";
 import inputSource from "../app/ComposerDraftInput.tsx?raw";
 
 /**
+ * The absence assertions below must read code, not prose. `ComposerDraftInput`'s own doc comment
+ * explains the controlled-input history by naming `useState` and `value={text}`, which tripped this
+ * guard on the first run — the guard working, on the wrong input.
+ */
+function withoutComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+}
+
+const inputCode = withoutComments(inputSource);
+
+/**
  * CR113: a keystroke must not re-render the application root.
  *
  * The Composer used to hold its text in `App` state, so every character reconciled the whole
@@ -19,12 +30,38 @@ describe("CR113 — Composer typing isolation", () => {
     expect(appSource).toContain('const draftRef = useRef("")');
   });
 
-  it("owns the text in a memoized input leaf that the root reaches only imperatively", () => {
+  /**
+   * Re-aimed by CR149, and the claim got stronger rather than weaker.
+   *
+   * CR113 asserted the text lives in a memoized leaf instead of the root, which kept a keystroke
+   * from reconciling the whole tree. ~~`useState(initialText)`~~ was the expression of that, and it
+   * left the input **controlled**: a character still waited for a React commit, just a small one.
+   * The field showed that is enough to freeze typing whenever the main thread is saturated.
+   *
+   * So the invariant is no longer "the keystroke renders only the leaf" but **"the keystroke renders
+   * nothing"** — which is what an uncontrolled textarea guarantees. Asserting the *absence* of state
+   * in this component is strictly stronger than asserting where the state lives.
+   */
+  it("owns no typing state at all, so a keystroke renders nothing", () => {
     expect(inputSource).toContain("export const ComposerDraftInput = memo(");
-    expect(inputSource).toContain("useState(initialText)");
-    expect(inputSource).toContain("useImperativeHandle(handleRef, () => ({ setText }), [])");
+    expect(inputCode).toContain("defaultValue={initialText}");
+    // The two spellings that would make the textarea controlled again.
+    expect(inputCode).not.toContain("useState");
+    expect(inputCode).not.toContain("value={text}");
+    // React must not be imported for state here either; only the imperative handle needs it.
+    expect(inputCode).toContain("import { memo, useImperativeHandle,");
     expect(appSource).toContain("const composerDraftHandleRef = useRef<ComposerDraftHandle | null>(null)");
     expect(appSource).toContain("composerDraftHandleRef.current?.setText(text)");
+  });
+
+  /**
+   * The programmatic path is the only writer left, and it has to reach the DOM rather than a
+   * setter. If it ever went back through state, typing would start waiting on React again without
+   * the controlled-value spellings above reappearing.
+   */
+  it("sets text programmatically by writing the element, not by setting state", () => {
+    expect(inputCode).toContain("textarea.value = text");
+    expect(inputCode).toContain("useImperativeHandle(handleRef, () => ({");
   });
 
   it("never stores the durable draft map in root state", () => {
@@ -47,7 +84,8 @@ describe("CR113 — Composer typing isolation", () => {
   });
 
   it("still sends on Enter and still steers an active turn, using the text it was given", () => {
-    expect(inputSource).toContain('if (event.key === "Enter" && !event.shiftKey) onEnter(text, event)');
+    // CR149: read from the element, because there is no state to read.
+    expect(inputSource).toContain('if (event.key === "Enter" && !event.shiftKey) onEnter(event.currentTarget.value, event)');
     expect(appSource).toContain("if (selectedCanSteer && text.trim()) {");
     expect(appSource).toContain("shouldSubmitJourneyDraft(event, navigationPresentation, selectedInvocationAdmissionBlocked)");
   });

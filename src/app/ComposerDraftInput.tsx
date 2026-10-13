@@ -1,4 +1,4 @@
-import { memo, useImperativeHandle, useState, type KeyboardEvent, type RefObject } from "react";
+import { memo, useImperativeHandle, type KeyboardEvent, type RefObject } from "react";
 
 /**
  * CR113: the Composer's text lives here rather than in `App`.
@@ -12,6 +12,25 @@ import { memo, useImperativeHandle, useState, type KeyboardEvent, type RefObject
  * `App` keeps authority over the text: it owns the durable draft map, reads the current value from
  * its own ref at send and steering boundaries, and pushes text in through the imperative handle.
  * What it no longer does is re-render itself to show a character the textarea already shows.
+ *
+ * CR149: and now the textarea really does already show it.
+ *
+ * CR113 moved the state down but left the input **controlled** — `value={text}` over a local
+ * `useState` — so a character still could not appear until React committed, just a smaller commit.
+ * That is invisible until the main thread is saturated: while a long synchronous render is running,
+ * no commit happens, keystrokes queue, and the characters arrive in a burst when it ends. The
+ * Navigator reported exactly that shape four times — *"a digitação para de responder… só volta a
+ * liberar o composer quando o finishing termina"* — and a profile of a `Finishing` showed 450 ms
+ * script tasks in a row, which is long enough to feel like a freeze per phase.
+ *
+ * The textarea is now **uncontrolled**: the browser paints each character natively and React is not
+ * involved in typing at all. This is the one repair in CR149 whose correctness does not depend on
+ * being right about which code is slow — three earlier hypotheses about that were refuted by the
+ * field. However heavy a render becomes, it can no longer delay a keystroke's appearance.
+ *
+ * What is deliberately unchanged: `App` still learns every change through `onTextChange`, so the
+ * durable draft map and its coalesced persistence are exactly as before, and `maxLength` is still
+ * enforced — by the DOM attribute, which is where it already was.
  */
 export type ComposerDraftHandle = {
   /** Replace the visible text, for restore, destination change, voice, prefill and clearing. */
@@ -46,23 +65,28 @@ export const ComposerDraftInput = memo(function ComposerDraftInput({
   onBlur,
   onEnter,
 }: ComposerDraftInputProps) {
-  const [text, setText] = useState(initialText);
-
-  useImperativeHandle(handleRef, () => ({ setText }), []);
+  // The programmatic path writes the DOM value directly. `App` already updates `draftRef` and the
+  // blank flag itself at every call site of this handle, so nothing downstream is left stale.
+  useImperativeHandle(handleRef, () => ({
+    setText: (text: string) => {
+      const textarea = textareaRef.current;
+      if (textarea) textarea.value = text;
+    },
+  }), [textareaRef]);
 
   return (
     <textarea
       ref={textareaRef}
       aria-label={ariaLabel}
-      value={text}
+      defaultValue={initialText}
       maxLength={maxLength}
       onChange={(event) => {
-        setText(event.target.value);
         onTextChange(event.target.value);
       }}
       onBlur={onBlur}
       onKeyDown={(event) => {
-        if (event.key === "Enter" && !event.shiftKey) onEnter(text, event);
+        // Read from the element rather than from state, because there is no state to read.
+        if (event.key === "Enter" && !event.shiftKey) onEnter(event.currentTarget.value, event);
       }}
       placeholder={placeholder}
       disabled={disabled}

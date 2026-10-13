@@ -653,3 +653,119 @@ reopen*, and it is there because of this rather than for tidiness. Recorded in
 | 3 | `g` flag added to `MIRROR_MODE_PATTERN` | ✅ |
 | 4 | marker changed so it no longer appears in its pattern | ✅ (2 tests) |
 | 5 | Slice B's duplicate chain reintroduced | ✅ |
+
+
+---
+
+## Third refutation, and the repair that does not depend on being right (2026-10-13)
+
+> *"Continua lento… quando entra em finishing algum dos passos faz a digitação parar de responder ou
+> demorar para responder, só volta a liberar o composer quando o finishing termina."*
+
+**Prediction 1 falsified for the third time.** The strip repair removed 92% of that work per row
+render and the stall remained. The two numeric falsifiers were not collected; they are uncollected,
+not passed.
+
+### The last clause was the finding
+
+*"Só volta a liberar o composer quando o finishing termina"* describes a **freeze that lasts the
+phase and lifts at its end**, not a general sluggishness. Two things could do that, and the cheaper
+one was checked first.
+
+**Checked and refuted: a deliberate disable.** `draftEditable` in the navigation presentation is a
+literal `true` with **no consumers at all** — dead, write-only, and worth its own line as debt. The
+textarea's `disabled` is `isJourneyReloading`, which has nothing to do with `Finishing`. So the
+composer is not disabled during settlement; the friction is real congestion.
+
+**Found instead: the textarea is controlled.**
+
+```tsx
+const [text, setText] = useState(initialText);
+…
+value={text}
+onChange={(event) => { setText(event.target.value); onTextChange(event.target.value); }}
+```
+
+CR113 moved the text out of `App` — correctly, and its measurement of that was sound — but left the
+input **controlled**. Its own comment claims *"what it no longer does is re-render itself to show a
+character the textarea already shows"*, and that sentence is true of `App` and **false of this
+component**: with `value={text}`, the character cannot appear until React commits.
+
+That is invisible until the main thread is saturated. While a long synchronous render runs, no commit
+happens; keystrokes queue; the characters arrive in a burst when it ends. The profile recorded
+**450 ms script tasks in a row** through the `Finishing` window. **The reported shape — freeze during
+the phase, release at its end — is what a controlled input does behind a saturated thread.**
+
+### Why this repair is different from the three that failed
+
+The textarea is now **uncontrolled**: `defaultValue` plus the imperative handle writing
+`textarea.value` directly. The browser paints each character natively and React is not involved in
+typing at all.
+
+**Its correctness does not depend on being right about which code is slow.** The three refuted
+hypotheses were all of the form *this work is expensive, so removing it should help* — the root
+clock, the memo and its O(n) passes, the whole-conversation `JSON.stringify`. This one is of the form
+*typing no longer waits for React, whatever React is doing*. However heavy a render becomes, it
+cannot delay a keystroke's appearance.
+
+**It also makes CR113's own comment true for the first time.**
+
+### What is unchanged, deliberately
+
+`App` still learns every change through `onTextChange`, so the durable draft map and its coalesced
+persistence are byte-for-byte as before. `maxLength` is still enforced — by the DOM attribute, which
+is where it already was. Enter still sends, reading the value from the element because there is no
+state to read.
+
+### CR113's guard caught this, and the claim got stronger
+
+`composerTypingIsolation.test.ts` asserted `inputSource` contains `useState(initialText)`. That was
+the expression of a true invariant — a keystroke must not reconcile the tree — and the invariant has
+not weakened. It has **strengthened**: from *"the keystroke renders only the leaf"* to **"the
+keystroke renders nothing"**, which is what an uncontrolled textarea guarantees. Asserting the
+*absence* of state is stronger than asserting where the state lives, and the guard now forbids both
+spellings that would make the input controlled again.
+
+### The bound of the tests, stated
+
+**"A keystroke renders nothing" is held by a source guard, not by a behavioural test.** This suite
+runs in Node with no DOM — component tests use `renderToStaticMarkup` — so typing cannot be
+simulated, and adding `jsdom` and a testing library is a dependency change far outside this repair.
+What is covered behaviourally is the rendered markup: a restored draft still appears, the length cap
+and placeholder and disable still render, and **no `value` attribute is emitted**, which is the
+rendered signature a controlled textarea would leave.
+
+### Two errors of mine, again on the record
+
+1. **My own documentation tripped my own guard.** The absence assertion on `useState` failed because
+   the comment explaining the controlled-input history names `useState`. The guard was working on the
+   wrong input; it now strips comments before asserting absence, which is this project's own stated
+   rule and one I did not apply when writing it.
+2. **I predicted a markup attribute instead of measuring it.** The test expected `maxlength="8000"`;
+   React 19's static renderer emits `maxLength="8000"`. A throwaway probe settled it, and the
+   corrected expectation says it was measured. **This is the second time in two turns I have guessed
+   an expected value**, which is a habit worth naming rather than a coincidence.
+
+### Validation
+
+| gate | result |
+|---|---|
+| `npx tsc --noEmit` | clean |
+| `vitest` | **260 files / 2,073 tests** (from 259 / 2,067) |
+| `cargo test` | 319 passed, 3 ignored |
+| `npm run build` | clean |
+| `npm run roadmap:check` | READY |
+
+Three controls: the textarea made controlled again, the imperative handle no longer writing the
+element, and `defaultValue` removed. Each failed the named tests and was restored.
+
+### Deliberately NOT in this repair
+
+- **The inert `memo` on `ConversationTranscript` and its unstable `onLoadEarlierHistory` lambda.**
+  Still real defects. Stabilising them would reduce the congestion — which is now a question about
+  **settlement duration**, a different outcome from this CR's — and the `useCallback` would close
+  over `loadCompleteSegmentHistory`, which is recreated every render, so a naive fix risks a stale
+  closure. **Half a fix is no fix here**: one unstable prop defeats the memo, so doing only the safe
+  half of the two buys nothing. Recommended as its own CR.
+- **The strip cache**, still declined, still with the arithmetic in this document.
+- **`setAttribute` at 19.5%** of the profile, still unattributed.
