@@ -38,9 +38,16 @@ export type AgentTurnPresentation = {
 };
 
 export function projectAgentTurnPresentation(input: AgentTurnPresentationInput): AgentTurnPresentation {
-  const comment = stripMessageSpeakerSignature(stripMirrorModeBlocks(stripMirrorSurfaceBlocks(input.content)));
+  // CR149: these three were four strip calls, because the comment rebuilt the chain the two lines
+  // below it had already built — the same pure functions on the same string. An assistant row ran
+  // both scans three times per render, and settlement re-renders every row once per phase.
+  //
+  // The substitution is an identity, not an optimisation with a tolerance: `comment` was
+  // `stripMessageSpeakerSignature(stripMirrorModeBlocks(stripMirrorSurfaceBlocks(input.content)))`
+  // and `contentWithoutSystemBlocks` is that inner expression, so the value cannot differ.
   const contentWithoutSurfaces = stripMirrorSurfaceBlocks(input.content);
   const contentWithoutSystemBlocks = stripMirrorModeBlocks(contentWithoutSurfaces);
+  const comment = stripMessageSpeakerSignature(contentWithoutSystemBlocks);
   const renderTimeSurfaces = [
     ...extractMirrorSurfaceEventsFromContent({
       content: input.content,

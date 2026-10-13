@@ -527,3 +527,116 @@ eviction question**, and A may make B unnecessary.
 - **The claim that this ends the stall.** 31.7% is the largest identified share and not a majority.
   **That is the repair's own field check to settle**, with the falsifier written before the build is
   handed over, as CR149 has done twice.
+
+
+---
+
+## Implementation of the measured repair (2026-10-12)
+
+### Slice A — three refusals, each an implication of its own pattern
+
+Every scan in `ImportedActivity.tsx` now refuses content it cannot match **before it allocates**:
+
+| scan | refusal | why it is sound |
+|---|---|---|
+| `collectBoxedExplorerSurfaces` | `content.includes("╭")` | the loop can only capture a line matching `/^\s*╭[─━═]+╮\s*$/`, which requires that character |
+| `collectPatternSurfaces` (×2) | `content.includes(marker)` | each pattern holds its marker in a mandatory position — `<<<` and `[[MIRROR_REQUIRED_SURFACE_BEGIN:` |
+| `findMirrorModeBlock` | `MIRROR_MODE_PATTERN.test(content)` | the pattern holds no `\n` and only literal spaces, so **no match can span a line break** — testing the whole content is equivalent to testing every line |
+| `extractAriadSurfaceEventsFromContent`, `stripAriadSurfaceBlocks` | `content.includes("<<<")` | same marker as the ARIAD pattern |
+
+`MIRROR_MODE_PATTERN` was hoisted so the refusal and the per-line test are **one pattern rather than
+two copies**, and it carries no `g` flag so `test` holds no state between calls.
+
+### Slice B — the duplicate chain removed, which is what it turned out to be
+
+**The plan said "cache the strip by content, if A is not enough". Reading the call sites replaced
+that with something better, and the scope change is recorded rather than quietly taken.**
+
+`projectAgentTurnPresentation` built its comment by re-running the chain the next two lines had
+already run:
+
+```ts
+const comment = stripMessageSpeakerSignature(stripMirrorModeBlocks(stripMirrorSurfaceBlocks(input.content)));
+const contentWithoutSurfaces = stripMirrorSurfaceBlocks(input.content);          // the same call again
+const contentWithoutSystemBlocks = stripMirrorModeBlocks(contentWithoutSurfaces); // and again
+```
+
+`comment` is now derived from `contentWithoutSystemBlocks`. **The substitution is an identity, not an
+optimisation with a tolerance**: `contentWithoutSystemBlocks` *is* that inner expression, and these
+are pure functions of a string.
+
+An assistant row therefore ran both scans **three times per render** — once in
+`ConversationMessageRow` and twice in the projection it calls — and now runs them twice.
+
+### What the repair is worth, measured outside the app
+
+Both module versions extracted and benchmarked directly against a 91,688-character message with no
+surfaces, which is the common case:
+
+| | per chain call | per assistant row render | 60 messages × 14 re-renders |
+|---|---|---|---|
+| before | 0.920 ms | 2.761 ms (3 chains) | **2.32 s** |
+| after | 0.105 ms | 0.211 ms (2 chains) | **0.18 s** |
+| | **−88.5%** | **−92.4%** | **−2.14 s** |
+
+Outputs identical. The order of magnitude matches the profile's 2,806 ms attributable share, which is
+the first independent corroboration this investigation has had.
+
+### The cache is deliberately NOT built, and this is a reduction from the approved plan
+
+The Navigator authorised all slices. **Slice B's cache form was not built**, and the arithmetic above
+is why: after A and B, the residue is **0.18 s spread across a 5–8 second settlement**. A cache would
+remove perhaps half of that, in exchange for global mutable state in a pure module, an eviction
+policy, memory proportional to cached content, and test-isolation hazards. **The eviction question
+the plan flagged is dissolved rather than answered.**
+
+Stated as a reduction so it can be vetoed: if the field check still shows a stall, the cache is the
+next thing to add and the numbers to argue it from are in this table.
+
+The residual 0.105 ms is also not zero and has a named floor: `stripMirrorSurfaceBlocks` always runs
+`.replace(/\n{3,}/g, "\n\n").trim()`, which is its contract even when nothing was captured — a
+content with four consecutive newlines is collapsed whether or not it holds a surface, and removing
+that would be a behaviour change rather than a repair.
+
+### Validation
+
+| gate | result |
+|---|---|
+| `npx tsc --noEmit` | clean |
+| `vitest` | **259 files / 2,067 tests** (from 258 / 2,055) |
+| `cargo test` | 319 passed, 3 ignored |
+| `npm run build` | clean |
+| `npm run roadmap:check` | READY |
+
+**`importedActivity.test.ts`'s 13 existing cases passed unmodified**, which the plan named as the
+signal to stop.
+
+**A throwaway differential settled equivalence**: both module versions imported side by side and run
+over a 10-case corpus — plain, box-drawing characters that open nothing, a real boxed surface, an
+Ariad surface, a mode block, a mode look-alike, a mode phrase broken across lines, CRLF content and
+whitespace-only content — asserting byte-identical results from all seven exported functions. It was
+then **deleted rather than committed**, so the repo carries the corrected characterisation and not a
+copy of the old file.
+
+### Two errors of mine on the way
+
+**1. I predicted an output instead of measuring it.** The new test asserted
+`stripMirrorSurfaceBlocks` would yield `"before\n\nafter"` for a boxed surface. The measured answer
+is `"before\nafter"` — the boxed branch leaves one newline where the Ariad branch leaves two. The
+differential above is what settled it, and the corrected expectation carries a comment saying it was
+measured rather than predicted.
+
+**2. My first control was a bad control and passed when it should have failed.** It claimed to move
+the boxed refusal "after the allocation" but moved it only past the regex *declaration*, which is
+free — so the ordering guard correctly allowed it. **The sabotage did not contain the regression it
+named.** Re-run with the refusal moved past the line-building loop, the guard fails as it must.
+
+### Five controls
+
+| # | sabotage | caught |
+|---|---|---|
+| 1 | refusal moved past the line-building loop | ✅ (after the first attempt was found to be a bad control) |
+| 2 | boxed refusal deleted | ✅ |
+| 3 | `g` flag added to `MIRROR_MODE_PATTERN` | ✅ |
+| 4 | marker changed so it no longer appears in its pattern | ✅ (2 tests) |
+| 5 | Slice B's duplicate chain reintroduced | ✅ |

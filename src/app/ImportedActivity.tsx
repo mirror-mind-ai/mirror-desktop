@@ -8,12 +8,42 @@ type ImportedActivityProps = {
   basePath?: string;
 };
 
+/**
+ * CR149: every scan in this module refuses content that cannot possibly match before it allocates
+ * anything.
+ *
+ * A profile of a `Finishing` on a large conversation put 31.7% of all sampled main-thread time in
+ * `collectBoxedExplorerSurfaces` and the regexes it owns. The reason was not the matching — it was
+ * that the function split the whole message into lines, allocating an object and running a replace
+ * per line, and only then asked whether any line opened a box. `ConversationMessageRow` calls into
+ * here on every render of every row, and settlement re-renders every row once per phase.
+ *
+ * Each refusal below is an **implication of the scan's own pattern**, not a heuristic: the pattern
+ * contains the marker in a mandatory position, so content without it has no match to find. A test
+ * pins each marker against its pattern's source so the two cannot drift apart, and the
+ * characterisation tests pin that everything which captured a surface before still captures the
+ * identical surface.
+ */
+const ARIAD_SURFACE_MARKER = "<<<";
+const MIRROR_REQUIRED_SURFACE_MARKER = "[[MIRROR_REQUIRED_SURFACE_BEGIN:";
+const BOXED_SURFACE_MARKER = "╭";
+
+/**
+ * Hoisted so the refusal and the per-line test are the same pattern rather than two copies.
+ *
+ * Testing it against the whole content is equivalent to testing it against every line: the pattern
+ * contains no `\n` and its only whitespace is literal spaces, so no match can span a line break.
+ * It carries no `g` flag, so `test` holds no state between calls.
+ */
+const MIRROR_MODE_PATTERN = /\b(MIRROR|BUILDER|EXPLORER|SOUL) MODE (?:ACTIVE|DEACTIVATED)\b/i;
+
 export function extractAriadSurfaceEventsFromContent(input: {
   content: string;
   messageId: string;
   createdAt: string;
 }): ImportedConversationActivityEvent[] {
   const events: ImportedConversationActivityEvent[] = [];
+  if (!input.content.includes(ARIAD_SURFACE_MARKER)) return events;
   const pattern = /<<<\s*ARIAD:([^>\s]+)\s*>>>([\s\S]*?)<<<\s*END:\1\s*>>>/g;
   let match: RegExpExecArray | null;
   let index = 1;
@@ -38,6 +68,7 @@ export function extractAriadSurfaceEventsFromContent(input: {
 }
 
 export function stripAriadSurfaceBlocks(content: string): string {
+  if (!content.includes(ARIAD_SURFACE_MARKER)) return content.trim();
   return content.replace(
     /<<<\s*ARIAD:([^>\s]+)\s*>>>[\s\S]*?<<<\s*END:\1\s*>>>/g,
     (block, surfaceType: string) => isConcreteSurfaceType(surfaceType) ? "" : block,
@@ -85,12 +116,14 @@ function captureMirrorSurfaces(content: string): CapturedSurface[] {
   const captured: CapturedSurface[] = [];
   collectPatternSurfaces(
     content,
+    ARIAD_SURFACE_MARKER,
     /<<<\s*ARIAD:([^>\s]+)\s*>>>([\s\S]*?)<<<\s*END:\1\s*>>>/g,
     (match) => ({ surfaceType: match[1], content: match[0].trim() }),
     captured,
   );
   collectPatternSurfaces(
     content,
+    MIRROR_REQUIRED_SURFACE_MARKER,
     /\[\[MIRROR_REQUIRED_SURFACE_BEGIN:([^\]\s]+)\]\]\s*([\s\S]*?)\s*\[\[MIRROR_REQUIRED_SURFACE_END:\1\]\]/g,
     (match) => ({ surfaceType: match[1].toUpperCase(), content: match[2].trim() }),
     captured,
@@ -101,10 +134,12 @@ function captureMirrorSurfaces(content: string): CapturedSurface[] {
 
 function collectPatternSurfaces(
   content: string,
+  marker: string,
   pattern: RegExp,
   project: (match: RegExpExecArray) => { surfaceType: string; content: string },
   captured: CapturedSurface[],
 ) {
+  if (!content.includes(marker)) return;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(content)) !== null) {
     if (overlapsCapturedRange(match.index, match.index + match[0].length, captured)) {
@@ -121,6 +156,10 @@ function isConcreteSurfaceType(value: string): boolean {
 }
 
 function collectBoxedExplorerSurfaces(content: string, captured: CapturedSurface[]) {
+  // The loop below cannot capture anything unless some line matches `/^\s*╭[─━═]+╮\s*$/`, and no
+  // line can match that without this character. 31.7% of a profiled main thread was the line split
+  // that used to happen before this question was asked.
+  if (!content.includes(BOXED_SURFACE_MARKER)) return;
   const linePattern = /.*(?:\n|$)/g;
   const lines: Array<{ text: string; start: number; end: number }> = [];
   let lineMatch: RegExpExecArray | null;
@@ -195,10 +234,13 @@ export function stripMirrorModeBlocks(content: string): string {
 }
 
 function findMirrorModeBlock(content: string): string | undefined {
+  // Normalising CR/LF cannot create or destroy a match of this pattern — it holds no `\r` or `\n`,
+  // and both are non-word characters to the `\b` boundaries — so asking before the split is safe.
+  if (!MIRROR_MODE_PATTERN.test(content)) return undefined;
   const lines = content.replace(/\r\n/g, "\n").split("\n");
   let modeLine = -1;
   for (let index = 0; index < lines.length; index += 1) {
-    if (/\b(MIRROR|BUILDER|EXPLORER|SOUL) MODE (?:ACTIVE|DEACTIVATED)\b/i.test(lines[index])) {
+    if (MIRROR_MODE_PATTERN.test(lines[index])) {
       modeLine = index;
     }
   }
