@@ -369,3 +369,69 @@ Navigator can reproduce the symptom on demand.
   settlement is currently unknown, and it decides whether this is one expensive render or forty cheap
   ones. The repair differs.
 - **Only then decide the repair**, and record which measurement justified it.
+
+
+---
+
+## The discriminator, and a third hypothesis falsified (2026-10-12)
+
+### The discriminator answered: only `Finishing`
+
+> *"Só trava no `Finishing`"*
+
+Typing while the answer is **streaming** is fine. Streaming emits far more root state updates than
+settlement does, so **the memo defeat and the two O(n) passes are not the dominant cost.** They stay
+real defects and drop to coadjuvants — which is what the branch was written to decide.
+
+### A third hypothesis, and the ledger falsified it too
+
+Reading `saveProjection` found `JSON.stringify` of the whole conversation on the main thread, passed
+through `invoke` — a credible freeze in a large conversation. **The prediction was written before
+looking at the data**: if that were the mechanism, the phase wrapping the projection save would
+dominate `totalMs`.
+
+**It does not.** The measurement is in
+[`docs/update/production-settlement-distribution-2026-10-12.md`](../../../update/production-settlement-distribution-2026-10-12.md).
+The cost is spread across 14 depth-0 phases, the largest at 14%, and phases with **trivial payloads
+that never touch the conversation** — `load_journal`, `advance_journal`, `cleanup_lease` — are
+inflated in the same proportion as the ones that serialize megabytes.
+
+The decisive number: within one session on one Journey, `load_journal` ran **27 ms on one turn and
+3,109 ms on another**, on the same file. **The variance is not in the work.** And it is not
+conversation size either, because the fast and slow turns are the same conversation.
+
+### What the measurement did establish
+
+- **Production settles in 4.8 s at the median and 7.9 s at p90**, over 779 records — against Dev's
+  ten measurements of 1.6–3.0 s. **This is why Dev could not reproduce the symptom**, and it means
+  the window the Navigator is locked out of is typically five seconds and often eight.
+- Every awaited operation is inflated **multiplicatively and uniformly**, with a tight median and a
+  heavy tail, in every Journey, over weeks.
+- **A hypothesis of mine died on the way**: that the Navigator's typing caused the inflation. The
+  pattern is historical and predates the Eval session by weeks. Recorded because the data killed it.
+
+### Three hypotheses, three refutations, and what each one bought
+
+| # | hypothesis | killed by | what it bought |
+|---|---|---|---|
+| 1 | the root 1 Hz clock | the field, in Eval | eliminated the clock; shipped a justified structural repair |
+| 2 | memo defeat + O(n) transcript passes | the streaming discriminator | demoted to coadjuvant; two real defects now on the record |
+| 3 | whole-conversation `JSON.stringify` in settlement | the timings ledger | killed payload size as the explanation, and surfaced the real distribution |
+
+**None of the three was shipped as a fix on the strength of being structurally correct**, except the
+first — which is exactly why the second and third were not. The cost of being wrong three times is
+three documents; the cost of shipping the second or third as a repair would have been the Navigator
+believing their friction was fixed again.
+
+## Next Investigation, now justified by measurement
+
+- **Profile the main thread.** A uniform multiplicative inflation of every awaited operation is the
+  signature of event-loop or IPC-queue contention, but **nothing measured so far looks at the main
+  thread** and that reading is an inference from the shape of the numbers. `npm run tauri:user` runs
+  the production channel in dev mode — production data plus Web Inspector — so a recording during a
+  `Finishing` would name the contending work instead of nominating it.
+- **The two findings from hypothesis 2 are still worth repairing on their own terms**, as their own
+  slice or their own CR, and **explicitly not as a fix for this friction**. Shipping them as the fix
+  is the mistake this CR has now avoided twice.
+- **Carry the real distribution into every threshold this project has derived.** Several were
+  computed from Dev or from one Journey. One is already falsified — see CR155.

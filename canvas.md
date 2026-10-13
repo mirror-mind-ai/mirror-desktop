@@ -25,13 +25,13 @@
 | ↳　CR146 · Stop a Recovered Turn from Being Stored Twice | ✅ done · campo negativo nos dados reais · metades positivas só em teste | `██████████` |
 | ↳　CR147 · Stop a Run-Loop Thread from Dying in Silence | ✅ done · campo negativo coletado · mecanismo original segue indeterminado | `██████████` |
 | ↳　CR148 · Give an Unanswered Turn Back Its Own Identity | 🟡 captured · achada na linha de base da CR146 · turno pendente sem par | `░░░░░░░░░░` |
-| ↳　CR149 · Keep the Composer Responsive While a Turn Is Finishing | 🔄 planned · prioridade 1 · **hipótese do tick REFUTADA no Eval** · reparo estrutural entregue, fricção permanece | `███░░░░░░░` |
+| ↳　CR149 · Keep the Composer Responsive While a Turn Is Finishing | 🔄 planned · prioridade 1 · **três hipóteses refutadas** · produção mede p50 4,8 s / p90 7,9 s · alvo agora é contenção de event loop | `███░░░░░░░` |
 | ↳　CR150 · Keep a Compaction Result Until the Navigator Is Done With It | 🟡 captured · prioridade 2 · reverte escolha deliberada da CR104 · decisão de Workbench | `░░░░░░░░░░` |
 | ↳　CR151 · Let a Finished Turn Announce Itself | 🟡 captured · prioridade 3 · capacidade nova · nenhum áudio existe no app | `░░░░░░░░░░` |
 | ↳　CR152 · Let the Navigator Hide Every Conversation but One | 🟡 captured · prioridade 4 · simétrica de revealAllConversations | `░░░░░░░░░░` |
 | ↳　CR153 · Let the Navigator See Only Desktop Conversations | 🟡 captured · prioridade 5 · filtro de visão, não ocultação durável | `░░░░░░░░░░` |
 | ↳　CR154 · Persist a Model Choice at the Conversation It Was Made In | 🟡 captured · prioridade 6 · o grão de conversa não existe · lacuna aberta por RS023/RS024 | `░░░░░░░░░░` |
-| ↳　CR155 · Give the Navigator an Exit From a Finishing That Holds a Live Lease | 🟡 captured · prioridade 7 · a dívida que a CR132 nomeou, chegando do campo | `░░░░░░░░░░` |
+| ↳　CR155 · Give the Navigator an Exit From a Finishing That Holds a Live Lease | 🟡 captured · prioridade 7 · dívida da CR132 chegando do campo · **limiar de 60 s falsificado por 2 settlements legítimos** | `░░░░░░░░░░` |
 | ↳　CR156 · Simplify the Context Map | 🟡 captured · prioridade 8 · recua parte da CR105 · critério ainda não estabelecido | `░░░░░░░░░░` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |

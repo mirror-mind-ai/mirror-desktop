@@ -89,6 +89,19 @@ can be offered safely, it is offered.
   `settlement-timings` and **`native-panics.jsonl`**, which CR147 added precisely so a recurrence
   leaves a record. If a panic trace exists, this is CR147's mechanism and the diagnosis is already
   written.
+- **The 60-second threshold is already falsified, and that lands here.** Measured 2026-10-12 over
+  **779 production settlements** (see
+  [`production-settlement-distribution-2026-10-12.md`](../../../update/production-settlement-distribution-2026-10-12.md)):
+  production settles in **4,821 ms at the median and 7,897 ms at p90**, and **two legitimate
+  settlements completed above 60 s** — `mirror-desktop` at **81,338 ms** and
+  `livro-lideranca-soberana` at **113,048 ms**, both `outcome: settled`, with their phases accounting
+  for ~100% of the window. **Both would have been offered "Stop waiting" while working correctly**,
+  and one is in this Journey. CR132 wrote the condition itself — *"if a legitimate settlement is ever
+  recorded above this, the constant moves and the record says why"* — and its own debt line admitted
+  the threshold came from one Journey's 43 records. Those two records **predate the derivation**: the
+  data was there and the wrong 43 were read. Moving the constant is a Workbench decision and the
+  evidence for it is now on file; p99 across all Journeys is 41,741 ms, which is the number a new
+  threshold should be argued from.
 - **Does the timeout exclusion survive?** CR132's argument was that only the Navigator knows a wait
   is futile. If the field shows the application can know it — a dead child under a live lease is
   exactly that — then a bounded automatic action becomes defensible. **Reversing that exclusion is a
