@@ -930,3 +930,89 @@ the transcript at all** — which is where the profile put 76.8% of sampled main
 profile is still unattributed, and three of this CR's four field checks have refuted the hypothesis
 under test. The falsifier goes in the field record before the build is handed over, as the other
 three did.
+
+
+---
+
+## Fifth refutation, and the strategy was wrong (2026-10-13)
+
+The Navigator ran the memo build (`11216a69…`) and reported: **no change — and no change since
+the start of this CR.** Four repairs, all refuted. They also gave three facts the earlier reports did
+not contain, and together they discriminate:
+
+1. **The whole app** goes unresponsive, not the Composer.
+2. Typing continuously, **the letters stop appearing and arrive all at once when `Finishing` ends.**
+3. **A `Finishing` in one Journey stalls every other Journey.**
+
+Fact 3 rules out the transcript, the memo, the regex scans and the controlled input together: when
+another Journey is selected, the finishing Journey's transcript is not even rendered. Fact 2 says the
+thread that delivers key events is blocked for the whole window, not intermittently. **The blocked
+thread is not the renderer's.** It is the macOS main thread of the application process.
+
+### Why four repairs did nothing
+
+All four were in the WebContent process, and **so was the instrument.** The Web Inspector profiles
+the renderer; it cannot see the application's main thread at all. The long JavaScript tasks it found
+were real, and removing them was correct, but they were never the floor — the floor is in a process
+the profile could not observe. *I profiled the wrong process and then repaired what it showed me.*
+
+### The mechanism, read from source
+
+- Tauri 2.11.5's macro generates `body_blocking` for any command that is not `async`: it calls the
+  function **inline on the calling thread** and responds synchronously. Only `async fn` or
+  `#[tauri::command(async)]` goes through `async_runtime::spawn`.
+- The calling thread is wry's `userContentController:didReceiveScriptMessage:` — a `WKWebView`
+  delegate method, which AppKit invokes **on the main thread**. wry constructs the view under a
+  `MainThreadMarker` and errors with `NotMainThread` otherwise.
+- **80 of this app's 91 commands are sync.** Every settlement phase's command is one of them:
+  `save_dedicated_journey_conversation`, `save_journey_thread`, `transition_turn_journal`,
+  `list_turn_journal`, `publish_conversation_segment_projections`, the outbox commands, the lease
+  release. The 11 async ones are the long-running provisioning and voice commands — so the project
+  already knows the idiom.
+- `save_dedicated_journey_conversation` takes `payload: String`, runs `serde_json::from_str` into a
+  generic `Value`, and writes. The conversation that reproduces the stall is
+  `mirror-desktop/generation-4.json`: **14,227,163 bytes, 3,922 messages, 179 turns.**
+  `livro-lideranca-soberana` is 11.4 MB.
+- One settlement saves that projection **up to three times** (`save_projection`,
+  `save_post_frontier_projection`, `save_durable_projection`) and reads it back once
+  (`load_persisted_projection`). Each crossing marshals a 14 MB string through the script message
+  handler, parses it, re-serialises it and writes it — **all on the thread the OS uses to deliver
+  keystrokes to the window.**
+
+A Python floor — slower than serde, so an order of magnitude, not a measurement — puts one parse at
+126 ms, one dump at 173 ms, one write at 55 ms. Times three saves and a load, plus the IPC marshal of
+14 MB each way, the main thread is busy for seconds per settlement. That is the number the
+Navigator reports, and it is the number no renderer repair could touch.
+
+### What this also explains
+
+- **`load_journal` at 27 ms on one turn and 3,109 ms on another** against the same file: the ledger
+  measures `await invoke()` from the renderer, and an invoke queues behind whatever sync command is
+  already on the main thread. The variance is queueing, not I/O.
+- **Dev could not reproduce**: its conversations are small; nothing crosses at 14 MB.
+- **The production tail** (p99 41,741 ms) tracks the largest Journeys.
+- **Streaming is fine**: stream events arrive from a child process through an event channel, not
+  through sync commands carrying megabytes.
+
+### What is proven and what is not
+
+Proven by reading: the threading model, the sync attribute on every settlement command, the payload
+size. **Not yet proven by measurement**: that the main thread is where the wall time goes during a
+`Finishing`. The measurement is ten seconds of `sample` on the Eval process while a turn settles,
+which shows the main thread's stack directly. It is written into the next field check as step one,
+and **no code moves until it has been taken** — this CR has shipped four structurally-correct
+repairs at unmeasured causes and that is exactly the habit to break.
+
+### The recommended path, and what it leaves out
+
+1. **Measure** with `sample` during one `Finishing` on the 14 MB conversation.
+2. If the main thread's stack is in a Tauri command handler: **move the settlement commands off the
+   main thread** with `#[tauri::command(async)]`, one attribute per command, no body changes, guarded
+   by a Rust source test that every command touching the filesystem carries it.
+3. **Open a new CR for the payload.** Three full 14 MB saves per settlement is a design cost that
+   survives the thread move; it will still cost the renderer a `JSON.stringify` and the IPC a marshal
+   each time. That is a different repair, and it should not be folded into this one.
+
+Deliberately left out: any further work in the renderer. The alternative — a sixth renderer repair —
+has a known outcome, because the field has now said five times that the renderer is not the thread
+that is blocked.
