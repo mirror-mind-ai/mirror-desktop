@@ -699,14 +699,27 @@ the phase, release at its end — is what a controlled input does behind a satur
 ### Why this repair is different from the three that failed
 
 The textarea is now **uncontrolled**: `defaultValue` plus the imperative handle writing
-`textarea.value` directly. The browser paints each character natively and React is not involved in
-typing at all.
+`textarea.value` directly.
 
-**Its correctness does not depend on being right about which code is slow.** The three refuted
-hypotheses were all of the form *this work is expensive, so removing it should help* — the root
-clock, the memo and its O(n) passes, the whole-conversation `JSON.stringify`. This one is of the form
-*typing no longer waits for React, whatever React is doing*. However heavy a render becomes, it
-cannot delay a keystroke's appearance.
+~~**Its correctness does not depend on being right about which code is slow.** […] However heavy a
+render becomes, it cannot delay a keystroke's appearance.~~
+
+### Correction, same day, before the build was handed over
+
+**That claim was overstated and is withdrawn.** An uncontrolled textarea still needs the **main
+thread** for the browser to dispatch the key event and insert the character. While a 450 ms
+synchronous task is running, the event is queued at the platform level and **the character does not
+appear in an uncontrolled input either**.
+
+What the repair actually buys, stated at its real size:
+
+- it removes React work **per keystroke**, so typing no longer adds to the congestion it suffers from;
+- when the thread is free, the character appears without waiting for a render pass;
+- **it does not overcome a blocked main thread**, which is the condition the Navigator is reporting.
+
+So this is a correct repair of a real defect and **probably not sufficient for this friction**. Said
+before the field check rather than after it, because the alternative is handing over a build with a
+claim I had already found to be wrong.
 
 **It also makes CR113's own comment true for the first time.**
 
@@ -769,3 +782,48 @@ element, and `defaultValue` removed. Each failed the named tests and was restore
   half of the two buys nothing. Recommended as its own CR.
 - **The strip cache**, still declined, still with the arithmetic in this document.
 - **`setAttribute` at 19.5%** of the profile, still unattributed.
+
+
+---
+
+## The causal chain, now complete — and the next slice
+
+Established by reading, after the correction above:
+
+1. **`setFinishingPhases` fires once per settlement phase** (`App.tsx:3658`), so the App root
+   re-renders roughly **14 times** during one `Finishing`.
+2. **`setConversation` is never called in the completed settlement path** — the 3,640–3,720 range
+   holds none. **So the messages do not change during `Finishing`.** The transcript's visible content
+   is static for the whole window.
+3. **It re-renders anyway**, because its props are not stable: `ConversationTranscript`'s `memo` is
+   defeated by `onLoadEarlierHistory={() => …}` on every render, and `messages` and
+   `presentedConversation` come from `navigationPresentation`, which is called **raw** at
+   `App.tsx:1090`. One of its five inputs, `projectedMirrorCommitErrors` (`:1078`), is itself
+   recomputed every render.
+4. **The profile put 76.8% of sampled main-thread time inside React rendering.** The strip work that
+   CR149 already removed was 31.7% of it; the remainder is reconciliation and `setAttribute` over a
+   large transcript, repeated ~14 times for content that did not change.
+
+**That is the long task.** Fourteen full transcript renders per settlement, each of which the
+transcript's own `memo` was supposed to prevent and never could.
+
+### The next slice, and why it is not bolted onto this turn
+
+The repair is to make the transcript's props stable so those fourteen renders skip it. It is a
+**chain** rather than a line: `projectedMirrorCommitErrors` → `navigationPresentation` →
+`onLoadEarlierHistory` → `liveResponseModel` → and then **an audit of all 21 props**, because one
+unstable prop defeats the memo and **half a fix buys exactly nothing**.
+
+It is deliberately not done here for three reasons, each of which has cost this CR already:
+
+- **It touches the application's central derivation.** `navigationPresentation` feeds many surfaces,
+  and memoizing a value that was recomputed every render can expose latent staleness wherever an
+  input is mutated rather than replaced.
+- **The 21-prop audit must be exhaustive, not sampled.** Fixing the two props I happen to have
+  noticed and declaring victory would be the fourth version of the mistake this CR keeps making.
+- **`loadCompleteSegmentHistory` closes over `journeyThreadState`, `selectedJourney`,
+  `conversation.id` and `historicalSegmentCount`**, so a naive `useCallback([])` would be badly
+  stale. It needs a ref updated in an effect, which is a correctness question in its own right.
+
+First investigation for that slice: enumerate all 21 props of `ConversationTranscript` at the call
+site and classify each as stable or not, by reading, before changing anything.
