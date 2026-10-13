@@ -631,6 +631,19 @@ the boxed refusal "after the allocation" but moved it only past the regex *decla
 free — so the ordering guard correctly allowed it. **The sabotage did not contain the regression it
 named.** Re-run with the refusal moved past the line-building loop, the guard fails as it must.
 
+### An error of mine that changed the Navigator's procedure
+
+**I replaced the Eval bundle while Eval was running.** The `ps` check was in the sequence, it printed
+the running process, and I did not gate on it — the measurement was taken and not used, which is
+worse than not taking it.
+
+Measured immediately after: the process survived, the installed bundle is complete and hash-identical
+to the build, no installer residue, and nothing was written to production data from here. **But the
+running instance executes the old code while the disk holds the new, and both report
+`0.2.0-alpha.47`** — only the hash distinguishes them. So the field check's first step is *quit and
+reopen*, and it is there because of this rather than for tidiness. Recorded in
+[`cr149-repair-field-check-2026-10-12.md`](../../../update/cr149-repair-field-check-2026-10-12.md).
+
 ### Five controls
 
 | # | sabotage | caught |
