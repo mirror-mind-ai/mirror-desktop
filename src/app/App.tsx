@@ -1195,6 +1195,14 @@ export function App({ model }: AppProps) {
     () => groupImportedActivityByMessage(presentedImportedActivity ?? []),
     [presentedImportedActivity],
   );
+  // CR149: the second of the two unstable props the audit found. An object literal in the JSX was
+  // rebuilt on every render whenever both operands were present.
+  const liveResponseModel = useMemo(
+    () => (runtimeProjectionMessageId && liveRunProviderModel
+      ? { messageId: runtimeProjectionMessageId, label: liveRunProviderModel }
+      : undefined),
+    [runtimeProjectionMessageId, liveRunProviderModel],
+  );
   const assistantTurnProximity = useMemo(
     () => classifyAssistantTurnProximity(messages, runtimeProjectionMessageId, selectedRuntimeBusy),
     [messages, runtimeProjectionMessageId, selectedRuntimeBusy],
@@ -5169,6 +5177,37 @@ export function App({ model }: AppProps) {
     || runtimeOnboardingState !== "ready"
     || flattenJourneyRegistry(loadedJourneyRegistry).length === 0;
 
+  /**
+   * CR149: a stable identity for the one call site that feeds a memoized child.
+   *
+   * `ConversationTranscript` is wrapped in `memo`, and `onLoadEarlierHistory={() => …}` created a
+   * new function on every render — so the shallow compare failed every time and the memo **never
+   * prevented a single re-render**. An audit of all 20 props found this and `liveResponseModel` to
+   * be the only unstable ones; everything else was already stable, because
+   * `deriveJourneyNavigationPresentation` returns *selected* objects and the same `messages` array
+   * reference rather than rebuilt ones.
+   *
+   * It goes through a ref rather than `useCallback` with a dependency list, because
+   * `loadCompleteSegmentHistory` closes over `journeyThreadState`, `selectedJourney`,
+   * `conversation.id` and `historicalSegmentCount`. A `useCallback([])` would be badly stale, and a
+   * complete dependency list would make the callback unstable again — which is the whole defect.
+   *
+   * **It sits here, far from the function it wraps, because every hook must be declared before the
+   * runtime-onboarding early return below.** `appHookOrder.test.ts` pins that, and its comment
+   * records why: CR080 shipped a hook after this return and it produced a black window on launch
+   * with nothing failing in the suite. Placing these three next to `loadCompleteSegmentHistory`,
+   * which is where they read best, is exactly the mistake that guard exists to catch — and it did.
+   * The reference works from here because a function declaration is hoisted to the top of its
+   * enclosing scope.
+   */
+  const loadCompleteSegmentHistoryRef = useRef(loadCompleteSegmentHistory);
+  useEffect(() => {
+    loadCompleteSegmentHistoryRef.current = loadCompleteSegmentHistory;
+  });
+  const requestEarlierHistory = useCallback(() => {
+    void loadCompleteSegmentHistoryRef.current();
+  }, []);
+
   if (runtimeSetupVisible) {
     return (
       <main
@@ -6095,7 +6134,7 @@ export function App({ model }: AppProps) {
                   count: historicalSegmentCount,
                   state: historicalSegmentState,
                   disabled: runtimeBusy,
-                  onLoad: () => void loadCompleteSegmentHistory(),
+                  onLoad: requestEarlierHistory,
                 }}
                 onChoose={(text) => setJourneyComposerDraft(selectedJourney, text)}
               />
@@ -6113,7 +6152,7 @@ export function App({ model }: AppProps) {
                 <span>{historicalSegmentState === "error"
                   ? "Earlier history could not be verified. The current chapter remains available."
                   : `${historicalSegmentCount} earlier ${historicalSegmentCount === 1 ? "chapter" : "chapters"} available.`}</span>
-                <button type="button" className="secondary-button" onClick={() => void loadCompleteSegmentHistory()}
+                <button type="button" className="secondary-button" onClick={requestEarlierHistory}
                   disabled={historicalSegmentState === "loading" || runtimeBusy}>
                   {historicalSegmentState === "loading"
                     ? "Loading earlier chapters…"
@@ -6124,9 +6163,7 @@ export function App({ model }: AppProps) {
             <ConversationTranscript
               messages={messages}
               conversation={presentedConversation}
-              liveResponseModel={runtimeProjectionMessageId && liveRunProviderModel
-                ? { messageId: runtimeProjectionMessageId, label: liveRunProviderModel }
-                : undefined}
+              liveResponseModel={liveResponseModel}
               importedActivity={importedActivity}
               assistantTurnProximity={assistantTurnProximity}
               runtimeProjection={runtimeProjection}
@@ -6142,7 +6179,7 @@ export function App({ model }: AppProps) {
               onSearchOpenChange={setConversationSearchOpen}
               onTurnNavigatorOpenChange={setConversationTurnNavigatorOpen}
               earlierSegmentCount={historicalSegmentCount}
-              onLoadEarlierHistory={() => void loadCompleteSegmentHistory()}
+              onLoadEarlierHistory={requestEarlierHistory}
               earlierHistoryState={historicalSegmentState}
             />
 

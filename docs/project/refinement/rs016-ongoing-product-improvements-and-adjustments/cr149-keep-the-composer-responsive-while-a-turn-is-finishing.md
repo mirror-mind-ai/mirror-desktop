@@ -827,3 +827,106 @@ It is deliberately not done here for three reasons, each of which has cost this 
 
 First investigation for that slice: enumerate all 21 props of `ConversationTranscript` at the call
 site and classify each as stable or not, by reading, before changing anything.
+
+
+---
+
+## The memo slice: the audit refuted my own plan (2026-10-13)
+
+The plan for this slice said the repair was a **chain** — `projectedMirrorCommitErrors` →
+`navigationPresentation` → `onLoadEarlierHistory` → `liveResponseModel` → an audit of all 21 props
+— and it named three reasons the chain was dangerous: it touches the application's central
+derivation, memoizing a value recomputed every render can expose latent staleness, and the audit had
+to be exhaustive rather than sampled.
+
+**The audit refuted the chain.** It was never needed.
+
+### The audit, all twenty props at the call site
+
+| props | stable? | why |
+|---|---|---|
+| `messages`, `conversation` | ✅ | `deriveJourneyNavigationPresentation` returns `conversation?.messages ?? []` — **the conversation's own array, by reference** — and `conversation` is `runtimeConversation ?? loadedConversation`, both *selected* from state, never rebuilt. The wrapper object is fresh every render; **the fields inside it are not.** |
+| `assistantTurnProximity`, `chapters`, `importedActivity` | ✅ | `useMemo` keyed on `messages`, which is stable, so the memos hit |
+| `runtimeProjection`, `runtimeProjectionMessageId` | ✅ | destructured from `selectJourneyRuntime`, which returns `state.entries[key]` |
+| `basePath`, `userAvatar`, `searchOpen`, `turnNavigatorOpen`, `chaptersOpen`, `earlierSegmentCount`, `earlierHistoryState` | ✅ | primitives or `useState` values |
+| `onSearchOpenChange`, `onTurnNavigatorOpenChange`, `onChaptersOpenChange` | ✅ | `useState` setters, stable by React's own guarantee |
+| `onLocalPathClick` | ✅ | already `useCallback` |
+| **`liveResponseModel`** | ❌ | an object literal in the JSX |
+| **`onLoadEarlierHistory`** | ❌ | an arrow in the JSX, rebuilt **unconditionally on every render** |
+
+**Two props, not five memos.** Had I implemented the plan, I would have added five `useMemo` calls
+through `syncAttention` → `mirrorCommitErrors` → `projectedMirrorCommitErrors` →
+`navigationPresentation`, taken on the staleness risk the plan itself warned about, and **bought
+nothing** — because the transcript never receives the wrapper those memos would have stabilised.
+
+*The exhaustive audit the plan demanded is the only reason that did not happen.* It is the fourth
+time in this CR that checking before acting changed the answer, and the first time it stopped work
+rather than redirecting it.
+
+### What shipped
+
+- **`liveResponseModel`** is a `useMemo` on `[runtimeProjectionMessageId, liveRunProviderModel]`.
+- **`requestEarlierHistory`** is a `useCallback([])` over a ref. The ref is needed rather than
+  tidy: `loadCompleteSegmentHistory` closes over `journeyThreadState`, `selectedJourney`,
+  `conversation.id` and `historicalSegmentCount`, so an empty dependency list on the function itself
+  would freeze all four, and a complete list would make the callback unstable again — which is the
+  defect. **An empty dependency list is therefore required here, not sloppy.**
+- All three call sites of the action use the one stable identity, so there is no second spelling for
+  a future reader to "fix" back into a lambda.
+
+### The keystone claim is exercised, not reasoned about
+
+`deriveJourneyNavigationPresentation` is pure, so the audit's central claim is testable. Called
+twice with identical input, it returns **the same `messages` array and the same `conversation`
+object**, and the test also asserts `first.messages === conversation.messages` — the conversation's
+own array, not a copy that happens to be equal.
+
+Two companions pin the honest edges: the wrapper **is** rebuilt (`expect(second).not.toBe(first)`),
+stated as a passing assertion so nobody memoizes it for nothing; and with **no** conversation the
+derivation returns a fresh `[]` every call, so the stability claim is conditional and says so. That
+is the empty case, where the transcript has nothing to render.
+
+### A guard from a production incident caught a real bug of mine
+
+I placed the three hooks next to `loadCompleteSegmentHistory`, which is where they read best.
+`appHookOrder.test.ts` failed, and its comment says why it exists:
+
+> The App shell returns early while runtime onboarding is visible. A hook declared after that return
+> runs on some renders and not others, and React tears the whole tree down the moment the condition
+> flips — a black window on launch, with nothing failing in the suite. CR080 shipped exactly that
+> mistake, so the ordering is pinned here.
+
+The early return is at `App.tsx:5180` and I had put the hooks at `:5410`. **This was not a drift or
+a stale anchor — it was a real defect that would have produced a black window**, and it is the
+clearest case yet of a guard earning its place. The hooks moved above the early return, with the
+constraint and this incident written beside them, and the reference still resolves because a
+function declaration is hoisted to the top of its enclosing scope.
+
+### Validation
+
+| gate | result |
+|---|---|
+| `npx tsc --noEmit` | clean |
+| `vitest` | **261 files / 2,082 tests** (from 260 / 2,073) |
+| `cargo test` | 319 passed, 3 ignored |
+| `npm run build` | clean |
+| `npm run roadmap:check` | READY |
+
+Five controls: an inline lambda returned to the prop, an object literal returned to the prop, a
+non-empty dependency list on the callback, the coordinator rebuilding the message array with a
+spread, and `memo` removed from the transcript. Each failed the named tests and was restored.
+
+The shape guard is an **allow-list** — every prop value must match a bare identifier — rather than a
+list of forbidden spellings, because `=\{\{` and `=\{() =>` are two spellings of the defect and
+`liveResponseModel` was a third: a ternary that happened to build an object.
+
+### What this should do, and what is still unverified
+
+The transcript's `memo` can now actually skip. During a `Finishing`, `setFinishingPhases` fires once
+per phase and `setConversation` is never called, so **the ~14 root renders should no longer re-render
+the transcript at all** — which is where the profile put 76.8% of sampled main-thread time.
+
+**Whether that is enough to end the stall is not established.** `setAttribute` at 19.5% of the
+profile is still unattributed, and three of this CR's four field checks have refuted the hypothesis
+under test. The falsifier goes in the field record before the build is handed over, as the other
+three did.
