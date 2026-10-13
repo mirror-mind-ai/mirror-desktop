@@ -170,3 +170,49 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+---
+
+## Independent Verification (assistant, after the route completed)
+
+Taken against the served endpoint rather than against the staged tree, with the instrument the
+`alpha.47` publication taught: **version + artifact URL + signature length**, not a byte-for-byte
+hash against a re-staged plan, because each `publish` attempt re-stages with a fresh `pub_date`.
+And the row count is asserted **before** any comparison, because an earlier version of this check
+reported zero divergences vacuously when its join produced no rows.
+
+| check | result |
+|---|---|
+| tag `v0.2.0-alpha.48` → candidate revision | `39d3d058df2d7ec4803cb7f0bb7aa3567680d344` — **matches** (read with `git rev-list -n1`) |
+| manifests read | **141 of 141**, asserted before comparing; 0 read errors |
+| `version == 0.2.0-alpha.48` | **141/141** |
+| manifest shape FLAT (no `platforms`, has `url`) | **141/141** |
+| `url` points at the alpha.48 artifact | **141/141** |
+| distinct signature lengths | **`[416]`** — one value across all 141 |
+| tarball re-downloaded from the served URL | 7,610,352 B, `b47eab57a7bb20b0e849d7a44b073256ac3330db901882ef1ab959cac0216f84` — **identical to local and to the evidence above** |
+| **binary inside the served tarball** | `0668f6ce690fc6a4f3c5772530b6fd5e1edce97f2dc56f439db61ed51b9b3241` — **identical to the one built** |
+| DMG range request | HTTP **206** |
+| GitHub release page | HTTP **200** |
+
+Prepared → tagged → released → published → served → downloaded → unpacked: the same binary at every
+step.
+
+## The transport, one attempt instead of four
+
+`alpha.47` failed three times before succeeding, because `publishStagedPrivateUpdate` opens one
+`scp` per manifest and restarts from the beginning on retry. **This release published on the first
+attempt**, with 141 manifests instead of 139. The `Host szen-vps` block with `ControlMaster`,
+`ControlPersist` and keepalives is still in `~/.ssh/config`, outside the repository — it is what
+made this converge, it remains disclosed, and it remains removable. The underlying per-manifest
+handshake design is unchanged and would still fail on a flaky link without it.
+
+## Still outstanding, unchanged by this release
+
+Six legacy manifest paths — `darwin`, `darwin-x86_64`, `darwin-aarch64` at `0.2.0-alpha.0` and
+`0.2.0-alpha.1` — still serve `0.2.0-alpha.2`. They are not in the staged set of any release and no
+release updates them. Pre-existing, named again so it does not become invisible.
+
+## Boundary
+
+**Production is still running `alpha.47`.** Publishing and upgrading production are separate acts;
+the upgrade is the Navigator's.
