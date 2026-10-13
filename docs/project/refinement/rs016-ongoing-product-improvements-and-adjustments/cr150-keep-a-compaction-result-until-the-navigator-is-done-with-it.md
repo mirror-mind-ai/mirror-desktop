@@ -259,3 +259,43 @@ informative.
 **Step 4 may not be provocable on demand**, since a real compaction failure needs Pi to fail rather
 than refuse. If it cannot be provoked, this CR closes on steps 1–3 with step 4 recorded as
 test-covered and unprovoked rather than verified — the same honesty CR149 closed on.
+
+## Field Build (2026-10-13)
+
+Built and installed to the **Eval** channel, at the Navigator's call: `tauri.dev.conf.json` carries
+`ai.mirrormind.desktop.dev` and therefore its own empty data directory, while
+`tauri.eval.conf.json` carries `ai.mirrormind.desktop` — **the same identifier as production**. So
+Eval reads the real Journeys, which is the only place a compaction has anything to reclaim. The
+corollary is the standing rule: **production and Eval must never run at the same time.**
+
+- Source: `2b33f8e`, worktree clean at build time.
+- Installed binary: `00229d2dc94748ce898df24537d25421cd4b6939b47d0755bf10b6edd4db7952`, identical to
+  the built one, and distinct from the previous Eval (`bc488ca0…`) and from production (`0668f6ce…`).
+- `ps` gate run immediately before replacing the bundle: Eval was not running. Previous bundles
+  retained under `/tmp`.
+
+### An instrument that proved nothing, caught by its own control
+
+The first verification attempted was `grep` for `until-next-turn` in the installed binary. It
+returned **0** — and so did `compaction-notice-dismiss`, which has shipped since CR104 and is
+certainly present. **Tauri embeds the frontend compressed, so no frontend literal is greppable in
+the binary at all**, and `strings` confirms it: `compaction-notice`, `Context compaction` and
+`Chapter closed` are each 0 occurrences.
+
+Reporting that first result would have claimed the repair was missing from a build that contains it.
+What the control establishes is the instrument's blindness, not the code's absence — the same shape
+as CR149's central lesson, found here in one step because the control was run alongside the
+measurement rather than after it doubted.
+
+The chain that does prove it: the literal appears **2×** in `dist/assets/index-BuguYW4l.js`, that
+dist was written at 18:52:42 and the binary at 18:54:21 of the same build, and the installed binary
+hashes identically to that build's output.
+
+### Step 4 splits, and only half of it is provocable
+
+- **4a, provocable.** Compact a Journey whose branch already ends in a compaction. Pi refuses, the
+  Desktop classifies it `nothing_to_do`, and the notice must **fade on its own with no Dismiss
+  button** — the one outcome this CR deliberately left on a timer. This verifies acceptance 7, which
+  is the clause most at risk of being swept along with the success.
+- **4b, not provocable on demand.** A true failure needs Pi to fail rather than refuse. If it does
+  not occur, this CR closes on steps 1–4a with 4b recorded as test-covered and unprovoked.
