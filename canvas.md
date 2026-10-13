@@ -25,7 +25,7 @@
 | ↳　CR146 · Stop a Recovered Turn from Being Stored Twice | ✅ done · campo negativo nos dados reais · metades positivas só em teste | `██████████` |
 | ↳　CR147 · Stop a Run-Loop Thread from Dying in Silence | ✅ done · campo negativo coletado · mecanismo original segue indeterminado | `██████████` |
 | ↳　CR148 · Give an Unanswered Turn Back Its Own Identity | 🟡 captured · achada na linha de base da CR146 · turno pendente sem par | `░░░░░░░░░░` |
-| ↳　CR149 · Keep the Composer Responsive While a Turn Is Finishing | 🔄 planned · prioridade 1 · **4ª refutação** · cadeia causal fechada: 14 renders do transcript por settlement, memo inerte · 3 fatias entregues, a decisiva ainda não | `██████░░░░` |
+| ↳　CR149 · Keep the Composer Responsive While a Turn Is Finishing | 🔄 planned · prioridade 1 · 4 fatias entregues · **memo do transcript agora pode pular os 14 renders** · auditoria refutou a cadeia de 5 memos do meu plano · campo devido | `█████████░` |
 | ↳　CR150 · Keep a Compaction Result Until the Navigator Is Done With It | 🟡 captured · prioridade 2 · reverte escolha deliberada da CR104 · decisão de Workbench | `░░░░░░░░░░` |
 | ↳　CR151 · Let a Finished Turn Announce Itself | 🟡 captured · prioridade 3 · capacidade nova · nenhum áudio existe no app | `░░░░░░░░░░` |
 | ↳　CR152 · Let the Navigator Hide Every Conversation but One | 🟡 captured · prioridade 4 · simétrica de revealAllConversations | `░░░░░░░░░░` |
