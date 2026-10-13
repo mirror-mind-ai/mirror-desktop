@@ -2,7 +2,7 @@
 
 # CR149: Keep the Composer Responsive While a Turn Is Finishing
 
-**Status:** planned
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs016-cr149-keep-the-composer-responsive-while-finishing`
 **Navigator priority:** 1 of 8 (intake 2026-10-12)
@@ -1119,3 +1119,57 @@ the main thread, so it was converted rather than excepted. Kept set is 10.
 measured window, now costing a worker instead of the UI. Captured as
 [CR157](cr157-stop-moving-the-whole-conversation-through-every-settlement.md), with the outbox
 path's 54.0% named there as undecomposed. And **no renderer work**.
+
+
+---
+
+## Closed by the field (2026-10-13)
+
+**Navigator: *"Deu certo. Agora resolveu."*** Record:
+[cr149-main-thread-field-check-2026-10-13.md](../../../update/cr149-main-thread-field-check-2026-10-13.md).
+
+Seven settlements, all `settled`, 19 phases, `running: 0`, no panics. **And the duration did not
+change**: all seven sit at percentiles 52–86 of 240 historical records (p10 4,032 · p50 5,584 ·
+p90 8,406). The freeze went away while the settlement stayed exactly as long as it always was —
+which is the cleanest possible confirmation, because **the duration was never the symptom; the
+unavailable main thread was.**
+
+### What this CR cost, and what the cost bought
+
+Five field refutations. Four repairs shipped at causes that turned out not to be the cause: the root
+1 Hz clock, the scan allocations, the strip-chain duplication, the controlled textarea. All four were
+real defects and all four are still worth having — but none of them was this.
+
+**The error was not in any of the four. It was in the instrument.** I profiled the renderer with the
+Web Inspector, which cannot see the application's main thread, and then repaired what it showed me —
+four times. The field kept saying *"the whole app"*, *"all the other Journeys"*, *"the letters arrive
+all at once"*, and each of those sentences was incompatible with a renderer cause. It took the
+Navigator saying it a fifth time, plainly, for me to change instrument rather than hypothesis.
+
+*When repeated repairs at a measured cause do not move the symptom, suspect the instrument's field
+of view before the next hypothesis.*
+
+### The Outcome's second clause is not field-verified
+
+> *"…and the abandonment offer still appears when its threshold is crossed on a Journey that is
+> otherwise idle."*
+
+**It cannot be provoked and has not been.** The offer needs 60 s of `Finishing`; settlements now run
+about 6.6 s, and the longest in 240 records is 48.5 s. It is covered by the 14 tests on
+`SettlementAbandonmentNotice.tsx` and by CR138's strengthened guard, and the threshold itself is
+already falsified — [CR155](cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md)
+owns that question. **This CR is marked done on its first clause, with the second recorded as
+test-covered and unprovokable rather than verified.**
+
+### Not collected
+
+The instrument-level falsifier — a second `sample` showing the main thread idle during a settlement
+— was not taken, because Eval had closed. The mechanism rests on the first measurement plus the
+outcome. It is 60 seconds of work whenever the quantified answer is wanted.
+
+### Still open, now elsewhere
+
+- [CR157](cr157-stop-moving-the-whole-conversation-through-every-settlement.md) — the payload. The
+  phase mix is unchanged: outbox 52.4%, projection saves 26.6%, outbox still undecomposed.
+- **Production is still `alpha.47`, which does not contain any of this.** Whether to release is a
+  separate decision and has not been taken.

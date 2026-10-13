@@ -17,7 +17,7 @@
 | ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | ✅ campo verificado (7/7) · fechada sobre arquivo | `██████████` |
 | ↳　CR136 · Admit Concurrent Work Inside One Journey | ↗️ promoted → RS024 / CR138–CR140 | `　　　　　　　　　　` |
 | ↳　CR137 · Bring the Navigator Back to the Conversation They Left | ✅ done · campo verificado nas duas direções · regressão achada e reparada | `██████████` |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `███████░░░` 40 ✅ · 12 🟡 · 4 ↗️ · 1 ⛔ · de 57 |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `███████░░░` 41 ✅ · 11 🟡 · 4 ↗️ · 1 ⛔ · de 57 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR142 · Stop Losing a Turn the Journal Already Answered | ✅ done · campo negativo coletado na 2ª tentativa | `██████████` |
@@ -25,7 +25,7 @@
 | ↳　CR146 · Stop a Recovered Turn from Being Stored Twice | ✅ done · campo negativo nos dados reais · metades positivas só em teste | `██████████` |
 | ↳　CR147 · Stop a Run-Loop Thread from Dying in Silence | ✅ done · campo negativo coletado · mecanismo original segue indeterminado | `██████████` |
 | ↳　CR148 · Give an Unanswered Turn Back Its Own Identity | 🟡 captured · achada na linha de base da CR146 · turno pendente sem par | `░░░░░░░░░░` |
-| ↳　CR149 · Keep the Composer Responsive While a Turn Is Finishing | 🔄 planned · prioridade 1 · causa medida na main thread nativa · **69/90 comandos movidos para workers sob lock de serialização** (mesma semântica, outra thread) · reentrância pegou 1 deadlock real antes de gravar · 6ª verificação de campo devida | `████████░░` |
+| ↳　CR149 · Keep the Composer Responsive While a Turn Is Finishing | ✅ done · **resolvido no campo** · causa: settlement rodava na main thread nativa · 69/90 comandos movidos para workers sob lock de serialização · duração do settlement inalterada (percentis 52–86 de 240), o congelamento era a thread, não o tempo · 5 refutações antes — o erro estava no instrumento | `██████████` |
 | ↳　CR150 · Keep a Compaction Result Until the Navigator Is Done With It | 🟡 captured · prioridade 2 · reverte escolha deliberada da CR104 · decisão de Workbench | `░░░░░░░░░░` |
 | ↳　CR151 · Let a Finished Turn Announce Itself | 🟡 captured · prioridade 3 · capacidade nova · nenhum áudio existe no app | `░░░░░░░░░░` |
 | ↳　CR152 · Let the Navigator Hide Every Conversation but One | 🟡 captured · prioridade 4 · simétrica de revealAllConversations | `░░░░░░░░░░` |

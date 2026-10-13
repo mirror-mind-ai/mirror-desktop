@@ -78,6 +78,69 @@ but the field is where it would show.
 - **The payload cost.** Three saves and a load of 11.5 MB per settlement still happen; they now
   cost a worker thread instead of the UI. That is CR157's problem, deliberately.
 
-## Result
+## Result — the friction is resolved
 
-*(to be completed after the run)*
+**Navigator, 2026-10-13: *"Deu certo. Agora resolveu."***
+
+Seven settlements ran on `alissonvale-com` between `19:43:33Z` and `19:56:26Z`, all `settled`, all
+19 phases, depth-0 phases accounting for ~100% of each window. `native-panics.jsonl` absent. The
+turn journal holds 64 records with **`running: 0`** — no deadlock, no stranded turn.
+
+### Prediction 1 — met
+
+Typing is fluid during `Finishing`, in the finishing Journey and in the others. One cause, both
+symptoms, as the mechanism required.
+
+### Prediction 3 — met, and it is the strongest evidence here
+
+| | ms |
+|---|---|
+| 240 historical `settled` records | p10 **4,032** · p50 **5,584** · p90 **8,406** |
+| the 7 new records | min **5,673** · p50 **6,640** · max **7,207** |
+
+**All seven sit inside p10–p90, at percentiles 52 to 86.** The settlement takes exactly as long as
+it always did.
+
+That is the cleanest confirmation the diagnosis could have had. **The freeze disappeared while the
+duration did not change at all** — because the duration was never the symptom. The main thread being
+unavailable was. A repair that had also made settlements faster would have left the mechanism
+ambiguous; this one separates the two cleanly.
+
+**A correction to my own first reading:** against the three pre-slice records (5,887 / 6,303 /
+5,984, median 5,984) the new median of 6,640 looks 11% slower, and I was ready to report it as
+*"slightly slower, probably noise"*. Against 240 records it is the middle of the distribution. Three
+samples were the wrong baseline, and the right one was already on disk.
+
+### Prediction 4 — met
+
+Every settlement produced a complete record, and the conversation list, drafts, preferences and
+settings all cross converted commands now. Nothing failed.
+
+### Prediction 6 — met
+
+No panic file, no command that failed to return, `running: 0`.
+
+### Prediction 2 — NOT COLLECTED
+
+The instrument-level falsifier — a second `sample` showing the main thread idle during a settlement
+— **was not taken**, because Eval was already closed when the result came in. So the *mechanism* is
+confirmed by the first measurement plus the outcome, not by an after-measurement. It remains
+available at any time for 60 seconds, and it is the only way to quantify how much main-thread time
+was actually freed.
+
+### Prediction 5 — not exercised
+
+The ten kept commands (dialogs, external links, revealing artifacts) were not used during the run.
+Test-covered, not field-exercised.
+
+### What the phase mix says about CR157
+
+Unchanged, as expected — the work moved threads, not shape:
+
+| | share of the 6,265 ms record |
+|---|---|
+| outbox (`deliver` + `enqueue` + `acknowledge`) | **52.4%** |
+| projection (`save` + `save_post_frontier`) | **26.6%** |
+
+[CR157](../project/refinement/rs016-ongoing-product-improvements-and-adjustments/cr157-stop-moving-the-whole-conversation-through-every-settlement.md)'s
+premise is intact, and the outbox path is still the larger and still undecomposed half.

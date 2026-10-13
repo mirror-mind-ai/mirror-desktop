@@ -49,7 +49,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR146: Stop a Recovered Turn from Being Stored Twice](cr146-stop-a-recovered-turn-from-being-stored-twice.md) — done
 - [CR147: Stop a Run-Loop Thread from Dying in Silence](cr147-stop-a-run-loop-thread-from-dying-in-silence.md) — done
 - [CR148: Give an Unanswered Turn Back Its Own Identity](cr148-give-an-unanswered-turn-back-its-own-identity.md) — captured
-- [CR149: Keep the Composer Responsive While a Turn Is Finishing](cr149-keep-the-composer-responsive-while-a-turn-is-finishing.md) — planned · intake 2026-10-12, prioridade 1 de 8
+- [CR149: Keep the Composer Responsive While a Turn Is Finishing](cr149-keep-the-composer-responsive-while-a-turn-is-finishing.md) — done · intake 2026-10-12, prioridade 1 de 8
 - [CR150: Keep a Compaction Result Until the Navigator Is Done With It](cr150-keep-a-compaction-result-until-the-navigator-is-done-with-it.md) — captured · intake 2026-10-12, prioridade 2 de 8
 - [CR151: Let a Finished Turn Announce Itself](cr151-let-a-finished-turn-announce-itself.md) — captured · intake 2026-10-12, prioridade 3 de 8
 - [CR152: Let the Navigator Hide Every Conversation but One](cr152-let-the-navigator-hide-every-conversation-but-one.md) — captured · intake 2026-10-12, prioridade 4 de 8
