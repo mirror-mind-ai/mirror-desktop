@@ -281,3 +281,91 @@ and the file restored.
   else. If voice capture ever runs ungated, that justification expires.
 - **`strandedTurnTick` (15 s) and `relativeTimeNow` (60 s) are untouched** and are the next
   candidates if the field check fails.
+
+
+---
+
+## Field result: the hypothesis is refuted (2026-10-12)
+
+Reproduced in the **Eval** channel — which uses production's own data directory and Mirror binding —
+on a large production conversation, the condition Dev could not supply.
+
+> *"Consegui reproduzir o problema no eval e a lentidão no finishing ainda permanece."*
+
+**The root 1 Hz clock was not the cause.** This CR's Outcome is **not met** and the CR stays open.
+The shipped slice is kept: it was justified structurally, without the performance claim, and that
+justification did not depend on being right about the cause.
+
+Details and limits in
+[`docs/update/cr149-field-verification-2026-10-12.md`](../../../update/cr149-field-verification-2026-10-12.md).
+Note in particular that *"still slow"* refutes *"the lag is gone"* and says nothing about *"less
+slow"* — there was no A/B in Eval.
+
+## What the refutation sent me to find
+
+Going back to the code without the clock to blame produced two findings that are **established by
+reading rather than inferred from perception**, which is the difference from the first hypothesis.
+
+### 1. `React.memo` on `ConversationTranscript` has never prevented a single re-render
+
+`ConversationTranscript` is wrapped in `memo` and takes 21 props, compared shallowly. One of them is
+constructed fresh on **every** render, unconditionally (`App.tsx:6145`):
+
+```tsx
+onLoadEarlierHistory={() => void loadCompleteSegmentHistory()}
+```
+
+A new function identity every render makes the shallow compare fail every render. `liveResponseModel`
+does the same with an object literal whenever it is defined. **So the memo is inert: every App root
+render re-renders the whole transcript.**
+
+Everything around it is built correctly, which is what makes this worth stating rather than
+generalising: `handleChatLocalPath` is `useCallback`'d, `importedActivity`, `assistantTurnProximity`
+and `conversationChapters` are `useMemo`'d, and the rows are themselves `memo`'d. One unstable prop
+defeats all of it.
+
+### 2. `navigationPresentation` is not memoized, so the transcript's own `useMemo`s never hold
+
+`App.tsx:1090` calls `deriveJourneyNavigationPresentation({…})` raw on every render, and
+`messages` and `presentedConversation` are read off its result. Both therefore change identity every
+render, so inside the transcript `buildConversationTranscriptIndex(conversation)` and
+`createConversationTurnNavigationItems(messages)` recompute every render — two **O(n)** passes over
+every message in the conversation.
+
+`findConversationSearchMatches` is **not** part of this cost: it returns `[]` immediately on an empty
+query, so it is O(1) while the search box is unused. Said explicitly because it is the most expensive
+looking of the three and it would be the natural thing to blame.
+
+### Why this fits the evidence the first hypothesis did not
+
+| observation | root clock | memo defeat + O(n) passes |
+|---|---|---|
+| only reproducible in a **large** conversation | unexplained | **explained** — the cost is O(n) |
+| specific to `Finishing` | explained | **explained** — settlement emits a burst of root state updates |
+| **survived removing the 1 Hz clock** | **contradicted** | explained — that was one render source among many |
+| CR113 fixed typing generally but not this | unexplained | explained — CR113 stopped the *keystroke* re-rendering; this is everything *else* re-rendering while you type |
+
+## What I am deliberately NOT doing
+
+**Not shipping this as a fix.** Both findings are real defects and both are correct to repair, and
+*that is exactly the reasoning that just failed*: the clock was also a real defect, also correct to
+repair, and did not fix the friction. **A second structurally-justified repair aimed at an unmeasured
+cause would be the same mistake with a different line number.**
+
+The next step is a measurement, and a measurement is now affordable for the first time because the
+Navigator can reproduce the symptom on demand.
+
+## Next Investigation
+
+- **The one-minute discriminator, before any profiling.** If the mechanism is *root render → O(n)
+  transcript work*, the lag must also appear while the answer is **streaming**, which updates root
+  state far more often than settlement does. Typing during streaming in the same large conversation
+  separates *"any render burst is expensive here"* from *"something specific to `Finishing`"*. These
+  lead to different repairs and the question costs one turn.
+- **Then a profile.** `npm run tauri:user` runs the production channel in dev mode — production data
+  plus Web Inspector — so a performance recording while typing during `Finishing` would name the
+  dominant function instead of nominating one.
+- **Count the renders before reducing them.** How many times the transcript renders during one
+  settlement is currently unknown, and it decides whether this is one expensive render or forty cheap
+  ones. The repair differs.
+- **Only then decide the repair**, and record which measurement justified it.

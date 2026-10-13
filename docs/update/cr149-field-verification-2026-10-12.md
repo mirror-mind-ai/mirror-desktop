@@ -93,6 +93,35 @@ record, and its absence is the expected reading.
   precisely because a perception compared against another perception under an identical protocol is
   worth more than a perception alone.
 
-## Result
+## Result — prediction 1 FALSIFIED (2026-10-12)
 
-*(to be completed after the run)*
+**Navigator report, after reproducing in the Eval channel on a large production conversation:**
+*"Consegui reproduzir o problema no eval e a lentidão no finishing ainda permanece."*
+
+**The root 1 Hz clock was not the cause.** The hypothesis written in CR149 is refuted by the field,
+which is exactly what prediction 1 was written to be able to say.
+
+### What the run established
+
+| | |
+|---|---|
+| Channel | Eval (`ai.mirrormind.desktop` — production's own data directory and Mirror binding) |
+| Build | `6c1973b690efae1be7464c5f93a8d0dbb30b29a3c579a2406e6423ea6bd1062b`, alpha.47 + CR149 |
+| Conversation | a large production conversation, which is the condition Dev could not supply |
+| Outcome | **typing during `Finishing` is still slow** |
+
+### What it did NOT establish
+
+- **Whether CR149 improved anything at all.** There is no A/B in Eval: the retained comparison build
+  is a *Dev* build and points at Dev data, so it cannot serve. *"Still slow"* refutes *"the lag is
+  gone"* and says nothing about *"less slow"*.
+- **Predictions 2 to 5 were not collected.** The durable stores were not read, because reading them
+  requires the app closed and the investigation moved on. They remain uncollected rather than passed.
+
+### Why the refutation was worth more than a confirmation
+
+A passing run would have closed CR149 on a mechanism that is now known not to be the cause, and the
+Navigator's friction would have been reported as fixed while they kept feeling it. **The falsifier
+was written before the run precisely so this outcome could be believed**, and the structural repair
+that shipped stands on its own grounds — it was justified without the performance claim, and that
+justification is unchanged.
