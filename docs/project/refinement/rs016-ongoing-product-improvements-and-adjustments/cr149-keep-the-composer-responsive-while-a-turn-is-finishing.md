@@ -441,3 +441,89 @@ believing their friction was fixed again.
   is the mistake this CR has now avoided twice.
 - **Carry the real distribution into every threshold this project has derived.** Several were
   computed from Dev or from one Journey. One is already falsified — see CR155.
+
+
+---
+
+## The cause, measured and named (2026-10-12)
+
+The profile came back as **outcome A**: long JavaScript tasks in the renderer. Full analysis in
+[`cr149-profiling-protocol-2026-10-12.md`](../../../update/cr149-profiling-protocol-2026-10-12.md).
+
+**The stall has a shape.** 14 script tasks exceed 100 ms, summing 7,696 ms: one block of
+**2,927 ms**, then a run of **~450 ms blocks** through a fourteen-second window. Typing into a thread
+that is unavailable in half-second chunks is the friction, and the same unavailability is what
+inflated every settlement phase — including the ones carrying trivial payloads, which is the
+observation that killed hypothesis 3.
+
+**76.8% of sampled main-thread time is inside React rendering** — `Ou` resolved against the bundle
+as React's `performWorkOnRoot`, identified by its own `Error(327)` invariant.
+
+**The largest single identified cost is one function, and the identification is an equality rather
+than a resemblance.** `wE`, 11.3% self time, is `collectBoxedExplorerSurfaces`
+(`ImportedActivity.tsx:123`) — the bundle body matches the source byte-for-byte and its neighbour in
+the bundle is `isConcreteSurfaceType`, exactly as in the file. Adding the regexes it owns:
+
+| | self time |
+|---|---|
+| `/.*(?:\n\|$)/g` — its line scanner | 1,568 ms |
+| `wE` — its own body | 1,002 ms |
+| `/\n$/` — its per-line replace | 177 ms |
+| its heading probe | 59 ms |
+| **total** | **2,806 ms = 31.7% of sampled main-thread time** |
+
+### Why only during `Finishing` — the asymmetry resolved
+
+```
+ConversationMessageRow (per row, per render)
+  → stripMirrorSurfaceBlocks(message.content)   :71 → captureMirrorSurfaces :84
+     → collectBoxedExplorerSurfaces                                        :98
+```
+
+Nothing on that path is cached, so it scans **every message's full content on every row render**.
+Rows are `memo`'d and re-render only when their props change. **During streaming the committed
+messages do not change** — the arriving answer comes through the runtime projection — so the rows
+skip and the scanner never runs. **At settlement the conversation advances once per phase**, so every
+row re-renders and the scanner runs over every message, repeatedly.
+
+That is why no settlement phase dominated: **the work is not inside any phase, it is triggered by
+each of them.**
+
+### Hypothesis 2 was right about the place and wrong about the cost
+
+It nominated the inert `memo` on `ConversationTranscript` and the two O(n) passes in its body. The
+measurement puts the cost in the **row bodies' per-message content scanning** instead. The file was
+right, the line was not — which is the difference between a located cause and a plausible one, and
+the reason it was not shipped when it was only plausible.
+
+## Proposed repair (not yet authorised)
+
+### Slice A — the early return
+
+`collectBoxedExplorerSurfaces` exists to find blocks delimited by `╭───╮` … `╰───╯`. It splits the
+whole content into lines, allocating an object and running a replace per line, **and only then**
+tests each line against `/^\s*╭[─━═]+╮\s*$/`.
+
+A line cannot match that pattern unless the content contains `╭`. So returning early on
+`content.includes("╭")` **cannot change what the function captures — that is an implication of the
+function's own first test, not a performance bet** — and it makes the function O(1) for every message
+without box-drawing characters, which is nearly all of them.
+
+Acceptance: a characterisation test pinning that every input which currently captures a surface still
+captures the identical surface, and that the early return is reached for content without `╭`.
+
+### Slice B — cache the strip by content, if A is not enough
+
+`stripMirrorSurfaceBlocks` and `stripMirrorModeBlocks` are pure functions of a string that never
+changes once a message is stored. Caching by content identity removes the repetition rather than
+making each pass cheaper. Held back deliberately: **A is one line with a proof, B is a cache with an
+eviction question**, and A may make B unnecessary.
+
+### Explicitly out of this repair
+
+- **The inert `memo` and the unstable `onLoadEarlierHistory` lambda.** Real defects, their own CR or
+  slice, and **not shipped as this friction's fix** — the measurement does not put the cost there.
+- **`setAttribute` at 19.5%**, unattributed, and **`fetch` at 9.9%**, the IPC transport.
+- **The claim that this ends the stall.** 31.7% is the largest identified share and not a majority.
+  **That is the repair's own field check to settle**, with the falsifier written before the build is
+  handed over, as CR149 has done twice.
