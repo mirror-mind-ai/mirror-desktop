@@ -37,4 +37,11 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 development-channel = []
-evaluation-channel = []
+# CR149: the evaluation channel is the one that runs release-optimized code against the
+# Navigator's real data, which is exactly where a performance question has to be answered. Giving
+# it `tauri/devtools` puts the Web Inspector in a build whose Rust is optimized the same way
+# production's is, instead of profiling a debug build that is not the app anyone uses.
+#
+# Production can never receive it: `devtools` is not in `default`, and `build-user` passes no
+# `--features` at all. Both halves of that are asserted by tests rather than left to care.
+evaluation-channel = ["tauri/devtools"]

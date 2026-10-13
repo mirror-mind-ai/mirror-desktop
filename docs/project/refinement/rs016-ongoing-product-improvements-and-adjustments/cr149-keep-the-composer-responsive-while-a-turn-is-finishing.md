@@ -427,9 +427,15 @@ believing their friction was fixed again.
 
 - **Profile the main thread.** A uniform multiplicative inflation of every awaited operation is the
   signature of event-loop or IPC-queue contention, but **nothing measured so far looks at the main
-  thread** and that reading is an inference from the shape of the numbers. `npm run tauri:user` runs
-  the production channel in dev mode — production data plus Web Inspector — so a recording during a
-  `Finishing` would name the contending work instead of nominating it.
+  thread** and that reading is an inference from the shape of the numbers.
+  ~~`npm run tauri:user` runs the production channel in dev mode — production data plus Web
+  Inspector.~~ **Withdrawn (2026-10-12): `tauri:user` runs `tauri dev`, which compiles Rust in the
+  debug profile, and `Cargo.toml` declares no `[profile]` overrides.** Profiling it would measure a
+  build nobody runs, which is disqualifying when the open question is whether the time is spent
+  natively. The instrument is instead the **evaluation channel carrying `tauri/devtools`** —
+  release-optimized Rust, real data, Web Inspector in one bundle, and unreachable from production by
+  construction. Protocol and the report it must produce:
+  [`cr149-profiling-protocol-2026-10-12.md`](../../../update/cr149-profiling-protocol-2026-10-12.md).
 - **The two findings from hypothesis 2 are still worth repairing on their own terms**, as their own
   slice or their own CR, and **explicitly not as a fix for this friction**. Shipping them as the fix
   is the mistake this CR has now avoided twice.

@@ -51,6 +51,34 @@ describe("runtime channel configuration", () => {
     expect(channelLauncher).toContain('resolve(process.env.HOME ?? "", "Applications", "Mirror Desktop Eval.app")');
   });
 
+  /**
+   * CR149: the evaluation channel carries `tauri/devtools`, so which channels pass
+   * `--features evaluation-channel` now decides which bundles can open a Web Inspector.
+   *
+   * The Rust side asserts the default feature set cannot open devtools. This asserts the other
+   * half: that no route which produces a *shipped* bundle asks for the feature. Both are needed —
+   * either alone leaves a way for production to acquire it.
+   */
+  it("asks for the evaluation feature only on routes that never ship", () => {
+    // `user` and `dev` are written as bare keys and the hyphenated ones are quoted, so the key
+    // pattern has to accept both. Requiring quotes silently skipped the two routes this test
+    // exists to check, and the assertion below is what caught it.
+    const entries = [...channelLauncher.matchAll(/^  "?([a-z-]+)"?:\s*\{([\s\S]*?)\n  \},/gm)]
+      .map(([, name, body]) => ({ name, body }));
+    expect(entries.map((entry) => entry.name)).toContain("user");
+    expect(entries.length).toBeGreaterThan(4);
+
+    const withFeature = entries.filter((entry) => entry.body.includes('"evaluation-channel"'));
+    expect(withFeature.map((entry) => entry.name).sort()).toEqual(["build-eval", "install-eval"]);
+
+    // The two routes that produce an installable production bundle must pass no features at all.
+    for (const name of ["user", "build-user"]) {
+      const entry = entries.find((candidate) => candidate.name === name);
+      expect(entry, `the launcher declares a ${name} channel`).toBeDefined();
+      expect(entry!.body).not.toContain("--features");
+    }
+  });
+
   it("uses the Mirror Desktop mirror artwork with explicit DEV and EVAL overlays", () => {
     expect(stableIconSource).toContain("Mirror Desktop icon");
     expect(stableIconSource).toContain('<ellipse cx="256" cy="246" rx="124" ry="156"');

@@ -630,4 +630,39 @@ mod tests {
             .get_envs()
             .any(|(key, value)| { key == "NAUTILUS_TURN_CORRELATION_V1" && value.is_none() }));
     }
+
+    /// CR149: the Web Inspector belongs to the evaluation channel and to nothing else.
+    ///
+    /// This is a behavioural assertion rather than a source read: `cargo test` compiles with the
+    /// default feature set, which is the same set the production bundle is built with, so a build
+    /// that could open devtools in production fails here.
+    #[test]
+    fn the_default_build_cannot_open_devtools() {
+        assert!(
+            !cfg!(feature = "devtools"),
+            "devtools reached the default feature set, which is what production is built with"
+        );
+        assert!(!cfg!(feature = "evaluation-channel"));
+    }
+
+    /// The pairing above is only meaningful while `devtools` is reachable *exclusively* through
+    /// `evaluation-channel`. A second enabling site would make the behavioural assertion pass while
+    /// production gained the feature by another route.
+    #[test]
+    fn devtools_is_enabled_only_by_the_evaluation_channel() {
+        const MANIFEST: &str = include_str!("../Cargo.toml");
+        let features = MANIFEST
+            .split_once("[features]")
+            .expect("the manifest declares features")
+            .1;
+        let section = features.split("\n[").next().expect("the features section ends");
+        let enabling: Vec<&str> = section
+            .lines()
+            .filter(|line| !line.trim_start().starts_with('#'))
+            .filter(|line| line.contains("tauri/devtools"))
+            .collect();
+        assert_eq!(enabling.len(), 1, "exactly one feature may enable devtools: {enabling:?}");
+        assert!(enabling[0].trim_start().starts_with("evaluation-channel ="));
+        assert!(section.contains("default = [\"custom-protocol\"]"));
+    }
 }
