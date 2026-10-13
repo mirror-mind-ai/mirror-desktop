@@ -1173,3 +1173,20 @@ outcome. It is 60 seconds of work whenever the quantified answer is wanted.
   phase mix is unchanged: outbox 52.4%, projection saves 26.6%, outbox still undecomposed.
 - **Production is still `alpha.47`, which does not contain any of this.** Whether to release is a
   separate decision and has not been taken.
+
+### Recorded debt: the serialisation guard is coarse
+
+One process-wide mutex was the right first move — it reproduces exactly what the main thread
+guaranteed, which is what let this slice claim "same semantics, different thread" and be held to it
+by test. It is not the right final state.
+
+**The longest single depth-0 phase ever recorded is 41,081 ms** (`save_projection`,
+`livro-lideranca-soberana`), and under one global guard that is the worst-case wait for any data
+command in any other Journey. Typical worst case is about 1.6 s, and the field reported no stall, so
+this is a bound rather than an observation.
+
+**This slice converted a visible freeze into an invisible queue.** That is a strict improvement and
+it is also an incomplete one, and it is mine, so it is written here rather than left to be
+rediscovered. Two ways out, neither taken: narrow the guard to a key, or reduce the work so the
+bound stops mattering ([CR157](cr157-stop-moving-the-whole-conversation-through-every-settlement.md)).
+The cheap first step for either is to count waiters, which no instrument does today.

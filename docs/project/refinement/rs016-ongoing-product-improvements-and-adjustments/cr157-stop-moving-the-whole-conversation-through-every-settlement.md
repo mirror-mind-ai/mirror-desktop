@@ -58,3 +58,40 @@ Each changes the durable-state model and must be argued from it, not from the ti
 
 - Anything on the main thread. CR149 owns that and has measured it.
 - Reducing what a conversation *contains*. This CR is about what crosses per settlement.
+
+---
+
+## Measured scaling (2026-10-13)
+
+Across 13 Journeys with settlement records, settlement p50 against the largest projection file:
+
+| Journey | projection | n | p50 | p90 | max |
+|---|---|---|---|---|---|
+| `mirror-desktop` | 14,719,598 | 165 | 6,062 | 10,240 | **81,338** |
+| `alissonvale-com` | 11,671,263 | 255 | 5,842 | 8,406 | 48,546 |
+| `livro-lideranca-soberana` | 11,430,552 | 256 | 4,576 | 6,838 | **113,048** |
+| `flip-website` | 1,851,221 | 10 | 3,394 | 16,048 | 16,048 |
+| `flip-podcast` | 1,438,153 | 57 | 2,690 | 3,657 | 10,035 |
+| `venda-de-livros` | 1,081,209 | 53 | 2,427 | 2,934 | 5,308 |
+| nine Journeys under 500 KB | — | 1–7 each | 1,391–2,625 | — | — |
+
+**`r = 0.96` across the six Journeys above 1 MB, marginal cost ≈ 241 ms per MB.** So about half of a
+large Journey's settlement is size-driven and about half is fixed — which means this CR's ceiling is
+roughly half the settlement, not all of it, and the fixed half belongs to the outbox decomposition
+the First Investigation already asks for.
+
+The shape of the cost is the argument: **it has no brake.** Every turn adds to the projection and
+every subsequent settlement pays for it again, three times over. `mirror-desktop` is already at
+14.7 MB with a maximum of 81 s and `livro-lideranca-soberana` at 113 s.
+
+### What makes this sharper than it was yesterday
+
+CR149's serialisation guard is process-wide: one command runs at a time across every Journey. **The
+longest single depth-0 phase ever recorded is 41,081 ms — `save_projection` on
+`livro-lideranca-soberana`** — and that is now the worst-case wait for any data command in any other
+Journey. Typical worst case is far smaller, about 1.6 s, and the Navigator reported no such stall in
+the field.
+
+So CR149 did not make that cost disappear; it made it **invisible**, by moving it off the thread that
+draws. Reducing what a settlement moves is therefore also a concurrency repair, not only a latency
+one.

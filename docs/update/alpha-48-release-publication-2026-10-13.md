@@ -216,3 +216,13 @@ release updates them. Pre-existing, named again so it does not become invisible.
 
 **Production is still running `alpha.47`.** Publishing and upgrading production are separate acts;
 the upgrade is the Navigator's.
+
+---
+
+## Production upgraded (2026-10-13)
+
+The Navigator upgraded production and the install was confirmed by hash:
+`/Applications/Mirror Desktop.app` reports `0.2.0-alpha.48` and its binary is
+`0668f6ce690fc6a4f3c5772530b6fd5e1edce97f2dc56f439db61ed51b9b3241` — **identical to the binary
+unpacked from the tarball downloaded from the served URL, and to the one built.** Prepared, tagged,
+published, served, downloaded, installed: the same binary throughout.
