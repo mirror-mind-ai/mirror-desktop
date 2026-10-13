@@ -7,13 +7,15 @@ use tauri::{AppHandle, Manager};
 const FILE_NAME: &str = "whats-new-state.v1.json";
 const MAX_PAYLOAD_BYTES: usize = 120_000;
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn load_whats_new_state(app: AppHandle) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     load_at(&app.path().app_data_dir().map_err(|_| "whats_new_state_unavailable".to_string())?)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_whats_new_state(app: AppHandle, payload: String) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     save_at(&app.path().app_data_dir().map_err(|_| "whats_new_state_unavailable".to_string())?, &payload)
 }
 

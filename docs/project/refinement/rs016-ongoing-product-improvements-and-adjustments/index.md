@@ -57,6 +57,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR154: Persist a Model Choice at the Conversation It Was Made In](cr154-persist-a-model-choice-at-the-conversation-it-was-made-in.md) — captured · intake 2026-10-12, prioridade 6 de 8
 - [CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease](cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) — captured · intake 2026-10-12, prioridade 7 de 8
 - [CR156: Simplify the Context Map](cr156-simplify-the-context-map.md) — captured · intake 2026-10-12, prioridade 8 de 8
+- [CR157: Stop Moving the Whole Conversation Through Every Settlement](cr157-stop-moving-the-whole-conversation-through-every-settlement.md) — captured · nasce da medição da main thread na CR149
 - [CR132: Let the Navigator End a Finishing That Will Not End](cr132-let-the-navigator-end-a-finishing-that-will-not-end.md) — done
 - [CR120: Stop a Closing Chapter From Erasing Its Own File](cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) — done
 - [CR119: Give Finishing Back to the Navigator](cr119-give-finishing-back-to-the-navigator.md) — done

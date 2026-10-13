@@ -1,6 +1,7 @@
 mod agent_settings;
 mod journey_appearance;
 mod model_intents;
+mod native_command_serialization;
 mod native_panic_trace;
 mod pi_global_extensions;
 mod pi_process_registry;
@@ -484,8 +485,9 @@ struct PiChapterClosure {
     closed_at: Option<String>,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn save_journey_thread(app: AppHandle, journey_id: String, payload: String) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let path = journey_thread_path(&app, &journey_id)?;
     let value: Value = serde_json::from_str(&payload)
         .map_err(|error| format!("Could not parse Journey thread: {}", error))?;
@@ -507,8 +509,9 @@ fn save_journey_thread(app: AppHandle, journey_id: String, payload: String) -> R
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn load_journey_thread(app: AppHandle, journey_id: String) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let path = journey_thread_path(&app, &journey_id)?;
     if !path.exists() {
         return Ok(None);
@@ -1425,13 +1428,14 @@ fn recover_pending_desktop_conversation_deletion(
     Ok(Some(conversation_id.to_string()))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn load_desktop_conversation_catalog(
     app: AppHandle,
     state: State<'_, JourneyProvisioningState>,
     persistence: State<'_, JourneyProjectionPersistenceState>,
     journey_id: String,
 ) -> Result<Value, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     sanitize_journey_id(&journey_id)?;
     let recover = state.active.lock()
         .map_err(|_| "Could not inspect active Journey lifecycle operation.".to_string())?
@@ -1445,7 +1449,7 @@ fn load_desktop_conversation_catalog(
     load_desktop_conversation_catalog_at(&desktop_conversation_catalog_path(&app, &journey_id)?, &journey_id)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn delete_desktop_conversation(
     app: AppHandle,
     lifecycle: State<'_, JourneyProvisioningState>,
@@ -1454,6 +1458,7 @@ fn delete_desktop_conversation(
     journey_id: String,
     conversation_id: String,
 ) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     sanitize_journey_id(&journey_id)?;
     sanitize_session_id(&conversation_id)?;
     if process.registry.lock().map_err(|_| "Pi process registry is unavailable.".to_string())?
@@ -1704,7 +1709,7 @@ async fn restart_desktop_conversation(
     Ok(updated)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn rename_desktop_conversation(
     app: AppHandle,
     persistence: State<'_, JourneyProjectionPersistenceState>,
@@ -1712,6 +1717,7 @@ fn rename_desktop_conversation(
     conversation_id: String,
     title: String,
 ) -> Result<Value, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     sanitize_journey_id(&journey_id)?;
     sanitize_session_id(&conversation_id)?;
     let title = normalized_conversation_title(&title);
@@ -1742,7 +1748,7 @@ fn rename_desktop_conversation(
     Ok(updated)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn reconcile_desktop_conversation_catalog_entry(
     app: AppHandle,
     persistence: State<'_, JourneyProjectionPersistenceState>,
@@ -1752,6 +1758,7 @@ fn reconcile_desktop_conversation_catalog_entry(
     updated_at: String,
     message_count: u64,
 ) -> Result<Value, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     sanitize_journey_id(&journey_id)?;
     sanitize_session_id(&thread_id)?;
     if message_count > 1_000_000 || DateTime::parse_from_rfc3339(&updated_at).is_err() {
@@ -1782,8 +1789,9 @@ fn reconcile_desktop_conversation_catalog_entry(
     Ok(updated)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn load_mirror_conversation_catalog(app: AppHandle, journey_id: String, limit: u16) -> Result<Value, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     if !(1..=100).contains(&limit) {
         return Err("Mirror conversation catalog limit is invalid.".to_string());
     }
@@ -1791,13 +1799,14 @@ fn load_mirror_conversation_catalog(app: AppHandle, journey_id: String, limit: u
     run_mirror_conversation_catalog(&app, "catalog", &journey_id, &["--limit", &limit_value])
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn rename_mirror_conversation(
     app: AppHandle,
     journey_id: String,
     conversation_id: String,
     title: String,
 ) -> Result<Value, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     sanitize_session_id(&conversation_id)?;
     let title = normalized_conversation_title(&title);
     if title.is_empty() || title.chars().count() > 160 {
@@ -1846,13 +1855,14 @@ fn cleanup_stale_terminal_handoffs(directory: &Path, now: SystemTime) {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn open_mirror_conversation_in_terminal(
     app: AppHandle,
     journey_id: String,
     conversation_id: String,
     message_limit: u16,
 ) -> Result<Value, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     sanitize_journey_id(&journey_id)?;
     sanitize_session_id(&conversation_id)?;
     if !(10..=100).contains(&message_limit) {
@@ -2263,8 +2273,9 @@ fn journey_registry_contains_id(value: &Value, journey_id: &str) -> bool {
         .map(|roots| nodes_contain(roots, journey_id)).unwrap_or(false)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn refresh_journey_registry(app: AppHandle) -> Result<String, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     fs::create_dir_all(&app_data_dir).map_err(|error| error.to_string())?;
     let staged = app_data_dir.join("journey-registry.export.tmp");
@@ -2307,8 +2318,9 @@ fn choose_project_directory() -> Result<Option<String>, String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_json: String, replacement_journey_id: Option<String>) -> Result<String, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let request: Value = serde_json::from_str(&request_json).map_err(|_| "Journey mutation request is malformed.".to_string())?;
     let delete_target = if request.get("operation").and_then(Value::as_str) == Some("delete_journey") {
         let journey_id = request.get("payload").and_then(|payload| payload.get("journeyId")).and_then(Value::as_str)
@@ -2387,8 +2399,9 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
     Ok(payload)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn load_journey_registry(app: AppHandle) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let path = journey_registry_path(&app)?;
     if !path.exists() {
         return Ok(None);
@@ -2398,8 +2411,9 @@ fn load_journey_registry(app: AppHandle) -> Result<Option<String>, String> {
         .map_err(|error| format!("Could not load Journey registry: {}", error))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn load_journey_preferences(app: AppHandle) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let path = journey_preferences_path(&app)?;
     if !path.exists() {
         return Ok(None);
@@ -2409,8 +2423,9 @@ fn load_journey_preferences(app: AppHandle) -> Result<Option<String>, String> {
         .map_err(|error| format!("Could not load Journey preferences: {}", error))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn save_journey_preferences(app: AppHandle, payload: String) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let path = journey_preferences_path(&app)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| {
@@ -2453,8 +2468,9 @@ fn validate_composer_drafts_payload(payload: &str) -> Result<Value, String> {
     Ok(value)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn load_composer_drafts(app: AppHandle) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let path = composer_drafts_path(&app)?;
     if !path.exists() {
         return Ok(None);
@@ -2473,8 +2489,9 @@ fn load_composer_drafts(app: AppHandle) -> Result<Option<String>, String> {
     Ok(Some(payload))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn save_composer_drafts(app: AppHandle, payload: String) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     validate_composer_drafts_payload(&payload)?;
     let path = composer_drafts_path(&app)?;
     let parent = path.parent()
@@ -2514,7 +2531,8 @@ fn mirror_administrative_command(program: &str) -> Result<Command, String> {
     Ok(command)
 }
 
-#[tauri::command]
+// CR149: a helper, not a command — it takes `&AppHandle` and was never registered. The stray
+// attribute would have made its two callers deadlock on the serialisation guard once converted.
 fn validate_runtime_binding_request(
     app: &AppHandle,
     binding: RuntimeBinding,
@@ -2534,8 +2552,9 @@ fn validate_runtime_binding_request(
     Ok(RuntimeChannelProfile::from_validated(channel, &home, validated).diagnostic(&app_data_root))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn inspect_runtime_binding_candidate() -> Result<Option<RuntimeBinding>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let channel = RuntimeChannel::active();
     if channel != RuntimeChannel::User {
         return Ok(None);
@@ -2551,13 +2570,15 @@ fn inspect_runtime_binding_candidate() -> Result<Option<RuntimeBinding>, String>
     )
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn validate_runtime_binding(app: AppHandle, binding: RuntimeBinding) -> Result<RuntimeChannelDiagnostic, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     validate_runtime_binding_request(&app, binding, false)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn save_runtime_binding(app: AppHandle, binding: RuntimeBinding) -> Result<RuntimeChannelDiagnostic, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     validate_runtime_binding_request(&app, binding, true)
 }
 
@@ -3243,24 +3264,27 @@ async fn load_journey_projections(app: AppHandle, journey_id: String) -> Result<
         .map_err(|error| format!("Could not inspect Journey projections: {}", error))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn list_journey_documentation(
     app: AppHandle,
     journey_id: String,
     relative_path: Option<String>,
 ) -> Result<JourneyDocumentationTree, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let journey_root = registered_journey_root(&app, &journey_id)?;
     list_journey_documentation_at(&journey_root, relative_path.as_deref())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_journey_document(app: AppHandle, journey_id: String, relative_path: String) -> Result<JourneyDocumentContent, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let journey_root = registered_journey_root(&app, &journey_id)?;
     read_journey_document_at(&journey_root, &relative_path)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_journey_canvas(app: AppHandle, journey_id: String) -> Result<JourneyCanvas, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let journey_root = registered_journey_root(&app, &journey_id)?;
     read_journey_canvas_at(&journey_root)
 }
@@ -3274,8 +3298,9 @@ fn choose_file_attachments(journey_id: String) -> Result<FileAttachmentResponse,
     inspect_file_attachments_at(&journey_id, &paths)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn inspect_file_attachments(journey_id: String, paths: Vec<String>) -> Result<FileAttachmentResponse, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     inspect_file_attachments_at(&journey_id, &paths.into_iter().map(PathBuf::from).collect::<Vec<_>>())
 }
 
@@ -3370,8 +3395,9 @@ fn resolve_existing_local_file(path: &str, base_path: Option<&str>) -> Result<Pa
     resolve_existing_local_file_at(path, base_path, &home_directory)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn inspect_local_references(paths: Vec<String>, base_path: Option<String>) -> Result<Vec<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     if paths.len() > 64 || paths.iter().any(|path| path.len() > 4096) {
         return Err("Local reference inspection exceeds its bounded input.".to_string());
     }
@@ -3489,12 +3515,13 @@ fn classify_chat_local_reference_at(journey_root: &Path, path: &str) -> Result<C
     classify_chat_local_reference_at_with_home(journey_root, path, &home_directory)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn classify_chat_local_reference(
     app: AppHandle,
     journey_id: String,
     path: String,
 ) -> Result<ChatLocalReferenceDisposition, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let journey_root = registered_journey_root(&app, &journey_id)?;
     classify_chat_local_reference_at(&journey_root, &path)
 }
@@ -3687,8 +3714,9 @@ fn adopt_terminal_journal(
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn list_turn_journal(app: AppHandle, journey_id: String) -> Result<TurnJournalDocument, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let path = turn_journal_path(&app, &journey_id)?;
     let persistence = app.state::<JourneyProjectionPersistenceState>();
     let stripe = persistence.stripe(&journey_id, 0);
@@ -3756,8 +3784,9 @@ fn append_settlement_timing_record(
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn append_settlement_timing(app: AppHandle, journey_id: String, record: Value) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let path = settlement_timing_path(&app, &journey_id)?;
     let persistence = app.state::<JourneyProjectionPersistenceState>();
     let stripe = persistence.stripe(&journey_id, 0);
@@ -3780,13 +3809,14 @@ fn append_settlement_timing(app: AppHandle, journey_id: String, record: Value) -
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn transition_turn_journal(
     app: AppHandle,
     outbox: State<'_, MirrorAppendOutboxState>,
     run_authority: RunAuthority,
     request: TurnTransitionRequest,
 ) -> Result<TurnJournalRecord, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     if request.expected_phase == TurnPhase::OutboxEnqueued
         && request.next_phase == TurnPhase::Settled
     {
@@ -3804,7 +3834,7 @@ fn transition_turn_journal(
     with_turn_journal_lock(&app, &authority, |path| transition_turn(path, &authority, request))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn interrupt_inactive_turn_journal(
     app: AppHandle,
     state: State<'_, PiProcessState>,
@@ -3812,6 +3842,7 @@ fn interrupt_inactive_turn_journal(
     expected_revision: u64,
     active_generation: u64,
 ) -> Result<TurnJournalRecord, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let thread: Value = serde_json::from_str(
         &fs::read_to_string(journey_thread_path(&app, &authority.journey_id)?)
             .map_err(|_| "turn_journal_inactive_thread_unavailable".to_string())?,
@@ -4176,7 +4207,7 @@ fn pi_invocation_start_error_message(error: &PiInvocationStartError) -> String {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn start_pi_invocation(
     app: AppHandle,
     state: State<'_, PiProcessState>,
@@ -4185,6 +4216,7 @@ fn start_pi_invocation(
     config: ProviderConfig,
     run_authority: RunAuthority,
 ) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let compaction_in_flight = compaction_state.in_flight.clone();
     if prompt.trim().is_empty() {
         return Err("Pi invocation requires a non-empty prompt packet.".to_string());
@@ -4368,7 +4400,7 @@ async fn read_pi_session_context_stats(
         .map_err(|error| format!("Could not inspect the local Pi session: {}", error))?
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn load_dedicated_pi_transcript(
     app: AppHandle,
     journey_id: String,
@@ -4377,13 +4409,14 @@ fn load_dedicated_pi_transcript(
     session_id: String,
     session_file: String,
 ) -> Result<Vec<DedicatedPiTranscriptTurn>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     validate_conversation_session_authority(
         &app, &journey_id, &thread_id, generation, &session_id, &session_file,
     )?;
     project_complete_pi_transcript(&fs::read_to_string(session_file).map_err(|error| error.to_string())?)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn inspect_dedicated_pi_transcript(
     app: AppHandle,
     journey_id: String,
@@ -4394,6 +4427,7 @@ fn inspect_dedicated_pi_transcript(
     allow_inactive_generation: Option<bool>,
     scope: Option<String>,
 ) -> Result<DedicatedPiTranscriptInspection, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let scope = parse_pi_transcript_scope(scope.as_deref())?;
     if allow_inactive_generation == Some(true) {
         validate_recorded_conversation_session_authority(
@@ -4415,7 +4449,7 @@ fn inspect_dedicated_pi_transcript(
     )
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn load_dedicated_pi_user_entries(
     app: AppHandle,
     journey_id: String,
@@ -4424,6 +4458,7 @@ fn load_dedicated_pi_user_entries(
     session_id: String,
     session_file: String,
 ) -> Result<Vec<DedicatedPiUserEntry>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     validate_conversation_session_authority(
         &app, &journey_id, &thread_id, generation, &session_id, &session_file,
     )?;
@@ -4589,7 +4624,7 @@ fn publish_conversation_segment_manifest_at(
         .map_err(|_| "Could not durably publish Conversation Segments.".to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn refresh_conversation_segments(
     app: AppHandle,
     persistence: State<'_, JourneyProjectionPersistenceState>,
@@ -4599,6 +4634,7 @@ fn refresh_conversation_segments(
     session_id: String,
     session_file: String,
 ) -> Result<Value, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     validate_conversation_session_authority(
         &app, &journey_id, &thread_id, generation, &session_id, &session_file,
     )?;
@@ -4653,7 +4689,7 @@ fn load_conversation_segments_at(
     Ok(Some(value))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn load_conversation_segments(
     app: AppHandle,
     journey_id: String,
@@ -4661,6 +4697,7 @@ fn load_conversation_segments(
     generation: u64,
     session_id: String,
 ) -> Result<Option<Value>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let path = conversation_segment_manifest_path(&app, &journey_id, &thread_id, generation)?;
     load_conversation_segments_at(&path, &journey_id, &thread_id, generation, &session_id)
 }
@@ -4809,7 +4846,7 @@ fn published_closed_message_count(
     total
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn publish_conversation_segment_projections(
     app: AppHandle,
     persistence: State<'_, JourneyProjectionPersistenceState>,
@@ -4820,6 +4857,7 @@ fn publish_conversation_segment_projections(
     session_file: String,
     projections: Vec<ConversationSegmentProjectionPayload>,
 ) -> Result<u64, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     validate_conversation_session_authority(
         &app, &journey_id, &thread_id, generation, &session_id, &session_file,
     )?;
@@ -4992,7 +5030,7 @@ fn publish_conversation_segment_projections(
     Ok(total_message_count)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn load_current_conversation_segment_projection(
     app: AppHandle,
     journey_id: String,
@@ -5001,6 +5039,7 @@ fn load_current_conversation_segment_projection(
     session_id: String,
     session_file: String,
 ) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     validate_conversation_session_authority(
         &app, &journey_id, &thread_id, generation, &session_id, &session_file,
     )?;
@@ -5058,7 +5097,7 @@ fn load_current_conversation_segment_projection(
     Ok(Some(payload))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn load_conversation_segment_projections(
     app: AppHandle,
     journey_id: String,
@@ -5067,6 +5106,7 @@ fn load_conversation_segment_projections(
     session_id: String,
     session_file: String,
 ) -> Result<Vec<Value>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     validate_conversation_session_authority(
         &app, &journey_id, &thread_id, generation, &session_id, &session_file,
     )?;
@@ -5590,12 +5630,13 @@ fn exact_steering_authority_matches(inspection: &RegistryAuthorityInspection, au
         && inspection.harness_assistant_message_id == authority.harness_assistant_message_id
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn steer_pi_invocation(
     app: AppHandle,
     state: State<'_, PiProcessState>,
     request: SteeringRequest,
 ) -> Result<SteeringAdmission, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     if request.schema_version != "0.1.0" || request.sequence == 0 || request.sequence > 8 {
         return Err("Steering request contract is invalid.".to_string());
     }
@@ -5662,13 +5703,14 @@ struct PiInvocationLeaseRelease {
     status: String,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn cancel_pi_invocation(
     app: AppHandle,
     state: State<'_, PiProcessState>,
     journey_id: String,
     run_id: String,
 ) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let target = RunTarget::new(journey_id, run_id);
     let authority = state.registry.lock()
         .map_err(|_| "Could not access the Pi process registry.".to_string())?
@@ -5712,12 +5754,13 @@ fn cancel_pi_invocation(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn release_pi_invocation_lease(
     state: State<'_, PiProcessState>,
     journey_id: String,
     run_id: String,
 ) -> Result<PiInvocationLeaseRelease, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let target = RunTarget::new(journey_id, run_id);
     let outcome = state.registry.lock()
         .map_err(|_| "Could not access the Pi process registry.".to_string())?
@@ -5764,13 +5807,14 @@ struct PiExitedChildReap {
 /// a child that is still running is refused, not killed. After the lock the sequence is exactly
 /// the one every normal exit takes: explain, adopt the journal, emit `Done` — which is the event
 /// the renderer has been waiting for all along.
-#[tauri::command]
+#[tauri::command(async)]
 fn reap_exited_pi_child(
     app: AppHandle,
     state: State<'_, PiProcessState>,
     journey_id: String,
     run_id: String,
 ) -> Result<PiExitedChildReap, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let target = RunTarget::new(journey_id, run_id);
     let refused = |status: &str| PiExitedChildReap {
         journey_id: target.journey_id.clone(),
@@ -5839,8 +5883,9 @@ fn reap_exited_pi_child(
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn inspect_pi_invocations(state: State<'_, PiProcessState>) -> Result<PiInvocationRegistryInspection, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     Ok(state.registry.lock()
         .map_err(|_| "Could not inspect the Pi process registry.".to_string())?
         // CR145: the one caller that measures. Every other `.inspect()` only reads phases.
@@ -6923,12 +6968,13 @@ fn interrupt_stale_journal_record(app: &AppHandle, record: &TurnJournalRecord) -
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn reconcile_pi_backed_mirror_delivery_debt(
     app: AppHandle,
     process_state: State<'_, PiProcessState>,
     journey_id: String,
 ) -> Result<Vec<Value>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     sanitize_journey_id(&journey_id)?;
     if process_state.registry.lock()
         .map_err(|_| "mirror_append_pi_recovery_occupancy_unavailable".to_string())?
@@ -6995,13 +7041,14 @@ fn pi_backed_enqueue_item(
     Ok(normalized)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn enqueue_mirror_append_item(
     app: AppHandle,
     state: State<'_, MirrorAppendOutboxState>,
     payload: String,
     run_authority: RunAuthority,
 ) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     if payload.len() > MIRROR_APPEND_MAX_ITEM_BYTES {
         return Err("mirror_append_item_oversized".to_string());
     }
@@ -7037,12 +7084,13 @@ fn mirror_append_outbox_summary(item: &Value) -> Value {
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn list_mirror_append_outbox(
     app: AppHandle,
     state: State<'_, MirrorAppendOutboxState>,
     journey_id: String,
 ) -> Result<Vec<Value>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     sanitize_journey_id(&journey_id)?;
     let _guard = state
         .lock
@@ -7055,12 +7103,13 @@ fn list_mirror_append_outbox(
 }
 
 /// CR087 read-only diagnostics: recorded enqueue conflicts for one Journey, oldest first.
-#[tauri::command]
+#[tauri::command(async)]
 fn list_mirror_append_conflicts(
     app: AppHandle,
     state: State<'_, MirrorAppendOutboxState>,
     journey_id: String,
 ) -> Result<Vec<Value>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     sanitize_journey_id(&journey_id)?;
     let _guard = state
         .lock
@@ -7073,12 +7122,13 @@ fn list_mirror_append_conflicts(
 }
 
 /// CR095: bounded read of performed Journey rebinds for one Journey.
-#[tauri::command]
+#[tauri::command(async)]
 fn list_mirror_append_rebinds(
     app: AppHandle,
     state: State<'_, MirrorAppendOutboxState>,
     journey_id: String,
 ) -> Result<Vec<Value>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     sanitize_journey_id(&journey_id)?;
     let _guard = state
         .lock
@@ -7458,13 +7508,14 @@ where
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn deliver_pi_backed_mirror_outbox_item(
     app: AppHandle,
     state: State<'_, MirrorAppendOutboxState>,
     item_id: String,
     journey_id: String,
 ) -> Result<Value, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     if !valid_append_id(&item_id) || !valid_append_id(&journey_id) {
         return Err("mirror_append_item_invalid".to_string());
     }
@@ -7486,13 +7537,14 @@ fn deliver_pi_backed_mirror_outbox_item(
     run_mirror_append_with_binding_repair(&app, &item, run_pi_backed_mirror_append)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn append_mirror_outbox_item(
     app: AppHandle,
     state: State<'_, MirrorAppendOutboxState>,
     item_id: String,
     run_authority: RunAuthority,
 ) -> Result<Value, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     if !valid_append_id(&item_id) {
         return Err("mirror_append_item_invalid".to_string());
     }
@@ -7602,7 +7654,7 @@ fn validate_acknowledged_projection_authority_at(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn acknowledge_mirror_append_item(
     app: AppHandle,
     state: State<'_, MirrorAppendOutboxState>,
@@ -7610,6 +7662,7 @@ fn acknowledge_mirror_append_item(
     conversation_id: String,
     run_authority: RunAuthority,
 ) -> Result<Value, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     if !valid_append_id(&item_id) || !valid_append_id(&conversation_id) {
         return Err("mirror_append_item_invalid".to_string());
     }
@@ -9346,7 +9399,7 @@ fn validate_post_frontier_outbox_authority(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn save_dedicated_journey_conversation(
     app: AppHandle,
     persistence: State<'_, JourneyProjectionPersistenceState>,
@@ -9359,6 +9412,7 @@ fn save_dedicated_journey_conversation(
     outbox_item_id: Option<String>,
     outbox_conversation_id: Option<String>,
 ) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let mut parsed: Value = serde_json::from_str(&payload)
         .map_err(|_| "dedicated_projection_invalid".to_string())?;
     let live = parsed.get("conversation").and_then(|value| value.get("liveIdentity"))
@@ -9590,13 +9644,14 @@ fn load_or_migrate_root_projection_at(
     Ok(Some(payload))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn load_dedicated_journey_conversation(
     app: AppHandle,
     journey_id: String,
     generation: u64,
     thread_id: Option<String>,
 ) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let path = match thread_id.as_deref() {
         Some(thread_id) => conversation_projection_path(&app, &journey_id, thread_id, generation)?,
         None => dedicated_journey_conversation_path(&app, &journey_id, generation)?,
@@ -10137,8 +10192,9 @@ fn retire_legacy_parity_state_at(app_data_dir: &Path) -> Result<LegacyParityReti
     Ok(summary)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn retire_legacy_parity_state(app: AppHandle) -> Result<LegacyParityRetirementSummary, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     retire_legacy_parity_state_at(&app_data_dir)
 }

@@ -21,8 +21,9 @@ pub struct PiModelCatalogEntry {
     available: bool,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn load_agent_settings(app: AppHandle) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let app_data_dir = app
         .path()
         .app_data_dir()
@@ -30,8 +31,9 @@ pub fn load_agent_settings(app: AppHandle) -> Result<Option<String>, String> {
     load_agent_settings_at(&app_data_dir)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_agent_settings(app: AppHandle, payload: String) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let app_data_dir = app
         .path()
         .app_data_dir()
@@ -39,8 +41,9 @@ pub fn save_agent_settings(app: AppHandle, payload: String) -> Result<(), String
     save_agent_settings_at(&app_data_dir, &payload)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_pi_models() -> Result<Vec<PiModelCatalogEntry>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let profile = RuntimeChannelProfile::active()?;
     let offered = run_pi_model_catalog(pi_model_catalog_command(&profile)?)?;
     let runnable = run_pi_model_catalog(pi_invocation_catalog_command(&profile)?)?;

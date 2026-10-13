@@ -14,8 +14,9 @@ const MODEL_INTENTS_MAX_BYTES: usize = 64 * 1024;
 const MODEL_INTENTS_MAX: usize = 12;
 const MODEL_INTENT_LABEL_MAX_CHARS: usize = 80;
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn load_model_intents(app: AppHandle) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let app_data_dir = app
         .path()
         .app_data_dir()
@@ -23,8 +24,9 @@ pub fn load_model_intents(app: AppHandle) -> Result<Option<String>, String> {
     load_model_intents_at(&app_data_dir)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_model_intents(app: AppHandle, payload: String) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let app_data_dir = app
         .path()
         .app_data_dir()

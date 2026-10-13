@@ -1061,3 +1061,61 @@ before anything is converted.
   first.
 - **Any further renderer work.** The field has now said five times that the renderer is not the
   blocked thread.
+
+
+---
+
+## The main-thread slice (2026-10-13)
+
+**69 of 90 commands now carry `#[tauri::command(async)]`**; 10 stay on the main thread by explicit
+allow-list; the 11 that were already `async fn` are untouched. Diff: 6 files, mechanical — one
+attribute and one statement per command, no body changed.
+
+### Concurrency safety, by construction rather than by audit
+
+The main thread was serialising all 80 sync commands against each other, and nothing in the data
+layer was ever asked to tolerate two at once. Auditing 80 bodies for read-modify-write races would
+have been sampled whatever I called it. Instead, new `native_command_serialization.rs` holds one
+process-wide `std::sync::Mutex<()>`, and **every converted command acquires it as its first
+statement**. The guarantee the main thread gave by accident is now given on purpose. **Same
+semantics, different thread** — that is the whole claim of this slice, and the tests hold it to that.
+
+Finer-grained locking is a later decision with its own evidence. Starvation bound: the sample showed
+**20 `tokio-rt-worker` threads**, the renderer awaits settlement phases one at a time, and no
+converted command `.await`s while holding the guard.
+
+### Five tests, three controls, and two things the work itself caught
+
+- `every_command_is_either_serialised_off_the_main_thread_or_on_the_explicit_keep_list` — pins the
+  census at 90 across six source files and asserts the on-main set **equals** the allow-list.
+- `the_commands_the_sample_caught_are_all_off_the_main_thread` — the ten measured names, by name.
+- `kept_commands_do_not_touch_application_data` — no kept body contains a filesystem write/read.
+- `no_serialised_command_calls_another` — `std::sync::Mutex` is not re-entrant.
+- `the_guard_recovers_from_poison`.
+
+Controls: a hot command returned to the main thread (2 tests fail), a converted command without the
+guard (1 fails), a converted command calling another (1 fails, naming both). **My first attempt at
+the third control did not compile and printed nothing — a compile failure is not the guard
+working.** Re-run with a `todo!()`-typed dead call that compiles, it fails as it must.
+
+**The reentrancy check caught a real deadlock before anything was written.** `validate_runtime_binding`
+and `save_runtime_binding` both call `validate_runtime_binding_request`, which carried a stray
+`#[tauri::command]` since `a39c7fc` — it takes `&AppHandle` and was never registered, so it could
+never have been a command. Converted, its callers would have deadlocked on their own guard. The
+attribute is removed with the reason beside it; the census is 90, not 91.
+
+**The allow-list test caught my allow-list.** I had kept `open_mirror_conversation_in_terminal` on
+the main thread as a "hand-off"; it writes a launcher script with `sync_all`. It needs nothing from
+the main thread, so it was converted rather than excepted. Kept set is 10.
+
+### Gates
+
+`cargo test` **324 passed** (from 319), 3 ignored. `tsc` clean. `roadmap:check` READY. Eval
+`bc488ca08d54af7f…` built and installed behind the `ps` gate.
+
+### What is deliberately not here
+
+**The payload** — three saves and a load of an 11.5 MB projection per settlement, 26.0% of the
+measured window, now costing a worker instead of the UI. Captured as
+[CR157](cr157-stop-moving-the-whole-conversation-through-every-settlement.md), with the outbox
+path's 54.0% named there as undecomposed. And **no renderer work**.

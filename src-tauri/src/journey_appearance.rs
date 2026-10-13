@@ -156,11 +156,12 @@ fn import_at(app_data_dir: &Path, journey_id: &str, source: &Path) -> Result<Str
     Ok(data_url(&bytes))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_journey_custom_image(
     app: AppHandle,
     journey_id: String,
 ) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     sanitize_journey_id(&journey_id)?;
     let source = rfd::FileDialog::new()
         .set_title("Choose Journey image")
@@ -176,11 +177,12 @@ pub fn import_journey_custom_image(
     import_at(&app_data_dir, &journey_id, &source).map(Some)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn load_journey_custom_image(
     app: AppHandle,
     journey_id: String,
 ) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let app_data_dir = app
         .path()
         .app_data_dir()
@@ -209,8 +211,9 @@ pub fn load_journey_custom_image(
     Ok(Some(data_url(&bytes)))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn remove_journey_custom_image(app: AppHandle, journey_id: String) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let app_data_dir = app
         .path()
         .app_data_dir()
@@ -281,8 +284,9 @@ fn remove_user_avatar_at(app_data_dir: &Path) -> Result<(), String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_user_avatar(app: AppHandle) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let source = rfd::FileDialog::new()
         .set_title("Choose user avatar")
         .add_filter("Avatar images", &["png", "jpg", "jpeg", "webp"])
@@ -295,15 +299,17 @@ pub fn import_user_avatar(app: AppHandle) -> Result<Option<String>, String> {
     import_user_avatar_at(&app_data_dir, &source).map(Some)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn load_user_avatar(app: AppHandle) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let app_data_dir = app.path().app_data_dir()
         .map_err(|error| format!("Could not resolve app data directory: {error}"))?;
     load_user_avatar_at(&app_data_dir)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn remove_user_avatar(app: AppHandle) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let app_data_dir = app.path().app_data_dir()
         .map_err(|error| format!("Could not resolve app data directory: {error}"))?;
     remove_user_avatar_at(&app_data_dir)

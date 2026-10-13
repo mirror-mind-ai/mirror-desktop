@@ -723,14 +723,16 @@ fn run_transcription(
 // Tauri commands
 // ---------------------------------------------------------------------------
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn voice_transcription_status(app: AppHandle) -> Result<VoiceComponentStatus, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let root = app_data_root(&app)?;
     Ok(status_at(&root, current_platform(), current_architecture(), manifest_url(RuntimeChannel::active())))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn voice_transcription_remove(app: AppHandle) -> Result<VoiceComponentStatus, String> {
+    let _serialized = crate::native_command_serialization::acquire();
     let root = app_data_root(&app)?;
     remove_at(&root)?;
     Ok(status_at(&root, current_platform(), current_architecture(), manifest_url(RuntimeChannel::active())))
