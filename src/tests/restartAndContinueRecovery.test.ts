@@ -45,7 +45,9 @@ describe("CR128: stale records are paired against requests, not closed turns", (
 
 describe("CR128: recovery takes the interruption the journal always permitted", () => {
   const recovery = region("fn recover_one_stale_journal_record(", "fn interrupt_stale_journal_record(");
-  const interruption = region("fn interrupt_stale_journal_record(", "#[tauri::command]\nfn reconcile_pi_backed_mirror_delivery_debt(");
+  // CR149 moved the command to `#[tauri::command(async)]`; the region ends at the function, not at
+  // its attribute, so the attribute may change again without this guard reading it as a regression.
+  const interruption = region("fn interrupt_stale_journal_record(", "fn reconcile_pi_backed_mirror_delivery_debt(");
 
   it("branches on the attribution instead of demanding a closed turn", () => {
     expect(recovery).toContain("attribute_stale_pi_record(record, records, &branch, &turns)?");
