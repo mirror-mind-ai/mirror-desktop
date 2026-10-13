@@ -2336,7 +2336,7 @@ dependencies = [
 
 [[package]]
 name = "mirror-desktop"
-version = "0.2.0-alpha.47"
+version = "0.2.0-alpha.48"
 dependencies = [
  "base64 0.22.1",
  "chrono",
