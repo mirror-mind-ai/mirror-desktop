@@ -17,7 +17,7 @@
 | ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | ✅ campo verificado (7/7) · fechada sobre arquivo | `██████████` |
 | ↳　CR136 · Admit Concurrent Work Inside One Journey | ↗️ promoted → RS024 / CR138–CR140 | `　　　　　　　　　　` |
 | ↳　CR137 · Bring the Navigator Back to the Conversation They Left | ✅ done · campo verificado nas duas direções · regressão achada e reparada | `██████████` |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 44 ✅ · 8 🟡 · 4 ↗️ · 1 ⛔ · de 57 |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 44 ✅ · 1 📋 · 7 🟡 · 4 ↗️ · 1 ⛔ · de 57 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR142 · Stop Losing a Turn the Journal Already Answered | ✅ done · campo negativo coletado na 2ª tentativa | `██████████` |

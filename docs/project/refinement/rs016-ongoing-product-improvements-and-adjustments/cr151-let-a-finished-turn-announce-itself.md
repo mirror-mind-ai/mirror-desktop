@@ -2,7 +2,7 @@
 
 # CR151: Let a Finished Turn Announce Itself
 
-**Status:** captured
+**Status:** planned
 **Driver:** —
 **Delivery:** —
 **Navigator priority:** 3 of 8 (intake 2026-10-12)
@@ -59,6 +59,133 @@ Settings. Off must be genuinely silent.
   should answer by hearing it.
 - **Default on or off?** A new sound that arrives switched on without being asked for is the kind of
   thing that gets switched off once and never reconsidered.
+
+## First Investigation — Answered from the Code (2026-10-14)
+
+Every remaining question was answerable by reading, and one of my own answers above was wrong.
+
+### Where `Finishing` ends: TWO sites, not three
+
+I wrote that it ends in three places. It ends in **two**, and only these two produce a settlement
+record, because only these two call `settlementTimingRegistry.end`:
+
+| site | outcome |
+|---|---|
+| `App.tsx:3711` — the settlement block's own `finally` | `"settled"` or `"failed"` |
+| `App.tsx:4071` — CR132's abandonment act | always `"failed"` |
+
+**Recovery converging later does not call `end` and produces no record**, so the third site I named
+does not exist for this purpose.
+
+**The double-announce risk is already impossible by construction.** `registry.end` deletes the
+collector from the map and returns `undefined` when there is none (`settlementPhaseTiming.ts:241`).
+So a sound driven off a non-`undefined` return cannot announce the same settlement twice, whichever
+site reaches it first. This needs no new guard — it needs the sound to be keyed on the record rather
+than on an event.
+
+### A cancellation is silent by construction, with no special case
+
+The question was whether a cancellation the Navigator performed should sound. **It cannot**, and
+nothing has to be written to prevent it: an interrupted turn takes the *other* branch of the
+`if`/`else if` at `App.tsx:3637`/`:3664`, calling `finalizeInterruptedTurn`, which never begins a
+timing collector and therefore never ends one.
+
+So the moment the Navigator chose — settlement end — already has the property they would have asked
+for. That is consistent with CR102's recorded rule, quoted from `journeyAgentStatus.ts:15`: stopping
+*"is the Navigator's choice and failing is not, so they do not deserve the same register."*
+
+### Two sounds map onto an enumeration that already exists
+
+`SettlementOutcome` is exactly `"settled" | "failed"`, and `settlementOutcome` is initialised to
+`"failed"` and set to `"settled"` only on success — fail-closed. So "a failure may sound different"
+needs no new classification; it reads a value the record already carries.
+
+### Concurrency: at most one settlement per Journey, several across Journeys
+
+Answered by CR119's own comment at `App.tsx:3666`: the collector is *"keyed by Journey because
+finalization is serialized per Journey."* So the `journeyId`-keyed map cannot collide and there is at
+most one sound per Journey per settlement. Across Journeys, simultaneity is real but rare — the
+overlap census measured 2.9% of settlements overlapping another Journey's.
+
+### Focus gating: the app has something better than focus, and slice 1 should still not use it
+
+There is no window-focus state in the application. There is something more useful and already
+computed: `dispatchJourneyFinishedAttention({ type: "run_finished", … selected:
+selectedJourneyRef.current === ownerJourneyId })` at `App.tsx:3726`, and the reducer already
+auto-acknowledges a finish that happened while its Journey was selected.
+
+**Recommendation: do not gate slice 1 on it.** Three reasons, in order of weight:
+
+1. This CR's own text warns that focus gating *"is the kind of heuristic that is wrong at the worst
+   moment"*, and that judgement was right.
+2. The request was a sound when a turn finishes, with a switch. A second, invisible condition turns
+   *"I turned it on"* into *"sometimes it does not play"*, which is a worse surface than noise
+   because it is not falsifiable by the Navigator.
+3. `selected` is a Journey-selection fact, not a presence fact. The Navigator can have a Journey
+   selected and be in another application entirely — the exact case the sound exists for — so gating
+   on it would silence the announcement precisely when it is wanted.
+
+The datum stays available if the field asks for it.
+
+## Scope
+
+**Slice 1 — a sound at settlement end, switchable, off is silent.**
+
+- Two tones, distinguished by the `SettlementOutcome` the record already carries.
+- **Synthesised with `AudioContext`, no bundled asset**, so there is no file, no path and no loading
+  failure mode. This CR already recorded that whether a tone is good enough is *"a taste question the
+  Navigator should answer by hearing it"* — so it ships as a tone, is heard in Eval, and becomes a
+  file only if the tone is rejected.
+- **A global preference, `turnCompletionSound: boolean`, in `journeyPreferencePersistence.ts`.** That
+  file already holds every preference about how the *application behaves* — `sidebarCompact`,
+  `applicationTheme`, `voiceLanguage`, `journeyListOrder`, `hideMirrorHistory` — whereas
+  `agent-settings.json` holds `globalProfile` and `journeyOverrides`, which are about how the *agent
+  runs*. The open question in this CR resolves to the first, as its own text suspected.
+- **Default on.** This CR's caution — that a sound arriving switched on gets switched off once and
+  never reconsidered — applies to a sound nobody asked for. The Navigator asked for this one, and
+  shipping it silent by default means the feature they requested appears to be missing.
+- The store is `journeyPreferencePersistence`; the **control renders in Settings**, where the
+  Navigator asked for it. Those are different places and both are required.
+
+### Files
+
+- `src/domain/journeyPreferencePersistence.ts` — the new global key, defaulting to `true`, degrading
+  to the default on a bad value under CR133's departure.
+- `src/tests/journeyManagementGuardrails.test.ts` — the exact sorted key list, which pins persisted
+  preferences; `turnCompletionSound` goes between `sidebarCompact` and `voiceLanguage`.
+- `src/app/turnCompletionSound.ts` *(new)* — the decision and the synthesis, kept apart: a pure
+  function from `{ outcome, enabled }` to a tone description or `undefined`, and a thin port that
+  plays it.
+- `src/app/App.tsx` — one statement at each of the two `end` sites, keyed on the returned record.
+- `src/app/SettingsTabList.tsx` — the switch.
+- `src/styles/app.css`, plus a new test file.
+
+### Acceptance
+
+1. A settled turn plays the completion tone.
+2. A failed settlement plays a **different** tone.
+3. An abandoned settlement (CR132) plays the failure tone, because its record says `failed`.
+4. A cancelled turn plays **nothing** — asserted against the branch, not merely observed.
+5. With the preference off, **no `AudioContext` is constructed at all**: the port is never reached,
+   not reached with zero volume.
+6. The preference survives a relaunch and is global.
+7. The same settlement cannot sound twice, including when abandonment and the `finally` race.
+
+### Validation
+
+Unit tests on the pure decision for all four outcomes × on/off; a source guard that the two `end`
+sites are the only callers; a test that the port is never invoked when the preference is off. **No
+test can hear a sound** — the tone itself is only verifiable in the field, which is slice 1's
+hand-over, and that is stated now rather than discovered at the end.
+
+### Conscious Exclusions
+
+- **No focus or selection gating**, for the three reasons above.
+- **No system notification, badge or dock bounce** — already a boundary below.
+- **No per-Journey sound preference.** The grain is the application, like every other preference in
+  that file.
+- **No sound on cancellation**, which costs nothing because it is structurally unreachable.
+- **No asset pipeline**, unless the field rejects the tone.
 
 ## Boundaries
 
