@@ -409,3 +409,35 @@ chosen when the preference is off. Whether `rise` and `bell` are *pleasant* is t
 
 Gates: `tsc` clean, **264 files / 2,145 tests**, cargo 324 passed / 3 ignored, build clean, roadmap
 READY.
+
+### Dev build for the second slice (2026-10-14)
+
+- Source `de33bc4`, worktree clean, 0 unpushed.
+- Installed binary `a4f819f5da1fcbb14d68a8549c1615c097667ebb76afcfa2040fa6875fb97f08`, identical to
+  the built one, replacing `72595407…` — the first slice's Dev from earlier today.
+- Backup at `/tmp/Mirror Desktop Dev-20261014-125844.app`, hash-verified before the installed app
+  was removed.
+- Built bundle identity checked before the destination was touched: `v=0.2.0-alpha.49`,
+  `id=ai.mirrormind.desktop.dev`, `name=Mirror Desktop Dev`.
+- `ps` gate before the backup, again immediately before the copy, and once after. Dev closed at all
+  three; only production was running, which is a different bundle.
+
+Verified through the embedded dist, with the instrument's blindness shown in the same run — the tab
+label returns **0** from the binary and **1** from `dist/assets/index-CRJKqsOV.js`:
+
+| literal | expected | found |
+|---|---|---|
+| `Sound & Voice` | present | 1 |
+| `Turn completion sound` | present | 2 — the section's `aria-label` and its `<h3>` |
+| `Success tone` | present | 1 |
+| `Choosing a tone plays it.` | present | 1 |
+| `One short, high note.` / `Two notes going up.` / `Two notes going down, with a longer tail.` | present | 1 each |
+| `1174.66` / `987.77` / `659.25` | present | 1 each — the new tones' own frequencies |
+| `always sounds different` | present | 1 |
+| `:"Voice"` — the old tab entry | **absent** | **0** |
+| `fails sounds different` — the old hint | **absent** | **0** |
+| invented control string | **absent** | **0** |
+
+dist 12:56:12, binary 12:58:07 — the same build. The two absences are the half that distinguishes
+this build from the one installed ninety minutes earlier; every presence above would also have
+matched a build that merely contained the first slice's strings plus new ones.
