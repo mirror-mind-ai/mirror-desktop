@@ -626,3 +626,29 @@ READY.
 The Navigator also described the highlight itself as low-contrast in the light family. The selected
 tone now reads `var(--light-text)` on a 12% accent tint, which the screenshot showed working for
 `Bell` — **so that part may already be resolved and is awaiting the field rather than being claimed.**
+
+### Dev build for the exclusion list (2026-10-14)
+
+- Source `a48e315`, worktree clean, 0 unpushed.
+- Installed binary `a54cbbc5da97cea8a33111f491eea46d21f8aa81886a6aa75f702bfc16f0786a`, identical to
+  the built one, replacing `492a2436…`.
+- Backup at `/tmp/Mirror Desktop Dev-20261014-135412.app`, hash-verified before the installed app
+  was removed. Built bundle identity checked before the destination was touched. `ps` gate before
+  the backup and again immediately before the copy — Dev closed at both.
+
+Verified by extracting the white-ink rule from the **built** stylesheet
+(`dist/assets/index-C2SCLoGb.css`) and reading its exclusion list: **26 classes**, the original 20
+plus the six added here. Two controls in the same run: an invented class is absent, and
+`.focused-conversation-entry` — excluded long before this CR — is present, so the extraction is
+shown capable of both answers. The binary returns 0 for a class the stylesheet returns 4 of, which
+is the blindness control. css 13:51:58, binary 13:53:36.
+
+**A third instrument failure in as many slices, caught by its own control.** The first check reported
+`.settings-tone-choice` **ABSENT**. It is the last entry in the list, and my pattern required a
+trailing `,` or `)` that the extraction had already consumed — so the match failed on a class that
+was plainly there, and the class count of 26 in the same output already contradicted it. Re-checked
+by set membership instead of by assuming a separator, all six are present.
+
+Three slices, three instruments that produced a false negative: `grep` reading `--` as options,
+`:where()` specificity hiding a rule from a source guard, and now a regex boundary. Each was caught
+only because a control ran beside the measurement.
