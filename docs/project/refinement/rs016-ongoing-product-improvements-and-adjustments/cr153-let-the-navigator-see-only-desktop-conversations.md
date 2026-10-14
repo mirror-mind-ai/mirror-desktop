@@ -336,3 +336,27 @@ Four tests cover the new shape, including a guard that the control is **not** in
 anchored on the heading's own markup. Three controls were run and each failed on the right
 assertion: returning the button to the heading, reintroducing a second control for one state, and
 dropping the count.
+
+### Field build for the placement adjustment (2026-10-14)
+
+Source `5ade558`, worktree clean. Installed binary
+`b1fc9b423d6f9c32ddf7f8c16ae6b4d212e9547949a5fdd7f02ebc4bb8f0a30c`, identical to the built one and
+distinct from the Eval that carried the crowded version (`766b4390…`). `ps` gate run immediately
+before and immediately after: Eval was not running at either point.
+
+Verified in the stronger form this change makes available — **the new copy present and the old copy
+absent**, which distinguishes this build from its predecessor rather than merely confirming that
+something is there:
+
+| literal | expected | found |
+|---|---|---|
+| `Mirror hidden` | present | 1 |
+| `Press again to show it.` | present | 1 |
+| `Desktop only` | present | 1 |
+| `until-next-turn` (CR150) | present | 2 |
+| `Hide Other ` (CR152) | present | 1 |
+| `hidden by this filter` | **absent** | **0** |
+| `Show them` | **absent** | **0** |
+
+The two absences are the useful half. A presence check alone would have passed against the previous
+Eval too, since every other literal was already in it.
