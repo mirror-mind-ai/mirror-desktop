@@ -54,10 +54,11 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR151: Let a Finished Turn Announce Itself](cr151-let-a-finished-turn-announce-itself.md) — done · **campo PASSOU** · 4 fatias: tom, 3 tons + aba Sound & Voice, contrato de tokens, lista de tinta branca · 3 cláusulas cobertas por teste
 - [CR152: Let the Navigator Hide Every Conversation but One](cr152-let-the-navigator-hide-every-conversation-but-one.md) — done · campo PASSOU · cap improvocável, coberto por teste
 - [CR153: Let the Navigator See Only Desktop Conversations](cr153-let-the-navigator-see-only-desktop-conversations.md) — done · campo PASSOU (6/6) · ajuste de posicionamento achado pelo campo
-- [CR154: Persist a Model Choice at the Conversation It Was Made In](cr154-persist-a-model-choice-at-the-conversation-it-was-made-in.md) — captured · intake 2026-10-12, prioridade 6 de 8
+- [CR154: Persist a Model Choice at the Conversation It Was Made In](cr154-persist-a-model-choice-at-the-conversation-it-was-made-in.md) — planned · **o grão não existe**: o seletor vive no composer e escreve um override de journey · hipótese registrada refutada pelo código · 3 grãos, chave de workspace · decisão de forma devida
 - [CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease](cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) — captured · intake 2026-10-12, prioridade 7 de 8
 - [CR156: Simplify the Context Map](cr156-simplify-the-context-map.md) — captured · intake 2026-10-12, prioridade 8 de 8
 - [CR157: Stop Moving the Whole Conversation Through Every Settlement](cr157-stop-moving-the-whole-conversation-through-every-settlement.md) — captured · nasce da medição da main thread na CR149
+- [CR158: Stop One Agent Settings Write From Dropping Another](cr158-stop-one-agent-settings-write-from-dropping-another.md) — captured · achada ao responder a CR154 · duas escritas na mesma janela e a segunda apaga a primeira · latente, não é o sintoma da CR154
 - [CR132: Let the Navigator End a Finishing That Will Not End](cr132-let-the-navigator-end-a-finishing-that-will-not-end.md) — done
 - [CR120: Stop a Closing Chapter From Erasing Its Own File](cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) — done
 - [CR119: Give Finishing Back to the Navigator](cr119-give-finishing-back-to-the-navigator.md) — done

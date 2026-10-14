@@ -2,8 +2,8 @@
 
 # CR154: Persist a Model Choice at the Conversation It Was Made In
 
-**Status:** captured
-**Driver:** —
+**Status:** planned
+**Driver:** — (decision owed before `in_progress`)
 **Delivery:** —
 **Navigator priority:** 6 of 8 (intake 2026-10-12)
 
@@ -45,7 +45,7 @@ RS023 made conversations first-class workspaces and RS024 made concurrent work i
 real. Model authority did not follow. The Navigator now works in a conversation, so the Journey is no
 longer the unit they are choosing for — and the store still thinks it is.
 
-## The Likely Mechanism, Stated as a Hypothesis
+## ~~The Likely Mechanism, Stated as a Hypothesis~~ — refuted by the code, 2026-10-14
 
 Every write is keyed on `selectedJourney` **at the moment the write happens**, not on the workspace
 the choice was made in. If selection moves between the choice and its persistence — which sending a
@@ -97,3 +97,148 @@ touch `modelIntents`.
 `agentProfile.ts` read in full and the five keyed sites in `App.tsx` read on 2026-10-12. The Dev
 `agent-settings.json` values are from this session's earlier reading. The friction and its
 intermittency are the Navigator's report; the mechanism is a hypothesis and is labelled as one.
+
+## Investigation Answered (2026-10-14)
+
+Answered by reading the code, which turned out to settle the question I had put to the Navigator.
+
+### The model is chosen from the composer, and the composer writes a Journey
+
+This is the finding the CR was missing. `ComposerRuntimeFooter` renders the current model and opens
+a menu whose `onSelectIntent` calls `applyModelIntent` (`App.tsx:6541`), which writes:
+
+```ts
+setJourneyAgentOverride(agentSettings, selectedJourney, { model: intent.model, thinkingLevel: intent.thinkingLevel })
+```
+
+**The control sits inside a conversation and the value it writes belongs to the Journey.** That is
+the whole friction, stated structurally: the surface already promises the grain the store does not
+have. Two conversations in one Journey cannot disagree about the model, so choosing in one and
+returning to the other shows the other's choice — deterministically, not intermittently.
+
+### The hypothesis this CR recorded is wrong, and guarding it would fix nothing
+
+The document said every write is keyed on `selectedJourney` *"at the moment the write happens, not on
+the workspace the choice was made in"*. It is not. `setJourneyAgentOverride(agentSettings,
+selectedJourney, …)` is evaluated **synchronously inside the click's render closure**, so the key is
+the Journey that was on screen when the choice was made; the `await` comes after the key is already
+bound. **The key cannot drift.** A repair aimed at the key would have changed nothing and the symptom
+would have survived it.
+
+### There is a real race, but on the merged value, not on the key — and it is not this symptom
+
+`persistAgentSettings` does `await saveAgentSettings(next)` then `setAgentSettings(next)`, where
+`next` was built from the closure's `agentSettings`. Two writes issued before the first
+`setAgentSettings` lands means the second is computed from pre-first settings and **silently drops
+the first override**. That is a genuine defect, and it is **not what the Navigator reported**: the
+window is one file write, and the reported sequence contains a turn, which runs for tens of seconds.
+The window closes many times over before the second choice is made. **Captured separately rather
+than fixed inside this CR**, because a repair bundled with an unrelated one cannot be attributed by
+the field.
+
+### Nothing writes agent settings during a turn
+
+All six writes are explicit Navigator acts — onboarding, the global panel, the Journey panel, the
+Journey reset, the composer menu, and the restore-defaults button. The turn in the report is what
+passes the time, not what corrupts the value.
+
+### Therefore the reproduction is not needed
+
+The First Investigation asked for a reproduction to catch *"the write landing on the wrong key"*.
+There is no wrong key to catch. The mechanism is the absent grain, it is deterministic, and the
+reproduction would have confirmed a correct write while the symptom stayed unexplained.
+
+**Worth recording against myself:** I asked the Navigator whether the two conversations had been in
+the same Journey or in different ones. The code answers it — the only mechanism that survives the
+report's own timing requires them to be in the same Journey. *Prefer the reading already available
+over a question that costs someone else a turn.*
+
+### The remaining questions, answered
+
+| question | answer |
+|---|---|
+| three grains or four? | **Three** — conversation, Journey, global. |
+| inherit at creation, or resolve lazily? | **Lazily.** Freezing would make every conversation that exists today silently own the current Journey value, which is exactly the migration hazard this CR named; and a default that cannot move is not a default. |
+| what about `modelSource`? | It gains a third value, `"conversation"`. Adding a value rather than widening one — the CR150 pattern. |
+| workspace key or a new conversation key? | **The workspace key.** RS024 owns this grain and `selectedWorkspace` is already in hand at the composer and at the send path. A second, differently-shaped key for the same thing is the duplication this question warned about. |
+| a turn already in flight? | The send path reads `effectiveAgentProfile` from the render that started it (`App.tsx:3138`), so a running turn holds its own model. To be **asserted by a test**, not claimed. |
+| migration? | Existing `journeyOverrides` stay keyed by Journey and keep applying to every conversation that made no choice of its own. Lazy resolution is what buys this: nothing is reinterpreted. |
+
+### One finding the CR did not anticipate: this is a schema change
+
+`parseAgentSettings` calls `exactKeys(root, ROOT_KEYS, …)` and hard-rejects any
+`schemaVersion !== "1.0.0"`. A new root key therefore means:
+
+- a **new** build reading an **old** file is fine — the key is absent and resolves to `{}`;
+- an **old** build reading a **new** file **throws, and agent settings fail to load entirely.**
+
+Updates are forward-only, so this is acceptable — but it is named here rather than discovered by
+someone who rolled back.
+
+## Plan
+
+### The layering problem, and the recommendation
+
+`agentProfile.ts` is in `src/domain/`; `journeyWorkspaceKey.ts` is in `src/app/`. Importing the key
+into the profile would be the **first runtime `domain → app` import**, which is exactly what CR151's
+second slice refused. `journeyWorkspaceKey.ts` has **zero imports** — it is pure domain sitting in
+the wrong directory.
+
+**Recommendation: move it to `src/domain/`.** 18 files reference it (5 source, 1 agent, 12 tests);
+every update is a mechanical path change that `tsc` will catch if one is missed. The alternative —
+having `agentProfile.ts` compose the same key with its own separator — puts the same key format in
+two modules, which is the duplication the investigation just rejected.
+
+### Scope
+
+1. **Move** `journeyWorkspaceKey.ts` → `src/domain/`, updating all 18 importers, asserted by count.
+2. **`agentProfile.ts`**: add `conversationOverrides: Record<string, JourneyAgentOverride>` keyed by
+   `runtimeWorkspaceKey`; `resolveAgentProfile(settings, workspace)` resolving
+   conversation → Journey → global; `modelSource`/`thinkingSource` gain `"conversation"`;
+   `setConversationAgentOverride`; a key validator that accepts `journeyId|threadId` rather than
+   `assertJourneyId`; `schemaVersion` written as `"1.1.0"` and **accepted as either**.
+3. **`describeEffectiveAgentProfile`**: name the conversation as a source, so the sentence does not
+   attribute a conversation choice to the Journey.
+4. **`App.tsx`**: `applyModelIntent` writes the **conversation** override for `selectedWorkspace`;
+   the Settings Journey panel keeps writing the **Journey** override, unchanged; the `useMemo` at
+   `:1236` resolves against the workspace.
+5. **A reset for the conversation grain**, because a choice with no way back is the reduction CR152
+   was made to avoid.
+
+### Files
+
+`src/domain/agentProfile.ts` · `src/domain/journeyWorkspaceKey.ts` (moved) · `src/app/App.tsx` ·
+18 importers (paths only) · `src/tests/agentProfile.test.ts` · a new test for the three-grain
+resolution and the schema tolerance.
+
+### Acceptance
+
+- A model chosen in conversation A applies to A and **not** to B in the same Journey.
+- A conversation with no choice of its own follows its Journey; a Journey with no override follows
+  global. Changing the Journey default **moves** every conversation that made no choice.
+- `modelSource` reports `"conversation"` where a conversation owns the choice.
+- An existing `agent-settings.json` with only `journeyOverrides` loads unchanged and keeps applying.
+- A running turn keeps the model it started with.
+- The conversation choice survives restart.
+
+### Validation
+
+`tsc`, the full suite, `cargo test`, `npm run build`, `roadmap:check`. Then a **field check**, because
+three of the acceptance clauses are about what the Navigator sees in the composer after moving
+between conversations, and no test can stand in for that.
+
+### Conscious Exclusions
+
+- **The stale-merge race is not repaired here** — captured separately so the field can attribute each.
+- No change to CR090's run-scoped attribution or CR091's per-response record.
+- `invocationMode` stays global by construction.
+- **No new model picker anywhere**, and `modelIntents` is untouched.
+- **A downgrade is not supported**: an older build reading the new file refuses to load agent
+  settings. Named, not mitigated.
+
+### Decision owed before `in_progress`
+
+**Three grains, with the composer writing the finest and Settings keeping the Journey panel** — is
+that the shape you want? The alternative is to make the model conversation-only and retire the
+Journey grain, which is a smaller store and a larger loss: the Settings Journey panel and its reset
+exist deliberately, and every current override would have to go somewhere.
