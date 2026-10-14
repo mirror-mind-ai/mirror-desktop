@@ -17,7 +17,7 @@
 | ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | ✅ campo verificado (7/7) · fechada sobre arquivo | `██████████` |
 | ↳　CR136 · Admit Concurrent Work Inside One Journey | ↗️ promoted → RS024 / CR138–CR140 | `　　　　　　　　　　` |
 | ↳　CR137 · Bring the Navigator Back to the Conversation They Left | ✅ done · campo verificado nas duas direções · regressão achada e reparada | `██████████` |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 44 ✅ · 1 🔵 · 7 🟡 · 4 ↗️ · 1 ⛔ · de 57 |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 45 ✅ · 7 🟡 · 4 ↗️ · 1 ⛔ · de 57 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR142 · Stop Losing a Turn the Journal Already Answered | ✅ done · campo negativo coletado na 2ª tentativa | `██████████` |
@@ -27,7 +27,7 @@
 | ↳　CR148 · Give an Unanswered Turn Back Its Own Identity | 🟡 captured · achada na linha de base da CR146 · turno pendente sem par | `░░░░░░░░░░` |
 | ↳　CR149 · Keep the Composer Responsive While a Turn Is Finishing | ✅ done · **resolvido no campo** · causa: settlement rodava na main thread nativa · 69/90 comandos movidos para workers sob lock de serialização · duração do settlement inalterada (percentis 52–86 de 240), o congelamento era a thread, não o tempo · 5 refutações antes — o erro estava no instrumento | `██████████` |
 | ↳　CR150 · Keep a Compaction Result Until the Navigator Is Done With It | ✅ done · **campo PASSOU** · sucesso vira `until-next-turn`, falha intocada · supersede a CR104 (riscado, não apagado) · 1 predicado eram 2: `role` desacoplado da dispensabilidade | `██████████` |
-| ↳　CR151 · Let a Finished Turn Announce Itself | 🔵 in_progress · 3 tons, aba **Sound & Voice**, preview ao escolher · contrato de tokens (102 regras mortas) · 4ª fatia: **lista de exclusão da tinta branca** — 6 controles de 3 CRs invisíveis no tema claro; o comentário da regra já avisava desde a CR105 · guard agora deriva a lista da folha | `████████░░` |
+| ↳　CR151 · Let a Finished Turn Announce Itself | ✅ done · **campo PASSOU** · 4 fatias: tom → 3 tons + aba **Sound & Voice** → contrato de tokens (102 regras mortas) → lista de tinta branca (6 controles de 3 CRs) · fatias 3 e 4 eram dívida alheia que esta CR trouxe à vista · 3 instrumentos falsos pegos por controle ao lado | `██████████` |
 | ↳　CR152 · Let the Navigator Hide Every Conversation but One | ✅ done · **campo PASSOU** · desfazer preciso já existia e o campo confirmou · cap improvocável (256 contra união máxima de 61) | `██████████` |
 | ↳　CR153 · Let the Navigator See Only Desktop Conversations | ✅ done · **campo PASSOU 6/6** · medido 41/45/57 contra 4 desktop · grão global validado pelo passo 3 · campo achou meu erro de posicionamento: controle saiu do cabeçalho de 292px para linha própria, um elemento a menos | `██████████` |
 | ↳　CR154 · Persist a Model Choice at the Conversation It Was Made In | 🟡 captured · prioridade 6 · o grão de conversa não existe · lacuna aberta por RS023/RS024 | `░░░░░░░░░░` |

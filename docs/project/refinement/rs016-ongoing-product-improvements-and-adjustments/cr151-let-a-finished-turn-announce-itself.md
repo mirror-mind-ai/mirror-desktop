@@ -2,7 +2,7 @@
 
 # CR151: Let a Finished Turn Announce Itself
 
-**Status:** in_progress
+**Status:** done
 **Driver:** assistant
 **Delivery:** `refinement/cr151-let-a-finished-turn-announce-itself`
 **Navigator priority:** 3 of 8 (intake 2026-10-12)
@@ -652,3 +652,57 @@ by set membership instead of by assuming a separator, all six are present.
 Three slices, three instruments that produced a false negative: `grep` reading `--` as options,
 `:where()` specificity hiding a rule from a source guard, and now a regex boundary. Each was caught
 only because a control ran beside the measurement.
+
+## Field Check: PASSED (2026-10-14)
+
+**Navigator report:** *"CR Validada."* Closed on the field result, after four slices and four
+reports.
+
+| | |
+|---|---|
+| a settled turn plays the chosen tone | passed |
+| the switch silences it | passed |
+| three tones, chosen in Settings, audible while choosing | passed |
+| the settings sit in **Sound & Voice** | passed |
+| the selected tone is highlighted in the dark families | passed — *"o highlight nos temas escuros funcionou"* |
+| the light families read correctly | passed, after the fourth slice |
+
+### Three clauses closed as test-covered rather than verified
+
+Recorded as such rather than quietly counted as passes:
+
+- **A genuinely failed settlement playing the failure tone.** It needs a settlement to fail, which
+  cannot be provoked on request. Covered by tests, including the abandoned-settlement path.
+- **A cancellation staying silent.** Structurally unreachable rather than merely untested: an
+  interrupted turn never begins a timing collector, so no record exists to announce.
+- **Whether a preference changed mid-turn is honoured.** The refs are guarded in source; a
+  ninety-second turn interrupted by a settings change was not staged.
+
+### What the four slices cost, and what that says
+
+The sound itself took one slice. The other three were the field correcting where it lived, what it
+offered, and whether it could be seen:
+
+1. the tone, the switch, the two end sites;
+2. three tones, the **Sound & Voice** tab, preview on choosing;
+3. the theme token contract — 102 declarations that had never resolved;
+4. the white-ink exclusion list — six controls, across three CRs, invisible in the light families.
+
+**Slices 3 and 4 were not this CR's debt.** They were pre-existing defects that this CR's new
+controls happened to stand on top of, and that the field found because a new control put them in
+view. CR135's hidden toggle and both Reveal buttons, and CR153's kind filter, were already invisible
+on a light theme before this CR existed.
+
+### The lesson this CR kept teaching
+
+Three slices, three instruments that returned a false negative, each caught only because a control
+ran **beside** the measurement rather than after doubting it:
+
+- `grep` read literals beginning with `--` as options and returned **0** for every contract token;
+- a source guard read its own assertion strings and declared a missing token present;
+- a regex boundary reported the last entry of a list absent while the same output counted it.
+
+And once, the more expensive version of the same error: **I found a real defect and stopped at it.**
+The token contract was genuine and fixed the dark highlight, but it never explained the reported
+symptom — and the evidence was in the first screenshot, where a `<small>` was readable while a
+`<button>` beside it was white.
