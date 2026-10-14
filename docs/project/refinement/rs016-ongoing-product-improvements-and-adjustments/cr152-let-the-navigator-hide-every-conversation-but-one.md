@@ -2,7 +2,7 @@
 
 # CR152: Let the Navigator Hide Every Conversation but One
 
-**Status:** in_progress
+**Status:** done
 **Driver:** assistant
 **Delivery:** `refinement/cr152-cr153-conversation-list-reduction`
 **Navigator priority:** 4 of 8 (intake 2026-10-12)
@@ -156,3 +156,20 @@ answered.
 
 12 tests. Three controls, each compiling and then failing: removing the keep-guard (5 tests),
 silencing the cap shortfall (1), and the two source guards when the wiring is removed.
+
+## Field Check: PASSED (2026-10-13)
+
+**Navigator report:** *"Ficou ótimo e funcionou perfeito."* Step 6 of the shared check exercised this
+CR end to end on Eval against real Journeys: **Hide Other N** put the other conversations into the
+hidden section, the one the act came from stayed, and **Reveal** on a single row returned only that
+row.
+
+That last part is what closes the undo question this CR deliberately declined to build for. No
+record of what the bulk act hid was persisted, on the grounds that `revealConversation` was already
+per-entry and already on every hidden row — and the field confirmed the precision was there to be
+used.
+
+**Not provoked:** the cap. `MAX_HIDDEN_CONVERSATIONS_PER_JOURNEY` is 256 and the largest union
+measured is 61, so the shortfall path stays **test-covered and unprovokable** rather than verified.
+The test builds a synthetic Journey one short of the cap, and the control that silences the shortfall
+compiles and fails on it.

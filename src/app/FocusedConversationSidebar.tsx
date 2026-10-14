@@ -163,31 +163,10 @@ export function FocusedConversationSidebar(props: Props) {
           CR153: the heading keeps reporting the *factual* total, which CR135 pinned on purpose. A
           filter that also edited this number would make the Navigator believe conversations stopped
           existing rather than stopped being shown — and it would merge two counts, which is exactly
-          what CR143's rule forbids. What the filter removed is reported by the filter's own line.
+          what CR143's rule forbids. What the filter removed is reported by the filter's own control.
         */}
         <small aria-label={`${props.entries.length} conversations`}>{props.entries.length}</small>
       </span>
-      {/*
-        CR153: `aria-pressed` rather than a checkbox because this is a toggle on the view, and the
-        label names the kind it keeps rather than repeating the Navigator's phrasing. "Show only
-        Desktop conversations" would be read as a promise about everything on screen, and the
-        Journey's own row stays — it is a selection kind and never a catalog entry, so it was never
-        this filter's to remove.
-      */}
-      <button
-        className={`focused-conversation-kind-filter${props.hideMirrorHistory ? " is-on" : ""}`}
-        type="button"
-        onClick={props.onToggleMirrorHistoryFilter}
-        aria-pressed={props.hideMirrorHistory}
-        aria-label={props.hideMirrorHistory
-          ? "Show Mirror history in the conversation list again"
-          : "Show only Desktop conversations, hiding Mirror history"}
-        title={props.hideMirrorHistory
-          ? "Mirror history is hidden from every Journey's list. Nothing was deleted."
-          : "Hide Mirror history from every Journey's list"}
-      >
-        <span aria-hidden="true">◆</span><span>Desktop only</span>
-      </button>
       <button
         className="focused-conversation-create"
         type="button"
@@ -204,21 +183,42 @@ export function FocusedConversationSidebar(props: Props) {
     {props.status === "ready" && props.entries.length === 0 ? <p className="focused-conversation-status">No additional conversations yet.</p> : null}
     {props.actionMessage ? <p className="focused-conversation-status" role="status">{props.actionMessage}</p> : null}
     {/*
-      CR153: a list that is quietly short is the beginning of believing something was lost, so the
-      filter says what it removed and offers its own way back. It never borrows the hidden
-      section's control, and the hidden section never borrows this one.
+      CR153: its own row rather than a third item in the heading, which is 292px wide by default and
+      already carries an uppercase label, a count and the New button — the Navigator reported the
+      crowding from the field and they were right.
+
+      The row follows `focused-conversation-hidden-toggle` below, deliberately: both are controls
+      about *what this list is showing*, so they read as one family rather than two inventions. It
+      sits above the list because it governs what the list contains and must be legible without
+      scrolling, where the hidden section's control belongs after what it summarises.
+
+      The count lives in the control's own label instead of a separate line. That keeps CR143's rule
+      — each reduction carries the count for its own partition — while costing one row instead of
+      two, and it makes the way back the same control that did it, so there is no second button
+      whose relationship to this one has to be inferred.
+
+      It stays an `aria-pressed` toggle carrying TEXT. CR102's rule applies and is the reason an
+      icon-only control was declined: a state resting on a background tint does not survive a
+      greyscale display or a reduced-motion preference.
     */}
-    {props.hideMirrorHistory && kindFilter.filtered > 0 ? (
-      <p className="focused-conversation-filtered" role="status">
-        {kindFilter.filtered} Mirror {kindFilter.filtered === 1 ? "conversation" : "conversations"} hidden by this filter.
-        {" "}
-        <button
-          className="focused-conversation-filtered-show"
-          type="button"
-          onClick={props.onToggleMirrorHistoryFilter}
-        >Show them</button>
-      </p>
-    ) : null}
+    <button
+      className={`focused-conversation-kind-filter${props.hideMirrorHistory ? " is-on" : ""}`}
+      type="button"
+      onClick={props.onToggleMirrorHistoryFilter}
+      aria-pressed={props.hideMirrorHistory}
+      aria-label={props.hideMirrorHistory
+        ? "Show Mirror history in the conversation list again"
+        : "Show only Desktop conversations, hiding Mirror history"}
+      title={props.hideMirrorHistory
+        ? "Mirror history is hidden from every Journey's list. Nothing was deleted. Press again to show it."
+        : "Hide Mirror history from every Journey's list"}
+    >
+      <span aria-hidden="true">◆</span>
+      <span>Desktop only</span>
+      {props.hideMirrorHistory && kindFilter.filtered > 0 ? (
+        <span className="focused-conversation-kind-filter-count">· {kindFilter.filtered} Mirror hidden</span>
+      ) : null}
+    </button>
     <div className="focused-conversation-list">
       {visibleEntries.map((entry) => renderEntry(entry))}
     </div>

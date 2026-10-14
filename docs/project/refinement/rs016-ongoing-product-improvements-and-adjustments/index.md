@@ -52,8 +52,8 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR149: Keep the Composer Responsive While a Turn Is Finishing](cr149-keep-the-composer-responsive-while-a-turn-is-finishing.md) — done · intake 2026-10-12, prioridade 1 de 8
 - [CR150: Keep a Compaction Result Until the Navigator Is Done With It](cr150-keep-a-compaction-result-until-the-navigator-is-done-with-it.md) — done · campo PASSOU (4/4 provocáveis) · o passo que nenhum teste alcança verificado
 - [CR151: Let a Finished Turn Announce Itself](cr151-let-a-finished-turn-announce-itself.md) — captured · intake 2026-10-12, prioridade 3 de 8
-- [CR152: Let the Navigator Hide Every Conversation but One](cr152-let-the-navigator-hide-every-conversation-but-one.md) — in_progress · entregue e verde, aguardando campo
-- [CR153: Let the Navigator See Only Desktop Conversations](cr153-let-the-navigator-see-only-desktop-conversations.md) — in_progress · entregue e verde, aguardando campo
+- [CR152: Let the Navigator Hide Every Conversation but One](cr152-let-the-navigator-hide-every-conversation-but-one.md) — done · campo PASSOU · cap improvocável, coberto por teste
+- [CR153: Let the Navigator See Only Desktop Conversations](cr153-let-the-navigator-see-only-desktop-conversations.md) — done · campo PASSOU (6/6) · ajuste de posicionamento achado pelo campo
 - [CR154: Persist a Model Choice at the Conversation It Was Made In](cr154-persist-a-model-choice-at-the-conversation-it-was-made-in.md) — captured · intake 2026-10-12, prioridade 6 de 8
 - [CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease](cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) — captured · intake 2026-10-12, prioridade 7 de 8
 - [CR156: Simplify the Context Map](cr156-simplify-the-context-map.md) — captured · intake 2026-10-12, prioridade 8 de 8

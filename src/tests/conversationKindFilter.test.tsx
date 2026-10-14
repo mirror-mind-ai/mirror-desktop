@@ -159,13 +159,45 @@ describe("CR153: showing only Desktop conversations", () => {
       expect(html).toContain("Desktop a");
       expect(html).not.toContain("Mirror m1");
       expect(html).not.toContain("Mirror m2");
-      expect(html).toContain("2 Mirror conversations hidden by this filter.");
-      expect(html).toContain("Show them");
+      expect(html).toContain("2 Mirror hidden");
     });
 
-    it("says it in the singular when it removed one", () => {
+    it("reports the count for a single removal too, in the same compact form", () => {
+      // The copy does not agree in number, and that is a choice rather than an oversight: the
+      // count rides inside the control's own label so the reduction reports itself without a
+      // second row, which is what the Navigator asked for after seeing the first version crowd
+      // the heading. "1 Mirror hidden" is terse and true.
       const html = sidebar({ entries: [desktop("a"), mirror("m1")], hideMirrorHistory: true });
-      expect(html).toContain("1 Mirror conversation hidden by this filter.");
+      expect(html).toContain("1 Mirror hidden");
+    });
+
+    it("makes the control that filtered also the way back, rather than a second button", () => {
+      // The first version shipped a separate "Show them" link beside the toggle. Two controls for
+      // one piece of state leaves their relationship to be inferred, and it was the second row
+      // that crowded the surface. One `aria-pressed` toggle says the state and reverses it.
+      const html = sidebar({ entries: [desktop("a"), mirror("m1")], hideMirrorHistory: true });
+
+      expect(html).not.toContain("Show them");
+      expect(html.match(/focused-conversation-kind-filter(?![-\w])/g) ?? []).toHaveLength(1);
+      expect(html).toContain('aria-pressed="true"');
+      expect(html).toContain("Press again to show it.");
+    });
+
+    it("keeps the control out of the heading, which is 292px wide and already full", () => {
+      // The field found this: a third item beside an uppercase label, a count and the New button
+      // crowded the content at the default sidebar width. The control is a sibling of the hidden
+      // section's toggle instead, on its own row.
+      const html = sidebar({ entries: [desktop("a"), mirror("m1")], hideMirrorHistory: false });
+
+      const headingStart = html.indexOf('class="focused-conversation-heading"');
+      expect(headingStart).toBeGreaterThan(0);
+      const headingEnd = html.indexOf("</div>", headingStart);
+      expect(headingEnd).toBeGreaterThan(headingStart);
+      const heading = html.slice(headingStart, headingEnd);
+
+      expect(heading).toContain("focused-conversation-create");
+      expect(heading).not.toContain("focused-conversation-kind-filter");
+      expect(html.indexOf("focused-conversation-kind-filter")).toBeGreaterThan(headingEnd);
     });
 
     it("keeps the heading on the factual total rather than on what survived", () => {
@@ -180,17 +212,22 @@ describe("CR153: showing only Desktop conversations", () => {
       const off = sidebar({ entries: [desktop("a"), mirror("m1")], hideMirrorHistory: false });
       expect(off).toContain('aria-pressed="false"');
       expect(off).toContain("Show only Desktop conversations, hiding Mirror history");
-      expect(off).not.toContain("hidden by this filter");
+      expect(off).toContain("Desktop only");
+      expect(off).not.toContain("Mirror hidden");
 
       const on = sidebar({ entries: [desktop("a"), mirror("m1")], hideMirrorHistory: true });
       expect(on).toContain('aria-pressed="true"');
       expect(on).toContain("Show Mirror history in the conversation list again");
     });
 
-    it("says nothing when the filter is on and there was nothing of that kind", () => {
+    it("stays reachable but counts nothing when the filter is on and that kind is absent", () => {
+      // The control is rendered unconditionally. Hiding it in a Journey with no Mirror history
+      // would make a *global* preference unreachable from that Journey while still being on, which
+      // is a worse surface than a row that simply has no count to report.
       const html = sidebar({ entries: [desktop("a")], hideMirrorHistory: true });
       expect(html).toContain('aria-pressed="true"');
-      expect(html).not.toContain("hidden by this filter");
+      expect(html).toContain("Desktop only");
+      expect(html).not.toContain("Mirror hidden");
     });
 
     it("marks a selected Mirror conversation as filtered out rather than as hidden", () => {

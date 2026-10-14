@@ -2,7 +2,7 @@
 
 # CR153: Let the Navigator See Only Desktop Conversations
 
-**Status:** in_progress
+**Status:** done
 **Driver:** assistant
 **Delivery:** `refinement/cr152-cr153-conversation-list-reduction`
 **Navigator priority:** 5 of 8 (intake 2026-10-12)
@@ -276,3 +276,63 @@ unless a string known to be present returns non-zero in the same run.
 `install-eval`'s backup is a rollback window deleted on success, not an archive — see the correction
 recorded in CR150. The replaced bundle is reproducible from `2386807` and production is untouched,
 which is a better guarantee than a copy in `/tmp` that nothing verifies.
+
+## Field Check: PASSED (2026-10-13)
+
+**Navigator report:** *"Ficou ótimo e funcionou perfeito."* All six steps, run on Eval against real
+Journeys, binary `766b4390…`.
+
+| step | claim | result |
+|---|---|---|
+| 1–2 | the filter removes every Mirror row, keeps Desktop rows, keeps the **factual** heading total, and says what it removed | passed |
+| 3 | a second Journey's list is **already** filtered | passed — the global grain the measurement chose is the right one |
+| 4 | the preference survives a relaunch | passed |
+| 5 | pressing again brings everything back | passed |
+| 6 | **Hide Other N** puts the others away and keeps the one it came from; **Reveal** returns only that one | passed |
+
+**Step 3 is the one that validated a judgement rather than an implementation.** Both grains were
+equally cheap to build, so the choice rested entirely on the measurement — 41, 45 and 57 Mirror
+entries, universal rather than concentrated. Had the Navigator found the second Journey unfiltered
+and wanted it that way, the measurement would have been right about the data and wrong about the
+product.
+
+## Field Adjustment: the control's placement (2026-10-13)
+
+**Navigator report:** *"o texto 'Desktop Only' encavalou o conteúdo não deixando a estética muito
+boa."*
+
+Correct, and it was mine. I put a third child into `.focused-conversation-heading`, a
+`justify-content: space-between` flex row **292px** wide by default
+(`DEFAULT_FOCUSED_SIDEBAR_WIDTH`) that already carried an uppercase letter-spaced label, a count and
+the **New** button.
+
+### The icon the Navigator proposed is ruled out by a rule this file cites
+
+They asked whether it should become an icon. It should not, and the reason is already written in
+`FocusedConversationSidebar.tsx`'s own comment about the work indicator — **CR102**: *"the state
+carries text, so it survives a greyscale display and a reduced-motion preference rather than resting
+on colour."* An icon-only toggle whose only state signal is a background tint fails exactly that.
+
+So the label stays and the **placement** changes.
+
+### Its own row, and one element fewer than before
+
+The control moved out of the heading onto its own row above the list, shaped as a sibling of
+`focused-conversation-hidden-toggle`: both are controls about *what this list is showing*, so they
+read as one family rather than two inventions. Above the list because it governs what the list
+contains and must be legible without scrolling, where the hidden section's control belongs after
+what it summarises.
+
+**The count moved into the control's own label**, which removes the separate status paragraph *and*
+the separate **Show them** button. So the surface now costs **one** row where the first version cost
+a heading slot plus a paragraph, and the way back is the same control that did it rather than a
+second button whose relationship had to be inferred. CR143's rule is kept either way: this reduction
+still carries the count for its own partition and borrows nobody's line.
+
+One honest trade, recorded as a test rather than a footnote: the copy no longer agrees in number —
+it reads *"1 Mirror hidden"*. Terse, true, and the compactness is the point.
+
+Four tests cover the new shape, including a guard that the control is **not** inside the heading,
+anchored on the heading's own markup. Three controls were run and each failed on the right
+assertion: returning the button to the heading, reintroducing a second control for one state, and
+dropping the count.
