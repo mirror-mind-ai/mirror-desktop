@@ -259,3 +259,56 @@ asset remains the recorded fallback.
 
 Gates: `tsc` clean, **264 files / 2,133 tests**, cargo 324 passed / 3 ignored, build clean, roadmap
 READY.
+
+## Field Build — Dev, not Eval (2026-10-14)
+
+The Navigator judged this CR testable in **Dev**, and the data confirms it rather than merely
+allowing it. Dev's own data directory holds a registry of **24 addressable Journeys** and
+**26 settled settlements** (`mirror-desktop` 24, `mirror-ts-core` 2), so turns have genuinely run and
+settled in that channel before. This is the first CR in a while that needs no real Journey content —
+it needs a turn to finish, which Dev can do.
+
+Two of my own readings of that directory were wrong before they were right, and both were format
+guesses rather than measurements: the registry keys its Journeys under `roots`, not `journeys`, so a
+first parse reported **0**; and the settlement files are JSON arrays, not JSONL, so a line-by-line
+parse also reported **0**. Both counts above come from parsing the actual shape.
+
+- Source `abf99d8`, worktree clean, 0 unpushed.
+- Installed binary `725954072e25ba76d398596b5521246f7ff69333f7481afd4197122846385603`, identical to
+  the built one, replacing `97cdf93d…` — the stale `alpha.47` Dev from 2026-10-12 that carried only
+  CR149's first slice.
+- Backup at `/tmp/Mirror Desktop Dev-20261014-114242.app`, **hash-verified before the installed app
+  was removed**.
+- Identity of the **built** bundle checked before the destination was touched, which is what
+  `install-eval` does for its own channel and what a manual install must do by hand:
+  `v=0.2.0-alpha.49`, `id=ai.mirrormind.desktop.dev`, `name=Mirror Desktop Dev`. There is no
+  `install:dev` script.
+- `ps` gate twice — before the backup and again immediately before the copy — and once after. Dev
+  was closed at all three points; only production was running and it is a different bundle.
+
+### Verified through the dist, with the instrument's blindness demonstrated in the same run
+
+| literal | expected | found |
+|---|---|---|
+| `Sound on` in the **binary** | 0 — frontend is compressed | **0** |
+| `Sound on` in `dist/assets/index-BqtSdMmt.js` | present | 1 |
+| `Sound off` | present | 1 |
+| `Turn completion sound` | present | 1 |
+| `A short tone when a turn finishes settling` | present | 1 |
+| `Turn the completion sound off` | present | 1 |
+| `frequencyHz` | present | 3 |
+| `until-next-turn` (CR150) | present | 2 |
+| `Hide Other ` (CR152) | present | 1 |
+| `Desktop only`, `Mirror hidden` (CR153) | present | 1 each |
+| `hidden by this filter`, `Show them` | **absent** | **0** |
+| invented control string | **absent** | **0** |
+
+dist written 11:39:33, binary 11:41:20 — the same build.
+
+### Dev and production can run together, for a weaker reason than Eval's
+
+Dev's identifier gives it a separate application data directory, verified present and distinct, so
+this is not Eval's situation where the two share real Journeys. **But both deliver to the same Mirror
+database**, so closing production is still the cleaner call for a test run — a different and much
+weaker reason than with Eval, and worth stating precisely rather than repeating Eval's rule as if it
+applied unchanged.
