@@ -271,8 +271,16 @@ corollary is the standing rule: **production and Eval must never run at the same
 - Source: `2b33f8e`, worktree clean at build time.
 - Installed binary: `00229d2dc94748ce898df24537d25421cd4b6939b47d0755bf10b6edd4db7952`, identical to
   the built one, and distinct from the previous Eval (`bc488ca0…`) and from production (`0668f6ce…`).
-- `ps` gate run immediately before replacing the bundle: Eval was not running. Previous bundles
-  retained under `/tmp`.
+- `ps` gate run immediately before replacing the bundle: Eval was not running.
+- ~~Previous bundles retained under `/tmp`.~~ **Corrected 2026-10-13.** That was wrong in a way
+  worth keeping visible: it reads as though `install-eval` retains the bundle it replaces, and it
+  does not. `mirror_desktop_channel.mjs:124`–`:138` moves the existing app to `.backup-<pid>`,
+  renames the staged copy into place, and then **deletes the backup on success**, restoring it only
+  if the swap throws. It is a rollback window, not an archive. The `/tmp/Mirror Desktop Eval-*.app`
+  copies are ones I made by hand with `ditto` in earlier sessions, and I made none for this install.
+  What the script does guarantee, and what I should have written, is a **staged copy** and a
+  **bundle-identity check** that refuses anything not identifying as `ai.mirrormind.desktop` /
+  `Mirror Desktop Eval` before touching the destination.
 
 ### An instrument that proved nothing, caught by its own control
 

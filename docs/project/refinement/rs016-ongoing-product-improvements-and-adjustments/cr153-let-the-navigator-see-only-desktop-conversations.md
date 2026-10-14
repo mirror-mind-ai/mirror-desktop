@@ -239,3 +239,40 @@ On Eval, where the Journeys are real. Predictions written first.
 6. **Right-click a conversation → "Hide Other N".** The others go to the hidden section; this one
    stays. Open the section and **Reveal** one — only that one returns.
    *If the kept conversation disappears,* the keep-guard is not firing.
+
+## Field Build (2026-10-13)
+
+Eval rebuilt and installed with **CR150, CR152 and CR153** together, so one field session covers all
+three.
+
+- Source `b1aa386`, worktree clean, 0 unpushed.
+- Installed binary `766b43906cf4cdcf7ab24f2630a3fa46a1c129cf986dbdbdc65df705f8db6b83`, identical to
+  the built one, distinct from the previous Eval (`00229d2d…`, alpha.48 + CR150 only) and from
+  production (`0668f6ce…`, alpha.48 bare).
+- `ps` gate immediately before and immediately after: Eval was not running at either point.
+
+### Verified through the dist, because the binary cannot be grepped
+
+Tauri embeds the frontend compressed, so no frontend literal is greppable in the binary — a fact
+established earlier today when a grep for a string that has shipped since CR104 also returned zero.
+The chain used instead: the literals appear in `dist/assets/index-Di0CRWJR.js`, that dist was written
+at 21:47:52 and the binary at 21:49:39 of the same build, and the installed binary hashes identically
+to that build's output.
+
+| literal | CR | occurrences |
+|---|---|---|
+| `until-next-turn` | CR150 | 2 |
+| `Hide Other ` | CR152 | 1 |
+| `hidden by this filter` | CR153 | 1 |
+| `Desktop only` | CR153 | 1 |
+| `Filtered out` | CR153 | 1 |
+| *(invented control string)* | — | **0** |
+
+The control is there because the instrument has already fooled me once today: a zero means nothing
+unless a string known to be present returns non-zero in the same run.
+
+### No bundle was archived, and none is needed
+
+`install-eval`'s backup is a rollback window deleted on success, not an archive — see the correction
+recorded in CR150. The replaced bundle is reproducible from `2386807` and production is untouched,
+which is a better guarantee than a copy in `/tmp` that nothing verifies.
