@@ -6983,10 +6983,17 @@ dd {
   [data-application-theme="daylight"],
   [data-application-theme="mist"],
   [data-application-theme="parchment"]
-) :where(button:not(.secondary-button, .settings-button, .icon-button, .menu-button, .sidebar-action-button, .theme-choice, .journey-documentation-toggle, .journey-documentation-select, .artifact-preview-layout-toggle, .journey-tree-toggle, .journey-menu button, .journey-tree-context-menu button, .journey-item-context-menu button, .artifact-context-menu button, .settings-tab-list button, .agentic-map-territory button, .message-copy-action, .focused-conversation-entry, .focused-conversation-create, .focused-conversation-more)) {
+) :where(button:not(.secondary-button, .settings-button, .icon-button, .menu-button, .sidebar-action-button, .theme-choice, .journey-documentation-toggle, .journey-documentation-select, .artifact-preview-layout-toggle, .journey-tree-toggle, .journey-menu button, .journey-tree-context-menu button, .journey-item-context-menu button, .artifact-context-menu button, .settings-tab-list button, .agentic-map-territory button, .message-copy-action, .focused-conversation-entry, .focused-conversation-create, .focused-conversation-more, .focused-conversation-kind-filter, .focused-conversation-hidden-toggle, .focused-conversation-reveal, .focused-conversation-reveal-all, .settings-sound-toggle, .settings-tone-choice)) {
   /* White ink belongs to a filled button. A transparent text button that opts out of the fill
      must opt out here too, or it is painted white on a white surface — which is exactly how the
-     CR105 territory names disappeared on Daylight while their counts stayed readable. */
+     CR105 territory names disappeared on Daylight while their counts stayed readable.
+
+     CR151: it happened again, to six controls at once — CR135's hidden toggle and both Reveal
+     buttons, CR153's kind filter, and this CR's sound switch and tone choices. The comment above
+     predicted the failure precisely and the list was still not extended, three times over. The
+     guard in `themeTokenContract.test.ts` now derives this list from the stylesheet instead of
+     trusting anyone to remember it: any bare class that sets `background: transparent` with a
+     `var(--text…)` colour must appear here. */
   color: #ffffff;
 }
 

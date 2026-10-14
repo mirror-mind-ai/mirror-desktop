@@ -560,3 +560,69 @@ did not ship"* — in the one step whose entire job is to distinguish that from 
 lesson this session has been circling arrived inside the check meant to apply it: a zero means
 nothing until the instrument is shown to be capable of returning non-zero. Re-run with `grep -oF --`,
 every count was correct.
+
+## Fourth Slice: the white ink exclusion list (2026-10-14)
+
+**Navigator report:** *"O highlight nos temas escuros funcionou, mas […] o problema do contraste no
+tema claro não foi resolvido."*
+
+### My previous diagnosis was real and was not the cause
+
+The token contract was a genuine defect — 102 inert declarations — and it fixed the dark highlight.
+**It did not explain the symptom that was actually reported**, and the evidence that it would not was
+in the Navigator's *first* screenshot: `Desktop · 32 messages` was readable while `Desktop only` was
+white. A `<small>` and a `<button>`, in the same list, with the same token. That asymmetry was the
+question, and I did not ask it. I found a sufficient-looking cause and stopped.
+
+### The real mechanism, which the stylesheet had already written down
+
+```css
+.app-shell:is(daylight, mist, parchment) :where(button:not(…20 classes…)) { color: #ffffff; }
+```
+
+Every `button` in a light family is painted white unless its class is on that exclusion list. The
+rule's own comment has said so since CR105: *"A transparent text button that opts out of the fill
+must opt out here too, or it is painted white on a white surface — which is exactly how the CR105
+territory names disappeared on Daylight while their counts stayed readable."*
+
+Specificity is why my class rules lost: the rule is `(0,2,0)` from `.app-shell` plus an attribute
+selector, with `:where()` contributing nothing, against `.settings-tone-choice` at `(0,1,0)`.
+
+### Six controls were missing, across three CRs
+
+| class | from |
+|---|---|
+| `.focused-conversation-hidden-toggle` | CR135 |
+| `.focused-conversation-reveal` | CR135 |
+| `.focused-conversation-reveal-all` | CR135 |
+| `.focused-conversation-kind-filter` | CR153 |
+| `.settings-sound-toggle` | CR151 |
+| `.settings-tone-choice` | CR151 |
+
+`.focused-conversation-entry`, `.focused-conversation-create` and `.focused-conversation-more` were
+already on the list, which is why conversation titles and the **+ New** button always read correctly
+— the list was maintained for some controls in that very component and not for others.
+
+### The list is now derived, not remembered
+
+A comment warned three times and the list was still not extended three times, so the guard reads the
+stylesheet instead of trusting anyone: **any bare class that sets `background: transparent` with a
+`var(--text…)` colour must appear in the exclusion list.**
+
+A first attempt at that detection cross-checked the TSX for `<button>` usage and **missed**
+`.focused-conversation-kind-filter`, whose `className` is a template literal. That hole was visible
+in the enumeration before the guard was written, so the TSX check was dropped: listing a non-button
+class is harmless, because the selector only matches `button` elements anyway.
+
+Three controls, each failing on the right assertion — a listed control removed, CR153's filter
+removed, and **a newly invented transparent control added without being listed**, which is the case
+the guard exists for.
+
+Gates: `tsc` clean, **265 files / 2,151 tests**, cargo 324 passed / 3 ignored, build clean, roadmap
+READY.
+
+### What this does not fix
+
+The Navigator also described the highlight itself as low-contrast in the light family. The selected
+tone now reads `var(--light-text)` on a 12% accent tint, which the screenshot showed working for
+`Bell` — **so that part may already be resolved and is awaiting the field rather than being claimed.**

@@ -91,6 +91,30 @@ describe("CR151: the theme token contract", () => {
     }
   });
 
+  it("opts every transparent text control out of the light-theme white ink rule", () => {
+    // The rule that paints buttons white in the light families carries an exclusion list, and its
+    // own comment has warned since CR105 that a transparent text button must be added to it. It was
+    // not added for CR135's hidden toggle and Reveal buttons, nor CR153's kind filter, nor CR151's
+    // sound controls — six controls, each invisible on a white surface, each reported from the
+    // field rather than caught here.
+    //
+    // The list is derived from the stylesheet rather than written down, so a seventh control cannot
+    // be forgotten the way the first six were.
+    const commentAt = cssSource.indexOf("White ink belongs to a filled button");
+    expect(commentAt).toBeGreaterThan(0);
+    const whereAt = cssSource.lastIndexOf(":where(button:not(", commentAt);
+    expect(whereAt).toBeGreaterThan(0);
+    const exclusionList = cssSource.slice(whereAt, cssSource.indexOf("{", whereAt));
+
+    const transparentControls = [...cssSource.matchAll(/(^|\n)(\.[a-z0-9-]+)\s*\{([^}]*)\}/g)]
+      .filter(([, , , body]) => body.includes("background: transparent") && body.includes("color: var(--text"))
+      .map(([, , selector]) => selector.trim());
+
+    expect(transparentControls.length).toBeGreaterThanOrEqual(6);
+    const forgotten = transparentControls.filter((selector) => !exclusionList.includes(`${selector},`) && !exclusionList.includes(`${selector})`));
+    expect(forgotten).toEqual([]);
+  });
+
   it("marks a chosen tone with more than a wash", () => {
     // The Navigator reported no visible highlight. The tokens were the cause, but a tint alone is
     // the kind of signal that disappears on a bright display, so the selected state also carries a
