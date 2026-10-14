@@ -173,3 +173,41 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+## Independent Verification (2026-10-14)
+
+Run after the route reported `PUBLISHED AND VERIFIED`, against the served endpoints rather than the
+local tree, because the route verifying its own work is not an independent check.
+
+1. **Tag → commit.** `git rev-list -n1 v0.2.0-alpha.49` gives
+   `f3fa9595fbfc7111cd5268da9efa467b07f808b5`, equal to the candidate revision in the preparation
+   evidence. `rev-list` rather than `%(objectname)`, which on an annotated tag returns the tag object.
+2. **All 144 manifests read, count asserted first.** The 144 paths were taken from the preparation
+   evidence's own list, asserted to be 144 and asserted distinct **before** anything was compared, so
+   a short read cannot pass as agreement. 0 read errors.
+   - `version` = `0.2.0-alpha.49` in **144 of 144**
+   - flat shape (no `platforms` key) in **144 of 144**
+   - exactly **one** distinct artifact URL across all 144
+   - distinct signature lengths: `[416]`
+3. **Artifact re-downloaded from the served URL.** 7,618,870 B hashing
+   `8d708b1dbc65c5faf35dd2bad098feeae5e99e5b078d3eb73e0f3b136f743420` — identical to the local bundle
+   and to the hash recorded in the preparation evidence.
+4. **The binary inside the served tarball** is
+   `27f59e098b1b9dfca8623f951a333227511a397447c1a576585c53b947fb2f21`, identical to the one built
+   here, and the unpacked bundle reports `0.2.0-alpha.49`. This is the point that matters: it proves
+   the bytes an updating app will execute are the bytes that passed the gates.
+5. **DMG** HTTP 206 to a range request, **served release note** HTTP 200, **GitHub release page**
+   HTTP 200.
+
+### Published on the first attempt, with three more manifests than last time
+
+144 rather than alpha.48's 141, because alpha.49 adds one more origin step to each of the three
+targets. alpha.47 needed four attempts at 141 and alpha.48 needed one; the SSH `ControlMaster` block
+disclosed during alpha.48 is still in `~/.ssh/config`, outside this repository, and is still the
+reason a single `scp` per manifest completes without restarting from the beginning.
+
+### Not done in this turn
+
+**Production has not been upgraded.** It is still `alpha.48`, binary `0668f6ce…`. Publishing and
+upgrading production are separate acts, and the second was not authorised in the same breath as the
+first.
