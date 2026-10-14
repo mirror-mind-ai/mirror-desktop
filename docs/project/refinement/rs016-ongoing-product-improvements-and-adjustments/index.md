@@ -88,9 +88,9 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR038: Coalesce Composer Draft Persistence](cr038-coalesce-composer-draft-persistence.md) — done
 - [CR037: Confirm App Closure While Agents Are Working](cr037-confirm-app-closure-while-agents-are-working.md) — done
 - [CR036: Restore Generation Ready Notice Contrast in Light Themes](cr036-restore-generation-ready-notice-contrast-in-light-themes.md) — done
-- [CR030 — Restore Journey Expansion Arrow Contrast in Light Themes](cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md) — done
-- [CR031 — Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md) — promoted
-- [CR029 — Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md) — done
+- [CR030: Restore Journey Expansion Arrow Contrast in Light Themes](cr030-restore-journey-expansion-arrow-contrast-in-light-themes.md) — done
+- [CR031: Recover from Unrestorable Previous Response](cr031-recover-from-unrestorable-previous-response.md) — promoted
+- [CR029: Restore responsiveness for long conversations](cr029-restore-responsiveness-for-long-conversations.md) — done
 
 CR116 is `done` with Driver `@alissonvale` and Delivery
 `refinement/rs016-cr116-stranded-finalization-recovery`. The Navigator validated it in Dev on
