@@ -15,6 +15,9 @@ describe("conversation space surfaces", () => {
       onHideConversation={vi.fn()}
       onRevealConversation={vi.fn()}
       onRevealAllConversations={vi.fn()}
+      onHideEveryOtherConversation={vi.fn()}
+      hideMirrorHistory={false}
+      onToggleMirrorHistoryFilter={vi.fn()}
       selected={{ kind: "journey_workspace", journeyId: "mirror-desktop" }}
       entries={[{
         kind: "desktop_conversation",
@@ -77,6 +80,9 @@ describe("conversation space surfaces", () => {
       onHideConversation={vi.fn()}
       onRevealConversation={vi.fn()}
       onRevealAllConversations={vi.fn()}
+      onHideEveryOtherConversation={vi.fn()}
+      hideMirrorHistory={false}
+      onToggleMirrorHistoryFilter={vi.fn()}
       selected={{ kind: "journey_workspace", journeyId: "mirror-desktop" }}
       entries={entries}
       status="ready"
@@ -142,6 +148,9 @@ describe("conversation space surfaces", () => {
       onDeleteDesktop={vi.fn()}
       onHide={vi.fn()}
       onReveal={vi.fn()}
+      onHideEveryOther={vi.fn()}
+      // CR152: zero, so this test keeps asserting the four Mirror actions it is about.
+      otherConversationCount={0}
       onDismiss={vi.fn()}
     />);
     // CR135 admitted a fourth item deliberately. This count is load-bearing: it is what forces
@@ -172,6 +181,9 @@ describe("conversation space surfaces", () => {
       }}
       x={20} y={30} returnFocusTo={null}
       onContinue={vi.fn()} onOpenTerminal={vi.fn()} onRename={vi.fn()} onDeleteDesktop={vi.fn()} onHide={vi.fn()} onReveal={vi.fn()} onDismiss={vi.fn()}
+      // CR152: zero, so this test keeps asserting the three items it is about. The bulk item
+      // is offered only when there is something to hide, and its own test covers that.
+      onHideEveryOther={vi.fn()} otherConversationCount={0}
     />);
     expect(html.match(/role="menuitem"/g)).toHaveLength(3);
     expect(html).toContain("Rename Conversation…");

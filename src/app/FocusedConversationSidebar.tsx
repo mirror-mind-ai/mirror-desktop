@@ -5,6 +5,7 @@ import {
   partitionConversationVisibility,
   type HiddenConversationsByJourney,
 } from "../domain/conversationVisibility";
+import { applyConversationKindFilter } from "../domain/conversationKindFilter";
 import { ConversationEntryContextMenu } from "./ConversationEntryContextMenu";
 import {
   describeHiddenWork,
@@ -50,6 +51,12 @@ type Props = {
   onHideConversation: (entry: ConversationCatalogEntry) => void;
   onRevealConversation: (entry: ConversationCatalogEntry) => void;
   onRevealAllConversations: () => void;
+  // CR152: hide every conversation in this Journey except the one the act came from.
+  onHideEveryOtherConversation: (entry: ConversationCatalogEntry) => void;
+  // CR153: a global view filter over kinds, not a per-entry choice. It arrives as a prop rather
+  // than living here because it is the same state in every open group (CR133).
+  hideMirrorHistory: boolean;
+  onToggleMirrorHistoryFilter: () => void;
 };
 
 export function FocusedConversationSidebar(props: Props) {
@@ -58,10 +65,20 @@ export function FocusedConversationSidebar(props: Props) {
   const [contextEntry, setContextEntry] = useState<{ entry: ConversationCatalogEntry; x: number; y: number } | null>(null);
   const contextTriggerRef = useRef<HTMLElement | null>(null);
 
+  // CR153: the filter runs first, so CR135's hidden section is computed on what survives it and a
+  // filtered kind does not appear in two places at once. Three reductions now act on this list —
+  // this filter, the Navigator's hiding, and the app's cap of six — and CR143's rule governs all
+  // three: each carries the count for its own partition and for nothing else, because only some of
+  // them were the Navigator's choice and a merged count would hide which one to undo.
+  const kindFilter = applyConversationKindFilter({
+    entries: props.entries,
+    hideMirrorHistory: props.hideMirrorHistory,
+    selected: props.selected,
+  });
   // CR135: the Navigator's choice is applied before the app's own cap, and the two counts are
   // kept apart on purpose. A cap the Navigator never set must never undo a choice they made.
   const partition = partitionConversationVisibility({
-    entries: props.entries,
+    entries: kindFilter.entries,
     hidden: props.hiddenConversations,
     journeyId: props.journeyId,
     selected: props.selected,
@@ -83,6 +100,11 @@ export function FocusedConversationSidebar(props: Props) {
       && selection.conversationId === entry.conversationId;
     const key = conversationVisibilityKey(entry);
     const hidden = partition.shownBecauseSelected === key;
+    // CR153: a selected entry of a filtered kind is kept and marked, for the reason
+    // `partitionConversationVisibility` already records — a list that denies the conversation the
+    // transcript is showing is CR137's defect made guaranteed. The two marks say different things,
+    // so they are not merged: one was a choice about this conversation, the other about its kind.
+    const filteredIn = kindFilter.shownBecauseSelected === key;
     const metadata = entry.kind === "desktop_conversation"
       ? `Desktop · ${entry.messageCount ? `${entry.messageCount} messages` : "Not started"}`
       : `Mirror · ${entry.messageCount} messages · ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(entry.updatedAt))}`;
@@ -116,7 +138,7 @@ export function FocusedConversationSidebar(props: Props) {
       title={entry.title}
     >
       <span className="focused-conversation-icon" aria-hidden="true">{entry.kind === "desktop_conversation" ? "◆" : "◇"}</span>
-      <span><span className="focused-conversation-title">{entry.title}</span><small>{hidden ? `${metadata} · Hidden` : metadata}</small></span>
+      <span><span className="focused-conversation-title">{entry.title}</span><small>{hidden ? `${metadata} · Hidden` : filteredIn ? `${metadata} · Filtered out` : metadata}</small></span>
       {/*
         CR143: the mark sits outside the metadata line on purpose. That line can read `Not started`,
         which describes a conversation with no messages and is *not* the same as not running; the
@@ -137,8 +159,35 @@ export function FocusedConversationSidebar(props: Props) {
     <div className="focused-conversation-heading">
       <span className="focused-conversation-heading-copy">
         <strong>Conversations</strong>
+        {/*
+          CR153: the heading keeps reporting the *factual* total, which CR135 pinned on purpose. A
+          filter that also edited this number would make the Navigator believe conversations stopped
+          existing rather than stopped being shown — and it would merge two counts, which is exactly
+          what CR143's rule forbids. What the filter removed is reported by the filter's own line.
+        */}
         <small aria-label={`${props.entries.length} conversations`}>{props.entries.length}</small>
       </span>
+      {/*
+        CR153: `aria-pressed` rather than a checkbox because this is a toggle on the view, and the
+        label names the kind it keeps rather than repeating the Navigator's phrasing. "Show only
+        Desktop conversations" would be read as a promise about everything on screen, and the
+        Journey's own row stays — it is a selection kind and never a catalog entry, so it was never
+        this filter's to remove.
+      */}
+      <button
+        className={`focused-conversation-kind-filter${props.hideMirrorHistory ? " is-on" : ""}`}
+        type="button"
+        onClick={props.onToggleMirrorHistoryFilter}
+        aria-pressed={props.hideMirrorHistory}
+        aria-label={props.hideMirrorHistory
+          ? "Show Mirror history in the conversation list again"
+          : "Show only Desktop conversations, hiding Mirror history"}
+        title={props.hideMirrorHistory
+          ? "Mirror history is hidden from every Journey's list. Nothing was deleted."
+          : "Hide Mirror history from every Journey's list"}
+      >
+        <span aria-hidden="true">◆</span><span>Desktop only</span>
+      </button>
       <button
         className="focused-conversation-create"
         type="button"
@@ -154,6 +203,22 @@ export function FocusedConversationSidebar(props: Props) {
     {props.status === "error" ? <p className="focused-conversation-status error" role="alert">{props.error ?? "Conversations are unavailable."}</p> : null}
     {props.status === "ready" && props.entries.length === 0 ? <p className="focused-conversation-status">No additional conversations yet.</p> : null}
     {props.actionMessage ? <p className="focused-conversation-status" role="status">{props.actionMessage}</p> : null}
+    {/*
+      CR153: a list that is quietly short is the beginning of believing something was lost, so the
+      filter says what it removed and offers its own way back. It never borrows the hidden
+      section's control, and the hidden section never borrows this one.
+    */}
+    {props.hideMirrorHistory && kindFilter.filtered > 0 ? (
+      <p className="focused-conversation-filtered" role="status">
+        {kindFilter.filtered} Mirror {kindFilter.filtered === 1 ? "conversation" : "conversations"} hidden by this filter.
+        {" "}
+        <button
+          className="focused-conversation-filtered-show"
+          type="button"
+          onClick={props.onToggleMirrorHistoryFilter}
+        >Show them</button>
+      </p>
+    ) : null}
     <div className="focused-conversation-list">
       {visibleEntries.map((entry) => renderEntry(entry))}
     </div>
@@ -217,6 +282,8 @@ export function FocusedConversationSidebar(props: Props) {
       hidden={(props.hiddenConversations[props.journeyId] ?? []).includes(conversationVisibilityKey(contextEntry.entry))}
       onHide={props.onHideConversation}
       onReveal={props.onRevealConversation}
+      onHideEveryOther={props.onHideEveryOtherConversation}
+      otherConversationCount={kindFilter.entries.length - 1}
       returnFocusTo={contextTriggerRef.current}
       onContinue={props.onContinueMirror}
       onOpenTerminal={props.onOpenMirrorTerminal}

@@ -18,6 +18,7 @@ import {
   sanitizeConversationSelectionMemory,
   type LastConversationSelectionByJourney,
 } from "./conversationSelectionMemory";
+import { parseHideMirrorHistory } from "./conversationKindFilter";
 
 export type PersistedJourneyPreferences = {
   schemaVersion: "0.1.0";
@@ -41,6 +42,11 @@ export type PersistedJourneyPreferences = {
     // destroyed by the first Journey switch; absent means the Journey workspace, so there is no
     // third spelling of the default.
     lastConversationSelectionByJourneyId: LastConversationSelectionByJourney;
+    // CR153: whether the conversation list shows only Desktop conversations, excluding Mirror
+    // history. Global rather than per-Journey, unlike its neighbours above, because the measurement
+    // that justified it found 41, 45 and 57 Mirror entries across three Journeys — the noise is
+    // universal, so per-Journey would make the Navigator state one intent thirteen times.
+    hideMirrorHistory: boolean;
   };
   savedAt: string;
 };
@@ -60,6 +66,7 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   expandedConversationJourneyIds: [],
   hiddenConversationIdsByJourneyId: EMPTY_HIDDEN_CONVERSATIONS,
   lastConversationSelectionByJourneyId: EMPTY_CONVERSATION_SELECTION_MEMORY,
+  hideMirrorHistory: false,
 };
 
 export function createPersistedJourneyPreferences(
@@ -111,6 +118,10 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
   const lastConversationSelectionByJourneyId = preferences.lastConversationSelectionByJourneyId === undefined
     ? EMPTY_CONVERSATION_SELECTION_MEMORY
     : parseConversationSelectionMemory(preferences.lastConversationSelectionByJourneyId) ?? EMPTY_CONVERSATION_SELECTION_MEMORY;
+  // CR153 follows the same departure as CR133, CR135 and CR137: which kinds the Navigator wants to
+  // see is a view preference, and an invalid value must never be able to cost them their pins,
+  // theme or recents. So it degrades to `false` — showing everything — rather than failing the file.
+  const hideMirrorHistory = parseHideMirrorHistory(preferences.hideMirrorHistory) ?? false;
   const voiceLanguage = preferences.voiceLanguage === undefined
     ? defaultVoiceLanguage
     : parseVoiceLanguage(preferences.voiceLanguage);
@@ -142,6 +153,7 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       expandedConversationJourneyIds,
       hiddenConversationIdsByJourneyId,
       lastConversationSelectionByJourneyId,
+      hideMirrorHistory,
     },
     savedAt: record.savedAt,
   };
@@ -169,6 +181,9 @@ export function sanitizeJourneyPreferenceState(
     expandedConversationJourneyIds: uniqueExistingJourneyIds(preferences.expandedConversationJourneyIds, registry),
     hiddenConversationIdsByJourneyId: sanitizeHiddenConversations(preferences.hiddenConversationIdsByJourneyId, registry),
     lastConversationSelectionByJourneyId: sanitizeConversationSelectionMemory(preferences.lastConversationSelectionByJourneyId, registry),
+    // CR153: carried through unchanged. It names a kind rather than a Journey, so there is no
+    // registry entry it could be stale against — unlike every per-Journey field above it.
+    hideMirrorHistory: preferences.hideMirrorHistory,
   };
 }
 

@@ -28,8 +28,8 @@
 | ↳　CR149 · Keep the Composer Responsive While a Turn Is Finishing | ✅ done · **resolvido no campo** · causa: settlement rodava na main thread nativa · 69/90 comandos movidos para workers sob lock de serialização · duração do settlement inalterada (percentis 52–86 de 240), o congelamento era a thread, não o tempo · 5 refutações antes — o erro estava no instrumento | `██████████` |
 | ↳　CR150 · Keep a Compaction Result Until the Navigator Is Done With It | ✅ done · **campo PASSOU** · sucesso vira `until-next-turn`, falha intocada · supersede a CR104 (riscado, não apagado) · 1 predicado eram 2: `role` desacoplado da dispensabilidade | `██████████` |
 | ↳　CR151 · Let a Finished Turn Announce Itself | 🟡 captured · prioridade 3 · capacidade nova · nenhum áudio existe no app | `░░░░░░░░░░` |
-| ↳　CR152 · Let the Navigator Hide Every Conversation but One | 🟡 captured · prioridade 4 · simétrica de revealAllConversations | `░░░░░░░░░░` |
-| ↳　CR153 · Let the Navigator See Only Desktop Conversations | 🟡 captured · prioridade 5 · filtro de visão, não ocultação durável | `░░░░░░░░░░` |
+| ↳　CR152 · Let the Navigator Hide Every Conversation but One | 🔵 in_progress · `hideEveryOtherConversation` sobre `hideConversation` · rótulo nomeia o número · déficit do cap reportado · desfazer é o `Reveal` que já existia | `███████░░░` |
+| ↳　CR153 · Let the Navigator See Only Desktop Conversations | 🔵 in_progress · **medido: 41/45/57 entradas Mirror contra 4 desktop**, metade sem título e vazias · preferência global · roda antes da partição · guard da CR135 pegou erro meu no cabeçalho | `███████░░░` |
 | ↳　CR154 · Persist a Model Choice at the Conversation It Was Made In | 🟡 captured · prioridade 6 · o grão de conversa não existe · lacuna aberta por RS023/RS024 | `░░░░░░░░░░` |
 | ↳　CR155 · Give the Navigator an Exit From a Finishing That Holds a Live Lease | 🟡 captured · prioridade 7 · dívida da CR132 chegando do campo · **limiar de 60 s falsificado por 2 settlements legítimos** | `░░░░░░░░░░` |
 | ↳　CR156 · Simplify the Context Map | 🟡 captured · prioridade 8 · recua parte da CR105 · critério ainda não estabelecido | `░░░░░░░░░░` |

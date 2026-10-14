@@ -19,6 +19,10 @@ type Props = {
   hidden?: boolean;
   onHide: (entry: ConversationCatalogEntry) => void;
   onReveal: (entry: ConversationCatalogEntry) => void;
+  // CR152: hides every other conversation in this Journey, keeping this one.
+  onHideEveryOther: (entry: ConversationCatalogEntry) => void;
+  /** How many conversations the act would put away, so the label can promise a number. */
+  otherConversationCount: number;
   onDismiss: () => void;
 };
 
@@ -87,6 +91,23 @@ export function ConversationEntryContextMenu(props: Props) {
       : "Only hides it from this list. Nothing is deleted, and you can reveal it again."}
   >{props.hidden ? "Reveal in List" : "Hide from List (can be revealed)"}</button>;
 
+  function hideEveryOther() {
+    props.onDismiss();
+    props.onHideEveryOther(props.entry);
+  }
+
+  // CR152: offered only when there is something to hide, and it names the count rather than saying
+  // "all others" — a bulk act whose size the Navigator cannot see before invoking it is the kind
+  // they undo rather than trust. Reversibility is in the label for the same reason as above, and
+  // the way back is per-conversation `Reveal`, which already exists on every hidden row.
+  const hideOthersItem = props.otherConversationCount > 0 ? <button
+    type="button"
+    role="menuitem"
+    className="conversation-visibility-menu-item"
+    onClick={hideEveryOther}
+    title="Only hides them from this list. Nothing is deleted, and each one can be revealed."
+  >Hide Other {props.otherConversationCount} (can be revealed)</button> : null;
+
   return <div
     className="journey-item-context-menu conversation-entry-context-menu"
     role="menu"
@@ -99,9 +120,11 @@ export function ConversationEntryContextMenu(props: Props) {
       <button type="button" role="menuitem" disabled={props.busy} onClick={() => invokeMirror(props.onOpenTerminal)}>Continue with recalled context in Terminal</button>
       <button type="button" role="menuitem" disabled={props.busy} onClick={renameConversation}>Rename in Mirror…</button>
       {visibilityItem}
+      {hideOthersItem}
     </> : <>
       <button type="button" role="menuitem" disabled={props.busy} onClick={renameConversation}>Rename Conversation…</button>
       {visibilityItem}
+      {hideOthersItem}
       <div className="context-menu-separator" role="separator" />
       <button className="danger-menu-item" type="button" role="menuitem" disabled={props.busy} onClick={deleteDesktop}>Delete Conversation…</button>
     </>}

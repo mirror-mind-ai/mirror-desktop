@@ -361,6 +361,7 @@ import {
   EMPTY_HIDDEN_CONVERSATIONS,
   forgetConversationVisibility,
   hideConversation,
+  hideEveryOtherConversation,
   revealAllConversations,
   revealConversation,
   type HiddenConversationsByJourney,
@@ -622,6 +623,9 @@ export function App({ model }: AppProps) {
   const [journeySearch, dispatchJourneySearch] = useReducer(journeySearchReducer, "");
   const [journeyListOrder, setJourneyListOrder] = useState<JourneyListOrder>(defaultJourneyPreferenceState.journeyListOrder);
   const [sidebarCompact, setSidebarCompact] = useState(defaultJourneyPreferenceState.sidebarCompact);
+  // CR153: global, like `sidebarCompact` beside it, because the Mirror history it excludes is a
+  // kind rather than a property of any one Journey.
+  const [hideMirrorHistory, setHideMirrorHistory] = useState(defaultJourneyPreferenceState.hideMirrorHistory);
   const [lastWorkedAtByJourneyId, setLastWorkedAtByJourneyId] = useState(defaultJourneyPreferenceState.lastWorkedAtByJourneyId);
   const [applicationTheme, setApplicationTheme] = useState<ApplicationTheme>(defaultJourneyPreferenceState.applicationTheme);
   const [journeyAppearanceById, setJourneyAppearanceById] = useState<JourneyAppearanceById>(defaultJourneyPreferenceState.journeyAppearanceById);
@@ -1796,6 +1800,7 @@ export function App({ model }: AppProps) {
       });
       setJourneyListOrder(sanitizedPreferences.journeyListOrder);
       setSidebarCompact(sanitizedPreferences.sidebarCompact);
+      setHideMirrorHistory(sanitizedPreferences.hideMirrorHistory);
       dispatchConversationExpansion({ type: "restore", journeyIds: sanitizedPreferences.expandedConversationJourneyIds });
       setHiddenConversations(sanitizedPreferences.hiddenConversationIdsByJourneyId);
       setLastConversationSelection(sanitizedPreferences.lastConversationSelectionByJourneyId);
@@ -2455,8 +2460,9 @@ export function App({ model }: AppProps) {
       expandedConversationJourneyIds: [...expandedConversationJourneyIds],
       hiddenConversationIdsByJourneyId: hiddenConversations,
       lastConversationSelectionByJourneyId: lastConversationSelection,
+      hideMirrorHistory,
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, hideMirrorHistory, registryLoaded, preferencesLoaded]);
 
   // CR133: disclosures restored from the preference file load their catalogs one after
   // another. Reopening with many groups expanded must not start many catalog subprocesses
@@ -4533,6 +4539,20 @@ export function App({ model }: AppProps) {
     setHiddenConversations((current) => revealAllConversations(current, journeyId));
   }
 
+  // CR152: the symmetric act `revealAllConversations` has had since CR135. The entries come from
+  // the group's own catalog rather than the selected Journey's, because several disclosures can be
+  // open at once (CR133) and a bulk act on the wrong Journey is the worst possible version of it.
+  function hideEveryOtherConversationInList(journeyId: string, keep: ConversationCatalogEntry) {
+    const entries = conversationCatalogs[journeyId]?.entries ?? [];
+    const result = hideEveryOtherConversation(hiddenConversations, journeyId, entries, keep);
+    setHiddenConversations(result.hidden);
+    setConversationActionMessage(result.skippedForCap > 0
+      ? `Hid ${result.hiddenCount} conversations. ${result.skippedForCap} could not be hidden because this Journey is at its limit.`
+      : result.hiddenCount === 0
+        ? "There was nothing else to hide."
+        : `Hid ${result.hiddenCount} conversations. Nothing was deleted.`);
+  }
+
   function requestDesktopConversationDeletion(entry: Extract<ConversationCatalogEntry, { kind: "desktop_conversation" }>) {
     if (compactionInFlight || selectedRuntimeBusy || runStartReservation || conversationActionBusy) return;
     setConversationDeleteError(undefined);
@@ -5818,6 +5838,14 @@ export function App({ model }: AppProps) {
                   onHideConversation={(entry) => hideConversationFromList(journey.id, entry)}
                   onRevealConversation={(entry) => revealConversationInList(journey.id, entry)}
                   onRevealAllConversations={() => revealAllConversationsInList(journey.id)}
+                  // CR152: bound to *this group's* Journey, like the three above and for the same
+                  // reason — several disclosures can be open at once (CR133).
+                  onHideEveryOtherConversation={(entry) => hideEveryOtherConversationInList(journey.id, entry)}
+                  // CR153: one global state, so every open group shows the same toggle in the same
+                  // position. A deliberate consequence of the grain, not an oversight: the
+                  // measurement that chose global found the Mirror noise in every Journey.
+                  hideMirrorHistory={hideMirrorHistory}
+                  onToggleMirrorHistoryFilter={() => setHideMirrorHistory((current) => !current)}
                 />
               ) : null}
               </Fragment>

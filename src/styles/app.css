@@ -8821,6 +8821,46 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 .focused-conversation-hidden-toggle:hover,
 .focused-conversation-hidden-toggle:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--text); outline: none; }
 .focused-conversation-hidden-body { display: flex; flex-direction: column; gap: 2px; }
+
+/* CR153: the kind filter's own control and its own count, kept separate from the hidden
+   section's and from the app's cap. Each reduction says what it did and offers its own way
+   back, so a short list never reads as a loss. */
+.focused-conversation-kind-filter {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-muted);
+  display: inline-flex;
+  font-size: 0.66rem;
+  gap: 4px;
+  letter-spacing: 0.03em;
+  padding: 4px 7px;
+}
+.focused-conversation-kind-filter:hover,
+.focused-conversation-kind-filter:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--text); outline: none; }
+.focused-conversation-kind-filter.is-on {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--text);
+}
+.focused-conversation-filtered {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.45;
+  margin: 0;
+  padding: 2px 7px 4px;
+}
+.focused-conversation-filtered-show {
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--accent);
+  font-size: inherit;
+  padding: 0 2px;
+  text-decoration: underline;
+}
+.focused-conversation-filtered-show:hover,
+.focused-conversation-filtered-show:focus-visible { color: var(--text); outline: none; }
 .focused-conversation-hidden-note {
   color: var(--text-muted);
   font-size: 0.66rem;

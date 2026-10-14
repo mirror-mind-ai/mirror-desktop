@@ -43,6 +43,9 @@ function sidebar(options: {
     onHideConversation={vi.fn()}
     onRevealConversation={vi.fn()}
     onRevealAllConversations={vi.fn()}
+    onHideEveryOtherConversation={vi.fn()}
+    hideMirrorHistory={false}
+    onToggleMirrorHistoryFilter={vi.fn()}
     onCreateConversation={vi.fn()}
     onSelectEntry={vi.fn()}
     onContinueMirror={vi.fn()}
@@ -135,6 +138,8 @@ describe("CR135: hiding is offered for both kinds and is never deletion", () => 
       onDeleteDesktop={vi.fn()}
       onHide={vi.fn()}
       onReveal={vi.fn()}
+      onHideEveryOther={vi.fn()}
+      otherConversationCount={2}
       onDismiss={vi.fn()}
     />);
   }
