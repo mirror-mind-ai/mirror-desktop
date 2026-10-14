@@ -2,7 +2,7 @@
 
 # CR150: Keep a Compaction Result Until the Navigator Is Done With It
 
-**Status:** in_progress
+**Status:** done
 **Driver:** assistant
 **Delivery:** `refinement/cr150-keep-a-compaction-result`
 **Navigator priority:** 2 of 8 (intake 2026-10-12)
@@ -299,3 +299,42 @@ hashes identically to that build's output.
   is the clause most at risk of being swept along with the success.
 - **4b, not provocable on demand.** A true failure needs Pi to fail rather than refuse. If it does
   not occur, this CR closes on steps 1–4a with 4b recorded as test-covered and unprovoked.
+
+## Field Check: PASSED (2026-10-13)
+
+**Navigator report:** *"CR Validada. Deu tudo certo."*
+
+Run on the Eval channel against real Journeys, binary
+`00229d2dc94748ce898df24537d25421cd4b6939b47d0755bf10b6edd4db7952`, with production closed for the
+duration.
+
+| step | claim | result |
+|---|---|---|
+| 1 | a completed compaction stays, no timer | passed |
+| 2 | it offers a Dismiss control | passed |
+| 3 | **the next turn in the same Journey clears it** | passed |
+| 4a | a benign refusal still fades, with no Dismiss | passed |
+
+**Step 3 is the one that mattered.** It is the only acceptance item no test could reach: nothing in
+the suite renders `App`, there is no DOM, and a turn cannot be submitted. The source guard proved the
+reducer call was written in the admission cluster; only this proved it fires.
+
+### Not verified, and not claimed
+
+**4b — a true compaction failure surviving a turn — was not provoked**, because a real failure needs
+Pi to fail rather than refuse, and that does not happen on demand. It stays **test-covered and
+unprovoked** rather than verified: `clearCompactionNoticeOnNewTurn` returns the notice unchanged for
+`failed` and `interrupted` in its own Journey and in any other, and control 2 — the reducer widened
+to clear every non-`transient` outcome — compiles and fails on exactly that assertion.
+
+This is the clause whose breakage would be worst, since it would undo CR104's promise. It is held by
+construction and by a control, and that is stated here rather than folded into the pass.
+
+### What this closes, and what it reopens
+
+CR104's success case is superseded in the record, struck through beside the reasoning that produced
+it. The field did not refute CR104's logic — it refuted its premise about what kind of thing a
+compaction result is. A confirmation may fade; a measurement the next decision depends on may not.
+
+CR104's own guard predicted this exact change and named the right place to watch. It was narrowed,
+not removed, and it still forbids the thing it was written to forbid.
