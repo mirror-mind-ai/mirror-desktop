@@ -17,6 +17,7 @@ describe("Journey management guardrails", () => {
       sidebarCompact: true,
       hideMirrorHistory: false,
       turnCompletionSound: true,
+      turnCompletionToneId: "chime",
       lastWorkedAtByJourneyId: { nautilus: "2026-09-02T15:00:00.000Z" },
       applicationTheme: "tide",
       journeyAppearanceById: { nautilus: { kind: "custom" } },
@@ -42,6 +43,7 @@ describe("Journey management guardrails", () => {
       "recentJourneyIds",
       "sidebarCompact",
       "turnCompletionSound",
+      "turnCompletionToneId",
       "voiceLanguage",
     ]);
     expect(JSON.stringify(persisted).toLowerCase()).not.toMatch(/api[_-]?key|token|secret|password|env/);

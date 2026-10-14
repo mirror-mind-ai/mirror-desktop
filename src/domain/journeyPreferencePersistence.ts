@@ -19,6 +19,11 @@ import {
   type LastConversationSelectionByJourney,
 } from "./conversationSelectionMemory";
 import { parseHideMirrorHistory } from "./conversationKindFilter";
+import {
+  DEFAULT_TURN_COMPLETION_TONE_ID,
+  parseTurnCompletionToneId,
+  type TurnCompletionToneId,
+} from "./turnCompletionTone";
 
 export type PersistedJourneyPreferences = {
   schemaVersion: "0.1.0";
@@ -52,6 +57,9 @@ export type PersistedJourneyPreferences = {
     // `journeyOverrides` — how the *agent* runs — and this is how the *application* behaves, like
     // every neighbour above.
     turnCompletionSound: boolean;
+    // CR151, after the field: which of the three success tones plays. Separate from the switch above
+    // so that turning the sound off and on again restores the chosen tone rather than resetting it.
+    turnCompletionToneId: TurnCompletionToneId;
   };
   savedAt: string;
 };
@@ -76,6 +84,7 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   // switched on applies to one nobody requested; shipping a requested feature silent makes it look
   // like it never arrived.
   turnCompletionSound: true,
+  turnCompletionToneId: DEFAULT_TURN_COMPLETION_TONE_ID,
 };
 
 export function createPersistedJourneyPreferences(
@@ -136,6 +145,10 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
   // the feature being broken, which is the harder failure to report.
   const turnCompletionSound = parseTurnCompletionSoundPreference(preferences.turnCompletionSound)
     ?? defaultJourneyPreferenceState.turnCompletionSound;
+  // CR151: an unrecognised id degrades to the default tone, never to silence. A file written by a
+  // future version with a fourth option must not make the sound disappear.
+  const turnCompletionToneId = parseTurnCompletionToneId(preferences.turnCompletionToneId)
+    ?? defaultJourneyPreferenceState.turnCompletionToneId;
   const voiceLanguage = preferences.voiceLanguage === undefined
     ? defaultVoiceLanguage
     : parseVoiceLanguage(preferences.voiceLanguage);
@@ -169,6 +182,7 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       lastConversationSelectionByJourneyId,
       hideMirrorHistory,
       turnCompletionSound,
+      turnCompletionToneId,
     },
     savedAt: record.savedAt,
   };
@@ -202,6 +216,7 @@ export function sanitizeJourneyPreferenceState(
     // CR151: carried through unchanged for the same reason as its neighbour — it names a behaviour,
     // not a Journey, so there is no registry entry it could be stale against.
     turnCompletionSound: preferences.turnCompletionSound,
+    turnCompletionToneId: preferences.turnCompletionToneId,
   };
 }
 

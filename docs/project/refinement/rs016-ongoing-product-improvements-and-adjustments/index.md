@@ -51,7 +51,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR148: Give an Unanswered Turn Back Its Own Identity](cr148-give-an-unanswered-turn-back-its-own-identity.md) — captured
 - [CR149: Keep the Composer Responsive While a Turn Is Finishing](cr149-keep-the-composer-responsive-while-a-turn-is-finishing.md) — done · intake 2026-10-12, prioridade 1 de 8
 - [CR150: Keep a Compaction Result Until the Navigator Is Done With It](cr150-keep-a-compaction-result-until-the-navigator-is-done-with-it.md) — done · campo PASSOU (4/4 provocáveis) · o passo que nenhum teste alcança verificado
-- [CR151: Let a Finished Turn Announce Itself](cr151-let-a-finished-turn-announce-itself.md) — in_progress · entregue e verde · preferência por ref (lição da CR149) · um controle achou guard que faltava · campo devido: ouvir o tom
+- [CR151: Let a Finished Turn Announce Itself](cr151-let-a-finished-turn-announce-itself.md) — in_progress · **campo: funcionou** · 2ª fatia: 3 tons, aba Sound & Voice, preview ao escolher · campo devido: ouvir rise e bell
 - [CR152: Let the Navigator Hide Every Conversation but One](cr152-let-the-navigator-hide-every-conversation-but-one.md) — done · campo PASSOU · cap improvocável, coberto por teste
 - [CR153: Let the Navigator See Only Desktop Conversations](cr153-let-the-navigator-see-only-desktop-conversations.md) — done · campo PASSOU (6/6) · ajuste de posicionamento achado pelo campo
 - [CR154: Persist a Model Choice at the Conversation It Was Made In](cr154-persist-a-model-choice-at-the-conversation-it-was-made-in.md) — captured · intake 2026-10-12, prioridade 6 de 8

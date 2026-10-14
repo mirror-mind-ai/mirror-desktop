@@ -1,29 +1,36 @@
 import type { SettlementOutcome } from "./settlementPhaseTiming";
+import {
+  DEFAULT_TURN_COMPLETION_TONE_ID,
+  parseTurnCompletionToneId,
+  TURN_COMPLETION_FAILURE_TONE,
+  TURN_COMPLETION_SUCCESS_TONES,
+  type TurnCompletionTone,
+} from "../domain/turnCompletionTone";
 
 /**
- * CR151: the Navigator asked for a sound when a turn finishes, switchable in Settings.
+ * CR151: the Navigator asked for a sound when a turn finishes, switchable in Settings, and — after
+ * hearing the first one in the field — for a choice of three.
  *
- * A tone is *described* here and played elsewhere, because the test suite runs in Node with no
- * audio device and nothing in it can hear a sound. What a test can assert is which tone was chosen,
- * that the two outcomes choose different ones, and that nothing is chosen — and therefore no audio
- * code reached — when the preference is off. The part that can only be judged by ear is the field's.
+ * A tone is *described* in `domain/turnCompletionTone` and played here, because the test suite runs
+ * in Node with no audio device and nothing in it can hear a sound. What a test can assert is which
+ * tone was chosen, that the choices stay distinguishable from each other, and that nothing is
+ * chosen — and therefore no audio code reached — when the preference is off. The part that can only
+ * be judged by ear is the field's, which is how the second and third options came to exist at all.
  */
-export type TurnCompletionTone = Readonly<{
-  /** Named after the outcome so a test can identify a tone it cannot hear. */
-  kind: SettlementOutcome;
-  frequencyHz: number;
-  durationMs: number;
-}>;
 
 /**
- * Two tones, because the Navigator said a failure may sound different. They are deliberately far
- * apart — a fifth below and twice as long — so the difference survives small speakers and a noisy
- * room rather than relying on a listener who is paying attention.
+ * An unrecognised id degrades to the default rather than to silence. A preference file that has been
+ * edited by hand, or written by a future version with a fourth option, must not make the sound
+ * disappear — silence is indistinguishable from the feature being broken.
  */
-export const TURN_COMPLETION_TONES: Readonly<Record<SettlementOutcome, TurnCompletionTone>> = {
-  settled: { kind: "settled", frequencyHz: 880, durationMs: 160 },
-  failed: { kind: "failed", frequencyHz: 220, durationMs: 320 },
-};
+export function turnCompletionToneFor(input: {
+  outcome: SettlementOutcome;
+  toneId: unknown;
+}): TurnCompletionTone {
+  if (input.outcome === "failed") return TURN_COMPLETION_FAILURE_TONE;
+  const toneId = parseTurnCompletionToneId(input.toneId) ?? DEFAULT_TURN_COMPLETION_TONE_ID;
+  return TURN_COMPLETION_SUCCESS_TONES[toneId];
+}
 
 export type TurnCompletionSoundPlayer = (tone: TurnCompletionTone) => void;
 
@@ -44,6 +51,7 @@ export type TurnCompletionSoundPlayer = (tone: TurnCompletionTone) => void;
 export function announceSettlement(input: {
   record: Readonly<{ outcome: SettlementOutcome }> | undefined;
   enabled: boolean;
+  toneId: unknown;
   play: TurnCompletionSoundPlayer;
 }): TurnCompletionTone | undefined {
   // No record means nothing settled here: a cancellation, or an end site that lost the race.
@@ -51,7 +59,27 @@ export function announceSettlement(input: {
   // Off must be genuinely silent. Returning before `play` is what keeps the audio code unreached,
   // rather than playing at zero volume.
   if (!input.enabled) return undefined;
-  const tone = TURN_COMPLETION_TONES[input.record.outcome];
+  const tone = turnCompletionToneFor({ outcome: input.record.outcome, toneId: input.toneId });
+  input.play(tone);
+  return tone;
+}
+
+/**
+ * CR151: choosing a sound you cannot hear is the same defect as judging a tone from a specification,
+ * which is exactly what sent the first version to the field to be corrected. So selecting an option
+ * in Settings plays it.
+ *
+ * It is gated on the switch for one reason: *off means no audio code runs* is an acceptance of this
+ * CR, and a preview is a second trigger that would otherwise walk around it. While the sound is off
+ * the choice can still be made, silently, and takes effect when it is switched back on.
+ */
+export function previewTurnCompletionTone(input: {
+  toneId: unknown;
+  enabled: boolean;
+  play: TurnCompletionSoundPlayer;
+}): TurnCompletionTone | undefined {
+  if (!input.enabled) return undefined;
+  const tone = turnCompletionToneFor({ outcome: "settled", toneId: input.toneId });
   input.play(tone);
   return tone;
 }
@@ -59,12 +87,11 @@ export function announceSettlement(input: {
 type AudioContextConstructor = new () => AudioContext;
 
 /**
- * Synthesised rather than loaded from a file, so there is no asset, no path and no loading failure
- * mode. CR151 recorded that whether a tone is good enough is a question the Navigator should answer
- * by hearing it — so this ships as a tone and becomes a file only if the field rejects it.
+ * Synthesised rather than loaded from files, so there is no asset, no path and no loading failure
+ * mode — and so a fourth option costs two numbers rather than a new binary in the bundle.
  *
- * The context is constructed inside the body, which is what lets `announceSettlement` keep the
- * preference's "off" genuinely silent: passing this function as a value allocates nothing.
+ * The context is constructed inside the body, which is what lets the preference's "off" stay
+ * genuinely silent: passing this function as a value allocates nothing.
  */
 export function playTurnCompletionTone(tone: TurnCompletionTone): void {
   const scope = globalThis as typeof globalThis & {
@@ -81,21 +108,32 @@ export function playTurnCompletionTone(tone: TurnCompletionTone): void {
   } catch {
     return;
   }
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  oscillator.type = "sine";
-  oscillator.frequency.value = tone.frequencyHz;
+  // One context for the whole sequence, scheduled ahead on its own clock rather than with timers:
+  // a settlement is a busy moment and a setTimeout chain would make the notes audibly uneven.
   const startedAt = context.currentTime;
-  const seconds = tone.durationMs / 1000;
-  // Ramped at both ends: a square-edged start and stop on a sine wave clicks audibly.
-  gain.gain.setValueAtTime(0, startedAt);
-  gain.gain.linearRampToValueAtTime(0.18, startedAt + 0.015);
-  gain.gain.linearRampToValueAtTime(0, startedAt + seconds);
-  oscillator.connect(gain);
-  gain.connect(context.destination);
-  oscillator.start(startedAt);
-  oscillator.stop(startedAt + seconds);
-  oscillator.onended = () => {
-    void context.close();
-  };
+  let offsetSeconds = 0;
+  let last: OscillatorNode | undefined;
+  for (const step of tone.steps) {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.value = step.frequencyHz;
+    const stepStart = startedAt + offsetSeconds;
+    const stepSeconds = step.durationMs / 1000;
+    // Ramped at both ends: a square-edged start and stop on a sine wave clicks audibly.
+    gain.gain.setValueAtTime(0, stepStart);
+    gain.gain.linearRampToValueAtTime(0.18, stepStart + 0.015);
+    gain.gain.linearRampToValueAtTime(0, stepStart + stepSeconds);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(stepStart);
+    oscillator.stop(stepStart + stepSeconds);
+    offsetSeconds += stepSeconds;
+    last = oscillator;
+  }
+  if (last) {
+    last.onended = () => {
+      void context.close();
+    };
+  }
 }

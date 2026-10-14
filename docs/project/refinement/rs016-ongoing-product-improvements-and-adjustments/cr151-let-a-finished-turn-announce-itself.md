@@ -312,3 +312,100 @@ this is not Eval's situation where the two share real Journeys. **But both deliv
 database**, so closing production is still the cleaner call for a test run — a different and much
 weaker reason than with Eval, and worth stating precisely rather than repeating Eval's rule as if it
 applied unchanged.
+
+## Field Result and Second Slice (2026-10-14)
+
+**Navigator report:** *"Funcionou."* The first slice is confirmed in the field on Dev — the tone
+plays, the switch works, the default is on.
+
+Three requests followed, all accepted, all in this CR because the surface being changed is the one
+this CR built:
+
+1. the settings belong beside **Voice**, with the tab renamed **"Sound & Voice"**;
+2. **three** success tones rather than one;
+3. chosen in Settings.
+
+### Renaming is not adding, which is why the earlier objection does not apply
+
+The first slice declined to create a tab because *"adding one would change `settingsTabs`, which the
+keyboard-navigation guards pin, for one boolean."* That reasoning does not transfer to a rename. The
+tab keeps its **`voice` id**, so every panel id, `aria-controls` and the keyboard navigation order is
+untouched and only the label moves. Both facts are now guarded: the label is pinned to
+`"Sound & Voice"`, the id to `voice`, and the tab count to six.
+
+`settingsTabList.test.ts` asserted `toContain("Voice")`, which `"Sound & Voice"` satisfies — so the
+rename would have passed silently. The new guard asserts the whole entry instead.
+
+### Three tones, with the field-validated one kept and kept default
+
+A tone is now a short **sequence** rather than a single beep: one sine wave can only move in pitch
+and length, which is not enough room for three options a listener can tell apart and still like.
+
+| id | shape | notes |
+|---|---|---|
+| `chime` *(default)* | one short high note | 880 Hz / 160 ms — **the tone that was heard in the field** |
+| `rise` | two notes going up | 659.25 → 987.77 Hz |
+| `bell` | two notes going down with a tail | 1174.66 → 880 Hz, 330 ms total |
+| *failure* | one low longer note | 220 Hz / 320 ms — **not selectable** |
+
+The failure tone is deliberately **not** a choice. The Navigator asked to choose among success
+sounds; a failure is not an occasion for taste, and a test asserts the chosen tone cannot reach it.
+
+### Selecting a tone plays it
+
+Choosing a sound you cannot hear is the same defect as judging a tone from a specification, which is
+exactly what sent the first version to the field to be corrected. So the preview exists — and it is
+**gated on the switch**, because *off means no audio code runs* is an acceptance of this CR and a
+second trigger would otherwise walk around it. While the sound is off the choice can still be made,
+silently, and takes effect when it is switched back on.
+
+### A layering inversion avoided rather than accepted
+
+`journeyPreferencePersistence` has to validate a stored tone id, and a preference file is domain. The
+first attempt imported the vocabulary from `app/turnCompletionSound`, which would have been the first
+**runtime** dependency from `domain/` into `app/` — the one existing import of that direction,
+`contextReading`'s, is an `import type` that erases at compile time. So the vocabulary moved to
+`src/domain/turnCompletionTone.ts` and the player stayed in `app/`. Guarded.
+
+### A claim of mine that a test disproved
+
+I wrote that the failure tone *"stays below every success option and longer than all of them."* The
+second half is false: `bell` totals 330 ms against the failure's 320, because `bell` wants a tail.
+**The claim moved to match the tones rather than the tones being bent to match the claim** — what is
+asserted now is that the failure is more than an octave below every success note and has the longest
+single note, both true and both carrying the distinction.
+
+### A guard of mine that was too wide
+
+The first version of the staleness guard forbade reading `turnCompletionSound` from state anywhere,
+and **failed on a correct use**: the Settings preview runs from a click, where the current render is
+the right answer. It is now pinned to exactly one bare read, located inside the preview call, rather
+than banned outright. Both refs are still required at both settlement sites.
+
+### Eight controls, each applied under a gate and failing on the right assertion
+
+| control | failed on |
+|---|---|
+| the chosen tone ignored | chosen-tone, double-announce, preview |
+| an invalid id falling to silence | the degradation guard |
+| two tones made identical | the distinguishability guard |
+| the preview walking around the switch | preview silence **and** no-AudioContext |
+| only the first note played | the oscillator-per-step count |
+| the section back in Appearance | the panel-location guard |
+| the rename changing the id too | the id/label/count guard |
+| the tone id read from state | the two-ref guard |
+
+### A fourth indentation error, and the practice that ends the class
+
+Hand-written indentation was wrong for the fourth time, aborted at its assert with the file
+untouched. Every edit in this slice afterwards used content anchors that inherit **the anchor line's
+own** indentation, and no indentation was typed by hand again.
+
+### What is still not claimed
+
+**No test can hear a tone.** The suite asserts which tone is chosen, that the four stay
+distinguishable, that a two-note tone schedules two oscillators on one context, and that nothing is
+chosen when the preference is off. Whether `rise` and `bell` are *pleasant* is the field's.
+
+Gates: `tsc` clean, **264 files / 2,145 tests**, cargo 324 passed / 3 ignored, build clean, roadmap
+READY.

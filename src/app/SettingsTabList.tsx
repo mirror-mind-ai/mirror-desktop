@@ -5,7 +5,10 @@ export const settingsTabs = [
   { id: "user-profile", label: "User Profile" },
   { id: "agent", label: "Agent" },
   { id: "runtime", label: "Runtime" },
-  { id: "voice", label: "Voice" },
+  // CR151: renamed at the Navigator's request after the completion-sound settings moved here. The
+  // `id` is deliberately unchanged, so panel ids, `aria-controls` and the keyboard navigation order
+  // are untouched and only the label moves.
+  { id: "voice", label: "Sound & Voice" },
   { id: "updates", label: "Updates" },
 ] as const;
 

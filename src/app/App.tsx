@@ -181,7 +181,8 @@ import {
 } from "../domain/compactionChapters";
 import { compactJourneySession } from "./compactionStorage";
 import { classifyCompactionRefusal, clearCompactionNoticeOnNewTurn, compactionNoticeLifecycle } from "./compactionNoticeLifecycle";
-import { announceSettlement, playTurnCompletionTone } from "./turnCompletionSound";
+import { announceSettlement, playTurnCompletionTone, previewTurnCompletionTone } from "./turnCompletionSound";
+import { TURN_COMPLETION_SUCCESS_TONES, TURN_COMPLETION_TONE_IDS } from "../domain/turnCompletionTone";
 import { manualCompactionAvailability } from "./manualCompactionAvailability";
 import { journeyStartAvailability } from "./journeyStartAvailability";
 import { describeAdmissionRefusal } from "./admissionRefusal";
@@ -635,10 +636,17 @@ export function App({ model }: AppProps) {
   // run for ninety seconds. Read from state, switching the sound off mid-turn would still be
   // followed by a tone: the "I turned it off and it did not obey" surface this CR refused to
   // build deliberately elsewhere. The ref is read at the moment of the act.
+  // CR151, after the field: which success tone plays. Separate from the switch so that turning
+  // the sound off and on again restores the chosen tone instead of resetting it.
+  const [turnCompletionToneId, setTurnCompletionToneId] = useState(defaultJourneyPreferenceState.turnCompletionToneId);
   const turnCompletionSoundRef = useRef(turnCompletionSound);
+  // Same reason as the switch above: a settlement is announced from inside the run loop, which
+  // closes over the render that started the turn, so changing the tone mid-turn must take effect.
+  const turnCompletionToneIdRef = useRef(turnCompletionToneId);
   useEffect(() => {
     turnCompletionSoundRef.current = turnCompletionSound;
-  }, [turnCompletionSound]);
+    turnCompletionToneIdRef.current = turnCompletionToneId;
+  }, [turnCompletionSound, turnCompletionToneId]);
   const [lastWorkedAtByJourneyId, setLastWorkedAtByJourneyId] = useState(defaultJourneyPreferenceState.lastWorkedAtByJourneyId);
   const [applicationTheme, setApplicationTheme] = useState<ApplicationTheme>(defaultJourneyPreferenceState.applicationTheme);
   const [journeyAppearanceById, setJourneyAppearanceById] = useState<JourneyAppearanceById>(defaultJourneyPreferenceState.journeyAppearanceById);
@@ -1815,6 +1823,7 @@ export function App({ model }: AppProps) {
       setSidebarCompact(sanitizedPreferences.sidebarCompact);
       setHideMirrorHistory(sanitizedPreferences.hideMirrorHistory);
       setTurnCompletionSound(sanitizedPreferences.turnCompletionSound);
+      setTurnCompletionToneId(sanitizedPreferences.turnCompletionToneId);
       dispatchConversationExpansion({ type: "restore", journeyIds: sanitizedPreferences.expandedConversationJourneyIds });
       setHiddenConversations(sanitizedPreferences.hiddenConversationIdsByJourneyId);
       setLastConversationSelection(sanitizedPreferences.lastConversationSelectionByJourneyId);
@@ -2476,8 +2485,9 @@ export function App({ model }: AppProps) {
       lastConversationSelectionByJourneyId: lastConversationSelection,
       hideMirrorHistory,
       turnCompletionSound,
+      turnCompletionToneId,
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, hideMirrorHistory, turnCompletionSound, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, hideMirrorHistory, turnCompletionSound, turnCompletionToneId, registryLoaded, preferencesLoaded]);
 
   // CR133: disclosures restored from the preference file load their catalogs one after
   // another. Reopening with many groups expanded must not start many catalog subprocesses
@@ -3735,6 +3745,7 @@ export function App({ model }: AppProps) {
           announceSettlement({
             record: timingRecord,
             enabled: turnCompletionSoundRef.current,
+            toneId: turnCompletionToneIdRef.current,
             play: playTurnCompletionTone,
           });
           dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
@@ -4102,6 +4113,7 @@ export function App({ model }: AppProps) {
     announceSettlement({
       record: timingRecord,
       enabled: turnCompletionSoundRef.current,
+      toneId: turnCompletionToneIdRef.current,
       play: playTurnCompletionTone,
     });
     setFinishingPhases((current) => {
@@ -7050,34 +7062,6 @@ export function App({ model }: AppProps) {
                 Restore default
               </button>
                 </section>
-                {/*
-                  CR151: the Navigator asked for the switch in Settings. It lives in this panel rather than a
-                  new tab because there is no "General" tab and adding one would change `settingsTabs`, which
-                  the keyboard-navigation guards pin, for one boolean. Its own section with its own label keeps
-                  it from reading as part of Appearance.
-
-                  The state carries TEXT, under CR102's rule: a control whose only state signal is a tinted
-                  background does not survive a greyscale display or a reduced-motion preference.
-                */}
-                <section className="settings-section sound-card" aria-label="Turn completion sound">
-                  <h3>Sound</h3>
-                  <p className="settings-sound-hint">
-                    A short tone when a turn finishes settling. A settlement that fails sounds different from
-                    one that succeeds, and a turn you cancelled yourself stays silent.
-                  </p>
-                  <button
-                    className={`settings-sound-toggle${turnCompletionSound ? " is-on" : ""}`}
-                    type="button"
-                    onClick={() => setTurnCompletionSound((current) => !current)}
-                    aria-pressed={turnCompletionSound}
-                    title={turnCompletionSound
-                      ? "Turn the completion sound off"
-                      : "Turn the completion sound on"}
-                  >
-                    <span aria-hidden="true">{turnCompletionSound ? "◆" : "◇"}</span>
-                    <span>{turnCompletionSound ? "Sound on" : "Sound off"}</span>
-                  </button>
-                </section>
               </div>
             ) : null}
 
@@ -7230,6 +7214,74 @@ export function App({ model }: AppProps) {
                 role="tabpanel"
                 aria-labelledby="settings-tab-voice"
               >
+                {/*
+                  CR151, after the field: the Navigator asked for these settings to sit beside Voice, with the tab
+                  renamed "Sound & Voice". Renaming is not adding — the tab keeps its `voice` id, so every panel
+                  id, `aria-controls` and the keyboard navigation order are untouched and only the label moves.
+                  That is why the earlier objection to creating a tab does not apply to this change.
+
+                  The state carries TEXT, under CR102's rule: a control whose only state signal is a tinted
+                  background does not survive a greyscale display or a reduced-motion preference.
+                */}
+                <section className="settings-section sound-card" aria-label="Turn completion sound">
+                  <h3>Turn completion sound</h3>
+                  <p className="settings-sound-hint">
+                    A short tone when a turn finishes settling. A settlement that fails always sounds different
+                    from one that succeeds, and a turn you cancelled yourself stays silent.
+                  </p>
+                  <button
+                    className={`settings-sound-toggle${turnCompletionSound ? " is-on" : ""}`}
+                    type="button"
+                    onClick={() => setTurnCompletionSound((current) => !current)}
+                    aria-pressed={turnCompletionSound}
+                    title={turnCompletionSound
+                      ? "Turn the completion sound off"
+                      : "Turn the completion sound on"}
+                  >
+                    <span aria-hidden="true">{turnCompletionSound ? "◆" : "◇"}</span>
+                    <span>{turnCompletionSound ? "Sound on" : "Sound off"}</span>
+                  </button>
+                  {/*
+                    Selecting an option plays it, because choosing a sound you cannot hear is the same defect that
+                    sent the first tone to the field to be corrected. The preview is gated on the switch so that
+                    "off means no audio code runs" holds for this trigger too; the choice can still be made
+                    silently while the sound is off.
+
+                    `radiogroup` rather than a new idiom, because the theme chooser two panels away already poses
+                    this exact question and the Navigator already reads that shape.
+                  */}
+                  <div className="settings-tone-choices" role="radiogroup" aria-label="Success tone">
+                    {TURN_COMPLETION_TONE_IDS.map((toneId) => {
+                      const tone = TURN_COMPLETION_SUCCESS_TONES[toneId];
+                      const selected = turnCompletionToneId === toneId;
+                      return (
+                        <button
+                          className={`settings-tone-choice ${selected ? "selected" : ""}`}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() => {
+                            setTurnCompletionToneId(toneId);
+                            previewTurnCompletionTone({
+                              toneId,
+                              enabled: turnCompletionSound,
+                              play: playTurnCompletionTone,
+                            });
+                          }}
+                          key={toneId}
+                        >
+                          <span className="settings-tone-choice-label">{tone.label}</span>
+                          <span className="settings-tone-choice-note">{tone.description}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="settings-sound-hint settings-tone-preview-note">
+                    {turnCompletionSound
+                      ? "Choosing a tone plays it."
+                      : "Turn the sound on to hear a tone while choosing."}
+                  </p>
+                </section>
                 <VoiceSettingsPanel
                   status={voiceStatus}
                   installing={voiceInstalling}

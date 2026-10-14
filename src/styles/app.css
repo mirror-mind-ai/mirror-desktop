@@ -8850,6 +8850,40 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   gap: 7px;
   padding: 7px 11px;
 }
+/* CR151, after the field: the three success tones. Shaped like the theme chooser two panels away
+   rather than as a fourth idiom, because that control already poses this exact question. Each
+   option carries its label and a plain description, so the choice is legible before it is heard
+   and still legible on a greyscale display under CR102. */
+.settings-tone-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.settings-tone-choice {
+  align-items: flex-start;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 148px;
+  padding: 9px 12px;
+  text-align: left;
+}
+.settings-tone-choice:hover,
+.settings-tone-choice:focus-visible { color: var(--text); outline: none; }
+.settings-tone-choice.selected {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  color: var(--text);
+}
+.settings-tone-choice-label { font-size: 0.74rem; font-weight: 620; }
+.settings-tone-choice-note { font-size: 0.68rem; line-height: 1.4; opacity: 0.82; }
+.settings-tone-preview-note { margin: 10px 0 0; }
+
 .settings-sound-toggle:hover,
 .settings-sound-toggle:focus-visible { color: var(--text); outline: none; }
 .settings-sound-toggle.is-on {
