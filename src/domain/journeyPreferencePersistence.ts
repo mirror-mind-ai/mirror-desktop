@@ -47,6 +47,11 @@ export type PersistedJourneyPreferences = {
     // that justified it found 41, 45 and 57 Mirror entries across three Journeys — the noise is
     // universal, so per-Journey would make the Navigator state one intent thirteen times.
     hideMirrorHistory: boolean;
+    // CR151: whether a settled or failed turn announces itself with a short tone. Global, and in
+    // this file rather than `agent-settings.json`, because that file holds `globalProfile` and
+    // `journeyOverrides` — how the *agent* runs — and this is how the *application* behaves, like
+    // every neighbour above.
+    turnCompletionSound: boolean;
   };
   savedAt: string;
 };
@@ -67,6 +72,10 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   hiddenConversationIdsByJourneyId: EMPTY_HIDDEN_CONVERSATIONS,
   lastConversationSelectionByJourneyId: EMPTY_CONVERSATION_SELECTION_MEMORY,
   hideMirrorHistory: false,
+  // CR151: on, because the Navigator asked for this sound. The caution against a sound that arrives
+  // switched on applies to one nobody requested; shipping a requested feature silent makes it look
+  // like it never arrived.
+  turnCompletionSound: true,
 };
 
 export function createPersistedJourneyPreferences(
@@ -122,6 +131,11 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
   // see is a view preference, and an invalid value must never be able to cost them their pins,
   // theme or recents. So it degrades to `false` — showing everything — rather than failing the file.
   const hideMirrorHistory = parseHideMirrorHistory(preferences.hideMirrorHistory) ?? false;
+  // CR151 takes the same departure, degrading to the *default* rather than to silence. An
+  // unexpected tone is noticed once and switched off; unexpected silence is indistinguishable from
+  // the feature being broken, which is the harder failure to report.
+  const turnCompletionSound = parseTurnCompletionSoundPreference(preferences.turnCompletionSound)
+    ?? defaultJourneyPreferenceState.turnCompletionSound;
   const voiceLanguage = preferences.voiceLanguage === undefined
     ? defaultVoiceLanguage
     : parseVoiceLanguage(preferences.voiceLanguage);
@@ -154,6 +168,7 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       hiddenConversationIdsByJourneyId,
       lastConversationSelectionByJourneyId,
       hideMirrorHistory,
+      turnCompletionSound,
     },
     savedAt: record.savedAt,
   };
@@ -184,6 +199,9 @@ export function sanitizeJourneyPreferenceState(
     // CR153: carried through unchanged. It names a kind rather than a Journey, so there is no
     // registry entry it could be stale against — unlike every per-Journey field above it.
     hideMirrorHistory: preferences.hideMirrorHistory,
+    // CR151: carried through unchanged for the same reason as its neighbour — it names a behaviour,
+    // not a Journey, so there is no registry entry it could be stale against.
+    turnCompletionSound: preferences.turnCompletionSound,
   };
 }
 
@@ -192,6 +210,10 @@ export function mergeJourneyPreferenceState(
   defaults = defaultJourneyPreferenceState,
 ): JourneyPreferenceState {
   return persisted ? { ...defaults, ...persisted.preferences } : defaults;
+}
+
+function parseTurnCompletionSoundPreference(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
 }
 
 function parseStringArray(value: unknown): string[] | undefined {

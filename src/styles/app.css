@@ -8827,6 +8827,37 @@ body.is-resizing-sidebar .app-shell { transition: none; }
    `focused-conversation-hidden-toggle` on purpose: both are controls about what this list is
    showing, and the count rides in the label so this reduction reports itself without borrowing
    the hidden section's line or costing a second row. */
+/* CR151: the completion-sound switch, shaped like the kind filter rather than inventing a third
+   toggle idiom. The state is carried by the label text under CR102, so the tinted background is
+   reinforcement and never the only signal. */
+.sound-card .settings-sound-hint {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
+  margin: 0 0 10px;
+  max-width: 52ch;
+}
+.settings-sound-toggle {
+  align-items: center;
+  align-self: start;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  display: flex;
+  font-size: 0.72rem;
+  font-weight: 600;
+  gap: 7px;
+  padding: 7px 11px;
+}
+.settings-sound-toggle:hover,
+.settings-sound-toggle:focus-visible { color: var(--text); outline: none; }
+.settings-sound-toggle.is-on {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  color: var(--text);
+}
+
 .focused-conversation-kind-filter {
   align-items: center;
   align-self: start;

@@ -16,6 +16,7 @@ describe("Journey management guardrails", () => {
       hiddenConversationIdsByJourneyId: { nautilus: ["desktop_conversation:abc"] },
       sidebarCompact: true,
       hideMirrorHistory: false,
+      turnCompletionSound: true,
       lastWorkedAtByJourneyId: { nautilus: "2026-09-02T15:00:00.000Z" },
       applicationTheme: "tide",
       journeyAppearanceById: { nautilus: { kind: "custom" } },
@@ -40,6 +41,7 @@ describe("Journey management guardrails", () => {
       "pinnedJourneyIds",
       "recentJourneyIds",
       "sidebarCompact",
+      "turnCompletionSound",
       "voiceLanguage",
     ]);
     expect(JSON.stringify(persisted).toLowerCase()).not.toMatch(/api[_-]?key|token|secret|password|env/);

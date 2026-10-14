@@ -181,6 +181,7 @@ import {
 } from "../domain/compactionChapters";
 import { compactJourneySession } from "./compactionStorage";
 import { classifyCompactionRefusal, clearCompactionNoticeOnNewTurn, compactionNoticeLifecycle } from "./compactionNoticeLifecycle";
+import { announceSettlement, playTurnCompletionTone } from "./turnCompletionSound";
 import { manualCompactionAvailability } from "./manualCompactionAvailability";
 import { journeyStartAvailability } from "./journeyStartAvailability";
 import { describeAdmissionRefusal } from "./admissionRefusal";
@@ -626,6 +627,18 @@ export function App({ model }: AppProps) {
   // CR153: global, like `sidebarCompact` beside it, because the Mirror history it excludes is a
   // kind rather than a property of any one Journey.
   const [hideMirrorHistory, setHideMirrorHistory] = useState(defaultJourneyPreferenceState.hideMirrorHistory);
+  // CR151: global like the two above it, because a completion tone is a property of the
+  // application rather than of any one Journey.
+  const [turnCompletionSound, setTurnCompletionSound] = useState(defaultJourneyPreferenceState.turnCompletionSound);
+  // CR151 applies CR149's lesson to a preference instead of a clock. A settlement is announced
+  // inside the run loop, which closes over the render that *started* the turn — and a turn can
+  // run for ninety seconds. Read from state, switching the sound off mid-turn would still be
+  // followed by a tone: the "I turned it off and it did not obey" surface this CR refused to
+  // build deliberately elsewhere. The ref is read at the moment of the act.
+  const turnCompletionSoundRef = useRef(turnCompletionSound);
+  useEffect(() => {
+    turnCompletionSoundRef.current = turnCompletionSound;
+  }, [turnCompletionSound]);
   const [lastWorkedAtByJourneyId, setLastWorkedAtByJourneyId] = useState(defaultJourneyPreferenceState.lastWorkedAtByJourneyId);
   const [applicationTheme, setApplicationTheme] = useState<ApplicationTheme>(defaultJourneyPreferenceState.applicationTheme);
   const [journeyAppearanceById, setJourneyAppearanceById] = useState<JourneyAppearanceById>(defaultJourneyPreferenceState.journeyAppearanceById);
@@ -1801,6 +1814,7 @@ export function App({ model }: AppProps) {
       setJourneyListOrder(sanitizedPreferences.journeyListOrder);
       setSidebarCompact(sanitizedPreferences.sidebarCompact);
       setHideMirrorHistory(sanitizedPreferences.hideMirrorHistory);
+      setTurnCompletionSound(sanitizedPreferences.turnCompletionSound);
       dispatchConversationExpansion({ type: "restore", journeyIds: sanitizedPreferences.expandedConversationJourneyIds });
       setHiddenConversations(sanitizedPreferences.hiddenConversationIdsByJourneyId);
       setLastConversationSelection(sanitizedPreferences.lastConversationSelectionByJourneyId);
@@ -2461,8 +2475,9 @@ export function App({ model }: AppProps) {
       hiddenConversationIdsByJourneyId: hiddenConversations,
       lastConversationSelectionByJourneyId: lastConversationSelection,
       hideMirrorHistory,
+      turnCompletionSound,
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, hideMirrorHistory, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, hideMirrorHistory, turnCompletionSound, registryLoaded, preferencesLoaded]);
 
   // CR133: disclosures restored from the preference file load their catalogs one after
   // another. Reopening with many groups expanded must not start many catalog subprocesses
@@ -3714,6 +3729,14 @@ export function App({ model }: AppProps) {
               console.warn(`settlement timing not recorded for ${ownerJourneyId}: ${reason}`);
             });
           }
+          // CR151: the record is the key, not this moment. `end` has already deleted the collector, so
+          // if the abandonment act reaches the same Journey afterwards it receives `undefined` and stays
+          // silent — one settlement cannot announce itself twice.
+          announceSettlement({
+            record: timingRecord,
+            enabled: turnCompletionSoundRef.current,
+            play: playTurnCompletionTone,
+          });
           dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });
           await refreshTurnJournalEvidence(ownerJourneyId);
         }
@@ -4074,6 +4097,13 @@ export function App({ model }: AppProps) {
         console.warn(`settlement timing not recorded for ${journeyId}: ${reason}`);
       });
     }
+    // CR151: an abandoned settlement sounds like a failure, because its record says `failed`. No
+    // branch of its own, and no risk of doubling with the settlement block for the same reason.
+    announceSettlement({
+      record: timingRecord,
+      enabled: turnCompletionSoundRef.current,
+      play: playTurnCompletionTone,
+    });
     setFinishingPhases((current) => {
       if (!(journeyId in current)) return current;
       const { [journeyId]: _ended, ...rest } = current;
@@ -7019,6 +7049,34 @@ export function App({ model }: AppProps) {
               >
                 Restore default
               </button>
+                </section>
+                {/*
+                  CR151: the Navigator asked for the switch in Settings. It lives in this panel rather than a
+                  new tab because there is no "General" tab and adding one would change `settingsTabs`, which
+                  the keyboard-navigation guards pin, for one boolean. Its own section with its own label keeps
+                  it from reading as part of Appearance.
+
+                  The state carries TEXT, under CR102's rule: a control whose only state signal is a tinted
+                  background does not survive a greyscale display or a reduced-motion preference.
+                */}
+                <section className="settings-section sound-card" aria-label="Turn completion sound">
+                  <h3>Sound</h3>
+                  <p className="settings-sound-hint">
+                    A short tone when a turn finishes settling. A settlement that fails sounds different from
+                    one that succeeds, and a turn you cancelled yourself stays silent.
+                  </p>
+                  <button
+                    className={`settings-sound-toggle${turnCompletionSound ? " is-on" : ""}`}
+                    type="button"
+                    onClick={() => setTurnCompletionSound((current) => !current)}
+                    aria-pressed={turnCompletionSound}
+                    title={turnCompletionSound
+                      ? "Turn the completion sound off"
+                      : "Turn the completion sound on"}
+                  >
+                    <span aria-hidden="true">{turnCompletionSound ? "◆" : "◇"}</span>
+                    <span>{turnCompletionSound ? "Sound on" : "Sound off"}</span>
+                  </button>
                 </section>
               </div>
             ) : null}

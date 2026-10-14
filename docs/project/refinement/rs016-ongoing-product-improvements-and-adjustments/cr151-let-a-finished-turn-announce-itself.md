@@ -2,9 +2,9 @@
 
 # CR151: Let a Finished Turn Announce Itself
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** assistant
+**Delivery:** `refinement/cr151-let-a-finished-turn-announce-itself`
 **Navigator priority:** 3 of 8 (intake 2026-10-12)
 
 ## Friction
@@ -198,3 +198,64 @@ truth about them. Off means no audio code runs, not audio played at zero volume.
 Absence of audio playback established by searching `src/` for playback APIs on 2026-10-12; only
 `voiceCapture.ts` matched, for recording. Settings and preference storage read from the file list.
 The duration range is from this Journey's fifteen measured Pi executions.
+
+## Delivery (2026-10-14)
+
+Built as scoped, with two departures from the plan and one gap the plan did not anticipate.
+
+### The preference is read from a ref, which the scope did not say
+
+Site 1 announces from inside the run loop, which closes over the render that **started** the turn —
+and a turn can run for ninety seconds. Read from state, switching the sound off mid-turn would still
+have been followed by a tone: exactly the *"I turned it off and it did not obey"* surface this CR
+refused to build when it declined focus gating.
+
+This is **CR149's lesson applied to a preference instead of a clock** — that release's own comment
+reads *"evaluated against the clock at the moment of the act rather than against whatever the last
+render believed."* So `turnCompletionSoundRef` is read at the moment of the act, kept in sync by one
+effect.
+
+### A control found a guard that was missing, not a defect
+
+The control that replaced `turnCompletionSoundRef.current` with `turnCompletionSound` **passed**.
+Nothing in the suite noticed the staleness the paragraph above was written about — the reasoning was
+in a comment and nowhere else. A guard was added that pins both sites to the ref and refuses the
+bare state read, and the control then failed on it.
+
+### A control that proved nothing, caught because it printed the wrong kind of nothing
+
+The first attempt at the module-scope-construction control hoisted `new Constructor()` to module
+scope, where `Constructor` is a function-local. Vitest reported **"no tests"** — the module threw on
+import. That is a load failure, not a guard working. Rebuilt as a `warmUpAudio()` function declared
+before the player, it compiles, imports, and fails **two** assertions: the source-shape count, and
+the behavioural one that counts constructions.
+
+### Six controls, each compiling and then failing on the right assertion
+
+| control | failed on |
+|---|---|
+| the preference is ignored | silence with it off, and no-AudioContext |
+| keyed on a locally computed outcome instead of the record | the record-provenance guard (2 sites) |
+| the two tones moved close together | the distinguishability guard |
+| construction hoisted above the player | the shape guard **and** the construction count |
+| the abandonment site unwired | call count, provenance, and the ref guard |
+| the preference read from state | the ref guard (the one this found) |
+
+### Three of my own mechanical errors, all caught by an assert before any write
+
+Indentation was read off `sed`-decorated output three times and was wrong by exactly two spaces each
+time. Every one aborted at its assert with the file untouched, and the third fix removed the class of
+error rather than the instance: insertions now find their anchor by content and inherit **that
+line's own** indentation. A fourth attempt placed a shell environment assignment after the command
+instead of before it, so four controls aborted having applied nothing — visibly, with the result
+named invalid rather than reported.
+
+### What is not claimed
+
+**No test can hear a tone.** The suite asserts which tone was chosen, that the two are far enough
+apart that a future edit cannot quietly merge them, and that nothing is chosen when the preference is
+off. Whether 880 Hz and 220 Hz are *pleasant* is the field's to judge, and replacing the tone with an
+asset remains the recorded fallback.
+
+Gates: `tsc` clean, **264 files / 2,133 tests**, cargo 324 passed / 3 ignored, build clean, roadmap
+READY.

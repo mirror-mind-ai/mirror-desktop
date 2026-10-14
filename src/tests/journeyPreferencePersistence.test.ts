@@ -25,6 +25,7 @@ describe("Journey preference persistence", () => {
           applicationTheme: "violet",
           journeyAppearanceById: { nautilus: { kind: "system", icon: "book" } },
           voiceLanguage: "auto",
+          turnCompletionSound: true,
           lastConversationSelectionByJourneyId: {
             nautilus: { kind: "desktop_conversation", conversationId: "desktop-conversation-nautilus-1" },
           },
@@ -44,6 +45,7 @@ describe("Journey preference persistence", () => {
         applicationTheme: "violet",
         journeyAppearanceById: { nautilus: { kind: "system", icon: "book" } },
         voiceLanguage: "auto",
+        turnCompletionSound: true,
         expandedConversationJourneyIds: [],
         hiddenConversationIdsByJourneyId: { nautilus: ["desktop_conversation:one"] },
         lastConversationSelectionByJourneyId: {
@@ -117,6 +119,7 @@ describe("Journey preference persistence", () => {
           },
           sidebarCompact: true,
           hideMirrorHistory: false,
+          turnCompletionSound: true,
           lastWorkedAtByJourneyId: {
             amplia: "2026-08-23T09:00:00.000Z",
             missing: "2026-08-23T08:00:00.000Z",
@@ -141,6 +144,9 @@ describe("Journey preference persistence", () => {
       journeyListOrder: "tree",
       sidebarCompact: true,
       hideMirrorHistory: false,
+      // CR151: survives sanitization for the same reason as the line above — it names a behaviour,
+      // not a Journey, so pruning a departed Journey has nothing to prune here.
+      turnCompletionSound: true,
       lastWorkedAtByJourneyId: { amplia: "2026-08-23T09:00:00.000Z" },
       applicationTheme: "ember",
       journeyAppearanceById: { amplia: { kind: "system", icon: "book" } },
