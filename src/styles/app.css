@@ -102,6 +102,21 @@ textarea {
   --shell-middle: #101516;
   --shell-end: #101b1f;
   --sidebar-surface: rgba(13, 16, 17, 0.96);
+  /* CR151: the token contract these rules were always written against, but which was never
+     declared. `--text`, `--text-muted`, `--border`, `--ui-text`, `--ui-muted` and a shell-scoped
+     `--accent` were used by 102 rules and defined by none of them, so every one of those
+     declarations was invalid at computed-value time: colours silently inherited (white on white in
+     the light families) and borders collapsed to `none`. Declaring the contract repairs all of them
+     at once rather than patching the three controls that happened to be reported. */
+  --text: #e6edf0;
+  --text-muted: #9aa8ad;
+  --border: rgba(255, 255, 255, 0.12);
+  --ui-text: var(--text);
+  --ui-muted: var(--text-muted);
+  /* `--accent` did exist, but only under `.journey-item` and the `.accent-*` classes, so its 43
+     uses outside that subtree — Settings among them — resolved to nothing. Shell scope makes it
+     the application accent it already reads as everywhere else. */
+  --accent: var(--ui-accent);
   display: grid;
   grid-template-columns: var(--focused-sidebar-width, 292px) minmax(560px, 1fr);
   height: 100vh;
@@ -247,6 +262,16 @@ textarea {
   --ui-held-on: #ffffff;
   --ui-danger: #b42318;
   --ui-danger-on: #ffffff;
+  /* CR151: the same contract for the light families, mapped onto the `--light-*` palette that
+     already exists rather than onto new colours. `--light-muted` measures about 5:1 on
+     `--light-surface`; the dark values it replaces measured well under 1.5:1 and were the
+     white-on-white the Navigator photographed. */
+  --text: var(--light-text);
+  --text-muted: var(--light-muted);
+  --border: var(--light-border);
+  --ui-text: var(--light-text);
+  --ui-muted: var(--light-muted);
+  --accent: var(--light-accent);
 }
 
 .app-shell.channel-development[data-application-theme="channel"] .journey-sidebar {
@@ -8875,9 +8900,15 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 }
 .settings-tone-choice:hover,
 .settings-tone-choice:focus-visible { color: var(--text); outline: none; }
+/* CR151: the selected marker follows `.theme-choice.selected`, which is the control two panels
+   away that poses this same question and demonstrably reads in both families. The inset bar is the
+   part that carries the state when a tint alone is too quiet — the Navigator reported seeing no
+   highlight at all, and while the undeclared tokens were the cause, a 14% wash was never going to
+   be enough on its own. */
 .settings-tone-choice.selected {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background: rgba(var(--ui-accent-rgb), 0.12);
+  border-color: rgba(var(--ui-accent-rgb), 0.48);
+  box-shadow: inset 2px 0 0 var(--ui-accent);
   color: var(--text);
 }
 .settings-tone-choice-label { font-size: 0.74rem; font-weight: 620; }
@@ -8887,8 +8918,8 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 .settings-sound-toggle:hover,
 .settings-sound-toggle:focus-visible { color: var(--text); outline: none; }
 .settings-sound-toggle.is-on {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background: rgba(var(--ui-accent-rgb), 0.12);
+  border-color: rgba(var(--ui-accent-rgb), 0.48);
   color: var(--text);
 }
 

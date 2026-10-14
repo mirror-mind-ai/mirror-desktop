@@ -441,3 +441,86 @@ label returns **0** from the binary and **1** from `dist/assets/index-CRJKqsOV.j
 dist 12:56:12, binary 12:58:07 — the same build. The two absences are the half that distinguishes
 this build from the one installed ninety minutes earlier; every presence above would also have
 matched a build that merely contained the first slice's strings plus new ones.
+
+## Third Slice: the theme token contract (2026-10-14)
+
+**Navigator report:** *"Alguns problemas de contraste nos temas claros. No tema escuro, a opção que
+eu marco não fica com highlight."* — with three screenshots.
+
+The screenshots showed more than the tone selector. In the light family, **"Desktop only" (CR153),
+"2 hidden" (CR135) and every "Reveal" button** were white on white, alongside `Chime` and `Rise`. So
+the cause was not the control that was just built.
+
+### The cause: a token contract that was used by 102 rules and declared by none
+
+| token | uses | declared |
+|---|---|---|
+| `--text-muted` | 24 rules | **never** |
+| `--text` | 18 rules | **never** |
+| `--border` | 12 rules | **never** |
+| `--ui-text` | 3 rules | **never** |
+| `--ui-muted` | 2 rules | **never** |
+| `--accent` | 43 rules outside its scope | only on `.journey-item` and `.accent-*` |
+
+A `var()` that resolves to nothing, with no fallback, makes the declaration invalid at
+**computed-value time**. `color` then falls back to **inherit**, which is why the light families
+showed white text on white surfaces; `border` resets to `none`, which is why no control in the new
+selector had an outline in either family. Nothing reports this — not the build, not `tsc`, not any
+test, because CSS does not fail loudly.
+
+Three uses had fallbacks (`--danger` twice, `--border-subtle` once) and were therefore harmless;
+**59 declarations had none**.
+
+### Declaring the contract, rather than patching the three controls that were photographed
+
+`--text`, `--text-muted`, `--border`, `--ui-text`, `--ui-muted` and a shell-scoped `--accent` are now
+declared on `.app-shell` for the dark families and in the existing three-light-family block, mapped
+onto the **`--light-*` palette that already existed** rather than onto new colours. `--light-muted`
+measures about 5:1 on `--light-surface`.
+
+**This is a deliberately broad repair and the risk is named rather than discovered:** roughly 102
+declarations that have been inert go live at once. Each was written by someone who intended it to
+work, so the expected outcome is the design as it was meant to look — but it is a wide visual change
+across the sidebar, the conversation list and Settings, and only the field can confirm it.
+
+### The selected tone also needed more than a wash
+
+The undeclared tokens explain the missing highlight, but a 14% tint was never going to be enough on
+its own. The selected state now follows `.theme-choice.selected` — the control two panels away that
+poses the same question and reads in both families — including its `inset 2px 0 0` bar.
+
+### A guard that would have caught this, and two holes in it that controls found
+
+`themeTokenContract.test.ts` asserts that every `var(--token)` without a fallback is declared
+somewhere, that each contract token is declared for both families and on `.app-shell` itself, and
+that the light families map onto their own palette.
+
+Two of my own guards were weaker than they claimed, and a control found each:
+
+- **The guard read itself.** The scan of inline-style declarations included `src/tests/`, where this
+  file's own assertion string `"--text-muted: var(--light-muted);"` contains a colon and was counted
+  as a declaration. The control that removed the token from both families **passed**. `src/tests/` is
+  now excluded — the same lesson already recorded for a Rust guard counting a symbol inside test
+  string literals, arriving in a second language.
+- **The accent guard checked existence, not scope.** It asserted the declaration appeared anywhere,
+  and passed with the shell declaration removed because `.journey-item` carries an identical line.
+  The scope was the entire claim, so the scope is what it reads now.
+
+### Seven controls
+
+| control | failed on |
+|---|---|
+| a token used and never declared | the undeclared guard, after the self-reading hole was closed |
+| the contract declared only for dark | both-families and light-palette guards |
+| a light family given a new colour | the light-palette guard |
+| the accent losing shell scope | the scope guard, after it was made to read scope |
+| the selected state reduced to a wash | the marker guard |
+
+Gates: `tsc` clean, **265 files / 2,150 tests**, cargo 324 passed / 3 ignored, build clean, roadmap
+READY.
+
+### Not claimed
+
+**No test can see a colour.** The contrast figures come from the palette's own values, not from
+rendering. Whether the repair looks right across the sidebar, the conversation list and Settings, in
+all nine themes, is the field's.
