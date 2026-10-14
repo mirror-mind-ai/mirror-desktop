@@ -524,3 +524,39 @@ READY.
 **No test can see a colour.** The contrast figures come from the palette's own values, not from
 rendering. Whether the repair looks right across the sidebar, the conversation list and Settings, in
 all nine themes, is the field's.
+
+### Dev build for the token contract (2026-10-14)
+
+- Source `a3eec67`, worktree clean, 0 unpushed.
+- Installed binary `492a2436dc5e09b0d667d7fd079b1c697d23a183c56f9f4bc28556f44667a0bc`, identical to
+  the built one, replacing `a4f819f5…`.
+- Backup at `/tmp/Mirror Desktop Dev-20261014-132400.app`, hash-verified before the installed app was
+  removed. Built bundle identity checked before the destination was touched. `ps` gate before the
+  backup, again immediately before the copy, and once after — Dev closed at all three.
+
+This slice is CSS, so verification read the built **stylesheet** asset rather than the JS bundle:
+`dist/assets/index-bKCb66ZJ.css`.
+
+| check | expected | found |
+|---|---|---|
+| `--text`, `--text-muted`, `--border`, `--ui-text`, `--ui-muted` declared | 2 each — one dark, one light | **2 each** |
+| `--text-muted: #9aa8ad` / `--text-muted: var(--light-muted)` | both | both |
+| `--accent` declarations | 12 — the 10 pre-existing `.accent-*` and `.journey-item` lines plus the two contract ones | **12** |
+| `.settings-tone-choice` still using `color-mix` | **0** | **0** |
+| `.settings-tone-choice.selected` carrying `inset 2px` | 1 | **1** |
+| `9aa8ad` in the binary | 0 — the binary is blind to CSS as it is to JS | **0** |
+
+css written 13:21:18, binary 13:23:22 — the same build.
+
+**One remaining `42%,var(--border)` is in `.focused-conversation-create`** — the "+ New" button, a
+rule this slice never touched. It is not a leftover: it is one of the 102 declarations that was inert
+and now resolves, which is precisely the repair.
+
+### Six false zeros produced by my own instrument, inside the verification step
+
+The first run of these checks passed literals beginning with `--` to `grep`, which parsed them as
+options and returned **0** for every contract token. Six zeros that would have read as *"the change
+did not ship"* — in the one step whose entire job is to distinguish that from the opposite. The
+lesson this session has been circling arrived inside the check meant to apply it: a zero means
+nothing until the instrument is shown to be capable of returning non-zero. Re-run with `grep -oF --`,
+every count was correct.
