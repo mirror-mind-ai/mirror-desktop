@@ -124,19 +124,25 @@ export function setJourneyAgentOverride(
 }
 
 /**
- * CR154: a conversation override that merely repeats what the conversation would inherit is not
- * stored, field by field, and a choice that returns to the inherited value removes the entry.
+ * CR154: a pick in a conversation is stored as that conversation's own choice, exactly as the
+ * Settings Journey panel stores a Journey's. An empty override removes the entry, which is how the
+ * conversation goes back to following the Journey.
  *
- * The reason is not file size. A stored override stops following, so recording one that equals the
- * inherited value would silently turn a follower into a freezer — and a later change to the Journey
- * default would then skip exactly the conversations where the Navigator picked the value that
- * default already had. The production file shows the cost of the unconditional version: 12 of 15
- * Journey overrides are byte-identical to the global default, written by composer picks that had
- * nowhere finer to land.
+ * ~~A conversation override that merely repeats what the conversation would inherit is not stored,
+ * field by field, and a choice that returns to the inherited value removes the entry. A stored
+ * override stops following, so recording one that equals the inherited value would silently turn a
+ * follower into a freezer.~~ **Struck: the field refuted this, and it was mine.** The rule was a
+ * scope addition nobody asked for, and it made an explicit act a silent no-op — picking the model a
+ * conversation already inherited stored nothing, so the conversation never owned the choice and the
+ * Navigator's selection was not preserved.
  *
- * Unlike the Settings Journey panel, which offers an explicit `inherit` option and so can treat a
- * matching pick as a decision, the composer has no such choice to express — picking there is just
- * picking, so matching the inherited value means "nothing of my own".
+ * The reasoning was right about a *redundant* write and wrong about *this* write. "A stored override
+ * stops following" is a cost when nobody chose anything; it is the entire point when the Navigator
+ * chose. The asymmetry I had recorded as a decision — that the Settings panel writes unconditionally
+ * because it offers an explicit `inherit` while a composer pick "expresses nothing but the pick" —
+ * inverted the conclusion: a pick expressing nothing but the pick is precisely a choice to honour.
+ * The Navigator asked for the Journey's own semantics one grain finer, and the Journey grain writes
+ * what it is given.
  */
 export function setConversationAgentOverride(
   settings: AgentSettings,
@@ -145,27 +151,13 @@ export function setConversationAgentOverride(
 ): AgentSettings {
   const key = runtimeWorkspaceKey(workspace);
   assertConversationKey(key);
-  const withoutOwn = { ...settings, conversationOverrides: { ...settings.conversationOverrides } };
-  delete withoutOwn.conversationOverrides[key];
-  const inherited = resolveAgentProfile(withoutOwn, workspace);
-
-  const kept: AgentProfileOverride = {};
-  if (override.model && !sameModel(override.model, inherited.model)) kept.model = override.model;
-  if (override.thinkingLevel && override.thinkingLevel !== inherited.thinkingLevel) {
-    kept.thinkingLevel = override.thinkingLevel;
-  }
-
   const nextOverrides = { ...settings.conversationOverrides };
-  if (!kept.model && !kept.thinkingLevel) {
+  if (!override.model && !override.thinkingLevel) {
     delete nextOverrides[key];
   } else {
-    nextOverrides[key] = parseOverride(kept, `conversationOverrides.${key}`);
+    nextOverrides[key] = parseOverride(override, `conversationOverrides.${key}`);
   }
   return { ...settings, conversationOverrides: nextOverrides };
-}
-
-function sameModel(left: AgentModelSelection, right: AgentModelSelection): boolean {
-  return left.provider === right.provider && left.model === right.model;
 }
 
 export function parseAgentSettings(value: unknown): AgentSettings {

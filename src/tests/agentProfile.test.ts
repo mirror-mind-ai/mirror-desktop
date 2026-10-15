@@ -176,32 +176,57 @@ describe("conversation-grained agent profile", () => {
     });
   });
 
-  it("does not store a choice that merely repeats what the conversation would inherit", () => {
+  /**
+   * The field's own words: "select a model in one conversation and another model in another
+   * conversation, and when I switch back to those conversations the model I selected is preserved".
+   * This is that sequence, and it failed because a pick equal to the inherited value stored nothing.
+   */
+  it("keeps two conversations in one Journey on the models each of them chose", () => {
+    const first = journeyWorkspace("alpha", "thread-one");
+    const second = journeyWorkspace("alpha", "thread-two");
+    const journeyDefault = resolveAgentProfile(stored, first).model;
+
+    let settings = setConversationAgentOverride(stored, first, { model: opus });
+    // the second pick is the model this conversation already inherited — an explicit act all the same
+    settings = setConversationAgentOverride(settings, second, { model: journeyDefault });
+
+    expect(resolveAgentProfile(settings, first)).toMatchObject({ model: opus, modelSource: "conversation" });
+    expect(resolveAgentProfile(settings, second)).toMatchObject({
+      model: journeyDefault,
+      modelSource: "conversation",
+    });
+  });
+
+  it("stores a pick that equals the inherited value, so the conversation owns it", () => {
     const inherited = resolveAgentProfile(stored, alphaThread);
     const settings = setConversationAgentOverride(stored, alphaThread, {
       model: inherited.model,
       thinkingLevel: inherited.thinkingLevel,
     });
-    expect(settings.conversationOverrides).toEqual({});
-    expect(resolveAgentProfile(settings, alphaThread).modelSource).toBe("journey");
-  });
-
-  it("keeps only the fields that differ from the inherited value", () => {
-    const inherited = resolveAgentProfile(stored, alphaThread);
-    const settings = setConversationAgentOverride(stored, alphaThread, {
-      model: opus,
+    expect(settings.conversationOverrides[runtimeWorkspaceKey(alphaThread)]).toEqual({
+      model: inherited.model,
       thinkingLevel: inherited.thinkingLevel,
     });
-    expect(settings.conversationOverrides[runtimeWorkspaceKey(alphaThread)]).toEqual({ model: opus });
+    expect(resolveAgentProfile(settings, alphaThread).modelSource).toBe("conversation");
   });
 
-  it("removes the entry when a choice returns to the inherited value", () => {
+  it("stops following the Journey once the conversation has chosen, even on a matching pick", () => {
+    const inherited = resolveAgentProfile(stored, alphaThread);
+    const owned = setConversationAgentOverride(stored, alphaThread, { model: inherited.model });
+    const moved = setJourneyAgentOverride(owned, "alpha", { model: opus, thinkingLevel: "low" });
+    // the Journey default moved; this conversation holds what it was told to hold
+    expect(resolveAgentProfile(moved, alphaThread)).toMatchObject({
+      model: inherited.model,
+      modelSource: "conversation",
+    });
+  });
+
+  it("returns to following the Journey only through an empty override", () => {
     const chosen = setConversationAgentOverride(stored, alphaThread, { model: opus });
     expect(chosen.conversationOverrides[runtimeWorkspaceKey(alphaThread)]).toBeDefined();
-    const inherited = resolveAgentProfile(stored, alphaThread);
-    const returned = setConversationAgentOverride(chosen, alphaThread, { model: inherited.model });
-    expect(returned.conversationOverrides[runtimeWorkspaceKey(alphaThread)]).toBeUndefined();
-    expect(resolveAgentProfile(returned, alphaThread).modelSource).toBe("journey");
+    const released = setConversationAgentOverride(chosen, alphaThread, {});
+    expect(released.conversationOverrides[runtimeWorkspaceKey(alphaThread)]).toBeUndefined();
+    expect(resolveAgentProfile(released, alphaThread).modelSource).toBe("journey");
   });
 
   // A workspace whose thread has not resolved produces `journeyId|`. Accepting it is what keeps the

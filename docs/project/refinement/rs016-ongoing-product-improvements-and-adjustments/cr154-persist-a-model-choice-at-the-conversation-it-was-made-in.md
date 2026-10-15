@@ -582,3 +582,99 @@ preserve the 7 byte for byte, re-read from disk, and assert the root still has t
 It deliberately does **not** migrate. Production is `alpha.50`, whose command enforces an exact
 three-key root, so writing `conversationOverrides` into that file would make production refuse to
 load agent settings entirely. Migration belongs to the first write of a build carrying this CR.
+
+## My Own Rule Was The Defect (2026-10-15)
+
+**Navigator report:** picked `sonnet-5` in *"Pensar sobre uma nova feature: journey card"*, then
+`gpt-5.6-luna` in *"New Conversation #1"*, and neither selection was preserved on return. Stated
+requirement, in their words: *"the same behaviour I have when switching between Journeys, but at the
+level of conversations."*
+
+### What the file said
+
+The Rust fix worked — Dev's `agent-settings.json` now has a four-key root and `schemaVersion`
+`1.1.0`. But `conversationOverrides` was **empty**, and `journeyOverrides["mirror-desktop"]` was
+`gpt-5.6-luna`.
+
+### Two hypotheses, and the artefact that killed the first
+
+**Key collision.** If both picks produced the same workspace key, the second would delete the first.
+Replaying both sequences through the real domain code against the real file:
+
+| simulated sequence | result | matches disk? |
+|---|---|---|
+| distinct keys | 1 entry · A→`sonnet-5`, B→`luna` | no |
+| one collided key | **0 entries, `{}`** | **yes** |
+
+So collision fit the file. It was still wrong.
+`lastConversationSelectionByJourneyId["mirror-desktop"]` in `journey-preferences.json` records a
+`desktop_conversation` selection, and that conversation is in the catalog with its own `threadId`, so
+`selectedConversationEntry` resolves and the keys **were** distinct. **Hypothesis refuted by an
+artefact, not by preference.**
+
+### The real cause, and it is mine
+
+With distinct keys the first pick should have survived — and the second pick **stored nothing at
+all**, because `gpt-5.6-luna` is *also* the Journey default for `mirror-desktop`. Confirmed against
+the real file: entries `0`, `modelSource` `journey`, the conversation owning nothing.
+
+That is **the pruning rule I added myself**, as a scope addition nobody asked for:
+
+> ~~a conversation override that merely repeats what the conversation would inherit is not stored~~
+
+It turned an explicit act into a silent no-op. The Navigator picked a model; nothing was recorded;
+the conversation went on following the Journey.
+
+**The reasoning was right about the wrong write.** *"A stored override stops following"* is a cost
+when nobody chose anything — it is the entire **point** when someone did. And the asymmetry I had
+recorded as *a decision, not an oversight* — that the Settings panel writes unconditionally because
+it offers an explicit `inherit`, while a composer pick "expresses nothing but the pick" — had the
+conclusion exactly inverted. A pick that expresses nothing but the pick is precisely the pick to
+honour. The Navigator asked for the Journey grain's semantics one grain finer, and **the Journey
+grain writes what it is given.**
+
+### Fixed
+
+`setConversationAgentOverride` now stores what it is handed, identical in shape to
+`setJourneyAgentOverride`. An empty override still removes the entry — that is **Follow the Journey
+default**, and it is now the *only* way back, which is what makes the control legible. `sameModel`
+went with the rule rather than being left dead.
+
+Replayed against the real Dev file, the Navigator's exact sequence:
+
+| step | result |
+|---|---|
+| pick `sonnet-5` in *Pensar…* | 1 entry |
+| pick `luna` in *New Conversation #1* | 2 entries |
+| back in *Pensar…* | `claude-sonnet-5` · `conversation` |
+| back in *New Conversation #1* | `gpt-5.6-luna` · `conversation` |
+| after a restart (real serializer + parser) | `claude-sonnet-5` / `gpt-5.6-luna` |
+
+The three tests that pinned the pruning were **replaced, not deleted around**, by four that pin the
+field's requirement — including one named for the Navigator's sequence, two conversations in one
+Journey each keeping the model it was given.
+
+### Controls
+
+| control | result |
+|---|---|
+| pruning restored — **the field defect** | failed, on the field-scenario test by name |
+| empty override stored instead of removing the entry | failed, on the way back |
+
+`tsc` clean · **265 files / 2,176 tests** · `cargo test` **327** · build clean · `roadmap:check`
+READY.
+
+### A false finding I nearly reported
+
+Mid-investigation `parseAgentSettings` appeared to **reject Dev's real settings file**, which would
+have been a serious defect. It was my instrument: that function takes a parsed object and I handed it
+the raw string. Caught before it was said out loud, and recorded because the next one may not be.
+Also: the first attempt loaded the file with `?raw` from an absolute path outside the project, and
+vitest reported **"no tests"** — a load failure wearing the clothes of a pass.
+
+### What this costs the production cleanup
+
+The 8 "fully redundant" Journey overrides were identified partly **by this same reasoning** — that an
+override equal to its inherited value is accidental. This reversal weakens that premise: those
+entries may be deliberate picks that happen to match the global default, and under the corrected
+semantics a matching pick is a decision. **The cleanup should not proceed on my analysis alone.**
