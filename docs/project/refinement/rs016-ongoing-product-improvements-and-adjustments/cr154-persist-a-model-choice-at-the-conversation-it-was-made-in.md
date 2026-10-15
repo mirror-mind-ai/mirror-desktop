@@ -678,3 +678,42 @@ The 8 "fully redundant" Journey overrides were identified partly **by this same 
 override equal to its inherited value is accidental. This reversal weakens that premise: those
 entries may be deliberate picks that happen to match the global default, and under the corrected
 semantics a matching pick is a decision. **The cleanup should not proceed on my analysis alone.**
+
+## Dev Build Carrying The Reversal (2026-10-15)
+
+Source `a2bc7a2`, clean worktree. Installed binary
+`48f8ace8e57e1ddcf92f54291040ed876baf2aa31cf742aff2d4572a563296c2`, identical to the built one,
+replacing `cb465db8…`. Backup `/tmp/Mirror Desktop Dev-20261015-152941.app`, hash-verified before
+removal; bundle identity checked before the destination was touched; `ps` gate twice.
+
+One `dist` bundle only, built before the binary in the same build. Present in it:
+`Follow the Journey default` 1×, `This conversation now uses` 1×, `conversationOwnsChoice` 2×,
+with an invented literal at 0× as the control.
+
+**The literal-level discriminator for the reversal itself.** `conversationOverrides` fell from
+**14× to 11×** between the previous Dev bundle and this one. The removed pruning block held exactly
+three references to that name — two in
+`{ ...settings, conversationOverrides: { ...settings.conversationOverrides } }` and one in
+`withoutOwn.conversationOverrides[key]`. 14 − 3 = 11, and the arithmetic closes.
+
+Beyond that count the change carries **no new string literal**, so it is not grep-verifiable in a
+minified bundle. The chain proves this bundle was built from this HEAD and is what is installed; the
+logic is pinned by the four tests and the two controls.
+
+### Pre-state recorded before the field check
+
+Recording this is mine to do, and I failed to do it before the previous hand-over, which is why the
+cause had to be reconstructed from a single post-hoc file instead of a difference.
+
+| field | value |
+|---|---|
+| `hash` | `f9ed996b833516ce` |
+| `schemaVersion` | `1.1.0` |
+| `journeyOverrides` | `9` |
+| `mirror-desktop` | `gpt-5.6-luna` |
+| `conversationOverrides` | `0` |
+
+`conversationOverrides` is empty, so the field check starts from a clean slate and any entry that
+appears is the Navigator's own pick. The Journey default for `mirror-desktop` is `gpt-5.6-luna`,
+which is what makes step 2 the interesting one: it is a pick that **matches** the inherited value,
+and under the old rule it stored nothing.
