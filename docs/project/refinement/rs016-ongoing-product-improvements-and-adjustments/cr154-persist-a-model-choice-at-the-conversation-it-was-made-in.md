@@ -803,3 +803,51 @@ The third **did not apply on the first attempt**: its needle matched twice, beca
 than editing the wrong function, and the needle was made unique.
 
 `tsc` clean · **265 files / 2,179 tests** · `cargo test` **327** · build clean · `roadmap:check` READY.
+
+## Dev Build Carrying The Full Selector Repair (2026-10-15)
+
+Source `3731b21`, clean worktree. Installed binary
+`7423733ecf331d16be43efaf5461efcea675d88a157b41f52e14c25e59fc6610`, identical to the built one,
+replacing `48f8ace8…`. Backup `/tmp/Mirror Desktop Dev-20261015-163213.app`, hash-verified before
+removal; bundle identity checked before the destination was touched; `ps` gate twice.
+
+One `dist` bundle, built before the binary in the same build. **Presence paired with absence**, in
+the same bundle:
+
+| present | × | | absent | × |
+|---|---|---|---|---|
+| `Use model for this conversation` | 1 | | `Use global model ·` | 0 |
+| `Use model for this Journey` | 1 | | `Use global thinking ·` | 0 |
+| `Inherit · do not set here` | 2 | | `This profile is saved only for the active Journey` | 0 |
+| `Journey default ·` / `Global default ·` | 1 / 1 | | `Choose Journey agent profile` | 0 |
+| `This conversation now uses its own model.` | 1 | | *(invented literal)* | 0 |
+
+The two `Inherit · do not set here` are the model select and the thinking select. The instrument
+returned non-zero seven times above, so its zeros carry weight.
+
+### Pre-state, and the defect's own footprint in it
+
+Recorded **before** the hand-over this time.
+
+| | |
+|---|---|
+| global | `openai-codex/gpt-5.3-codex-spark` |
+| `journeyOverrides["mirror-desktop"]` | **`anthropic/claude-sonnet-5`** |
+| `conversationOverrides` | **3** |
+
+| conversation that owns its choice | model |
+|---|---|
+| `Pensar sobre uma nova feature: journey card` | `claude-bridge/claude-opus-5` |
+| `New Conversation #1` | `claude-bridge/claude-fable-5-1` |
+| `New Conversation` | `openai-codex/gpt-5.6-sol` |
+
+This pre-state is itself the evidence for this turn's diagnosis, and it was not constructed for the
+purpose. The three conversation overrides are the Navigator's picks **from the intents list**, which
+worked. `journeyOverrides["mirror-desktop"]` holding `claude-sonnet-5` is the pick they made **through the
+full selector**, which landed on the Journey instead of the conversation — the defect's footprint,
+read directly rather than inferred.
+
+**That stray Journey override is left in place.** It is the Navigator's data, Dev's Journey grain is
+legitimately writable now, and leaving it makes the next field check more informative: a conversation
+that has never picked should show `claude-sonnet-5`, not the global `gpt-5.3-codex-spark`. Removing it is
+theirs to ask for.
