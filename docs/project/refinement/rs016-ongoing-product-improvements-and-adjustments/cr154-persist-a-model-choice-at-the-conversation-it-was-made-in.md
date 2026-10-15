@@ -539,3 +539,46 @@ added afterwards is what covers the validator — confirmed by its own control.
 **Nothing.** The command refuses before writing and the frontend surfaces the error, so the failure
 was fail-closed: no partial payload reached disk and no choice was silently lost. The saved file is
 still the untouched `1.0.0` three-key record.
+
+## Dev Rebuilt With Both Halves (2026-10-15)
+
+Source `85206c9`. Installed binary `cb465db8397402ffd053042695270de8a0cb96485aee13972046ef65da118f72`,
+identical to the built one, replacing `ab11e165…`. Backup at
+`/tmp/Mirror Desktop Dev-20261015-120500.app`, hash-verified before removal; identity checked before
+the destination was touched; `ps` gate twice.
+
+### A fourth false zero, and the A/B that settled it
+
+My first verification searched the binary for the new Rust error sentences and got **0**. The signal
+that it was the instrument and not the build: `"Agent settings Journey ID is invalid."` — a literal
+that has been in this validator for many versions — is **also 0**, and so is every other full
+`"Agent settings …"` sentence, in **both** binaries. Short fragments are findable
+(`contains unsupported fields`, `agent-settings.json`, `mirror-append-rebinds.jsonl`, each 1×), the
+long sentences are not. **`strings` and byte-grep are not a sound instrument for Rust error literals
+in this build**, and that is a property of the build rather than of this change.
+
+The sound check was available and better: the backup taken moments earlier is the **previous Dev
+build, which carried the TypeScript half and not the Rust half** — an exact A/B.
+
+| literal | new binary | previous binary |
+|---|---|---|
+| `conversationOverrides` | **1×** | **0×** |
+
+The frontend ships compressed, so the only uncompressed source of that literal is the Rust
+allowlist. It is present now and absent before, and **the instrument demonstrated it can return zero
+by returning zero** — which is what a zero needs before it means anything.
+
+Beyond that, the Rust half is verified where it is actually verifiable: `cargo test` **327 passed**,
+including three new tests that validate the exact payload the frontend writes, and the hash chain
+built → installed.
+
+## The Cleanup, Still Blocked (2026-10-15)
+
+Attempted and **aborted by its own gate**: production was open at pid 67744, so the file was not
+touched. The script is written and asserted end to end — backup with a hash check, remove the 8,
+preserve the 7 byte for byte, re-read from disk, and assert the root still has three keys and
+`schemaVersion` is still `1.0.0`.
+
+It deliberately does **not** migrate. Production is `alpha.50`, whose command enforces an exact
+three-key root, so writing `conversationOverrides` into that file would make production refuse to
+load agent settings entirely. Migration belongs to the first write of a build carrying this CR.
