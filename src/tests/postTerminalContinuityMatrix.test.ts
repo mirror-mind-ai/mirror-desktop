@@ -8,7 +8,7 @@ import {
   releaseAndReinspectPiInvocationLease,
   type PiInvocationRegistryInspection,
 } from "../app/piInvocationOccupancy";
-import { journeyWorkspace, workspaceOfAuthority } from "../app/journeyWorkspaceKey";
+import { journeyWorkspace, workspaceOfAuthority } from "../domain/journeyWorkspaceKey";
 import {
   projectJourneySettlementErrors,
   updateExactSettlementError,

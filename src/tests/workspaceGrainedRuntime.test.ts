@@ -10,7 +10,7 @@ import {
   type JourneyRunIdentity,
   type JourneyRuntimeState,
 } from "../app/journeyRuntimeState";
-import { journeyWorkspace, runtimeWorkspaceKey, workspaceOfAuthority } from "../app/journeyWorkspaceKey";
+import { journeyWorkspace, runtimeWorkspaceKey, workspaceOfAuthority } from "../domain/journeyWorkspaceKey";
 import { deriveJourneyNavigationPresentation } from "../app/journeyNavigationCoordinator";
 import runtimeStateSource from "../app/journeyRuntimeState.ts?raw";
 import occupancySource from "../app/piInvocationOccupancy.ts?raw";

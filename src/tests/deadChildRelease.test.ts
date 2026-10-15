@@ -14,7 +14,7 @@ import {
   type PiInvocationOccupancyState,
   type PiInvocationRegistryInspection,
 } from "../app/piInvocationOccupancy";
-import { journeyWorkspace } from "../app/journeyWorkspaceKey";
+import { journeyWorkspace } from "../domain/journeyWorkspaceKey";
 import appSource from "../app/App.tsx?raw";
 import abandonmentSource from "../app/settlementAbandonment.ts?raw";
 import streamSource from "../agent/piProcessStream.ts?raw";

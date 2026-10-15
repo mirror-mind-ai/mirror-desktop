@@ -213,7 +213,7 @@ import { appendSettlementTiming } from "./settlementTimingStorage";
 import { settlementAbandonmentOffer } from "./settlementAbandonment";
 import {
   journeyWorkspace, runtimeWorkspaceKey, workspaceOfAuthority, type JourneyWorkspace,
-} from "./journeyWorkspaceKey";
+} from "../domain/journeyWorkspaceKey";
 import type { FinishingPhasePresentation } from "./ComposerRuntimeFooter";
 
 // CR119: one collector per Journey while its turn is being settled. Timing is accumulated in

@@ -4,7 +4,7 @@ import {
   type PiProcessEventAuthority,
   type RunAuthority,
 } from "../domain/runAuthority";
-import { runtimeWorkspaceKey, workspaceOfAuthority } from "../app/journeyWorkspaceKey";
+import { runtimeWorkspaceKey, workspaceOfAuthority } from "../domain/journeyWorkspaceKey";
 
 export const PI_PROCESS_EVENT = "nautilus-pi-process";
 

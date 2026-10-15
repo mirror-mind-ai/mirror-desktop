@@ -7,7 +7,7 @@ import {
   type JourneyRuntimeEntry,
   type JourneyRuntimeState,
 } from "./journeyRuntimeState";
-import { journeyWorkspace } from "./journeyWorkspaceKey";
+import { journeyWorkspace } from "../domain/journeyWorkspaceKey";
 
 export type JourneyNavigationIntent = "pointer" | "keyboard-enter" | "keyboard-space" | "other";
 

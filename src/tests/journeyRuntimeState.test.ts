@@ -9,7 +9,7 @@ import {
   selectJourneyRuntimeOwnerPhase,
   type JourneyRunIdentity,
 } from "../app/journeyRuntimeState";
-import { journeyWorkspace, runtimeWorkspaceKey } from "../app/journeyWorkspaceKey";
+import { journeyWorkspace, runtimeWorkspaceKey } from "../domain/journeyWorkspaceKey";
 import { createDedicatedJourneyConversation, type JourneyConversation } from "../domain/journeyConversation";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { createRunAuthority } from "../domain/runAuthority";

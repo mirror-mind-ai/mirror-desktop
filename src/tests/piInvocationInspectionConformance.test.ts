@@ -11,7 +11,7 @@ import {
   liveWorkspacesInJourney,
   validatePiInvocationRegistryInspection,
 } from "../app/piInvocationOccupancy";
-import { journeyWorkspace } from "../app/journeyWorkspaceKey";
+import { journeyWorkspace } from "../domain/journeyWorkspaceKey";
 
 // CR139: the Rust registry and this validator are two independently written rule sets over the
 // same bytes. The fixture is emitted by `PiProcessRegistry::inspect` itself (regenerate with

@@ -19,7 +19,7 @@ import {
   runtimeWorkspaceKey,
   workspaceOfAuthority,
   type JourneyWorkspace,
-} from "./journeyWorkspaceKey";
+} from "../domain/journeyWorkspaceKey";
 
 const QUARANTINE_LIMIT = 20;
 

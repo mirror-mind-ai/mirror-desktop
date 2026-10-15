@@ -4,7 +4,7 @@ import {
   sameJourneyWorkspace,
   workspaceOfAuthority,
   type JourneyWorkspace,
-} from "./journeyWorkspaceKey";
+} from "../domain/journeyWorkspaceKey";
 
 export interface PiInvocationAuthorityInspection {
   schemaVersion: "0.1.0";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 // CR138: these reads were addressed by Journey id. Keyed by workspace they assert again;
 // left as they were, `JSON.stringify(undefined)` on both sides would have passed vacuously.
-import { journeyWorkspace, runtimeWorkspaceKey } from "../app/journeyWorkspaceKey";
+import { journeyWorkspace, runtimeWorkspaceKey } from "../domain/journeyWorkspaceKey";
 import { startAgentRun } from "../agent/agentRun";
 import {
   createJourneySettlementAuthority,

@@ -15,7 +15,7 @@ import {
 } from "../app/piInvocationOccupancy";
 // CR138: admission is asked about a workspace. These verdicts are Journey-grained and stay
 // Journey-grained, because `NATIVE_ADMISSION_GRAIN` is still "journey".
-import { journeyWorkspace } from "../app/journeyWorkspaceKey";
+import { journeyWorkspace } from "../domain/journeyWorkspaceKey";
 
 const authority: PiInvocationAuthorityInspection = {
   schemaVersion: "0.1.0",

@@ -14,7 +14,7 @@
  *
  * The offer is the Navigator's to take. The app measures; it does not decide.
  */
-import type { JourneyWorkspace } from "./journeyWorkspaceKey";
+import type { JourneyWorkspace } from "../domain/journeyWorkspaceKey";
 import {
   isActivePiInvocationLease,
   selectWorkspaceNativeLease,

@@ -13,7 +13,7 @@ import {
   type PiInvocationLeaseInspection,
   type PiInvocationRegistryInspection,
 } from "../app/piInvocationOccupancy";
-import { journeyWorkspace } from "../app/journeyWorkspaceKey";
+import { journeyWorkspace } from "../domain/journeyWorkspaceKey";
 
 function running(threadId: string, runId: string): PiInvocationLeaseInspection {
   return {

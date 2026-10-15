@@ -9,7 +9,7 @@ import {
   type PiInvocationLeaseInspection,
   type PiInvocationOccupancyState,
 } from "../app/piInvocationOccupancy";
-import { journeyWorkspace } from "../app/journeyWorkspaceKey";
+import { journeyWorkspace } from "../domain/journeyWorkspaceKey";
 import appSource from "../app/App.tsx?raw";
 
 // CR138: admission takes a workspace. The sentences under test are Journey-grained and stay

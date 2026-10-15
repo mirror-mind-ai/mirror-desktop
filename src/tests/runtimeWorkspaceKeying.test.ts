@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import appSource from "../app/App.tsx?raw";
 import runtimeStateSource from "../app/journeyRuntimeState.ts?raw";
 import occupancySource from "../app/piInvocationOccupancy.ts?raw";
-import workspaceKeySource from "../app/journeyWorkspaceKey.ts?raw";
+import workspaceKeySource from "../domain/journeyWorkspaceKey.ts?raw";
 import dispatcherSource from "../agent/piProcessEventDispatcher.ts?raw";
-import { runtimeWorkspaceKey } from "../app/journeyWorkspaceKey";
+import { runtimeWorkspaceKey } from "../domain/journeyWorkspaceKey";
 
 /** A source guard asserting what the code calls must not be fooled by prose in a comment. */
 function withoutComments(source: string): string {
