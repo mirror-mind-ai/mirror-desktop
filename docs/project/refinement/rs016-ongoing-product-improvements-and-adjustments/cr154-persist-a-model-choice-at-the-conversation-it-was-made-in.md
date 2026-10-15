@@ -242,3 +242,49 @@ between conversations, and no test can stand in for that.
 that the shape you want? The alternative is to make the model conversation-only and retire the
 Journey grain, which is a smaller store and a larger loss: the Settings Journey panel and its reset
 exist deliberately, and every current override would have to go somewhere.
+
+## The Shape Decided by the Navigator's Own File (2026-10-15)
+
+Read from the production `agent-settings.json` rather than argued from preference.
+
+| | |
+|---|---|
+| global default | `openai-codex/gpt-5.6-terra` |
+| Journey overrides | **15** |
+| identical to the global, carrying no distinction | **12** |
+| real distinctions | **3** — `mirror-desktop` → `claude-bridge/claude-opus-5`, `alissonvale-com` → `gpt-5.6-sol`, `fabio-henri` → `gpt-5.5` |
+
+Two conclusions, and they point the same way.
+
+**The Journey grain is used, and retiring it would cost the Navigator daily.** Three Journeys carry a
+real choice, and one of them is the Journey this product is built in. Without the Journey grain every
+new conversation in `mirror-desktop` would start on `gpt-5.6-terra` and Opus would have to be
+re-picked every time. **Three grains, not two.**
+
+**The 12 redundant entries are the fingerprint of the defect this CR describes.** They were not
+deliberate Journey decisions. They exist because the composer writes a Journey-wide value, so
+ordinary model picking inside a conversation has been writing a Journey override on every pick —
+including when the pick matched the global. The noise is the bug's own signature, and the repair
+stops producing it: after it, the composer writes the conversation grain and the Journey grain only
+changes when the Settings panel is used deliberately.
+
+### A scope addition this measurement produced
+
+**A conversation override that equals its inherited value must not be written.** 12 redundant entries
+accumulated across 15 Journeys; conversations are far more numerous, so the same unconditional write
+at the finer grain would accumulate one entry per conversation ever touched.
+
+The reason is not file size. **A written override stops following.** Writing one that merely repeats
+the inherited value silently converts a conversation from a follower into a freezer, so a later
+change to the Journey default would skip exactly the conversations where the Navigator had picked the
+value that default already had. That contradicts the lazy resolution this plan chose, so the write is
+conditional: only a value that differs from what the conversation would otherwise inherit is stored,
+and a choice that returns to the inherited value removes the entry — which is the same shape
+`setJourneyAgentOverride` already uses when it deletes an empty override.
+
+### Recommended Driver and Delivery
+
+Proposed rather than asked, since the protocol needs both recorded and neither is a product decision:
+
+- **Driver:** `assistant`
+- **Delivery:** `refinement/cr154-persist-a-model-choice-at-the-conversation-it-was-made-in`
