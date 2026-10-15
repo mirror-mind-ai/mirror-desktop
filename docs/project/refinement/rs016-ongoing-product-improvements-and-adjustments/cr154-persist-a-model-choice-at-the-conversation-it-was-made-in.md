@@ -717,3 +717,89 @@ cause had to be reconstructed from a single post-hoc file instead of a differenc
 appears is the Navigator's own pick. The Journey default for `mirror-desktop` is `gpt-5.6-luna`,
 which is what makes step 2 the interesting one: it is a pick that **matches** the inherited value,
 and under the old rule it stored nothing.
+
+## The Second Write Path, And A Correction I Owe (2026-10-15)
+
+**Navigator report:** *"Picking a model from the list under the composer works. But if I choose
+“Open full selector…” and pick a model in the dialog, it doesn't."*
+
+### The defect
+
+The composer's menu has two ways to choose a model, side by side, and **they wrote different
+grains**. The intents wrote the conversation. `Open full selector…` opens the dialog whose save is
+`saveSelectedJourneyAgentOverride`, which wrote the **Journey**.
+
+The dialog was not lying — it said *"This profile is saved only for the active Journey"* and its
+button read **Use model for this Journey**. It was honest about a grain the Navigator had no reason
+to want, having reached it from inside a conversation.
+
+### The correction I owe on the previous turn
+
+Last turn I named my own pruning rule as **the** cause of the Navigator's report. That was
+over-claimed, and this finding is why.
+
+I read `journeyOverrides["mirror-desktop"] = gpt-5.6-luna` as **pre-existing context**. It was almost
+certainly **the defect's own footprint** — written by the Navigator's own pick through the full
+selector. Under that reading the file needs no pruning to explain it at all: pick `sonnet-5` through
+the dialog → Journey override becomes `sonnet-5`; pick `luna` through the dialog → Journey override
+becomes `luna`, overwriting it; `conversationOverrides` never touched, so still empty. **That is the
+file exactly.**
+
+My pruning story also fit the file, but it fit **because** of a coincidence the defect manufactured:
+`luna` equalled the Journey default only because their previous pick had just put it there. I
+treated the output of the defect as the state before it.
+
+**This is precisely what recording the pre-state prevents, and I recorded it only afterwards.**
+
+The pruning reversal still stands on its own — the Navigator's requirement is the Journey grain's
+semantics one grain finer, and a pick that stores nothing cannot be preserved — but it was **not the
+mechanism behind the report**, and I said it was.
+
+### Fixed
+
+One dialog, both grains, the conversation first:
+
+| control | grain |
+|---|---|
+| **Use model for this conversation** (primary) | conversation |
+| Use model for this Journey | Journey |
+| Use global defaults | clears **both** finer grains |
+
+The Journey grain **had to stay reachable here**: this dialog is its only entry point in the whole
+application — there is no Settings panel for it, which the old guard's name
+(*"keeps the Settings Journey panel writing the Journey grain"*) had me believing for three slices.
+
+Two further repairs the change forced:
+
+- **The dialog opened on the wrong state.** It seeded its drafts from the Journey override alone, so
+  with a conversation holding its own model it opened showing `inherit`. It now seeds from what is in
+  force for this conversation.
+- **A label that could lie.** `Use global model · X` was true when `inherit` had one fallback. With
+  three grains, `inherit` falls back to the **Journey** for a conversation and to the **global** for a
+  Journey, so the option now reads `Inherit · do not set here` and both defaults are named in a note
+  beside it, losing no information.
+
+### A guard narrowed rather than deleted
+
+`keeps the Settings Journey panel writing the Journey grain` failed, and its **name was the finding**.
+Both functions it guarded belong to the full selector, not to any Settings panel. Narrowed to the
+invariant that survives: the button named for the Journey writes only the Journey grain. The stale
+`describe` comment claiming the footer *"performs the same Journey override the dialog writes"* was
+corrected in the same place.
+
+### Controls
+
+Four, each confirmed applied before its result was read:
+
+| control | result |
+|---|---|
+| full selector writing the Journey again — **the field defect** | failed |
+| the Journey button removed | failed, on two guards |
+| `Use global defaults` clearing only the Journey | failed |
+| the dialog seeded from the Journey override again | failed |
+
+The third **did not apply on the first attempt**: its needle matched twice, because
+`useGlobalAgentDefaultsHere` clears both grains with the same shape. The count assert refused rather
+than editing the wrong function, and the needle was made unique.
+
+`tsc` clean · **265 files / 2,179 tests** · `cargo test` **327** · build clean · `roadmap:check` READY.

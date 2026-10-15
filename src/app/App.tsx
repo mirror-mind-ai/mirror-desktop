@@ -1773,12 +1773,18 @@ export function App({ model }: AppProps) {
     setProviderInvocationMode(agentSettings.globalProfile.invocationMode);
   }, [agentSettings, settingsOpen]);
 
+  // CR154: this dialog is reached from inside a conversation, so it opens on what is in force
+  // there — the conversation's own choice when it has one, the Journey's when it does not. Seeding
+  // from the Journey override alone showed "inherit" while the conversation held its own model.
   useEffect(() => {
     if (!journeyAgentProfileOpen) return;
-    const override = agentSettings.journeyOverrides[selectedJourney];
-    setJourneyModelDraft(override?.model ? modelOptionValue(override.model) : "inherit");
-    setJourneyThinkingDraft(override?.thinkingLevel ?? "inherit");
-  }, [agentSettings, journeyAgentProfileOpen, selectedJourney]);
+    setJourneyModelDraft(effectiveAgentProfile.modelSource === "global"
+      ? "inherit"
+      : modelOptionValue(effectiveAgentProfile.model));
+    setJourneyThinkingDraft(effectiveAgentProfile.thinkingSource === "global"
+      ? "inherit"
+      : effectiveAgentProfile.thinkingLevel);
+  }, [effectiveAgentProfile, journeyAgentProfileOpen]);
 
   useEffect(() => {
     if (!runtimeBindingReady || piModelCatalogState !== "idle") return;
@@ -4351,9 +4357,36 @@ export function App({ model }: AppProps) {
     }
   }
 
+  /**
+   * CR154: the full selector is opened from inside a conversation, so a pick here is that
+   * conversation's own choice — the same grain the intents beside it write. The Journey remains
+   * reachable through its own button in the same dialog, because that grain is used.
+   */
+  async function saveSelectedConversationAgentOverride() {
+    try {
+      const saved = await persistAgentSettings(
+        setConversationAgentOverride(agentSettings, selectedWorkspace, {
+          model: journeyModelDraft === "inherit" ? undefined : modelFromOptionValue(journeyModelDraft),
+          thinkingLevel: journeyThinkingDraft === "inherit" ? undefined : journeyThinkingDraft,
+        }),
+        "This conversation now uses its own model.",
+      );
+      if (saved) setJourneyAgentProfileOpen(false);
+    } catch (error) {
+      setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  // CR154: reaching the global default from this dialog has to clear both finer grains, exactly as
+  // the menu entry of the same name does, or the label would be false while this conversation's own
+  // choice stayed in force.
   async function resetSelectedJourneyAgentOverride() {
     const saved = await persistAgentSettings(
-      setJourneyAgentOverride(agentSettings, selectedJourney, {}),
+      setConversationAgentOverride(
+        setJourneyAgentOverride(agentSettings, selectedJourney, {}),
+        selectedWorkspace,
+        {},
+      ),
       `${selectedJourneyItem.name} now inherits global agent defaults.`,
     );
     if (saved) setJourneyAgentProfileOpen(false);
@@ -7377,14 +7410,14 @@ export function App({ model }: AppProps) {
             className="settings-window journey-agent-profile-dialog"
             role="dialog"
             aria-modal="true"
-            aria-label="Choose Journey agent profile"
+            aria-label="Choose agent profile"
             onClick={(event) => event.stopPropagation()}
           >
             <header className="settings-header">
               <div>
                 <p className="eyebrow">{selectedJourneyItem.name}</p>
                 <h2>Choose model and thinking</h2>
-                <p className="settings-intro">This profile is saved only for the active Journey.</p>
+                <p className="settings-intro">Save it for this conversation alone, or for every conversation in this Journey that has not chosen its own.</p>
               </div>
               <button className="secondary-button" type="button" onClick={() => setJourneyAgentProfileOpen(false)} disabled={agentSettingsState === "saving"}>Close</button>
             </header>
@@ -7397,7 +7430,10 @@ export function App({ model }: AppProps) {
                   const resolvedModel = next === "inherit" ? modelOptionValue(agentSettings.globalProfile.model) : next;
                   if (!modelSupportsThinking(piModelCatalog, resolvedModel) && journeyThinkingDraft !== "inherit" && !["pi-default", "off"].includes(journeyThinkingDraft)) setJourneyThinkingDraft("off");
                 }}>
-                  <option value="inherit">Use global model · {agentSettings.globalProfile.model.provider}/{agentSettings.globalProfile.model.model}</option>
+                  {/* CR154: with three grains, "inherit" lands on the Journey for a conversation and
+                      on the global for a Journey, so naming one of them here would be a label that
+                      can lie. Both are named in the note below instead. */}
+                  <option value="inherit">Inherit · do not set here</option>
                   {modelOptions.map((model) => {
                     const unavailable = Boolean(unavailableModelReason(piModelCatalog, model));
                     return (
@@ -7420,7 +7456,7 @@ export function App({ model }: AppProps) {
               <label className="provider-field">
                 Thinking level
                 <select value={journeyThinkingDraft} onChange={(event) => setJourneyThinkingDraft(event.target.value as AgentThinkingLevel | "inherit")}>
-                  <option value="inherit">Use global thinking · {agentSettings.globalProfile.thinkingLevel}</option>
+                  <option value="inherit">Inherit · do not set here</option>
                   {thinkingOptions(
                     piModelCatalog,
                     journeyModelDraft === "inherit" ? modelOptionValue(agentSettings.globalProfile.model) : journeyModelDraft,
@@ -7428,10 +7464,15 @@ export function App({ model }: AppProps) {
                   ).map((level) => <option key={level} value={level}>{level}</option>)}
                 </select>
               </label>
+              <p className="provider-note">
+                Journey default · {journeyDefaultAgentProfile.model.provider}/{journeyDefaultAgentProfile.model.model} · {journeyDefaultAgentProfile.thinkingLevel}
+                {" · "}Global default · {agentSettings.globalProfile.model.provider}/{agentSettings.globalProfile.model.model} · {agentSettings.globalProfile.thinkingLevel}
+              </p>
               <p className="provider-note">Changes affect only the next explicit invocation. The current conversation and generation remain unchanged.</p>
               {agentSettingsMessage ? <p className={agentSettingsState === "error" ? "settings-error" : "provider-note"} role={agentSettingsState === "error" ? "alert" : "status"}>{agentSettingsMessage}</p> : null}
               <div className="provider-actions journey-agent-profile-actions">
-                <button type="button" onClick={() => void saveSelectedJourneyAgentOverride()} disabled={agentSettingsState === "saving"}>Use model for this Journey</button>
+                <button type="button" onClick={() => void saveSelectedConversationAgentOverride()} disabled={agentSettingsState === "saving"}>Use model for this conversation</button>
+                <button className="secondary-button" type="button" onClick={() => void saveSelectedJourneyAgentOverride()} disabled={agentSettingsState === "saving"}>Use model for this Journey</button>
                 <button className="secondary-button" type="button" onClick={() => void resetSelectedJourneyAgentOverride()} disabled={agentSettingsState === "saving"}>Use global defaults</button>
                 <button className="secondary-button" type="button" onClick={() => setJourneyAgentProfileOpen(false)} disabled={agentSettingsState === "saving"}>Cancel</button>
               </div>

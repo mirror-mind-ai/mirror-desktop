@@ -64,13 +64,70 @@ describe("persistent agent profile application boundary", () => {
     expect(appSource).toContain("livePiAgentStream(packet, effectiveProviderConfig, runAuthority)");
   });
 
-  it("opens Journey selection from the model link beside Send instead of global Settings", () => {
+  it("opens agent selection from the model link beside Send instead of global Settings", () => {
     expect(appSource).toContain('aria-label="Global agent defaults"');
     expect(appSource).not.toContain('aria-label="Journey agent overrides"');
-    expect(appSource).toContain('aria-label="Choose Journey agent profile"');
+    expect(appSource).toContain('aria-label="Choose agent profile"');
     expect(appSource).toContain("Use model for this Journey");
     expect(appSource).toContain("Use global defaults");
     expect(appSource).toContain("Changes affect only the next explicit invocation");
+  });
+
+  /**
+   * CR154: the full selector is reached from "Open full selector…" inside a conversation, beside the
+   * intents that write the conversation grain — and it wrote the Journey's override. The field found
+   * it after the intents were already working: *"picking from the list works, but if I choose Open
+   * full selector and pick a model in the dialog, it doesn't"*.
+   *
+   * Both grains stay reachable from this one dialog, because the Journey grain is used. What the
+   * guard pins is which button is the primary one and which function each calls.
+   */
+  it("offers the conversation grain first in the full selector, with the Journey still reachable", () => {
+    const dialog = appSource.slice(appSource.indexOf('aria-label="Choose agent profile"'));
+    const actions = dialog.slice(0, dialog.indexOf("</section>"));
+
+    const conversationButton = actions.indexOf("Use model for this conversation");
+    const journeyButton = actions.indexOf("Use model for this Journey");
+    expect(conversationButton).toBeGreaterThan(-1);
+    expect(journeyButton).toBeGreaterThan(-1);
+    // the conversation is the primary action, so it comes first and is the only unstyled button
+    expect(conversationButton).toBeLessThan(journeyButton);
+    expect(actions).toContain('<button type="button" onClick={() => void saveSelectedConversationAgentOverride()}');
+
+    const save = functionBody("saveSelectedConversationAgentOverride");
+    expect(save).toContain("setConversationAgentOverride(agentSettings, selectedWorkspace");
+    expect(save).not.toContain("setJourneyAgentOverride");
+
+    // "Use global defaults" has to clear both finer grains or its own label is false
+    const reset = functionBody("resetSelectedJourneyAgentOverride");
+    expect(reset).toContain("setConversationAgentOverride(");
+    expect(reset).toContain("setJourneyAgentOverride(agentSettings, selectedJourney, {})");
+  });
+
+  /**
+   * CR154: seeded from the Journey override alone, the dialog opened showing "inherit" while the
+   * conversation held its own model — so it described a state that was not in force.
+   */
+  it("opens the full selector on what is in force for this conversation", () => {
+    const seed = appSource.slice(appSource.indexOf("if (!journeyAgentProfileOpen) return;"));
+    const body = seed.slice(0, seed.indexOf("}, ["));
+    expect(body).toContain("effectiveAgentProfile.modelSource");
+    expect(body).toContain("effectiveAgentProfile.thinkingSource");
+    expect(body).not.toContain("agentSettings.journeyOverrides[selectedJourney]");
+  });
+
+  /**
+   * CR154: with three grains, "inherit" falls back to the Journey for a conversation and to the
+   * global for a Journey, so a label naming one of them can be false depending on which button is
+   * pressed afterwards.
+   */
+  it("does not let the inherit option name a single fallback", () => {
+    expect(appSource).not.toContain("Use global model ·");
+    expect(appSource).not.toContain("Use global thinking ·");
+    expect(appSource).toContain("Inherit · do not set here");
+    // both defaults are still named, just not inside the option label
+    expect(appSource).toContain("Journey default ·");
+    expect(appSource).toContain("Global default ·");
   });
 
   /**
@@ -197,8 +254,9 @@ describe("model intents settings surface", () => {
   });
 });
 
-// CR078: the footer is where intents become use. Selecting one performs the same Journey
-// override the dialog writes, so scope and persistence are unchanged.
+// CR078: the footer is where intents become use. CR154: selecting one writes the conversation's own
+// choice, and so does the full selector that the same menu opens — two controls beside each other
+// must not land on different grains.
 describe("model intents in the Composer footer", () => {
   it("names the matching intent and keeps its binding reachable", () => {
     expect(appSource).toContain("const activeModelIntent = matchModelIntent(modelIntents, {");
@@ -239,10 +297,17 @@ describe("model intents in the Composer footer", () => {
     expect(toGlobal).toContain("setConversationAgentOverride(");
   });
 
-  it("keeps the Settings Journey panel writing the Journey grain", () => {
-    const reset = functionBody("resetSelectedJourneyAgentOverride");
-    expect(reset).toContain("setJourneyAgentOverride(agentSettings, selectedJourney, {})");
-    expect(reset).not.toContain("setConversationAgentOverride");
+  /**
+   * CR154: this guard was named for a "Settings Journey panel" that **does not exist**. Both
+   * functions belong to the full selector dialog, reached only from "Open full selector…" inside a
+   * conversation. The misnaming is what let me believe the Journey grain had its own home in
+   * Settings, and the field found the consequence: a pick in that dialog wrote the Journey.
+   *
+   * The surviving invariant is narrower and still worth holding — the button named for the Journey
+   * writes only the Journey grain. "Use global defaults" is no longer covered here, because it now
+   * has to clear both grains, which its own guard asserts.
+   */
+  it("keeps the Journey button writing only the Journey grain", () => {
     const save = functionBody("saveSelectedJourneyAgentOverride");
     expect(save).toContain("setJourneyAgentOverride(agentSettings, selectedJourney, override)");
     expect(save).not.toContain("setConversationAgentOverride");
