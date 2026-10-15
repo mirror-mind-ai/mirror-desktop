@@ -3,6 +3,32 @@ import appSource from "../app/App.tsx?raw";
 // @ts-expect-error Vitest runs in Node; production code has no Node dependency.
 import { readFileSync } from "node:fs";
 import rustSource from "../../src-tauri/src/agent_settings.rs?raw";
+import agentProfileSource from "../domain/agentProfile.ts?raw";
+
+/**
+ * One named function's body, ending at the next declaration at the same level — or at the end of the
+ * file when it is the last one, which `assertConversationKey` happens to be. Requiring a following
+ * declaration made the first version of this helper fail identically whether or not the guarded
+ * property held, so its control proved nothing.
+ */
+function functionSource(source: string, declaration: string): string {
+  const start = source.indexOf(declaration);
+  expect(start, `${declaration} not found`).toBeGreaterThan(-1);
+  const rest = source.slice(start + declaration.length);
+  const next = rest.search(/\n(?:function |fn |export function |pub fn )/);
+  const body = next === -1 ? rest : rest.slice(0, next);
+  expect(body.length, `${declaration} body is empty`).toBeGreaterThan(0);
+  return body;
+}
+
+/** Every double-quoted literal inside a region, in source order. */
+function quotedLiterals(source: string, from: string, to: string): string[] {
+  const start = source.indexOf(from);
+  expect(start, `region start not found: ${from}`).toBeGreaterThan(-1);
+  const end = source.indexOf(to, start + from.length);
+  expect(end, `region end not found: ${to}`).toBeGreaterThan(start);
+  return [...source.slice(start, end).matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+}
 
 /**
  * CR154: one named function's body and nothing after it.
@@ -45,6 +71,59 @@ describe("persistent agent profile application boundary", () => {
     expect(appSource).toContain("Use model for this Journey");
     expect(appSource).toContain("Use global defaults");
     expect(appSource).toContain("Changes affect only the next explicit invocation");
+  });
+
+  /**
+   * CR154: the agent settings root key list is one contract held in two languages — `ROOT_KEYS` in
+   * `agentProfile.ts` and the allowlist in `agent_settings.rs`. Nothing asserted they agree, so
+   * shipping the third grain on the TypeScript side alone made every settings write fail with
+   * "Agent settings root contains unsupported fields", and both suites stayed green: each side only
+   * ever checked its own list.
+   *
+   * The lists are read from their own sources and compared, rather than one being exported for the
+   * other to import, so neither module widens its API for a test. Both are asserted non-empty first
+   * — two failed extractions would otherwise agree perfectly.
+   */
+  it("keeps the root key allowlist identical on both sides of the command boundary", () => {
+    const ts = quotedLiterals(agentProfileSource, "const ROOT_KEYS = new Set(", ");");
+    const rust = quotedLiterals(rustSource, "root.keys().map(String::as_str),", '"root",');
+    expect(ts.length).toBeGreaterThan(0);
+    expect(rust.length).toBeGreaterThan(0);
+    expect(ts).toContain("conversationOverrides");
+    expect([...rust].sort()).toEqual([...ts].sort());
+  });
+
+  it("accepts the same schema versions on both sides", () => {
+    const ts = quotedLiterals(agentProfileSource, "const SUPPORTED_SCHEMA_VERSIONS = new Set(", ");");
+    // the TypeScript set names the current version through a constant rather than a literal
+    const current = quotedLiterals(agentProfileSource, "export const AGENT_SETTINGS_SCHEMA_VERSION =", ";");
+    const accepted = [...ts, ...current].filter((value) => /^\d+\.\d+\.\d+$/.test(value));
+    const rust = quotedLiterals(rustSource, "root.get(\"schemaVersion\").and_then(Value::as_str),", ")")
+      .filter((value) => /^\d+\.\d+\.\d+$/.test(value));
+    expect(accepted.length).toBeGreaterThan(0);
+    expect(rust.length).toBeGreaterThan(0);
+    expect([...new Set(rust)].sort()).toEqual([...new Set(accepted)].sort());
+  });
+
+  /**
+   * CR154: the conversation key is validated on both sides too, and a divergence there would fail
+   * every write exactly as the root key list did — the frontend would store a key the command
+   * refuses. This is a **structural** guard, not behavioural equality: it pins the three properties
+   * the two validators have to share, because vitest cannot execute the Rust one.
+   */
+  it("keeps the conversation key rule aligned on both sides", () => {
+    const ts = functionSource(agentProfileSource, "function assertConversationKey");
+    const rust = functionSource(rustSource, "fn valid_conversation_key");
+    for (const [label, body] of [["TypeScript", ts], ["Rust", rust]] as const) {
+      // splits on the separator runtimeWorkspaceKey writes
+      expect(body, `${label} must split on the separator`).toMatch(/split\('\|'\)|split\("\|"\)/);
+      // exactly two segments
+      expect(body, `${label} must require two segments`).toMatch(/length !== 2|segments\.next\(\)\.is_some\(\)/);
+      // an empty thread segment is legitimate
+      expect(body, `${label} must accept an empty thread segment`).toMatch(/!== ""|is_empty\(\)/);
+      // and both segments go through the Journey identifier rule
+      expect(body, `${label} must reuse the Journey ID rule`).toMatch(/assertJourneyId|JOURNEY_ID|valid_journey_id/);
+    }
   });
 
   it("keeps persistence and catalog inspection outside provider execution", () => {

@@ -178,12 +178,25 @@ fn validate_agent_settings_payload(payload: &str) -> Result<(), String> {
     let root = root
         .as_object()
         .ok_or_else(|| "Agent settings root is invalid.".to_string())?;
+    // CR154: this list and `ROOT_KEYS` in src/domain/agentProfile.ts are one contract held in two
+    // languages. Nothing used to assert they agree, and shipping the third grain on the TypeScript
+    // side alone made every write fail with "root contains unsupported fields" — the field found it,
+    // not the suite. `agentProfileSettings.test.ts` now derives this list from this source and
+    // compares it to the TypeScript one.
     exact_json_keys(
         root.keys().map(String::as_str),
-        &["schemaVersion", "globalProfile", "journeyOverrides"],
+        &[
+            "schemaVersion",
+            "globalProfile",
+            "journeyOverrides",
+            "conversationOverrides",
+        ],
         "root",
     )?;
-    if root.get("schemaVersion").and_then(Value::as_str) != Some("1.0.0") {
+    if !matches!(
+        root.get("schemaVersion").and_then(Value::as_str),
+        Some("1.0.0" | "1.1.0")
+    ) {
         return Err("Agent settings schema version is unsupported.".to_string());
     }
     let profile = root
@@ -211,22 +224,60 @@ fn validate_agent_settings_payload(payload: &str) -> Result<(), String> {
         if !valid_journey_id(journey_id) {
             return Err("Agent settings Journey ID is invalid.".to_string());
         }
-        let override_value = value
+        validate_override_value(value, "Journey override")?;
+    }
+    // CR154: absent on a 1.0.0 file, which holds no conversation choices by construction.
+    if let Some(conversations) = root.get("conversationOverrides") {
+        let conversations = conversations
             .as_object()
-            .ok_or_else(|| "Agent settings Journey override is invalid.".to_string())?;
-        exact_json_keys(
-            override_value.keys().map(String::as_str),
-            &["model", "thinkingLevel"],
-            "Journey override",
-        )?;
-        if let Some(model) = override_value.get("model") {
-            validate_agent_model(Some(model))?;
-        }
-        if let Some(thinking) = override_value.get("thinkingLevel") {
-            validate_thinking(Some(thinking))?;
+            .ok_or_else(|| "Agent settings conversation overrides are invalid.".to_string())?;
+        for (key, value) in conversations {
+            if !valid_conversation_key(key) {
+                return Err("Agent settings conversation key is invalid.".to_string());
+            }
+            validate_override_value(value, "conversation override")?;
         }
     }
     Ok(())
+}
+
+fn validate_override_value(value: &Value, label: &str) -> Result<(), String> {
+    let override_value = value
+        .as_object()
+        .ok_or_else(|| format!("Agent settings {} is invalid.", label))?;
+    exact_json_keys(
+        override_value.keys().map(String::as_str),
+        &["model", "thinkingLevel"],
+        label,
+    )?;
+    if let Some(model) = override_value.get("model") {
+        validate_agent_model(Some(model))?;
+    }
+    if let Some(thinking) = override_value.get("thinkingLevel") {
+        validate_thinking(Some(thinking))?;
+    }
+    Ok(())
+}
+
+/**
+ * CR154: the key is exactly what `runtimeWorkspaceKey` produces — `journeyId|threadId` — so each
+ * segment is checked on its own and `|` cannot appear inside either. An empty thread segment is
+ * accepted because that is the key a workspace with no resolved thread produces.
+ */
+fn valid_conversation_key(value: &str) -> bool {
+    let mut segments = value.split('|');
+    let journey = match segments.next() {
+        Some(segment) => segment,
+        None => return false,
+    };
+    let thread = match segments.next() {
+        Some(segment) => segment,
+        None => return false,
+    };
+    if segments.next().is_some() {
+        return false;
+    }
+    valid_journey_id(journey) && (thread.is_empty() || valid_journey_id(thread))
 }
 
 fn exact_json_keys<'a>(
@@ -374,6 +425,104 @@ mod tests {
 
     fn valid_settings() -> String {
         json!({"schemaVersion":"1.0.0","globalProfile":{"model":{"provider":"openai-codex","model":"gpt-5.4-mini"},"thinkingLevel":"pi-default","invocationMode":"mirror"},"journeyOverrides":{"nautilus-harness":{"thinkingLevel":"high"}}}).to_string()
+    }
+
+    /// CR154: the payload the frontend actually writes once a conversation holds its own choice.
+    /// Every write failed against the three-key root this validator used to enforce, and no test on
+    /// either side noticed, because each side only ever checked its own list.
+    fn conversation_grained_settings() -> String {
+        json!({
+            "schemaVersion": "1.1.0",
+            "globalProfile": {
+                "model": {"provider": "openai-codex", "model": "gpt-5.4-mini"},
+                "thinkingLevel": "pi-default",
+                "invocationMode": "mirror"
+            },
+            "journeyOverrides": {"nautilus-harness": {"thinkingLevel": "high"}},
+            "conversationOverrides": {
+                "mirror-desktop|desktop-thread-one": {
+                    "model": {"provider": "anthropic", "model": "claude-opus-5"}
+                }
+            }
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn accepts_the_conversation_grain_and_both_schema_versions() {
+        validate_agent_settings_payload(&conversation_grained_settings()).unwrap();
+        // a 1.0.0 file carries no conversation overrides and stays acceptable
+        validate_agent_settings_payload(&valid_settings()).unwrap();
+        // and a 1.1.0 file is allowed to carry none either
+        validate_agent_settings_payload(
+            &json!({
+                "schemaVersion": "1.1.0",
+                "globalProfile": {
+                    "model": {"provider": "openai-codex", "model": "gpt-5.4-mini"},
+                    "thinkingLevel": "pi-default",
+                    "invocationMode": "mirror"
+                },
+                "journeyOverrides": {}
+            })
+            .to_string(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn round_trips_a_conversation_grained_payload() {
+        let root = test_root("agent-settings-conversation-grain");
+        let payload = conversation_grained_settings();
+        save_agent_settings_at(&root, &payload).unwrap();
+        assert_eq!(load_agent_settings_at(&root).unwrap(), Some(payload));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_a_conversation_key_that_is_not_a_workspace_key() {
+        let settings = |key: &str| {
+            json!({
+                "schemaVersion": "1.1.0",
+                "globalProfile": {
+                    "model": {"provider": "openai-codex", "model": "gpt-5.4-mini"},
+                    "thinkingLevel": "pi-default",
+                    "invocationMode": "mirror"
+                },
+                "journeyOverrides": {},
+                "conversationOverrides": {key: {"thinkingLevel": "high"}}
+            })
+            .to_string()
+        };
+        for key in [
+            "no-separator",
+            "alpha|thread|extra",
+            "../escape|thread",
+            "alpha|../escape",
+            "|thread",
+        ] {
+            assert!(
+                validate_agent_settings_payload(&settings(key)).is_err(),
+                "accepted {}",
+                key
+            );
+        }
+        // the key a workspace with no resolved thread produces is legitimate
+        validate_agent_settings_payload(&settings("alpha|")).unwrap();
+        // and an override body is still allowlisted at the finer grain
+        assert!(validate_agent_settings_payload(
+            &json!({
+                "schemaVersion": "1.1.0",
+                "globalProfile": {
+                    "model": {"provider": "openai-codex", "model": "gpt-5.4-mini"},
+                    "thinkingLevel": "pi-default",
+                    "invocationMode": "mirror"
+                },
+                "journeyOverrides": {},
+                "conversationOverrides": {"alpha|thread": {"apiKey": "secret"}}
+            })
+            .to_string()
+        )
+        .is_err());
     }
 
     #[test]

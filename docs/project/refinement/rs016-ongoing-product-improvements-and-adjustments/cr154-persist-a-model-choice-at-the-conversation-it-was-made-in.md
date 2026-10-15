@@ -449,3 +449,93 @@ When it is closed, the cleanup removes the **8** fully redundant entries, preser
 ones, and must **not** add `conversationOverrides` or bump `schemaVersion`: production is still
 `alpha.50`, whose parser enforces an exact three-key root, so a migrated file would make it refuse to
 load agent settings entirely. Migration belongs to the first write of a build that carries this CR.
+
+## The Field Found What Both Suites Missed (2026-10-15)
+
+**Navigator report:** *"Recebi esse erro ao tentar alterar o modelo da conversa no seletor: Agent
+settings root contains unsupported fields."*
+
+**Every write of a conversation choice failed.** The settings file validates its root keys **twice**,
+in two languages, and I changed one:
+
+| | |
+|---|---|
+| `src/domain/agentProfile.ts` — `ROOT_KEYS` | changed to four keys ✅ |
+| `src-tauri/src/agent_settings.rs:183` — the command's allowlist | left at three ❌ |
+
+The Rust command refused the payload, so the frontend's own parse never got a say. A second refusal
+was waiting behind it: the command also required `schemaVersion == "1.0.0"` exactly, and the new
+write emits `1.1.0`.
+
+### Why nothing caught it
+
+**Each side only ever checked its own list.** `cargo test` validated the Rust allowlist against Rust
+fixtures that were all three-key `1.0.0` payloads, so it passed. The TypeScript suite validated the
+TypeScript allowlist, so it passed. `agentProfileSettings.test.ts` already read the Rust source — but
+only for claims about the process boundary, never about the schema.
+
+So **both suites were green on a feature that could not save**, and the gates I reported (`tsc`,
+2,172 tests, cargo 324, build, roadmap) were all true and all beside the point.
+
+### The enumeration mistake, in the same shape as the last one
+
+One slice earlier I recorded that my enumeration had been falsely complete because I grepped a name
+followed immediately by a quote. Here I did it again at a larger scale: I enumerated *where the
+schema lives* by searching TypeScript. **The second validator was in another language, so it was
+never in the search.**
+
+The re-check was exhaustive rather than enumerated — every file of any type mentioning
+`journeyOverrides` — and it confirms there are **exactly two** such places, which is now asserted
+rather than believed.
+
+### Fixed
+
+- The Rust allowlist carries `conversationOverrides`.
+- The Rust validator accepts `1.0.0` and `1.1.0`.
+- `conversationOverrides` entries are validated Rust-side: the key is `journeyId|threadId` with each
+  segment checked on its own and an empty thread accepted, and the body is allowlisted to
+  `model`/`thinkingLevel`. Override validation was extracted so both grains share one routine rather
+  than two copies drifting apart.
+- Three Rust tests, including the exact payload the frontend writes.
+
+### The durable repair: a guard that reads both sides
+
+`agentProfileSettings.test.ts` now derives each list **from its own source** and asserts they are
+equal — the root key allowlist and the accepted schema versions. Neither module exports anything for
+the other's test, and both lists are asserted **non-empty first**, because two failed extractions
+would otherwise agree perfectly.
+
+A third guard pins the **conversation key rule** on both sides: splitting on the separator, requiring
+two segments, accepting an empty thread, and reusing the Journey identifier rule. It is **structural,
+not behavioural equality** — vitest cannot execute the Rust validator — and it says so, because the
+same divergence there would fail every write the same way.
+
+### A control that proved nothing, and was rebuilt
+
+The key-rule guard's first control failed — but with `no declaration follows
+assertConversationKey`, because that function is the **last** in its file and my helper required a
+following declaration. It failed identically whether or not the guarded property held, so it was not
+a guard working. The helper now falls back to the end of the file and asserts the body is non-empty;
+the control then failed on the right assertion, naming the Journey identifier rule.
+
+### Controls
+
+Three, each confirmed applied before its result was read:
+
+| control | TS cross-language guard | `cargo test` |
+|---|---|---|
+| Rust allowlist without `conversationOverrides` — **the field defect, reproduced** | failed | failed |
+| Rust accepting only `1.0.0` | failed | failed |
+| Rust conversation key unvalidated | passed — **correctly**, it is not that guard's claim | failed |
+
+The third is not a hole. The cross-language guard speaks about the key *lists*, and the rule guard
+added afterwards is what covers the validator — confirmed by its own control.
+
+`tsc` clean · **265 files / 2,175 tests** · `cargo test` **327** passed / 3 ignored · build clean ·
+`roadmap:check` READY.
+
+### What the Navigator's file suffered
+
+**Nothing.** The command refuses before writing and the frontend surfaces the error, so the failure
+was fail-closed: no partial payload reached disk and no choice was silently lost. The saved file is
+still the untouched `1.0.0` three-key record.
