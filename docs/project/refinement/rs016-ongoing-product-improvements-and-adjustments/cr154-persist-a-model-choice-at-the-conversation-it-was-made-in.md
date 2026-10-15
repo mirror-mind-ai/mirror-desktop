@@ -251,8 +251,8 @@ Read from the production `agent-settings.json` rather than argued from preferenc
 |---|---|
 | global default | `openai-codex/gpt-5.6-terra` |
 | Journey overrides | **15** |
-| identical to the global, carrying no distinction | **12** |
-| real distinctions | **3** — `mirror-desktop` → `claude-bridge/claude-opus-5`, `alissonvale-com` → `gpt-5.6-sol`, `fabio-henri` → `gpt-5.5` |
+| ~~identical to the global, carrying no distinction~~ | ~~**12**~~ — **wrong, see the correction below** |
+| ~~real distinctions~~ | ~~**3**~~ — **wrong, see the correction below** |
 
 Two conclusions, and they point the same way.
 
@@ -381,3 +381,71 @@ sees after moving between conversations:
   a stored override stops following, so changing the global default will skip those 12 Journeys. They
   are the Navigator's data and cleaning them is **not** this CR's call to make silently.
 - **CR158's stale-merge race is untouched**, deliberately.
+
+## The Measurement Corrected: 8 redundant, not 12 (2026-10-15)
+
+The Navigator asked for the 12 redundant Journey overrides to be cleaned. Recounting before touching
+their data found **8**, not 12.
+
+**My instrument read one field of a two-field record.** An override carries `model` *and*
+`thinkingLevel`. I compared only the model against the global default, so four Journeys whose model
+matches the global while their thinking level does not were counted as redundant:
+
+| Journey | model | thinking |
+|---|---|---|
+| `nautilus-agentic-method` | `gpt-5.6-terra` = global | **`high`** vs global `pi-default` |
+| `livro-lideranca-soberana` | `gpt-5.6-terra` = global | **`high`** |
+| `softwarezen` | `gpt-5.6-terra` = global | **`high`** |
+| `atlas` | `gpt-5.6-terra` = global | **`high`** |
+
+Cleaning on my own number would have **destroyed four deliberate choices** — and because a Journey
+override is a single record, removing it to drop a redundant model would have dropped the thinking
+level with it.
+
+| | |
+|---|---|
+| Journey overrides | 15 |
+| **fully redundant** (model *and* thinking match, or absent) | **8** |
+| **real distinctions** | **7** |
+
+### The conclusion does not change — it strengthens
+
+Option A rested on the Journey grain being used. It is used by **7 of 15** Journeys rather than 3, so
+retiring it would have cost more than the original argument claimed, not less. Three carry a distinct
+model (`mirror-desktop` → `claude-bridge/claude-opus-5`, `alissonvale-com` carries `high`,
+`fabio-henri` → `gpt-5.5`) and four carry a distinct thinking level.
+
+The rest of the reasoning stands unaltered: the 8 remaining redundant entries are still the
+fingerprint of the composer writing a Journey-wide value, and the conditional write that this CR
+added is still what stops them accumulating at the finer grain.
+
+## Dev Build for the Field (2026-10-15)
+
+Source `6a0cf3f`, worktree clean, 0 unpushed. Installed binary
+`ab11e16526f59f49d97a62644239a7fd892e9fb8d8c3b489b8ac8e7083668549`, identical to the built one,
+replacing `a54cbbc5…`. Backup at `/tmp/Mirror Desktop Dev-20261015-105119.app`, hash-verified before
+removal; bundle identity checked before the destination was touched; `ps` gate before the backup and
+again immediately before the copy.
+
+Verified against the built bundle `dist/assets/index-CSqGTvl6.js`: `Follow the Journey default` 1×,
+`conversationOverrides` 14×, `conversationOwnsChoice` 2×, the new key error 2×, `1.1.0` 3×. Paired
+with absence: `This conversation now uses “` accounts for **every** occurrence of ` now uses “`, so
+no copy of the superseded message naming the Journey survives. An invented literal returns 0 and the
+binary returns 0 for a string the stylesheet-sibling JS returns 1 of, which is the compression
+control.
+
+**A third false zero, caught by its own check.** `from this conversation` returned **0**. The sentence
+is assembled — `“this conversation”` is the literal and `— from ` is the connector — so the contiguous
+form cannot exist. Re-checked on the literal the code actually contains, it is present once. The zero
+was the instrument's, not the feature's.
+
+## The Cleanup, Not Done Yet
+
+**Blocked on production being closed.** The running app holds `agentSettings` in memory and every
+write serialises the whole record from that copy, so editing the file under a live writer would be
+undone by the next model or profile change. Production was open at pid 67744.
+
+When it is closed, the cleanup removes the **8** fully redundant entries, preserves the **7** real
+ones, and must **not** add `conversationOverrides` or bump `schemaVersion`: production is still
+`alpha.50`, whose parser enforces an exact three-key root, so a migrated file would make it refuse to
+load agent settings entirely. Migration belongs to the first write of a build that carries this CR.
