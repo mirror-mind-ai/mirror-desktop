@@ -5,9 +5,16 @@ import { readFileSync } from "node:fs";
 import rustSource from "../../src-tauri/src/agent_settings.rs?raw";
 
 describe("persistent agent profile application boundary", () => {
-  it("loads settings before live send and resolves the selected Journey profile once", () => {
+  it("loads settings before live send and resolves the selected workspace profile once", () => {
     expect(appSource).toContain("loadAgentSettings()")
-    expect(appSource).toContain("resolveAgentProfile(agentSettings, selectedJourney)");
+    // CR154: the profile is resolved at the workspace, not at the Journey. The guard pins the
+    // workspace construction rather than merely the call, because `resolveAgentProfile(agentSettings,`
+    // followed by anything would pass while the conversation grain was being ignored — which is the
+    // defect this CR exists for.
+    expect(appSource).toContain(
+      "resolveAgentProfile(agentSettings, journeyWorkspace(selectedJourney, selectedThreadId ?? null))",
+    );
+    expect(appSource).not.toContain("resolveAgentProfile(agentSettings, selectedJourney)");
     expect(appSource).toContain("projectAgentProfile(providerConfig, effectiveAgentProfile)");
     expect(appSource).toContain('agentSettingsState !== "ready"');
     expect(appSource).toContain("livePiAgentStream(packet, effectiveProviderConfig, runAuthority)");

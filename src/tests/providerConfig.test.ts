@@ -71,6 +71,7 @@ describe("agent provider configuration", () => {
       args: ["--print", "--provider", "old", "--model=old-model", "--thinking", "low", "--no-tools"],
     }, {
       journeyId: "alpha",
+      threadId: null,
       model: { provider: "anthropic", model: "claude-sonnet-4-6" },
       thinkingLevel: "high",
       invocationMode: "mirror",
@@ -86,6 +87,7 @@ describe("agent provider configuration", () => {
   it("omits thinking for the native Pi default and never rewrites safe-test mode", () => {
     const effective = {
       journeyId: "alpha",
+      threadId: null,
       model: { provider: "openai-codex", model: "gpt-5.4" },
       thinkingLevel: "pi-default" as const,
       invocationMode: "mirror" as const,
@@ -121,6 +123,7 @@ describe("agent provider configuration", () => {
 describe("Composer model descriptor", () => {
   const config = projectAgentProfile(defaultPiProviderConfig, {
     journeyId: "journey-a",
+    threadId: null,
     model: { provider: "openai-codex", model: "gpt-5.5" },
     thinkingLevel: "high",
     invocationMode: "mirror",

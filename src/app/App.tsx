@@ -1232,9 +1232,12 @@ export function App({ model }: AppProps) {
     () => classifyAssistantTurnProximity(messages, runtimeProjectionMessageId, selectedRuntimeBusy),
     [messages, runtimeProjectionMessageId, selectedRuntimeBusy],
   );
+  // CR154: resolved at the workspace, so a conversation's own model choice is the one a send uses.
+  // The dependencies are the two coordinates rather than the workspace object, which is rebuilt on
+  // every render and would defeat the memo.
   const effectiveAgentProfile = useMemo(
-    () => resolveAgentProfile(agentSettings, selectedJourney),
-    [agentSettings, selectedJourney],
+    () => resolveAgentProfile(agentSettings, journeyWorkspace(selectedJourney, selectedThreadId ?? null)),
+    [agentSettings, selectedJourney, selectedThreadId],
   );
   const effectiveProviderConfig = useMemo(
     () => projectAgentProfile(providerConfig, effectiveAgentProfile),

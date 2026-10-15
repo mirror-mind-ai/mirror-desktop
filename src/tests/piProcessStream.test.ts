@@ -282,6 +282,7 @@ describe("Pi process stream adapter", () => {
     // thinking events when the model produced thinking, so no allowlist.
     const projectedDefault = projectAgentProfile(defaultPiProviderConfig, {
       journeyId: "journey-a",
+      threadId: null,
       model: { provider: "openai-codex", model: "gpt-5.5" },
       thinkingLevel: "pi-default",
       invocationMode: "mirror",

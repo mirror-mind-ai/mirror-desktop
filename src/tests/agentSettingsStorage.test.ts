@@ -15,7 +15,15 @@ describe("agent settings storage boundary", () => {
     await saveAgentSettings(settings);
     expect(invoke.mock.calls.map(([command]) => command)).toEqual(["load_agent_settings", "save_agent_settings"]);
     const saved = JSON.parse(invoke.mock.calls[1][1].payload);
-    expect(Object.keys(saved)).toEqual(["schemaVersion", "globalProfile", "journeyOverrides"]);
+    // CR154: this list is the declaration point for everything the agent settings file is allowed to
+    // carry. `conversationOverrides` is the third grain; adding one here is deliberate, and a grain
+    // that arrives without this line changing has arrived by accident.
+    expect(Object.keys(saved)).toEqual([
+      "schemaVersion",
+      "globalProfile",
+      "journeyOverrides",
+      "conversationOverrides",
+    ]);
     expect(JSON.stringify(saved)).not.toMatch(/api.?key|token|environment|headers|args/i);
   });
 
