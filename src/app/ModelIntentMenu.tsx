@@ -13,7 +13,12 @@ type ModelIntentMenuProps = {
   globalModelLabel: string;
   /** The configuration in force, named when no entry in this menu represents it. */
   currentBinding?: string;
+  /** CR154: true when this conversation holds a choice of its own rather than following its Journey. */
+  conversationOwnsChoice: boolean;
+  /** What this conversation would use if it stopped holding a choice of its own. */
+  journeyDefaultLabel: string;
   onSelectIntent: (intent: ModelIntent) => void;
+  onFollowJourneyDefault: () => void;
   onUseGlobalDefaults: () => void;
   onOpenFullSelector: () => void;
 };
@@ -28,7 +33,10 @@ export function ModelIntentMenu({
   usingGlobalDefault,
   globalModelLabel,
   currentBinding,
+  conversationOwnsChoice,
+  journeyDefaultLabel,
   onSelectIntent,
+  onFollowJourneyDefault,
   onUseGlobalDefaults,
   onOpenFullSelector,
 }: ModelIntentMenuProps) {
@@ -68,6 +76,24 @@ export function ModelIntentMenu({
       )}
 
       <div className="model-intent-menu-separator" role="separator" />
+
+      {/*
+        CR154: the precise inverse of a pick made here, offered only when there is something to undo.
+        Picking in this menu now writes the conversation's own choice, so the conversation needs a way
+        back to its Journey that does not also discard the Journey's own override — which is what the
+        entry below would do.
+      */}
+      {conversationOwnsChoice ? (
+        <button
+          type="button"
+          role="menuitem"
+          className="model-intent-menu-item"
+          onClick={onFollowJourneyDefault}
+        >
+          <span className="model-intent-menu-label">Follow the Journey default</span>
+          <span className="model-intent-binding">{journeyDefaultLabel}</span>
+        </button>
+      ) : null}
 
       <button
         type="button"

@@ -2,9 +2,9 @@
 
 # CR154: Persist a Model Choice at the Conversation It Was Made In
 
-**Status:** planned
-**Driver:** — (decision owed before `in_progress`)
-**Delivery:** —
+**Status:** in_progress
+**Driver:** assistant
+**Delivery:** `refinement/cr154-persist-a-model-choice-at-the-conversation-it-was-made-in`
 **Navigator priority:** 6 of 8 (intake 2026-10-12)
 
 ## Friction
@@ -288,3 +288,96 @@ Proposed rather than asked, since the protocol needs both recorded and neither i
 
 - **Driver:** `assistant`
 - **Delivery:** `refinement/cr154-persist-a-model-choice-at-the-conversation-it-was-made-in`
+
+## Delivery (2026-10-15)
+
+Navigator chose **option A** — three grains, the composer writing the finest, the Settings Journey
+panel keeping the Journey. Three slices.
+
+### Slice 1 — the workspace key moved into the domain
+
+`journeyWorkspaceKey.ts` had zero imports: pure domain in the wrong directory. Moved to
+`src/domain/`, 18 importers updated.
+
+**My enumeration was falsely complete.** I listed the import forms by grepping the name followed
+immediately by a quote, which cannot see `"../app/journeyWorkspaceKey.ts?raw"`, then asserted the
+substitution against the two forms I had listed — so the assert passed on its own terms. The suite
+reported **one file that failed to LOAD**, with 2,136 tests passing and none failing. The re-check is
+exhaustive rather than enumerated: every quoted string in `src/` containing the name, grouped and
+counted, then asserted that none resolves through `app/`.
+
+### Slice 2 — the third grain in the domain
+
+`resolveAgentProfile` takes a `JourneyWorkspace` as a **required** parameter. An optional `threadId`
+would let a call site resolve the Journey silently, which is the shape of this very defect; a
+required one makes forgetting it a compile error, and the control confirmed it by failing both the
+source guard and `tsc`.
+
+Resolution is lazy, so changing a Journey default still moves every conversation that never chose.
+`setConversationAgentOverride` does not store a choice that repeats the inherited value, field by
+field, and removes the entry when a choice returns to it.
+
+Two guards pinned the old shape and were **strengthened rather than loosened**: the storage test's
+exact root-key list now declares the third grain, and the App source guard pins the workspace
+construction rather than a call prefix that anything could satisfy.
+
+### Slice 3 — the composer, and a precise way back
+
+| control | writes |
+|---|---|
+| composer model menu | **this conversation's** choice |
+| composer → *Follow the Journey default* | clears only the conversation's choice |
+| composer → *Use global defaults* | clears **both** finer grains |
+| Settings → Journey panel (save and reset) | the Journey grain, unchanged |
+
+*Follow the Journey default* is rendered only when there is something to undo, and names where it
+would land rather than only that it undoes something. *Use global defaults* had to start clearing
+both grains or **its own label would be false** — clearing only the Journey's override would leave
+this conversation's choice in force and the global default unreached.
+
+### A guard that went on passing after the behaviour changed
+
+The test named *"applies an intent as the same Journey override the dialog writes"* sliced `App.tsx`
+from `applyModelIntent` to `openJourneyAgentProfileSelector` — a window that covered every
+declaration in between. This CR added two siblings inside it, one of which legitimately writes the
+Journey grain, so the guard matched a neighbour's text and **kept passing while the behaviour it
+named had been replaced.**
+
+The meta-control is the evidence, and it is worth more than the repair: with the defect restored
+**and** the old wide window in place, **14 of 14 passed.** The window now ends at the next
+declaration, which a neighbour cannot satisfy.
+
+### Checks
+
+`tsc` clean · **265 files / 2,172 tests** · `cargo test` 324 passed / 3 ignored · build clean ·
+`roadmap:check` READY.
+
+**Nine controls across the three slices**, each confirmed applied before its result was read, each
+failing on the right assertion: an unconditional write, an inverted resolution order, a permissive
+key validator, a schema refusing `1.0.0`, the reverted call site, the composer writing the Journey,
+the way back discarding the Journey's override, the global entry reaching only the Journey, and the
+way back rendered unconditionally.
+
+### Field Check Owed
+
+No test can tell whether this feels right, and three acceptance clauses are about what the Navigator
+sees after moving between conversations:
+
+1. Pick a model in conversation A's composer; pick a different one in conversation B **of the same
+   Journey**; return to A and confirm **A kept its own**.
+2. In a conversation that never picked, confirm it shows the Journey's model — `mirror-desktop`
+   should still read **`claude-bridge/claude-opus-5`**.
+3. Change the Journey default in Settings and confirm a conversation that never picked **moves with
+   it**, while one that picked **does not**.
+4. In a conversation holding its own choice, use **Follow the Journey default** and confirm it
+   returns to the Journey's model rather than to the global one.
+5. Restart and confirm a conversation's choice survived.
+6. Confirm the sentence under the composer attributes the choice correctly — *"from this
+   conversation"* rather than naming the Journey.
+
+### Still owed, not done here
+
+- **The 12 redundant Journey overrides are left in place.** They equal the global default today, but
+  a stored override stops following, so changing the global default will skip those 12 Journeys. They
+  are the Navigator's data and cleaning them is **not** this CR's call to make silently.
+- **CR158's stale-merge race is untouched**, deliberately.

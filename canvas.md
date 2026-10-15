@@ -17,7 +17,7 @@
 | ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | ✅ campo verificado (7/7) · fechada sobre arquivo | `██████████` |
 | ↳　CR136 · Admit Concurrent Work Inside One Journey | ↗️ promoted → RS024 / CR138–CR140 | `　　　　　　　　　　` |
 | ↳　CR137 · Bring the Navigator Back to the Conversation They Left | ✅ done · campo verificado nas duas direções · regressão achada e reparada | `██████████` |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 45 ✅ · 1 ⚪ · 7 🟡 · 4 ↗️ · 1 ⛔ · de 58 |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 45 ✅ · 1 🔵 · 7 🟡 · 4 ↗️ · 1 ⛔ · de 58 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR142 · Stop Losing a Turn the Journal Already Answered | ✅ done · campo negativo coletado na 2ª tentativa | `██████████` |
@@ -30,7 +30,7 @@
 | ↳　CR151 · Let a Finished Turn Announce Itself | ✅ done · **campo PASSOU** · 4 fatias: tom → 3 tons + aba **Sound & Voice** → contrato de tokens (102 regras mortas) → lista de tinta branca (6 controles de 3 CRs) · fatias 3 e 4 eram dívida alheia que esta CR trouxe à vista · 3 instrumentos falsos pegos por controle ao lado | `██████████` |
 | ↳　CR152 · Let the Navigator Hide Every Conversation but One | ✅ done · **campo PASSOU** · desfazer preciso já existia e o campo confirmou · cap improvocável (256 contra união máxima de 61) | `██████████` |
 | ↳　CR153 · Let the Navigator See Only Desktop Conversations | ✅ done · **campo PASSOU 6/6** · medido 41/45/57 contra 4 desktop · grão global validado pelo passo 3 · campo achou meu erro de posicionamento: controle saiu do cabeçalho de 292px para linha própria, um elemento a menos | `██████████` |
-| ↳　CR154 · Persist a Model Choice at the Conversation It Was Made In | ⚪ planned · prioridade 6 · **o seletor vive no composer e escreve um override de journey** · a hipótese registrada foi refutada pelo código: a chave não deriva · 3 grãos, chave de workspace, resolução tardia · decisão de forma devida | `██░░░░░░░░` |
+| ↳　CR154 · Persist a Model Choice at the Conversation It Was Made In | 🔵 in_progress · 3 fatias · chave de workspace para `domain` · 3 grãos, resolução **tardia** · composer escreve a conversa; Settings segue na journey · **volta precisa** no menu, e "global" passou a limpar os dois grãos senão o rótulo mentia · guard que seguia passando depois da mudança, provado cego por meta-controle (14/14 com o defeito posto) · 9 controles | `███████░░░` |
 | ↳　CR155 · Give the Navigator an Exit From a Finishing That Holds a Live Lease | 🟡 captured · prioridade 7 · dívida da CR132 chegando do campo · **limiar de 60 s falsificado por 2 settlements legítimos** | `░░░░░░░░░░` |
 | ↳　CR156 · Simplify the Context Map | 🟡 captured · prioridade 8 · recua parte da CR105 · critério ainda não estabelecido | `░░░░░░░░░░` |
 | ↳　CR157 · Stop Moving the Whole Conversation Through Every Settlement | 🟡 captured · 3 saves + 1 load de 11,5 MB por settlement (26% da janela medida) · nasce da CR149 | `░░░░░░░░░░` |

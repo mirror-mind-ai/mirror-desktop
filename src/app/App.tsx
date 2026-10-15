@@ -456,6 +456,7 @@ import {
   createDefaultAgentSettings,
   describeEffectiveAgentProfile,
   resolveAgentProfile,
+  setConversationAgentOverride,
   setJourneyAgentOverride,
   type AgentModelSelection,
   type AgentSettings,
@@ -1268,6 +1269,20 @@ export function App({ model }: AppProps) {
   });
   const usingGlobalAgentDefault = effectiveAgentProfile.modelSource === "global"
     && effectiveAgentProfile.thinkingSource === "global";
+  // CR154: whether this conversation holds a choice of its own, which is what decides if there is
+  // anything for "Follow the Journey default" to undo.
+  const conversationOwnsAgentChoice = effectiveAgentProfile.modelSource === "conversation"
+    || effectiveAgentProfile.thinkingSource === "conversation";
+  // CR154: what this conversation would use if it stopped holding a choice of its own. Dropping every
+  // conversation override resolves identically for this workspace and reads more plainly than
+  // deleting one key.
+  const journeyDefaultAgentProfile = useMemo(
+    () => resolveAgentProfile(
+      { ...agentSettings, conversationOverrides: {} },
+      journeyWorkspace(selectedJourney, selectedThreadId ?? null),
+    ),
+    [agentSettings, selectedJourney, selectedThreadId],
+  );
   const selectedProviderModelLabel = providerModelLabel(effectiveProviderConfig);
   // CR103: abbreviating a name two providers claim would trade hard reading for ambiguity, so the
   // live catalog decides which names can safely lose their provider.
@@ -4344,14 +4359,47 @@ export function App({ model }: AppProps) {
     if (saved) setJourneyAgentProfileOpen(false);
   }
 
+  /**
+   * CR154: this menu sits inside a conversation, so a pick here is the conversation's own choice.
+   * It used to write the Journey's override, which is why two conversations in one Journey could not
+   * disagree about the model and why returning to one showed the other's pick.
+   *
+   * The Settings Journey panel still writes the Journey grain. That control is named for the Journey
+   * and offers an explicit inherit option; this one is named for nothing but the pick.
+   */
   async function applyModelIntent(intent: ModelIntent) {
     setModelIntentMenuOpen(false);
     await persistAgentSettings(
-      setJourneyAgentOverride(agentSettings, selectedJourney, {
+      setConversationAgentOverride(agentSettings, selectedWorkspace, {
         model: intent.model,
         thinkingLevel: intent.thinkingLevel,
       }),
-      `${selectedJourneyItem.name} now uses “${intent.label}”.`,
+      `This conversation now uses “${intent.label}”.`,
+    );
+  }
+
+  // CR154: the precise inverse of the pick above — it gives up this conversation's own choice and
+  // leaves the Journey's override standing, which "Use global defaults" deliberately does not.
+  async function followJourneyAgentDefaultHere() {
+    await persistAgentSettings(
+      setConversationAgentOverride(agentSettings, selectedWorkspace, {}),
+      `This conversation now follows ${selectedJourneyItem.name}.`,
+    );
+  }
+
+  /**
+   * CR154: reaching the global default from inside a conversation has to clear both finer grains, or
+   * the entry's own label would be false — clearing only the Journey's override would leave this
+   * conversation's choice in force and the global default unreached.
+   */
+  async function useGlobalAgentDefaultsHere() {
+    await persistAgentSettings(
+      setConversationAgentOverride(
+        setJourneyAgentOverride(agentSettings, selectedJourney, {}),
+        selectedWorkspace,
+        {},
+      ),
+      `${selectedJourneyItem.name} now inherits global agent defaults.`,
     );
   }
 
@@ -6541,10 +6589,16 @@ export function App({ model }: AppProps) {
                     usingGlobalDefault={usingGlobalAgentDefault}
                     globalModelLabel={`${agentSettings.globalProfile.model.provider}/${agentSettings.globalProfile.model.model}`}
                     currentBinding={describeComposerModelSelection(effectiveProviderConfig, effectiveAgentProfile.thinkingLevel)}
+                    conversationOwnsChoice={conversationOwnsAgentChoice}
+                    journeyDefaultLabel={`${journeyDefaultAgentProfile.model.provider}/${journeyDefaultAgentProfile.model.model}`}
                     onSelectIntent={(intent) => { void applyModelIntent(intent); }}
+                    onFollowJourneyDefault={() => {
+                      setModelIntentMenuOpen(false);
+                      void followJourneyAgentDefaultHere();
+                    }}
                     onUseGlobalDefaults={() => {
                       setModelIntentMenuOpen(false);
-                      void resetSelectedJourneyAgentOverride();
+                      void useGlobalAgentDefaultsHere();
                     }}
                     onOpenFullSelector={() => {
                       setModelIntentMenuOpen(false);

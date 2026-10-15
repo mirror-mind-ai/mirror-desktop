@@ -35,7 +35,10 @@ function render(overrides: Record<string, unknown> = {}) {
       catalog={catalog}
       usingGlobalDefault={false}
       globalModelLabel="openai-codex/gpt-5.4-mini"
+      conversationOwnsChoice={false}
+      journeyDefaultLabel="openai-codex/gpt-5.4-mini"
       onSelectIntent={() => undefined}
+      onFollowJourneyDefault={() => undefined}
       onUseGlobalDefaults={() => undefined}
       onOpenFullSelector={() => undefined}
       {...overrides}
@@ -71,6 +74,21 @@ describe("model intent menu", () => {
     expect(html).toContain("Use global defaults");
     expect(html).toContain("openai-codex/gpt-5.4-mini");
     expect(html).toContain("Open full selector");
+  });
+
+  // CR154: a pick here now writes the conversation's own choice, so the conversation needs a way
+  // back that does not also discard the Journey's override.
+  it("offers a way back to the Journey only when the conversation holds a choice of its own", () => {
+    expect(render({ conversationOwnsChoice: false })).not.toContain("Follow the Journey default");
+    const owned = render({ conversationOwnsChoice: true, journeyDefaultLabel: "anthropic/claude-opus-5" });
+    expect(owned).toContain("Follow the Journey default");
+    // named, so the entry says where it would land rather than only that it undoes something
+    expect(owned).toContain("anthropic/claude-opus-5");
+  });
+
+  it("keeps the way back distinct from the global default, which discards more", () => {
+    const owned = render({ conversationOwnsChoice: true });
+    expect(owned.indexOf("Follow the Journey default")).toBeLessThan(owned.indexOf("Use global defaults"));
   });
 
   it("points at Settings when no intent has been named yet", () => {

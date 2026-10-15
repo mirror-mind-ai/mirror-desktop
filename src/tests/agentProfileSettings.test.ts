@@ -4,6 +4,24 @@ import appSource from "../app/App.tsx?raw";
 import { readFileSync } from "node:fs";
 import rustSource from "../../src-tauri/src/agent_settings.rs?raw";
 
+/**
+ * CR154: one named function's body and nothing after it.
+ *
+ * The guard this replaces sliced from one function to another one several declarations later, so its
+ * window covered the siblings in between. When this CR moved the composer onto the conversation
+ * grain, a new sibling inside that window still wrote the Journey grain legitimately, and the guard
+ * went on passing while the behaviour it named had changed. A window that ends at the next
+ * declaration cannot be satisfied by a neighbour.
+ */
+function functionBody(name: string): string {
+  const start = appSource.indexOf(`function ${name}(`);
+  expect(start, `${name} not found in App.tsx`).toBeGreaterThan(-1);
+  const rest = appSource.slice(start + 1);
+  const next = rest.search(/\n {2}(?:async )?function /);
+  expect(next, `no declaration follows ${name}`).toBeGreaterThan(-1);
+  return rest.slice(0, next);
+}
+
 describe("persistent agent profile application boundary", () => {
   it("loads settings before live send and resolves the selected workspace profile once", () => {
     expect(appSource).toContain("loadAgentSettings()")
@@ -117,15 +135,38 @@ describe("model intents in the Composer footer", () => {
     expect(footer).toContain('aria-haspopup="menu"');
   });
 
-  it("applies an intent as the same Journey override the dialog writes", () => {
-    const apply = appSource.slice(
-      appSource.indexOf("async function applyModelIntent"),
-      appSource.indexOf("function openJourneyAgentProfileSelector"),
-    );
-    expect(apply).toContain("setJourneyAgentOverride(agentSettings, selectedJourney, {");
+  it("applies an intent as this conversation's own choice rather than the Journey's", () => {
+    const apply = functionBody("applyModelIntent");
+    expect(apply).toContain("setConversationAgentOverride(agentSettings, selectedWorkspace, {");
     expect(apply).toContain("model: intent.model");
     expect(apply).toContain("thinkingLevel: intent.thinkingLevel");
     expect(apply).toContain("setModelIntentMenuOpen(false)");
+    // CR154: writing the Journey from here was the defect. The window is bounded to this one
+    // function because the neighbours legitimately write the Journey grain — the previous version of
+    // this guard ran to openJourneyAgentProfileSelector and went on passing after the behaviour
+    // changed, because it matched a sibling's text.
+    expect(apply).not.toContain("setJourneyAgentOverride");
+  });
+
+  it("gives a conversation back to its Journey without discarding the Journey's own override", () => {
+    const follow = functionBody("followJourneyAgentDefaultHere");
+    expect(follow).toContain("setConversationAgentOverride(agentSettings, selectedWorkspace, {})");
+    expect(follow).not.toContain("setJourneyAgentOverride");
+  });
+
+  it("clears both finer grains when the composer asks for the global default", () => {
+    const toGlobal = functionBody("useGlobalAgentDefaultsHere");
+    expect(toGlobal).toContain("setJourneyAgentOverride(agentSettings, selectedJourney, {})");
+    expect(toGlobal).toContain("setConversationAgentOverride(");
+  });
+
+  it("keeps the Settings Journey panel writing the Journey grain", () => {
+    const reset = functionBody("resetSelectedJourneyAgentOverride");
+    expect(reset).toContain("setJourneyAgentOverride(agentSettings, selectedJourney, {})");
+    expect(reset).not.toContain("setConversationAgentOverride");
+    const save = functionBody("saveSelectedJourneyAgentOverride");
+    expect(save).toContain("setJourneyAgentOverride(agentSettings, selectedJourney, override)");
+    expect(save).not.toContain("setConversationAgentOverride");
   });
 
   it("dismisses the menu by outside pointer and by Escape", () => {
