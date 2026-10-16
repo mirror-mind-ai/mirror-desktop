@@ -2,9 +2,9 @@
 
 # CR159: Say Why the Provider Refused a Turn
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** planned
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs025-batch-a-naming`
 
 ## Friction
 
@@ -100,7 +100,7 @@ fabricated assistant response, no implicit provider retry, Composer stays availa
 
 ## Proposed Scope
 
-Recorded so it can be decided. **Not selected, nothing implemented.**
+~~Recorded so it can be decided. Not selected, nothing implemented.~~ **Planned 2026-10-16 as RS025 Batch A.** Nothing implemented yet.
 
 **Scope.** Read `errorMessage` from a transcript assistant entry whose `stopReason` is `"error"`,
 carry it into the turn journal's terminal evidence, and render it in the interrupted-attempt notice.

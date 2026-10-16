@@ -63,14 +63,14 @@ has a falsified threshold and a field verification still owed.
 
 ## Change Requests
 
-- [CR129: Let a Recovered Settlement Say It Happened](cr129-let-a-recovered-settlement-say-it-happened.md) — captured · **naming**
-- [CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease](cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) — captured · **naming**, then **exit** · a field occurrence recorded 2026-10-16
-- [CR159: Say Why the Provider Refused a Turn](cr159-say-why-the-provider-refused-a-turn.md) — captured · **naming** · from the field, production alpha.50
-- [CR160: Notice a Turn the Journal Never Heard Finish](cr160-notice-a-turn-the-journal-never-heard-finish.md) — captured · **exit** · from the field, production alpha.50 · falsifies CR142's premise
+- [CR129: Let a Recovered Settlement Say It Happened](cr129-let-a-recovered-settlement-say-it-happened.md) — captured · **membership questioned**: its own Boundaries say *not the surface*, so it serves neither half of the criterion · awaiting the Navigator's call
+- [CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease](cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) — **planned · Batch A** · **naming**, then **exit** · a field occurrence recorded 2026-10-16
+- [CR159: Say Why the Provider Refused a Turn](cr159-say-why-the-provider-refused-a-turn.md) — **planned · Batch A** · **naming** · from the field, production alpha.50
+- [CR160: Notice a Turn the Journal Never Heard Finish](cr160-notice-a-turn-the-journal-never-heard-finish.md) — **planned · Batch B** · **exit** · from the field, production alpha.50 · falsifies CR142's premise
 
-## Proposed Delivery Shape
+## Delivery Shape
 
-**Recommended, not decided.** Planning, selection and status remain the Navigator's.
+**Decided by the Navigator on 2026-10-16**: plan as one batch, implement and validate in two.
 
 Planning as **one batch** — that is this RS's whole purpose, and planning the four together against
 one criterion is what stops a nineteenth local repair.
@@ -83,7 +83,9 @@ no behavioural change, they touch different files, and each is verifiable on the
 kind.
 
 **Batch B — exit.** CR160 (detect the journal/transcript disagreement and route it through existing
-recovery) plus CR129. Both change what happens.
+recovery). It changes what happens. ~~Plus CR129~~ — CR129's membership is questioned above and it
+is in neither batch until decided. Batch B opens only after Batch A has shipped **and** been
+field-checked on at least one abnormal ending.
 
 The ordering is not preference. **When CR160 works, the turn stops hanging, so CR155's surface is
 never reached** — shipping them together makes the next hang untestable for A. Abnormal endings are

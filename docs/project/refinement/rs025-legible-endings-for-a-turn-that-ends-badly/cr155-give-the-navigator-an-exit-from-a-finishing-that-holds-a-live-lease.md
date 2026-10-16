@@ -2,9 +2,9 @@
 
 # CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** planned
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs025-batch-a-naming`
 **Navigator priority:** 7 of 8 (intake 2026-10-12)
 
 ## Friction
@@ -124,6 +124,41 @@ CR132's closure debt and exclusions quoted verbatim from its own document.
 `settlementAbandonment.ts` refusal reasons and `ABANDON_SETTLEMENT_OFFER_AFTER_MS` read from source
 on 2026-10-12. The friction is the Navigator's report; **no durable record of this specific
 occurrence has been read**, and nothing here attributes it to a mechanism.
+
+## Proposed Scope — Slice 1, Naming
+
+Planned 2026-10-16 as RS025 **Batch A**. The First Investigation already named this slice and asked
+that it be measured on its own before anything braver is built. The field occurrence below is the
+measurement that selected it.
+
+**Scope.** Render the refusal `settlementAbandonmentOffer` already computes. The decision function is
+not changed and stays the single authority; the component that draws its output stops drawing
+silence for `native_execution_active` and `occupancy_unknown`.
+
+**Files.** `src/app/SettlementAbandonmentNotice.tsx` (render the reason), `src/app/settlementAbandonment.ts`
+(one pure function mapping a refusal to its sentence, so the words are testable without a DOM),
+`src/tests/settlementAbandonmentNotice.test.tsx`, `src/tests/settlementAbandonment.test.ts`.
+
+**Acceptance.**
+- While `ownerPhase === "finalizing"` and the offer is refused as `native_execution_active`, the
+  notice says the agent is still executing natively and that no exit can be offered until it ends.
+- Refused as `occupancy_unknown`, the notice says the application cannot tell whether the agent is
+  still running.
+- Refused as `too_soon`, the counter behaves exactly as today.
+- **Negative case.** `ownerPhase` not `finalizing` renders nothing, as today. A healthy running turn
+  must not acquire a sentence.
+- When the offer is made, nothing changes.
+
+**Validation.** A fixture per refusal variant, built with the component's `now` seam. The guard that
+replaces the one that passed while covering silence: an **allow-list over the refusal union** —
+every `reason` except `not_finishing` must reach the DOM, so adding a fourth refusal later cannot be
+silent by default. A control that the sentence for `native_execution_active` is absent when the
+reason is `too_soon`.
+
+**Exclusions.** No exit is added in this slice. The 60 s threshold is not moved. `hasActiveNativeExecution`
+is not loosened. Slice 2 — a measured exit for a dead lease — is **Batch B material and is not
+planned here**; it depends on `measure_child_liveness` and on the Workbench reversing CR132's
+timeout exclusion on evidence.
 
 ## Field Occurrence (2026-10-16)
 

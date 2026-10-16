@@ -141,3 +141,17 @@ mechanism, so they stay separate: see
 [CR142](../rs016-ongoing-product-improvements-and-adjustments/cr142-stop-losing-a-turn-the-journal-already-answered.md). Whichever is planned first should
 read the other, because a diagnostic that distinguishes "recovered silently" from "never ran" would
 serve both.
+
+## RS025 Membership, Questioned (2026-10-16)
+
+Status unchanged. Moved into RS025 with the three other live CRs of the theme, and then read against
+RS025's intake rule — *every CR must name which half of the criterion it serves: naming or exit*.
+
+This CR does not serve either. Its own Boundaries say **"Not the surface"**: it is about the
+settlement-timings ledger telling a *reader* that a settlement was a repair. RS025's criterion is
+about the *Navigator* being told, in the application. The ledger record is valuable and may well be
+the evidence a later surface reads from, but it is not an abnormal ending naming itself.
+
+Recorded rather than silently acted on. Two honest options, for the Navigator: return it to RS016,
+or keep it in RS025 as explicit groundwork for a naming CR that does not exist yet. It is **not**
+planned in either batch until that is decided.

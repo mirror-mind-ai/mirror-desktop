@@ -2,9 +2,9 @@
 
 # CR160: Notice a Turn the Journal Never Heard Finish
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** planned
+**Driver:** @alissonvale
+**Delivery:** `refinement/rs025-batch-b-exit`
 
 ## Friction
 
@@ -86,7 +86,7 @@ long turn must stay untouched.
 
 ## Proposed Scope
 
-Recorded so it can be decided. **Not selected, nothing implemented.**
+~~Recorded so it can be decided. Not selected, nothing implemented.~~ **Planned 2026-10-16 as RS025 Batch B**, after Batch A ships and is field-checked. Nothing implemented yet.
 
 **Scope.** Extend the stranded predicate with a second, independent question: for the run the
 renderer believes is live, does the transcript authority hold a terminal leaf while the journal does
