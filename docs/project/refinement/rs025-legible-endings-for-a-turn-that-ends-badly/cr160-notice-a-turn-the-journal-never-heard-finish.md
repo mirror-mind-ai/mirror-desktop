@@ -352,3 +352,23 @@ file should stop growing for that run.
 
 The skips file still has no reader, and a refusal is still invisible while it is being made. That is
 the second open question above and stays open.
+
+## Dev Build Carrying Batch B (2026-10-16)
+
+Source `08edb29` on `refinement/rs025-batch-b-exit`. Installed at `/Applications/Mirror Desktop Dev.app`,
+binary **`d4137adff90f99549d4fa404ecd2544b91382714016c2d9e3765419c8c614c37`**, replacing Batch A's
+`03cc4fba…` (backup `/tmp/Mirror Desktop Dev-20261016-195041.app`, hash-verified before removal). Identity `ai.mirrormind.desktop.dev` checked
+before the destination was touched; `ps` gate passed twice, anchored on the process path.
+
+**Shipped-chain evidence.** `dist/assets/index-*.js` 19:47:44 precedes the binary 19:49:42; installed
+hash equals built hash. In the bundle: `never heard it end` 1×, `in its session, but the turn` 1×,
+`inspect_pi_session_leaf` 1× (the invoke name — the only grep-visible trace of the native half),
+`journal_never_heard` 2×, `Recover this turn` 1× (unchanged), Batch A's sentence still 1×. Invented
+control literal 0×. The Rust attribution change introduces no frontend literal and is covered by
+`cargo test` and the read-only production probe above.
+
+**Field steps on Dev.** Dev does not read production Journeys, so the production orphan cannot be
+exercised here; the stranded shape is not provokable by hand either. What Dev can show: no false
+positive on an ordinary long turn (the negative case), and the leaf read appearing in no notice
+while a turn runs. The positive case waits on the next frozen `running` in the field, or on the
+production upgrade recovering the 13:00 orphan on its first `convergeDelivery` of `alissonvale-com`.
