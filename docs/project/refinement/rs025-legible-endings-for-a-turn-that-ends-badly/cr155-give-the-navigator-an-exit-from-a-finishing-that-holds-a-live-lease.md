@@ -1,4 +1,4 @@
-[< RS016](index.md)
+[< RS025](index.md)
 
 # CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease
 
@@ -175,7 +175,7 @@ three refusals are silent.
 
 The journal freezing at `running` is **not** CR155's scope and needs its own home. It is one step
 earlier than
-[CR142](cr142-stop-losing-a-turn-the-journal-already-answered.md)'s observed case: there the journal
+[CR142](../rs016-ongoing-product-improvements-and-adjustments/cr142-stop-losing-a-turn-the-journal-already-answered.md)'s observed case: there the journal
 had reached terminal and the renderer was stale; here the journal itself never advanced, so the loss
 happened **before** the journal write. CR142 recorded its loss mechanism as unestablished and named
 two silent candidates; this occurrence is consistent with both and settles neither.

@@ -1,4 +1,4 @@
-[< RS016](index.md)
+[< RS025](index.md)
 
 # CR159: Say Why the Provider Refused a Turn
 
@@ -81,7 +81,7 @@ used. The zero for `errorMessage` is a real zero, not a blind search.
 
 ## Why This Is Not CR054 Reopened
 
-[CR054: Surface Provider Terminal Errors in the GUI](cr054-surface-provider-terminal-errors-in-the-gui.md)
+[CR054: Surface Provider Terminal Errors in the GUI](../rs016-ongoing-product-improvements-and-adjustments/cr054-surface-provider-terminal-errors-in-the-gui.md)
 is `done`, and its Problem statement describes this symptom exactly: *"present the turn only as an
 interrupted attempt without showing the concrete error that caused the interruption."* Its scope even
 asked for tests covering *"a generic provider error"*, which this is.

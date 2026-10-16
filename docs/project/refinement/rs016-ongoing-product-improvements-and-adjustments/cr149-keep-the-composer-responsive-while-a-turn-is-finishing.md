@@ -1157,7 +1157,7 @@ of view before the next hypothesis.*
 **It cannot be provoked and has not been.** The offer needs 60 s of `Finishing`; settlements now run
 about 6.6 s, and the longest in 240 records is 48.5 s. It is covered by the 14 tests on
 `SettlementAbandonmentNotice.tsx` and by CR138's strengthened guard, and the threshold itself is
-already falsified — [CR155](cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md)
+already falsified — [CR155](../rs025-legible-endings-for-a-turn-that-ends-badly/cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md)
 owns that question. **This CR is marked done on its first clause, with the second recorded as
 test-covered and unprovokable rather than verified.**
 

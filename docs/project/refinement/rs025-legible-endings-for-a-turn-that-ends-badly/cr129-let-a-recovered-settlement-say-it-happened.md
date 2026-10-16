@@ -1,4 +1,4 @@
-[< RS016](index.md)
+[< RS025](index.md)
 
 # CR129: Let a Recovered Settlement Say It Happened
 
@@ -138,6 +138,6 @@ indefinitely.
 This CR is about a settlement that *succeeds through recovery and says nothing*. That one is a
 settlement that **did not happen at all** and also says nothing. They share the silence and not the
 mechanism, so they stay separate: see
-[CR142](cr142-stop-losing-a-turn-the-journal-already-answered.md). Whichever is planned first should
+[CR142](../rs016-ongoing-product-improvements-and-adjustments/cr142-stop-losing-a-turn-the-journal-already-answered.md). Whichever is planned first should
 read the other, because a diagnostic that distinguishes "recovered silently" from "never ran" would
 serve both.

@@ -1,4 +1,4 @@
-[< RS016](index.md)
+[< RS025](index.md)
 
 # CR160: Notice a Turn the Journal Never Heard Finish
 
@@ -43,7 +43,7 @@ heard the turn finish.**
 indistinguishable from a legitimately long turn.
 
 The predicate was built on an explicit premise, written into
-[CR142](cr142-stop-losing-a-turn-the-journal-already-answered.md)'s own module doc: *"The journal is
+[CR142](../rs016-ongoing-product-improvements-and-adjustments/cr142-stop-losing-a-turn-the-journal-already-answered.md)'s own module doc: *"The journal is
 durable and already correct."* **Here the journal is the stale thing**, and that premise is exactly
 what this occurrence falsifies.
 

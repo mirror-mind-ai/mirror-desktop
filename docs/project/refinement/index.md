@@ -179,6 +179,7 @@ executes work.
 | 22 | [RS022](rs022-mirror-core-debts/index.md) | Mirror Core Debts | active |
 | 23 | [RS023](rs023-conversations-as-first-class-workspaces/index.md) | Conversations as First-Class Workspaces | closed |
 | 24 | [RS024](rs024-concurrent-work-inside-one-journey/index.md) | Concurrent Work Inside One Journey | closed |
+| 25 | [RS025](rs025-legible-endings-for-a-turn-that-ends-badly/index.md) | Legible Endings for a Turn That Ends Badly | active |
 
 ## Change Requests
 
@@ -202,12 +203,12 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR152](rs016-ongoing-product-improvements-and-adjustments/cr152-let-the-navigator-hide-every-conversation-but-one.md) | RS016 | Let the Navigator Hide Every Conversation but One | done | assistant | `refinement/cr152-cr153-conversation-list-reduction` |
 | — | [CR153](rs016-ongoing-product-improvements-and-adjustments/cr153-let-the-navigator-see-only-desktop-conversations.md) | RS016 | Let the Navigator See Only Desktop Conversations | done | assistant | `refinement/cr152-cr153-conversation-list-reduction` |
 | — | [CR154](rs016-ongoing-product-improvements-and-adjustments/cr154-persist-a-model-choice-at-the-conversation-it-was-made-in.md) | RS016 | Persist a Model Choice at the Conversation It Was Made In | done | — | — |
-| — | [CR155](rs016-ongoing-product-improvements-and-adjustments/cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) | RS016 | Give the Navigator an Exit From a Finishing That Holds a Live Lease | captured | — | — |
+| — | [CR155](rs025-legible-endings-for-a-turn-that-ends-badly/cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) | RS025 | Give the Navigator an Exit From a Finishing That Holds a Live Lease | captured | — | — |
 | — | [CR156](rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md) | RS016 | Simplify the Context Map | captured | — | — |
 | — | [CR157](rs016-ongoing-product-improvements-and-adjustments/cr157-stop-moving-the-whole-conversation-through-every-settlement.md) | RS016 | Stop Moving the Whole Conversation Through Every Settlement | captured | — | — |
 | — | [CR158](rs016-ongoing-product-improvements-and-adjustments/cr158-stop-one-agent-settings-write-from-dropping-another.md) | RS016 | Stop One Agent Settings Write From Dropping Another | captured | — | — |
-| — | [CR159](rs016-ongoing-product-improvements-and-adjustments/cr159-say-why-the-provider-refused-a-turn.md) | RS016 | Say Why the Provider Refused a Turn | captured | — | — |
-| — | [CR160](rs016-ongoing-product-improvements-and-adjustments/cr160-notice-a-turn-the-journal-never-heard-finish.md) | RS016 | Notice a Turn the Journal Never Heard Finish | captured | — | — |
+| — | [CR159](rs025-legible-endings-for-a-turn-that-ends-badly/cr159-say-why-the-provider-refused-a-turn.md) | RS025 | Say Why the Provider Refused a Turn | captured | — | — |
+| — | [CR160](rs025-legible-endings-for-a-turn-that-ends-badly/cr160-notice-a-turn-the-journal-never-heard-finish.md) | RS025 | Notice a Turn the Journal Never Heard Finish | captured | — | — |
 | — | [CR147](rs016-ongoing-product-improvements-and-adjustments/cr147-stop-a-run-loop-thread-from-dying-in-silence.md) | RS016 | Stop a Run-Loop Thread from Dying in Silence | done | — | — |
 | — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | done | @alissonvale | `refinement/rs023-cr133-stop-a-disclosure-from-selecting-a-journey` |
 | — | [CR134](rs023-conversations-as-first-class-workspaces/cr134-name-the-owner-of-running-work-without-hiding-that-it-runs.md) | RS023 | Name the Owner of Running Work Without Hiding That It Runs | done | @alissonvale | `refinement/rs023-cr134-name-the-owner-of-running-work` |
@@ -220,7 +221,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR111](rs021-ux-pre-beta-evolution/cr111-preserve-agent-comment-trail-across-turns.md) | RS021 | Preserve the Agent Comment Trail Across Turns | done | @alissonvale | `refinement/rs021-cr111-agent-comment-trail` |
 | — | [CR126](rs016-ongoing-product-improvements-and-adjustments/cr126-stop-a-correction-from-becoming-its-own-turn.md) | RS016 | Stop a Correction From Becoming Its Own Turn | done | @alissonvale | `refinement/rs016-cr126-corrected-turn-request-identity` |
 | — | [CR127](rs016-ongoing-product-improvements-and-adjustments/cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) | RS016 | Let a Journey's First Turn Settle Without a Receipt It Cannot Have | done | @alissonvale | `refinement/rs016-cr127-let-a-first-turn-settle-without-a-receipt-it-cannot-have` |
-| — | [CR129](rs016-ongoing-product-improvements-and-adjustments/cr129-let-a-recovered-settlement-say-it-happened.md) | RS016 | Let a Recovered Settlement Say It Happened | captured | — | — |
+| — | [CR129](rs025-legible-endings-for-a-turn-that-ends-badly/cr129-let-a-recovered-settlement-say-it-happened.md) | RS025 | Let a Recovered Settlement Say It Happened | captured | — | — |
 | — | [CR131](rs016-ongoing-product-improvements-and-adjustments/cr131-make-the-mirror-a-channel-validates-against-identifiable.md) | RS016 | Make the Mirror a Channel Validates Against Identifiable | captured | — | — |
 | — | [CR132](rs016-ongoing-product-improvements-and-adjustments/cr132-let-the-navigator-end-a-finishing-that-will-not-end.md) | RS016 | Let the Navigator End a Finishing That Will Not End | done | @alissonvale | `refinement/rs016-cr132-end-a-finishing-that-will-not-end` |
 | — | [CR128](rs016-ongoing-product-improvements-and-adjustments/cr128-give-back-the-answer-a-restart-and-continue-strands.md) | RS016 | Give Back the Answer a Restart-and-Continue Strands | done | @alissonvale | `refinement/rs016-cr128-restart-and-continue-recovery` |
