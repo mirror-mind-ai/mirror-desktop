@@ -35,6 +35,89 @@ Six minutes after the answer it was still `running`. No `terminal_durable`, no `
 **The native terminal path never ran, so the one durable source every recovery layer trusts never
 heard the turn finish.**
 
+## Correction: Something Did Notice, And Refused, And Wrote Why (2026-10-16, evening)
+
+**The section below is wrong and is kept so the correction is legible.** It claimed nothing noticed.
+Something did. The repair this CR proposes is not a detector that is missing; it is an attribution
+rule that refuses.
+
+`reconcile_pi_backed_mirror_delivery_debt` scans for exactly `Admitted | Running` with no terminal
+outcome and no cancellation, and `recover_one_stale_journal_record` would have written
+`TerminalDurable` / `completed` with full `piExecution` evidence from the preserved Pi turn. CR128
+built it for precisely this shape. **It ran, and it refused**, and it recorded the refusal in a file
+this CR did not know existed:
+
+```text
+mirror-append-recovery-skips.jsonl
+  recordedAt 2026-10-16T13:14:25.189Z
+  journeyId  alissonvale-com
+  runId      agent-run-2026-10-16T13:00:42.068Z
+  reason     mirror_append_pi_recovery_ambiguous
+  recoveredInSameAttempt 0
+```
+
+### The arithmetic that refuses
+
+`attribute_stale_pi_record` computes a **single high-water mark** — `frontier`, the maximum
+`entryCount` across every claimed `piExecution` in the thread — and then counts user requests beyond
+it. Measured against the live production artefacts:
+
+| quantity | value |
+|---|---|
+| related records (thread, generation, session) | 15 |
+| records with claimed `piExecution` | 12 |
+| `frontier` (max claimed `entryCount`) | **102** |
+| entries on the active Pi branch | **102** |
+| stale records (`admitted \| running`) | **1** |
+| unclaimed requests beyond the frontier | **0** |
+
+`if stale.len() != requests.len()` → `1 != 0` → `mirror_append_pi_recovery_ambiguous`.
+
+**A later successful turn destroyed the stranded turn's recoverability.** The turn at 14:10:56
+settled `completed` and claimed `entryCount: 102` — the whole branch, including the stranded turn's
+own request and answer at the end of it. Because the frontier is one high-water mark rather than a
+per-turn claim, those entries stopped being *unclaimed*, so `requests` fell to zero while `stale`
+stayed at one. The refusal is now **permanent by construction**: no future state can make a count of
+zero equal a count of one.
+
+**A limit on this measurement.** The numbers above are today's. The skip was written at 13:14:25,
+before the 14:10 turn existed, so the arithmetic *at that moment* was different and is **not
+established** — the frontier was lower and some count mismatch other than 1-vs-0 produced the same
+reason. What is established is that it refused then, and that it can now never do anything else.
+
+### The record survived an app restart and a version upgrade
+
+Eleven hours later, across a quit, a relaunch, and the upgrade from `alpha.50` to `alpha.51`, the
+record still reads `phase: running`, `updatedAt 2026-10-16T13:00:42.119Z`, `revision 2`,
+`piExecution: null`. It is a permanent orphan in the Navigator's journal.
+
+**What did come back was the answer, and not by a recovery path.** The 1,877-character response is
+now in the durable conversation, which grew from 26 to 28 messages at 14:11:29 — written as a side
+effect of the *next* turn's projection. Had the Navigator not sent another message, it would still
+be missing. An earlier statement of mine that a restart would recover it was half right and the half
+matters: the answer was restored, the record never was.
+
+### What this does to the scope
+
+The proposed scope below — a second comparison inside `deriveStrandedTurn` — is still worth doing for
+the **renderer's** silence, which is a real and separate defect. But it is no longer the centre.
+The centre is that the native recovery is **effectively non-functional in the field**, and the
+evidence is its own file: **12 refusals across 5 Journeys between 2026-10-02 and 2026-10-16, with
+`recoveredInSameAttempt: 0` on every single one.** Ten `ambiguous`, two `request_open`. In two weeks
+it has never once recovered anything.
+
+That census also means `mirror-append-recovery-skips.jsonl` joins the standing list of **producers
+with no reader**: nothing surfaces it, and this CR found it only by reading the code that writes it.
+
+Three questions this opens, none answered here:
+
+- Should the frontier be **per-turn claims** rather than one high-water mark? That is the change that
+  would make this record attributable, and it is a change to durable-state semantics, not a surface.
+- Should a refusal be **visible**, given that the reason was on disk eleven hours before anyone read
+  it? That is RS025's criterion applied to recovery rather than to a turn.
+- Does `1 != 0` deserve its own reason, separate from `ambiguous`? *Nothing left to attribute* and
+  *too many candidates to choose between* are different facts wearing one name.
+
 ## Why Nothing Noticed
 
 `deriveStrandedTurn` cannot see this state **by construction**. `"running"` is not in
