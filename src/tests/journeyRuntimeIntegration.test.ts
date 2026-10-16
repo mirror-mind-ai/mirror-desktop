@@ -217,7 +217,7 @@ describe("Journey runtime integration guardrails", () => {
     expect(appSource).toContain("{describeEffectiveAgentProfile(effectiveAgentProfile)}");
     expect(appSource).toContain("profileOwnedArgumentFlags(providerArgsText)");
     expect(appSource).toContain("providerTerminalFailureDetail(journeyTurnJournalRecords");
-    expect(appSource).toContain("<InterruptedNativeAttemptNotice providerFailure={interruptedProviderFailure} />");
+    expect(appSource).toContain("<InterruptedNativeAttemptNotice providerFailure={interruptedProviderFailure ?? inactiveNativeAttempt?.providerFailure} />");
     expect(appSource).toContain("clearUnsentDraft(current, ownerJourneyId)");
     expect(appSource).toContain("{unsentDraftNotice}");
     expect(appSource.indexOf("clearUnsentDraft(current, ownerJourneyId)")).toBeLessThan(

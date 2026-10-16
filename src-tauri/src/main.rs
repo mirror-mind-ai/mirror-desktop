@@ -436,6 +436,10 @@ struct DedicatedPiTranscriptEntry {
     visible_text: String,
     prompt_envelope: Option<String>,
     stop_reason: Option<String>,
+    // CR159: the provider's refusal as Pi records it on the assistant entry — `content: []`,
+    // `stopReason: "error"`, `errorMessage`. It never crossed this boundary before, so the surface
+    // could not name it. Absent on an answer.
+    error_message: Option<String>,
     timestamp: String,
     native_content: Value,
     tool_call_id: Option<String>,
@@ -463,6 +467,7 @@ struct PiBranchEntry {
     role: Option<String>,
     text: String,
     stop_reason: Option<String>,
+    error_message: Option<String>,
     timestamp: String,
     native_content: Value,
     tool_call_id: Option<String>,
@@ -5181,6 +5186,7 @@ fn project_active_pi_branch(content: &str) -> Result<Vec<PiBranchEntry>, String>
             role: message.and_then(|item| item.get("role")).and_then(Value::as_str).map(str::to_string),
             text: message.map(extract_pi_visible_text).unwrap_or_default(),
             stop_reason: message.and_then(|item| item.get("stopReason")).and_then(Value::as_str).map(str::to_string),
+            error_message: message.and_then(|item| item.get("errorMessage")).and_then(Value::as_str).map(str::to_string),
             timestamp: value.get("timestamp").and_then(Value::as_str).unwrap_or("").to_string(),
             native_content: message.and_then(|item| item.get("content")).cloned().unwrap_or(Value::Null),
             tool_call_id: message.and_then(|item| item.get("toolCallId")).and_then(Value::as_str).map(str::to_string),
@@ -5327,6 +5333,7 @@ fn project_pi_transcript_entries(branch: &[PiBranchEntry]) -> Vec<DedicatedPiTra
             visible_text,
             prompt_envelope,
             stop_reason: entry.stop_reason.clone(),
+            error_message: entry.error_message.clone(),
             timestamp: entry.timestamp.clone(),
             native_content: entry.native_content.clone(),
             tool_call_id: entry.tool_call_id.clone(),
@@ -11202,6 +11209,30 @@ mod tests {
              Regenerate with CR127_WRITE_FIXTURE=1 and let the TypeScript conformance test \
              re-check the parser against it.",
         );
+    }
+
+    #[test]
+    fn carries_the_provider_error_message_on_an_assistant_error_entry() {
+        // CR159: a provider refusal arrives as a transcript assistant entry — `content: []`,
+        // `stopReason: "error"`, `errorMessage` — not as a stream error event. The field session
+        // of 2026-10-16 held eight of them and the surface named none, because the message never
+        // crossed this boundary. The entry is still not an answer: `incomplete_user_entry_id`
+        // stays set.
+        let session = [
+            r#"{"type":"session","version":3,"id":"refusal-session"}"#,
+            r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-10-16T12:53:51Z","message":{"role":"user","content":"Eu faria assim:"}}"#,
+            r#"{"type":"message","id":"assistant-err","parentId":"user-1","timestamp":"2026-10-16T12:54:12Z","message":{"role":"assistant","content":[],"stopReason":"error","errorMessage":"Codex error: An error occurred while processing your request."}}"#,
+        ].join("\n");
+        let inspection = inspect_complete_pi_transcript(&session).unwrap();
+        let error_entry = inspection.entries.iter().find(|entry| entry.entry_id == "assistant-err").unwrap();
+        assert_eq!(error_entry.stop_reason.as_deref(), Some("error"));
+        assert_eq!(error_entry.error_message.as_deref(), Some("Codex error: An error occurred while processing your request."));
+        assert_eq!(inspection.incomplete_user_entry_id.as_deref(), Some("user-1"));
+        // Control: an ordinary answer carries no error message.
+        let user_entry = inspection.entries.iter().find(|entry| entry.entry_id == "user-1").unwrap();
+        assert_eq!(user_entry.error_message, None);
+        let serialized = serde_json::to_value(error_entry).unwrap();
+        assert_eq!(serialized.get("errorMessage").and_then(Value::as_str), Some("Codex error: An error occurred while processing your request."));
     }
 
     #[test]

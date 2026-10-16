@@ -2,7 +2,7 @@
 
 # CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease
 
-**Status:** planned
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs025-batch-a-naming`
 **Navigator priority:** 7 of 8 (intake 2026-10-12)
@@ -229,3 +229,33 @@ Production app data read on 2026-10-16, read-only, production running at pid 277
 written to production state. A contention hypothesis — that settlement in another Journey was
 starving this one behind the global native-command guard — was **checked and refuted**: no settlement
 of any Journey is recorded between 12:58Z and 13:10Z, and the outbox is empty.
+
+## Implemented — Slice 1 (RS025 Batch A, 2026-10-16)
+
+On `refinement/rs025-batch-a-naming`. Gates: vitest **267 files / 2,196 tests**, `tsc` clean,
+frontend build clean, `cargo test` 328 passed. Not merged, not released, not field-checked.
+
+**What changed.** `settlementAbandonment.ts` gained `SETTLEMENT_ABANDONMENT_REFUSALS` (the refusal
+union as a runtime list) and `settlementAbandonmentPresentation`, which calls
+`settlementAbandonmentOffer` and decides only whether a refusal is *said*. `SettlementAbandonmentNotice`
+draws `refusal_named` as a sentence with the wait and **no button**; `silent` as nothing; `offer`
+exactly as CR132 made it. The decision function is untouched.
+
+**The negative case holds by construction.** The naming waits exactly as long as the offer would
+have — past `ABANDON_SETTLEMENT_OFFER_AFTER_MS` — so a healthy turn whose native lease is briefly
+still active while finalizing acquires no sentence. Tested at 3 s and at the threshold exactly.
+
+**The guard that passed while covering silence was narrowed, not deleted.** CR149's
+*"renders nothing while native execution is active"* asserted `html === ""`, which was two claims:
+no exit (load-bearing, kept) and no sentence (the field's complaint). Now it asserts no `<button>`
+and no *Stop waiting*. Its sibling *"asks the domain function"* was extended into a chain:
+the component calls the presentation, the presentation calls the offer, and the component imports
+neither the offer nor the threshold.
+
+**Allow-list.** `settlementAbandonmentRefusalNaming.test.tsx` iterates
+`SETTLEMENT_ABANDONMENT_REFUSALS` itself: past the threshold every refusal is either
+`refusal_named` or in an explicit deliberately-silent set (`not_finishing`, `too_soon`), and a
+refusal without a fixture throws rather than passing. A fifth refusal cannot be silent by default.
+
+**Field check owed.** The next hang on a build carrying this must show *Still finishing after Ns*
+with the native-execution sentence and no button. That is the measurement Batch B waits for.

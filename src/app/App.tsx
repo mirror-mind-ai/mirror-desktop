@@ -6468,7 +6468,9 @@ export function App({ model }: AppProps) {
               <p>You can keep drafting, but Send remains unavailable. {admissionRefusal.sentence}</p>
             </section>
           ) : null}
-          {showInactiveNativeAttemptNotice ? <InterruptedNativeAttemptNotice providerFailure={interruptedProviderFailure} /> : null}
+          {/* CR159: the journal's detail (CR054's stream-error path) stays first; the transcript leaf is
+              the fallback for the refusal that arrived as an assistant entry and never reached the journal. */}
+          {showInactiveNativeAttemptNotice ? <InterruptedNativeAttemptNotice providerFailure={interruptedProviderFailure ?? inactiveNativeAttempt?.providerFailure} /> : null}
           {durableInterruptedTurn && !isStreaming && !showInactiveNativeAttemptNotice ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Previous turn was interrupted</strong>

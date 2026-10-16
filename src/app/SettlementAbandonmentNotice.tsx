@@ -16,7 +16,7 @@
  * component only supplies it with a clock and renders what it returns.
  */
 import { useEffect, useState } from "react";
-import { settlementAbandonmentOffer } from "./settlementAbandonment";
+import { settlementAbandonmentPresentation } from "./settlementAbandonment";
 import type { JourneyRuntimeOwnerPhase } from "./journeyRuntimeState";
 
 export const ABANDON_SETTLEMENT_CLOCK_TICK_MS = 1_000;
@@ -52,18 +52,30 @@ export function SettlementAbandonmentNotice({
     return () => clearInterval(handle);
   }, [watching]);
 
-  const offer = settlementAbandonmentOffer({
+  // CR155: the decision is still `settlementAbandonmentOffer`'s, reached through the presentation
+  // that also says when a refusal is named. This component never re-decides the offer.
+  const presentation = settlementAbandonmentPresentation({
     ownerPhase,
     nativeExecutionActive,
     occupancyKnown,
     finishingSince,
     now: now ?? tick,
   });
-  if (!offer.offered) return null;
+  if (presentation.kind === "silent") return null;
+  const seconds = Math.round(presentation.waitedMs / 1000);
+
+  if (presentation.kind === "refusal_named") {
+    return (
+      <section className="dedicated-turn-notice" role="status" aria-label="Finishing is taking unusually long">
+        <strong>Still finishing after {seconds}s</strong>
+        <p>{presentation.sentence}</p>
+      </section>
+    );
+  }
 
   return (
     <section className="dedicated-turn-notice" role="status" aria-label="Finishing is taking unusually long">
-      <strong>Still finishing after {Math.round(offer.waitedMs / 1000)}s</strong>
+      <strong>Still finishing after {seconds}s</strong>
       <p>
         Your answer is saved. You can stop waiting and send a new message — anything still
         owed to Mirror is completed in the background.

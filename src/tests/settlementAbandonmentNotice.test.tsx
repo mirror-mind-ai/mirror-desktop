@@ -4,6 +4,7 @@ import { SettlementAbandonmentNotice } from "../app/SettlementAbandonmentNotice"
 import { ABANDON_SETTLEMENT_OFFER_AFTER_MS } from "../app/settlementAbandonment";
 import appSource from "../app/App.tsx?raw";
 import noticeSource from "../app/SettlementAbandonmentNotice.tsx?raw";
+import abandonmentSource from "../app/settlementAbandonment.ts?raw";
 
 // CR149: the clock that decides CR132's offer lives where its output is drawn. These tests bound
 // two things: that the notice still says exactly what CR132 made it say, and that the App root no
@@ -51,18 +52,23 @@ describe("CR149: the notice that offers to stop waiting", () => {
    * `settlementAbandonmentOffer`, an exit could appear while Pi may really be executing — which is
    * what CR115 and CR116 exist to prevent.
    */
-  it("renders nothing while native execution is active, however long the wait", () => {
+  // CR155 narrowed this guard. It asserted `html === ""`, which was two claims in one: no exit is
+  // offered (load-bearing, kept) and nothing is said (the silence the field reported on 2026-10-16).
+  // Only the first survives; the naming is covered in `settlementAbandonmentRefusalNaming.test.tsx`.
+  it("offers no exit while native execution is active, however long the wait", () => {
     const html = renderToStaticMarkup(
       <SettlementAbandonmentNotice {...base} nativeExecutionActive now={since + 600_000} />,
     );
-    expect(html).toBe("");
+    expect(html).not.toContain("<button");
+    expect(html).not.toContain("Stop waiting");
   });
 
-  it("renders nothing when occupancy is unknown", () => {
+  it("offers no exit when occupancy is unknown", () => {
     const html = renderToStaticMarkup(
       <SettlementAbandonmentNotice {...base} occupancyKnown={false} now={since + 600_000} />,
     );
-    expect(html).toBe("");
+    expect(html).not.toContain("<button");
+    expect(html).not.toContain("Stop waiting");
   });
 
   it("renders nothing when the owner is not finalizing", () => {
@@ -85,7 +91,15 @@ describe("CR149: the notice that offers to stop waiting", () => {
    */
   it("asks the domain function rather than comparing the threshold itself", () => {
     const source = withoutComments(noticeSource);
-    expect(source).toContain("settlementAbandonmentOffer({");
+    // CR155: the component reaches the decision through the presentation, the one place that
+    // also says when a refusal is named. The chain is asserted end to end so the authority
+    // cannot be bypassed one hop further out.
+    expect(source).toContain("settlementAbandonmentPresentation({");
+    expect(source).not.toContain("settlementAbandonmentOffer(");
+    const presentation = withoutComments(abandonmentSource);
+    const start = presentation.indexOf("export function settlementAbandonmentPresentation(");
+    expect(start).toBeGreaterThan(-1);
+    expect(presentation.slice(start)).toContain("const offer = settlementAbandonmentOffer(input);");
     expect(source).not.toContain("ABANDON_SETTLEMENT_OFFER_AFTER_MS");
   });
 

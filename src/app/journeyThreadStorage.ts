@@ -58,6 +58,8 @@ export type DedicatedPiTranscriptEntry = {
   visibleText: string;
   promptEnvelope: "mirror_desktop" | "nautilus_harness" | "raw" | "unknown" | null;
   stopReason: string | null;
+  /** CR159: the provider's refusal as Pi records it on the assistant entry; absent on an answer. */
+  errorMessage?: string | null;
   timestamp: string;
   nativeContent: unknown;
   toolCallId: string | null;

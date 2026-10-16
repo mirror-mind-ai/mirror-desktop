@@ -1,7 +1,14 @@
 type NativeAttemptInspection = {
   leafEntryId: string | null;
   incompleteUserEntryId: string | null;
-  entries: Array<{ entryId: string; role: string; visibleText: string; stopReason?: string | null }>;
+  entries: Array<{
+    entryId: string;
+    role: string;
+    visibleText: string;
+    stopReason?: string | null;
+    /** CR159: Pi records the provider's refusal on the assistant entry itself. */
+    errorMessage?: string | null;
+  }>;
 };
 
 export type InactiveNativeAttemptCandidate = {
@@ -11,9 +18,27 @@ export type InactiveNativeAttemptCandidate = {
   piSessionId: string;
   userEntryId: string;
   leafEntryId: string;
+  /**
+   * CR159: the provider's own words, when the failed leaf is an assistant entry with
+   * `stopReason: "error"` and an `errorMessage`. Absent otherwise — the key is not written, so a
+   * reader can tell "no provider detail" from "an empty one".
+   */
+  providerFailure?: string;
 };
 
-type CandidateAuthority = Omit<InactiveNativeAttemptCandidate, "userEntryId" | "leafEntryId">;
+type CandidateAuthority = Omit<InactiveNativeAttemptCandidate, "userEntryId" | "leafEntryId" | "providerFailure">;
+
+/**
+ * Bounded like CR054's journal detail: a provider message is a sentence or two, and anything far
+ * beyond that is a payload the surface should not be asked to hold.
+ */
+export const PROVIDER_FAILURE_MAX_CHARS = 600;
+
+function boundedProviderFailure(message: string | null | undefined): string | undefined {
+  const trimmed = message?.trim();
+  if (!trimmed) return undefined;
+  return trimmed.length > PROVIDER_FAILURE_MAX_CHARS ? `${trimmed.slice(0, PROVIDER_FAILURE_MAX_CHARS)}…` : trimmed;
+}
 
 type InactiveNativeAttemptPresentationInput = CandidateAuthority & {
   candidate?: InactiveNativeAttemptCandidate;
@@ -45,7 +70,16 @@ export function deriveInactiveNativeAttemptCandidate(
     || completedAfterUser) {
     throw new Error("inactive_native_attempt_evidence_invalid");
   }
-  return { ...authority, userEntryId, leafEntryId };
+  // CR159: a provider refusal arrives as a transcript assistant entry, not as a stream error
+  // event, and after Pi's last retry that entry is the leaf. Field session of 2026-10-16: eight
+  // such entries, one distinct message, and a surface that named none of them.
+  const leafEntry = inspection.entries[leafIndex];
+  const providerFailure = leafEntry && leafEntry.role === "assistant" && leafEntry.stopReason === "error"
+    ? boundedProviderFailure(leafEntry.errorMessage)
+    : undefined;
+  return providerFailure === undefined
+    ? { ...authority, userEntryId, leafEntryId }
+    : { ...authority, userEntryId, leafEntryId, providerFailure };
 }
 
 export function shouldPresentInactiveNativeAttempt({

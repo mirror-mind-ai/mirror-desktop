@@ -2,7 +2,7 @@
 
 # CR159: Say Why the Provider Refused a Turn
 
-**Status:** planned
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs025-batch-a-naming`
 
@@ -142,3 +142,37 @@ Production app data read on 2026-10-16, read-only, with production running at pi
 Journal, Pi session JSONL, `agent-settings.json`, `composer-drafts.json` and the catalog inspected
 directly. Code facts from `main.rs`, `inactiveNativeAttempt.ts` and `piProcessStream.ts` at `b47c4e3`.
 No occurrence was staged; this is the field's own case.
+
+## Implemented (RS025 Batch A, 2026-10-16)
+
+On `refinement/rs025-batch-a-naming`. Gates: vitest **267 files / 2,196 tests**, `tsc` clean,
+frontend build clean, `cargo test` 328 passed. Not merged, not released, not field-checked.
+
+**A deviation from the Proposed Scope, decided on a field fact.** The scope said *carry the message
+into the turn journal's terminal evidence*. The repair reads it from the **transcript leaf** instead,
+because the session file settles where the message is when the Navigator looks: Pi removes each
+failed attempt with a `context_edit` (`replacement: null`) before retrying, **but not the last one**.
+After the fourth refusal the error entry — `221ddf6c` at 12:53:36, `968faaab` at 12:54:12 — is the
+leaf of the active branch, and stays so until the next user message. The leaf is exactly what
+`deriveInactiveNativeAttemptCandidate` already identifies. Enriching the journal would have meant
+reading the session file inside the native terminalization path for a fact the frontend already
+loads; the smaller change is also the one that keeps the Pi JSONL as the transcript authority.
+
+**What changed.** Rust: `error_message` on `PiBranchEntry` and `DedicatedPiTranscriptEntry`, read
+from `message.errorMessage`, serialised as `errorMessage`; the entry is still **not** an answer —
+`incomplete_user_entry_id` stays set, asserted. TypeScript: `errorMessage?` on the transcript entry
+type; the candidate carries `providerFailure` when the leaf is an assistant `stopReason: "error"`
+entry with a non-blank message, bounded at `PROVIDER_FAILURE_MAX_CHARS = 600` with the cut marked,
+and the key is **absent** otherwise so *no detail* and *empty detail* stay distinguishable.
+`App.tsx` hands `interruptedProviderFailure ?? inactiveNativeAttempt?.providerFailure` to the
+notice CR054 already built — the journal's run-correlated detail first, the leaf as fallback.
+
+**Controls.** A fixture in the field's exact shape; an error leaf with no message, a blank message,
+and a plain user leaf all carry nothing; an error entry still throws when a real answer follows it,
+so the fix cannot smuggle an empty turn in as completed. Two existing source guards that named the
+old wiring literally were updated to the new one.
+
+**Field check owed.** The next provider refusal on a build carrying this must show
+*The provider reported: …* under *Previous attempt was interrupted*. The open question about the
+stream `type: "error"` event remains unanswerable without a stdout capture and this change does
+not depend on it.
