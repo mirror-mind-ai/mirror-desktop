@@ -124,3 +124,73 @@ CR132's closure debt and exclusions quoted verbatim from its own document.
 `settlementAbandonment.ts` refusal reasons and `ABANDON_SETTLEMENT_OFFER_AFTER_MS` read from source
 on 2026-10-12. The friction is the Navigator's report; **no durable record of this specific
 occurrence has been read**, and nothing here attributes it to a mechanism.
+
+## Field Occurrence (2026-10-16)
+
+Status unchanged. Recorded as evidence; selection and status remain the Navigator's.
+
+Production `alpha.50`, Journey `alissonvale-com`, conversation *"Comunidade Alisson Vale"*, reported
+as the **second occurrence that day in the same conversation**:
+
+> *"Ele ficou parado em Finishing. O composer não libera o cancelamento e não tenho como sair da
+> situação a não ser forçando o encerramento do app."*
+
+### What the artefacts show
+
+The turn **succeeded**. Pi produced a complete answer at `13:01:49.786Z` — `stopReason: "stop"`,
+model `gpt-5.6-terra`, 1,877 characters, after two tool calls.
+
+The turn journal record for `agent-run-2026-10-16T13:00:42.068Z` reads
+`createdAt 13:00:42.072 → updatedAt 13:00:42.119`, **phase `running`**, and was never written again.
+At the time of inspection it had been frozen for six minutes. No settlement record exists for it;
+`settlement-timings/alissonvale-com.json` still ends at the 12:45 turn.
+
+So the native terminal path never ran: no `terminal_durable`, no `projected`, no `outbox_enqueued`.
+
+### Three refusals, each correct, all silent
+
+| layer | what it decided | why |
+|---|---|---|
+| `deriveStrandedTurn` | `journal_agrees` | `"running"` is **not** in `TERMINAL_PHASES`. The predicate only fires when the journal is terminal and the renderer is stale. |
+| `settlementAbandonmentOffer` | refused | `nativeExecutionActive` was never released, so the 60 s offer never arrives. |
+| the surface | nothing | the refusal reason is computed and **never rendered**. |
+
+Each is individually defensible, which is why this survived. `deriveStrandedTurn`'s own comment calls
+`journal_agrees` *"the ordinary case, and a long turn's case"* — and a frozen `running` is
+indistinguishable from a legitimately long turn **using only the journal**. The predicate is built on
+the premise that *"the journal is durable and already correct"*. Here the journal is the stale thing.
+
+**This is CR155's first slice arriving from the field**, exactly as scoped: surface the
+`native_execution_active` / `occupancy_unknown` refusals. The app knew precisely why it would not
+offer the exit and said nothing.
+
+**Stated limit.** The three gates in `settlementAbandonmentOffer` run in order —
+`ownerPhase !== "finalizing"`, then `!occupancyKnown`, then `nativeExecutionActive`. The surface
+showed *Finishing*, which implies `ownerPhase === "finalizing"`, so the refusal is at the second or
+third gate, most plausibly the third given the unreleased occupancy. **Renderer state cannot be read
+from disk**, so which of the two fired is not established here. It does not change the repair: all
+three refusals are silent.
+
+### The separate defect this exposes
+
+The journal freezing at `running` is **not** CR155's scope and needs its own home. It is one step
+earlier than
+[CR142](cr142-stop-losing-a-turn-the-journal-already-answered.md)'s observed case: there the journal
+had reached terminal and the renderer was stale; here the journal itself never advanced, so the loss
+happened **before** the journal write. CR142 recorded its loss mechanism as unestablished and named
+two silent candidates; this occurrence is consistent with both and settles neither.
+
+### Collateral
+
+The durable conversation holds the Navigator's prompt **three times** — once per failed turn,
+including the two provider refusals recorded in
+[CR159](cr159-say-why-the-provider-refused-a-turn.md) — and ends with an **empty assistant message**.
+The 1,877-character answer exists only in the Pi session JSONL. It was extracted and returned to the
+Navigator directly, so the answer is not at risk whatever recovery does.
+
+### Provenance
+
+Production app data read on 2026-10-16, read-only, production running at pid 27709. Nothing was
+written to production state. A contention hypothesis — that settlement in another Journey was
+starving this one behind the global native-command guard — was **checked and refuted**: no settlement
+of any Journey is recorded between 12:58Z and 13:10Z, and the outbox is empty.
