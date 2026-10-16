@@ -2,7 +2,7 @@
 
 # CR154: Persist a Model Choice at the Conversation It Was Made In
 
-**Status:** in_progress
+**Status:** done
 **Driver:** assistant
 **Delivery:** `refinement/cr154-persist-a-model-choice-at-the-conversation-it-was-made-in`
 **Navigator priority:** 6 of 8 (intake 2026-10-12)
@@ -851,3 +851,35 @@ read directly rather than inferred.
 legitimately writable now, and leaving it makes the next field check more informative: a conversation
 that has never picked should show `claude-sonnet-5`, not the global `gpt-5.3-codex-spark`. Removing it is
 theirs to ask for.
+
+## Field PASSED (2026-10-15)
+
+Navigator: *"Agora funcionou."* Verified from artefacts rather than from the report alone, against
+the pre-state recorded before the hand-over.
+
+| conversation | pre-state | after | in the intents list? |
+|---|---|---|---|
+| `Pensar sobre uma nova feature: journey card` | `claude-opus-5` | **`gpt-5.6-terra`** | **no** |
+| `New Conversation #1` | `claude-fable-5-1` | **`gpt-5.6-luna`** | **no** |
+| `New Conversation` | `gpt-5.6-sol` | `gpt-5.6-sol` | yes |
+| `journeyOverrides["mirror-desktop"]` | `claude-sonnet-5` | **`claude-sonnet-5`** — unmoved | — |
+
+**The discriminating artefact is `model-intents.json`.** It holds exactly four models —
+`claude-fable-5-1`, `claude-opus-5`, `gpt-5.6-sol`, `gpt-5.5`. Neither `gpt-5.6-terra` nor
+`gpt-5.6-luna` is among them, so **those two picks could only have come from the full selector**; the
+intents list does not offer either model. Both landed on the conversation that was open, and the
+Journey override did not move. Before this repair, each of those two picks would have overwritten it.
+
+This matters because the conversation grain is written by *two* controls, and the file alone cannot
+say which one wrote an entry. A model absent from the intents list can only have come from the other
+one. The check does not rest on the Navigator's recollection of which control they used.
+
+Four of the six owed steps are covered by this evidence: a pick lands on the conversation, two
+conversations hold different models at once, the Journey stands still, and the values survived the
+app being closed between the pre-state and this reading.
+
+**Not covered, and recorded as test-only:** `Follow the Journey default` as the way back, and the
+dialog's `Use global defaults` clearing both grains. Both are pinned by tests and controls; neither
+was exercised in the field.
+
+CR154 closes `done` on what the field verified.
