@@ -179,3 +179,41 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+## Independent Verification (not the script's own report)
+
+Run after `publish` reported `PUBLISHED AND VERIFIED`, against the served endpoints rather than the
+deployment state file.
+
+**Manifests, semantically, per target.** All three of `darwin`, `darwin-x86_64` and `darwin-aarch64`
+serve `version: 0.2.0-alpha.51`, a URL ending in `Desktop_0.2.0-alpha.51.app.tar.gz`, a **416-char**
+signature and non-empty notes, published `2026-10-16T21:44:18`.
+
+**The artifact, hashed from the wire.** The served tarball is
+`5a67aac7998d9113a5087d5357590cfa4902c1a44fde630974a9009f6e3f68fe` — equal to the prepared updater
+artifact. Unpacked, the binary inside is
+`e7795beec9501cd3cbd5216d4406c7a55c5fcc5070b21d6bd67e4d25b49cb986`, `CFBundleShortVersionString`
+`0.2.0-alpha.51`, identifier `ai.mirrormind.desktop`. That hash is **byte-identical to the alpha
+bundle built in this worktree**, so what is served is what was built — notarization did not rewrite
+the executable.
+
+**The frontend chain.** `dist/assets/index-*.js` at 17:40:20 precedes the binary at 17:42:03.
+In the dist bundle: `still records the agent as executing` 1×, `cannot tell whether the agent is
+still executing` 1×, `Use model for this conversation` 1×, `Inherit · do not set here` 2×,
+`The provider reported:` 2×.
+
+**A stated limit.** Searching those literals in the *served binary* returns 0 for all of them. That
+refutes nothing: Tauri 2 embeds the frontend compressed, so the binary is not a sound instrument for
+frontend literals. The dist evidence plus the hash equality is the chain that proves the shipping.
+
+**Legacy manifest paths resolved.** The six paths previously recorded as still serving
+`0.2.0-alpha.2` now serve `0.2.0-alpha.51` under the `darwin` target — checked for `alpha.2` through
+`alpha.7`. There is no manifest at the unprefixed `<base>/<version>/latest.json` level, which is
+consistent with the flat three-target layout; the earlier record described paths at that level.
+
+**Counts.** 150 verified URLs = 3 targets × 50 versions (`alpha.2` … `alpha.51`), one more version
+per target than alpha.50's 147, because this release adds its own.
+
+Tag `v0.2.0-alpha.51` points at `11f8d11035918b1633ce8c5c37c643c53310f981`. Working tree clean,
+nothing unpushed. **Production was not upgraded** — it is still running `alpha.50` at pid 27709, and
+that is a separate act requiring its own authorization.
