@@ -5,7 +5,9 @@ import {
   describeStrandedTurn,
   STRANDED_SETTLEMENT_GRACE_MS,
   STRANDED_TURN_POLL_MS,
+  newestJournalRecordForThread,
   type BelievedRun,
+  type PiSessionLeaf,
 } from "../app/strandedTurn";
 import type { TurnJournalRecord, TurnPhase } from "../app/turnJournal";
 
@@ -50,8 +52,10 @@ function derive(input: {
   run?: BelievedRun;
   streaming?: boolean;
   now?: number;
+  piLeaf?: PiSessionLeaf | null;
 }) {
   return deriveStrandedTurn({
+    piLeaf: input.piLeaf,
     journalRecords: input.records ?? [],
     // `in` rather than `=== undefined`: the absent case and the deliberately-undefined case are
     // different questions, and conflating them made this helper answer the wrong one.
@@ -70,7 +74,8 @@ function derive(input: {
 describe("CR142: the journal is asked whether the turn already finished", () => {
   it("reports a turn the journal finished while the renderer still streams", () => {
     const result = derive({ records: [record("terminal_durable")] });
-    expect(result).toEqual({ stranded: true, record: expect.objectContaining({ phase: "terminal_durable" }) });
+    // CR160 added `shape`; CR142's shape is the terminal journal.
+    expect(result).toEqual({ stranded: true, record: expect.objectContaining({ phase: "terminal_durable" }), shape: "journal_terminal" });
   });
 
   /**
@@ -158,7 +163,8 @@ describe("CR142: the poll cannot reopen the loop CR115 closed", () => {
   it("starts the journal poll only while a turn is believed to be streaming", () => {
     const stripped = withoutComments(appSource);
     const effect = stripped.slice(
-      stripped.indexOf("const interval = window.setInterval(poll, STRANDED_TURN_POLL_MS)") - 1400,
+      // CR160 widened this window: the poll gained the leaf read, which sits between the gate and the interval.
+      stripped.indexOf("const interval = window.setInterval(poll, STRANDED_TURN_POLL_MS)") - 2600,
       stripped.indexOf("const interval = window.setInterval(poll, STRANDED_TURN_POLL_MS)") + 200,
     );
     expect(effect).toContain("if (!isStreaming");
@@ -187,5 +193,109 @@ describe("CR142: the poll cannot reopen the loop CR115 closed", () => {
     // CR142's third recorded defect: the answered prompt must not be left in the Composer.
     expect(notice).toContain("updateComposerDraft");
     expect(notice).toContain("conversationDraftKey");
+  });
+});
+
+/**
+ * CR160, RS025 Batch B. Field, 2026-10-16: the answer arrived at 13:01:49 and the journal record
+ * froze at `running` 47 ms after admission, forever. Using the journal alone this is "a long turn's
+ * case" and the predicate was right to say so. The session leaf is the durable fact that tells the
+ * two apart, and it is read from the file's tail only while the journal still says running.
+ */
+describe("CR160: the journal never heard the turn finish", () => {
+  const admittedAt = "2026-10-10T17:38:10.509Z"; // the fixture record's createdAt
+  const finishedAt = "2026-10-10T17:40:00.000Z";
+  function leaf(overrides: Partial<PiSessionLeaf> = {}): PiSessionLeaf {
+    return { entryId: "a-1", entryType: "message", role: "assistant", stopReason: "stop", timestamp: finishedAt, ...overrides };
+  }
+
+  it("strands a running record whose session leaf is a terminal assistant committed after admission", () => {
+    const stuck = record("running");
+    const result = derive({ records: [stuck], piLeaf: leaf() });
+    expect(result).toEqual({ stranded: true, record: stuck, shape: "journal_never_heard" });
+    expect(derive({ records: [stuck], piLeaf: leaf({ stopReason: "length" }) }).stranded).toBe(true);
+    expect(derive({ records: [record("admitted")], piLeaf: leaf() }).stranded).toBe(true);
+  });
+
+  it("waits out the grace after the leaf, as it does after a terminal journal", () => {
+    const justFinished = Date.parse(finishedAt) + STRANDED_SETTLEMENT_GRACE_MS - 1;
+    expect(derive({ records: [record("running")], piLeaf: leaf(), now: justFinished }))
+      .toEqual({ stranded: false, reason: "settling" });
+    expect(derive({ records: [record("running")], piLeaf: leaf(), now: justFinished + 1 }).stranded).toBe(true);
+  });
+
+  /**
+   * The negative case RS025 requires. Every leaf a healthy long turn can have while it works must
+   * leave the verdict exactly where CR142 put it, however long the turn has run.
+   */
+  it("says nothing about a long turn whose leaf is still work in progress", () => {
+    const working: PiSessionLeaf[] = [
+      leaf({ stopReason: "toolUse" }),
+      leaf({ stopReason: null }),
+      leaf({ role: "user", stopReason: null }),
+      leaf({ role: "toolResult", stopReason: null }),
+      leaf({ entryType: "context_edit", role: null, stopReason: null }),
+      leaf({ entryType: "compaction", role: null, stopReason: null }),
+      leaf({ stopReason: "error" }),
+    ];
+    for (const piLeaf of working) {
+      expect(derive({ records: [record("running")], piLeaf, now: NOW + 3_600_000 }))
+        .toEqual({ stranded: false, reason: "journal_agrees" });
+    }
+    expect(derive({ records: [record("running")], piLeaf: null })).toEqual({ stranded: false, reason: "journal_agrees" });
+    expect(derive({ records: [record("running")] })).toEqual({ stranded: false, reason: "journal_agrees" });
+  });
+
+  it("does not mistake the previous turn's answer for this one", () => {
+    const beforeAdmission = "2026-10-10T17:38:00.000Z";
+    expect(Date.parse(beforeAdmission)).toBeLessThan(Date.parse(admittedAt));
+    expect(derive({ records: [record("running")], piLeaf: leaf({ timestamp: beforeAdmission }) }))
+      .toEqual({ stranded: false, reason: "journal_agrees" });
+    expect(derive({ records: [record("running")], piLeaf: leaf({ timestamp: null }) }))
+      .toEqual({ stranded: false, reason: "journal_agrees" });
+  });
+
+  it("keeps CR142's shape for a terminal journal, and the leaf cannot change it", () => {
+    const finished = record("terminal_durable");
+    expect(derive({ records: [finished] })).toEqual({ stranded: true, record: finished, shape: "journal_terminal" });
+    expect(derive({ records: [finished], piLeaf: leaf({ stopReason: "toolUse" }) }).stranded).toBe(true);
+  });
+
+  it("names the shape: the record never heard, the answer is in the session, nothing is lost", () => {
+    const sentence = describeStrandedTurn(record("running"), "journal_never_heard").sentence;
+    expect(sentence).toContain("never heard");
+    expect(sentence).toContain("in its session");
+    expect(sentence).toContain("Nothing is lost");
+    expect(sentence).toContain("Recovering brings the answer back");
+    // The default shape is CR142's, unchanged for every existing caller.
+    expect(describeStrandedTurn(record("terminal_durable"))).toEqual(describeStrandedTurn(record("terminal_durable"), "journal_terminal"));
+  });
+
+  it("picks the newest record of the thread the poll is watching", () => {
+    const older = { ...record("settled", { runId: "run-old" }), createdAt: "2026-10-10T17:00:00.000Z" } as TurnJournalRecord;
+    const newest = { ...record("running", { runId: "run-new" }), createdAt: "2026-10-10T17:38:10.509Z" } as TurnJournalRecord;
+    const elsewhere = { ...record("running", { runId: "run-b", threadId: "thread-B" }), createdAt: "2026-10-10T18:00:00.000Z" } as TurnJournalRecord;
+    expect(newestJournalRecordForThread([older, elsewhere, newest], "thread-A")).toBe(newest);
+    expect(newestJournalRecordForThread([elsewhere], "thread-A")).toBeUndefined();
+  });
+
+  /**
+   * The poll reads the leaf only in the branch where the journal still says running, and the
+   * derivation and the sentence both receive the shape. Asserted on the exact wiring, because the
+   * cost argument depends on the gate and the honesty argument depends on the shape reaching the
+   * sentence.
+   */
+  it("reads the leaf only while the journal says running, and hands the shape to the sentence", () => {
+    const stripped = appSource.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+    const at = stripped.indexOf("const interval = window.setInterval(poll, STRANDED_TURN_POLL_MS)");
+    const effect = stripped.slice(at - 2600, at + 200);
+    expect(effect).toContain("newestJournalRecordForThread(journal.records, thread.thread.threadId)");
+    expect(effect).toContain('newest.phase === "admitted" || newest.phase === "running"');
+    expect(effect).toContain("inspectPiSessionLeaf(");
+    expect(effect).not.toContain("inspectDedicatedPiTranscript(");
+    expect(effect).not.toContain("reconcilePiInvocationOccupancy");
+    expect(stripped).toContain("piLeaf: strandedPiLeaf,");
+    expect(stripped).toContain("describeStrandedTurn(strandedTurn.record, strandedTurn.shape)");
+    expect((stripped.match(/describeStrandedTurn\(/g) ?? []).length).toBe(1);
   });
 });

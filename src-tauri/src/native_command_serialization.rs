@@ -134,7 +134,8 @@ mod tests {
 
     fn all_commands() -> Vec<(bool, bool, String, String)> {
         let v: Vec<_> = SOURCES.iter().flat_map(|s| commands(s)).collect();
-        assert_eq!(v.len(), 90, "the command census changed; update SOURCES or this count");
+        // CR160 added `inspect_pi_session_leaf`, serialised and off the main thread: 90 → 91.
+        assert_eq!(v.len(), 91, "the command census changed; update SOURCES or this count");
         v
     }
 

@@ -2,7 +2,7 @@
 
 # CR160: Notice a Turn the Journal Never Heard Finish
 
-**Status:** planned
+**Status:** in_progress
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs025-batch-b-exit`
 
@@ -193,6 +193,74 @@ the new path returns a named reason, never a silent `false`.
 what the native terminal path writes. Does not touch the abandonment offer or its silence, which are
 CR155's.
 
+## Re-scoped for Batch B (2026-10-16, evening)
+
+The Proposed Scope above was written before the correction. It survives as one half. The other half
+is the one the correction made necessary, and it comes first.
+
+### B1 — native: attribute by admission window and per-turn claims
+
+`attribute_stale_pi_record` currently derives a single high-water `frontier` from the maximum
+claimed `entryCount` and refuses unless *every* stale record in the thread pairs one-to-one with
+*every* unclaimed request beyond it. Two field states break that, both now established from durable
+data — `1 != 3` at 13:14 (two interrupted records with `piExecution: null` left their requests
+unclaimed) and `1 != 0` tonight (a later turn's claim swallowed the stranded request).
+
+The repair drops the frontier and the global count. Per-turn claims are **already on disk**: every
+`piExecution` records its `userEntryId`. For the one stale record being attributed, the window is
+`[createdAt, next admitted record's createdAt)` over the same thread, generation and session; the
+candidates are the unclaimed user requests inside that window.
+
+| candidates | verdict |
+|---|---|
+| exactly one, answered inside the window | `Closed(turn)` |
+| exactly one, unanswered, window bounded by a later record | `Interrupted` |
+| exactly one, unanswered, window unbounded | `request_open` (unchanged) |
+| more than one | `ambiguous` — now meaning only what the word says |
+| none, window bounded | `Interrupted` — the session moved on past a run that never wrote its prompt |
+| none, window unbounded | `request_missing` — **new**, because *nothing to attribute* is not *too many to choose* |
+
+**Acceptance.** A fixture in the field's exact shape — one settled claim, two interrupted records
+with null evidence and their orphan requests, one stale record whose request is answered, one later
+settled claim past all of it — attributes the stale record `Closed` to its own request. The CR128
+fixtures still pass: a restart-and-continue still interrupts the first and closes the second, and two
+records with one request are still refused. **Negative:** two stale records admitted inside one
+request's window stay `ambiguous`.
+
+**Exclusions.** The existing `recover_one_stale_journal_record` and `interrupt_stale_journal_record`
+are not changed; only the verdict they act on is. The skips file still has no reader — that is the
+second open question and is not this slice.
+
+### B2 — renderer: notice the shape, with the exit it now has
+
+A new native command `inspect_pi_session_leaf` reads **only the last line** of the session file —
+the branch leaf by construction, since `project_active_pi_branch` starts from `entries.last()` —
+and returns its id, type, role, `stopReason` and timestamp. O(1), no branch projection, nothing CR114
+had to bound.
+
+`deriveStrandedTurn` gains an optional `piLeaf`. When the journal says `admitted | running` for the
+believed run and the leaf is an assistant `stop | length` entry timestamped at or after the record's
+`createdAt`, and that leaf is older than `STRANDED_SETTLEMENT_GRACE_MS`, the turn is stranded with a
+second shape, `journal_never_heard`. The poll calls the leaf command **only in the `journal_agrees`
+branch**, so an idle Journey and a turn the journal already settled never pay for it.
+
+The notice names the shape — the agent finished and the record never heard it — and offers the
+**same button**, because `recoverPostTerminalPersistence` → `convergeDelivery` →
+`reconcile_pi_backed_mirror_delivery_debt` → `attribute_stale_pi_record` is already the route, and
+B1 is what makes it succeed.
+
+**Negative fixtures, each its own test.** Leaf is a `toolUse` assistant, a user entry, a
+`toolResult`, a `context_edit`, or an assistant with no `stopReason` → `journal_agrees`, however
+long the turn. Leaf terminal but younger than the grace → `settling`. Leaf terminal but older than
+the record's admission → `journal_agrees`, because it is the previous turn's answer.
+
+### Why B1 before B2
+
+B2 without B1 would offer a button that fails, and say *recovering brings the answer back* over a
+refusal. That is a promise that lies, and worse than the silence it replaces. B1 without B2 already
+makes a **restart** recover the turn, which today it does not; B2 is what makes the exit not be a
+restart, which is RS025's criterion.
+
 ## Open Questions
 
 - **The first occurrence that day left no frozen record.** The journal holds only this one `running`
@@ -216,3 +284,71 @@ written to production state. Journal, Pi session JSONL, projection manifest, seg
 conversation record, settlement timings and outbox inspected directly. A contention hypothesis —
 settlement in another Journey starving this one behind the global native-command guard — was
 **checked and refuted**: no settlement of any Journey between 12:58Z and 13:10Z, and an empty outbox.
+
+## Implemented (RS025 Batch B, 2026-10-16)
+
+On `refinement/rs025-batch-b-exit`. Gates: vitest **267 files / 2,204 tests**, `tsc` clean, frontend
+build clean, `cargo test` **332 passed**, no new warnings. Not merged, not released.
+
+### B1 — the attribution rule
+
+`attribute_stale_pi_record` no longer derives a high-water `frontier` or compares two counts. It
+collects the per-turn claims already on disk (`pi_execution.user_entry_id` across the thread),
+bounds this record's window at `[created_at, next admitted record)`, and judges the unclaimed user
+requests inside it: one answered → `Closed`; one unanswered → `Interrupted` if bounded, else
+`request_open`; none → `Interrupted` if bounded, else the new `request_missing`; several →
+`ambiguous`, now meaning only what the word says. `project_unclaimed_pi_requests` was removed with
+its frontier.
+
+**The field falsifier, run read-only against production.** A temporary test loaded the real
+`turn-journal/alissonvale-com.json` and the real session file, called the new rule on the frozen
+record, and was removed after one run. Verdict:
+
+```text
+record  phase=Running  created=2026-10-16T13:00:42.072Z
+Closed  user=6ee82176  assistant=81b3007d  started=13:00:44.124Z  committed=13:01:49.786Z  entry_count=98
+```
+
+That is the answer that sat unreachable all day, attributed to its own request by the record's own
+window, with the later 14:10 claim no longer in its way. Nothing was written to production.
+
+**Guards narrowed, not deleted, with the reason in each.** CR128's Rust test *"still refuses when
+records and requests cannot pair"* and CR108's *"one unrecoverable stale record does not block
+another"* had pinned the count rule's verdicts; each now asserts the window rule's verdict for the
+same fixture and says why it changed. CR108's fixture also feeds one session's branch to another
+session's records, which the real recovery never does — noted in the test rather than papered over.
+Four TS source guards over the Rust in `restartAndContinueRecovery.test.ts` pinned the *mechanics*
+(`frontier`, `.len() !=`); they now pin what CR128 actually established — requests not closed turns,
+positive evidence for interruption, visible text only — plus the absence of any length comparison.
+
+### B2 — the renderer
+
+A new serialised command `inspect_pi_session_leaf` reads the session file's **tail only**, widening
+from 64 KB until it holds a whole line, and returns the leaf's id, type, role, `stopReason` and
+timestamp. Tested on an ordinary tail, a trailing blank line, a final entry wider than the first
+window, a header-only file and a non-message leaf. The command census guard moved 90 → 91.
+
+`deriveStrandedTurn` gains `piLeaf` and a `shape`. In the branch that used to be only
+`journal_agrees`, a leaf that is an assistant `stop | length` timestamped at or after the record's
+admission, and older than the grace, strands the turn as `journal_never_heard`; CR142's path is now
+`journal_terminal`. The poll reads the leaf **only** when the newest record on the thread is still
+`admitted | running`. The sentence names the shape and the button is the same one, because B1 is
+what makes it succeed.
+
+**Negative fixtures, each asserted.** Leaf `toolUse`, no `stopReason`, user, `toolResult`,
+`context_edit`, `compaction`, `error` → `journal_agrees` even an hour on. Leaf terminal but inside
+the grace → `settling`. Leaf terminal but before admission → `journal_agrees`. No leaf → unchanged.
+A terminal journal keeps CR142's shape whatever the leaf says.
+
+### Field check owed
+
+On a build carrying this: the next frozen `running` must show *This turn has already finished* with
+the *never heard* sentence after the grace, and **Recover this turn** must bring the answer into the
+conversation. On production specifically, the orphan from 13:00:42 is now attributable, so the first
+`convergeDelivery` on `alissonvale-com` after upgrading should recover it unprompted and the skips
+file should stop growing for that run.
+
+### Not done here
+
+The skips file still has no reader, and a refusal is still invisible while it is being made. That is
+the second open question above and stays open.

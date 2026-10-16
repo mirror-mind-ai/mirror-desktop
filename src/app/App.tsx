@@ -153,6 +153,8 @@ import {
   deriveStrandedTurn,
   describeStrandedTurn,
   STRANDED_TURN_POLL_MS,
+  newestJournalRecordForThread,
+  type PiSessionLeaf,
 } from "./strandedTurn";
 import { deriveDeadChildRelease, describeDeadChildRelease } from "./deadChildRelease";
 import { FocusedSidebarResizeHandle } from "./FocusedSidebarResizeHandle";
@@ -252,7 +254,7 @@ import {
   decideConversationRecoveryRoutes,
   type ConversationRecoveryRouteId,
 } from "../domain/conversationRecovery";
-import { inspectDedicatedPiTranscript, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState, type PiTranscriptScope } from "./journeyThreadStorage";
+import { inspectDedicatedPiTranscript, inspectPiSessionLeaf, loadDedicatedPiUserEntries, loadNautilusJourneyThread, provisionNautilusJourneyThread, restartNautilusJourneyThread, retireLegacyParityState, type PiTranscriptScope } from "./journeyThreadStorage";
 import { classifyNautilusJourneyThread } from "../domain/nautilusJourneyThread";
 import { projectGenerationHistory } from "../domain/journeyThreadRestart";
 import {
@@ -727,6 +729,8 @@ export function App({ model }: AppProps) {
   // CR142: advanced only by the poll below, so the stranded predicate is evaluated against a
   // clock that moves exactly when the journal has just been re-read and never between.
   const [strandedTurnTick, setStrandedTurnTick] = useState(() => Date.now());
+  // CR160: the session leaf, read by the same poll and only while the journal still says running.
+  const [strandedPiLeaf, setStrandedPiLeaf] = useState<PiSessionLeaf | undefined>();
   const [unsentDraftNotices, setUnsentDraftNotices] = useState<UnsentDraftNotices>({});
   // CV-008.DS-005 — voice prompt composition. Recording and transcription are
   // Desktop-local; the destination draft key is captured at recording start.
@@ -1419,8 +1423,9 @@ export function App({ model }: AppProps) {
     believedRun,
     believedStreaming: isStreaming,
     now: strandedTurnTick,
+    piLeaf: strandedPiLeaf,
   });
-  const strandedTurnNotice = strandedTurn.stranded ? describeStrandedTurn(strandedTurn.record) : undefined;
+  const strandedTurnNotice = strandedTurn.stranded ? describeStrandedTurn(strandedTurn.record, strandedTurn.shape) : undefined;
   // CR145: one measured fact — the OS says this workspace's child exited while its lease still says
   // running. Read from the native inspection, never from elapsed time or the renderer's belief.
   const deadChildRelease = deriveDeadChildRelease(piInvocationOccupancy, selectedWorkspace);
@@ -2629,11 +2634,28 @@ export function App({ model }: AppProps) {
     if (!isStreaming || journeyThreadState.kind !== "ready") return;
     const ownerJourneyId = selectedJourney;
     let cancelled = false;
+    const thread = journeyThreadState;
     const poll = () => {
       void loadTurnJournal(ownerJourneyId)
-        .then((journal) => {
+        .then(async (journal) => {
           if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
           setJourneyTurnJournalRecords(journal.records);
+          // CR160: the session leaf is read only while the journal still says the newest turn on
+          // this thread is running — a settled journal and an idle Journey never pay for it. It is
+          // the one durable fact that tells a frozen `running` from a long turn, and it is read from
+          // the file's tail rather than by projecting the branch.
+          const newest = newestJournalRecordForThread(journal.records, thread.thread.threadId);
+          const leaf = newest && (newest.phase === "admitted" || newest.phase === "running") && thread.activeGeneration.piSessionFile
+            ? await inspectPiSessionLeaf(
+              ownerJourneyId,
+              thread.thread.threadId,
+              thread.activeGeneration.generation,
+              thread.activeGeneration.piSessionId,
+              thread.activeGeneration.piSessionFile,
+            ).catch(() => undefined)
+            : undefined;
+          if (cancelled || selectedJourneyRef.current !== ownerJourneyId) return;
+          setStrandedPiLeaf(leaf ?? undefined);
           setStrandedTurnTick(Date.now());
         })
         .catch(() => {

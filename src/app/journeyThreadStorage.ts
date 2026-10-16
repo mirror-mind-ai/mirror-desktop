@@ -112,6 +112,23 @@ export async function inspectDedicatedPiTranscript(
   });
 }
 
+/**
+ * CR160: the branch leaf alone, read from the session file's tail. `null` when the session holds
+ * only its header. Cheap enough for the stranded-turn poll to ask while a turn is believed to be
+ * streaming, which `inspectDedicatedPiTranscript` — a full branch projection — is not.
+ */
+export async function inspectPiSessionLeaf(
+  journeyId: string,
+  threadId: string,
+  generation: number,
+  sessionId: string,
+  sessionFile: string,
+): Promise<import("./strandedTurn").PiSessionLeaf | null> {
+  return invoke<import("./strandedTurn").PiSessionLeaf | null>("inspect_pi_session_leaf", {
+    journeyId, threadId, generation, sessionId, sessionFile,
+  });
+}
+
 export type DedicatedPiUserEntry = {
   userEntryId: string;
   userText: string;

@@ -66,7 +66,7 @@ has a falsified threshold and a field verification still owed.
 - [CR129: Let a Recovered Settlement Say It Happened](cr129-let-a-recovered-settlement-say-it-happened.md) — captured · **membership questioned**: its own Boundaries say *not the surface*, so it serves neither half of the criterion · awaiting the Navigator's call
 - [CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease](cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) — **in_progress · Batch A** · **naming**, then **exit** · a field occurrence recorded 2026-10-16
 - [CR159: Say Why the Provider Refused a Turn](cr159-say-why-the-provider-refused-a-turn.md) — **in_progress · Batch A** · **naming** · from the field, production alpha.50
-- [CR160: Notice a Turn the Journal Never Heard Finish](cr160-notice-a-turn-the-journal-never-heard-finish.md) — **planned · Batch B** · **exit** · from the field, production alpha.50 · falsifies CR142's premise
+- [CR160: Notice a Turn the Journal Never Heard Finish](cr160-notice-a-turn-the-journal-never-heard-finish.md) — **in_progress · Batch B** · **exit** · from the field, production alpha.50 · falsifies CR142's premise
 
 ## Delivery Shape
 

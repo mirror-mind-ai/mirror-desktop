@@ -4454,6 +4454,88 @@ fn inspect_dedicated_pi_transcript(
     )
 }
 
+/// CR160: the branch leaf, read from the tail of the session file alone.
+///
+/// `project_active_pi_branch` starts its ancestry walk at `entries.last()`, so the last entry in
+/// the file *is* the leaf by construction. Reading it needs no branch projection and nothing CR114
+/// had to bound; the stranded-turn poll can afford to ask every fifteen seconds while a turn is
+/// believed to be streaming. An entry that is not a message — a compaction, a context edit — is
+/// reported as what it is, and the caller treats anything but a terminal assistant as "still
+/// running".
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct PiSessionLeaf {
+    entry_id: Option<String>,
+    entry_type: String,
+    role: Option<String>,
+    stop_reason: Option<String>,
+    timestamp: Option<String>,
+}
+
+const PI_SESSION_LEAF_TAIL_START: u64 = 64 * 1024;
+const PI_SESSION_LEAF_TAIL_BOUND: u64 = 64 * 1024 * 1024;
+
+fn read_pi_session_leaf_at(path: &Path) -> Result<Option<PiSessionLeaf>, String> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut file = fs::File::open(path).map_err(|_| "Dedicated Pi session JSONL is unavailable.".to_string())?;
+    let len = file.metadata().map_err(|_| "Dedicated Pi session JSONL is unavailable.".to_string())?.len();
+    if len == 0 { return Ok(None); }
+    let mut window = PI_SESSION_LEAF_TAIL_START;
+    loop {
+        let start = len.saturating_sub(window);
+        file.seek(SeekFrom::Start(start)).map_err(|error| error.to_string())?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).map_err(|error| error.to_string())?;
+        // Trailing newlines and blank lines are not entries.
+        let trimmed_end = buffer.iter().rposition(|byte| !byte.is_ascii_whitespace()).map_or(0, |index| index + 1);
+        let body = &buffer[..trimmed_end];
+        if body.is_empty() { return Ok(None); }
+        match body.iter().rposition(|byte| *byte == b'\n') {
+            Some(newline) => return parse_pi_session_leaf(&body[newline + 1..]),
+            None if start == 0 => return parse_pi_session_leaf(body),
+            None => {
+                if window >= PI_SESSION_LEAF_TAIL_BOUND {
+                    return Err("Dedicated Pi session leaf exceeds its inspection bound.".to_string());
+                }
+                window = window.saturating_mul(2);
+            }
+        }
+    }
+}
+
+fn parse_pi_session_leaf(line: &[u8]) -> Result<Option<PiSessionLeaf>, String> {
+    let value: Value = serde_json::from_slice(line).map_err(|_| "Dedicated Pi session JSONL is invalid.".to_string())?;
+    let entry_type = value.get("type").and_then(Value::as_str).unwrap_or("unknown").to_string();
+    if entry_type == "session" { return Ok(None); }
+    let message = value.get("message");
+    Ok(Some(PiSessionLeaf {
+        entry_id: value.get("id").and_then(Value::as_str).map(str::to_string),
+        entry_type,
+        role: message.and_then(|item| item.get("role")).and_then(Value::as_str).map(str::to_string),
+        stop_reason: message.and_then(|item| item.get("stopReason")).and_then(Value::as_str).map(str::to_string),
+        timestamp: value.get("timestamp").and_then(Value::as_str).map(str::to_string),
+    }))
+}
+
+#[tauri::command(async)]
+fn inspect_pi_session_leaf(
+    app: AppHandle,
+    journey_id: String,
+    thread_id: String,
+    generation: u64,
+    session_id: String,
+    session_file: String,
+) -> Result<Option<PiSessionLeaf>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
+    validate_conversation_session_authority(&app, &journey_id, &thread_id, generation, &session_id, &session_file)?;
+    let metadata = fs::symlink_metadata(&session_file)
+        .map_err(|_| "Dedicated Pi session JSONL is unavailable.".to_string())?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err("Dedicated Pi session JSONL exceeds its inspection bound.".to_string());
+    }
+    read_pi_session_leaf_at(Path::new(&session_file))
+}
+
 #[tauri::command(async)]
 fn load_dedicated_pi_user_entries(
     app: AppHandle,
@@ -6646,27 +6728,6 @@ struct UnclaimedPiRequest<'a> {
     closed: Option<&'a DedicatedPiTranscriptTurn>,
 }
 
-/// The requests after the claimed frontier that no terminal evidence owns, in branch order. A user
-/// entry with no visible text is not a request, which agrees with the legacy projection.
-fn project_unclaimed_pi_requests<'a>(
-    branch: &'a [PiBranchEntry],
-    turns: &'a [DedicatedPiTranscriptTurn],
-    frontier: usize,
-    claimed: &[&TurnPiExecutionEvidence],
-) -> Vec<UnclaimedPiRequest<'a>> {
-    branch.iter().enumerate()
-        .filter(|(index, entry)| {
-            index + 1 > frontier
-                && entry.role.as_deref() == Some("user")
-                && !entry.text.trim().is_empty()
-                && !claimed.iter().any(|evidence| evidence.user_entry_id == entry.id)
-        })
-        .map(|(_, entry)| UnclaimedPiRequest {
-            user: entry,
-            closed: turns.iter().find(|turn| turn.user_entry_id == entry.id),
-        })
-        .collect()
-}
 
 /// Attribute one stale record. Refuses — rather than guesses — whenever the records and the
 /// requests cannot be paired one to one in admission order with every timestamp agreeing.
@@ -6692,47 +6753,68 @@ fn attribute_stale_pi_record<'a>(
             && candidate.authority.generation == record.authority.generation
             && candidate.authority.pi_session_id == record.authority.pi_session_id
     }).collect::<Vec<_>>();
-    let claimed = related.iter().filter_map(|candidate| {
-        candidate.terminal_evidence.as_ref()?.pi_execution.as_ref()
-    }).collect::<Vec<_>>();
-    let frontier = claimed.iter().map(|evidence| evidence.entry_count).max().unwrap_or(0);
-    let mut stale = related.into_iter().filter(|candidate| {
-        matches!(candidate.phase, TurnPhase::Admitted | TurnPhase::Running)
-            && candidate.terminal_outcome.is_none()
-            && candidate.cancellation_intent == turn_journal::TurnCancellationIntent::None
-    }).collect::<Vec<_>>();
-    stale.sort_by(|left, right| left.created_at.cmp(&right.created_at));
-    let requests = project_unclaimed_pi_requests(branch, turns, frontier, &claimed);
-    if stale.len() != requests.len() || stale.is_empty() {
-        return Err("mirror_append_pi_recovery_ambiguous".to_string());
-    }
+    // CR160 (RS025 Batch B): per-turn claims inside this record's own admission window.
+    //
+    // The previous rule derived one high-water `frontier` from the maximum claimed `entry_count`
+    // and refused unless every stale record paired one-to-one with every unclaimed request beyond
+    // it. The field broke that twice on 2026-10-16 with the same record: `1 != 3` at 13:14, because
+    // two interrupted records with null evidence left their requests unclaimed, and `1 != 0` by
+    // evening, because a later turn's claim covered the whole branch including the stranded
+    // request. The skips file holds twelve refusals across five Journeys and zero recoveries.
+    //
+    // Per-turn claims are already on disk — every `pi_execution` names its `user_entry_id` — so
+    // the frontier was a lossy summary of facts the journal already had. The window is
+    // `[created_at, next admitted record's created_at)`; the candidates are the unclaimed user
+    // requests inside it. `ambiguous` now means only what the word says.
+    let claimed_user_ids = related.iter()
+        .filter_map(|candidate| candidate.terminal_evidence.as_ref()?.pi_execution.as_ref())
+        .map(|evidence| evidence.user_entry_id.as_str())
+        .collect::<std::collections::HashSet<_>>();
     let parse = |value: &str| chrono::DateTime::parse_from_rfc3339(value)
         .map_err(|_| "mirror_append_pi_recovery_timestamp_invalid".to_string());
-    for (index, (candidate, request)) in stale.iter().zip(requests.iter()).enumerate() {
-        let admitted_at = parse(&candidate.created_at)?;
-        let asked_at = parse(&request.user.timestamp)?;
-        let next_admitted_at = match stale.get(index + 1) {
-            Some(next) => Some(parse(&next.created_at)?),
-            None => None,
-        };
-        if asked_at < admitted_at || next_admitted_at.is_some_and(|next| asked_at > next) {
-            return Err("mirror_append_pi_recovery_frontier_mismatch".to_string());
-        }
-        if let Some(turn) = request.closed {
-            let committed_at = parse(&turn.committed_at)?;
-            if committed_at < asked_at || next_admitted_at.is_some_and(|next| committed_at > next) {
-                return Err("mirror_append_pi_recovery_frontier_mismatch".to_string());
-            }
-        }
-        if candidate.authority == record.authority {
-            return match request.closed {
-                Some(turn) => Ok(StalePiAttribution::Closed(turn)),
-                None if index + 1 < requests.len() => Ok(StalePiAttribution::Interrupted),
-                None => Err("mirror_append_pi_recovery_request_open".to_string()),
-            };
+    let admitted_at = parse(&record.created_at)?;
+    let mut next_admitted_at = None;
+    for candidate in related.iter().filter(|candidate| candidate.authority != record.authority) {
+        let at = parse(&candidate.created_at)?;
+        if at > admitted_at && next_admitted_at.is_none_or(|next| at < next) {
+            next_admitted_at = Some(at);
         }
     }
-    Err("mirror_append_pi_recovery_record_missing".to_string())
+    let mut candidates = Vec::new();
+    for entry in branch.iter() {
+        if entry.role.as_deref() != Some("user")
+            || entry.text.trim().is_empty()
+            || claimed_user_ids.contains(entry.id.as_str())
+        {
+            continue;
+        }
+        let asked_at = parse(&entry.timestamp)?;
+        if asked_at < admitted_at || next_admitted_at.is_some_and(|next| asked_at >= next) {
+            continue;
+        }
+        candidates.push(UnclaimedPiRequest {
+            user: entry,
+            closed: turns.iter().find(|turn| turn.user_entry_id == entry.id),
+        });
+    }
+    match candidates.as_slice() {
+        // The session moved on past a run that never wrote its prompt.
+        [] if next_admitted_at.is_some() => Ok(StalePiAttribution::Interrupted),
+        // Nothing to attribute is not the same fact as too many to choose between.
+        [] => Err("mirror_append_pi_recovery_request_missing".to_string()),
+        [request] => match request.closed {
+            Some(turn) => {
+                let committed_at = parse(&turn.committed_at)?;
+                if next_admitted_at.is_some_and(|next| committed_at > next) {
+                    return Err("mirror_append_pi_recovery_frontier_mismatch".to_string());
+                }
+                Ok(StalePiAttribution::Closed(turn))
+            }
+            None if next_admitted_at.is_some() => Ok(StalePiAttribution::Interrupted),
+            None => Err("mirror_append_pi_recovery_request_open".to_string()),
+        },
+        _ => Err("mirror_append_pi_recovery_ambiguous".to_string()),
+    }
 }
 
 /// CR139: this reconciliation is Journey-wide and runs inside the admission closure, so with a
@@ -10328,6 +10410,7 @@ fn main() {
             read_pi_session_context_stats,
             load_dedicated_pi_transcript,
             inspect_dedicated_pi_transcript,
+            inspect_pi_session_leaf,
             load_dedicated_pi_user_entries,
             refresh_conversation_segments,
             load_conversation_segments,
@@ -11209,6 +11292,42 @@ mod tests {
              Regenerate with CR127_WRITE_FIXTURE=1 and let the TypeScript conformance test \
              re-check the parser against it.",
         );
+    }
+
+    #[test]
+    fn reads_the_branch_leaf_from_the_tail_without_projecting_the_branch() {
+        // CR160: the last entry is the leaf by construction. Three shapes: an ordinary tail, a
+        // trailing blank line, and a final entry longer than the first tail window so the reader
+        // has to widen rather than cut a line in half.
+        let root = test_root("pi-leaf");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("session.jsonl");
+        fs::write(&path, concat!(
+            "{\"type\":\"session\",\"id\":\"s\"}\n",
+            "{\"type\":\"message\",\"id\":\"u1\",\"parentId\":null,\"timestamp\":\"2026-10-16T13:00:44Z\",\"message\":{\"role\":\"user\",\"content\":\"q\"}}\n",
+            "{\"type\":\"message\",\"id\":\"a1\",\"parentId\":\"u1\",\"timestamp\":\"2026-10-16T13:01:49Z\",\"message\":{\"role\":\"assistant\",\"content\":\"A\",\"stopReason\":\"stop\"}}\n\n",
+        )).unwrap();
+        assert_eq!(super::read_pi_session_leaf_at(&path).unwrap(), Some(super::PiSessionLeaf {
+            entry_id: Some("a1".to_string()), entry_type: "message".to_string(),
+            role: Some("assistant".to_string()), stop_reason: Some("stop".to_string()),
+            timestamp: Some("2026-10-16T13:01:49Z".to_string()),
+        }));
+        // A header-only session has no leaf.
+        fs::write(&path, "{\"type\":\"session\",\"id\":\"s\"}\n").unwrap();
+        assert_eq!(super::read_pi_session_leaf_at(&path).unwrap(), None);
+        // A final entry wider than the first window.
+        let long = "x".repeat((super::PI_SESSION_LEAF_TAIL_START as usize) + 4_096);
+        fs::write(&path, format!(concat!(
+            "{{\"type\":\"session\",\"id\":\"s\"}}\n",
+            "{{\"type\":\"message\",\"id\":\"big\",\"parentId\":null,\"timestamp\":\"2026-10-16T13:05:00Z\",\"message\":{{\"role\":\"assistant\",\"content\":\"{long}\",\"stopReason\":\"toolUse\"}}}}\n",
+        ), long = long)).unwrap();
+        let leaf = super::read_pi_session_leaf_at(&path).unwrap().unwrap();
+        assert_eq!((leaf.entry_id.as_deref(), leaf.stop_reason.as_deref()), (Some("big"), Some("toolUse")));
+        // A non-message leaf is reported as what it is.
+        fs::write(&path, "{\"type\":\"session\",\"id\":\"s\"}\n{\"type\":\"compaction\",\"id\":\"c\",\"parentId\":null,\"timestamp\":\"2026-10-16T13:06:00Z\",\"summary\":\"..\"}\n").unwrap();
+        let leaf = super::read_pi_session_leaf_at(&path).unwrap().unwrap();
+        assert_eq!((leaf.entry_type.as_str(), leaf.role, leaf.stop_reason), ("compaction", None, None));
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -12460,15 +12579,20 @@ mod tests {
         let turns = super::project_complete_pi_transcript_from_branch(&branch);
 
         // The per-record verdict was already correctly scoped: the current record resolves even
-        // though unrelated ambiguous records share the journal.
+        // though unrelated records share the journal.
         assert!(matches!(
             super::attribute_stale_pi_record(&current, &records, &branch, &turns).unwrap(),
             super::StalePiAttribution::Closed(turn) if turn.assistant_entry_id == "pi-assistant"
         ));
-        assert_eq!(
-            super::attribute_stale_pi_record(&historical_a, &records, &branch, &turns).unwrap_err(),
-            "mirror_append_pi_recovery_ambiguous",
-        );
+        // CR160 narrowed this expectation. It asserted `ambiguous` for `historical_a` under the
+        // global count rule. Per-record windows judge `a` on its own admission window, which is
+        // bounded by `b` and holds no request: interrupted. (This fixture also feeds session-two's
+        // branch to session-one's records, which `recover_one_stale_journal_record` never does —
+        // it loads the record's own session — so no verdict is asserted for `historical_b`.)
+        assert!(matches!(
+            super::attribute_stale_pi_record(&historical_a, &records, &branch, &turns).unwrap(),
+            super::StalePiAttribution::Interrupted
+        ));
 
         // The batch must carry both verdicts instead of adopting the first failure as its own.
         let mut report = StaleRecoveryReport::default();
@@ -12582,29 +12706,173 @@ mod tests {
         );
     }
 
+    /// CR160, RS025 Batch B. Field shape of 2026-10-16 built from the production artefacts: one
+    /// settled claim, two interrupted records whose `piExecution` is null and whose requests nothing
+    /// ever claimed, one stale record whose request was answered, and one later settled claim past
+    /// all of it. The frontier-and-count rule refused this as `1 != 3` at 13:14 and as `1 != 0` by
+    /// evening. Per-turn claims inside the record's own admission window attribute it.
+    fn cr160_interrupted_record(run: &str, created: &str) -> TurnJournalRecord {
+        let mut record = cr128_record(run, created);
+        record.phase = TurnPhase::Interrupted;
+        record.terminal_outcome = Some(TurnTerminalOutcome::ProcessDied);
+        record.recovery_disposition = TurnRecoveryDisposition::Interrupted;
+        record.terminal_evidence = Some(TurnTerminalEvidence {
+            legacy_stdout: String::new(), legacy_stderr: String::new(),
+            legacy_stdout_truncated: false, legacy_stderr_truncated: false,
+            captured_at: created.to_string(), pi_execution: None, provider_failure: None,
+        });
+        record
+    }
+
+    fn cr160_claimed_record(run: &str, created: &str, user: &str, assistant: &str, entry_count: usize, committed: &str) -> TurnJournalRecord {
+        let mut record = cr128_settled_record();
+        record.authority.run_id = run.to_string();
+        record.authority.turn_id = format!("turn-{run}");
+        record.created_at = created.to_string();
+        record.updated_at = committed.to_string();
+        let evidence = record.terminal_evidence.as_mut().unwrap().pi_execution.as_mut().unwrap();
+        evidence.user_entry_id = user.to_string();
+        evidence.assistant_entry_id = assistant.to_string();
+        evidence.leaf_entry_id = assistant.to_string();
+        evidence.entry_count = entry_count;
+        evidence.started_at = created.to_string();
+        evidence.committed_at = committed.to_string();
+        record
+    }
+
+    const CR160_FIELD_SESSION_1314: &str = concat!(
+        "{\"type\":\"session\",\"id\":\"session-one\"}\n",
+        // the settled claim: pos 1-2
+        "{\"type\":\"message\",\"id\":\"u-1245\",\"parentId\":null,\"timestamp\":\"2026-10-16T12:45:45Z\",\"message\":{\"role\":\"user\",\"content\":\"a\"}}\n",
+        "{\"type\":\"message\",\"id\":\"a-1245\",\"parentId\":\"u-1245\",\"timestamp\":\"2026-10-16T12:46:20Z\",\"message\":{\"role\":\"assistant\",\"content\":\"A\",\"stopReason\":\"stop\"}}\n",
+        // first provider refusal: request + error leaf, record interrupted with null evidence
+        "{\"type\":\"message\",\"id\":\"u-1253a\",\"parentId\":\"a-1245\",\"timestamp\":\"2026-10-16T12:53:14Z\",\"message\":{\"role\":\"user\",\"content\":\"b\"}}\n",
+        "{\"type\":\"message\",\"id\":\"e-1253a\",\"parentId\":\"u-1253a\",\"timestamp\":\"2026-10-16T12:53:36Z\",\"message\":{\"role\":\"assistant\",\"content\":[],\"stopReason\":\"error\",\"errorMessage\":\"Codex error\"}}\n",
+        // second provider refusal
+        "{\"type\":\"message\",\"id\":\"u-1253b\",\"parentId\":\"e-1253a\",\"timestamp\":\"2026-10-16T12:53:51Z\",\"message\":{\"role\":\"user\",\"content\":\"b\"}}\n",
+        "{\"type\":\"message\",\"id\":\"e-1253b\",\"parentId\":\"u-1253b\",\"timestamp\":\"2026-10-16T12:54:12Z\",\"message\":{\"role\":\"assistant\",\"content\":[],\"stopReason\":\"error\",\"errorMessage\":\"Codex error\"}}\n",
+        // the stranded turn: answered, journal frozen at running
+        "{\"type\":\"message\",\"id\":\"u-1300\",\"parentId\":\"e-1253b\",\"timestamp\":\"2026-10-16T13:00:44Z\",\"message\":{\"role\":\"user\",\"content\":\"b\"}}\n",
+        "{\"type\":\"message\",\"id\":\"a-1300\",\"parentId\":\"u-1300\",\"timestamp\":\"2026-10-16T13:01:49Z\",\"message\":{\"role\":\"assistant\",\"content\":\"B\",\"stopReason\":\"stop\"}}\n",
+    );
+    const CR160_FIELD_SESSION_1410_TAIL: &str = concat!(
+        "{\"type\":\"message\",\"id\":\"u-1410\",\"parentId\":\"a-1300\",\"timestamp\":\"2026-10-16T14:10:57Z\",\"message\":{\"role\":\"user\",\"content\":\"c\"}}\n",
+        "{\"type\":\"message\",\"id\":\"a-1410\",\"parentId\":\"u-1410\",\"timestamp\":\"2026-10-16T14:11:20Z\",\"message\":{\"role\":\"assistant\",\"content\":\"C\",\"stopReason\":\"stop\"}}\n",
+    );
+
+    fn cr160_field_records(stale: &TurnJournalRecord, with_later_claim: bool) -> Vec<TurnJournalRecord> {
+        let mut records = vec![
+            cr160_claimed_record("run-1245", "2026-10-16T12:45:43Z", "u-1245", "a-1245", 2, "2026-10-16T12:46:20Z"),
+            cr160_interrupted_record("run-1253a", "2026-10-16T12:53:12Z"),
+            cr160_interrupted_record("run-1253b", "2026-10-16T12:53:49Z"),
+            stale.clone(),
+        ];
+        if with_later_claim {
+            records.push(cr160_claimed_record("run-1410", "2026-10-16T14:10:56Z", "u-1410", "a-1410", 10, "2026-10-16T14:11:20Z"));
+        }
+        records
+    }
+
+    #[test]
+    fn attributes_the_stranded_record_despite_orphan_requests_and_a_later_claim_past_it() {
+        let stale = cr128_record("run-1300", "2026-10-16T13:00:42Z");
+        // 13:14 shape: the branch ends at the stranded answer; frontier 2, one stale record,
+        // three unclaimed requests beyond it.
+        let branch = super::project_active_pi_branch(CR160_FIELD_SESSION_1314).unwrap();
+        let turns = super::project_complete_pi_transcript_from_branch(&branch);
+        let at_1314 = cr160_field_records(&stale, false);
+        assert!(matches!(
+            super::attribute_stale_pi_record(&stale, &at_1314, &branch, &turns).unwrap(),
+            super::StalePiAttribution::Closed(turn) if turn.user_entry_id == "u-1300" && turn.assistant_entry_id == "a-1300"
+        ), "13:14 shape must attribute to its own request");
+        // Evening shape: the branch grew by a later turn whose claim at entry_count 10 covers it all.
+        let session = format!("{CR160_FIELD_SESSION_1314}{CR160_FIELD_SESSION_1410_TAIL}");
+        let branch = super::project_active_pi_branch(&session).unwrap();
+        let turns = super::project_complete_pi_transcript_from_branch(&branch);
+        let evening = cr160_field_records(&stale, true);
+        assert!(matches!(
+            super::attribute_stale_pi_record(&stale, &evening, &branch, &turns).unwrap(),
+            super::StalePiAttribution::Closed(turn) if turn.user_entry_id == "u-1300" && turn.assistant_entry_id == "a-1300"
+        ), "a later claim must not swallow a stranded record's own request");
+    }
+
+    #[test]
+    fn two_stale_records_admitted_inside_one_request_window_stay_ambiguous() {
+        // The negative case: `ambiguous` now means only what the word says.
+        let branch = super::project_active_pi_branch(CR160_FIELD_SESSION_1314).unwrap();
+        let turns = super::project_complete_pi_transcript_from_branch(&branch);
+        let first = cr128_record("run-x", "2026-10-16T12:53:00Z");
+        let second = cr128_record("run-y", "2026-10-16T12:53:05Z");
+        // Neither interrupted record exists here, so both refusal requests fall into the first
+        // record's window [12:53:00, 12:53:05)? No — 12:53:14 and 12:53:51 are after 12:53:05, so
+        // they both land in the second record's window, which is bounded by the stale run-1300.
+        let stale = cr128_record("run-1300", "2026-10-16T13:00:42Z");
+        let records = vec![
+            cr160_claimed_record("run-1245", "2026-10-16T12:45:43Z", "u-1245", "a-1245", 2, "2026-10-16T12:46:20Z"),
+            first.clone(), second.clone(), stale.clone(),
+        ];
+        assert_eq!(
+            super::attribute_stale_pi_record(&second, &records, &branch, &turns).unwrap_err(),
+            "mirror_append_pi_recovery_ambiguous",
+        );
+        // And a record whose window holds no request at all, bounded by a later admission, is
+        // interrupted: the session moved on past a run that never wrote its prompt.
+        assert!(matches!(
+            super::attribute_stale_pi_record(&first, &records, &branch, &turns).unwrap(),
+            super::StalePiAttribution::Interrupted
+        ));
+    }
+
+    #[test]
+    fn a_record_with_no_request_and_no_later_admission_is_request_missing_not_ambiguous() {
+        let branch = super::project_active_pi_branch(CR128_CLAIMED_PREFIX).unwrap();
+        let turns = super::project_complete_pi_transcript_from_branch(&branch);
+        let stale = cr128_record("run-late", "2026-10-06T12:00:00Z");
+        let records = vec![cr128_settled_record(), stale.clone()];
+        assert_eq!(
+            super::attribute_stale_pi_record(&stale, &records, &branch, &turns).unwrap_err(),
+            "mirror_append_pi_recovery_request_missing",
+        );
+    }
+
     #[test]
     fn attribution_still_refuses_when_records_and_requests_cannot_pair() {
-        // Two records, one request: the second record never wrote its prompt. Nothing pairs.
+        // CR160 narrowed this guard. It asserted `ambiguous` for "two records, one request" under
+        // the global count rule. With per-record windows each record gets the verdict the session
+        // supports: `a` was admitted and never wrote its prompt before `b` was admitted, so it is
+        // interrupted; `b`'s window holds exactly the request asked two seconds after it.
         let session = format!("{CR128_CLAIMED_PREFIX}{}", cr128_closed_request_b("pi-asst-0"));
         let branch = super::project_active_pi_branch(&session).unwrap();
         let turns = super::project_complete_pi_transcript_from_branch(&branch);
         let a = cr128_record("run-a", "2026-10-06T12:18:21.331Z");
         let b = cr128_record("run-b", "2026-10-06T12:34:47.102Z");
         let records = vec![cr128_settled_record(), a.clone(), b.clone()];
-        assert_eq!(
-            super::attribute_stale_pi_record(&b, &records, &branch, &turns).unwrap_err(),
-            "mirror_append_pi_recovery_ambiguous",
-        );
-        // A request admitted after it was asked cannot belong to that record: refused, not guessed.
+        assert!(matches!(
+            super::attribute_stale_pi_record(&a, &records, &branch, &turns).unwrap(),
+            super::StalePiAttribution::Interrupted
+        ));
+        assert!(matches!(
+            super::attribute_stale_pi_record(&b, &records, &branch, &turns).unwrap(),
+            super::StalePiAttribution::Closed(turn) if turn.user_entry_id == "pi-user-b"
+        ));
+        // A request asked before the record was admitted is not that record's request. It is not
+        // a candidate at all, so the late record's window is empty and bounded: interrupted, not
+        // guessed onto a prompt it could not have written.
         let session = format!("{CR128_CLAIMED_PREFIX}{CR128_OPEN_REQUEST_A}{}", cr128_closed_request_b("pi-tool-a1"));
         let branch = super::project_active_pi_branch(&session).unwrap();
         let turns = super::project_complete_pi_transcript_from_branch(&branch);
         let late_a = cr128_record("run-a", "2026-10-06T12:18:25Z");
         let records = vec![cr128_settled_record(), late_a.clone(), b.clone()];
-        assert_eq!(
-            super::attribute_stale_pi_record(&late_a, &records, &branch, &turns).unwrap_err(),
-            "mirror_append_pi_recovery_frontier_mismatch",
-        );
+        assert!(matches!(
+            super::attribute_stale_pi_record(&late_a, &records, &branch, &turns).unwrap(),
+            super::StalePiAttribution::Interrupted
+        ));
+        // The request `late_a` did not write stays nobody's: it precedes `b`'s admission, so it is
+        // not in `b`'s window either, and `b` closes on exactly its own request.
+        assert!(matches!(
+            super::attribute_stale_pi_record(&b, &records, &branch, &turns).unwrap(),
+            super::StalePiAttribution::Closed(turn) if turn.user_entry_id == "pi-user-b"
+        ));
     }
 
     #[test]

@@ -26,8 +26,30 @@ export type StrandedTurnReason =
   /** The journal has just turned terminal and settlement may still be in flight. */
   | "settling";
 
+/**
+ * CR160: the branch leaf of the Pi session, read from the file's tail by `inspect_pi_session_leaf`.
+ * The last entry is the leaf by construction, so this needs no branch projection.
+ */
+export type PiSessionLeaf = {
+  readonly entryId: string | null;
+  readonly entryType: string;
+  readonly role: string | null;
+  readonly stopReason: string | null;
+  readonly timestamp: string | null;
+};
+
+/**
+ * Two ways a turn can be stranded, which need two sentences and share one exit.
+ *
+ * `journal_terminal` is CR142's: the journal finished and the renderer never heard. `journal_never_heard`
+ * is CR160's, one step earlier: the agent finished and the **journal** never heard — the record froze at
+ * `running` while the session holds the answer. Both are recovered by the same route, because
+ * `attribute_stale_pi_record` now attributes the frozen record to its own request.
+ */
+export type StrandedShape = "journal_terminal" | "journal_never_heard";
+
 export type StrandedTurn =
-  | { readonly stranded: true; readonly record: TurnJournalRecord }
+  | { readonly stranded: true; readonly record: TurnJournalRecord; readonly shape: StrandedShape }
   | { readonly stranded: false; readonly reason: StrandedTurnReason };
 
 /**
@@ -82,6 +104,8 @@ export function deriveStrandedTurn(input: {
   readonly believedRun?: BelievedRun;
   readonly believedStreaming: boolean;
   readonly now: number;
+  /** CR160: supplied only while the journal says the newest turn is still running. */
+  readonly piLeaf?: PiSessionLeaf | null;
 }): StrandedTurn {
   // The gate that keeps CR115's idle post-terminal loop closed: an idle Journey has no streaming
   // turn, so nothing here can fire while nothing is believed to be running.
@@ -96,7 +120,21 @@ export function deriveStrandedTurn(input: {
     && candidate.authority.runId === run.runId
   ));
   if (!record) return { stranded: false, reason: "no_record" };
-  if (!TERMINAL_PHASES.has(record.phase)) return { stranded: false, reason: "journal_agrees" };
+  if (!TERMINAL_PHASES.has(record.phase)) {
+    // CR160: using the journal alone, a frozen `running` is indistinguishable from a long turn —
+    // this is exactly the case the comment on `journal_agrees` calls "a long turn's case". The
+    // session leaf is the durable fact that tells them apart: a long turn's leaf is a tool call, a
+    // user entry or a streaming assistant; a finished turn's leaf is an assistant `stop | length`
+    // timestamped after this record was admitted. The same grace applies, because the native side
+    // writes `terminal_durable` within milliseconds of that leaf when it is healthy.
+    const finishedAt = terminalLeafAfterAdmission(input.piLeaf, record);
+    if (finishedAt === undefined) return { stranded: false, reason: "journal_agrees" };
+    const finishedFor = input.now - finishedAt;
+    if (!Number.isFinite(finishedFor) || finishedFor < STRANDED_SETTLEMENT_GRACE_MS) {
+      return { stranded: false, reason: "settling" };
+    }
+    return { stranded: true, record, shape: "journal_never_heard" };
+  }
 
   const settledFor = input.now - Date.parse(record.updatedAt);
   // A record whose timestamp cannot be read is treated as in flight rather than as stranded:
@@ -104,14 +142,49 @@ export function deriveStrandedTurn(input: {
   if (!Number.isFinite(settledFor) || settledFor < STRANDED_SETTLEMENT_GRACE_MS) {
     return { stranded: false, reason: "settling" };
   }
-  return { stranded: true, record };
+  return { stranded: true, record, shape: "journal_terminal" };
+}
+
+/** The leaf's commit time when it is a terminal assistant entry admitted-after this record; else nothing. */
+function terminalLeafAfterAdmission(leaf: PiSessionLeaf | null | undefined, record: TurnJournalRecord): number | undefined {
+  if (!leaf || leaf.entryType !== "message" || leaf.role !== "assistant") return undefined;
+  if (leaf.stopReason !== "stop" && leaf.stopReason !== "length") return undefined;
+  if (!leaf.timestamp) return undefined;
+  const finishedAt = Date.parse(leaf.timestamp);
+  const admittedAt = Date.parse(record.createdAt);
+  if (!Number.isFinite(finishedAt) || !Number.isFinite(admittedAt)) return undefined;
+  // The previous turn's answer is also a terminal leaf; only one committed after this admission counts.
+  return finishedAt >= admittedAt ? finishedAt : undefined;
+}
+
+/** The newest record for one thread, so the poll can ask whether the journal still says running. */
+export function newestJournalRecordForThread(
+  records: readonly TurnJournalRecord[],
+  threadId: string,
+): TurnJournalRecord | undefined {
+  let newest: TurnJournalRecord | undefined;
+  for (const candidate of records) {
+    if (candidate.authority.threadId !== threadId) continue;
+    if (!newest || candidate.createdAt > newest.createdAt) newest = candidate;
+  }
+  return newest;
 }
 
 /**
  * What the surface says. The turn is not lost and the sentence must not imply that it is — the one
  * observed instance recovered intact on the next launch, and the answer was durable the whole time.
  */
-export function describeStrandedTurn(record: TurnJournalRecord): { title: string; sentence: string } {
+export function describeStrandedTurn(
+  record: TurnJournalRecord,
+  shape: StrandedShape = "journal_terminal",
+): { title: string; sentence: string } {
+  if (shape === "journal_never_heard") {
+    // CR160: the answer is in the agent's session; the turn's own record is what never heard it end.
+    return {
+      title: "This turn has already finished",
+      sentence: "The agent finished this turn and the answer is in its session, but the turn's own record never heard it end, so this conversation never received it. Nothing is lost. Recovering brings the answer back into the conversation.",
+    };
+  }
   const finished = record.terminalOutcome === "completed"
     ? "The agent finished this turn and the answer is saved"
     : "The agent stopped this turn and the record is saved";

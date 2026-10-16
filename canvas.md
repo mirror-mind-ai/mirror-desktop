@@ -4,11 +4,11 @@
 
 | Item | Estado | Progresso |
 | --- | --- | --- |
-| **RS025 · Legible Endings for a Turn That Ends Badly** | 🔄 ativa · recorte de tema, não de arrumação · 21 CRs em 5 RSs e nenhum critério de fechamento · o campo bateu 2× num dia em alpha.50 | `███░░░░░░░` 2 🔵 · 1 🔷 · 1 🟡 · de 4 |
+| **RS025 · Legible Endings for a Turn That Ends Badly** | 🔄 ativa · recorte de tema, não de arrumação · 21 CRs em 5 RSs e nenhum critério de fechamento · o campo bateu 2× num dia em alpha.50 | `█████░░░░░` 3 🔵 · 1 🟡 · de 4 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR155 · Give the Navigator an Exit From a Finishing That Holds a Live Lease | 🔵 in_progress · lote A · portões verdes · campo devido · prioridade 7 · dívida da CR132 chegando do campo · **limiar de 60 s falsificado por 2 settlements legítimos** | `███████░░░` |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress · lote A · portões verdes · campo devido · do campo, produção alpha.50, jornada `alissonvale-com` · provedor recusou 8× com `stopReason: "error"` e `errorMessage`, e **nada no app lê esse campo** (0× em todo o Rust) · sintoma da CR054, mecanismo outro | `███████░░░` |
-| ↳　CR160 · Notice a Turn the Journal Never Heard Finish | 🔷 planned · lote B · do campo, produção alpha.50 · a resposta saiu às 13:01:49 e o journal congelou em `running` às 13:00:42 · `deriveStrandedTurn` não vê: `running` ∉ `TERMINAL_PHASES` · **falsifica a premissa da CR142** de que o journal está sempre correto · discriminador durável já existe em disco | `░░░░░░░░░░` |
+| ↳　CR160 · Notice a Turn the Journal Never Heard Finish | 🔵 in_progress · lote B · portões verdes · sonda em produção: o órfão das 13:00 atribui `Closed` · do campo, produção alpha.50 · a resposta saiu às 13:01:49 e o journal congelou em `running` às 13:00:42 · `deriveStrandedTurn` não vê: `running` ∉ `TERMINAL_PHASES` · **falsifica a premissa da CR142** de que o journal está sempre correto · discriminador durável já existe em disco | `███████░░░` |
 | **RS024 · Concurrent Work Inside One Journey** | ✅ concluída · horizonte alcançado em corrida fria · 4ª tentativa de campo | `██████████` 6 ✅ · de 6 |
 | ↳　CR138 · Let the Inspection Carry Two Workspaces in One Journey | ✅ done · campo não aplicável por construção | `██████████` |
 | ↳　CR139 · Key the Native Registry by Workspace | ✅ done · cota 3 · diff zero no renderer | `██████████` |

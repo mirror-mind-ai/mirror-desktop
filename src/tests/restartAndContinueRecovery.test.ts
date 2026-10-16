@@ -17,29 +17,45 @@ const occurrences = (needle: string) => tauriSource.split(needle).length - 1;
 describe("CR128: stale records are paired against requests, not closed turns", () => {
   const attribution = region("fn attribute_stale_pi_record<'a>(", "fn recover_one_stale_journal_record(");
 
-  it("retired the matcher that could only see closed turns", () => {
+  // CR160 narrowed these four guards. They had pinned the *mechanics* of CR128's rule — one
+  // high-water `frontier` and a one-to-one count of stale records against requests — and those
+  // mechanics are what refused the field record twelve times in two weeks. What CR128 actually
+  // established survives and is asserted below: requests are what records pair against, not closed
+  // turns; a record is interrupted only on positive evidence the run is over; a trailing open request
+  // is named rather than judged; and only a user entry with visible text is a request.
+
+  it("retired the matcher that could only see closed turns, and the frontier that swallowed requests", () => {
     expect(tauriSource).not.toContain("fn match_unclaimed_pi_turn");
-    expect(attribution).toContain("project_unclaimed_pi_requests(branch, turns, frontier, &claimed)");
+    expect(tauriSource).not.toContain("fn project_unclaimed_pi_requests");
+    expect(attribution).not.toContain("frontier\n");
+    expect(attribution).not.toContain("entry_count).max()");
+    // Per-turn claims, which were already on disk, replace the high-water mark.
+    expect(attribution).toContain("evidence.user_entry_id.as_str()");
+    expect(attribution).toContain("claimed_user_ids.contains(entry.id.as_str())");
   });
 
-  it("still refuses when records and requests cannot pair one to one", () => {
-    expect(attribution).toContain("if stale.len() != requests.len() || stale.is_empty()");
-    expect(attribution).toContain("mirror_append_pi_recovery_ambiguous");
+  it("attributes inside the record's own admission window and refuses only genuine ambiguity", () => {
+    expect(attribution).toContain("let admitted_at = parse(&record.created_at)?;");
+    expect(attribution).toContain("asked_at < admitted_at || next_admitted_at.is_some_and(|next| asked_at >= next)");
+    expect(attribution).toContain('_ => Err("mirror_append_pi_recovery_ambiguous".to_string())');
     expect(attribution).toContain("mirror_append_pi_recovery_frontier_mismatch");
+    // The count rule is gone: there is no comparison of two lengths anywhere in the function.
+    expect(attribution).not.toContain(".len() != ");
   });
 
   it("interrupts only on positive evidence that the run is over", () => {
-    // A later request on the same session is that evidence. A trailing open request is named,
-    // because another instance sharing the data directory could still be running it.
-    expect(attribution).toContain("None if index + 1 < requests.len() => Ok(StalePiAttribution::Interrupted)");
+    // A later admission on the same thread is that evidence. A trailing open request is named,
+    // because another instance sharing the data directory could still be running it; a record with
+    // no request and no later admission is named too, as its own fact.
+    expect(attribution).toContain("None if next_admitted_at.is_some() => Ok(StalePiAttribution::Interrupted)");
+    expect(attribution).toContain("[] if next_admitted_at.is_some() => Ok(StalePiAttribution::Interrupted)");
     expect(attribution).toContain('None => Err("mirror_append_pi_recovery_request_open".to_string())');
+    expect(attribution).toContain('[] => Err("mirror_append_pi_recovery_request_missing".to_string())');
   });
 
   it("counts only user entries with visible text as requests, as the legacy projection does", () => {
-    const requests = region("fn project_unclaimed_pi_requests<'a>(", "fn attribute_stale_pi_record<'a>(");
-    expect(requests).toContain('entry.role.as_deref() == Some("user")');
-    expect(requests).toContain("!entry.text.trim().is_empty()");
-    expect(requests).toContain("index + 1 > frontier");
+    expect(attribution).toContain('entry.role.as_deref() != Some("user")');
+    expect(attribution).toContain("entry.text.trim().is_empty()");
   });
 });
 
