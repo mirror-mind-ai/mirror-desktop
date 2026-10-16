@@ -17,7 +17,7 @@
 | ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | ✅ campo verificado (7/7) · fechada sobre arquivo | `██████████` |
 | ↳　CR136 · Admit Concurrent Work Inside One Journey | ↗️ promoted → RS024 / CR138–CR140 | `　　　　　　　　　　` |
 | ↳　CR137 · Bring the Navigator Back to the Conversation They Left | ✅ done · campo verificado nas duas direções · regressão achada e reparada | `██████████` |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 46 ✅ · 8 🟡 · 4 ↗️ · 1 ⛔ · de 59 |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 46 ✅ · 9 🟡 · 4 ↗️ · 1 ⛔ · de 60 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR142 · Stop Losing a Turn the Journal Already Answered | ✅ done · campo negativo coletado na 2ª tentativa | `██████████` |
@@ -36,6 +36,7 @@
 | ↳　CR157 · Stop Moving the Whole Conversation Through Every Settlement | 🟡 captured · 3 saves + 1 load de 11,5 MB por settlement (26% da janela medida) · nasce da CR149 | `░░░░░░░░░░` |
 | ↳　CR158 · Stop One Agent Settings Write From Dropping Another | 🟡 captured · achada ao responder a CR154 · duas escritas na mesma janela de um write de arquivo e a segunda apaga a primeira · latente: não é o sintoma da CR154, cuja sequência tem um turno no meio | `░░░░░░░░░░` |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🟡 captured · do campo, produção alpha.50, jornada `alissonvale-com` · provedor recusou 8× com `stopReason: "error"` e `errorMessage`, e **nada no app lê esse campo** (0× em todo o Rust) · sintoma da CR054, mecanismo outro | `░░░░░░░░░░` |
+| ↳　CR160 · Notice a Turn the Journal Never Heard Finish | 🟡 captured · do campo, produção alpha.50 · a resposta saiu às 13:01:49 e o journal congelou em `running` às 13:00:42 · `deriveStrandedTurn` não vê: `running` ∉ `TERMINAL_PHASES` · **falsifica a premissa da CR142** de que o journal está sempre correto · discriminador durável já existe em disco | `░░░░░░░░░░` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · sem Driver · pode sobrepor CR133/CR134 | `░░░░░░░░░░` |
