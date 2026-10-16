@@ -259,3 +259,19 @@ refusal without a fixture throws rather than passing. A fifth refusal cannot be 
 
 **Field check owed.** The next hang on a build carrying this must show *Still finishing after Ns*
 with the native-execution sentence and no button. That is the measurement Batch B waits for.
+
+## Dev Build Carrying Batch A (2026-10-16)
+
+Source `03674f3` on `refinement/rs025-batch-a-naming`. Installed at `/Applications/Mirror Desktop Dev.app`,
+binary **`03cc4fba34ed065a3f66e4daede3d5a125cb6f349b736de551500fe8fef7c4b4`**, replacing `7423733e…`
+(backup `/tmp/Mirror Desktop Dev-20261016-115823.app`, hash-verified before removal). Bundle identity `ai.mirrormind.desktop.dev` checked
+before the destination was touched; the `ps` gate passed twice, after being corrected — its first
+form matched the shell command that contained the pattern, so it reported "running" for a closed
+app, and the state was unknown until the gate anchored on the process path.
+
+**Shipped-chain evidence.** `dist/assets/index-*.js` 11:55:13 precedes the binary 11:57:21;
+installed hash equals built hash. In the bundle: `still records the agent as executing` 1×,
+`cannot tell whether the agent is still executing` 1×, `Still finishing after` **2×** (1× before —
+the count delta is the discriminator for the second section). `The provider reported:` 2×,
+unchanged: CR159's wiring introduces **no new literal**, so it is not grep-verifiable in the bundle;
+it is covered by `cargo test`, the source guards and the field check.
