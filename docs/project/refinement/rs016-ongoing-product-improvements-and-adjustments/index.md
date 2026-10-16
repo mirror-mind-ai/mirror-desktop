@@ -59,6 +59,7 @@ Small, coherent product and engineering adjustments can be captured as independe
 - [CR156: Simplify the Context Map](cr156-simplify-the-context-map.md) — captured · intake 2026-10-12, prioridade 8 de 8
 - [CR157: Stop Moving the Whole Conversation Through Every Settlement](cr157-stop-moving-the-whole-conversation-through-every-settlement.md) — captured · nasce da medição da main thread na CR149
 - [CR158: Stop One Agent Settings Write From Dropping Another](cr158-stop-one-agent-settings-write-from-dropping-another.md) — captured · achada ao responder a CR154 · duas escritas na mesma janela e a segunda apaga a primeira · latente, não é o sintoma da CR154
+- [CR159: Say Why the Provider Refused a Turn](cr159-say-why-the-provider-refused-a-turn.md) — captured · do campo, produção alpha.50, jornada alissonvale-com · provedor recusou 8× e o errorMessage não é lido em lugar nenhum · sintoma da CR054, mecanismo outro
 - [CR132: Let the Navigator End a Finishing That Will Not End](cr132-let-the-navigator-end-a-finishing-that-will-not-end.md) — done
 - [CR120: Stop a Closing Chapter From Erasing Its Own File](cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) — done
 - [CR119: Give Finishing Back to the Navigator](cr119-give-finishing-back-to-the-navigator.md) — done
