@@ -883,3 +883,19 @@ dialog's `Use global defaults` clearing both grains. Both are pinned by tests an
 was exercised in the field.
 
 CR154 closes `done` on what the field verified.
+
+## Debt This CR Created (2026-10-15)
+
+Found while answering CR158's First Investigation, and recorded here because this CR created it.
+
+The two menu entries added here — `followJourneyAgentDefaultHere` and `useGlobalAgentDefaultsHere`
+— **do not close the menu before awaiting**, while the sibling they sit beside, `applyModelIntent`,
+does. No menu entry is disabled during a write either: `providerSelectionDisabled` reaches only the
+trigger, never `ModelIntentMenu`.
+
+So clicking either entry leaves the menu open with no feedback for the whole write, and under
+settlement contention that is seconds to tens of seconds. It also widens CR158's merge race from a
+20 ms window into one a person can walk into.
+
+The repair is scoped in CR158 rather than reopened here. Recorded in both places so the debt is
+attributed to the CR that introduced it.
