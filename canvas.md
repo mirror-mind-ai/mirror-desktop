@@ -4,12 +4,12 @@
 
 | Item | Estado | Progresso |
 | --- | --- | --- |
-| **RS025 · Legible Endings for a Turn That Ends Badly** | 🔄 ativa · recorte de tema, não de arrumação · 21 CRs em 5 RSs e nenhum critério de fechamento · o campo bateu 2× num dia em alpha.50 | `████░░░░░░` 3 🔵 · 2 🟡 · de 5 |
+| **RS025 · Legible Endings for a Turn That Ends Badly** | 🔄 ativa · recorte de tema, não de arrumação · 21 CRs em 5 RSs e nenhum critério de fechamento · o campo bateu 2× num dia em alpha.50 | `░░░░░░░░░░` 3 🔵 · 1 🔷 · 1 🟡 · de 5 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR155 · Give the Navigator an Exit From a Finishing That Holds a Live Lease | 🔵 in_progress · lote A · portões verdes · campo devido · prioridade 7 · dívida da CR132 chegando do campo · **limiar de 60 s falsificado por 2 settlements legítimos** | `███████░░░` |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress · lote A · portões verdes · campo devido · do campo, produção alpha.50, jornada `alissonvale-com` · provedor recusou 8× com `stopReason: "error"` e `errorMessage`, e **nada no app lê esse campo** (0× em todo o Rust) · sintoma da CR054, mecanismo outro | `███████░░░` |
 | ↳　CR160 · Notice a Turn the Journal Never Heard Finish | 🔵 in_progress · lote B · portões verdes · sonda em produção: o órfão das 13:00 atribui `Closed` · do campo, produção alpha.50 · a resposta saiu às 13:01:49 e o journal congelou em `running` às 13:00:42 · `deriveStrandedTurn` não vê: `running` ∉ `TERMINAL_PHASES` · **falsifica a premissa da CR142** de que o journal está sempre correto · discriminador durável já existe em disco | `███████░░░` |
-| ↳　CR161 · Give Every Finishing the Same Exits | 🟡 captured · do campo, produção alpha.52 · **os dois avisos que eu construí não puderam renderizar** · `Finishing` tem duas fontes e toda saída está presa a uma delas · `not_finishing` é devolvido enquanto a tela diz *Finishing* · corrige a allow-list do meu próprio lote A | `░░░░░░░░░░` |
+| ↳　CR161 · Give Every Finishing the Same Exits | 🔷 planned · do campo, produção alpha.52 · **os dois avisos que eu construí não puderam renderizar** · `Finishing` tem duas fontes e toda saída está presa a uma delas · `not_finishing` é devolvido enquanto a tela diz *Finishing* · corrige a allow-list do meu próprio lote A | `░░░░░░░░░░` |
 | **RS024 · Concurrent Work Inside One Journey** | ✅ concluída · horizonte alcançado em corrida fria · 4ª tentativa de campo | `██████████` 6 ✅ · de 6 |
 | ↳　CR138 · Let the Inspection Carry Two Workspaces in One Journey | ✅ done · campo não aplicável por construção | `██████████` |
 | ↳　CR139 · Key the Native Registry by Workspace | ✅ done · cota 3 · diff zero no renderer | `██████████` |
@@ -17,7 +17,7 @@
 | ↳　CR141 · Key the Pi Event Route by Workspace | ✅ done · campo PASSOU · 3 turnos simultâneos · grão aposentado | `██████████` |
 | ↳　CR143 · Say Which Conversation Is Working | ✅ done · campo verificado · marca por conversa | `██████████` |
 | ↳　CR144 · Stop a Running Turn from Disabling Its Sibling's Send | ✅ done · campo achou · horizonte da RS024 era inalcançável | `██████████` |
-| **RS023 · Conversations as First-Class Workspaces** | ✅ concluída · o último ponto frágil do app | `██████████` 4 ✅ · 1 ↗️ · de 5 |
+| **RS023 · Conversations as First-Class Workspaces** | ✅ concluída · o último ponto frágil do app | `████████░░` 4 ✅ · 1 ↗️ · de 5 |
 | ↳　CR133 · Stop a Disclosure From Selecting a Journey | ✅ done · campo verificado (6/6 cenários) | `██████████` |
 | ↳　CR134 · Name the Owner of Running Work Without Hiding That It Runs | ✅ campo verificado (4/4) · 1 achado corrigido | `██████████` |
 | ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | ✅ campo verificado (7/7) · fechada sobre arquivo | `██████████` |

@@ -2,8 +2,8 @@
 
 # CR161: Give Every Finishing the Same Exits
 
-**Status:** captured
-**Driver:** —
+**Status:** planned
+**Driver:** @alissonvale
 **Delivery:** —
 
 ## Friction
@@ -87,9 +87,9 @@ Whatever path puts *Finishing* on the screen, a Navigator who has been waiting l
 what the application believes, and is offered an exit wherever one can be offered safely. No path to
 *Finishing* is reachable without the exits that belong to *Finishing*.
 
-## Proposed Scope
+## Scope — Planned 2026-10-17
 
-Recorded so it can be decided. **Not selected, nothing implemented.**
+Selected by the Navigator. Delivery not yet named; nothing implemented.
 
 **Scope.** Make the exits key on *the state the surface is in* rather than on the one mechanism that
 happens to record it.
@@ -124,6 +124,43 @@ missing.
 **Exclusions.** Does not change what the native terminal path writes, and does not touch the
 attribution rule — CR160's B1 is field-verified twice and recovers these turns on relaunch. This CR
 is about the wait, not the repair.
+
+**Boundaries.** Not the ledger, and not recovery's own silence — the skips file still has a producer
+and no reader, which is CR160's recorded Next Horizon and stays there. Not CR155's remaining slices:
+a *measured* exit for a dead lease still depends on `measure_child_liveness` and on reversing CR132's
+timeout exclusion, and this CR deliberately offers only exits that are already safe to offer. Not the
+composer's responsiveness — CR149 owns that, and the unification here must not add per-second state
+to the App root. Does not touch the surface for any Journey other than the selected one.
+
+## Slice Order, and Why It Is This Order
+
+1. **Unify the two sources** into one derived value that both the composer and
+   `settlementAbandonmentOffer` read. Structural, and the reason this CR exists.
+2. **Give that value a `since`.** Precondition for everything measured by a threshold — without it
+   the wait is not countable and every notice stays silent regardless of slices 3 and 4.
+3. **Open the stranded predicate's gate** to the unified finishing state, with CR115's negative case
+   guarded explicitly.
+4. **Re-examine `not_finishing`** in CR155's allow-list, once it can no longer be returned while the
+   screen says *Finishing*.
+
+Slices 1 and 2 are a precondition for 3 and 4 producing anything visible at all. **One batch**, which
+is a departure from RS025's Batch A/B split and is justified below rather than assumed.
+
+## A Masking I Am Naming Before It Happens
+
+Opening the stranded gate (slice 3) will put a recovery exit on screen at roughly the 10-second grace.
+CR155's naming sentence fires at 60 seconds. **So a Navigator who acts on the recovery exit will never
+reach the sentence**, and the field verification CR155 is still owed becomes unobtainable by the same
+mechanism that made CR160's B2 unobservable.
+
+That is the Batch A/B argument again, and it points at splitting. **I am deliberately not splitting.**
+Shipping the naming alone first would verify my fixture at the cost of leaving the Navigator another
+cycle with no exit from a state they have now hit three times in two days — optimising my measurement
+over their use of the application. The recovery exit is the better outcome and it ships with the rest.
+
+**Consequence, accepted and recorded:** CR155's 60-second sentence will be verified by fixture and by
+the allow-list guard, not by the field, and it must not later be claimed as field-verified. This is
+the same limit I failed to notice for B2, named in advance this time.
 
 ## What Cannot Be Established
 
