@@ -155,3 +155,19 @@ the evidence a later surface reads from, but it is not an abnormal ending naming
 Recorded rather than silently acted on. Two honest options, for the Navigator: return it to RS016,
 or keep it in RS025 as explicit groundwork for a naming CR that does not exist yet. It is **not**
 planned in either batch until that is decided.
+
+## Field Evidence (2026-10-17)
+
+Status unchanged; membership still the open question above.
+
+CR160's repair recovered a stranded turn in production on 2026-10-17: the journal record for
+`agent-run-2026-10-16T13:00:42.068Z` went `running → settled` with `terminalOutcome: completed` and
+full `piExecution` evidence, receipt `settled-agent-run-…`.
+
+**`settlement-timings/alissonvale-com.json` holds zero records for that run, before and after.**
+
+A settlement completed through recovery and the ledger says nothing about it — exactly the friction
+this CR described from reading the code, now observed rather than reasoned about. It does not move
+the membership question: this is still a ledger reader being uninformed rather than the Navigator,
+which is why it serves neither half of RS025's criterion. It does mean the friction is real and
+currently happening.

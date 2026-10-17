@@ -372,3 +372,41 @@ exercised here; the stranded shape is not provokable by hand either. What Dev ca
 positive on an ordinary long turn (the negative case), and the leaf read appearing in no notice
 while a turn runs. The positive case waits on the next frozen `running` in the field, or on the
 production upgrade recovering the 13:00 orphan on its first `convergeDelivery` of `alissonvale-com`.
+
+## Field Verification: PASSED (2026-10-17)
+
+Production upgraded to `alpha.52` by the Navigator and restarted. Collected against the pre-state
+recorded in
+[`alpha-52-release-publication-2026-10-17.md`](../../../update/alpha-52-release-publication-2026-10-17.md),
+so this is a measurement and not a reading of a hoped-for outcome. Full detail in
+[`alpha-52-production-reading-2026-10-17.md`](../../../update/alpha-52-production-reading-2026-10-17.md).
+
+**The orphan recovered on the first Journey load, unprompted.** `phase running → settled`,
+`terminalOutcome null → completed`, `revision 2 → 5`, `recoveryDisposition resume_execution →
+complete`, `piExecution null → present` naming **`6ee82176` / `81b3007d`, entryCount 98, 1,877
+characters**, committed `2026-10-16T13:01:49.786Z`. Those are the identifiers the read-only probe
+predicted before this release was built. No thirteenth refusal for that run. The conversation held
+28 messages before and after.
+
+**Three of four genuinely stale records changed verdict for the better.** The rule was applied
+directly to every stale record on the machine — 5 of 696: `flip-podcast` and `softwarezen` both move
+from permanent `ambiguous` to `Closed` with one answered candidate each, and the live
+`mirror-desktop` turn is correctly named `request_open` rather than being mistaken for stranded.
+
+**The residue is named and the refusal is correct.** Two records keep refusing `ambiguous` with 89
+and 199 unclaimed candidates in windows four and five days wide. The cause is legacy data: no record
+in the `mirror-desktop` group between 2026-09-24 and 2026-10-14 carries `piExecution` at all, and no
+journal record of any kind sits between the stale record and the next admission while 89 real
+requests ran. Guessing among 89 would be a guess. Those two will keep writing a skip record when
+their reason changes, and that is a bounded residue of two rather than an open-ended one.
+
+**An observation I cannot explain.** The `mirror-desktop` 10-08 record drew two refusals 19 seconds
+apart with different reasons, `request_open` then `ambiguous`. Since a skip is recorded only when the
+reason changes, the verdict genuinely changed; the window did not move, so the changed input was
+most plausibly the active branch while that session was being appended. **Not established**, and
+recorded as an observation.
+
+**What is still owed.** The renderer half, B2, has not been exercised: the production orphan was
+recovered by the native path on Journey load before any notice could be drawn, which is the better
+outcome and leaves the `journal_never_heard` notice unseen in the field. It stays test-covered until
+a turn freezes while the app is watching it.
