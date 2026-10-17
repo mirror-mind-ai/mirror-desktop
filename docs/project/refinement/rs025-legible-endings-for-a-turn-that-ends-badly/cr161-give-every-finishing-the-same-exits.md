@@ -222,6 +222,28 @@ force-quit. Negatives: idle composer derives no finishing; neither-streaming-nor
 `tsc --noEmit` clean · `npm run build` clean · vitest **268 files / 2,218 tests** (from 267 / 2,204:
 one new file, fourteen new tests, nothing removed) · Rust untouched.
 
+## Dev Build Carrying CR161 (2026-10-17)
+
+`/Applications/Mirror Desktop Dev.app`, `ai.mirrormind.desktop.dev`, `0.2.0-alpha.52` (the version
+string does not distinguish builds; the hash does). Binary
+**`7942ab69eaa69684cbe1cace797d0d80b7354dc639b86da631ce31dfa0c330ac`**, byte-identical to the built
+bundle. Previous Dev `d4137adf…` backed up to `/tmp/Mirror Desktop Dev-20261017-100623.app`, hash
+verified before removal; `ps` gate anchored on the bundle path, clean before the backup and again
+before the copy.
+
+Frontend proof in the bundled `dist`: `"not_live"` ×1 and `"reconciliation"` ×1 present;
+`not_streaming` ×0 and an invented control ×0 absent; `dist` mtime precedes the binary's.
+
+**What Dev can verify:** the negative case only — a healthy turn on Dev's own data shows *Finishing*
+briefly and draws no sentence, no button and no stranded notice. A GUI check, the Navigator's.
+
+**What Dev cannot verify:** the positive case. Dev does not read the production Journeys, and no
+turn can be made to freeze before settlement on command. The field falsifier runs on production
+after release: the next turn that freezes at *Finishing* should draw *This turn has already finished*
+with Recover about ten seconds after the provider's commit, and `not_live` should appear nowhere.
+**If a turn freezes at *Finishing* on the released build and nothing is drawn within a minute, this
+CR is refuted**, not merely unverified.
+
 ## What Cannot Be Established
 
 **Nothing durable records which notice was on screen.** The Navigator's *"não vi a mensagem"* is
