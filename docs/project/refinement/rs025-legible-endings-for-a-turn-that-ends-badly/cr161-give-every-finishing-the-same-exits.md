@@ -2,9 +2,9 @@
 
 # CR161: Give Every Finishing the Same Exits
 
-**Status:** planned
+**Status:** in_progress
 **Driver:** @alissonvale
-**Delivery:** —
+**Delivery:** `refinement/cr161-unify-finishing`
 
 ## Friction
 
@@ -89,7 +89,7 @@ what the application believes, and is offered an exit wherever one can be offere
 
 ## Scope — Planned 2026-10-17
 
-Selected by the Navigator. Delivery not yet named; nothing implemented.
+Selected by the Navigator; Driver and Delivery authorised 2026-10-17.
 
 **Scope.** Make the exits key on *the state the surface is in* rather than on the one mechanism that
 happens to record it.
