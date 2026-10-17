@@ -182,3 +182,60 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+## Independent Verification (not the script's own report)
+
+Run after `publish` reported `PUBLISHED AND VERIFIED`, against the served endpoints rather than the
+deployment state file.
+
+**Manifests, semantically, per target.** `darwin`, `darwin-x86_64` and `darwin-aarch64` all serve
+`version: 0.2.0-alpha.52`, a URL ending in `Desktop_0.2.0-alpha.52.app.tar.gz`, a **416-char**
+signature and non-empty notes, published `2026-10-17T11:13:31`.
+
+**The artifact, hashed from the wire.** The served tarball is
+`14defe6069bb22be9b6c357ff2a78e287233f68e36887d9b4a90f38edea362f7`, equal to the prepared updater
+artifact. Unpacked, the binary inside is
+`c6053cb6595f6cf47ab524559df52d3c6d56604fdecadf8b78da7bbe67950488`, `0.2.0-alpha.52`,
+`ai.mirrormind.desktop` — **byte-identical to the alpha bundle built in this worktree**, so
+notarization did not rewrite the executable and what is served is what was built.
+
+**The frontend chain.** `dist/assets/index-*.js` at 08:10:53 precedes the binary at 08:12:40. In the
+dist bundle: `never heard it end` 1×, `in its session, but the turn` 1×, `inspect_pi_session_leaf` 1×
+(the invoke name, the only grep-visible trace of the native half), `journal_never_heard` 2×,
+`Recover this turn` 1× (unchanged, as intended — the button is CR142's), alpha.51's
+`still records the agent as executing` still 1×. Invented control literal 0×.
+
+**Stated limit.** The attribution rule — the half of this release that does the repair — introduces
+no frontend literal and is not grep-verifiable in the bundle. It rests on `cargo test` (332 passed)
+and on the read-only production probe recorded in CR160, which attributed the real frozen record to
+its own request.
+
+**Counts.** 153 verified URLs = 3 targets × 51 versions (`alpha.2` … `alpha.52`), one more version
+per target than alpha.51's 150. Every legacy path checked (`alpha.2`, `alpha.7`, `alpha.50`) serves
+`alpha.52`.
+
+Tag `v0.2.0-alpha.52` points at `3941909884a1e9932bb791dacae693064fc062a4`. Working tree clean,
+nothing unpushed.
+
+## Pre-State for the Field Falsifier, Recorded Before the Upgrade
+
+Production is still running `alpha.51` (binary `e7795bee…`, pid 76052). It therefore still carries the
+unrepaired attribution rule, and the following state was captured **before** any upgrade so that the
+recovery can be verified rather than assumed:
+
+| artefact | state before the upgrade |
+|---|---|
+| journal record `agent-run-2026-10-16T13:00:42.068Z` | `phase: running`, `terminalOutcome: null`, `recoveryDisposition: resume_execution`, **`revision: 2`**, `updatedAt 2026-10-16T13:00:42.119Z`, `piExecution: null` |
+| `mirror-append-recovery-skips.jsonl` | **12 records**, 10 `ambiguous` + 2 `request_open`, `recoveredInSameAttempt: 0` on every one, newest `2026-10-16T13:14:25.189Z` for this same run, mtime `10-16 10:14:25` |
+| durable conversation `alissonvale-com` | **28 messages** |
+
+**What must happen after production is upgraded**, on the first `convergeDelivery` for
+`alissonvale-com` — which runs on Journey load:
+
+1. That record advances past `running` with `terminalOutcome: completed`, a `revision` above 2, and
+   `piExecution` naming `userEntryId 6ee82176` / `assistantEntryId 81b3007d`.
+2. `mirror-append-recovery-skips.jsonl` records **no new refusal** for that run.
+3. The conversation does not lose messages.
+
+**If instead a thirteenth refusal appears for that run, the repair is refuted**, and the reason
+written there will say which arithmetic still declines. That is the point of recording the count now.
