@@ -67,6 +67,7 @@ has a falsified threshold and a field verification still owed.
 - [CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease](cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) — **in_progress · Batch A** · **naming**, then **exit** · a field occurrence recorded 2026-10-16
 - [CR159: Say Why the Provider Refused a Turn](cr159-say-why-the-provider-refused-a-turn.md) — **in_progress · Batch A** · **naming** · from the field, production alpha.50
 - [CR160: Notice a Turn the Journal Never Heard Finish](cr160-notice-a-turn-the-journal-never-heard-finish.md) — **in_progress · Batch B** · **exit** · from the field, production alpha.50 · falsifies CR142's premise
+- [CR161: Give Every Finishing the Same Exits](cr161-give-every-finishing-the-same-exits.md) — captured · **naming**, then **exit** · from the field, production alpha.52 · *Finishing* has two sources and every exit is attached to one of them · corrects CR155's own allow-list
 
 ## Delivery Shape
 
