@@ -185,3 +185,41 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+## Independent Verification (2026-10-17, after publication)
+
+Read from the endpoints and the served artefacts, not from the deploy script's own report.
+
+| check | result |
+|---|---|
+| `latest.json` at `darwin`, `darwin-x86_64`, `darwin-aarch64` for `0.2.0-alpha.53` | all three serve `version 0.2.0-alpha.53`, signature 416 chars, URL ending `Mirror%20Desktop_0.2.0-alpha.53.app.tar.gz` |
+| legacy path `darwin/0.2.0-alpha.2/latest.json` | serves `0.2.0-alpha.53` |
+| served tarball sha256 | `b5648e59…` — equals the `prepare` stage's `Mirror Desktop.app.tar.gz` hash |
+| binary **inside** the served tarball | **`d24caa0c200fa13433b9493fb2b258cb4d90d9def33172f2fe4fc6d866a67457`**, byte-identical to the locally built alpha bundle; identity `ai.mirrormind.desktop`, `0.2.0-alpha.53` |
+| `latest.json` URLs in this document | **157**, against 154 in the alpha.52 evidence counted the same way: +3, one version per target |
+| git | `main` at `1d30a75`, 0 unpushed, clean; tag `v0.2.0-alpha.53` → `a3becd9`, present on origin; **0 merges** in `v0.2.0-alpha.52..main` |
+
+A correction to a carried number: previous evidence quoted 150 and 153 total URLs for alpha.51 and
+alpha.52. Counting only `latest.json` URLs, alpha.52 has 154. The *rule* — three more per release —
+holds either way; the earlier absolute figures mixed manifest and non-manifest URLs.
+
+## Field Falsifier for CR161 — Pre-State, Recorded Before the Upgrade
+
+Production is still `alpha.52` (`c6053cb6…`, pid 95585). Read at `2026-10-17T14:19:43Z`:
+
+- `turn-journal/mirror-desktop.json`: 64 records; 2 at `running` — the legacy 2026-10-08 record
+  (bounded residue from CR160) and `run-2026-10-17T14:05:23.112Z`, which is the live turn writing this.
+- `mirror-append-recovery-skips.jsonl`: 14 records, 0 recoveries — unchanged since the alpha.52 reading.
+- `settlement-timings/mirror-desktop.json`: mtime `13:07:12Z`.
+
+**What must hold on alpha.53.** The next turn that freezes at *Finishing* — journal at `running`,
+provider leaf a terminal assistant entry — must draw *This turn has already finished* with a Recover
+action roughly ten seconds after the provider's commit, while the composer still says *Finishing*.
+`not_live` is the predicate's idle reason and must appear nowhere on a healthy turn.
+
+**What refutes it.** A turn frozen at *Finishing* on alpha.53 for a minute with nothing drawn. That
+is a refutation of CR161, not an unverified clause — the gate is the claim.
+
+**What this cannot establish.** Which notice was on screen is still not durably recorded. If the
+Navigator reports "nothing", the mechanism will have to be re-derived from the journal, the session
+leaf and the settlement-timings mtime, as it was for the 2026-10-17 occurrence.
