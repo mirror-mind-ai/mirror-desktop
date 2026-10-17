@@ -410,3 +410,65 @@ recorded as an observation.
 recovered by the native path on Journey load before any notice could be drawn, which is the better
 outcome and leaves the `journal_never_heard` notice unseen in the field. It stays test-covered until
 a turn freezes while the app is watching it.
+
+## Second Field Occurrence, and a Correction to My Own Diagnosis (2026-10-17)
+
+The Navigator's own `mirror-desktop` conversation froze at *Finishing* on `alpha.52` — the build
+carrying both batches — and was force-quit. Two findings, one good and one that refutes half of this
+CR's work.
+
+### B1 confirmed again, in production, on a second Journey
+
+| time (UTC) | event |
+|---|---|
+| 11:27:13.196 | journal admits `agent-run-2026-10-17T11:27:13…`, `phase: running`, `revision: 2` |
+| 11:27:26.689 | the request lands on the Pi branch |
+| 11:28:07 … 11:31:45 | five tool rounds |
+| **11:32:05.653** | assistant answers, `stopReason: "stop"` |
+| — | the journal does **not** advance |
+| ~11:33:30 | the Navigator force-quits |
+| 11:33:38 | relaunch (pid 95585) |
+| **11:33:52.687** | journal advances to `settled` / `completed`, `revision 5`, `piExecution` naming `59cb6c92`, **4,083 characters** |
+
+**107 seconds between the answer and the journal hearing it; 14 seconds between relaunch and the
+recovery completing.** `mirror-append-recovery-skips.jsonl` stayed at 14 records, so the attribution
+did not refuse. Exactly the shape this CR describes, repaired by B1, now twice in production on two
+different Journeys.
+
+A note on instruments: the discriminator I reached for first — *does `settlement-timings` hold a
+record for this run?* — is **invalid**, because a settlement-timings record carries no `runId`. The
+control run returned 0 as well, which is what exposed it. The sound reading is the file's **mtime**:
+nothing was appended after 11:20:52, while this record reached `settled` at 11:33:52, so no
+settlement record was written for it. Same conclusion, from an instrument that works.
+
+### B2 cannot fire in the state the field actually reports
+
+`deriveComposerTurnStatus` returns `"working"` whenever `isStreaming` is true and only reaches
+`"finishing"` afterwards. **So a surface reading *Finishing* proves `isStreaming` is false.**
+
+`deriveStrandedTurn`'s first line is `if (!input.believedStreaming) return { reason: "not_streaming" }`,
+fed by `believedStreaming: isStreaming`. And the poll that reads the journal and the session leaf is
+gated `if (!isStreaming || …) return`.
+
+**Therefore the notice B2 added is unreachable for this symptom, and so is CR142's.** Neither the
+journal re-read nor the leaf read happens while the surface says *Finishing*. I scoped B2 around a
+predicate without checking that its gate is open in the state the Friction of this very CR quotes —
+*"ficou parado em Finishing"*.
+
+**Two earlier diagnoses of mine named the wrong gate, and both are wrong in the same way.** CR155's
+field-occurrence table and this CR's *"Why Nothing Noticed"* both said the predicate returned
+`journal_agrees` because `"running"` is not in `TERMINAL_PHASES`. It never reached that check: it
+short-circuits one line earlier at `not_streaming`. The phase observation is true about the code and
+was never the operative reason.
+
+### What that leaves
+
+B1 stands on its own and is field-verified twice; it is what actually recovered both turns. B2 is
+**delivered, tested, and unreachable for the reported symptom** — it can only fire while the surface
+says *Working…*, which is CR142's observed instance and a real but different state.
+
+**Proposed next slice, not selected.** Open the gate to the finalizing state: derive the stranded
+turn and run the poll while `believedStreaming || isFinalizingTurn`. `isFinalizingTurn` is a specific
+live state rather than idleness, so this does not reopen CR115's idle loop — but that claim needs its
+own guard, because CR115's loop is exactly what the current gate was protecting. The negative case
+becomes: an idle Journey with no finalizing turn still starts no poll.
