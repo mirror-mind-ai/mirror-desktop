@@ -17,26 +17,25 @@
  */
 import { useEffect, useState } from "react";
 import { settlementAbandonmentPresentation } from "./settlementAbandonment";
-import type { JourneyRuntimeOwnerPhase } from "./journeyRuntimeState";
+import type { ComposerFinishing } from "./composerTurnStatus";
 
 export const ABANDON_SETTLEMENT_CLOCK_TICK_MS = 1_000;
 
 type SettlementAbandonmentNoticeProps = {
-  ownerPhase: JourneyRuntimeOwnerPhase | undefined;
+  /** CR161: the composer's own finishing, whichever source put it on screen. */
+  finishing: ComposerFinishing | undefined;
   /** `hasActiveNativeExecution` for the selected workspace. */
   nativeExecutionActive: boolean;
   occupancyKnown: boolean;
-  finishingSince?: number;
   onStopWaiting: () => void;
   /** Test seam; the component keeps its own clock otherwise. */
   now?: number;
 };
 
 export function SettlementAbandonmentNotice({
-  ownerPhase,
+  finishing,
   nativeExecutionActive,
   occupancyKnown,
-  finishingSince,
   onStopWaiting,
   now,
 }: SettlementAbandonmentNoticeProps) {
@@ -44,7 +43,7 @@ export function SettlementAbandonmentNotice({
   // The clock runs only while a wait could still cross the threshold, and never when a test has
   // supplied its own `now`. A Journey that is not finalizing does not need a running clock to be
   // told it has no offer.
-  const watching = ownerPhase === "finalizing" && now === undefined;
+  const watching = finishing !== undefined && now === undefined;
   useEffect(() => {
     if (!watching) return undefined;
     setTick(Date.now());
@@ -55,10 +54,9 @@ export function SettlementAbandonmentNotice({
   // CR155: the decision is still `settlementAbandonmentOffer`'s, reached through the presentation
   // that also says when a refusal is named. This component never re-decides the offer.
   const presentation = settlementAbandonmentPresentation({
-    ownerPhase,
+    finishing,
     nativeExecutionActive,
     occupancyKnown,
-    finishingSince,
     now: now ?? tick,
   });
   if (presentation.kind === "silent") return null;

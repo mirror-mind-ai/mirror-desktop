@@ -12,10 +12,9 @@ import abandonmentSource from "../app/settlementAbandonment.ts?raw";
 
 const since = 1_000;
 const base = {
-  ownerPhase: "finalizing" as const,
+  finishing: { source: "settlement" as const, since },
   nativeExecutionActive: false,
   occupancyKnown: true,
-  finishingSince: since,
   onStopWaiting: () => {},
 };
 
@@ -73,14 +72,14 @@ describe("CR149: the notice that offers to stop waiting", () => {
 
   it("renders nothing when the owner is not finalizing", () => {
     const html = renderToStaticMarkup(
-      <SettlementAbandonmentNotice {...base} ownerPhase="running" now={since + 600_000} />,
+      <SettlementAbandonmentNotice {...base} finishing={undefined} now={since + 600_000} />,
     );
     expect(html).toBe("");
   });
 
   it("renders nothing when no finishing start is known", () => {
     const html = renderToStaticMarkup(
-      <SettlementAbandonmentNotice {...base} finishingSince={undefined} now={since + 600_000} />,
+      <SettlementAbandonmentNotice {...base} finishing={{ source: "settlement", since: undefined }} now={since + 600_000} />,
     );
     expect(html).toBe("");
   });
@@ -109,7 +108,7 @@ describe("CR149: the notice that offers to stop waiting", () => {
     expect(watching).toBeGreaterThan(-1);
     const line = source.slice(watching, source.indexOf(";", watching));
     expect(line).toContain("now === undefined");
-    expect(line).toContain('ownerPhase === "finalizing"');
+    expect(line).toContain('finishing !== undefined');
   });
 });
 

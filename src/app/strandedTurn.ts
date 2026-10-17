@@ -15,8 +15,12 @@ import type { TurnJournalRecord } from "./turnJournal";
  * in-memory quarantine a release build cannot read, and a dropped fire-and-forget `app.emit`.
  */
 export type StrandedTurnReason =
-  /** The renderer is not claiming a live turn. CR115's idle loop cannot reopen through here. */
-  | "not_streaming"
+  /**
+   * The renderer claims neither a streaming nor a finishing turn. CR115's idle loop cannot reopen
+   * through here. CR161 renamed this from `not_streaming`: the gate now also admits the composer's
+   * finishing state, so the old name had become false of what it checked.
+   */
+  | "not_live"
   /** Streaming, but with no live run authority to compare the journal against. */
   | "no_believed_run"
   /** The journal has no record for the run the renderer believes is live. */
@@ -103,13 +107,18 @@ export function deriveStrandedTurn(input: {
   readonly journalRecords: readonly TurnJournalRecord[];
   readonly believedRun?: BelievedRun;
   readonly believedStreaming: boolean;
+  /**
+   * CR161: the composer says *Finishing*. A surface reading *Finishing* proves `isStreaming` is
+   * false, so a gate on streaming alone was closed in exactly the state the field reports.
+   */
+  readonly believedFinishing: boolean;
   readonly now: number;
   /** CR160: supplied only while the journal says the newest turn is still running. */
   readonly piLeaf?: PiSessionLeaf | null;
 }): StrandedTurn {
   // The gate that keeps CR115's idle post-terminal loop closed: an idle Journey has no streaming
-  // turn, so nothing here can fire while nothing is believed to be running.
-  if (!input.believedStreaming) return { stranded: false, reason: "not_streaming" };
+  // and no finishing turn, so nothing here can fire while nothing is believed to be live.
+  if (!input.believedStreaming && !input.believedFinishing) return { stranded: false, reason: "not_live" };
   const run = input.believedRun;
   if (!run) return { stranded: false, reason: "no_believed_run" };
 
@@ -155,6 +164,29 @@ function terminalLeafAfterAdmission(leaf: PiSessionLeaf | null | undefined, reco
   if (!Number.isFinite(finishedAt) || !Number.isFinite(admittedAt)) return undefined;
   // The previous turn's answer is also a terminal leaf; only one committed after this admission counts.
   return finishedAt >= admittedAt ? finishedAt : undefined;
+}
+
+/**
+ * CR161: the believed run when the runtime entry is already gone. The reconciliation source of
+ * *Finishing* sets nothing in the runtime state, and `cleanup` removes an entry that is neither
+ * streaming nor finalizing — so in exactly the field state the predicate had no run to compare the
+ * journal against. The journal's own newest unfinished record on this thread is that run.
+ */
+export function believedRunFromJournal(
+  records: readonly TurnJournalRecord[],
+  thread: { readonly journeyId: string; readonly threadId: string; readonly generation: number },
+): BelievedRun | undefined {
+  const newest = newestJournalRecordForThread(
+    records.filter((candidate) => candidate.authority.journeyId === thread.journeyId && candidate.authority.generation === thread.generation),
+    thread.threadId,
+  );
+  if (!newest || (newest.phase !== "admitted" && newest.phase !== "running")) return undefined;
+  return {
+    journeyId: newest.authority.journeyId,
+    threadId: newest.authority.threadId,
+    generation: newest.authority.generation,
+    runId: newest.authority.runId,
+  };
 }
 
 /** The newest record for one thread, so the poll can ask whether the journal still says running. */

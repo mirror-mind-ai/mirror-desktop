@@ -52,9 +52,8 @@ const siblingExecuting = applyPiInvocationInspection(
 const abandoning = journeyWorkspace("mirror-desktop", "thread-abandoning");
 
 const waited = {
-  ownerPhase: "finalizing" as const,
+  finishing: { source: "settlement" as const, since: 1_000 },
   occupancyKnown: true,
-  finishingSince: 1_000,
   now: 1_000 + ABANDON_SETTLEMENT_OFFER_AFTER_MS + 1,
 };
 

@@ -61,6 +61,7 @@ function derive(input: {
     // different questions, and conflating them made this helper answer the wrong one.
     believedRun: "run" in input ? input.run : believedRun,
     believedStreaming: input.streaming ?? true,
+    believedFinishing: false,
     now: input.now ?? NOW,
   });
 }
@@ -91,9 +92,9 @@ describe("CR142: the journal is asked whether the turn already finished", () => 
   /** CR115's idle post-terminal loop cannot reopen through this predicate. */
   it("says nothing at all when no turn is believed to be streaming", () => {
     expect(derive({ records: [record("terminal_durable")], streaming: false }))
-      .toEqual({ stranded: false, reason: "not_streaming" });
+      .toEqual({ stranded: false, reason: "not_live" });
     expect(derive({ records: [record("settled")], streaming: false }))
-      .toEqual({ stranded: false, reason: "not_streaming" });
+      .toEqual({ stranded: false, reason: "not_live" });
   });
 
   /**
@@ -160,14 +161,15 @@ describe("CR142: the poll cannot reopen the loop CR115 closed", () => {
    * a blocking state and re-rendered the tree between keystrokes. This read must be gated on a
    * believed-streaming turn and must touch occupancy not at all.
    */
-  it("starts the journal poll only while a turn is believed to be streaming", () => {
+  it("starts the journal poll only while a turn is believed to be streaming or finishing", () => {
     const stripped = withoutComments(appSource);
     const effect = stripped.slice(
       // CR160 widened this window: the poll gained the leaf read, which sits between the gate and the interval.
       stripped.indexOf("const interval = window.setInterval(poll, STRANDED_TURN_POLL_MS)") - 2600,
       stripped.indexOf("const interval = window.setInterval(poll, STRANDED_TURN_POLL_MS)") + 200,
     );
-    expect(effect).toContain("if (!isStreaming");
+    // CR161 widened the gate to the composer's finishing; it must still be the only gate.
+    expect(effect).toContain("if ((!isStreaming && !composerFinishingActive)");
     expect(effect).toContain("loadTurnJournal(ownerJourneyId)");
     expect(effect).not.toContain("reconcilePiInvocationOccupancy");
     expect(effect).not.toContain("listMirrorOutbox");

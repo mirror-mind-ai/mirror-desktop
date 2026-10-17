@@ -22,10 +22,9 @@ import {
 const since = 1_000;
 const pastThreshold = since + ABANDON_SETTLEMENT_OFFER_AFTER_MS + 2_400;
 const base = {
-  ownerPhase: "finalizing" as const,
+  finishing: { source: "settlement" as const, since },
   nativeExecutionActive: false,
   occupancyKnown: true,
-  finishingSince: since,
 };
 
 describe("CR155: the refusal is named once the wait is long enough to have earned an offer", () => {
@@ -65,9 +64,9 @@ describe("CR155: the refusal is named once the wait is long enough to have earne
   });
 
   it("stays silent when the owner is not finalizing or no finishing start is known", () => {
-    expect(settlementAbandonmentPresentation({ ...base, ownerPhase: "running", nativeExecutionActive: true, now: pastThreshold }))
+    expect(settlementAbandonmentPresentation({ ...base, finishing: undefined, nativeExecutionActive: true, now: pastThreshold }))
       .toEqual({ kind: "silent", reason: "not_finishing" });
-    expect(settlementAbandonmentPresentation({ ...base, finishingSince: undefined, nativeExecutionActive: true, now: pastThreshold }))
+    expect(settlementAbandonmentPresentation({ ...base, finishing: { source: "settlement" as const, since: undefined }, nativeExecutionActive: true, now: pastThreshold }))
       .toEqual({ kind: "silent", reason: "native_execution_active" });
   });
 
@@ -83,13 +82,17 @@ describe("CR155: the refusal is named once the wait is long enough to have earne
    */
   it("accounts for every refusal in the union past the threshold: named, or deliberately silent", () => {
     expect(SETTLEMENT_ABANDONMENT_REFUSALS.length).toBeGreaterThanOrEqual(4);
+    // CR161: `not_finishing` stays silent because it can no longer be returned while the composer
+    // says *Finishing* — the offer reads the composer's own derivation. Before CR161 it could, and
+    // this very listing is what kept the 2026-10-17 occurrence silent. The exhaustive guard in
+    // `cr161FinishingSources.test.ts` is what now makes this line true rather than assumed.
     const deliberatelySilent = new Set(["not_finishing", "too_soon"]);
     const inputFor = (reason: string) => {
       switch (reason) {
-        case "not_finishing": return { ...base, ownerPhase: "running" as const };
+        case "not_finishing": return { ...base, finishing: undefined };
         case "occupancy_unknown": return { ...base, occupancyKnown: false };
         case "native_execution_active": return { ...base, nativeExecutionActive: true };
-        case "too_soon": return { ...base, finishingSince: undefined };
+        case "too_soon": return { ...base, finishing: { source: "settlement" as const, since: undefined } };
         default: throw new Error(`no fixture for refusal ${reason}; add one or this guard is blind to it`);
       }
     };

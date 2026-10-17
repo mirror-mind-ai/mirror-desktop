@@ -21,7 +21,7 @@
  * keeps this act confined to the state where the flag is stale by construction and the repair
  * route is already free to converge.
  */
-import type { JourneyRuntimeOwnerPhase } from "./journeyRuntimeState";
+import type { ComposerFinishing } from "./composerTurnStatus";
 
 /**
  * Derived rather than chosen. CR119 names the settlement phase after 3 s, which is the right delay
@@ -55,22 +55,26 @@ export type SettlementAbandonmentOffer =
   | Readonly<{ offered: true; waitedMs: number }>;
 
 export function settlementAbandonmentOffer(input: {
-  ownerPhase: JourneyRuntimeOwnerPhase | undefined;
+  /**
+   * CR161: the composer's own finishing, from `deriveComposerFinishing`, rather than the runtime's
+   * owner phase. The owner phase reflected only the settlement flag, so this said `not_finishing`
+   * while the screen said *Finishing* through the reconciliation source. Reading the same derivation
+   * the composer draws makes `not_finishing` true of the screen by construction.
+   */
+  finishing: ComposerFinishing | undefined;
   /** `hasActiveNativeExecution` for this Journey. */
   nativeExecutionActive: boolean;
   occupancyKnown: boolean;
-  /** When this turn's finalization began, as the finishing-phase presentation records it. */
-  finishingSince?: number;
   now: number;
   thresholdMs?: number;
 }): SettlementAbandonmentOffer {
-  if (input.ownerPhase !== "finalizing") return { offered: false, reason: "not_finishing" };
+  if (input.finishing === undefined) return { offered: false, reason: "not_finishing" };
   // Unknown occupancy is not an absent lease. CR107 already refuses admission on it; so does this.
   if (!input.occupancyKnown) return { offered: false, reason: "occupancy_unknown" };
   if (input.nativeExecutionActive) return { offered: false, reason: "native_execution_active" };
   const threshold = input.thresholdMs ?? ABANDON_SETTLEMENT_OFFER_AFTER_MS;
-  if (input.finishingSince === undefined) return { offered: false, reason: "too_soon" };
-  const waitedMs = input.now - input.finishingSince;
+  if (input.finishing.since === undefined) return { offered: false, reason: "too_soon" };
+  const waitedMs = input.now - input.finishing.since;
   return waitedMs > threshold ? { offered: true, waitedMs } : { offered: false, reason: "too_soon" };
 }
 
@@ -116,8 +120,9 @@ export function settlementAbandonmentPresentation(
     return { kind: "silent", reason: offer.reason };
   }
   // No known start means no honest count of the wait, so nothing is said yet.
-  if (input.finishingSince === undefined) return { kind: "silent", reason: offer.reason };
-  const waitedMs = input.now - input.finishingSince;
+  const since = input.finishing?.since;
+  if (since === undefined) return { kind: "silent", reason: offer.reason };
+  const waitedMs = input.now - since;
   const threshold = input.thresholdMs ?? ABANDON_SETTLEMENT_OFFER_AFTER_MS;
   if (!(waitedMs > threshold)) return { kind: "silent", reason: offer.reason };
   return { kind: "refusal_named", reason: offer.reason, waitedMs, sentence: NAMED_REFUSAL_SENTENCES[offer.reason] };

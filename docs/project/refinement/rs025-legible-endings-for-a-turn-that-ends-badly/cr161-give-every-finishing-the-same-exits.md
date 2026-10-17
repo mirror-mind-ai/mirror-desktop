@@ -162,6 +162,66 @@ over their use of the application. The recovery exit is the better outcome and i
 the allow-list guard, not by the field, and it must not later be claimed as field-verified. This is
 the same limit I failed to notice for B2, named in advance this time.
 
+## Implemented (2026-10-17)
+
+All four slices, one batch, on `refinement/cr161-unify-finishing`. Written test-first: the new file
+failed to load on a missing export before any source changed.
+
+**Slice 1 — one derivation.** `deriveComposerFinishing` in `composerTurnStatus.ts` returns
+`{ source: "settlement" | "reconciliation", since }` from the status the composer actually draws, or
+`undefined`. `settlementAbandonmentOffer` and `settlementAbandonmentPresentation` take `finishing`
+in place of `ownerPhase` + `finishingSince`; `SettlementAbandonmentNotice` takes the same prop and
+watches on it. `App.tsx` derives it once and hands it to the offer, the notice and the predicate.
+
+**Slice 2 — a countable start.** The settlement source keeps the settlement's own clock. The
+reconciliation source dates the wait from **the provider's commit** — `pi.committedAt` on the newest
+Nautilus turn — a durable timestamp the conversation already carries, chosen over a renderer clock
+that would reset on every selection change and could carry a stale start into a new turn.
+
+**Slice 3 — the gate.** `deriveStrandedTurn` takes `believedFinishing` beside `believedStreaming`;
+the poll is gated on either. The reason `not_streaming` is renamed **`not_live`**, because the old
+name had become false of what the gate checks. `believedRunFromJournal` supplies the run to compare
+against when the runtime entry is already gone — the reconciliation source sets nothing in the
+runtime state, and `cleanup` removes an entry that is neither streaming nor finalizing, so in the
+field state the predicate would otherwise have returned `no_believed_run` even with the gate open.
+
+**Slice 4 — `not_finishing`.** Stays deliberately silent, now by proof rather than assumption: an
+exhaustive guard enumerates every input `deriveComposerTurnStatus` accepts and asserts the offer
+never returns `not_finishing` while the status is `finishing`, and always does otherwise. The
+allow-list in CR155's test says so in a comment at the listing.
+
+### Two deviations from the planned scope, found while writing the code
+
+- **The act bailed on a missing runtime identity.** `abandonSettlementWait` returned early when
+  `selectedRuntime.identity` was undefined — which the reconciliation source always is. An offered
+  button that does nothing is a label that lies. The bail is removed; the flag-clear is guarded on
+  the identity and the durable convergence runs regardless. A source guard pins it.
+- **One path to *Finishing* still has no countable start.** When the dedicated thread is not ready,
+  `reconciliationBlocksInvocation` is `classification !== "in_sync"` with no committed turn to date
+  from. There `since` is left `undefined` and every threshold notice stays silent, by design, rather
+  than counting from an invented moment. The stranded predicate does not depend on `since` and is
+  unaffected. Bounded residue, named.
+
+### Fixtures, positive and negative
+
+The field values verbatim: admitted `11:27:13.196Z`, provider commit `11:32:05.653Z`, force-quit
+≈ `11:33:30Z`. The notice is derived at commit + grace + 1 ms and asserted to fall **before** the
+force-quit. Negatives: idle composer derives no finishing; neither-streaming-nor-finishing is
+`not_live` even with a terminal leaf; a non-terminal leaf in the finishing state is `journal_agrees`.
+
+### Guards narrowed, with their reasons
+
+- `settlementAbandonmentNotice.test.tsx` — the `watching` guard pinned `ownerPhase === "finalizing"`;
+  it now pins `finishing !== undefined`, the same claim on the new input.
+- `strandedTurnVisibility.test.ts` — the poll-gate guard pinned `if (!isStreaming`; it now pins the
+  widened gate as the only gate, and its name says *streaming or finishing*.
+- Four `ownerPhase` fixtures migrated pairwise to `finishing`, `"running"`/`undefined` → `undefined`.
+
+### Gates
+
+`tsc --noEmit` clean · `npm run build` clean · vitest **268 files / 2,218 tests** (from 267 / 2,204:
+one new file, fourteen new tests, nothing removed) · Rust untouched.
+
 ## What Cannot Be Established
 
 **Nothing durable records which notice was on screen.** The Navigator's *"não vi a mensagem"* is

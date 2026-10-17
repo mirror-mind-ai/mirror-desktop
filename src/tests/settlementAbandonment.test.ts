@@ -18,10 +18,9 @@ import appSource from "../app/App.tsx?raw";
 import coordinatorSource from "../app/journeyNavigationCoordinator.ts?raw";
 
 const base = {
-  ownerPhase: "finalizing" as const,
+  finishing: { source: "settlement" as const, since: 1_000 },
   nativeExecutionActive: false,
   occupancyKnown: true,
-  finishingSince: 1_000,
   now: 1_000 + ABANDON_SETTLEMENT_OFFER_AFTER_MS + 1,
 };
 
@@ -37,9 +36,9 @@ describe("CR132: when stopping the wait is offered", () => {
    * Offering this act there would present two different verbs for one state.
    */
   it("never offers it while the run is running or absent", () => {
-    expect(settlementAbandonmentOffer({ ...base, ownerPhase: "running" }))
+    expect(settlementAbandonmentOffer({ ...base, finishing: undefined }))
       .toEqual({ offered: false, reason: "not_finishing" });
-    expect(settlementAbandonmentOffer({ ...base, ownerPhase: undefined }))
+    expect(settlementAbandonmentOffer({ ...base, finishing: undefined }))
       .toEqual({ offered: false, reason: "not_finishing" });
   });
 
@@ -60,13 +59,13 @@ describe("CR132: when stopping the wait is offered", () => {
   });
 
   it("holds the offer back until the threshold, at the exact boundary", () => {
-    const at = { ...base, now: base.finishingSince + ABANDON_SETTLEMENT_OFFER_AFTER_MS };
+    const at = { ...base, now: base.finishing.since + ABANDON_SETTLEMENT_OFFER_AFTER_MS };
     expect(settlementAbandonmentOffer(at)).toEqual({ offered: false, reason: "too_soon" });
     expect(settlementAbandonmentOffer({ ...at, now: at.now + 1 }).offered).toBe(true);
   });
 
   it("refuses when the wait has no known start", () => {
-    expect(settlementAbandonmentOffer({ ...base, finishingSince: undefined }))
+    expect(settlementAbandonmentOffer({ ...base, finishing: { source: "settlement" as const, since: undefined } }))
       .toEqual({ offered: false, reason: "too_soon" });
   });
 

@@ -62,7 +62,7 @@ import {
   type PiContextState,
 } from "./contextUsageState";
 import { composerPlaceholder } from "./composerPlaceholder";
-import { deriveComposerTurnStatus, shouldShowConversationSyncNotice } from "./composerTurnStatus";
+import { deriveComposerFinishing, deriveComposerTurnStatus, shouldShowConversationSyncNotice } from "./composerTurnStatus";
 import { cancelExactJourneyRun } from "./journeyCancellation";
 import { captureJourneyRunTerminal, type JourneyRunTerminal } from "./journeyRunTerminal";
 import {
@@ -150,6 +150,7 @@ import { EmptyDesktopConversation } from "./EmptyDesktopConversation";
 import { FocusedConversationSidebar } from "./FocusedConversationSidebar";
 import { deriveConversationWork } from "./conversationWorkIndicator";
 import {
+  believedRunFromJournal,
   deriveStrandedTurn,
   describeStrandedTurn,
   STRANDED_TURN_POLL_MS,
@@ -1398,18 +1399,32 @@ export function App({ model }: AppProps) {
     reconciliationBlocksInvocation,
     mirrorRepairPending: durableSyncAttention,
   });
+  // CR161: the one Finishing every exit reads. The composer reaches "finishing" through the
+  // settlement flag or through the reconciliation block; the offer used to read only the flag, so
+  // it said `not_finishing` while the screen said *Finishing*. Derived once here, from the status
+  // the composer actually draws, and handed to the offer, the notice and the stranded predicate.
+  const composerFinishing = deriveComposerFinishing({
+    status: composerTurnStatus,
+    isFinalizingTurn,
+    settlementSince: finishingPhases[selectedJourney]?.since,
+    providerCommittedAt: latestNautilusTurn?.pi.state === "committed" ? latestNautilusTurn.pi.committedAt : undefined,
+  });
+  // A boolean for effect dependencies: the object above is fresh every render.
+  const composerFinishingActive = composerFinishing !== undefined;
   // CR149: the clock CR132 kept here moved into `SettlementAbandonmentNotice`, which is the only
-  // place a per-second value is drawn. These four inputs change rarely, so passing them down costs
+  // place a per-second value is drawn. These inputs change rarely, so passing them down costs
   // nothing, and the App root no longer advances state once per second while the Navigator types.
   // CR138: the workspace form, never the Journey aggregate. A sibling conversation executing must
   // not withhold this workspace's exit from a settlement that will not end.
   const abandonSettlementInputs = {
-    ownerPhase: selectedJourneyRuntimePhase?.phase,
+    finishing: composerFinishing,
     nativeExecutionActive: hasActiveNativeExecution(piInvocationOccupancy, selectedWorkspace),
     occupancyKnown: piInvocationOccupancy.status === "known",
-    finishingSince: finishingPhases[selectedJourney]?.since,
   };
   // CR142: the renderer's belief, checked against the durable record rather than against itself.
+  // CR161: when the runtime entry is already gone — the reconciliation source of Finishing sets
+  // nothing there, and `cleanup` removes an entry that is neither streaming nor finalizing — the
+  // journal's own newest unfinished record on this thread is the run the renderer is waiting on.
   const believedRun = selectedRuntime.identity?.kind === "live"
     ? {
       journeyId: selectedRuntime.identity.authority.journeyId,
@@ -1417,11 +1432,18 @@ export function App({ model }: AppProps) {
       generation: selectedRuntime.identity.authority.generation,
       runId: selectedRuntime.identity.authority.runId,
     }
-    : undefined;
+    : composerFinishingActive
+      ? believedRunFromJournal(journeyTurnJournalRecords, {
+        journeyId: selectedJourney,
+        threadId: conversation.id,
+        generation: conversation.liveIdentity.generation,
+      })
+      : undefined;
   const strandedTurn = deriveStrandedTurn({
     journalRecords: journeyTurnJournalRecords,
     believedRun,
     believedStreaming: isStreaming,
+    believedFinishing: composerFinishing !== undefined,
     now: strandedTurnTick,
     piLeaf: strandedPiLeaf,
   });
@@ -2627,11 +2649,13 @@ export function App({ model }: AppProps) {
   // so when that event is lost the renderer's view freezes and nothing looks again. This is the
   // only trigger that is not downstream of it.
   //
-  // Gated on `isStreaming`, which is what keeps CR115's idle post-terminal loop closed: an idle
-  // Journey has no streaming turn, so this interval never starts there. It also reads only, and
-  // never touches occupancy, which is what CR115 found was causing the flicker.
+  // Gated on `isStreaming` or the composer's finishing, which is what keeps CR115's idle
+  // post-terminal loop closed: an idle Journey has neither, so this interval never starts there.
+  // CR161 added the finishing half — a surface reading *Finishing* proves `isStreaming` is false,
+  // so the streaming gate alone was closed in exactly the state the field reports. It also reads
+  // only, and never touches occupancy, which is what CR115 found was causing the flicker.
   useEffect(() => {
-    if (!isStreaming || journeyThreadState.kind !== "ready") return;
+    if ((!isStreaming && !composerFinishingActive) || journeyThreadState.kind !== "ready") return;
     const ownerJourneyId = selectedJourney;
     let cancelled = false;
     const thread = journeyThreadState;
@@ -2668,7 +2692,7 @@ export function App({ model }: AppProps) {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [isStreaming, journeyThreadState, selectedJourney]);
+  }, [isStreaming, composerFinishingActive, journeyThreadState, selectedJourney]);
 
 
   useEffect(() => {
@@ -4145,7 +4169,10 @@ export function App({ model }: AppProps) {
     const abandoning = selectedRuntime.identity;
     // CR149: evaluated against the clock at the moment of the act rather than against whatever the
     // last render believed. Previously this read a value that could be a full second stale.
-    if (!settlementAbandonmentOffer({ ...abandonSettlementInputs, now: Date.now() }).offered || !abandoning) return;
+    // CR161: no longer bails on a missing runtime identity. The reconciliation source of Finishing
+    // has none, and an offered button that does nothing is a label that lies. The flag-clear below
+    // needs the identity; the durable convergence does not.
+    if (!settlementAbandonmentOffer({ ...abandonSettlementInputs, now: Date.now() }).offered) return;
     const journeyId = selectedJourney;
     setAbandonSettlementConfirmOpen(false);
     const timingRecord = settlementTimingRegistry.end(journeyId, "failed", ABANDONED_SETTLEMENT_REASON);
@@ -4167,7 +4194,7 @@ export function App({ model }: AppProps) {
       const { [journeyId]: _ended, ...rest } = current;
       return rest;
     });
-    dispatchJourneyRuntime({ type: "finalization_finished", identity: abandoning });
+    if (abandoning) dispatchJourneyRuntime({ type: "finalization_finished", identity: abandoning });
     void recoverPostTerminalPersistence(journeyId);
   }
 
