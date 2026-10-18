@@ -6,10 +6,15 @@ autoridade; se o Canvas divergir delas, o Canvas está errado.
 
 ## Objetivo e forma
 
-O Canvas mostra **posição**, em duas visões, nesta ordem:
+O Canvas mostra **posição**, em três seções, nesta ordem:
 
 1. `## Workbench`
 2. `## Roadmap`
+3. `## Últimas entregas`
+
+**O Canvas mostra somente o que está aberto, pendente ou em andamento.** Trabalho concluído não
+ganha linha em Workbench nem em Roadmap; ele vive na contagem do pai, na linha de história distante,
+e nas três entregas mais recentes ao fim.
 
 **O Canvas é só quadro.** Não escreva linhas de abertura, foco, exploração, `Próximo passo`,
 narrativa, arco, dívidas, leituras devidas, correções ou qualquer seção em prosa. Fora dos títulos de
@@ -29,13 +34,17 @@ célula, a célula está errada.
 - **Todo item não terminal ganha a sua própria linha.** `captured`, `planned`, `in_progress` e
   `parked` são sempre explícitos, nunca colapsados numa contagem.
 - **O que é terminal é colapsado.** `done`, `promoted`, `rejected` e `dismissed` entram como contagem
-  na linha da Story a que pertencem, ou numa única linha de história distante.
-- **A exceção são as últimas entregas.** A tabela `### Últimas entregas` lista no máximo **3** CRs
-  terminais, as mais recentes, com a release que as carregou. Nada mais terminal ganha linha própria.
+  na linha da Story a que pertencem, nunca com linha própria.
+- **Uma Story inteiramente terminal também colapsa.** Quando nenhum dos seus itens está aberto, ela
+  perde a própria linha e entra na linha única de história distante, com a contagem de Stories
+  fechadas. Uma Story `active` mantém a linha mesmo que a maioria dos filhos esteja fechada.
+- **A exceção são as últimas entregas.** A seção `## Últimas entregas` fica **no fim do Canvas, depois
+  do Roadmap**, e lista no máximo **3** CRs terminais, as mais recentes, com a release que as
+  carregou. Nada mais terminal ganha linha própria.
 
 ### Colunas
 
-Workbench e Roadmap usam `Item | Estado | Progresso`. `### Últimas entregas` usa
+Workbench e Roadmap usam `Item | Estado | Progresso`. `## Últimas entregas` usa
 `CR | Story | Release | Estado`.
 
 Use `↳` e espaço ideográfico para filhos. Barras têm dez blocos e medem **`done` sobre o total de
@@ -68,8 +77,14 @@ afirmação, nomeie a incerteza com ⚠️ em vez de omiti-la ou preenchê-la.
   selecionam trabalho nem movem o foco.
 - Quando um documento de CR existir e não tiver linha no índice canônico, mostre a CR com o status do
   próprio documento e marque ⚠️ com a divergência. Não a invente no índice e não a esconda.
-- Estados terminais de CR são `done`, `parked`, `rejected`, `promoted` e `dismissed`.
-- A release de uma entrega vem de `docs/releases/`, não de memória.
+- Estados terminais de CR são `done`, `rejected`, `promoted` e `dismissed`. **`parked` não é
+  terminal aqui**, e isto resolve uma contradição que estas instruções carregavam: `parked` estava
+  listado como terminal nesta seção e, ao mesmo tempo, como sempre explícito em `Foco em aberto`.
+  Trabalho pausado é trabalho pendente — ele aparece.
+- A release de uma entrega vem de `docs/releases/change-requests.md`, não de memória e não do próprio
+  Canvas. Esse arquivo existe porque as release notes não nomeiam Change Requests, então até
+  2026-10-18 o mapeamento CR→release só existia na tabela do Canvas — uma fonte derivada servindo de
+  autoridade, que é exatamente a inversão que estas instruções proíbem.
 
 ### Roadmap
 
