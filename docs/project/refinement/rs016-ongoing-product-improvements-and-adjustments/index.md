@@ -46,7 +46,7 @@ Four live Change Requests moved to [RS025 — Legible Endings for a Turn That En
 - [CR126: Stop a Correction From Becoming Its Own Turn](cr126-stop-a-correction-from-becoming-its-own-turn.md) — done
 - [CR127: Let a Journey's First Turn Settle Without a Receipt It Cannot Have](cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) — done
 - [CR128: Give Back the Answer a Restart-and-Continue Strands](cr128-give-back-the-answer-a-restart-and-continue-strands.md) — done
-- [CR129: Let a Recovered Settlement Say It Happened](cr129-let-a-recovered-settlement-say-it-happened.md) — captured · returned from RS025 2026-10-18: serves a ledger reader, not the Navigator, so it serves neither half of RS025's criterion · field evidence 2026-10-17
+- [CR129: Let a Recovered Settlement Say It Happened](cr129-let-a-recovered-settlement-say-it-happened.md) — **planned** · Driver @alissonvale · premissa medida pela 1ª vez com instrumento que funciona: os 2 órfãos recuperados da CR160 estão ausentes do ledger, controle presente · o coletor não pertence ao ponto de entrada
 - [CR131: Make the Mirror a Channel Validates Against Identifiable](cr131-make-the-mirror-a-channel-validates-against-identifiable.md) — captured
 - [CR142: Stop Losing a Turn the Journal Already Answered](cr142-stop-losing-a-turn-the-journal-already-answered.md) — done
 - [CR145: Let a Finished Pi Release the Turn It Completed](cr145-let-a-finished-pi-release-the-turn-it-completed.md) — done

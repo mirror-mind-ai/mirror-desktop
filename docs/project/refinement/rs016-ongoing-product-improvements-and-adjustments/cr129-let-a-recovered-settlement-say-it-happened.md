@@ -2,8 +2,8 @@
 
 # CR129: Let a Recovered Settlement Say It Happened
 
-**Status:** captured
-**Driver:** —
+**Status:** planned
+**Driver:** @alissonvale
 **Delivery:** —
 
 ## Friction
@@ -66,6 +66,92 @@ right grain. The authority a record needs (`journeyId`, `runId`, `turnId`, `gene
 inline settlement failed. `reconcile_pi_backed_mirror_delivery_debt` plus CR128's attribution repairs a
 run the app never saw end. Both currently write nothing; they are not the same event and probably
 should not produce identical records.
+
+## Planned 2026-10-18
+
+Selected by the Navigator. Delivery not named; **nothing implemented.**
+
+### The premise, measured for the first time with a working instrument
+
+Every earlier reading of this CR's friction used the ledger file's **mtime**, because I had recorded
+that a settlement-timings record carries no `runId` and that searching by it was invalid. **That was
+wrong**, and the correction is on CR160 where the claim was made: the record carries `runId` and
+`turnId` **flat at its top level**, not nested under `authority`. I read the key at the wrong level.
+
+Read correctly, with its control run alongside rather than after:
+
+| | |
+|---|---|
+| `mirror-desktop.json` records carrying a `runId` | **232 of 232** — the instrument can return non-zero |
+| control: healthy turns (`…T17:33:12.282Z`, the 14:34 settlement) | **present** |
+| `agent-run-2026-10-17T11:27:13.196Z` — CR160's second recovered orphan | **absent** (232 records) |
+| `agent-run-2026-10-16T13:00:42.068Z` — CR160's first recovered orphan | **absent** (256 records) |
+
+So this CR's premise is now **directly measured** rather than inferred from a file timestamp. These
+are the fifth and sixth observed instances, and the first two established by an instrument whose
+control proves it capable of the opposite answer.
+
+**And the corrected instrument is this CR's field validator**, which is the cleanest part of the
+arrangement: the measurement that confirms the defect is the same one that will confirm the repair.
+
+### A correction to this CR's own reading of the code
+
+The *First Investigation* above says `recoverPostTerminalPersistence` never calls `begin`. That is
+true, and it implies the collector belongs there. **It does not.** That function is Journey-grained
+and has no per-turn visibility at all — it delegates everything to
+`turnFinalizationCoordinator.convergeDelivery(ownerJourneyId, deps)`, which returns a bare
+`Promise<boolean>`. The per-turn authority this CR's acceptance requires is known only inside that
+call.
+
+So the first implementation step is to **establish the seam** where a repaired turn's authority is
+known, rather than to add a `begin` at the entry point. Recorded here because planning on the
+original reading would have put the collector where the data is not.
+
+### Scope
+
+- **A per-turn collector, created where the repaired turn is identified.**
+  `createSettlementTimingCollector(authority, clock)` is already exported and already takes a full
+  `SettlementTimingAuthority` of `journeyId`/`runId`/`turnId`/`generation`. Recovery holds one per
+  repaired turn **locally** and never touches the registry's `collectors` map, which is keyed by
+  `journeyId` alone. This answers this CR's own worry that one collector per Journey is the wrong
+  grain, **without widening the inline path's keying**.
+- **A new optional field naming the record as a repair**, and which recovery route produced it. The
+  record shape has nowhere to say it today, and inferring it from a phase name would be reading prose.
+  Additive and optional, following the precedent of `failure?` (CR121) and `diagnostics?` (CR127),
+  both added without moving `schemaVersion: "0.1.0"`.
+- **A pass that repairs nothing writes nothing — by construction.** No repaired turn means no
+  collector, so there is nothing to finish and nothing to append. Not a conditional around a write.
+- **One write per repaired turn, after the work**, through the existing
+  `appendSettlementTiming(record, onWarning)`, which already reports rather than throws.
+
+### Files
+
+`src/app/settlementPhaseTiming.ts` (the optional field and its plumbing through `finish`),
+`src/app/turnFinalizationCoordinator.ts` (the seam), `src/app/App.tsx` (the append),
+`src/tests/settlementPhaseTiming.test.ts`, and a new test file for the recovery record.
+
+### Validation
+
+- **Unit, with the fake clock already used by `settlementPhaseTiming.test.ts`:** a repaired turn
+  produces a record with its own `runId`/`turnId`, `outcome: "settled"`, its phases, and the repair
+  field; a pass that repairs nothing produces none; a failed append never fails the recovery.
+- **A control for each**, because a test that cannot fail on the defect proves nothing: a record
+  written by the inline path must **not** carry the repair field.
+- **Field, with the corrected instrument:** the next production recovery is searched by `runId` in
+  `settlement-timings/<journey>.json`. It must now be **present** and marked as a repair, where the
+  two measured above are absent. The control is the same as today's — healthy turns present.
+- **Deliberately not attempted:** replaying the `mirror-mind` and `softwarezen` readings against a
+  store written by the new code, which acceptance item 5 asks for. Those stores are historical and
+  the new code cannot retrofit them; what can be checked is the *next* recovery, not a past one.
+
+### Exclusions
+
+- **The native route is out of this slice.** `reconcile_pi_backed_mirror_delivery_debt` is Rust, and
+  this ledger is written from the renderer. Whether it can write the same record, or needs its own
+  mechanism, is a separate decision and is **not** assumed here. This CR's own text says the two kinds
+  of recovery should not produce identical records; slice 1 covers the renderer route only, and the
+  record names which route wrote it precisely so the other can be added without ambiguity.
+- Not the surface, not the turn journal, not a new artifact — as the Boundaries below already state.
 
 ## Acceptance
 

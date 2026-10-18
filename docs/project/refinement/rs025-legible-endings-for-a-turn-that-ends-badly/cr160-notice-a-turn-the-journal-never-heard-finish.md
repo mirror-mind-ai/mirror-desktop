@@ -504,10 +504,27 @@ did not refuse. Exactly the shape this CR describes, repaired by B1, now twice i
 different Journeys.
 
 A note on instruments: the discriminator I reached for first — *does `settlement-timings` hold a
-record for this run?* — is **invalid**, because a settlement-timings record carries no `runId`. The
-control run returned 0 as well, which is what exposed it. The sound reading is the file's **mtime**:
-nothing was appended after 11:20:52, while this record reached `settled` at 11:33:52, so no
-settlement record was written for it. Same conclusion, from an instrument that works.
+record for this run?* — returned 0 for the control run as well, so I stopped using it and read the
+file's **mtime** instead: nothing was appended after 11:20:52, while this record reached `settled` at
+11:33:52, so no settlement record was written for it.
+
+~~It is **invalid**, because a settlement-timings record carries no `runId`.~~
+
+**Corrected 2026-10-18. The cause I recorded was wrong.** A settlement-timings record **does** carry
+`runId` and `turnId` — flattened at the top level of the record, not nested under an `authority` key,
+which is how `SettlementTimingRecord` is declared. I read the key at the wrong nesting level, so my
+lookup returned nothing for every record, measurement and control alike. The control did its job: it
+caught a broken instrument. My explanation of *why* it was broken was the error.
+
+Read correctly, the instrument works and is **decisive** rather than merely corroborating: 232 of 232
+records in `mirror-desktop.json` carry a `runId`; healthy turns are present; and both runs that
+recovery settled are **absent**. See CR129, where this is now the field validator.
+
+**This is the second time in two days that a flat-versus-nested key error of mine produced a false
+conclusion, in opposite directions.** `terminalEvidence.piExecution` is nested and I read it flat,
+which produced an alarming "0 of 644 settled records carry evidence" when the true figure was 643 of
+643. `runId` is flat and I read it nested, which retired a sound instrument. One pattern, not two
+mistakes: **before believing a key is absent, print the record.**
 
 ### B2 cannot fire in the state the field actually reports
 
