@@ -2,7 +2,7 @@
 
 # CR162: Stop a Table Cell From Painting Over Its Neighbour
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `main` — direct request, no refinement branch
 
@@ -128,7 +128,7 @@ binary inside the served tarball is byte-identical to the locally built bundle, 
 written 101 seconds before that binary in the same build. Full chain in
 `docs/update/alpha-54-release-publication-2026-10-18.md`.
 
-## Field Verification Owed
+## Field Verification Owed — Resolved 2026-10-18
 
 **Not verified visually.** The stylesheet is compiled into the bundle, and the Navigator has seen
 only the defect. This stays `in_progress` until the Canvas renders with the `Estado` column wrapping
@@ -153,6 +153,29 @@ instead of as a decision.
 Shortening them is an editorial act on information the Navigator reads, so it is recorded rather than
 performed. With this repair the long cells wrap and stay legible, so the two questions are now
 genuinely separate: this one is fixed, and the other is a choice.
+
+## Field Verified (2026-10-18)
+
+The Navigator upgraded production to `v0.2.0-alpha.54` and reported: *"Atualizei e o canvas está ok
+agora."*
+
+Production confirmed by hash: binary `095f9c15e05f7f633e0c66a1a82a7b40c4920eacc5574ae1208dbef036cb0a82`,
+which is **exactly** the binary hashed inside the served updater tarball — not a build that merely
+reports the same version string. Running as pid 27723 since 2026-10-18 14:16:18 local.
+
+**This closes the one claim no guard could make.** Every other claim in this change request is proved
+by a stylesheet guard, and a stylesheet guard can assert what the CSS says and never what the window
+draws. The surface was the only remaining instrument, and it answered.
+
+**Stated precisely, because it matters what was and was not measured.** The report is a general pass
+on the surface, not an itemisation of the three expectations recorded before the upgrade. It is
+nevertheless the right instrument for all three: a column still painting over its neighbour, a split
+progress bar, or a table still stopping two thirds across would each have been visible as the same
+complaint that opened this work.
+
+It also answers the one thing recorded as unestablishable — whether the resulting column proportions
+are *good*. That was never a question a test could settle, and it is answered in the only way it can
+be: by the person who reads the Canvas saying it reads.
 
 ## Boundaries
 
