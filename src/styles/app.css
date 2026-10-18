@@ -6756,8 +6756,26 @@ dd {
   margin: 0;
 }
 
+/* CR162 slice 2: this view used to carry `max-width: 54rem`, a reading measure that exists so a
+   paragraph does not run to a two-thousand-pixel line. The Canvas has no paragraphs by its own
+   instructions — a paragraph in it is a defect — so the measure was constraining the one kind of
+   content it was never meant for, and the panel's right third sat empty while the tables filled
+   100% of 864 pixels. `min-width: 0` keeps the view able to shrink inside the flex column. */
 .journey-canvas-view {
-  max-width: 54rem;
+  min-width: 0;
+}
+
+/* Exactly the panel's width, never wider. `width: 100%` cannot overflow at all, which is a stronger
+   bound than the shared rule's per-cell cap, so the cap is dropped here and the table's own width
+   does that work. Scoped to the Canvas on purpose: the same renderer draws the documentation
+   browser, whose container carries no reading measure and whose tables may genuinely need more room
+   than the panel, so the shared rule keeps `max-content` and its horizontal scroll. */
+.journey-canvas-view .artifact-markdown-table-scroll table {
+  width: 100%;
+}
+
+.journey-canvas-view .artifact-markdown-table-scroll :is(th, td) {
+  max-width: none;
 }
 
 .journey-canvas-actions {

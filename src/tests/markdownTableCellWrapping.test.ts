@@ -27,10 +27,18 @@ const CODE_RULES = [
   ".message-table-scroll :is(th, td) code",
 ] as const;
 
-/** The declarations of one rule, found by its exact selector text so a sibling rule cannot answer. */
+/**
+ * The declarations of one rule, found by its exact selector text so a sibling rule cannot answer.
+ *
+ * Anchored on a line start, which is not cosmetic: `.artifact-markdown-table-scroll table` is a
+ * substring of `.journey-canvas-view .artifact-markdown-table-scroll table`, so an unanchored search
+ * would answer for whichever happened to appear first in the file and the guard would pass or fail
+ * on rule order rather than on the rule.
+ */
 function declarationsOf(selector: string): Record<string, string> {
-  const at = cssSource.indexOf(`${selector} {`);
-  expect(at, `rule not found: ${selector}`).toBeGreaterThan(-1);
+  const at = cssSource.indexOf(`\n${selector} {`);
+  expect(at, `rule not found at a line start: ${selector}`).toBeGreaterThan(-1);
+  expect(cssSource.indexOf(`\n${selector} {`, at + 1), `rule declared twice: ${selector}`).toBe(-1);
   const open = cssSource.indexOf("{", at);
   const close = cssSource.indexOf("}", open);
   expect(close).toBeGreaterThan(open);
@@ -95,5 +103,48 @@ describe("CR162: a markdown table cell wraps instead of painting over its neighb
         expect(block, `${scroll} override`).not.toContain("max-width");
       }
     }
+  });
+});
+
+/**
+ * CR162 slice 2. Field, 2026-10-18: with the collision repaired, the Canvas tables sat in the left
+ * two thirds of the panel with the right side empty.
+ *
+ * `.journey-canvas-view` capped the Canvas at `54rem`. That is a reading measure — it exists so a
+ * paragraph does not run to a two-thousand-pixel line. The Canvas has no paragraphs **by its own
+ * instructions**: *"todo conteúdo do Canvas vive dentro de tabelas. Um parágrafo no Canvas é um
+ * defeito."* So the measure was constraining the one kind of content it was never meant for, and
+ * the tables were already filling 100% — of 864 pixels.
+ */
+describe("CR162 slice 2: the Canvas tables use the whole panel", () => {
+  it("does not cap the Canvas at a prose reading measure", () => {
+    const rule = declarationsOf(".journey-canvas-view");
+    expect(rule["max-width"]).toBeUndefined();
+  });
+
+  /**
+   * `width: max-content` would let a wide table push past the panel and scroll horizontally.
+   * `width: 100%` cannot overflow at all, which is a stronger form of the bound the cell cap was
+   * guarding — so the cap is dropped inside the Canvas and the table's own width does that work.
+   */
+  it("makes a Canvas table exactly the width of the panel, never wider", () => {
+    const table = declarationsOf(".journey-canvas-view .artifact-markdown-table-scroll table");
+    expect(table["width"]).toBe("100%");
+    expect(table["min-width"]).toBeUndefined();
+    const cells = declarationsOf(".journey-canvas-view .artifact-markdown-table-scroll :is(th, td)");
+    expect(cells["max-width"]).toBe("none");
+  });
+
+  /**
+   * The negative case, and the reason this is scoped to the Canvas. `ArtifactMarkdown` also renders
+   * the documentation browser, whose body carries no reading measure and whose tables may genuinely
+   * need more room than the panel. The shared rule keeps `max-content` with its horizontal scroll,
+   * and the shared cell cap stays — slice 1's guards above still assert both.
+   */
+  it("leaves the shared renderer and the documentation body alone", () => {
+    const shared = declarationsOf(".artifact-markdown-table-scroll table");
+    expect(shared["width"]).toBe("max-content");
+    expect(shared["min-width"]).toBe("100%");
+    expect(declarationsOf(".journey-documentation-body")["max-width"]).toBeUndefined();
   });
 });

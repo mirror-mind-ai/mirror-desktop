@@ -82,6 +82,42 @@ so a sibling rule cannot answer for it:
 Gates: vitest **269 files / 2,222 tests** (from 268 / 2,218), `tsc --noEmit` clean, `npm run build`
 clean. No TypeScript, no Rust, no behaviour outside the stylesheet.
 
+## Slice 2 — The Canvas Uses the Whole Panel (2026-10-18)
+
+With the collision repaired the Navigator reported the next thing: *"ficaria bem melhor se as tabelas
+ocupassem 100% da largura do canvas. Há muito espaço na lateral direita sobrando."*
+
+**The cause was one declaration, and it was never meant for this content.**
+`.journey-canvas-view` carried `max-width: 54rem` — a *reading measure*, which exists so a paragraph
+does not run to a two-thousand-pixel line. The Canvas has no paragraphs **by its own instructions**:
+
+> todo conteúdo do Canvas vive dentro de tabelas. Um parágrafo no Canvas é um defeito.
+
+So the measure constrained the one kind of content it was never meant for. The tables were already
+filling 100% — of 864 pixels.
+
+**Repair.** The measure is removed; `min-width: 0` keeps the view able to shrink inside its flex
+column. Canvas tables become `width: 100%`, and the per-cell `max-width` is set to `none` inside the
+Canvas so the columns can distribute across the panel.
+
+**Why dropping the cap here does not undo slice 1.** Slice 1's cap existed to stop a table growing
+without bound. `width: 100%` **cannot overflow at all**, which is a stronger form of the same bound —
+the mechanism is replaced by a better one rather than removed. The collision itself is gone for a
+different reason: the cells wrap.
+
+**Scoped to the Canvas on purpose.** `ArtifactMarkdown` also draws the documentation browser, whose
+container carries no reading measure and whose tables may genuinely need more room than the panel.
+The shared rule keeps `max-content` and its horizontal scroll, and a guard asserts that — so this
+slice cannot quietly become a change to the documentation browser.
+
+**Three guards added**, and one existing guard repaired: `declarationsOf` matched a selector anywhere
+in the file, and `.artifact-markdown-table-scroll table` is a **substring** of
+`.journey-canvas-view .artifact-markdown-table-scroll table`. It passed only because the shared rule
+happens to appear first. It is now anchored to a line start and asserts the rule is declared once, so
+the guard answers for the rule rather than for the file's ordering.
+
+Gates: vitest **269 files / 2,225 tests**, `tsc --noEmit` clean, `npm run build` clean.
+
 ## Field Verification Owed
 
 **Not verified visually.** The stylesheet is compiled into the bundle, and the Navigator has seen
