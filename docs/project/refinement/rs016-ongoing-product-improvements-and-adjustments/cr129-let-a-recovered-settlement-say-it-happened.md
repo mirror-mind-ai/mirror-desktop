@@ -1,4 +1,4 @@
-[< RS025](index.md)
+[< RS016](index.md)
 
 # CR129: Let a Recovered Settlement Say It Happened
 
@@ -138,7 +138,7 @@ indefinitely.
 This CR is about a settlement that *succeeds through recovery and says nothing*. That one is a
 settlement that **did not happen at all** and also says nothing. They share the silence and not the
 mechanism, so they stay separate: see
-[CR142](../rs016-ongoing-product-improvements-and-adjustments/cr142-stop-losing-a-turn-the-journal-already-answered.md). Whichever is planned first should
+[CR142](cr142-stop-losing-a-turn-the-journal-already-answered.md). Whichever is planned first should
 read the other, because a diagnostic that distinguishes "recovered silently" from "never ran" would
 serve both.
 
@@ -171,3 +171,19 @@ this CR described from reading the code, now observed rather than reasoned about
 the membership question: this is still a ledger reader being uninformed rather than the Navigator,
 which is why it serves neither half of RS025's criterion. It does mean the friction is real and
 currently happening.
+
+## Returned to RS016 (2026-10-18)
+
+Status unchanged at `captured`. Moved back by the Navigator's call, on the reading recorded in
+*RS025 Membership, Questioned* above: RS025's intake rule requires every CR to name which half of its
+criterion it serves — **naming** or **exit** — and this CR's own Boundaries say *"Not the surface"*.
+It serves a ledger reader, not the Navigator in the application.
+
+Keeping it would mean RS025 could never satisfy its closure criterion cleanly: it would close holding a
+member structurally unable to serve the criterion, which weakens the criterion the Story was carved to
+supply. Moving costs nothing here because this CR is `captured`, not closed — the principle against
+shuffling work between Stories is about *closed* work, which rewrites history without delivering.
+
+The field evidence gathered on 2026-10-17 travels with it and is unaffected: `settlement-timings`
+holds **zero** records for the run that recovery settled, so a settlement completed through recovery
+and the ledger says nothing. That is this CR's premise, now observed rather than argued.

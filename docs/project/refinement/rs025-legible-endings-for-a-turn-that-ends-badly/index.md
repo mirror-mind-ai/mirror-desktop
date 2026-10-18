@@ -63,11 +63,21 @@ has a falsified threshold and a field verification still owed.
 
 ## Change Requests
 
-- [CR129: Let a Recovered Settlement Say It Happened](cr129-let-a-recovered-settlement-say-it-happened.md) — captured · **membership questioned**: its own Boundaries say *not the surface*, so it serves neither half of the criterion · awaiting the Navigator's call
 - [CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease](cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) — **in_progress · Batch A** · **naming**, then **exit** · a field occurrence recorded 2026-10-16
 - [CR159: Say Why the Provider Refused a Turn](cr159-say-why-the-provider-refused-a-turn.md) — **in_progress · Batch A** · **naming** · from the field, production alpha.50
-- [CR160: Notice a Turn the Journal Never Heard Finish](cr160-notice-a-turn-the-journal-never-heard-finish.md) — **in_progress · Batch B** · **exit** · from the field, production alpha.50 · falsifies CR142's premise
+- [CR160: Notice a Turn the Journal Never Heard Finish](cr160-notice-a-turn-the-journal-never-heard-finish.md) — **done** (2026-10-18) · **exit** · B1 field-verified twice in production; B2's verification transferred to CR161, which opened the gate it shipped behind
 - [CR161: Give Every Finishing the Same Exits](cr161-give-every-finishing-the-same-exits.md) — **in_progress** · `refinement/cr161-unify-finishing` · **naming**, then **exit** · from the field, production alpha.52 · *Finishing* has two sources and every exit is attached to one of them · corrects CR155's own allow-list
+
+## Census (2026-10-18)
+
+Four CRs, recomputed from the documents' own `**Status:**` lines rather than from this list: **1 done,
+3 in_progress**. CR160 is `done` on its B1 clause, field-verified twice in production; CR155, CR159 and
+CR161 remain `in_progress` with field checks owed.
+
+**The closure criterion is not met and the Story stays active.** Three of the four open verifications
+wait on the same rare event — a turn that freezes at *Finishing* — and one of them, CR161, is the gate
+that makes CR160's B2 half reachable at all. A `done` count of one proves a repair worked; it does not
+prove that *every* abnormal ending is legible, which is what this Story asked.
 
 ## Delivery Shape
 
@@ -84,8 +94,9 @@ no behavioural change, they touch different files, and each is verifiable on the
 kind.
 
 **Batch B — exit.** CR160 (detect the journal/transcript disagreement and route it through existing
-recovery). It changes what happens. ~~Plus CR129~~ — CR129's membership is questioned above and it
-is in neither batch until decided. Batch B opens only after Batch A has shipped **and** been
+recovery). It changes what happens. ~~Plus CR129~~ — **CR129 was returned to RS016 on
+2026-10-18**, by the intake rule above: its own Boundaries say *"Not the surface"*, so it serves a
+ledger reader rather than the Navigator and names neither half of this criterion. Batch B opens only after Batch A has shipped **and** been
 field-checked on at least one abnormal ending.
 
 The ordering is not preference. **When CR160 works, the turn stops hanging, so CR155's surface is

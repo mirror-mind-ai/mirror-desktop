@@ -44,7 +44,7 @@ caused by per-event persistence traffic on the settlement path. A settlement tha
 therefore never writes.
 
 So the instrument built to explain a long `Finishing` cannot explain the longest one. This is the same
-shape as [CR129](../rs025-legible-endings-for-a-turn-that-ends-badly/cr129-let-a-recovered-settlement-say-it-happened.md) — recovery writes nothing — met
+shape as [CR129](cr129-let-a-recovered-settlement-say-it-happened.md) — recovery writes nothing — met
 from the other side: a stall writes nothing either. CR129 and this CR share a cause and are not the
 same fix.
 

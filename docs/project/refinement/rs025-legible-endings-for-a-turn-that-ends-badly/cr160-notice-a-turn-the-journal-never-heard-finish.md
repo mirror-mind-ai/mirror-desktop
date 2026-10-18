@@ -2,7 +2,7 @@
 
 # CR160: Notice a Turn the Journal Never Heard Finish
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs025-batch-b-exit`
 
@@ -260,6 +260,51 @@ B2 without B1 would offer a button that fails, and say *recovering brings the an
 refusal. That is a promise that lies, and worse than the silence it replaces. B1 without B2 already
 makes a **restart** recover the turn, which today it does not; B2 is what makes the exit not be a
 restart, which is RS025's criterion.
+
+## Closed on the Clause the Field Verified (2026-10-18)
+
+**B1 is `done`.** Field-verified **twice in production**, on two different Journeys: the
+`alissonvale-com` orphan recovered unprompted on the first Journey load after the upgrade, naming
+`6ee82176` / `81b3007d` and 1,877 characters; and the Navigator's own `mirror-desktop` turn recovered
+14 seconds after a relaunch, naming `59cb6c92` and 4,083 characters. Applied to every stale record on
+the machine it changed three of four verdicts for the better. The two skips nineteen seconds apart are
+its first production act, resolved above.
+
+**B2's field verification is transferred to [CR161](cr161-give-every-finishing-the-same-exits.md), and
+that is not bookkeeping.** B2 shipped behind a gate that was closed in exactly the state the field
+reports — `deriveStrandedTurn` required `believedStreaming`, and a surface reading *Finishing* proves
+`isStreaming` is false. CR161 is what opened that gate. So B2's correctness is now **contingent on
+CR161's repair**, and the two share one falsifier: the next turn that freezes at *Finishing*. Holding
+this CR open for a clause whose gate belongs to another CR would misstate where the risk sits.
+
+**What that means if CR161 is refuted.** B2 goes back to being unreachable and this CR's exit half is
+undelivered, whatever this status says. The dependency is recorded here so that outcome reopens the
+right thing instead of looking like a surprise.
+
+## Next Horizon: The Reader Is Deliberately Not Minted (2026-10-18)
+
+`mirror-append-recovery-skips.jsonl` still has a producer and no reader, which is this Story's own
+criterion one layer down — a surface that knows something and says nothing. It was recommended for
+capture. **Measured, the case collapses, and the recommendation is withdrawn.**
+
+The file holds **14 records and zero recoveries**, and since B1 shipped the only refusals it receives
+are the **two correct ones** on pre-claim-evidence legacy data: 89 unclaimed candidates for the
+`mirror-desktop` 2026-10-08 record and 199 for `alissonvale-com` 2026-10-09. Those refusals are right
+and permanent. A reader today would therefore put a **permanent, unactionable complaint** in front of
+the Navigator about two turns from early October — which is RS025 violating its own clause that a
+repair here must not fire on healthy state.
+
+**The order is inverted.** Silence the file first, by retiring the two legacy records; only then is a
+reader's value assessable, because a file that should be empty and gains a line is exactly when a
+reader earns its place, and a file that complains forever is read by nobody. Retiring them also
+reclaims two journal slots, since `can_prune_retained_record` protects unfinished records — a second
+cost named in the alpha.53 production reading.
+
+**Not done, and not authorised.** Retiring those records writes to the Navigator's data and is not a
+repair: it is a decision to abandon two turns, and it must not be dressed as attribution, because
+guessing among 89 candidates is what B1 exists to refuse. If authorised it goes under the protocol the
+previous reclamation used — app closed, hash-verified reversible backup, round-trip proven byte for
+byte, and a recount immediately before writing.
 
 ## Open Questions
 

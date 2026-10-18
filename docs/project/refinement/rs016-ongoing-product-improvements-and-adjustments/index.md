@@ -46,6 +46,7 @@ Four live Change Requests moved to [RS025 — Legible Endings for a Turn That En
 - [CR126: Stop a Correction From Becoming Its Own Turn](cr126-stop-a-correction-from-becoming-its-own-turn.md) — done
 - [CR127: Let a Journey's First Turn Settle Without a Receipt It Cannot Have](cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) — done
 - [CR128: Give Back the Answer a Restart-and-Continue Strands](cr128-give-back-the-answer-a-restart-and-continue-strands.md) — done
+- [CR129: Let a Recovered Settlement Say It Happened](cr129-let-a-recovered-settlement-say-it-happened.md) — captured · returned from RS025 2026-10-18: serves a ledger reader, not the Navigator, so it serves neither half of RS025's criterion · field evidence 2026-10-17
 - [CR131: Make the Mirror a Channel Validates Against Identifiable](cr131-make-the-mirror-a-channel-validates-against-identifiable.md) — captured
 - [CR142: Stop Losing a Turn the Journal Already Answered](cr142-stop-losing-a-turn-the-journal-already-answered.md) — done
 - [CR145: Let a Finished Pi Release the Turn It Completed](cr145-let-a-finished-pi-release-the-turn-it-completed.md) — done
@@ -60,7 +61,7 @@ Four live Change Requests moved to [RS025 — Legible Endings for a Turn That En
 - [CR154: Persist a Model Choice at the Conversation It Was Made In](cr154-persist-a-model-choice-at-the-conversation-it-was-made-in.md) — done · **campo PASSOU** · 3 fatias + 3 reparos de campo · chave de workspace para domain · 3 grãos com resolução tardia · os dois controles do composer escrevem a conversa, e o seletor completo oferece os dois grãos com a conversa primeiro · metade Rust do allowlist e guards entre linguagens · minha regra de poda revertida · causa afirmada em excesso, corrigida
 - [CR156: Simplify the Context Map](cr156-simplify-the-context-map.md) — captured · intake 2026-10-12, prioridade 8 de 8
 - [CR157: Stop Moving the Whole Conversation Through Every Settlement](cr157-stop-moving-the-whole-conversation-through-every-settlement.md) — captured · nasce da medição da main thread na CR149
-- [CR158: Stop One Agent Settings Write From Dropping Another](cr158-stop-one-agent-settings-write-from-dropping-another.md) — captured · achada ao responder a CR154 · duas escritas na mesma janela e a segunda apaga a primeira · latente, não é o sintoma da CR154
+- [CR158: Stop One Agent Settings Write From Dropping Another](cr158-stop-one-agent-settings-write-from-dropping-another.md) — **planned** (2026-10-18) · achada ao responder a CR154 · duas escritas na mesma janela e a segunda apaga a primeira · latente, não é o sintoma da CR154
 - [CR132: Let the Navigator End a Finishing That Will Not End](cr132-let-the-navigator-end-a-finishing-that-will-not-end.md) — done
 - [CR120: Stop a Closing Chapter From Erasing Its Own File](cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) — done
 - [CR119: Give Finishing Back to the Navigator](cr119-give-finishing-back-to-the-navigator.md) — done

@@ -2,8 +2,8 @@
 
 # CR158: Stop One Agent Settings Write From Dropping Another
 
-**Status:** captured
-**Driver:** —
+**Status:** planned
+**Driver:** @alissonvale
 **Delivery:** —
 
 ## Friction
@@ -135,6 +135,29 @@ about meaning rather than a defect.
 
 **Neither is the first move.** The reachability comes from the UI, not from the merge. Closing the
 window where it opens is cheaper, smaller, and fixes the feedback defect in the same stroke.
+
+## Planned 2026-10-18
+
+Selected by the Navigator. Delivery not named; **nothing implemented**. The six elements the protocol
+requires before `planned` were already recorded at capture — scope, files, acceptance, validation and
+exclusions below, boundaries above — so this move adds a decision, not a document.
+
+**Validation part A is deliberately dropped.** It called for provoking the defect on Dev. The merge
+race is **not provokable by hand**: the two writes must land inside one read-modify-write window, and
+nothing in the UI lets a Navigator time that. Keeping the step would spend a cycle measuring nothing.
+What remains is the guard asserting the prop reaches *every* menu entry, which is the claim that can
+fail.
+
+**Why `planned` and not `in_progress`.** The repair is known and cheap, so nothing is lost by holding
+it one cycle; and four field verifications are owed in the finishing/settlement area, three of them
+waiting on a single rare event. This CR is independent of all of them — it touches `agent-settings.json`
+and the model menu, not the settlement machinery — which is exactly why it is the right thing to build
+**next** rather than **now**.
+
+The argument for moving sooner is recorded because it is real: the defect's outcome is a **silent loss**
+of a model preference. It has not been observed — production's `agent-settings.json` is intact with its
+fifteen Journey overrides — and the eight "redundant" overrides remain under review rather than
+classified, so no loss is attributed to this cause.
 
 ## Proposed Scope
 

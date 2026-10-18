@@ -91,7 +91,7 @@ that changed was most plausibly the active branch while that session was being a
 `settlement-timings/alissonvale-com.json` holds **zero** records for the recovered run, before and
 after. The orphan settled through recovery and the ledger says nothing about it — which is precisely
 the friction
-[CR129](../project/refinement/rs025-legible-endings-for-a-turn-that-ends-badly/cr129-let-a-recovered-settlement-say-it-happened.md)
+[CR129](../project/refinement/rs016-ongoing-product-improvements-and-adjustments/cr129-let-a-recovered-settlement-say-it-happened.md)
 describes, now observed in the field rather than reasoned about. It does not change the argument that
 CR129 serves a ledger reader rather than the Navigator, so its RS025 membership stays the open
 question it was. It does strengthen the CR itself.

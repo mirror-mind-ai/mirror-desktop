@@ -4,11 +4,9 @@
 
 | Item | Estado | Progresso |
 | --- | --- | --- |
-| **RS025 · Legible Endings for a Turn That Ends Badly** | 🔄 ativa · recorte de tema, não de arrumação · 21 CRs em 5 RSs e nenhum critério de fechamento · o campo bateu 2× num dia em alpha.50 | `░░░░░░░░░░` 4 🔵 · 1 🟡 · de 5 |
-| ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
+| **RS025 · Legible Endings for a Turn That Ends Badly** | 🔄 ativa · recorte de tema, não de arrumação · 21 CRs em 5 RSs e nenhum critério de fechamento · o campo bateu 2× num dia em alpha.50 | `██░░░░░░░░` 1 ✅ · 3 🔵 · de 4 |
 | ↳　CR155 · Give the Navigator an Exit From a Finishing That Holds a Live Lease | 🔵 in_progress · lote A · portões verdes · campo devido · prioridade 7 · dívida da CR132 chegando do campo · **limiar de 60 s falsificado por 2 settlements legítimos** | `███████░░░` |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress · lote A · portões verdes · campo devido · do campo, produção alpha.50, jornada `alissonvale-com` · provedor recusou 8× com `stopReason: "error"` e `errorMessage`, e **nada no app lê esse campo** (0× em todo o Rust) · sintoma da CR054, mecanismo outro | `███████░░░` |
-| ↳　CR160 · Notice a Turn the Journal Never Heard Finish | 🔵 in_progress · lote B · portões verdes · sonda em produção: o órfão das 13:00 atribui `Closed` · do campo, produção alpha.50 · a resposta saiu às 13:01:49 e o journal congelou em `running` às 13:00:42 · `deriveStrandedTurn` não vê: `running` ∉ `TERMINAL_PHASES` · **falsifica a premissa da CR142** de que o journal está sempre correto · discriminador durável já existe em disco | `███████░░░` |
 | ↳　CR161 · Give Every Finishing the Same Exits | 🔵 in_progress · `refinement/cr161-unify-finishing` · do campo, produção alpha.52 · **os dois avisos que eu construí não puderam renderizar** · `Finishing` tem duas fontes e toda saída está presa a uma delas · `not_finishing` é devolvido enquanto a tela diz *Finishing* · corrige a allow-list do meu próprio lote A | `░░░░░░░░░░` |
 | **RS024 · Concurrent Work Inside One Journey** | ✅ concluída · horizonte alcançado em corrida fria · 4ª tentativa de campo | `██████████` 6 ✅ · de 6 |
 | ↳　CR138 · Let the Inspection Carry Two Workspaces in One Journey | ✅ done · campo não aplicável por construção | `██████████` |
@@ -23,7 +21,8 @@
 | ↳　CR135 · Let the Navigator Hide a Conversation Without Deleting It | ✅ campo verificado (7/7) · fechada sobre arquivo | `██████████` |
 | ↳　CR136 · Admit Concurrent Work Inside One Journey | ↗️ promoted → RS024 / CR138–CR140 | `　　　　　　　　　　` |
 | ↳　CR137 · Bring the Navigator Back to the Conversation They Left | ✅ done · campo verificado nas duas direções · regressão achada e reparada | `██████████` |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 46 ✅ · 5 🟡 · 4 ↗️ · 1 ⛔ · de 56 |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 46 ✅ · 1 🔷 · 5 🟡 · 4 ↗️ · 1 ⛔ · de 57 |
+| ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR142 · Stop Losing a Turn the Journal Already Answered | ✅ done · campo negativo coletado na 2ª tentativa | `██████████` |
 | ↳　CR145 · Let a Finished Pi Release the Turn It Completed | ✅ done · ceifa medida sob um lock · metade positiva improvocável | `██████████` |
@@ -38,7 +37,7 @@
 | ↳　CR154 · Persist a Model Choice at the Conversation It Was Made In | ✅ done · **campo PASSOU** · 3 fatias + 3 reparos de campo · chave de workspace para `domain` · 3 grãos, resolução **tardia** · os dois controles do composer escrevem a conversa, e o seletor completo oferece os dois grãos com a conversa primeiro · metade Rust do allowlist e guards entre linguagens · minha regra de poda revertida · causa afirmada em excesso, corrigida · 13 controles | `██████████` |
 | ↳　CR156 · Simplify the Context Map | 🟡 captured · prioridade 8 · recua parte da CR105 · critério ainda não estabelecido | `░░░░░░░░░░` |
 | ↳　CR157 · Stop Moving the Whole Conversation Through Every Settlement | 🟡 captured · 3 saves + 1 load de 11,5 MB por settlement (26% da janela medida) · nasce da CR149 | `░░░░░░░░░░` |
-| ↳　CR158 · Stop One Agent Settings Write From Dropping Another | 🟡 captured · achada ao responder a CR154 · duas escritas na mesma janela de um write de arquivo e a segunda apaga a primeira · latente: não é o sintoma da CR154, cuja sequência tem um turno no meio | `░░░░░░░░░░` |
+| ↳　CR158 · Stop One Agent Settings Write From Dropping Another | 🔷 planned · achada ao responder a CR154 · duas escritas na mesma janela de um write de arquivo e a segunda apaga a primeira · latente: não é o sintoma da CR154, cuja sequência tem um turno no meio | `░░░░░░░░░░` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · sem Driver · pode sobrepor CR133/CR134 | `░░░░░░░░░░` |
@@ -49,8 +48,11 @@
 
 ### Últimas entregas
 
+> **Desvio consciente do limite de 3 desta tabela.** As release notes não citam CR nenhuma e 8 dos 12 docs mais antigos não citam a sua release, então estas linhas são o **único** registro do mapeamento CR→release. A linha canônica não tem coluna `Release`. Aparar para 3 destruiria a única cópia, então nada é apagado até que a coluna exista. Verificado em 2026-10-18.
+
 | CR | Story | Release | Estado |
 | --- | --- | --- | --- |
+| CR160 · Notice a Turn the Journal Never Heard Finish | RS025 | alpha.52 | ✅ done · B1 verificado 2× em campo · B2 alcançável só pela CR161 |
 | CR145 · Let a Finished Pi Release the Turn It Completed | RS016 | alpha.45 | ✅ done · metade positiva improvocável |
 | CR142 · Stop Losing a Turn the Journal Already Answered | RS016 | alpha.45 | ✅ campo negativo verificado |
 | CR144 · Stop a Running Turn from Disabling Its Sibling's Send | RS024 | alpha.44 | ✅ campo verificado |
