@@ -2,7 +2,7 @@
 
 # CR158: Stop One Agent Settings Write From Dropping Another
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/cr158-serialise-agent-settings-writes`
 
@@ -267,6 +267,31 @@ unreachable before this change, so no observable behaviour changes for the Navig
 exactly why validation part A was dropped at `planned`. The claim is proved by the control-backed
 unit tests and by the census guard. If an agent-settings write is ever observed to vanish, that is
 now evidence against the writer rather than against the call sites.
+
+## Integrated 2026-10-18
+
+Fast-forwarded into `main` at `e2fb2dd`; **0 merges** in `v0.2.0-alpha.54..main`. The Delivery branch
+was never pushed, so `git ls-remote --heads origin` returned nothing and there was no remote ref to
+retire — the local branch was deleted after the integration.
+
+Gates re-run on `main` after the fast-forward: vitest 270 files / 2,236 tests, `tsc` clean,
+`npm run build` clean, `roadmap:check` READY.
+
+**Closed on the clause that can be closed.** There is no collectable field verification — the race was
+unreachable from the UI before this change, so nothing observable changes for the Navigator. The
+claim rests on the control-backed unit tests and the census guard, and that is recorded as the basis
+rather than implied.
+
+**Not released.** This is `done` and **unreleased**: it is in `main` and in no published build.
+Publication is its own authorisation and was not given. For that reason it does **not** appear in
+`docs/releases/change-requests.md`, which maps a Change Request to the release that carried it, and
+it does **not** enter the Canvas's *Últimas entregas* — a merge is not a delivery until it ships.
+
+**One consequence worth naming:** a `done` but unreleased item is invisible on the Canvas. It loses
+its own row, because terminal items collapse into their Story's count, and it cannot join the
+deliveries list because it has no release to name. That follows the Canvas's own rule that it shows
+only what is open, pending or in progress, so it is recorded as an observation rather than treated as
+a defect.
 
 ## Proposed Scope
 
