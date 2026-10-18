@@ -244,6 +244,15 @@ with Recover about ten seconds after the provider's commit, and `not_live` shoul
 **If a turn freezes at *Finishing* on the released build and nothing is drawn within a minute, this
 CR is refuted**, not merely unverified.
 
+## Production Reading on alpha.53 (2026-10-18T01:31Z)
+
+Production upgraded by the Navigator and confirmed by hash: `d24caa0c…`, pid 10107. See
+[alpha-53-production-reading-2026-10-17.md](../../../update/alpha-53-production-reading-2026-10-17.md).
+
+**The falsifier stands open.** No turn has frozen at *Finishing* on this build. Two turns recorded so
+far, one cancelled and one live, so the negative case is barely exercised and the positive case not at
+all. The recovery-skips file is unchanged at 14 records, so nothing refused across the upgrade.
+
 ## What Cannot Be Established
 
 **Nothing durable records which notice was on screen.** The Navigator's *"não vi a mensagem"* is
