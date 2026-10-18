@@ -8,13 +8,14 @@
 | ↳　CR155 · Give the Navigator an Exit From a Finishing That Holds a Live Lease | 🔵 in_progress · lote A · portões verdes · campo devido · prioridade 7 · dívida da CR132 chegando do campo · **limiar de 60 s falsificado por 2 settlements legítimos** | `███████░░░` |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress · lote A · portões verdes · campo devido · do campo, produção alpha.50, jornada `alissonvale-com` · provedor recusou 8× com `stopReason: "error"` e `errorMessage`, e **nada no app lê esse campo** (0× em todo o Rust) · sintoma da CR054, mecanismo outro | `███████░░░` |
 | ↳　CR161 · Give Every Finishing the Same Exits | 🔵 in_progress · `refinement/cr161-unify-finishing` · do campo, produção alpha.52 · **os dois avisos que eu construí não puderam renderizar** · `Finishing` tem duas fontes e toda saída está presa a uma delas · `not_finishing` é devolvido enquanto a tela diz *Finishing* · corrige a allow-list do meu próprio lote A | `░░░░░░░░░░` |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 46 ✅ · 1 🔷 · 5 🟡 · 4 ↗️ · 1 ⛔ · de 57 |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 46 ✅ · 1 🔵 · 1 🔷 · 5 🟡 · 4 ↗️ · 1 ⛔ · de 58 |
 | ↳　CR129 · Let a Recovered Settlement Say It Happened | 🟡 captured · ✅ evidência de campo colhida · sem Driver | `░░░░░░░░░░` |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR148 · Give an Unanswered Turn Back Its Own Identity | 🟡 captured · achada na linha de base da CR146 · turno pendente sem par | `░░░░░░░░░░` |
 | ↳　CR156 · Simplify the Context Map | 🟡 captured · prioridade 8 · recua parte da CR105 · critério ainda não estabelecido | `░░░░░░░░░░` |
 | ↳　CR157 · Stop Moving the Whole Conversation Through Every Settlement | 🟡 captured · 3 saves + 1 load de 11,5 MB por settlement (26% da janela medida) · nasce da CR149 | `░░░░░░░░░░` |
 | ↳　CR158 · Stop One Agent Settings Write From Dropping Another | 🔷 planned · achada ao responder a CR154 · duas escritas na mesma janela de um write de arquivo e a segunda apaga a primeira · latente: não é o sintoma da CR154, cuja sequência tem um turno no meio | `░░░░░░░░░░` |
+| ↳　CR162 · Stop a Table Cell From Painting Over Its Neighbour | 🔵 in_progress · `main` · campo 2026-10-18 · célula pinta por cima da vizinha · 2 renderers · visual devido | `░░░░░░░░░░` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · sem Driver · pode sobrepor CR133/CR134 | `░░░░░░░░░░` |

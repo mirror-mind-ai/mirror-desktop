@@ -3538,14 +3538,28 @@ h3 {
   width: max-content;
 }
 
+/*
+ * CR162: capped and wrapping, never capped and unwrappable. `max-width` with `white-space: nowrap`
+ * and no overflow rule gives a cell that can neither grow nor shrink, so it escapes its own box and
+ * paints over the column beside it. The cap is kept because it is what keeps the column readable;
+ * the wrapping is what keeps it honest.
+ */
 .message-table-scroll th,
 .message-table-scroll td {
   border-bottom: 1px solid rgba(255, 255, 255, 0.09);
   border-right: 1px solid rgba(255, 255, 255, 0.07);
   box-sizing: border-box;
   max-width: 32rem;
+  overflow-wrap: break-word;
   padding: 9px 12px;
-  white-space: nowrap;
+  vertical-align: top;
+  white-space: normal;
+}
+
+/* A progress bar broken across two lines reads as two bars; a code span breaks only if it must. */
+.message-table-scroll :is(th, td) code {
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .message-table-scroll th {
@@ -4854,14 +4868,22 @@ button:disabled {
   width: max-content;
 }
 
+/* CR162: see the note on `.message-table-scroll`; the Canvas is where the collision was reported. */
 .artifact-markdown-table-scroll th,
 .artifact-markdown-table-scroll td {
   border-bottom: 1px solid rgba(255, 255, 255, 0.09);
   border-right: 1px solid rgba(255, 255, 255, 0.07);
   box-sizing: border-box;
   max-width: 32rem;
+  overflow-wrap: break-word;
   padding: 9px 12px;
-  white-space: nowrap;
+  vertical-align: top;
+  white-space: normal;
+}
+
+.artifact-markdown-table-scroll :is(th, td) code {
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .artifact-markdown-table-scroll th {

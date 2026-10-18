@@ -62,6 +62,7 @@ Four live Change Requests moved to [RS025 — Legible Endings for a Turn That En
 - [CR156: Simplify the Context Map](cr156-simplify-the-context-map.md) — captured · intake 2026-10-12, prioridade 8 de 8
 - [CR157: Stop Moving the Whole Conversation Through Every Settlement](cr157-stop-moving-the-whole-conversation-through-every-settlement.md) — captured · nasce da medição da main thread na CR149
 - [CR158: Stop One Agent Settings Write From Dropping Another](cr158-stop-one-agent-settings-write-from-dropping-another.md) — **planned** (2026-10-18) · achada ao responder a CR154 · duas escritas na mesma janela e a segunda apaga a primeira · latente, não é o sintoma da CR154
+- [CR162: Stop a Table Cell From Painting Over Its Neighbour](cr162-stop-a-table-cell-from-painting-over-its-neighbour.md) — **in_progress** · `main` · do campo 2026-10-18, captura do Navigator · célula com `max-width` e `nowrap` pinta por cima da coluna vizinha · os dois renderers de tabela carregavam a mesma regra
 - [CR132: Let the Navigator End a Finishing That Will Not End](cr132-let-the-navigator-end-a-finishing-that-will-not-end.md) — done
 - [CR120: Stop a Closing Chapter From Erasing Its Own File](cr120-stop-a-closing-chapter-from-erasing-its-own-file.md) — done
 - [CR119: Give Finishing Back to the Navigator](cr119-give-finishing-back-to-the-navigator.md) — done
