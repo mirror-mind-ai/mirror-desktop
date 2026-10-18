@@ -411,6 +411,29 @@ recovered by the native path on Journey load before any notice could be drawn, w
 outcome and leaves the `journal_never_heard` notice unseen in the field. It stays test-covered until
 a turn freezes while the app is watching it.
 
+## Resolved: The Two Skips Nineteen Seconds Apart (2026-10-18)
+
+Carried as an unexplained observation: the `mirror-desktop` 2026-10-08 record drew two refusals
+nineteen seconds apart with *different reasons*, and since a skip is written only when the reason
+changes, the verdict genuinely changed while the window did not move. The most plausible changed
+input was recorded as the active branch, explicitly *not established*.
+
+It was neither the branch nor the window. **The upgrade landed between the two skips.**
+
+| time | event |
+|---|---|
+| `2026-10-17T11:25:13.965Z` | `mirror_append_pi_recovery_request_open` |
+| **`2026-10-17T11:25:25Z`** | **production relaunched on alpha.52** — pid 94353, 08:25:25 local (UTC−03) |
+| `2026-10-17T11:25:32.972Z` | `mirror_append_pi_recovery_ambiguous` |
+
+The first refusal was written by alpha.51, under the high-water frontier arithmetic. The second was
+written by alpha.52, under this CR's rule. The changed input was **the code**, and the reclassification
+is the new rule working as designed: that record has 89 unclaimed candidates inside its window, which
+is `ambiguous`, not one unanswered request beyond a frontier.
+
+So the file's two newest entries are not a mystery and not a defect — they are B1's first production
+act, and the only reason they look like a contradiction is that they straddle the deploy.
+
 ## Second Field Occurrence, and a Correction to My Own Diagnosis (2026-10-17)
 
 The Navigator's own `mirror-desktop` conversation froze at *Finishing* on `alpha.52` — the build
