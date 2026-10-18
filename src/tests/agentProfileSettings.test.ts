@@ -95,13 +95,13 @@ describe("persistent agent profile application boundary", () => {
     expect(actions).toContain('<button type="button" onClick={() => void saveSelectedConversationAgentOverride()}');
 
     const save = functionBody("saveSelectedConversationAgentOverride");
-    expect(save).toContain("setConversationAgentOverride(agentSettings, selectedWorkspace");
+    expect(save).toContain("setConversationAgentOverride(current, selectedWorkspace");
     expect(save).not.toContain("setJourneyAgentOverride");
 
     // "Use global defaults" has to clear both finer grains or its own label is false
     const reset = functionBody("resetSelectedJourneyAgentOverride");
     expect(reset).toContain("setConversationAgentOverride(");
-    expect(reset).toContain("setJourneyAgentOverride(agentSettings, selectedJourney, {})");
+    expect(reset).toContain("setJourneyAgentOverride(current, selectedJourney, {})");
   });
 
   /**
@@ -274,7 +274,7 @@ describe("model intents in the Composer footer", () => {
 
   it("applies an intent as this conversation's own choice rather than the Journey's", () => {
     const apply = functionBody("applyModelIntent");
-    expect(apply).toContain("setConversationAgentOverride(agentSettings, selectedWorkspace, {");
+    expect(apply).toContain("setConversationAgentOverride(current, selectedWorkspace, {");
     expect(apply).toContain("model: intent.model");
     expect(apply).toContain("thinkingLevel: intent.thinkingLevel");
     expect(apply).toContain("setModelIntentMenuOpen(false)");
@@ -287,13 +287,13 @@ describe("model intents in the Composer footer", () => {
 
   it("gives a conversation back to its Journey without discarding the Journey's own override", () => {
     const follow = functionBody("followJourneyAgentDefaultHere");
-    expect(follow).toContain("setConversationAgentOverride(agentSettings, selectedWorkspace, {})");
+    expect(follow).toContain("setConversationAgentOverride(current, selectedWorkspace, {})");
     expect(follow).not.toContain("setJourneyAgentOverride");
   });
 
   it("clears both finer grains when the composer asks for the global default", () => {
     const toGlobal = functionBody("useGlobalAgentDefaultsHere");
-    expect(toGlobal).toContain("setJourneyAgentOverride(agentSettings, selectedJourney, {})");
+    expect(toGlobal).toContain("setJourneyAgentOverride(current, selectedJourney, {})");
     expect(toGlobal).toContain("setConversationAgentOverride(");
   });
 
@@ -309,7 +309,7 @@ describe("model intents in the Composer footer", () => {
    */
   it("keeps the Journey button writing only the Journey grain", () => {
     const save = functionBody("saveSelectedJourneyAgentOverride");
-    expect(save).toContain("setJourneyAgentOverride(agentSettings, selectedJourney, override)");
+    expect(save).toContain("setJourneyAgentOverride(current, selectedJourney, override)");
     expect(save).not.toContain("setConversationAgentOverride");
   });
 
@@ -321,5 +321,98 @@ describe("model intents in the Composer footer", () => {
     expect(dismissal).toContain('document.addEventListener("mousedown", closeOnOutsidePointer)');
     expect(dismissal).toContain('event.key === "Escape"');
     expect(dismissal).toContain('document.removeEventListener("keydown", closeOnEscape)');
+  });
+});
+
+/**
+ * CR158. The merge race these guards close: `persistAgentSettings` used to take an already-computed
+ * `next`, and every caller computed it from the `agentSettings` its render had captured. Two writes
+ * issued before the first landed merged onto the same pre-first value, so the second silently
+ * overwrote the first — a Journey override vanishing with a success message on screen.
+ *
+ * Reachability was audited and found closed: seven callers sit behind controls disabled while a write
+ * is in flight, and the three menu entries close the menu in the same commit that sets `saving`. That
+ * is an emergent property of nine controls across four surfaces, which is not the kind of fact that
+ * stays true, so the repair is structural and these guards pin the structure rather than the audit.
+ *
+ * The lesson these are shaped by is this file's own history: the `providerSelectionDisabled` guard
+ * above passed for a release while covering one element of five. A guard over a set must assert the
+ * size of the set.
+ */
+describe("CR158: no agent-settings caller can supply a baseline", () => {
+  const CALL = "persistAgentSettings(";
+
+  /** Every occurrence of the call, as [index, the text that follows it]. */
+  function callSites(source: string): Array<[number, string]> {
+    const sites: Array<[number, string]> = [];
+    let at = source.indexOf(CALL);
+    while (at >= 0) {
+      sites.push([at, source.slice(at + CALL.length, at + CALL.length + 160)]);
+      at = source.indexOf(CALL, at + 1);
+    }
+    return sites;
+  }
+
+  /** An argument is safe when it is a function: the baseline is then read inside the writer. */
+  function suppliesAnUpdate(argument: string): boolean {
+    return /^\s*\(current\)\s*=>/.test(argument) || /^\s*\(\)\s*=>/.test(argument);
+  }
+
+  it("routes every write through an update, and counts them", () => {
+    const sites = callSites(appSource);
+    // Nine callers plus the declaration. The census is asserted so a tenth caller cannot be added
+    // without this guard being read again.
+    expect(sites).toHaveLength(10);
+
+    const declaration = sites.filter(([, argument]) => argument.startsWith("update: AgentSettingsUpdate"));
+    expect(declaration).toHaveLength(1);
+
+    const calls = sites.filter(([, argument]) => !argument.startsWith("update: AgentSettingsUpdate"));
+    expect(calls).toHaveLength(9);
+    for (const [at, argument] of calls) {
+      expect(suppliesAnUpdate(argument), `caller at ${at} supplies a value: ${argument.slice(0, 60)}`).toBe(true);
+    }
+  });
+
+  /**
+   * The control. A guard that cannot fail on the defect it names proves nothing, and the matcher
+   * above is the only thing standing between a caller and the race.
+   */
+  it("would reject a caller that supplies a captured value", () => {
+    expect(suppliesAnUpdate("agentSettings, selectedJourney, override),")).toBe(false);
+    expect(suppliesAnUpdate("{\n      ...agentSettings,")).toBe(false);
+    expect(suppliesAnUpdate("setJourneyAgentOverride(agentSettings, id, {}),")).toBe(false);
+    expect(suppliesAnUpdate("(current) => setJourneyAgentOverride(current, id, {}),")).toBe(true);
+    expect(suppliesAnUpdate("() => defaults,")).toBe(true);
+  });
+
+  /**
+   * The writer must be the only transport. A direct `saveAgentSettings` call from the shell would
+   * bypass the queue and reintroduce the race for that one path, which is exactly how the original
+   * defect was shaped.
+   */
+  it("leaves the writer as the only path to the transport", () => {
+    const transportUses = appSource.split("saveAgentSettings").length - 1;
+    // Once in the import, once where the writer is constructed.
+    expect(transportUses).toBe(2);
+    expect(appSource).toContain("createAgentSettingsWriter({ initial: createDefaultAgentSettings(), write: saveAgentSettings })");
+  });
+
+  /**
+   * A read from disk has to reach the writer's baseline. Without this, the first write of a session
+   * would merge onto defaults and wipe whatever was stored — the same loss, from the other end.
+   */
+  it("adopts the launch loader's read into the writer's baseline", () => {
+    const loader = appSource.slice(appSource.indexOf("void loadAgentSettings()"));
+    const adopt = loader.indexOf("agentSettingsWriterRef.current.adopt(next)");
+    const setState = loader.indexOf("setAgentSettings(next)");
+    expect(adopt).toBeGreaterThan(-1);
+    expect(adopt).toBeLessThan(setState);
+  });
+
+  /** The hook must be declared with the other hooks; `appHookOrder` pins the general rule. */
+  it("declares the writer before the runtime onboarding early return", () => {
+    expect(appSource.indexOf("const agentSettingsWriterRef = useRef<AgentSettingsWriter>"))
+      .toBeLessThan(appSource.indexOf("if (runtimeSetupVisible) {"));
   });
 });

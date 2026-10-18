@@ -2,9 +2,9 @@
 
 # CR158: Stop One Agent Settings Write From Dropping Another
 
-**Status:** planned
+**Status:** in_progress
 **Driver:** @alissonvale
-**Delivery:** —
+**Delivery:** `refinement/cr158-serialise-agent-settings-writes`
 
 ## Friction
 
@@ -105,12 +105,15 @@ is open, every entry in it stays enabled for the whole duration of the write:
 | menu entry | closes the menu before awaiting? |
 |---|---|
 | an intent — `applyModelIntent` | **yes**, `setModelIntentMenuOpen(false)` first |
-| `Follow the Journey default` — `followJourneyAgentDefaultHere` | **no** |
-| `Use global defaults` — `useGlobalAgentDefaultsHere` | **no** |
+| `Follow the Journey default` — `followJourneyAgentDefaultHere` | ~~**no**~~ — **wrong; see the correction below.** Closed at the call site, `App.tsx:6680` |
+| `Use global defaults` — `useGlobalAgentDefaultsHere` | ~~**no**~~ — **wrong; see the correction below.** Closed at the call site, `App.tsx:6684` |
 
-**The two that do not close the menu are the two I added in CR154.** The sibling I wrote them beside
+~~**The two that do not close the menu are the two I added in CR154.** The sibling I wrote them beside
 closes it first, and I did not match it. That inconsistency is mine, and it is what turns a 20 ms
-merge race into a window a person can walk into.
+merge race into a window a person can walk into.~~
+
+**Struck through on 2026-10-18. This was false, and the self-criticism in it was false too.** See
+*The Premise Was Wrong* below.
 
 ### A plainer defect that needs no race
 
@@ -158,6 +161,112 @@ The argument for moving sooner is recorded because it is real: the defect's outc
 of a model preference. It has not been observed — production's `agent-settings.json` is intact with its
 fifteen Journey overrides — and the eight "redundant" overrides remain under review rather than
 classified, so no loss is attributed to this cause.
+
+## The Premise Was Wrong (2026-10-18)
+
+Read before writing any code, as the first act of implementation. **The table above is wrong on a
+verifiable point, and so is the paragraph under it.**
+
+Both CR154 entries **do** close the menu before awaiting. The close is at the **call site**, not
+inside the function — `App.tsx:6680` and `6684`, each `setModelIntentMenuOpen(false)` immediately
+before `void …()`. The investigation read the two functions, found no close in them, and concluded
+there was none. All four menu entries close the menu, including `Open full selector…` at `6688`.
+
+So the sentence *"that inconsistency is mine"* was a self-criticism for a mistake I had not made. It
+is struck through rather than deleted, because a record that quietly drops a wrong accusation is a
+worse record than one that carries the correction.
+
+**The "plainer defect" falls with it.** The claim was that those two entries leave the menu open with
+no feedback for the duration of the write. They do not: the close and `setAgentSettingsState("saving")`
+are dispatched in the same event handler, so they land in one commit and the menu unmounts. There is
+no render in which the menu is open and a write it started is in flight.
+
+### The reachability audit, redone
+
+All nine callers of `persistAgentSettings`, with what stands between each and a second concurrent
+write:
+
+| callers | gate |
+|---|---|
+| `saveOnboardingAgentProfile`, `saveGlobalAgentProfile`, `saveSelectedJourneyAgentOverride`, `saveSelectedConversationAgentOverride`, `resetSelectedJourneyAgentOverride`, `restoreDefaultAgentSettings`, and the dialog's `Cancel`/`Close` | `disabled={agentSettingsState === "saving"}` on the control itself — 7 of 9 |
+| `applyModelIntent`, `followJourneyAgentDefaultHere`, `useGlobalAgentDefaultsHere` | the menu unmounts in the same commit, and the trigger that reopens it carries `providerSelectionDisabled={agentSettingsState === "saving"}` (`ComposerRuntimeFooter.tsx:208`) |
+
+**The race is not reachable from the UI today.** The CR's framing that it is a latent defect was
+right; its explanation of *why it became reachable* was not.
+
+### Which makes the recorded scope a no-op
+
+The planned repair was to close the menu in the two CR154 entries — already done — and to pass the
+saving state into every `ModelIntentMenu` entry. The second would add a prop that **can never be
+true**, because `agentSettingsState === "saving"` and `modelIntentMenuOpen` cannot hold in the same
+render. Shipping it would be dead code wearing the name of a fix.
+
+## Implemented 2026-10-18 — Structurally, Not as Recorded
+
+**This crosses the CR's own exclusion**, which read *"Does not serialise writes behind a single
+owner."* That exclusion was written when the UI was believed to be the reachable cause. With the UI
+cause refuted, the merge race is the only defect left, and the audit that closes it is an **emergent
+property of nine controls across four surfaces** — not the kind of fact that stays true. A tenth
+caller added without a gate reintroduces a silent loss of a model preference.
+
+The reversal is named here as a Workbench call rather than made quietly. The project's own recorded
+principle is to resolve concurrency safety by construction rather than by auditing call sites, and
+that is what is built.
+
+**`src/app/agentSettingsWriter.ts`** — one owner. `enqueue(update)` chains on a tail promise, applies
+the update against the baseline the writer holds **after** the queue grants it a turn, writes, and
+only then advances the baseline. A failed write deliberately does **not** advance it, so the next
+update merges onto what is on disk; the rejection is swallowed by the tail so one failure cannot
+poison every later write, and is still reported to its own caller. `adopt` takes a baseline that
+arrived from outside, which the launch loader now uses.
+
+**`persistAgentSettings(update, successMessage)`** takes an update instead of a value. A caller cannot
+hand in a stale baseline because a caller cannot hand in a baseline at all. All nine callers became
+reducers; `restoreDefaultAgentSettings` is the one that ignores `current` on purpose, and says so at
+the line, because a command named *restore defaults* means to discard what is there.
+
+### Guards
+
+`src/tests/agentSettingsWriter.test.ts`, six tests. The first is **the control**: it reproduces the
+old pattern — compute from a captured snapshot, then await — and asserts the first write is lost. An
+instrument that cannot show the defect cannot show its absence. The rest prove both writes survive
+when the second is issued before the first lands, that each update reads the previous write's result,
+that order holds, that a failure neither advances the baseline nor poisons the queue, and that an
+externally loaded baseline is adopted.
+
+Five source guards in `agentProfileSettings.test.ts` pin the structure: every call site supplies an
+update, **with the census asserted at ten** — nine callers and the declaration — so a tenth cannot be
+added without this guard being read; a control proving the matcher rejects the old pattern; the writer
+as the only path to the transport; the loader adopting before it sets state; and the hook declared
+before the early return.
+
+The census is asserted because of this file's own history: the `providerSelectionDisabled` guard in it
+passed for a release while covering one element of five. **A guard over a set must assert the size of
+the set.**
+
+### Six predecessor guards narrowed, not deleted
+
+Five CR154 guards and one CR122-era guard asserted `setConversationAgentOverride(agentSettings, …)` —
+the *mechanics*. Their claim is which grain each caller writes, and that claim survives, so they were
+narrowed to `current` rather than removed.
+
+### What this does not do
+
+It does not add the `disabled` prop to `ModelIntentMenu`, for the reason above — the state it would
+read cannot occur. It does not change what any caller means to write, and it does not touch the file
+format. The seven UI gates are left exactly as they are: they are still correct, and they now guard a
+surface rather than a data invariant.
+
+Gates: vitest **270 files / 2,236 tests** (from 269 / 2,225), `cargo test` 332 passed / 3 ignored,
+`tsc --noEmit` clean, `npm run build` clean, `roadmap:check` READY.
+
+### Field verification owed
+
+**None that can be collected, and that is recorded rather than left implied.** The race was
+unreachable before this change, so no observable behaviour changes for the Navigator — which is
+exactly why validation part A was dropped at `planned`. The claim is proved by the control-backed
+unit tests and by the census guard. If an agent-settings write is ever observed to vanish, that is
+now evidence against the writer rather than against the call sites.
 
 ## Proposed Scope
 

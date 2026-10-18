@@ -465,6 +465,11 @@ import {
   type AgentSettings,
   type AgentThinkingLevel,
 } from "../domain/agentProfile";
+import {
+  createAgentSettingsWriter,
+  type AgentSettingsUpdate,
+  type AgentSettingsWriter,
+} from "./agentSettingsWriter";
 import type { NautilusViewModel } from "../domain/nautilusViewModel";
 import {
   COMPOSER_DRAFT_MAX_CHARS,
@@ -757,6 +762,14 @@ export function App({ model }: AppProps) {
   const [providerSafeTestMode, setProviderSafeTestMode] = useState(defaultPiProviderConfig.safeTestMode);
   const [providerInvocationMode, setProviderInvocationMode] = useState<AgentInvocationMode>(defaultPiProviderConfig.invocationMode);
   const [agentSettings, setAgentSettings] = useState<AgentSettings>(() => createDefaultAgentSettings());
+  /**
+   * CR158: every agent-settings write goes through this one owner, so no caller can compute its
+   * `next` from a baseline a render captured. Two writes issued inside one file write used to merge
+   * onto the same pre-first value, and the second silently overwrote the first.
+   */
+  const agentSettingsWriterRef = useRef<AgentSettingsWriter>(
+    createAgentSettingsWriter({ initial: createDefaultAgentSettings(), write: saveAgentSettings }),
+  );
   const [agentSettingsState, setAgentSettingsState] = useState<"checking" | "ready" | "saving" | "error">("checking");
   // CR078: the Navigator's own vocabulary for choosing a model.
   const [modelIntents, setModelIntents] = useState<ModelIntents>(createEmptyModelIntents);
@@ -1721,6 +1734,9 @@ export function App({ model }: AppProps) {
       .then((stored) => {
         if (cancelled) return;
         const next = stored ?? createDefaultAgentSettings();
+        // CR158: the writer owns the baseline, so a read from disk has to reach it too — otherwise
+        // the first write of a session would merge onto defaults and wipe what was stored.
+        agentSettingsWriterRef.current.adopt(next);
         setAgentSettings(next);
         setProviderInvocationMode(next.globalProfile.invocationMode);
         setAgentProfileConfigured(Boolean(stored));
@@ -4335,20 +4351,25 @@ export function App({ model }: AppProps) {
     }
   }
 
-  async function persistAgentSettings(next: AgentSettings, successMessage: string) {
+  /**
+   * CR158: takes an update rather than a value. A caller cannot hand in a baseline, so a caller
+   * cannot hand in a stale one; the update is applied against the writer's own baseline after the
+   * queue grants it a turn. The transport, the serialisation and the merge order live in
+   * `agentSettingsWriter.ts`; what stays here is the surface state the Navigator sees.
+   */
+  async function persistAgentSettings(update: AgentSettingsUpdate, successMessage: string) {
     setAgentSettingsState("saving");
     setAgentSettingsMessage(undefined);
-    try {
-      await saveAgentSettings(next);
-      setAgentSettings(next);
-      setAgentSettingsState("ready");
-      setAgentSettingsMessage(successMessage);
-      return true;
-    } catch (error) {
+    const outcome = await agentSettingsWriterRef.current.enqueue(update);
+    if (outcome.status === "failed") {
       setAgentSettingsState("error");
-      setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
+      setAgentSettingsMessage(outcome.error instanceof Error ? outcome.error.message : String(outcome.error));
       return false;
     }
+    setAgentSettings(outcome.settings);
+    setAgentSettingsState("ready");
+    setAgentSettingsMessage(successMessage);
+    return true;
   }
 
   async function saveOnboardingAgentProfile() {
@@ -4359,15 +4380,15 @@ export function App({ model }: AppProps) {
       setAgentSettingsMessage("Choose one of the models available through Pi.");
       return;
     }
-    const saved = await persistAgentSettings({
-      ...agentSettings,
+    const saved = await persistAgentSettings((current) => ({
+      ...current,
       globalProfile: {
-        ...agentSettings.globalProfile,
+        ...current.globalProfile,
         model: selectedModel,
         thinkingLevel: "pi-default",
         invocationMode: "mirror",
       },
-    }, "Model saved on this device.");
+    }), "Model saved on this device.");
     if (saved) {
       setProviderInvocationMode("mirror");
       setAgentProfileConfigured(true);
@@ -4377,14 +4398,14 @@ export function App({ model }: AppProps) {
   async function saveGlobalAgentProfile() {
     try {
       const model = modelFromOptionValue(globalModelDraft);
-      await persistAgentSettings({
-        ...agentSettings,
+      await persistAgentSettings((current) => ({
+        ...current,
         globalProfile: {
           model,
           thinkingLevel: globalThinkingDraft,
           invocationMode: providerInvocationMode,
         },
-      }, "Global agent defaults saved on this device.");
+      }), "Global agent defaults saved on this device.");
     } catch (error) {
       setAgentSettingsMessage(error instanceof Error ? error.message : String(error));
     }
@@ -4397,7 +4418,7 @@ export function App({ model }: AppProps) {
         thinkingLevel: journeyThinkingDraft === "inherit" ? undefined : journeyThinkingDraft,
       };
       const saved = await persistAgentSettings(
-        setJourneyAgentOverride(agentSettings, selectedJourney, override),
+        (current) => setJourneyAgentOverride(current, selectedJourney, override),
         `Agent profile saved for ${selectedJourneyItem.name}.`,
       );
       if (saved) setJourneyAgentProfileOpen(false);
@@ -4414,7 +4435,7 @@ export function App({ model }: AppProps) {
   async function saveSelectedConversationAgentOverride() {
     try {
       const saved = await persistAgentSettings(
-        setConversationAgentOverride(agentSettings, selectedWorkspace, {
+        (current) => setConversationAgentOverride(current, selectedWorkspace, {
           model: journeyModelDraft === "inherit" ? undefined : modelFromOptionValue(journeyModelDraft),
           thinkingLevel: journeyThinkingDraft === "inherit" ? undefined : journeyThinkingDraft,
         }),
@@ -4431,8 +4452,8 @@ export function App({ model }: AppProps) {
   // choice stayed in force.
   async function resetSelectedJourneyAgentOverride() {
     const saved = await persistAgentSettings(
-      setConversationAgentOverride(
-        setJourneyAgentOverride(agentSettings, selectedJourney, {}),
+      (current) => setConversationAgentOverride(
+        setJourneyAgentOverride(current, selectedJourney, {}),
         selectedWorkspace,
         {},
       ),
@@ -4452,7 +4473,7 @@ export function App({ model }: AppProps) {
   async function applyModelIntent(intent: ModelIntent) {
     setModelIntentMenuOpen(false);
     await persistAgentSettings(
-      setConversationAgentOverride(agentSettings, selectedWorkspace, {
+      (current) => setConversationAgentOverride(current, selectedWorkspace, {
         model: intent.model,
         thinkingLevel: intent.thinkingLevel,
       }),
@@ -4464,7 +4485,7 @@ export function App({ model }: AppProps) {
   // leaves the Journey's override standing, which "Use global defaults" deliberately does not.
   async function followJourneyAgentDefaultHere() {
     await persistAgentSettings(
-      setConversationAgentOverride(agentSettings, selectedWorkspace, {}),
+      (current) => setConversationAgentOverride(current, selectedWorkspace, {}),
       `This conversation now follows ${selectedJourneyItem.name}.`,
     );
   }
@@ -4476,8 +4497,8 @@ export function App({ model }: AppProps) {
    */
   async function useGlobalAgentDefaultsHere() {
     await persistAgentSettings(
-      setConversationAgentOverride(
-        setJourneyAgentOverride(agentSettings, selectedJourney, {}),
+      (current) => setConversationAgentOverride(
+        setJourneyAgentOverride(current, selectedJourney, {}),
         selectedWorkspace,
         {},
       ),
@@ -4492,7 +4513,9 @@ export function App({ model }: AppProps) {
 
   async function restoreDefaultAgentSettings() {
     const defaults = createDefaultAgentSettings();
-    await persistAgentSettings(defaults, "Mirror Desktop agent defaults restored.");
+    // CR158: the only update here that ignores `current` on purpose. A command named "restore
+    // defaults" means to discard what is there, including anything in flight.
+    await persistAgentSettings(() => defaults, "Mirror Desktop agent defaults restored.");
     setProviderInvocationMode(defaults.globalProfile.invocationMode);
   }
 
