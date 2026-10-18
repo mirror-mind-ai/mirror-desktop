@@ -118,6 +118,16 @@ the guard answers for the rule rather than for the file's ordering.
 
 Gates: vitest **269 files / 2,225 tests**, `tsc --noEmit` clean, `npm run build` clean.
 
+## Shipped in v0.2.0-alpha.54 (2026-10-18)
+
+Published and independently verified. The release carries CR162 and nothing else.
+
+Both slices proved present in the built stylesheet, with the defective declaration sequence and the
+`54rem` reading measure both reading **0** against an instrument shown able to return non-zero. The
+binary inside the served tarball is byte-identical to the locally built bundle, and the CSS asset was
+written 101 seconds before that binary in the same build. Full chain in
+`docs/update/alpha-54-release-publication-2026-10-18.md`.
+
 ## Field Verification Owed
 
 **Not verified visually.** The stylesheet is compiled into the bundle, and the Navigator has seen

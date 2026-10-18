@@ -188,3 +188,79 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+
+## Independent Verification (2026-10-18)
+
+Checked against the served endpoints rather than against the route's own report, because a
+deployment route reporting its own success is the thing being verified.
+
+| Check | Result |
+|---|---|
+| Manifest version, `darwin-aarch64/0.2.0-alpha.53/latest.json` | `0.2.0-alpha.54` |
+| Signature length | 416 chars |
+| Legacy `darwin/0.2.0-alpha.2/latest.json` | serves `0.2.0-alpha.54` |
+| `latest.json` URLs in this evidence | **160** (alpha.53 had 157 — exactly +3, one version per target) |
+| Served tarball SHA-256 | `6d1dc8ea05e66b50e2eb4b8997837b853189773f255ba03420b3b32f1e4c9cde` — equals the preparation evidence |
+| **Binary inside the served tarball** | `095f9c15e05f7f633e0c66a1a82a7b40c4920eacc5574ae1208dbef036cb0a82` — **byte-identical to the locally built bundle** |
+| Served `Info.plist` | `0.2.0-alpha.54`, identifier `ai.mirrormind.desktop` |
+| Merges in `v0.2.0-alpha.53..main` | 0 |
+| Tag `v0.2.0-alpha.54` | annotated, `^{commit}` = `822b165` (the bump), ancestor of `HEAD` |
+
+The +3 figure was measured by running the same counting instrument over both the alpha.53 and
+alpha.54 evidence documents, rather than comparing against a remembered number.
+
+**A correction to a recorded figure.** The alpha.53 evidence document was recorded as holding 161
+unique URLs, being 157 `latest.json` plus 4 non-manifest. Counted now with the same instrument it
+holds **162 unique URLs, 157 `latest.json` plus 5 non-manifest** — the GitHub release tag URL was
+missed. The `latest.json` count, which is the one the +3 rule is about, was correct.
+
+### The frontend actually shipped
+
+This release changes **only a stylesheet**, so the chain runs through the built CSS asset rather than
+the JS bundle. Tauri 2 embeds the frontend compressed, so the proof is a chain and not a single read.
+
+| Literal in `dist/assets/index-CuVYSror.css` | Count |
+|---|---|
+| `.journey-canvas-view .artifact-markdown-table-scroll table{width:100%}` | 1 |
+| `.artifact-markdown-table-scroll :is(th,td) code` | 1 |
+| `max-width:none` | 1 |
+| `overflow-wrap:break-word` | 4 |
+| `max-width:54rem` | **0** — the reading measure is gone |
+| `max-width:32rem;padding:9px 12px;white-space:nowrap` | **0** — the defective sequence is gone |
+| An invented control literal | **0** |
+
+The absence readings mean something only because the presence readings are non-zero: the same
+instrument returns 1, 4 and 7 for literals that are there, so a 0 is a finding rather than a broken
+grep. The shared cell rule still carries `max-width:32rem` in the minified output, which is the
+guard's claim that this repair did not become unbounded growth.
+
+Ordering, from the same build: the CSS and JS assets carry mtime `1792329997.2` and the bundled
+binary `1792330098.8`, so the frontend was written 101 seconds before the binary that embeds it. The
+binary inside the served tarball is byte-identical to that bundle. Stylesheet → dist → binary →
+served artifact, with no gap.
+
+## Field Check Owed — CR162
+
+**Nothing here proves the repair looks right.** Every other claim in this release is proved by a
+guard; this one is not, and a stylesheet guard can only assert what the CSS says, never what the
+window draws.
+
+**Pre-state, recorded before any upgrade.** Production is running `0.2.0-alpha.53`, binary
+`d24caa0c200fa13433b9493fb2b258cb4d90d9def33172f2fe4fc6d866a67457`, which contains the defect: the
+Canvas is capped at 864 pixels and the `Estado` column is drawn over `Progresso`. That is the state
+the screenshot shows.
+
+**What must hold on alpha.54.** Opening the Canvas for this Journey: the `Estado` text wraps to as
+many lines as it needs *inside its own column*; `Progresso` is legible beside it with its ten blocks
+unbroken; and the table reaches the right edge of the panel instead of stopping two thirds across.
+
+**What refutes it.** Any text still crossing a column boundary. A progress bar split across two
+lines. A table still short of the right edge — which would mean the reading measure was not the only
+constraint and I measured one cause where there were two.
+
+**What this cannot establish.** Whether the resulting column proportions are *good*. With the
+per-cell cap lifted the columns distribute by content, and the Canvas's longest cells are currently
+sentences. If `Estado` takes most of the panel and squeezes `Item`, that is not a defect in this
+repair — it is the cell-content question this release deliberately left alone, arriving as a layout
+symptom.

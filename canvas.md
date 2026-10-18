@@ -15,7 +15,7 @@
 | ↳　CR156 · Simplify the Context Map | 🟡 captured · prioridade 8 · recua parte da CR105 · critério ainda não estabelecido | `░░░░░░░░░░` |
 | ↳　CR157 · Stop Moving the Whole Conversation Through Every Settlement | 🟡 captured · 3 saves + 1 load de 11,5 MB por settlement (26% da janela medida) · nasce da CR149 | `░░░░░░░░░░` |
 | ↳　CR158 · Stop One Agent Settings Write From Dropping Another | 🔷 planned · achada ao responder a CR154 · duas escritas na mesma janela de um write de arquivo e a segunda apaga a primeira · latente: não é o sintoma da CR154, cuja sequência tem um turno no meio | `░░░░░░░░░░` |
-| ↳　CR162 · Stop a Table Cell From Painting Over Its Neighbour | 🔵 in_progress · `main` · campo 2026-10-18 · 2 fatias: colisão entre colunas + canvas preso a 54rem · visual devido | `░░░░░░░░░░` |
+| ↳　CR162 · Stop a Table Cell From Painting Over Its Neighbour | 🔵 in_progress · alpha.54 · 2 fatias entregues · verificação visual devida | `░░░░░░░░░░` |
 | **RS021 · UX Pre-Beta Evolution** | 🔄 ativa | `█████████░` 31 ✅ · 2 🟡 · 1 ⏸️ · 1 ↗️ · de 35 |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · sem Driver · pode sobrepor CR133/CR134 | `░░░░░░░░░░` |
