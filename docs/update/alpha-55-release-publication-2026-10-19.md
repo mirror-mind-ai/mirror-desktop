@@ -191,3 +191,94 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+
+## Independent Verification (2026-10-19)
+
+Checked against the served endpoints rather than against the route's own report, because a route
+reporting its own success is the thing being verified.
+
+| Check | Result |
+|---|---|
+| Manifest version, `darwin-aarch64/0.2.0-alpha.54/latest.json` | `0.2.0-alpha.55` |
+| Signature length | 416 chars |
+| Legacy `darwin/0.2.0-alpha.2/latest.json` | serves `0.2.0-alpha.55` |
+| `latest.json` URLs in this evidence | **163** (alpha.54 had 160 — exactly +3, one version per target) |
+| Served tarball SHA-256 | `4ae327e0bc0617fbe276de2368758a4435eaefcb1dca561d55290fdc0845d587` — equals the preparation evidence |
+| **Binary inside the served tarball** | `2b543b4b6891a83d13b3b50fe5f323f9671bb5adaf8a471b88187e8a949fa596` — **byte-identical to the locally built bundle** |
+| Served `Info.plist` | `0.2.0-alpha.55`, identifier `ai.mirrormind.desktop` |
+| Merges in `v0.2.0-alpha.54..main` | 0 |
+| Tag `v0.2.0-alpha.55` | annotated, `^{commit}` = `58fa008` (the bump), ancestor of `HEAD` |
+| Rust sources changed in this release | **none** — `git diff --name-only v0.2.0-alpha.54..v0.2.0-alpha.55 -- src-tauri/src` is empty |
+
+### CR129 shipped, and is grep-verifiable
+
+| Literal in `dist/assets/index-B31abqOX.js` | Count |
+|---|---|
+| `"settlement_recovered"` | 2 (the emit and the shell's handler) |
+| `"legacy_outbox"` · `"pi_backed_outbox"` · `"projected_resume"` | 1 each |
+| `"append_and_acknowledge"` · `"inspect_transcript"` · `"execute_settlement"` | 1 each |
+| `"not_streaming"` — retired two releases ago | **0** |
+| An invented control literal | **0** |
+
+The zeros mean something because the same instrument returns 1 and 2 for literals that are there.
+
+### CR158 is *not* grep-verifiable, and saying so is the honest reading
+
+`agentSettingsWriter.ts` is logic with almost no durable string: the only literal of its own that
+reaches the bundle is `"written"`, a single generic word, which counts 1. **That is suggestive and it
+is not proof.** A change that introduces no distinctive literal cannot be confirmed by searching a
+minified bundle, and claiming the chain covers it would be claiming more than was measured.
+
+What does stand for CR158: the binary inside the served tarball is byte-identical to the bundle built
+from the tagged commit, that commit's tree contains the writer and its nine reducer call sites, and
+the publication route ran the whole test suite as a gate before building it. The evidence is the
+build provenance, not a string search.
+
+### Ordering, from the same build
+
+The JS and CSS assets carry mtime `1792413017.2` and the bundled binary `1792413168.7`, so the
+frontend was written 151 seconds before the binary that embeds it, and that binary is the one served.
+
+## Field Check Owed — CR129 Pre-State
+
+Recorded before any upgrade. Production is still `0.2.0-alpha.54`, binary
+`095f9c15e05f7f633e0c66a1a82a7b40c4920eacc5574ae1208dbef036cb0a82`, pid 27723 since
+2026-10-18 14:16:18 local.
+
+**The baseline, across every Journey on this machine:**
+
+| | |
+|---|---|
+| settlement-timings records, 18 Journeys | **970** |
+| records carrying a `recovery` marker | **0** |
+| `mirror-desktop.json` | 235 records, mtime `2026-10-19T12:22:48Z` |
+| `agent-run-2026-10-17T11:27:13.196Z` (CR160's second recovered orphan) | **absent** |
+| `agent-run-2026-10-16T13:00:42.068Z` (CR160's first recovered orphan) | **absent** |
+| recovery-skips file | 14 records |
+
+**What must hold.** After the next real recovery on `alpha.55`, that run's `runId` appears in its
+Journey's ledger with `outcome: "settled"` and a `recovery.route` naming one of the three routes.
+The control is unchanged: healthy turns are present, and every record carries a `runId`, so the
+search is capable of a non-zero answer.
+
+**What refutes it.** A recovery that lands — the journal advancing to `settled` on a stale record —
+and leaves no ledger record. That would mean the emit or the append is not reached on the route that
+ran, and the three-route census was wrong about where repairs actually happen.
+
+**What it cannot establish.** Whether the phase *names* are the useful ones. That is only answerable
+by reading a real record for a real repair, and it is the kind of thing that looks fine in a test and
+reads as noise in the field.
+
+**What cannot be provoked.** A recovery on command. It needs a turn to end badly first, which is the
+same scarcity three open change requests are already waiting on.
+
+### Two recorded figures of mine, corrected by this reading
+
+- **`agent-settings.json` is schema `1.1.0` with four root keys and 16 Journey overrides.** I had it
+  recorded as `1.0.0`, three root keys, 15 overrides. The fourth key is `conversationOverrides`,
+  which CR154 introduced, so the file migrated when a write landed under a build carrying it. Nothing
+  is wrong; my note was stale.
+- **`mirror-desktop.json` holds 235 records, not 232.** Three ordinary settlements landed between
+  grounding CR129 and publishing. The two absences the CR rests on are unchanged, which is the part
+  that matters.

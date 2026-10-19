@@ -12,6 +12,8 @@ Canvas carried, not every CR ever delivered. Earlier mappings are recoverable by
 
 | CR | Title | Story | Release |
 | --- | --- | --- | --- |
+| CR129 | Let a Recovered Settlement Say It Happened | RS016 | alpha.55 |
+| CR158 | Stop One Agent Settings Write From Dropping Another | RS016 | alpha.55 |
 | CR162 | Stop a Table Cell From Painting Over Its Neighbour | RS016 | alpha.54 |
 | CR160 | Notice a Turn the Journal Never Heard Finish | RS025 | alpha.52 |
 | CR145 | Let a Finished Pi Release the Turn It Completed | RS016 | alpha.45 |

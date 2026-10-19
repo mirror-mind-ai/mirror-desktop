@@ -243,6 +243,14 @@ key errors this CR already corrected: **the instrument's scope has to match the 
 Gates: vitest **271 files / 2,250 tests** (from 270 / 2,236), `cargo test` 332 passed / 3 ignored,
 `tsc --noEmit` clean, `npm run build` clean, `roadmap:check` READY.
 
+### Shipped in v0.2.0-alpha.55 (2026-10-19)
+
+Published and independently verified. The release carries CR129 and CR158. Every route literal is
+present in the built bundle against an instrument shown able to return zero, and the binary inside
+the served tarball is byte-identical to the locally built one. Pre-state for the field check:
+**0 of 970 settlement-timings records across 18 Journeys carry a `recovery` marker.** Full chain in
+`docs/update/alpha-55-release-publication-2026-10-19.md`.
+
 ### Field verification owed
 
 Unreleased, and the check belongs to production. **The validator is the instrument this CR corrected:**
