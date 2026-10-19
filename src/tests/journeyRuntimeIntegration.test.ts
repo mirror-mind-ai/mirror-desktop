@@ -258,12 +258,22 @@ describe("Journey runtime integration guardrails", () => {
     expect(convergence).toContain("isTurnJournalSuccessorEligible(record)");
     expect(convergence).toContain("synchronization_convergence_partial");
     const piBackedSection = convergence.slice(convergence.indexOf("const convergePiBackedItem"));
-    expect(piBackedSection.indexOf("ports.cleanupLease(authority)")).toBeLessThan(
-      piBackedSection.indexOf("deps.deliverPiBackedOutboxItem(item.itemId, item.journeyId)"),
-    );
+    // CR129: both indices are asserted present before they are compared. The literal here was
+    // `ports.cleanupLease(authority)` and CR129's rename made it absent, which `indexOf` reports as
+    // `-1` — and `-1` is less than every real index, so this ordering guard would have kept passing
+    // while guarding nothing. The rename is incidental; the missing presence assertion is the defect.
+    const cleanupAt = piBackedSection.indexOf("ports.cleanupLease(settlementAuthority)");
+    const deliverAt = piBackedSection.indexOf("deps.deliverPiBackedOutboxItem(item.itemId, item.journeyId)");
+    expect(cleanupAt).toBeGreaterThan(-1);
+    expect(deliverAt).toBeGreaterThan(-1);
+    expect(cleanupAt).toBeLessThan(deliverAt);
     expect(convergence).toContain("applyMirrorAppendReceipt(projection, authority, receipt");
-    expect(convergence).toContain("ports.savePostFrontierProjection(settled, authority, item)");
-    expect(convergence).toContain("ports.acknowledgeOutboxItem(item.itemId, item.conversationId, authority)");
+    // CR129 narrowed this from `authority` to `settlementAuthority`: the pi-backed route now wraps
+    // its steps in a timing collector, and a `let … | undefined` does not keep its narrowing inside
+    // the closure the wrapper needs. The claim is unchanged — this route saves the post-frontier
+    // projection under the turn's own settlement authority, with the outbox item it came from.
+    expect(convergence).toContain("ports.savePostFrontierProjection(settled, settlementAuthority, item)");
+    expect(convergence).toContain("ports.acknowledgeOutboxItem(item.itemId, item.conversationId, settlementAuthority)");
     const postTerminalRecovery = sourceBetween(
       "async function recoverPostTerminalPersistence",
       "function publishSteeringConversation",

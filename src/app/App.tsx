@@ -2784,6 +2784,19 @@ export function App({ model }: AppProps) {
   }, [selectedJourney]);
 
   useEffect(() => turnFinalizationCoordinator.subscribe((event) => {
+    if (event.type === "settlement_recovered") {
+      // CR129: the same ledger and the same shape as an inline settlement, so a reader can tell
+      // *failed* from *failed and repaired* without cross-referencing four artifacts. The append
+      // reports rather than throws, exactly as the inline path's does, and the coordinator has
+      // already finished the repair by the time this runs.
+      void appendSettlementTiming(event.record, (reason) => {
+        console.warn(
+          `recovered settlement timing not recorded for ${event.record.journeyId}`
+          + ` (${event.record.recovery?.route}): ${reason}`,
+        );
+      });
+      return;
+    }
     if (event.type === "durable_evidence_changed") {
       if (selectedJourneyRef.current !== event.journeyId) return;
       void listMirrorAppendOutbox(event.journeyId).then((items) => {

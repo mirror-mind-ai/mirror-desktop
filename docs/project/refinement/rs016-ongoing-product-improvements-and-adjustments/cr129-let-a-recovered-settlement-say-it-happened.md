@@ -2,9 +2,9 @@
 
 # CR129: Let a Recovered Settlement Say It Happened
 
-**Status:** planned
+**Status:** in_progress
 **Driver:** @alissonvale
-**Delivery:** —
+**Delivery:** `refinement/cr129-record-a-recovered-settlement`
 
 ## Friction
 
@@ -152,6 +152,108 @@ original reading would have put the collector where the data is not.
   of recovery should not produce identical records; slice 1 covers the renderer route only, and the
   record names which route wrote it precisely so the other can be added without ambiguity.
 - Not the surface, not the turn journal, not a new artifact — as the Boundaries below already state.
+
+## Implemented 2026-10-18
+
+### The seam, established — and there are three routes, not two
+
+The plan's first step was to find where a repaired turn's authority is known, because
+`recoverPostTerminalPersistence` is Journey-grained and `convergeDelivery` returns a bare boolean.
+Reading it: **`convergeDelivery` has three per-turn repair routes**, not the two this CR was captured
+describing.
+
+| route | enum value | where the per-turn authority comes from |
+|---|---|---|
+| `convergeLegacyItem` | `legacy_outbox` | `resolvePersistedSettlementRecovery`, mid-function |
+| `convergePiBackedItem` | `pi_backed_outbox` | the journal `record.authority`, a parameter |
+| `resumeProjectedRecord` | `projected_resume` | the journal `record.authority`, a parameter |
+
+The enumeration is asserted at exactly three, because an unnamed fourth route would recreate this
+CR's silence for that one path — a settlement repaired with no record — and nothing would fail.
+
+The native route (`reconcile_pi_backed_mirror_delivery_debt`) stays excluded as planned: it is Rust
+and this ledger is renderer-written. It produces the outbox items the first two routes then settle,
+so its work is represented by the route that completed it, and the record names which.
+
+### Each route times its own steps
+
+`legacy_outbox`: `advance_journal`, `inspect_occupancy`, `cleanup_lease`, `append_and_acknowledge`.
+`pi_backed_outbox`: `load_projection`, `load_thread`, `inspect_transcript`, `inspect_occupancy`,
+`cleanup_lease`, `deliver_outbox`, `save_projection`, `advance_journal`, `acknowledge_outbox`.
+`projected_resume`: `load_projection`, `execute_settlement`.
+
+**An honest limit on the legacy route.** Its collector cannot be created at the top of the function,
+because a legacy item need not have a journal record — the `loadJournal` and `loadProjection` above
+are what *supply* the identity, so they cannot be timed under it. Its phases begin where the turn
+does, and the comment at the line says so.
+
+### The record leaves as an event, and the compiler enforced the other half
+
+The coordinator must not learn about storage, so the record goes out as a new
+`settlement_recovered` event and the shell appends it through the same `appendSettlementTiming` the
+inline path uses. This was chosen over adding a dependency to `ConvergenceDeps`, which five test
+files and a fixture construct.
+
+**It was also the choice that could not be half-finished.** `App.tsx`'s subscriber narrows on one
+event type and then reads `event.authority` on everything else, so adding a variant without a
+handler is a type error. `tsc` reported it immediately — an emitted record nobody appends would be
+the same silence with more code, and the compiler refused to let that compile.
+
+### A failed repair is deliberately not recorded
+
+The collector can mark a failed repair, and that capability is unit-tested. **It is wired to
+nothing.** Recovery runs on Journey load and on idle, so a persistently failing repair would write a
+record on *every pass* — the write traffic CR115 and CR116 exist to have removed, and this CR's own
+acceptance calls non-negotiable. Only a successful repair is recorded, which also makes *a pass that
+repairs nothing writes nothing* true **by construction**: no repaired turn means no collector, so
+there is nothing to finish and nothing to emit.
+
+A failure record becomes worth wiring when there is a trigger that fires once rather than once per
+pass. Recorded as this slice's remaining debt rather than left as an accident.
+
+### A subscriber that throws cannot undo a repair
+
+The repair is already on disk when the record is emitted, so the emit is wrapped: a throwing
+subscriber is swallowed. Acceptance requires it, and a test drives a real recovery with a throwing
+subscriber and asserts the durable evidence still settles.
+
+### A guard of mine found vacuous, and repaired as a pattern
+
+`journeyRuntimeIntegration.test.ts` ordered two steps with
+`expect(section.indexOf(a)).toBeLessThan(section.indexOf(b))`. This slice renamed one of those
+literals, which made `indexOf` return **`-1`** — and `-1` is less than every real index, so **the
+ordering guard would have kept passing while guarding nothing.** The rename is incidental; the
+missing presence assertion is the defect. Both indices are now asserted present before being
+compared.
+
+My own first check for this missed it, because I verified the guard's literals against the whole
+coordinator source while the ordering literals are matched against a *slice*. Same class as the two
+key errors this CR already corrected: **the instrument's scope has to match the assertion's scope.**
+
+### Two predecessor guards narrowed, not deleted
+
+- The post-frontier save and outbox acknowledgement guards pinned `authority`; a `let … | undefined`
+  does not keep its narrowing inside the closure a timing wrapper needs, so they pin
+  `settlementAuthority` now. The claim is unchanged.
+- The write census moved from **2 to 3** — and the comment records that the previous mutual-exclusion
+  argument **does not extend** to the third site. A recovery record is deliberately a *second* record
+  for a turn whose inline attempt already wrote a failed one. That is exactly how a reader tells
+  `failed` from `failed and repaired`, which is what this CR is for.
+
+Gates: vitest **271 files / 2,250 tests** (from 270 / 2,236), `cargo test` 332 passed / 3 ignored,
+`tsc --noEmit` clean, `npm run build` clean, `roadmap:check` READY.
+
+### Field verification owed
+
+Unreleased, and the check belongs to production. **The validator is the instrument this CR corrected:**
+search `settlement-timings/<journey>.json` by `runId`. The next production recovery must appear
+there, `outcome: "settled"`, with a `recovery.route` — where the two measured on 2026-10-18 are
+absent. The control is unchanged: healthy turns present, and 232 of 232 records carrying a `runId`
+proves the search can return non-zero.
+
+**What would refute it:** a recovery that lands and leaves no record, which would mean the emit or
+the append is not reached on the route that ran. **What it cannot establish:** whether the phase
+*names* are the useful ones. That is only answerable by reading a real record for a real repair.
 
 ## Acceptance
 

@@ -80,6 +80,28 @@ export type SettlementDiagnostic = Readonly<{
   reason: string;
 }>;
 
+/**
+ * CR129: the three renderer-side routes through which a settlement can be repaired after its inline
+ * attempt did not happen or did not finish.
+ *
+ * Enumerated rather than left to a free string because the record's whole purpose is letting a reader
+ * tell *which* repair this was. An unnamed fourth route would recreate this CR's silence for that one
+ * path — a settlement repaired with no record — and nothing would fail.
+ *
+ * The native route (`reconcile_pi_backed_mirror_delivery_debt`) is deliberately absent: it is Rust
+ * and this ledger is written from the renderer. It produces the outbox items that `legacy_outbox` and
+ * `pi_backed_outbox` then settle, so its work is represented here by the route that completed it.
+ */
+export const settlementRecoveryRoutes = [
+  "legacy_outbox",
+  "pi_backed_outbox",
+  "projected_resume",
+] as const;
+
+export type SettlementRecoveryRoute = typeof settlementRecoveryRoutes[number];
+
+export type SettlementRecovery = Readonly<{ route: SettlementRecoveryRoute }>;
+
 export type SettlementTimingRecord = Readonly<{
   schemaVersion: "0.1.0";
   journeyId: string;
@@ -93,6 +115,13 @@ export type SettlementTimingRecord = Readonly<{
   phases: readonly SettlementPhaseTiming[];
   failure?: SettlementFailure;
   diagnostics?: readonly SettlementDiagnostic[];
+  /**
+   * CR129: present only when this settlement was a repair. Absent on an inline settlement rather
+   * than present-and-falsy, so a reader asking "was this a repair?" gets no key instead of a value
+   * that could be a default. Additive and optional, like `failure` (CR121) and `diagnostics`
+   * (CR127), so `schemaVersion` does not move and an older reader is unaffected.
+   */
+  recovery?: SettlementRecovery;
 }>;
 
 export type SettlementTimingClock = {
@@ -138,6 +167,12 @@ function describeFailure(
 export function createSettlementTimingCollector(
   authority: SettlementTimingAuthority,
   clock: SettlementTimingClock = systemSettlementTimingClock,
+  /**
+   * CR129: supplied at creation rather than at `finish`, because which route is repairing is known
+   * when the collector is made and cannot change while it runs. The inline path passes nothing and
+   * its records stay unmarked.
+   */
+  recovery?: SettlementRecovery,
 ): SettlementTimingCollector {
   const startedAtMs = clock.now();
   const startedAt = clock.iso();
@@ -195,6 +230,7 @@ export function createSettlementTimingCollector(
         phases: [...phases],
         ...(failureReason ? { failure: describeFailure(phases, failureReason) } : {}),
         ...(diagnostics.length > 0 ? { diagnostics: [...diagnostics] } : {}),
+        ...(recovery ? { recovery } : {}),
       };
     },
   };

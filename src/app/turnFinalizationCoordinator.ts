@@ -42,6 +42,13 @@ import {
   replaceJourneyConversationMessages,
   type JourneyConversation,
 } from "../domain/journeyConversation";
+import {
+  createSettlementTimingCollector,
+  systemSettlementTimingClock,
+  type SettlementTimingCollector,
+  type SettlementTimingClock,
+  type SettlementTimingRecord,
+} from "./settlementPhaseTiming";
 import { createRunAuthority } from "../domain/runAuthority";
 import type { NautilusJourneyThread } from "../domain/nautilusJourneyThread";
 
@@ -112,7 +119,16 @@ export type TurnFinalizationEvent =
       phase: TurnPresentationPhase;
       error?: string;
     }
-  | { type: "durable_evidence_changed"; journeyId: string };
+  | { type: "durable_evidence_changed"; journeyId: string }
+  /**
+   * CR129: a settlement that completed through recovery, with its own phases.
+   *
+   * It leaves as an event because this module must not learn about storage — the shell appends it
+   * through the same `appendSettlementTiming` the inline path uses, into the same ledger and the
+   * same shape. A reader can then tell *failed* from *failed and repaired* without cross-referencing
+   * four artifacts, which is what this record exists for.
+   */
+  | { type: "settlement_recovered"; record: SettlementTimingRecord };
 
 export function validateExactOutboxSummary(
   summary: MirrorAppendOutboxSummary,
@@ -257,17 +273,39 @@ export type TurnFinalizationCoordinatorOptions = {
   boundMs?: number;
   timer?: BoundTimer;
   onAbandon?: (journeyId: string, label: string, reason: string) => void;
+  /** CR129: injectable so a test can assert elapsed times instead of observing them. */
+  clock?: SettlementTimingClock;
 };
 
 export function createTurnFinalizationCoordinator(
   options: TurnFinalizationCoordinatorOptions = {},
 ): TurnFinalizationCoordinator {
   const listeners = new Set<(event: TurnFinalizationEvent) => void>();
+  const clock: SettlementTimingClock = options.clock ?? systemSettlementTimingClock;
   const queues = new Map<string, Promise<unknown>>();
   const lastPublished = new Map<string, JourneyConversation>();
 
   function emit(event: TurnFinalizationEvent): void {
     for (const listener of [...listeners]) listener(event);
+  }
+
+  /**
+   * CR129: the repair is already on disk when this runs, so a subscriber that throws must not be
+   * able to undo it. Acceptance is explicit about this: a failure to write a timing record never
+   * fails a recovery, exactly as it never fails a settlement today.
+   *
+   * Only a *successful* repair is recorded. A failed one is deliberately silent here, because
+   * recovery runs on Journey load and on idle: a persistently failing repair would write a record on
+   * every pass, which is the write traffic CR115 and CR116 exist to have removed. The collector can
+   * mark a failed repair and that capability is tested, but it is wired to nothing until there is a
+   * trigger that fires once rather than once per pass.
+   */
+  function emitRecovered(collector: SettlementTimingCollector): void {
+    try {
+      emit({ type: "settlement_recovered", record: collector.finish("settled") });
+    } catch {
+      // Swallowed on purpose: see above.
+    }
   }
 
   function publish(
@@ -422,19 +460,29 @@ export function createTurnFinalizationCoordinator(
           if (recovery.status === "blocked") throw new Error(recovery.diagnostic);
           const { authority } = recovery;
           exactIdentity = authority;
+          // CR129: created here rather than at the top of this function, because this is the first
+          // point a full per-turn authority exists on the legacy route — a legacy item need not have
+          // a journal record, so the `loadJournal` and `loadProjection` above are what *supply* the
+          // identity and cannot be timed under it. The phases therefore begin where the turn does.
+          const timing = createSettlementTimingCollector(authority, clock, { route: "legacy_outbox" });
           if (journal.records.some((record) => record.authority.runId === authority.runId)) {
-            await ports.advanceJournal(authority, ["projected", "outbox_enqueued"], "outbox_enqueued");
+            await timing.time("advance_journal", () => (
+              ports.advanceJournal(authority, ["projected", "outbox_enqueued"], "outbox_enqueued")
+            ));
           }
-          const inspection = await deps.inspectNativeOccupancy();
+          const inspection = await timing.time("inspect_occupancy", () => deps.inspectNativeOccupancy());
           if (!validatePiInvocationRegistryInspection(inspection)) {
             throw new Error("mirror_outbox_native_lease_inspection_invalid");
           }
           if (resolveRetainedLeaseForOutboxRecovery(inspection, authority)) {
-            await ports.cleanupLease(authority);
+            await timing.time("cleanup_lease", () => ports.cleanupLease(authority));
           }
-          const settled = await appendAndAcknowledgeProjection(recovery.projection, authority, item, ports);
+          const settled = await timing.time("append_and_acknowledge", () => (
+            appendAndAcknowledgeProjection(recovery.projection, authority, item, ports)
+          ));
           publish(authority, settled, "settled");
           deps.onExactError(authority, undefined);
+          emitRecovered(timing);
           return true;
         } catch (error) {
           const reason = error instanceof Error ? error.message : String(error);
@@ -456,9 +504,15 @@ export function createTurnFinalizationCoordinator(
           return false;
         }
         let authority: JourneySettlementAuthority | undefined;
+        // CR129: after the already-settled return above, so a pass that repairs nothing never builds
+        // a collector. The journal record carries the full per-turn authority, so unlike the legacy
+        // route every step here can be timed.
+        const timing = createSettlementTimingCollector(record.authority, clock, { route: "pi_backed_outbox" });
         try {
-          const storedProjection = await deps.loadProjectionByCoords(item.journeyId, item.generation, item.threadId);
-          const thread = await deps.loadThread(item.journeyId, item.threadId);
+          const storedProjection = await timing.time("load_projection", () => (
+            deps.loadProjectionByCoords(item.journeyId, item.generation, item.threadId)
+          ));
+          const thread = await timing.time("load_thread", () => deps.loadThread(item.journeyId, item.threadId));
           const generation = thread?.generations.find((candidate) => (
             candidate.generation === item.generation
             && candidate.piSessionId === record.authority.piSessionId
@@ -503,13 +557,14 @@ export function createTurnFinalizationCoordinator(
           if (!execution || !hasFreshCompleteTurnJournalEvidence(record)) {
             throw new Error("mirror_append_complete_durable_evidence_missing");
           }
-          const transcriptInspection = await deps.inspectTranscript(
-            authority.journeyId,
-            authority.threadId,
-            authority.generation,
-            authority.piSessionId,
-            authority.piSessionFile,
-          );
+          const settlementAuthority = authority;
+          const transcriptInspection = await timing.time("inspect_transcript", () => deps.inspectTranscript(
+            settlementAuthority.journeyId,
+            settlementAuthority.threadId,
+            settlementAuthority.generation,
+            settlementAuthority.piSessionId,
+            settlementAuthority.piSessionFile,
+          ));
           let projection = persistedProjection;
           if (!projection.reconciliation.turns.some((turn) => turn.turnId === correlation.turnId)) {
             const userEntry = transcriptInspection.entries.find((entry) => entry.entryId === execution.userEntryId);
@@ -546,11 +601,13 @@ export function createTurnFinalizationCoordinator(
           });
           projection = commitHarnessTurn(projection, correlation, execution.committedAt);
           projection = projectPiBackedConversationSurface(projection, transcriptInspection);
-          const inspection = await deps.inspectNativeOccupancy();
+          const inspection = await timing.time("inspect_occupancy", () => deps.inspectNativeOccupancy());
           if (resolveRetainedLeaseForOutboxRecovery(inspection, authority)) {
-            await ports.cleanupLease(authority);
+            await timing.time("cleanup_lease", () => ports.cleanupLease(settlementAuthority));
           }
-          const receipt = await deps.deliverPiBackedOutboxItem(item.itemId, item.journeyId);
+          const receipt = await timing.time("deliver_outbox", () => (
+            deps.deliverPiBackedOutboxItem(item.itemId, item.journeyId)
+          ));
           const persistedTargetMirror = persistedProjection.reconciliation.turns.find(
             (turn) => turn.turnId === correlation.turnId,
           )?.mirror;
@@ -561,12 +618,19 @@ export function createTurnFinalizationCoordinator(
             && receipt.messages[1]?.id === correlation.harnessAssistantMessageId;
           const settled = applyMirrorAppendReceipt(projection, authority, receipt, new Date().toISOString());
           if (!projectionAlreadyCommitted) {
-            await ports.savePostFrontierProjection(settled, authority, item);
+            await timing.time("save_projection", () => (
+              ports.savePostFrontierProjection(settled, settlementAuthority, item)
+            ));
           }
-          await ports.advanceJournal(authority, "outbox_enqueued", "settled");
-          await ports.acknowledgeOutboxItem(item.itemId, item.conversationId, authority);
+          await timing.time("advance_journal", () => (
+            ports.advanceJournal(settlementAuthority, "outbox_enqueued", "settled")
+          ));
+          await timing.time("acknowledge_outbox", () => (
+            ports.acknowledgeOutboxItem(item.itemId, item.conversationId, settlementAuthority)
+          ));
           publish(authority, settled, "settled");
           deps.onExactError(authority, undefined);
+          emitRecovered(timing);
           return true;
         } catch (error) {
           const reason = error instanceof Error ? error.message : String(error);
@@ -580,11 +644,14 @@ export function createTurnFinalizationCoordinator(
         }
       };
       const resumeProjectedRecord = async (record: TurnJournalRecord): Promise<void> => {
-        const projection = await deps.loadProjectionByCoords(
+        // CR129: this route is reached only when a projected-and-completed record was found, so the
+        // collector is never built speculatively.
+        const timing = createSettlementTimingCollector(record.authority, clock, { route: "projected_resume" });
+        const projection = await timing.time("load_projection", () => deps.loadProjectionByCoords(
           record.authority.journeyId,
           record.authority.generation,
           record.authority.threadId,
-        );
+        ));
         if (!projection) throw new Error("mirror_append_complete_durable_projection_missing");
         const correlation = {
           schemaVersion: "0.2.0" as const,
@@ -603,7 +670,7 @@ export function createTurnFinalizationCoordinator(
         const authority = createJourneySettlementAuthority(
           createRunAuthority(correlation, projection.liveIdentity),
         );
-        const settlement = await executeCompletedSettlement({
+        const settlement = await timing.time("execute_settlement", () => executeCompletedSettlement({
           projection,
           authority,
           projectionAlreadyDurable: true,
@@ -616,9 +683,10 @@ export function createTurnFinalizationCoordinator(
           appendAndAcknowledge: (candidate, summary, exactAuthority) => (
             appendAndAcknowledgeProjection(candidate, exactAuthority, summary, ports)
           ),
-        });
+        }));
         publish(authority, settlement.projection, "settled");
         deps.onExactError(authority, undefined);
+        emitRecovered(timing);
       };
       return serialize(journeyId, "converge_delivery", async () => {
         const failures: string[] = [];

@@ -20,6 +20,7 @@ import {
   type TurnFinalizationPorts,
 } from "../../app/turnFinalizationCoordinator";
 import type { TurnJournalRecord } from "../../app/turnJournal";
+import type { SettlementTimingRecord } from "../../app/settlementPhaseTiming";
 import { shouldShowConversationSyncNotice } from "../../app/composerTurnStatus";
 import {
   decideConversationAvailability,
@@ -223,7 +224,17 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
     },
   };
 
+  // CR129: the fixture is the only harness that drives a real recovery end to end, so the records
+  // the coordinator emits are collected here rather than reconstructed.
+  const recoveredSettlements: SettlementTimingRecord[] = [];
+  const recoveredListeners: Array<(record: SettlementTimingRecord) => void> = [];
+
   coordinator.subscribe((event) => {
+    if (event.type === "settlement_recovered") {
+      recoveredSettlements.push(event.record);
+      for (const listener of recoveredListeners) listener(event.record);
+      return;
+    }
     if (event.type !== "presentation") return;
     const authority = event.authority;
     const entryIdentity = runtime.entries[authority.journeyId]?.identity;
@@ -379,6 +390,15 @@ export function createConvergentTurnWorld(journeyId = "convergent-journey") {
 
     advanceClock(ms: number): void {
       clockOffsetMs += ms;
+    },
+
+    recoveredSettlements(): readonly SettlementTimingRecord[] {
+      return [...recoveredSettlements];
+    },
+
+    /** A subscriber that can throw, to prove a broken ledger never fails a repair. */
+    onRecoveredSettlement(listener: (record: SettlementTimingRecord) => void): void {
+      recoveredListeners.push(listener);
     },
 
     primeStaleReconcileSnapshot(): void {

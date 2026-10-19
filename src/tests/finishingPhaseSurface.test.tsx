@@ -62,7 +62,15 @@ describe("Finishing names its phase", () => {
     // The two cannot both write for one turn: `registry.end` deletes the collector, so whichever
     // runs first produces the record and the other receives `undefined`. That mutual exclusion is
     // guarded behaviourally in `settlementAbandonment.test.ts` rather than by counting here.
-    expect(appSource.match(/appendSettlementTiming\(/g)?.length).toBe(2);
+    //
+    // CR129 re-aimed it to 3, and the mutual-exclusion argument above **does not extend** to the
+    // third site. It writes a record for a settlement that completed through recovery, and that is
+    // deliberately a *second* record for a turn whose inline attempt already wrote a failed one —
+    // which is precisely how a reader tells `failed` from `failed and repaired` without
+    // cross-referencing four artifacts. The third site is not on the settlement path at all: it is
+    // the shell handling a `settlement_recovered` event, so it is still outside every phase.
+    expect(appSource.match(/appendSettlementTiming\(/g)?.length).toBe(3);
+    expect(appSource).toContain('event.type === "settlement_recovered"');
     expect(appSource).toContain("finishingPhase={");
   });
 });
