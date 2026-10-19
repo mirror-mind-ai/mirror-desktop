@@ -10,6 +10,11 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.55 — A Repair That Leaves a Trace, and a Write That Cannot Drop Another](v0.2.0-alpha.55.md) — A settlement rescued by recovery used to leave no record of the rescue, so reading the ledger a turn
+repaired seconds later was indistinguishable from one never repaired at all — a gap that blocked
+diagnosis six times. Every recovery route now writes a record naming itself, in the same ledger and
+the same shape as an ordinary settlement. Separately, an agent-settings write can no longer be
+dropped by another: no caller supplies a baseline any more, so none can supply a stale one.
 - [v0.2.0-alpha.54 — Columns That Wrap, and a Canvas That Uses Its Width](v0.2.0-alpha.54.md) — A table cell that could neither wrap nor grow past its cap also could not shrink, so it rendered
 outside its own box and painted over the column beside it. On the Canvas the progress bars were
 covered by the text of the cell to their left, and both markdown table renderers carried the same
