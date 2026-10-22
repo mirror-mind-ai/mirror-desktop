@@ -248,6 +248,7 @@ import {
 } from "../domain/modelAvailability";
 import {
   deriveInactiveNativeAttemptCandidate,
+  readProviderRefusalAfterLiveFailure,
   shouldPresentInactiveNativeAttempt,
   type InactiveNativeAttemptCandidate,
 } from "../domain/inactiveNativeAttempt";
@@ -3782,6 +3783,36 @@ export function App({ model }: AppProps) {
               type: "append_warning", workspace: identityWorkspace(runtimeIdentity), identity: runtimeIdentity,
               message: error instanceof Error ? error.message : String(error),
             });
+          }
+        }
+        // CR159 reopened: the refusal is read here, by the failure, because restore cannot be relied
+        // on to read it. A refused run is marked finalizing by `agent_end`, restore hands back the
+        // in-memory conversation while it is, and the lease release that triggers restore happens
+        // inside that window. Field, 2026-10-22: three refusals, no reason shown.
+        const failedRunAuthority = runAuthority;
+        if (runFailed && mode === "live" && failedRunAuthority) {
+          const refusal = await readProviderRefusalAfterLiveFailure(
+            {
+              journeyId: failedRunAuthority.journeyId,
+              threadId: failedRunAuthority.threadId,
+              generation: failedRunAuthority.generation,
+              piSessionId: failedRunAuthority.piSessionId,
+            },
+            () => inspectDedicatedPiTranscript(
+              failedRunAuthority.journeyId,
+              failedRunAuthority.threadId,
+              failedRunAuthority.generation,
+              failedRunAuthority.piSessionId,
+              failedRunAuthority.piSessionFile,
+              false,
+              loadedHistoryScopeRef.current,
+            ),
+          );
+          if (refusal
+            && selectedJourneyRef.current === ownerJourneyId
+            && conversationRef.current.id === baseConversation.id
+            && conversationRef.current.liveIdentity.generation === ownerGeneration) {
+            setInactiveNativeAttempt(refusal);
           }
         }
         dispatchJourneyRuntime({ type: "finalization_finished", identity: runtimeIdentity });

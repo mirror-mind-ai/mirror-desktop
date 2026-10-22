@@ -4,7 +4,7 @@
 
 **Status:** in_progress
 **Driver:** @alissonvale
-**Delivery:** `refinement/rs025-batch-a-naming`
+**Delivery:** `refinement/cr159-name-the-refusal-on-a-live-failure` (Batch A shipped on `refinement/rs025-batch-a-naming`)
 
 ## Friction
 
@@ -192,3 +192,103 @@ installed hash equals built hash. In the bundle: `still records the agent as exe
 the count delta is the discriminator for the second section). `The provider reported:` 2×,
 unchanged: CR159's wiring introduces **no new literal**, so it is not grep-verifiable in the bundle;
 it is covered by `cargo test`, the source guards and the field check.
+
+## Field Falsifier Failed (2026-10-22)
+
+Production `v0.2.0-alpha.55`, binary `2b543b4b…`, Journey `mirror-desktop`, main thread. The
+Navigator, after three silent turns: *"o modelo não está recebendo e não estou recebendo qual é o
+erro real."*
+
+**The prompts reached the provider every time.** The Pi session records each refusal:
+
+| user entry | provider / model | the provider's words |
+|---|---|---|
+| `a749b014` 12:28 | `anthropic` / `claude-opus-5-5` | `400 … Third-party apps now draw from your extra usage, not your plan limits…` |
+| `263b0a5c` 13:21 | `anthropic` / `claude-opus-4-8` | `Request timed out.` — four attempts, the first three removed by `context_edit` |
+| `236c1368` 13:24 | `claude-bridge` / `claude-opus-4-8` | `Failed to authenticate: OAuth session expired and could not be refreshed` |
+
+Each turn's journal record reads `interrupted · process_died · piExecution: null`, with no
+`providerFailure`. **None of the three reasons was shown.** This change request's own check —
+*the next provider refusal must show "The provider reported: …"* — failed three times.
+
+### The reading was not the defect — measured, not argued
+
+The real session file was cut at the instant of each failure (last line `e3b5994b`, `3b31b1a5`,
+`9e179a64` respectively), passed through the real `inspect_pi_transcript_with_scope` in a throwaway
+Rust test, and the resulting inspections through the real `deriveInactiveNativeAttemptCandidate`.
+**All three produced the provider's exact words.** The throwaway probes were removed before any
+commit; `main.rs` is unchanged.
+
+### When the reading runs is the defect
+
+Batch A put the reading in exactly one place: the Conversation restore. On a refusal:
+
+1. Pi emits its assistant `error` event, then `agent_end`, which `piProcessStream.ts` maps to
+   `run_status: completed`.
+2. `completed` marks the runtime entry finalizing (`journeyRuntimeState.ts`, `isFinalizingTurn: true`).
+3. While an entry is finalizing, `conversationOfEntry` hands restore the **in-memory** conversation,
+   so restore takes no transcript reading at all.
+4. The lease release that re-triggers restore happens **inside** that window, in
+   `finalizeInterruptedTurn`. When `finalization_finished` arrives, nothing triggers restore again.
+
+So the reader that works is never called after a live failure. It only runs if the app is restarted
+while the refusal is still the leaf — which is the case Batch A's fixture tested.
+
+**A correction to my own diagnosis in conversation the same morning.** I first told the Navigator the
+reading was skipped because *the conversation stays in memory after the failure*. Read closely,
+`conversationOfEntry` releases it as soon as the entry stops finalizing; the precise statement is that
+it is in memory **at the instant restore is triggered**. The repair below does not depend on which
+statement is right, which is why it was chosen.
+
+## Reopened Repair (2026-10-22)
+
+On `refinement/cr159-name-the-refusal-on-a-live-failure`.
+
+**What changed.** `readProviderRefusalAfterLiveFailure` in `src/domain/inactiveNativeAttempt.ts`: the
+failure reads the transcript itself, through the same inspection and the same derivation restore uses,
+and returns a candidate **only when it carries the provider's words**. `App.tsx` calls it once, in the
+interrupted branch, only for a failed live run — a cancelled turn is still reported as cancelled — and
+hands the result to the notice only while the same Journey, Conversation and generation are in view.
+It runs after the finalization attempt, so a finalization that throws does not also cost the words.
+
+**What deliberately does not change.** A failure the provider did not explain keeps today's durable
+interruption notice. Restore still reads the leaf after a restart, unchanged. No retry, no model or
+provider change, no new surface: the notice CR054 built shows the words.
+
+**Never fails a turn.** An unreadable transcript, or evidence the derivation refuses, returns nothing.
+On restore the same refusal throws and marks the Conversation inconsistent; after a failure it must
+cost the Navigator the words at most, never the Conversation.
+
+**Tests**, `src/tests/cr159LiveFailureProviderWords.test.ts`, 13:
+
+- the mechanism, with the field's event order — `error`, `run_status: completed`, `done` — showing
+  restore is handed the in-memory conversation; **control:** the same instrument returns the opposite
+  answer after `finalization_finished`, so the first answer is a measured state;
+- the three refusals of 2026-10-22, with the ids and messages the real inspector returned;
+- a failure with no provider words returns nothing; an unreadable transcript and invalid evidence
+  both resolve to nothing instead of throwing;
+- App guards: the interrupted branch's anchors asserted present **before** being sliced, one call,
+  inside that branch, gated on `runFailed && mode === "live"`, the owner check before the handover,
+  and a census of five `setInactiveNativeAttempt` writers.
+
+Written first and run red: the two mechanism tests passed, because they describe the defect that
+exists; the ten behaviour and guard tests failed for the absent function and the absent call.
+
+Gates: vitest **272 files / 2,263 tests** (from 271 / 2,250), `cargo test` 332 passed / 3 ignored,
+`tsc --noEmit` clean, frontend build clean, `roadmap:check` READY.
+
+**Not grep-verifiable in a bundle**, like Batch A: the change adds no new user-visible literal.
+
+### Field check owed — again, and now sharper
+
+The next provider refusal on a build carrying this must show *The provider reported: …* under
+*Previous attempt was interrupted* **without a restart**. What would refute it: a refusal whose
+journal record is `process_died` and whose transcript leaf carries an `errorMessage`, with the notice
+absent or wordless while the same Conversation stays open.
+
+### The open question, partly answered by reading
+
+`piProcessStream.ts` maps Pi's assistant `error` event, `error.errorMessage` included, to a stream
+`error` event. So the live stream **can** carry the words. Whether Pi emitted it in the field remains
+unproven — there is still no stdout capture — and this repair deliberately does not depend on it:
+the transcript is the durable source both readers now share.

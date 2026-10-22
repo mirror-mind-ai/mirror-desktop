@@ -82,6 +82,30 @@ export function deriveInactiveNativeAttemptCandidate(
     : { ...authority, userEntryId, leafEntryId, providerFailure };
 }
 
+/**
+ * CR159 reopened: the refusal, read by the failure itself instead of waiting for a restore.
+ *
+ * Restore used to be the only reader, and it skips the transcript while the run is finalizing —
+ * which is exactly when the lease release that triggers it happens. Field, 2026-10-22: three
+ * refusals in a row and no reason shown, while this same derivation, fed the real session cut at
+ * each failure, names every one.
+ *
+ * Returns a candidate only when it carries the provider's words, so a failure nobody explained
+ * keeps the surface it has today. Never throws: after a failed turn, unreadable or untrustworthy
+ * evidence may cost the Navigator the words, never the Conversation.
+ */
+export async function readProviderRefusalAfterLiveFailure(
+  authority: CandidateAuthority,
+  inspect: () => Promise<NativeAttemptInspection>,
+): Promise<InactiveNativeAttemptCandidate | undefined> {
+  try {
+    const candidate = deriveInactiveNativeAttemptCandidate(authority, await inspect());
+    return candidate?.providerFailure === undefined ? undefined : candidate;
+  } catch {
+    return undefined;
+  }
+}
+
 export function shouldPresentInactiveNativeAttempt({
   candidate,
   journeyId,
