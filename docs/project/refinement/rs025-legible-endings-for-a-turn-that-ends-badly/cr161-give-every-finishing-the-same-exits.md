@@ -270,3 +270,34 @@ Pi session JSONL, settlement timings and `mirror-append-recovery-skips.jsonl` in
 `deriveComposerTurnStatus`, `selectJourneyRuntimeOwnerPhase`, `dedicatedTurnBlocksNewInvocation`,
 `settlementAbandonmentOffer`, `deriveStrandedTurn` and the `finalization_started` dispatch site read
 from source. Nothing was written to production state.
+
+## Second Field Occurrence (2026-10-22) — the falsifier could not be scored
+
+Production `v0.2.0-alpha.55`, this Journey's main thread: eleven minutes at *Finishing* between the
+provider's commit (13:35:16Z) and a forced relaunch (≈13:46:18Z). Full evidence and mechanism in
+[CR163](cr163-a-hung-mirror-append-freezes-every-exit.md); what belongs here is what it does to this
+CR's claims.
+
+**This one took source 1, not source 2.** The journal advanced to `outbox_enqueued`, so
+`finalization_started` was dispatched and the settlement flag — not the reconciliation block — held
+the screen at *Finishing*. The lease had already been released inline, so this is not CR155's
+live-lease case either. The settlement then hung inside its deliver step, which is a third shape
+neither occurrence had produced before: settlement started and never finished.
+
+**The unification behaved correctly on its own inputs — measured, not argued.** Today's state fed
+through the real derivations: with the frozen record in renderer state, `deriveStrandedTurn` says
+`stranded / journal_terminal`; the abandonment offer, with the lease released and 71 s waited, says
+`offered`. The notices this CR built were the right ones for this state.
+
+**But the inputs were starved, and the acts were dead.** The stranded poll refreshes the journal
+through a serialized native command that was queued behind the hung deliver, and its `catch` is
+deliberately silent; the leaf read is serialized too. Whatever rendered from already-held state
+offered acts — Recover, Stop waiting — that dispatch into the same queue. The defect is below this
+CR's repair, and is captured as CR163 rather than reopening this one.
+
+**The falsifier returns no verdict, for the second time, for the same reason.** *"If nothing is
+drawn within a minute, this CR is refuted"* requires knowing what was drawn, and nothing durable
+records that. The Navigator's testimony — blocked, a button that did nothing, the reset disabled —
+is consistent both with notices that rendered dead and with notices that never rendered. This is now
+the recurring cost of the same recorded debt, and it blocks this CR's own acceptance from ever being
+field-scored while it stands.

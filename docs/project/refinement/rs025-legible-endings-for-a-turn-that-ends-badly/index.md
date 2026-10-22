@@ -67,6 +67,7 @@ has a falsified threshold and a field verification still owed.
 - [CR159: Say Why the Provider Refused a Turn](cr159-say-why-the-provider-refused-a-turn.md) — **in_progress · Batch A** · **naming** · from the field, production alpha.50
 - [CR160: Notice a Turn the Journal Never Heard Finish](cr160-notice-a-turn-the-journal-never-heard-finish.md) — **done** (2026-10-18) · **exit** · B1 field-verified twice in production; B2's verification transferred to CR161, which opened the gate it shipped behind
 - [CR161: Give Every Finishing the Same Exits](cr161-give-every-finishing-the-same-exits.md) — **in_progress** · `refinement/cr161-unify-finishing` · **naming**, then **exit** · from the field, production alpha.52 · *Finishing* has two sources and every exit is attached to one of them · corrects CR155's own allow-list
+- [CR163: A Hung Mirror Append Freezes Every Exit](cr163-a-hung-mirror-append-freezes-every-exit.md) — **captured** · field 2026-10-22, alpha.55: eleven minutes at *Finishing* · the Mirror append waits on its child with no bound while holding the native serialization mutex 71 commands share · every exit's act joined the queue · recovery settled the same delivery in 1.7 s after relaunch
 
 ## Census (2026-10-18)
 
