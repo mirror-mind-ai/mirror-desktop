@@ -194,3 +194,73 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+
+## Independent Verification (2026-10-26)
+
+Checked against the served endpoints rather than against the route's own report, because a route
+reporting its own success is the thing being verified.
+
+| Check | Result |
+|---|---|
+| Manifest version, `darwin-aarch64/0.2.0-alpha.55/latest.json` | `0.2.0-alpha.56` |
+| Signature length | 416 chars |
+| Legacy `darwin/0.2.0-alpha.2/latest.json` | serves `0.2.0-alpha.56` |
+| `latest.json` URLs in this evidence | **166** (alpha.55 had 163 — exactly +3, one version per target) |
+| Served tarball SHA-256 | `7d7e34cccce6bb8342cda2808178020a175e651f038502eedafc1fbae23796ba` — equals the preparation evidence |
+| **Binary inside the served tarball** | `afe844eaccbe458777162df9ad20e394d31a835d159f44e312845d0c8e1fb7f6` — **byte-identical to the locally built bundle** |
+| Served `Info.plist` | `0.2.0-alpha.56`, identifier `ai.mirrormind.desktop` |
+| Merges in `v0.2.0-alpha.55..main` | 0 |
+| Tag `v0.2.0-alpha.56` | annotated, `^{commit}` = `a244a51` (the bump), ancestor of `HEAD` |
+| Rust sources changed | **none** — the diff for `src-tauri/src` is empty |
+| Frontend/binary ordering | assets `1793021490.1` precede the binary `1793021583.4` — 93 s, same build |
+
+### CR159 is not grep-verifiable, and this time that was measured
+
+Batch A's note predicted that CR159's wiring adds no user-visible literal. The reopened repair adds a
+function, so the prediction was re-tested rather than repeated:
+
+| literal in `dist/assets/index-BOvEnBj8.js` | count |
+|---|---|
+| `readProviderRefusalAfterLiveFailure` — the new function | **0** — minification erases the name |
+| `The provider reported: ` (CR054's line) | 2 |
+| `Previous attempt was interrupted` · `No retry was started` | 1 each |
+| `inactive_native_attempt_evidence_invalid` | 1 |
+| `"not_streaming"` — retired by CR161 | **0** |
+| An invented control literal | **0** |
+
+The zeros for the retired literal and the control mean something because the same instrument returns
+1 and 2 for literals that are present. **The zero for the new function name is the finding:** the
+repair genuinely has no searchable fingerprint in the bundle.
+
+`providerFailure` counts 6, and **that number is not offered as evidence.** It is a property name
+that survives minification, it predates this release, and the alpha.55 `dist` has been overwritten by
+this build — so no before-count exists to compare it against. Reporting it as a delta would be
+exactly the mistake named in this release's notes: an instrument that cannot distinguish before from
+after.
+
+**What stands for CR159**, then, is the same thing that stood for CR158: the served binary is
+byte-identical to the bundle built from the tagged commit, whose tree contains the function and its
+single call site inside the interrupted branch; the route ran all 2,263 tests as a gate before
+building; and thirteen of those tests are this repair's, including guards that pin the call site, its
+`runFailed && mode === "live"` condition, the owner check, and a census of five candidate writers.
+
+## Field Check Owed — CR159
+
+Production is still `0.2.0-alpha.55`, binary
+`2b543b4b6891a83d13b3b50fe5f323f9671bb5adaf8a471b88187e8a949fa596`, so this check begins when the
+Navigator upgrades.
+
+**What must hold.** The next provider refusal shows *The provider reported: …* under *Previous
+attempt was interrupted*, **with the application left open** — no restart, no reopening the
+Conversation. Three refusals on 2026-10-22 showed nothing, so the before-state is unambiguous.
+
+**What refutes it.** A refusal whose journal record is `process_died` and whose Pi transcript leaf
+carries an `errorMessage`, with no provider line on screen while the same Conversation stays open.
+
+**What it cannot establish.** Whether Pi also emitted the live stream `type: "error"` event, which
+would have had its own surface. There is still no stdout capture, and the repair deliberately does
+not depend on the answer.
+
+**What cannot be provoked.** A provider refusal on command. The three on 2026-10-22 arrived from an
+expired session, an exhausted allowance and a degraded network — none reproducible by asking.

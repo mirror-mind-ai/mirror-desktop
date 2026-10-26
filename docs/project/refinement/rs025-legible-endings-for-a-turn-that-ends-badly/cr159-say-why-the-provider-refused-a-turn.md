@@ -279,6 +279,15 @@ Gates: vitest **272 files / 2,263 tests** (from 271 / 2,250), `cargo test` 332 p
 
 **Not grep-verifiable in a bundle**, like Batch A: the change adds no new user-visible literal.
 
+### Shipped in v0.2.0-alpha.56 (2026-10-26)
+
+Published and independently verified. The served binary is byte-identical to the bundle built from
+the tagged commit, and the new function's name is **erased by minification** — measured at 0
+occurrences — so this repair has no searchable fingerprint in the bundle, exactly as Batch A
+predicted for itself. The `providerFailure` property count is deliberately **not** offered as
+evidence: it predates this release and no before-count survives. Full chain in
+`docs/update/alpha-56-release-publication-2026-10-26.md`.
+
 ### Field check owed — again, and now sharper
 
 The next provider refusal on a build carrying this must show *The provider reported: …* under
