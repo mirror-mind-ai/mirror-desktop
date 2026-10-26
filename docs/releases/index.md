@@ -10,6 +10,10 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.56 — A Refusal That Says Why, Without a Restart](v0.2.0-alpha.56.md) — When the model provider refuses a turn, the application now names the reason on the spot. The reason
+was always on disk and the code to read it shipped ten days ago, but it only ran when a Conversation
+was reopened — and a refused turn never reaches that path on its own. Three refusals in a row went
+unexplained in the field before this was found.
 - [v0.2.0-alpha.55 — A Repair That Leaves a Trace, and a Write That Cannot Drop Another](v0.2.0-alpha.55.md) — A settlement rescued by recovery used to leave no record of the rescue, so reading the ledger a turn
 repaired seconds later was indistinguishable from one never repaired at all — a gap that blocked
 diagnosis six times. Every recovery route now writes a record naming itself, in the same ledger and
