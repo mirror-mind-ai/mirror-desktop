@@ -2,7 +2,7 @@
 
 # CR129: Let a Recovered Settlement Say It Happened
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/cr129-record-a-recovered-settlement`
 
@@ -383,3 +383,71 @@ shuffling work between Stories is about *closed* work, which rewrites history wi
 The field evidence gathered on 2026-10-17 travels with it and is unaffected: `settlement-timings`
 holds **zero** records for the run that recovery settled, so a settlement completed through recovery
 and the ledger says nothing. That is this CR's premise, now observed rather than argued.
+
+## Field Verification Passed (2026-10-26)
+
+Two recovered turns on production `alpha.55`, in **two different Journeys**, both on 2026-10-22:
+
+| Journey | run | outcome | route | totalMs | phases |
+|---|---|---|---|---|---|
+| `alissonvale-com` | `agent-run-2026-10-22T13:30:50.549Z` | `settled` | `pi_backed_outbox` | 1,602 | 8 |
+| `mirror-desktop` | `agent-run-2026-10-22T13:34:35.721Z` | `settled` | `pi_backed_outbox` | 6,246 | 8 |
+
+Measured against the pre-release baseline recorded before the Navigator upgraded: **0 of 970 records
+across 18 Journeys carried a `recovery` marker.** Today: **2 of 1,098 across 20 Journeys.** The
+control is the other 1,096 — every inline settlement still carries no marker, so the key appears
+exactly when a repair happens and not otherwise. Both runs were found by searching the ledger on the
+flat top-level `runId`, which is the instrument this CR corrected.
+
+### The question only a real record could answer, answered
+
+This document recorded that the fixtures could not establish whether the phase *names* are the useful
+ones, and that reading a real record for a real repair was the only way to know. **They are, and the
+evidence is that they carried an investigation four days later** — the one that became
+[CR163](../rs025-legible-endings-for-a-turn-that-ends-badly/cr163-a-hung-mirror-append-freezes-every-exit.md):
+
+- The `mirror-desktop` record has **no lease phases** — no `cleanup_lease`, no
+  `notify_lease_released` — which is how it was established that the inline attempt had already got
+  past them, so the hang had to be downstream of the lease.
+- `deliver_outbox` took **1,659 ms** at recovery, against the eleven minutes the inline attempt spent
+  without returning. That contrast is what pinned the hang to the Mirror append rather than to
+  anywhere else in the settlement.
+- `recovery.route: pi_backed_outbox` named *which* of the three routes ran, which is what made the
+  first inference legitimate rather than a guess.
+
+Without this record the CR163 timeline would have had the same shape as CR160's: file mtimes and
+inference. That is the friction this CR was opened to remove, and it is the first time the removal can
+be shown rather than argued.
+
+### What this does not verify
+
+- **Only `pi_backed_outbox` has been exercised in the field.** `legacy_outbox` and `projected_resume`
+  remain covered by fixture alone. They stay unverified rather than being claimed by association — the
+  route field exists precisely so this distinction stays readable.
+- **The failure-marking capability is still wired to nothing**, as recorded in the implementation, so
+  it remains unexercised by construction rather than by chance.
+- **The native Rust recovery route still writes no record**, as excluded in scope.
+
+### A derived-surface error of mine, found while closing this
+
+Closing this CR required recomputing the Canvas, and that surfaced **two** wrong rows, both mine.
+
+- **RS016 read `5 🟡`** — five *captured* — while only four CRs were captured. This CR's `in_progress`
+  had been folded into that count when I selected it on 2026-10-18, and stayed there through two
+  releases.
+- **RS025 read `de 4`** while RS025 holds five CRs, and carried no `captured` count at all. I
+  introduced that one **in the previous turn**, when CR163 was captured.
+
+The Canvas is derived from the canonical index, and **there is no committed guard over its
+derivation**: `journeyCanvas.test.ts` covers the application's canvas *transport*, and `roadmap:check`
+compares statuses between the index and each document. Neither reads this file's counts.
+
+The per-turn check I run asserted the **bar** (`done / total`) and never the per-status counts — and
+the RS025 case shows why that substitution is not merely incomplete but actively misleading: the bar
+is insensitive, because `round(1/4 × 10)` and `round(1/5 × 10)` are both `2`. The row gained a CR, lost
+its total, and the check reported the surface consistent. **An instrument that cannot distinguish the
+before from the after is not evidence that nothing changed.**
+
+Both rows are corrected here and the check now asserts every per-status count and the total. That check
+is still mine and ad-hoc; making it a committed gate is a real gap, and it is named rather than quietly
+patched.

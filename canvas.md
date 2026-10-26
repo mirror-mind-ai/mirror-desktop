@@ -4,13 +4,12 @@
 
 | Item | Estado | Progresso |
 | --- | --- | --- |
-| **RS025 · Legible Endings for a Turn That Ends Badly** | 🔄 ativa · recorte de tema, não de arrumação · 21 CRs em 5 RSs e nenhum critério de fechamento · o campo bateu 2× num dia em alpha.50 | `██░░░░░░░░` 1 ✅ · 3 🔵 · de 4 |
+| **RS025 · Legible Endings for a Turn That Ends Badly** | 🔄 ativa · recorte de tema, não de arrumação · 21 CRs em 5 RSs e nenhum critério de fechamento · o campo bateu 2× num dia em alpha.50 | `██░░░░░░░░` 1 ✅ · 1 🟡 · 3 🔵 · de 5 |
 | ↳　CR155 · Give the Navigator an Exit From a Finishing That Holds a Live Lease | 🔵 in_progress · lote A · portões verdes · campo devido · prioridade 7 · dívida da CR132 chegando do campo · **limiar de 60 s falsificado por 2 settlements legítimos** | `███████░░░` |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress · reaberta · falsificador de campo falhou em alpha.55: 3 recusas, nenhum motivo mostrado · a leitura funciona; a restauração nunca a rodava após falha ao vivo · agora a própria falha lê | `███████░░░` |
 | ↳　CR161 · Give Every Finishing the Same Exits | 🔵 in_progress · 2ª ocorrência 2026-10-22, alpha.55: derivações corretas (medido), insumos famintos atrás do mutex nativo · falsificador sem veredito 2ª vez — nada durável registra o que foi desenhado · defeito real capturado na CR163 | `░░░░░░░░░░` |
 | ↳　CR163 · A Hung Mirror Append Freezes Every Exit | 🟡 captured · append do Mirror espera o filho sem limite segurando o mutex que 71 comandos compartilham · 11 min em *Finishing*, app inteiro na fila · recuperação entregou o mesmo item em 1,7 s | `░░░░░░░░░░` |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 48 ✅ · 5 🟡 · 4 ↗️ · 1 ⛔ · de 58 |
-| ↳　CR129 · Let a Recovered Settlement Say It Happened | 🔵 in_progress · `refinement/cr129-record-a-recovered-settlement` · 3 rotas instrumentadas · sem release · campo devido | `░░░░░░░░░░` |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 49 ✅ · 4 🟡 · 4 ↗️ · 1 ⛔ · de 58 |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR148 · Give an Unanswered Turn Back Its Own Identity | 🟡 captured · achada na linha de base da CR146 · turno pendente sem par | `░░░░░░░░░░` |
 | ↳　CR156 · Simplify the Context Map | 🟡 captured · prioridade 8 · recua parte da CR105 · critério ainda não estabelecido | `░░░░░░░░░░` |
@@ -40,6 +39,6 @@
 
 | CR | Story | Release | Estado |
 | --- | --- | --- | --- |
+| CR129 · Let a Recovered Settlement Say It Happened | RS016 | alpha.55 | ✅ done · verificado em campo: 2 reparos em 2 Journeys · 2 de 1.098 marcados, 1.096 inline sem marcador |
+| CR158 · Stop One Agent Settings Write From Dropping Another | RS016 | alpha.55 | ✅ done · nenhuma mudança observável, por construção · procedência de build, não grep |
 | CR162 · Stop a Table Cell From Painting Over Its Neighbour | RS016 | alpha.54 | ✅ done · verificado visualmente em produção |
-| CR160 · Notice a Turn the Journal Never Heard Finish | RS025 | alpha.52 | ✅ done · B1 verificado 2× em campo · B2 alcançável só pela CR161 |
-| CR145 · Let a Finished Pi Release the Turn It Completed | RS016 | alpha.45 | ✅ done · metade positiva improvocável |
