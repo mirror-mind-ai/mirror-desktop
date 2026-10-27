@@ -10,6 +10,10 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.58 — Your Mirror, Found](v0.2.0-alpha.58.md) — If you already use Mirror, Mirror Desktop now finds it for you. Instead of a form asking for three
+folder paths and a user name, the first screen looks in the usual places, works out whose Mirror it is
+the same way Mirror does, checks everything it needs in plain language, and connects with one click.
+Nothing is changed until you click Connect, and no key is ever read.
 - [v0.2.0-alpha.57 — A Save That Cannot Hold the Application Hostage](v0.2.0-alpha.57.md) — When Mirror does not answer while a turn is being saved, the application now stops waiting after
 30 seconds instead of forever. Last week one save waited eleven minutes, and while it did every other
 action queued behind it. A timed-out save is kept on this machine and tried again, and the reason
