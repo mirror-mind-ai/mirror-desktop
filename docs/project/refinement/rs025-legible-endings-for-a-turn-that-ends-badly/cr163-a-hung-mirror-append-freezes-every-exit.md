@@ -335,3 +335,12 @@ shape therefore rests on build provenance and its test, not on a string search. 
 Production upgrade is owed to the Navigator. The field check is described there and in **Field
 check** above, as corrected under **Implemented**.
 
+## Production on alpha.57 (2026-10-27)
+
+The Navigator upgraded production; confirmed by hash `22a4ba63…`, byte-identical to the served binary,
+pid 17527 since 2026-10-27 13:16:20 local.
+
+**Pre-state for the continuous check.** `mirror-append-failures.jsonl` does not exist yet. The ledger
+holds 1,150 completed `deliver_outbox_item` phases across every Journey, the slowest 10,692 ms. From here on,
+every new failure record and every settlement is read against the refutation recorded above.
+
