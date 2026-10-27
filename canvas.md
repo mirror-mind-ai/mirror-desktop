@@ -28,10 +28,12 @@
 | Item | Estado | Progresso |
 | --- | --- | --- |
 | CV-001 … CV-007 | ✅ Done | `██████████` 7 CVs |
+| **CV-010 · First-Run Assistant** | 🎯 selecionada 2026-10-27 · primeiro quem já usa o Mirror | `░░░░░░░░░░` 0 ✅ · 1 🟡 · 3 candidatas · de 4 DS |
+| ↳　DS-001 · Find and Connect an Existing Mirror | 🟡 Planned · pré-requisito no Core: status em JSON · fim do corte de CRs | `░░░░░░░░░░` |
 | **CV-008 · Conversation Spaces** | 🟡 Planned | `████████░░` 5 ✅ · 1 🟡 · de 6 DS |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned · único DS restante | `░░░░░░░░░░` |
 | ↳　DS-001 · DS-002 · DS-004 · DS-005 · DS-006 | ✅ Done | `██████████` 5 DS |
-| **CV-009 · Trusted macOS Distribution** | 🟡 Planned | `░░░░░░░░░░` 0 ✅ · 3 🟡 · de 3 DS |
+| **CV-009 · Trusted macOS Distribution** | 🟡 Planned · cadastro Apple enviado, aguarda a Apple | `░░░░░░░░░░` 0 ✅ · 3 🟡 · de 3 DS |
 | ↳　DS-001 · Software Zen Publisher and Credential Custody | 🟡 Planned | `░░░░░░░░░░` |
 | ↳　DS-002 · Signed macOS Release Runner | 🟡 Planned | `░░░░░░░░░░` |
 | ↳　DS-003 · Notarized Artifact Verification and Promotion | 🟡 Planned | `░░░░░░░░░░` |

@@ -2,7 +2,7 @@
 
 # Exploration: A First-Run Assistant for Mirror Desktop
 
-**Status:** exploring — no Capability Value created, nothing built
+**Status:** translated into [CV-010](../../roadmap/cv-010-first-run-assistant/index.md) on 2026-10-27 — nothing built
 **Opened:** 2026-10-27, by the Navigator, together with the Refinement Suspension
 **Journey:** `mirror-desktop`
 
@@ -167,3 +167,10 @@ Read on 2026-10-27:
 
 Measured on this Mac: `pi --version` 1.4.0, `pi auth --help`, the location of `pi` and `node`, and the
 provider *names* in `~/.pi/agent/auth.json`. No credential was read.
+
+## Decisions (2026-10-27)
+
+- **Existing Mirror users first.** CV-010.DS-001 finds and connects an installed Mirror; installing from nothing follows as DS-002 to DS-004.
+- **CV-009 is in flight outside this work.** The Apple enrollment has been submitted, and the next step belongs to Apple.
+- **A clean macOS account exists** (`mirror`, created by the Navigator). It is DS-001's second field fixture once Mirror is installed there.
+- **Measured after the decision:** `pi auth check --json --no-refresh` returns only `status`, `provider` and `authType`/`reason`, which is enough for a readiness row without touching a credential. Environment discovery cannot work for a Finder launch. `memory runtime status` already resolves the home from the checkout, so DS-001 asks Core for a JSON form of it as a prerequisite.

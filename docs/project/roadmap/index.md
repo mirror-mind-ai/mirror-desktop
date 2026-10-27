@@ -27,6 +27,7 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 | [CV-007](cv-007-trusted-self-update/index.md) | Trusted Self-Update | Mirror Desktop can verify and apply an authorized compatible release while preserving application and Mirror rollback and explain what is new in the offered release | ✅ Done |
 | [CV-008](cv-008-conversation-spaces/index.md) | Conversation Spaces | Navigator can steer active work, operate more Journey turns concurrently, converse through Journey, conversation or persona destinations, search and navigate durable Conversation history and compose prompts by voice without weakening durable authority | 🟡 Planned |
 | [CV-009](cv-009-trusted-macos-distribution/index.md) | Trusted macOS Distribution | Mirror Desktop can produce a repeatable macOS release artifact signed in Software Zen's Apple developer identity, accepted by Apple notarization, stapled for offline Gatekeeper verification and connected to the existing release provenance and updater trust boundaries without exposing credentials or widening distribution implicitly | 🟡 Planned |
+| [CV-010](cv-010-first-run-assistant/index.md) | First-Run Assistant | A person opening Mirror Desktop for the first time is guided, without a terminal, from launch to a first answered turn: an existing Mirror is found and connected, and what is missing is installed and configured with them | 🟡 Planned |
 
 ## Delivery Arc — Operable Agent Cockpit
 
@@ -87,6 +88,8 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 
 ## Baseline State and Next Horizon
 
+CV-010, First-Run Assistant, is the **selected** horizon from 2026-10-27, decided by the Navigator together with the Refinement Suspension. Its first Delivery Story serves people who already use Mirror; installation from nothing follows. CV-009's Apple enrollment is submitted and awaits Apple.
+
 CV-001 through CV-007 formed the completed Mirror Desktop baseline. CV-007 has since been reopened for one incremental Delivery Story, In-App What's New, without invalidating the trusted self-update evidence completed through DS-003. CV-001 through CV-006 remain completed historical contracts.
 
 CV-009, Trusted macOS Distribution, is the other planned horizon. It closes a trust boundary the completed release and self-update work does not establish: that macOS recognizes the bundle as software signed by its accountable publisher. It is independent of CV-008 and neither is selected.
@@ -130,6 +133,12 @@ Software Zen is the intended Apple Developer Program organization and responsibl
 | [CV-009.DS-001](cv-009-trusted-macos-distribution/ds-001-software-zen-publisher-and-credential-custody/index.md) | Software Zen Publisher and Credential Custody | The Apple organization identity, release roles, encrypted VPS custody and personal-Mac release-runner procedure are explicit, minimal and auditable | 🟡 Planned |
 | [CV-009.DS-002](cv-009-trusted-macos-distribution/ds-002-signed-macos-release-runner/index.md) | Signed macOS Release Runner | An authorized clean revision can produce a Developer ID-signed, Hardened Runtime Mirror Desktop bundle with inspectable signing evidence | 🟡 Planned |
 | [CV-009.DS-003](cv-009-trusted-macos-distribution/ds-003-notarized-artifact-verification-and-promotion/index.md) | Notarized Artifact Verification and Promotion | A signed release candidate can be notarized, stapled, verified on a clean macOS host and deliberately admitted to the existing distribution route | 🟡 Planned |
+
+## Delivery Arc - First-Run Assistant
+
+| Code | Delivery Story | Outcome | Status |
+|------|----------------|---------|--------|
+| [CV-010.DS-001](cv-010-first-run-assistant/ds-001-find-and-connect-an-existing-mirror/index.md) | Find and Connect an Existing Mirror | A person with Mirror already installed sees it found, every requirement checked in plain language, and connects with one confirmation | 🟡 Planned |
 
 ## Boundaries
 
