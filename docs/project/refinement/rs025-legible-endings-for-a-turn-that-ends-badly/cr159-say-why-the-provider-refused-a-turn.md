@@ -301,3 +301,13 @@ absent or wordless while the same Conversation stays open.
 `error` event. So the live stream **can** carry the words. Whether Pi emitted it in the field remains
 unproven — there is still no stdout capture — and this repair deliberately does not depend on it:
 the transcript is the durable source both readers now share.
+
+## Production Reading on alpha.56 (2026-10-27)
+
+Production upgraded by the Navigator and confirmed by hash: `afe844ea…`, byte-identical to the served
+binary, pid 79057 since 2026-10-26 11:18:52 local.
+
+**The falsifier stands open.** Since the upgrade: 62 turns across all Journeys, none interrupted or
+failed, and zero provider error entries in any Pi session. The check needs a refusal, and none has
+happened yet. The settlement ledger still holds exactly two recovery records, both from 2026-10-22.
+
