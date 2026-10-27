@@ -125,7 +125,7 @@ opening Mirror Desktop to a first answered turn without a terminal.*
 | **DS-004 · Connect the providers** | OpenRouter key (required), then subscription OAuth through Pi's own `/login` or a provider API key. The step is verified with `pi auth check` and the model catalog. | The step the Navigator named last, and the one with the most unknowns. |
 | **CV-009** (exists) | Signed and notarized, so the first launch is not blocked. | Without it, a new user never reaches DS-001. |
 
-**Resumption point for CRs:** DS-001 shipping, unless the Navigator sets another.
+**Resumption point for CRs:** ~~DS-001 shipping~~ — moved on 2026-10-27 to after DS-004 ships.
 
 ## Recommended first move
 

@@ -101,7 +101,8 @@ retire this copy.
 
 ## Resumption Point
 
-Shipping this Delivery Story ends the Refinement Suspension, unless the Navigator sets another point.
+~~Shipping this Delivery Story ends the Refinement Suspension.~~ Moved by the Navigator on 2026-10-27:
+the suspension now ends after **CV-010.DS-004** ships.
 
 ## Implemented 2026-10-27
 

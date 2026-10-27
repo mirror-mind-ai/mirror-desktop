@@ -17,6 +17,7 @@ Mirror Desktop's first screen asks for three absolute paths and a user slug, and
 Decided by the Navigator on 2026-10-27:
 
 - **Existing Mirror users come first.** DS-001 serves a person who already has Mirror and only lacks the Desktop; installing from nothing follows.
+- **CR work resumes after DS-004** (Navigator, 2026-10-27, moved from DS-001), so the four Delivery Stories run back to back.
 - **Signing is in flight outside this CV.** Software Zen's Apple enrollment was submitted and awaits Apple's contact (CV-009). Nothing in CV-010 waits on it, but no new user can reach the assistant until a signed build ships.
 - **No dependency on Mirror Core changes** (Navigator, 2026-10-27). CV-010 works with the Core releases that already exist: it reads what Core already writes, calls only commands Core already ships, and reproduces Core's documented resolution rules where it needs an answer Core gives only as text. Needs that would require a Core change are recorded as debt, not prerequisites. The production Mirror checkout is never modified.
 - **Credentials stay with their owners.** Pi owns OAuth tokens in `~/.pi/agent/auth.json`; Mirror owns its `.env`. Desktop reads readiness, never secret values.

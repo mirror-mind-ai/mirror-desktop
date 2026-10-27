@@ -4,7 +4,7 @@
 
 | Item | Estado | Progresso |
 | --- | --- | --- |
-| **Corte de CRs · desde 2026-10-27** | ⏸️ suspenso pelo onboarding · nenhuma CR começa · exceção: perda de dados ou app inutilizável · checks de campo seguem · volta na 1ª entrega de onboarding | — |
+| **Corte de CRs · desde 2026-10-27** | ⏸️ suspenso pelo onboarding · nenhuma CR começa · exceção: perda de dados ou app inutilizável · checks de campo seguem · volta depois da DS-004 da CV-010 (alterado em 2026-10-27) | — |
 | **RS025 · Legible Endings for a Turn That Ends Badly** | 🔄 ativa · recorte de tema, não de arrumação · 21 CRs em 5 RSs e nenhum critério de fechamento · o campo bateu 2× num dia em alpha.50 | `██░░░░░░░░` 1 ✅ · 2 🔵 · 2 ⏸️ · de 5 |
 | ↳　CR155 · Give the Navigator an Exit From a Finishing That Holds a Live Lease | ⏸️ parked · corte de 2026-10-27 · era: lote A · portões verdes · campo devido · prioridade 7 · dívida da CR132 chegando do campo · **limiar de 60 s falsificado por 2 settlements legítimos** | `███████░░░` |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress · reaberta · falsificador de campo falhou em alpha.55: 3 recusas, nenhum motivo mostrado · a leitura funciona; a restauração nunca a rodava após falha ao vivo · agora a própria falha lê | `███████░░░` |
@@ -29,7 +29,7 @@
 | --- | --- | --- |
 | CV-001 … CV-007 | ✅ Done | `██████████` 7 CVs |
 | **CV-010 · First-Run Assistant** | 🎯 selecionada 2026-10-27 · primeiro quem já usa o Mirror | `░░░░░░░░░░` 0 ✅ · 1 🟠 · 3 candidatas · de 4 DS |
-| ↳　DS-001 · Find and Connect an Existing Mirror | 🟠 Implemented · publicada na alpha.58 · validada por você na versão dev · neste Mac propõe exatamente o binding de produção entre 7 homes · falta: a conta `mirror` · fim do corte de CRs | `░░░░░░░░░░` |
+| ↳　DS-001 · Find and Connect an Existing Mirror | 🟠 Implemented · publicada na alpha.58 · validada por você na versão dev · neste Mac propõe exatamente o binding de produção entre 7 homes · falta: a conta `mirror` | `░░░░░░░░░░` |
 | **CV-008 · Conversation Spaces** | 🟡 Planned | `████████░░` 5 ✅ · 1 🟡 · de 6 DS |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned · único DS restante | `░░░░░░░░░░` |
 | ↳　DS-001 · DS-002 · DS-004 · DS-005 · DS-006 | ✅ Done | `██████████` 5 DS |

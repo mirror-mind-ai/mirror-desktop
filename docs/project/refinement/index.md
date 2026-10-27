@@ -35,7 +35,10 @@ awaiting field evidence, so nothing is left half-built.
   that work is itself suspended.
 - Captured and parked CRs are unchanged.
 
-**Resumption:** when the first onboarding slice ships, unless the Navigator sets another point.
+**Resumption:** ~~when the first onboarding slice ships~~ — **moved on 2026-10-27 by the Navigator to
+after CV-010.DS-004 (Connect the Providers) ships**, so that the whole first-run assistant (find,
+install, create, connect) is built before CR work returns. DS-001's own field check is unchanged and
+still owed; it no longer ends the suspension.
 
 ## Current Focus
 

@@ -231,4 +231,11 @@ exists, so discovery does not show on launch; the upgrade must leave the existin
 
 The owed check runs in the clean `mirror` macOS account, at a moment with no turn in flight in the
 Navigator's session: install Mirror there by its own guide, install this release, and connect with one
-click. Passing it marks DS-001 Done and ends the Refinement Suspension.
+click. Passing it marks DS-001 Done. (Amended 2026-10-27: the Refinement Suspension now ends after
+CV-010.DS-004, not DS-001.)
+
+## Production Upgrade (2026-10-27)
+
+The Navigator upgraded production. Confirmed by hash: `303ede28…`, byte-identical to the served binary,
+pid 38312 since 18:18:30 local. The existing `runtime-binding.v1.json` (`alisson-vale`,
+`/Users/alissonvale/mirror`) is intact, so the bound channel skips discovery as designed.
