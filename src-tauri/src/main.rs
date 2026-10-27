@@ -1,6 +1,7 @@
 mod agent_settings;
 mod bounded_child;
 mod journey_appearance;
+mod mirror_discovery;
 mod model_intents;
 mod native_command_serialization;
 mod native_panic_trace;
@@ -2584,6 +2585,25 @@ fn inspect_runtime_binding_candidate() -> Result<Option<RuntimeBinding>, String>
         env::var("MIRROR_USER").ok().as_deref(),
         env::var("DB_PATH").ok().as_deref(),
     )
+}
+
+/// CV-010.DS-001: find an existing Mirror the way Core would, without changing Core. Reads only;
+/// it never persists, and only the User channel may connect what it finds — the others preview it,
+/// so a development build can exercise discovery without binding a production Mirror.
+#[tauri::command(async)]
+fn discover_existing_mirror(chosen_root: Option<String>) -> Result<mirror_discovery::MirrorDiscovery, String> {
+    let _serialized = crate::native_command_serialization::acquire();
+    let home = env::var_os("HOME").map(PathBuf::from)
+        .ok_or_else(|| "Could not resolve HOME for Mirror discovery.".to_string())?;
+    let channel = RuntimeChannel::active();
+    let chosen = chosen_root.map(PathBuf::from);
+    Ok(mirror_discovery::discover(
+        &home,
+        chosen.as_deref(),
+        channel.binding_channel(),
+        channel == RuntimeChannel::User,
+        &runtime_search_directories(&home),
+    ))
 }
 
 #[tauri::command(async)]
@@ -10467,6 +10487,7 @@ fn main() {
             compact_pi_session,
             inspect_runtime_channel,
             inspect_runtime_binding_candidate,
+            discover_existing_mirror,
             validate_runtime_binding,
             save_runtime_binding,
             choose_runtime_directory,

@@ -96,6 +96,37 @@ textarea {
   margin: 28px 0 20px;
 }
 
+/* CV-010.DS-001: one row per requirement on the discovery screen. */
+.readiness-checklist {
+  display: grid;
+  gap: 8px;
+  margin: 24px 0 20px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.readiness-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  overflow-wrap: anywhere;
+}
+
+.readiness-mark {
+  font-weight: 700;
+  color: #4dc0b1;
+}
+
+.readiness-row[data-found="false"][data-required="true"] .readiness-mark {
+  color: #e5786d;
+}
+
+.readiness-row[data-found="false"][data-required="false"] .readiness-mark {
+  color: #d9b45a;
+}
+
 .app-shell {
   --shell-radial: rgba(77, 192, 177, 0.14);
   --shell-start: #0b0d0e;

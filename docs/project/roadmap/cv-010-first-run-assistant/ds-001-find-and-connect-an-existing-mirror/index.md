@@ -2,7 +2,7 @@
 
 # CV-010.DS-001 - Find and Connect an Existing Mirror
 
-**Status:** 🟡 Planned
+**Status:** 🟠 Implemented — on branch `cv-010-ds-001-find-and-connect-an-existing-mirror`, not integrated or released
 
 ## Outcome
 
@@ -102,3 +102,85 @@ retire this copy.
 ## Resumption Point
 
 Shipping this Delivery Story ends the Refinement Suspension, unless the Navigator sets another point.
+
+## Implemented 2026-10-27
+
+The Navigator authorised the build ("vai"). It was built red-first on `cv-010-ds-001-find-and-connect-an-existing-mirror`. Nothing is integrated
+or released, and Mirror Core was not touched.
+
+### What was built
+
+- **`src-tauri/src/mirror_discovery.rs`** (new). It holds the conventional checkout list, Core's
+  `.env` parser and Core 0.31.14's `resolve_mirror_home`. It refuses any setting that would move the
+  database, builds the readiness checks, and proposes a binding that it then runs through the existing
+  `RuntimeBinding::validate`.
+- **`discover_existing_mirror(chosenRoot?)`**, a native command. It acquires the CR149 guard like
+  every command (census 91 → 92). Only the User channel may connect what it finds; the Development
+  and Evaluation channels get a **preview**.
+- **`src/domain/mirrorDiscovery.ts`** parses the contract strictly and turns it into one plain
+  sentence per row, plus a headline and a summary.
+- **`src/app/MirrorDiscoveryCard.tsx`** renders the first screen. It has **Connect**, **Check again**,
+  **Choose Mirror folder…** and **Use a different Mirror…**.
+- **`App.tsx`**:
+  - an unbound channel opens on discovery;
+  - **Connect** goes through the existing `submitRuntimeBinding(true, proposed)`, now with an
+    optional binding argument, so there is no new write path;
+  - the manual form gains **Find my Mirror automatically**;
+  - **Settings → Runtime channel** gains **Find my Mirror**, which fills the three fields and saves
+    nothing. This is how the Development build exercises discovery.
+
+### Evidence
+
+- **28 Rust tests** cover parsing quirks, each Core parity case copied from Mirror's
+  `test_config.py`, the database-override refusals, checkout qualification, the end-to-end proposal,
+  several homes, the preview, each missing requirement, and the validator's refusal.
+- **Two guards:**
+  - the module never writes and never spawns a process;
+  - no `.env` value outside the allowlist reaches the serialised result.
+- **19 TypeScript tests** cover the contract, the sentences, the card and the wiring. Two of them are
+  censuses: they assert that the check ids and the reason codes are identical on both sides of the
+  bridge.
+- **Four mutations, each caught by exactly its own test:**
+
+  | Mutation | Caught by |
+  |---|---|
+  | the parser keeps every key | the allowlist test |
+  | the `DB_PATH` refusal is dropped | the override test |
+  | the home/user conflict check is dropped | the conflict test |
+  | the raw `.env` is copied into a check's detail | the no-secret test |
+
+  The no-secret test passed against the empty stubs, so on its own it proved nothing. The mutation
+  is what shows it bites.
+- **Gates:** vitest **274 files / 2,269 → 2,288 tests**; cargo **354 → 382 passed / 3 ignored**; tsc,
+  build and roadmap clean.
+- **Field fixture 1, this Mac, measured** with a throwaway read-only probe that was removed
+  afterwards. Discovery checked the six locations, found `~/mirror`, and proposed `alisson-vale`
+  among seven homes. All seven checks were found and the binding was connectable. The proposed
+  binding is **byte-identical to production's `runtime-binding.v1.json`**, the one the Navigator
+  configured by hand.
+
+### Scope changes, stated rather than smoothed over
+
+- **Three planned checklist rows were not built: provider readiness, a model and a Journey.**
+  - `pi auth check` requires `--provider`, and Pi offers no command that lists providers, so the row
+    would have had to guess provider names.
+  - Each check costs about 0.7 s, measured, and it would run under the guard that every native
+    command shares.
+  - The model and Journey rows only exist after connection, and the screens that follow Connect
+    already cover them: *Choose your model*, and *no Journeys were found*.
+
+  Provider readiness moves to **DS-004 · Connect the Providers**, where the provider is known
+  because the person is choosing it.
+- **A missing OpenRouter key is shown, not blocking.** Mirror's guide calls the key always required,
+  but turns run without it on this Mac, so blocking Connect on it would refuse a working Mirror.
+- **Row details show canonical paths.** Pi appears as its resolved `cli.js` and uv as its Cellar path,
+  because the binding resolves executables that way. The text is accurate, if less friendly than
+  `/usr/local/bin/pi`.
+
+### Owed before Done
+
+1. **Navigator check on the Development build.** In Settings → Runtime channel, **Find my Mirror**
+   fills the three fields and nothing is saved.
+2. **Field fixture 2, after release.** Install Mirror in the clean `mirror` account by its own guide,
+   then install this release and connect with one click. Do it at a moment with no turn in flight in
+   the Navigator's session.

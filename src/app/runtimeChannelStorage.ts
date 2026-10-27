@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { parseMirrorDiscovery, type MirrorDiscovery } from "../domain/mirrorDiscovery";
 
 export type RuntimeBinding = {
   schemaVersion: "1.0.0";
@@ -99,4 +100,12 @@ export async function validateRuntimeBinding(binding: RuntimeBinding): Promise<R
 
 export async function saveRuntimeBinding(binding: RuntimeBinding): Promise<RuntimeChannelDiagnostic> {
   return parseRuntimeChannelDiagnostic(await invoke<unknown>("save_runtime_binding", { binding }));
+}
+
+/** CV-010.DS-001: find an existing Mirror the way Core would. Reads only; nothing is persisted. */
+export async function discoverExistingMirror(chosenRoot?: string): Promise<MirrorDiscovery> {
+  return parseMirrorDiscovery(
+    await invoke<unknown>("discover_existing_mirror", { chosenRoot: chosenRoot ?? null }),
+    parseRuntimeBinding,
+  );
 }

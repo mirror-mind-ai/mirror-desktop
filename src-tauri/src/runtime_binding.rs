@@ -257,7 +257,7 @@ fn require_canonical(original: &Path, canonical: &Path, label: &str) -> Result<(
     }
 }
 
-fn read_mirror_version(pyproject: &Path) -> Result<Version, String> {
+pub(crate) fn read_mirror_version(pyproject: &Path) -> Result<Version, String> {
     let source = fs::read_to_string(pyproject)
         .map_err(|_| "Mirror root does not contain a readable pyproject.toml.".to_string())?;
     let document = source
@@ -293,7 +293,7 @@ fn executable_at(directory: &Path, program: &str) -> Result<Option<PathBuf>, Str
         .map_err(|_| format!("Could not canonicalize required {program} executable."))
 }
 
-fn resolve_executable(program: &str, directories: &[PathBuf]) -> Result<PathBuf, String> {
+pub(crate) fn resolve_executable(program: &str, directories: &[PathBuf]) -> Result<PathBuf, String> {
     for directory in directories {
         if let Some(executable) = executable_at(directory, program)? {
             return Ok(executable);
@@ -304,7 +304,7 @@ fn resolve_executable(program: &str, directories: &[PathBuf]) -> Result<PathBuf,
     ))
 }
 
-fn resolve_pi_toolchain(directories: &[PathBuf]) -> Result<(PathBuf, PathBuf, PathBuf), String> {
+pub(crate) fn resolve_pi_toolchain(directories: &[PathBuf]) -> Result<(PathBuf, PathBuf, PathBuf), String> {
     for directory in directories {
         let Some(pi_bin) = executable_at(directory, "pi")? else {
             continue;

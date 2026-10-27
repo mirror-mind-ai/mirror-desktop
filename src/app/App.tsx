@@ -118,6 +118,7 @@ import {
 } from "./journeySettlementRecovery";
 import { ConversationRecoveryNotice } from "./ConversationRecoveryNotice";
 import { InterruptedNativeAttemptNotice } from "./InterruptedNativeAttemptNotice";
+import { ExistingMirrorDiscovery } from "./MirrorDiscoveryCard";
 import { PendingFileAttachments } from "./PendingFileAttachments";
 import { VoiceComposerControl, VoiceInstallDialog, VoiceSessionStatus, VoiceSettingsPanel } from "./VoiceComposerControl";
 import { installVoiceComponent, loadVoiceComponentCatalog, loadVoiceComponentStatus, removeVoiceComponent, transcribeVoiceWav } from "./voiceTranscriptionStorage";
@@ -496,7 +497,7 @@ import {
 } from "../domain/fileAttachments";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
 import {
-  chooseRuntimeDirectory, inspectRuntimeBindingCandidate, inspectRuntimeChannel,
+  chooseRuntimeDirectory, discoverExistingMirror, inspectRuntimeBindingCandidate, inspectRuntimeChannel,
   saveRuntimeBinding, validateRuntimeBinding,
   type RuntimeBinding, type RuntimeChannelDiagnostic,
 } from "./runtimeChannelStorage";
@@ -942,6 +943,8 @@ export function App({ model }: AppProps) {
   const [runtimeBindingFeedback, setRuntimeBindingFeedback] = useState<string>();
   const [runtimeOnboardingState, setRuntimeOnboardingState] = useState<"idle" | "importing" | "empty" | "error" | "ready">("idle");
   const [runtimeOnboardingEditing, setRuntimeOnboardingEditing] = useState(false);
+  // CV-010.DS-001: an unbound channel opens on discovery; the manual form stays one click away.
+  const [runtimeConnectionView, setRuntimeConnectionView] = useState<"auto" | "discover" | "manual">("auto");
   const [runtimeOnboardingMessage, setRuntimeOnboardingMessage] = useState<string>();
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
   const [closeConfirmationOpen, setCloseConfirmationOpen] = useState(false);
@@ -5409,8 +5412,28 @@ export function App({ model }: AppProps) {
     }
   }
 
-  async function submitRuntimeBinding(persist: boolean) {
-    if (!runtimeBindingDraft) {
+  /** CV-010.DS-001: fill the Settings form from discovery. Never saves; Validate and Save stay explicit. */
+  async function fillRuntimeBindingFromDiscovery() {
+    setRuntimeChannelError(undefined);
+    setRuntimeBindingFeedback("Looking for your Mirror…");
+    try {
+      const discovery = await discoverExistingMirror();
+      if (!discovery.binding) {
+        setRuntimeBindingFeedback(`No Mirror proposed (${discovery.reason ?? discovery.status}). Nothing was changed.`);
+        return;
+      }
+      setRuntimeMirrorRoot(discovery.binding.mirrorRoot);
+      setRuntimeMirrorHome(discovery.binding.mirrorHome);
+      setRuntimeMirrorUser(discovery.binding.mirrorUser);
+      setRuntimeBindingFeedback(`Found ${discovery.binding.mirrorUser}'s Mirror. Nothing was saved; Validate to check it.`);
+    } catch (error) {
+      setRuntimeBindingFeedback(undefined);
+      setRuntimeChannelError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function submitRuntimeBinding(persist: boolean, binding: RuntimeBinding | undefined = runtimeBindingDraft) {
+    if (!binding) {
       setRuntimeChannelError("Choose Mirror source and home, then enter the Mirror user.");
       setRuntimeBindingFeedback(undefined);
       return;
@@ -5420,8 +5443,8 @@ export function App({ model }: AppProps) {
     setRuntimeBindingFeedback(undefined);
     try {
       const diagnostic = persist
-        ? await saveRuntimeBinding(runtimeBindingDraft)
-        : await validateRuntimeBinding(runtimeBindingDraft);
+        ? await saveRuntimeBinding(binding)
+        : await validateRuntimeBinding(binding);
       setRuntimeChannel(diagnostic);
       if (persist) {
         setRuntimeBindingFeedback("Mirror connected. Loading your Journeys…");
@@ -5443,6 +5466,9 @@ export function App({ model }: AppProps) {
     || agentProfileConfigured !== true
     || runtimeOnboardingState !== "ready"
     || flattenJourneyRegistry(loadedJourneyRegistry).length === 0;
+  const runtimeDiscoveryVisible = runtimeSetupNeedsConnection
+    && (runtimeConnectionView === "discover"
+      || (runtimeConnectionView === "auto" && runtimeChannel?.status === "unbound" && !runtimeOnboardingEditing));
 
   /**
    * CR149: a stable identity for the one call site that feeds a memoized child.
@@ -5487,7 +5513,16 @@ export function App({ model }: AppProps) {
           aria-label={!runtimeChannel ? "Prepare Mirror Desktop" : runtimeSetupNeedsConnection ? "Connect your Mirror" : agentProfileConfigured !== true ? "Choose your model" : "Prepare Mirror Desktop"}
         >
           <span className="runtime-onboarding-mark" aria-hidden="true"><img src={appIconUrl} alt="" /></span>
-          {runtimeSetupNeedsConnection ? (
+          {runtimeDiscoveryVisible ? (
+            <ExistingMirrorDiscovery
+              discover={discoverExistingMirror}
+              chooseRoot={() => chooseRuntimeDirectory("mirrorRoot")}
+              connecting={runtimeBindingState !== "idle"}
+              error={runtimeChannelError}
+              onConnect={(proposed) => void submitRuntimeBinding(true, proposed)}
+              onManual={() => setRuntimeConnectionView("manual")}
+            />
+          ) : runtimeSetupNeedsConnection ? (
             <>
               <p className="eyebrow">Mirror Desktop {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : evaluationChannel ? <span className="evaluation-badge">{EVALUATION_BADGE_LABEL}</span> : null}</p>
               <h1>Connect your Mirror</h1>
@@ -5505,6 +5540,7 @@ export function App({ model }: AppProps) {
               <button type="button" disabled={!runtimeBindingDraft || runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(true)}>
                 {runtimeBindingState === "saving" ? "Connecting…" : "Validate and continue"}
               </button>
+              <button className="secondary-button" type="button" onClick={() => { setRuntimeChannelError(undefined); setRuntimeConnectionView("discover"); }}>Find my Mirror automatically</button>
             </>
           ) : !runtimeChannel ? (
             <>
@@ -7389,6 +7425,7 @@ export function App({ model }: AppProps) {
                 {runtimeBindingFeedback ? <p className="provider-note" role="status">{runtimeBindingFeedback}</p> : null}
                 {!runtimeBindingDraft && !runtimeChannelError ? <p className="provider-note">Choose both directories and enter a user to prepare this channel.</p> : null}
                 <div className="settings-actions">
+                  <button className="secondary-button" type="button" disabled={runtimeBindingState !== "idle"} onClick={() => void fillRuntimeBindingFromDiscovery()}>Find my Mirror</button>
                   <button type="button" disabled={runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(false)}>Validate</button>
                   <button type="button" disabled={runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(true)}>Save binding</button>
                 </div>
