@@ -2,7 +2,7 @@
 
 # CR163: A Hung Mirror Append Freezes Every Exit
 
-**Status:** captured
+**Status:** planned
 **Driver:** —
 **Delivery:** —
 
@@ -111,3 +111,116 @@ window. `run_explicit_mirror_append`, `deliver_pi_backed_mirror_outbox_item`,
 `native_command_serialization.rs`, the stranded poll and both derivations read from source at
 `cb85f47`. Probes ran the real derivations and were removed; nothing was committed with them and
 nothing was written to production state.
+
+## Planned 2026-10-27
+
+Selected by the Navigator ("siga para o próximo passo", after the alpha.56 upgrade). Driver and
+Delivery are not yet named; **nothing is implemented**. Three facts measured today shape the scope,
+and the third changes the design.
+
+### 1. The bound has field data behind it
+
+Every inline settlement in production records `deliver_outbox_item`. Over **1,141 completed
+deliveries** in 20 Journeys: p50 1,765 ms · p90 2,508 ms · p99 6,134 ms · p99.9 10,128 ms · **max
+10,692 ms**. Eighteen exceeded 5 s, three exceeded 10 s, **none exceeded 20 s**. The hang lasted
+eleven minutes. A bound of **30 s** sits roughly three times above the slowest delivery ever recorded
+and twenty-two times below the hang. (A first pass over the ledger returned zero samples, because I
+searched the recovery route's phase name `deliver_outbox`; the inline name is `deliver_outbox_item`.
+The record was printed before the zero was believed.)
+
+### 2. Killing the child is safe
+
+Mirror's append (`src/memory/storage/messages.py`, read in the production checkout, not modified) runs
+the whole batch inside one `BEGIN IMMEDIATE` transaction, and a repeated append classifies each message
+as `existing` rather than inserting it again. A child killed mid-write therefore leaves either nothing
+or everything, and the next delivery converges to the same receipt. The frontend already classifies an
+unknown append reason as `transient` (`src/domain/mirrorAppendRejection.ts`), so outbox recovery
+retries a timed-out delivery without any change to that classification.
+
+### 3. Killing the child is not enough — measured
+
+`uv run` launches `python` as a **grandchild**. A probe with the production `uv` (0.11.12) spawned
+`uv run python -c "sleep 60"`, sent `SIGKILL` to `uv` alone, and found **the python grandchild still
+alive** afterwards. The same probe with the child in its own session and the signal sent to the
+group left nothing alive.
+
+This matters twice. A surviving python keeps the stdout pipe open, so a reader waiting for EOF would
+block — **reproducing the hang one level down**. And it may still hold Mirror's SQLite write lock, so
+the retry would queue behind it. The voice-transcription path already has a bounded wait
+(`voice_transcription.rs`), and copying it would have looked correct: it kills only the direct child,
+which is right there because whisper is launched directly, and wrong here.
+
+### Scope
+
+1. **A bounded child runner** (new `src-tauri/src/bounded_child.rs`). It spawns the command in its own
+   process group, writes stdin, drains stdout and stderr on reader threads with byte caps, and polls
+   `try_wait` against a deadline. On the deadline it kills the **group**, reaps the child, and waits
+   for the readers only for a short, bounded grace. It never waits unbounded for anything.
+2. **`run_explicit_mirror_append` uses it**, with `MIRROR_APPEND_TIMEOUT = 30 s`. A timeout returns
+   `mirror_append_timed_out`. The existing receipt validation, stdout cap (65,536 bytes), reason
+   sanitising, legacy-timestamp retry and binding repair are unchanged.
+3. **The cause is recorded.** On a timeout or a non-zero exit, a bounded stderr tail (4 KiB) is written
+   as one record to `mirror-append-failures.jsonl` in app data, together with the reason, the elapsed
+   time and the item, Journey and Conversation ids. The record never contains message content. The
+   file keeps its newest 200 records, so idle-pass retries of a persistent failure cannot grow it
+   without bound. The write is best-effort and never changes the result.
+4. **The timeout reads as itself.** `describeMirrorAppendRejection` gains a plain sentence for
+   `mirror_append_timed_out`: Mirror did not answer in time, the turn is saved locally, and delivery
+   will be tried again. Its class stays `transient`, and a guard pins that.
+
+### Files
+
+- `src-tauri/src/bounded_child.rs` (new) and its `mod` line in `main.rs`
+- `src-tauri/src/main.rs`: `run_explicit_mirror_append` and the failure-record writer
+- `src-tauri/Cargo.toml` and `Cargo.lock`: `libc` as a direct dependency for `killpg`. It is already in
+  the tree at 0.2.189, so nothing new is downloaded or built.
+- `src/domain/mirrorAppendRejection.ts`
+- Tests: Rust tests in `bounded_child.rs` and `main.rs`; `src/tests/cr163AppendTimeout.test.ts`
+
+### Acceptance
+
+- A child that never exits returns `mirror_append_timed_out` within the timeout plus a bounded grace.
+- **No process of the group survives a timeout, including a grandchild.** This is tested with a real
+  `sh` that backgrounds a `sleep` grandchild, and then checks that the grandchild's pid is gone. It
+  is the probe above, turned into a guard.
+- A timed-out append does not hold the native serialisation mutex: `acquire()` succeeds immediately
+  afterwards. The mutex itself is untouched (CR149).
+- A child that floods stdout past the cap is refused as `mirror_append_invalid_receipt`, as today. A
+  child that floods stderr cannot block on a full pipe.
+- Successful appends are unaffected; no failure record is written on success.
+- A failure record holds the stderr tail and the ids. The file is capped at 200 records. A failed
+  write leaves the delivery result unchanged.
+- `mirror_append_timed_out` is `transient` and has a description.
+
+### Validation
+
+TDD, red first. Rust tests use real processes with an injected short deadline; no fake clock stands in
+for a child that will not exit. Gates: vitest, tsc, build, cargo test, roadmap. No manual provocation on
+Dev: the hang has an unknown cause and cannot be produced on demand, and simulating it with `sleep`
+is exactly what the Rust tests already do.
+
+### Field check
+
+**Passive and continuous**, because the hang cannot be provoked. From the release onward, no
+`deliver_outbox_item` phase may exceed roughly 62 s: two bounded attempts, for the legacy-timestamp
+retry, plus overhead. The ledger records every settlement, so this is checked against every turn,
+not only against the next hang. **What refutes it:** a longer `deliver_outbox_item`, or a *Finishing*
+over two minutes with a delivery in flight. **What the next hang will add:** a record in
+`mirror-append-failures.jsonl` naming its cause, which this CR cannot know.
+
+### Exclusions
+
+- **The CR149 mutex is not changed.** The bound belongs on the child.
+- **Three other unbounded child waits are named and left alone:**
+  - the conversation-catalog `rebind-journey` call, inside this same delivery, but only on
+    `journey_mismatch`;
+  - `journey mutate`;
+  - native Pi session provisioning.
+
+  The first means the worst case on the rare repair path is still unbounded. That is recorded, not
+  hidden.
+- **Why the append hung is not diagnosed here.** The failure record is how the next occurrence will say
+  so.
+- **No durable record of which notice rendered.** That debt blocks CR155's and CR161's verdicts, and it
+  is separate work.
+- **No change to the Python side, to retry policy or to outbox recovery.**
