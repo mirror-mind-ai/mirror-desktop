@@ -200,3 +200,35 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+
+## Independent Verification (2026-10-27)
+
+| Check | Result |
+|---|---|
+| Manifest version, `darwin-aarch64/0.2.0-alpha.57/latest.json` | `0.2.0-alpha.58`, signature 416 chars |
+| Legacy `darwin/0.2.0-alpha.2/latest.json` | serves `0.2.0-alpha.58` |
+| `latest.json` URLs in this evidence | **172**; alpha.57 had 169 under the same instrument, so +3 |
+| Served tarball SHA-256 | `f1fe55ca7a9f7e83307c77040d058b443d3c214ac3768d6fa5e7a6fdff720946`, equal to the preparation evidence |
+| **Binary inside the served tarball** | `303ede287de3cd7ad2b4152e3ba8260f958955a15c045afa7e5a63d63bb5bf76`, **byte-identical to the local bundle** |
+| Served `Info.plist` | `0.2.0-alpha.58` |
+| Merges in `v0.2.0-alpha.57..main` | 0; tag `^{commit}` = `fd9e406`, the bump |
+
+### CV-010.DS-001 in the served artefacts
+
+| literal | served binary | frontend bundle |
+|---|---|---|
+| `discover_existing_mirror` (the command) | 2 | — |
+| `unsupported_database_override` · `chosen_not_a_checkout` (reason codes) | 1 · 1 | — |
+| `Your Mirror is ready to connect` · `Find my Mirror automatically` · `Use a different Mirror…` | — | 1 · 1 · 1 |
+| `mirror-append-failures.jsonl` (CR163, positive control) | 1 | — |
+| an invented literal (negative control) | 0 | 0 |
+
+## Field Check Owed — CV-010.DS-001
+
+Production is still `0.2.0-alpha.57` until the Navigator upgrades. In this account the binding already
+exists, so discovery does not show on launch; the upgrade must leave the existing connection untouched.
+
+The owed check runs in the clean `mirror` macOS account, at a moment with no turn in flight in the
+Navigator's session: install Mirror there by its own guide, install this release, and connect with one
+click. Passing it marks DS-001 Done and ends the Refinement Suspension.

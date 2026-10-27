@@ -185,3 +185,11 @@ or released, and Mirror Core was not touched.
 2. **Field fixture 2, after release.** Install Mirror in the clean `mirror` account by its own guide,
    then install this release and connect with one click. Do it at a moment with no turn in flight in
    the Navigator's session.
+
+## Shipped in v0.2.0-alpha.58 (2026-10-27)
+
+Fast-forwarded into `main` with zero merges, gates re-run there, branch deleted (never pushed), and
+published as alpha.58. The served binary is byte-identical to the local bundle and carries the new
+command and reason codes; the frontend carries the new screen's strings; both against positive and
+negative controls. Evidence: `docs/update/alpha-58-release-publication-2026-10-27.md`. Remaining before
+Done: field fixture 2, the clean `mirror` account.
