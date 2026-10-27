@@ -1,4 +1,5 @@
 mod agent_settings;
+mod bounded_child;
 mod journey_appearance;
 mod model_intents;
 mod native_command_serialization;
@@ -110,6 +111,16 @@ const MIRROR_APPEND_REBINDS_FILE: &str = "mirror-append-rebinds.jsonl";
 /// silently absorbed by the batch that continued past it.
 const MIRROR_APPEND_RECOVERY_SKIPS_FILE: &str = "mirror-append-recovery-skips.jsonl";
 const MIRROR_APPEND_REBIND_MAX_RECORDS: usize = 64;
+/// CR163: the Mirror append child is bounded. Over 1,141 field deliveries the slowest took
+/// 10.7 s; the 2026-10-22 hang took eleven minutes while every native command queued behind it.
+const MIRROR_APPEND_TIMEOUT: Duration = Duration::from_secs(30);
+const MIRROR_APPEND_KILL_GRACE: Duration = Duration::from_secs(2);
+const MIRROR_APPEND_RECEIPT_MAX_BYTES: usize = 65_536;
+/// CR163: why an append failed, from the child's own stderr — discarded until now, which is
+/// why the 2026-10-22 hang has no known cause. Ids and a bounded tail only, never messages.
+const MIRROR_APPEND_FAILURES_FILE: &str = "mirror-append-failures.jsonl";
+const MIRROR_APPEND_FAILURE_MAX_RECORDS: usize = 200;
+const MIRROR_APPEND_STDERR_TAIL_BYTES: usize = 4_096;
 const MIRROR_APPEND_MAX_ITEMS: usize = 16_384;
 const MIRROR_APPEND_MAX_FILE_BYTES: usize = 64 * 1024 * 1024;
 const MIRROR_APPEND_MAX_ITEM_BYTES: usize = 131_072;
@@ -6509,6 +6520,47 @@ fn record_mirror_append_journey_rebind(
     }
 }
 
+fn mirror_append_failures_path(outbox_path: &Path) -> PathBuf {
+    outbox_path.with_file_name(MIRROR_APPEND_FAILURES_FILE)
+}
+
+/// CR163: records one failed append with the child's stderr tail. Never fails the caller, and
+/// never carries message content: ids, the reason, the timing and Mirror's own diagnostics only.
+fn record_mirror_append_failure(
+    failures_path: &Path,
+    item: &Value,
+    reason: &str,
+    elapsed: Duration,
+    exit_code: Option<i32>,
+    stderr_tail: &[u8],
+) {
+    let record = json!({
+        "schemaVersion": "1.0.0",
+        "recordedAt": Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
+        "reason": reason,
+        "timedOut": reason == "mirror_append_timed_out",
+        "exitCode": exit_code,
+        "elapsedMs": elapsed.as_millis() as u64,
+        "stderrTail": String::from_utf8_lossy(stderr_tail),
+        "itemId": item.get("itemId").cloned().unwrap_or(Value::Null),
+        "runId": item.get("runId").cloned().unwrap_or(Value::Null),
+        "journeyId": item.get("journeyId").cloned().unwrap_or(Value::Null),
+        "conversationId": item.get("conversationId").cloned().unwrap_or(Value::Null),
+        "generation": item.get("generation").cloned().unwrap_or(Value::Null),
+    });
+    let mut records = read_bounded_jsonl_records(failures_path);
+    records.push(record);
+    let keep = records.len().saturating_sub(MIRROR_APPEND_FAILURE_MAX_RECORDS);
+    let payload = records[keep..].iter()
+        .filter_map(|value| serde_json::to_string(value).ok())
+        .map(|line| line + "\n")
+        .collect::<String>();
+    let staged = failures_path.with_extension("jsonl.tmp");
+    if fs::write(&staged, payload).is_ok() {
+        let _ = fs::rename(&staged, failures_path);
+    }
+}
+
 fn read_mirror_append_rebinds(path: &Path) -> Vec<Value> {
     read_bounded_jsonl_records(path)
 }
@@ -7419,19 +7471,10 @@ fn legacy_timestamp_compatibility_item(item: &Value) -> Result<Value, String> {
     Ok(compatible)
 }
 
-fn run_explicit_mirror_append(item: &Value) -> Result<Value, String> {
+fn run_explicit_mirror_append(item: &Value, failures_path: &Path) -> Result<Value, String> {
     let profile = active_runtime_channel()?;
-    let request = json!({
-        "schemaVersion":"1.0.0", "conversationId":item["conversationId"], "journeyId":item["journeyId"],
-        "sourceInterface":item["sourceInterface"], "messages":item["messages"]
-    });
-    let payload =
-        serde_json::to_vec(&request).map_err(|_| "mirror_append_item_invalid".to_string())?;
-    if payload.len() > 262_144 {
-        return Err("mirror_append_item_oversized".to_string());
-    }
     let mut command = mirror_runtime_command("uv")?;
-    let mut child = command
+    command
         .args([
             "run",
             "python",
@@ -7442,39 +7485,69 @@ fn run_explicit_mirror_append(item: &Value) -> Result<Value, String> {
             "--mirror-home",
         ])
         .arg(&profile.mirror_home)
-        .args(["--format", "json"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|_| "mirror_append_process_failed".to_string())?;
-    child
-        .stdin
-        .take()
-        .ok_or_else(|| "mirror_append_process_failed".to_string())?
-        .write_all(&payload)
-        .map_err(|_| "mirror_append_process_failed".to_string())?;
-    let output = child
-        .wait_with_output()
-        .map_err(|_| "mirror_append_process_failed".to_string())?;
-    if output.stdout.len() > 65_536 {
+        .args(["--format", "json"]);
+    run_explicit_mirror_append_using(item, command, MIRROR_APPEND_TIMEOUT, failures_path)
+}
+
+/// CR163: the append path with its child command and deadline injected, so the bound is tested
+/// against a real process rather than a fake clock.
+fn run_explicit_mirror_append_using(
+    item: &Value,
+    command: Command,
+    timeout: Duration,
+    failures_path: &Path,
+) -> Result<Value, String> {
+    let request = json!({
+        "schemaVersion":"1.0.0", "conversationId":item["conversationId"], "journeyId":item["journeyId"],
+        "sourceInterface":item["sourceInterface"], "messages":item["messages"]
+    });
+    let payload =
+        serde_json::to_vec(&request).map_err(|_| "mirror_append_item_invalid".to_string())?;
+    if payload.len() > 262_144 {
+        return Err("mirror_append_item_oversized".to_string());
+    }
+    let limits = bounded_child::BoundedChildLimits {
+        timeout,
+        grace: MIRROR_APPEND_KILL_GRACE,
+        stdout_cap: MIRROR_APPEND_RECEIPT_MAX_BYTES,
+        stderr_tail_cap: MIRROR_APPEND_STDERR_TAIL_BYTES,
+    };
+    let output = match bounded_child::run_bounded(command, &payload, limits) {
+        Ok(output) => output,
+        Err(bounded_child::BoundedChildError::TimedOut { stderr_tail, elapsed }) => {
+            let reason = "mirror_append_timed_out";
+            record_mirror_append_failure(failures_path, item, reason, elapsed, None, &stderr_tail);
+            return Err(reason.to_string());
+        }
+        Err(_) => return Err("mirror_append_process_failed".to_string()),
+    };
+    if output.stdout_overflowed {
         return Err("mirror_append_invalid_receipt".to_string());
     }
-    let receipt: Value = serde_json::from_slice(&output.stdout)
-        .map_err(|_| "mirror_append_invalid_receipt".to_string())?;
+    let parsed = serde_json::from_slice::<Value>(&output.stdout);
     if !output.status.success() {
-        let reason = receipt
-            .get("reason")
-            .and_then(Value::as_str)
-            .filter(|value| {
-                value.len() <= 80
-                    && value
-                        .bytes()
-                        .all(|byte| byte.is_ascii_lowercase() || byte == b'_')
-            })
-            .unwrap_or("rejected");
-        return Err(format!("mirror_append_{}", reason));
+        let reason = match &parsed {
+            Ok(receipt) => format!(
+                "mirror_append_{}",
+                receipt
+                    .get("reason")
+                    .and_then(Value::as_str)
+                    .filter(|value| {
+                        value.len() <= 80
+                            && value
+                                .bytes()
+                                .all(|byte| byte.is_ascii_lowercase() || byte == b'_')
+                    })
+                    .unwrap_or("rejected")
+            ),
+            Err(_) => "mirror_append_invalid_receipt".to_string(),
+        };
+        record_mirror_append_failure(
+            failures_path, item, &reason, output.elapsed, output.status.code(), &output.stderr_tail,
+        );
+        return Err(reason);
     }
+    let receipt = parsed.map_err(|_| "mirror_append_invalid_receipt".to_string())?;
     let messages = receipt
         .get("messages")
         .and_then(Value::as_array)
@@ -7516,8 +7589,8 @@ where
     }
 }
 
-fn run_pi_backed_mirror_append(item: &Value) -> Result<Value, String> {
-    run_pi_backed_mirror_append_with(item, run_explicit_mirror_append)
+fn run_pi_backed_mirror_append(item: &Value, failures_path: &Path) -> Result<Value, String> {
+    run_pi_backed_mirror_append_with(item, |candidate| run_explicit_mirror_append(candidate, failures_path))
 }
 
 /// CR093: Mirror core can rewrite `conversations.journey` for a Conversation that Mirror
@@ -7623,7 +7696,10 @@ fn deliver_pi_backed_mirror_outbox_item(
         validate_outbox_generation_authority(&app, item)?;
         item.clone()
     };
-    run_mirror_append_with_binding_repair(&app, &item, run_pi_backed_mirror_append)
+    let failures_path = mirror_append_failures_path(&mirror_append_outbox_path(&app)?);
+    run_mirror_append_with_binding_repair(&app, &item, |candidate| {
+        run_pi_backed_mirror_append(candidate, &failures_path)
+    })
 }
 
 #[tauri::command(async)]
@@ -7658,10 +7734,15 @@ fn append_mirror_outbox_item(
         validate_outbox_item_run_authority_at(&app_data_dir, item, &run_authority)?;
         item.clone()
     };
+    let failures_path = mirror_append_failures_path(&mirror_append_outbox_path(&app)?);
     if item.get("schemaVersion").and_then(Value::as_str) == Some("1.1.0") {
-        run_mirror_append_with_binding_repair(&app, &item, run_pi_backed_mirror_append)
+        run_mirror_append_with_binding_repair(&app, &item, |candidate| {
+            run_pi_backed_mirror_append(candidate, &failures_path)
+        })
     } else {
-        run_mirror_append_with_binding_repair(&app, &item, run_explicit_mirror_append)
+        run_mirror_append_with_binding_repair(&app, &item, |candidate| {
+            run_explicit_mirror_append(candidate, &failures_path)
+        })
     }
 }
 
@@ -14773,5 +14854,272 @@ mod tests {
             completion.contains("evidence.provider_failure"),
             "the provider failure evidence this branch already carried must stay"
         );
+    }
+}
+
+#[cfg(test)]
+mod cr163_mirror_append_bound_tests {
+    //! CR163: on 2026-10-22 the Mirror append waited eleven minutes on a child that never
+    //! returned, holding the serialisation guard every native command shares. These tests drive
+    //! the real append path with a real child process standing in for `uv run`.
+
+    use super::*;
+    use std::time::Instant;
+
+    const USER_WORDS: &str = "cr163 private user words";
+    const ASSISTANT_WORDS: &str = "cr163 private assistant words";
+
+    fn item() -> Value {
+        json!({
+            "schemaVersion":"1.1.0", "itemId":"turn-agent-run-2026-10-22T13:34:35.721Z",
+            "runId":"agent-run-2026-10-22T13:34:35.721Z", "journeyId":"journey-one",
+            "threadId":"thread-one", "generation":4, "conversationId":"mirror-one",
+            "sourceInterface":"nautilus-harness",
+            "messages":[
+                {"id":"user-2026-10-22T13:34:35.721Z","role":"user","content":USER_WORDS,"createdAt":"2026-10-22T13:34:35.721Z"},
+                {"id":"assistant-2026-10-22T13:34:35.721Z","role":"assistant","content":ASSISTANT_WORDS,"createdAt":"2026-10-22T13:35:16.000Z"}
+            ]
+        })
+    }
+
+    fn receipt() -> String {
+        json!({
+            "schemaVersion":"1.0.0", "status":"accepted", "insertedCount":2, "existingCount":0,
+            "conversationId":"mirror-one", "journeyId":"journey-one",
+            "messages":[
+                {"id":"user-2026-10-22T13:34:35.721Z","state":"inserted"},
+                {"id":"assistant-2026-10-22T13:34:35.721Z","state":"inserted"}
+            ]
+        }).to_string()
+    }
+
+    fn sh(script: &str, args: &[&str]) -> Command {
+        let mut command = Command::new("/bin/sh");
+        command.arg("-c").arg(script).arg("sh").args(args);
+        command
+    }
+
+    fn scratch(name: &str) -> PathBuf {
+        let directory = env::temp_dir().join(format!(
+            "cr163-append-{}-{}-{}", name, std::process::id(),
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        fs::create_dir_all(&directory).unwrap();
+        directory
+    }
+
+    fn failures_at(directory: &Path) -> PathBuf {
+        mirror_append_failures_path(&directory.join(MIRROR_APPEND_OUTBOX_FILE))
+    }
+
+    #[test]
+    fn the_production_bound_is_thirty_seconds() {
+        assert_eq!(MIRROR_APPEND_TIMEOUT, Duration::from_secs(30));
+        assert_eq!(MIRROR_APPEND_FAILURE_MAX_RECORDS, 200);
+        assert_eq!(MIRROR_APPEND_STDERR_TAIL_BYTES, 4_096);
+    }
+
+    #[test]
+    fn a_hung_append_returns_timed_out_and_records_its_stderr_but_never_the_messages() {
+        let directory = scratch("hung");
+        let failures = failures_at(&directory);
+        let started = Instant::now();
+        let result = run_explicit_mirror_append_using(
+            &item(),
+            sh("cat >/dev/null; echo 'sqlite3.OperationalError: database is locked' >&2; sleep 60", &[]),
+            Duration::from_millis(400),
+            &failures,
+        );
+        assert_eq!(result.unwrap_err(), "mirror_append_timed_out");
+        assert!(started.elapsed() < Duration::from_millis(400 + 2_000 + 1_500), "{:?}", started.elapsed());
+
+        let records = read_bounded_jsonl_records(&failures);
+        assert_eq!(records.len(), 1);
+        let record = &records[0];
+        assert_eq!(record["reason"], "mirror_append_timed_out");
+        assert_eq!(record["timedOut"], true);
+        assert_eq!(record["exitCode"], Value::Null);
+        assert_eq!(record["itemId"], "turn-agent-run-2026-10-22T13:34:35.721Z");
+        assert_eq!(record["journeyId"], "journey-one");
+        assert_eq!(record["conversationId"], "mirror-one");
+        assert_eq!(record["runId"], "agent-run-2026-10-22T13:34:35.721Z");
+        assert!(record["stderrTail"].as_str().unwrap().contains("database is locked"));
+        assert!(record["elapsedMs"].as_u64().unwrap() >= 400);
+        assert!(record.get("messages").is_none());
+        let raw = fs::read_to_string(&failures).unwrap();
+        assert!(!raw.contains(USER_WORDS) && !raw.contains(ASSISTANT_WORDS), "message content leaked: {raw}");
+    }
+
+    #[test]
+    fn a_successful_append_is_unchanged_and_records_nothing() {
+        let directory = scratch("ok");
+        let failures = failures_at(&directory);
+        let accepted = run_explicit_mirror_append_using(
+            &item(),
+            sh("cat >/dev/null; printf '%s' \"$1\"", &[&receipt()]),
+            Duration::from_secs(10),
+            &failures,
+        ).expect("a valid receipt is accepted");
+        assert_eq!(accepted["status"], "accepted");
+        assert!(!failures.exists(), "success must not write a failure record");
+    }
+
+    #[test]
+    fn the_child_receives_the_same_request_as_before() {
+        let directory = scratch("request");
+        let failures = failures_at(&directory);
+        let captured = directory.join("stdin.json");
+        run_explicit_mirror_append_using(
+            &item(),
+            sh("cat > \"$1\"; printf '%s' \"$2\"", &[captured.to_str().unwrap(), &receipt()]),
+            Duration::from_secs(10),
+            &failures,
+        ).unwrap();
+        let request: Value = serde_json::from_slice(&fs::read(&captured).unwrap()).unwrap();
+        let source = item();
+        assert_eq!(request, json!({
+            "schemaVersion":"1.0.0", "conversationId":source["conversationId"], "journeyId":source["journeyId"],
+            "sourceInterface":source["sourceInterface"], "messages":source["messages"]
+        }));
+    }
+
+    #[test]
+    fn a_rejection_keeps_its_named_reason_and_records_the_exit() {
+        let directory = scratch("rejected");
+        let failures = failures_at(&directory);
+        let result = run_explicit_mirror_append_using(
+            &item(),
+            sh("cat >/dev/null; echo 'binding diverged' >&2; printf '%s' '{\"reason\":\"journey_mismatch\"}'; exit 2", &[]),
+            Duration::from_secs(10),
+            &failures,
+        );
+        assert_eq!(result.unwrap_err(), "mirror_append_journey_mismatch");
+        let records = read_bounded_jsonl_records(&failures);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0]["reason"], "mirror_append_journey_mismatch");
+        assert_eq!(records[0]["timedOut"], false);
+        assert_eq!(records[0]["exitCode"], 2);
+        assert!(records[0]["stderrTail"].as_str().unwrap().contains("binding diverged"));
+    }
+
+    #[test]
+    fn an_oversized_receipt_is_still_refused_as_invalid() {
+        let directory = scratch("oversized");
+        let result = run_explicit_mirror_append_using(
+            &item(),
+            sh("cat >/dev/null; head -c 70000 /dev/zero | tr '\\0' ' '", &[]),
+            Duration::from_secs(10),
+            &failures_at(&directory),
+        );
+        assert_eq!(result.unwrap_err(), "mirror_append_invalid_receipt");
+    }
+
+    #[test]
+    fn a_child_that_cannot_start_is_a_process_failure() {
+        let directory = scratch("spawn");
+        let result = run_explicit_mirror_append_using(
+            &item(), Command::new("/nonexistent/cr163-uv"), Duration::from_secs(1), &failures_at(&directory),
+        );
+        assert_eq!(result.unwrap_err(), "mirror_append_process_failed");
+    }
+
+    #[test]
+    fn the_failure_record_keeps_only_its_newest_two_hundred() {
+        let directory = scratch("cap");
+        let failures = failures_at(&directory);
+        for index in 0..205u64 {
+            record_mirror_append_failure(
+                &failures, &item(), &format!("mirror_append_probe_{index}"),
+                Duration::from_millis(index), None, b"tail",
+            );
+        }
+        let records = read_bounded_jsonl_records(&failures);
+        assert_eq!(records.len(), 200);
+        assert_eq!(records[0]["reason"], "mirror_append_probe_5");
+        assert_eq!(records[199]["reason"], "mirror_append_probe_204");
+    }
+
+    #[test]
+    fn a_failure_record_that_cannot_be_written_does_not_change_the_result() {
+        let directory = scratch("unwritable");
+        let failures = failures_at(&directory.join("missing").join("deeper"));
+        let result = run_explicit_mirror_append_using(
+            &item(), sh("cat >/dev/null; sleep 60", &[]), Duration::from_millis(300), &failures,
+        );
+        assert_eq!(result.unwrap_err(), "mirror_append_timed_out");
+        assert!(!failures.exists());
+    }
+
+    /// The defect was never the child alone; it was the child holding the guard every native
+    /// command shares. The guard itself is untouched (CR149) — what must hold is that a hung
+    /// append now gives it back within the bound.
+    #[test]
+    fn a_hung_append_releases_the_serialisation_guard_within_the_bound() {
+        let directory = scratch("guard");
+        let failures = failures_at(&directory);
+        let started = Instant::now();
+        let (entered_sender, entered_receiver) = std::sync::mpsc::channel();
+        let holder = std::thread::spawn(move || {
+            let _serialized = crate::native_command_serialization::acquire();
+            entered_sender.send(()).unwrap();
+            run_explicit_mirror_append_using(
+                &item(), sh("cat >/dev/null; sleep 60", &[]), Duration::from_millis(400), &failures,
+            )
+        });
+        entered_receiver.recv().unwrap();
+        let _next_command = crate::native_command_serialization::acquire();
+        let waited = started.elapsed();
+        assert_eq!(holder.join().unwrap().unwrap_err(), "mirror_append_timed_out");
+        assert!(waited < Duration::from_millis(400 + 2_000 + 1_500), "the next command waited {waited:?}");
+    }
+
+    fn strip_comments(source: &str) -> String {
+        source.lines()
+            .map(|line| match line.find("//") { Some(at) => &line[..at], None => line })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    fn production_source() -> String {
+        let source = include_str!("main.rs");
+        let tests_start = source.find("#[cfg(test)]\nmod close_without_quitting_tests").expect("test modules located");
+        strip_comments(&source[..tests_start])
+    }
+
+    fn body_of(source: &str, signature: &str) -> String {
+        let start = source.find(signature).unwrap_or_else(|| panic!("{signature} not found"));
+        let rest = &source[start..];
+        let end = rest.find("\n}\n").expect("function end");
+        rest[..end].to_string()
+    }
+
+    #[test]
+    fn the_production_append_goes_through_the_bounded_runner() {
+        let source = production_source();
+        let production = body_of(&source, "fn run_explicit_mirror_append(");
+        assert!(production.contains("run_explicit_mirror_append_using("));
+        assert!(production.contains("MIRROR_APPEND_TIMEOUT"));
+        let using = body_of(&source, "fn run_explicit_mirror_append_using(");
+        assert!(using.contains("bounded_child::run_bounded("));
+        for forbidden in ["wait_with_output", "Stdio::null", ".output()", ".spawn()"] {
+            assert!(!production.contains(forbidden) && !using.contains(forbidden), "{forbidden} is back in the append path");
+        }
+    }
+
+    /// The three unbounded waits CR163 names and leaves alone. A new one, or one of these
+    /// silently changing, must be a decision rather than a drift.
+    #[test]
+    fn the_remaining_unbounded_child_waits_are_exactly_the_named_exclusions() {
+        let source = production_source();
+        let waits = source.matches(".wait_with_output()").count();
+        assert_eq!(waits, 2, "provisioning and journey mutate; found {waits}");
+        for named in [
+            "child.wait_with_output().map_err(|error| format!(\"Could not settle native Pi session provisioning",
+            "child.wait_with_output().map_err(|error| format!(\"Could not await Journey mutation",
+        ] {
+            assert_eq!(source.matches(named).count(), 1, "{named}");
+        }
+        let catalog = body_of(&source, "fn run_mirror_conversation_catalog(");
+        assert!(catalog.contains(".output()"), "the rebind path's wait is the named, unbounded exclusion");
     }
 }

@@ -45,6 +45,13 @@ const EXPLANATIONS: ReadonlyArray<readonly [string, string]> = [
     "mirror_append_conversation_not_found",
     "Mirror no longer holds this Conversation. Mirror Desktop will not recreate it silently.",
   ],
+  // CR163: transient by design — the delivery is safe to repeat and recovery repeats it.
+  [
+    "mirror_append_timed_out",
+    "Mirror did not answer within 30 seconds, so Mirror Desktop stopped waiting rather than"
+    + " hold every other action behind it. The turn is kept on this machine and will be tried"
+    + " again.",
+  ],
   [
     "mirror_append_idempotency_conflict",
     "Mirror already holds a message with this identity and different content, so appending it"

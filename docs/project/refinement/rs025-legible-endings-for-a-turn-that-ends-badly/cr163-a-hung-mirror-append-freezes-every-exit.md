@@ -2,9 +2,9 @@
 
 # CR163: A Hung Mirror Append Freezes Every Exit
 
-**Status:** planned
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `refinement/cr163-bound-the-mirror-append`
 
 ## Friction
 
@@ -224,3 +224,96 @@ over two minutes with a delivery in flight. **What the next hang will add:** a r
 - **No durable record of which notice rendered.** That debt blocks CR155's and CR161's verdicts, and it
   is separate work.
 - **No change to the Python side, to retry policy or to outbox recovery.**
+
+## Implemented 2026-10-27
+
+Navigator authorised the build ("vai"). Driver @alissonvale, Delivery `refinement/cr163-bound-the-mirror-append`. Built red-first. Not yet
+integrated or released.
+
+### What was built
+
+- **`src-tauri/src/bounded_child.rs`** — `run_bounded(command, stdin, limits)`. It puts the child in its
+  own process group and serves stdin, stdout and stderr each from its own thread. stdout is capped and
+  drained past the cap; stderr keeps a rolling tail. One deadline, measured from spawn, covers both the
+  child's exit **and** the end of its stdout and stderr. On the deadline it runs `killpg(SIGKILL)` and
+  reaps within a grace, waiting for nothing beyond that.
+- **`run_explicit_mirror_append`** now builds the `uv` command and hands it to
+  `run_explicit_mirror_append_using(item, command, timeout, failures_path)`, which runs it through
+  `run_bounded` with `MIRROR_APPEND_TIMEOUT = 30 s` and a 2 s kill grace. The request bytes, the 256 KiB
+  request cap, the 64 KiB receipt cap, reason sanitising, receipt validation, the legacy-timestamp retry
+  and the binding repair are unchanged. A test asserts the request the child receives is identical to
+  the old one.
+- **`mirror-append-failures.jsonl`**, next to the outbox. On a timeout or a non-zero exit it records the
+  reason, `timedOut`, `exitCode`, `elapsedMs`, a 4 KiB `stderrTail`, and the item, run, Journey,
+  Conversation and generation ids. It keeps the newest 200 records. The write is best-effort, and it
+  uses the same staged-rename pattern as the CR087 and CR095 records beside it.
+- **`describeMirrorAppendRejection`** names `mirror_append_timed_out`, and its class stays `transient`.
+  A test ties the sentence's "30 seconds" to the Rust constant, so the two cannot drift apart.
+
+### Two more unbounded waits, found while building and not in the plan
+
+The plan bounded the child's exit. The code had two other places where it could wait forever, inside
+the same function, and either would have reproduced the hang behind a correct-looking timeout:
+
+1. **The stdin write.** The request can be up to 256 KiB and a pipe buffer holds about 64 KiB. The old
+   code called `write_all` on the calling thread before waiting. A child that stalls before reading
+   its input would block that write indefinitely, so a deadline placed after it would never be
+   reached. stdin is now written on its own thread. Once the group is killed, the write fails with
+   `EPIPE` and the thread ends.
+2. **EOF on stdout after the child exits.** Anything left behind in the group keeps the pipe open.
+   The deadline therefore covers the readers as well as the exit. A test has `sh` exit while a
+   background `sleep` holds stdout, and asserts that the runner returns within the bound and that the
+   `sleep` is gone.
+
+### Evidence that the group kill is load-bearing
+
+The plan called the probe a future guard. It is now three tests, run on real processes:
+
+- **A control** spawns a script whose grandchild records its pid, kills only the direct child, and
+  asserts that the grandchild is **still alive**. This proves the liveness instrument can see a
+  survivor.
+- **Two guards** assert that no grandchild survives a timeout. One covers a child that hangs; the
+  other covers a child that exits while its grandchild holds stdout.
+- **A mutation run.** With `process_group(0)` and `killpg` removed, exactly those two guards fail and
+  the other eight pass. Restored, all ten pass. The mutation run left one `sleep 60` orphan, started
+  at the mutant run's timestamp; three restored runs left none.
+
+### Acceptance, as tested
+
+| Acceptance | Test |
+|---|---|
+| hung child → `mirror_append_timed_out` within timeout + grace | `a_hung_append_returns_timed_out_…` |
+| no process of the group survives, grandchild included | `a_timeout_kills_the_whole_group_…`, `a_grandchild_holding_stdout_…`, and the control |
+| a hung append releases the serialisation guard within the bound | `a_hung_append_releases_the_serialisation_guard_within_the_bound`. A thread holds the real guard while the append hangs, and the next `acquire()` is timed |
+| stdout flood refused as before · stderr flood cannot block | `an_oversized_receipt_is_still_refused_as_invalid`, `a_stdout_flood_…`, `a_stderr_flood_…` |
+| success unchanged, nothing recorded | `a_successful_append_is_unchanged_and_records_nothing`, `the_child_receives_the_same_request_as_before` |
+| record holds the stderr tail and ids, never message content | asserted on the raw file: neither message's words appear |
+| capped at 200 · unwritable record leaves the result unchanged | `the_failure_record_keeps_only_its_newest_two_hundred`, `a_failure_record_that_cannot_be_written_…` |
+| `mirror_append_timed_out` is transient and described | `src/tests/cr163AppendTimeout.test.ts`, 6 tests |
+| the append path has no `wait_with_output`, `.output()`, `.spawn()` or `Stdio::null` | source guard, comments stripped |
+| exactly the two named `wait_with_output` exclusions remain, and the rebind path still uses `.output()` | census guard, size asserted |
+
+Gates: vitest **273 files / 2,269 tests**; cargo **354 passed / 3 ignored**; tsc, build and roadmap
+clean. The baseline was 272 / 2,263 and 332 / 3, so this adds 22 Rust tests and 6 TypeScript tests.
+
+### Corrections to the plan
+
+- **The field-check bound is about 65 s, not 62 s.** The legacy retry fires only after
+  `idempotency_conflict`, which comes back from a child that answered, so two timeouts cannot happen
+  back to back. Each attempt is still bounded by 30 s plus the 2 s grace plus the readers' settle
+  time, so the worst case for two attempts is about 64 s.
+- **A long `deliver_outbox_item` does not, on its own, refute this CR.** That phase is timed in the
+  frontend around `invoke`, so it includes the time spent **queued for the serialisation guard**
+  behind other native commands. Those include the excluded unbounded waits. A breach therefore has
+  to be read alongside `mirror-append-failures.jsonl`:
+  - a long phase with a `timedOut` record near 30 s is the bound working;
+  - a long phase with no record is queueing somewhere else, and is evidence about the exclusions;
+  - **an append child that ran past about 32 s is a refutation.** A future record with
+    `elapsedMs` far above 32,000 would show that.
+- **What "never message content" means is narrower than it sounds.** This code never writes message
+  fields. The stderr tail is Mirror's own diagnostic output, and a test can only prove that a given
+  child did not echo the messages, not that Mirror never will. The tail is capped at 4 KiB, and the
+  file stays on this machine.
+- **Every non-zero exit is recorded, contract rejections included.** `journey_mismatch` before a
+  rebind and `idempotency_conflict` before the legacy retry both write a record. That is deliberate,
+  because it is the context the next diagnosis will need, and the 200-record cap bounds it.
