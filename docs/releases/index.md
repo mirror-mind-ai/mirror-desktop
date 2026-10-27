@@ -10,6 +10,10 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.2.0-alpha.57 — A Save That Cannot Hold the Application Hostage](v0.2.0-alpha.57.md) — When Mirror does not answer while a turn is being saved, the application now stops waiting after
+30 seconds instead of forever. Last week one save waited eleven minutes, and while it did every other
+action queued behind it. A timed-out save is kept on this machine and tried again, and the reason
+Mirror gave is now recorded instead of discarded.
 - [v0.2.0-alpha.56 — A Refusal That Says Why, Without a Restart](v0.2.0-alpha.56.md) — When the model provider refuses a turn, the application now names the reason on the spot. The reason
 was always on disk and the code to read it shipped ten days ago, but it only ran when a Conversation
 was reopened — and a refused turn never reaches that path on its own. Three refusals in a row went
