@@ -197,3 +197,70 @@ The stable address a person without the application downloads. Its URL never cha
 ## Boundary
 
 One Navigator instruction authorized the whole route; the single confirmation happened after preparation, over materialized artifacts and the authored release note. No Mirror data or app data was mutated.
+
+
+## Independent Verification (2026-10-27)
+
+These checks read the served endpoints and the served binary, not the deployment route's own report.
+
+| Check | Result |
+|---|---|
+| Manifest version, `darwin-aarch64/0.2.0-alpha.56/latest.json` | `0.2.0-alpha.57` |
+| Signature length | 416 chars |
+| Legacy `darwin/0.2.0-alpha.2/latest.json` | serves `0.2.0-alpha.57` |
+| `latest.json` URLs in this evidence | **169**. alpha.56 had 166 with the same instrument, so +3 |
+| Served tarball SHA-256 | `7c7b091448632a1f15b3f77400e715d0e4f1aabe6457ea50f1bc3890816bbc0f`, equal to the preparation evidence |
+| **Binary inside the served tarball** | `22a4ba63186e87dcae243899fb17330c9463bd02ffdc51508e34436f55840aaf`, **byte-identical to the local bundle** |
+| Served `Info.plist` | `0.2.0-alpha.57` |
+| Merges in `v0.2.0-alpha.56..main` | 0 |
+| Tag `v0.2.0-alpha.57` | annotated; `^{commit}` = `a9cf98a`, the bump |
+| Rust sources changed | `bounded_child.rs` (new) and `main.rs` |
+| Frontend/binary ordering | assets precede the binary in the same build (124 s) |
+
+### CR163 in the served binary
+
+This is the first release since alpha.54 that changes Rust. The change is therefore searched for
+**inside the served binary**, not only in the frontend bundle.
+
+| literal | served binary | frontend bundle |
+|---|---|---|
+| `mirror_append_timed_out` | **1** | **1** |
+| `mirror-append-failures.jsonl` | **1** | — |
+| `did not answer within 30 seconds` | — | **1** |
+| `mirror-append-rebinds.jsonl` (CR095, positive control) | 1 | — |
+| an invented literal (negative control) | 0 | 0 |
+
+**A zero that is not absence.** The record key `stderrTail` counted **0** in the binary, and so did
+`elapsedMs`. Before treating that as a missing key, the bytes were printed. The compiler stores both
+as **immediate operands**: `movabs` carries `"stderrTa"` and a following 2-byte store carries `"il"`.
+The key is present, split across two instructions.
+
+The control confirms the explanation. `differingKeys`, a CR087 key that has shipped for months, also
+counts 0.
+
+In this binary, a string search proves presence only for literals long enough to be kept as data.
+For short keys, 0 is not evidence of absence. **What stands for the record's shape** is the same as
+for any logic-only change:
+
+- the served binary is byte-identical to the bundle built from the tagged commit;
+- the tagged tree contains the writer;
+- `a_hung_append_returns_timed_out_and_records_its_stderr_but_never_the_messages` asserts every key,
+  and it ran as a gate before the build.
+
+## Field Check Owed — CR163
+
+Production is still `0.2.0-alpha.56`, binary `afe844ea…`. The check begins when the Navigator
+upgrades.
+
+**Passive and continuous.** The check reads every settlement from the upgrade onward, not only the
+next hang.
+
+**What refutes it:** an append child that runs well past about 32 s. That would show up as a
+`mirror-append-failures.jsonl` record with `elapsedMs` far above 32,000, or as an eleven-minute
+*Finishing* with an append in flight and no failure record.
+
+**What does not refute it on its own:** a long `deliver_outbox_item` phase. That phase includes time
+spent queued for the serialisation guard behind the excluded waits, so it must be read together with
+the failure record.
+
+**What the next hang will add:** its cause, taken from Mirror's own stderr.

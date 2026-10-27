@@ -12,6 +12,7 @@ Canvas carried, not every CR ever delivered. Earlier mappings are recoverable by
 
 | CR | Title | Story | Release |
 | --- | --- | --- | --- |
+| CR163 | A Hung Mirror Append Freezes Every Exit | RS025 | alpha.57 |
 | CR159 | Say Why the Provider Refused a Turn | RS025 | alpha.51, alpha.56 |
 | CR129 | Let a Recovered Settlement Say It Happened | RS016 | alpha.55 |
 | CR158 | Stop One Agent Settings Write From Dropping Another | RS016 | alpha.55 |

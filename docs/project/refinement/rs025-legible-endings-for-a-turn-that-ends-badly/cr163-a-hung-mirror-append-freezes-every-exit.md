@@ -317,3 +317,21 @@ clean. The baseline was 272 / 2,263 and 332 / 3, so this adds 22 Rust tests and 
 - **Every non-zero exit is recorded, contract rejections included.** `journey_mismatch` before a
   rebind and `idempotency_conflict` before the legacy retry both write a record. That is deliberate,
   because it is the context the next diagnosis will need, and the 200-record cap bounds it.
+
+## Integrated and Shipped in v0.2.0-alpha.57 (2026-10-27)
+
+The branch was fast-forwarded into `main`, with zero merges since alpha.56. All gates were re-run on
+`main`, the branch was deleted (it had never been pushed), and `main` was pushed.
+
+alpha.57 was then published and independently verified. The served binary is byte-identical to the
+local bundle, and **`mirror_append_timed_out` and `mirror-append-failures.jsonl` are present in the
+served binary**, against positive and negative controls.
+
+`stderrTail` counted 0 there. The printed bytes show it compiled into immediate operands and split
+across two instructions; a CR087 key that has shipped for months behaves the same way. The record's
+shape therefore rests on build provenance and its test, not on a string search. Full chain:
+`docs/update/alpha-57-release-publication-2026-10-27.md`.
+
+Production upgrade is owed to the Navigator. The field check is described there and in **Field
+check** above, as corrected under **Implemented**.
+
