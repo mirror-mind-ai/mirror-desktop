@@ -179,8 +179,9 @@ or released, and Mirror Core was not touched.
 
 ### Owed before Done
 
-1. **Navigator check on the Development build.** In Settings → Runtime channel, **Find my Mirror**
-   fills the three fields and nothing is saved.
+1. ~~**Navigator check on the Development build.**~~ **Passed 2026-10-27.** The Navigator ran
+   `npm run tauri:dev`, used Settings → Runtime channel → **Find my Mirror**, and reported "Funcionou,
+   validado": the three fields filled with their Mirror and nothing was saved.
 2. **Field fixture 2, after release.** Install Mirror in the clean `mirror` account by its own guide,
    then install this release and connect with one click. Do it at a moment with no turn in flight in
    the Navigator's session.
