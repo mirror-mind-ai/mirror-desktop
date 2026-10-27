@@ -2,7 +2,7 @@
 
 # CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease
 
-**Status:** in_progress
+**Status:** parked
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs025-batch-a-naming`
 **Navigator priority:** 7 of 8 (intake 2026-10-12)
@@ -275,3 +275,9 @@ installed hash equals built hash. In the bundle: `still records the agent as exe
 the count delta is the discriminator for the second section). `The provider reported:` 2×,
 unchanged: CR159's wiring introduces **no new literal**, so it is not grep-verifiable in the bundle;
 it is covered by `cargo test`, the source guards and the field check.
+
+## Parked by the Refinement Suspension (2026-10-27)
+
+Parked, not abandoned: its batch A shipped in alpha.53 and its field verdict needs a durable record of which notice rendered. That record is itself new work, and new work is suspended while
+onboarding takes priority (see the Refinement Suspension in the canonical index). What shipped stays
+shipped. Driver and Delivery are kept so the thread can be picked up where it stopped.

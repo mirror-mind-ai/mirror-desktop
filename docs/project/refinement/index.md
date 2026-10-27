@@ -10,6 +10,33 @@ The records below were materialized from the complete legacy Workbench inventory
 2026-09-09. From this point forward, this file and its linked documents are the sole
 Refinement authority; SQLite must not be consulted or dual-written.
 
+## Refinement Suspension (from 2026-10-27)
+
+Decided by the Navigator on 2026-10-27. The reason: CR work had no closing criterion, because each
+field check surfaced the next defect, while new users were meeting friction before they ever reached
+the product. Attention moves to onboarding (a first-run assistant that installs what Mirror Desktop
+needs and configures provider keys and OAuth with the user).
+
+**The cut is after alpha.57.** Every in-progress CR at that point had already shipped and was only
+awaiting field evidence, so nothing is left half-built.
+
+**Rules while suspended**
+
+1. **No CR starts.** A new defect is captured in a few lines and queued, not investigated.
+2. **One exception: serious harm.** That means data loss or an application left unusable, at the
+   scale of the eleven-minute freeze. Anything odd but workable waits.
+3. **Field checks continue at no cost.** They are read when the Navigator asks. A failed check is
+   captured, not worked, unless it falls under the exception.
+
+**State at the cut**
+
+- CR159 and CR163 stay `in_progress`. Their checks are passive and need only ordinary use.
+- CR155 and CR161 are `parked`. Their verdicts need a durable record of which notice rendered, and
+  that work is itself suspended.
+- Captured and parked CRs are unchanged.
+
+**Resumption:** when the first onboarding slice ships, unless the Navigator sets another point.
+
 ## Current Focus
 
 - Refinement Story: RS024
@@ -203,14 +230,14 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR152](rs016-ongoing-product-improvements-and-adjustments/cr152-let-the-navigator-hide-every-conversation-but-one.md) | RS016 | Let the Navigator Hide Every Conversation but One | done | assistant | `refinement/cr152-cr153-conversation-list-reduction` |
 | — | [CR153](rs016-ongoing-product-improvements-and-adjustments/cr153-let-the-navigator-see-only-desktop-conversations.md) | RS016 | Let the Navigator See Only Desktop Conversations | done | assistant | `refinement/cr152-cr153-conversation-list-reduction` |
 | — | [CR154](rs016-ongoing-product-improvements-and-adjustments/cr154-persist-a-model-choice-at-the-conversation-it-was-made-in.md) | RS016 | Persist a Model Choice at the Conversation It Was Made In | done | — | — |
-| — | [CR155](rs025-legible-endings-for-a-turn-that-ends-badly/cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) | RS025 | Give the Navigator an Exit From a Finishing That Holds a Live Lease | in_progress | @alissonvale | `refinement/rs025-batch-a-naming` |
+| — | [CR155](rs025-legible-endings-for-a-turn-that-ends-badly/cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md) | RS025 | Give the Navigator an Exit From a Finishing That Holds a Live Lease | parked | @alissonvale | `refinement/rs025-batch-a-naming` |
 | — | [CR156](rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md) | RS016 | Simplify the Context Map | captured | — | — |
 | — | [CR157](rs016-ongoing-product-improvements-and-adjustments/cr157-stop-moving-the-whole-conversation-through-every-settlement.md) | RS016 | Stop Moving the Whole Conversation Through Every Settlement | captured | — | — |
 | — | [CR158](rs016-ongoing-product-improvements-and-adjustments/cr158-stop-one-agent-settings-write-from-dropping-another.md) | RS016 | Stop One Agent Settings Write From Dropping Another | done | @alissonvale | `refinement/cr158-serialise-agent-settings-writes` |
 | — | [CR162](rs016-ongoing-product-improvements-and-adjustments/cr162-stop-a-table-cell-from-painting-over-its-neighbour.md) | RS016 | Stop a Table Cell From Painting Over Its Neighbour | done | @alissonvale | `main` |
 | — | [CR159](rs025-legible-endings-for-a-turn-that-ends-badly/cr159-say-why-the-provider-refused-a-turn.md) | RS025 | Say Why the Provider Refused a Turn | in_progress | @alissonvale | `refinement/cr159-name-the-refusal-on-a-live-failure` |
 | — | [CR160](rs025-legible-endings-for-a-turn-that-ends-badly/cr160-notice-a-turn-the-journal-never-heard-finish.md) | RS025 | Notice a Turn the Journal Never Heard Finish | done | @alissonvale | `refinement/rs025-batch-b-exit` |
-| — | [CR161](rs025-legible-endings-for-a-turn-that-ends-badly/cr161-give-every-finishing-the-same-exits.md) | RS025 | Give Every Finishing the Same Exits | in_progress | @alissonvale | `refinement/cr161-unify-finishing` |
+| — | [CR161](rs025-legible-endings-for-a-turn-that-ends-badly/cr161-give-every-finishing-the-same-exits.md) | RS025 | Give Every Finishing the Same Exits | parked | @alissonvale | `refinement/cr161-unify-finishing` |
 | — | [CR163](rs025-legible-endings-for-a-turn-that-ends-badly/cr163-a-hung-mirror-append-freezes-every-exit.md) | RS025 | A Hung Mirror Append Freezes Every Exit | in_progress | @alissonvale | `refinement/cr163-bound-the-mirror-append` |
 | — | [CR147](rs016-ongoing-product-improvements-and-adjustments/cr147-stop-a-run-loop-thread-from-dying-in-silence.md) | RS016 | Stop a Run-Loop Thread from Dying in Silence | done | — | — |
 | — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | done | @alissonvale | `refinement/rs023-cr133-stop-a-disclosure-from-selecting-a-journey` |

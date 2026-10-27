@@ -2,7 +2,7 @@
 
 # CR161: Give Every Finishing the Same Exits
 
-**Status:** in_progress
+**Status:** parked
 **Driver:** @alissonvale
 **Delivery:** `refinement/cr161-unify-finishing`
 
@@ -301,3 +301,9 @@ records that. The Navigator's testimony — blocked, a button that did nothing, 
 is consistent both with notices that rendered dead and with notices that never rendered. This is now
 the recurring cost of the same recorded debt, and it blocks this CR's own acceptance from ever being
 field-scored while it stands.
+
+## Parked by the Refinement Suspension (2026-10-27)
+
+Parked, not abandoned: its unification shipped and its falsifier went unscored twice, for want of a durable record of which notice rendered. That record is itself new work, and new work is suspended while
+onboarding takes priority (see the Refinement Suspension in the canonical index). What shipped stays
+shipped. Driver and Delivery are kept so the thread can be picked up where it stopped.
