@@ -2,7 +2,7 @@
 
 # CV-010.DS-005 - Speak to the TypeScript Core Without Breaking the Python One
 
-**Status:** 🟡 Planned — selected by the Navigator on 2026-10-28 (path b); nothing built
+**Status:** 🟡 Planned — selected by the Navigator on 2026-10-28 (path b); audit done, nothing built; **blocked on a Navigator decision**
 
 ## Outcome
 
@@ -87,3 +87,74 @@ Scope, files, acceptance and validation are written after the audit, because the
 - Migrating the Navigator's Mirror to TypeScript Core, or updating `/Users/alissonvale/mirror`.
 - Removing Python Core support.
 - Changing Mirror Core, or the site's install page, which belongs to another Journey.
+
+## Step 1 Result — Compatibility Audit (2026-10-28)
+
+**Method.** I read the published `mirror-mind@0.37.0` npm tarball (registry integrity
+`sha512-r8vLhYJY…XtoA==`), extracted it into an isolated scratch directory and executed none of it:
+its front-door routing (`ts/src/frontDoor/routing.ts`, `usage.ts`), the conversation module, the MCP
+tool list, the migrations and `docs/releases/pending-cutoffs.md`. The scratch copy was then deleted.
+Nothing was installed and no account was touched. The production database was opened **read-only**
+once, to read its migration table.
+
+### The headline: upstream already decided Desktop stays on Python
+
+`pending-cutoffs.md` names Mirror Desktop in three cutoffs, in the same words each time: *"Pin to the
+last Python-bearing release. Its integration with the TypeScript core is a separate effort, and that
+effort defines whatever read model it needs."* The last Python tree is the tag
+`cv22-last-python-bearing`. It also says: *"If you had code that imported the Python core, there is no
+programmatic API to move it to: use the command line or the MCP server."*
+
+### The table, filled in
+
+| Desktop today (Python) | 0.37 | Verdict |
+|---|---|---|
+| `conversations append --mirror-home … --format json` | `mirror conversations append`, same contract and the same named rejections (`conversation_not_found`, `journey_mismatch`, …) | ✅ **exists** |
+| `recall <id> --limit N` | `mirror recall` | ✅ **exists**, output shape to confirm |
+| `journey mutate` (Journey admin) | **removed** in CV22 (`journey-admin-verbs`); *"there is no replacement for … a batch mutation endpoint"* | ❌ **gap** |
+| `journey-projection inspect` (Canvas / Tactical / Strategic) | **removed** with the whole projection subsystem; `.mirror/projections` is no longer written | ❌ **gap** |
+| `provision_mirror_conversation.py` (`MemoryClient`: `get_or_create_conversation`, `upsert_runtime_session`, `update_conversation`) | **no Python API**. The CLI has no create-a-Conversation verb outside a runtime session. `append` refuses an unknown Conversation (`conversation_not_found`) | ❌ **gap, and it is the critical one**: without it no new Desktop Conversation can be recorded in Mirror |
+| `mirror_conversation_catalog.py` (`catalog`, `inspect`, `rename`, `rebind-journey`, `delete`) | `conversations list`, `conversations delete` and MCP `list_conversations` exist. No rename and no rebind | ⚠️ **partial**: list and delete could map; rename and rebind are gaps |
+
+**Outcome:** two of six map today. The four gaps include **Conversation creation**, without which
+Desktop's core loop — every turn recorded in Mirror — cannot work on TypeScript Core.
+
+### A risk to production the plan did not yet name
+
+The production database is at migration **016** (`016_builder_workbench_display_codes`). 0.37 ships
+**017** (`journey_parent_column`) and **018** (`drop_hook_injected`) and **applies pending migrations
+the first time it opens a database**, backup first. **If any 0.37 `mirror` command ever runs against
+`~/.mirror-minds/alisson-vale`, that database moves to 018**, and whether Python 0.31.14 and the web
+console still work on it is unknown. This invariant is added: **no TypeScript `mirror` process may
+open the production home.** That covers Desktop discovery (which stays read-only and spawns nothing,
+as built), development builds and any audit. TypeScript work uses only the `mirror` account or a
+throwaway home.
+
+### Also stale: the exploration's "decisive finding"
+
+The Windows installer and Frame, which the exploration described as the proven sequence to port, are
+**retired** in 0.32 (`pending-cutoffs.md`, *The Windows Frame and installer*). There is no working
+guided installer upstream on any platform.
+
+### What this means
+
+Following the Navigator's rule (no change to Mirror Core), Desktop **cannot** fully run on TypeScript
+Core: Conversation creation has no public surface. There are three honest paths, and the choice is the
+Navigator's:
+
+1. **Pin Desktop to the last Python-bearing Core, as upstream itself says.** The first-run assistant
+   installs `cv22-last-python-bearing` (Python, `uv`) for new users. That works today, but it builds
+   onboarding on a Core upstream no longer maintains, beside a site that tells people to install the
+   other one.
+2. **Relax the rule for a small, named Core contract.** Mirror's own cutoffs invite this ("that effort
+   defines whatever read model it needs"). The minimum is a non-runtime "create or ensure a
+   Conversation" verb. Rename and rebind would also be needed for parity, and Journey projections for
+   Canvas / Tactical / Strategic. The work is done in `mirror-dev` and released by Mirror. Production
+   is untouched until the Navigator chooses to migrate.
+3. **Desktop writes Mirror's database itself.** Ruled out: it would make Desktop a second writer of
+   another product's schema, and it is exactly the coupling upstream removed.
+
+**Recommendation: path 2, scoped to the minimum.** Ship Conversation creation first, so new users get
+the core loop. Rename and rebind degrade to read-only on TypeScript Core, and the Canvas and the
+altitudes show an honest "not available on this Mirror" until a read model exists. The Navigator's
+production stays on Python throughout, under the invariants above.

@@ -204,3 +204,5 @@ TypeScript Core** (v0.32+): an npm-installed `mirror` rather than a checkout, `~
 as well as a clone's `.env`, Node 24, and `mirror …` in place of `uv run python -m memory …`. That is
 Desktop adapting to a Core that has already shipped, not a Core change, so it is consistent with the
 Navigator's rule. It is recorded here for a decision and is not planned.
+
+**Correction (2026-10-28):** the Windows installer and Frame cited above as "the decisive finding" were retired upstream in Mirror 0.32 together with the Python Core. They remain evidence of a sequence that once worked, not something to port. See CV-010.DS-005's audit.
