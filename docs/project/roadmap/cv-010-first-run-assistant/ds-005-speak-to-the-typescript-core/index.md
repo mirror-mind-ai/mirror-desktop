@@ -185,7 +185,7 @@ including any Navigator check, is met.
 | Phase | Status | What is owed |
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
-| 1 · A library seam in Core | 🟡 Planned | Slices 1a, 1b and 1c (CV24.DS1–DS3) are built on `desktop/library-seam-1a`, with Core CI green. Still owed: `init`/`seed` (DS4) and migrate-on-request (DS5), each planned first. Merge and Core release need their own word. |
+| 1 · A library seam in Core | 🟡 Planned | Slices 1a, 1b and 1c (CV24.DS1–DS3) are built on `desktop/library-seam-1a`, with Core CI green. Slice 1d (DS4, create a home) is planned, with two decisions awaiting the Navigator. Still owed: migrate-on-request (DS5), planned first. Merge and Core release need their own word. |
 | 2 · The embedded host | 🟡 Candidate | A full plan |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
@@ -766,3 +766,33 @@ was unchanged around the Python run. The copies were deleted afterwards.
 
 The 0.3 Rust registry validator expects `schemaVersion`, `source`, `syncedAt` and `sourceVersion`.
 The new tree has none of them, so phase 2 replaces that validator rather than feeding it.
+
+## Phase 1 Slice 1d Planned (2026-10-28)
+
+Slice 1d is Core's **CV24.DS4 · Create a Home**, planned in `mirror-ts` (`8c123330`) at
+`docs/project/roadmap/cv24-embeddable-core-for-mirror-desktop/cv24-ds4-create-a-home/index.md`.
+
+`createHome({ homePath, userName })` does three things in one call: it copies the identity
+templates, creates the database at the current schema, and seeds it. The home appears complete or
+not at all. Phase 3's first-run assistant (DS-003) is its consumer.
+
+**What planning found:**
+
+- **The CLI's `init` rewires the whole machine.** When no user is configured, it writes
+  `MIRROR_USER` into `~/.config/mirror/env`. Every `mirror` and `mirror-hook` process reads that
+  file, including Pi's hooks. If Desktop created its home this way, it could silently redirect the
+  Navigator's terminal Mirror to the new home.
+- **The CLI's `seed` snapshots before writing.** On a database created a moment earlier, that
+  snapshot protects nothing. And none of Core's sanctioned host handles may write the `identity`
+  table.
+
+**Two decisions are the Navigator's:**
+
+1. **Seed custody.** The recommendation is to build the home in a staging directory beside the
+   target, seed it there, check that it is `current`, and rename it into place. A failure leaves
+   nothing behind.
+2. **No global configuration.** The recommendation is that `createHome` writes nothing outside the
+   home. Desktop keeps the home's path itself.
+
+**Left to Desktop.** The 0.3 home marker (condition b) stays Desktop's to write after `createHome`
+returns, because the core does not know Desktop.
