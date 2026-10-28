@@ -38,3 +38,32 @@ On a clean macOS user account, a person can install the signed Mirror Desktop, f
 ## Boundary
 
 This capability does not sign or notarize the application (CV-009), modify the production Mirror checkout, read or display credential values, bypass Pi's own login, choose among several Mirror homes without the person's confirmation, support Windows or Linux, or retire the Windows Frame.
+
+## Field Finding: Published Mirror Is No Longer the Core This Desktop Supports (2026-10-28)
+
+The Navigator followed `https://mirrormind.sh/en/install/macos/` in the clean `mirror` account, and
+`uv sync` failed with *No pyproject.toml found*. The install was done correctly. The cause is upstream:
+
+- **Mirror Core became a TypeScript package in v0.32.0** and is at **v0.37.0** on both `main` and
+  `stable` (`package.json` `mirror-mind` 0.37.0, `engines.node >=24`). There is no `pyproject.toml`
+  and no `src/`. It installs with `npm install -g mirror-mind` and `mirror init <name>`, and its CLI is
+  `mirror …`. The clone in `/Users/mirror/mirror` is at `dd5bed9`, `main`'s head, and is clean.
+- **The site's macOS page still gives the Python steps** (`uv sync`, `uv run python -m memory …`). It
+  is stale against the repository it points to. It belongs to another Journey and was not modified.
+- **Every Mirror Desktop release, alpha.58 included, supports only `>=0.31.14,<0.32.0`.** It requires
+  a checkout with `src/memory` and `pyproject.toml` plus `uv`, and it invokes `uv run python -m memory`.
+  DS-001's discovery likewise qualifies a checkout by `src/memory/config.py`. **A person installing
+  Mirror today cannot use Mirror Desktop at all**, and DS-001 cannot find their Mirror.
+- **The Navigator's own production is exposed.** `/Users/alissonvale/mirror` is still 0.31.14 Python on
+  `stable` at `b2d710e`, while `stable` upstream is `0a40b108` (0.37.0). A Mirror runtime update in that
+  checkout would move it outside the supported range and leave Mirror Desktop unable to append,
+  import Journeys or connect. That falls under the suspension's serious-harm exception.
+
+**Consequence for CV-010.** The premise that existing Mirror users have the Core this Desktop speaks
+to now holds only for people who installed before v0.32.0 and have not updated. DS-001 stays as built,
+but its field check in the `mirror` account is meaningful only against `v0.31.14`, which is still
+tagged. The first real prerequisite of the first-run assistant is **Mirror Desktop support for the
+TypeScript Core** (v0.32+): an npm-installed `mirror` rather than a checkout, `~/.config/mirror/env`
+as well as a clone's `.env`, Node 24, and `mirror …` in place of `uv run python -m memory …`. That is
+Desktop adapting to a Core that has already shipped, not a Core change, so it is consistent with the
+Navigator's rule. It is recorded here for a decision and is not planned.
