@@ -185,7 +185,7 @@ including any Navigator check, is met.
 | Phase | Status | What is owed |
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
-| 1 · A library seam in Core | 🟡 Planned | Slices 1a, 1b and 1c (CV24.DS1–DS3) are built on `desktop/library-seam-1a`, with Core CI green. Slice 1d (DS4, create a home) is planned, with two decisions awaiting the Navigator. Still owed: migrate-on-request (DS5), planned first. Merge and Core release need their own word. |
+| 1 · A library seam in Core | 🟡 Planned | Slices 1a to 1d (CV24.DS1–DS4) are built on `desktop/library-seam-1a`, with Core CI green. Still owed: migrate-on-request (DS5), planned first. Merge and Core release need their own word. |
 | 2 · The embedded host | 🟡 Candidate | A full plan |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
@@ -796,3 +796,42 @@ not at all. Phase 3's first-run assistant (DS-003) is its consumer.
 
 **Left to Desktop.** The 0.3 home marker (condition b) stays Desktop's to write after `createHome`
 returns, because the core does not know Desktop.
+
+## Phase 1 Slice 1d Built (2026-10-28)
+
+The Navigator chose both recommendations. Core recorded them as one decision before any code
+(`f172a534`): a host creates a home beside its target and renames it into place, writing nothing
+outside it. The slice is Core's CV24.DS4 (`d6af9ba6`). Its record, with full evidence, is
+`cv24-ds4-create-a-home/index.md` in `mirror-ts`.
+
+### What Desktop gains
+
+`createHome({ homePath, userName })` creates a complete, seeded home in one call. It also exports
+`CreateHomeRejectedError`, whose reasons are `invalid_user_name`, `invalid_home_path`,
+`home_exists`, `templates_unavailable` and `seed_failed`.
+
+- **All or nothing.** The home is built in a 0700 staging directory beside the target. It is
+  renamed into place only once the seed is clean and the database is `current`. A failure leaves
+  nothing behind.
+- **Nothing outside the home.** It never writes `~/.config/mirror/env`, so the Navigator's
+  terminal Mirror and Pi hooks are never redirected. Phase 3 keeps the path in Desktop's own
+  configuration and writes the 0.3 marker after `createHome` returns.
+- **No existing home.** It refuses anything at the target, even an empty directory.
+
+The entry now exposes 13 names.
+
+### Evidence
+
+- **Tests:** 6 new tests, red first.
+- **CLI parity:** on a scratch `HOME`, `mirror init` plus `mirror seed` seed the same identity
+  rows as `createHome`.
+- **Four mutations, each caught.** They were: writing the global config, renaming before the seed
+  check, accepting an empty directory, and skipping the name check.
+- **The danger, shown.** The global-config mutation did write `MIRROR_USER=ana` into the scratch
+  `HOME` of the isolated test run, which is exactly what the decision forbids. The real `HOME` has
+  no `~/.config/mirror`. The file was removed, and the restored code writes nothing.
+- **Core gates:**
+  - `npm test`: 3,573 passed;
+  - package smoke: 90 of 90, including the machine-wide config staying byte-identical.
+- **Core CI:** green on `9bfa202d` across all four jobs, first attempt (run `40778091305`).
+- **Production:** it stayed at migration 016.
