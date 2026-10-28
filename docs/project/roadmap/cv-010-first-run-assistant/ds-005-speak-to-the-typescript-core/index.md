@@ -185,7 +185,7 @@ including any Navigator check, is met.
 | Phase | Status | What is owed |
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
-| 1 · A library seam in Core | 🟡 Planned | Slices 1a to 1d (CV24.DS1–DS4) are built on `desktop/library-seam-1a`, with Core CI green. Slice 1e (DS5, migrate on request) is planned; its backup custody awaits the Navigator. Merge and Core release need their own word. |
+| 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | 🟡 Candidate | A full plan |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
@@ -862,3 +862,69 @@ this call against the Navigator's production home.**
 
 Nothing migrates unless that backup is verified. Restoring from a backup is excluded: it is
 destructive, so it gets its own story and decision before phase 5's rehearsal.
+
+## Phase 1 Slice 1e Built, and Phase 1 Implemented (2026-10-28)
+
+The Navigator chose the verified, retained backup. Core recorded it as a decision before any code
+(`bf6b46b5`). The slice is Core's CV24.DS5 (`0716f81e`), and its full evidence is in
+`cv24-ds5-migrate-on-request/index.md` in `mirror-ts`.
+
+### What Desktop gains
+
+`migrateHome(dbPath, { expectedPending })` applies exactly the pending list the person was shown.
+It refuses with one of four reasons: `nothing_pending`, `pending_changed`, `not_migratable` or
+`backup_failed`. When it does migrate, it returns a receipt with:
+
+- the applied ids;
+- the backup's path, SHA-256 and size;
+- the reports before and after.
+
+Nothing migrates until the backup is verified. Each backup has its own name, is converted to WAL,
+passes `quick_check`, is hashed, and is read by the migration report as the same pending list as the
+live home. The core never deletes it.
+
+This is the call phase 5 will run against the Navigator's production home.
+
+### Evidence
+
+- **Tests:** 8 new tests, red first, including a race between two processes that ends in one
+  migration and one backup.
+- **Mutations:** four, each caught. They were: ignoring `expectedPending`, skipping
+  `quick_check`, the fixed backup name, and migrating before the backup is verified.
+- **Core gates:**
+  - `npm test`: 3,581 passed;
+  - package smoke: 92 of 92.
+- **Core CI:** green on `c7b4bf40` across all four jobs, first attempt (run `40781170008`).
+- **Production:** it stayed at migration 016.
+
+### Phase 1 as a whole
+
+`mirror-mind/desktop` now carries 15 names:
+
+| Area | Calls |
+|---|---|
+| Migration state | `inspectMigrationState`, `migrateHome` |
+| Conversations | `ensureConversation`, `appendConversationMessages`, `renameConversation`, `rebindConversationJourney` |
+| Reads | `readJourneyTree`, `listJourneyConversations`, `inspectConversation` |
+| Home creation | `createHome` |
+| Errors | `DatabaseNotCurrentError`, `ConversationCallRejectedError`, `CreateHomeRejectedError`, `MigrateHomeRejectedError` |
+| Version | `DESKTOP_API_VERSION` |
+
+Three Core decisions were taken by the Navigator along the way:
+
+1. Conversation writes go through a narrowed handle.
+2. A home is created beside its target and renamed into place, writing nothing outside it.
+3. A home is migrated only behind a verified, retained backup.
+
+**Owed for Done:**
+
+- a merge into Core `main`;
+- a Core release, at the Navigator's word.
+
+**Left out of phase 1, each needing its own story and decision:**
+
+- restoring from a backup, which phase 5's rehearsal needs;
+- Conversation delete;
+- re-seeding an existing home;
+- recall;
+- Journey administration, including writing `sibling_position`.
