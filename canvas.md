@@ -29,7 +29,7 @@
 | --- | --- | --- |
 | CV-001 … CV-007 | ✅ Done | `██████████` 7 CVs |
 | **CV-010 · First-Run Assistant** | 🎯 selecionada · 28/10: 0.2 congelada na alpha.58 · nova linha 0.3 com Mirror TypeScript embutido, banco próprio, nunca toca a produção · Core pode mudar pelo roadmap | `░░░░░░░░░░` 0 ✅ · 1 🟠 · 1 🟡 · 3 candidatas · de 5 DS |
-| ↳　DS-005 · The 0.3 Line · Embedded TypeScript Mirror | 🟡 Planned · espinha da CV-010 · fases: separar canal → API no Core → host embutido → assistente → estável → migração | `░░░░░░░░░░` |
+| ↳　DS-005 · The 0.3 Line · Embedded TypeScript Mirror | 🟡 Planned · espinha da CV-010 · `release/0.2` criado na alpha.58 · checkout `mirror-ts` clonado (0.37) · fase 0 planejada: identidade, canal `/next/` e trava de linha | `░░░░░░░░░░` |
 | ↳　DS-001 · Find and Connect an Existing Mirror | 🟠 Implemented · fica na linha 0.2 · publicada na alpha.58 · validada por você na versão dev · teste na conta `mirror` aposentado, não aprovado | `░░░░░░░░░░` |
 | **CV-008 · Conversation Spaces** | 🟡 Planned | `████████░░` 5 ✅ · 1 🟡 · de 6 DS |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned · único DS restante | `░░░░░░░░░░` |
