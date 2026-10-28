@@ -1,14 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Mirror Desktop Eval",
-  "identifier": "ai.mirrormind.desktop",
+  "productName": "Mirror Desktop TS Eval",
+  "identifier": "ai.mirrormind.desktop.ts",
   "build": {
     "beforeBuildCommand": "npm run build"
   },
   "app": {
     "windows": [
       {
-        "title": "Mirror Desktop Eval",
+        "title": "Mirror Desktop TS Eval",
         "width": 1100,
         "height": 760,
         "minWidth": 860,

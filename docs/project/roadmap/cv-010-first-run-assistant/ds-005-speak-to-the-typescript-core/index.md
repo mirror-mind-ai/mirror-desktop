@@ -194,6 +194,10 @@ planned in phase 1 or later. Until then, 0.3 says plainly that it is not availab
 
 ## Phase 0 Plan — Freeze and Separate
 
+> **Names, 2026-10-28.** The Navigator chose *Mirror Desktop TS*. Read every `.next` below as `.ts`,
+> *Mirror Desktop Next* as *Mirror Desktop TS*, and `/next/` as `/ts/`. What was built is recorded in
+> **Phase 0 Built** at the end of this file.
+
 **Outcome.** The 0.3 line has its own identity, data and update channel, and the release route cannot
 deliver a 0.3 build to an app on the 0.2 line. No 0.3 feature is built and nothing is published.
 
@@ -279,10 +283,88 @@ validation must still be there, untouched.
 
 ### Open questions for the Navigator
 
-1. **Names.** *Mirror Desktop Next* and `.next` are a proposal. *Mirror Desktop 0.3* reads like a
-   version. The product name is shown in the Dock and in Finder.
-2. **The Evaluation channel.** It shares `ai.mirrormind.desktop` today. Should it move to the 0.3
-   identity or be retired on `main`?
-3. **Signing.** When CV-009 lands, should the 0.3 line be the first one signed? That would make sense,
-   since new users reach it first.
+1. ~~**Names.**~~ **Answered:** *Mirror Desktop TS*. ~~*Mirror Desktop Next* and `.next` are a proposal. *Mirror Desktop 0.3* reads like a
+   version. The product name is shown in the Dock and in Finder.~~
+2. ~~**The Evaluation channel.**~~ **Answered:** moves to the 0.3 identity. ~~It shares `ai.mirrormind.desktop` today. Should it move to the 0.3
+   identity or be retired on `main`?~~
+3. ~~**Signing.**~~ **Answered: yes**, the 0.3 line is signed first. ~~When CV-009 lands, should the 0.3 line be the first one signed? That would make sense,
+   since new users reach it first.~~
 
+## Phase 0 Built (2026-10-28)
+
+Built on `main` with TDD. Nothing was published, the update server was not touched, and `release/0.2`
+is still `fd9e406`, the alpha.58 commit.
+
+### What changed
+
+- **Identity.**
+  - User and Evaluation channels: `ai.mirrormind.desktop.ts`, named *Mirror Desktop TS* and
+    *Mirror Desktop TS Eval*.
+  - Development: `ai.mirrormind.desktop.ts.dev`, named *Mirror Desktop TS Dev*.
+  - These live in `RuntimeChannel`, the three Tauri configurations, the channel launcher and the
+    frontend's diagnostic parser. The sidebar brand reads *Mirror Desktop TS*.
+- **Channel.** `src-tauri/tauri.ts-update.conf.json` polls `/mirror-desktop/ts/`.
+  `tauri.alpha-update.conf.json` is gone from `main`; it remains on `release/0.2`. The signing key is
+  shared: the key proves authorship, and the channel path keeps the lines apart.
+- **One table of lines.** `scripts/release_line.mjs` names both lines: version prefix, product name,
+  identifier and base URL. It is the only file on `main` allowed to name the 0.2 line.
+  `assertReleaseLine` runs inside `deployContext`, which both `prepare` and `publish` call, and refuses:
+  - a version on the other line's channel;
+  - a bundle identifier or product name of the other line;
+  - a version of no line.
+- **The route itself.**
+  - `deriveRetainedVersions` keeps only the released version's own line. Without this, a 0.3 release
+    would have written 172 manifests for 0.2 versions under `/ts/`.
+  - `evidenceSlug` keeps `alpha-N` for 0.2 only, so `0.3.0-alpha.1` cannot overwrite
+    `docs/update/alpha-1-*`.
+  - `alpha_build`, `private_update_publish`, `self_update_preflight` and `promote_production` read the
+    line instead of literals. **Promotion from `main` now installs `/Applications/Mirror Desktop TS.app`.**
+    It previously targeted the 0.2 app's path, so promoting from `main` would have replaced
+    production's app.
+- **Version.** `0.3.0-alpha.0`, never to be published.
+
+### Evidence
+
+- **Gates.**
+  - vitest: 275 files, 2,306 tests (baseline 274 / 2,288, plus 18 new);
+  - tsc: clean;
+  - frontend build: passes;
+  - cargo `--locked`: 383 passed, 3 ignored (baseline 382, plus 1 new);
+  - roadmap: READY;
+  - `alpha:channel:check`: READY as *Mirror Desktop TS* / `ai.mirrormind.desktop.ts` / `0.3.0-alpha.0`.
+- **Six mutations, each caught.** Removing the channel check, removing the identifier check,
+  retaining other lines, removing the guard call from the route, letting the frontend accept the 0.2
+  identifier, and giving Evaluation the 0.2 identifier in Rust each failed at least one test. Every file
+  was restored and re-run green.
+- **Census.** `src/tests/cv010LineSeparation.test.mjs` scans 14 files: configurations, channel code,
+  and release scripts, with Rust test modules excluded. It finds no 0.2 identifier, no `/alpha`
+  endpoint, and no 0.2 bundle name. A negative control proves the patterns would match planted 0.2
+  strings and would leave the TS ones alone. The census found one hit of my own during the build, a
+  comment naming the 0.2 app's path, and it was reworded.
+- **Production, read afterwards:**
+  - binary `303ede287de3…` unchanged;
+  - database at `016_builder_workbench_display_codes`;
+  - `ai.mirrormind.desktop`: 567 files, tree hash `80d147223232`;
+  - `ai.mirrormind.desktop.dev`: 141 files, tree hash `5e4b4298cf60`;
+  - `ai.mirrormind.desktop.ts` and `.ts.dev`: not yet created.
+
+  The tree hash is SHA-256 over sorted `path size mtime`. The 0.2 Development folder is the baseline
+  for the Navigator check.
+- **One unrelated flaky test** surfaced during the gates and was captured as
+  [CR164](../../../refinement/rs025-legible-endings-for-a-turn-that-ends-badly/cr164-the-hung-append-test-races-its-own-stderr.md).
+
+### Still owed, and known gaps
+
+- **Navigator check.** Launch `npm run tauri:dev`. It should open as *Mirror Desktop TS Dev*, unbound,
+  creating `ai.mirrormind.desktop.ts.dev`. The 0.2 folders' file counts and tree hashes above must not
+  change. **Do not use *Find my Mirror* in the TS build**: it would bind the 0.3 app to the production
+  Python Mirror through the 0.2 binding flow. The guard that forbids that is condition (b), in phase 2.
+- **The site's download alias** (`/mirror-desktop/alpha/downloads/macos/mirror-desktop-latest.dmg`) is
+  the 0.2 line's. New users reach 0.3 only once the site points at a `/ts/` alias. That belongs to the
+  site's Journey, and it is due before the first 0.3 release is offered.
+- **Icons.** *Mirror Desktop TS* uses the production icon, and *Mirror Desktop TS Dev* uses the same DEV
+  icon as the 0.2 Development app. Only the names tell them apart in the Dock.
+- **The release preflight still requires a Python Mirror**, so `release:deploy` cannot prepare a 0.3
+  release yet. That is phase 2's first slice.
+- **The server path `/mirror-desktop/ts/`** does not exist yet. Creating it is a release-time act, done
+  only with the Navigator's word.

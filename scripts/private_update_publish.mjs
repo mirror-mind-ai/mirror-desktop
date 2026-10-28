@@ -6,9 +6,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import process from "node:process";
 import { parseSemver } from "./release_candidate.mjs";
 import { releaseNotesUrl, releaseReadingFromSource } from "./release_notes.mjs";
+import { CURRENT_RELEASE_LINE } from "./release_line.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const channelUpdaterConfigPath = resolve(repositoryRoot, "src-tauri", "tauri.alpha-update.conf.json");
+const channelUpdaterConfigPath = resolve(repositoryRoot, CURRENT_RELEASE_LINE.updaterConfig);
 
 export function deriveBaseUrlFromUpdaterConfig(config) {
   const endpoint = config?.plugins?.updater?.endpoints?.[0];

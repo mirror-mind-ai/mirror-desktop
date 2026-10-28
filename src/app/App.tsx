@@ -5805,7 +5805,7 @@ export function App({ model }: AppProps) {
             {developmentChannel ? <span className="brand-channel-badge">DEV</span> : evaluationChannel ? <span className="brand-channel-badge is-evaluation">EVAL</span> : null}
           </span>
           <div className="brand-copy">
-            <strong>Mirror Desktop {developmentChannel ? <span className="sr-only">Development channel</span> : evaluationChannel ? <span className="sr-only">Evaluation channel</span> : null}</strong>
+            <strong>Mirror Desktop TS {developmentChannel ? <span className="sr-only">Development channel</span> : evaluationChannel ? <span className="sr-only">Evaluation channel</span> : null}</strong>
             <SelfUpdateNotification
               runtimeBusy={runtimeBusy}
               installedReleaseReading={whatsNewState?.installed}

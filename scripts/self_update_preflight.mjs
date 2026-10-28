@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import process from "node:process";
+import { CURRENT_RELEASE_LINE } from "./release_line.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const REQUIRED_STATIC_TARGETS = ["darwin-x86_64", "darwin-aarch64"];
@@ -64,8 +65,9 @@ function validateUpdaterPubkey(pubkey, findings) {
 
 export function inspectSelfUpdateConfig(config) {
   const findings = [];
-  if (config.productName !== "Mirror Desktop") findings.push("productName must remain Mirror Desktop.");
-  if (config.identifier !== "ai.mirrormind.desktop") findings.push("identifier must remain ai.mirrormind.desktop.");
+  const line = CURRENT_RELEASE_LINE;
+  if (config.productName !== line.productName) findings.push(`productName must remain ${line.productName}.`);
+  if (config.identifier !== line.identifier) findings.push(`identifier must remain ${line.identifier}.`);
   const createUpdaterArtifacts = config.bundle?.createUpdaterArtifacts;
   if (createUpdaterArtifacts !== true && createUpdaterArtifacts !== "v1Compatible") {
     findings.push("bundle.createUpdaterArtifacts must be true for self-update rehearsal builds.");

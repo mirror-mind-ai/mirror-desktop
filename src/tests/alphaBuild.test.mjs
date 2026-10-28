@@ -4,16 +4,16 @@ import packageJson from "../../package.json" with { type: "json" };
 
 describe("alpha build command", () => {
   it("centralizes the signed alpha Tauri build contract", () => {
-    const plan = alphaBuildPlan({ version: "0.2.0-alpha.1", signingKey: "/tmp/updater.key" });
+    const plan = alphaBuildPlan({ version: "0.3.0-alpha.1", signingKey: "/tmp/updater.key" });
 
     expect(plan).toMatchObject({
-      version: "0.2.0-alpha.1",
-      config: "src-tauri/tauri.alpha-update.conf.json",
+      version: "0.3.0-alpha.1",
+      config: "src-tauri/tauri.ts-update.conf.json",
       signingKey: "/tmp/updater.key",
-      app: "src-tauri/target/release/bundle/macos/Mirror Desktop.app",
-      dmg: "src-tauri/target/release/bundle/dmg/Mirror Desktop_0.2.0-alpha.1_x64.dmg",
-      updaterArtifact: "src-tauri/target/release/bundle/macos/Mirror Desktop.app.tar.gz",
-      updaterSignature: "src-tauri/target/release/bundle/macos/Mirror Desktop.app.tar.gz.sig",
+      app: "src-tauri/target/release/bundle/macos/Mirror Desktop TS.app",
+      dmg: "src-tauri/target/release/bundle/dmg/Mirror Desktop TS_0.3.0-alpha.1_x64.dmg",
+      updaterArtifact: "src-tauri/target/release/bundle/macos/Mirror Desktop TS.app.tar.gz",
+      updaterSignature: "src-tauri/target/release/bundle/macos/Mirror Desktop TS.app.tar.gz.sig",
       boundaries: {
         publishesRelease: false,
         createsGitTag: false,

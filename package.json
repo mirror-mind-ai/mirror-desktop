@@ -1,6 +1,6 @@
 {
   "name": "mirror-desktop",
-  "version": "0.2.0-alpha.58",
+  "version": "0.3.0-alpha.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -25,7 +25,7 @@
     "release:notes": "node scripts/release_notes.mjs",
     "release:private-update": "node scripts/private_update_publish.mjs",
     "release:deploy": "node scripts/release_deploy.mjs",
-    "alpha:channel:check": "node scripts/self_update_preflight.mjs --config src-tauri/tauri.alpha-update.conf.json",
+    "alpha:channel:check": "node scripts/self_update_preflight.mjs --config src-tauri/tauri.ts-update.conf.json",
     "alpha:build": "node scripts/alpha_build.mjs",
     "roadmap:check": "node scripts/roadmap_consistency.mjs",
     "rehearsal:rs019:validate": "node scripts/rs019_post_terminal_matrix.mjs validate --evidence"

@@ -77,17 +77,17 @@ impl RuntimeChannel {
 
     pub fn product_name(self) -> &'static str {
         match self {
-            Self::User => "Mirror Desktop",
-            Self::Development => "Mirror Desktop Dev",
-            Self::Evaluation => "Mirror Desktop Eval",
+            Self::User => "Mirror Desktop TS",
+            Self::Development => "Mirror Desktop TS Dev",
+            Self::Evaluation => "Mirror Desktop TS Eval",
         }
     }
 
     pub fn bundle_identifier(self) -> &'static str {
         match self {
-            Self::User => "ai.mirrormind.desktop",
-            Self::Development => "ai.mirrormind.desktop.dev",
-            Self::Evaluation => "ai.mirrormind.desktop",
+            Self::User => "ai.mirrormind.desktop.ts",
+            Self::Development => "ai.mirrormind.desktop.ts.dev",
+            Self::Evaluation => "ai.mirrormind.desktop.ts",
         }
     }
 
@@ -113,7 +113,7 @@ impl RuntimeChannel {
                     bundle_identifier.as_deref(),
                     localized_name.as_deref(),
                 ) {
-                    return Err("Close Mirror Desktop before opening Mirror Desktop Eval. Both applications use the production app-data boundary.".to_string());
+                    return Err("Close Mirror Desktop TS before opening Mirror Desktop TS Eval. Both applications use the production app-data boundary.".to_string());
                 }
             }
         }
@@ -175,8 +175,8 @@ pub(crate) fn evaluation_conflicts_with_running_application(
     localized_name: Option<&str>,
 ) -> bool {
     channel == RuntimeChannel::Evaluation
-        && bundle_identifier == Some("ai.mirrormind.desktop")
-        && localized_name == Some("Mirror Desktop")
+        && bundle_identifier == Some("ai.mirrormind.desktop.ts")
+        && localized_name == Some("Mirror Desktop TS")
 }
 
 pub(crate) fn runtime_search_directories(home: &Path) -> Vec<PathBuf> {
@@ -455,8 +455,8 @@ mod tests {
         let development = RuntimeChannelProfile::for_home(RuntimeChannel::Development, home);
         let evaluation = RuntimeChannelProfile::for_home(RuntimeChannel::Evaluation, home);
 
-        assert_eq!(user.bundle_identifier, "ai.mirrormind.desktop");
-        assert_eq!(development.bundle_identifier, "ai.mirrormind.desktop.dev");
+        assert_eq!(user.bundle_identifier, "ai.mirrormind.desktop.ts");
+        assert_eq!(development.bundle_identifier, "ai.mirrormind.desktop.ts.dev");
         assert_eq!(
             development.mirror_root,
             home.join(".mirror-journeys/mirror-mind/mirror-dev")
@@ -471,8 +471,8 @@ mod tests {
             home.join(".mirror-minds/mirror-dev/memory.db")
         );
         assert_ne!(user.mirror_home, development.mirror_home);
-        assert_eq!(evaluation.product_name, "Mirror Desktop Eval");
-        assert_eq!(evaluation.bundle_identifier, "ai.mirrormind.desktop");
+        assert_eq!(evaluation.product_name, "Mirror Desktop TS Eval");
+        assert_eq!(evaluation.bundle_identifier, "ai.mirrormind.desktop.ts");
         assert_eq!(evaluation.mirror_root, user.mirror_root);
         assert_eq!(evaluation.mirror_home, user.mirror_home);
         assert_eq!(evaluation.db_path, user.db_path);
@@ -487,23 +487,23 @@ mod tests {
         assert_eq!(RuntimeChannel::Evaluation.diagnostic_str(), "evaluation");
         assert!(super::evaluation_conflicts_with_running_application(
             RuntimeChannel::Evaluation,
-            Some("ai.mirrormind.desktop"),
-            Some("Mirror Desktop"),
+            Some("ai.mirrormind.desktop.ts"),
+            Some("Mirror Desktop TS"),
         ));
         assert!(!super::evaluation_conflicts_with_running_application(
             RuntimeChannel::Evaluation,
-            Some("ai.mirrormind.desktop"),
-            Some("Mirror Desktop Eval"),
+            Some("ai.mirrormind.desktop.ts"),
+            Some("Mirror Desktop TS Eval"),
         ));
         assert!(!super::evaluation_conflicts_with_running_application(
             RuntimeChannel::User,
-            Some("ai.mirrormind.desktop"),
-            Some("Mirror Desktop"),
+            Some("ai.mirrormind.desktop.ts"),
+            Some("Mirror Desktop TS"),
         ));
         assert!(!super::evaluation_conflicts_with_running_application(
             RuntimeChannel::Evaluation,
             Some("other.bundle"),
-            Some("Mirror Desktop"),
+            Some("Mirror Desktop TS"),
         ));
     }
 
@@ -512,22 +512,51 @@ mod tests {
         let channel = RuntimeChannel::Development;
         assert!(channel
             .validate_app_identity(
-                "ai.mirrormind.desktop",
-                Path::new("/tmp/ai.mirrormind.desktop.dev")
+                "ai.mirrormind.desktop.ts",
+                Path::new("/tmp/ai.mirrormind.desktop.ts.dev")
             )
             .is_err());
         assert!(channel
             .validate_app_identity(
-                "ai.mirrormind.desktop.dev",
-                Path::new("/tmp/ai.mirrormind.desktop")
+                "ai.mirrormind.desktop.ts.dev",
+                Path::new("/tmp/ai.mirrormind.desktop.ts")
             )
             .is_err());
         assert!(channel
             .validate_app_identity(
-                "ai.mirrormind.desktop.dev",
-                Path::new("/tmp/ai.mirrormind.desktop.dev")
+                "ai.mirrormind.desktop.ts.dev",
+                Path::new("/tmp/ai.mirrormind.desktop.ts.dev")
             )
             .is_ok());
+    }
+
+    /// CV-010.DS-005 phase 0: the 0.3 line never opens the frozen 0.2 line's app data, which
+    /// holds production's turn journals, outbox and binding. The launch-time identity check is
+    /// the enforcement, so every channel must refuse both 0.2 folders under either identifier.
+    #[test]
+    fn no_channel_accepts_the_frozen_0_2_app_data() {
+        let line_0_2 = ["ai.mirrormind.desktop", "ai.mirrormind.desktop.dev"];
+        for channel in [
+            RuntimeChannel::User,
+            RuntimeChannel::Development,
+            RuntimeChannel::Evaluation,
+        ] {
+            assert!(!line_0_2.contains(&channel.bundle_identifier()));
+            assert!(channel.bundle_identifier().starts_with("ai.mirrormind.desktop.ts"));
+            assert!(channel.product_name().starts_with("Mirror Desktop TS"));
+            for folder in line_0_2 {
+                let root = Path::new("/tmp").join(folder);
+                assert!(channel.validate_app_identity(folder, &root).is_err());
+                assert!(channel
+                    .validate_app_identity(channel.bundle_identifier(), &root)
+                    .is_err());
+            }
+            // Control: the channel's own identity and folder still pass.
+            let own = Path::new("/tmp").join(channel.bundle_identifier());
+            assert!(channel
+                .validate_app_identity(channel.bundle_identifier(), &own)
+                .is_ok());
+        }
     }
 
     #[test]
@@ -536,7 +565,7 @@ mod tests {
             RuntimeChannel::Development,
             Path::new("/Users/example"),
         );
-        let diagnostic = profile.diagnostic(Path::new("/tmp/ai.mirrormind.desktop.dev"));
+        let diagnostic = profile.diagnostic(Path::new("/tmp/ai.mirrormind.desktop.ts.dev"));
         let value = serde_json::to_value(diagnostic).unwrap();
         assert_eq!(value.as_object().unwrap().len(), 9);
         assert_eq!(value["channel"], "development");
@@ -547,11 +576,11 @@ mod tests {
     fn unavailable_diagnostic_keeps_the_application_channel_visible() {
         let diagnostic = super::RuntimeChannelDiagnostic::unavailable(
             RuntimeChannel::User,
-            Path::new("/tmp/ai.mirrormind.desktop"),
+            Path::new("/tmp/ai.mirrormind.desktop.ts"),
             "Mirror Desktop runtime is unbound.".to_string(),
         );
         assert_eq!(diagnostic.status, "unbound");
-        assert_eq!(diagnostic.bundle_identifier, "ai.mirrormind.desktop");
+        assert_eq!(diagnostic.bundle_identifier, "ai.mirrormind.desktop.ts");
         assert_eq!(diagnostic.mirror_root, None);
     }
 

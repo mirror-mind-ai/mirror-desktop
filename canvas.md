@@ -5,11 +5,12 @@
 | Item | Estado | Progresso |
 | --- | --- | --- |
 | **Corte de CRs · desde 2026-10-27** | ⏸️ suspenso pelo onboarding · nenhuma CR começa · exceção: perda de dados ou app inutilizável · checks de campo seguem · volta quando a 0.3 estiver estável com banco e Mirror TS próprios (alterado em 2026-10-28) | — |
-| **RS025 · Legible Endings for a Turn That Ends Badly** | 🔄 ativa · recorte de tema, não de arrumação · 21 CRs em 5 RSs e nenhum critério de fechamento · o campo bateu 2× num dia em alpha.50 | `██░░░░░░░░` 1 ✅ · 2 🔵 · 2 ⏸️ · de 5 |
+| **RS025 · Legible Endings for a Turn That Ends Badly** | 🔄 ativa · recorte de tema, não de arrumação · 21 CRs em 5 RSs e nenhum critério de fechamento · o campo bateu 2× num dia em alpha.50 | `██░░░░░░░░` 1 ✅ · 2 🔵 · 2 ⏸️ · 1 🟡 · de 6 |
 | ↳　CR155 · Give the Navigator an Exit From a Finishing That Holds a Live Lease | ⏸️ parked · corte de 2026-10-27 · era: lote A · portões verdes · campo devido · prioridade 7 · dívida da CR132 chegando do campo · **limiar de 60 s falsificado por 2 settlements legítimos** | `███████░░░` |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress · reaberta · falsificador de campo falhou em alpha.55: 3 recusas, nenhum motivo mostrado · a leitura funciona; a restauração nunca a rodava após falha ao vivo · agora a própria falha lê | `███████░░░` |
 | ↳　CR161 · Give Every Finishing the Same Exits | ⏸️ parked · corte de 2026-10-27 · era: 2ª ocorrência 2026-10-22, alpha.55: derivações corretas (medido), insumos famintos atrás do mutex nativo · falsificador sem veredito 2ª vez — nada durável registra o que foi desenhado · defeito real capturado na CR163 | `░░░░░░░░░░` |
 | ↳　CR163 · A Hung Mirror Append Freezes Every Exit | 🔵 in_progress · construída: limite de 30 s no filho, grupo de processos morto (controle + mutação provam) · duas esperas sem limite a mais achadas na mesma função · publicada na alpha.57 · check de campo contínuo aguarda a subida | `░░░░░░░░░░` |
+| ↳　CR164 · The Hung-Append Test Races Its Own Stderr | 🟡 captured · teste da CR163 falhou 1 em 3 rodadas completas, 8 de 8 sozinho · só o teste, não o limite de produção | `░░░░░░░░░░` |
 | **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa | `████████░░` 49 ✅ · 4 🟡 · 4 ↗️ · 1 ⛔ · de 58 |
 | ↳　CR131 · Make the Mirror a Channel Validates Against Identifiable | 🟡 captured · sem Driver | `░░░░░░░░░░` |
 | ↳　CR148 · Give an Unanswered Turn Back Its Own Identity | 🟡 captured · achada na linha de base da CR146 · turno pendente sem par | `░░░░░░░░░░` |
@@ -29,7 +30,7 @@
 | --- | --- | --- |
 | CV-001 … CV-007 | ✅ Done | `██████████` 7 CVs |
 | **CV-010 · First-Run Assistant** | 🎯 selecionada · 28/10: 0.2 congelada na alpha.58 · nova linha 0.3 com Mirror TypeScript embutido, banco próprio, nunca toca a produção · Core pode mudar pelo roadmap | `░░░░░░░░░░` 0 ✅ · 1 🟠 · 1 🟡 · 3 candidatas · de 5 DS |
-| ↳　DS-005 · The 0.3 Line · Embedded TypeScript Mirror | 🟡 Planned · espinha da CV-010 · `release/0.2` criado na alpha.58 · checkout `mirror-ts` clonado (0.37) · fase 0 planejada: identidade, canal `/next/` e trava de linha | `░░░░░░░░░░` |
+| ↳　DS-005 · The 0.3 Line · Embedded TypeScript Mirror | 🟡 Planned · espinha da CV-010 · fase 0 construída: Mirror Desktop TS, `ai.mirrormind.desktop.ts`, canal `/ts/`, trava de linha (6 mutações pegas) · nada publicado | `░░░░░░░░░░` |
 | ↳　DS-001 · Find and Connect an Existing Mirror | 🟠 Implemented · fica na linha 0.2 · publicada na alpha.58 · validada por você na versão dev · teste na conta `mirror` aposentado, não aprovado | `░░░░░░░░░░` |
 | **CV-008 · Conversation Spaces** | 🟡 Planned | `████████░░` 5 ✅ · 1 🟡 · de 6 DS |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned · único DS restante | `░░░░░░░░░░` |

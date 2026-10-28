@@ -8,6 +8,7 @@ import process from "node:process";
 import { alphaBuildPlan } from "./alpha_build.mjs";
 import { inspectReleaseCandidate, parseSemver, releaseVersionAt } from "./release_candidate.mjs";
 import { releaseReadingFromSource } from "./release_notes.mjs";
+import { assertReleaseLine, releaseLineFor } from "./release_line.mjs";
 import {
   defaultBaseUrl,
   manifestPaths,
@@ -52,8 +53,20 @@ export function compareReleaseVersions(left, right) {
   return 0;
 }
 
+// A tag of no known line is simply not of the released version's line.
+function candidateLine(version) {
+  try {
+    return releaseLineFor(version);
+  } catch {
+    return undefined;
+  }
+}
+
+// Only the released version's own line is retained: another line's apps poll another channel, and
+// manifests for their versions under this one would be served to no one.
 export function deriveRetainedVersions({ version, tags }) {
   const releaseVersion = parseSemver(version);
+  const line = releaseLineFor(releaseVersion);
   const published = tags
     .map((tag) => String(tag).trim().replace(/^v/, ""))
     .filter((candidate) => {
@@ -62,7 +75,7 @@ export function deriveRetainedVersions({ version, tags }) {
       } catch {
         return false;
       }
-      return compareReleaseVersions(candidate, releaseVersion) < 0;
+      return candidateLine(candidate) === line && compareReleaseVersions(candidate, releaseVersion) < 0;
     })
     .sort(compareReleaseVersions);
   return [...published, releaseVersion];
@@ -368,8 +381,10 @@ async function runStage(state, name, execute) {
   return detail;
 }
 
-function evidenceSlug(version) {
-  const alpha = version.match(/-alpha\.(\d+)$/);
+// The 0.2 line's evidence is named alpha-N; any other line keeps its full version, so 0.3.0-alpha.1
+// never overwrites the alpha-1 records.
+export function evidenceSlug(version) {
+  const alpha = version.match(/^0\.2\.0-alpha\.(\d+)$/);
   return alpha ? `alpha-${alpha[1]}` : `v${version}`;
 }
 
@@ -377,6 +392,8 @@ function deployContext(options) {
   const version = releaseVersionAt(repositoryRoot);
   const tag = `v${version}`;
   const baseUrl = assertBaseUrlAgreement(defaultBaseUrl, options.baseUrl);
+  const tauriConfig = JSON.parse(readFileSync(resolve(repositoryRoot, "src-tauri", "tauri.conf.json"), "utf8"));
+  assertReleaseLine({ version, baseUrl, identifier: tauriConfig.identifier, productName: tauriConfig.productName });
   const tags = capture("git", ["tag", "--list", "v*"]).split("\n").filter(Boolean);
   const retainedVersions = deriveRetainedVersions({ version, tags });
   const build = alphaBuildPlan({ version });

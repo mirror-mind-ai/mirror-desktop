@@ -5,9 +5,11 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import process from "node:process";
 import { releaseVersionAt } from "./release_candidate.mjs";
+import { CURRENT_RELEASE_LINE } from "./release_line.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const defaultAlphaConfig = "src-tauri/tauri.alpha-update.conf.json";
+const defaultAlphaConfig = CURRENT_RELEASE_LINE.updaterConfig;
+const bundleName = CURRENT_RELEASE_LINE.productName;
 const defaultSigningKey = `${process.env.HOME}/.mirror-desktop-updater/alpha/updater.key`;
 
 function run(command, args, options = {}) {
@@ -29,10 +31,10 @@ export function alphaBuildPlan({ version = releaseVersionAt(repositoryRoot), con
     version: normalizedVersion,
     config,
     signingKey,
-    app: "src-tauri/target/release/bundle/macos/Mirror Desktop.app",
-    dmg: `src-tauri/target/release/bundle/dmg/Mirror Desktop_${normalizedVersion}_x64.dmg`,
-    updaterArtifact: "src-tauri/target/release/bundle/macos/Mirror Desktop.app.tar.gz",
-    updaterSignature: "src-tauri/target/release/bundle/macos/Mirror Desktop.app.tar.gz.sig",
+    app: `src-tauri/target/release/bundle/macos/${bundleName}.app`,
+    dmg: `src-tauri/target/release/bundle/dmg/${bundleName}_${normalizedVersion}_x64.dmg`,
+    updaterArtifact: `src-tauri/target/release/bundle/macos/${bundleName}.app.tar.gz`,
+    updaterSignature: `src-tauri/target/release/bundle/macos/${bundleName}.app.tar.gz.sig`,
     boundaries: {
       publishesRelease: false,
       createsGitTag: false,

@@ -11,9 +11,12 @@ import {
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
+import { CURRENT_RELEASE_LINE } from "./release_line.mjs";
 
-const EXPECTED_BUNDLE_ID = "ai.mirrormind.desktop";
-const EXPECTED_PRODUCT_NAME = "Mirror Desktop";
+// Promotion installs this line's bundle only. The 0.2 app belongs to release/0.2 and is never
+// replaced from here.
+const EXPECTED_BUNDLE_ID = CURRENT_RELEASE_LINE.identifier;
+const EXPECTED_PRODUCT_NAME = CURRENT_RELEASE_LINE.productName;
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const builtApp = resolve(
   repositoryRoot,
@@ -22,9 +25,9 @@ const builtApp = resolve(
   "release",
   "bundle",
   "macos",
-  "Mirror Desktop.app",
+  `${EXPECTED_PRODUCT_NAME}.app`,
 );
-const installedApp = resolve("/Applications", "Mirror Desktop.app");
+const installedApp = resolve("/Applications", `${EXPECTED_PRODUCT_NAME}.app`);
 
 function fail(message) {
   throw new Error(message);
@@ -88,7 +91,7 @@ function assertInstalledAppIsClosed() {
     encoding: "utf8",
   });
   if (result.status === 0 && result.stdout.trim()) {
-    fail("close the installed Mirror Desktop app before promoting");
+    fail(`close the installed ${EXPECTED_PRODUCT_NAME} app before promoting`);
   }
 }
 
@@ -103,8 +106,8 @@ function installStableBundle() {
 
   assertInstalledAppIsClosed();
   const token = `${Date.now()}-${process.pid}`;
-  const stagingApp = resolve(applicationsRoot, `.Mirror Desktop.promoting-${token}.app`);
-  const backupApp = resolve(applicationsRoot, `.Mirror Desktop.backup-${token}.app`);
+  const stagingApp = resolve(applicationsRoot, `.${EXPECTED_PRODUCT_NAME}.promoting-${token}.app`);
+  const backupApp = resolve(applicationsRoot, `.${EXPECTED_PRODUCT_NAME}.backup-${token}.app`);
   let previousMoved = false;
 
   try {

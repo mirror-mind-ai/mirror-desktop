@@ -14,6 +14,16 @@ Mirror Desktop now distinguishes two updater channels:
 | `private-test` | local rehearsal and disposable validation | `src-tauri/tauri.private-test-update.conf.json` | `/mirror-desktop/{{target}}/{{current_version}}/latest.json` | `~/.mirror-desktop-updater/private-test/updater.key` |
 | `alpha` | governed pre-production alpha distribution | `src-tauri/tauri.alpha-update.conf.json` | `/mirror-desktop/alpha/{{target}}/{{current_version}}/latest.json` | `~/.mirror-desktop-updater/alpha/updater.key` |
 
+| `ts` | the 0.3 line, *Mirror Desktop TS*, built on `main` (from 2026-10-28) | `src-tauri/tauri.ts-update.conf.json` | `/mirror-desktop/ts/{{target}}/{{current_version}}/latest.json` | `~/.mirror-desktop-updater/alpha/updater.key` (same key) |
+
+**Release lines (2026-10-28).** `alpha` now belongs to the frozen 0.2 line and is published only from
+`release/0.2`, where `src-tauri/tauri.alpha-update.conf.json` still lives. `main` publishes to `ts`. The
+release route refuses a 0.3 version on `alpha`, a 0.2 version on `ts`, and a bundle identity of the other
+line (`scripts/release_line.mjs`), at prepare and again at publish. The two lines share the signing key:
+the key proves authorship, and the channel path, not the key, keeps each line's apps on their own
+updates. The public download alias below is the 0.2 line's; the site will need a `ts` alias before the
+first 0.3 release is offered to new users.
+
 The committed overlays contain only public keys. Private keys remain outside the repository.
 
 The canonical updater host for new release work is `updates.mirrormind.sh`. The earlier `updates.mirrormind.com.br` host remains an infrastructure-compatible predecessor from private rehearsal, but new alpha builds and release tooling should use the `.sh` host.

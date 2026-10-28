@@ -10,9 +10,9 @@ import {
 
 const development = {
   channel: "development",
-  productName: "Mirror Desktop Dev",
-  bundleIdentifier: "ai.mirrormind.desktop.dev",
-  appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop.dev",
+  productName: "Mirror Desktop TS Dev",
+  bundleIdentifier: "ai.mirrormind.desktop.ts.dev",
+  appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop.ts.dev",
   mirrorRoot: "/Users/example/Code/mirror-dev",
   mirrorHome: "/Users/example/.mirror-minds/mirror-dev",
   mirrorUser: "mirror-dev",
@@ -65,9 +65,9 @@ describe("runtime channel storage", () => {
   it("accepts a bounded unbound state without runtime coordinates", () => {
     expect(parseRuntimeChannelDiagnostic({
       channel: "user",
-      productName: "Mirror Desktop",
-      bundleIdentifier: "ai.mirrormind.desktop",
-      appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop",
+      productName: "Mirror Desktop TS",
+      bundleIdentifier: "ai.mirrormind.desktop.ts",
+      appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop.ts",
       status: "unbound",
       message: "Mirror Desktop runtime is unbound.",
     }).status).toBe("unbound");
@@ -77,15 +77,18 @@ describe("runtime channel storage", () => {
     expect(parseRuntimeChannelDiagnostic({
       ...development,
       channel: "evaluation",
-      productName: "Mirror Desktop Eval",
-      bundleIdentifier: "ai.mirrormind.desktop",
-      appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop",
-    })).toMatchObject({ channel: "evaluation", productName: "Mirror Desktop Eval" });
+      productName: "Mirror Desktop TS Eval",
+      bundleIdentifier: "ai.mirrormind.desktop.ts",
+      appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop.ts",
+    })).toMatchObject({ channel: "evaluation", productName: "Mirror Desktop TS Eval" });
   });
 
   it("rejects unknown fields, cross-channel identifiers and incomplete validated state", () => {
     expect(() => parseRuntimeChannelDiagnostic({ ...development, token: "secret" })).toThrow(/unsupported fields/);
-    expect(() => parseRuntimeChannelDiagnostic({ ...development, bundleIdentifier: "ai.mirrormind.desktop" })).toThrow(/bundle identity/);
+    expect(() => parseRuntimeChannelDiagnostic({ ...development, bundleIdentifier: "ai.mirrormind.desktop.ts" })).toThrow(/bundle identity/);
+    // CV-010.DS-005 phase 0: the frozen 0.2 identities are foreign to every channel of this line.
+    expect(() => parseRuntimeChannelDiagnostic({ ...development, bundleIdentifier: "ai.mirrormind.desktop.dev" })).toThrow(/bundle identity/);
+    expect(() => parseRuntimeChannelDiagnostic({ ...development, channel: "user", bundleIdentifier: "ai.mirrormind.desktop" })).toThrow(/bundle identity/);
     expect(() => parseRuntimeChannelDiagnostic({ ...development, mirrorHome: undefined })).toThrow(/lacks required coordinates/);
   });
 });

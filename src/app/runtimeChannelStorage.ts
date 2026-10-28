@@ -64,8 +64,8 @@ export function parseRuntimeChannelDiagnostic(value: unknown): RuntimeChannelDia
     throw new Error("Runtime channel diagnostic contains an unsupported identity.");
   }
   const expectedIdentifier = diagnostic.channel === "development"
-    ? "ai.mirrormind.desktop.dev"
-    : "ai.mirrormind.desktop";
+    ? "ai.mirrormind.desktop.ts.dev"
+    : "ai.mirrormind.desktop.ts";
   if (diagnostic.bundleIdentifier !== expectedIdentifier) {
     throw new Error("Runtime channel diagnostic diverges from its bundle identity.");
   }

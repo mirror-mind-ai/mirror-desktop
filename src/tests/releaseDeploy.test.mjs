@@ -82,7 +82,7 @@ describe("retained version derivation", () => {
   });
 
   it("retains only the release itself when no previous tag exists", () => {
-    expect(deriveRetainedVersions({ version: "0.1.0", tags: [] })).toEqual(["0.1.0"]);
+    expect(deriveRetainedVersions({ version: "0.3.0-alpha.1", tags: [] })).toEqual(["0.3.0-alpha.1"]);
   });
 });
 

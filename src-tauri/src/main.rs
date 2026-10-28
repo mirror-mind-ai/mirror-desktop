@@ -10393,7 +10393,7 @@ fn main() {
     if let Err(error) = RuntimeChannel::active().validate_operational_exclusion() {
         rfd::MessageDialog::new()
             .set_level(rfd::MessageLevel::Warning)
-            .set_title("Mirror Desktop Eval")
+            .set_title(RuntimeChannel::Evaluation.product_name())
             .set_description(&error)
             .set_buttons(rfd::MessageButtons::Ok)
             .show();
