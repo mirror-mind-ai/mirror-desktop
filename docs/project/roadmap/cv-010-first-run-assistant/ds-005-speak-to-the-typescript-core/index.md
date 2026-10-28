@@ -184,8 +184,8 @@ including any Navigator check, is met.
 
 | Phase | Status | What is owed |
 |---|---|---|
-| 0 · Freeze and separate | 🟠 Implemented | The Navigator's launch of *Mirror Desktop TS Dev*, with the 0.2 app data unchanged |
-| 1 · A library seam in Core | 🟡 Candidate | A full plan, starting with open-without-migrating and the pending-migrations report |
+| 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
+| 1 · A library seam in Core | 🟡 Planned | Slice 1a planned below; needs a `mirror-ts` branch and a Core roadmap home, each at the Navigator's word |
 | 2 · The embedded host | 🟡 Candidate | A full plan |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
@@ -426,3 +426,139 @@ tests, tsc clean, build passing.
   release yet. That is phase 2's first slice.
 - **The server path `/mirror-desktop/ts/`** does not exist yet. Creating it is a release-time act, done
   only with the Navigator's word.
+
+## Phase 0 Accepted (2026-10-28)
+
+The Navigator launched `npm run tauri:dev` after the black-window fix. The window opened as *Mirror
+Desktop TS Dev* on the first-run screen, labelled *Mirror Desktop TS*. It showed the discovery preview,
+which in a Development build never connects a discovered Mirror.
+
+Read afterwards:
+
+- **0.2 Development app data:** `ai.mirrormind.desktop.dev`, 141 files, tree hash `5e4b4298cf60`.
+  This is the same as the baseline.
+- **0.3 Development app data:** `ai.mirrormind.desktop.ts.dev` holds 3 files
+  (`journey-preferences.json`, `whats-new-state.v1.json`, `window-geometry.json`) and no binding.
+- **Production:** binary `303ede287de3…`, database at `016_builder_workbench_display_codes`.
+- **Production app data:** `ai.mirrormind.desktop` changed, but only in files of this conversation:
+  the `mirror-desktop` Journey's journal, drafts and Pi session, written by the production app itself.
+
+**The preview read the production Mirror.** The discovery is read-only and the Development build
+cannot connect from it, but the TS build still looks at the Python Mirror. Phase 2's condition (b)
+guard will replace this flow.
+
+## Phase 1 Plan — Slice 1a: Inspect a Home Without Migrating (2026-10-28)
+
+### Measured before planning
+
+All measurements were run in `/Users/alissonvale/Code/mirror-ts` at `dd5bed9b` (0.37.0). `npm ci
+--ignore-scripts` was run locally, without `-g` and without `link`. Every command ran with
+`MIRROR_HOME`, `MIRROR_USER`, `DB_PATH`, `MEMORY_DIR`, `MEMORY_PROD_DIR` and `MEMORY_ENV` unset, and
+with `HOME` and `TMPDIR` in `/tmp/mirror-ts-sandbox`.
+
+That isolation matters because **the Navigator's shell exports `MIRROR_HOME` and `MIRROR_USER` for
+production**. Any Core process started from that shell without isolation would resolve to production
+and migrate it.
+
+- **Core baseline:**
+  - typecheck is clean;
+  - `npm test` has 3,527 tests: 3,525 pass, 1 is skipped and 1 fails;
+  - production stayed at migration 016 throughout.
+- **The one failure** is `ts/test/runtime/diagnose.test.ts`, "the two cores describe a broken index".
+  It pins that `node:sqlite` refuses to write an FTS5 shadow table, and this machine's Node v24.6.0
+  allows it. This is driver behaviour, not Core logic, and it is not this slice's to fix. **It is an
+  input to phase 2:** the pinned Node that Desktop bundles must be one where that refusal holds,
+  because the refusal is a safety property.
+- **Migration machinery.** `ts/src/db/migrateOnOpen.ts` already computes everything a report needs:
+  `appliedMigrationIds`, `pendingMigrations` and `unknownMigrations`, against `KNOWN_MIGRATION_IDS`.
+  It has three verdicts: `applied`, `nothing_pending` and `declined`. All of it is private, and the
+  only public path, `ensureMigratedOnOpen`, applies what is pending.
+- **How the package runs.** Core is TypeScript run directly by Node. Node refuses to strip types under
+  `node_modules`, so every bin goes through `bin/loader.js`, which registers a load hook for `.ts` files
+  under the package root. **A library entry needs the same hook, registered before any `.ts` module
+  loads.** A static `export * from "./x.ts"` is resolved before the entry's body runs. The entry has to
+  register the hook and then use a dynamic `import()`, with explicit named re-exports.
+- **No package-name imports.** Nothing in Core imports `mirror-mind/...`, so adding `exports` does not
+  break an internal path. `./package.json` should still be exported, for tools that read it.
+- **A read-only open is not free of files.** On a WAL database, `new DatabaseSync(path, { readOnly:
+  true })` leaves the `memory.db` bytes unchanged. It does, though, create `memory.db-shm` and an empty
+  `memory.db-wal`, and it leaves them there. Any SQLite reader does the same, Python included.
+- **An isolated packaging smoke already exists.** `scripts/smoke_npm_package.sh` packs, installs into a
+  scratch prefix with a scratch `HOME`, and stubs Python. The library import check can follow it.
+
+### Scope
+
+1. **A report that never migrates.** Add `inspectMigrationState(dbPath)` in Core. It takes an explicit
+   path and reads no environment variable. It returns one of five states, with the lists behind it:
+   - `missing`: no file;
+   - `not_mirror`: no `_migrations` table;
+   - `current`;
+   - `pending`: known migrations not applied, in order;
+   - `ahead`: the database has migrations this Core does not know.
+
+   It also returns `applied`, `pending`, `unknown` and the Core version.
+2. **One source of truth.** `ensureMigratedOnOpen` and the report share the same private functions, so
+   the report can never disagree with what an open would do.
+3. **A library entry.** `lib/desktop.js` registers the type-stripping hook, shared with
+   `bin/loader.js` and registered once, and then re-exports `inspectMigrationState` and
+   `DESKTOP_API_VERSION = 1` by name. `package.json` gains:
+   - `"exports": { "./desktop": "./lib/desktop.js", "./package.json": "./package.json" }`;
+   - `lib` in `files`.
+
+### Files (Core)
+
+- `ts/src/db/migrateOnOpen.ts`: share the functions, no behaviour change.
+- `ts/src/db/migrationReport.ts` (new): the report.
+- `bin/loader.js`: export the hook registration.
+- `lib/desktop.js` (new), `package.json`.
+- `ts/test/db/migrationReport.test.ts` (new).
+- A library-import smoke beside `scripts/smoke_npm_package.sh`.
+- A Core roadmap entry and release note, in Core's own form.
+
+### Acceptance
+
+- **Each state is reported correctly**, on fixtures for all five. `pending` uses a Python-era database
+  at 016, which must report `017` and `018` pending, in order.
+- **The report writes nothing:**
+  - the database file's hash and the `_migrations` rows are unchanged;
+  - no `backups/` directory, pre-migration snapshot or bootstrap lock appears.
+
+  `-wal` and `-shm` files may appear on a WAL database, as measured. The test asserts exactly that
+  and nothing more.
+- **The report ignores the environment.** With `MIRROR_HOME` pointing at a canary home, the canary is
+  untouched.
+- **`ensureMigratedOnOpen` is unchanged.** Every existing test stays green.
+- **The import works from an installed package.** A tarball installed into a scratch project's
+  `node_modules` imports `inspectMigrationState` from `mirror-mind/desktop` on Node 24, with no flags.
+- **Mutation controls.** Each of these makes a test fail:
+  - making the report call `ensureMigratedOnOpen`;
+  - dropping the hook registration from `lib/desktop.js`;
+  - reading `MIRROR_HOME`.
+
+### Validation
+
+These are Core's own gates, run under the isolation above:
+
+- typecheck;
+- `npm test`, against the baseline 3,525 / 1 / 1;
+- `npm run lint`;
+- the new smoke.
+
+Production's `_migrations` is read before and after, and must stay at 016.
+
+### Exclusions
+
+- No Desktop change. Phase 2 consumes this.
+- No Core release. Publishing goes through Mirror's own release path, at the Navigator's word.
+- No other library functions. Creating a Conversation, append, rename, rebind, Journey reads, and
+  `init`/`seed` are later slices, each planned in full.
+- No fix for the diagnose test.
+- **Never run against `~/.mirror-minds/alisson-vale`.**
+
+### Boundaries needing the Navigator's word
+
+1. **A branch in `mirror-ts`.** Proposed: `desktop/library-seam-1a`, from `main` at `dd5bed9b`.
+2. **A home in Core's roadmap.** Core plans work as CVs and Delivery Stories, governed by Ariad on the
+   `mirror` Journey. This slice needs a place there: either a new Core CV, *Embeddable Core for Mirror
+   Desktop*, or a Delivery Story under an existing one. Writing to Core's roadmap is a mutation of
+   another Journey's planning, so it waits for the Navigator to name the target.
