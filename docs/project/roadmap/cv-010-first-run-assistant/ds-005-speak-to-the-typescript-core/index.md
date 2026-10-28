@@ -185,7 +185,7 @@ including any Navigator check, is met.
 | Phase | Status | What is owed |
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
-| 1 · A library seam in Core | 🟡 Planned | Slices 1a (CV24.DS1) and 1b (CV24.DS2) are built on `desktop/library-seam-1a`, with Core CI green. Slice 1c, Journey reads (DS3), is planned. Still owed: `init`/`seed` (DS4) and migrate-on-request (DS5), each planned first. Merge and Core release need their own word. |
+| 1 · A library seam in Core | 🟡 Planned | Slices 1a, 1b and 1c (CV24.DS1–DS3) are built on `desktop/library-seam-1a`, with Core CI green. Still owed: `init`/`seed` (DS4) and migrate-on-request (DS5), each planned first. Merge and Core release need their own word. |
 | 2 · The embedded host | 🟡 Candidate | A full plan |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
@@ -718,3 +718,51 @@ and no production data enters Core's repository.
 
 **A gap this leaves for 0.3:** nothing can write `sibling_position` any more. Reordering Journeys in
 0.3 waits for Journey administration, which 0.3 does not carry at first.
+
+## Phase 1 Slice 1c Built (2026-10-28)
+
+Slice 1c is Core's CV24.DS3, built in `84fd5eff` and `036de549`. Core's record, with the full
+evidence, is `cv24-ds3-journey-reads/index.md` in `mirror-ts`.
+
+### What Desktop gains
+
+`mirror-mind/desktop` now exports three read-only calls. Each refuses a home that is not `current`:
+
+| Call | Replaces |
+|---|---|
+| `readJourneyTree` | `journey export-registry`, which Core retired |
+| `listJourneyConversations` | the catalog script's `catalog` |
+| `inspectConversation`, by exact id | the catalog script's `inspect` |
+
+The entry now exposes 11 names.
+
+### The sidebar keeps its order
+
+The tree reads `sibling_position`, which the TS core had never read. It was checked against the
+installed Python export on scratch copies of the production home:
+
+- 81 Journeys in 13 roots;
+- the two trees are equal;
+- no findings.
+
+A name-ordered tree fails that comparison. During the check, the production home's file snapshot
+was unchanged around the Python run. The copies were deleted afterwards.
+
+### Evidence
+
+- **Tests:** 15 new tests, each file red first.
+- **Mutations:** four, each caught. They were: name order, throwing on a malformed order, a prefix in
+  `inspectConversation`, and no `current` check.
+- **Core gates:**
+  - `npm test`: 3,567 tests pass;
+  - package smoke: 87 of 87.
+- **A CI miss, caught by CI.** The first Core CI run failed. My comments named the retired verb,
+  which Core's sweep forbids, and the local run could not see this because the sweep reads only
+  committed files. The comments were reworded, and no exemption was added. The rerun passed on all
+  four jobs, after one macOS runner-allocation retry.
+- **Production:** it stayed at migration 016.
+
+### For phase 2
+
+The 0.3 Rust registry validator expects `schemaVersion`, `source`, `syncedAt` and `sourceVersion`.
+The new tree has none of them, so phase 2 replaces that validator rather than feeding it.
