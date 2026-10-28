@@ -176,6 +176,21 @@ exclusions, before it is built.
 | **4 · Stable** | Desktop 0.3 | 0.3 is in daily use on its own database and its own installation. **CR work resumes here (d).** |
 | **5 · Migration** | Desktop 0.3 + Navigator | Production moves: rehearsed backup and restore, the schema move, the web console's end recorded, the 0.2 app data imported or abandoned, and the two-Mirrors version rule decided in an Explorer Mode pass beforehand. Only at the Navigator's word. |
 
+### Phase Status
+
+This table is the source for the Canvas's 0.3 line. Its vocabulary is the roadmap's: 🟡 Candidate (not
+yet planned in full), 🟡 Planned, 🟠 Implemented and ✅ Done. A phase is Done only when its acceptance,
+including any Navigator check, is met.
+
+| Phase | Status | What is owed |
+|---|---|---|
+| 0 · Freeze and separate | 🟠 Implemented | The Navigator's launch of *Mirror Desktop TS Dev*, with the 0.2 app data unchanged |
+| 1 · A library seam in Core | 🟡 Candidate | A full plan, starting with open-without-migrating and the pending-migrations report |
+| 2 · The embedded host | 🟡 Candidate | A full plan |
+| 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
+| 4 · Stable | 🟡 Candidate | A full plan |
+| 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
+
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
 Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
 planned in phase 1 or later. Until then, 0.3 says plainly that it is not available.
@@ -366,6 +381,35 @@ pathspec for the already-renamed overlay) left only the staged rename for the fi
 
 Both were pushed before the error was seen. History was not rewritten, because that needs the
 Navigator's word. The tree at `3577a21` is the one every gate above verified.
+
+### Found at the Navigator check: a fresh install opened to a black window
+
+The first launch of *Mirror Desktop TS Dev* showed a black window. The cause predates phase 0:
+
+- With no selected Journey, the effect that restores the visible Composer draft called
+  `conversationDraftKey("")`.
+- That call throws, and React unmounted the whole tree.
+- The line has been in `App.tsx` since alpha.8. No install ever reached it before, because every
+  existing install has a selected Journey. The retired DS-001 fixture, a fresh macOS account, is the
+  test that would have found it.
+
+**How it was established.** The black screen was reproduced in a browser with a simulated Tauri bridge,
+and the stack trace pointed at `conversationDraftKey`. A guarded probe rendered the first-run screen.
+
+**The fix.**
+
+- `visibleComposerDraftKey` returns no key when no Journey is selected, and still throws for a
+  malformed one.
+- The effect uses it.
+- The first-run screens now say *Mirror Desktop TS*.
+- `src/tests/cv010FreshInstallLaunch.test.ts` has 5 tests. They were red first, then green, and a
+  mutation that restores the old call is caught.
+
+**After the fix.** The same simulation renders the first-run screen. Gates: vitest 276 files and 2,311
+tests, tsc clean, build passing.
+
+0.2 very probably carries the same defect, and the public download is 0.2. It is candidate B1 in
+[the backport candidates](../release-0-2-backport-candidates.md).
 
 ### Still owed, and known gaps
 

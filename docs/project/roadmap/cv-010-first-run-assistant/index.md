@@ -32,6 +32,9 @@ Decided by the Navigator on 2026-10-27:
 | CV-010.DS-003 | Create the Mirror | The assistant takes a name, writes the Mirror configuration, runs `init` and `seed` through a fixed-argv allowlist and opens a first Journey | 🟡 Candidate |
 | CV-010.DS-004 | Connect the Providers | The assistant takes the OpenRouter key and connects a subscription through Pi's own login or a provider API key, verified by `pi auth check` and the model catalog | 🟡 Candidate |
 
+Changes that could be carried to the frozen 0.2 line before 0.3 is promoted are listed in
+[Release 0.2 Backport Candidates](release-0-2-backport-candidates.md).
+
 ## Done Condition
 
 On a clean macOS user account, a person can install the signed Mirror Desktop, follow the assistant, and receive a first answered turn in a Journey without opening a terminal; and a person who already has Mirror connects without typing a path.

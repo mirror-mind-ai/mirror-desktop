@@ -52,12 +52,54 @@ itens da Story ou do Capability Value** — não terminal sobre total, não perc
 `██████████` tudo entregue, `░░░░░░░░░░` nada entregue. Toda contagem numa barra tem de ser
 reproduzível a partir da fonte.
 
+## Modo de linhas (desde 2026-10-28)
+
+O Navigator mudou a perspectiva do Canvas em 2026-10-28. **Enquanto vigorar o Corte de CRs, esta
+seção prevalece sobre `Foco em aberto` e `Colunas` onde as duas divergirem.** O modo termina quando as
+CRs voltarem, na fase 4 da DS-005. Nesse dia estas instruções são revistas antes de o Canvas ser
+redesenhado.
+
+### Workbench, nesta ordem
+
+1. **Linha 0.3 · Mirror Desktop TS · `main`.** Uma linha-pai com o estado da linha e a barra de fases
+   `Done` sobre o total de fases. Abaixo dela, uma linha `↳` por fase, de 0 a 5, sempre todas, inclusive
+   as concluídas, porque a sequência é o que se acompanha. Fonte: a tabela `### Phase Status` do
+   `index.md` da CV-010.DS-005.
+2. **Linha 0.2 · Mirror Desktop · `release/0.2`.** Uma linha-pai com a versão congelada e a regra de
+   dano grave. Abaixo dela, uma linha `↳` com a contagem de candidatos a levar para a 0.2 e quantos
+   estão prontos ou autorizados. Fonte: `docs/project/roadmap/cv-010-first-run-assistant/release-0-2-backport-candidates.md`.
+3. **Corte de CRs.** Uma linha com o estado do corte.
+4. **Refinement Stories.** Uma linha por Story ativa, com as contagens por status. **Uma CR ganha linha
+   própria só se estiver `in_progress`.** As CRs `captured`, `planned` e `parked` ficam suspensas na
+   contagem da sua Story. Uma CR com outro status e com ⚠️ ou 🧪 continua ganhando linha.
+5. A linha de história distante, como antes.
+
+A checagem do Canvas passa a afirmar:
+
+- as contagens por status e o total de cada Story contra o índice canônico;
+- que as linhas de CR mostradas são exatamente as `in_progress`;
+- que as linhas de fase são exatamente as 6 da tabela de status, com o status dela;
+- que a contagem de candidatos é a do arquivo de candidatos.
+
+### Últimas entregas
+
+As colunas passam a ser `Entrega | Story | Release | Estado`. Uma entrega é uma CR, uma Delivery Story
+ou uma fase da DS-005. No máximo 3, as mais recentes. Uma entrega ainda não publicada diz isso na coluna
+Release, por exemplo `main · não publicada`.
+
+### Ao fim de cada turno
+
+Além do protocolo abaixo, todo turno desta Journey confere as linhas 0.3 e 0.2 contra as suas fontes.
+Uma mudança de fase, de candidato ou de entrega atualiza o Canvas no mesmo turno.
+
 ## Vocabulário visual
 
 - ✅ `done`, `closed` ou `Done`
+- 🟠 `Implemented`
+- 🔵 `in_progress`
 - 🔄 story `active`
 - 🎯 Refinement Story nomeada em `## Current Focus`
-- 🟡 `captured` ou `Planned`
+- 🟡 `captured`, `Candidate` ou `Planned`
 - ⏸️ `parked`
 - ↗️ `promoted`
 - ⛔ `dismissed` ou `rejected`
