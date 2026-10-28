@@ -185,7 +185,7 @@ including any Navigator check, is met.
 | Phase | Status | What is owed |
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
-| 1 · A library seam in Core | 🟡 Planned | Slices 1a (CV24.DS1) and 1b (CV24.DS2) are built on `desktop/library-seam-1a`, with Core CI green. Still owed: Journey reads (DS3), `init`/`seed` (DS4) and migrate-on-request (DS5), each planned first. Merge and Core release need their own word. |
+| 1 · A library seam in Core | 🟡 Planned | Slices 1a (CV24.DS1) and 1b (CV24.DS2) are built on `desktop/library-seam-1a`, with Core CI green. Slice 1c, Journey reads (DS3), is planned. Still owed: `init`/`seed` (DS4) and migrate-on-request (DS5), each planned first. Merge and Core release need their own word. |
 | 2 · The embedded host | 🟡 Candidate | A full plan |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
@@ -687,3 +687,34 @@ through a handle that cannot delete, alter the schema, or touch any table other 
   - Listing and inspection are reads, which belong to DS3.
   - Delete is destructive, so it needs its own story and decision.
 - **Recall** is still a CLI route.
+
+## Phase 1 Slice 1c Planned (2026-10-28)
+
+Slice 1c is Core's **CV24.DS3 · Journey Reads**, planned in `mirror-ts` (`4cc68dd7`) at
+`docs/project/roadmap/cv24-embeddable-core-for-mirror-desktop/cv24-ds3-journey-reads/index.md`. It
+has three read-only calls:
+
+- `readJourneyTree`, which replaces `journey export-registry`;
+- `listJourneyConversations`, which replaces the catalog script's `catalog`;
+- `inspectConversation`, which replaces its `inspect`.
+
+**The tree is a new contract, not a revival.** Core retired `journey export-registry`, and its cutoff
+says that a new consumer gets "a new contract with a named consumer". So it returns no
+`sourceVersion`, which existed only for the retired `journey mutate`. The Rust registry validator in
+0.3 will therefore need to change in phase 2.
+
+**The finding that shaped it: the sidebar order.** The TS core does not read `sibling_position`
+anywhere. In production, read-only, **65 of 81 Journeys carry it**, written by Desktop's Journey
+ordering. A tree in the core's existing order (active first, then by name) would have reordered the
+Navigator's sidebar at migration. The plan has the read honour the stored order, as the removed
+export did.
+
+Unlike the export, malformed data does not fail the whole read. Each fallback is reported as a
+named `finding`, because an empty sidebar would be worse than a named fallback.
+
+**Parity check, planned.** The installed Python 0.31.14 and `readJourneyTree` both read a **scratch
+copy** of the production home, and their trees must be equal. Only counts and a hash are recorded,
+and no production data enters Core's repository.
+
+**A gap this leaves for 0.3:** nothing can write `sibling_position` any more. Reordering Journeys in
+0.3 waits for Journey administration, which 0.3 does not carry at first.
