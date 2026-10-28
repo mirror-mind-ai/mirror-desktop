@@ -185,7 +185,7 @@ including any Navigator check, is met.
 | Phase | Status | What is owed |
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
-| 1 · A library seam in Core | 🟡 Planned | Slices 1a to 1d (CV24.DS1–DS4) are built on `desktop/library-seam-1a`, with Core CI green. Still owed: migrate-on-request (DS5), planned first. Merge and Core release need their own word. |
+| 1 · A library seam in Core | 🟡 Planned | Slices 1a to 1d (CV24.DS1–DS4) are built on `desktop/library-seam-1a`, with Core CI green. Slice 1e (DS5, migrate on request) is planned; its backup custody awaits the Navigator. Merge and Core release need their own word. |
 | 2 · The embedded host | 🟡 Candidate | A full plan |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
@@ -835,3 +835,30 @@ The entry now exposes 13 names.
   - package smoke: 90 of 90, including the machine-wide config staying byte-identical.
 - **Core CI:** green on `9bfa202d` across all four jobs, first attempt (run `40778091305`).
 - **Production:** it stayed at migration 016.
+
+## Phase 1 Slice 1e Planned (2026-10-28)
+
+Slice 1e is Core's **CV24.DS5 · Migrate on Request**, planned in `mirror-ts` (`3d21249c`) at
+`docs/project/roadmap/cv24-embeddable-core-for-mirror-desktop/cv24-ds5-migrate-on-request/index.md`.
+It is the last piece of phase 1.
+
+The call is `migrateHome(dbPath, { expectedPending })`. It applies exactly the pending migrations the
+person was shown, and refuses if that list has changed since they were shown it. **Phase 5 will run
+this call against the Navigator's production home.**
+
+**What planning found in Core's existing migration backup:**
+
+- **One fixed name, overwritten.** Each migration replaces `backups/frontdoor-pre-migration-backup.db`,
+  so the next migration destroys the previous pre-image.
+- **Never verified.** It has no `quick_check`, no hash and no WAL preparation, even though Core has
+  `prepareArchiveSnapshot` for exactly this, which the backup path does not call.
+
+**Awaiting the Navigator: backup custody.** The recommendation is a backup that is:
+
+- uniquely named and never overwritten;
+- verified (WAL, `quick_check`, SHA-256, and confirmed to read the same pending list as the live
+  home);
+- retained by the core.
+
+Nothing migrates unless that backup is verified. Restoring from a backup is excluded: it is
+destructive, so it gets its own story and decision before phase 5's rehearsal.
