@@ -185,7 +185,7 @@ including any Navigator check, is met.
 | Phase | Status | What is owed |
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
-| 1 · A library seam in Core | 🟡 Planned | Slice 1a built (CV24.DS1) and pushed to `desktop/library-seam-1a`, with Core CI dispatched. Slice 1b (CV24.DS2) is planned, but its write custody awaits the Navigator. Merge and Core release need their own word. |
+| 1 · A library seam in Core | 🟡 Planned | Slices 1a (CV24.DS1) and 1b (CV24.DS2) are built on `desktop/library-seam-1a`, with Core CI green. Still owed: Journey reads (DS3), `init`/`seed` (DS4) and migrate-on-request (DS5), each planned first. Merge and Core release need their own word. |
 | 2 · The embedded host | 🟡 Candidate | A full plan |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
@@ -642,3 +642,48 @@ write.
 - **Recommendation:** the narrowed handle that Core already uses for its other long-lived writer, the
   MCP server. It is a handle that can form only the statements these four calls need, so destructive
   writes are unreachable rather than undone.
+
+## Phase 1 Slice 1b Built (2026-10-28)
+
+The Navigator chose **option B**, a narrowed handle, for write custody. Core recorded it as the
+decision "A host's Conversation writes are narrowed, not snapshotted" (`d1a3104f`) before any code
+was written. The slice is Core's CV24.DS2 (`0362d215`). Core's own record, with the full evidence,
+is `cv24-ds2-conversations-as-calls/index.md` in `mirror-ts`.
+
+### What Desktop gains
+
+`mirror-mind/desktop` now exports four calls, which replace Desktop's Python and CLI routes for
+Conversations:
+
+| Call | Replaces |
+|---|---|
+| `ensureConversation` | `provision_mirror_conversation.py` |
+| `appendConversationMessages` | the `conversations append` CLI. Its receipts are the CLI's, byte for byte. |
+| `renameConversation` | the catalog script's rename |
+| `rebindConversationJourney` | the catalog script's `rebind-journey` |
+
+It also exports `DatabaseNotCurrentError` and `ConversationCallRejectedError`.
+
+Each call refuses a home that is not `current`, never migrates and never snapshots. Each writes
+through a handle that cannot delete, alter the schema, or touch any table other than
+`conversations`, `messages` and `runtime_sessions`.
+
+### Evidence
+
+- **Tests:** 14 new tests in Core, each file red first.
+- **Mutations:** four, each caught. They were: skipping the `current` check, allowing `DELETE`,
+  routing through the per-write snapshot, and accepting an id prefix.
+- **Core gates:**
+  - typecheck: clean;
+  - lint: clean, apart from the baseline warning;
+  - `npm test`: 3,552 tests pass;
+  - package smoke: 85 of 85, including the four calls run from the installed tarball.
+- **Core CI:** green on `0362d215` across all four jobs (run `40767136231`).
+- **Production:** it stayed at migration 016 throughout.
+
+### Gaps phase 2 inherits
+
+- **Catalog listing, inspection and delete** are not yet calls.
+  - Listing and inspection are reads, which belong to DS3.
+  - Delete is destructive, so it needs its own story and decision.
+- **Recall** is still a CLI route.
