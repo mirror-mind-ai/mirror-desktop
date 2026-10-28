@@ -26,7 +26,7 @@ export function MirrorDiscoveryCard({ state, connecting, error, onConnect, onCho
   const binding = state.kind === "result" ? state.discovery.binding : null;
   return (
     <>
-      <p className="eyebrow">Mirror Desktop</p>
+      <p className="eyebrow">Mirror Desktop TS</p>
       <h1>{state.kind === "checking" ? "Looking for your Mirror…" : view?.headline ?? "Your Mirror could not be checked"}</h1>
       <p>{state.kind === "failed" ? state.message : view?.summary ?? "Checking the usual places on this Mac. Nothing is changed."}</p>
       {view ? (

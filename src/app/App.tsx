@@ -355,6 +355,7 @@ import {
   availableConversationActions,
   createAgentHandoffPrompt,
   conversationDraftKey,
+  visibleComposerDraftKey,
   desktopConversationThread,
   reduceConversationExpansion,
   reduceConversationSelection,
@@ -1945,7 +1946,8 @@ export function App({ model }: AppProps) {
     const conversationId = selectedConversationSpace.kind === "desktop_conversation"
       ? selectedConversationSpace.conversationId
       : undefined;
-    setVisibleComposerDraft(composerDraftsRef.current[conversationDraftKey(selectedJourney, conversationId)] ?? "");
+    const draftKey = visibleComposerDraftKey(selectedJourney, conversationId);
+    setVisibleComposerDraft(draftKey ? composerDraftsRef.current[draftKey] ?? "" : "");
   }, [
     selectedJourney,
     selectedConversationSpace.kind,
@@ -5524,7 +5526,7 @@ export function App({ model }: AppProps) {
             />
           ) : runtimeSetupNeedsConnection ? (
             <>
-              <p className="eyebrow">Mirror Desktop {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : evaluationChannel ? <span className="evaluation-badge">{EVALUATION_BADGE_LABEL}</span> : null}</p>
+              <p className="eyebrow">Mirror Desktop TS {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : evaluationChannel ? <span className="evaluation-badge">{EVALUATION_BADGE_LABEL}</span> : null}</p>
               <h1>Connect your Mirror</h1>
               <p>Choose the Mirror installation and personal home this app should use. These fields stay on this Mac.</p>
               <div className="runtime-onboarding-form" aria-label="Required Mirror connection">
@@ -5544,13 +5546,13 @@ export function App({ model }: AppProps) {
             </>
           ) : !runtimeChannel ? (
             <>
-              <p className="eyebrow">Mirror Desktop</p>
+              <p className="eyebrow">Mirror Desktop TS</p>
               <h1>Checking your Mirror connection…</h1>
               <p>{runtimeChannelError ?? "Preparing secure local setup."}</p>
             </>
           ) : runtimeOnboardingState === "error" || runtimeOnboardingState === "empty" ? (
             <>
-              <p className="eyebrow">Mirror Desktop</p>
+              <p className="eyebrow">Mirror Desktop TS</p>
               <h1>{runtimeOnboardingMessage}</h1>
               <p>{runtimeOnboardingState === "error" ? "Your connection was saved. Try loading your Journeys again or edit the connection." : "Create a Journey in Mirror, then refresh this screen."}</p>
               <div className="provider-actions">
@@ -5597,7 +5599,7 @@ export function App({ model }: AppProps) {
             </>
           ) : (
             <>
-              <p className="eyebrow">Mirror Desktop</p>
+              <p className="eyebrow">Mirror Desktop TS</p>
               <h1>Loading your Journeys…</h1>
               <p>Mirror is reading your Journey registry through the validated local connection.</p>
             </>

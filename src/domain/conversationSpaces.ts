@@ -122,6 +122,18 @@ export function conversationDraftKey(journeyId: string, conversationId?: string)
   return `${journeyId}__conversation_${encoded}`;
 }
 
+/**
+ * The key of the draft the Composer shows, or none when no Journey is selected.
+ *
+ * A fresh install starts with no selected Journey. `conversationDraftKey("")` throws, and it threw
+ * inside the effect that restores the visible draft, which unmounted the whole app: a black window
+ * before the first-run screen could render (found 2026-10-28, on the first launch of Mirror Desktop
+ * TS). A present but malformed Journey ID still throws.
+ */
+export function visibleComposerDraftKey(journeyId: string, conversationId?: string): string | undefined {
+  return journeyId ? conversationDraftKey(journeyId, conversationId) : undefined;
+}
+
 export function createJourneyWorkspaceSelection(journeyId: string): JourneyWorkspaceSelection {
   assertJourneyId(journeyId);
   return { kind: "journey_workspace", journeyId };
