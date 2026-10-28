@@ -1,6 +1,6 @@
 # Exploration Direction: Embedded TS Runtime, Full Control
 
-**Status:** direction captured, not yet explored
+**Status:** direction captured, not yet explored. **Adopted 2026-10-28** as the basis of the Mirror Desktop 0.3 line ([decision](../../roadmap/cv-010-first-run-assistant/decision-2026-10-28-the-0-3-line.md)), for Mirror only; Pi stays external
 **Captured:** 2026-09-21, by explicit Navigator decision
 **Origin:** the `--no-extensions` cost chain surfaced by the silent `claude-bridge` failure (CR070/CR071)
 

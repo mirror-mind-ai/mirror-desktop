@@ -183,7 +183,8 @@ or released, and Mirror Core was not touched.
 1. ~~**Navigator check on the Development build.**~~ **Passed 2026-10-27.** The Navigator ran
    `npm run tauri:dev`, used Settings → Runtime channel → **Find my Mirror**, and reported "Funcionou,
    validado": the three fields filled with their Mirror and nothing was saved.
-2. **Field fixture 2, after release.** Install Mirror in the clean `mirror` account by its own guide,
+2. ~~**Field fixture 2, after release.**~~ **Retired 2026-10-28, not passed.** It tested discovery of a Python Mirror that no one installing today can obtain, and the [0.3 decision](../decision-2026-10-28-the-0-3-line.md) moves new users to an embedded TypeScript Mirror. DS-001 stays on the 0.2 line as built, validated on the Development build, and shipped in alpha.58.
+   Originally: **Field fixture 2, after release.** Install Mirror in the clean `mirror` account by its own guide,
    then install this release and connect with one click. Do it at a moment with no turn in flight in
    the Navigator's session.
 

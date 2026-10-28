@@ -1,18 +1,19 @@
 [< CV-010](../index.md)
 
-# CV-010.DS-005 - Speak to the TypeScript Core Without Breaking the Python One
+# CV-010.DS-005 - The 0.3 Line: Mirror Desktop on an Embedded TypeScript Mirror
 
-**Status:** 🟡 Planned — selected by the Navigator on 2026-10-28 (path b); audit done, nothing built; **blocked on a Navigator decision**
+**Status:** 🟡 Planned — re-scoped by the Navigator on 2026-10-28 ([decision](../decision-2026-10-28-the-0-3-line.md)); nothing built
 
 ## Outcome
 
-Mirror Desktop works with Mirror Core 0.32+ (TypeScript, installed with `npm install -g mirror-mind`,
-run as `mirror …`) **in addition to** Mirror Core 0.31.x (Python checkout run through `uv`). The
-Navigator's production installation, bound to Python 0.31.14, keeps working through every release of
-this Delivery Story without any change on their side.
+A Mirror Desktop **0.3** line hosts the TypeScript Mirror Core inside the app, as a pinned Node 24 and a
+Desktop-owned host process, on its own database and its own Mirror installation. It never touches the
+Navigator's production or Python Mirror. The frozen 0.2 line (`v0.2.0-alpha.58`) keeps serving
+production until a final, explicit migration.
 
-Numbered DS-005 because DS-002 to DS-004 were already named; it is **the first to be built**, since
-every later slice installs or talks to the Core that is published today.
+> **Superseded 2026-10-28.** Everything from *Why* through *Step 1* below records the first, additive
+> plan: one app speaking to both Cores, under no Core change. It is kept as history. The audit result
+> still stands as evidence. The plan that governs is **The 0.3 Line Plan** at the end of this file.
 
 ## Why
 
@@ -158,3 +159,23 @@ Navigator's:
 the core loop. Rename and rebind degrade to read-only on TypeScript Core, and the Canvas and the
 altitudes show an honest "not available on this Mirror" until a read model exists. The Navigator's
 production stays on Python throughout, under the invariants above.
+
+## The 0.3 Line Plan (2026-10-28)
+
+Governed by the [decision](../decision-2026-10-28-the-0-3-line.md) and its four conditions: (a) a separate update channel and bundle
+identity, (b) open only homes 0.3 created, (c) a last phase that is a migration, and (d) CR work resumes
+when 0.3 is stable. Each phase is planned in full, with scope, files, acceptance, validation and
+exclusions, before it is built.
+
+| Phase | Where | Outcome |
+|---|---|---|
+| **0 · Freeze and separate** | Desktop | `release/0.2` is cut from `v0.2.0-alpha.58`. 0.3 gets its own updater channel and bundle identifier, and the release route refuses to put a 0.3 version on `alpha`. `main` becomes 0.3. |
+| **1 · A library seam in Core** | Core, in `mirror-ts` | Core declares a stable importable API (`exports`) for what Desktop needs. **Its first piece is to open a home without migrating and report pending migrations**, so Desktop asks before anything changes. After that come creating or ensuring a Conversation, the explicit append that already exists, rename, Journey rebind, Journey reads, and `init`/`seed` as functions. Each ships through Mirror's own release. |
+| **2 · The embedded host** | Desktop 0.3 | A pinned Node 24 is bundled; Node SEA is evaluated against a loose runtime. The host process speaks a typed RPC contract. Every wait is bounded and the host is supervised and restarted (CR163). The guard is (b): homes with a 0.3 marker only. The first step swaps **transport only**, and outbox, settlement and recovery keep their shape. |
+| **3 · The first-run assistant on 0.3** | Desktop 0.3 | DS-002 shrinks to installing Pi. DS-003 creates a home with the marker. DS-004 connects providers, now including `pi auth check` readiness. The host reproduces the Mirror-context injection that terminal Pi receives through 0.37's hooks. |
+| **4 · Stable** | Desktop 0.3 | 0.3 is in daily use on its own database and its own installation. **CR work resumes here (d).** |
+| **5 · Migration** | Desktop 0.3 + Navigator | Production moves: rehearsed backup and restore, the schema move, the web console's end recorded, the 0.2 app data imported or abandoned, and the two-Mirrors version rule decided in an Explorer Mode pass beforehand. Only at the Navigator's word. |
+
+**Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
+Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
+planned in phase 1 or later. Until then, 0.3 says plainly that it is not available.

@@ -39,6 +39,9 @@ awaiting field evidence, so nothing is left half-built.
 after CV-010.DS-004 (Connect the Providers) ships**, so that the whole first-run assistant (find,
 install, create, connect) is built before CR work returns. DS-001's own field check is unchanged and
 still owed; it no longer ends the suspension.
+**Moved again on 2026-10-28:** CR work resumes **when the Mirror Desktop 0.3 line is stable on its own
+database and its own TypeScript Mirror installation** (CV-010 DS-005 phase 4). The DS-004 point lost its
+referent when the plan was re-based on 0.3. DS-001's field check was retired, not passed.
 
 ## Current Focus
 

@@ -206,3 +206,5 @@ Desktop adapting to a Core that has already shipped, not a Core change, so it is
 Navigator's rule. It is recorded here for a decision and is not planned.
 
 **Correction (2026-10-28):** the Windows installer and Frame cited above as "the decisive finding" were retired upstream in Mirror 0.32 together with the Python Core. They remain evidence of a sequence that once worked, not something to port. See CV-010.DS-005's audit.
+
+**Re-based (2026-10-28):** the assistant is now built on a Mirror Desktop 0.3 line that embeds the TypeScript Mirror, with 0.2 frozen at alpha.58. See [the decision](../../roadmap/cv-010-first-run-assistant/decision-2026-10-28-the-0-3-line.md).

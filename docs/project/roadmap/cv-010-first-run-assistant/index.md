@@ -16,10 +16,10 @@ Mirror Desktop's first screen asks for three absolute paths and a user slug, and
 
 Decided by the Navigator on 2026-10-27:
 
-- **Existing Mirror users come first.** DS-001 serves a person who already has Mirror and only lacks the Desktop; installing from nothing follows.
+- ~~**Existing Mirror users come first.**~~ *Reversed for the 0.3 line on 2026-10-28: new users first, the Navigator migrates last ([decision](decision-2026-10-28-the-0-3-line.md)).*  DS-001 serves a person who already has Mirror and only lacks the Desktop; installing from nothing follows.
 - **CR work resumes after DS-004** (Navigator, 2026-10-27, moved from DS-001), so the four Delivery Stories run back to back.
 - **Signing is in flight outside this CV.** Software Zen's Apple enrollment was submitted and awaits Apple's contact (CV-009). Nothing in CV-010 waits on it, but no new user can reach the assistant until a signed build ships.
-- **No dependency on Mirror Core changes** (Navigator, 2026-10-27). CV-010 works with the Core releases that already exist: it reads what Core already writes, calls only commands Core already ships, and reproduces Core's documented resolution rules where it needs an answer Core gives only as text. Needs that would require a Core change are recorded as debt, not prerequisites. The production Mirror checkout is never modified.
+- ~~**No dependency on Mirror Core changes** (Navigator, 2026-10-27).~~ *Superseded 2026-10-28: Core may change according to this roadmap, and Desktop embeds the TypeScript Core ([decision](decision-2026-10-28-the-0-3-line.md)).*  CV-010 works with the Core releases that already exist: it reads what Core already writes, calls only commands Core already ships, and reproduces Core's documented resolution rules where it needs an answer Core gives only as text. Needs that would require a Core change are recorded as debt, not prerequisites. The production Mirror checkout is never modified.
 - **Credentials stay with their owners.** Pi owns OAuth tokens in `~/.pi/agent/auth.json`; Mirror owns its `.env`. Desktop reads readiness, never secret values.
 
 ## Delivery Stories
@@ -27,7 +27,7 @@ Decided by the Navigator on 2026-10-27:
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
 | [CV-010.DS-001](ds-001-find-and-connect-an-existing-mirror/index.md) | Find and Connect an Existing Mirror | A person with Mirror already installed opens the Desktop and sees their Mirror found, every requirement checked in plain language, and connects with one confirmation instead of typing paths | 🟠 Implemented |
-| [CV-010.DS-005](ds-005-speak-to-the-typescript-core/index.md) | Speak to the TypeScript Core Without Breaking the Python One | Mirror Desktop works with Core 0.32+ (npm, `mirror …`) in addition to 0.31.x Python, while the Navigator's Python-bound production keeps working unchanged; **built first** | 🟡 Planned |
+| [CV-010.DS-005](ds-005-speak-to-the-typescript-core/index.md) | The 0.3 Line: Mirror Desktop on an Embedded TypeScript Mirror | A 0.3 line hosts the TypeScript Core in-app on its own database and installation, never touching production or Python Mirror; production migrates last; **the spine of CV-010 from 2026-10-28** | 🟡 Planned |
 | CV-010.DS-002 | Install the Toolchain | The assistant installs pinned uv, Node + Pi and Mirror Core into app-owned locations with visible, resumable progress and a log without secrets | 🟡 Candidate |
 | CV-010.DS-003 | Create the Mirror | The assistant takes a name, writes the Mirror configuration, runs `init` and `seed` through a fixed-argv allowlist and opens a first Journey | 🟡 Candidate |
 | CV-010.DS-004 | Connect the Providers | The assistant takes the OpenRouter key and connects a subscription through Pi's own login or a provider API key, verified by `pi auth check` and the model catalog | 🟡 Candidate |
@@ -70,3 +70,6 @@ Desktop adapting to a Core that has already shipped, not a Core change, so it is
 Navigator's rule. It is recorded here for a decision and is not planned.
 
 **Decision (2026-10-28):** path b. DS-005 comes first. Its first step is a read-only compatibility audit, under the invariant that the Navigator's current installation must keep working.
+
+**Decision (2026-10-28, later the same day):** [freeze 0.2, build a 0.3 line on an embedded TypeScript
+Mirror](decision-2026-10-28-the-0-3-line.md). DS-001 belongs to the 0.2 line. DS-002 to DS-004 are rebuilt on 0.3 as phase 3 of DS-005.
