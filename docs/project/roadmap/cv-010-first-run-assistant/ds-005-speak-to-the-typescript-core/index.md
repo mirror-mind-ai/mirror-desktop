@@ -185,7 +185,7 @@ including any Navigator check, is met.
 | Phase | Status | What is owed |
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
-| 1 · A library seam in Core | 🟡 Planned | Slice 1a built on `mirror-ts` branch `desktop/library-seam-1a`, as Core's CV24.DS1, committed and not pushed. The push, merge and Core release each need the Navigator's word. Later slices are not yet planned. |
+| 1 · A library seam in Core | 🟡 Planned | Slice 1a built (CV24.DS1) and pushed to `desktop/library-seam-1a`, with Core CI dispatched. Slice 1b (CV24.DS2) is planned, but its write custody awaits the Navigator. Merge and Core release need their own word. |
 | 2 · The embedded host | 🟡 Candidate | A full plan |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
@@ -614,3 +614,31 @@ Both are local only. The branch has not been pushed to `mirror-mind-ai/mirror`.
   v24.6.0 does not refuse them, which is the cause of the baseline diagnose failure.
 - **Leftover files.** A read-only report on a WAL database leaves `-wal` and `-shm` files. Desktop
   must not read their appearance as a change to the home.
+
+## Phase 1 Slice 1b Planned (2026-10-28)
+
+The branch `desktop/library-seam-1a` was pushed to `mirror-mind-ai/mirror`. Core's `Tests` workflow
+runs on push only for `main`, `claude/**` and `mirror-ts-core`, so it was dispatched by hand on the
+branch (run `40763456322`). No pull request was opened.
+
+**CI result:** success on `16ff6f2e`, DS1's code commit, across four jobs: `ts` on macOS and on
+Ubuntu, `smoke`, and `windows-install-kind`. The `diagnose` test that fails locally passed in CI. That
+confirms it is a property of this machine's Node v24.6.0, which matters for phase 2's Node pin. The
+plan commit `5e81b81f`, which changes docs only, came after the run.
+
+Slice 1b is Core's **CV24.DS2 · Conversations as Calls**, planned in full in `mirror-ts` at
+`docs/project/roadmap/cv24-embeddable-core-for-mirror-desktop/cv24-ds2-conversations-as-calls/index.md`.
+It covers four calls: ensure a Conversation, append, rename and rebind its Journey. They replace
+`provision_mirror_conversation.py`, the `conversations append` CLI, and the rename and rebind
+operations of `mirror_conversation_catalog.py`. Their logic is already ported in Core.
+
+**One decision is open: write custody.** Core snapshots the whole database before every live CLI
+write.
+
+- **Measured:** on a copy of the production home (108 MB), the snapshot took **920, 900 and 913 ms**.
+  The copy was made read-only through SQLite's backup API and deleted afterwards.
+- **What that means:** Desktop writes on every turn, so a per-write snapshot would add about 0.9 s,
+  plus a 108 MB disk write, to each one.
+- **Recommendation:** the narrowed handle that Core already uses for its other long-lived writer, the
+  MCP server. It is a handle that can form only the statements these four calls need, so destructive
+  writes are unreachable rather than undone.
