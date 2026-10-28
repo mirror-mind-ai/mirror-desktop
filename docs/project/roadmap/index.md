@@ -139,6 +139,7 @@ Software Zen is the intended Apple Developer Program organization and responsibl
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
 | [CV-010.DS-001](cv-010-first-run-assistant/ds-001-find-and-connect-an-existing-mirror/index.md) | Find and Connect an Existing Mirror | A person with Mirror already installed sees it found, every requirement checked in plain language, and connects with one confirmation | 🟠 Implemented |
+| [CV-010.DS-005](cv-010-first-run-assistant/ds-005-speak-to-the-typescript-core/index.md) | Speak to the TypeScript Core Without Breaking the Python One | Mirror Desktop works with Core 0.32+ in addition to 0.31.x, without disturbing a Python-bound installation | 🟡 Planned |
 
 ## Boundaries
 

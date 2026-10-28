@@ -28,7 +28,8 @@
 | Item | Estado | Progresso |
 | --- | --- | --- |
 | CV-001 … CV-007 | ✅ Done | `██████████` 7 CVs |
-| **CV-010 · First-Run Assistant** | 🎯 selecionada 2026-10-27 · ⚠️ 28/10: o Mirror publicado (0.37, TypeScript) está fora da faixa que o Desktop suporta (0.31.x, Python) · decisão pendente | `░░░░░░░░░░` 0 ✅ · 1 🟠 · 3 candidatas · de 4 DS |
+| **CV-010 · First-Run Assistant** | 🎯 selecionada 2026-10-27 · ⚠️ 28/10: o Mirror publicado (0.37, TypeScript) está fora da faixa suportada (0.31.x, Python) · caminho b: DS-005 primeiro | `░░░░░░░░░░` 0 ✅ · 1 🟠 · 1 🟡 · 3 candidatas · de 5 DS |
+| ↳　DS-005 · Speak to the TypeScript Core | 🟡 Planned · primeira a construir · sem quebrar a produção em Python · passo 1: auditoria de compatibilidade, só leitura | `░░░░░░░░░░` |
 | ↳　DS-001 · Find and Connect an Existing Mirror | 🟠 Implemented · publicada na alpha.58 · validada por você na versão dev · neste Mac propõe exatamente o binding de produção entre 7 homes · falta: a conta `mirror` | `░░░░░░░░░░` |
 | **CV-008 · Conversation Spaces** | 🟡 Planned | `████████░░` 5 ✅ · 1 🟡 · de 6 DS |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned · único DS restante | `░░░░░░░░░░` |

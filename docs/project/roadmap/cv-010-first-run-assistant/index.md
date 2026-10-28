@@ -27,6 +27,7 @@ Decided by the Navigator on 2026-10-27:
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
 | [CV-010.DS-001](ds-001-find-and-connect-an-existing-mirror/index.md) | Find and Connect an Existing Mirror | A person with Mirror already installed opens the Desktop and sees their Mirror found, every requirement checked in plain language, and connects with one confirmation instead of typing paths | 🟠 Implemented |
+| [CV-010.DS-005](ds-005-speak-to-the-typescript-core/index.md) | Speak to the TypeScript Core Without Breaking the Python One | Mirror Desktop works with Core 0.32+ (npm, `mirror …`) in addition to 0.31.x Python, while the Navigator's Python-bound production keeps working unchanged; **built first** | 🟡 Planned |
 | CV-010.DS-002 | Install the Toolchain | The assistant installs pinned uv, Node + Pi and Mirror Core into app-owned locations with visible, resumable progress and a log without secrets | 🟡 Candidate |
 | CV-010.DS-003 | Create the Mirror | The assistant takes a name, writes the Mirror configuration, runs `init` and `seed` through a fixed-argv allowlist and opens a first Journey | 🟡 Candidate |
 | CV-010.DS-004 | Connect the Providers | The assistant takes the OpenRouter key and connects a subscription through Pi's own login or a provider API key, verified by `pi auth check` and the model catalog | 🟡 Candidate |
@@ -67,3 +68,5 @@ TypeScript Core** (v0.32+): an npm-installed `mirror` rather than a checkout, `~
 as well as a clone's `.env`, Node 24, and `mirror …` in place of `uv run python -m memory …`. That is
 Desktop adapting to a Core that has already shipped, not a Core change, so it is consistent with the
 Navigator's rule. It is recorded here for a decision and is not planned.
+
+**Decision (2026-10-28):** path b. DS-005 comes first. Its first step is a read-only compatibility audit, under the invariant that the Navigator's current installation must keep working.
