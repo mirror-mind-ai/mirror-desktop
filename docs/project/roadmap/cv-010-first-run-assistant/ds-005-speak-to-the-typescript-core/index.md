@@ -185,7 +185,7 @@ including any Navigator check, is met.
 | Phase | Status | What is owed |
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
-| 1 · A library seam in Core | 🟡 Planned | Slice 1a planned below; needs a `mirror-ts` branch and a Core roadmap home, each at the Navigator's word |
+| 1 · A library seam in Core | 🟡 Planned | Slice 1a built on `mirror-ts` branch `desktop/library-seam-1a`, as Core's CV24.DS1, committed and not pushed. The push, merge and Core release each need the Navigator's word. Later slices are not yet planned. |
 | 2 · The embedded host | 🟡 Candidate | A full plan |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
@@ -562,3 +562,55 @@ Production's `_migrations` is read before and after, and must stay at 016.
    `mirror` Journey. This slice needs a place there: either a new Core CV, *Embeddable Core for Mirror
    Desktop*, or a Delivery Story under an existing one. Writing to Core's roadmap is a mutation of
    another Journey's planning, so it waits for the Navigator to name the target.
+
+## Phase 1 Slice 1a Built (2026-10-28)
+
+The Navigator authorized both boundaries: the branch `desktop/library-seam-1a` in `mirror-ts`, and
+a new Core Capability Value, **CV24 · Embeddable Core for Mirror Desktop**. This slice is Core's
+CV24.DS1. Core's own record is
+`docs/project/roadmap/cv24-embeddable-core-for-mirror-desktop/cv24-ds1-inspect-a-home-without-migrating/index.md`
+in `mirror-ts`.
+
+### What exists now
+
+- **`inspectMigrationState(dbPath)`** returns `missing`, `not_mirror`, `current`, `pending` or
+  `ahead`, with the applied, pending and unknown ids and the core's version.
+  - It never migrates, backs up or locks.
+  - It never reads `MIRROR_HOME`.
+  - Its readers are the same ones `ensureMigratedOnOpen` uses.
+- **`mirror-mind/desktop`** is importable by package name from `node_modules`, with no Node flags.
+  - It exposes exactly `inspectMigrationState` and `DESKTOP_API_VERSION = 1`.
+  - Deep imports are closed by `exports`.
+  - The host's warning listeners are left alone.
+
+### Evidence
+
+- **New tests.** 13 in all, 10 for the report and 3 for the entry. The report's tests were red
+  first.
+- **Four mutations, each caught:**
+  - the report migrating;
+  - the entry skipping the hook;
+  - the report following `MIRROR_HOME`;
+  - the warning filter running at import.
+- **Core gates:**
+  - typecheck: clean;
+  - lint: clean, apart from 1 warning that was already in the baseline;
+  - `npm test`: 3,538 passed, 1 skipped and 1 failing, the same diagnose failure as the baseline.
+- **Package smoke.** Step 7, new, imports the entry from the installed tarball. All 81 checks
+  passed. The smoke also fails, as it should, when the hook registration is removed.
+- **Production.** Every run was isolated, and the production ledger stayed at
+  `016_builder_workbench_display_codes` throughout.
+
+### Commits in `mirror-ts`
+
+- `6f427603`: the code.
+- `16ff6f2e`: CV24 and DS1 in Core's roadmap.
+
+Both are local only. The branch has not been pushed to `mirror-mind-ai/mirror`.
+
+### For phase 2
+
+- **The Node pin.** The Node that Desktop bundles must refuse writes to FTS5 shadow tables. Node
+  v24.6.0 does not refuse them, which is the cause of the baseline diagnose failure.
+- **Leftover files.** A read-only report on a WAL database leaves `-wal` and `-shm` files. Desktop
+  must not read their appearance as a change to the home.
