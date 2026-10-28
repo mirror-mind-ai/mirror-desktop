@@ -353,6 +353,20 @@ is still `fd9e406`, the alpha.58 commit.
 - **One unrelated flaky test** surfaced during the gates and was captured as
   [CR164](../../../refinement/rs025-legible-endings-for-a-turn-that-ends-badly/cr164-the-hung-append-test-races-its-own-stderr.md).
 
+### Commits, and a boundary error
+
+The intended split was the code in one commit and the record in another. A failed `git add` (a
+pathspec for the already-renamed overlay) left only the staged rename for the first commit, so:
+
+- **`89d721d`** carries the phase 0 *code* message but contains **only** the rename
+  `tauri.alpha-update.conf.json → tauri.ts-update.conf.json`. On its own that commit does not build,
+  because `package.json` still names the old file. Do not bisect onto it.
+- **`3577a21`** carries the *record* message but contains **everything else**: the code, the tests and
+  the documents.
+
+Both were pushed before the error was seen. History was not rewritten, because that needs the
+Navigator's word. The tree at `3577a21` is the one every gate above verified.
+
 ### Still owed, and known gaps
 
 - **Navigator check.** Launch `npm run tauri:dev`. It should open as *Mirror Desktop TS Dev*, unbound,
