@@ -186,7 +186,7 @@ including any Navigator check, is met.
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
-| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a (runtime pin) is built; 2b–2f are owed. |
+| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a (runtime pin) and 2b (host and supervisor) are built; 2c–2f are owed, and bundling the runtime into the app moved to 2f. |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
@@ -1163,3 +1163,92 @@ it never reaches `/Users/alissonvale/mirror` or `~/.mirror-minds/alisson-vale`.
 - **The pinned Node prints an ExperimentalWarning** on stderr when the core opens SQLite. The host
   in slice 2b owns its process and filters it.
 - **Signing (CV-009).** The bundled Node needs the hardened runtime and the JIT entitlement.
+
+## Phase 2 Slice 2b Built — Host and Supervisor (2026-10-29)
+
+### What exists
+
+- **`mirror-host/host.mjs`**, the host process. It imports `mirror-mind/desktop` from the runtime it
+  is laid out in, and serves one JSON object per line on stdio.
+  - **Handshake first:** `{type: "ready", hostProtocol: 1, desktopApiVersion, coreVersion, node,
+    methods}`.
+  - **Requests and responses:** `{id, method, params}` in, and `{id, ok, result}` or
+    `{id, ok: false, error: {name, reason, message}}` out, in order.
+  - **Methods:** exactly the library's ten calls, checked with `Object.hasOwn`, so `constructor`,
+    `__proto__`, the error classes and `DESKTOP_API_VERSION` are all `unknown_method`.
+  - **Refusals are named and the host keeps serving.** The four refusal errors keep their name, and
+    the reason is the `state` or `reason` the core gives. A malformed line, or one past 1 MiB, is
+    answered with `id: null`.
+  - **Stdout carries the protocol only.** `console.log` goes to stderr, and the `node:sqlite`
+    ExperimentalWarning is dropped.
+  - **The host reads no environment variable,** and it exits 0 when stdin closes.
+- **`scripts/mirror_host_pin.mjs`** gains `layoutHost`, which places `host.mjs` beside the core and
+  `yaml`, with the host's SHA-256 in the receipt. `materialize` now uses it, so a runtime directory
+  is `node/`, `host.mjs`, `node_modules/` and `pin-receipt.json`.
+- **`src-tauri/src/mirror_host.rs`**, the supervisor (`MirrorHost`):
+  - **Start.** It starts the host with an **empty environment**, `cwd` set to the host directory,
+    and its own process group, and refuses a handshake whose protocol or Desktop API differs.
+  - **Deadlines.** Each request has a deadline by method: 30 s for append (CR163's bound), 300 s
+    for migrate, 60 s for create home, and 15 s otherwise.
+  - **Failures.** On a timeout, an exit, a response to another id or an oversized line, it kills the
+    **whole process group**, and the next request starts a fresh host.
+  - **Restarts.** It backs off at 250 ms, 1 s and 3 s, and reports `Unavailable` after 3
+    consecutive failures until `reset`. Any answer from a live host, a refusal included, clears
+    the count.
+  - **Lifetime.** It kills the host on drop.
+  - **Not yet wired** into the app's routes. That is slice 2d.
+
+### Evidence
+
+- **Real chain.** The ignored Rust test `real_host_serves_the_library_through_the_supervisor` ran
+  against the materialized runtime: the supervisor started pinned Node v24.22.2, which ran the host
+  and the core. It created a scratch home, read it as `current`, recorded a Conversation, read the
+  tree, and got `DatabaseNotCurrentError/missing` back as a named refusal, with one start.
+- **`src/tests/cv010MirrorHost.test.mjs`**, 5 tests, red first. It runs the real host on the vendored
+  core with an empty environment and covers:
+  - the handshake;
+  - all ten methods end to end on a scratch home;
+  - the four refusal names;
+  - six non-methods, malformed and oversized lines, with the host still serving;
+  - the layout.
+- **Rust tests:** 12 new, plus the ignored real-host test, using fake hosts in `sh` as CR163 did.
+  They cover:
+  - an empty environment, with `HOME` as the positive control;
+  - `cwd`;
+  - a refusal that keeps the host;
+  - a hung request whose grandchild dies with the group;
+  - a host that dies, with its stderr tail;
+  - a wrong id, and a 9 MB line;
+  - three bad handshakes, and a silent one;
+  - backoff and the restart limit;
+  - a missing runtime;
+  - drop;
+  - the deadlines.
+- **Mutations: eight, each caught and then restored.**
+  - In Rust:
+    - inheriting the environment;
+    - killing only the child, not the group;
+    - removing the restart limit;
+    - accepting any Desktop API;
+    - not checking the response id.
+  - In the host:
+    - dispatching any exported function;
+    - `in` instead of `Object.hasOwn`;
+    - removing the warning filter.
+- **Gates:**
+  - vitest: 278 files, 2,325 tests;
+  - tsc: clean;
+  - build: passes;
+  - cargo `--locked`: 395 passed, 4 ignored. The 4th ignored test is the real-host test, run by hand
+    above. The two warnings were already there before this slice;
+  - the pin verifies.
+- **Production** stayed at migration 016.
+
+### Moved, and why
+
+- **Bundling the runtime into the app moves to 2f.** Tauri copies `resources` during every
+  `cargo build`, so naming `.mirror-host/runtime/<platform>` in `tauri.conf.json` would break
+  `cargo test` on any checkout that has not materialized the runtime. The bundle belongs to the
+  release build, which 2f already changes.
+- **Until 2f,** a TS Dev build will resolve the runtime from the repository's `.mirror-host/runtime`.
+  That resolution arrives in 2d, together with its first caller.
