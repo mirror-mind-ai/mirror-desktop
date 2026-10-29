@@ -76,7 +76,7 @@ export async function bindMirrorHome(homePath: string): Promise<RuntimeChannelDi
   return parseRuntimeChannelDiagnostic(await invoke<unknown>("bind_mirror_home", { homePath }));
 }
 
-/** CV-010.DS-005 slice 3a: create a 0.3 home for `userName` in `folder` (or `~/Mirror`) and bind it. */
+/** CV-010.DS-005 slice 3a: create a 0.3 home for `userName` in `folder` (or `~/Mirror Homes`) and bind it. */
 export async function createMirrorHome(userName: string, folder?: string): Promise<RuntimeChannelDiagnostic> {
   return parseRuntimeChannelDiagnostic(await invoke<unknown>("create_mirror_home", { userName, folder: folder ?? null }));
 }

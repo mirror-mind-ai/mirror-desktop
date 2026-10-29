@@ -9,7 +9,7 @@
 
 export const USER_NAME_MAX_LENGTH = 80;
 /** Where a home is created unless the person chooses another folder, as the screen shows it. */
-export const DEFAULT_HOMES_FOLDER_LABEL = "~/Mirror";
+export const DEFAULT_HOMES_FOLDER_LABEL = "~/Mirror Homes";
 
 const USER_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 

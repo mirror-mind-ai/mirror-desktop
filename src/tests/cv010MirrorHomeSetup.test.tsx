@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { MirrorHomeSetup } from "../app/MirrorHomeSetup";
 import appSource from "../app/App.tsx?raw";
+import bridgeSource from "../../src-tauri/src/mirror_host_bridge.rs?raw";
 import { homeCreationPreview, isUserName, userNameFrom, userNameProblem } from "../domain/mirrorHomeCreation";
 
 // CV-010.DS-005 slice 3a: the 0.3 setup screen creates a Mirror home made for Mirror Desktop TS,
@@ -30,8 +31,10 @@ describe("the user name a home is created with", () => {
     expect(userNameProblem("ana")).toBeNull();
   });
 
-  it("names the folder the home will be, in ~/Mirror unless another was chosen", () => {
-    expect(homeCreationPreview("ana-souza")).toBe("~/Mirror/ana-souza");
+  it("names the folder the home will be, in ~/Mirror Homes unless another was chosen", () => {
+    expect(homeCreationPreview("ana-souza")).toBe("~/Mirror Homes/ana-souza");
+    // The screen shows the folder the app creates in, and that is never `~/mirror`, the checkout.
+    expect(bridgeSource).toContain('DEFAULT_HOMES_FOLDER: &str = "Mirror Homes";');
     expect(homeCreationPreview("ana", "/Volumes/Notes")).toBe("/Volumes/Notes/ana");
   });
 });
@@ -52,7 +55,7 @@ describe("the 0.3 setup screen", () => {
   it("shows the derived name and the folder it will be, and enables creation", () => {
     const html = renderToStaticMarkup(<MirrorHomeSetup binding={false} initialName="Ana Souza" {...handlers()} />);
     expect(html).toContain('value="ana-souza"');
-    expect(html).toContain("<code>~/Mirror/ana-souza</code>");
+    expect(html).toContain("<code>~/Mirror Homes/ana-souza</code>");
     expect(html).toMatch(/<button type="submit">Create my Mirror<\/button>/);
   });
 
@@ -63,9 +66,9 @@ describe("the 0.3 setup screen", () => {
   });
 
   it("shows a refusal as an alert, and disables every action while creating", () => {
-    const html = renderToStaticMarkup(<MirrorHomeSetup binding initialName="ana" error="/Users/ana/Mirror/ana already exists." {...handlers()} />);
+    const html = renderToStaticMarkup(<MirrorHomeSetup binding initialName="ana" error="/Users/ana/Mirror Homes/ana already exists." {...handlers()} />);
     expect(html).toContain('role="alert"');
-    expect(html).toContain("/Users/ana/Mirror/ana already exists.");
+    expect(html).toContain("/Users/ana/Mirror Homes/ana already exists.");
     expect(html).toMatch(/<button type="submit" disabled="">Creating…<\/button>/);
     expect(html).toMatch(/disabled="">Choose another place…/);
     expect(html).toMatch(/disabled="">Open an existing Mirror home…/);

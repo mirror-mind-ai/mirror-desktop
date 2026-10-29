@@ -82,7 +82,7 @@ describe("runtime channel storage", () => {
   });
 
   // CV-010.DS-005 slice 3a.
-  it("creates a 0.3 home through its own native command, in ~/Mirror unless a folder was chosen", async () => {
+  it("creates a 0.3 home through its own native command, in ~/Mirror Homes unless a folder was chosen", async () => {
     const { mirrorRoot: _root, mirrorUser: _user, ...home } = development;
     invoke.mockResolvedValueOnce(home).mockResolvedValueOnce(home).mockResolvedValueOnce("/Volumes/Notes");
     await expect(createMirrorHome("ana-souza")).resolves.toEqual(home);

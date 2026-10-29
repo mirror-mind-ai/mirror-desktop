@@ -14,7 +14,8 @@
 //!
 //! Slice 3a: the app creates a home through the same supervisor. The folder is named with the
 //! person's user name, the kebab-case slug the core keys the identity on and the doorman reads
-//! back from the folder's name, inside `~/Mirror` unless the person chose another folder.
+//! back from the folder's name, inside `~/Mirror Homes` unless the person chose another folder. Not `~/Mirror`:
+//! macOS folds case, and `~/mirror` is where the Python Mirror's guide clones Mirror.
 
 use crate::mirror_home::{load_home_binding, MarkedHome};
 use crate::mirror_host::{MirrorHost, MirrorHostConfig, MirrorHostError};
@@ -193,7 +194,7 @@ pub(crate) fn request_for(app: &AppHandle, home: &MarkedHome, method: &str, para
 }
 
 /// The default folder for a created home, inside the person's home folder.
-pub(crate) const DEFAULT_HOMES_FOLDER: &str = "Mirror";
+pub(crate) const DEFAULT_HOMES_FOLDER: &str = "Mirror Homes";
 const USER_NAME_MAX: usize = 80;
 
 /// The core's rule for a user name: lowercase ASCII letters and digits in runs joined by single
@@ -205,7 +206,7 @@ pub(crate) fn is_user_name(value: &str) -> bool {
 }
 
 /// Where a home for `user_name` is created: `<folder>/<user_name>`, `folder` being the one the
-/// person chose or `~/Mirror`.
+/// person chose or `~/Mirror Homes`.
 pub(crate) fn home_creation_target(user_home: &Path, folder: Option<&Path>, user_name: &str) -> Result<PathBuf, String> {
     if !is_user_name(user_name) {
         return Err("Your Mirror name must use lowercase letters, digits and single hyphens, up to 80 characters.".to_string());
@@ -541,7 +542,9 @@ mod tests {
     #[test]
     fn a_created_home_is_named_for_its_user_inside_mirror_unless_another_folder_was_chosen() {
         let user_home = Path::new("/Users/ana");
-        assert_eq!(home_creation_target(user_home, None, "ana-souza").unwrap(), PathBuf::from("/Users/ana/Mirror/ana-souza"));
+        assert_eq!(home_creation_target(user_home, None, "ana-souza").unwrap(), PathBuf::from("/Users/ana/Mirror Homes/ana-souza"));
+        // Never a Mirror checkout's name, in any case: APFS folds case.
+        assert_ne!(DEFAULT_HOMES_FOLDER.to_lowercase(), "mirror");
         assert_eq!(
             home_creation_target(user_home, Some(Path::new("/Volumes/Notes")), "ana").unwrap(),
             PathBuf::from("/Volumes/Notes/ana")
@@ -556,8 +559,8 @@ mod tests {
     #[test]
     fn a_refused_home_creation_reads_as_a_sentence_naming_what_to_do() {
         let rejected = |reason: &str| MirrorHostError::Rejected { name: "HomeCreationRefusedError".into(), reason: reason.into(), message: "m".into() };
-        let target = Path::new("/Users/ana/Mirror/ana");
-        assert!(describe_home_creation(rejected("home_exists"), target).starts_with("/Users/ana/Mirror/ana already exists."));
+        let target = Path::new("/Users/ana/Mirror Homes/ana");
+        assert!(describe_home_creation(rejected("home_exists"), target).starts_with("/Users/ana/Mirror Homes/ana already exists."));
         for reason in ["reserved_location", "inside_repository", "invalid_home_path", "invalid_user_name", "templates_unavailable", "seed_failed"] {
             let sentence = describe_home_creation(rejected(reason), target);
             assert!(!sentence.contains(reason) && !sentence.contains("Rejected"), "{reason}: {sentence}");

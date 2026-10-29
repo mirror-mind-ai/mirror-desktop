@@ -2080,7 +2080,7 @@ fn bind_mirror_home(app: AppHandle, home_path: String) -> Result<RuntimeChannelD
 }
 
 /// CV-010.DS-005 slice 3a: create a 0.3 home for `user_name` and bind this app to it. The host
-/// creates it marked, in `folder` or in `~/Mirror`, which is made if it is missing; then it is
+/// creates it marked, in `folder` or in `~/Mirror Homes`, which is made if it is missing; then it is
 /// bound exactly as a chosen home is.
 #[tauri::command(async)]
 fn create_mirror_home(app: AppHandle, user_name: String, folder: Option<String>) -> Result<RuntimeChannelDiagnostic, String> {
@@ -14728,7 +14728,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         let make = created.find("mirror_host_bridge::create_home(").expect("the host creates the home");
         let bind = created.find("bind_marked_home(").expect("the created home is bound");
         assert!(target < make && make < bind, "validate, create, then bind");
-        assert!(!created.contains("create_dir_all"), "only ~/Mirror itself may be made, never a chain of folders");
+        assert!(!created.contains("create_dir_all"), "only ~/Mirror Homes itself may be made, never a chain of folders");
         assert!(!created.contains("\"uv\"") && !created.contains("\"python\""));
     }
 
