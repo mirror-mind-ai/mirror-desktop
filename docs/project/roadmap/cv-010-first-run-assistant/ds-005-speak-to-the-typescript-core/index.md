@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; decision 1's default folder reopened (it is the production checkout on a case-folding Mac). 3a built; its check waits on that decision. 3b–3d to do. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a built, awaiting the Navigator's check; 3b–3d to do. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2099,3 +2099,20 @@ files / 2,331 tests; cargo 385 passed / 5 ignored; real-host 2 pass. Production 
 70–71) clones the repository as `mirror` and enters it, so run from the home folder it makes
 `~/mirror`. The default would collide for the people most likely to try the app. Proposed default:
 `~/Mirror Homes/<user-name>`, which collides with no Mirror path and reads plainly in Finder.
+
+**Decision 1, revised and accepted** ("vai", 2026-10-29): new homes go to `~/Mirror Homes/<user-name>`
+by default. Commit `e92da25`. A Rust test pins that the default is never `mirror` in any case, and a
+front test that the screen shows the folder the app creates in; restoring `"Mirror"` fails both.
+Gates: vitest 280 files / 2,331 tests; cargo 385 passed / 5 ignored.
+
+**Navigator check (3a).** On your own account, with the TS Dev app:
+
+1. Quit the TS Dev app and move its binding aside:
+   `mv ~/Library/Application\ Support/ai.mirrormind.desktop.ts.dev/runtime-home.v2.json{,.ana}`.
+2. `npm run tauri:build:dev -- --bundles app`, then open
+   `src-tauri/target/release/bundle/macos/Mirror Desktop TS Dev.app`: it shows "Create your Mirror".
+3. Type a name, create, choose a model and send a first turn in one of the new home's Journeys.
+4. Check `~/Mirror Homes/<name>` exists, and that `~/mirror` and `~/.mirror-minds` gained nothing.
+5. To return to `ana`: quit, then
+   `mv ~/Library/Application\ Support/ai.mirrormind.desktop.ts.dev/runtime-home.v2.json{.ana,}`
+   (first moving the new home's binding aside the same way if you want to keep it).
