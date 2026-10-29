@@ -22,20 +22,12 @@ describe("Mirror history continuation actions", () => {
     });
   });
 
-  it("does not compose untrusted coordinates into osascript source", () => {
-    const command = tauriSource.slice(
-      tauriSource.indexOf("fn open_mirror_conversation_in_terminal"),
-      tauriSource.indexOf("fn provision_mirror_conversation"),
-    );
-    expect(command).toContain('arg("--")');
-    expect(command).toContain("shell_quote");
-    expect(command).toContain('"inspect"');
-    expect(command).toContain("mktemp");
-    expect(command).toContain("Recalled material is source evidence");
-    expect(command).toContain('join("terminal-handoffs")');
-    expect(command).toContain("launcher_options.mode(0o600)");
-    expect(command).toContain('"exec /bin/bash {}"');
-    expect(command).toContain(".arg(terminal_command)");
-    expect(command).not.toContain('.arg(command)\n');
+  // CV-010.DS-005 decision 3 of phase 2: terminal recall ran the Python core in a shell, so the 0.3
+  // line refuses it natively and composes nothing; the osascript boundary remains on release/0.2.
+  it("refuses terminal recall natively and composes no osascript", () => {
+    const start = tauriSource.indexOf("fn open_mirror_conversation_in_terminal");
+    const command = tauriSource.slice(start, tauriSource.indexOf("\n}\n", start));
+    expect(command).toContain('Err(mirror_host_bridge::not_carried("Terminal recall"))');
+    expect(command).not.toMatch(/osascript|mktemp|bash/);
   });
 });

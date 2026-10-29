@@ -11,7 +11,6 @@ import runtimeBindingSource from "../../src-tauri/src/runtime_binding.rs?raw";
 import runtimeChannelSource from "../../src-tauri/src/runtime_channel.rs?raw";
 import appSource from "../app/App.tsx?raw";
 import journeyPreferenceSource from "../domain/journeyPreferencePersistence.ts?raw";
-import provisionScript from "../../scripts/provision_mirror_conversation.py?raw";
 import channelLauncher from "../../scripts/mirror_desktop_channel.mjs?raw";
 import bindingFileContract from "../../scripts/runtime_binding_file.mjs?raw";
 import productionPromotion from "../../scripts/promote_production.mjs?raw";
@@ -171,14 +170,11 @@ describe("runtime channel configuration", () => {
     expect(rustSource).toContain("mirror_runtime_command");
     expect(rustSource).not.toContain('PathBuf::from("/Users/alissonvale/mirror")');
     expect(rustSource).not.toContain("Ok(mirror_root)\n    } else {\n        harness_root()");
-    expect(JSON.stringify(stableConfig.bundle)).toContain("scripts/provision_mirror_conversation.py");
-    expect(rustSource).toContain("BaseDirectory::Resource");
-    expect(rustSource).toMatch(/resolve\(\s*"scripts\/provision_mirror_conversation\.py"/);
-    expect(rustSource).toContain('"Mirror conversation provisioning did not complete."');
+    // CV-010.DS-005 slice 2d-2: provisioning is the Mirror host's `ensureConversation`; no script ships.
+    expect(JSON.stringify(stableConfig.bundle)).not.toContain(".py");
+    expect(rustSource).toContain("mirror_host_bridge::ensure_conversation(app, session_file, journey_id, title)");
     expect(rustSource).not.toContain('format!("Mirror conversation provisioning failed: {}"');
     expect(rustSource).not.toContain('env!("CARGO_MANIFEST_DIR")).parent()\n        .ok_or_else(|| "Could not resolve Mirror Desktop project root."');
-    expect(provisionScript).toContain('parser.add_argument("--mirror-root", type=Path, required=True)');
-    expect(provisionScript).not.toContain('Path.home() / "mirror" / "src"');
   });
 
   it("renders a textual development identity and bounded runtime diagnostics", () => {

@@ -82,17 +82,16 @@ describe("Journey administration boundary", () => {
 
   it("keeps mutation model-free and publishes only verified Mirror output", () => {
     expect(storageSource).toContain('invoke<string>("mutate_journey_registry"');
-    expect(tauriSource).toContain('"memory", "journey", "mutate"');
-    expect(tauriSource).toContain("mirror_administrative_command(\"uv\")");
+    // CV-010.DS-005 decision 3 of phase 2: `journey mutate` retired with the Python core, so the
+    // 0.3 line refuses Journey administration natively and plainly. Its Python boundary and error
+    // mapping remain on release/0.2.
     const mutationCommand = tauriSource.slice(
       tauriSource.indexOf("fn mutate_journey_registry"),
       tauriSource.indexOf("fn load_journey_registry"),
     );
-    expect(mutationCommand).not.toContain("--mirror-home");
+    expect(mutationCommand).toContain('Err(mirror_host_bridge::not_carried("Journey administration"))');
+    expect(mutationCommand).not.toMatch(/"mutate"|"uv"/);
     expect(tauriSource).toContain("publish_refreshed_journey_registry");
-    expect(tauriSource).toContain('Some("invalid_or_duplicate_slug")');
-    expect(tauriSource).toContain("Mirror rejected the Journey mutation: {value}.");
-    expect(tauriSource).toContain("without diagnostic detail");
     expect(tauriSource).not.toContain("mutate_journey_registry_provider");
   });
 
@@ -149,6 +148,5 @@ describe("Journey administration boundary", () => {
     expect(appSource).toContain('replacementJourneyAfterDeletion(journeyRegistry, deletedJourneyId)');
     expect(tauriSource).toContain('replacement_journey_id');
     expect(tauriSource).toContain('dedicated-journey-conversations');
-    expect(tauriSource).toContain('journey_not_empty:');
   });
 });

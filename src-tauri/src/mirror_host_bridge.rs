@@ -91,6 +91,50 @@ pub(crate) fn runtime_dir(channel: RuntimeChannel, repository: &Path, arch: &str
     directory.canonicalize().map_err(|error| format!("Could not resolve {}: {error}", directory.display()))
 }
 
+/// The sentence every route the 0.3 line does not carry answers with, before touching any state.
+pub(crate) fn not_carried(what: &str) -> String {
+    format!("{what} is not available in Mirror Desktop TS yet.")
+}
+
+/// The catalog script's `rename` answer, from `renameConversation`.
+pub(crate) fn rename_response(journey_id: &str, conversation_id: &str, result: &Value) -> Result<Value, String> {
+    if result.get("conversationId").and_then(Value::as_str) != Some(conversation_id)
+        || result.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+    {
+        return Err(CATALOG_REJECTED.to_string());
+    }
+    let title = result.get("title").and_then(Value::as_str).ok_or_else(|| CATALOG_REJECTED.to_string())?;
+    Ok(json!({"schemaVersion": "1.0.0", "operation": "rename", "status": "ok",
+              "journeyId": journey_id, "conversationId": conversation_id, "title": title}))
+}
+
+/// The catalog script's `rebind-journey` answer, from `rebindConversationJourney`.
+pub(crate) fn rebind_response(journey_id: &str, conversation_id: &str, result: &Value) -> Result<Value, String> {
+    if result.get("conversationId").and_then(Value::as_str) != Some(conversation_id)
+        || result.get("journeyId").and_then(Value::as_str) != Some(journey_id)
+    {
+        return Err(CATALOG_REJECTED.to_string());
+    }
+    let rebound = result.get("rebound").and_then(Value::as_bool).ok_or_else(|| CATALOG_REJECTED.to_string())?;
+    Ok(json!({"schemaVersion": "1.0.0", "operation": "rebind-journey", "status": "ok", "journeyId": journey_id,
+              "conversationId": conversation_id, "rebound": rebound,
+              "previousJourneyId": result.get("previousJourneyId").cloned().unwrap_or(Value::Null)}))
+}
+
+/// `provision_mirror_conversation.py`, answered by `ensureConversation`: the Mirror Conversation
+/// bound to a Pi session. The interface stays `nautilus_harness`, as the script wrote it.
+pub(crate) fn ensure_conversation(app: &AppHandle, session_id: &str, journey_id: &str, title: &str) -> Result<String, String> {
+    let result = request(app, "ensureConversation", json!({"request": {
+        "sessionId": session_id, "journeyId": journey_id, "title": title, "interface": "nautilus_harness",
+    }}))
+    .map_err(|error| format!("Mirror conversation provisioning did not complete. {error}"))?;
+    if result.get("journeyId").and_then(Value::as_str) != Some(journey_id) {
+        return Err("Mirror did not return native conversation authority.".to_string());
+    }
+    result.get("conversationId").and_then(Value::as_str).filter(|id| !id.is_empty()).map(str::to_string)
+        .ok_or_else(|| "Mirror did not return native conversation authority.".to_string())
+}
+
 pub(crate) fn describe(error: MirrorHostError) -> String {
     match error {
         MirrorHostError::Rejected { name, reason, .. } => format!("Mirror refused the request ({name}: {reason})."),
@@ -122,7 +166,10 @@ pub(crate) fn request_for(app: &AppHandle, home: &MarkedHome, method: &str, para
             std::env::consts::ARCH,
         )
         .map_err(MirrorHostError::SpawnFailed)?;
-        *guard = Some(MirrorHost::new(MirrorHostConfig::for_runtime(directory)));
+        let mut config = MirrorHostConfig::for_runtime(directory);
+        // CR163's bound, single-sourced: the append deadline is the app's append timeout.
+        config.deadlines.append = crate::MIRROR_APPEND_TIMEOUT;
+        *guard = Some(MirrorHost::new(config));
     }
     guard.as_mut().expect("started above").request_for_home(home, method, params)
 }
@@ -161,7 +208,23 @@ pub(crate) fn conversation_catalog(app: &AppHandle, operation: &str, journey_id:
                 "journeyId": journey_id, "conversationId": conversation_id,
             }))
         }
-        _ => Err(crate::runtime_channel::UV_RETIRED.to_string()),
+        "rename" => {
+            let conversation_id = option("--conversation-id").filter(|id| is_mirror_identifier(id))
+                .ok_or_else(|| CATALOG_REJECTED.to_string())?;
+            let title = option("--title").ok_or_else(|| CATALOG_REJECTED.to_string())?;
+            let result = request(app, "renameConversation", json!({"request": {"conversationId": conversation_id, "journeyId": journey_id, "title": title}}))
+                .map_err(|_| CATALOG_REJECTED.to_string())?;
+            rename_response(journey_id, conversation_id, &result)
+        }
+        "rebind-journey" => {
+            let conversation_id = option("--conversation-id").filter(|id| is_mirror_identifier(id))
+                .ok_or_else(|| CATALOG_REJECTED.to_string())?;
+            let result = request(app, "rebindConversationJourney", json!({"request": {"conversationId": conversation_id, "journeyId": journey_id}}))
+                .map_err(|_| CATALOG_REJECTED.to_string())?;
+            rebind_response(journey_id, conversation_id, &result)
+        }
+        "delete" => Err(not_carried("Deleting Conversations")),
+        _ => Err(CATALOG_REJECTED.to_string()),
     }
 }
 
@@ -281,7 +344,64 @@ mod tests {
         assert_eq!(entries[0]["availability"], "available_in_mirror");
         let inspected = host.request_for_home(&home, "inspectConversation", json!({"request": {"conversationId": conversation}})).unwrap();
         assert_eq!(inspected["journeyId"], journey.as_str());
+
+        // Slice 2d-2: the writes, through the same adapters the app's routes use.
+        let item = json!({
+            "itemId": "turn-1", "runId": "run-1", "journeyId": journey, "conversationId": conversation,
+            "sourceInterface": "nautilus-harness",
+            "messages": [
+                {"id": "user-real-0001", "role": "user", "content": "olá", "createdAt": "2026-10-29T12:00:00Z"},
+                {"id": "assistant-real-0001", "role": "assistant", "content": "oi", "createdAt": "2026-10-29T12:00:01Z"},
+            ],
+        });
+        let failures = parent.join("failures.jsonl");
+        let accepted = crate::run_explicit_mirror_append_using(&item, |payload| {
+            host.request_for_home(&home, "appendConversationMessages", json!({"request": payload}))
+        }, &failures).unwrap();
+        assert_eq!(accepted["insertedCount"], 2);
+        let replay = crate::run_explicit_mirror_append_using(&item, |payload| {
+            host.request_for_home(&home, "appendConversationMessages", json!({"request": payload}))
+        }, &failures).unwrap();
+        assert_eq!(replay["existingCount"], 2, "a replay is idempotent");
+        let mut conflicting = item.clone();
+        conflicting["messages"][0]["content"] = json!("changed");
+        assert_eq!(crate::run_explicit_mirror_append_using(&conflicting, |payload| {
+            host.request_for_home(&home, "appendConversationMessages", json!({"request": payload}))
+        }, &failures).unwrap_err(), "mirror_append_idempotency_conflict");
+        assert!(!failures.to_string_lossy().is_empty() && failures.exists());
+
+        let renamed = host.request_for_home(&home, "renameConversation",
+            json!({"request": {"conversationId": conversation, "journeyId": journey, "title": "Renomeada"}})).unwrap();
+        assert_eq!(rename_response(&journey, &conversation, &renamed).unwrap()["title"], "Renomeada");
+        let rebound = host.request_for_home(&home, "rebindConversationJourney",
+            json!({"request": {"conversationId": conversation, "journeyId": "outra-journey"}})).unwrap();
+        assert_eq!(rebind_response("outra-journey", &conversation, &rebound).unwrap()["previousJourneyId"], journey.as_str());
         let _ = std::fs::remove_dir_all(&parent);
+    }
+
+    #[test]
+    fn rename_and_rebind_answers_keep_the_script_shape() {
+        let renamed = json!({"conversationId": "conv-one-0001", "journeyId": "j1", "title": "Nova"});
+        assert_eq!(
+            rename_response("j1", "conv-one-0001", &renamed).unwrap(),
+            json!({"schemaVersion": "1.0.0", "operation": "rename", "status": "ok", "journeyId": "j1", "conversationId": "conv-one-0001", "title": "Nova"})
+        );
+        assert!(rename_response("j1", "conv-other-001", &renamed).is_err());
+        assert!(rename_response("j2", "conv-one-0001", &renamed).is_err());
+        let rebound = json!({"conversationId": "conv-one-0001", "journeyId": "j2", "rebound": true, "previousJourneyId": "j1"});
+        assert_eq!(
+            rebind_response("j2", "conv-one-0001", &rebound).unwrap(),
+            json!({"schemaVersion": "1.0.0", "operation": "rebind-journey", "status": "ok", "journeyId": "j2",
+                   "conversationId": "conv-one-0001", "rebound": true, "previousJourneyId": "j1"})
+        );
+        assert!(rebind_response("j2", "conv-one-0001", &json!({"conversationId": "conv-one-0001", "journeyId": "j2"})).is_err());
+    }
+
+    #[test]
+    fn what_0_3_does_not_carry_says_so() {
+        for what in ["Deleting Conversations", "Journey administration", "Terminal recall", "The Canvas"] {
+            assert_eq!(not_carried(what), format!("{what} is not available in Mirror Desktop TS yet."));
+        }
     }
 
     #[test]

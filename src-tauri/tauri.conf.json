@@ -29,10 +29,6 @@
     "targets": "all",
     "icon": [
       "icons/icon.png"
-    ],
-    "resources": {
-      "../scripts/provision_mirror_conversation.py": "scripts/provision_mirror_conversation.py",
-      "../scripts/mirror_conversation_catalog.py": "scripts/mirror_conversation_catalog.py"
-    }
+    ]
   }
 }

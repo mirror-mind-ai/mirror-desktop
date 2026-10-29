@@ -117,13 +117,11 @@ describe("CR130 — Edit Journey offers only what Mirror accepts", () => {
     expect(appSource).toContain("Update the project path for");
   });
 
-  it("names unsupported_operation at the native boundary instead of leaking the raw code", () => {
-    expect(tauriSource).toContain('Some("unsupported_operation")');
-    const mapping = tauriSource.slice(
-      tauriSource.indexOf('Some("unsupported_operation")'),
-      tauriSource.indexOf('Some("unsupported_operation")') + 400,
-    );
-    expect(mapping).toMatch(/Mirror does not support/i);
+  // CV-010.DS-005 decision 3 of phase 2: on the 0.3 line the whole native boundary answers with
+  // one plain sentence, so no raw code can leak; the unsupported_operation mapping stays on 0.2.
+  it("never leaks a raw code at the native boundary", () => {
+    expect(tauriSource).not.toContain('Some("unsupported_operation")');
+    expect(tauriSource).toContain('Err(mirror_host_bridge::not_carried("Journey administration"))');
   });
 
   it("leaves the digest-and-receipt contract CR110 verified untouched", () => {

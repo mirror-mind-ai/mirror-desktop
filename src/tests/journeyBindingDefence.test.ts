@@ -5,9 +5,7 @@ import appSource from "../app/App.tsx?raw";
 
 const appStyles = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 const rustSource = readFileSync(new URL("../../src-tauri/src/main.rs", import.meta.url), "utf8");
-const catalogScript = readFileSync(
-  new URL("../../scripts/mirror_conversation_catalog.py", import.meta.url), "utf8",
-);
+const bridgeSource = readFileSync(new URL("../../src-tauri/src/mirror_host_bridge.rs", import.meta.url), "utf8");
 
 // CR093: the Desktop defends the Journey binding of Conversations it provisioned, because
 // Mirror core can rewrite it and is not available for correction. These assertions pin the
@@ -44,18 +42,15 @@ describe("journey binding defence wiring", () => {
     expect(routine).toContain("mirror_append_journey_binding_unrepaired");
   });
 
-  it("restores only the Journey column through the bundled support script", () => {
-    expect(catalogScript).toContain('"rebind-journey"');
-    const operation = catalogScript.slice(
-      catalogScript.indexOf('elif args.operation == "rebind-journey"'),
-      catalogScript.indexOf('"previousJourneyId": previous_journey_id'),
-    );
-    expect(operation).toContain("update_conversation(conversation.id, journey=args.journey_id)");
-    expect(operation).not.toContain("persona");
-    expect(operation).not.toContain("title");
-    expect(operation).toContain("persistence_failure");
-    // The repair lookup must not require the binding it exists to restore.
-    expect(catalogScript).toContain("def owned_conversation(");
+  // CV-010.DS-005 slice 2d-2: the restore is the core's `rebindConversationJourney`, which writes
+  // the journey column alone and finds the Conversation by exact id without requiring the binding
+  // it exists to restore (Core's CV24.DS2 tests pin both). The bridge keeps the script's answer.
+  it("restores only the Journey column through the Mirror host", () => {
+    const rebind = bridgeSource.slice(bridgeSource.indexOf('"rebind-journey" => {'), bridgeSource.indexOf('"delete" =>'));
+    expect(rebind).toContain('"rebindConversationJourney"');
+    expect(rebind).toContain("rebind_response(journey_id, conversation_id, &result)");
+    expect(rebind).not.toMatch(/title|persona/);
+    expect(bridgeSource).toContain('"previousJourneyId": result.get("previousJourneyId")');
   });
 
   // CR095: the repair writes a Mirror column, so it must leave provenance behind — without

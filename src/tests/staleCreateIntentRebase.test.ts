@@ -22,8 +22,11 @@ describe("CR110: a stale create intent is judged against the fresh tree", () => 
     expect(isStaleSourceError(new Error("Journey slug is invalid or already exists."))).toBe(false);
   });
 
-  it("holds the message identical to the native literal", () => {
-    expect(tauriSource).toContain(`Some("stale_source") => "${STALE_SOURCE_MESSAGE}".to_string()`);
+  // CV-010.DS-005 decision 3 of phase 2: the native stale-source literal lived in the retired
+  // `journey mutate` boundary, which stays on release/0.2; the 0.3 line refuses administration.
+  it("has no native stale-source literal on the 0.3 line", () => {
+    expect(tauriSource).not.toContain('Some("stale_source")');
+    expect(tauriSource).toContain('Err(mirror_host_bridge::not_carried("Journey administration"))');
   });
 
   it("keeps an intent whose parent still exists and whose id is still free, with a recomputed position", () => {

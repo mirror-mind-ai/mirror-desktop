@@ -1,27 +1,25 @@
 import { describe, expect, it } from "vitest";
-import script from "../../scripts/mirror_conversation_catalog.py?raw";
 import nativeSource from "../../src-tauri/src/main.rs?raw";
+import bridgeSource from "../../src-tauri/src/mirror_host_bridge.rs?raw";
 import stableConfig from "../../src-tauri/tauri.conf.json";
 
-describe("Mirror conversation catalog resource", () => {
-  it("uses released MemoryClient services behind exact Journey and full-id checks", () => {
-    expect(script).toContain("mem.conversations.list_recent(");
-    expect(script).toContain("journey=args.journey_id");
-    expect(script).toContain("conversation.id != args.conversation_id");
-    expect(script).toContain("conversation = mem.conversations.find_by_id_prefix(item.id)");
-    expect(script).toContain('"conversationId": conversation.id');
-    expect(script).not.toContain('"conversationId": item.id');
-    expect(script).toContain("conversation.journey != args.journey_id");
-    expect(script).toContain("mem.conversations.update_title(");
-    expect(script).not.toContain("sqlite3");
-    expect(script).not.toContain("mem.store.conn");
+// CV-010.DS-005 slice 2d-2: the catalog script and its MemoryClient services retired with the Python
+// core on the 0.3 line (they remain on release/0.2). The catalog is answered by the Mirror host, in
+// the shape the script printed, with the exact-id and Journey checks the script made.
+describe("Mirror conversation catalog on the 0.3 line", () => {
+  it("is answered by the Mirror host with the script's exact-id and Journey checks", () => {
+    expect(nativeSource).toContain("mirror_host_bridge::conversation_catalog(app, operation, journey_id, additional_args)");
+    for (const method of ["listJourneyConversations", "inspectConversation", "renameConversation", "rebindConversationJourney"]) {
+      expect(bridgeSource).toContain(`"${method}"`);
+    }
+    expect(bridgeSource).toContain('found.get("journeyId").and_then(Value::as_str) != Some(journey_id)');
+    expect(bridgeSource).toContain("filter(|id| is_mirror_identifier(id))");
+    expect(bridgeSource).toContain('"delete" => Err(not_carried("Deleting Conversations"))');
   });
 
-  it("runs through the selected Mirror project environment rather than the launch directory", () => {
-    expect(nativeSource).toContain('command.current_dir(&profile.mirror_root)');
-  });
-
-  it("is packaged with the application", () => {
-    expect(JSON.stringify(stableConfig.bundle)).toContain("scripts/mirror_conversation_catalog.py");
+  it("is no longer packaged, and runs no Python", () => {
+    expect(JSON.stringify(stableConfig.bundle)).not.toContain(".py");
+    expect(nativeSource).not.toContain("mirror_conversation_catalog.py");
+    expect(nativeSource).not.toContain('"python"');
   });
 });

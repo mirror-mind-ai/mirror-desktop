@@ -46,7 +46,7 @@ export function targetProblem(homePath, home = homedir()) {
   if (under(resolve(homePath))) return `${homePath} is under ~/.mirror-minds, where the Python homes live`;
   if (present(homePath)) return `${homePath} already exists`;
   const parent = dirname(homePath);
-  if (!existsSync(parent)) return `the parent ${parent} does not exist`;
+  if (!existsSync(parent)) return `the parent ${parent} does not exist; create it first: mkdir -p ${parent}`;
   const realParent = realpathSync(parent);
   if (realParent !== parent) return `the parent ${parent} passes through a symlink`;
   if (under(join(realParent, basename(homePath)))) return `${homePath} resolves under ~/.mirror-minds`;

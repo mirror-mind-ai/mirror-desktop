@@ -53,7 +53,7 @@ describe("a development 0.3 home", () => {
     expect(problem(join(parent, "minds-link", "new"))).toMatch(/symlink|\.mirror-minds/);
     expect(problem(join(parent, "taken"))).toMatch(/exists/);
     expect(problem("relative/home")).toMatch(/absolute/);
-    expect(problem(join(parent, "missing", "home"))).toMatch(/parent/);
+    expect(problem(join(parent, "missing", "home"))).toMatch(/parent .* does not exist; create it first: mkdir -p /);
     expect(problem(join(parent, "fine"))).toBeNull();
   });
 

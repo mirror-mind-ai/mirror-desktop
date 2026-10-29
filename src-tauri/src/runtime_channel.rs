@@ -25,7 +25,6 @@ pub struct RuntimeChannelProfile {
     pi_bin: PathBuf,
     node_bin: PathBuf,
     pi_runtime_directory: PathBuf,
-    uv_bin: PathBuf,
     home: PathBuf,
 }
 
@@ -316,7 +315,6 @@ impl RuntimeChannelProfile {
             pi_bin,
             node_bin,
             pi_runtime_directory,
-            uv_bin: PathBuf::new(),
             home: home.to_path_buf(),
         }
     }
@@ -344,7 +342,6 @@ impl RuntimeChannelProfile {
         let pi_bin = validated.pi_bin;
         let node_bin = validated.node_bin;
         let pi_runtime_directory = validated.pi_runtime_directory;
-        let uv_bin = validated.uv_bin;
         let binding = validated.binding;
         Self {
             channel,
@@ -357,7 +354,6 @@ impl RuntimeChannelProfile {
             pi_bin,
             node_bin,
             pi_runtime_directory,
-            uv_bin,
             home: home.to_path_buf(),
         }
     }
@@ -373,19 +369,6 @@ impl RuntimeChannelProfile {
         directories.extend(runtime_search_directories(&self.home));
         directories.dedup();
         directories
-    }
-
-    pub fn pi_bin(&self) -> &Path {
-        &self.pi_bin
-    }
-
-    pub fn uv_bin(&self) -> &Path {
-        &self.uv_bin
-    }
-
-    pub fn runtime_path(&self) -> Result<std::ffi::OsString, String> {
-        env::join_paths(self.runtime_search_directories())
-            .map_err(|_| "Trusted Mirror Desktop runtime paths are not joinable.".to_string())
     }
 
     pub fn runtime_command(&self, program: &str) -> Result<Command, String> {
