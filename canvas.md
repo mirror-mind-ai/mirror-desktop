@@ -4,10 +4,10 @@
 
 | Item | Estado | Progresso |
 | --- | --- | --- |
-| **Linha 0.3 · Mirror Desktop TS · `main`** | 🔄 em construção · 0.3.0-alpha.0 · nada publicado · canal `/ts/` ainda não existe no servidor | `██░░░░░░░░` 1 ✅ · 1 🟠 · 4 🟡 · de 6 fases |
+| **Linha 0.3 · Mirror Desktop TS · `main`** | 🔄 em construção · 0.3.0-alpha.0 · nada publicado · canal `/ts/` ainda não existe no servidor | `██░░░░░░░░` 1 ✅ · 2 🟠 · 3 🟡 · de 6 fases |
 | ↳　Fase 0 · Separar | ✅ Done · aceita por você em 28/10 · pasta 0.2 Dev intacta | `██████████` |
 | ↳　Fase 1 · Costura de biblioteca no Core | 🟠 Implemented · CV24.DS1–DS5 construídas, CI do Core verde · 15 nomes em `mirror-mind/desktop` · falta merge e release do Core | `░░░░░░░░░░` |
-| ↳　Fase 2 · Host embutido | 🟡 Planned · 2a–2e testadas · 2f-1 construída: runtime dentro do app, preflight e release sem Python · falta 2f-2 (limpar binding Python) | `░░░░░░░░░░` |
+| ↳　Fase 2 · Host embutido | 🟠 Implemented · 2a–2f construídas · runtime dentro do app · preflight e release sem Python · binding Python removido · falta seu teste da build empacotada | `░░░░░░░░░░` |
 | ↳　Fase 3 · Assistente de primeiro uso na 0.3 | 🟡 Candidate · DS-002 · DS-003 · DS-004 | `░░░░░░░░░░` |
 | ↳　Fase 4 · Estável | 🟡 Candidate · uso diário em banco próprio · CRs voltam | `░░░░░░░░░░` |
 | ↳　Fase 5 · Migração da produção | 🟡 Candidate · só com sua palavra · backup ensaiado · fim do web console | `░░░░░░░░░░` |
@@ -28,7 +28,7 @@
 | --- | --- | --- |
 | CV-001 … CV-007 | ✅ Done | `██████████` 7 CVs |
 | **CV-010 · First-Run Assistant** | 🎯 selecionada · espinha: DS-005 · fases na linha 0.3 do Workbench | `░░░░░░░░░░` 0 ✅ · 1 🟠 · 1 🟡 · 3 candidatas · de 5 DS |
-| ↳　DS-005 · The 0.3 Line · Embedded TypeScript Mirror | 🟡 Planned · fase 0 Done · fase 1 Implemented, sem merge no Core · fase 2: até 2e construída · nada publicado | `░░░░░░░░░░` |
+| ↳　DS-005 · The 0.3 Line · Embedded TypeScript Mirror | 🟡 Planned · fase 0 Done · fases 1 e 2 Implemented · Core sem merge · nada publicado | `░░░░░░░░░░` |
 | ↳　DS-001 · Find and Connect an Existing Mirror | 🟠 Implemented · fica na linha 0.2 · publicada na alpha.58 · teste na conta `mirror` aposentado, não aprovado | `░░░░░░░░░░` |
 | **CV-008 · Conversation Spaces** | 🟡 Planned | `████████░░` 5 ✅ · 1 🟡 · de 6 DS |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned · único DS restante | `░░░░░░░░░░` |
@@ -42,6 +42,6 @@
 
 | Entrega | Story | Release | Estado |
 | --- | --- | --- | --- |
+| DS-005 fase 2 · Host embutido | CV-010 | `main` · não publicada | 🟠 Implemented · primeiro turno 0.3 testado por você |
 | DS-005 fase 1 · Costura de biblioteca no Core | CV-010 | ramo do Core · sem merge | 🟠 Implemented · CI verde |
 | DS-005 fase 0 · Separar | CV-010 | `main` · não publicada | ✅ Done · aceita por você |
-| DS-001 · Find and Connect an Existing Mirror | CV-010 | alpha.58 | 🟠 Implemented · em produção |

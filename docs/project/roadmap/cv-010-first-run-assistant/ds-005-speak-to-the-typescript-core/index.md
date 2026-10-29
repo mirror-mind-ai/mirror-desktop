@@ -186,7 +186,7 @@ including any Navigator check, is met.
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
-| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a–2e are built: every Mirror operation goes through the host, nothing spawns Python, and every Pi turn runs isolated in the 0.3 home. 2f-1 (bundling and preflight) is built. Owed: 2f-2, removal of the dead Python binding code. |
+| 2 · The embedded host | 🟠 Implemented | All six slices (2a–2f) are built. 2a–2e passed the Navigator's check (the first end-to-end 0.3 turn). 2f-1 ships the pinned runtime inside the app and makes the preflight and release path Python-free. 2f-2 removes the Python binding and DS-001 discovery. Owed for Done: the Navigator's check of a packaged build. |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
@@ -1770,3 +1770,90 @@ calls the preflight bare and refuses those arguments. `docs/alpha/private-macos-
   refuses on Apple silicon unless it runs under Rosetta, where the x64 `node` also runs. No
   universal build exists, and the arm64 runtime has not been run on an arm64 Mac.
 - **Size.** The updater artifact grows by about 45 MB.
+
+## Phase 2 Slice 2f-2 Built — the Python Binding Removed (2026-10-29)
+
+Since 2c these routes refused first, and since 2d-1 no screen offered them. 2f-2 deletes them, so
+nothing that names a Mirror source tree, a Mirror user or a Python Mirror remains on a route the
+0.3 app or its launch scripts can take.
+
+### Found while mapping
+
+`inspect_runtime_binding_candidate` was still **called on every launch** (`App.tsx`), whenever the
+channel was unbound. On the User channel it read `MIRROR_HOME`, `MIRROR_USER` and `DB_PATH` from the
+app's environment and put them into React state as a Python binding draft. When the app is
+launched from the Navigator's shell, those are production's coordinates.
+
+The function built paths only, opened no file, and no screen showed the draft, so no harm followed.
+But production's coordinates were entering the 0.3 app. That is now gone.
+
+### Removed
+
+- **Rust.** Removed `mirror_discovery.rs` (DS-001) and, from `runtime_binding.rs`, the Python
+  binding: `RuntimeBinding`, its validation and persistence of `runtime-binding.v1.json`, the
+  environment candidate, the Core version range read from `pyproject.toml`, and `uv` resolution.
+  Also removed:
+  - the commands `inspect_runtime_binding_candidate`, `discover_existing_mirror`,
+    `validate_runtime_binding` and `save_runtime_binding` (census 93 → 89);
+  - `validate_runtime_binding_request`;
+  - `RuntimeChannel::binding_channel`;
+  - `RuntimeChannelProfile::from_validated`;
+  - `python_mirror_retired`, which has nothing left to refuse;
+  - `resolve_executable`.
+- **What stays, moved.** The Pi toolchain resolution moved to `pi_toolchain.rs`
+  (`resolve_pi_toolchain`, `executable_at`), with two new tests.
+- **The folder picker** accepts `mirrorHome` only.
+- **Front.** Removed `MirrorDiscoveryCard.tsx`, `domain/mirrorDiscovery.ts`, the binding draft state
+  and the launch-time candidate effect, `fillRuntimeBindingFromDiscovery`, `submitRuntimeBinding`,
+  and the candidate, discovery, validate and save calls in `runtimeChannelStorage.ts`.
+- **Scripts.** Removed:
+  - `runtime_binding_file.mjs`;
+  - `export_mirror_bootstrap.py`, the `import:mirror` / `import:mirror:dev` scripts and the
+    launcher's `import-user` / `import-dev` modes. `validate:desktop:launch` now opens both built
+    apps without a Python import first;
+  - `log_mirror_conversation.py`;
+  - `scripts/tests/`. Its `test_mirror_conversation_catalog_rebind.py` tested a script 2d-2
+    had already removed, and nothing ran it.
+- **Config.** `config/runtime-compatibility.json` loses its Python `mirrorCore` range. The update
+  manifest's `mirrorCore` field is a separate model, filled with `>=0.0.0` by the front, and is
+  untouched.
+
+**DS-001 lives on the 0.2 line only.** On 0.3, a person reaches Mirror through a marked home, which
+`dev_ts_home.mjs` creates by hand today. In phase 3, the first-run assistant creates it.
+
+### Evidence
+
+- **New tests:**
+  - `cv010PythonBindingRemoved.test.mjs`, a census of 4 tests: files gone; commands neither defined
+    nor called; no binding state in the app; launch scripts without Python; the config without
+    `mirrorCore`;
+  - a Rust test that the binding is gone and the picker refuses `mirrorRoot`;
+  - 2 `pi_toolchain` tests;
+  - `runtimeChannelStorage.test.ts`'s binding tests replaced by one for the home-only picker.
+- **Seven mutations, each caught:**
+  - a binding command back, caught both by Rust and by the JS census;
+  - the front invoking discovery;
+  - the picker accepting `mirrorRoot`;
+  - the launcher running `python3`;
+  - the `mirrorCore` range back;
+  - Pi resolved without the `node` beside it.
+- **Gates:**
+  - vitest: 280 files, 2,324 tests. The count fell with the deleted discovery suite;
+  - tsc: clean;
+  - build: passes;
+  - cargo `--locked`: 382 passed, 5 ignored, twice. The count fell with the deleted
+    `runtime_binding` and `mirror_discovery` suites;
+  - the production `cargo build` gives no new warning;
+  - the real-host tests pass;
+  - the preflight reads READY;
+  - the roadmap reads READY.
+- **Production:** binary `303ede287de3…`, migration 016.
+
+### Phase 2 is Implemented
+
+All six slices are built. **For Done, the Navigator's check of a packaged build is still owed:**
+
+1. build the TS Dev app;
+2. open it on the bound home;
+3. send a turn, which now uses the runtime inside the app;
+4. see that the launch screen still binds a home.
