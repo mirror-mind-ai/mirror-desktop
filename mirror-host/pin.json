@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "node": {
+    "version": "24.22.2",
+    "source": "https://nodejs.org/dist/v24.22.2/SHASUMS256.txt",
+    "platforms": {
+      "darwin-arm64": {
+        "file": "node-v24.22.2-darwin-arm64.tar.gz",
+        "sha256": "aa9549349e47dffaa42dcf95d6e06ade8c4bdafc980979883b88767670df385a"
+      },
+      "darwin-x64": {
+        "file": "node-v24.22.2-darwin-x64.tar.gz",
+        "sha256": "d5e336d588c45be0c37dbd52cc29895593009ca4997a77a1fd02815131ed0e52"
+      }
+    }
+  },
+  "core": {
+    "package": "mirror-mind",
+    "version": "0.37.0",
+    "repository": "https://github.com/mirror-mind-ai/mirror",
+    "branch": "desktop/library-seam-1a",
+    "commit": "c7b4bf406e15c7a73880e4e4f6992badcb5e81a0",
+    "tarball": "vendor/mirror-host/mirror-mind-0.37.0-c7b4bf40.tgz",
+    "sha256": "bc9340de69bd4df6df4affcdff8ec1ffcf0466e35501cb3e9590730f770c0401",
+    "desktopApiVersion": 1,
+    "dependencies": {
+      "yaml": {
+        "version": "2.9.0",
+        "tarball": "vendor/mirror-host/yaml-2.9.0.tgz",
+        "integrity": "sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA=="
+      }
+    }
+  }
+}
