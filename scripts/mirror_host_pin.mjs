@@ -18,13 +18,14 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const MIN_NODE_VERSION = "24.21.0";
 export const PLATFORMS = ["darwin-arm64", "darwin-x64"];
 export const PIN_PATH = "mirror-host/pin.json";
+export const HOST_SCRIPT_PATH = "mirror-host/host.mjs";
 
 export function readPin(root) {
   return JSON.parse(readFileSync(join(root, PIN_PATH), "utf8"));
@@ -96,6 +97,28 @@ function extractPackage(tarball, target) {
 }
 
 /**
+ * Lay out the host beside its core in `outDir`, which must not exist: `host.mjs`, the core and
+ * `yaml` under `node_modules`, and a receipt. Without Node, so the host's tests can run it on any
+ * Node; `materializeHost` adds the pinned Node to the same layout.
+ */
+export function layoutHost({ root, pin, outDir, node = null }) {
+  const problems = validatePin(pin, root);
+  if (problems.length > 0) throw new Error(`the pin is invalid: ${problems.join("; ")}`);
+  if (existsSync(outDir)) throw new Error(`${outDir} already exists`);
+  mkdirSync(outDir, { recursive: true, mode: 0o700 });
+  extractPackage(join(root, pin.core.tarball), join(outDir, "node_modules", pin.core.package));
+  extractPackage(join(root, pin.core.dependencies.yaml.tarball), join(outDir, "node_modules", "yaml"));
+  copyFileSync(join(root, HOST_SCRIPT_PATH), join(outDir, "host.mjs"));
+  writeFileSync(join(outDir, "pin-receipt.json"), `${JSON.stringify({
+    schemaVersion: "1.0.0",
+    ...(node ?? {}),
+    core: { commit: pin.core.commit, sha256: pin.core.sha256, desktopApiVersion: pin.core.desktopApiVersion },
+    yaml: { version: pin.core.dependencies.yaml.version, integrity: pin.core.dependencies.yaml.integrity },
+    host: { sha256: sha256File(join(root, HOST_SCRIPT_PATH)) },
+  }, null, 2)}\n`);
+}
+
+/**
  * Build `outDir` from `pin` for `platform`, or nothing. `fetchArchive(url, destination)` downloads
  * the Node archive (injected by tests); `runVersionCheck` runs the extracted `node --version`,
  * which is only possible for the host's own platform.
@@ -140,18 +163,14 @@ export async function materializeHost({
       const reported = execFileSync(nodeBin, ["--version"], { encoding: "utf8" }).trim();
       if (reported !== `v${version}`) throw new Error(`the extracted Node reports ${reported}, not v${version}`);
     }
-    extractPackage(join(root, pin.core.tarball), join(staging, "node_modules", pin.core.package));
-    extractPackage(join(root, pin.core.dependencies.yaml.tarball), join(staging, "node_modules", "yaml"));
     rmSync(join(staging, "download"), { recursive: true, force: true });
     rmSync(extracted, { recursive: true, force: true });
-    writeFileSync(join(staging, "pin-receipt.json"), `${JSON.stringify({
-      schemaVersion: "1.0.0",
-      platform,
-      node: { version, sha256: actual },
-      core: { commit: pin.core.commit, sha256: pin.core.sha256, desktopApiVersion: pin.core.desktopApiVersion },
-      yaml: { version: pin.core.dependencies.yaml.version, integrity: pin.core.dependencies.yaml.integrity },
-    }, null, 2)}\n`);
-    renameSync(staging, outDir);
+    // The host and its core are laid out inside the staging directory, and the Node joins them.
+    const laidOut = join(staging, "layout");
+    layoutHost({ root, pin, outDir: laidOut, node: { platform, node: { version, sha256: actual } } });
+    renameSync(join(staging, "node"), join(laidOut, "node"));
+    renameSync(laidOut, outDir);
+    rmSync(staging, { recursive: true, force: true });
     placed = true;
     return { outDir, nodeBin: join(outDir, "node", "bin", "node"), coreDir: join(outDir, "node_modules", pin.core.package) };
   } finally {

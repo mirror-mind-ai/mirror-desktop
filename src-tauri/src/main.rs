@@ -2,6 +2,7 @@ mod agent_settings;
 mod bounded_child;
 mod journey_appearance;
 mod mirror_discovery;
+mod mirror_host;
 mod model_intents;
 mod native_command_serialization;
 mod native_panic_trace;
